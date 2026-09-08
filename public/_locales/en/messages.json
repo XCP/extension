@@ -3812,10 +3812,6 @@
     "message": "Enter Pool →",
     "description": "pages/market/index.tsx"
   },
-  "market_failed_to_load_dispensers": {
-    "message": "Failed to load dispensers",
-    "description": "pages/market/index.tsx"
-  },
   "market_failed_to_load_more_pools": {
     "message": "Failed to load more pools",
     "description": "pages/market/index.tsx"
@@ -3826,14 +3822,6 @@
   },
   "market_failed_to_load_pools": {
     "message": "Failed to load pools",
-    "description": "pages/market/index.tsx"
-  },
-  "market_failed_to_load_your_dispensers": {
-    "message": "Failed to load your dispensers",
-    "description": "pages/market/index.tsx"
-  },
-  "market_failed_to_load_your_orders": {
-    "message": "Failed to load your orders",
     "description": "pages/market/index.tsx"
   },
   "market_filter_your_dispensers": {
@@ -3852,14 +3840,6 @@
     "message": "Loading pools…",
     "description": "pages/market/index.tsx"
   },
-  "market_loading_your_dispensers": {
-    "message": "Loading your dispensers…",
-    "description": "pages/market/index.tsx"
-  },
-  "market_loading_your_orders": {
-    "message": "Loading your orders…",
-    "description": "pages/market/index.tsx"
-  },
   "market_loading_your_pools": {
     "message": "Loading your pools…",
     "description": "pages/market/index.tsx"
@@ -3868,17 +3848,9 @@
     "message": "No dispensers matching \"$1\"",
     "description": "pages/market/index.tsx. $1 = searchQuery"
   },
-  "market_no_open_dispensers_for": {
-    "message": "No open dispensers for $1",
-    "description": "pages/market/index.tsx. $1 = normalizeAssetQuery(searchQuery)"
-  },
   "market_no_open_dispensers_found": {
     "message": "No open dispensers found",
     "description": "pages/market/index.tsx"
-  },
-  "market_no_open_orders_for": {
-    "message": "No open orders for $1",
-    "description": "pages/market/index.tsx. $1 = searchQuery.toUpperCase()"
   },
   "market_no_open_orders_found": {
     "message": "No open orders found",
@@ -3899,10 +3871,6 @@
   "market_no_pools_matching": {
     "message": "No pools matching \"$1\"",
     "description": "pages/market/index.tsx. $1 = searchQuery"
-  },
-  "market_results_for": {
-    "message": "Results for \"$1\"",
-    "description": "pages/market/index.tsx. $1 = normalizeAssetQuery(searchQuery)"
   },
   "market_search_asset_dispensers": {
     "message": "Search asset dispensers...",
@@ -3927,14 +3895,6 @@
   "market_sections": {
     "message": "Market sections",
     "description": "pages/market/index.tsx"
-  },
-  "market_view_all_dispensers_for": {
-    "message": "View all dispensers for $1 →",
-    "description": "pages/market/index.tsx. $1 = normalizeAssetQuery(searchQuery)"
-  },
-  "market_view_all_orders_for": {
-    "message": "View all orders for $1 →",
-    "description": "pages/market/index.tsx. $1 = searchQuery.toUpperCase()"
   },
   "market_view_mode": {
     "message": "View mode",
@@ -7855,5 +7815,77 @@
   "transaction_unconfirmed": {
     "message": "Unconfirmed",
     "description": "Historical transaction detail: not yet confirmed in a Bitcoin block. Not a user review/acknowledgement state."
+  },
+  "asset_asset_list_load_failed": {
+    "message": "Failed to load owned assets.",
+    "description": "Initial owned-assets page failed to load; explicit Retry action remains available."
+  },
+  "asset_asset_list_load_more_failed": {
+    "message": "Failed to load more assets.",
+    "description": "A subsequent owned-assets page failed; already loaded assets remain shown."
+  },
+  "balance_balance_list_load_failed": {
+    "message": "Failed to load balances.",
+    "description": "Initial balance load failed; any successful partial results remain available."
+  },
+  "balance_balance_list_load_more_failed": {
+    "message": "Failed to load more balances.",
+    "description": "A subsequent balance page failed; existing rows remain visible."
+  },
+  "utxo_utxo_list_load_failed": {
+    "message": "Failed to load UTXO balances.",
+    "description": "Initial UTXO-attached balance load failed, not proof that no balances exist."
+  },
+  "utxo_utxo_list_load_more_failed": {
+    "message": "Failed to load more UTXO balances.",
+    "description": "A subsequent UTXO balance page failed; already loaded rows remain visible."
+  },
+  "utxo_utxo_list_searching_utxo_balances": {
+    "message": "Searching UTXO balances…",
+    "description": "An active UTXO search is still reading remaining pages; do not claim no match before completion."
+  },
+  "common_load_more": {
+    "message": "Load more",
+    "description": "Explicit control to fetch another page while retaining already loaded rows."
+  },
+  "common_loading_more": {
+    "message": "Loading more…",
+    "description": "Status while a subsequent list page is being fetched; existing rows remain visible."
+  },
+  "market_searching_pools": {
+    "message": "Searching pools…",
+    "description": "Status while the pool search examines remaining pages; do not imply no matches until the search completes."
+  },
+  "market_failed_to_load_listings": {
+    "message": "Failed to load listings. Please try again.",
+    "description": "Market dispenser/order list page failed to load. Existing rows stay visible and the adjacent Retry button repeats the failed read. Listings means market records, not marketplace sale authorizations."
+  },
+  "search_error_rate_limited": {
+    "message": "Search is temporarily rate limited. Please try again.",
+    "description": "Search HTTP 429 after the existing retry policy stops. Do not retry automatically on a language change."
+  },
+  "search_error_failed": {
+    "message": "Search failed. Please try again.",
+    "description": "Search received another unsuccessful HTTP status; the HTTP policy and retry timing are unchanged."
+  },
+  "search_error_timeout": {
+    "message": "Failed to load search results: Search request timed out. Please try again.",
+    "description": "Existing search deadline expired, including response-body time. No network-outage diagnosis is implied."
+  },
+  "search_error_invalid_response": {
+    "message": "Failed to load search results: Invalid search response",
+    "description": "Search response lacked the accepted results arrays. Acceptance criteria are unchanged."
+  },
+  "search_error_detail": {
+    "message": "Failed to load search results: $1",
+    "description": "Unknown search diagnostic. $1 is the original error evidence; never translate, parse, or discard it."
+  },
+  "baseasset_quoteasset_select_pair": {
+    "message": "Select a trading pair",
+    "description": "Order-book route has no pair; prompt to select a trading pair, not a trade confirmation."
+  },
+  "baseasset_quoteasset_loading_matches": {
+    "message": "Loading matches…",
+    "description": "Loading the order-book matched-trade history tab."
   }
 }

@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { ManageDispenserCard } from "@/components/domain/dispenser/manage-dispenser-card";
 import { MarketDispenserCard } from "@/components/domain/dispenser/market-dispenser-card";
@@ -38,6 +38,33 @@ import { t } from '@/i18n';
 // Constants
 const COPY_FEEDBACK_MS = 2000;
 const POOL_PAGE_SIZE = 20;
+
+interface ListingPage {
+  error: Error | null;
+  isFetchingMore: boolean;
+  hasMore: boolean;
+  loadMore: () => void;
+  refresh: () => void;
+}
+
+function ListingStatus({ page, searching = false }: { page: ListingPage; searching?: boolean }) {
+  if (page.error) return (
+    <div role="alert" className="text-center text-sm text-gray-600">
+      <p>{t('market_failed_to_load_listings')}</p>
+      <button type="button" onClick={page.refresh}
+        className="mt-2 rounded px-3 py-1 text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+        {t('common_retry')}
+      </button>
+    </div>
+  );
+  if (page.isFetchingMore || searching) return <Spinner message={searching ? t('market_searching') : t('common_loading_more')} />;
+  return page.hasMore ? (
+    <button type="button" onClick={page.loadMore}
+      className="rounded px-3 py-1 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+      {t('common_load_more')}
+    </button>
+  ) : null;
+}
 
 /**
  * Market page displays the XCP DEX marketplace with Dispensers, Orders, and Pools tabs.
@@ -106,11 +133,8 @@ export default function MarketPage(): ReactElement {
     orderResults,
     dispenserSearchLoading,
     orderSearchLoading,
-    dispenserSearchError,
-    orderSearchError,
-    handleDispenserSearch,
-    handleOrderSearch,
-    PAGE_SIZE,
+    dispenserSearch,
+    orderSearch,
   } = useMarketData({
     activeAddress: activeAddress?.address,
     activeTab,
@@ -128,6 +152,7 @@ export default function MarketPage(): ReactElement {
     usePendingCancellations(wantsCancellations ? activeAddress?.address : undefined);
 
   // Pool state (explore = all pools, manage = user's LP positions)
+  const poolAddress = activeAddress?.address;
   const [pools, setPools] = useState<Pool[]>([]);
   const [userPools, setUserPools] = useState<PoolPosition[]>([]);
   const [poolsLoading, setPoolsLoading] = useState(false);
@@ -136,6 +161,8 @@ export default function MarketPage(): ReactElement {
   const [poolsOffset, setPoolsOffset] = useState(0);
   const [poolsHasMore, setPoolsHasMore] = useState(true);
   const [poolsInitialLoaded, setPoolsInitialLoaded] = useState(false);
+  const [poolsReload, setPoolsReload] = useState(0);
+  const poolsSession = useRef<{ cancelled: boolean; busy: boolean } | null>(null);
 
   const appendPools = useCallback((newPools: Pool[]) => {
     setPools((current) => {
@@ -156,104 +183,117 @@ export default function MarketPage(): ReactElement {
   useEffect(() => {
     if (activeTab !== 2) return;
 
-    let cancelled = false;
+    const session = { cancelled: false, busy: true };
+    poolsSession.current = session;
     setPools([]);
     setUserPools([]);
     setPoolsOffset(0);
     setPoolsHasMore(true);
     setPoolsInitialLoaded(false);
     setPoolsLoading(true);
+    setPoolsFetchingMore(false);
     setPoolsError("");
 
     const loadPools = async () => {
       try {
         if (viewMode === "manage") {
-          if (!activeAddress?.address) {
+          if (!poolAddress) {
+            setPoolsHasMore(false);
             setPoolsInitialLoaded(true);
             return;
           }
-          const response = await fetchAddressPools(activeAddress.address, { limit: POOL_PAGE_SIZE, offset: 0 });
-          if (cancelled) return;
+          const response = await fetchAddressPools(poolAddress, { limit: POOL_PAGE_SIZE, offset: 0 });
+          if (session.cancelled) return;
           setUserPools(response.result.map(normalizePoolPosition));
           setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && response.result.length < response.result_count);
         } else {
           const response = await fetchPools({ limit: POOL_PAGE_SIZE, offset: 0 });
-          if (cancelled) return;
+          if (session.cancelled) return;
           setPools(response.result);
           setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && response.result.length < response.result_count);
         }
         setPoolsOffset(POOL_PAGE_SIZE);
         setPoolsInitialLoaded(true);
       } catch (err) {
-        if (!cancelled) {
+        if (!session.cancelled) {
           setPoolsError(err instanceof Error ? err.message : t('market_failed_to_load_pools'));
           setPoolsInitialLoaded(true);
         }
       } finally {
-        if (!cancelled) setPoolsLoading(false);
+        if (!session.cancelled) {
+          session.busy = false;
+          setPoolsLoading(false);
+        }
       }
     };
 
     loadPools();
 
     return () => {
-      cancelled = true;
+      session.cancelled = true;
     };
-  }, [activeAddress?.address, activeTab, viewMode]);
+  }, [poolAddress, activeTab, viewMode, poolsReload]);
 
-  useEffect(() => {
-    if (activeTab !== 2 || !inView || !poolsHasMore || poolsFetchingMore || poolsLoading || !poolsInitialLoaded) {
+  const loadMorePools = useCallback(async () => {
+    const session = poolsSession.current;
+    if (!session || session.cancelled || session.busy || activeTab !== 2
+      || !poolsHasMore || poolsLoading || !poolsInitialLoaded) {
       return;
     }
-    if (viewMode === "manage" && !activeAddress?.address) return;
+    if (viewMode === "manage" && !poolAddress) return;
 
-    let cancelled = false;
-
-    const loadMorePools = async () => {
-      setPoolsFetchingMore(true);
-      setPoolsError("");
-
-      try {
-        if (viewMode === "manage") {
-          const response = await fetchAddressPools(activeAddress!.address, { limit: POOL_PAGE_SIZE, offset: poolsOffset });
-          if (cancelled) return;
-          appendUserPools(response.result.map(normalizePoolPosition));
-          setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && poolsOffset + response.result.length < response.result_count);
-        } else {
-          const response = await fetchPools({ limit: POOL_PAGE_SIZE, offset: poolsOffset });
-          if (cancelled) return;
-          appendPools(response.result);
-          setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && poolsOffset + response.result.length < response.result_count);
-        }
-        setPoolsOffset((current) => current + POOL_PAGE_SIZE);
-      } catch (err) {
-        if (!cancelled) {
-          setPoolsError(err instanceof Error ? err.message : t('market_failed_to_load_more_pools'));
-          setPoolsHasMore(false);
-        }
-      } finally {
-        if (!cancelled) setPoolsFetchingMore(false);
+    // The request belongs to this address/view session. Changing loading state or
+    // scrolling must not cancel its response; leaving the session still does.
+    session.busy = true;
+    setPoolsFetchingMore(true);
+    setPoolsError("");
+    try {
+      if (viewMode === "manage") {
+        const response = await fetchAddressPools(poolAddress!, { limit: POOL_PAGE_SIZE, offset: poolsOffset });
+        if (session.cancelled) return;
+        appendUserPools(response.result.map(normalizePoolPosition));
+        setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && poolsOffset + response.result.length < response.result_count);
+      } else {
+        const response = await fetchPools({ limit: POOL_PAGE_SIZE, offset: poolsOffset });
+        if (session.cancelled) return;
+        appendPools(response.result);
+        setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && poolsOffset + response.result.length < response.result_count);
       }
-    };
-
-    loadMorePools();
-
-    return () => {
-      cancelled = true;
-    };
+      setPoolsOffset((current) => current + POOL_PAGE_SIZE);
+    } catch (err) {
+      if (!session.cancelled) {
+        setPoolsError(err instanceof Error ? err.message : t('market_failed_to_load_more_pools'));
+      }
+    } finally {
+      if (!session.cancelled) {
+        session.busy = false;
+        setPoolsFetchingMore(false);
+      }
+    }
   }, [
-    activeAddress,
+    poolAddress,
     activeTab,
     appendPools,
     appendUserPools,
-    inView,
-    poolsFetchingMore,
     poolsHasMore,
     poolsInitialLoaded,
     poolsLoading,
     poolsOffset,
     viewMode,
   ]);
+
+  useEffect(() => {
+    // Core has no pool-search endpoint. Finish the remaining pages during a
+    // search, including when the loaded page contains no matching cards.
+    if (poolsError || (!inView && !searchQuery.trim())) return;
+    // Start after this effect flush, allowing a view reset to settle first.
+    // Cleanup cancels only a queued start; running requests belong to the session.
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void loadMorePools();
+    });
+    return () => { cancelled = true; };
+  }, [inView, searchQuery, poolsError, poolsFetchingMore, loadMorePools]);
 
   const filterPools = <T extends Pool>(poolList: T[]): T[] => {
     const q = searchQuery.trim().toUpperCase();
@@ -266,6 +306,8 @@ export default function MarketPage(): ReactElement {
   };
   const filteredPools = filterPools(pools);
   const filteredUserPools = filterPools(userPools);
+  const visiblePools = viewMode === "explore" ? filteredPools : filteredUserPools;
+  const poolsSearchPending = searchQuery.trim().length > 0 && poolsHasMore && !poolsError;
 
   // Configure header
   useEffect(() => {
@@ -315,6 +357,10 @@ export default function MarketPage(): ReactElement {
   };
 
   const isSearching = searchQuery.trim().length > 0;
+  const dispenserPage = viewMode === "manage" ? userDispensers : isSearching ? dispenserSearch : dispensers;
+  const orderPage = viewMode === "manage" ? userOrders : isSearching ? orderSearch : orders;
+  const shownDispensers = viewMode === "manage" ? filteredUserDispensers : isSearching ? dispenserResults : dispensers.data;
+  const shownOrderCount = viewMode === "manage" ? filteredUserOrders.length : isSearching ? orderResults.length : orders.data.length;
 
   return (
     <div className="flex flex-col h-full">
@@ -403,321 +449,136 @@ export default function MarketPage(): ReactElement {
         <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4">
           {activeTab === 0 && (
             <div className="space-y-3">
-              {viewMode === "explore" ? (
-                <>
-                  <SearchInput
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    onSearch={handleDispenserSearch}
-                    placeholder={t('market_search_asset_dispensers')}
-                    name="dispenser-search"
-                    isLoading={dispenserSearchLoading}
-                    showClearButton
-                    className="mt-0.5"
-                  />
-
-                  {isSearching ? (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">
-                        {t('market_results_for', [String(normalizeAssetQuery(searchQuery))])}
-                      </p>
-                      {dispenserSearchLoading ? (
-                        <Spinner message={t('market_searching')} />
-                      ) : dispenserSearchError ? (
-                        <EmptyState message={dispenserSearchError} />
-                      ) : dispenserResults.length > 0 ? (
-                        <div className="space-y-2">
-                          {dispenserResults.map((d) => (
-                            <MarketDispenserCard
-                              key={d.tx_hash}
-                              dispenser={d}
-                              formattedPrice={formatPrice(toNumber(d.satoshirate), settings.priceUnit, btc, settings.fiat)}
-                              onClick={() => handleDispenserClick(d)}
-                            />
-                          ))}
-                          {dispenserResults.length >= PAGE_SIZE && (
-                            <button type="button"
-                              onClick={() => navigate(`/market/dispensers/${normalizeAssetQuery(searchQuery)}`)}
-                              className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                            >
-                              {t('market_view_all_dispensers_for', [String(normalizeAssetQuery(searchQuery))])}
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <EmptyState message={t('market_no_open_dispensers_for', [String(normalizeAssetQuery(searchQuery))])} />
-                      )}
-                    </div>
-                  ) : dispensers.isLoading ? (
-                    <Spinner message={t('common_loading_dispensers')} />
-                  ) : dispensers.error ? (
-                    <EmptyState message={t('market_failed_to_load_dispensers')} />
-                  ) : dispensers.data.length > 0 ? (
-                    <>
-                      <div className="space-y-2">
-                        {dispensers.data.map((d) => (
-                          <MarketDispenserCard
-                            key={d.tx_hash}
-                            dispenser={d}
-                            formattedPrice={formatPrice(toNumber(d.satoshirate), settings.priceUnit, btc, settings.fiat)}
-                            onClick={() => handleDispenserClick(d)}
-                          />
-                        ))}
-                      </div>
-                      <div ref={loadMoreRef} className="flex justify-center py-2">
-                        {dispensers.isFetchingMore && <Spinner />}
-                      </div>
-                    </>
-                  ) : (
-                    <EmptyState message={t('market_no_open_dispensers_found')} />
-                  )}
-                </>
+              <SearchInput value={searchQuery} onChange={setSearchQuery}
+                placeholder={viewMode === "explore" ? t('market_search_asset_dispensers') : t('market_filter_your_dispensers')}
+                name={viewMode === "explore" ? "dispenser-search" : "dispenser-filter"}
+                isLoading={viewMode === "explore" && isSearching && dispenserSearchLoading}
+                showClearButton className="mt-0.5" />
+              {(dispenserPage.isLoading || (viewMode === "explore" && isSearching && dispenserSearchLoading)) ? (
+                <Spinner message={isSearching ? t('market_searching') : t('common_loading_dispensers')} />
               ) : (
                 <>
-                  <SearchInput
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    placeholder={t('market_filter_your_dispensers')}
-                    name="dispenser-filter"
-                    showClearButton
-                    className="mt-0.5"
-                  />
-                  {userDispensers.isLoading ? (
-                    <Spinner message={t('market_loading_your_dispensers')} />
-                  ) : userDispensers.error ? (
-                    <EmptyState message={t('market_failed_to_load_your_dispensers')} />
-                  ) : (
-                    <>
-                      {filteredUserDispensers.length > 0 ? (
-                        <>
-                          <div className="space-y-2">
-                            {filteredUserDispensers.map((d) => (
-                              <ManageDispenserCard key={d.tx_hash} dispenser={d} isClosing={closingDispensers.has(d.tx_hash)} />
-                            ))}
-                          </div>
-                          <div ref={loadMoreRef} className="flex justify-center py-2">
-                            {userDispensers.isFetchingMore && <Spinner />}
-                          </div>
-                        </>
-                      ) : searchQuery.trim() ? (
-                        <EmptyState message={t('market_no_dispensers_matching', [String(searchQuery)])} />
-                      ) : (
-                        <EmptyState message={t('market_you_don_t_have_any')} />
-                      )}
-                      <button type="button"
-                        onClick={() => navigate(searchQuery.trim() ? `/compose/dispenser/${searchQuery.toUpperCase()}` : "/compose/dispenser")}
-                        className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                      >
-                        {t('common_create_new_dispenser')}
-                      </button>
-                    </>
+                  <div className="space-y-2">
+                    {shownDispensers.map(d => viewMode === "manage" ? (
+                      <ManageDispenserCard key={d.tx_hash} dispenser={d} isClosing={closingDispensers.has(d.tx_hash)} />
+                    ) : (
+                      <MarketDispenserCard key={d.tx_hash} dispenser={d}
+                        formattedPrice={formatPrice(toNumber(d.satoshirate), settings.priceUnit, btc, settings.fiat)}
+                        onClick={() => handleDispenserClick(d)} />
+                    ))}
+                  </div>
+                  {!shownDispensers.length && !dispenserPage.hasMore && !dispenserPage.error && (
+                    <EmptyState message={isSearching
+                      ? t('market_no_dispensers_matching', [String(searchQuery)])
+                      : viewMode === "manage" ? t('market_you_don_t_have_any') : t('market_no_open_dispensers_found')} />
                   )}
+                  <div ref={loadMoreRef} className="flex justify-center py-2">
+                    <ListingStatus page={dispenserPage} searching={dispenserPage.hasMore
+                      && (shownDispensers.length === 0 || (viewMode === "manage" && isSearching))} />
+                  </div>
                 </>
+              )}
+              {viewMode === "manage" && (
+                <button type="button"
+                  onClick={() => navigate(isSearching ? `/compose/dispenser/${encodeURIComponent(normalizeAssetQuery(searchQuery))}` : "/compose/dispenser")}
+                  className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
+                  {t('common_create_new_dispenser')}
+                </button>
               )}
             </div>
           )}
 
           {activeTab === 1 && (
             <div className="space-y-3">
-              {viewMode === "explore" ? (
-                <>
-                  <SearchInput
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    onSearch={handleOrderSearch}
-                    placeholder={t('market_search_asset_orders')}
-                    name="order-search"
-                    isLoading={orderSearchLoading}
-                    showClearButton
-                    className="mt-0.5"
-                  />
-
-                  {isSearching ? (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">
-                        {t('market_results_for', [String(normalizeAssetQuery(searchQuery))])}
-                      </p>
-                      {orderSearchLoading ? (
-                        <Spinner message={t('market_searching')} />
-                      ) : orderSearchError ? (
-                        <EmptyState message={orderSearchError} />
-                      ) : orderResults.length > 0 ? (
-                        <div className="space-y-2">
-                          {orderResults.map((o) => (
-                            <MarketOrderCard
-                              key={o.tx_hash}
-                              order={o}
-                              onClick={() => handleOrderClick(o)}
-                            />
-                          ))}
-                          {orderResults.length >= PAGE_SIZE && (
-                            <button type="button"
-                              onClick={() => navigate(`/market/orders/${searchQuery.toUpperCase()}/XCP`)}
-                              className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                            >
-                              {t('market_view_all_orders_for', [String(searchQuery.toUpperCase())])}
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <EmptyState message={t('market_no_open_orders_for', [String(searchQuery.toUpperCase())])} />
-                      )}
-                    </div>
-                  ) : orders.isLoading ? (
-                    <Spinner message={t('market_loading_orders')} />
-                  ) : orders.error ? (
-                    <EmptyState message={t('market_failed_to_load_orders')} />
-                  ) : orders.data.length > 0 ? (
-                    <>
-                      <div className="space-y-2">
-                        {orders.data.map((o) => (
-                          <MarketOrderCard
-                            key={o.tx_hash}
-                            order={o}
-                            onClick={() => handleOrderClick(o)}
-                          />
-                        ))}
-                      </div>
-                      <div ref={loadMoreRef} className="flex justify-center py-2">
-                        {orders.isFetchingMore && <Spinner />}
-                      </div>
-                    </>
-                  ) : (
-                    <EmptyState message={t('market_no_open_orders_found')} />
-                  )}
-                </>
+              <SearchInput value={searchQuery} onChange={setSearchQuery}
+                placeholder={viewMode === "explore" ? t('market_search_asset_orders') : t('market_filter_your_orders')}
+                name={viewMode === "explore" ? "order-search" : "order-filter"}
+                isLoading={viewMode === "explore" && isSearching && orderSearchLoading}
+                showClearButton className="mt-0.5" />
+              {(orderPage.isLoading || (viewMode === "explore" && isSearching && orderSearchLoading)) ? (
+                <Spinner message={isSearching ? t('market_searching') : t('market_loading_orders')} />
               ) : (
                 <>
-                  <SearchInput
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    placeholder={t('market_filter_your_orders')}
-                    name="order-filter"
-                    showClearButton
-                    className="mt-0.5"
-                  />
-                  {userOrders.isLoading ? (
-                    <Spinner message={t('market_loading_your_orders')} />
-                  ) : userOrders.error ? (
-                    <EmptyState message={t('market_failed_to_load_your_orders')} />
-                  ) : (
-                    <>
-                      {filteredUserOrders.length > 0 ? (
-                        <>
-                          <div className="space-y-2">
-                            {filteredUserOrders.map((o) => (
-                              <ManageOrderCard key={o.tx_hash} order={o} isCancelling={cancellingOrders.has(o.tx_hash)} />
-                            ))}
-                          </div>
-                          <div ref={loadMoreRef} className="flex justify-center py-2">
-                            {userOrders.isFetchingMore && <Spinner />}
-                          </div>
-                        </>
-                      ) : searchQuery.trim() ? (
-                        <EmptyState message={t('market_no_orders_matching', [String(searchQuery)])} />
-                      ) : (
-                        <EmptyState message={t('market_you_don_t_have_any_2')} />
-                      )}
-                      <button type="button"
-                        onClick={() => navigate(searchQuery.trim() ? `/compose/order/${searchQuery.toUpperCase()}` : "/compose/order")}
-                        className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                      >
-                        {t('common_create_new_order')}
-                      </button>
-                    </>
+                  <div className="space-y-2">
+                    {viewMode === "manage"
+                      ? filteredUserOrders.map(o => <ManageOrderCard key={o.tx_hash} order={o} isCancelling={cancellingOrders.has(o.tx_hash)} />)
+                      : (isSearching ? orderResults : orders.data).map(o => <MarketOrderCard key={o.tx_hash} order={o} onClick={() => handleOrderClick(o)} />)}
+                  </div>
+                  {!shownOrderCount && !orderPage.hasMore && !orderPage.error && (
+                    <EmptyState message={isSearching
+                      ? t('market_no_orders_matching', [String(searchQuery)])
+                      : viewMode === "manage" ? t('market_you_don_t_have_any_2') : t('market_no_open_orders_found')} />
                   )}
+                  <div ref={loadMoreRef} className="flex justify-center py-2">
+                    <ListingStatus page={orderPage} searching={viewMode === "manage" && isSearching && orderPage.hasMore} />
+                  </div>
                 </>
+              )}
+              {viewMode === "manage" && (
+                <button type="button"
+                  onClick={() => navigate(isSearching ? `/compose/order/${encodeURIComponent(normalizeAssetQuery(searchQuery))}` : "/compose/order")}
+                  className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
+                  {t('common_create_new_order')}
+                </button>
               )}
             </div>
           )}
 
           {activeTab === 2 && (
             <div className="space-y-3">
-              {viewMode === "explore" ? (
-                <>
-                  <SearchInput
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    placeholder={t('market_search_pools')}
-                    name="pool-filter"
-                    showClearButton
-                    className="mt-0.5"
-                  />
-                  {poolsLoading ? (
-                    <Spinner message={t('market_loading_pools')} />
-                  ) : poolsError ? (
-                    <EmptyState message={poolsError} />
-                  ) : filteredPools.length > 0 ? (
-                    <>
-                      <div className="space-y-2">
-                        {filteredPools.map((pool) => (
-                          <PoolCard
-                            key={pool.lp_asset}
-                            pool={pool}
-                            onClick={() => navigate(`/pools/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
-                          />
-                        ))}
-                      </div>
-                      <div ref={loadMoreRef} className="flex justify-center py-2">
-                        {poolsFetchingMore && <Spinner />}
-                      </div>
-                    </>
-                  ) : (
-                    <EmptyState message={searchQuery.trim() ? t('market_no_pools_matching', [String(searchQuery)]) : t('market_no_pools_found')} />
-                  )}
-                  <button type="button"
-                    onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${searchQuery.toUpperCase()}/XCP` : "/compose/pool/deposit")}
-                    className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                  >
-                    {t('market_enter_pool')}
-                  </button>
-                </>
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder={viewMode === "explore" ? t('market_search_pools') : t('market_search_your_pools')}
+                name={viewMode === "explore" ? "pool-filter" : "pool-manage-filter"}
+                showClearButton
+                className="mt-0.5"
+              />
+              {poolsLoading ? (
+                <Spinner message={viewMode === "explore" ? t('market_loading_pools') : t('market_loading_your_pools')} />
               ) : (
                 <>
-                  <SearchInput
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    placeholder={t('market_search_your_pools')}
-                    name="pool-manage-filter"
-                    showClearButton
-                    className="mt-0.5"
-                  />
-                  {poolsLoading ? (
-                    <Spinner message={t('market_loading_your_pools')} />
-                  ) : poolsError ? (
-                    <EmptyState message={poolsError} />
-                  ) : (
-                    <>
-                      {filteredUserPools.length > 0 ? (
-                        <>
-                          <div className="space-y-2">
-                            {filteredUserPools.map((pool) => (
-                              <PoolCard
-                                key={pool.lp_asset}
-                                pool={pool}
-                                onClick={() => navigate(`/pools/${encodeURIComponent(pool.lp_asset)}`)}
-                              />
-                            ))}
-                          </div>
-                          <div ref={loadMoreRef} className="flex justify-center py-2">
-                            {poolsFetchingMore && <Spinner />}
-                          </div>
-                        </>
-                      ) : searchQuery.trim() ? (
-                        <EmptyState message={t('market_no_pool_positions_matching', [String(searchQuery)])} />
-                      ) : (
-                        <EmptyState message={t('market_you_don_t_have_any_3')} />
-                      )}
-                      <button type="button"
-                        onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${searchQuery.toUpperCase()}/XCP` : "/compose/pool/deposit")}
-                        className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                      >
-                        {t('market_enter_pool')}
-                      </button>
-                    </>
+                  {visiblePools.length > 0 && (
+                    <div className="space-y-2">
+                      {visiblePools.map((pool) => (
+                        <PoolCard
+                          key={pool.lp_asset}
+                          pool={pool}
+                          onClick={() => navigate(viewMode === "manage"
+                            ? `/pools/${encodeURIComponent(pool.lp_asset)}`
+                            : `/pools/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
+                        />
+                      ))}
+                    </div>
                   )}
+                  {poolsError ? (
+                    <div role="alert" className="text-center text-sm text-gray-600">
+                      <p>{poolsError}</p>
+                      <button type="button"
+                        onClick={() => poolsOffset === 0 ? setPoolsReload((current) => current + 1) : void loadMorePools()}
+                        className="mt-2 rounded px-3 py-1 text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      >
+                        {t('common_retry')}
+                      </button>
+                    </div>
+                  ) : visiblePools.length === 0 && !poolsSearchPending && (
+                    <EmptyState message={isSearching
+                      ? viewMode === "manage" ? t('market_no_pool_positions_matching', [String(searchQuery)]) : t('market_no_pools_matching', [String(searchQuery)])
+                      : viewMode === "manage" ? t('market_you_don_t_have_any_3') : t('market_no_pools_found')} />
+                  )}
+                  <div ref={loadMoreRef} className="flex justify-center py-2">
+                    {(poolsFetchingMore || poolsSearchPending) && !poolsError && (
+                      <Spinner message={isSearching ? t('market_searching_pools') : undefined} />
+                    )}
+                  </div>
                 </>
               )}
+              <button type="button"
+                onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${encodeURIComponent(normalizeAssetQuery(searchQuery))}/XCP` : "/compose/pool/deposit")}
+                className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+              >
+                {t('market_enter_pool')}
+              </button>
             </div>
           )}
         </div>

@@ -1,4 +1,4 @@
-import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactElement, useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { SearchResultCard } from "@/components/domain/asset/search-result-card";
 import { BalanceCard } from "@/components/domain/balance/balance-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
@@ -6,20 +6,20 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 import { spendableBalance, tracksPendingLedgerDebits } from "@/core/balances/spendable";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { fetchTokenBalance, fetchTokenBalances } from "@/core/counterparty/api";
+import { normalizeAssetQuery } from "@/core/format";
 import { asDisplayUnits, fromSatoshis, isGreaterThan } from '@/core/numeric';
 import { useInView } from "@/hooks/useInView";
 import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
-import { useRefreshSignal } from "@/hooks/useRefreshSignal";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
 
-
-import { t } from '@/i18n';
 
 interface BalanceListProps {
   /**
@@ -34,39 +34,29 @@ interface BalanceListProps {
 }
 
 export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}): ReactElement => {
+  useLocaleRevision();
   const { activeWallet, activeAddress } = useWallet();
   const { settings } = useSettings();
   const { cacheBalances } = useHeader();
+  const address = activeAddress?.address;
+  const walletId = activeWallet?.id;
+  const pinnedAssetKey = (settings?.pinnedAssets ?? []).map(normalizeAssetQuery).join("\n");
   const [allBalances, setAllBalances] = useState<TokenBalance[]>([]);
-  const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(false);
-  const { searchQuery, setSearchQuery, searchResults, isSearching } = useSearchQuery();
+  const [isInitialLoading, setIsInitialLoading] = useState(Boolean(address && walletId));
+  const [error, setError] = useState<'initial' | 'more' | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const sessionRef = useRef<{ address: string; offset: number; busy: boolean; loaded: boolean; hasMore: boolean } | null>(null);
+  const previousRefreshNonce = useRef(refreshNonce);
+  const notifyRefreshed = useEffectEvent((completedNonce: number | undefined) => {
+    if (completedNonce === refreshNonce) onRefreshed?.();
+  });
+  const { searchQuery, setSearchQuery, searchResults, isSearching, error: searchError, retry: retrySearch } = useSearchQuery();
+  const isSearchActive = searchQuery.trim().length > 0;
 
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
-
-  useEffect(() => {
-    setInitialLoaded(false);
-  }, [settings?.pinnedAssets]);
-
-  // A refresh reuses the same lever the pinned-asset list already pulls, rather than adding a
-  // second path through the loading code. The ref records that a refresh was asked for, so the
-  // completion callback fires for refreshes alone — the load path also runs on mount, on address
-  // changes and on pinned-asset changes, and announcing those as "your refresh finished" made the
-  // callback's contract a lie the current caller merely happened to tolerate.
-  const refreshRequestedRef = useRef(false);
-  useRefreshSignal(refreshNonce, () => {
-    refreshRequestedRef.current = true;
-    setInitialLoaded(false);
-  });
-  const settleRefresh = () => {
-    if (refreshRequestedRef.current) {
-      refreshRequestedRef.current = false;
-      latestOnRefreshed.current?.();
-    }
-  };
 
   // Read alongside the balances and on the same refresh, so the amount and what is happening to it
   // never come from two different moments.
@@ -88,11 +78,6 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
     if (spendable === balance.quantity_normalized) return balance;
     return { ...balance, quantity_normalized: asDisplayUnits(spendable) };
   }, [pendingDeltas]);
-
-  // Held in a ref for the same reason as in useRefreshSignal: callers pass an inline arrow, and
-  // depending on it would restart the load on every render of the parent.
-  const latestOnRefreshed = useRef(onRefreshed);
-  latestOnRefreshed.current = onRefreshed;
 
   const pendingByAssetLabel = useMemo(() => labelsFromDeltas(pendingDeltas), [pendingDeltas]);
 
@@ -116,26 +101,25 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   }, [cacheBalances]);
 
   useEffect(() => {
-    if (!activeAddress || !activeWallet || initialLoaded) {
-      if (!activeAddress || !activeWallet) {
-        setAllBalances([]);
-        setOffset(0);
-        setHasMore(true);
-        // A refresh that raced the address going away is still over; leaving the spinner running
-        // because there was nothing to load would strand it.
-        settleRefresh();
+    const requestedRefresh = previousRefreshNonce.current !== refreshNonce;
+    previousRefreshNonce.current = refreshNonce;
+    let settled = false;
+    const settleRefresh = () => {
+      if (!settled && requestedRefresh) {
+        settled = true;
+        notifyRefreshed(refreshNonce);
       }
-      return;
-    }
-
-    let isCancelled = false;
+    };
+    // A new object owns this address/refresh's initial load and all subsequent pages.
+    const session = address && walletId ? { address, offset: 0, busy: true, loaded: false, hasMore: true } : null;
+    sessionRef.current = session;
+    let cancelled = false;
 
     const loadInitialBalances = async () => {
-      console.log('[BalanceList] Loading initial balances...');
+      if (!session) return;
       setIsInitialLoading(true);
       try {
-        const balanceSats = await fetchBTCBalance(activeAddress.address);
-        const btcBalance: TokenBalance = {
+        const btcPromise = fetchBTCBalance(session.address).then((balanceSats): TokenBalance => ({
           asset: "BTC",
           quantity_normalized: asDisplayUnits(fromSatoshis(balanceSats)),
           asset_info: {
@@ -146,95 +130,90 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
             locked: true,
             supply: "21000000"
           },
-        };
-        if (!isCancelled) upsertBalance(btcBalance);
-
-        const pinnedAssets = settings?.pinnedAssets || [];
-        const nonBTCAssets = pinnedAssets.filter((asset) => asset.toUpperCase() !== "BTC");
-        const balancePromises = nonBTCAssets.map(async (asset) => {
-          try {
-            const balance = await fetchTokenBalance(activeAddress.address, asset, { type: 'address' });
-            return { asset, balance };
-          } catch (error) {
-            console.error(`Error fetching ${asset} balance:`, error);
-            return null;
-          }
-        });
-        const results = await Promise.all(balancePromises);
-        results.forEach((result) => {
-          if (result && result.balance && !isCancelled) {
-            upsertBalance(result.balance);
-          }
-        });
+        }));
+        const nonBTCAssets = [...new Set(pinnedAssetKey.split("\n").filter((asset) => asset && asset !== "BTC"))];
+        const results = await Promise.allSettled([
+          btcPromise,
+          ...nonBTCAssets.map((asset) => fetchTokenBalance(session.address, asset, { type: "address" })),
+        ]);
+        if (sessionRef.current !== session) return;
+        const balances = results.flatMap((result) => result.status === "fulfilled" && result.value ? [result.value] : []);
+        setAllBalances(balances);
+        cacheBalances(balances);
+        const failure = results.find((result) => result.status === "rejected");
+        if (failure?.status === "rejected") throw failure.reason;
+        session.loaded = true;
+        setInitialLoaded(true);
+        setHasMore(true);
       } catch (error) {
-        console.error("Error in loadInitialBalances:", error);
-      } finally {
-        if (!isCancelled) {
-          console.log('[BalanceList] Initial load complete');
-          setIsInitialLoading(false);
-          setInitialLoaded(true);
-          setOffset(0);
-          setHasMore(true);
+        if (sessionRef.current === session) {
+          console.error("Error in loadInitialBalances:", error);
+          setError('initial');
         }
-        // Outside the isCancelled guard on purpose. A cancelled load still ends the refresh the
-        // caller is showing a spinner for; leaving it spinning because the address changed
-        // mid-flight would strand it there.
+      } finally {
+        if (sessionRef.current === session) {
+          session.busy = false;
+          setIsInitialLoading(false);
+        }
         settleRefresh();
       }
     };
 
-    loadInitialBalances();
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setAllBalances([]);
+      setHasMore(false);
+      setInitialLoaded(false);
+      setIsFetchingMore(false);
+      setError(null);
+      if (session) void loadInitialBalances();
+      else {
+        setIsInitialLoading(false);
+        settleRefresh();
+      }
+    });
 
-    return () => { isCancelled = true; };
-  }, [activeAddress, activeWallet, upsertBalance, initialLoaded, settings?.pinnedAssets]);
+    return () => {
+      cancelled = true;
+      if (sessionRef.current === session) sessionRef.current = null;
+      settleRefresh();
+    };
+  }, [address, walletId, cacheBalances, pinnedAssetKey, refreshNonce, retryNonce]);
 
   // Load more on scroll
-  useEffect(() => {
-    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !inView) {
-      return;
-    }
-
-    console.log('[BalanceList] Loading more from offset:', offset);
-
-    const loadMoreBalances = async () => {
-      setIsFetchingMore(true);
-      try {
-        const limit = 20; // Increased from 10 to 20
-        const fetchedBalances = await fetchTokenBalances(activeAddress.address, { type: 'address', limit, offset });
-        console.log('[BalanceList] Fetched', fetchedBalances.length, 'balances');
-
-        // If we get less than requested, or no balances at all, no more to load
-        if (fetchedBalances.length < limit) {
-          console.log('[BalanceList] No more balances to load (got', fetchedBalances.length, 'of', limit, ')');
-          setHasMore(false);
-        }
-
-        // Only process if we have balances
-        if (fetchedBalances.length > 0) {
-          console.log('[BalanceList] Processing fetched balances...');
-          fetchedBalances.forEach((balance) => {
-            upsertBalance(balance);
-          });
-
-          // Only increment offset if we processed some balances
-          setOffset((prev) => {
-            console.log('[BalanceList] Updating offset from', prev, 'to', prev + limit);
-            return prev + limit;
-          });
-        } else {
-          console.log('[BalanceList] No balances returned, stopping pagination');
-          setHasMore(false);
-        }
-      } catch (error) {
+  const loadMore = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session || session.busy || !session.loaded || !session.hasMore) return;
+    session.busy = true;
+    setIsFetchingMore(true);
+    setError(null);
+    try {
+      const limit = 20;
+      const fetchedBalances = await fetchTokenBalances(session.address, { type: 'address', limit, offset: session.offset });
+      if (sessionRef.current !== session) return;
+      fetchedBalances.forEach(upsertBalance);
+      session.offset += limit;
+      session.hasMore = fetchedBalances.length === limit;
+      setHasMore(session.hasMore);
+    } catch (error) {
+      if (sessionRef.current === session) {
         console.error("Error fetching more balances:", error);
-        setHasMore(false);
-      } finally {
+        setError('more');
+      }
+    } finally {
+      if (sessionRef.current === session) {
+        session.busy = false;
         setIsFetchingMore(false);
       }
-    };
+    }
+  }, [upsertBalance]);
 
-    loadMoreBalances();
-  }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance, isFetchingMore]);
+  useEffect(() => {
+    if (!inView || !initialLoaded || !hasMore || isFetchingMore || error || isSearchActive) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void loadMore(); });
+    return () => { cancelled = true; };
+  }, [inView, initialLoaded, hasMore, isFetchingMore, error, isSearchActive, loadMore]);
 
   // BTC is always pinned, plus user's pinned assets
   const pinnedAssets = ["BTC"].concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
@@ -263,8 +242,6 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           && isGreaterThan(shown.quantity_normalized, 0);
       });
 
-  if (isInitialLoading) return <Spinner message={t('balance_balance_list_loading_balances')} />;
-
   return (
     <div className="space-y-2">
       <SearchInput
@@ -276,16 +253,29 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         showClearButton={true}
         isLoading={isSearching}
       />
-      {searchQuery ? (
+      {isSearchActive ? (
         isSearching ? (
           <Spinner message={t('balance_balance_list_searching_balances')} />
+        ) : searchError ? (
+          <div role="alert" className="py-4 text-center text-sm text-red-600">
+            <p>{searchError}</p>
+            <button type="button" onClick={retrySearch} className="mt-2 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
+          </div>
         ) : searchResults.length === 0 ? (
           <div className="text-center py-4 text-gray-500">{t('common_no_results_found')}</div>
         ) : (
           searchResults.map((asset) => <SearchResultCard key={asset.symbol} symbol={asset.symbol} navigationType="balance" />)
         )
+      ) : isInitialLoading ? (
+        <Spinner message={t('balance_balance_list_loading_balances')} />
       ) : (
         <>
+          {error && (
+            <div role="alert" className="py-4 text-center text-sm text-red-600">
+              <p>{error === 'initial' ? t('balance_balance_list_load_failed') : t('balance_balance_list_load_more_failed')}</p>
+              <button type="button" onClick={() => initialLoaded ? void loadMore() : setRetryNonce((n) => n + 1)} className="mt-2 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
+            </div>
+          )}
           {visibleBalances(pinnedBalances).map(({ balance, shown }) => (
             <BalanceCard token={shown} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
@@ -293,7 +283,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
             <BalanceCard token={shown} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
           <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
-            {hasMore ? (
+            {hasMore && !error ? (
               isFetchingMore ? (
                 <Spinner className="py-4" />
               ) : (

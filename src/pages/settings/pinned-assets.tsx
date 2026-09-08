@@ -33,7 +33,7 @@ const PATHS = {
  */
 export default function PinnedAssetsPage(): ReactElement {
   const [pinnedAssets, setPinnedAssets] = useState<string[]>([]);
-  const { searchQuery, setSearchQuery, searchResults, isSearching, error, setError } = useSearchQuery();
+  const { searchQuery, setSearchQuery, searchResults, isSearching, error, setError, retry } = useSearchQuery();
   const { settings, updateSettings } = useSettings();
   const [showHelpText, setShowHelpText] = useState<boolean>(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -182,6 +182,8 @@ export default function PinnedAssetsPage(): ReactElement {
           <h2 className="text-lg font-semibold mb-2">{t('common_search_results')}</h2>
           {isSearching ? (
             <Spinner message={t('common_searching_assets')} />
+          ) : error && searchResults.length === 0 ? (
+            <button type="button" onClick={retry} className="py-4 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
           ) : searchResults.length === 0 ? (
             <div className="text-center py-4 text-gray-500">{t('common_no_results_found')}</div>
           ) : (
@@ -250,4 +252,4 @@ export default function PinnedAssetsPage(): ReactElement {
 
     </section>
   );
-} 
+}

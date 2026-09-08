@@ -6,6 +6,13 @@ beside this note contains the exact before/after entries, final message hashes,
 original proposals, and reference sources. Final entries supersede proposals.
 Existing historical review records are unchanged.
 
+During validation, main advanced to `5df9500434252d7c666d34dda18509418adedec8`
+with PR403's search/pagination fixes and PR404's version 0.11.2. They are integrated
+into this follow-up. Resolutions retain the new request sessions, offsets,
+bounded retry policy, incomplete-search indication, and already loaded rows.
+New loading/retry/failure labels are localized; known search failure facts remain
+separate from raw diagnostics. The original PR400 branch remains untouched.
+
 All non-English additions retain machine provenance. This is an AI contextual
 review with code and browser checks, not native-speaker certification.
 

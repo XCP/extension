@@ -7,6 +7,7 @@
   "provenancePolicy": "Retain every existing machine flag and mark new translations as machine drafts. No full-catalog or native fluency certification.",
   "hashFormat": "SHA-256 of the exact UTF-8 runtime message string (Chrome named placeholders preserved); fragment hashes normalize CRLF to LF. The final changes below supersede original proposals.",
   "coreRevision": "67e10db3ee266068c1effc4e83653df39ace5ca8",
+  "mainIntegrationRevision": "5df9500434252d7c666d34dda18509418adedec8",
   "sources": {
     "japanese": {
       "zaif-orders": {
@@ -708,6 +709,195 @@
           }
         }
       }
+    },
+    {
+      "name": "pending-list-pagination.json",
+      "sha256": "069d2f691f11bbca56ea858d4f6d92ca4db64ff7ea7c6e70fcff1ba41cd7fabb",
+      "original": {
+        "scope": "PR403 list-search/pagination merge: retain main request sessions, offsets, retries and partial-row behavior. Newly introduced local list failures are translated at render from initial/more facts; no error-string matching. Machine proposals.",
+        "sources": [
+          "97b8bec9: src/components/domain/{asset/asset-list,balance/balance-list,utxo/utxo-list}.tsx"
+        ],
+        "reusedKeys": [
+          "common_retry",
+          "common_scroll_to_load_more",
+          "common_searching_assets",
+          "common_no_results_found"
+        ],
+        "messages": {
+          "asset_asset_list_load_failed": {
+            "description": "Initial owned-assets page failed to load; explicit Retry action remains available.",
+            "en": "Failed to load owned assets.",
+            "ja": "発行管理中のアセットを読み込めませんでした。",
+            "zh_CN": "无法加载拥有发行权的资产。",
+            "zh_TW": "無法載入擁有發行權的資產。",
+            "zh_HK": "無法載入擁有發行權的資產。"
+          },
+          "asset_asset_list_load_more_failed": {
+            "description": "A subsequent owned-assets page failed; already loaded assets remain shown.",
+            "en": "Failed to load more assets.",
+            "ja": "続きのアセットを読み込めませんでした。",
+            "zh_CN": "无法加载更多资产。",
+            "zh_TW": "無法載入更多資產。",
+            "zh_HK": "無法載入更多資產。"
+          },
+          "balance_balance_list_load_failed": {
+            "description": "Initial balance load failed; any successful partial results remain available.",
+            "en": "Failed to load balances.",
+            "ja": "残高を読み込めませんでした。",
+            "zh_CN": "无法加载余额。",
+            "zh_TW": "無法載入餘額。",
+            "zh_HK": "無法載入餘額。"
+          },
+          "balance_balance_list_load_more_failed": {
+            "description": "A subsequent balance page failed; existing rows remain visible.",
+            "en": "Failed to load more balances.",
+            "ja": "続きの残高を読み込めませんでした。",
+            "zh_CN": "无法加载更多余额。",
+            "zh_TW": "無法載入更多餘額。",
+            "zh_HK": "無法載入更多餘額。"
+          },
+          "utxo_utxo_list_load_failed": {
+            "description": "Initial UTXO-attached balance load failed, not proof that no balances exist.",
+            "en": "Failed to load UTXO balances.",
+            "ja": "UTXOの残高を読み込めませんでした。",
+            "zh_CN": "无法加载 UTXO 余额。",
+            "zh_TW": "無法載入 UTXO 餘額。",
+            "zh_HK": "無法載入 UTXO 餘額。"
+          },
+          "utxo_utxo_list_load_more_failed": {
+            "description": "A subsequent UTXO balance page failed; already loaded rows remain visible.",
+            "en": "Failed to load more UTXO balances.",
+            "ja": "続きのUTXO残高を読み込めませんでした。",
+            "zh_CN": "无法加载更多 UTXO 余额。",
+            "zh_TW": "無法載入更多 UTXO 餘額。",
+            "zh_HK": "無法載入更多 UTXO 餘額。"
+          },
+          "utxo_utxo_list_searching_utxo_balances": {
+            "description": "An active UTXO search is still reading remaining pages; do not claim no match before completion.",
+            "en": "Searching UTXO balances…",
+            "ja": "UTXOの残高を検索中…",
+            "zh_CN": "正在搜索 UTXO 余额…",
+            "zh_TW": "正在搜尋 UTXO 餘額…",
+            "zh_HK": "正在搜尋 UTXO 餘額…"
+          }
+        }
+      }
+    },
+    {
+      "name": "pending-market-merge.json",
+      "sha256": "e32b7ff88d433450516f75648f860c27db21f8256616bb4951297aec68f1c073",
+      "original": {
+        "scope": "New read-side search/pagination status text from main PR403, merged without changing request sessions, offsets, retry rules or result visibility. Existing locale messages are reused for all other labels. Machine proposals.",
+        "messages": {
+          "common_load_more": {
+            "description": "Explicit control to fetch another page while retaining already loaded rows.",
+            "en": "Load more",
+            "ja": "さらに読み込む",
+            "zh_CN": "加载更多",
+            "zh_TW": "載入更多",
+            "zh_HK": "載入更多"
+          },
+          "common_loading_more": {
+            "description": "Status while a subsequent list page is being fetched; existing rows remain visible.",
+            "en": "Loading more…",
+            "ja": "追加読み込み中…",
+            "zh_CN": "正在加载更多…",
+            "zh_TW": "正在載入更多…",
+            "zh_HK": "正在載入更多…"
+          },
+          "market_searching_pools": {
+            "description": "Status while the pool search examines remaining pages; do not imply no matches until the search completes.",
+            "en": "Searching pools…",
+            "ja": "プールを検索中…",
+            "zh_CN": "正在搜索流动性池…",
+            "zh_TW": "正在搜尋流動性池…",
+            "zh_HK": "正在搜尋流動性池…"
+          },
+          "market_failed_to_load_listings": {
+            "description": "Market dispenser/order list page failed to load. Existing rows stay visible and the adjacent Retry button repeats the failed read. Listings means market records, not marketplace sale authorizations.",
+            "en": "Failed to load listings. Please try again.",
+            "ja": "一覧を読み込めませんでした。もう一度お試しください。",
+            "zh_CN": "无法加载列表。请重试。",
+            "zh_TW": "無法載入清單。請再試一次。",
+            "zh_HK": "無法載入列表。請重試。"
+          }
+        }
+      }
+    },
+    {
+      "name": "pending-search-errors.json",
+      "sha256": "20290f9beb374d06402ce223593338893c57a56ce46d50e5af1674353fc281a2",
+      "original": {
+        "scope": "Known local search diagnostics introduced by current main. Store presentation facts and retranslate at render; preserve original strings for setError callbacks, raw unknown evidence, query case, aborts, timeout budgets, Retry-After, retries and read count. Machine drafts.",
+        "messages": {
+          "search_error_rate_limited": {
+            "description": "Search HTTP 429 after the existing retry policy stops. Do not retry automatically on a language change.",
+            "en": "Search is temporarily rate limited. Please try again.",
+            "ja": "検索の回数制限に達しました。時間をおいて再試行してください。",
+            "zh_CN": "搜索请求暂时受限，请稍后重试。",
+            "zh_TW": "搜尋請求暫時受限，請稍後再試。",
+            "zh_HK": "搜尋請求暫時受限，請稍後重試。"
+          },
+          "search_error_failed": {
+            "description": "Search received another unsuccessful HTTP status; the HTTP policy and retry timing are unchanged.",
+            "en": "Search failed. Please try again.",
+            "ja": "検索できませんでした。もう一度お試しください。",
+            "zh_CN": "搜索失败，请重试。",
+            "zh_TW": "搜尋失敗，請再試一次。",
+            "zh_HK": "搜尋失敗，請重試。"
+          },
+          "search_error_timeout": {
+            "description": "Existing search deadline expired, including response-body time. No network-outage diagnosis is implied.",
+            "en": "Failed to load search results: Search request timed out. Please try again.",
+            "ja": "検索がタイムアウトしました。もう一度お試しください。",
+            "zh_CN": "搜索请求超时，请重试。",
+            "zh_TW": "搜尋請求逾時，請再試一次。",
+            "zh_HK": "搜尋請求逾時，請重試。"
+          },
+          "search_error_invalid_response": {
+            "description": "Search response lacked the accepted results arrays. Acceptance criteria are unchanged.",
+            "en": "Failed to load search results: Invalid search response",
+            "ja": "検索結果の応答形式が正しくありません。",
+            "zh_CN": "搜索结果的响应格式无效。",
+            "zh_TW": "搜尋結果的回應格式無效。",
+            "zh_HK": "搜尋結果的回應格式無效。"
+          },
+          "search_error_detail": {
+            "description": "Unknown search diagnostic. $1 is the original error evidence; never translate, parse, or discard it.",
+            "en": "Failed to load search results: $1",
+            "ja": "検索結果を読み込めませんでした：$1",
+            "zh_CN": "无法加载搜索结果：$1",
+            "zh_TW": "無法載入搜尋結果：$1",
+            "zh_HK": "無法載入搜尋結果：$1"
+          }
+        }
+      }
+    },
+    {
+      "name": "extension-depth-pagination-merge-i18n.json",
+      "sha256": "e707b308eb2ad7ef704d3de0c9b8190224eb05d06abdca834094e24deb1251a1",
+      "original": {
+        "context": "Machine drafts for two new strings introduced by main pagination fixes. Existing localization and raw error diagnostics preserved.",
+        "messages": {
+          "baseasset_quoteasset_select_pair": {
+            "description": "Order-book route has no pair; prompt to select a trading pair, not a trade confirmation.",
+            "en": "Select a trading pair",
+            "ja": "取引ペアを選択してください",
+            "zh-CN": "请选择交易对",
+            "zh-TW": "請選擇交易對",
+            "zh-HK": "請選擇交易對"
+          },
+          "baseasset_quoteasset_loading_matches": {
+            "description": "Loading the order-book matched-trade history tab.",
+            "en": "Loading matches…",
+            "ja": "約定履歴を読み込み中…",
+            "zh-CN": "正在加载成交记录…",
+            "zh-TW": "正在載入成交紀錄…",
+            "zh-HK": "正在載入成交紀錄…"
+          }
+        }
+      }
     }
   ],
   "decisions": [
@@ -718,7 +908,8 @@
     "Core MPMA compose.unpack projects only send_info[0] for each asset. Complete events or explicit legacy tuples are required for totals; per-asset raw amounts are summed exactly and equal-per-address is stated only when true.",
     "Trezor INIT_FAILED describes TrezorConnect.init(), so final wording specifies initializing the connection, not resetting the device.",
     "Keep local failure facts until UI render. Known codes translate; unknown vendor/API evidence remains raw. Language changes do not initiate network/device operations.",
-    "Browser language remains automatic by default; fiat is independent and defaults to USD. Canonical amount drafts and the pinned SDK contract are unchanged."
+    "Browser language remains automatic by default; fiat is independent and defaults to USD. Canonical amount drafts and the pinned SDK contract are unchanged.",
+    "Integrate PR403 search/pagination and PR404 version0.11.2 without reverting request ownership, bounded retries, offsets, incomplete-search state or partial rows. Translate newly introduced statuses and retain unknown error evidence. Managed assets does not promise that an asset’s locked issuance can issue more supply."
   ],
   "limitations": [
     "AI contextual and layout review is not native-speaker certification.",
@@ -817,6 +1008,46 @@
         "description": "Custom-node API is older than the supported Core version. $1 is the exact minimum semantic version, unchanged by locale."
       },
       "messageSha256": "bfe1138188a88d9e34ad43f0d585a1cbeacc8948e47527216fc40b3c442782ac"
+    },
+    {
+      "locale": "en",
+      "key": "asset_asset_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "Failed to load owned assets.",
+        "description": "Initial owned-assets page failed to load; explicit Retry action remains available."
+      },
+      "messageSha256": "b5d1096d9c1383d4da0eb2c619996ea200da459582d07a1803cf33ade1193256"
+    },
+    {
+      "locale": "en",
+      "key": "asset_asset_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "Failed to load more assets.",
+        "description": "A subsequent owned-assets page failed; already loaded assets remain shown."
+      },
+      "messageSha256": "cdfcfe08a91aec350e855c1203022021acca5d67f27ed9337cbe08abde0cdda9"
+    },
+    {
+      "locale": "en",
+      "key": "balance_balance_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "Failed to load balances.",
+        "description": "Initial balance load failed; any successful partial results remain available."
+      },
+      "messageSha256": "778830f42eb0f88cbe6d5923f21ff42929a4893cce97bb30abcff2b32ae78e9d"
+    },
+    {
+      "locale": "en",
+      "key": "balance_balance_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "Failed to load more balances.",
+        "description": "A subsequent balance page failed; existing rows remain visible."
+      },
+      "messageSha256": "f9ad86aebf82946ddb3743c049e832a081b6f22ab9c9eb6dc7ebc6f3edea2092"
     },
     {
       "locale": "en",
@@ -1010,6 +1241,16 @@
     },
     {
       "locale": "en",
+      "key": "baseasset_quoteasset_loading_matches",
+      "before": null,
+      "after": {
+        "message": "Loading matches…",
+        "description": "Loading the order-book matched-trade history tab."
+      },
+      "messageSha256": "ad34faae0511c355f1ffa45bf1866975bc51e992310070b652fc1a7cb1fdcffa"
+    },
+    {
+      "locale": "en",
       "key": "baseasset_quoteasset_no_buy_orders",
       "before": null,
       "after": {
@@ -1040,6 +1281,16 @@
     },
     {
       "locale": "en",
+      "key": "baseasset_quoteasset_select_pair",
+      "before": null,
+      "after": {
+        "message": "Select a trading pair",
+        "description": "Order-book route has no pair; prompt to select a trading pair, not a trade confirmation."
+      },
+      "messageSha256": "ceb4639b0f506e698cf283fc2fc53872eb3f4215adc1c70e261d1f4c540dab63"
+    },
+    {
+      "locale": "en",
       "key": "charts_range_days",
       "before": null,
       "after": {
@@ -1067,6 +1318,26 @@
         "description": "Compact chart time-range button. $1 is the fixed year count; the API range ID is separate."
       },
       "messageSha256": "331a4039c07fcde789bcbbf7fbd92a88d43af417f40d595cecad80e185b43a2a"
+    },
+    {
+      "locale": "en",
+      "key": "common_load_more",
+      "before": null,
+      "after": {
+        "message": "Load more",
+        "description": "Explicit control to fetch another page while retaining already loaded rows."
+      },
+      "messageSha256": "ac8991ef01019cf55a2426194a05959e0cb886333f1a332ff4f442320d165400"
+    },
+    {
+      "locale": "en",
+      "key": "common_loading_more",
+      "before": null,
+      "after": {
+        "message": "Loading more…",
+        "description": "Status while a subsequent list page is being fetched; existing rows remain visible."
+      },
+      "messageSha256": "964e5f88d03630deca8a0d52ae42323980e216a787afa7e7e77dbdaeaa760f62"
     },
     {
       "locale": "en",
@@ -1193,6 +1464,126 @@
         "description": "Accessible label for the custom Counterparty API base URL input."
       },
       "messageSha256": "ed650c75c5c81f86a8b4dc8355306a9bc98d65084e8450e0d4b1197016dd37a7"
+    },
+    {
+      "locale": "en",
+      "key": "market_failed_to_load_dispensers",
+      "before": {
+        "message": "Failed to load dispensers",
+        "description": "pages/market/index.tsx"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "en",
+      "key": "market_failed_to_load_listings",
+      "before": null,
+      "after": {
+        "message": "Failed to load listings. Please try again.",
+        "description": "Market dispenser/order list page failed to load. Existing rows stay visible and the adjacent Retry button repeats the failed read. Listings means market records, not marketplace sale authorizations."
+      },
+      "messageSha256": "47ebc06d84ccbeb99b1a56044e4a20a4cab63aa1112391cd38d29292e26be8ff"
+    },
+    {
+      "locale": "en",
+      "key": "market_failed_to_load_your_dispensers",
+      "before": {
+        "message": "Failed to load your dispensers",
+        "description": "pages/market/index.tsx"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "en",
+      "key": "market_failed_to_load_your_orders",
+      "before": {
+        "message": "Failed to load your orders",
+        "description": "pages/market/index.tsx"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "en",
+      "key": "market_loading_your_dispensers",
+      "before": {
+        "message": "Loading your dispensers…",
+        "description": "pages/market/index.tsx"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "en",
+      "key": "market_loading_your_orders",
+      "before": {
+        "message": "Loading your orders…",
+        "description": "pages/market/index.tsx"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "en",
+      "key": "market_no_open_dispensers_for",
+      "before": {
+        "message": "No open dispensers for $1",
+        "description": "pages/market/index.tsx. $1 = normalizeAssetQuery(searchQuery)"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "en",
+      "key": "market_no_open_orders_for",
+      "before": {
+        "message": "No open orders for $1",
+        "description": "pages/market/index.tsx. $1 = searchQuery.toUpperCase()"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "en",
+      "key": "market_results_for",
+      "before": {
+        "message": "Results for \"$1\"",
+        "description": "pages/market/index.tsx. $1 = normalizeAssetQuery(searchQuery)"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "en",
+      "key": "market_searching_pools",
+      "before": null,
+      "after": {
+        "message": "Searching pools…",
+        "description": "Status while the pool search examines remaining pages; do not imply no matches until the search completes."
+      },
+      "messageSha256": "491567a1bf1bfd4bf5f255953ed007fe97c11771772c171d3e69dac65b85f483"
+    },
+    {
+      "locale": "en",
+      "key": "market_view_all_dispensers_for",
+      "before": {
+        "message": "View all dispensers for $1 →",
+        "description": "pages/market/index.tsx. $1 = normalizeAssetQuery(searchQuery)"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "en",
+      "key": "market_view_all_orders_for",
+      "before": {
+        "message": "View all orders for $1 →",
+        "description": "pages/market/index.tsx. $1 = searchQuery.toUpperCase()"
+      },
+      "after": null,
+      "messageSha256": null
     },
     {
       "locale": "en",
@@ -1339,6 +1730,56 @@
     },
     {
       "locale": "en",
+      "key": "search_error_detail",
+      "before": null,
+      "after": {
+        "message": "Failed to load search results: $1",
+        "description": "Unknown search diagnostic. $1 is the original error evidence; never translate, parse, or discard it."
+      },
+      "messageSha256": "5db09be6c466fb511d38604b2aa6ccb7203ae6e927515b2f41b3785bdb9522ec"
+    },
+    {
+      "locale": "en",
+      "key": "search_error_failed",
+      "before": null,
+      "after": {
+        "message": "Search failed. Please try again.",
+        "description": "Search received another unsuccessful HTTP status; the HTTP policy and retry timing are unchanged."
+      },
+      "messageSha256": "46a6a88b063b47e64a8cdd5d0d70c5c51c20ebbf740699785299fde870406ef4"
+    },
+    {
+      "locale": "en",
+      "key": "search_error_invalid_response",
+      "before": null,
+      "after": {
+        "message": "Failed to load search results: Invalid search response",
+        "description": "Search response lacked the accepted results arrays. Acceptance criteria are unchanged."
+      },
+      "messageSha256": "b6bfd3514db6e4b9279b09d7298a8237360d0ccef44dc50fa1a163f80386f5da"
+    },
+    {
+      "locale": "en",
+      "key": "search_error_rate_limited",
+      "before": null,
+      "after": {
+        "message": "Search is temporarily rate limited. Please try again.",
+        "description": "Search HTTP 429 after the existing retry policy stops. Do not retry automatically on a language change."
+      },
+      "messageSha256": "2a457b03320e03cdb5b3b01fdcce7d265397020addc7ebf435f22a5aeb30090c"
+    },
+    {
+      "locale": "en",
+      "key": "search_error_timeout",
+      "before": null,
+      "after": {
+        "message": "Failed to load search results: Search request timed out. Please try again.",
+        "description": "Existing search deadline expired, including response-body time. No network-outage diagnosis is implied."
+      },
+      "messageSha256": "657bf7d581cd4714faab7051882b1c0960dc6721ac37f4bfdb273137568452b3"
+    },
+    {
+      "locale": "en",
       "key": "secrets_show_passphrase_passphrase",
       "before": {
         "message": "Passphrase",
@@ -1425,6 +1866,36 @@
         "description": "Historical transaction detail: not yet confirmed in a Bitcoin block. Not a user review/acknowledgement state."
       },
       "messageSha256": "3229d16ca643cb8615493e849ef042cc687c7a94ac44b9b9131668cab75422d5"
+    },
+    {
+      "locale": "en",
+      "key": "utxo_utxo_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "Failed to load UTXO balances.",
+        "description": "Initial UTXO-attached balance load failed, not proof that no balances exist."
+      },
+      "messageSha256": "640e877f0af4abd0500c1cd7fa618e5fd4f3823dbf24f500fce490440ecf33a7"
+    },
+    {
+      "locale": "en",
+      "key": "utxo_utxo_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "Failed to load more UTXO balances.",
+        "description": "A subsequent UTXO balance page failed; already loaded rows remain visible."
+      },
+      "messageSha256": "6406eb88479185e2143353d77fa8c01f6cadb2eb8f19faa3e1a25f9a1be6d8f6"
+    },
+    {
+      "locale": "en",
+      "key": "utxo_utxo_list_searching_utxo_balances",
+      "before": null,
+      "after": {
+        "message": "Searching UTXO balances…",
+        "description": "An active UTXO search is still reading remaining pages; do not claim no match before completion."
+      },
+      "messageSha256": "9afcd9ab27cea31044de346be4c75278338c412fb6719147aeea6894f08d47dd"
     },
     {
       "locale": "en",
@@ -1542,6 +2013,24 @@
     },
     {
       "locale": "ja",
+      "key": "asset_asset_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "管理しているアセットを読み込めませんでした。"
+      },
+      "messageSha256": "8b7a755bc5867a52c77510af8ece3acd64d55e92f9aaf7e1226cb0a1c138f877"
+    },
+    {
+      "locale": "ja",
+      "key": "asset_asset_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "続きのアセットを読み込めませんでした。"
+      },
+      "messageSha256": "8112149e552c1ba737a89b1095026ce211c026cc147bec11d9cd154e6c8965eb"
+    },
+    {
+      "locale": "ja",
       "key": "balance_balance_header_incoming",
       "before": {
         "message": "$1(+$2 受信中)"
@@ -1550,6 +2039,24 @@
         "message": "$1(+$2 入金待ち)"
       },
       "messageSha256": "369b8bc235eed30de839e7504dec571061b09b387e317ca7464a40af4d300e60"
+    },
+    {
+      "locale": "ja",
+      "key": "balance_balance_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "残高を読み込めませんでした。"
+      },
+      "messageSha256": "cb1379de161ac7e8a05412075682eed8a3fd8af2cccdd67c1b23fb77d41f791e"
+    },
+    {
+      "locale": "ja",
+      "key": "balance_balance_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "続きの残高を読み込めませんでした。"
+      },
+      "messageSha256": "ae8accb8a496ac2cc43f7cabee3f418c48536688e4db5f37ad1bda47575e58cf"
     },
     {
       "locale": "ja",
@@ -1724,6 +2231,15 @@
     },
     {
       "locale": "ja",
+      "key": "baseasset_quoteasset_loading_matches",
+      "before": null,
+      "after": {
+        "message": "約定履歴を読み込み中…"
+      },
+      "messageSha256": "d41ed25b47e64424516380e304f9493f96f0e0ae393c0fef262a016dc0b233d9"
+    },
+    {
+      "locale": "ja",
       "key": "baseasset_quoteasset_no_buy_orders",
       "before": null,
       "after": {
@@ -1748,6 +2264,15 @@
         "message": "$1/$2の売り注文はありません"
       },
       "messageSha256": "247de3da62e61cc40d5989c2d91ad6c5ec5205ab37464917e150989c91d35cd3"
+    },
+    {
+      "locale": "ja",
+      "key": "baseasset_quoteasset_select_pair",
+      "before": null,
+      "after": {
+        "message": "取引ペアを選択してください"
+      },
+      "messageSha256": "478746d13a690715d85093f7e584474ac3305dac8794886bd461579102d4987f"
     },
     {
       "locale": "ja",
@@ -1808,6 +2333,24 @@
         "message": "リカバリーフレーズを保存しました。"
       },
       "messageSha256": "3a47ad4e029218bfefb2f4e8348f69a5a56b1f3f2bd6856c8903208528586513"
+    },
+    {
+      "locale": "ja",
+      "key": "common_load_more",
+      "before": null,
+      "after": {
+        "message": "さらに読み込む"
+      },
+      "messageSha256": "227094a4e53897d809d5074274a8071e8b7ecc670cb92d5d30aaceeff8dcd145"
+    },
+    {
+      "locale": "ja",
+      "key": "common_loading_more",
+      "before": null,
+      "after": {
+        "message": "追加読み込み中…"
+      },
+      "messageSha256": "e18c038764793667c7181c3bfd93c5ca96ed8ee93a18876b6809e74739b58884"
     },
     {
       "locale": "ja",
@@ -1934,6 +2477,24 @@
     },
     {
       "locale": "ja",
+      "key": "market_failed_to_load_dispensers",
+      "before": {
+        "message": "自販機を読み込めませんでした"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "ja",
+      "key": "market_failed_to_load_listings",
+      "before": null,
+      "after": {
+        "message": "一覧を読み込めませんでした。もう一度お試しください。"
+      },
+      "messageSha256": "a6fa550b9116942b6ac6487fb1f08d7e1bda051385d43b156a60cbcc140b3200"
+    },
+    {
+      "locale": "ja",
       "key": "market_failed_to_load_more_pools",
       "before": {
         "message": "さらにプールを読み込めませんでした"
@@ -1942,6 +2503,96 @@
         "message": "追加のプールを読み込めませんでした"
       },
       "messageSha256": "119f8b46f98e32feeb6289415d44925de3c723929d0a979157ca5bb66781470d"
+    },
+    {
+      "locale": "ja",
+      "key": "market_failed_to_load_your_dispensers",
+      "before": {
+        "message": "あなたの自販機を読み込めませんでした"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "ja",
+      "key": "market_failed_to_load_your_orders",
+      "before": {
+        "message": "あなたの注文を読み込めませんでした"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "ja",
+      "key": "market_loading_your_dispensers",
+      "before": {
+        "message": "あなたの自販機を読み込み中…"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "ja",
+      "key": "market_loading_your_orders",
+      "before": {
+        "message": "あなたの注文を読み込み中…"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "ja",
+      "key": "market_no_open_dispensers_for",
+      "before": {
+        "message": "$1 の稼働中の自販機はありません"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "ja",
+      "key": "market_no_open_orders_for",
+      "before": {
+        "message": "$1 の未約定の注文はありません"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "ja",
+      "key": "market_results_for",
+      "before": {
+        "message": "「$1」の結果"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "ja",
+      "key": "market_searching_pools",
+      "before": null,
+      "after": {
+        "message": "プールを検索中…"
+      },
+      "messageSha256": "90d6d6ec7f8db50d3d592c7f74a4132f0e00ee569a6b554bca0bcc7c5b8bae5f"
+    },
+    {
+      "locale": "ja",
+      "key": "market_view_all_dispensers_for",
+      "before": {
+        "message": "$1 の自販機をすべて表示 →"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "ja",
+      "key": "market_view_all_orders_for",
+      "before": {
+        "message": "$1 の注文をすべて表示 →"
+      },
+      "after": null,
+      "messageSha256": null
     },
     {
       "locale": "ja",
@@ -2117,6 +2768,51 @@
     },
     {
       "locale": "ja",
+      "key": "search_error_detail",
+      "before": null,
+      "after": {
+        "message": "検索結果を読み込めませんでした：$1"
+      },
+      "messageSha256": "5c119d333da6b75fa2655c98b9828ad78e63eae08349d465bea29717d412915d"
+    },
+    {
+      "locale": "ja",
+      "key": "search_error_failed",
+      "before": null,
+      "after": {
+        "message": "検索できませんでした。もう一度お試しください。"
+      },
+      "messageSha256": "b42e7fbf1463a2d4f4b73afd74a272b0ecd4a3714d6b25f313d8f5111e4d37e4"
+    },
+    {
+      "locale": "ja",
+      "key": "search_error_invalid_response",
+      "before": null,
+      "after": {
+        "message": "検索結果の応答形式が正しくありません。"
+      },
+      "messageSha256": "2f0a7a8796b79299fbe18a52fa0149f66a34fd843fe939ae5945adf1cc0d749a"
+    },
+    {
+      "locale": "ja",
+      "key": "search_error_rate_limited",
+      "before": null,
+      "after": {
+        "message": "検索の回数制限に達しました。時間をおいて再試行してください。"
+      },
+      "messageSha256": "a80aaaf51db148b6977aaca552f04e3da5b249896ef4d7ec87738125ab92dcb4"
+    },
+    {
+      "locale": "ja",
+      "key": "search_error_timeout",
+      "before": null,
+      "after": {
+        "message": "検索がタイムアウトしました。もう一度お試しください。"
+      },
+      "messageSha256": "61af2a9d1624c2b73d02aab55c1d04204094411222524a2229c9ba3e5b59c459"
+    },
+    {
+      "locale": "ja",
       "key": "secrets_show_passphrase_passphrase",
       "before": {
         "message": "パスフレーズ"
@@ -2255,6 +2951,33 @@
     },
     {
       "locale": "ja",
+      "key": "utxo_utxo_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "UTXOの残高を読み込めませんでした。"
+      },
+      "messageSha256": "d09d0bd8f75f9f613fb03110c3a204765aabed293905c832c2b9fdf12e26952b"
+    },
+    {
+      "locale": "ja",
+      "key": "utxo_utxo_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "続きのUTXO残高を読み込めませんでした。"
+      },
+      "messageSha256": "afe13678220e59272eb51d15b38b9de480ba9657575fbfb412c6cb5bb13c474a"
+    },
+    {
+      "locale": "ja",
+      "key": "utxo_utxo_list_searching_utxo_balances",
+      "before": null,
+      "after": {
+        "message": "UTXOの残高を検索中…"
+      },
+      "messageSha256": "9cd383a65f1f50ba4efe590e8012295dd5f7f052f4849e210a38ed670b7cb2aa"
+    },
+    {
+      "locale": "ja",
       "key": "wallet_wallet_menu_show_passphrase",
       "before": {
         "message": "パスフレーズを表示"
@@ -2387,6 +3110,24 @@
     },
     {
       "locale": "zh",
+      "key": "asset_asset_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载你管理的资产。"
+      },
+      "messageSha256": "c8e06c1981d8dd4b5b4a80422b04990b2a595bd37e20c6842d9d281bab2a2303"
+    },
+    {
+      "locale": "zh",
+      "key": "asset_asset_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载更多资产。"
+      },
+      "messageSha256": "653db0e9444996a69862d2f295c86cb340aa5432e98063c833487832bf7daaf4"
+    },
+    {
+      "locale": "zh",
       "key": "asset_balance_pay_for_an_order_match",
       "before": {
         "message": "用 BTC 支付订单撮合"
@@ -2395,6 +3136,24 @@
         "message": "用 BTC 结算已撮合订单"
       },
       "messageSha256": "5bb5bea550740098d2207d8c4f8aebafe799c98dc2a1527c47f7b842a5435945"
+    },
+    {
+      "locale": "zh",
+      "key": "balance_balance_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载余额。"
+      },
+      "messageSha256": "8cb9ffec31de043bab9226c5e4c4d9b09af3e9d5d784ab1b72609431d37654cb"
+    },
+    {
+      "locale": "zh",
+      "key": "balance_balance_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载更多余额。"
+      },
+      "messageSha256": "b20ea6aec1fe21d9f00732286466d9a257f4d7e2b2f3b62515dbbda28ce9aa16"
     },
     {
       "locale": "zh",
@@ -2569,6 +3328,15 @@
     },
     {
       "locale": "zh",
+      "key": "baseasset_quoteasset_loading_matches",
+      "before": null,
+      "after": {
+        "message": "正在加载成交记录…"
+      },
+      "messageSha256": "21b79a3da8bdef4c9b52772ef209c16e96de3aab95d9e4ec82629843fe9d32ec"
+    },
+    {
+      "locale": "zh",
       "key": "baseasset_quoteasset_no_buy_orders",
       "before": null,
       "after": {
@@ -2596,6 +3364,15 @@
     },
     {
       "locale": "zh",
+      "key": "baseasset_quoteasset_select_pair",
+      "before": null,
+      "after": {
+        "message": "请选择交易对"
+      },
+      "messageSha256": "6dc0842e958dce9e53ed3397ceefa113b34cf774c0ce8c8dea87946104a4ef00"
+    },
+    {
+      "locale": "zh",
       "key": "charts_range_days",
       "before": null,
       "after": {
@@ -2620,6 +3397,24 @@
         "message": "$1年"
       },
       "messageSha256": "9ba3cb7a80fb5bde36cd0479b6e3c69e5ef7a525217def675a5c240b4b902d2f"
+    },
+    {
+      "locale": "zh",
+      "key": "common_load_more",
+      "before": null,
+      "after": {
+        "message": "加载更多"
+      },
+      "messageSha256": "af90a08fec8ee28d12d8496998e7a87b617cb3469cd8d5f2c32b5b3acaecd9e2"
+    },
+    {
+      "locale": "zh",
+      "key": "common_loading_more",
+      "before": null,
+      "after": {
+        "message": "正在加载更多…"
+      },
+      "messageSha256": "7d0a6c426462d7a295b27c3071d98926f8c8a536b797568a335505aafb0891f8"
     },
     {
       "locale": "zh",
@@ -2743,6 +3538,114 @@
         "message": "API 地址"
       },
       "messageSha256": "d94c3fb8766216951ad877576e00b312f939ad287c28f6eeb9675e42f97281d0"
+    },
+    {
+      "locale": "zh",
+      "key": "market_failed_to_load_dispensers",
+      "before": {
+        "message": "加载售货机失败"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh",
+      "key": "market_failed_to_load_listings",
+      "before": null,
+      "after": {
+        "message": "无法加载列表。请重试。"
+      },
+      "messageSha256": "5ae57daf2ce0a973065e449c0a5173440c3f7cea31abb20b4ea8ac985266b585"
+    },
+    {
+      "locale": "zh",
+      "key": "market_failed_to_load_your_dispensers",
+      "before": {
+        "message": "加载你的售货机失败"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh",
+      "key": "market_failed_to_load_your_orders",
+      "before": {
+        "message": "加载你的订单失败"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh",
+      "key": "market_loading_your_dispensers",
+      "before": {
+        "message": "正在加载你的售货机…"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh",
+      "key": "market_loading_your_orders",
+      "before": {
+        "message": "正在加载你的订单…"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh",
+      "key": "market_no_open_dispensers_for",
+      "before": {
+        "message": "$1 没有开放的售货机"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh",
+      "key": "market_no_open_orders_for",
+      "before": {
+        "message": "$1 没有未成交订单"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh",
+      "key": "market_results_for",
+      "before": {
+        "message": "“$1”的结果"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh",
+      "key": "market_searching_pools",
+      "before": null,
+      "after": {
+        "message": "正在搜索流动性池…"
+      },
+      "messageSha256": "77a0dbe3732c1451436df169c85de422b4d609925f95bc4bcae67bdcd57d135c"
+    },
+    {
+      "locale": "zh",
+      "key": "market_view_all_dispensers_for",
+      "before": {
+        "message": "查看 $1 的全部售货机 →"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh",
+      "key": "market_view_all_orders_for",
+      "before": {
+        "message": "查看 $1 的全部订单 →"
+      },
+      "after": null,
+      "messageSha256": null
     },
     {
       "locale": "zh",
@@ -2896,6 +3799,51 @@
     },
     {
       "locale": "zh",
+      "key": "search_error_detail",
+      "before": null,
+      "after": {
+        "message": "无法加载搜索结果：$1"
+      },
+      "messageSha256": "26ef31f4731638c7d096d8d17d4985696a84517327c3735c0ee25f58cf491b2b"
+    },
+    {
+      "locale": "zh",
+      "key": "search_error_failed",
+      "before": null,
+      "after": {
+        "message": "搜索失败，请重试。"
+      },
+      "messageSha256": "f4fd4e28393f1b81e6cd1dc924725dd5cd2879b998c30d5fb5ad66a3d9e0bab8"
+    },
+    {
+      "locale": "zh",
+      "key": "search_error_invalid_response",
+      "before": null,
+      "after": {
+        "message": "搜索结果的响应格式无效。"
+      },
+      "messageSha256": "742124e4d40343e6a388b119bda81e764fa82c6beea2afbf83b77dc8b46b2ad5"
+    },
+    {
+      "locale": "zh",
+      "key": "search_error_rate_limited",
+      "before": null,
+      "after": {
+        "message": "搜索请求暂时受限，请稍后重试。"
+      },
+      "messageSha256": "bbea12c832e4c69016c1762039747775993651001a0fc0c8aa6331638370f19b"
+    },
+    {
+      "locale": "zh",
+      "key": "search_error_timeout",
+      "before": null,
+      "after": {
+        "message": "搜索请求超时，请重试。"
+      },
+      "messageSha256": "dc92fd6a131c20ff81eef2b236dcceb25e1c714e05558555cdd3527961063225"
+    },
+    {
+      "locale": "zh",
       "key": "settings_advanced_enable_this_to_chain_transactions",
       "before": {
         "message": "启用后可在尚未确认的交易之上链式发起交易。"
@@ -2982,6 +3930,33 @@
         "message": "未确认"
       },
       "messageSha256": "c098e854e60b951af9f99747f6939ea6531a2742bfa725c3ca24bdbfabc77fc0"
+    },
+    {
+      "locale": "zh",
+      "key": "utxo_utxo_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载 UTXO 余额。"
+      },
+      "messageSha256": "efb14ce87636fce86bd837d71b325336d8dc6a873dfa54a13e1b56da3f91234c"
+    },
+    {
+      "locale": "zh",
+      "key": "utxo_utxo_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载更多 UTXO 余额。"
+      },
+      "messageSha256": "d32754d1ca70493eeb8b00bd356f7913d1eb5afa257ab93b347cde4cbc9fb66d"
+    },
+    {
+      "locale": "zh",
+      "key": "utxo_utxo_list_searching_utxo_balances",
+      "before": null,
+      "after": {
+        "message": "正在搜索 UTXO 余额…"
+      },
+      "messageSha256": "b947f3c90a340f640dbe3a795f403388eb9d17cd0c4f1f9e104520c5b78611f4"
     },
     {
       "locale": "zh",
@@ -3084,6 +4059,24 @@
     },
     {
       "locale": "zh_CN",
+      "key": "asset_asset_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载你管理的资产。"
+      },
+      "messageSha256": "c8e06c1981d8dd4b5b4a80422b04990b2a595bd37e20c6842d9d281bab2a2303"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "asset_asset_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载更多资产。"
+      },
+      "messageSha256": "653db0e9444996a69862d2f295c86cb340aa5432e98063c833487832bf7daaf4"
+    },
+    {
+      "locale": "zh_CN",
       "key": "asset_balance_pay_for_an_order_match",
       "before": {
         "message": "用 BTC 支付订单撮合"
@@ -3092,6 +4085,24 @@
         "message": "用 BTC 结算已撮合订单"
       },
       "messageSha256": "5bb5bea550740098d2207d8c4f8aebafe799c98dc2a1527c47f7b842a5435945"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "balance_balance_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载余额。"
+      },
+      "messageSha256": "8cb9ffec31de043bab9226c5e4c4d9b09af3e9d5d784ab1b72609431d37654cb"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "balance_balance_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载更多余额。"
+      },
+      "messageSha256": "b20ea6aec1fe21d9f00732286466d9a257f4d7e2b2f3b62515dbbda28ce9aa16"
     },
     {
       "locale": "zh_CN",
@@ -3266,6 +4277,15 @@
     },
     {
       "locale": "zh_CN",
+      "key": "baseasset_quoteasset_loading_matches",
+      "before": null,
+      "after": {
+        "message": "正在加载成交记录…"
+      },
+      "messageSha256": "21b79a3da8bdef4c9b52772ef209c16e96de3aab95d9e4ec82629843fe9d32ec"
+    },
+    {
+      "locale": "zh_CN",
       "key": "baseasset_quoteasset_no_buy_orders",
       "before": null,
       "after": {
@@ -3293,6 +4313,15 @@
     },
     {
       "locale": "zh_CN",
+      "key": "baseasset_quoteasset_select_pair",
+      "before": null,
+      "after": {
+        "message": "请选择交易对"
+      },
+      "messageSha256": "6dc0842e958dce9e53ed3397ceefa113b34cf774c0ce8c8dea87946104a4ef00"
+    },
+    {
+      "locale": "zh_CN",
       "key": "charts_range_days",
       "before": null,
       "after": {
@@ -3317,6 +4346,24 @@
         "message": "$1年"
       },
       "messageSha256": "9ba3cb7a80fb5bde36cd0479b6e3c69e5ef7a525217def675a5c240b4b902d2f"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "common_load_more",
+      "before": null,
+      "after": {
+        "message": "加载更多"
+      },
+      "messageSha256": "af90a08fec8ee28d12d8496998e7a87b617cb3469cd8d5f2c32b5b3acaecd9e2"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "common_loading_more",
+      "before": null,
+      "after": {
+        "message": "正在加载更多…"
+      },
+      "messageSha256": "7d0a6c426462d7a295b27c3071d98926f8c8a536b797568a335505aafb0891f8"
     },
     {
       "locale": "zh_CN",
@@ -3440,6 +4487,114 @@
         "message": "API 地址"
       },
       "messageSha256": "d94c3fb8766216951ad877576e00b312f939ad287c28f6eeb9675e42f97281d0"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_failed_to_load_dispensers",
+      "before": {
+        "message": "加载售货机失败"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_failed_to_load_listings",
+      "before": null,
+      "after": {
+        "message": "无法加载列表。请重试。"
+      },
+      "messageSha256": "5ae57daf2ce0a973065e449c0a5173440c3f7cea31abb20b4ea8ac985266b585"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_failed_to_load_your_dispensers",
+      "before": {
+        "message": "加载你的售货机失败"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_failed_to_load_your_orders",
+      "before": {
+        "message": "加载你的订单失败"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_loading_your_dispensers",
+      "before": {
+        "message": "正在加载你的售货机…"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_loading_your_orders",
+      "before": {
+        "message": "正在加载你的订单…"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_no_open_dispensers_for",
+      "before": {
+        "message": "$1 没有开放的售货机"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_no_open_orders_for",
+      "before": {
+        "message": "$1 没有未成交订单"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_results_for",
+      "before": {
+        "message": "“$1”的结果"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_searching_pools",
+      "before": null,
+      "after": {
+        "message": "正在搜索流动性池…"
+      },
+      "messageSha256": "77a0dbe3732c1451436df169c85de422b4d609925f95bc4bcae67bdcd57d135c"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_view_all_dispensers_for",
+      "before": {
+        "message": "查看 $1 的全部售货机 →"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "market_view_all_orders_for",
+      "before": {
+        "message": "查看 $1 的全部订单 →"
+      },
+      "after": null,
+      "messageSha256": null
     },
     {
       "locale": "zh_CN",
@@ -3593,6 +4748,51 @@
     },
     {
       "locale": "zh_CN",
+      "key": "search_error_detail",
+      "before": null,
+      "after": {
+        "message": "无法加载搜索结果：$1"
+      },
+      "messageSha256": "26ef31f4731638c7d096d8d17d4985696a84517327c3735c0ee25f58cf491b2b"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "search_error_failed",
+      "before": null,
+      "after": {
+        "message": "搜索失败，请重试。"
+      },
+      "messageSha256": "f4fd4e28393f1b81e6cd1dc924725dd5cd2879b998c30d5fb5ad66a3d9e0bab8"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "search_error_invalid_response",
+      "before": null,
+      "after": {
+        "message": "搜索结果的响应格式无效。"
+      },
+      "messageSha256": "742124e4d40343e6a388b119bda81e764fa82c6beea2afbf83b77dc8b46b2ad5"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "search_error_rate_limited",
+      "before": null,
+      "after": {
+        "message": "搜索请求暂时受限，请稍后重试。"
+      },
+      "messageSha256": "bbea12c832e4c69016c1762039747775993651001a0fc0c8aa6331638370f19b"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "search_error_timeout",
+      "before": null,
+      "after": {
+        "message": "搜索请求超时，请重试。"
+      },
+      "messageSha256": "dc92fd6a131c20ff81eef2b236dcceb25e1c714e05558555cdd3527961063225"
+    },
+    {
+      "locale": "zh_CN",
       "key": "settings_advanced_enable_this_to_chain_transactions",
       "before": {
         "message": "启用后可在尚未确认的交易之上链式发起交易。"
@@ -3679,6 +4879,33 @@
         "message": "未确认"
       },
       "messageSha256": "c098e854e60b951af9f99747f6939ea6531a2742bfa725c3ca24bdbfabc77fc0"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "utxo_utxo_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载 UTXO 余额。"
+      },
+      "messageSha256": "efb14ce87636fce86bd837d71b325336d8dc6a873dfa54a13e1b56da3f91234c"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "utxo_utxo_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "无法加载更多 UTXO 余额。"
+      },
+      "messageSha256": "d32754d1ca70493eeb8b00bd356f7913d1eb5afa257ab93b347cde4cbc9fb66d"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "utxo_utxo_list_searching_utxo_balances",
+      "before": null,
+      "after": {
+        "message": "正在搜索 UTXO 余额…"
+      },
+      "messageSha256": "b947f3c90a340f640dbe3a795f403388eb9d17cd0c4f1f9e104520c5b78611f4"
     },
     {
       "locale": "zh_CN",
@@ -3781,6 +5008,24 @@
     },
     {
       "locale": "zh_TW",
+      "key": "asset_asset_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入你管理的資產。"
+      },
+      "messageSha256": "96a6123f57a55d436699da2efc49fbb8fe647274a6b9d7f6e43a29c7b6108f4b"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "asset_asset_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入更多資產。"
+      },
+      "messageSha256": "a1668f94b72c27fcecb630e033d875bfa8c1019c01c12dcde68974461311a552"
+    },
+    {
+      "locale": "zh_TW",
       "key": "asset_balance_pay_for_an_order_match",
       "before": {
         "message": "用 BTC 支付訂單撮合"
@@ -3789,6 +5034,24 @@
         "message": "用 BTC 結算已撮合委託"
       },
       "messageSha256": "f91e119961b494437a6c1a279a054c4a590e0a0ec202761696a2dbdee49098a2"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "balance_balance_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入餘額。"
+      },
+      "messageSha256": "dfe11158703f76d4284c71d265981f8335d1f7465e968e4ce9dbc5b283a3a1f7"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "balance_balance_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入更多餘額。"
+      },
+      "messageSha256": "8c9d493ace1e5e6b7cdaa565cf545ff5e8998ee46255f593966bb8ffcb8b0cc6"
     },
     {
       "locale": "zh_TW",
@@ -3963,6 +5226,15 @@
     },
     {
       "locale": "zh_TW",
+      "key": "baseasset_quoteasset_loading_matches",
+      "before": null,
+      "after": {
+        "message": "正在載入成交紀錄…"
+      },
+      "messageSha256": "9981ecbfc6dc53069be6cb9f43a4b41a578852f822e0aba903c96b3af925212e"
+    },
+    {
+      "locale": "zh_TW",
       "key": "baseasset_quoteasset_no_buy_orders",
       "before": null,
       "after": {
@@ -3990,6 +5262,15 @@
     },
     {
       "locale": "zh_TW",
+      "key": "baseasset_quoteasset_select_pair",
+      "before": null,
+      "after": {
+        "message": "請選擇交易對"
+      },
+      "messageSha256": "afdbcd2e7887dd6f7bd85a7ae0247c83349bcefa27e444cd39e6adf1d95eee5c"
+    },
+    {
+      "locale": "zh_TW",
       "key": "charts_range_days",
       "before": null,
       "after": {
@@ -4014,6 +5295,24 @@
         "message": "$1年"
       },
       "messageSha256": "9ba3cb7a80fb5bde36cd0479b6e3c69e5ef7a525217def675a5c240b4b902d2f"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "common_load_more",
+      "before": null,
+      "after": {
+        "message": "載入更多"
+      },
+      "messageSha256": "af4523168abca20fb0846bcb41a49d177481bd63d0560843ceefb522ce8a7542"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "common_loading_more",
+      "before": null,
+      "after": {
+        "message": "正在載入更多…"
+      },
+      "messageSha256": "89fcf8dc279c4ded4661613909509b128aac6cdbb89949b3485d651271bf54bc"
     },
     {
       "locale": "zh_TW",
@@ -4137,6 +5436,114 @@
         "message": "API 網址"
       },
       "messageSha256": "b580131b1ed07fcbc8a08d219c3fd95b4791525465b650986b58da596e69924b"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_failed_to_load_dispensers",
+      "before": {
+        "message": "載入販賣機失敗"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_failed_to_load_listings",
+      "before": null,
+      "after": {
+        "message": "無法載入清單。請再試一次。"
+      },
+      "messageSha256": "a613a624f05f4f7b858f83ff2c2169c6b4b99d20563d94ab7b88bbee018ba2df"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_failed_to_load_your_dispensers",
+      "before": {
+        "message": "載入你的販賣機失敗"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_failed_to_load_your_orders",
+      "before": {
+        "message": "載入你的訂單失敗"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_loading_your_dispensers",
+      "before": {
+        "message": "正在載入你的販賣機…"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_loading_your_orders",
+      "before": {
+        "message": "正在載入你的訂單…"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_no_open_dispensers_for",
+      "before": {
+        "message": "$1 沒有開放的販賣機"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_no_open_orders_for",
+      "before": {
+        "message": "$1 沒有未成交訂單"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_results_for",
+      "before": {
+        "message": "“$1”的結果"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_searching_pools",
+      "before": null,
+      "after": {
+        "message": "正在搜尋流動性池…"
+      },
+      "messageSha256": "fc1f90273058847bf2742b9d755b52f99a995fe0bbfb875e6a025782519558a7"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_view_all_dispensers_for",
+      "before": {
+        "message": "檢視 $1 的全部販賣機 →"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "market_view_all_orders_for",
+      "before": {
+        "message": "檢視 $1 的全部訂單 →"
+      },
+      "after": null,
+      "messageSha256": null
     },
     {
       "locale": "zh_TW",
@@ -4301,6 +5708,51 @@
     },
     {
       "locale": "zh_TW",
+      "key": "search_error_detail",
+      "before": null,
+      "after": {
+        "message": "無法載入搜尋結果：$1"
+      },
+      "messageSha256": "7459255676e79c8bd9917ddfa5e7e44cca21060084a902eb5ab998d3b4862f99"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "search_error_failed",
+      "before": null,
+      "after": {
+        "message": "搜尋失敗，請再試一次。"
+      },
+      "messageSha256": "476fbdaf7f3a5d45295ef4bd2ec6ea6b924313d45e1d643d54d31ee5dc878574"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "search_error_invalid_response",
+      "before": null,
+      "after": {
+        "message": "搜尋結果的回應格式無效。"
+      },
+      "messageSha256": "9d6b00b0b742efdd8aa6cb5c37302c507e1ede92777a049b5b44534e07a1a03e"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "search_error_rate_limited",
+      "before": null,
+      "after": {
+        "message": "搜尋請求暫時受限，請稍後再試。"
+      },
+      "messageSha256": "7678c83fa2d08420018d96e7780466af714c13712ca9d230b38f58fda456dd5f"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "search_error_timeout",
+      "before": null,
+      "after": {
+        "message": "搜尋請求逾時，請再試一次。"
+      },
+      "messageSha256": "8438874d2017e3f4581930baaf533ac0133963af8a60db07c8b62d6555ba42a8"
+    },
+    {
+      "locale": "zh_TW",
       "key": "settings_advanced_enable_this_to_chain_transactions",
       "before": {
         "message": "啟用後可在尚未確認的交易之上鍊式發起交易。"
@@ -4387,6 +5839,33 @@
         "message": "未確認"
       },
       "messageSha256": "7d75a463ec8c065e120b3ab4118d7343fd895304bee543f132fb0abe490877c1"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "utxo_utxo_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入 UTXO 餘額。"
+      },
+      "messageSha256": "b86971562cbfbbe9863668133dd0b792ff51ca8d32b229be27498441eac274d9"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "utxo_utxo_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入更多 UTXO 餘額。"
+      },
+      "messageSha256": "ba2f840ad438515c7ea67d15ef0e03ed9a60c28aa4d4bb23e9a91395fbf82bfe"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "utxo_utxo_list_searching_utxo_balances",
+      "before": null,
+      "after": {
+        "message": "正在搜尋 UTXO 餘額…"
+      },
+      "messageSha256": "d772b717521a388dea787fa2945051d055b9331d544efcebc941616d944f1f52"
     },
     {
       "locale": "zh_TW",
@@ -4489,6 +5968,24 @@
     },
     {
       "locale": "zh_HK",
+      "key": "asset_asset_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入你管理的資產。"
+      },
+      "messageSha256": "96a6123f57a55d436699da2efc49fbb8fe647274a6b9d7f6e43a29c7b6108f4b"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "asset_asset_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入更多資產。"
+      },
+      "messageSha256": "a1668f94b72c27fcecb630e033d875bfa8c1019c01c12dcde68974461311a552"
+    },
+    {
+      "locale": "zh_HK",
       "key": "asset_balance_pay_for_an_order_match",
       "before": {
         "message": "用 BTC 支付訂單撮合"
@@ -4497,6 +5994,24 @@
         "message": "用 BTC 結算已配對訂單"
       },
       "messageSha256": "17f6a4758fee62fb38a29745054aef8aa55e04605ae10b7aa6421db8e56459b7"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "balance_balance_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入餘額。"
+      },
+      "messageSha256": "dfe11158703f76d4284c71d265981f8335d1f7465e968e4ce9dbc5b283a3a1f7"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "balance_balance_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入更多餘額。"
+      },
+      "messageSha256": "8c9d493ace1e5e6b7cdaa565cf545ff5e8998ee46255f593966bb8ffcb8b0cc6"
     },
     {
       "locale": "zh_HK",
@@ -4671,6 +6186,15 @@
     },
     {
       "locale": "zh_HK",
+      "key": "baseasset_quoteasset_loading_matches",
+      "before": null,
+      "after": {
+        "message": "正在載入成交紀錄…"
+      },
+      "messageSha256": "9981ecbfc6dc53069be6cb9f43a4b41a578852f822e0aba903c96b3af925212e"
+    },
+    {
+      "locale": "zh_HK",
       "key": "baseasset_quoteasset_no_buy_orders",
       "before": null,
       "after": {
@@ -4698,6 +6222,15 @@
     },
     {
       "locale": "zh_HK",
+      "key": "baseasset_quoteasset_select_pair",
+      "before": null,
+      "after": {
+        "message": "請選擇交易對"
+      },
+      "messageSha256": "afdbcd2e7887dd6f7bd85a7ae0247c83349bcefa27e444cd39e6adf1d95eee5c"
+    },
+    {
+      "locale": "zh_HK",
       "key": "charts_range_days",
       "before": null,
       "after": {
@@ -4722,6 +6255,24 @@
         "message": "$1年"
       },
       "messageSha256": "9ba3cb7a80fb5bde36cd0479b6e3c69e5ef7a525217def675a5c240b4b902d2f"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "common_load_more",
+      "before": null,
+      "after": {
+        "message": "載入更多"
+      },
+      "messageSha256": "af4523168abca20fb0846bcb41a49d177481bd63d0560843ceefb522ce8a7542"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "common_loading_more",
+      "before": null,
+      "after": {
+        "message": "正在載入更多…"
+      },
+      "messageSha256": "89fcf8dc279c4ded4661613909509b128aac6cdbb89949b3485d651271bf54bc"
     },
     {
       "locale": "zh_HK",
@@ -4845,6 +6396,114 @@
         "message": "API 網址"
       },
       "messageSha256": "b580131b1ed07fcbc8a08d219c3fd95b4791525465b650986b58da596e69924b"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_failed_to_load_dispensers",
+      "before": {
+        "message": "加載售賣機失敗"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_failed_to_load_listings",
+      "before": null,
+      "after": {
+        "message": "無法載入列表。請重試。"
+      },
+      "messageSha256": "1ab88ecda421a9f9e12b89e6ec77610a1d648db2cda42f8533adc3ab21d22931"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_failed_to_load_your_dispensers",
+      "before": {
+        "message": "加載你的售賣機失敗"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_failed_to_load_your_orders",
+      "before": {
+        "message": "加載你的訂單失敗"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_loading_your_dispensers",
+      "before": {
+        "message": "正在加載你的售賣機…"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_loading_your_orders",
+      "before": {
+        "message": "正在加載你的訂單…"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_no_open_dispensers_for",
+      "before": {
+        "message": "$1 沒有開放的售賣機"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_no_open_orders_for",
+      "before": {
+        "message": "$1 沒有未成交訂單"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_results_for",
+      "before": {
+        "message": "“$1”的結果"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_searching_pools",
+      "before": null,
+      "after": {
+        "message": "正在搜尋流動性池…"
+      },
+      "messageSha256": "fc1f90273058847bf2742b9d755b52f99a995fe0bbfb875e6a025782519558a7"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_view_all_dispensers_for",
+      "before": {
+        "message": "查看 $1 的全部售賣機 →"
+      },
+      "after": null,
+      "messageSha256": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "market_view_all_orders_for",
+      "before": {
+        "message": "查看 $1 的全部訂單 →"
+      },
+      "after": null,
+      "messageSha256": null
     },
     {
       "locale": "zh_HK",
@@ -5009,6 +6668,51 @@
     },
     {
       "locale": "zh_HK",
+      "key": "search_error_detail",
+      "before": null,
+      "after": {
+        "message": "無法載入搜尋結果：$1"
+      },
+      "messageSha256": "7459255676e79c8bd9917ddfa5e7e44cca21060084a902eb5ab998d3b4862f99"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "search_error_failed",
+      "before": null,
+      "after": {
+        "message": "搜尋失敗，請重試。"
+      },
+      "messageSha256": "091629bedb57df258f0fec275f1421b06dbbadeb14bae2a1f52c93299fc01215"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "search_error_invalid_response",
+      "before": null,
+      "after": {
+        "message": "搜尋結果的回應格式無效。"
+      },
+      "messageSha256": "9d6b00b0b742efdd8aa6cb5c37302c507e1ede92777a049b5b44534e07a1a03e"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "search_error_rate_limited",
+      "before": null,
+      "after": {
+        "message": "搜尋請求暫時受限，請稍後重試。"
+      },
+      "messageSha256": "7258580c849ea973e260bb46297cdcc861696ab14342dd7979b953524392af8a"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "search_error_timeout",
+      "before": null,
+      "after": {
+        "message": "搜尋請求逾時，請重試。"
+      },
+      "messageSha256": "f9b9e8183386e517e46658d123cb1ac01e8d4abe4d8b9d56d95b64e237829121"
+    },
+    {
+      "locale": "zh_HK",
       "key": "settings_advanced_enable_this_to_chain_transactions",
       "before": {
         "message": "啓用後可在尚未確認的交易之上鍊式發起交易。"
@@ -5095,6 +6799,33 @@
         "message": "未確認"
       },
       "messageSha256": "7d75a463ec8c065e120b3ab4118d7343fd895304bee543f132fb0abe490877c1"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "utxo_utxo_list_load_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入 UTXO 餘額。"
+      },
+      "messageSha256": "b86971562cbfbbe9863668133dd0b792ff51ca8d32b229be27498441eac274d9"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "utxo_utxo_list_load_more_failed",
+      "before": null,
+      "after": {
+        "message": "無法載入更多 UTXO 餘額。"
+      },
+      "messageSha256": "ba2f840ad438515c7ea67d15ef0e03ed9a60c28aa4d4bb23e9a91395fbf82bfe"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "utxo_utxo_list_searching_utxo_balances",
+      "before": null,
+      "after": {
+        "message": "正在搜尋 UTXO 餘額…"
+      },
+      "messageSha256": "d772b717521a388dea787fa2945051d055b9331d544efcebc941616d944f1f52"
     },
     {
       "locale": "zh_HK",

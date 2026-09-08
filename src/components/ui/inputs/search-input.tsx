@@ -2,6 +2,7 @@ import { Description, Field, Input, Label } from "@headlessui/react";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { FaSearch, FiX } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { normalizeAssetQuery } from "@/core/format";
 
 import { t } from '@/i18n';
 
@@ -69,7 +70,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
   }, [localValue, onSearch, debounceMs]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value.toUpperCase();
+    const newValue = normalizeAssetQuery(e.target.value);
     setLocalValue(newValue);
     onChange(newValue);
   };

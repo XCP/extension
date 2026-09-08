@@ -2867,9 +2867,6 @@
   "market_enter_pool": {
     "message": "進入流動性池 →"
   },
-  "market_failed_to_load_dispensers": {
-    "message": "加載售賣機失敗"
-  },
   "market_failed_to_load_more_pools": {
     "message": "加載更多流動性池失敗"
   },
@@ -2878,12 +2875,6 @@
   },
   "market_failed_to_load_pools": {
     "message": "加載流動性池失敗"
-  },
-  "market_failed_to_load_your_dispensers": {
-    "message": "加載你的售賣機失敗"
-  },
-  "market_failed_to_load_your_orders": {
-    "message": "加載你的訂單失敗"
   },
   "market_filter_your_dispensers": {
     "message": "篩選你的售賣機..."
@@ -2897,26 +2888,14 @@
   "market_loading_pools": {
     "message": "正在加載流動性池…"
   },
-  "market_loading_your_dispensers": {
-    "message": "正在加載你的售賣機…"
-  },
-  "market_loading_your_orders": {
-    "message": "正在加載你的訂單…"
-  },
   "market_loading_your_pools": {
     "message": "正在加載你的流動性池…"
   },
   "market_no_dispensers_matching": {
     "message": "沒有與“$1”匹配的售賣機"
   },
-  "market_no_open_dispensers_for": {
-    "message": "$1 沒有開放的售賣機"
-  },
   "market_no_open_dispensers_found": {
     "message": "未找到開放的售賣機"
-  },
-  "market_no_open_orders_for": {
-    "message": "$1 沒有未成交訂單"
   },
   "market_no_open_orders_found": {
     "message": "未找到未成交訂單"
@@ -2932,9 +2911,6 @@
   },
   "market_no_pools_matching": {
     "message": "沒有與“$1”匹配的流動性池"
-  },
-  "market_results_for": {
-    "message": "“$1”的結果"
   },
   "market_search_asset_dispensers": {
     "message": "搜尋資產售賣機..."
@@ -2953,12 +2929,6 @@
   },
   "market_sections": {
     "message": "市場板塊"
-  },
-  "market_view_all_dispensers_for": {
-    "message": "查看 $1 的全部售賣機 →"
-  },
-  "market_view_all_orders_for": {
-    "message": "查看 $1 的全部訂單 →"
   },
   "market_view_mode": {
     "message": "查看模式"
@@ -5901,5 +5871,59 @@
   },
   "transaction_unconfirmed": {
     "message": "未確認"
+  },
+  "asset_asset_list_load_failed": {
+    "message": "無法載入你管理的資產。"
+  },
+  "asset_asset_list_load_more_failed": {
+    "message": "無法載入更多資產。"
+  },
+  "balance_balance_list_load_failed": {
+    "message": "無法載入餘額。"
+  },
+  "balance_balance_list_load_more_failed": {
+    "message": "無法載入更多餘額。"
+  },
+  "utxo_utxo_list_load_failed": {
+    "message": "無法載入 UTXO 餘額。"
+  },
+  "utxo_utxo_list_load_more_failed": {
+    "message": "無法載入更多 UTXO 餘額。"
+  },
+  "utxo_utxo_list_searching_utxo_balances": {
+    "message": "正在搜尋 UTXO 餘額…"
+  },
+  "common_load_more": {
+    "message": "載入更多"
+  },
+  "common_loading_more": {
+    "message": "正在載入更多…"
+  },
+  "market_searching_pools": {
+    "message": "正在搜尋流動性池…"
+  },
+  "market_failed_to_load_listings": {
+    "message": "無法載入列表。請重試。"
+  },
+  "search_error_rate_limited": {
+    "message": "搜尋請求暫時受限，請稍後重試。"
+  },
+  "search_error_failed": {
+    "message": "搜尋失敗，請重試。"
+  },
+  "search_error_timeout": {
+    "message": "搜尋請求逾時，請重試。"
+  },
+  "search_error_invalid_response": {
+    "message": "搜尋結果的回應格式無效。"
+  },
+  "search_error_detail": {
+    "message": "無法載入搜尋結果：$1"
+  },
+  "baseasset_quoteasset_select_pair": {
+    "message": "請選擇交易對"
+  },
+  "baseasset_quoteasset_loading_matches": {
+    "message": "正在載入成交紀錄…"
   }
 }

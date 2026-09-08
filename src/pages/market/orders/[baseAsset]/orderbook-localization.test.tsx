@@ -48,7 +48,7 @@ it.each(['buy', 'sell'] as const)('localizes the empty %s side in place and pres
   expect(fetchOrdersByPair).toHaveBeenCalledTimes(1);
   expect(fetchOrdersByPair).toHaveBeenCalledWith('PARENT.child', 'PEPECASH', { limit: 20, offset: 0, status: 'open' });
   expect(fetchOrderMatchesByPair).toHaveBeenCalledTimes(1);
-  expect(fetchOrderMatchesByPair).toHaveBeenCalledWith('PARENT.child', 'PEPECASH', { limit: 20 });
+  expect(fetchOrderMatchesByPair).toHaveBeenCalledWith('PARENT.child', 'PEPECASH', { limit: 20, offset: 0 });
   fireEvent.click(screen.getByRole('button', { name: t('common_create_new_order') }));
   expect(screen.getByTestId('destination').textContent).toBe(`/compose/order/PARENT.child?type=${side}&quote=PEPECASH`);
 });

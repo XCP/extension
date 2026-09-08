@@ -16,7 +16,6 @@ import {
   fetchOrderMatchesByPair,
   fetchOrdersByPair,
   type Order,
-  type OrderMatch,
 } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { divide, toBigNumber, toNumber } from "@/core/numeric";
@@ -28,8 +27,10 @@ import {
 } from "@/core/tradingPair";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useInView } from "@/hooks/useInView";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 // Constants
 const FETCH_LIMIT = 20;
@@ -54,104 +55,99 @@ function getRawOrderPrice(price: number): string {
 /**
  * AssetOrders displays orders and order matches for a specific trading pair.
  */
+type OrderTab = "buy" | "sell" | "history";
+interface PairProps { baseAsset: string; quoteAsset: string }
+
 export default function AssetOrdersPage(): ReactElement {
+  useLocaleRevision();
   const { baseAsset, quoteAsset } = useParams<{ baseAsset: string; quoteAsset: string }>();
-  const navigate = useNavigate();
-  const { setHeaderProps } = useHeader();
+  if (!baseAsset || !quoteAsset) return <EmptyState message={t('baseasset_quoteasset_select_pair')} />;
+  return <AssetOrdersPair key={JSON.stringify([baseAsset, quoteAsset])} baseAsset={baseAsset} quoteAsset={quoteAsset} />;
+}
 
-  // Data state
-  const [baseAssetInfo, setBaseAssetInfo] = useState<AssetInfo | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [matches, setMatches] = useState<OrderMatch[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Pagination state for matches (orders are loaded fully upfront for order book)
-  const [matchOffset, setMatchOffset] = useState(0);
-  const [hasMoreMatches, setHasMoreMatches] = useState(true);
-  const [isFetchingMoreMatches, setIsFetchingMoreMatches] = useState(false);
-
-  // UI state
-  const [tab, setTab] = useState<"buy" | "sell" | "history">("sell");
-
-  // Clipboard
-  const { copy, isCopied } = useCopyToClipboard();
-
-  // Infinite scroll refs
-  const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
-
-  // Track last refresh time to prevent spam
-  const lastRefreshRef = useRef<number>(0);
-
-  // Fetch all orders by paginating through (order book needs complete data)
-  const fetchAllOrders = useCallback(async (base: string, quote: string): Promise<Order[]> => {
-    const allOrders: Order[] = [];
-    let offset = 0;
-    let hasMore = true;
-
-    while (hasMore) {
-      const res = await fetchOrdersByPair(base, quote, {
-        limit: FETCH_LIMIT,
-        offset,
-        status: "open",
-      });
-      allOrders.push(...res.result);
-      offset += FETCH_LIMIT;
-      hasMore = res.result.length === FETCH_LIMIT;
-    }
-
-    return allOrders;
+function AssetOrdersPair({ baseAsset, quoteAsset }: PairProps): ReactElement {
+  const [generation, setGeneration] = useState(0);
+  const [tab, setTab] = useState<OrderTab>("sell");
+  const lastRefreshRef = useRef(0);
+  const hasAutoSelectedTab = useRef(false);
+  const autoSelectTab = useCallback((onlyBuyOrders: boolean) => {
+    if (hasAutoSelectedTab.current) return;
+    hasAutoSelectedTab.current = true;
+    if (onlyBuyOrders) setTab("buy");
   }, []);
-
-  // Load data function (used for initial load and refresh)
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (!baseAsset || !quoteAsset) return;
-
-    if (isRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setOrders([]);
-    setMatches([]);
-    setMatchOffset(0);
-    setHasMoreMatches(true);
-
-    try {
-      // Fetch asset info and all orders in parallel, plus first page of matches
-      const [infoRes, allOrders, matchesRes] = await Promise.all([
-        fetchAssetDetails(baseAsset),
-        fetchAllOrders(baseAsset, quoteAsset),
-        fetchOrderMatchesByPair(baseAsset, quoteAsset, { limit: FETCH_LIMIT }),
-      ]);
-
-      if (infoRes) setBaseAssetInfo(infoRes);
-      setOrders(allOrders);
-
-      setMatches(matchesRes.result);
-      setMatchOffset(FETCH_LIMIT);
-      if (matchesRes.result.length < FETCH_LIMIT) {
-        setHasMoreMatches(false);
-      }
-    } catch (err) {
-      console.error('Failed to load orders:', { baseAsset, quoteAsset }, err);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [baseAsset, quoteAsset, fetchAllOrders]);
-
-  // Refresh handler with cooldown to prevent spam
+  const reload = useCallback(() => setGeneration(current => current + 1), []);
   const handleRefresh = useCallback(() => {
     const now = Date.now();
-    if (now - lastRefreshRef.current < REFRESH_COOLDOWN_MS) {
-      return; // Still in cooldown
-    }
+    if (now - lastRefreshRef.current < REFRESH_COOLDOWN_MS) return;
     lastRefreshRef.current = now;
-    loadData(true);
-  }, [loadData]);
+    reload();
+  }, [reload]);
+  // Keep the selected tab, but retire every request when the pair is refreshed.
+  return <AssetOrdersView key={generation} baseAsset={baseAsset} quoteAsset={quoteAsset}
+    tab={tab} setTab={setTab} onAutoSelectTab={autoSelectTab}
+    isRefresh={generation > 0} onRefresh={handleRefresh} onRetry={reload} />;
+}
 
-  // Configure header with refresh button
+function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, isRefresh, onRefresh, onRetry }: PairProps & {
+  tab: OrderTab;
+  setTab: (tab: OrderTab) => void;
+  onAutoSelectTab: (onlyBuyOrders: boolean) => void;
+  isRefresh: boolean;
+  onRefresh: () => void;
+  onRetry: () => void;
+}): ReactElement {
+  const navigateRouter = useNavigate();
+  const navigate = useCallback((to: string) => { void navigateRouter(to); }, [navigateRouter]);
+  const { setHeaderProps } = useHeader();
+  const [book, setBook] = useState<{ info: AssetInfo | null; orders: Order[]; error: { message: string | null } | null } | null>(null);
+  const baseAssetInfo = book?.info ?? null;
+  const orders = book?.orders ?? NO_ORDERS;
+  const loading = book === null;
+  const bookError = book?.error;
+  const isRefreshing = isRefresh && loading;
+  const { copy: copyAsync, isCopied } = useCopyToClipboard();
+  const copy = useCallback((value: string) => { void copyAsync(value); }, [copyAsync]);
+  const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
+
+  const fetchMatches = useCallback((offset: number, limit: number) =>
+    fetchOrderMatchesByPair(baseAsset, quoteAsset, { limit, offset }), [baseAsset, quoteAsset]);
+  const {
+    data: matches, isLoading: matchesLoading, isFetchingMore: isFetchingMoreMatches,
+    hasMore: hasMoreMatches, error: matchesError, loadMore: loadMoreMatches, refresh: retryMatches,
+  } = usePaginatedFetch({ fetchFn: fetchMatches, getKey: (match) => match.id, maxItems: Infinity });
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchAllOrders = async (): Promise<Order[]> => {
+      const allOrders: Order[] = [];
+      let offset = 0;
+      while (true) {
+        if (cancelled) return [];
+        const response = await fetchOrdersByPair(baseAsset, quoteAsset, { limit: FETCH_LIMIT, offset, status: "open" });
+        if (cancelled) return [];
+        allOrders.push(...response.result);
+        offset += response.result.length;
+        if (response.result.length < FETCH_LIMIT
+          || (Number.isSafeInteger(response.result_count) && offset >= response.result_count)) break;
+      }
+      return allOrders;
+    };
+    const loadBook = async () => {
+      try {
+        const [info, allOrders] = await Promise.all([fetchAssetDetails(baseAsset), fetchAllOrders()]);
+        // Publishing only here preserves complete price levels and totals.
+        if (!cancelled) setBook({ info, orders: allOrders, error: null });
+      } catch (error) {
+        if (!cancelled) {
+          cancelled = true; // Stop any still-running full-book pagination loop.
+          setBook({ info: null, orders: [], error: { message: error instanceof Error ? error.message : null } });
+        }
+      }
+    };
+    void loadBook();
+    return () => { cancelled = true; };
+  }, [baseAsset, quoteAsset]);
+
   useEffect(() => {
     setHeaderProps({
       title: t('baseasset_quoteasset_orders'),
@@ -159,55 +155,19 @@ export default function AssetOrdersPage(): ReactElement {
       rightButton: {
         ariaLabel: t('baseasset_quoteasset_refresh_orders'),
         icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
-        onClick: handleRefresh,
+        onClick: onRefresh,
         disabled: isRefreshing,
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, isRefreshing, handleRefresh]);
+  }, [setHeaderProps, navigate, isRefreshing, onRefresh]);
 
-  // Load initial data
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Load more matches on scroll (when on "history" tab)
-  useEffect(() => {
-    if (!baseAsset || !quoteAsset || !inView || isFetchingMoreMatches || !hasMoreMatches || tab !== "history") {
-      return;
-    }
-
-    const loadMore = async () => {
-      setIsFetchingMoreMatches(true);
-      try {
-        const res = await fetchOrderMatchesByPair(baseAsset, quoteAsset, {
-          limit: FETCH_LIMIT,
-          offset: matchOffset,
-        });
-
-        if (res.result.length < FETCH_LIMIT) {
-          setHasMoreMatches(false);
-        }
-
-        if (res.result.length > 0) {
-          setMatches((prev) => {
-            const merged = [...prev, ...res.result];
-            return merged.filter(
-              (d, i, arr) => arr.findIndex((x) => x.id === d.id) === i
-            );
-          });
-          setMatchOffset((prev) => prev + FETCH_LIMIT);
-        }
-      } catch (err) {
-        console.error("Failed to load more matches:", err);
-        setHasMoreMatches(false);
-      } finally {
-        setIsFetchingMoreMatches(false);
-      }
-    };
-
-    loadMore();
-  }, [baseAsset, quoteAsset, inView, isFetchingMoreMatches, hasMoreMatches, matchOffset, tab]);
+    if (!inView || tab !== "history" || loading || bookError || matchesLoading || isFetchingMoreMatches || !hasMoreMatches || matchesError) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) loadMoreMatches(); });
+    return () => { cancelled = true; };
+  }, [inView, tab, loading, bookError, matchesLoading, isFetchingMoreMatches, hasMoreMatches, matchesError, loadMoreMatches]);
 
   // Split orders into buy and sell categories based on the URL's trading pair context
   // Sell order: give_asset = baseAsset (selling base for quote)
@@ -228,25 +188,19 @@ export default function AssetOrdersPage(): ReactElement {
     return { buyOrders: buy, sellOrders: sell };
   }, [orders, baseAsset, quoteAsset]);
 
-  // Track if we've auto-selected the initial tab
-  const hasAutoSelectedTab = useRef(false);
-
   // Auto-select tab based on available orders (only on initial load)
   useEffect(() => {
     // Only run once after orders load
-    if (hasAutoSelectedTab.current || loading || orders.length === 0) return;
-    hasAutoSelectedTab.current = true;
+    if (loading || orders.length === 0) return;
 
     const hasSellOrders = sellOrders.length > 0;
     const hasBuyOrders = buyOrders.length > 0;
 
     // If only buy orders exist, show buy tab
     // Otherwise show sell tab (default)
-    if (hasBuyOrders && !hasSellOrders) {
-      setTab("buy");
-    }
+    onAutoSelectTab(hasBuyOrders && !hasSellOrders);
     // If only sell or both, keep default "sell"
-  }, [loading, orders.length, buyOrders.length, sellOrders.length]);
+  }, [loading, orders.length, buyOrders.length, sellOrders.length, onAutoSelectTab]);
 
   // Get current orders based on tab
   const currentOrders = tab === "buy" ? buyOrders : tab === "sell" ? sellOrders : NO_ORDERS;
@@ -405,6 +359,13 @@ export default function AssetOrdersPage(): ReactElement {
 
   if (loading) {
     return <Spinner message={t('baseasset_quoteasset_loading_orders', [String(baseAsset), String(quoteAsset)])} />;
+  }
+
+  if (book.error) {
+    return <div role="alert" className="p-4 text-center text-sm text-gray-600">
+      <p>{book.error.message ?? t('market_failed_to_load_orders')}</p>
+      <button type="button" onClick={onRetry} className="mt-2 rounded px-3 py-1 text-blue-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{t('common_retry')}</button>
+    </div>;
   }
 
   // Only history tab has pagination - orders are loaded fully upfront for the order book
@@ -614,7 +575,7 @@ export default function AssetOrdersPage(): ReactElement {
           )}
 
           {tab === "history" && (
-            matches.length > 0 ? (
+            matchesLoading ? <Spinner message={t('baseasset_quoteasset_loading_matches')} /> : matches.length > 0 ? (
               <div className="space-y-2">
                 {matches.map((m) => (
                   <MarketMatchCard
@@ -626,14 +587,20 @@ export default function AssetOrdersPage(): ReactElement {
                   />
                 ))}
               </div>
-            ) : (
+            ) : !matchesError ? (
               <EmptyState message={t('baseasset_quoteasset_no_matches', [String(baseAsset), String(quoteAsset)])} />
-            )
+            ) : null
+          )}
+          {tab === "history" && matchesError && (
+            <div role="alert" className="py-3 text-center text-sm text-gray-600">
+              <p>{matchesError.message}</p>
+              <button type="button" onClick={retryMatches} className="mt-2 rounded px-3 py-1 text-blue-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{t('common_retry')}</button>
+            </div>
           )}
 
           {/* Load more sentinel */}
           <div ref={loadMoreRef} className="py-2">
-            {hasMore ? (
+            {hasMore && !matchesLoading && !matchesError ? (
               isFetching ? (
                 <div className="flex justify-center">
                   <Spinner className="py-4" />

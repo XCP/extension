@@ -2867,9 +2867,6 @@
   "market_enter_pool": {
     "message": "プールに入る →"
   },
-  "market_failed_to_load_dispensers": {
-    "message": "自販機を読み込めませんでした"
-  },
   "market_failed_to_load_more_pools": {
     "message": "追加のプールを読み込めませんでした"
   },
@@ -2878,12 +2875,6 @@
   },
   "market_failed_to_load_pools": {
     "message": "プールを読み込めませんでした"
-  },
-  "market_failed_to_load_your_dispensers": {
-    "message": "あなたの自販機を読み込めませんでした"
-  },
-  "market_failed_to_load_your_orders": {
-    "message": "あなたの注文を読み込めませんでした"
   },
   "market_filter_your_dispensers": {
     "message": "自販機を絞り込み..."
@@ -2897,26 +2888,14 @@
   "market_loading_pools": {
     "message": "プールを読み込み中…"
   },
-  "market_loading_your_dispensers": {
-    "message": "あなたの自販機を読み込み中…"
-  },
-  "market_loading_your_orders": {
-    "message": "あなたの注文を読み込み中…"
-  },
   "market_loading_your_pools": {
     "message": "あなたのプールを読み込み中…"
   },
   "market_no_dispensers_matching": {
     "message": "「$1」に一致する自販機はありません"
   },
-  "market_no_open_dispensers_for": {
-    "message": "$1 の稼働中の自販機はありません"
-  },
   "market_no_open_dispensers_found": {
     "message": "稼働中の自販機は見つかりません"
-  },
-  "market_no_open_orders_for": {
-    "message": "$1 の未約定の注文はありません"
   },
   "market_no_open_orders_found": {
     "message": "未約定の注文は見つかりません"
@@ -2932,9 +2911,6 @@
   },
   "market_no_pools_matching": {
     "message": "「$1」に一致するプールはありません"
-  },
-  "market_results_for": {
-    "message": "「$1」の結果"
   },
   "market_search_asset_dispensers": {
     "message": "アセットの自販機を検索..."
@@ -2953,12 +2929,6 @@
   },
   "market_sections": {
     "message": "マーケットのセクション"
-  },
-  "market_view_all_dispensers_for": {
-    "message": "$1 の自販機をすべて表示 →"
-  },
-  "market_view_all_orders_for": {
-    "message": "$1 の注文をすべて表示 →"
   },
   "market_view_mode": {
     "message": "表示モード"
@@ -5901,5 +5871,59 @@
   },
   "transaction_unconfirmed": {
     "message": "未承認"
+  },
+  "asset_asset_list_load_failed": {
+    "message": "管理しているアセットを読み込めませんでした。"
+  },
+  "asset_asset_list_load_more_failed": {
+    "message": "続きのアセットを読み込めませんでした。"
+  },
+  "balance_balance_list_load_failed": {
+    "message": "残高を読み込めませんでした。"
+  },
+  "balance_balance_list_load_more_failed": {
+    "message": "続きの残高を読み込めませんでした。"
+  },
+  "utxo_utxo_list_load_failed": {
+    "message": "UTXOの残高を読み込めませんでした。"
+  },
+  "utxo_utxo_list_load_more_failed": {
+    "message": "続きのUTXO残高を読み込めませんでした。"
+  },
+  "utxo_utxo_list_searching_utxo_balances": {
+    "message": "UTXOの残高を検索中…"
+  },
+  "common_load_more": {
+    "message": "さらに読み込む"
+  },
+  "common_loading_more": {
+    "message": "追加読み込み中…"
+  },
+  "market_searching_pools": {
+    "message": "プールを検索中…"
+  },
+  "market_failed_to_load_listings": {
+    "message": "一覧を読み込めませんでした。もう一度お試しください。"
+  },
+  "search_error_rate_limited": {
+    "message": "検索の回数制限に達しました。時間をおいて再試行してください。"
+  },
+  "search_error_failed": {
+    "message": "検索できませんでした。もう一度お試しください。"
+  },
+  "search_error_timeout": {
+    "message": "検索がタイムアウトしました。もう一度お試しください。"
+  },
+  "search_error_invalid_response": {
+    "message": "検索結果の応答形式が正しくありません。"
+  },
+  "search_error_detail": {
+    "message": "検索結果を読み込めませんでした：$1"
+  },
+  "baseasset_quoteasset_select_pair": {
+    "message": "取引ペアを選択してください"
+  },
+  "baseasset_quoteasset_loading_matches": {
+    "message": "約定履歴を読み込み中…"
   }
 }
