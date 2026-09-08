@@ -1,3 +1,4 @@
+import { serializeRawInteger } from "@/core/amount-contract/amounts";
 /**
  * Counterparty API Client
  *
@@ -1144,7 +1145,7 @@ export async function fetchPoolQuote(
 ): Promise<PoolQuote> {
   const data = await cpApiGet<{ result: PoolQuote }>(
     `/v2/pools/${encodePath(asset1)}/${encodePath(asset2)}/quote`,
-    { quantity: quantity.toString() },
+    { quantity: serializeRawInteger(quantity, { min: 1n }) },
     { skipCache: true }
   );
   return data.result;
@@ -1157,7 +1158,7 @@ export async function fetchPoolDepositQuote(
 ): Promise<PoolDepositQuote> {
   const data = await cpApiGet<{ result: PoolDepositQuote }>(
     `/v2/pools/${encodePath(asset1)}/${encodePath(asset2)}/quote/deposit`,
-    { quantity: quantity.toString() },
+    { quantity: serializeRawInteger(quantity, { min: 1n }) },
     { skipCache: true }
   );
   return data.result;
@@ -1170,7 +1171,7 @@ export async function fetchPoolWithdrawQuote(
 ): Promise<PoolWithdrawQuote> {
   const data = await cpApiGet<{ result: PoolWithdrawQuote }>(
     `/v2/pools/${encodePath(asset1)}/${encodePath(asset2)}/quote/withdraw`,
-    { quantity: quantity.toString() },
+    { quantity: serializeRawInteger(quantity, { min: 1n }) },
     { skipCache: true }
   );
   return data.result;

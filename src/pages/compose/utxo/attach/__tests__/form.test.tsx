@@ -194,19 +194,14 @@ describe('UtxoAttachForm', () => {
     expect(continueButton).toBeDisabled();
   });
 
-  it('should keep continue button disabled for negative amount', async () => {
+  it('preserves a negative amount draft and blocks submission', async () => {
     const user = userEvent.setup();
-    render(
-      <TestWrapper>
-        <UtxoAttachForm {...defaultProps} />
-      </TestWrapper>
-    );
-
+    render(<TestWrapper><UtxoAttachForm {...defaultProps} /></TestWrapper>);
     const amountInput = screen.getByRole('textbox', { name: /Amount/i });
-    const continueButton = screen.getByRole('button', { name: /Continue/i });
-
     await user.type(amountInput, '-5');
-    expect(continueButton).toBeDisabled();
+    expect(amountInput).toHaveValue('-5');
+    expect(amountInput).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled();
   });
 
   it('should show an error when the asset details fail to load', async () => {

@@ -8,7 +8,7 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { IssuanceOptions } from "@/core/counterparty/compose";
-import { formatAmount } from "@/core/format";
+import { formatForInput } from "@/core/format";
 import { asDisplayUnits, fromSatoshis, toBigNumber } from '@/core/numeric';
 import { MAX_SUPPLY } from "@/core/validation/amount";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
@@ -62,14 +62,7 @@ export function IssueSupplyForm({
     // Convert to normalized amount (divide by 10^8 if divisible)
     const normalizedMax = isDivisible ? fromSatoshis(maxIssuable) : maxIssuable.toString();
     
-    return formatAmount({
-      // The decimal string, not a double: `MAX_SUPPLY` needs 19 digits and a double carries 15,
-      // so `Number()` here rendered a max the user could not actually reach — the exact trap
-      // `AmountFormatterOptions.value` documents.
-      value: normalizedMax,
-      maximumFractionDigits: isDivisible ? 8 : 0,
-      minimumFractionDigits: 0
-    });
+    return formatForInput(normalizedMax, isDivisible ? 8 : 0);
   };
 
   const processedFormAction = async (formData: FormData) => {

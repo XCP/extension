@@ -337,8 +337,8 @@ export type { DisplayUnits };
  * transaction means rather than only what it contains.
  *
  * A cancel names an order by hash and nothing else; a destroy names an amount with no sense of
- * scale; a dividend names a rate whose total cost depends on the supply it is paid across. None of
- * that is in the bytes, and this is the class of question the API is the right source for.
+ * scale. None of that is in the bytes, and this is the class of question the API is the right
+ * source for.
  */
 export interface ProtocolContext {
   /** The order a cancel refers to, when it could be resolved. */
@@ -350,8 +350,6 @@ export interface ProtocolContext {
   };
   /** Total supply of the message's own asset, in display units. */
   assetSupply?: string;
-  /** Total dividend payable: the per-unit rate across the paying asset's supply. */
-  dividendTotal?: string;
   /**
    * The transaction's own id, so an attach can name the UTXO it creates. Core builds that
    * destination as `f"{tx_hash}:{destination_vout}"`, which is the one thing an attach produces
@@ -379,8 +377,6 @@ export interface ProtocolContext {
    * Core pays from every open dispenser at the address, so this is a list and not a single asset.
    */
   dispensePayouts?: string[];
-  /** XCP a dividend costs beyond the distributed asset: core charges a per-holder fee. */
-  dividendFeeXcp?: string;
   /** The LP asset of the pool an LP operation belongs to, when the pool could be resolved. */
   poolLpAsset?: string;
   /** The pool's swap fee as a display percentage (e.g. "0.5%"), when the pool exposes one. */
@@ -622,13 +618,8 @@ export function protocolFields(
       break;
 
     case 'dividend':
-      // Headline: the rate. Here: the bill.
-      add(
-        'Total dividend',
-        context.dividendTotal ? `${context.dividendTotal} ${n(m.dividendAsset)}` : undefined,
-        'amount'
-      );
-      add('XCP fee', context.dividendFeeXcp ? `${context.dividendFeeXcp} XCP` : undefined, 'amount');
+      // The headline states the exact per-unit rate. Supply and holder count alone
+      // cannot establish Core's total payout or the fee for eligible recipients.
       break;
 
     case 'destroy': {

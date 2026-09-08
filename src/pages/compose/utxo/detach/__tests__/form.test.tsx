@@ -350,7 +350,7 @@ describe('UtxoDetachForm', () => {
 
     const destinationInput = screen.getByLabelText(/Destination \(Optional\)/i);
     
-    await user.type(destinationInput, 'bc1qdestination123');
+    await user.type(destinationInput, '1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
 
     const form = screen.getByRole('button', { name: /Continue/i }).closest('form');
     fireEvent.submit(form!);
@@ -358,6 +358,22 @@ describe('UtxoDetachForm', () => {
     await waitFor(() => {
       expect(formAction).toHaveBeenCalled();
     });
+  });
+
+  it('rejects a direct submit while the optional destination is nonempty and invalid', async () => {
+    const user = userEvent.setup();
+    const formAction = vi.fn();
+    render(
+      <TestWrapper>
+        <UtxoDetachForm {...defaultProps} formAction={formAction} />
+      </TestWrapper>
+    );
+
+    await user.type(screen.getByLabelText(/Destination \(Optional\)/i), 'bc1qdestination123');
+    const button = screen.getByRole('button', { name: /Continue/i });
+    expect(button).toBeDisabled();
+    fireEvent.submit(button.closest('form')!);
+    expect(formAction).not.toHaveBeenCalled();
   });
 
   it('should show help text when enabled', () => {

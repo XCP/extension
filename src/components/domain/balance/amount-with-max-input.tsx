@@ -1,11 +1,13 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ChangeEvent, type ReactElement, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { parseAmountDraft, rawToInput } from "@/core/amount-contract/amounts";
 import { estimateVsize } from "@/core/bitcoin/feeEstimation";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
-import { formatAmount } from "@/core/format";
-import { divide, fromSatoshis, multiply, roundDown, roundUp, toBigNumber, toNumber } from "@/core/numeric";
+import { isComposableAmount } from "@/core/format";
+import { divide, fromSatoshis, multiply, roundDown, roundUp, toNumber } from "@/core/numeric";
 import { isDustAmount } from "@/core/validation/amount";
+import { validateFeeRate } from "@/core/validation/fee";
 
 // Known safe error messages that can be shown to users
 // These are intentionally user-friendly and don't leak internal details
@@ -82,42 +84,39 @@ export function AmountWithMaxInput({
   extraOutputCount = 0,
 }: AmountWithMaxInputProps): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
+  const invalidDraft = value !== '' && !isComposableAmount(value, isDivisible ? 8 : 0);
+  const draftError = isDivisible
+    ? 'Use digits and a dot, up to 8 decimals.'
+    : 'Enter whole numbers only.';
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    // Block decimal input for non-divisible assets
-    if (!isDivisible && val.includes('.')) return;
-    // Limit to 8 decimal places for divisible assets
-    if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
-    onChange(val);
+    // Retain the complete draft. Dropping '-' or '.' here lets the next
+    // keystroke turn an invalid amount into a different valid amount.
+    onChange(e.target.value);
     setError(null);
   };
 
   const handleMaxButtonClick = async () => {
     if (!sourceAddress?.address || disabled) return;
 
+    if (!Number.isSafeInteger(destinationCount) || destinationCount < 1) {
+      setError('The destination count must be a positive whole number.');
+      return;
+    }
     if (asset !== "BTC") {
-      // maxAmount is the whole balance as a decimal string; splitting it as a double would hand
-      // the user a figure their balance cannot cover, or leave a remainder behind.
-      const maxNum = toBigNumber(maxAmount);
-      if (!maxNum.isNaN()) {
-        // Use appropriate decimal places based on divisibility
-        // maximumFractionDigits controls precision, minimumFractionDigits=0 avoids trailing zeros
-        // useGrouping: false prevents commas in the value (e.g., "1000000" not "1,000,000")
-        const decimals = isDivisible ? 8 : 0;
-        const perDestination = formatAmount({
-          value: divide(maxNum, destinationCount),
-          maximumFractionDigits: decimals,
-          minimumFractionDigits: 0,
-          useGrouping: false
-        });
-        onChange(perDestination);
+      const maximum = parseAmountDraft(maxAmount, { decimals: isDivisible ? 8 : 0 });
+      if (maximum.status !== 'valid') {
+        setError('The available amount is not exact. Refresh the asset details before using Max.');
+        return;
       }
+      // Intentionally floor the derived split in base units, leaving a remainder.
+      onChange(rawToInput(maximum.raw / BigInt(destinationCount), isDivisible ? 8 : 0));
+      setError(null);
       return;
     }
 
-    if (feeRate === null || feeRate === undefined) {
-      setError("Fee rates are still loading. Please wait.");
+    if (feeRate === null || feeRate === undefined || !validateFeeRate(feeRate, { minRate: 0.1 }).isValid) {
+      setError("Enter a valid fee rate before using Max.");
       return;
     }
 
@@ -208,9 +207,24 @@ export function AmountWithMaxInput({
           id={name}
           value={value}
           onChange={handleInputChange}
+          onPaste={(event) => {
+            const pasted = event.clipboardData.getData('text/plain');
+            if (!/[\r\n]/.test(pasted)) return;
+            event.preventDefault();
+            // Text inputs remove line breaks before onChange. Keep those
+            // characters visible as escapes so "1\n2" cannot become 12.
+            const input = event.currentTarget;
+            const escaped = pasted.replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+            onChange(value.slice(0, input.selectionStart ?? 0) + escaped + value.slice(input.selectionEnd ?? value.length));
+          }}
+          inputMode={isDivisible ? 'decimal' : 'numeric'}
+          pattern={isDivisible ? '([0-9]+(\\.[0-9]{1,8})?|\\.[0-9]{1,8})' : '[0-9]+'}
+          invalid={invalidDraft || hasError}
+          aria-invalid={invalidDraft || hasError || undefined}
+          aria-describedby={invalidDraft ? `${name}-draft-error` : undefined}
           autoComplete="off"
           className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 pr-16 outline-none focus-visible:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-            hasError
+            hasError || invalidDraft
               ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
               : "border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500"
           }`}
@@ -228,6 +242,7 @@ export function AmountWithMaxInput({
           Max
         </Button>
       </div>
+      {invalidDraft && <p id={`${name}-draft-error`} className="mt-2 text-sm text-red-500" role="alert">{draftError}</p>}
       {showHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
           {description || `Enter the amount of ${asset} you want to send${destinationCount > 1 ? " (per destination)" : ""}.`}

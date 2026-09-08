@@ -2,6 +2,7 @@
  * Formatting utilities for numbers, addresses, assets, and prices.
  */
 
+import { type DecimalPlaces, parseAmountDraft } from '@/core/amount-contract/amounts';
 import { CURRENCY_INFO, type FiatCurrency } from '@/core/bitcoin/price';
 import { type BigNumber, fromSatoshis, toSatoshis } from '@/core/numeric';
 
@@ -78,6 +79,25 @@ export function formatAmount({
   ) => string;
 
   return format(exact);
+}
+
+/** Exact formatting for a validated/generated amount; this never repairs a draft. */
+export function formatForInput(value: AmountFormatterOptions['value'], decimals: number): string {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 8) throw new RangeError('Invalid amount precision');
+  if (value === null || value === undefined) throw new Error('Amount is missing');
+  if (typeof value === 'number' && (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER)) {
+    throw new Error('Amount must be exact and finite');
+  }
+  const text = typeof value === 'object' ? value.toFixed() : String(value);
+  const parsed = parseAmountDraft(text, { decimals: decimals as DecimalPlaces });
+  if (parsed.status !== 'valid') throw new Error('Amount is not an exact canonical decimal');
+  return parsed.canonical;
+}
+
+/** Complete amounts only. Invalid/incomplete drafts stay in the field. */
+export function isComposableAmount(value: string, decimals: number): boolean {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 8) return false;
+  return parseAmountDraft(value, { decimals: decimals as DecimalPlaces }).status === 'valid';
 }
 
 /**

@@ -107,7 +107,7 @@ describe('resolveProtocolContext', () => {
   });
 
   describe('dividend figures', () => {
-    it('trims the total payout and the XCP fee', async () => {
+    it('does not turn global supply and holder count into a dividend payout or fee', async () => {
       vi.mocked(fetchAssetDetails).mockResolvedValue({ supply_normalized: '1000' } as any);
       vi.mocked(fetchAssetHolderCount).mockResolvedValue(3);
 
@@ -116,8 +116,9 @@ describe('resolveProtocolContext', () => {
         data: { asset: 'MYASSET', quantityPerUnit: 100000 }, // 0.001 per unit
       });
 
-      expect(context.dividendTotal).toBe('1');
-      expect(context.dividendFeeXcp).toBe('0.0006');
+      expect(context).toEqual({});
+      expect(fetchAssetDetails).not.toHaveBeenCalled();
+      expect(fetchAssetHolderCount).not.toHaveBeenCalled();
     });
   });
 });

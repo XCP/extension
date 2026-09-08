@@ -254,8 +254,10 @@ async function warningsOn(page: import('@playwright/test').Page): Promise<RegExp
 async function assertScenarioFacts(page: import('@playwright/test').Page, name: string): Promise<void> {
   if (name === 'dividend') {
     await expect(page.getByText('0.00000001 XCP per unit', { exact: true })).toBeVisible();
-    const total = page.locator('dl > div').filter({ has: page.locator('dt').filter({ hasText: /^Total dividend$/ }) });
-    await expect(total.locator('dd')).toHaveText('0.00001779 XCP');
+    // Supply and total holders cannot prove the actual payout or fee: Core excludes the signer
+    // and truncates each eligible holder independently. Do not present those estimates as facts.
+    await expect(page.getByText('Total dividend', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('XCP fee', { exact: true })).toHaveCount(0);
     return;
   }
   if (name !== 'send-with-memo') return;
@@ -301,6 +303,15 @@ async function installScenarioStubs(
       },
     });
   });
+  if (name === 'dividend') {
+    // Fixed ledger facts keep this fixture independent of API availability. Even with supply
+    // and holder count available, neither proves the actual total payable by this signer.
+    await api.route(/\/v2\/assets\/BONPARTY(?:\/holders)?(?:[/?]|$)/, route => route.fulfill({
+      json: new URL(route.request().url()).pathname.endsWith('/holders')
+        ? { result: [], result_count: 15 }
+        : { result: { asset: 'BONPARTY', divisible: false, asset_longname: null, supply: 1779, supply_normalized: '1779' } },
+    }));
+  }
   if (name === 'dispense') {
     await api.route(/\/dispensers/, (route) => route.fulfill({
       json: {
