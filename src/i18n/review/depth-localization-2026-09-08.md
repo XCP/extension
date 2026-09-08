@@ -21,6 +21,7 @@ review with code and browser checks, not native-speaker certification.
 | BTC order matching fee | Name the fee requirement on the BTC-paying order transaction. It is not the fee of the later BTCPay transaction. |
 | Pending balances | Translate known pending reasons at render time without changing estimates, read cadence, or spendability. |
 | Trezor failures | Translate finite local error codes. INIT_FAILED concerns starting the connection, not resetting the device. Unknown diagnostics remain verbatim. |
+| History page and expiry duration | Reuse historical type labels rather than approval verbs; translate confirmation state and retained local failures. Localize compact approximate duration units without changing block thresholds, rounding, or saved values. |
 
 Primary product references are the [Zaif order-book guide](https://zaif.jp/doc_orderbook_trading),
 [Uniswap's pinned Japanese catalog](https://github.com/Uniswap/interface/blob/da6d36f71c4d2fd665b0aae1a052a4ffda917b31/packages/uniswap/src/i18n/locales/translations/ja-JP.json),

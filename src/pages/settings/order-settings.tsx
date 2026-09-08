@@ -125,12 +125,16 @@ export function OrderSettings({
   };
 
   const calculateDays = (blocks: number) => {
-    if (blocks === 0) return 'never';
+    if (blocks === 0) return t('settings_order_settings_never');
     const days = blocks / 144;
-    if (days < 1) return `${(days * 24).toFixed(0)}h`;
-    if (days < 7) return `${days.toFixed(1)}d`;
-    if (days >= 30) return `${(days / 30).toFixed(1)}mo`;
-    return `${(days / 7).toFixed(1)}w`;
+    // Keep the existing approximation/rounding, then localize only its displayed number and unit.
+    const display = (value: number, decimals: number) => formatAmount({
+      value: value.toFixed(decimals), minimumFractionDigits: decimals, maximumFractionDigits: decimals,
+    });
+    if (days < 1) return t('settings_order_duration_hours', [display(days * 24, 0)]);
+    if (days < 7) return t('settings_order_duration_days', [display(days, 1)]);
+    if (days >= 30) return t('settings_order_duration_months', [display(days / 30, 1)]);
+    return t('settings_order_duration_weeks', [display(days / 7, 1)]);
   };
 
   const expirationLabel = (expiration === 0 && !usesLegacyExpirations)

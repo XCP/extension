@@ -5886,5 +5886,20 @@
   },
   "messages_order_status_unknown": {
     "message": "未知"
+  },
+  "settings_order_duration_hours": {
+    "message": "$1小时"
+  },
+  "settings_order_duration_days": {
+    "message": "$1天"
+  },
+  "settings_order_duration_weeks": {
+    "message": "$1周"
+  },
+  "settings_order_duration_months": {
+    "message": "$1个月"
+  },
+  "transaction_unconfirmed": {
+    "message": "未确认"
   }
 }

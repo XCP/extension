@@ -161,6 +161,25 @@ const localizeAction: DescriptionLocalizer = (source, substitutions) => {
   }
 };
 
+/** A historical message type, without the action-specific verbs used for approvals. */
+export function historyTransactionTypeLabel(messageType: string): string {
+  const aliases: Record<string, string> = {
+    mpma: 'mpma_send',
+    move_utxo: 'utxo_move',
+    open_order: 'order',
+    open_dispenser: 'dispenser',
+  };
+  const type = Object.hasOwn(aliases, messageType) ? aliases[messageType]! : messageType;
+  return labelFor(type, (source, substitutions) => {
+    // A future wire name must not turn inherited object members into a React child.
+    if (typeof source !== 'string') return messageType;
+    if (source === 'Fairmint') return t('fairminter_fairmint_fairmint');
+    if (source === 'Fairminter') return t('compose_fairminter_fairminter');
+    if (source === 'Unknown') return t('messages_order_status_unknown');
+    return localizeAction(source, substitutions);
+  });
+}
+
 /** The minimal decoded shape both approval screens share. */
 interface TxActionSource {
   counterpartyMessage?: CounterpartyMessage;

@@ -151,7 +151,7 @@
   },
   "fragments": [
     {
-      "name": "C:\\Users\\Dan\\Documents\\GitHub\\extension-localization-depth\\src\\i18n\\review\\pending-balance-status.json",
+      "name": "pending-balance-status.json",
       "sha256": "ad4fa2c0f29caadc75e2d0f42466c9e6d0f3a1eb85dc863cc3559339cfc01e52",
       "original": {
         "scope": "Display-only mempool annotations. Retain original core labels, event selection, quantities, memoization and read cadence. Machine proposals; not native-speaker review.",
@@ -321,7 +321,7 @@
       }
     },
     {
-      "name": "C:\\Users\\Dan\\Documents\\GitHub\\extension-localization-depth\\src\\i18n\\review\\pending-api-validation.json",
+      "name": "pending-api-validation.json",
       "sha256": "ef3f74adb57ede9da22c197315ff1716ae66288552bffc9cdd97d4dfdb8b7e14",
       "original": {
         "scope": "Display-only custom-node diagnostics. Original .error strings and all URL, HTTP, readiness, mainnet, version and timeout acceptance decisions remain unchanged. HTTP status and minimum Core version are literal protocol facts, not localized numbers. Machine proposals.",
@@ -418,7 +418,7 @@
       }
     },
     {
-      "name": "C:\\Users\\Dan\\Documents\\GitHub\\extension-localization-depth\\src\\i18n\\review\\pending-hardware-errors.json",
+      "name": "pending-hardware-errors.json",
       "sha256": "7fe1189f8d171f9fe35be72e2e1dc6748f6745b756e7e9495f19789717e2573f",
       "original": {
         "scope": "Display-only guidance for unambiguous existing Trezor adapter error codes. Original error messages, numeric RPC codes, hardware codes, device calls and authorization remain unchanged. Machine proposals; not native-speaker review.",
@@ -504,7 +504,7 @@
       }
     },
     {
-      "name": "C:\\Users\\Dan\\.codex\\visualizations\\2026\\09\\07\\01a07cf7-5985-7853-9eea-1bafd2fb87d1\\extension-depth-order-history-i18n.json",
+      "name": "extension-depth-order-history-i18n.json",
       "sha256": "f00515e4fc513be5dd08766445c05a6018ae9d549b349b0fbf77d167cf65930c",
       "original": {
         "context": "Order transaction-history presentation only. Core revision 67e10db3ee266068c1effc4e83653df39ace5ca8; order.py349–379,449–479; verbose.py494–563; markets.py316–327. All translations are machine drafts; no compose/signing changes.",
@@ -577,7 +577,7 @@
       }
     },
     {
-      "name": "C:\\Users\\Dan\\.codex\\visualizations\\2026\\09\\07\\01a07cf7-5985-7853-9eea-1bafd2fb87d1\\extension-depth-display-fragments-i18n.json",
+      "name": "extension-depth-display-fragments-i18n.json",
       "sha256": "20d5b8afea0b92d0d1cdb887d1041db839f50f05392f1dcbea63b6e4b7235eb5",
       "original": {
         "context": "Machine drafts for mixed-language fragments in transaction history and order-book empty states. ErrorAlert uses existing keys.",
@@ -637,6 +637,74 @@
             "zh-CN": "无法获取完整的转账明细。",
             "zh-TW": "無法取得完整的轉帳明細。",
             "zh-HK": "無法取得完整的轉賬明細。"
+          }
+        }
+      }
+    },
+    {
+      "name": "pending-order-duration.json",
+      "sha256": "32b7d62ea8143cb9e9dcdf576a77aaa918ab97d9fca700d9c28418ee878bf2be",
+      "original": {
+        "scope": "Display-only approximate order duration derived from the existing block thresholds and toFixed rounding. The substituted number is formatted with the independent number preference. The parent label already indicates approximation. Machine proposals; not native-speaker certification.",
+        "messages": {
+          "settings_order_duration_hours": {
+            "description": "Compact approximate duration in the order-expiration label. $1 is the existing whole-number hour approximation, localized for display only.",
+            "en": "$1h",
+            "ja": "$1時間",
+            "zh_CN": "$1小时",
+            "zh_TW": "$1小時",
+            "zh_HK": "$1小時"
+          },
+          "settings_order_duration_days": {
+            "description": "Compact approximate duration in the order-expiration label. $1 retains one decimal place and the independently selected number format.",
+            "en": "$1d",
+            "ja": "$1日",
+            "zh_CN": "$1天",
+            "zh_TW": "$1天",
+            "zh_HK": "$1天"
+          },
+          "settings_order_duration_weeks": {
+            "description": "Compact approximate weeks in the order-expiration label. $1 retains one decimal place; this is a duration, not a past-event timestamp.",
+            "en": "$1w",
+            "ja": "$1週間",
+            "zh_CN": "$1周",
+            "zh_TW": "$1週",
+            "zh_HK": "$1週"
+          },
+          "settings_order_duration_months": {
+            "description": "Compact approximate months in the order-expiration label, using the existing 30-day month approximation. $1 retains one decimal place.",
+            "en": "$1mo",
+            "ja": "$1か月",
+            "zh_CN": "$1个月",
+            "zh_TW": "$1個月",
+            "zh_HK": "$1個月"
+          }
+        }
+      }
+    },
+    {
+      "name": "pending-transaction-page.json",
+      "sha256": "2ec3dd78447dad7dddffb9ea84117305c28d1d61d3c7c213480bdd69c84a4928",
+      "original": {
+        "scope": "Historical transaction page confirmation state. Display only; retains existing boolean confirmed decision and all transaction data/fetch behavior. Machine proposals.",
+        "sources": [
+          "src/pages/transactions/[txHash].tsx",
+          "Counterparty Core lib/api/queries.py: get_transaction_by_hash and confirmed bool normalization"
+        ],
+        "reusedKeys": [
+          "consolidate_history_confirmed",
+          "fairminter_fairmint_fairmint",
+          "compose_fairminter_fairminter",
+          "messages_order_status_unknown"
+        ],
+        "messages": {
+          "transaction_unconfirmed": {
+            "description": "Historical transaction detail: not yet confirmed in a Bitcoin block. Not a user review/acknowledgement state.",
+            "en": "Unconfirmed",
+            "ja": "未承認",
+            "zh_CN": "未确认",
+            "zh_TW": "未確認",
+            "zh_HK": "未確認"
           }
         }
       }
@@ -1284,6 +1352,46 @@
     },
     {
       "locale": "en",
+      "key": "settings_order_duration_days",
+      "before": null,
+      "after": {
+        "message": "$1d",
+        "description": "Compact approximate duration in the order-expiration label. $1 retains one decimal place and the independently selected number format."
+      },
+      "messageSha256": "9d916c078a75204304ba9893ae44d27607da28e47547f2d2277c2fd4cea8494b"
+    },
+    {
+      "locale": "en",
+      "key": "settings_order_duration_hours",
+      "before": null,
+      "after": {
+        "message": "$1h",
+        "description": "Compact approximate duration in the order-expiration label. $1 is the existing whole-number hour approximation, localized for display only."
+      },
+      "messageSha256": "e9127bea8d9b747e2edd90c29d3e30b953bfbe197c7a75ce17ac5a22f95ce497"
+    },
+    {
+      "locale": "en",
+      "key": "settings_order_duration_months",
+      "before": null,
+      "after": {
+        "message": "$1mo",
+        "description": "Compact approximate months in the order-expiration label, using the existing 30-day month approximation. $1 retains one decimal place."
+      },
+      "messageSha256": "0d69022751bee983d0b7e8919c6438856022b9d2ad47590c53ff4d78006fd614"
+    },
+    {
+      "locale": "en",
+      "key": "settings_order_duration_weeks",
+      "before": null,
+      "after": {
+        "message": "$1w",
+        "description": "Compact approximate weeks in the order-expiration label. $1 retains one decimal place; this is a duration, not a past-event timestamp."
+      },
+      "messageSha256": "b255ce9f691e6122fb2c3f73e7cf43b8045f357c28aff885264099da0452f849"
+    },
+    {
+      "locale": "en",
       "key": "settings_order_settings_the_minimum_tx_fee_required",
       "before": {
         "message": "The minimum tx fee required for a BTCPay to match this order (in satoshis).",
@@ -1307,6 +1415,16 @@
         "description": "pages/compose/swap/form.tsx"
       },
       "messageSha256": "0f662c1d33b45de003a2c439d0b4fb79f292bbb937b9bac8cb2dc201c7f44792"
+    },
+    {
+      "locale": "en",
+      "key": "transaction_unconfirmed",
+      "before": null,
+      "after": {
+        "message": "Unconfirmed",
+        "description": "Historical transaction detail: not yet confirmed in a Bitcoin block. Not a user review/acknowledgement state."
+      },
+      "messageSha256": "3229d16ca643cb8615493e849ef042cc687c7a94ac44b9b9131668cab75422d5"
     },
     {
       "locale": "en",
@@ -2021,6 +2139,42 @@
     },
     {
       "locale": "ja",
+      "key": "settings_order_duration_days",
+      "before": null,
+      "after": {
+        "message": "$1日"
+      },
+      "messageSha256": "c177a1e4854b00dd78fef88655e8b9a4cb963dc2725ef6d1b20d75e0918ef330"
+    },
+    {
+      "locale": "ja",
+      "key": "settings_order_duration_hours",
+      "before": null,
+      "after": {
+        "message": "$1時間"
+      },
+      "messageSha256": "4e26b1f2d9e8e632863507fc168108fa8881ad8455123c6426e1ae1b5db7c2b2"
+    },
+    {
+      "locale": "ja",
+      "key": "settings_order_duration_months",
+      "before": null,
+      "after": {
+        "message": "$1か月"
+      },
+      "messageSha256": "08d06187f9a7704f8446e7d4901a8e3c3ef0fedcee53a0efdd653daccc92f077"
+    },
+    {
+      "locale": "ja",
+      "key": "settings_order_duration_weeks",
+      "before": null,
+      "after": {
+        "message": "$1週間"
+      },
+      "messageSha256": "905efbeaaf68f7cf1274545770c0c050b36f5e0162f5834fba2ba66e192ef548"
+    },
+    {
+      "locale": "ja",
       "key": "settings_order_settings_the_minimum_tx_fee_required",
       "before": {
         "message": "この注文に BTCPay をマッチさせるために必要な最低 TX 手数料（satoshi）。"
@@ -2089,6 +2243,15 @@
         }
       },
       "messageSha256": "d13ec4eec328f67a3b5cea4d7d551c990bf130d2e6714372d3944fdcf37de076"
+    },
+    {
+      "locale": "ja",
+      "key": "transaction_unconfirmed",
+      "before": null,
+      "after": {
+        "message": "未承認"
+      },
+      "messageSha256": "4d308e52d1bed1bb53e567deae9c1365525ffa1da8babda921c892c937bec898"
     },
     {
       "locale": "ja",
@@ -2744,6 +2907,42 @@
     },
     {
       "locale": "zh",
+      "key": "settings_order_duration_days",
+      "before": null,
+      "after": {
+        "message": "$1天"
+      },
+      "messageSha256": "18535273f68406d6dcfb5ded728625d3afc67155fb5a4f3cd387a24f72d50226"
+    },
+    {
+      "locale": "zh",
+      "key": "settings_order_duration_hours",
+      "before": null,
+      "after": {
+        "message": "$1小时"
+      },
+      "messageSha256": "ad3f47dc19055008828b3eff4dbe99f9a4a881f278ad6a6f0ab2bc541b0385a2"
+    },
+    {
+      "locale": "zh",
+      "key": "settings_order_duration_months",
+      "before": null,
+      "after": {
+        "message": "$1个月"
+      },
+      "messageSha256": "921d4f8cf7855c8347f807e2de41a0d7d95543df74963db32ac0373dfebb5bab"
+    },
+    {
+      "locale": "zh",
+      "key": "settings_order_duration_weeks",
+      "before": null,
+      "after": {
+        "message": "$1周"
+      },
+      "messageSha256": "5b18a2520aa6d6f61e375878fee99fd2a45d4e54d5b11eef4c61ea5a7698153a"
+    },
+    {
+      "locale": "zh",
       "key": "settings_order_settings_the_minimum_tx_fee_required",
       "before": {
         "message": "BTCPay 撮合此订单所需的最低交易费用（聪）。"
@@ -2774,6 +2973,15 @@
         "message": "检查兑换"
       },
       "messageSha256": "a8a0cac2f30bf43c82bb14caacd65e19a27eb279fd332eba6e4c3b9c6b175174"
+    },
+    {
+      "locale": "zh",
+      "key": "transaction_unconfirmed",
+      "before": null,
+      "after": {
+        "message": "未确认"
+      },
+      "messageSha256": "c098e854e60b951af9f99747f6939ea6531a2742bfa725c3ca24bdbfabc77fc0"
     },
     {
       "locale": "zh",
@@ -3396,6 +3604,42 @@
     },
     {
       "locale": "zh_CN",
+      "key": "settings_order_duration_days",
+      "before": null,
+      "after": {
+        "message": "$1天"
+      },
+      "messageSha256": "18535273f68406d6dcfb5ded728625d3afc67155fb5a4f3cd387a24f72d50226"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "settings_order_duration_hours",
+      "before": null,
+      "after": {
+        "message": "$1小时"
+      },
+      "messageSha256": "ad3f47dc19055008828b3eff4dbe99f9a4a881f278ad6a6f0ab2bc541b0385a2"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "settings_order_duration_months",
+      "before": null,
+      "after": {
+        "message": "$1个月"
+      },
+      "messageSha256": "921d4f8cf7855c8347f807e2de41a0d7d95543df74963db32ac0373dfebb5bab"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "settings_order_duration_weeks",
+      "before": null,
+      "after": {
+        "message": "$1周"
+      },
+      "messageSha256": "5b18a2520aa6d6f61e375878fee99fd2a45d4e54d5b11eef4c61ea5a7698153a"
+    },
+    {
+      "locale": "zh_CN",
       "key": "settings_order_settings_the_minimum_tx_fee_required",
       "before": {
         "message": "BTCPay 撮合此订单所需的最低交易费用（聪）。"
@@ -3426,6 +3670,15 @@
         "message": "检查兑换"
       },
       "messageSha256": "a8a0cac2f30bf43c82bb14caacd65e19a27eb279fd332eba6e4c3b9c6b175174"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "transaction_unconfirmed",
+      "before": null,
+      "after": {
+        "message": "未确认"
+      },
+      "messageSha256": "c098e854e60b951af9f99747f6939ea6531a2742bfa725c3ca24bdbfabc77fc0"
     },
     {
       "locale": "zh_CN",
@@ -4059,6 +4312,42 @@
     },
     {
       "locale": "zh_TW",
+      "key": "settings_order_duration_days",
+      "before": null,
+      "after": {
+        "message": "$1天"
+      },
+      "messageSha256": "18535273f68406d6dcfb5ded728625d3afc67155fb5a4f3cd387a24f72d50226"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "settings_order_duration_hours",
+      "before": null,
+      "after": {
+        "message": "$1小時"
+      },
+      "messageSha256": "6b652db66806c1176e9d59fe0fe2be855847e7c3fa4b299cf89ff85bfa62d2cd"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "settings_order_duration_months",
+      "before": null,
+      "after": {
+        "message": "$1個月"
+      },
+      "messageSha256": "23d6b6b49c11eac60fb4b2ae3a0b7d61f863ea558ab3f90ce81fe07c320e968b"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "settings_order_duration_weeks",
+      "before": null,
+      "after": {
+        "message": "$1週"
+      },
+      "messageSha256": "1d8bc11363ae88157dc796ae57e66b79dd389482fb2f6d0d35b950b1a75472d4"
+    },
+    {
+      "locale": "zh_TW",
       "key": "settings_order_settings_the_minimum_tx_fee_required",
       "before": {
         "message": "BTCPay 撮合此訂單所需的最低交易費用（聰）。"
@@ -4089,6 +4378,15 @@
         "message": "檢閱兌換"
       },
       "messageSha256": "160ff1883a1d6e9a677bc5798d0b55d638bffba290a062191db5f407f8659356"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "transaction_unconfirmed",
+      "before": null,
+      "after": {
+        "message": "未確認"
+      },
+      "messageSha256": "7d75a463ec8c065e120b3ab4118d7343fd895304bee543f132fb0abe490877c1"
     },
     {
       "locale": "zh_TW",
@@ -4722,6 +5020,42 @@
     },
     {
       "locale": "zh_HK",
+      "key": "settings_order_duration_days",
+      "before": null,
+      "after": {
+        "message": "$1天"
+      },
+      "messageSha256": "18535273f68406d6dcfb5ded728625d3afc67155fb5a4f3cd387a24f72d50226"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "settings_order_duration_hours",
+      "before": null,
+      "after": {
+        "message": "$1小時"
+      },
+      "messageSha256": "6b652db66806c1176e9d59fe0fe2be855847e7c3fa4b299cf89ff85bfa62d2cd"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "settings_order_duration_months",
+      "before": null,
+      "after": {
+        "message": "$1個月"
+      },
+      "messageSha256": "23d6b6b49c11eac60fb4b2ae3a0b7d61f863ea558ab3f90ce81fe07c320e968b"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "settings_order_duration_weeks",
+      "before": null,
+      "after": {
+        "message": "$1週"
+      },
+      "messageSha256": "1d8bc11363ae88157dc796ae57e66b79dd389482fb2f6d0d35b950b1a75472d4"
+    },
+    {
+      "locale": "zh_HK",
       "key": "settings_order_settings_the_minimum_tx_fee_required",
       "before": {
         "message": "BTCPay 撮合此訂單所需的最低交易費用（聰）。"
@@ -4752,6 +5086,15 @@
         "message": "檢查兌換"
       },
       "messageSha256": "39dccd2c5e8df26288653ee7ac40566af972096ea0c1fb0afbdd31cee9f21aa8"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "transaction_unconfirmed",
+      "before": null,
+      "after": {
+        "message": "未確認"
+      },
+      "messageSha256": "7d75a463ec8c065e120b3ab4118d7343fd895304bee543f132fb0abe490877c1"
     },
     {
       "locale": "zh_HK",

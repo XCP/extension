@@ -106,4 +106,46 @@ describe('OrderSettings — activation-window gating', () => {
     await waitFor(() => expect(onExpirationChange).toHaveBeenCalledExactlyOnceWith(42));
     expect(mockUpdateSettings).toHaveBeenCalledExactlyOnceWith({ defaultOrderExpiration: 42 });
   });
+
+  it.each([
+    { blocks: 6, key: 'settings_order_duration_hours', rounded: '1', english: '1h' },
+    { blocks: 143, key: 'settings_order_duration_hours', rounded: '24', english: '24h' },
+    { blocks: 144, key: 'settings_order_duration_days', rounded: '1.0', english: '1.0d' },
+    { blocks: 1007, key: 'settings_order_duration_days', rounded: '7.0', english: '7.0d' },
+    { blocks: 1008, key: 'settings_order_duration_weeks', rounded: '1.0', english: '1.0w' },
+    { blocks: 4319, key: 'settings_order_duration_weeks', rounded: '4.3', english: '4.3w' },
+    { blocks: 4320, key: 'settings_order_duration_months', rounded: '1.0', english: '1.0mo' },
+    { blocks: 8064, key: 'settings_order_duration_months', rounded: '1.9', english: '1.9mo' },
+  ] as const)('localizes the $blocks-block hint without changing its unit threshold or rounding', async ({ blocks, key, rounded, english }) => {
+    mockGetStatus.mockResolvedValue({ supported: true });
+    const onExpirationChange = vi.fn();
+    const onFeeRequiredChange = vi.fn();
+    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    render(<OrderSettings customExpiration={blocks} onExpirationChange={onExpirationChange}
+      isBuyingBTC customFeeRequired={125} onFeeRequiredChange={onFeeRequiredChange} />);
+    await screen.findByRole('button', { name: 'Never' });
+    expect(screen.getByText(t('settings_order_settings_blocks', [new Intl.NumberFormat('en-US').format(blocks), english]))).toBeVisible();
+
+    const expiration = screen.getByRole('textbox', { name: t('settings_order_settings_custom_expiration_in_blocks') });
+    const fee = screen.getByRole('textbox', { name: t('settings_order_settings_fee_required_in_satoshis') });
+    fireEvent.change(expiration, { target: { value: '00042' } });
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
+      act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+      const count = rounded.replace('.', ',');
+      const duration = t(key, [count]);
+      expect(screen.getByText(t('settings_order_settings_blocks', [new Intl.NumberFormat('de-DE').format(blocks), duration]))).toBeVisible();
+      expect(expiration).toHaveValue('00042');
+      expect(fee).toHaveValue('125');
+      expect(onExpirationChange).not.toHaveBeenCalled();
+      expect(onFeeRequiredChange).not.toHaveBeenCalled();
+      expect(mockUpdateSettings).not.toHaveBeenCalled();
+      expect(mockGetStatus).toHaveBeenCalledExactlyOnceWith('indefiniteOrders');
+    }
+    // Number format can change independently while the Japanese unit remains selected.
+    act(() => configureLocale({ language: 'ja', numberLocale: 'en-US' }));
+    expect(screen.getByText(t('settings_order_settings_blocks', [new Intl.NumberFormat('en-US').format(blocks), t(key, [rounded])]))).toBeVisible();
+    expect(expiration).toHaveValue('00042');
+    expect(mockGetStatus).toHaveBeenCalledTimes(1);
+    expect(mockUpdateSettings).not.toHaveBeenCalled();
+  });
 });

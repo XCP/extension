@@ -1947,6 +1947,11 @@
     "messages_order_status_expired",
     "messages_order_status_filled",
     "messages_order_status_open",
-    "messages_order_status_unknown"
+    "messages_order_status_unknown",
+    "settings_order_duration_hours",
+    "settings_order_duration_days",
+    "settings_order_duration_weeks",
+    "settings_order_duration_months",
+    "transaction_unconfirmed"
   ]
 }

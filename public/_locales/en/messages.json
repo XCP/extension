@@ -7835,5 +7835,25 @@
   "messages_order_status_unknown": {
     "message": "Unknown",
     "description": "Missing recorded status, without assuming that successful payload unpack means an open order."
+  },
+  "settings_order_duration_hours": {
+    "message": "$1h",
+    "description": "Compact approximate duration in the order-expiration label. $1 is the existing whole-number hour approximation, localized for display only."
+  },
+  "settings_order_duration_days": {
+    "message": "$1d",
+    "description": "Compact approximate duration in the order-expiration label. $1 retains one decimal place and the independently selected number format."
+  },
+  "settings_order_duration_weeks": {
+    "message": "$1w",
+    "description": "Compact approximate weeks in the order-expiration label. $1 retains one decimal place; this is a duration, not a past-event timestamp."
+  },
+  "settings_order_duration_months": {
+    "message": "$1mo",
+    "description": "Compact approximate months in the order-expiration label, using the existing 30-day month approximation. $1 retains one decimal place."
+  },
+  "transaction_unconfirmed": {
+    "message": "Unconfirmed",
+    "description": "Historical transaction detail: not yet confirmed in a Bitcoin block. Not a user review/acknowledgement state."
   }
 }
