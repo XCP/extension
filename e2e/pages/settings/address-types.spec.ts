@@ -181,13 +181,13 @@ walletTest.describe('Address Type Settings Page (/settings/address-types)', () =
     await expect(segwitType).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('has help button in header', async ({ page }) => {
+  walletTest('keeps address choices and back navigation without a placeholder help link', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/address-types'));
     await page.waitForLoadState('networkidle');
 
-    if (!page.url().includes('/settings/address-types')) return;
-
-    const helpButton = page.locator('[aria-label="Help"]');
-    await expect(helpButton).toBeVisible({ timeout: 5000 });
+    await expect(page).toHaveURL(/\/settings\/address-types$/);
+    await expect(page.getByText('Native SegWit (P2WPKH)', { exact: true })).toBeVisible();
+    await expect(common.headerBackButton(page)).toBeVisible();
+    await expect(page.locator('[aria-label="Help"]')).toHaveCount(0);
   });
 });
