@@ -6,6 +6,8 @@ import type { Order } from "@/core/counterparty/api";
 import { formatAmount, formatAsset } from "@/core/format";
 import { getOrderBaseAmount, getTradingPair, isBuyOrder } from "@/core/tradingPair";
 
+import { t } from '@/i18n';
+
 interface ManageOrderCardProps {
   order: Order;
   /**
@@ -72,19 +74,19 @@ export function ManageOrderCard({
               <span className={isBuy ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                 {isBuy ? "Buy" : "Sell"}
               </span>
-              {" "}{formatAmount({ value: remainingAmount, maximumFractionDigits: 2 })} remaining
+              {" "}{formatAmount({ value: remainingAmount, maximumFractionDigits: 2 })}  {t('cards_manage_order_card_remaining')}
             </div>
           </div>
         </button>
         {isOpen ? (
           isCancelling ? (
-            <PendingStatus label="Cancelling" className="px-3 py-1.5" />
+            <PendingStatus label={t('cards_manage_order_card_cancelling')} className="px-3 py-1.5" />
           ) : (
             <button type="button"
               onClick={handleCancel}
               className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
             >
-              Cancel
+              {t('common_cancel')}
             </button>
           )
         ) : (

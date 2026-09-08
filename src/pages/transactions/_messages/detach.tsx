@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for detach (UTXO detach) transactions
  */
@@ -10,15 +11,15 @@ export function detach(tx: Transaction): Array<{ label: string; value: string | 
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
-      label: "Type",
-      value: "UTXO Detach",
+      label: t('common_type'),
+      value: t('messages_detach_utxo_detach'),
     },
   ];
   
   // Destination
   if (params.destination) {
     fields.push({
-      label: "Destination",
+      label: t('common_destination'),
       value: (
         <span className="text-xs break-all">
           {params.destination}
@@ -27,8 +28,8 @@ export function detach(tx: Transaction): Array<{ label: string; value: string | 
     });
   } else {
     fields.push({
-      label: "Destination",
-      value: "Same as source (detach in place)",
+      label: t('common_destination'),
+      value: t('messages_detach_same_as_source_detach_in'),
     });
   }
   
@@ -40,7 +41,7 @@ export function detach(tx: Transaction): Array<{ label: string; value: string | 
   
   if (detachEvents && detachEvents.length > 0) {
     fields.push({
-      label: "Assets Detached",
+      label: t('messages_detach_assets_detached'),
       value: (
         <div className="space-y-1">
           {detachEvents.map((event: any, idx: number) => (

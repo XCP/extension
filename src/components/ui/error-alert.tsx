@@ -2,6 +2,8 @@ import { memo } from 'react';
 import { IoClose } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
+import { t } from '@/i18n';
+
 interface ErrorAlertProps {
   /** The error message to display */
   message: string;
@@ -19,17 +21,17 @@ const SEVERITY_STYLES = {
   error: {
     container: 'bg-red-100 border-red-400 text-red-700',
     icon: 'text-red-700',
-    title: 'Error',
+    title: t('error_alert_error'),
   },
   warning: {
     container: 'bg-yellow-100 border-yellow-400 text-yellow-700',
     icon: 'text-yellow-700',
-    title: 'Warning',
+    title: t('error_alert_warning'),
   },
   info: {
     container: 'bg-blue-100 border-blue-400 text-blue-700',
     icon: 'text-blue-700',
-    title: 'Info',
+    title: t('error_alert_info'),
   },
 } as const;
 
@@ -65,7 +67,7 @@ export const ErrorAlert = memo<ErrorAlertProps>(({
           variant="menu"
           onClick={onClose}
           className="absolute top-2 right-2 z-10"
-          aria-label={`Dismiss ${displayTitle.toLowerCase()} message`}
+          aria-label={t('error_alert_dismiss_message', [String(displayTitle.toLowerCase())])}
         >
           <IoClose className={`size-4 ${styles.icon}`} aria-hidden="true" />
         </Button>

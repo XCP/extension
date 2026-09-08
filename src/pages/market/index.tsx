@@ -33,6 +33,8 @@ import { useMarketData } from "@/hooks/useMarketData";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { usePendingCancellations } from "@/hooks/usePendingStatus";
 
+import { t } from '@/i18n';
+
 // Constants
 const COPY_FEEDBACK_MS = 2000;
 const POOL_PAGE_SIZE = 20;
@@ -184,7 +186,7 @@ export default function MarketPage(): ReactElement {
         setPoolsInitialLoaded(true);
       } catch (err) {
         if (!cancelled) {
-          setPoolsError(err instanceof Error ? err.message : "Failed to load pools");
+          setPoolsError(err instanceof Error ? err.message : t('market_failed_to_load_pools'));
           setPoolsInitialLoaded(true);
         }
       } finally {
@@ -226,7 +228,7 @@ export default function MarketPage(): ReactElement {
         setPoolsOffset((current) => current + POOL_PAGE_SIZE);
       } catch (err) {
         if (!cancelled) {
-          setPoolsError(err instanceof Error ? err.message : "Failed to load more pools");
+          setPoolsError(err instanceof Error ? err.message : t('market_failed_to_load_more_pools'));
           setPoolsHasMore(false);
         }
       } finally {
@@ -268,7 +270,7 @@ export default function MarketPage(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Market",
+      title: t('common_market'),
       onBack: () => navigate("/index"),
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
@@ -276,7 +278,7 @@ export default function MarketPage(): ReactElement {
           await lockKeychain();
           navigate("/keychain/unlock");
         },
-        ariaLabel: "Lock Keychain",
+        ariaLabel: t('common_lock_keychain'),
       },
     });
     return () => setHeaderProps(null);
@@ -332,7 +334,7 @@ export default function MarketPage(): ReactElement {
                 type="button"
                 className="block w-full rounded p-4 cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 onClick={handleCopyAddress}
-                aria-label="Current address"
+                aria-label={t('common_current_address')}
               >
                 <div className="text-sm mb-1 font-medium">{activeAddress.name}</div>
                 <div className="flex justify-center items-center">
@@ -349,7 +351,7 @@ export default function MarketPage(): ReactElement {
                   type="button"
                   className="block py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   onClick={handleAddressSelection}
-                  aria-label="Select another address"
+                  aria-label={t('common_select_another_address')}
                 >
                   <FaChevronRight className="size-4" aria-hidden="true" />
                 </button>
@@ -369,7 +371,7 @@ export default function MarketPage(): ReactElement {
           {/* Tab Header */}
           <div className="mb-2">
             <div className="flex items-center justify-between">
-              <div className="flex space-x-4" role="tablist" aria-label="Market sections">
+              <div className="flex space-x-4" role="tablist" aria-label={t('market_sections')}>
                 {(["Dispensers", "Orders", "Pools"] as const).map((label, idx) => (
                   <button type="button"
                     key={label}
@@ -385,7 +387,7 @@ export default function MarketPage(): ReactElement {
                 ))}
               </div>
               {/* View Mode Toggle */}
-              <div className="flex gap-1" role="tablist" aria-label="View mode">
+              <div className="flex gap-1" role="tablist" aria-label={t('market_view_mode')}>
                 <TabButton isActive={viewMode === "explore"} onClick={() => setViewMode("explore")}>
                   <FiGlobe className="size-3.5" aria-hidden="true" />
                 </TabButton>
@@ -407,7 +409,7 @@ export default function MarketPage(): ReactElement {
                     value={searchQuery}
                     onChange={setSearchQuery}
                     onSearch={handleDispenserSearch}
-                    placeholder="Search asset dispensers..."
+                    placeholder={t('market_search_asset_dispensers')}
                     name="dispenser-search"
                     isLoading={dispenserSearchLoading}
                     showClearButton
@@ -417,10 +419,10 @@ export default function MarketPage(): ReactElement {
                   {isSearching ? (
                     <div>
                       <p className="text-sm text-gray-500 mb-2">
-                        Results for "{normalizeAssetQuery(searchQuery)}"
+                        {t('market_results_for', [String(normalizeAssetQuery(searchQuery))])}
                       </p>
                       {dispenserSearchLoading ? (
-                        <Spinner message="Searching..." />
+                        <Spinner message={t('market_searching')} />
                       ) : dispenserSearchError ? (
                         <EmptyState message={dispenserSearchError} />
                       ) : dispenserResults.length > 0 ? (
@@ -438,18 +440,18 @@ export default function MarketPage(): ReactElement {
                               onClick={() => navigate(`/market/dispensers/${normalizeAssetQuery(searchQuery)}`)}
                               className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                             >
-                              View all dispensers for {normalizeAssetQuery(searchQuery)} →
+                              {t('market_view_all_dispensers_for', [String(normalizeAssetQuery(searchQuery))])}
                             </button>
                           )}
                         </div>
                       ) : (
-                        <EmptyState message={`No open dispensers for ${normalizeAssetQuery(searchQuery)}`} />
+                        <EmptyState message={t('market_no_open_dispensers_for', [String(normalizeAssetQuery(searchQuery))])} />
                       )}
                     </div>
                   ) : dispensers.isLoading ? (
-                    <Spinner message="Loading dispensers…" />
+                    <Spinner message={t('common_loading_dispensers')} />
                   ) : dispensers.error ? (
-                    <EmptyState message="Failed to load dispensers" />
+                    <EmptyState message={t('market_failed_to_load_dispensers')} />
                   ) : dispensers.data.length > 0 ? (
                     <>
                       <div className="space-y-2">
@@ -467,7 +469,7 @@ export default function MarketPage(): ReactElement {
                       </div>
                     </>
                   ) : (
-                    <EmptyState message="No open dispensers found" />
+                    <EmptyState message={t('market_no_open_dispensers_found')} />
                   )}
                 </>
               ) : (
@@ -475,15 +477,15 @@ export default function MarketPage(): ReactElement {
                   <SearchInput
                     value={searchQuery}
                     onChange={setSearchQuery}
-                    placeholder="Filter your dispensers..."
+                    placeholder={t('market_filter_your_dispensers')}
                     name="dispenser-filter"
                     showClearButton
                     className="mt-0.5"
                   />
                   {userDispensers.isLoading ? (
-                    <Spinner message="Loading your dispensers…" />
+                    <Spinner message={t('market_loading_your_dispensers')} />
                   ) : userDispensers.error ? (
-                    <EmptyState message="Failed to load your dispensers" />
+                    <EmptyState message={t('market_failed_to_load_your_dispensers')} />
                   ) : (
                     <>
                       {filteredUserDispensers.length > 0 ? (
@@ -498,15 +500,15 @@ export default function MarketPage(): ReactElement {
                           </div>
                         </>
                       ) : searchQuery.trim() ? (
-                        <EmptyState message={`No dispensers matching "${searchQuery}"`} />
+                        <EmptyState message={t('market_no_dispensers_matching', [String(searchQuery)])} />
                       ) : (
-                        <EmptyState message="You don't have any open dispensers" />
+                        <EmptyState message={t('market_you_don_t_have_any')} />
                       )}
                       <button type="button"
                         onClick={() => navigate(searchQuery.trim() ? `/compose/dispenser/${searchQuery.toUpperCase()}` : "/compose/dispenser")}
                         className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >
-                        Create New Dispenser →
+                        {t('common_create_new_dispenser')}
                       </button>
                     </>
                   )}
@@ -523,7 +525,7 @@ export default function MarketPage(): ReactElement {
                     value={searchQuery}
                     onChange={setSearchQuery}
                     onSearch={handleOrderSearch}
-                    placeholder="Search asset orders..."
+                    placeholder={t('market_search_asset_orders')}
                     name="order-search"
                     isLoading={orderSearchLoading}
                     showClearButton
@@ -533,10 +535,10 @@ export default function MarketPage(): ReactElement {
                   {isSearching ? (
                     <div>
                       <p className="text-sm text-gray-500 mb-2">
-                        Results for "{normalizeAssetQuery(searchQuery)}"
+                        {t('market_results_for', [String(normalizeAssetQuery(searchQuery))])}
                       </p>
                       {orderSearchLoading ? (
-                        <Spinner message="Searching..." />
+                        <Spinner message={t('market_searching')} />
                       ) : orderSearchError ? (
                         <EmptyState message={orderSearchError} />
                       ) : orderResults.length > 0 ? (
@@ -553,18 +555,18 @@ export default function MarketPage(): ReactElement {
                               onClick={() => navigate(`/market/orders/${searchQuery.toUpperCase()}/XCP`)}
                               className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                             >
-                              View all orders for {searchQuery.toUpperCase()} →
+                              {t('market_view_all_orders_for', [String(searchQuery.toUpperCase())])}
                             </button>
                           )}
                         </div>
                       ) : (
-                        <EmptyState message={`No open orders for ${searchQuery.toUpperCase()}`} />
+                        <EmptyState message={t('market_no_open_orders_for', [String(searchQuery.toUpperCase())])} />
                       )}
                     </div>
                   ) : orders.isLoading ? (
-                    <Spinner message="Loading orders…" />
+                    <Spinner message={t('market_loading_orders')} />
                   ) : orders.error ? (
-                    <EmptyState message="Failed to load orders" />
+                    <EmptyState message={t('market_failed_to_load_orders')} />
                   ) : orders.data.length > 0 ? (
                     <>
                       <div className="space-y-2">
@@ -581,7 +583,7 @@ export default function MarketPage(): ReactElement {
                       </div>
                     </>
                   ) : (
-                    <EmptyState message="No open orders found" />
+                    <EmptyState message={t('market_no_open_orders_found')} />
                   )}
                 </>
               ) : (
@@ -589,15 +591,15 @@ export default function MarketPage(): ReactElement {
                   <SearchInput
                     value={searchQuery}
                     onChange={setSearchQuery}
-                    placeholder="Filter your orders..."
+                    placeholder={t('market_filter_your_orders')}
                     name="order-filter"
                     showClearButton
                     className="mt-0.5"
                   />
                   {userOrders.isLoading ? (
-                    <Spinner message="Loading your orders…" />
+                    <Spinner message={t('market_loading_your_orders')} />
                   ) : userOrders.error ? (
-                    <EmptyState message="Failed to load your orders" />
+                    <EmptyState message={t('market_failed_to_load_your_orders')} />
                   ) : (
                     <>
                       {filteredUserOrders.length > 0 ? (
@@ -612,15 +614,15 @@ export default function MarketPage(): ReactElement {
                           </div>
                         </>
                       ) : searchQuery.trim() ? (
-                        <EmptyState message={`No orders matching "${searchQuery}"`} />
+                        <EmptyState message={t('market_no_orders_matching', [String(searchQuery)])} />
                       ) : (
-                        <EmptyState message="You don't have any open orders" />
+                        <EmptyState message={t('market_you_don_t_have_any_2')} />
                       )}
                       <button type="button"
                         onClick={() => navigate(searchQuery.trim() ? `/compose/order/${searchQuery.toUpperCase()}` : "/compose/order")}
                         className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >
-                        Create New Order →
+                        {t('common_create_new_order')}
                       </button>
                     </>
                   )}
@@ -636,13 +638,13 @@ export default function MarketPage(): ReactElement {
                   <SearchInput
                     value={searchQuery}
                     onChange={setSearchQuery}
-                    placeholder="Search pools..."
+                    placeholder={t('market_search_pools')}
                     name="pool-filter"
                     showClearButton
                     className="mt-0.5"
                   />
                   {poolsLoading ? (
-                    <Spinner message="Loading pools…" />
+                    <Spinner message={t('market_loading_pools')} />
                   ) : poolsError ? (
                     <EmptyState message={poolsError} />
                   ) : filteredPools.length > 0 ? (
@@ -661,13 +663,13 @@ export default function MarketPage(): ReactElement {
                       </div>
                     </>
                   ) : (
-                    <EmptyState message={searchQuery.trim() ? `No pools matching "${searchQuery}"` : "No pools found"} />
+                    <EmptyState message={searchQuery.trim() ? t('market_no_pools_matching', [String(searchQuery)]) : t('market_no_pools_found')} />
                   )}
                   <button type="button"
                     onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${searchQuery.toUpperCase()}/XCP` : "/compose/pool/deposit")}
                     className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
-                    Enter Pool →
+                    {t('market_enter_pool')}
                   </button>
                 </>
               ) : (
@@ -675,13 +677,13 @@ export default function MarketPage(): ReactElement {
                   <SearchInput
                     value={searchQuery}
                     onChange={setSearchQuery}
-                    placeholder="Search your pools..."
+                    placeholder={t('market_search_your_pools')}
                     name="pool-manage-filter"
                     showClearButton
                     className="mt-0.5"
                   />
                   {poolsLoading ? (
-                    <Spinner message="Loading your pools…" />
+                    <Spinner message={t('market_loading_your_pools')} />
                   ) : poolsError ? (
                     <EmptyState message={poolsError} />
                   ) : (
@@ -702,15 +704,15 @@ export default function MarketPage(): ReactElement {
                           </div>
                         </>
                       ) : searchQuery.trim() ? (
-                        <EmptyState message={`No pool positions matching "${searchQuery}"`} />
+                        <EmptyState message={t('market_no_pool_positions_matching', [String(searchQuery)])} />
                       ) : (
-                        <EmptyState message="You don't have any LP positions" />
+                        <EmptyState message={t('market_you_don_t_have_any_3')} />
                       )}
                       <button type="button"
                         onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${searchQuery.toUpperCase()}/XCP` : "/compose/pool/deposit")}
                         className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >
-                        Enter Pool →
+                        {t('market_enter_pool')}
                       </button>
                     </>
                   )}

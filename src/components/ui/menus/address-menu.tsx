@@ -5,6 +5,7 @@ import { FaCopy, FaSearch, FiMinus, GiBroom, HiDotsHorizontal, VscKey } from '@/
 import { Button } from '@/components/ui/button';
 import { BaseMenu } from '@/components/ui/menus/base-menu';
 import { isUtxoAddressPath } from '@/core/wallet/rarePepeWallet';
+import { t } from '@/i18n';
 import type { Address } from '@/types/wallet';
 
 /**
@@ -64,7 +65,7 @@ export function AddressMenu({
   return (
     <BaseMenu
       trigger={<HiDotsHorizontal className="size-4" aria-hidden="true" />}
-      ariaLabel="Address actions"
+      ariaLabel={t('menus_address_menu_address_actions')}
     >
       <MenuItem>
         <Button 
@@ -73,7 +74,8 @@ export function AddressMenu({
           onClick={handleCopyAddress}
         >
           <FaCopy className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Copy Address
+          
+          {t('common_copy_address_2')}
         </Button>
       </MenuItem>
       
@@ -84,7 +86,8 @@ export function AddressMenu({
           onClick={handleSweepAddress}
         >
           <GiBroom className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Sweep Address
+          
+          {t('common_sweep_address')}
         </Button>
       </MenuItem>
       
@@ -97,7 +100,8 @@ export function AddressMenu({
                 onClick={() => onRemoveUtxoAddress(address)}
               >
                 <FiMinus className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-                Remove UTXO Address
+                
+                {t('menus_address_menu_remove_utxo_address')}
               </Button>
             </MenuItem>
           )
@@ -109,7 +113,8 @@ export function AddressMenu({
                 onClick={() => onFindUtxoAddress(address)}
               >
                 <FaSearch className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-                Find UTXO Address
+                
+                {t('menus_address_menu_find_utxo_address')}
               </Button>
             </MenuItem>
           )}
@@ -123,7 +128,8 @@ export function AddressMenu({
             onClick={handleShowPrivateKey}
           >
             <VscKey className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-            Show Private Key
+            
+            {t('common_show_private_key')}
           </Button>
         </MenuItem>
       )}

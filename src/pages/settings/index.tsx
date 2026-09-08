@@ -1,14 +1,17 @@
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
+import { localizedAddressFormatLabel } from '@/components/domain/address/address-format-label';
 import { FaLock } from "@/components/icons";
+import { DisplayPreferences } from '@/components/settings/display-preferences';
 import { Button } from "@/components/ui/button";
 import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { getAddressFormatLabel } from '@/core/bitcoin/address';
 
+
+import { t } from '@/i18n';
 
 /**
  * Constants for navigation paths and external links.
@@ -52,7 +55,7 @@ export default function SettingsPage(): ReactElement {
   // Configure header with lock button
   useEffect(() => {
     setHeaderProps({
-      title: "Settings",
+      title: t('common_settings'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
@@ -60,7 +63,7 @@ export default function SettingsPage(): ReactElement {
           await lockKeychain();
           navigate("/keychain/unlock");
         },
-        ariaLabel: "Lock Keychain",
+        ariaLabel: t('common_lock_keychain'),
       },
     });
   }, [setHeaderProps, navigate, lockKeychain]);
@@ -71,43 +74,43 @@ export default function SettingsPage(): ReactElement {
    */
   const getAddressTypeDescription = (): string => {
     if (!activeWallet) return "";
-    return getAddressFormatLabel(activeWallet.addressFormat);
+    return localizedAddressFormatLabel(activeWallet.addressFormat);
   };
 
   const settingSections: ActionSection[] = [
     {
-      title: "Settings",
+      title: t('common_settings'),
       items: [
         ...(activeWallet?.type === "mnemonic"
           ? [{
               id: "addressFormat",
-              title: "Address Type",
+              title: t('common_address_type'),
               description: getAddressTypeDescription(),
               onClick: () => navigate(PATHS.ADDRESS_TYPE),
             }]
           : []),
         {
           id: "advanced",
-          title: "Advanced",
-          description: "Network settings and developer options",
+          title: t('common_advanced'),
+          description: t('settings_network_settings_and_developer_options'),
           onClick: () => navigate(PATHS.ADVANCED),
         },
         {
           id: "connectedSites",
-          title: "Connected Sites",
-          description: "Manage website connections",
+          title: t('common_connected_sites'),
+          description: t('settings_manage_website_connections'),
           onClick: () => navigate(PATHS.CONNECTED_SITES),
         },
         {
           id: "pinnedAssets",
-          title: "Pinned Assets",
-          description: "Manage assets pinned to your dashboard",
+          title: t('common_pinned_assets'),
+          description: t('settings_manage_assets_pinned_to_your'),
           onClick: () => navigate(PATHS.PINNED_ASSETS),
         },
         {
           id: "security",
-          title: "Security",
-          description: "Change your wallet password",
+          title: t('common_security'),
+          description: t('settings_change_your_wallet_password'),
           onClick: () => navigate(PATHS.SECURITY),
         },
       ],
@@ -119,12 +122,13 @@ export default function SettingsPage(): ReactElement {
       <div className="flex-1 overflow-auto no-scrollbar">
         <div className="p-4">
           <ActionList sections={settingSections} />
+          <DisplayPreferences />
 
           <div className="mt-8">
-            <h2 className="text-sm font-medium text-gray-500 px-4 mb-2">About XCP Wallet</h2>
+            <h2 className="text-sm font-medium text-gray-500 px-4 mb-2">{t('settings_about_xcp_wallet')}</h2>
             <div className="bg-white rounded">
               <div className="p-4 border-b">
-                <div className="text-sm">Version {VERSION}</div>
+                <div className="text-sm">{t('settings_version', [String(VERSION)])}</div>
               </div>
               <a
                 href={EXTERNAL_LINKS.TERMS}
@@ -132,7 +136,7 @@ export default function SettingsPage(): ReactElement {
                 rel="noopener noreferrer"
                 className="block p-4 border-b text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
               >
-                Terms of Service
+                {t('common_terms_of_service')}
               </a>
               <a
                 href={EXTERNAL_LINKS.PRIVACY}
@@ -140,7 +144,7 @@ export default function SettingsPage(): ReactElement {
                 rel="noopener noreferrer"
                 className="block p-4 border-b text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
               >
-                Privacy Policy
+                {t('common_privacy_policy')}
               </a>
               <a
                 href={EXTERNAL_LINKS.WEBSITE}
@@ -148,7 +152,7 @@ export default function SettingsPage(): ReactElement {
                 rel="noopener noreferrer"
                 className="block p-4 text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
               >
-                Visit Website
+                {t('settings_visit_website')}
               </a>
             </div>
           </div>
@@ -159,7 +163,7 @@ export default function SettingsPage(): ReactElement {
               onClick={() => navigate(PATHS.RESET_WALLET)}
               fullWidth
             >
-              Reset Wallet
+              {t('common_reset_wallet')}
             </Button>
           </div>
         </div>

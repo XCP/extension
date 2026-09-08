@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { WalletMenu } from '@/components/domain/wallet/wallet-menu';
 import { FiShield } from '@/components/icons';
 import { formatAddress } from '@/core/format';
+import { t } from '@/i18n';
 import type { Address, Wallet } from '@/types/wallet';
 
 interface WalletCardProps {
@@ -37,7 +38,7 @@ export function WalletCard({
       : displayAddress?.address ||
         (wallet.addresses.length > 0
           ? wallet.addresses[0]!.address
-          : wallet.previewAddress || 'No address');
+          : wallet.previewAddress || t('wallet_wallet_card_no_address'));
 
   const handleClick = (e: React.MouseEvent) => {
     if (disabled) return;
@@ -90,7 +91,7 @@ export function WalletCard({
               {wallet.type === 'hardware' && (
                 <FiShield className="w-3 h-3" aria-hidden="true" />
               )}
-              {wallet.type === 'mnemonic' ? 'Mnemonic' : wallet.type === 'hardware' ? 'Hardware' : 'Private Key'}
+              {wallet.type === 'mnemonic' ? 'Mnemonic' : wallet.type === 'hardware' ? 'Hardware' : t('common_private_key')}
             </span>
           </div>
         </div>

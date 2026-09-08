@@ -5,6 +5,12 @@
 import { type DecimalPlaces, parseAmountDraft } from '@/core/amount-contract/amounts';
 import { CURRENCY_INFO, type FiatCurrency } from '@/core/bitcoin/price';
 import { type BigNumber, fromSatoshis, toSatoshis } from '@/core/numeric';
+import { currentNumberLocale, t } from '@/i18n';
+
+/** Display follows interface language unless the user saved a number-format override. */
+export function displayLocale(): string {
+  return currentNumberLocale();
+}
 
 export interface AmountFormatterOptions {
   /**
@@ -42,7 +48,7 @@ export function formatAmount({
   minimumFractionDigits,
   compact = false,
   useGrouping = true,
-  locale,
+  locale = displayLocale(),
   signDisplay,
 }: AmountFormatterOptions): string {
   if (value === null || value === undefined) return "N/A";
@@ -98,6 +104,44 @@ export function formatForInput(value: AmountFormatterOptions['value'], decimals:
 export function isComposableAmount(value: string, decimals: number): boolean {
   if (!Number.isInteger(decimals) || decimals < 0 || decimals > 8) return false;
   return parseAmountDraft(value, { decimals: decimals as DecimalPlaces }).status === 'valid';
+}
+
+/**
+ * A Counterparty amount written in full, for a figure someone is agreeing to.
+ *
+ * Three roles, and the whole rule is knowing which one you are in:
+ *
+ *   1. A number bound for a transaction: formatForInput. No language, no
+ *      grouping, exact. The composer reads it back.
+ *   2. A number someone must CHECK: this one. Grouped and in their language
+ *      so it can be read, but never abbreviated and never rounded, because
+ *      the point is to compare it digit for digit against what will be
+ *      signed. Approval screens, confirmations, the balance a send comes
+ *      out of.
+ *   3. A number someone merely GLANCES at: formatAmount({ compact: true }).
+ *      123.2k XCP is better there, and losing precision is the feature.
+ *
+ * The line between 2 and 3 is not taste. Abbreviation is forbidden wherever
+ * the figure is the thing being authorized: "123.2k XCP" cannot be checked
+ * against a transaction, and a screen asking for a signature has to show the
+ * number that is being signed.
+ *
+ * Divisibility decides the shape. An indivisible asset has no fractional
+ * part and never shows one; a divisible asset shows all eight places,
+ * padded, so the precision is visible and two amounts line up under each
+ * other.
+ */
+export function formatAmountExact(
+  value: AmountFormatterOptions['value'],
+  options: { divisible?: boolean } = {},
+): string {
+  const decimals = options.divisible === false ? 0 : 8;
+  return formatAmount({
+    value,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    compact: false,
+  });
 }
 
 /**
@@ -185,7 +229,7 @@ export function formatTxid(txid: string, shorten: boolean = true): string {
  * formatDate(1698777600) // "10/31/2023, 8:00:00 PM" (depending on locale)
  */
 export function formatDate(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleString();
+  return new Date(timestamp * 1000).toLocaleString(displayLocale());
 }
 
 /**
@@ -211,29 +255,31 @@ export function formatTimeAgo(timestamp: number, compact: boolean = false): stri
   const months = Math.floor(days / 30);
   const years = Math.floor(days / 365);
 
+  const n = (value: number) => formatAmount({ value, maximumFractionDigits: 0 });
+
   if (compact) {
-    if (seconds < 60) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    if (weeks < 52) return `${weeks}w ago`;
-    return `${years}y ago`;
+    if (seconds < 60) return t('time_just_now');
+    if (minutes < 60) return t('time_compact_minutes', n(minutes));
+    if (hours < 24) return t('time_compact_hours', n(hours));
+    if (days < 7) return t('time_compact_days', n(days));
+    if (weeks < 52) return t('time_compact_weeks', n(weeks));
+    return t('time_compact_years', n(years));
   }
 
   if (seconds < 60) {
-    return seconds === 1 ? '1 second ago' : `${seconds} seconds ago`;
+    return seconds === 1 ? t('time_second_ago') : t('time_seconds_ago', n(seconds));
   } else if (minutes < 60) {
-    return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+    return minutes === 1 ? t('time_minute_ago') : t('time_minutes_ago', n(minutes));
   } else if (hours < 24) {
-    return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+    return hours === 1 ? t('time_hour_ago') : t('time_hours_ago', n(hours));
   } else if (days < 7) {
-    return days === 1 ? '1 day ago' : `${days} days ago`;
+    return days === 1 ? t('time_day_ago') : t('time_days_ago', n(days));
   } else if (weeks < 4) {
-    return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
+    return weeks === 1 ? t('time_week_ago') : t('time_weeks_ago', n(weeks));
   } else if (months < 12) {
-    return months === 1 ? '1 month ago' : `${months} months ago`;
+    return months === 1 ? t('time_month_ago') : t('time_months_ago', n(months));
   } else {
-    return years === 1 ? '1 year ago' : `${years} years ago`;
+    return years === 1 ? t('time_year_ago') : t('time_years_ago', n(years));
   }
 }
 
@@ -246,7 +292,7 @@ export function formatTimeAgo(timestamp: number, compact: boolean = false): stri
  * formatDateToLocal(new Date(2023, 10, 15, 14, 30)) // "Nov 15, 2023, 02:30 PM"
  */
 export function formatDateToLocal(date: Date): string {
-  return date.toLocaleString('en-US', {
+  return date.toLocaleString(displayLocale(), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -262,9 +308,9 @@ export function formatDateToLocal(date: Date): string {
  */
 export function formatFee(satoshis: number): string {
   if (satoshis < 1000) {
-    return `${satoshis} sats`;
+    return `${formatAmount({ value: satoshis, maximumFractionDigits: 0 })} sats`;
   } else if (satoshis < 100000) {
-    return `${(satoshis / 1000).toFixed(1)}k sats`;
+    return `${formatAmount({ value: satoshis / 1000, minimumFractionDigits: 1, maximumFractionDigits: 1 })}k sats`;
   } else {
     const btc = fromSatoshis(satoshis, true);
     return `${formatAmount({
@@ -316,8 +362,8 @@ export function formatAssetQuantity(
   showDecimals: boolean = true
 ): string {
   if (!isDivisible) {
-    // Non-divisible assets - just show the integer
-    return quantity.toString();
+    // Whole units, but still grouped: 995269258 is not a number anyone reads.
+    return formatAmount({ value: quantity, maximumFractionDigits: 0 });
   }
 
   // Divisible assets - convert from satoshis and format
@@ -387,6 +433,12 @@ export function formatPriceRatio(
 export function formatFiatPrice(value: number, currency: FiatCurrency): string {
   const { symbol, decimals } = CURRENCY_INFO[currency];
   return `${symbol}${formatAmount({ value, maximumFractionDigits: decimals })}`;
+}
+
+/** A secondary current-price estimate, with an unambiguous currency code. */
+export function formatFiatEstimate(value: AmountFormatterOptions['value'], currency: FiatCurrency): string {
+  const decimals = CURRENCY_INFO[currency].decimals;
+  return `≈ ${formatAmount({ value, minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency.toUpperCase()}`;
 }
 
 /**

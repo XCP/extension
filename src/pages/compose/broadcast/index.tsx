@@ -1,6 +1,7 @@
 import { Composer } from "@/components/composer/composer";
 import type { BroadcastOptions } from "@/core/counterparty/compose";
 import { composeBroadcast } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { BroadcastForm } from "@/pages/compose/broadcast/form";
 import { ReviewBroadcast } from "@/pages/compose/broadcast/review";
 
@@ -10,7 +11,7 @@ function ComposeBroadcastPage() {
       <Composer<BroadcastOptions>
         composeType="broadcast"
         composeApiMethod={composeBroadcast}
-        initialTitle="Broadcast"
+        initialTitle={t('common_broadcast')}
         FormComponent={BroadcastForm}
         ReviewComponent={ReviewBroadcast}
       />

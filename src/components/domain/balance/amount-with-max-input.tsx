@@ -9,17 +9,11 @@ import { divide, fromSatoshis, multiply, roundDown, roundUp, toNumber } from "@/
 import { isDustAmount } from "@/core/validation/amount";
 import { validateFeeRate } from "@/core/validation/fee";
 
-// Known safe error messages that can be shown to users
-// These are intentionally user-friendly and don't leak internal details
-const KNOWN_SAFE_ERRORS = [
-  "No available balance.",
-  "Insufficient balance to cover transaction fee.",
-  "Amount per destination after fee is below dust limit.",
-  "Failed to fetch UTXOs.",
-];
+import { t } from '@/i18n';
 
-// Pattern for dynamic error messages about excluded UTXOs
-const EXCLUDED_UTXOS_PATTERN = /^No spendable balance\. \d+ UTXOs have attached assets\.$/;
+/** An error whose message is copy written for the user and safe to show as-is. Anything else
+ *  (a node failure, a bug) is replaced by a generic message so internals never leak. */
+class UserFacingError extends Error {}
 
 interface AmountWithMaxInputProps {
   asset: string;
@@ -86,8 +80,8 @@ export function AmountWithMaxInput({
   const [isLoading, setIsLoading] = useState(false);
   const invalidDraft = value !== '' && !isComposableAmount(value, isDivisible ? 8 : 0);
   const draftError = isDivisible
-    ? 'Use digits and a dot, up to 8 decimals.'
-    : 'Enter whole numbers only.';
+    ? t('safety_amount_syntax')
+    : t('safety_amount_indivisible');
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     // Retain the complete draft. Dropping '-' or '.' here lets the next
@@ -100,13 +94,13 @@ export function AmountWithMaxInput({
     if (!sourceAddress?.address || disabled) return;
 
     if (!Number.isSafeInteger(destinationCount) || destinationCount < 1) {
-      setError('The destination count must be a positive whole number.');
+      setError(t('safety_destination_count'));
       return;
     }
     if (asset !== "BTC") {
       const maximum = parseAmountDraft(maxAmount, { decimals: isDivisible ? 8 : 0 });
       if (maximum.status !== 'valid') {
-        setError('The available amount is not exact. Refresh the asset details before using Max.');
+        setError(t('safety_max_unavailable'));
         return;
       }
       // Intentionally floor the derived split in base units, leaving a remainder.
@@ -116,7 +110,7 @@ export function AmountWithMaxInput({
     }
 
     if (feeRate === null || feeRate === undefined || !validateFeeRate(feeRate, { minRate: 0.1 }).isValid) {
-      setError("Enter a valid fee rate before using Max.");
+      setError(t('safety_max_fee'));
       return;
     }
 
@@ -131,14 +125,13 @@ export function AmountWithMaxInput({
       );
 
       if (utxos.length === 0) {
-        const message = excludedWithAssets > 0
-          ? `No spendable balance. ${excludedWithAssets} UTXOs have attached assets.`
-          : "No available balance.";
-        throw new Error(message);
+        throw new UserFacingError(excludedWithAssets > 0
+          ? t('common_no_spendable_balance_utxos_have', [String(excludedWithAssets)])
+          : t('common_no_available_balance'));
       }
 
       if (totalValue <= 0) {
-        throw new Error("No available balance.");
+        throw new UserFacingError(t('common_no_available_balance'));
       }
 
       // Estimate vsize based on spendable UTXO count and address type
@@ -155,25 +148,20 @@ export function AmountWithMaxInput({
       const candidate = totalValue - estimatedFee;
 
       if (candidate <= 0) {
-        throw new Error("Insufficient balance to cover transaction fee.");
+        throw new UserFacingError(t('balance_amount_with_max_input_insufficient_balance_to_cover_transaction'));
       }
 
       const amountPerDestination = toNumber(roundDown(divide(candidate, destinationCount)));
       if (isDustAmount(amountPerDestination)) {
-        throw new Error("Amount per destination after fee is below dust limit.");
+        throw new UserFacingError(t('balance_amount_with_max_input_amount_per_destination_after_fee'));
       }
       const finalAmount = fromSatoshis(amountPerDestination.toString());
       onChange(finalAmount);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        // Check if it's a known safe error message
-        if (KNOWN_SAFE_ERRORS.includes(err.message) || EXCLUDED_UTXOS_PATTERN.test(err.message)) {
-          setError(err.message);
-        } else {
-          setError("Failed to calculate maximum amount. Please try again.");
-        }
+      if (err instanceof UserFacingError) {
+        setError(err.message);
       } else {
-        setError("Failed to calculate maximum amount. Please try again.");
+        setError(t('balance_amount_with_max_input_failed_to_calculate_maximum_amount'));
       }
     } finally {
       setIsLoading(false);
@@ -187,7 +175,7 @@ export function AmountWithMaxInput({
     }
 
     if (!sourceAddress?.address) {
-      setError("Source address is required to calculate max amount");
+      setError(t('balance_amount_with_max_input_source_address_is_required_to'));
       return;
     }
 
@@ -221,7 +209,6 @@ export function AmountWithMaxInput({
           pattern={isDivisible ? '([0-9]+(\\.[0-9]{1,8})?|\\.[0-9]{1,8})' : '[0-9]+'}
           invalid={invalidDraft || hasError}
           aria-invalid={invalidDraft || hasError || undefined}
-          aria-describedby={invalidDraft ? `${name}-draft-error` : undefined}
           autoComplete="off"
           className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 pr-16 outline-none focus-visible:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed ${
             hasError || invalidDraft
@@ -236,16 +223,18 @@ export function AmountWithMaxInput({
           variant="input"
           onClick={handleMaxClick}
           disabled={isLoading || disabled || (disableMaxButton && !onMaxClick)}
-          aria-label={isLoading ? "Calculating maximum amount…" : "Use maximum available amount"}
+          aria-label={isLoading ? t('balance_amount_with_max_input_calculating_maximum_amount') : t('balance_amount_with_max_input_use_maximum_available_amount')}
           className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
         >
-          Max
+          {t('common_max')}
         </Button>
       </div>
-      {invalidDraft && <p id={`${name}-draft-error`} className="mt-2 text-sm text-red-500" role="alert">{draftError}</p>}
+      {invalidDraft && <Description id={`${name}-draft-error`} className="mt-2 text-sm text-red-500" role="alert">{draftError}</Description>}
       {showHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
-          {description || `Enter the amount of ${asset} you want to send${destinationCount > 1 ? " (per destination)" : ""}.`}
+          {description || (destinationCount > 1
+            ? t('balance_amount_with_max_input_enter_the_amount_of_you', [String(asset)])
+            : t('balance_amount_with_max_input_enter_the_amount_of_you_2', [String(asset)]))}
         </Description>
       )}
     </Field>

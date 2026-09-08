@@ -4,6 +4,8 @@ import type { Pool, PoolPosition } from "@/core/counterparty/api";
 import { getPoolDisplayAssets } from "@/core/counterparty/pool";
 import { formatAmount } from "@/core/format";
 
+import { t } from '@/i18n';
+
 interface PoolCardProps {
   pool: Pool | PoolPosition;
   onClick: () => void;
@@ -71,7 +73,7 @@ export function PoolCard({
                   {assetA}
                 </>
               ) : (
-                "No liquidity"
+                t('cards_pool_card_no_liquidity')
               )}
             </span>
             {quantity !== null && (

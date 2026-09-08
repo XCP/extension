@@ -2,6 +2,7 @@ import { useParams } from 'react-router';
 import { Composer } from "@/components/composer/composer";
 import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { composeIssuance } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { IssuanceForm } from "@/pages/compose/issuance/form";
 import { ReviewIssuance } from "@/pages/compose/issuance/review";
 
@@ -13,8 +14,8 @@ function ComposeIssuancePage() {
       <Composer<IssuanceOptions>
         composeType="issuance"
         composeApiMethod={composeIssuance}
-        initialTitle="Issue Asset"
-        FormComponent={(props) => <IssuanceForm {...props} initialParentAsset={asset} />}
+        initialTitle={t('common_issue_asset')}
+        renderForm={(props) => <IssuanceForm {...props} initialParentAsset={asset} />}
         ReviewComponent={ReviewIssuance}
       />
     </div>

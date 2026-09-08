@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button';
 import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import { t } from '@/i18n';
 import { ApprovalFacts } from './approval-facts';
 import { ApprovalNotice } from './approval-notice';
-
 /** Semantic review produced after the wallet independently evaluates the marketplace family. */
 export function MarketplaceReviewCard({ review, onRetry, retrying = false, retryError }: {
   review: MarketplaceApprovalReview;
@@ -17,15 +17,15 @@ export function MarketplaceReviewCard({ review, onRetry, retrying = false, retry
   if (!showFacts) {
     return (
       <div>
-        <ApprovalNotice blocked statusLabel={retry ? 'Verification incomplete — retry' : 'Marketplace terms did not verify'} items={
+        <ApprovalNotice blocked statusLabel={retry ? t('approval_marketplace_review_card_verification_incomplete_retry') : t('common_marketplace_terms_did_not_verify')} items={
           (review.blockers.length > 0 ? review.blockers : [review.title]).map((reason, index) => ({
             key: `marketplace-blocker-${index}`, severity: retry ? 'warning' : 'danger',
             title: reason,
-            ...(index === 0 ? { description: `${review.title}. Signing ${retry ? 'stays unavailable until verification succeeds' : 'is blocked'}.` } : {}),
+            ...(index === 0 ? { description: retry ? `${review.title}. Signing stays unavailable until verification succeeds.` : `${review.title}. Signing is blocked.` } : {}),
           }))
         } />
         {retry && onRetry && <Button color="gray" onClick={onRetry} disabled={retrying} className="mt-3 text-sm" fullWidth>
-          {retrying ? 'Verifying…' : 'Retry verification'}
+          {retrying ? t('common_verifying') : t('common_retry_verification')}
         </Button>}
         {retry && retryError && <p role="alert" className="mt-2 text-sm leading-5 text-danger-800">{retryError}</p>}
       </div>

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for dispense transactions (when someone uses a dispenser)
  */
@@ -14,11 +15,11 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
     const btcAmount = tx.btc_amount_normalized ?? '0';
     return [
       {
-        label: "Dispenser Address",
+        label: t('messages_dispense_dispenser_address'),
         value: tx.destination || "N/A",
       },
       {
-        label: "BTC Paid",
+        label: t('messages_dispense_btc_paid'),
         value: `${formatAmount({
           value: btcAmount,
           minimumFractionDigits: 8,
@@ -39,7 +40,7 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
   
   return [
     {
-      label: "Original Dispenser TX",
+      label: t('messages_dispense_original_dispenser_tx'),
       value: params.dispenser_tx_hash ? (
         <span className="text-xs break-all font-mono">
           {params.dispenser_tx_hash}
@@ -47,11 +48,11 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
       ) : "N/A",
     },
     {
-      label: "Asset Received",
+      label: t('messages_dispense_asset_received'),
       value: params.asset || "N/A",
     },
     {
-      label: "Quantity Received",
+      label: t('messages_dispense_quantity_received'),
       value: `${formatAmount({
         value: quantityReceived,
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -59,7 +60,7 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
       })} ${params.asset}`,
     },
     {
-      label: "BTC Paid",
+      label: t('messages_dispense_btc_paid'),
       value: `${formatAmount({
         value: btcPaid,
         minimumFractionDigits: 8,
@@ -67,15 +68,15 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
       })} BTC`,
     },
     {
-      label: "Effective Price",
-      value: pricePerUnit > 0 ? `${formatAmount({
+      label: t('common_effective_price'),
+      value: pricePerUnit > 0 ? t('messages_dispense_btc_per', [String(formatAmount({
         value: pricePerUnit,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
-      })} BTC per ${params.asset}` : "N/A",
+      })), String(params.asset)]) : "N/A",
     },
     {
-      label: "From Dispenser",
+      label: t('messages_dispense_from_dispenser'),
       value: (
         <span className="text-xs break-all">
           {params.source || "N/A"}
@@ -83,7 +84,7 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
       ),
     },
     {
-      label: "To Address",
+      label: t('messages_dispense_to_address'),
       value: (
         <span className="text-xs break-all">
           {params.destination || "N/A"}
@@ -91,7 +92,7 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
       ),
     },
     {
-      label: "Dispense Index",
+      label: t('messages_dispense_dispense_index'),
       value: params.dispense_index !== undefined ? 
         `#${params.dispense_index}` : "N/A",
     },

@@ -9,8 +9,8 @@
  */
 
 import type { Page } from '@playwright/test';
-import { walletTest, expect } from '../../fixtures';
-import { market, common } from '../../selectors';
+import { expect, walletTest } from '../../fixtures';
+import { common, market } from '../../selectors';
 
 const BTC_PRICE = 64_358;
 
@@ -41,6 +41,15 @@ async function stubBtcApis(page: Page, overrides: { statsStatus?: number; chartS
   await page.route('**/api/v3/coins/bitcoin/market_chart**', (route) =>
     route.fulfill(json(overrides.chartStatus ? { error: 'unavailable' } : CHART, overrides.chartStatus ?? 200)),
   );
+  // BTC/XCP uses a current BTC/USD quote, independently of the headline's CoinGecko stats.
+  // All three providers race; fixture each one so neither live data nor response order changes the ratio.
+  await page.route('**/api.coinbase.com/v2/prices/spot**', (route) =>
+    route.fulfill(json({ data: { amount: String(BTC_PRICE), currency: 'USD' } })),
+  );
+  await page.route('**/api.kraken.com/0/public/Ticker**', (route) =>
+    route.fulfill(json({ result: { XXBTZUSD: { c: [String(BTC_PRICE)] } } })),
+  );
+  await page.route('**/mempool.space/api/v1/prices', (route) => route.fulfill(json({ USD: BTC_PRICE })));
   await page.route('**/v1/fees/precise', (route) => route.fulfill(json(FEES)));
   await page.route('**/v2/price/ticker*', (route) => route.fulfill(json(XCP_TICKER)));
   // The stats fetcher falls back to other providers; fail them so a stubbed outage stays an outage.

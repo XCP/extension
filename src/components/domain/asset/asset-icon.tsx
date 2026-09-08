@@ -1,5 +1,7 @@
 import { memo, useCallback, useMemo, useState } from "react";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the AssetIcon component.
  */
@@ -112,7 +114,7 @@ export const AssetIcon = memo<AssetIconProps>(
         className={`relative inline-block ${className}`}
         style={sizeStyle}
         role="img"
-        aria-label={`${asset} icon`}
+        aria-label={t('close_form_icon', [String(asset)])}
       >
         {/* Fallback/placeholder */}
         {showFallback && (
@@ -165,7 +167,7 @@ export const AssetIconSkeleton = memo<{
     <div
       className={`bg-gray-200 animate-pulse ${radiusClass} ${className}`}
       style={sizeStyle}
-      aria-label="Loading asset icon"
+      aria-label={t('asset_asset_icon_loading_asset_icon')}
     />
   );
 });
@@ -197,7 +199,7 @@ export const AssetIconWithFallback = memo<{
         height: `${sizeInPixels}px`,
         fontSize: `${sizeInPixels / 3}px`,
       }}
-      aria-label={`${asset} icon`}
+      aria-label={t('close_form_icon', [String(asset)])}
     >
       {fallbackText}
     </div>

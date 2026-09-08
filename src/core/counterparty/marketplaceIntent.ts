@@ -10,6 +10,8 @@ import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
+import { displayLocale, formatAmount } from '@/core/format';
+import { t } from '@/i18n';
 
 export const MARKETPLACE_INTENT_STANDARD = 'counterparty-marketplace' as const;
 export const MARKETPLACE_INTENT_VERSION = 1 as const;
@@ -779,41 +781,60 @@ function analyzeCreateListingIntent({
   const allProblems = [...retry, ...blockers];
   const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved';
   const payout: ProtocolField = {
-    kind: 'amount', label: 'Your payout if sold',
-    value: `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats`, emphasis: 'primary',
+    kind: 'amount', label: t('marketplace_intent_your_payout_if_sold'),
+    value: satsValue(intent.guaranteedSellerPaymentSats), emphasis: 'primary',
   };
-  const salePrice: ProtocolField = { kind: 'amount', label: 'Sale price', value: `${intent.priceSats.toLocaleString()} sats` };
+  const salePrice: ProtocolField = { kind: 'amount', label: t('marketplace_intent_sale_price'), value: satsValue(intent.priceSats) };
   const utxoReturn: ProtocolField = {
-    kind: 'amount', label: 'Your UTXO sats returned', value: `${intent.utxoValueSats.toLocaleString()} sats`, layout: 'stacked',
+    kind: 'amount', label: t('marketplace_intent_your_utxo_sats_returned'), value: satsValue(intent.utxoValueSats), layout: 'stacked',
   };
+  const repricing = intent.listingContext?.mode === 'reprice';
+  const priceBtc = (intent.priceSats / 100_000_000).toFixed(8);
   return {
     status,
     family: 'create_listing',
     ...(status === 'proved' ? { paymentSummary: [payout, salePrice, utxoReturn] } : {}),
     ...(status === 'proved' && provedQuantity !== null ? {
       summary: {
-        label: intent.listingContext?.mode === 'reprice' ? 'Reprice listing' : 'List for sale',
+        label: repricing
+          ? t('marketplace_intent_reprice_listing')
+          : t('marketplace_intent_list_for_sale'),
         description: `${provedQuantity} ${claim.asset}`,
       },
     } : {}),
-    title: `${intent.listingContext?.mode === 'reprice' ? 'Reprice' : 'List'} 1 ${claim.asset} ` +
-      `${intent.listingContext?.mode === 'reprice' ? 'to' : 'for'} ` +
-      `${(intent.priceSats / 100_000_000).toFixed(8)} BTC`,
+    title: repricing
+      ? t('marketplace_intent_title_reprice_asset_to_btc', [claim.asset, priceBtc])
+      : t('marketplace_intent_title_list_asset_for_btc', [claim.asset, priceBtc]),
     facts: [
       payout, salePrice, utxoReturn,
       // The headline already names the proved quantity and asset.
-      { kind: 'paragraph' as const, label: 'Delivery', value: 'Buyer chooses attached or detached delivery' },
-      // The signature commits only the seller-payment output; state who controls the rest.
-      { kind: 'paragraph' as const, label: 'Buyer controls', value: 'Funding, fees, and delivery destination' },
-      { kind: 'text' as const, label: 'Broadcast', value: 'Not broadcast now.' },
       {
-        kind: 'text' as const, label: 'Marketplace expiry',
+        kind: 'paragraph' as const, label: t('marketplace_intent_delivery'),
+        value: t('marketplace_intent_buyer_chooses_attached_or_detached_delivery'),
+      },
+      // The signature commits only the seller-payment output; state who controls the rest.
+      {
+        kind: 'paragraph' as const, label: t('marketplace_intent_buyer_controls'),
+        value: t('marketplace_intent_funding_fees_and_delivery_destination'),
+      },
+      {
+        kind: 'text' as const, label: t('marketplace_intent_broadcast'),
+        value: t('marketplace_intent_not_broadcast_now'),
+      },
+      {
+        kind: 'text' as const, label: t('marketplace_intent_marketplace_expiry'),
         value: intent.marketplaceExpiresAt === null
-          ? 'None requested'
+          ? t('marketplace_intent_none_requested')
           : formatExpiry(intent.marketplaceExpiresAt),
       },
-      { kind: 'paragraph' as const, label: 'Marketplace cancellation', value: 'Delist without a transaction' },
-      { kind: 'paragraph' as const, label: 'Signature invalidation', value: 'Spend the asset UTXO' },
+      {
+        kind: 'paragraph' as const, label: t('marketplace_intent_marketplace_cancellation'),
+        value: t('marketplace_intent_delist_without_a_transaction'),
+      },
+      {
+        kind: 'paragraph' as const, label: t('marketplace_intent_signature_invalidation'),
+        value: t('marketplace_intent_spend_the_asset_utxo'),
+      },
     ],
     notices: [],
     blockers: allProblems,
@@ -830,6 +851,19 @@ const safeSum = (values: number[]): number | null => {
   return Number.isSafeInteger(sum) ? sum : null;
 };
 
+/**
+ * A whole count — sats, UTXOs, items — in the language the wallet is reading in.
+ *
+ * `Number.prototype.toLocaleString()` with no argument follows the browser's REGIONAL FORMAT,
+ * which is a different setting from the UI LANGUAGE these labels are drawn from. A reader can
+ * have the two disagree. `formatAmount` follows the language, so the digits and the words around
+ * them always come from one choice.
+ */
+const grouped = (value: number): string => formatAmount({ value, maximumFractionDigits: 0 });
+
+/** A satoshi amount with its unit. `sats` is a ticker, not a word to translate. */
+const satsValue = (value: number): string => `${grouped(value)} sats`;
+
 const formatXcpRaw = (raw: string): string => {
   const amount = BigInt(raw);
   const whole = amount / 100_000_000n;
@@ -839,7 +873,7 @@ const formatXcpRaw = (raw: string): string => {
 
 /** Expiry timestamps share rows with their labels; seconds-precision wraps them into a third line. */
 function formatExpiry(unixSeconds: number): string {
-  return new Date(unixSeconds * 1000).toLocaleString(undefined, {
+  return new Date(unixSeconds * 1000).toLocaleString(displayLocale(), {
     dateStyle: 'short',
     timeStyle: 'short',
   });
@@ -1015,19 +1049,27 @@ function analyzeAttachIntent(
     // The standard attach screen already states the asset, amount, network fee, and the created
     // outpoint — these facts carry only what is marketplace-specific, so the merged details list
     // says each thing once.
-    title: preparing ? `Prepare ${claim.asset}` : `Attach ${claim.asset} for listing`,
+    title: preparing
+      ? t('marketplace_intent_title_prepare_asset', claim.asset)
+      : t('marketplace_intent_title_attach_asset_for_listing', claim.asset),
     facts: [
       ...(!sameAddress(assetSource, utxoOwner) ? [
-        { kind: 'address' as const, label: 'Asset source', value: assetSource },
-        { kind: 'address' as const, label: 'New UTXO owner', value: utxoOwner },
+        { kind: 'address' as const, label: t('marketplace_intent_asset_source'), value: assetSource },
+        { kind: 'address' as const, label: t('marketplace_intent_new_utxo_owner'), value: utxoOwner },
       ] : []),
-      { kind: 'amount' as const, label: 'New UTXO value', value: `${intent.utxoValueSats.toLocaleString()} sats` },
       {
-        kind: 'amount' as const, label: 'Quoted XCP fee',
-        value: formatXcpRaw(intent.protocolFee.quotedAmountRaw),
-        description: 'Finalized at confirmation',
+        kind: 'amount' as const, label: t('marketplace_intent_new_utxo_value'),
+        value: satsValue(intent.utxoValueSats),
       },
-      { kind: 'text' as const, label: 'Operation expiry', value: formatExpiry(intent.operationExpiresAt) },
+      {
+        kind: 'amount' as const, label: t('marketplace_intent_quoted_xcp_fee'),
+        value: formatXcpRaw(intent.protocolFee.quotedAmountRaw),
+        description: t('marketplace_intent_finalized_at_confirmation'),
+      },
+      {
+        kind: 'text' as const, label: t('marketplace_intent_operation_expiry'),
+        value: formatExpiry(intent.operationExpiresAt),
+      },
     ],
     notices: [],
     blockers: allProblems,
@@ -1284,56 +1326,70 @@ function analyzeBuyListingsIntent(
   // Name the independently checked ledger amount on the decision screen, never raw base units.
   const receivedAsset = attachedDelivery && status === 'proved' ? balances.get(1)?.assets[0] : undefined;
   const paymentSummary: ProtocolField[] = [
-    { kind: 'amount', label: 'You pay', value: `${intent.totalSats.toLocaleString()} sats`, emphasis: 'primary' },
-    { kind: 'amount', label: 'Seller subtotal', value: `${intent.subtotalSats.toLocaleString()} sats` },
-    { kind: 'amount', label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats` },
-    { kind: 'amount', label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
+    { kind: 'amount', label: t('marketplace_intent_you_pay'), value: satsValue(intent.totalSats), emphasis: 'primary' },
+    { kind: 'amount', label: t('marketplace_intent_seller_subtotal'), value: satsValue(intent.subtotalSats) },
+    { kind: 'amount', label: t('marketplace_intent_platform_fee'), value: satsValue(intent.platformFeeSats) },
+    { kind: 'amount', label: t('marketplace_intent_network_fee'), value: satsValue(intent.networkFeeSats) },
     ...(deliveryUtxoSats > 0 ? [{
-      kind: 'amount' as const, label: 'Sats kept with your asset', value: `${deliveryUtxoSats.toLocaleString()} sats`,
-      description: 'Still yours, separate from the purchase cost and change',
+      kind: 'amount' as const, label: t('marketplace_intent_sats_kept_with_your_asset'),
+      value: satsValue(deliveryUtxoSats),
+      description: t('marketplace_intent_still_yours_separate_from_the_purchase_cost_and_change'),
     }] : []),
-    ...(changeOutput ? [{ kind: 'amount' as const, label: 'Change', value: `${changeOutput.value.toLocaleString()} sats` }] : []),
+    ...(changeOutput
+      ? [{ kind: 'amount' as const, label: t('marketplace_intent_change'), value: satsValue(changeOutput.value) }]
+      : []),
   ];
+  const collectibles = itemCount === 1
+    ? t('marketplace_intent_one_collectible')
+    : t('marketplace_intent_collectibles_count', grouped(itemCount));
+  const totalBtc = (intent.totalSats / 100_000_000).toFixed(8);
   return {
     status,
     family: 'buy_listings',
     ...(status === 'proved' ? {
       paymentSummary,
       summary: {
-        label: 'Buy collectibles',
-        description: `${itemCount} collectible${itemCount === 1 ? '' : 's'}`,
+        label: t('marketplace_intent_buy_collectibles'),
+        description: collectibles,
       },
     } : {}),
-    title: `Buy ${itemCount} collectible${itemCount === 1 ? '' : 's'} for ${(intent.totalSats / 100_000_000).toFixed(8)} BTC`,
+    title: itemCount === 1
+      ? t('marketplace_intent_title_buy_one_collectible_for_btc', totalBtc)
+      : t('marketplace_intent_title_buy_collectibles_for_btc', [grouped(itemCount), totalBtc]),
     facts: [
       ...paymentSummary,
       ...(receivedAsset
-        ? [{ kind: 'amount' as const, label: 'You receive', value: `${receivedAsset.quantity_normalized} ${receivedAsset.asset}` }]
+        ? [{
+            kind: 'amount' as const, label: t('marketplace_intent_you_receive'),
+            value: `${receivedAsset.quantity_normalized} ${receivedAsset.asset}`,
+          }]
         : []),
       // Per-item rows already name each asset; this row only adds the distinct-asset count when it
       // differs from the item count.
       {
-        kind: 'text' as const, label: 'Items',
+        kind: 'text' as const, label: t('marketplace_intent_items'),
         value: itemCount === distinctAssets
-          ? `${itemCount}`
-          : `${itemCount} (${distinctAssets} assets)`,
+          ? grouped(itemCount)
+          : t('marketplace_intent_items_with_asset_count', [grouped(itemCount), grouped(distinctAssets)]),
       },
       {
-        kind: 'address' as const, label: 'Delivery', value: intent.delivery.address,
+        kind: 'address' as const, label: t('marketplace_intent_delivery'), value: intent.delivery.address,
         description: attachedDelivery
-          ? `Asset stays attached to a ${deliveryUtxoSats.toLocaleString()}-sat UTXO at this address`
-          : 'Assets detach to this address',
+          ? t('marketplace_intent_asset_stays_attached_to_sat_utxo', grouped(deliveryUtxoSats))
+          : t('marketplace_intent_assets_detach_to_this_address'),
       },
-      { kind: 'text' as const, label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
+      {
+        kind: 'text' as const, label: t('marketplace_intent_marketplace_expiry'),
+        value: formatExpiry(intent.marketplaceExpiresAt),
+      },
     ],
     notices: allProblems.length > 0
       ? []
       : [{
           severity: 'info',
-          message:
-            attachedDelivery
-              ? 'SIGHASH_ALL fixes every input, seller payment, fee, change output, and the separate buyer-owned asset UTXO shown above.'
-              : 'SIGHASH_ALL fixes every input, seller payment, fee, change output, and the detach destination shown above.',
+          message: attachedDelivery
+            ? t('marketplace_intent_notice_sighash_all_attached_delivery')
+            : t('marketplace_intent_notice_sighash_all_detach_destination'),
         }],
     blockers: allProblems,
   };
@@ -1568,64 +1624,96 @@ function analyzeExactOfferIntent(
         ? 'caution'
         : 'proved';
   const fundingOutpoint = intent.bitcoinInvalidation.outpoint;
-  const offerPrice: ProtocolField = { kind: 'amount', label: 'Offer price', value: `${intent.priceSats.toLocaleString()} sats` };
+  const offerPrice: ProtocolField = {
+    kind: 'amount', label: t('marketplace_intent_offer_price'), value: satsValue(intent.priceSats),
+  };
   const platformFee: ProtocolField = {
-    kind: 'amount', label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats`, description: 'Paid by the buyer',
+    kind: 'amount', label: t('marketplace_intent_platform_fee'), value: satsValue(intent.platformFeeSats),
+    description: t('marketplace_intent_paid_by_the_buyer'),
   };
   const networkFee: ProtocolField = {
-    kind: 'amount', label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats`, description: 'Deducted from seller proceeds',
+    kind: 'amount', label: t('marketplace_intent_network_fee'), value: satsValue(intent.networkFeeSats),
+    description: t('marketplace_intent_deducted_from_seller_proceeds'),
   };
   const sellerReceives: ProtocolField = {
-    kind: 'amount', label: authorizing ? 'Seller receives' : 'You receive', value: `${intent.sellerProceedsSats.toLocaleString()} sats`,
+    kind: 'amount',
+    label: authorizing ? t('marketplace_intent_seller_receives') : t('marketplace_intent_you_receive'),
+    value: satsValue(intent.sellerProceedsSats),
     ...(!authorizing ? { emphasis: 'primary' as const } : {}),
   };
   const buyerCost = safeSum([intent.priceSats, intent.platformFeeSats]);
   const paymentSummary: ProtocolField[] = authorizing ? [
-    { kind: 'amount', label: 'You pay if accepted', value: buyerCost === null ? 'Unavailable' : `${buyerCost.toLocaleString()} sats`, emphasis: 'primary' },
+    {
+      kind: 'amount', label: t('marketplace_intent_you_pay_if_accepted'),
+      value: buyerCost === null ? t('marketplace_intent_unavailable') : satsValue(buyerCost),
+      emphasis: 'primary',
+    },
     offerPrice,
     ...(intent.platformFeeSats > 0 ? [platformFee] : []),
     ...(deliveryUtxoSats > 0 ? [{
-      kind: 'amount' as const, label: 'Sats kept with your asset', value: `${deliveryUtxoSats.toLocaleString()} sats`,
-      description: 'Still yours, separate from the offer cost',
+      kind: 'amount' as const, label: t('marketplace_intent_sats_kept_with_your_asset'),
+      value: satsValue(deliveryUtxoSats),
+      description: t('marketplace_intent_still_yours_separate_from_the_offer_cost'),
     }] : []),
   ] : [
     sellerReceives, offerPrice,
-    { kind: 'amount', label: 'Your UTXO sats returned', value: `${intent.utxoValueSats.toLocaleString()} sats` },
+    {
+      kind: 'amount', label: t('marketplace_intent_your_utxo_sats_returned'),
+      value: satsValue(intent.utxoValueSats),
+    },
     networkFee,
   ];
+  const offerAsset = provedQuantity ? `${provedQuantity} ${claim.asset}` : claim.asset;
+  const offerBtc = (intent.priceSats / 100_000_000).toFixed(8);
   return {
     status,
     family: intent.action,
     ...(allProblems.length === 0 ? {
       paymentSummary,
       summary: {
-        label: authorizing ? 'Offer to buy' : 'Accept offer',
+        label: authorizing
+          ? t('marketplace_intent_offer_to_buy')
+          : t('marketplace_intent_accept_offer'),
         description: `${provedQuantity} ${claim.asset}`,
       },
     } : {}),
-    title: `${authorizing ? 'Authorize' : 'Accept'} ${(intent.priceSats / 100_000_000).toFixed(8)} BTC` +
-      ` for ${provedQuantity ? `${provedQuantity} ` : ''}${claim.asset}`,
+    title: authorizing
+      ? t('marketplace_intent_title_authorize_btc_for_asset', [offerBtc, offerAsset])
+      : t('marketplace_intent_title_accept_btc_for_asset', [offerBtc, offerAsset]),
     facts: [
       ...paymentSummary,
       // The platform fee is the buyer's cost. The seller does not pay it, so their screen does
       // not list it; the fee output itself remains itemized in the raw transaction section.
       ...(authorizing && intent.platformFeeSats > 0 && outputs[2]?.address ? [{
-        kind: 'address' as const, label: 'Fee recipient', value: outputs[2].address,
+        kind: 'address' as const, label: t('marketplace_intent_fee_recipient'), value: outputs[2].address,
       }] : []),
       ...(authorizing && buyerFundingSats !== null ? [{
-        kind: 'amount' as const, label: 'Buyer funding', value: `${buyerFundingSats.toLocaleString()} sats`,
-        description: 'Offer price, platform fee, and any attached delivery UTXO',
+        kind: 'amount' as const, label: t('marketplace_intent_buyer_funding'),
+        value: satsValue(buyerFundingSats),
+        description: t('marketplace_intent_offer_price_platform_fee_and_any_attached_delivery_utxo'),
       }] : []),
       ...(authorizing ? [sellerReceives, networkFee] : []),
       {
-        kind: 'address' as const, label: 'Delivery', value: intent.delivery.address,
+        kind: 'address' as const, label: t('marketplace_intent_delivery'), value: intent.delivery.address,
         description: attachedDelivery
-          ? `Asset stays attached to a ${deliveryUtxoSats.toLocaleString()}-sat UTXO at this address`
-          : 'Asset detaches to this address',
+          ? t('marketplace_intent_asset_stays_attached_to_sat_utxo', grouped(deliveryUtxoSats))
+          : t('marketplace_intent_asset_detaches_to_this_address'),
       },
-      { kind: 'outpoint' as const, label: authorizing ? 'Funding UTXO' : 'Buyer funding UTXO', value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}` },
-      { kind: 'text' as const, label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
-      ...(authorizing ? [{ kind: 'paragraph' as const, label: 'Cancellation', value: 'Withdraw by spending your funding UTXO' }] : []),
+      {
+        kind: 'outpoint' as const,
+        label: authorizing
+          ? t('marketplace_intent_funding_utxo')
+          : t('marketplace_intent_buyer_funding_utxo'),
+        value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}`,
+      },
+      {
+        kind: 'text' as const, label: t('marketplace_intent_marketplace_expiry'),
+        value: formatExpiry(intent.marketplaceExpiresAt),
+      },
+      ...(authorizing ? [{
+        kind: 'paragraph' as const, label: t('marketplace_intent_cancellation'),
+        value: t('marketplace_intent_withdraw_by_spending_your_funding_utxo'),
+      }] : []),
     ],
     notices: allProblems.length > 0
       ? []
@@ -1633,8 +1721,8 @@ function analyzeExactOfferIntent(
           // Both are statements of what the signature is for, not exceptions to act on.
           severity: 'info',
           message: authorizing
-            ? 'After signing, this seller can complete this exact trade without another approval. Other exact offers backed by the same funding UTXO are alternatives: the first confirmed spend wins and invalidates its siblings.'
-            : 'Your signature completes this exact sale without a buyer callback. If the buyer already spent the shared funding UTXO, broadcast fails and your asset remains yours.',
+            ? t('marketplace_intent_notice_authorize_exact_offer')
+            : t('marketplace_intent_notice_accept_exact_offer'),
         }],
     blockers: allProblems,
   };
@@ -1741,23 +1829,33 @@ function analyzePrepareBulkFanoutIntent(
   return {
     status: blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved',
     family: 'prepare_bulk_fanout',
-    title: `Create ${intent.slotCount} listing UTXO${intent.slotCount === 1 ? '' : 's'}`,
+    title: intent.slotCount === 1
+      ? t('marketplace_intent_title_create_one_listing_utxo')
+      : t('marketplace_intent_title_create_listing_utxos', grouped(intent.slotCount)),
     facts: [
-      { kind: 'amount' as const, label: 'Funding input', value: `${intent.fundingValueSats.toLocaleString()} sats` },
       {
-        kind: 'amount' as const, label: 'New UTXOs',
-        value: `${intent.slotCount} × ${intent.slotValueSats.toLocaleString()} sats`,
+        kind: 'amount' as const, label: t('marketplace_intent_funding_input'),
+        value: satsValue(intent.fundingValueSats),
       },
-      { kind: 'amount' as const, label: 'Change', value: `${intent.changeSats.toLocaleString()} sats` },
-      { kind: 'amount' as const, label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
-      { kind: 'text' as const, label: 'Operation expiry', value: formatExpiry(intent.operationExpiresAt) },
+      {
+        kind: 'amount' as const, label: t('marketplace_intent_new_utxos'),
+        value: `${grouped(intent.slotCount)} × ${satsValue(intent.slotValueSats)}`,
+      },
+      { kind: 'amount' as const, label: t('marketplace_intent_change'), value: satsValue(intent.changeSats) },
+      {
+        kind: 'amount' as const, label: t('marketplace_intent_network_fee'),
+        value: satsValue(intent.networkFeeSats),
+      },
+      {
+        kind: 'text' as const, label: t('marketplace_intent_operation_expiry'),
+        value: formatExpiry(intent.operationExpiresAt),
+      },
     ],
     notices: allProblems.length > 0
       ? []
       : [{
           severity: 'info',
-          message:
-            'Every output remains controlled by this wallet. These plain-Bitcoin UTXOs fund later Counterparty attach transactions; no asset moves in this phase.',
+          message: t('marketplace_intent_notice_bulk_fanout_outputs_stay_in_wallet'),
         }],
     blockers: allProblems,
   };

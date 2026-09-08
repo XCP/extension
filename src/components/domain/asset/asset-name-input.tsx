@@ -5,6 +5,8 @@ import { useWallet } from "@/contexts/wallet-context";
 import { fetchAssetDetails } from "@/core/counterparty/api";
 import { generateRandomNumericAsset, validateAssetName } from "@/core/validation/asset";
 
+import { t } from '@/i18n';
+
 interface AssetNameInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -37,7 +39,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
       showHelpText = false,
       className = "",
       name = "asset",
-      label = "Asset Name",
+      label = t('common_asset_name'),
       helpText,
       isSubasset = false,
       parentAsset = "",
@@ -93,20 +95,20 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
             // Check if parent asset exists and get its details
             const parentAssetInfo = await fetchAssetDetails(parentName!);
             if (!parentAssetInfo || !parentAssetInfo.asset) {
-              setAvailabilityError("Parent asset does not exist");
+              setAvailabilityError(t('asset_asset_name_input_parent_asset_does_not_exist'));
               setIsValid(false);
               if (onValidationChange) {
-                onValidationChange(false, "Parent asset does not exist");
+                onValidationChange(false, t('asset_asset_name_input_parent_asset_does_not_exist'));
               }
               return;
             }
 
             // Check if user owns the parent asset
             if (activeAddress && parentAssetInfo.issuer !== activeAddress.address) {
-              setAvailabilityError("You don't own the parent asset");
+              setAvailabilityError(t('asset_asset_name_input_you_don_t_own_the'));
               setIsValid(false);
               if (onValidationChange) {
-                onValidationChange(false, "You don't own the parent asset");
+                onValidationChange(false, t('asset_asset_name_input_you_don_t_own_the'));
               }
               return;
             }
@@ -118,10 +120,10 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
           const assetInfo = await fetchAssetDetails(value);
           // If we get asset info back, it exists
           if (assetInfo && assetInfo.asset) {
-            setAvailabilityError("Asset name already taken");
+            setAvailabilityError(t('asset_asset_name_input_asset_name_already_taken'));
             setIsValid(false);
             if (onValidationChange) {
-              onValidationChange(false, "Asset name already taken");
+              onValidationChange(false, t('asset_asset_name_input_asset_name_already_taken'));
             }
           } else {
             setAvailabilityError(undefined);
@@ -233,18 +235,18 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
     // Determine placeholder based on context
     const defaultPlaceholder = isSubasset
       ? (parentAsset ? `${parentAsset}.subasset` : "PARENT.subasset")
-      : "Enter an asset name";
+      : t('asset_asset_name_input_enter_an_asset_name');
 
     // Determine help text - user-friendly messages
     let displayText = "";
     if (errorMessage) {
       displayText = errorMessage;
     } else if (!value) {
-      displayText = isSubasset ? "Enter a subasset name" : "Enter an asset name";
+      displayText = isSubasset ? t('asset_asset_name_input_enter_a_subasset_name') : t('asset_asset_name_input_enter_an_asset_name');
     } else if (isChecking) {
-      displayText = "Checking availability…";
+      displayText = t('asset_asset_name_input_checking_availability');
     } else if (showGreenBorder) {
-      displayText = "Asset name is available";
+      displayText = t('asset_asset_name_input_asset_name_is_available');
     } else if (helpText) {
       displayText = helpText;
     }
@@ -266,7 +268,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
               type="button"
               onClick={handleRandomNumeric}
               disabled={disabled}
-              aria-label="Generate random numeric asset name"
+              aria-label={t('asset_asset_name_input_generate_random_numeric_asset_name')}
               className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 cursor-pointer font-mono flex items-center gap-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
               <FiRefreshCw className="size-2" aria-hidden="true" />

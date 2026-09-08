@@ -407,12 +407,12 @@ describe('Bitcoin Price Utilities', () => {
       expect(price).toBe(largePrice);
     });
 
-    it('should handle zero price', async () => {
+    it('should reject zero as an unusable spot price', async () => {
       const mockFetcher = vi.fn().mockResolvedValue({ bitcoin: { usd: 0 } });
 
       const price = await getBtcPrice([mockFetcher]);
 
-      expect(price).toBe(0);
+      expect(price).toBeNull();
     });
   });
 

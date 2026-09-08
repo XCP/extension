@@ -5,6 +5,8 @@ import { formatAmount, formatTimeAgo } from "@/core/format";
 import { toBigNumber } from "@/core/numeric";
 import { getMatchPricePerUnit, getTradingPair } from "@/core/tradingPair";
 
+import { t } from '@/i18n';
+
 interface MarketMatchCardProps {
   match: OrderMatch;
   /** Base asset for price calculation context (optional - will derive if not provided) */
@@ -76,7 +78,7 @@ export function MarketMatchCard({
                     ? "text-green-600"
                     : "text-gray-400 hover:text-gray-600"
                 }`}
-                aria-label="Copy transaction hash"
+                aria-label={t('common_copy_transaction_hash')}
               >
                 TX
                 {isCopied ? (

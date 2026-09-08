@@ -18,14 +18,9 @@ import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat, DEFAULT_ADDRESS_FORMAT } from "@/core/bitcoin/address";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { validatePrivateKeyFormat } from "@/core/validation/privateKey";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
-
-const ADDRESS_TYPES = [
-  { value: AddressFormat.P2PKH, label: "Legacy", hint: "1..." },
-  { value: AddressFormat.P2SH_P2WPKH, label: "Nested SegWit", hint: "3..." },
-  { value: AddressFormat.P2WPKH, label: "Native SegWit", hint: "bc1q..." },
-  { value: AddressFormat.P2TR, label: "Taproot", hint: "bc1p..." },
-] as const;
 
 const PATHS = {
   BACK: "/keychain/wallets/add",
@@ -33,6 +28,7 @@ const PATHS = {
 } as const;
 
 function ImportPrivateKeyPage() {
+  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { createPrivateKeyWallet, verifyPassword } = useWallet();
@@ -46,31 +42,38 @@ function ImportPrivateKeyPage() {
   const privateKeyInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
+  const addressTypes = [
+    { value: AddressFormat.P2PKH, label: t('setup_import_private_key_legacy'), hint: "1..." },
+    { value: AddressFormat.P2SH_P2WPKH, label: t('setup_import_private_key_nested_segwit'), hint: "3..." },
+    { value: AddressFormat.P2WPKH, label: t('setup_import_private_key_native_segwit'), hint: t('setup_import_private_key_bc1q') },
+    { value: AddressFormat.P2TR, label: t('setup_import_private_key_taproot'), hint: t('setup_import_private_key_bc1p') },
+  ] as const;
+
   const [state, formAction, isPending] = useActionState(
     async (_prevState: { error: string | null }, formData: FormData) => {
       const privateKey = formData.get("private-key") as string;
       const password = formData.get("password") as string;
 
       if (!privateKey) {
-        return { error: "Private key is required." };
+        return { error: t('setup_import_private_key_private_key_is_required') };
       }
 
       const validation = validatePrivateKeyFormat(privateKey);
       if (!validation.isValid) {
-        return { error: validation.error || "Invalid private key format." };
+        return { error: validation.error || t('setup_import_private_key_invalid_private_key_format') };
       }
 
       if (!isConfirmed) {
-        return { error: "Please confirm you have backed up your private key." };
+        return { error: t('setup_import_private_key_please_confirm_you_have_backed') };
       }
 
       if (!password) {
-        return { error: "Password is required." };
+        return { error: t('common_password_is_required') };
       }
 
       const isValid = await verifyPassword(password);
       if (!isValid) {
-        return { error: "Password does not match." };
+        return { error: t('common_password_does_not_match') };
       }
 
       try {
@@ -79,16 +82,16 @@ function ImportPrivateKeyPage() {
         navigate(PATHS.SUCCESS);
         return { error: null };
       } catch (error) {
-        let errorMessage = "Failed to import private key. ";
+        let errorMessage = t('setup_import_private_key_failed_to_import_private_key');
         if (error instanceof Error) {
           errorMessage +=
             error.message.includes("Invalid private key")
-              ? "The private key format is invalid."
+              ? t('setup_import_private_key_the_private_key_format_is')
               : error.message.includes("already exists")
-                ? "This private key has already been imported."
+                ? t('setup_import_private_key_this_private_key_has_already')
                 : error.message;
         } else {
-          errorMessage += "Please check your input and try again.";
+          errorMessage += t('setup_import_private_key_please_check_your_input_and');
         }
         return { error: errorMessage };
       }
@@ -104,12 +107,12 @@ function ImportPrivateKeyPage() {
 
   useEffect(() => {
     setHeaderProps({
-      title: "Import Key",
+      title: t('setup_import_private_key_import_key'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FiX className="size-4" aria-hidden="true" />,
         onClick: () => navigate(PATHS.SUCCESS),
-        ariaLabel: "Close",
+        ariaLabel: t('common_close'),
       },
     });
   }, [setHeaderProps, navigate]);
@@ -139,8 +142,8 @@ function ImportPrivateKeyPage() {
         {state.error && !errorDismissed && (
           <ErrorAlert message={state.error} onClose={() => setErrorDismissed(true)} />
         )}
-        <h2 id="import-private-key-title" className="text-2xl font-bold mb-2">Import Private Key</h2>
-        <p className="mb-5" id="import-instructions">Enter your private key to use its address.</p>
+        <h2 id="import-private-key-title" className="text-2xl font-bold mb-2">{t('common_import_private_key')}</h2>
+        <p className="mb-5" id="import-instructions">{t('setup_import_private_key_enter_your_private_key_to')}</p>
         <form
           action={formAction}
           className="space-y-4"
@@ -150,14 +153,15 @@ function ImportPrivateKeyPage() {
           <div className="bg-gray-100 rounded-lg pt-2 pb-4 p-2 space-y-4">
             <Field>
               <Label className="block text-sm font-medium text-gray-700">
-                Address Type <span className="text-red-500">*</span>
+                
+                {t('common_address_type')} <span className="text-red-500">*</span>
               </Label>
               <div className="mt-1 relative">
                 <input type="hidden" name="address-type" value={addressFormat} />
                 <Listbox value={addressFormat} onChange={setAddressFormat} disabled={isPending}>
                   <ListboxButton className="w-full p-2.5 text-left rounded-md border border-gray-200 bg-white outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer disabled:cursor-not-allowed">
                     {({ value }) => {
-                      const selected = ADDRESS_TYPES.find((type) => type.value === value);
+                      const selected = addressTypes.find((type) => type.value === value);
                       return (
                         <div className="flex justify-between items-center">
                           <span>{selected?.label}</span>
@@ -167,7 +171,7 @@ function ImportPrivateKeyPage() {
                     }}
                   </ListboxButton>
                   <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                    {ADDRESS_TYPES.map((type) => (
+                    {addressTypes.map((type) => (
                       <ListboxOption
                         key={type.value}
                         value={type.value}
@@ -190,13 +194,14 @@ function ImportPrivateKeyPage() {
 
             <Field>
               <Label className="block text-sm font-medium text-gray-700">
-                Private Key <span className="text-red-500">*</span>
+                
+                {t('common_private_key')} <span className="text-red-500">*</span>
               </Label>
               <div className="mt-1">
                 <PasswordInput
                   innerRef={privateKeyInputRef}
                   name="private-key"
-                  placeholder="Enter your private key"
+                  placeholder={t('setup_import_private_key_enter_your_private_key')}
                   disabled={isPending}
                   onChange={handlePrivateKeyChange}
                 />
@@ -205,7 +210,7 @@ function ImportPrivateKeyPage() {
           </div>
           <CheckboxInput
             name="confirmed"
-            label="I have backed up this private key securely."
+            label={t('setup_import_private_key_i_have_backed_up_this')}
             disabled={isPending || !privateKeyReady}
             checked={isConfirmed}
             onChange={handleCheckboxChange}
@@ -215,7 +220,7 @@ function ImportPrivateKeyPage() {
               <PasswordInput
                 innerRef={passwordInputRef}
                 name="password"
-                placeholder="Confirm your password"
+                placeholder={t('common_confirm_your_password')}
                 disabled={isPending}
                 onChange={handlePasswordChange}
               />
@@ -224,7 +229,7 @@ function ImportPrivateKeyPage() {
                 fullWidth
                 disabled={!canSubmit}
               >
-                {isPending ? "Importing…" : "Continue"}
+                {isPending ? t('common_importing') : t('common_continue')}
               </Button>
             </>
           )}
@@ -235,7 +240,7 @@ function ImportPrivateKeyPage() {
           variant="youtube"
           href="https://youtu.be/FxJKsmdtU-8"
         >
-          Watch Tutorial: How to Import a Private Key
+          {t('setup_import_private_key_watch_tutorial_how_to_import')}
         </Button>
       )}
     </section>

@@ -3,7 +3,9 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
+import { fetchInputValues } from '@/core/counterparty/transaction';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
+import { configureLocale, t } from '@/i18n';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
 
@@ -690,5 +692,82 @@ describe('a compose whose message is missing entirely', () => {
       expect(result.current.state.step).toBe('review');
     });
     expect(result.current.state.error).toBeNull();
+  });
+});
+
+describe('native verification diagnostics follow the active language without recomposing', () => {
+  afterEach(() => configureLocale({}));
+
+  const response = (rawtransaction: string): ApiResponse => ({
+    result: { rawtransaction, btc_fee: 4840, params: {}, name: 'move' },
+  } as unknown as ApiResponse);
+
+  it.each(['fee', 'output'] as const)('retains the failed %s check and exact draft through language changes', async failure => {
+    configureLocale({ language: 'en' });
+    // Fee lookup fails independently of the API's claim; alternatively, the actual transaction
+    // pays a different P2PKH address even though the request names only our own address.
+    const raw = failure === 'output'
+      ? VALID_BTC_ONLY_TX.replace('5c333992ab554e7573df3d2a412df750a60d1f5b', '11'.repeat(20))
+      : VALID_BTC_ONLY_TX;
+    if (failure === 'fee') vi.mocked(fetchInputValues).mockResolvedValueOnce(new Map());
+    const composeApi = vi.fn().mockResolvedValue(response(raw));
+    const { result } = renderHook(() => useComposer(), {
+      wrapper: ({ children }) => <MemoryRouter>
+        <ComposerProvider composeApi={composeApi} initialTitle="Move" composeType="move">{children}</ComposerProvider>
+      </MemoryRouter>,
+    });
+    const formData = new FormData();
+    formData.set('sourceUtxo', `${'a'.repeat(64)}:0`);
+    formData.set('destination', OWN_ADDRESS);
+    formData.set('memo', '  keep my draft  ');
+    await act(async () => { await result.current.composeTransaction(formData); });
+    expect(result.current.state.step).toBe('form');
+    expect(result.current.state.apiResponse).toBeNull();
+    expect(result.current.state.isComposing).toBe(false);
+    const draft = result.current.state.formData;
+    expect(draft).toEqual(Object.fromEntries(formData));
+    const english = result.current.state.error;
+    expect(english).toBeTruthy();
+    const resolverCalls = vi.mocked(fetchInputValues).mock.calls.length;
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
+      act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+      const current = result.current.state.error;
+      expect(current).toBeTruthy();
+      if (language === 'en') expect(current).toBe(english);
+      else expect(current).toMatch(/[\u3000-\u9fff]/);
+      if (failure === 'fee') expect(current).toBe(t('composer_verification_fee_inputs_unavailable'));
+      else {
+        expect(current).toContain('95160 sats');
+        expect(current).toContain(decodeAddressFromScript(`76a914${'11'.repeat(20)}88ac`)!);
+      }
+      expect(result.current.state.formData).toBe(draft);
+      expect(result.current.state.step).toBe('form');
+      expect(result.current.state.apiResponse).toBeNull();
+      expect(composeApi).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(fetchInputValues).mock.calls.length).toBe(resolverCalls);
+    }
+    act(() => result.current.clearError());
+    expect(result.current.state.error).toBeNull();
+    act(() => configureLocale({ language: 'ja' }));
+    expect(result.current.state.error).toBeNull();
+    expect(result.current.state.formData).toBe(draft);
+  });
+
+  it('preserves an unknown API diagnostic across language changes', async () => {
+    configureLocale({ language: 'en' });
+    const raw = 'fee_abnormally_high: upstream detail 123456789 sats';
+    const composeApi = vi.fn().mockRejectedValue(new Error(raw));
+    const { result } = renderHook(() => useComposer(), {
+      wrapper: ({ children }) => <MemoryRouter>
+        <ComposerProvider composeApi={composeApi} initialTitle="Move" composeType="move">{children}</ComposerProvider>
+      </MemoryRouter>,
+    });
+    await act(async () => { await result.current.composeTransaction(new FormData()); });
+    for (const language of ['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+      act(() => configureLocale({ language }));
+      expect(result.current.state.error).toBe(raw);
+      expect(result.current.state.step).toBe('form');
+    }
+    expect(composeApi).toHaveBeenCalledTimes(1);
   });
 });

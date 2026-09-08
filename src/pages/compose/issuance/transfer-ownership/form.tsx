@@ -10,6 +10,8 @@ import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the TransferOwnershipForm component, aligned with Composer's formAction.
  */
@@ -41,18 +43,17 @@ export function TransferOwnershipForm({
   }, []);
 
   if (assetLoading) {
-    return <Spinner message="Loading asset details…" />;
+    return <Spinner message={t('common_loading_asset_details')} />;
   }
 
   if (assetError || !assetInfo) {
     return (
       <div className="p-4 text-red-500">
-        Unable to load asset details. Please ensure the asset exists and you have the necessary
-        permissions.
+        {t('common_unable_to_load_asset_details')}
       </div>
     );
   }
-  if (asset === "BTC") return <div className="p-4 text-red-500">Cannot transfer ownership of BTC</div>;
+  if (asset === "BTC") return <div className="p-4 text-red-500">{t('transfer_ownership_form_cannot_transfer_ownership_of_btc')}</div>;
 
   return (
     <ComposerForm
@@ -83,7 +84,7 @@ export function TransferOwnershipForm({
             value={destination}
             onChange={setDestination}
             onValidationChange={setDestinationValid}
-            placeholder="Enter address to transfer ownership to"
+            placeholder={t('transfer_ownership_form_enter_address_to_transfer_ownership')}
             required
             disabled={pending}
             showHelpText={showHelpText}

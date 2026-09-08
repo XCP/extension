@@ -13,6 +13,8 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 
 
+import { t } from '@/i18n';
+
 /**
  * Constants for navigation paths.
  */
@@ -47,7 +49,7 @@ export default function AssetBalancePage(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Balance",
+      title: t('asset_balance_balance'),
       onBack: () => navigate("/"),
     });
     return () => setHeaderProps(null);
@@ -64,37 +66,37 @@ export default function AssetBalancePage(): ReactElement {
 
     const sendAction = {
       id: "send",
-      title: "Send",
-      description: isBTC ? "Send bitcoin to another address" : "Send this asset to another address",
+      title: t('common_send'),
+      description: isBTC ? t('asset_balance_send_bitcoin_to_another_address') : t('asset_balance_send_this_asset_to_another'),
       onClick: () => navigate(`${PATHS.COMPOSE}/send/${encodedAsset}`),
     };
 
     const swapAction = {
       id: "swap",
-      title: "Swap",
-      description: "Create a new order on the DEX",
+      title: t('common_swap'),
+      description: t('asset_balance_create_a_new_order_on'),
       onClick: () => navigate(`${PATHS.COMPOSE}/order/${encodedAsset}`),
     };
 
     const mintAction = {
       id: "mint",
-      title: "Mint",
-      description: "Trigger an open asset fairminter",
+      title: t('common_mint'),
+      description: t('asset_balance_trigger_an_open_asset_fairminter'),
       onClick: () => navigate(`${PATHS.COMPOSE}/fairmint/${encodedAsset}`),
     };
 
     const sellAction = {
       id: "sell",
-      title: "Sell",
-      description: "Create a new dispenser for this asset",
+      title: t('common_sell'),
+      description: t('asset_balance_create_a_new_dispenser_for'),
       onClick: () => navigate(`${PATHS.COMPOSE}/dispenser/${encodedAsset}`),
     };
 
     // Destroy burns the asset irreversibly; BTC is not a Counterparty asset, so it has none.
     const destroyAction = {
       id: "destroy",
-      title: "Destroy",
-      description: "Permanently burn this asset",
+      title: t('common_destroy'),
+      description: t('asset_balance_permanently_burn_this_asset'),
       onClick: () => navigate(`${PATHS.COMPOSE}/issuance/destroy/${encodedAsset}`),
       className: "!border !border-red-500",
     };
@@ -106,14 +108,14 @@ export default function AssetBalancePage(): ReactElement {
           mintAction,
           {
             id: "dispense",
-            title: "Dispense",
-            description: "Trigger an open asset dispenser",
+            title: t('common_dispense'),
+            description: t('asset_balance_trigger_an_open_asset_dispenser'),
             onClick: () => navigate(`${PATHS.COMPOSE}/dispenser/dispense`),
           },
           {
             id: "btcpay",
-            title: "BTC Pay",
-            description: "Pay for an order match with BTC",
+            title: t('asset_balance_btc_pay'),
+            description: t('asset_balance_pay_for_an_order_match'),
             onClick: () => navigate(`${PATHS.COMPOSE}/order/btcpay`),
           },
         ]
@@ -126,7 +128,7 @@ export default function AssetBalancePage(): ReactElement {
           items: [
             {
               id: "manage-pool",
-              title: "Manage Pool",
+              title: t('asset_balance_manage_pool'),
               description: `${lpPool.asset_a} / ${lpPool.asset_b}`,
               onClick: () => navigate(`/pools/${encodeURIComponent(lpPool.lp_asset)}`),
             },
@@ -167,17 +169,17 @@ export default function AssetBalancePage(): ReactElement {
 
   // Show spinner only if no cached data and still loading
   if (isLoading && !balanceData) {
-    return <Spinner message="Loading balance details…" />;
+    return <Spinner message={t('asset_balance_loading_balance_details')} />;
   }
 
   // Show error only if no data available at all
   if ((error || !assetDetails) && !balanceData) {
-    return <div className="p-4 text-center text-gray-600">Failed to load balance information</div>;
+    return <div className="p-4 text-center text-gray-600">{t('asset_balance_failed_to_load_balance_information')}</div>;
   }
 
   // At this point we have either fresh data or cached data
   if (!balanceData) {
-    return <div className="p-4 text-center text-gray-600">Failed to load balance information</div>;
+    return <div className="p-4 text-center text-gray-600">{t('asset_balance_failed_to_load_balance_information')}</div>;
   }
 
   // Pool position details for LP asset balances, in the UTXO-details card style.
@@ -205,15 +207,15 @@ export default function AssetBalancePage(): ReactElement {
       <BalanceHeader balance={balanceData} className="mt-1 mb-5" pendingIncoming={assetDetails?.pendingIncoming} />
       {poolDetails && (
         <div className="bg-white rounded-lg p-4 shadow-sm">
-          <h2 className="text-sm font-medium text-gray-900">Pool Position</h2>
+          <h2 className="text-sm font-medium text-gray-900">{t('asset_balance_pool_position')}</h2>
           <div className="mt-2 space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Pool</span>
+              <span className="text-sm text-gray-500">{t('common_pool')}</span>
               <span className="text-sm text-gray-900">{poolDetails.pair}</span>
             </div>
             {poolDetails.sharePercent && (
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Pool Share</span>
+                <span className="text-sm text-gray-500">{t('asset_balance_pool_share')}</span>
                 <span className="text-sm text-gray-900">{poolDetails.sharePercent}%</span>
               </div>
             )}
@@ -221,7 +223,7 @@ export default function AssetBalancePage(): ReactElement {
           {poolDetails.underlying && (
             <>
               <hr className="my-4 border-gray-200" />
-              <h2 className="text-sm font-medium text-gray-900">Underlying</h2>
+              <h2 className="text-sm font-medium text-gray-900">{t('common_underlying')}</h2>
               <div className="mt-2 space-y-2">
                 {poolDetails.underlying.map(({ asset: underlyingAsset, amount }) => (
                   <div key={underlyingAsset} className="flex justify-between">

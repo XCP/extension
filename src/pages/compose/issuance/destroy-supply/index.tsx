@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { DestroyOptions } from "@/core/counterparty/compose";
 import { composeDestroy } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { DestroySupplyForm } from "@/pages/compose/issuance/destroy-supply/form";
 import { ReviewDestroy } from "@/pages/compose/issuance/destroy-supply/review";
 
@@ -13,8 +14,8 @@ function ComposeDestroySupplyPage() {
       <Composer<DestroyOptions>
         composeType="destroy"
         composeApiMethod={composeDestroy}
-        initialTitle="Destroy"
-        FormComponent={(props) => (
+        initialTitle={t('common_destroy')}
+        renderForm={(props) => (
           <DestroySupplyForm
             {...props}
             initialAsset={asset || ""}

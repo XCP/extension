@@ -16,6 +16,8 @@ import { isValidCounterwalletMnemonic } from "@/core/counterwallet";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { formatAddress } from "@/core/format";
 import { detectGiftCard, GIFT_CARD_PATH } from "@/core/wallet/rarePepeWallet";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
 
 /** How long the phrase must hold still before it is worth spending lookups on. */
@@ -35,6 +37,7 @@ type GiftCardFinding =
   | { status: "unavailable"; mnemonic: string };
 
 function ImportMnemonicPage() {
+  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const {
@@ -79,26 +82,26 @@ function ImportMnemonicPage() {
       const isBip39Valid = validateMnemonic(mnemonic, wordlist);
       const isCwValid = isValidCounterwalletMnemonic(mnemonic);
       if (!isBip39Valid && !isCwValid) {
-        return { error: "Invalid recovery phrase. Please check each word carefully." };
+        return { error: t('setup_import_mnemonic_invalid_recovery_phrase_please_check') };
       }
 
       // A gift card is not the holder's phrase to have backed up, so nothing is asked of them
       // about it — the words stay with whoever handed the card over either way.
       if (!isConfirmed && giftCardChoice !== "gift-card") {
-        return { error: "Please confirm you have backed up your recovery phrase." };
+        return { error: t('setup_import_mnemonic_please_confirm_you_have_backed') };
       }
 
       if (!password) {
-        return { error: "Password is required." };
+        return { error: t('common_password_is_required') };
       }
 
       if (keychainExists) {
         const isValid = await verifyPassword(password);
         if (!isValid) {
-          return { error: "Password does not match." };
+          return { error: t('common_password_does_not_match') };
         }
       } else if (password.length < MIN_PASSWORD_LENGTH) {
-        return { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` };
+        return { error: t('setup_create_mnemonic_password_must_be_at_least', [String(MIN_PASSWORD_LENGTH)]) };
       }
 
       try {
@@ -119,7 +122,7 @@ function ImportMnemonicPage() {
             );
             // Store the derived key, not the phrase: a card is a bearer instrument someone handed
             // you, and only its one address is yours to keep.
-            await createPrivateKeyWallet(privateKey, password, "Gift Card", AddressFormat.P2PKH);
+            await createPrivateKeyWallet(privateKey, password, t('setup_import_mnemonic_gift_card'), AddressFormat.P2PKH);
             analytics.track("gift_card_imported");
             window.location.hash = PATHS.SUCCESS;
             return { error: null };
@@ -158,8 +161,8 @@ function ImportMnemonicPage() {
         return { error: null };
       } catch (error: unknown) {
         console.error("Detailed error importing wallet:", error);
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        return { error: `Failed to import wallet: ${errorMessage}` };
+        const errorMessage = error instanceof Error ? error.message : t('setup_import_mnemonic_unknown_error');
+        return { error: t('setup_import_mnemonic_failed_to_import_wallet', [String(errorMessage)]) };
       }
     },
     { error: null }
@@ -179,14 +182,14 @@ function ImportMnemonicPage() {
 
   useEffect(() => {
     setHeaderProps({
-      title: "Import Wallet",
+      title: t('common_import_wallet'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: showMnemonic
           ? <FaEyeSlash className="size-3" aria-hidden="true" />
           : <FaEye className="size-3" aria-hidden="true" />,
         onClick: () => setShowMnemonic((prev) => !prev),
-        ariaLabel: showMnemonic ? "Hide recovery phrase" : "Show recovery phrase",
+        ariaLabel: showMnemonic ? t('setup_import_mnemonic_hide_recovery_phrase') : t('setup_import_mnemonic_show_recovery_phrase'),
       },
     });
   }, [navigate, setHeaderProps, showMnemonic, keychainExists, PATHS.BACK]);
@@ -296,16 +299,16 @@ function ImportMnemonicPage() {
         {state.error && !errorDismissed && (
           <ErrorAlert message={state.error} onClose={() => setErrorDismissed(true)} />
         )}
-        <h2 id="import-wallet-title" className="text-2xl font-bold mb-2">Import Your Mnemonic</h2>
-        <p className="mb-5" id="import-instructions">Please enter your 12-word recovery phrase below.</p>
+        <h2 id="import-wallet-title" className="text-2xl font-bold mb-2">{t('setup_import_mnemonic_import_your_mnemonic')}</h2>
+        <p className="mb-5" id="import-instructions">{t('setup_import_mnemonic_please_enter_your_12_word')}</p>
         <form
           action={formAction}
           className="space-y-4"
           aria-describedby="import-instructions"
           onSubmit={(e) => { if (!canSubmit) e.preventDefault(); }}
         >
-          <section className="bg-gray-100 p-2 rounded-md mb-4" aria-label="Recovery phrase input">
-            <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2" aria-label="Recovery phrase words">
+          <section className="bg-gray-100 p-2 rounded-md mb-4" aria-label={t('setup_import_mnemonic_recovery_phrase_input')}>
+            <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2" aria-label={t('setup_import_mnemonic_recovery_phrase_words')}>
               {[...Array(12)].map((_, index) => {
                 const isFocused = focusedIndex === index;
                 const word = mnemonicWords[index]?.trim() || "";
@@ -317,7 +320,7 @@ function ImportMnemonicPage() {
                 }
 
                 return (
-                  <li key={index} className="bg-white rounded p-1 flex items-center relative" aria-label={`Word ${index + 1}`}>
+                  <li key={index} className="bg-white rounded p-1 flex items-center relative" aria-label={t('setup_import_mnemonic_word', [String(index + 1)])}>
                     <span className="absolute left-2 w-6 text-right mr-2 text-gray-500" aria-hidden="true">
                       {index + 1}.
                     </span>
@@ -332,8 +335,8 @@ function ImportMnemonicPage() {
                         onFocus={() => setFocusedIndex(index)}
                         onBlur={() => setFocusedIndex(null)}
                         className={`font-mono w-full bg-transparent outline-none ${!showMnemonic && hasValue ? 'opacity-0' : ''}`}
-                        placeholder="Enter word"
-                        aria-label={`Word ${index + 1}`}
+                        placeholder={t('setup_import_mnemonic_enter_word')}
+                        aria-label={t('setup_import_mnemonic_word', [String(index + 1)])}
                         disabled={isPending}
                       />
                       {!showMnemonic && hasValue && (
@@ -352,32 +355,27 @@ function ImportMnemonicPage() {
           </section>
           {giftCard && (
             <div className="bg-gray-100 rounded-lg p-4 space-y-2" role="status">
-              <p className="text-sm font-medium">This looks like a Rare Pepe Wallet gift card.</p>
+              <p className="text-sm font-medium">{t('setup_import_mnemonic_this_looks_like_a_rare')}</p>
               <p className="text-sm text-gray-700">
-                Its balance is on{" "}
-                <span className="font-mono">{formatAddress(giftCard.address)}</span>, at{" "}
-                <span className="font-mono">{GIFT_CARD_PATH}</span> — an address no wallet built on
-                this phrase would ever show you. Importing the card keeps that one address and
-                stores no phrase.
+                
+                {t('setup_import_mnemonic_its_balance_is_on')}{" "}
+                <span className="font-mono">{formatAddress(giftCard.address)}</span>{t('setup_import_mnemonic_at')}{" "}
+                <span className="font-mono">{GIFT_CARD_PATH}</span>  {t('setup_import_mnemonic_an_address_no_wallet_built')}
               </p>
               <p className="text-sm text-gray-700">
-                A card is written to be handed over, so treat these words as known to whoever gave
-                it to you. That is why they are not imported as a wallet: every address derived
-                from them would be theirs to spend from as well. They can also still spend from
-                the card itself, so move anything you want to keep to an address of your own.
+                {t('setup_import_mnemonic_a_card_is_written_to')}
               </p>
             </div>
           )}
           {finding?.status === "unavailable" && (
             <p className="text-sm text-gray-500" role="status">
-              Couldn't check whether this phrase is a Rare Pepe Wallet gift card — importing it as a
-              wallet works either way, and a card can be imported later once you're back online.
+              {t('setup_import_mnemonic_couldn_t_check_whether_this')}
             </p>
           )}
           {!giftCard && (
             <CheckboxInput
               name="confirmed"
-              label="I have saved my secret recovery phrase."
+              label={t('common_i_have_saved_my_secret')}
               disabled={!allWordsPopulated || isPending}
               checked={isConfirmed}
               onChange={handleCheckboxChange}
@@ -388,7 +386,7 @@ function ImportMnemonicPage() {
               <PasswordInput
                 innerRef={passwordInputRef}
                 name="password"
-                placeholder={keychainExists ? "Confirm your password" : "Create a password"}
+                placeholder={keychainExists ? t('common_confirm_your_password') : t('common_create_a_password')}
                 disabled={isPending}
                 onChange={handlePasswordChange}
               />
@@ -398,7 +396,7 @@ function ImportMnemonicPage() {
                 fullWidth
                 disabled={!canSubmit}
               >
-                {isPending ? "Importing…" : giftCard ? "Import Gift Card" : "Continue"}
+                {isPending ? t('common_importing') : giftCard ? t('setup_import_mnemonic_import_gift_card') : t('common_continue')}
               </Button>
             </>
           )}
@@ -409,7 +407,7 @@ function ImportMnemonicPage() {
           variant="youtube"
           href="https://youtu.be/pGj3vl8zaUA"
         >
-          Watch Tutorial: How to Import a Wallet
+          {t('setup_import_mnemonic_watch_tutorial_how_to_import')}
         </Button>
       )}
     </section>

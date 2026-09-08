@@ -5,6 +5,8 @@ import { formatAddress, formatAmount } from "@/core/format";
 import { toBigNumber } from "@/core/numeric";
 import { isNumericAsset } from "@/core/validation/asset";
 
+import { t } from '@/i18n';
+
 interface AssetDispenserCardProps {
   dispenser: DispenserDetails;
   formattedPrice: string;
@@ -70,7 +72,7 @@ export function AssetDispenserCard({
             {formattedPrice}
           </div>
           <div className="text-xs text-gray-500 mt-0.5">
-            {remainingFormatted} remaining
+            {t('dispenser_asset_dispenser_card_remaining', [String(remainingFormatted)])}
           </div>
         </div>
         <div className="text-right flex-shrink-0 ml-2">
@@ -89,7 +91,7 @@ export function AssetDispenserCard({
                     ? "text-green-600"
                     : "text-gray-400 hover:text-gray-600"
                 }`}
-                aria-label="Copy address"
+                aria-label={t('common_copy_address')}
               >
                 {isCopied ? (
                   <FaCheck className="size-3" aria-hidden="true" />

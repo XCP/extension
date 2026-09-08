@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { FaEye, FaEyeSlash } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
+import { t } from '@/i18n';
+
 interface PasswordInputProps {
   disabled?: boolean;
   name?: string;
@@ -20,7 +22,7 @@ interface PasswordInputProps {
 export function PasswordInput({
   disabled = false,
   name = "password",
-  placeholder = "Enter password",
+  placeholder = t('inputs_password_input_enter_password'),
   value,
   innerRef,
   label,
@@ -65,7 +67,7 @@ export function PasswordInput({
           onClick={handleTogglePassword}
           variant="input"
           disabled={disabled}
-          aria-label={showPassword ? "Hide password" : "Show password"}
+          aria-label={showPassword ? t('inputs_password_input_hide_password') : t('inputs_password_input_show_password')}
           className={label ? "!top-[calc(50%+0.125rem)]" : ""}
         >
           {showPassword ? (

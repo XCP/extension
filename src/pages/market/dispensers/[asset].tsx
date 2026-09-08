@@ -28,6 +28,8 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useInView } from "@/hooks/useInView";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
+import { t } from '@/i18n';
+
 // Constants
 const FETCH_LIMIT = 20;
 const SATS_PER_BTC = 100_000_000;
@@ -186,10 +188,10 @@ export default function AssetDispensersPage(): ReactElement {
   // Configure header with refresh button
   useEffect(() => {
     setHeaderProps({
-      title: "Dispensers",
+      title: t('common_dispensers'),
       onBack: () => navigate(-1),
       rightButton: {
-        ariaLabel: "Refresh dispensers",
+        ariaLabel: t('dispensers_asset_refresh_dispensers'),
         icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: handleRefresh,
         disabled: isRefreshing,
@@ -360,7 +362,7 @@ export default function AssetDispensersPage(): ReactElement {
   };
 
   if (loading) {
-    return <Spinner message={`Loading ${asset} dispensers…`} />;
+    return <Spinner message={t('dispensers_asset_loading_dispensers', [String(asset)])} />;
   }
 
   const hasMore = tab === "open" ? hasMoreDispensers : tab === "history" ? hasMoreDispenses : false;
@@ -392,14 +394,14 @@ export default function AssetDispensersPage(): ReactElement {
                   && dispenserStats.weightedAvg !== null && (
                   <>
                     <CopyableStat
-                      label="Floor"
+                      label={t('dispensers_asset_floor')}
                       value={formatPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}
                       rawValue={getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}
                       onCopy={copy}
                       isCopied={isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat))}
                     />
                     <CopyableStat
-                      label="Avg"
+                      label={t('common_avg')}
                       value={formatPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}
                       rawValue={getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}
                       onCopy={copy}
@@ -410,11 +412,11 @@ export default function AssetDispensersPage(): ReactElement {
                 {tab === "open" && !dispenserStats && (
                   <>
                     <div>
-                      <span className="text-gray-500">Floor</span>
+                      <span className="text-gray-500">{t('dispensers_asset_floor')}</span>
                       <div className="font-medium text-gray-900">—</div>
                     </div>
                     <div>
-                      <span className="text-gray-500">Avg</span>
+                      <span className="text-gray-500">{t('common_avg')}</span>
                       <div className="font-medium text-gray-900">—</div>
                     </div>
                   </>
@@ -423,14 +425,14 @@ export default function AssetDispensersPage(): ReactElement {
                   && dispenseStats.avgPrice !== null && (
                   <>
                     <CopyableStat
-                      label="Last"
+                      label={t('common_last')}
                       value={formatPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}
                       rawValue={getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}
                       onCopy={copy}
                       isCopied={isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat))}
                     />
                     <CopyableStat
-                      label="Avg"
+                      label={t('common_avg')}
                       value={formatPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}
                       rawValue={getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}
                       onCopy={copy}
@@ -441,11 +443,11 @@ export default function AssetDispensersPage(): ReactElement {
                 {tab === "history" && !dispenseStats && (
                   <>
                     <div>
-                      <span className="text-gray-500">Last</span>
+                      <span className="text-gray-500">{t('common_last')}</span>
                       <div className="font-medium text-gray-900">—</div>
                     </div>
                     <div>
-                      <span className="text-gray-500">Avg</span>
+                      <span className="text-gray-500">{t('common_avg')}</span>
                       <div className="font-medium text-gray-900">—</div>
                     </div>
                   </>
@@ -454,7 +456,7 @@ export default function AssetDispensersPage(): ReactElement {
               <button type="button"
                 onClick={togglePriceUnit}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                aria-label={`Switch price display to ${getNextPriceUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
+                aria-label={t('dispensers_asset_switch_price_display_to', [String(getNextPriceUnit(priceUnit, btcPrice !== null).toUpperCase())])}
               >
                 <TbRepeat className="size-4" aria-hidden="true" />
               </button>
@@ -465,17 +467,17 @@ export default function AssetDispensersPage(): ReactElement {
           <div className="flex items-center justify-between mb-2">
             <div className="flex gap-1">
               <TabButton isActive={tab === "open"} onClick={() => setTab("open")}>
-                Open
+                {t('common_open')}
               </TabButton>
               <TabButton isActive={tab === "history"} onClick={() => setTab("history")}>
-                History
+                {t('common_history')}
               </TabButton>
             </div>
             <button type="button"
               onClick={() => navigate(`/market?tab=dispensers&mode=manage&search=${asset}`)}
               className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded cursor-pointer"
             >
-              My Dispensers
+              {t('dispensers_asset_my_dispensers')}
             </button>
           </div>
         </div>
@@ -498,9 +500,9 @@ export default function AssetDispensersPage(): ReactElement {
               </div>
             ) : (
               <EmptyState
-                message={`No open ${asset} dispensers found`}
+                message={t('dispensers_asset_no_open_dispensers_found', [String(asset)])}
                 linkAction={{
-                  label: "Create New Dispenser →",
+                  label: t('common_create_new_dispenser'),
                   onClick: () => navigate(`/compose/dispenser/${asset}`),
                 }}
               />
@@ -531,7 +533,7 @@ export default function AssetDispensersPage(): ReactElement {
                 })}
               </div>
             ) : (
-              <EmptyState message={`No recent ${asset} dispenses`} />
+              <EmptyState message={t('dispensers_asset_no_recent_dispenses', [String(asset)])} />
             )
           )}
 
@@ -543,7 +545,7 @@ export default function AssetDispensersPage(): ReactElement {
                   <Spinner className="py-4" />
                 </div>
               ) : (
-                <div className="text-xs text-gray-400 text-center">Scroll to load more…</div>
+                <div className="text-xs text-gray-400 text-center">{t('common_scroll_to_load_more')}</div>
               )
             ) : null}
           </div>

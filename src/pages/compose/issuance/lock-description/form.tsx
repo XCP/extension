@@ -11,6 +11,8 @@ import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the LockDescriptionForm component, aligned with Composer's formAction.
  */
@@ -40,20 +42,19 @@ export function LockDescriptionForm({
   const [isChecked, setIsChecked] = useState(false);
 
   if (assetLoading) {
-    return <Spinner message="Loading asset details…" />;
+    return <Spinner message={t('common_loading_asset_details')} />;
   }
 
   if (assetError || !assetInfo) {
     return (
       <div className="p-4 text-red-500">
-        Unable to load asset details. Please ensure the asset exists and you have the necessary
-        permissions.
+        {t('common_unable_to_load_asset_details')}
       </div>
     );
   }
   
   if (asset === "BTC") {
-    return <div className="p-4 text-red-500">Cannot lock description of BTC</div>;
+    return <div className="p-4 text-red-500">{t('lock_description_form_cannot_lock_description_of_btc')}</div>;
   }
 
   // The description being frozen here, shown so the user can see what they are freezing.
@@ -68,7 +69,7 @@ export function LockDescriptionForm({
       <div className="p-4">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
           <p className="text-yellow-800">
-            The description for this asset is already locked and cannot be changed.
+            {t('lock_description_form_the_description_for_this_asset')}
           </p>
         </div>
       </div>
@@ -97,29 +98,29 @@ export function LockDescriptionForm({
           className="mt-1 mb-5"
         />
       }
-      submitText="Continue"
+      submitText={t('common_continue')}
       submitDisabled={!isChecked}
     >
       <Field>
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
           <p className="text-sm text-yellow-700">
-            Locking the description is permanent. It can never be changed again.
+            {t('lock_description_form_locking_the_description_is_permanent')}
           </p>
           {currentDescription && (
             <div className="mt-3 pt-3 border-t border-yellow-200">
-              <p className="text-xs text-yellow-600">Current description:</p>
+              <p className="text-xs text-yellow-600">{t('lock_description_form_current_description')}</p>
               <p className="text-sm font-medium text-yellow-700 mt-1">{currentDescription}</p>
             </div>
           )}
         </div>
         
         <div className="mb-2">
-          <Label className="text-sm font-medium text-gray-700">Confirmation</Label>
+          <Label className="text-sm font-medium text-gray-700">{t('common_confirmation')}</Label>
         </div>
         
         <CheckboxInput
           name="confirm"
-          label="I understand this cannot be undone"
+          label={t('common_i_understand_this_cannot_be')}
           disabled={pending}
           checked={isChecked}
           onChange={handleCheckboxChange}

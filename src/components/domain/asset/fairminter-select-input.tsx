@@ -18,6 +18,7 @@ import {
 import { isGreaterThan } from "@/core/numeric";
 import { useBlockHeight } from "@/hooks/useBlockHeight";
 
+import { t } from '@/i18n';
 /**
  * The list and the per-asset endpoint return the same row, so they share one type. Re-exported
  * under the name the mint screens already use.
@@ -78,7 +79,7 @@ export function FairminterSelectInput({
 
         if (!response.ok) {
           // Use generic error to prevent leaking HTTP status details
-          throw new Error("Failed to fetch fairminters");
+          throw new Error(t('asset_fairminter_select_input_failed_to_fetch_fairminters'));
         }
 
         const data = await response.json();
@@ -107,7 +108,7 @@ export function FairminterSelectInput({
       } catch (error) {
         console.error("Error fetching fairminters:", error);
         // Use generic error to prevent leaking internal details
-        setError("Failed to load available assets. Please try again.");
+        setError(t('asset_fairminter_select_input_failed_to_load_available_assets'));
       } finally {
         setIsLoading(false);
       }
@@ -192,7 +193,7 @@ export function FairminterSelectInput({
     return (
       <img
         src={`https://cdn.xcp.io/img/icon/${asset}`}
-        alt={`${asset} icon`}
+        alt={t('close_form_icon', [String(asset)])}
         className="size-5 rounded-full"
         onError={(e) => {
           (e.target as HTMLImageElement).style.display = "none";
@@ -237,7 +238,7 @@ export function FairminterSelectInput({
 
             {isLoading ? (
               <div className="mt-2 text-sm text-gray-500">
-                Loading fairminters…
+                {t('asset_fairminter_select_input_loading_fairminters')}
               </div>
             ) : error ? (
               <div className="mt-2 text-sm text-red-500">{error}</div>
@@ -292,7 +293,7 @@ export function FairminterSelectInput({
       </Combobox>
       {showHelpText && (
         <p className="mt-2 text-sm text-gray-500">
-          {description || "Select an open fairminter asset to mint"}
+          {description || t('asset_fairminter_select_input_select_an_open_fairminter_asset')}
         </p>
       )}
     </div>

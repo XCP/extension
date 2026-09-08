@@ -11,7 +11,10 @@ export default defineConfig({
   },
   manifest: (env) => {
     const baseManifest = {
-      name: 'XCP Wallet',
+      // Localized through public/_locales; Chrome picks the file by its own UI language.
+      name: '__MSG_appName__',
+      description: '__MSG_appDescription__',
+      default_locale: 'en',
       web_accessible_resources: [
         {
           resources: ['injected.js'],

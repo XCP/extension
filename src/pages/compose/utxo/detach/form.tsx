@@ -8,6 +8,8 @@ import { useComposer } from "@/contexts/composer-context-object";
 import type { DetachOptions } from "@/core/counterparty/compose";
 import { useUtxoSource } from "@/hooks/useUtxoSource";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the UtxoDetachForm component, aligned with Composer's formAction.
  */
@@ -63,13 +65,13 @@ export function UtxoDetachForm({
         value={destination}
         onChange={setDestination}
         onValidationChange={setDestinationValid}
-        placeholder="Leave empty to use UTXO's address"
+        placeholder={t('detach_form_leave_empty_to_use_utxo')}
         required={false}
         disabled={false}
         showHelpText={showHelpText}
         name="destination_display"
-        label="Destination (Optional)"
-        helpText="The address to detach assets to. If not provided, assets will be detached to the UTXO's owner address."
+        label={t('detach_form_destination_optional')}
+        helpText={t('detach_form_the_address_to_detach_assets')}
       />
     </ComposerForm>
   );

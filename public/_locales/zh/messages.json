@@ -1,0 +1,5731 @@
+{
+  "actions_address": {
+    "message": "地址"
+  },
+  "actions_broadcast_message_from_address": {
+    "message": "从地址广播消息"
+  },
+  "actions_broadcast_message_or_inscription": {
+    "message": "广播消息或铭文"
+  },
+  "actions_broadcast_text": {
+    "message": "广播文本"
+  },
+  "actions_cancel_an_existing_order": {
+    "message": "取消现有订单"
+  },
+  "actions_cancel_order": {
+    "message": "取消订单"
+  },
+  "actions_close_a_dispenser_using_its": {
+    "message": "通过交易哈希关闭售货机"
+  },
+  "actions_close_an_existing_dispenser": {
+    "message": "关闭现有售货机"
+  },
+  "actions_close_dispenser": {
+    "message": "关闭售货机"
+  },
+  "actions_close_dispenser_by_hash": {
+    "message": "按哈希关闭售货机"
+  },
+  "actions_consolidate_recovery_tool": {
+    "message": "找回工具"
+  },
+  "actions_consolidate_review": {
+    "message": "确认"
+  },
+  "actions_create_a_fairminter": {
+    "message": "创建公平铸造合约"
+  },
+  "actions_create_a_new_asset": {
+    "message": "创建新资产"
+  },
+  "actions_create_dispenser": {
+    "message": "创建售货机"
+  },
+  "actions_find_and_consolidate_bare_multisig": {
+    "message": "查找并合并裸多签 UTXO"
+  },
+  "actions_multi_party_multi_asset_transaction": {
+    "message": "多方多资产交易"
+  },
+  "actions_recover_bitcoin": {
+    "message": "找回比特币"
+  },
+  "actions_sell_an_asset_at_a": {
+    "message": "以固定 BTC 价格出售资产"
+  },
+  "actions_set_address_options_like_requiring": {
+    "message": "设置地址选项，例如要求附带备注"
+  },
+  "actions_sign_a_message_with_your": {
+    "message": "用你的地址签名消息"
+  },
+  "actions_sign_message_characters": {
+    "message": "$1 个字符"
+  },
+  "actions_sign_message_copy_message": {
+    "message": "复制消息"
+  },
+  "actions_sign_message_copy_signature": {
+    "message": "复制签名"
+  },
+  "actions_sign_message_download_json": {
+    "message": "下载 JSON"
+  },
+  "actions_sign_message_enter_your_message_here": {
+    "message": "在此输入消息…"
+  },
+  "actions_sign_message_failed_to_perform_action": {
+    "message": "操作失败"
+  },
+  "actions_sign_message_failed_to_sign_message": {
+    "message": "签名消息失败"
+  },
+  "actions_sign_message_go_to_wallet": {
+    "message": "前往钱包"
+  },
+  "actions_sign_message_learn_how_to_sign_and": {
+    "message": "了解如何签名和验证消息"
+  },
+  "actions_sign_message_message_signing_not_supported_for": {
+    "message": "$1 地址不支持消息签名"
+  },
+  "actions_sign_message_no_active_wallet_or_address": {
+    "message": "没有活动的钱包或地址"
+  },
+  "actions_sign_message_please_enter_a_message_to": {
+    "message": "请输入要签名的消息"
+  },
+  "actions_sign_message_reset": {
+    "message": "重置"
+  },
+  "actions_sign_message_signature_will_appear_here_after": {
+    "message": "签名后，签名将显示在此处..."
+  },
+  "actions_sign_message_signed": {
+    "message": "已签名"
+  },
+  "actions_tools": {
+    "message": "工具"
+  },
+  "actions_transfer_every_asset_and_balance": {
+    "message": "转移所有资产和余额"
+  },
+  "actions_update_options": {
+    "message": "更新选项"
+  },
+  "actions_upload_mpma": {
+    "message": "上传 MPMA"
+  },
+  "actions_verify_a_signed_message": {
+    "message": "验证已签名的消息"
+  },
+  "actions_verify_message_enter_the_bitcoin_address_that": {
+    "message": "输入签名此消息的比特币地址"
+  },
+  "actions_verify_message_enter_the_exact_message_that": {
+    "message": "输入被签名的原始消息…"
+  },
+  "actions_verify_message_enter_the_signature_base64_or": {
+    "message": "输入签名（base64 或十六进制格式）…"
+  },
+  "actions_verify_message_failed_to_parse_json_file": {
+    "message": "解析 JSON 文件失败。请确认它是包含 address、message 和 signature 字段的有效 JSON。"
+  },
+  "actions_verify_message_failed_to_verify_message": {
+    "message": "验证消息失败"
+  },
+  "actions_verify_message_invalid_signature_json_file": {
+    "message": "签名 JSON 文件无效"
+  },
+  "actions_verify_message_must_match_exactly": {
+    "message": "必须完全一致"
+  },
+  "actions_verify_message_please_enter_the_message_that": {
+    "message": "请输入被签名的消息"
+  },
+  "actions_verify_message_please_enter_the_signature": {
+    "message": "请输入签名"
+  },
+  "actions_verify_message_please_enter_the_signer_s": {
+    "message": "请输入签名者的比特币地址"
+  },
+  "actions_verify_message_signature_invalid_does_not_match": {
+    "message": "签名无效 - 与提供的消息和地址不匹配"
+  },
+  "actions_verify_message_signature_valid": {
+    "message": "签名有效"
+  },
+  "actions_verify_message_signer_s_address": {
+    "message": "签名者地址"
+  },
+  "actions_verify_message_upload_json": {
+    "message": "上传 JSON"
+  },
+  "actions_verify_message_verified_using": {
+    "message": "验证方式: $1"
+  },
+  "actions_verify_message_verify_signature": {
+    "message": "验证签名"
+  },
+  "actions_wallet_actions": {
+    "message": "钱包操作"
+  },
+  "address_destinations_input_add_another_destination": {
+    "message": "添加另一个接收地址"
+  },
+  "address_destinations_input_approaching_destination_limit": {
+    "message": "接近接收地址上限: $1/$2"
+  },
+  "address_destinations_input_enter_destination_address": {
+    "message": "输入接收地址 $1"
+  },
+  "address_destinations_input_enter_the_address_to_send": {
+    "message": "输入接收地址。粘贴多个地址（每行一个）可发送到多个接收方。（最多: $1）"
+  },
+  "address_destinations_input_enter_the_addresses_to_send": {
+    "message": "输入接收地址。每个接收方将收到相同数量。不允许重复地址。（$1/$2 个接收方）"
+  },
+  "address_destinations_input_looking_up_asset_owner": {
+    "message": "正在查找资产所有者"
+  },
+  "address_destinations_input_maximum_destination_limit_reached": {
+    "message": "已达到接收地址上限: $1"
+  },
+  "address_destinations_input_remove_destination": {
+    "message": "移除接收地址 $1"
+  },
+  "address_options_form_require_memo_for_incoming_transactions": {
+    "message": "要求收款交易附带备注"
+  },
+  "address_options_form_the_require_memo_option_will": {
+    "message": "启用“要求备注”后，此地址将拒绝没有备注的交易。此设置无法撤销。"
+  },
+  "address_options_review_require_memo": {
+    "message": "要求备注"
+  },
+  "addresses": {
+    "message": "地址"
+  },
+  "addresses_add_address": {
+    "message": "添加地址"
+  },
+  "addresses_adding": {
+    "message": "添加中…"
+  },
+  "addresses_change_address_type": {
+    "message": "更改地址类型"
+  },
+  "addresses_could_not_read_the_derivation": {
+    "message": "无法读取此地址的派生索引。"
+  },
+  "addresses_details_address_qr_code": {
+    "message": "地址二维码"
+  },
+  "addresses_details_copy_the_address_shown_here": {
+    "message": "复制此处显示的地址"
+  },
+  "addresses_details_my_address": {
+    "message": "我的地址"
+  },
+  "addresses_details_select_address": {
+    "message": "选择地址"
+  },
+  "addresses_failed_to_add_address_please": {
+    "message": "添加地址失败。请重试。"
+  },
+  "addresses_failed_to_look_up_utxo": {
+    "message": "查找 UTXO 地址失败。"
+  },
+  "addresses_failed_to_remove_utxo_address": {
+    "message": "移除 UTXO 地址失败。"
+  },
+  "addresses_failed_to_select_address_please": {
+    "message": "选择地址失败。请重试。"
+  },
+  "addresses_found_now_listed_below": {
+    "message": "已找到 $1，现列于下方。"
+  },
+  "addresses_history_failed_to_fetch_transactions": {
+    "message": "获取交易失败"
+  },
+  "addresses_history_loading_transactions": {
+    "message": "正在加载交易…"
+  },
+  "addresses_history_next": {
+    "message": "下一页"
+  },
+  "addresses_history_no_transactions_yet": {
+    "message": "暂无交易"
+  },
+  "addresses_history_page_of": {
+    "message": "第 $1 页，共 $2 页"
+  },
+  "addresses_history_previous": {
+    "message": "上一页"
+  },
+  "addresses_history_refresh_transactions": {
+    "message": "刷新交易"
+  },
+  "addresses_history_this_address_hasn_t_made": {
+    "message": "此地址尚未在 Counterparty 上进行任何交易。"
+  },
+  "addresses_maximum_number_of_addresses_reached": {
+    "message": "已达到地址数量上限（$1）"
+  },
+  "addresses_no_active_wallet_found": {
+    "message": "未找到活动钱包"
+  },
+  "addresses_no_utxo_address_is_in": {
+    "message": "$1 没有正在使用的 UTXO 地址。"
+  },
+  "addresses_select_an_address": {
+    "message": "选择地址"
+  },
+  "addresses_unlock_to_add_address": {
+    "message": "解锁以添加地址"
+  },
+  "app_get_xcp": {
+    "message": "获取 XCP"
+  },
+  "app_loading_wallet_data": {
+    "message": "正在加载钱包数据…"
+  },
+  "app_no_wallet_unlocked": {
+    "message": "没有已解锁的钱包。"
+  },
+  "app_providers_application_error": {
+    "message": "应用错误"
+  },
+  "app_providers_please_refresh_the_page_to": {
+    "message": "请刷新页面以继续。"
+  },
+  "app_providers_settings_error": {
+    "message": "设置错误"
+  },
+  "app_providers_unable_to_load_settings_please": {
+    "message": "无法加载设置。请刷新。"
+  },
+  "app_providers_unable_to_load_wallet_please": {
+    "message": "无法加载钱包。请刷新。"
+  },
+  "app_providers_wallet_error": {
+    "message": "钱包错误"
+  },
+  "app_receive": {
+    "message": "收款"
+  },
+  "app_receive_tokens": {
+    "message": "接收代币"
+  },
+  "app_refresh_balances": {
+    "message": "刷新余额"
+  },
+  "app_select_wallet": {
+    "message": "选择钱包"
+  },
+  "app_send_tokens": {
+    "message": "发送代币"
+  },
+  "app_transaction_history": {
+    "message": "交易历史"
+  },
+  "app_utxos": {
+    "message": "UTXO"
+  },
+  "app_view_assets": {
+    "message": "查看资产"
+  },
+  "app_view_balances": {
+    "message": "查看余额"
+  },
+  "app_view_utxos": {
+    "message": "查看 UTXO"
+  },
+  "app_wallet_dashboard": {
+    "message": "钱包面板"
+  },
+  "appDescription": {
+    "message": "面向比特币的 Counterparty 钱包"
+  },
+  "appLocale": {
+    "message": "zh-CN"
+  },
+  "appName": {
+    "message": "XCP Wallet"
+  },
+  "approval_approval_attention_about_sat_vb": {
+    "message": "（约 $1 sat/vB）"
+  },
+  "approval_approval_attention_confirm_that_this_fee_is": {
+    "message": "请确认此费用是有意设置的。"
+  },
+  "approval_approval_attention_review_this_exception_before_signing": {
+    "message": "$1 签名前请检查此例外情况。"
+  },
+  "approval_approval_attention_strict_verification_is_disabled_review": {
+    "message": "严格验证已关闭。签名前请检查此例外情况。"
+  },
+  "approval_approval_attention_the_wallet_could_not_reproduce": {
+    "message": "钱包无法复现交易的每个字段"
+  },
+  "approval_approval_attention_this_transaction_pays_sats": {
+    "message": "此交易支付 $1 sats"
+  },
+  "approval_approval_attention_unusually_high_network_fee": {
+    "message": "网络费用异常高"
+  },
+  "approval_approval_chrome_close_window": {
+    "message": "关闭窗口"
+  },
+  "approval_approval_chrome_loading_transaction_details": {
+    "message": "正在加载交易详情…"
+  },
+  "approval_approval_chrome_request_expired": {
+    "message": "请求已过期"
+  },
+  "approval_approval_chrome_required_information_is_unavailable_retry": {
+    "message": "所需信息不可用。签名前请重试检查。"
+  },
+  "approval_approval_chrome_the_request_details_are_unavailable": {
+    "message": "请求详情不可用。"
+  },
+  "approval_approval_chrome_this_signing_request_is_no": {
+    "message": "此签名请求已不可用。"
+  },
+  "approval_approval_chrome_unable_to_review_request": {
+    "message": "无法审查请求"
+  },
+  "approval_approval_notice_signing_blocked": {
+    "message": "已阻止签名"
+  },
+  "approval_approval_notice_this_request_could_not_be": {
+    "message": "无法验证此请求"
+  },
+  "approval_approval_notice_what_to_review": {
+    "message": "需要检查的内容"
+  },
+  "approval_approval_notice_why_signing_is_unavailable": {
+    "message": "无法签名的原因"
+  },
+  "approval_approval_summary_card_protocol_fee": {
+    "message": "协议手续费："
+  },
+  "approval_approval_summary_card_unusually_high_network_fee_double": {
+    "message": "网络费用异常高。签名前请再次确认。"
+  },
+  "approval_approval_transaction_details_asset_status_unavailable": {
+    "message": "资产状态不可用"
+  },
+  "approval_approval_transaction_details_assets_attach_to_this_output": {
+    "message": "资产附加到此输出"
+  },
+  "approval_approval_transaction_details_counterparty_protocol": {
+    "message": "Counterparty 协议"
+  },
+  "approval_approval_transaction_details_inputs": {
+    "message": "输入 ($1)"
+  },
+  "approval_approval_transaction_details_outputs": {
+    "message": "输出 ($1)"
+  },
+  "approval_approval_warnings_a_memo_description_or_asset": {
+    "message": "备注、描述或资产标签中包含可能重排或隐藏文本的字符。"
+  },
+  "approval_approval_warnings_a_memo_description_or_asset_2": {
+    "message": "备注、描述或资产标签中包含不会显示的字符。"
+  },
+  "approval_approval_warnings_asset_delivery_is_flexible": {
+    "message": "资产交付方式不固定"
+  },
+  "approval_approval_warnings_assets_are_detached_to_another": {
+    "message": "资产将分离到另一个地址"
+  },
+  "approval_approval_warnings_attached_assets_are_detached_to": {
+    "message": "附加的资产将分离到你的地址"
+  },
+  "approval_approval_warnings_attached_assets_leave_your_wallet": {
+    "message": "附加的资产将离开你的钱包"
+  },
+  "approval_approval_warnings_attached_assets_move_to_your": {
+    "message": "附加的资产将移动到你自己的输出"
+  },
+  "approval_approval_warnings_check_the_decoded_amounts_and": {
+    "message": "请仔细核对解码后的数量和接收地址。"
+  },
+  "approval_approval_warnings_couldn_t_verify_asset_status": {
+    "message": "无法验证资产状态"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input": {
+    "message": "附加到输入 $1 的所有资产将分离到 $2。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input_2": {
+    "message": "附加到输入 $1 的所有资产将分离到来源地址。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input_3": {
+    "message": "附加到输入 $1 的所有资产将记入输出 $2，而该地址不受你控制。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input_4": {
+    "message": "附加到输入 $1 的所有资产将记入输出 $2。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs": {
+    "message": "附加到输入 $1 的所有资产将分离到 $2。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs_2": {
+    "message": "附加到输入 $1 的所有资产将分离到来源地址。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs_3": {
+    "message": "附加到输入 $1 的所有资产将记入输出 $2，而该地址不受你控制。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs_4": {
+    "message": "附加到输入 $1 的所有资产将记入输出 $2。"
+  },
+  "approval_approval_warnings_input": {
+    "message": "输入 #$1: $2 $3"
+  },
+  "approval_approval_warnings_input_status_unknown": {
+    "message": "输入 #$1: 状态未知"
+  },
+  "approval_approval_warnings_inputs_you_are_signing_carry": {
+    "message": "你正在签名的输入带有附加资产。签名会转移这些资产，而不仅仅是 BTC。"
+  },
+  "approval_approval_warnings_spends_utxos_holding_counterparty_assets": {
+    "message": "花费持有 Counterparty 资产的 UTXO"
+  },
+  "approval_approval_warnings_the_balance_lookup_failed_so": {
+    "message": "余额查询失败，因此无法排除存在附加资产的可能。"
+  },
+  "approval_approval_warnings_the_signature_for_attached_input": {
+    "message": "附加输入 $1 的签名没有锁定资产的去向。完成此 PSBT 的一方可以选择明确的分离地址或不同的第一个输出。请仔细查看下方的授权内容。"
+  },
+  "approval_approval_warnings_the_signature_for_attached_inputs": {
+    "message": "附加输入 $1 的签名没有锁定资产的去向。完成此 PSBT 的一方可以选择明确的分离地址或不同的第一个输出。请仔细查看下方的授权内容。"
+  },
+  "approval_approval_warnings_this_transaction_has_no_ordinary": {
+    "message": "此交易没有普通输出，因此附加到你所签名输入上的所有资产都将记回你的地址。"
+  },
+  "approval_approval_warnings_transaction_details_contain_control_characters": {
+    "message": "交易详情包含控制字符"
+  },
+  "approval_approval_warnings_transaction_details_contain_hidden_characters": {
+    "message": "交易详情包含隐藏字符"
+  },
+  "approval_bitcoin_payment_card_bitcoin_payment_did_not_verify": {
+    "message": "比特币支付未通过验证"
+  },
+  "approval_bitcoin_payment_card_compare_payment_details": {
+    "message": "对比支付详情"
+  },
+  "approval_bitcoin_payment_card_data_output": {
+    "message": "数据输出"
+  },
+  "approval_bitcoin_payment_card_destination_could_not_be_identified": {
+    "message": "无法识别接收地址"
+  },
+  "approval_bitcoin_payment_card_difference": {
+    "message": "差额"
+  },
+  "approval_bitcoin_payment_card_no_identified_external_payment_address": {
+    "message": "未识别到外部支付地址"
+  },
+  "approval_bitcoin_payment_card_output_btc": {
+    "message": "输出 #$1: $2 BTC"
+  },
+  "approval_bitcoin_payment_card_payment_outputs_could_not_be": {
+    "message": "无法审查支付输出。"
+  },
+  "approval_bitcoin_payment_card_payment_outputs_could_not_be_2": {
+    "message": "无法审查支付输出"
+  },
+  "approval_bitcoin_payment_card_recipient_receives": {
+    "message": "收款方收到"
+  },
+  "approval_bitcoin_payment_card_reference": {
+    "message": "参考: $1"
+  },
+  "approval_bitcoin_payment_card_site_declared": {
+    "message": "网站声明"
+  },
+  "approval_bitcoin_payment_card_site_description": {
+    "message": "网站说明: $1"
+  },
+  "approval_bitcoin_payment_card_the_transaction_does_not_match": {
+    "message": "交易与请求的支付不匹配。"
+  },
+  "approval_bitcoin_payment_card_the_transaction_pays_a_different": {
+    "message": "交易支付到了不同的接收地址。"
+  },
+  "approval_bitcoin_payment_card_total_entering_wallet": {
+    "message": "进入钱包合计"
+  },
+  "approval_bitcoin_payment_card_total_leaving_wallet": {
+    "message": "离开钱包合计"
+  },
+  "approval_bitcoin_payment_card_transaction_pays": {
+    "message": "交易支付"
+  },
+  "approval_bitcoin_payment_card_transaction_pays_than_requested": {
+    "message": "交易支付比请求$3 $1 $2。"
+  },
+  "approval_bitcoin_payment_card_unavailable": {
+    "message": "不可用"
+  },
+  "approval_bitcoin_payment_card_wallet_total": {
+    "message": "钱包合计"
+  },
+  "approval_bundle_review_card_payout_and_fee_details": {
+    "message": "收益与费用详情"
+  },
+  "approval_counterparty_details_card_counterparty": {
+    "message": "Counterparty"
+  },
+  "approval_counterparty_details_card_recipients": {
+    "message": "收款方 ($1)"
+  },
+  "approval_marketplace_review_card_verification_incomplete_retry": {
+    "message": "验证未完成，请重试"
+  },
+  "approval_money_movement_view_couldn_t_be_determined": {
+    "message": "无法确定"
+  },
+  "approval_money_movement_view_net_effect": {
+    "message": "净变动"
+  },
+  "approval_money_movement_view_not_guaranteed_back": {
+    "message": "不保证返还"
+  },
+  "approval_money_movement_view_other_inputs_may_be_added": {
+    "message": "可能会添加其他输入；当前所有输出均由你的签名锁定。"
+  },
+  "approval_money_movement_view_other_inputs_or_outputs_may": {
+    "message": "签名后，其他输入或输出可能会被添加或更改。"
+  },
+  "approval_money_movement_view_protocol_data_recoverable": {
+    "message": "协议数据（可找回）"
+  },
+  "approval_money_movement_view_set_by_the_other_party": {
+    "message": "由对方设定"
+  },
+  "approval_money_movement_view_some_amounts_couldn_t_be": {
+    "message": "部分金额无法确定，请查看详情。"
+  },
+  "approval_money_movement_view_this_can_be_sent_elsewhere": {
+    "message": "签名后此金额可能被发往别处，因此上方合计将其计为支出。"
+  },
+  "approval_money_movement_view_unknown_address": {
+    "message": "未知地址"
+  },
+  "approval_money_movement_view_unusually_high_double_check_before": {
+    "message": "异常高，签名前请再次确认。"
+  },
+  "approval_money_movement_view_you_send": {
+    "message": "你发送"
+  },
+  "approval_order_card_accepts_up_to_below_the": {
+    "message": "接受最多低于钱包估算 $1% 的结果，请确认与你的滑点设置一致。"
+  },
+  "approval_order_card_click_to_flip_price": {
+    "message": "点击翻转价格"
+  },
+  "approval_order_card_estimated": {
+    "message": "约 $1（估算）"
+  },
+  "approval_order_card_estimated_by_your_wallet_from": {
+    "message": "由你的钱包通过自身节点估算，并非网站提供。"
+  },
+  "approval_order_card_expires_in_1_block": {
+    "message": "1 个区块后过期"
+  },
+  "approval_order_card_expires_in_blocks": {
+    "message": "$1 个区块后过期"
+  },
+  "approval_order_card_guaranteed_by_the_transaction_if": {
+    "message": "由交易保证。如果市场无法交付这么多，你的 $1 将保留。"
+  },
+  "approval_order_card_price_unavailable": {
+    "message": "价格不可用"
+  },
+  "approval_order_card_the_market_has_moved_below": {
+    "message": "市场价格已低于此最低值。此订单很可能挂单未成交而不会执行。"
+  },
+  "approval_order_card_you_give": {
+    "message": "你付出"
+  },
+  "approval_order_card_you_receive_at_least": {
+    "message": "你至少收到"
+  },
+  "approval_psbt_each_single_anyonecanpay_signature_fixes": {
+    "message": "每个 SINGLE|ANYONECANPAY 签名只锁定相同索引的输出。签名后，其他输入或输出可能会被添加或更改。"
+  },
+  "approval_psbt_only_paired_outputs_are_fixed": {
+    "message": "仅锁定配对的输出"
+  },
+  "approval_psbt_other_funding_inputs_may_be": {
+    "message": "可能会添加其他资金输入"
+  },
+  "approval_psbt_part_of_the_amount_shown": {
+    "message": "显示为返还到你钱包的金额，有一部分可能在你签名后被发往别处。"
+  },
+  "approval_psbt_some_of_your_funds_can": {
+    "message": "你的部分资金可能被转往别处"
+  },
+  "approval_psbt_your_all_anyonecanpay_signature_fixes": {
+    "message": "你的 ALL|ANYONECANPAY 签名锁定当前所有输出。它允许在不改变这些支付的前提下添加其他资金输入。"
+  },
+  "approval_verification_details_decoder_differences": {
+    "message": "解码器差异"
+  },
+  "approval_verification_details_the_counterparty_service_described_some": {
+    "message": "Counterparty 服务对部分字段的描述有所不同。钱包已将本地解码重建为与载荷字节完全一致，因此这些差异不会阻止签名。"
+  },
+  "approval_verification_details_the_wallet_and_counterparty_service": {
+    "message": "钱包与 Counterparty 服务对部分字段的描述有所不同，且钱包无法将本地解码重建为与载荷字节完全一致。"
+  },
+  "asset_asset_card_supply": {
+    "message": "供应量: $1"
+  },
+  "asset_asset_card_view_details": {
+    "message": "查看 $1 详情"
+  },
+  "asset_asset_header_supply": {
+    "message": "供应量:$1 $2"
+  },
+  "asset_asset_icon_loading_asset_icon": {
+    "message": "正在加载资产图标"
+  },
+  "asset_asset_info_popover_issued": {
+    "message": "已发行"
+  },
+  "asset_asset_info_popover_owner": {
+    "message": "所有者"
+  },
+  "asset_asset_info_popover_view_asset_details": {
+    "message": "查看资产详情"
+  },
+  "asset_asset_info_popover_yes": {
+    "message": "是"
+  },
+  "asset_asset_list_loading_owned_assets": {
+    "message": "正在加载持有的资产…"
+  },
+  "asset_asset_list_no_assets_owned": {
+    "message": "未持有任何资产"
+  },
+  "asset_asset_list_this_address_hasn_t_issued": {
+    "message": "此地址尚未发行任何 Counterparty 资产。"
+  },
+  "asset_asset_menu_asset_actions": {
+    "message": "资产操作"
+  },
+  "asset_asset_menu_change_description": {
+    "message": "更改描述"
+  },
+  "asset_asset_name_input_asset_name_already_taken": {
+    "message": "资产名称已被占用"
+  },
+  "asset_asset_name_input_asset_name_is_available": {
+    "message": "资产名称可用"
+  },
+  "asset_asset_name_input_checking_availability": {
+    "message": "正在检查可用性…"
+  },
+  "asset_asset_name_input_enter_a_subasset_name": {
+    "message": "输入子资产名称"
+  },
+  "asset_asset_name_input_enter_an_asset_name": {
+    "message": "输入资产名称"
+  },
+  "asset_asset_name_input_generate_random_numeric_asset_name": {
+    "message": "生成随机数字资产名称"
+  },
+  "asset_asset_name_input_parent_asset_does_not_exist": {
+    "message": "父资产不存在"
+  },
+  "asset_asset_name_input_you_don_t_own_the": {
+    "message": "你不拥有该父资产"
+  },
+  "asset_asset_select_input_search_and_select_an_asset": {
+    "message": "按名称或符号搜索并选择资产"
+  },
+  "asset_asset_select_input_token": {
+    "message": "$1 代币"
+  },
+  "asset_balance_balance": {
+    "message": "余额"
+  },
+  "asset_balance_btc_pay": {
+    "message": "BTC 支付"
+  },
+  "asset_balance_create_a_new_dispenser_for": {
+    "message": "为此资产创建新售货机"
+  },
+  "asset_balance_create_a_new_order_on": {
+    "message": "在 DEX 上创建新订单"
+  },
+  "asset_balance_failed_to_load_balance_information": {
+    "message": "加载余额信息失败"
+  },
+  "asset_balance_loading_balance_details": {
+    "message": "正在加载余额详情…"
+  },
+  "asset_balance_manage_pool": {
+    "message": "管理流动性池"
+  },
+  "asset_balance_pay_for_an_order_match": {
+    "message": "用 BTC 支付订单撮合"
+  },
+  "asset_balance_permanently_burn_this_asset": {
+    "message": "永久销毁此资产"
+  },
+  "asset_balance_pool_position": {
+    "message": "流动性池仓位"
+  },
+  "asset_balance_pool_share": {
+    "message": "流动性池份额"
+  },
+  "asset_balance_send_bitcoin_to_another_address": {
+    "message": "将比特币发送到另一个地址"
+  },
+  "asset_balance_send_this_asset_to_another": {
+    "message": "将此资产发送到另一个地址"
+  },
+  "asset_balance_trigger_an_open_asset_dispenser": {
+    "message": "从开放的售货机购买资产"
+  },
+  "asset_balance_trigger_an_open_asset_fairminter": {
+    "message": "在开放的公平铸造合约中铸造"
+  },
+  "asset_fairmint_summary_xcp_per_lot": {
+    "message": "每份 $1 XCP"
+  },
+  "asset_fairmint_summary_you_receive": {
+    "message": "你收到"
+  },
+  "asset_fairminter_select_input_failed_to_fetch_fairminters": {
+    "message": "获取公平铸造合约失败"
+  },
+  "asset_fairminter_select_input_failed_to_load_available_assets": {
+    "message": "加载可用资产失败。请重试。"
+  },
+  "asset_fairminter_select_input_loading_fairminters": {
+    "message": "正在加载公平铸造合约…"
+  },
+  "asset_fairminter_select_input_select_an_open_fairminter_asset": {
+    "message": "选择一个开放的公平铸造资产进行铸造"
+  },
+  "asset_pinnable_asset_card_move_down": {
+    "message": "将 $1 下移"
+  },
+  "asset_pinnable_asset_card_move_up": {
+    "message": "将 $1 上移"
+  },
+  "asset_search_result_card_view": {
+    "message": "查看 $1"
+  },
+  "asseta_assetb_enter_pool": {
+    "message": "进入流动性池"
+  },
+  "asseta_assetb_loading_pool": {
+    "message": "正在加载流动性池..."
+  },
+  "asseta_assetb_pool_pair_not_found": {
+    "message": "未找到该交易对的流动性池"
+  },
+  "asseta_assetb_this_pool_has_not_been": {
+    "message": "此流动性池尚未创建。"
+  },
+  "assets_asset_create_a_fairminter_for_this": {
+    "message": "为此资产创建公平铸造合约"
+  },
+  "assets_asset_create_a_new_asset_under": {
+    "message": "在此命名空间下创建新资产"
+  },
+  "assets_asset_destroy_the_supply_and_re": {
+    "message": "销毁供应量并重新发行资产"
+  },
+  "assets_asset_distribute_dividends_to_token_holders": {
+    "message": "向代币持有者分红"
+  },
+  "assets_asset_dividend_history": {
+    "message": "分红历史"
+  },
+  "assets_asset_failed_to_load_asset_information": {
+    "message": "加载资产信息失败"
+  },
+  "assets_asset_failed_to_load_dividend_history": {
+    "message": "加载分红历史失败"
+  },
+  "assets_asset_issue_additional_tokens_for_this": {
+    "message": "为此资产增发代币"
+  },
+  "assets_asset_issue_subasset": {
+    "message": "发行子资产"
+  },
+  "assets_asset_issuer": {
+    "message": "发行者"
+  },
+  "assets_asset_load_more": {
+    "message": "加载更多"
+  },
+  "assets_asset_loading_dividend_history": {
+    "message": "正在加载分红历史…"
+  },
+  "assets_asset_no_dividends_have_been_distributed": {
+    "message": "此资产尚未发放过分红"
+  },
+  "assets_asset_pay_dividend": {
+    "message": "发放分红"
+  },
+  "assets_asset_per_unit": {
+    "message": "每单位 $1 $2"
+  },
+  "assets_asset_permanently_lock_the_asset_description": {
+    "message": "永久锁定资产描述"
+  },
+  "assets_asset_permanently_lock_the_token_supply": {
+    "message": "永久锁定代币供应量"
+  },
+  "assets_asset_supply": {
+    "message": "供应量"
+  },
+  "assets_asset_total_distributed": {
+    "message": "累计发放: $1 $2"
+  },
+  "assets_asset_transfer_asset_ownership_to_another": {
+    "message": "将资产所有权转移到另一个地址"
+  },
+  "assets_asset_update_description": {
+    "message": "更新描述"
+  },
+  "assets_asset_update_the_asset_description": {
+    "message": "更新资产描述"
+  },
+  "assets_asset_view_dividend_transaction": {
+    "message": "查看分红交易 $1"
+  },
+  "assets_failed_to_add_asset": {
+    "message": "添加资产失败。"
+  },
+  "assets_failed_to_remove_asset": {
+    "message": "移除资产失败。"
+  },
+  "assets_failed_to_search_assets": {
+    "message": "搜索资产失败。"
+  },
+  "assets_no_active_wallet_selected": {
+    "message": "未选择活动钱包"
+  },
+  "assets_pin_up_to_assets_to": {
+    "message": "最多可将 $1 个资产置顶到主屏幕。"
+  },
+  "assets_remove_from_pinned": {
+    "message": "取消置顶 $1"
+  },
+  "assets_search_assets": {
+    "message": "搜索资产"
+  },
+  "assets_search_assets_2": {
+    "message": "搜索资产"
+  },
+  "assets_searching": {
+    "message": "搜索中…"
+  },
+  "assets_you_can_only_pin_up": {
+    "message": "最多只能置顶 $1 个资产。"
+  },
+  "attach_form_could_not_load_details_for": {
+    "message": "无法加载此资产的详情。"
+  },
+  "attach_form_enter_the_amount_to_attach": {
+    "message": "输入要附加的数量（最多 8 位小数）。"
+  },
+  "attach_review_destination_output": {
+    "message": "目标输出"
+  },
+  "attach_review_unable_to_review_transaction_please": {
+    "message": "无法审查交易。请返回重试。"
+  },
+  "balance_amount_with_max_input_amount_per_destination_after_fee": {
+    "message": "扣除手续费后，每个接收地址的 BTC 低于粉尘下限。"
+  },
+  "balance_amount_with_max_input_calculating_maximum_amount": {
+    "message": "正在计算最大数量…"
+  },
+  "balance_amount_with_max_input_enter_the_amount_of_you": {
+    "message": "输入你要发送的 $1 数量（每个接收方）。"
+  },
+  "balance_amount_with_max_input_enter_the_amount_of_you_2": {
+    "message": "输入你要发送的 $1 数量。"
+  },
+  "balance_amount_with_max_input_failed_to_calculate_maximum_amount": {
+    "message": "计算最大数量失败。请重试。"
+  },
+  "balance_amount_with_max_input_insufficient_balance_to_cover_transaction": {
+    "message": "余额不足以支付交易手续费。"
+  },
+  "balance_amount_with_max_input_source_address_is_required_to": {
+    "message": "计算最大数量需要来源地址"
+  },
+  "balance_amount_with_max_input_use_maximum_available_amount": {
+    "message": "使用最大可用数量"
+  },
+  "balance_balance_header_incoming": {
+    "message": "$1（+$2 待入账）"
+  },
+  "balance_balance_list_bitcoin": {
+    "message": "比特币"
+  },
+  "balance_balance_list_loading_balances": {
+    "message": "正在加载余额…"
+  },
+  "balance_balance_list_search_balances": {
+    "message": "搜索余额…"
+  },
+  "balance_balance_list_searching_balances": {
+    "message": "正在搜索余额…"
+  },
+  "balance_balance_menu_balance_actions": {
+    "message": "余额操作"
+  },
+  "baseasset_quoteasset_ask": {
+    "message": "卖价"
+  },
+  "baseasset_quoteasset_avg_sum_sum": {
+    "message": "均价: $1 $2 合计: $3 $4 合计: $5 $6"
+  },
+  "baseasset_quoteasset_bid": {
+    "message": "买价"
+  },
+  "baseasset_quoteasset_loading_orders": {
+    "message": "正在加载 $1/$2 订单…"
+  },
+  "baseasset_quoteasset_my_orders": {
+    "message": "我的订单"
+  },
+  "baseasset_quoteasset_no_matches": {
+    "message": "没有 $1/$2 的撮合记录"
+  },
+  "baseasset_quoteasset_no_orders_for": {
+    "message": "$2/$3 没有$1订单"
+  },
+  "baseasset_quoteasset_orders": {
+    "message": "订单"
+  },
+  "baseasset_quoteasset_refresh_orders": {
+    "message": "刷新订单"
+  },
+  "baseasset_quoteasset_spread": {
+    "message": "价差"
+  },
+  "broadcast_form_enter_the_message_you_want": {
+    "message": "输入要广播的消息。"
+  },
+  "broadcast_form_optional_fee_fraction_for_paid": {
+    "message": "付费广播的费用比例（可选，例如 0.05 表示 5%）。"
+  },
+  "broadcast_form_optional_numeric_value_if_publishing": {
+    "message": "发布数据时的数值（可选）。"
+  },
+  "broadcast_form_upload_a_file_to_inscribe": {
+    "message": "上传文件作为广播消息进行铭刻。文件内容将永久存储在链上。如需广播文本，请上传 .txt 文件。"
+  },
+  "btcpay_form_enter_order_match_id": {
+    "message": "输入订单撮合 ID"
+  },
+  "btcpay_form_the_id_of_the_matched": {
+    "message": "已撮合订单的 ID。撮合发生时可在订单历史中找到。"
+  },
+  "button_opens_in_new_tab": {
+    "message": "$1 - 在新标签页中打开"
+  },
+  "cancel_form_enter_order_transaction_hash": {
+    "message": "输入订单交易哈希"
+  },
+  "cancel_form_transaction_hash_of_the_order": {
+    "message": "要取消的订单的交易哈希。可在订单历史中找到。"
+  },
+  "cards_connected_site_card_connected_site": {
+    "message": "已连接的网站: $1"
+  },
+  "cards_connected_site_card_disconnect": {
+    "message": "断开 $1"
+  },
+  "cards_manage_order_card_cancelling": {
+    "message": "取消中"
+  },
+  "cards_manage_order_card_remaining": {
+    "message": "剩余"
+  },
+  "cards_pool_card_no_liquidity": {
+    "message": "无流动性"
+  },
+  "cards_transaction_card_0_confirmations": {
+    "message": "（0 次确认）"
+  },
+  "cards_transaction_card_transaction": {
+    "message": "交易 $1"
+  },
+  "charts_price_chart_no_data_available": {
+    "message": "暂无数据"
+  },
+  "charts_price_chart_price_chart": {
+    "message": "价格图表"
+  },
+  "close_by_hash_form_asset": {
+    "message": "资产:"
+  },
+  "close_by_hash_form_enter_dispenser_transaction_hash": {
+    "message": "输入售货机交易哈希"
+  },
+  "close_by_hash_form_escrow_quantity": {
+    "message": "托管数量:"
+  },
+  "close_by_hash_form_give_quantity": {
+    "message": "每次给付数量:"
+  },
+  "close_by_hash_form_loading_dispenser_details": {
+    "message": "正在加载售货机详情…"
+  },
+  "close_by_hash_form_price": {
+    "message": "价格:"
+  },
+  "close_by_hash_form_source": {
+    "message": "来源:"
+  },
+  "close_by_hash_form_transaction_hash": {
+    "message": "交易哈希"
+  },
+  "close_by_hash_form_transaction_hash_of_the_dispenser": {
+    "message": "要关闭的售货机的交易哈希。可在售货机历史中找到。"
+  },
+  "close_by_hash_review_dispenser_hash": {
+    "message": "售货机哈希"
+  },
+  "close_form_icon": {
+    "message": "$1 图标"
+  },
+  "close_form_no_open_dispensers_found_for": {
+    "message": "未找到 $1 的开放售货机"
+  },
+  "close_form_no_open_dispensers_found_for_2": {
+    "message": "未找到此地址的开放售货机"
+  },
+  "close_form_remaining": {
+    "message": "剩余"
+  },
+  "close_form_select_a_dispenser": {
+    "message": "选择售货机"
+  },
+  "close_form_select_the_dispenser_you_want": {
+    "message": "选择要关闭的售货机。"
+  },
+  "close_review_escrow_returned": {
+    "message": "退还的托管资产"
+  },
+  "common_accept_offer": {
+    "message": "接受报价"
+  },
+  "common_accept_offer_2": {
+    "message": "接受报价"
+  },
+  "common_actions": {
+    "message": "操作"
+  },
+  "common_add_btc": {
+    "message": "添加 BTC"
+  },
+  "common_add_wallet": {
+    "message": "添加钱包"
+  },
+  "common_address": {
+    "message": "地址:"
+  },
+  "common_address_type": {
+    "message": "地址类型"
+  },
+  "common_advanced": {
+    "message": "高级"
+  },
+  "common_amount": {
+    "message": "数量"
+  },
+  "common_amount_per_dispense": {
+    "message": "每次给付数量"
+  },
+  "common_amount_to_sell_enter_up": {
+    "message": "卖出数量。最多可输入 8 位小数。"
+  },
+  "common_amount_to_sell_enter_whole": {
+    "message": "卖出数量。只能输入整数。"
+  },
+  "common_anyone_with_it_can_steal": {
+    "message": "任何拥有它的人都可以盗取你的资金。"
+  },
+  "common_asset": {
+    "message": "资产"
+  },
+  "common_asset_details": {
+    "message": "资产详情"
+  },
+  "common_asset_name": {
+    "message": "资产名称"
+  },
+  "common_asset_parameter_is_required": {
+    "message": "资产参数为必填项"
+  },
+  "common_assets": {
+    "message": "资产"
+  },
+  "common_avg": {
+    "message": "均价"
+  },
+  "common_awaiting_verification": {
+    "message": "等待验证"
+  },
+  "common_back": {
+    "message": "返回"
+  },
+  "common_back_to_wallet": {
+    "message": "返回钱包"
+  },
+  "common_balances": {
+    "message": "余额"
+  },
+  "common_bitcoin_network_fee_only": {
+    "message": "仅比特币网络费用"
+  },
+  "common_broadcast": {
+    "message": "广播"
+  },
+  "common_buy": {
+    "message": "买入"
+  },
+  "common_cancel": {
+    "message": "取消"
+  },
+  "common_close": {
+    "message": "关闭"
+  },
+  "common_commission": {
+    "message": "佣金"
+  },
+  "common_confirm_and_sign": {
+    "message": "确认并签名"
+  },
+  "common_confirm_on_device": {
+    "message": "请在设备上确认…"
+  },
+  "common_confirm_your_password": {
+    "message": "确认密码"
+  },
+  "common_confirmation": {
+    "message": "确认"
+  },
+  "common_connected_sites": {
+    "message": "已连接的网站"
+  },
+  "common_continue": {
+    "message": "继续"
+  },
+  "common_copied": {
+    "message": "已复制！"
+  },
+  "common_copy_address": {
+    "message": "复制地址"
+  },
+  "common_copy_address_2": {
+    "message": "复制地址"
+  },
+  "common_copy_transaction_hash": {
+    "message": "复制交易哈希"
+  },
+  "common_create_a_password": {
+    "message": "创建密码"
+  },
+  "common_create_new_dispenser": {
+    "message": "创建新售货机 →"
+  },
+  "common_create_new_order": {
+    "message": "创建新订单 →"
+  },
+  "common_create_wallet": {
+    "message": "创建钱包"
+  },
+  "common_current_address": {
+    "message": "当前地址"
+  },
+  "common_deposit": {
+    "message": "存入"
+  },
+  "common_description": {
+    "message": "描述"
+  },
+  "common_description_locked": {
+    "message": "描述已锁定"
+  },
+  "common_destination": {
+    "message": "接收地址"
+  },
+  "common_destroy": {
+    "message": "销毁"
+  },
+  "common_destroy_supply": {
+    "message": "销毁供应量"
+  },
+  "common_detach": {
+    "message": "分离"
+  },
+  "common_disconnect": {
+    "message": "断开连接"
+  },
+  "common_dispense": {
+    "message": "购买"
+  },
+  "common_dispenser": {
+    "message": "售货机"
+  },
+  "common_dispensers": {
+    "message": "售货机"
+  },
+  "common_dividend": {
+    "message": "分红"
+  },
+  "common_dividend_asset": {
+    "message": "分红资产"
+  },
+  "common_divisible": {
+    "message": "可分割"
+  },
+  "common_effective_price": {
+    "message": "实际价格"
+  },
+  "common_end_block": {
+    "message": "结束区块"
+  },
+  "common_enter_a_whole_number_amount": {
+    "message": "请输入整数数量。"
+  },
+  "common_enter_recipient_s_address": {
+    "message": "输入收款人地址。"
+  },
+  "common_enter_your_password": {
+    "message": "输入密码"
+  },
+  "common_escrow_amount": {
+    "message": "托管数量"
+  },
+  "common_expiration": {
+    "message": "有效期"
+  },
+  "common_failed_to_process_file": {
+    "message": "处理文件失败"
+  },
+  "common_failed_to_reorder_assets": {
+    "message": "调整资产顺序失败。"
+  },
+  "common_failed_to_sign_request": {
+    "message": "签名请求失败"
+  },
+  "common_fee": {
+    "message": "费用:"
+  },
+  "common_fee_fraction": {
+    "message": "费用比例"
+  },
+  "common_fee_rates_are_still_loading": {
+    "message": "费率仍在加载中。请稍候。"
+  },
+  "common_fee_required": {
+    "message": "所需费用"
+  },
+  "common_file_size_must_be_less": {
+    "message": "文件大小必须小于 400KB"
+  },
+  "common_flip_price_ratio": {
+    "message": "翻转价格比率"
+  },
+  "common_from": {
+    "message": "来自:"
+  },
+  "common_get": {
+    "message": "获得"
+  },
+  "common_give": {
+    "message": "付出"
+  },
+  "common_hard_cap": {
+    "message": "硬顶"
+  },
+  "common_help": {
+    "message": "帮助"
+  },
+  "common_history": {
+    "message": "历史"
+  },
+  "common_i_have_saved_my_secret": {
+    "message": "我已保存我的助记词。"
+  },
+  "common_i_understand_this_cannot_be": {
+    "message": "我了解此操作无法撤销"
+  },
+  "common_import_private_key": {
+    "message": "导入私钥"
+  },
+  "common_import_wallet": {
+    "message": "导入钱包"
+  },
+  "common_importing": {
+    "message": "导入中…"
+  },
+  "common_inscribe": {
+    "message": "铭刻？"
+  },
+  "common_issue_asset": {
+    "message": "发行资产"
+  },
+  "common_issue_supply": {
+    "message": "增发"
+  },
+  "common_keep_this_private": {
+    "message": "请妥善保密"
+  },
+  "common_last": {
+    "message": "最新"
+  },
+  "common_loading": {
+    "message": "加载中…"
+  },
+  "common_loading_asset_details": {
+    "message": "正在加载资产详情…"
+  },
+  "common_loading_dispensers": {
+    "message": "正在加载售货机…"
+  },
+  "common_loading_pool_position": {
+    "message": "正在加载流动性池仓位..."
+  },
+  "common_lock_description": {
+    "message": "锁定描述"
+  },
+  "common_lock_keychain": {
+    "message": "锁定钥匙串"
+  },
+  "common_lock_supply": {
+    "message": "锁定供应量"
+  },
+  "common_locked": {
+    "message": "已锁定"
+  },
+  "common_lp_asset": {
+    "message": "LP 资产"
+  },
+  "common_market": {
+    "message": "市场"
+  },
+  "common_marketplace_terms_did_not_verify": {
+    "message": "市场条款未通过验证"
+  },
+  "common_max": {
+    "message": "最大"
+  },
+  "common_maximum_number_of_wallets_reached": {
+    "message": "已达到钱包数量上限（$1）"
+  },
+  "common_memo": {
+    "message": "备注"
+  },
+  "common_memo_2": {
+    "message": "备注: $1"
+  },
+  "common_message": {
+    "message": "消息"
+  },
+  "common_mint": {
+    "message": "铸造"
+  },
+  "common_mint_per_address": {
+    "message": "每地址铸造上限"
+  },
+  "common_move": {
+    "message": "移动"
+  },
+  "common_network_fee": {
+    "message": "网络费用"
+  },
+  "common_never_expires": {
+    "message": "永不过期"
+  },
+  "common_new_supply": {
+    "message": "新供应量"
+  },
+  "common_no_active_address_selected": {
+    "message": "未选择活动地址"
+  },
+  "common_no_address_selected": {
+    "message": "未选择地址"
+  },
+  "common_no_available_balance": {
+    "message": "没有可用余额。"
+  },
+  "common_no_consolidation_data_available": {
+    "message": "没有合并数据"
+  },
+  "common_no_results_found": {
+    "message": "未找到结果"
+  },
+  "common_no_spendable_balance_utxos_have": {
+    "message": "没有可花费的余额。$1 个 UTXO 附有资产。"
+  },
+  "common_note": {
+    "message": "注意:"
+  },
+  "common_open": {
+    "message": "打开"
+  },
+  "common_options": {
+    "message": "选项"
+  },
+  "common_order_hash": {
+    "message": "订单哈希"
+  },
+  "common_order_match_id": {
+    "message": "订单撮合 ID"
+  },
+  "common_output": {
+    "message": "输出"
+  },
+  "common_password_cannot_be_empty": {
+    "message": "密码不能为空。"
+  },
+  "common_password_does_not_match": {
+    "message": "密码不匹配。"
+  },
+  "common_password_is_required": {
+    "message": "密码为必填项。"
+  },
+  "common_password_must_be_at_least": {
+    "message": "密码长度至少为 $1 个字符。"
+  },
+  "common_password_verification_failed": {
+    "message": "密码验证失败。"
+  },
+  "common_payment": {
+    "message": "支付"
+  },
+  "common_pending": {
+    "message": "待处理"
+  },
+  "common_pin": {
+    "message": "置顶 $1"
+  },
+  "common_pinned_assets": {
+    "message": "置顶资产"
+  },
+  "common_please_unlock_your_wallet_first": {
+    "message": "请先解锁钱包"
+  },
+  "common_pool": {
+    "message": "流动性池"
+  },
+  "common_pool_position_not_found": {
+    "message": "未找到流动性池仓位"
+  },
+  "common_pool_settings": {
+    "message": "流动性池设置"
+  },
+  "common_price": {
+    "message": "价格"
+  },
+  "common_privacy_policy": {
+    "message": "隐私政策"
+  },
+  "common_private_key": {
+    "message": "私钥"
+  },
+  "common_quantity": {
+    "message": "数量"
+  },
+  "common_refresh_price": {
+    "message": "刷新价格"
+  },
+  "common_reset_form": {
+    "message": "重置表单"
+  },
+  "common_reset_supply": {
+    "message": "重置供应量"
+  },
+  "common_reset_wallet": {
+    "message": "重置钱包"
+  },
+  "common_retry": {
+    "message": "重试"
+  },
+  "common_retry_verification": {
+    "message": "重试验证"
+  },
+  "common_review_before_signing": {
+    "message": "签名前请检查"
+  },
+  "common_review_transaction_risk": {
+    "message": "检查交易风险"
+  },
+  "common_sat_vb": {
+    "message": "$1 sat/vB"
+  },
+  "common_scroll_to_load_more": {
+    "message": "滚动加载更多…"
+  },
+  "common_search_assets": {
+    "message": "搜索资产…"
+  },
+  "common_search_results": {
+    "message": "搜索结果"
+  },
+  "common_searching_assets": {
+    "message": "正在搜索资产…"
+  },
+  "common_security": {
+    "message": "安全"
+  },
+  "common_select_another_address": {
+    "message": "选择另一个地址"
+  },
+  "common_sell": {
+    "message": "卖出"
+  },
+  "common_send": {
+    "message": "发送"
+  },
+  "common_send_bitcoin": {
+    "message": "发送比特币"
+  },
+  "common_settings": {
+    "message": "设置"
+  },
+  "common_show_private_key": {
+    "message": "显示私钥"
+  },
+  "common_sign_message": {
+    "message": "签名消息"
+  },
+  "common_sign_transaction": {
+    "message": "签名交易"
+  },
+  "common_signature": {
+    "message": "签名"
+  },
+  "common_signing": {
+    "message": "签名中…"
+  },
+  "common_soft_cap": {
+    "message": "软顶"
+  },
+  "common_start_block": {
+    "message": "开始区块"
+  },
+  "common_start_mint": {
+    "message": "开始铸造"
+  },
+  "common_status": {
+    "message": "状态"
+  },
+  "common_store_message_as_a_taproot": {
+    "message": "将消息存储为 Taproot 铭文（链上）"
+  },
+  "common_swap": {
+    "message": "兑换"
+  },
+  "common_sweep": {
+    "message": "清扫"
+  },
+  "common_sweep_address": {
+    "message": "清扫地址"
+  },
+  "common_terms_of_service": {
+    "message": "服务条款"
+  },
+  "common_this_can_t_be_undone": {
+    "message": "此操作无法撤销"
+  },
+  "common_this_field_is_required": {
+    "message": "此字段为必填项"
+  },
+  "common_to": {
+    "message": "发往:"
+  },
+  "common_toggle_help_text": {
+    "message": "切换帮助文本"
+  },
+  "common_total": {
+    "message": "合计"
+  },
+  "common_total_batches": {
+    "message": "批次总数:"
+  },
+  "common_transaction": {
+    "message": "交易"
+  },
+  "common_transaction_details_did_not_verify": {
+    "message": "交易详情未通过验证"
+  },
+  "common_transactions": {
+    "message": "交易"
+  },
+  "common_transfer_ownership": {
+    "message": "转移所有权"
+  },
+  "common_try_again": {
+    "message": "重试"
+  },
+  "common_tx_hash": {
+    "message": "交易哈希"
+  },
+  "common_type": {
+    "message": "类型"
+  },
+  "common_unable_to_load_asset_details": {
+    "message": "无法加载资产详情。请确认该资产存在且你拥有所需权限。"
+  },
+  "common_unable_to_load_chart_data": {
+    "message": "无法加载图表数据"
+  },
+  "common_unable_to_load_price": {
+    "message": "无法加载价格"
+  },
+  "common_underlying": {
+    "message": "底层资产"
+  },
+  "common_unpin": {
+    "message": "取消置顶 $1"
+  },
+  "common_utxos_consolidated": {
+    "message": "已合并的 UTXO:"
+  },
+  "common_value": {
+    "message": "值"
+  },
+  "common_verify_message": {
+    "message": "验证消息"
+  },
+  "common_verifying": {
+    "message": "验证中…"
+  },
+  "common_view_in_explorer": {
+    "message": "在浏览器中查看"
+  },
+  "common_wallet_not_found": {
+    "message": "未找到钱包。"
+  },
+  "common_withdraw": {
+    "message": "取出"
+  },
+  "common_xcp_wallet": {
+    "message": "XCP Wallet"
+  },
+  "common_you_receive": {
+    "message": "接收数量"
+  },
+  "common_you_send": {
+    "message": "支付数量"
+  },
+  "common_your_balance": {
+    "message": "你的余额"
+  },
+  "compose_dispenser_refill_dispenser": {
+    "message": "补货售货机"
+  },
+  "compose_fairminter_fairminter": {
+    "message": "公平铸造合约"
+  },
+  "compose_order_dex_order": {
+    "message": "DEX 订单"
+  },
+  "composer_composer_cancel_and_return_to_index": {
+    "message": "取消并返回列表"
+  },
+  "composer_composer_cancel_transaction": {
+    "message": "取消交易"
+  },
+  "composer_composer_composed_transaction_differs_from_your": {
+    "message": "构建的交易与你的请求不一致"
+  },
+  "composer_composer_composing_transaction": {
+    "message": "正在构建交易…"
+  },
+  "composer_composer_form_submitting": {
+    "message": "提交中…"
+  },
+  "composer_composer_return_to_form": {
+    "message": "返回表单"
+  },
+  "composer_composer_signing_and_broadcasting": {
+    "message": "正在签名并广播…"
+  },
+  "composer_composer_these_differences_are_not_dangerous": {
+    "message": "这些差异本身并不危险，但请在签名前仔细核对。"
+  },
+  "composer_context_an_error_occurred_while_composing": {
+    "message": "构建交易时发生错误。"
+  },
+  "composer_context_failed_to_sign_and_broadcast": {
+    "message": "签名并广播交易失败"
+  },
+  "composer_context_invalid_api_response_missing_or": {
+    "message": "API 响应无效: result 字段缺失或无效"
+  },
+  "composer_context_invalid_api_response_missing_rawtransaction": {
+    "message": "API 响应无效: 缺少 rawtransaction"
+  },
+  "composer_context_invalid_api_response_response_is": {
+    "message": "API 响应无效: 响应不是对象"
+  },
+  "composer_context_invalid_transaction_data": {
+    "message": "交易数据无效"
+  },
+  "composer_context_no_active_address_available": {
+    "message": "没有可用的活动地址"
+  },
+  "composer_context_the_composer_did_not_return": {
+    "message": "构建器没有返回此铭文的揭示交易。"
+  },
+  "composer_context_the_inscription_s_commit_transaction": {
+    "message": "铭文的提交交易已广播，但发布内容的揭示交易未被接受（$1）。内容尚未上链。揭示交易: $2"
+  },
+  "composer_context_this_transaction_pays_a_sat": {
+    "message": "此交易支付 $1 sat 矿工费，但构建器报告为 $2。显示的金额是交易实际支付的金额。"
+  },
+  "composer_context_transaction_data_is_stale_please": {
+    "message": "交易数据已过期。请返回并重新构建交易。"
+  },
+  "composer_context_transaction_fee_verification_failed": {
+    "message": "交易费用验证失败"
+  },
+  "composer_context_transaction_pays_outputs_your_request": {
+    "message": "交易支付了你的请求中没有要求的输出"
+  },
+  "composer_context_transaction_replay_detected": {
+    "message": "检测到交易重放: $1"
+  },
+  "composer_context_transaction_verification_failed": {
+    "message": "交易验证失败: $1"
+  },
+  "composer_context_transaction_verification_failed_bad_inscription": {
+    "message": "交易验证失败: 铭文无效。"
+  },
+  "composer_context_transaction_verification_failed_bad_reveal": {
+    "message": "交易验证失败: 揭示交易无效。"
+  },
+  "composer_context_transaction_verification_failed_neither_side": {
+    "message": "交易验证失败: 此订单撮合的双方都不是 BTC，因此不会通过 BTCPay 结算。"
+  },
+  "composer_context_transaction_verification_failed_the_composed": {
+    "message": "交易验证失败: 构建的消息与你的请求不匹配。"
+  },
+  "composer_context_transaction_verification_failed_the_composed_2": {
+    "message": "交易验证失败: 构建的交易不包含 Counterparty 消息，因此不会执行你的请求。"
+  },
+  "composer_context_transaction_verification_failed_this_inscription": {
+    "message": "交易验证失败: 无法重建此铭文以进行检查。"
+  },
+  "composer_context_transaction_verification_failed_this_order": {
+    "message": "交易验证失败: 无法读取此订单撮合，因此无法检查其结算的支付。"
+  },
+  "connect_approve_both_of_your_wallet_addresses": {
+    "message": "你钱包中的两个地址"
+  },
+  "connect_approve_connect_both": {
+    "message": "同时连接两者"
+  },
+  "connect_approve_favicon": {
+    "message": "$1 的网站图标"
+  },
+  "connect_approve_legacy_address": {
+    "message": "传统地址"
+  },
+  "connect_approve_loading": {
+    "message": "加载中..."
+  },
+  "connect_approve_loading_addresses": {
+    "message": "正在加载地址…"
+  },
+  "connect_approve_loading_request": {
+    "message": "正在加载请求…"
+  },
+  "connect_approve_native_segwit_address": {
+    "message": "原生隔离见证地址"
+  },
+  "connect_approve_paired_addresses_are_unavailable_connecting": {
+    "message": "配对地址不可用。连接后将仅授权访问此地址。"
+  },
+  "connect_approve_paired_addresses_do_not_include": {
+    "message": "配对地址不包含所请求的地址"
+  },
+  "connect_approve_processing": {
+    "message": "处理中…"
+  },
+  "connect_approve_request_message_signatures": {
+    "message": "请求消息签名"
+  },
+  "connect_approve_request_signatures_from_either_address": {
+    "message": "向任一地址请求签名"
+  },
+  "connect_approve_request_transaction_signatures": {
+    "message": "请求交易签名"
+  },
+  "connect_approve_the_active_address_changed_after": {
+    "message": "此请求发出后，活动地址已更改。请切换回所请求的地址并重试。"
+  },
+  "connect_approve_this_connection_request_is_no": {
+    "message": "此连接请求已不可用。"
+  },
+  "connect_approve_this_request_expired_please_connect": {
+    "message": "此请求已过期。请从网站重新连接。"
+  },
+  "connect_approve_this_site_is_requesting_access": {
+    "message": "此网站请求查看"
+  },
+  "connect_approve_this_site_is_requesting_access_2": {
+    "message": "此网站请求查看你的钱包地址"
+  },
+  "connect_approve_this_site_will_be_able": {
+    "message": "此网站将能够:"
+  },
+  "connect_approve_unable_to_load_this_connection": {
+    "message": "无法加载此连接请求。"
+  },
+  "connect_approve_user_denied_the_request": {
+    "message": "用户拒绝了请求"
+  },
+  "connect_approve_view_your_wallet_address": {
+    "message": "查看你的钱包地址"
+  },
+  "connect_approve_view_your_wallet_addresses": {
+    "message": "查看你的钱包地址"
+  },
+  "connect_approve_wallet_connect": {
+    "message": "钱包连接"
+  },
+  "consolidate_form_continue_to_review": {
+    "message": "继续确认"
+  },
+  "consolidate_form_destination_address_optional": {
+    "message": "接收地址（可选）"
+  },
+  "consolidate_form_enter_a_valid_fee_rate": {
+    "message": "继续前请输入有效的费率。"
+  },
+  "consolidate_form_failed_to_fetch_consolidation_data": {
+    "message": "获取合并数据失败"
+  },
+  "consolidate_form_if_left_empty_utxos_will": {
+    "message": "留空时，UTXO 将合并到来源地址。"
+  },
+  "consolidate_form_include_stamp_utxos_in_recovery": {
+    "message": "找回时包含 Stamp UTXO"
+  },
+  "consolidate_form_keep_this_off_unless_you": {
+    "message": "除非你有意销毁 Stamp UTXO，否则请保持关闭。"
+  },
+  "consolidate_form_leave_empty_to_consolidate_to": {
+    "message": "留空则合并到来源地址"
+  },
+  "consolidate_form_of_batches": {
+    "message": "批次数"
+  },
+  "consolidate_form_pending_recovery_transaction": {
+    "message": "笔待确认的找回交易"
+  },
+  "consolidate_form_please_wait_for": {
+    "message": "。在开始新的找回之前，请等待"
+  },
+  "consolidate_form_protected_utxo_excluded": {
+    "message": "已排除 $p1$$p2$ $p3$$p4$ 个受保护的 UTXO。",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      },
+      "p4": {
+        "content": "$4"
+      }
+    }
+  },
+  "consolidate_form_recoverable": {
+    "message": "可找回"
+  },
+  "consolidate_form_some_utxos_require_special_handling": {
+    "message": "部分 UTXO 需要特殊处理。这在较早的 Counterparty 交易中很常见，会自动处理。"
+  },
+  "consolidate_form_stamp_protection_status_is_still": {
+    "message": "Stamp 保护状态仍在更新中。请重试。"
+  },
+  "consolidate_form_to_confirm_before_starting_new": {
+    "message": "其确认。"
+  },
+  "consolidate_form_total_bitcoin": {
+    "message": "比特币总额"
+  },
+  "consolidate_form_total_utxos": {
+    "message": "UTXO 总数"
+  },
+  "consolidate_form_warning": {
+    "message": "警告:"
+  },
+  "consolidate_form_you_have": {
+    "message": "你有"
+  },
+  "consolidate_history_btc_recovered": {
+    "message": "已找回 $1 BTC"
+  },
+  "consolidate_history_confirmed": {
+    "message": "已确认"
+  },
+  "consolidate_history_consolidated_utxos": {
+    "message": "已合并 $1 个 UTXO"
+  },
+  "consolidate_history_failed_to_load_recovery_history": {
+    "message": "加载找回历史失败"
+  },
+  "consolidate_history_no_recovery_transactions_yet": {
+    "message": "暂无找回交易"
+  },
+  "consolidate_history_recovery_history": {
+    "message": "找回历史"
+  },
+  "consolidate_review_all_batches_will_be_signed": {
+    "message": "全部 $1 个批次将一键自动签名并广播。"
+  },
+  "consolidate_review_batch": {
+    "message": "批次 $1:"
+  },
+  "consolidate_review_batch_consolidation": {
+    "message": "批量合并"
+  },
+  "consolidate_review_btc_utxos": {
+    "message": "$p1$$p2$ BTC（$p3$ 个 UTXO）",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      }
+    }
+  },
+  "consolidate_review_consolidating": {
+    "message": "合并对象:"
+  },
+  "consolidate_review_current_batch": {
+    "message": "当前批次:"
+  },
+  "consolidate_review_fee_breakdown": {
+    "message": "费用明细"
+  },
+  "consolidate_review_fee_breakdown_batches_total": {
+    "message": "费用明细（共 $1 个批次）"
+  },
+  "consolidate_review_fee_rate": {
+    "message": "费率:"
+  },
+  "consolidate_review_network_fee": {
+    "message": "网络费用:"
+  },
+  "consolidate_review_processing_batch_of": {
+    "message": "正在处理批次 $1/$2..."
+  },
+  "consolidate_review_processing_batches": {
+    "message": "正在处理批次..."
+  },
+  "consolidate_review_review_consolidation": {
+    "message": "确认合并"
+  },
+  "consolidate_review_service_fee": {
+    "message": "服务费 ($1%):"
+  },
+  "consolidate_review_service_fee_waived_amount_below": {
+    "message": "✓ 服务费已免除（金额低于门槛）"
+  },
+  "consolidate_review_sign_broadcast_transaction": {
+    "message": "签名并广播交易"
+  },
+  "consolidate_review_sign_broadcast_transactions": {
+    "message": "签名并广播 $1 笔交易"
+  },
+  "consolidate_review_signing_broadcasting": {
+    "message": "正在签名并广播…"
+  },
+  "consolidate_review_total_fees": {
+    "message": "费用合计:"
+  },
+  "consolidate_review_total_utxos": {
+    "message": "UTXO 总数:"
+  },
+  "consolidate_review_up_to": {
+    "message": "最多 $1"
+  },
+  "consolidate_review_utxos_per_batch": {
+    "message": "每批 UTXO 数:"
+  },
+  "consolidate_review_you_will_receive": {
+    "message": "你将收到:"
+  },
+  "consolidate_status_amount_recovered": {
+    "message": "找回金额:"
+  },
+  "consolidate_status_available_utxos": {
+    "message": "可用 UTXO:"
+  },
+  "consolidate_status_confirmed_consolidations": {
+    "message": "已确认的合并:"
+  },
+  "consolidate_status_consolidation_overview": {
+    "message": "合并概览"
+  },
+  "consolidate_status_consolidation_status": {
+    "message": "合并状态"
+  },
+  "consolidate_status_failed_to_fetch_status": {
+    "message": "获取状态失败"
+  },
+  "consolidate_status_pending_utxos": {
+    "message": "待确认 UTXO:"
+  },
+  "consolidate_status_recent_consolidations": {
+    "message": "最近的合并"
+  },
+  "consolidate_status_refresh_status": {
+    "message": "刷新状态"
+  },
+  "consolidate_status_start_new_consolidation": {
+    "message": "开始新的合并"
+  },
+  "consolidate_status_total_recovered": {
+    "message": "累计找回:"
+  },
+  "consolidate_status_utxos_are_pending_confirmation_please": {
+    "message": "$1 个 UTXO 正在等待确认。请等待后再创建新的合并。"
+  },
+  "consolidate_success_all_batch_failed_nothing_was": {
+    "message": "全部 $1 个批次$2均失败。没有发送任何内容，也没有花费比特币。请查看下方错误。"
+  },
+  "consolidate_success_batch_utxos": {
+    "message": "批次 $1（$2 个 UTXO）"
+  },
+  "consolidate_success_batches_failed_you_can_retry": {
+    "message": "$1 个批次失败，你可以稍后重试。"
+  },
+  "consolidate_success_broadcast_but_the_recovery_service": {
+    "message": "已广播，但无法通知找回服务。你的比特币正在安全转移中。这些 UTXO 可能会暂时再次显示为可找回。"
+  },
+  "consolidate_success_close_and_go_home": {
+    "message": "关闭并返回首页"
+  },
+  "consolidate_success_consolidation_successful": {
+    "message": "合并成功！"
+  },
+  "consolidate_success_consolidation_summary": {
+    "message": "合并摘要"
+  },
+  "consolidate_success_copy_transaction_id": {
+    "message": "复制交易 ID"
+  },
+  "consolidate_success_error": {
+    "message": "错误: $1"
+  },
+  "consolidate_success_failed": {
+    "message": "失败:"
+  },
+  "consolidate_success_no_batches_broadcast": {
+    "message": "没有已广播的批次"
+  },
+  "consolidate_success_one_batch_failed_you_can": {
+    "message": "1 个批次失败，你可以稍后重试。"
+  },
+  "consolidate_success_started_recovery": {
+    "message": "已开始找回"
+  },
+  "consolidate_success_successful": {
+    "message": "成功:"
+  },
+  "consolidate_success_successfully_broadcast_of_batches": {
+    "message": "已成功广播 $2 个批次中的 $1 个。"
+  },
+  "consolidate_success_successfully_broadcast_the_batch": {
+    "message": "批次已成功广播。"
+  },
+  "consolidate_success_transaction_ids": {
+    "message": "交易 ID"
+  },
+  "consolidate_success_view_status": {
+    "message": "查看状态"
+  },
+  "consolidate_success_your_transactions_are_now_in": {
+    "message": "你的交易已进入内存池，将在接下来的区块中确认。合并后的比特币将在交易确认后可用。"
+  },
+  "deposit_form_asset_a": {
+    "message": "资产 A"
+  },
+  "deposit_form_asset_b": {
+    "message": "资产 B"
+  },
+  "deposit_form_loading_pool_quote": {
+    "message": "正在加载流动性池报价..."
+  },
+  "deposit_form_lp_supply_is_zero_this": {
+    "message": "LP 供应量为零。此次存入将重启流动性池，并可能获得现有储备。"
+  },
+  "deposit_form_only_the_pool_ratio_amount": {
+    "message": "只会按流动性池比率存入相应数量，多余部分不会使用。"
+  },
+  "deposit_form_optional_leave_blank_to_auto": {
+    "message": "可选。留空则自动生成 LP 资产。"
+  },
+  "deposit_form_pool_assets_must_be_different": {
+    "message": "流动性池的两种资产必须不同。"
+  },
+  "deposit_form_pool_deposits_use_the_current": {
+    "message": "存入流动性池按当前池比率进行。"
+  },
+  "deposit_form_quoted_partner_amount": {
+    "message": "按池比例所需数量：$1 $2"
+  },
+  "deposit_form_review_deposit": {
+    "message": "确认存入"
+  },
+  "deposit_form_the_lp_asset_represents_your": {
+    "message": "LP 资产代表你在流动性池中的份额。"
+  },
+  "deposit_form_this_deposits_less_than_the": {
+    "message": "此数量不足以按报价中的池比例全部存入。"
+  },
+  "deposit_form_use_quote": {
+    "message": "使用报价"
+  },
+  "deposit_review_minimum_lp": {
+    "message": "最低 LP 接收数量"
+  },
+  "destroy_supply_form_amount_to_destroy": {
+    "message": "销毁数量"
+  },
+  "destroy_supply_form_destroy_supply": {
+    "message": "销毁供应量"
+  },
+  "destroy_supply_form_enter_a_whole_number_amount": {
+    "message": "请输入要销毁的整数数量。"
+  },
+  "destroy_supply_form_enter_asset_name": {
+    "message": "输入资产名称"
+  },
+  "destroy_supply_form_enter_the_amount_to_destroy": {
+    "message": "输入要销毁的数量（最多 8 位小数）。"
+  },
+  "destroy_supply_form_the_name_of_the_asset": {
+    "message": "要销毁供应量的资产名称。"
+  },
+  "detach_form_destination_optional": {
+    "message": "接收地址（可选）"
+  },
+  "detach_form_leave_empty_to_use_utxo": {
+    "message": "留空则使用 UTXO 的地址"
+  },
+  "detach_form_the_address_to_detach_assets": {
+    "message": "资产分离后的接收地址。未指定时，资产将分离到 UTXO 所有者的地址。"
+  },
+  "detach_review_source_utxo": {
+    "message": "来源 UTXO"
+  },
+  "dispense_form_failed_to_fetch_balance": {
+    "message": "获取余额失败"
+  },
+  "dispense_form_insufficient_btc_balance_you_need": {
+    "message": "BTC 余额不足。触发此售货机一次至少需要 $1 BTC（含约 $2 sats 费用）。"
+  },
+  "dispense_form_loading_balance": {
+    "message": "正在加载余额..."
+  },
+  "dispense_form_number_of_times_to_trigger": {
+    "message": "触发售货机的次数"
+  },
+  "dispense_form_please_select_a_dispenser_first": {
+    "message": "请先选择售货机"
+  },
+  "dispense_form_this_dispenser_is_empty_and": {
+    "message": "此售货机已售空，无法触发。"
+  },
+  "dispense_form_times_to_dispense": {
+    "message": "购买次数"
+  },
+  "dispense_review_btc_payment": {
+    "message": "BTC 支付"
+  },
+  "dispense_review_of_dispenses": {
+    "message": "购买次数"
+  },
+  "dispense_review_pending_transaction_s_competing_for": {
+    "message": "有 $1 笔待确认交易正在竞争此售货机: $2 售货机可能在你的交易确认前售空。"
+  },
+  "dispense_review_race_condition_warning": {
+    "message": "⚠️ 竞争风险警告"
+  },
+  "dispense_review_sat_vb": {
+    "message": "@ $1 sat/vB"
+  },
+  "dispenser_asset_dispenser_card_remaining": {
+    "message": "剩余 $1"
+  },
+  "dispenser_dispenser_card_per_dispense": {
+    "message": "每次 $p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "dispenser_dispenser_card_remaining": {
+    "message": "剩余 $1"
+  },
+  "dispenser_dispenser_card_select_dispenser_for": {
+    "message": "选择 $1 的售货机"
+  },
+  "dispenser_dispenser_input_enter_the_dispenser_address_to": {
+    "message": "输入要向其发送 BTC 的售货机地址。"
+  },
+  "dispenser_dispenser_input_error_fetching_dispenser_details": {
+    "message": "获取售货机详情出错。"
+  },
+  "dispenser_dispenser_input_no_open_dispenser_found_at": {
+    "message": "此地址没有开放的售货机。"
+  },
+  "dispenser_form_amount_per_dispense_is_fixed": {
+    "message": "补货时每次给付数量固定不变。"
+  },
+  "dispenser_form_btc_required_to_trigger_one": {
+    "message": "触发一次购买所需的 BTC。"
+  },
+  "dispenser_form_cannot_create_a_dispenser_for": {
+    "message": "无法为 BTC 创建售货机"
+  },
+  "dispenser_form_escrow_quantity_must_be_greater": {
+    "message": "托管数量必须大于或等于每次给付数量"
+  },
+  "dispenser_form_failed_to_load_asset_details": {
+    "message": "加载资产详情失败"
+  },
+  "dispenser_form_price_in_bitcoin": {
+    "message": "以比特币计的价格"
+  },
+  "dispenser_form_price_is_fixed_for_refills": {
+    "message": "补货时价格固定不变。"
+  },
+  "dispenser_form_select_an_asset_to_dispense": {
+    "message": "选择要出售的资产"
+  },
+  "dispenser_form_select_the_asset_to_dispense": {
+    "message": "选择要出售的资产。"
+  },
+  "dispenser_form_the_quantity_of_the_asset": {
+    "message": "每笔交易给付的资产数量。最多可输入 8 位小数。"
+  },
+  "dispenser_form_the_quantity_of_the_asset_2": {
+    "message": "每笔交易给付的资产数量。只能输入整数。"
+  },
+  "dispenser_form_total_amount_to_lock_in": {
+    "message": "锁定到售货机中的总数量。最多可输入 8 位小数。可用: $1"
+  },
+  "dispenser_form_total_amount_to_lock_in_2": {
+    "message": "锁定到售货机中的总数量。只能输入整数。可用: $1"
+  },
+  "dispenser_manage_dispenser_card_closed": {
+    "message": "已关闭"
+  },
+  "dispenser_manage_dispenser_card_closing": {
+    "message": "关闭中"
+  },
+  "dispenser_manage_dispenser_card_refill": {
+    "message": "补货"
+  },
+  "dispenser_market_dispenser_card_per_dispense": {
+    "message": "每次 $1"
+  },
+  "dispenser_review_bitcoin_total": {
+    "message": "比特币总额"
+  },
+  "dispenser_review_per_dispense": {
+    "message": "每次"
+  },
+  "dispensers_asset_floor": {
+    "message": "地板价"
+  },
+  "dispensers_asset_loading_dispensers": {
+    "message": "正在加载 $1 售货机…"
+  },
+  "dispensers_asset_my_dispensers": {
+    "message": "我的售货机"
+  },
+  "dispensers_asset_no_open_dispensers_found": {
+    "message": "未找到开放的 $1 售货机"
+  },
+  "dispensers_asset_no_recent_dispenses": {
+    "message": "最近没有 $1 的购买记录"
+  },
+  "dispensers_asset_refresh_dispensers": {
+    "message": "刷新售货机"
+  },
+  "dispensers_asset_switch_price_display_to": {
+    "message": "将价格显示切换为 $1"
+  },
+  "dividend_form_amount_of_to_be_paid": {
+    "message": "每单位 $2 应支付的 $1 数量。"
+  },
+  "dividend_form_amount_per_unit": {
+    "message": "每单位数量"
+  },
+  "dividend_form_not_enough_xcp_for_the": {
+    "message": "XCP 不足以支付分红费用"
+  },
+  "dividend_form_the_asset_to_pay_dividends": {
+    "message": "用于支付分红的资产（例如 XCP）。"
+  },
+  "error_alert_dismiss_message": {
+    "message": "关闭$1消息"
+  },
+  "error_alert_error": {
+    "message": "错误"
+  },
+  "error_alert_info": {
+    "message": "信息"
+  },
+  "error_alert_warning": {
+    "message": "警告"
+  },
+  "fairmint_form_btc_and_xcp_cannot_be": {
+    "message": "BTC 和 XCP 不能用于公平铸造操作。请选择其他资产。"
+  },
+  "fairmint_form_each_lot_is_for_xcp": {
+    "message": "每份为 $1 $2，价格 $3 XCP。"
+  },
+  "fairmint_form_enter_how_many_lots_to": {
+    "message": "输入要铸造的份数。"
+  },
+  "fairmint_form_fairminter_asset": {
+    "message": "公平铸造资产"
+  },
+  "fairmint_form_fee_rate_must_be_greater": {
+    "message": "费率必须大于零。"
+  },
+  "fairmint_form_free_mint": {
+    "message": "免费铸造。"
+  },
+  "fairmint_form_lots_to_mint": {
+    "message": "铸造份数"
+  },
+  "fairmint_form_please_select_a_fairminter_asset": {
+    "message": "请选择公平铸造资产。"
+  },
+  "fairmint_form_select_a_fairminter_that_charges": {
+    "message": "选择收取 XCP 的公平铸造合约"
+  },
+  "fairmint_form_select_a_free_fairminter_these": {
+    "message": "选择免费的公平铸造合约，仅需支付比特币网络费用"
+  },
+  "fairmint_form_select_an_available_fairminter": {
+    "message": "选择可用的公平铸造合约"
+  },
+  "fairmint_form_the_fairminter_decides_the_amount_2": {
+    "message": "数量由公平铸造合约决定，每笔交易最多 $1 $2，若超过硬顶则更少。"
+  },
+  "fairmint_form_the_maximum_allowed": {
+    "message": "允许的最大值"
+  },
+  "fairmint_form_you_can_mint_at_most": {
+    "message": "你当前最多可铸造 $1 份。"
+  },
+  "fairmint_review_paid_to": {
+    "message": "支付给"
+  },
+  "fairmint_review_payment_and_tokens_are_held": {
+    "message": "付款和代币将托管至达到目标，未达到则退款。"
+  },
+  "fairmint_review_soft_cap": {
+    "message": "⚠️ 软顶"
+  },
+  "fairmint_review_you_pay": {
+    "message": "你支付"
+  },
+  "fairmint_review_you_receive_after_soft_cap": {
+    "message": "你收到（达到软顶后）"
+  },
+  "fairminter_fairmint_fairmint": {
+    "message": "公平铸造"
+  },
+  "fairminter_form_a_textual_description_for_the": {
+    "message": "资产的文字描述。将铭刻到链上。"
+  },
+  "fairminter_form_advanced_options": {
+    "message": "高级选项"
+  },
+  "fairminter_form_amount_of_asset_to_mint": {
+    "message": "销售开始时铸造的资产数量。"
+  },
+  "fairminter_form_btc_fee_model_miners": {
+    "message": "BTC 费用模式（付给矿工）"
+  },
+  "fairminter_form_commission_fraction_between_0_and": {
+    "message": "需支付的佣金比例（0 到 1 之间，不含 1）。"
+  },
+  "fairminter_form_lock_quantity": {
+    "message": "锁定数量"
+  },
+  "fairminter_form_maximum_amount_that_can_be": {
+    "message": "单笔交易可铸造的最大数量。"
+  },
+  "fairminter_form_maximum_total_supply_that_can": {
+    "message": "可铸造的最大总供应量。"
+  },
+  "fairminter_form_minimum_amount_required_for_the": {
+    "message": "销售成功所需的最低数量。"
+  },
+  "fairminter_form_mint_method": {
+    "message": "铸造方式"
+  },
+  "fairminter_form_mint_per_tx": {
+    "message": "每笔交易铸造量"
+  },
+  "fairminter_form_no_limit": {
+    "message": "无限制"
+  },
+  "fairminter_form_number_of_tokens_received_per": {
+    "message": "每笔铸造交易获得的代币数量。"
+  },
+  "fairminter_form_optional_maximum_amount_each_address": {
+    "message": "每个地址可铸造的上限（可选）。留空则不设每地址限制。"
+  },
+  "fairminter_form_pre_mine": {
+    "message": "预挖"
+  },
+  "fairminter_form_select_the_mint_method_for": {
+    "message": "选择公平铸造合约的铸造方式。"
+  },
+  "fairminter_form_soft_cap_deadline_block": {
+    "message": "软顶截止区块"
+  },
+  "fairminter_form_store_description_as_a_taproot": {
+    "message": "将描述存储为 Taproot 铭文（链上）"
+  },
+  "fairminter_form_the_block_at_which_the": {
+    "message": "销售开始的区块。"
+  },
+  "fairminter_form_the_block_at_which_the_2": {
+    "message": "销售结束的区块。"
+  },
+  "fairminter_form_the_block_by_which_the": {
+    "message": "必须达到软顶的截止区块。"
+  },
+  "fairminter_form_tokens_per_mint": {
+    "message": "每次铸造代币数"
+  },
+  "fairminter_form_xcp_cost_per_mint": {
+    "message": "每次铸造 XCP 费用"
+  },
+  "fairminter_form_xcp_fee_model_burned": {
+    "message": "XCP 费用模式（销毁）"
+  },
+  "fairminter_form_xcp_fee_model_to_you": {
+    "message": "XCP 费用模式（付给你）"
+  },
+  "fairminter_form_xcp_required_for_each_mint": {
+    "message": "每笔铸造交易所需的 XCP。"
+  },
+  "fairminter_review_lot_price": {
+    "message": "每份价格"
+  },
+  "fairminter_review_lot_size": {
+    "message": "每份数量"
+  },
+  "fairminter_review_pool_reserve": {
+    "message": "流动性池储备"
+  },
+  "fairminter_review_sale_window": {
+    "message": "销售窗口"
+  },
+  "inputs_api_url_input_api_endpoint_validated_and_saved": {
+    "message": "✓ API 端点已验证并保存"
+  },
+  "inputs_api_url_input_failed_to_validate_api": {
+    "message": "验证 API 失败"
+  },
+  "inputs_api_url_input_reset_api_url_to_default": {
+    "message": "将 API URL 重置为默认值"
+  },
+  "inputs_api_url_input_using_default_api_endpoint": {
+    "message": "正在使用默认 API 端点"
+  },
+  "inputs_api_url_input_validating_api_endpoint": {
+    "message": "正在验证 API 端点…"
+  },
+  "inputs_block_height_input_block_height": {
+    "message": "区块高度"
+  },
+  "inputs_block_height_input_enter_a_block_height_or": {
+    "message": "输入区块高度，或点击“当前”使用当前区块高度。"
+  },
+  "inputs_block_height_input_enter_block_height": {
+    "message": "输入区块高度"
+  },
+  "inputs_block_height_input_failed_to_fetch_current_block": {
+    "message": "获取当前区块高度失败。请重试。"
+  },
+  "inputs_block_height_input_now": {
+    "message": "当前"
+  },
+  "inputs_block_height_input_use_current_block_height": {
+    "message": "使用当前区块高度"
+  },
+  "inputs_destination_input_looking_up_asset_owner": {
+    "message": "正在查找资产所有者…"
+  },
+  "inputs_destination_input_resolved_to_owner_address": {
+    "message": "已解析为所有者地址"
+  },
+  "inputs_fee_rate_input_custom_fee_rate": {
+    "message": "自定义费率"
+  },
+  "inputs_fee_rate_input_esc": {
+    "message": "Esc"
+  },
+  "inputs_fee_rate_input_fee_rate": {
+    "message": "费率"
+  },
+  "inputs_fee_rate_input_fee_rate_custom": {
+    "message": "费率（自定义）"
+  },
+  "inputs_fee_rate_input_loading_fee_rates": {
+    "message": "正在加载费率…"
+  },
+  "inputs_fee_rate_input_populated_with_network_rates_min": {
+    "message": "已填入网络费率（最低 0.1 sat/vB）。"
+  },
+  "inputs_fee_rate_input_reset_to_first_preset": {
+    "message": "重置为第一个预设"
+  },
+  "inputs_fee_rate_input_unable_to_fetch_fee_rates": {
+    "message": "无法获取费率。请手动输入（最低 0.1 sat/vB）。"
+  },
+  "inputs_file_upload_input_choose_file": {
+    "message": "选择文件"
+  },
+  "inputs_file_upload_input_max_file_size_kb": {
+    "message": "最大文件大小: $1KB"
+  },
+  "inputs_file_upload_input_remove_file": {
+    "message": "移除文件"
+  },
+  "inputs_file_upload_input_size_kb": {
+    "message": "大小: $1 KB"
+  },
+  "inputs_hash_input_copy_hash": {
+    "message": "复制哈希"
+  },
+  "inputs_hash_input_enter_a_64_character_hexadecimal": {
+    "message": "输入 64 位十六进制哈希"
+  },
+  "inputs_hash_input_enter_a_64_character_offer": {
+    "message": "输入 64 位报价哈希"
+  },
+  "inputs_hash_input_enter_a_64_character_transaction": {
+    "message": "输入 64 位交易哈希"
+  },
+  "inputs_hash_input_enter_an_order_match_id": {
+    "message": "输入订单撮合 ID（hash_hash 格式）"
+  },
+  "inputs_hash_input_enter_hash": {
+    "message": "输入哈希…"
+  },
+  "inputs_hash_input_invalid_format_expected_hash_hash": {
+    "message": "格式无效。应为: hash_hash（两个 64 位哈希以下划线分隔）"
+  },
+  "inputs_hash_input_invalid_hash_must_be_64": {
+    "message": "$1 哈希无效。必须是 64 位十六进制字符"
+  },
+  "inputs_memo_input_optional_memo": {
+    "message": "备注（可选）"
+  },
+  "inputs_memo_input_optional_memo_to_include": {
+    "message": "要附带的备注（可选）。"
+  },
+  "inputs_password_input_enter_password": {
+    "message": "输入密码"
+  },
+  "inputs_password_input_hide_password": {
+    "message": "隐藏密码"
+  },
+  "inputs_password_input_show_password": {
+    "message": "显示密码"
+  },
+  "inputs_price_with_suggest_input_flip_trading_pair_to": {
+    "message": "将交易对翻转为 $1"
+  },
+  "inputs_price_with_suggest_input_last_trade": {
+    "message": "最近成交: $1"
+  },
+  "inputs_price_with_suggest_input_min": {
+    "message": "最小"
+  },
+  "inputs_price_with_suggest_input_use_suggested_price_from_last": {
+    "message": "使用最近成交的建议价格"
+  },
+  "inputs_search_input_clear_search": {
+    "message": "清除搜索"
+  },
+  "inputs_search_input_search": {
+    "message": "搜索…"
+  },
+  "inputs_search_input_start_typing_to_search": {
+    "message": "输入以开始搜索"
+  },
+  "inputs_setting_switch_info": {
+    "message": "信息: $1"
+  },
+  "inputs_textarea_input_maximum_characters_allowed": {
+    "message": "最多允许 $1 个字符"
+  },
+  "inputs_textarea_input_minimum_characters_required": {
+    "message": "至少需要 $1 个字符"
+  },
+  "issuance_form_a_textual_description_for_the": {
+    "message": "资产的文字描述。"
+  },
+  "issuance_form_file_size_must_be_less": {
+    "message": "文件大小必须小于 $1KB"
+  },
+  "issuance_form_the_quantity_of_the_asset": {
+    "message": "要发行的资产数量。"
+  },
+  "issuance_form_upload_a_file_to_inscribe": {
+    "message": "上传文件作为资产描述进行铭刻。文件内容将永久存储在链上。"
+  },
+  "issuance_review_issuance": {
+    "message": "发行"
+  },
+  "issuance_review_supply_locked": {
+    "message": "供应量已锁定"
+  },
+  "issuance_review_supply_unlocked": {
+    "message": "供应量未锁定"
+  },
+  "issuance_transfer_ownership_transfer_asset": {
+    "message": "转移资产"
+  },
+  "issuance_update_description_update_asset": {
+    "message": "更新资产"
+  },
+  "issue_supply_form_cannot_issue_additional_supply_of": {
+    "message": "无法增发 BTC"
+  },
+  "issue_supply_form_enter_the_amount_of_to": {
+    "message": "输入要发行的 $1 数量"
+  },
+  "issue_supply_form_this_asset_s_supply_is": {
+    "message": "此资产的供应量已锁定，无法增加。"
+  },
+  "issue_supply_review_after_issuance": {
+    "message": "发行后"
+  },
+  "issue_supply_review_current_supply": {
+    "message": "当前供应量"
+  },
+  "keychain_onboarding_by_continuing_you_agree_to": {
+    "message": "继续即表示你同意我们的$1和$2。"
+  },
+  "keychain_onboarding_create_wallet": {
+    "message": "创建钱包"
+  },
+  "keychain_onboarding_import_wallet": {
+    "message": "导入钱包"
+  },
+  "keychain_unlock_invalid_password_please_try_again": {
+    "message": "密码无效。请重试。"
+  },
+  "keychain_unlock_password": {
+    "message": "密码"
+  },
+  "keychain_unlock_unlock": {
+    "message": "解锁"
+  },
+  "keychain_unlock_unlocking": {
+    "message": "解锁中…"
+  },
+  "keychain_wallets_failed_to_select_wallet_please": {
+    "message": "选择钱包失败。请重试。"
+  },
+  "keychain_wallets_keychain": {
+    "message": "钥匙串"
+  },
+  "keychain_wallets_open_in_sidepanel": {
+    "message": "在侧边栏中打开"
+  },
+  "keychain_wallets_select_a_wallet": {
+    "message": "选择钱包"
+  },
+  "layout_api_status_banner_api_error_some_features_may": {
+    "message": "API 出错，部分功能可能暂时不可用。"
+  },
+  "layout_api_status_banner_api_rate_limited_requests_may": {
+    "message": "API 请求过于频繁。请稍候再试。"
+  },
+  "layout_api_status_banner_dismiss": {
+    "message": "关闭"
+  },
+  "layout_error_boundary_an_unexpected_error_occurred_please": {
+    "message": "发生意外错误。请重试。"
+  },
+  "layout_error_boundary_something_went_wrong": {
+    "message": "出了点问题"
+  },
+  "layout_footer_primary": {
+    "message": "主页"
+  },
+  "layout_footer_wallet": {
+    "message": "钱包"
+  },
+  "layout_header_go_back": {
+    "message": "返回"
+  },
+  "layout_header_logo": {
+    "message": "标志"
+  },
+  "lists_dispenser_list_fetching_dispenser_details": {
+    "message": "正在获取售货机详情…"
+  },
+  "lock_description_form_cannot_lock_description_of_btc": {
+    "message": "无法锁定 BTC 的描述"
+  },
+  "lock_description_form_current_description": {
+    "message": "当前描述:"
+  },
+  "lock_description_form_locking_the_description_is_permanent": {
+    "message": "锁定描述是永久性的，之后无法再更改。"
+  },
+  "lock_description_form_the_description_for_this_asset": {
+    "message": "此资产的描述已锁定，无法更改。"
+  },
+  "lock_description_review_action": {
+    "message": "操作"
+  },
+  "lock_supply_form_cannot_lock_supply_of_btc": {
+    "message": "无法锁定 BTC 的供应量"
+  },
+  "lock_supply_form_current_supply": {
+    "message": "当前供应量:"
+  },
+  "lock_supply_form_locking_the_supply_is_permanent": {
+    "message": "锁定供应量是永久性的，之后无法再创建更多 $1。"
+  },
+  "lock_supply_form_the_supply_for_this_asset": {
+    "message": "此资产的供应量已锁定，无法更改。"
+  },
+  "lock_supply_review_supply_to_lock": {
+    "message": "要锁定的供应量"
+  },
+  "market_btc_bitcoin": {
+    "message": "比特币 ($1)"
+  },
+  "market_btc_bitcoin_price": {
+    "message": "比特币价格"
+  },
+  "market_btc_buy_bitcoin": {
+    "message": "购买比特币"
+  },
+  "market_btc_fast": {
+    "message": "快速"
+  },
+  "market_btc_loading_bitcoin_price": {
+    "message": "正在加载比特币价格…"
+  },
+  "market_btc_medium": {
+    "message": "中速"
+  },
+  "market_btc_sat_vb": {
+    "message": "sat/vB"
+  },
+  "market_btc_slow": {
+    "message": "慢速"
+  },
+  "market_btc_tx_fee_market": {
+    "message": "交易费市场"
+  },
+  "market_enter_pool": {
+    "message": "进入流动性池 →"
+  },
+  "market_failed_to_load_dispensers": {
+    "message": "加载售货机失败"
+  },
+  "market_failed_to_load_more_pools": {
+    "message": "加载更多流动性池失败"
+  },
+  "market_failed_to_load_orders": {
+    "message": "加载订单失败"
+  },
+  "market_failed_to_load_pools": {
+    "message": "加载流动性池失败"
+  },
+  "market_failed_to_load_your_dispensers": {
+    "message": "加载你的售货机失败"
+  },
+  "market_failed_to_load_your_orders": {
+    "message": "加载你的订单失败"
+  },
+  "market_filter_your_dispensers": {
+    "message": "筛选你的售货机..."
+  },
+  "market_filter_your_orders": {
+    "message": "筛选你的订单..."
+  },
+  "market_loading_orders": {
+    "message": "正在加载订单…"
+  },
+  "market_loading_pools": {
+    "message": "正在加载流动性池…"
+  },
+  "market_loading_your_dispensers": {
+    "message": "正在加载你的售货机…"
+  },
+  "market_loading_your_orders": {
+    "message": "正在加载你的订单…"
+  },
+  "market_loading_your_pools": {
+    "message": "正在加载你的流动性池…"
+  },
+  "market_no_dispensers_matching": {
+    "message": "没有与“$1”匹配的售货机"
+  },
+  "market_no_open_dispensers_for": {
+    "message": "$1 没有开放的售货机"
+  },
+  "market_no_open_dispensers_found": {
+    "message": "未找到开放的售货机"
+  },
+  "market_no_open_orders_for": {
+    "message": "$1 没有未成交订单"
+  },
+  "market_no_open_orders_found": {
+    "message": "未找到未成交订单"
+  },
+  "market_no_orders_matching": {
+    "message": "没有与“$1”匹配的订单"
+  },
+  "market_no_pool_positions_matching": {
+    "message": "没有与“$1”匹配的流动性池仓位"
+  },
+  "market_no_pools_found": {
+    "message": "未找到流动性池"
+  },
+  "market_no_pools_matching": {
+    "message": "没有与“$1”匹配的流动性池"
+  },
+  "market_results_for": {
+    "message": "“$1”的结果"
+  },
+  "market_search_asset_dispensers": {
+    "message": "搜索资产售货机..."
+  },
+  "market_search_asset_orders": {
+    "message": "搜索资产订单..."
+  },
+  "market_search_pools": {
+    "message": "搜索流动性池..."
+  },
+  "market_search_your_pools": {
+    "message": "搜索你的流动性池..."
+  },
+  "market_searching": {
+    "message": "搜索中..."
+  },
+  "market_sections": {
+    "message": "市场板块"
+  },
+  "market_view_all_dispensers_for": {
+    "message": "查看 $1 的全部售货机 →"
+  },
+  "market_view_all_orders_for": {
+    "message": "查看 $1 的全部订单 →"
+  },
+  "market_view_mode": {
+    "message": "查看模式"
+  },
+  "market_xcp_1_xcp_sats": {
+    "message": "1 XCP = $1 sats"
+  },
+  "market_xcp_all": {
+    "message": "全部"
+  },
+  "market_xcp_all_time_high": {
+    "message": "历史最高"
+  },
+  "market_xcp_buy_xcp": {
+    "message": "购买 XCP"
+  },
+  "market_xcp_counterparty_usd": {
+    "message": "Counterparty (USD)"
+  },
+  "market_xcp_dex_rate": {
+    "message": "DEX 汇率"
+  },
+  "market_xcp_floor_price": {
+    "message": "地板价"
+  },
+  "market_xcp_loading_xcp_price": {
+    "message": "正在加载 XCP 价格…"
+  },
+  "market_xcp_view_open_xcp_dispensers": {
+    "message": "查看开放的 XCP 售货机"
+  },
+  "market_xcp_xcp_price": {
+    "message": "XCP 价格"
+  },
+  "market_you_don_t_have_any": {
+    "message": "你没有开放的售货机"
+  },
+  "market_you_don_t_have_any_2": {
+    "message": "你没有未成交订单"
+  },
+  "market_you_don_t_have_any_3": {
+    "message": "你没有 LP 仓位"
+  },
+  "marketplace_batch_after_confirmation_and_counterparty": {
+    "message": "在确认并经 Counterparty 验证后"
+  },
+  "marketplace_batch_asset_source": {
+    "message": "资产来源"
+  },
+  "marketplace_batch_attach_and_list_asset": {
+    "message": "附加并上架 $1"
+  },
+  "marketplace_batch_attach_collectibles_for_listing": {
+    "message": "为上架附加 $1 个收藏品"
+  },
+  "marketplace_batch_attach_costs_are_paid_first": {
+    "message": "附加成本先行支付，收益需成交后才有。XCP 费用可能在确认时变动。"
+  },
+  "marketplace_batch_attach_fee": {
+    "message": "附加费用"
+  },
+  "marketplace_batch_attach_network_fee": {
+    "message": "附加的网络费用"
+  },
+  "marketplace_batch_attach_transaction_only": {
+    "message": "仅附加交易"
+  },
+  "marketplace_batch_authorize_1_listing_reprice": {
+    "message": "授权 1 次上架改价"
+  },
+  "marketplace_batch_authorize_listing_reprices": {
+    "message": "授权 $1 次上架改价"
+  },
+  "marketplace_batch_authorize_marketplace_listings": {
+    "message": "授权 $1 个市场上架"
+  },
+  "marketplace_batch_broadcast": {
+    "message": "广播"
+  },
+  "marketplace_batch_broadcast_now": {
+    "message": "立即广播的内容"
+  },
+  "marketplace_batch_buyer_controls": {
+    "message": "由买家决定"
+  },
+  "marketplace_batch_combined_asking_prices": {
+    "message": "上架价格合计"
+  },
+  "marketplace_batch_create_1_listing_utxo": {
+    "message": "创建 1 个上架 UTXO"
+  },
+  "marketplace_batch_create_listing_utxos": {
+    "message": "创建 $1 个上架 UTXO"
+  },
+  "marketplace_batch_every_attach_proves_its_source": {
+    "message": "每笔附加都验证其来源、干净的资金、新 UTXO、矿工费用和本地 Counterparty 消息。XCP 费用在确认前始终取决于区块。"
+  },
+  "marketplace_batch_every_fan_out_input_and": {
+    "message": "在本批次可以签名之前，每一个扇出输入和同钱包输出都已验证。此阶段不会移动任何 Counterparty 资产。"
+  },
+  "marketplace_batch_every_listing_independently_guarantees_its": {
+    "message": "每个上架都独立保证其卖家收款。每个灵活签名在其已附加资产的 UTXO 被花费之前始终有效。"
+  },
+  "marketplace_batch_funding_fees_and_delivery_destination": {
+    "message": "资金、费用和交付地址"
+  },
+  "marketplace_batch_listing_activation": {
+    "message": "上架生效"
+  },
+  "marketplace_batch_listing_price": {
+    "message": "上架价格"
+  },
+  "marketplace_batch_new_utxos": {
+    "message": "新增 UTXO"
+  },
+  "marketplace_batch_not_broadcast_now": {
+    "message": "现在不会广播。"
+  },
+  "marketplace_batch_prepare_1_collectible": {
+    "message": "准备 1 个收藏品"
+  },
+  "marketplace_batch_prepare_collectibles": {
+    "message": "准备 $1 个收藏品"
+  },
+  "marketplace_batch_quoted_xcp_fee": {
+    "message": "XCP 费用报价"
+  },
+  "marketplace_batch_sats": {
+    "message": "$1 sats"
+  },
+  "marketplace_batch_seller_wallet": {
+    "message": "卖家钱包"
+  },
+  "marketplace_batch_signature_invalidation": {
+    "message": "签名失效"
+  },
+  "marketplace_batch_spend_each_attached_asset_utxo": {
+    "message": "花费每个已附加资产的 UTXO"
+  },
+  "marketplace_batch_spend_the_attached_asset_utxo": {
+    "message": "花费已附加资产的 UTXO"
+  },
+  "marketplace_batch_the_attach_transaction_is_broadcast": {
+    "message": "附加交易会先广播。上架将在确认并对已附加资产完成独立验证后可用。"
+  },
+  "marketplace_batch_total_network_fees": {
+    "message": "网络费用合计"
+  },
+  "marketplace_batch_total_quoted_xcp_fees": {
+    "message": "XCP 费用报价合计"
+  },
+  "marketplace_batch_transactions": {
+    "message": "交易数"
+  },
+  "marketplace_batch_utxo_returned": {
+    "message": "返还的 UTXO"
+  },
+  "marketplace_batch_xcp_fee_quote": {
+    "message": "XCP 费用报价"
+  },
+  "marketplace_batch_your_payout_if_all_sell": {
+    "message": "全部售出后你的收益"
+  },
+  "marketplace_batch_your_payout_if_sold": {
+    "message": "售出后你的收益"
+  },
+  "marketplace_batch_your_utxo_sats_returned": {
+    "message": "返还给你的 UTXO sats"
+  },
+  "marketplace_bundle_accept_btc_for_with_fee_bump": {
+    "message": "以 $1 BTC 接受 $2 并提高费用"
+  },
+  "marketplace_bundle_accept_offer_for": {
+    "message": "接受 $1 的报价"
+  },
+  "marketplace_bundle_added_child_fee": {
+    "message": "新增的子交易费用"
+  },
+  "marketplace_bundle_asset_detaches_to_this_address": {
+    "message": "资产将分离到此地址"
+  },
+  "marketplace_bundle_asset_stays_attached_to_a": {
+    "message": "资产将保持附加在此地址的 $1 sats UTXO 上"
+  },
+  "marketplace_bundle_both_network_fees_are_already": {
+    "message": "两笔网络费用已从你的最终收益中扣除。"
+  },
+  "marketplace_bundle_delivery": {
+    "message": "交付地址"
+  },
+  "marketplace_bundle_network_fees": {
+    "message": "网络费用"
+  },
+  "marketplace_bundle_offer_price": {
+    "message": "报价金额"
+  },
+  "marketplace_bundle_parent_fee": {
+    "message": "父交易费用"
+  },
+  "marketplace_bundle_parent_seller_proceeds": {
+    "message": "父交易的卖家收益"
+  },
+  "marketplace_bundle_quoted_package_rate": {
+    "message": "交易包费率报价"
+  },
+  "marketplace_bundle_sat_vb": {
+    "message": "$1 sat/vB"
+  },
+  "marketplace_bundle_sats": {
+    "message": "$1 sats"
+  },
+  "marketplace_bundle_the_parent_completes_the_exact": {
+    "message": "父交易完成这笔精确的出售，子交易仅将你在父交易中的收益花回给你。在请求任一签名之前，两笔交易都已通过验证。"
+  },
+  "marketplace_bundle_you_receive": {
+    "message": "你收到"
+  },
+  "marketplace_bundle_your_proceeds_after_fee_bump": {
+    "message": "提高费用后你的收益"
+  },
+  "marketplace_bundle_your_utxo_sats_returned": {
+    "message": "返还给你的 UTXO sats"
+  },
+  "marketplace_intent_accept_offer": {
+    "message": "接受报价"
+  },
+  "marketplace_intent_asset_detaches_to_this_address": {
+    "message": "资产将分离到此地址"
+  },
+  "marketplace_intent_asset_source": {
+    "message": "资产来源"
+  },
+  "marketplace_intent_asset_stays_attached_to_sat_utxo": {
+    "message": "资产将保持附加在此地址下一个 $1 sats 的 UTXO 上"
+  },
+  "marketplace_intent_assets_detach_to_this_address": {
+    "message": "资产将分离到此地址"
+  },
+  "marketplace_intent_broadcast": {
+    "message": "广播"
+  },
+  "marketplace_intent_buy_collectibles": {
+    "message": "购买收藏品"
+  },
+  "marketplace_intent_buyer_chooses_attached_or_detached_delivery": {
+    "message": "由买家选择附加或分离交付"
+  },
+  "marketplace_intent_buyer_controls": {
+    "message": "由买家决定"
+  },
+  "marketplace_intent_buyer_funding": {
+    "message": "买家出资"
+  },
+  "marketplace_intent_buyer_funding_utxo": {
+    "message": "买家出资 UTXO"
+  },
+  "marketplace_intent_cancellation": {
+    "message": "取消方式"
+  },
+  "marketplace_intent_change": {
+    "message": "找零"
+  },
+  "marketplace_intent_collectibles_count": {
+    "message": "$1 件收藏品"
+  },
+  "marketplace_intent_deducted_from_seller_proceeds": {
+    "message": "从卖家收益中扣除"
+  },
+  "marketplace_intent_delist_without_a_transaction": {
+    "message": "无需交易即可下架"
+  },
+  "marketplace_intent_delivery": {
+    "message": "交付"
+  },
+  "marketplace_intent_fee_recipient": {
+    "message": "费用收款方"
+  },
+  "marketplace_intent_finalized_at_confirmation": {
+    "message": "确认时才最终确定"
+  },
+  "marketplace_intent_funding_fees_and_delivery_destination": {
+    "message": "资金、费用和交付地址"
+  },
+  "marketplace_intent_funding_input": {
+    "message": "出资输入"
+  },
+  "marketplace_intent_funding_utxo": {
+    "message": "出资 UTXO"
+  },
+  "marketplace_intent_items": {
+    "message": "件数"
+  },
+  "marketplace_intent_items_with_asset_count": {
+    "message": "$1（$2 种资产）"
+  },
+  "marketplace_intent_list_for_sale": {
+    "message": "上架出售"
+  },
+  "marketplace_intent_marketplace_cancellation": {
+    "message": "市场取消方式"
+  },
+  "marketplace_intent_marketplace_expiry": {
+    "message": "市场有效期"
+  },
+  "marketplace_intent_network_fee": {
+    "message": "网络费用"
+  },
+  "marketplace_intent_new_utxo_owner": {
+    "message": "新 UTXO 所有者"
+  },
+  "marketplace_intent_new_utxo_value": {
+    "message": "新 UTXO 金额"
+  },
+  "marketplace_intent_new_utxos": {
+    "message": "新 UTXO"
+  },
+  "marketplace_intent_none_requested": {
+    "message": "未设置"
+  },
+  "marketplace_intent_not_broadcast_now": {
+    "message": "现在不广播。"
+  },
+  "marketplace_intent_notice_accept_exact_offer": {
+    "message": "你的签名即可按此条件完成这笔出售，无需买家再次确认。如果买家已经花费了共用的出资 UTXO，广播会失败，你的资产仍归你所有。"
+  },
+  "marketplace_intent_notice_authorize_exact_offer": {
+    "message": "签名后，该卖家无需再次批准即可按此条件完成交易。以同一出资 UTXO 为支撑的其他报价互为备选：最先确认的那笔花费生效，其余全部作废。"
+  },
+  "marketplace_intent_notice_bulk_fanout_outputs_stay_in_wallet": {
+    "message": "所有输出仍由本钱包控制。这些普通比特币 UTXO 将为后续的 Counterparty 附加交易提供资金；此阶段没有资产移动。"
+  },
+  "marketplace_intent_notice_sighash_all_attached_delivery": {
+    "message": "SIGHASH_ALL 固定了每一个输入、卖家付款、费用、找零输出，以及上方显示的由买家持有的独立资产 UTXO。"
+  },
+  "marketplace_intent_notice_sighash_all_detach_destination": {
+    "message": "SIGHASH_ALL 固定了每一个输入、卖家付款、费用、找零输出，以及上方显示的分离目标地址。"
+  },
+  "marketplace_intent_offer_price": {
+    "message": "报价金额"
+  },
+  "marketplace_intent_offer_price_platform_fee_and_any_attached_delivery_utxo": {
+    "message": "报价金额、平台费用，以及附加交付所需的 UTXO"
+  },
+  "marketplace_intent_offer_to_buy": {
+    "message": "出价购买"
+  },
+  "marketplace_intent_one_collectible": {
+    "message": "1 件收藏品"
+  },
+  "marketplace_intent_operation_expiry": {
+    "message": "操作有效期"
+  },
+  "marketplace_intent_paid_by_the_buyer": {
+    "message": "由买家支付"
+  },
+  "marketplace_intent_platform_fee": {
+    "message": "平台费用"
+  },
+  "marketplace_intent_quoted_xcp_fee": {
+    "message": "XCP 费用报价"
+  },
+  "marketplace_intent_reprice_listing": {
+    "message": "修改上架价格"
+  },
+  "marketplace_intent_sale_price": {
+    "message": "售价"
+  },
+  "marketplace_intent_sats_kept_with_your_asset": {
+    "message": "随资产保留的 sats"
+  },
+  "marketplace_intent_seller_receives": {
+    "message": "卖家收到"
+  },
+  "marketplace_intent_seller_subtotal": {
+    "message": "卖家小计"
+  },
+  "marketplace_intent_signature_invalidation": {
+    "message": "签名失效方式"
+  },
+  "marketplace_intent_spend_the_asset_utxo": {
+    "message": "花费该资产 UTXO"
+  },
+  "marketplace_intent_still_yours_separate_from_the_offer_cost": {
+    "message": "仍归你所有，与报价成本分开计算"
+  },
+  "marketplace_intent_still_yours_separate_from_the_purchase_cost_and_change": {
+    "message": "仍归你所有，与购买成本和找零分开计算"
+  },
+  "marketplace_intent_title_accept_btc_for_asset": {
+    "message": "接受以 $1 BTC 出售 $2"
+  },
+  "marketplace_intent_title_attach_asset_for_listing": {
+    "message": "为上架附加 $1"
+  },
+  "marketplace_intent_title_authorize_btc_for_asset": {
+    "message": "授权以 $1 BTC 购买 $2"
+  },
+  "marketplace_intent_title_buy_collectibles_for_btc": {
+    "message": "以 $2 BTC 购买 $1 件收藏品"
+  },
+  "marketplace_intent_title_buy_one_collectible_for_btc": {
+    "message": "以 $1 BTC 购买 1 件收藏品"
+  },
+  "marketplace_intent_title_create_listing_utxos": {
+    "message": "创建 $1 个上架 UTXO"
+  },
+  "marketplace_intent_title_create_one_listing_utxo": {
+    "message": "创建 1 个上架 UTXO"
+  },
+  "marketplace_intent_title_list_asset_for_btc": {
+    "message": "将 1 $1 以 $2 BTC 上架"
+  },
+  "marketplace_intent_title_prepare_asset": {
+    "message": "准备 $1"
+  },
+  "marketplace_intent_title_reprice_asset_to_btc": {
+    "message": "将 1 $1 改价为 $2 BTC"
+  },
+  "marketplace_intent_unavailable": {
+    "message": "不可用"
+  },
+  "marketplace_intent_withdraw_by_spending_your_funding_utxo": {
+    "message": "花费你的出资 UTXO 即可撤回"
+  },
+  "marketplace_intent_you_pay": {
+    "message": "你支付"
+  },
+  "marketplace_intent_you_pay_if_accepted": {
+    "message": "如被接受你支付"
+  },
+  "marketplace_intent_you_receive": {
+    "message": "你收到"
+  },
+  "marketplace_intent_your_payout_if_sold": {
+    "message": "售出后的收益"
+  },
+  "marketplace_intent_your_utxo_sats_returned": {
+    "message": "返还的 UTXO sats"
+  },
+  "menus_address_menu_address_actions": {
+    "message": "地址操作"
+  },
+  "menus_address_menu_find_utxo_address": {
+    "message": "查找 UTXO 地址"
+  },
+  "menus_address_menu_remove_utxo_address": {
+    "message": "移除 UTXO 地址"
+  },
+  "message_approve_message_to_sign": {
+    "message": "待签名消息"
+  },
+  "message_approve_sign_message": {
+    "message": "签名消息"
+  },
+  "message_risk_a_signature_over_an_empty": {
+    "message": "对空消息的签名只能证明你控制该地址，除此之外什么也证明不了。"
+  },
+  "message_risk_control_characters_are_not_displayed": {
+    "message": "控制字符不会显示，因此你签名的消息比显示的更长。"
+  },
+  "message_risk_it_includes_characters_that_can": {
+    "message": "其中包含可能重排或隐藏文本的字符，因此这里显示的内容可能不是你签名的内容。只有在你信任此网站时才继续。"
+  },
+  "message_risk_this_message_contains_control_characters": {
+    "message": "此消息包含控制字符"
+  },
+  "message_risk_this_message_contains_hidden_characters": {
+    "message": "此消息包含隐藏字符"
+  },
+  "message_risk_this_message_is_empty": {
+    "message": "此消息为空"
+  },
+  "messages_attach_attach_to_utxo": {
+    "message": "附加到 UTXO"
+  },
+  "messages_attach_destination_utxo": {
+    "message": "目标 UTXO"
+  },
+  "messages_attach_move_to_utxo": {
+    "message": "移动到 UTXO"
+  },
+  "messages_attach_operation": {
+    "message": "操作"
+  },
+  "messages_attach_output": {
+    "message": "输出 #$1"
+  },
+  "messages_attach_same_as_source": {
+    "message": "与来源相同"
+  },
+  "messages_attach_utxo_attach": {
+    "message": "UTXO 附加"
+  },
+  "messages_broadcast_address_options": {
+    "message": "地址选项"
+  },
+  "messages_broadcast_general_broadcast": {
+    "message": "普通广播"
+  },
+  "messages_broadcast_oracle_broadcast": {
+    "message": "预言机广播"
+  },
+  "messages_broadcast_text": {
+    "message": "文本"
+  },
+  "messages_broadcast_timestamp": {
+    "message": "时间戳"
+  },
+  "messages_btcpay_btc_amount": {
+    "message": "BTC 金额"
+  },
+  "messages_btcpay_btc_payment_order_settlement": {
+    "message": "BTC 支付（订单结算）"
+  },
+  "messages_btcpay_valid_payment": {
+    "message": "✅ 有效支付"
+  },
+  "messages_cancel_cancelled_order_tx": {
+    "message": "已取消的订单交易"
+  },
+  "messages_cancel_cancelled_successfully": {
+    "message": "✅ 已成功取消"
+  },
+  "messages_cancel_order_cancellation": {
+    "message": "订单取消"
+  },
+  "messages_detach_assets_detached": {
+    "message": "已分离的资产"
+  },
+  "messages_detach_same_as_source_detach_in": {
+    "message": "与来源相同（原地分离）"
+  },
+  "messages_detach_utxo_detach": {
+    "message": "UTXO 分离"
+  },
+  "messages_dispense_asset_received": {
+    "message": "收到的资产"
+  },
+  "messages_dispense_btc_paid": {
+    "message": "支付的 BTC"
+  },
+  "messages_dispense_btc_per": {
+    "message": "每 $2 $1 BTC"
+  },
+  "messages_dispense_dispense_index": {
+    "message": "购买序号"
+  },
+  "messages_dispense_dispenser_address": {
+    "message": "售货机地址"
+  },
+  "messages_dispense_from_dispenser": {
+    "message": "来自售货机"
+  },
+  "messages_dispense_original_dispenser_tx": {
+    "message": "原售货机交易"
+  },
+  "messages_dispense_quantity_received": {
+    "message": "收到数量"
+  },
+  "messages_dispense_to_address": {
+    "message": "接收地址"
+  },
+  "messages_dispenser_give_per_dispense": {
+    "message": "每次给付"
+  },
+  "messages_dispenser_max_dispenses": {
+    "message": "最大购买次数"
+  },
+  "messages_dispenser_oracle_address": {
+    "message": "预言机地址"
+  },
+  "messages_dispenser_price_per_dispense": {
+    "message": "每次价格"
+  },
+  "messages_dispenser_remaining_dispenses": {
+    "message": "剩余购买次数"
+  },
+  "messages_dispenser_remaining_in_escrow": {
+    "message": "托管剩余"
+  },
+  "messages_dispenser_total_btc_value": {
+    "message": "BTC 总值"
+  },
+  "messages_dispenser_total_escrow": {
+    "message": "托管总量"
+  },
+  "messages_dividend_dividend_distribution": {
+    "message": "分红发放"
+  },
+  "messages_dividend_filters_applied": {
+    "message": "已应用筛选"
+  },
+  "messages_dividend_holders_receiving": {
+    "message": "受益持有者"
+  },
+  "messages_dividend_quantity_per_unit": {
+    "message": "每单位数量"
+  },
+  "messages_dividend_total_distributed": {
+    "message": "累计发放"
+  },
+  "messages_fairmint_closed_after_this": {
+    "message": "此后关闭"
+  },
+  "messages_fairmint_commission_paid": {
+    "message": "已付佣金"
+  },
+  "messages_fairmint_fairminter_status": {
+    "message": "公平铸造合约状态"
+  },
+  "messages_fairmint_quantity_minted": {
+    "message": "铸造数量"
+  },
+  "messages_fairmint_still_open": {
+    "message": "仍然开放"
+  },
+  "messages_fairmint_xcp_paid": {
+    "message": "已付 XCP"
+  },
+  "messages_fairmint_xcp_per": {
+    "message": "每 $2 $1 XCP"
+  },
+  "messages_fairminter_fairminter_creation": {
+    "message": "创建公平铸造合约"
+  },
+  "messages_fairminter_max_mint_per_address": {
+    "message": "每地址铸造上限"
+  },
+  "messages_fairminter_max_mint_per_tx": {
+    "message": "每笔交易铸造上限"
+  },
+  "messages_fairminter_mint_model": {
+    "message": "铸造模式"
+  },
+  "messages_fairminter_no_whole_units": {
+    "message": "否（整数单位）"
+  },
+  "messages_fairminter_premint": {
+    "message": "预挖"
+  },
+  "messages_fairminter_price_per_unit": {
+    "message": "每单位价格"
+  },
+  "messages_fairminter_quantity_locked": {
+    "message": "数量已锁定"
+  },
+  "messages_fairminter_quantity_per_price": {
+    "message": "每价格单位数量"
+  },
+  "messages_fairminter_yes_8_decimals": {
+    "message": "是（8 位小数）"
+  },
+  "messages_issuance_asset_issuance": {
+    "message": "资产发行"
+  },
+  "messages_issuance_call_date": {
+    "message": "赎回日期"
+  },
+  "messages_issuance_call_price": {
+    "message": "赎回价格"
+  },
+  "messages_issuance_callable": {
+    "message": "可赎回"
+  },
+  "messages_issuance_description_update": {
+    "message": "描述更新"
+  },
+  "messages_issuance_no_whole_units_only": {
+    "message": "否（仅整数单位）"
+  },
+  "messages_issuance_ownership_transfer": {
+    "message": "所有权转移"
+  },
+  "messages_issuance_parent_asset": {
+    "message": "父资产"
+  },
+  "messages_issuance_subasset_creation": {
+    "message": "创建子资产"
+  },
+  "messages_issuance_supply_increase": {
+    "message": "增发"
+  },
+  "messages_issuance_supply_lock": {
+    "message": "锁定供应量"
+  },
+  "messages_issuance_supply_locked": {
+    "message": "供应量已锁定"
+  },
+  "messages_issuance_supply_reset": {
+    "message": "重置供应量"
+  },
+  "messages_issuance_transfer_to": {
+    "message": "转移给"
+  },
+  "messages_issuance_yes_8_decimal_places": {
+    "message": "是（8 位小数）"
+  },
+  "messages_move_utxo_same_as_source_consolidation": {
+    "message": "与来源相同（合并）"
+  },
+  "messages_move_utxo_utxo_move": {
+    "message": "UTXO 移动"
+  },
+  "messages_move_utxo_utxos_moved": {
+    "message": "已移动的 UTXO"
+  },
+  "messages_mpma_multi_send_to": {
+    "message": "多地址发送（$1 发往 $2）"
+  },
+  "messages_mpma_per_address": {
+    "message": "每地址 $1"
+  },
+  "messages_mpma_recipients": {
+    "message": "$1 个收款方 ($2)"
+  },
+  "messages_mpma_total_sent": {
+    "message": "$1 发送总量"
+  },
+  "messages_order_buy_order": {
+    "message": "买单"
+  },
+  "messages_order_fee_provided": {
+    "message": "提供的费用"
+  },
+  "messages_order_fill_progress": {
+    "message": "成交进度"
+  },
+  "messages_order_get_remaining": {
+    "message": "待获得"
+  },
+  "messages_order_give_remaining": {
+    "message": "待付出"
+  },
+  "messages_order_sell_order": {
+    "message": "卖单"
+  },
+  "messages_order_token_swap": {
+    "message": "代币兑换"
+  },
+  "messages_send_enhanced_send_with_memo": {
+    "message": "增强发送（带备注）"
+  },
+  "messages_send_memo_type": {
+    "message": "备注类型"
+  },
+  "messages_sweep_assets_swept": {
+    "message": "已清扫的资产"
+  },
+  "messages_sweep_close_dispensers": {
+    "message": "关闭售货机"
+  },
+  "messages_sweep_flags": {
+    "message": "标志"
+  },
+  "messages_sweep_include_balances": {
+    "message": "包含余额"
+  },
+  "messages_sweep_include_ownership": {
+    "message": "包含所有权"
+  },
+  "messages_sweep_raw_value": {
+    "message": "原始值: $1"
+  },
+  "messages_sweep_sweep_all_assets": {
+    "message": "清扫所有资产"
+  },
+  "move_form_enter_destination_address": {
+    "message": "输入接收地址"
+  },
+  "mpma_form_and_more": {
+    "message": "… 还有 $1 个"
+  },
+  "mpma_form_choose_different_file": {
+    "message": "选择其他文件"
+  },
+  "mpma_form_destinations_cannot_receive_an_mpma": {
+    "message": "$1 个接收方无法接收 MPMA 发送。Taproot (bc1p) 和 P2WSH 地址无法在此消息类型中编码，请单独向它们发送。"
+  },
+  "mpma_form_each_line_should_contain_address": {
+    "message": "每行应包含：地址、资产、数量和备注。（备注可选。）"
+  },
+  "mpma_form_failed_to_parse_csv": {
+    "message": "解析 CSV 失败"
+  },
+  "mpma_form_failed_to_read_file": {
+    "message": "读取文件失败"
+  },
+  "mpma_form_format_address_asset_quantity_memo": {
+    "message": "格式: 地址, 资产, 数量, 备注"
+  },
+  "mpma_form_invalid_csv": {
+    "message": "CSV 无效"
+  },
+  "mpma_form_line": {
+    "message": "第 $1 行: $2"
+  },
+  "mpma_form_line_invalid_bitcoin_address": {
+    "message": "第 $1 行: 比特币地址无效: $2。$3"
+  },
+  "mpma_form_line_memo_exceeds_34_bytes": {
+    "message": "第 $1 行: 备注超过 34 字节"
+  },
+  "mpma_form_no_valid_data_found_in": {
+    "message": "CSV 中未找到有效数据"
+  },
+  "mpma_form_one_destination_cannot_receive_an": {
+    "message": "1 个接收方无法接收 MPMA 发送。Taproot (bc1p) 和 P2WSH 地址无法在此消息类型中编码，请单独向它发送。"
+  },
+  "mpma_form_paste_csv_data_here": {
+    "message": "在此粘贴 CSV 数据…"
+  },
+  "mpma_form_pasted_data": {
+    "message": "粘贴的数据"
+  },
+  "mpma_form_please_select_a_csv_file": {
+    "message": "请选择 CSV 文件"
+  },
+  "mpma_form_preview_first_5": {
+    "message": "预览（前 5 条）"
+  },
+  "mpma_form_upload_csv": {
+    "message": "上传 CSV"
+  },
+  "mpma_form_upload_csv_file": {
+    "message": "上传 CSV 文件"
+  },
+  "mpma_form_validating": {
+    "message": "验证中…"
+  },
+  "mpma_review_no_sends": {
+    "message": "没有发送项"
+  },
+  "mpma_review_send": {
+    "message": "发送 #$1: $2 $3"
+  },
+  "not_found": {
+    "message": "未找到"
+  },
+  "not_found_this_is_a_placeholder": {
+    "message": "这是一个占位页面。"
+  },
+  "order_btcpay_btcpay": {
+    "message": "BTCPay"
+  },
+  "order_form_amount_to_buy_enter_up": {
+    "message": "买入数量。最多可输入 8 位小数。"
+  },
+  "order_form_amount_to_buy_enter_whole": {
+    "message": "买入数量。只能输入整数。"
+  },
+  "order_form_order_settings": {
+    "message": "订单设置"
+  },
+  "order_form_price_per_unit_in": {
+    "message": "以 $1 计的单价"
+  },
+  "order_form_quote": {
+    "message": "计价资产"
+  },
+  "pool_pool_slippage_settings_done": {
+    "message": "完成"
+  },
+  "pool_slippage_input_auto": {
+    "message": "· 自动"
+  },
+  "pool_slippage_input_auto_2": {
+    "message": "自动"
+  },
+  "pool_slippage_input_custom": {
+    "message": "自定义 %"
+  },
+  "pool_slippage_input_custom_slippage_percent": {
+    "message": "自定义滑点百分比"
+  },
+  "pool_slippage_input_how_far_the_pool_ratio": {
+    "message": "可接受的池比例最大变动幅度。提高容差可能有助于执行，但接收数量可能减少。"
+  },
+  "pool_slippage_input_set_from_the_quote_s": {
+    "message": "输入数量后，将根据报价的价格影响自动设置。"
+  },
+  "pool_slippage_input_slippage_tolerance": {
+    "message": "滑点容差"
+  },
+  "pool_slippage_input_using_matched_to_this_trade": {
+    "message": "使用 $1%，与此交易的价格影响相匹配。"
+  },
+  "pool_slippage_input_very_high_you_may_receive": {
+    "message": "容差过高，接收数量可能明显低于报价。"
+  },
+  "pool_slippage_input_very_low_likely_to_fail": {
+    "message": "非常低，如果流动性池在你的交易确认前发生变化，很可能失败。"
+  },
+  "pools_pool_overview_dex_order": {
+    "message": "DEX 订单"
+  },
+  "pools_pool_overview_pool_share": {
+    "message": "流动性池份额"
+  },
+  "pools_pool_overview_pool_swap": {
+    "message": "流动性池兑换"
+  },
+  "pools_pool_overview_reserve": {
+    "message": "$1 储备"
+  },
+  "pools_pool_overview_set_your_own_price_on": {
+    "message": "在订单簿上设定你自己的价格"
+  },
+  "pools_pool_overview_swap_instantly_at_the_quoted": {
+    "message": "按报价即时兑换"
+  },
+  "price_price_ticker_bitcoin_price": {
+    "message": "比特币价格"
+  },
+  "price_price_ticker_xcp_price": {
+    "message": "XCP 价格"
+  },
+  "psbt_approve_attach_for_listing": {
+    "message": "为上架附加"
+  },
+  "psbt_approve_authorize_listing": {
+    "message": "授权上架"
+  },
+  "psbt_approve_authorize_offer": {
+    "message": "授权报价"
+  },
+  "psbt_approve_authorize_offer_2": {
+    "message": "授权报价"
+  },
+  "psbt_approve_authorize_reprice": {
+    "message": "授权改价"
+  },
+  "psbt_approve_btc_is_not_guaranteed_back": {
+    "message": "$1 BTC 不保证返还"
+  },
+  "psbt_approve_buy_collectibles": {
+    "message": "购买收藏品"
+  },
+  "psbt_approve_buy_collectibles_2": {
+    "message": "购买收藏品"
+  },
+  "psbt_approve_confirm_the_authorization_details_below": {
+    "message": "在钱包添加你的签名之前，请确认以下授权详情。"
+  },
+  "psbt_approve_create_listing": {
+    "message": "创建上架"
+  },
+  "psbt_approve_input": {
+    "message": "输入 #$1: $2"
+  },
+  "psbt_approve_inputs": {
+    "message": "输入 $1"
+  },
+  "psbt_approve_only_the_inputs_shown_below": {
+    "message": "只有下方显示的输入会由本钱包中对应的地址签名。"
+  },
+  "psbt_approve_prepare_asset": {
+    "message": "准备资产"
+  },
+  "psbt_approve_prepare_asset_2": {
+    "message": "准备资产"
+  },
+  "psbt_approve_reprice_listing": {
+    "message": "修改上架价格"
+  },
+  "psbt_approve_sats": {
+    "message": "$1 sats"
+  },
+  "psbt_approve_signing_addresses": {
+    "message": "签名地址 ($1)"
+  },
+  "psbt_approve_the_requested_signature_does_not": {
+    "message": "所请求的签名并未锁定返还此金额的所有输出。完成交易的一方可能会改变其去向。"
+  },
+  "psbt_approve_this_authorization_remains_usable_after": {
+    "message": "此授权在签名后仍然可用"
+  },
+  "psbts_approve_attach_and_list": {
+    "message": "附加并上架"
+  },
+  "psbts_approve_attach_and_list_2": {
+    "message": "附加并上架"
+  },
+  "psbts_approve_attach_collectibles": {
+    "message": "附加收藏品"
+  },
+  "psbts_approve_authorize_1_listing": {
+    "message": "授权 1 个上架"
+  },
+  "psbts_approve_authorize_1_reprice": {
+    "message": "授权 1 次改价"
+  },
+  "psbts_approve_authorize_listings": {
+    "message": "授权上架"
+  },
+  "psbts_approve_authorize_listings_2": {
+    "message": "授权 $1 个上架"
+  },
+  "psbts_approve_authorize_reprices": {
+    "message": "授权 $1 次改价"
+  },
+  "psbts_approve_fee_sats": {
+    "message": "费用: $1 sats"
+  },
+  "psbts_approve_listing_activates_after_confirmation": {
+    "message": "上架将在确认后生效"
+  },
+  "psbts_approve_prepare_assets": {
+    "message": "准备资产"
+  },
+  "psbts_approve_prepare_funds": {
+    "message": "准备资金"
+  },
+  "psbts_approve_prepare_funds_2": {
+    "message": "准备资金"
+  },
+  "psbts_approve_required_ledger_information_is_unavailable": {
+    "message": "所需的账本信息不可用"
+  },
+  "psbts_approve_review_transaction_batch": {
+    "message": "确认交易批次"
+  },
+  "psbts_approve_sign_transactions": {
+    "message": "签名交易"
+  },
+  "psbts_approve_the_wallet_returns_this_batch": {
+    "message": "只有在所有请求的签名都成功后，钱包才会返回此批次。"
+  },
+  "qr_code_for": {
+    "message": "$1 的二维码"
+  },
+  "reset_supply_form_a_textual_description_for_the": {
+    "message": "资产的文字描述。保持不变则沿用当前描述。"
+  },
+  "reset_supply_form_cannot_reset": {
+    "message": "无法重置 $1"
+  },
+  "reset_supply_form_the_quantity_of_to_issue": {
+    "message": "重置后要发行的 $1 数量。"
+  },
+  "reset_supply_form_this_asset_s_supply_is": {
+    "message": "此资产的供应量已锁定，因此无法重置。"
+  },
+  "reset_supply_form_this_destroys_all_existing_and": {
+    "message": "此操作将销毁全部 $1 个现有 $2，并以下方的供应量重新发行该资产。无法撤销。"
+  },
+  "reset_supply_review_new_description": {
+    "message": "新描述"
+  },
+  "reset_supply_review_supply_destroyed": {
+    "message": "销毁的供应量"
+  },
+  "reset_supply_review_yes_permanent": {
+    "message": "是，永久"
+  },
+  "safety_bitcoin_payment": {
+    "message": "比特币支付"
+  },
+  "safety_blocked_sweep_transaction": {
+    "message": "已阻止：清扫交易"
+  },
+  "safety_btc_payment": {
+    "message": "BTC 支付"
+  },
+  "safety_btc_sent_to_an_unrecognized_script": {
+    "message": "BTC 将发送到无法识别的脚本"
+  },
+  "safety_btc_sent_to_external_address": {
+    "message": "BTC 将发送到外部地址"
+  },
+  "safety_counterparty_data_outputs": {
+    "message": "Counterparty 数据输出"
+  },
+  "safety_danger_supply_destruction": {
+    "message": "危险：销毁供应量"
+  },
+  "safety_data_output_embeds_a_recovery_key": {
+    "message": "$1 个数据输出中嵌入了不属于你的找回密钥，其中的粉尘将可被他人花费。"
+  },
+  "safety_data_outputs_embed_a_recovery_key": {
+    "message": "$1 个数据输出中嵌入了不属于你的找回密钥，其中的粉尘将可被他人花费。"
+  },
+  "safety_data_outputs_not_recoverable_by": {
+    "message": "数据输出你无法找回"
+  },
+  "safety_detaching_transfers_every_asset_attached": {
+    "message": "分离会转移附加到该 UTXO 的所有资产，而不是某个指定数量。签名前请在交易详情中核对接收地址。"
+  },
+  "safety_inscription_commit": {
+    "message": "铭文提交交易"
+  },
+  "safety_moves_everything_on_the_utxo": {
+    "message": "转移该 UTXO 上的全部资产"
+  },
+  "safety_output_carries_this_transactions_message": {
+    "message": "$1 个输出以裸多签形式承载此交易的 Counterparty 消息（$2 sats）。这些 sats 不是给任何人的付款，之后可以用找回工具取回到你的钱包。"
+  },
+  "safety_outputs_carry_this_transactions_message": {
+    "message": "$1 个输出以裸多签形式承载此交易的 Counterparty 消息（$2 sats）。这些 sats 不是给任何人的付款，之后可以用找回工具取回到你的钱包。"
+  },
+  "safety_this_funds_an_inscription": {
+    "message": "这笔交易为铭文提供资金：$1 BTC 将发送到 $2，该地址由铭文本身推导而来，只有你的私钥能够花费。随后的揭示交易会发布内容，请另行核对它的接收地址和手续费。"
+  },
+  "safety_this_sends_btc_matching_the_declared": {
+    "message": "这会把 $1 BTC 发送到 $2，与该网站声明的支付输出一致。请确认地址正是你想要的那个。"
+  },
+  "safety_this_sends_btc_which_is_how": {
+    "message": "这会把 $1 BTC 发送到 $2，这正是此类交易的付款方式。请确认地址正是你想要的那个。"
+  },
+  "safety_this_transaction_could_not_be": {
+    "message": "无法将此交易识别为已知的 Counterparty 操作。它可能以本页面无法读取的形式携带协议数据。签名前请仔细检查。"
+  },
+  "safety_this_transaction_permanently_destroys_supply": {
+    "message": "此交易将永久销毁供应量。该操作不可撤销。请确认你清楚知道被销毁的是什么。"
+  },
+  "safety_this_transaction_sends_btc_to_addresses": {
+    "message": "此交易会把 $1 BTC 发送到 $2 个不属于你的地址: $3。正常的 Counterparty 交易只会把 BTC 作为找零退回你自己的地址。"
+  },
+  "safety_this_transaction_sends_btc_to_an_address": {
+    "message": "此交易会把 $1 BTC 发送到一个不属于你的地址: $2。正常的 Counterparty 交易只会把 BTC 作为找零退回你自己的地址。"
+  },
+  "safety_this_transaction_sends_btc_to_an_output": {
+    "message": "此交易会把 $1 BTC 发送到一个无法确定去向的输出，因此它既无法显示为地址，也无法确认属于你。除非你清楚这个脚本的作用，否则不要签名。"
+  },
+  "safety_this_transaction_sends_btc_to_outputs": {
+    "message": "此交易会把 $1 BTC 发送到 $2 个无法确定去向的输出，因此它们既无法显示为地址，也无法确认属于你。除非你清楚这些脚本的作用，否则不要签名。"
+  },
+  "safety_this_would_send_all_counterparty": {
+    "message": "这会把你地址上的全部 Counterparty 资产发送出去。网站无法请求清扫。如果你确实要清扫，请直接在钱包中操作。"
+  },
+  "safety_unknown_transaction_type": {
+    "message": "未知的交易类型"
+  },
+  "safety_unrecognized_message_type": {
+    "message": "无法识别的消息类型“$1”。签名前请仔细核对交易详情。"
+  },
+  "safety_unrecognized_transaction": {
+    "message": "无法识别的交易"
+  },
+  "screens_review_screen_go_back_to_edit_transaction": {
+    "message": "返回编辑交易"
+  },
+  "screens_review_screen_raw_transaction": {
+    "message": "原始交易"
+  },
+  "screens_review_screen_review_transaction": {
+    "message": "确认交易"
+  },
+  "screens_review_screen_sats_vb": {
+    "message": "($1 sats/vB)"
+  },
+  "screens_review_screen_sign_and_broadcast_transaction": {
+    "message": "签名并广播交易"
+  },
+  "screens_review_screen_sign_broadcast": {
+    "message": "签名并广播"
+  },
+  "screens_review_screen_signing_transaction": {
+    "message": "正在签名交易…"
+  },
+  "screens_review_screen_xcp_fee": {
+    "message": "XCP 手续费："
+  },
+  "screens_success_screen_click_to_copy_transaction_id": {
+    "message": "点击复制交易 ID"
+  },
+  "screens_success_screen_copy_transaction_id": {
+    "message": "复制交易 ID"
+  },
+  "screens_success_screen_transaction_id": {
+    "message": "交易 ID"
+  },
+  "screens_success_screen_transaction_id_copied": {
+    "message": "交易 ID 已复制"
+  },
+  "screens_success_screen_transaction_successful": {
+    "message": "交易成功"
+  },
+  "screens_success_screen_view_on_mempool_space": {
+    "message": "在 mempool.space 上查看 →"
+  },
+  "screens_success_screen_view_transaction_on_mempool_space": {
+    "message": "在 mempool.space 上查看交易（在新标签页中打开）"
+  },
+  "screens_success_screen_your_transaction_was_broadcasted": {
+    "message": "你的交易已广播。"
+  },
+  "secrets_show_passphrase_incorrect_password_or_failed_to": {
+    "message": "密码错误或无法显示助记词。"
+  },
+  "secrets_show_passphrase_keep_your_recovery_phrase_private": {
+    "message": "请妥善保密你的助记词"
+  },
+  "secrets_show_passphrase_never_share_it_with_anyone": {
+    "message": "切勿与任何人分享。任何拥有这些词的人都可以盗取你的资金。"
+  },
+  "secrets_show_passphrase_passphrase": {
+    "message": "助记词"
+  },
+  "secrets_show_passphrase_show_recovery_phrase": {
+    "message": "显示助记词"
+  },
+  "secrets_show_passphrase_unable_to_retrieve_recovery_phrase": {
+    "message": "无法获取助记词。"
+  },
+  "secrets_show_passphrase_write_down_these_12_words": {
+    "message": "按顺序抄写这 12 个单词，并保存在安全的地方。"
+  },
+  "secrets_show_private_key_address_derivation_path_is_missing": {
+    "message": "缺少地址派生路径。"
+  },
+  "secrets_show_private_key_copy_private_key": {
+    "message": "复制私钥"
+  },
+  "secrets_show_private_key_copy_the_private_key_shown": {
+    "message": "复制此处显示的私钥"
+  },
+  "secrets_show_private_key_failed_to_retrieve_private_key": {
+    "message": "获取私钥失败"
+  },
+  "secrets_show_private_key_failed_to_reveal_private_key": {
+    "message": "显示私钥失败。"
+  },
+  "secrets_show_private_key_hardware_wallets_do_not_expose": {
+    "message": "硬件钱包不会暴露私钥。密钥安全地存储在你的设备上。"
+  },
+  "secrets_show_private_key_keep_your_private_key_private": {
+    "message": "请妥善保密你的私钥"
+  },
+  "secrets_show_private_key_never_share_it_with_anyone": {
+    "message": "切勿与任何人分享。任何拥有此密钥的人都可以盗取你的资金。"
+  },
+  "secrets_show_private_key_private_key_wif_format_not": {
+    "message": "WIF 格式的私钥不可用"
+  },
+  "secrets_show_private_key_this_is_your_private_key": {
+    "message": "这是你的 Wallet Import Format 格式私钥。切勿与任何人分享。"
+  },
+  "secrets_show_private_key_your_private_key_wif": {
+    "message": "你的私钥 (WIF)"
+  },
+  "send_form_btc_to_send_alongside_the": {
+    "message": "与资产一起发送到同一接收地址的 BTC。"
+  },
+  "send_form_enter_the_amount_to_send": {
+    "message": "输入要发送的数量。"
+  },
+  "send_form_failed_to_fetch_details_for": {
+    "message": "获取资产 $1 的详情失败。$2"
+  },
+  "send_form_please_try_again_later": {
+    "message": "请稍后重试。"
+  },
+  "send_mpma_mismatched_mpma_form_data_assets": {
+    "message": "MPMA 表单数据不匹配: 资产、接收方和数量的数目必须一致"
+  },
+  "send_mpma_mpma_send": {
+    "message": "MPMA 发送"
+  },
+  "send_review_sends": {
+    "message": "发送项 ($1)"
+  },
+  "settings_about_xcp_wallet": {
+    "message": "关于 XCP Wallet"
+  },
+  "settings_address_types_address_type_is_set_when": {
+    "message": ": 地址类型在连接设备时设定。如需使用其他地址格式，请前往“添加钱包”并以所需格式重新连接你的 Trezor。"
+  },
+  "settings_address_types_address_type_settings": {
+    "message": "地址类型设置"
+  },
+  "settings_address_types_failed_to_update_address_type": {
+    "message": "更新地址类型失败"
+  },
+  "settings_address_types_hardware_wallet": {
+    "message": "硬件钱包"
+  },
+  "settings_address_types_no_wallet_available": {
+    "message": "没有可用的钱包"
+  },
+  "settings_advanced_1_minute": {
+    "message": "1 分钟"
+  },
+  "settings_advanced_15_minutes": {
+    "message": "15 分钟"
+  },
+  "settings_advanced_30_minutes": {
+    "message": "30 分钟"
+  },
+  "settings_advanced_5_minutes": {
+    "message": "5 分钟"
+  },
+  "settings_advanced_advanced_broadcasts": {
+    "message": "高级广播"
+  },
+  "settings_advanced_advanced_settings": {
+    "message": "高级设置"
+  },
+  "settings_advanced_anonymous_analytics": {
+    "message": "匿名统计"
+  },
+  "settings_advanced_attach_btc_to_asset_sends": {
+    "message": "在资产发送中附带 BTC。在发送表单中添加“+ BTC”选项。"
+  },
+  "settings_advanced_auto_lock_timer": {
+    "message": "自动锁定计时器"
+  },
+  "settings_advanced_block_signing_if_local_transaction": {
+    "message": "本地交易验证失败时阻止签名。关闭时会显示警告，但仍允许签名。"
+  },
+  "settings_advanced_choose_how_long_to_wait": {
+    "message": "选择钱包自动锁定前的等待时间。"
+  },
+  "settings_advanced_choose_whether_to_share_usage": {
+    "message": "选择是否分享使用数据。"
+  },
+  "settings_advanced_connection": {
+    "message": "连接"
+  },
+  "settings_advanced_counterparty_api": {
+    "message": "Counterparty API"
+  },
+  "settings_advanced_developer": {
+    "message": "开发者"
+  },
+  "settings_advanced_enable_more_outputs": {
+    "message": "启用更多输出"
+  },
+  "settings_advanced_enable_mpma_sends": {
+    "message": "启用 MPMA 发送"
+  },
+  "settings_advanced_enable_multi_destination_sends_mpma": {
+    "message": "为支持的资产启用多地址发送 (MPMA)。"
+  },
+  "settings_advanced_enable_this_to_chain_transactions": {
+    "message": "启用后可在尚未确认的交易之上链式发起交易。"
+  },
+  "settings_advanced_privacy_display": {
+    "message": "隐私与显示"
+  },
+  "settings_advanced_show_advanced_options_for_broadcast": {
+    "message": "显示广播交易的高级选项（数值和费用比例）。"
+  },
+  "settings_advanced_show_hide_help_text": {
+    "message": "显示/隐藏帮助文本"
+  },
+  "settings_advanced_show_or_hide_help_text": {
+    "message": "默认显示或隐藏帮助文本。"
+  },
+  "settings_advanced_strict_txs_verification": {
+    "message": "严格交易验证"
+  },
+  "settings_advanced_the_counterparty_api_endpoint_url": {
+    "message": "Counterparty API 端点 URL。必须是运行 Counterparty Core 11.3.0 或更新版本的主网 API 服务器。"
+  },
+  "settings_advanced_transaction_dry_run": {
+    "message": "交易模拟运行"
+  },
+  "settings_advanced_use_unconfirmed_txs": {
+    "message": "使用未确认交易"
+  },
+  "settings_advanced_when_enabled_transactions_will_be": {
+    "message": "启用后，交易将仅进行模拟，而不会广播到网络。"
+  },
+  "settings_change_your_wallet_password": {
+    "message": "更改钱包密码"
+  },
+  "settings_connected_sites_disconnect_all_sites": {
+    "message": "断开所有网站"
+  },
+  "settings_connected_sites_loading_connected_sites": {
+    "message": "正在加载已连接的网站…"
+  },
+  "settings_connected_sites_no_connected_sites": {
+    "message": "没有已连接的网站"
+  },
+  "settings_connected_sites_sites_you_connect_to_will": {
+    "message": "你连接的网站将显示在这里"
+  },
+  "settings_manage_assets_pinned_to_your": {
+    "message": "管理置顶到面板的资产"
+  },
+  "settings_manage_website_connections": {
+    "message": "管理网站连接"
+  },
+  "settings_network_settings_and_developer_options": {
+    "message": "网络设置与开发者选项"
+  },
+  "settings_order_settings_1_day": {
+    "message": "1 天"
+  },
+  "settings_order_settings_1_hour": {
+    "message": "1 小时"
+  },
+  "settings_order_settings_1_month": {
+    "message": "1 个月"
+  },
+  "settings_order_settings_1_week": {
+    "message": "1 周"
+  },
+  "settings_order_settings_1_year": {
+    "message": "1 年"
+  },
+  "settings_order_settings_2_weeks": {
+    "message": "2 周"
+  },
+  "settings_order_settings_blocks": {
+    "message": "$1 个区块（约 $2）"
+  },
+  "settings_order_settings_custom_blocks": {
+    "message": "自定义区块数，$1-$2"
+  },
+  "settings_order_settings_custom_expiration_in_blocks": {
+    "message": "自定义有效期（区块数）"
+  },
+  "settings_order_settings_enter_fee_in_satoshis_default": {
+    "message": "输入费用（聪，默认: 0）"
+  },
+  "settings_order_settings_fee_required_in_satoshis": {
+    "message": "所需费用（聪）"
+  },
+  "settings_order_settings_never": {
+    "message": "永不"
+  },
+  "settings_order_settings_no_minimum_fee": {
+    "message": "无最低费用"
+  },
+  "settings_order_settings_order_expiration": {
+    "message": "订单有效期"
+  },
+  "settings_order_settings_orders_cancel_after_the_selected": {
+    "message": "订单将在所选区块数后取消。当前最大值为 $1。"
+  },
+  "settings_order_settings_sats_sat_vb": {
+    "message": "$1 sats（约 $2 sat/vB）"
+  },
+  "settings_order_settings_the_minimum_tx_fee_required": {
+    "message": "BTCPay 撮合此订单所需的最低交易费用（聪）。"
+  },
+  "settings_order_settings_use_0_for_orders_that": {
+    "message": "填 0 表示订单永不过期。有期限的订单将在所选区块数后取消。"
+  },
+  "settings_pinned_assets_failed_to_pin_asset": {
+    "message": "置顶资产失败。"
+  },
+  "settings_pinned_assets_failed_to_unpin_asset": {
+    "message": "取消置顶资产失败。"
+  },
+  "settings_pinned_assets_no_pinned_assets_search_for": {
+    "message": "没有置顶资产。搜索资产以置顶。"
+  },
+  "settings_pinned_assets_pin_up_to_10_assets": {
+    "message": "最多可将 10 个资产置顶到主屏幕顶部。使用箭头按钮调整顺序。"
+  },
+  "settings_pinned_assets_pinned": {
+    "message": "已置顶"
+  },
+  "settings_pinned_assets_pinned_assets_settings": {
+    "message": "置顶资产设置"
+  },
+  "settings_pinned_assets_search_assets_to_pin": {
+    "message": "搜索要置顶的资产…"
+  },
+  "settings_pinned_assets_you_can_only_pin_up": {
+    "message": "最多只能置顶 10 个资产。"
+  },
+  "settings_security_change_password": {
+    "message": "更改密码"
+  },
+  "settings_security_changing_password": {
+    "message": "正在更改密码…"
+  },
+  "settings_security_choose_a_new_password_that": {
+    "message": "设置一个至少 $1 个字符的新密码。"
+  },
+  "settings_security_confirm_new_password": {
+    "message": "确认新密码"
+  },
+  "settings_security_current_password": {
+    "message": "当前密码"
+  },
+  "settings_security_enter_your_current_wallet_password": {
+    "message": "输入当前钱包密码以授权更改。"
+  },
+  "settings_security_failed_to_change_password": {
+    "message": "更改密码失败"
+  },
+  "settings_security_new_password": {
+    "message": "新密码"
+  },
+  "settings_security_new_password_must_be_at": {
+    "message": "新密码长度至少为 $1 个字符"
+  },
+  "settings_security_new_passwords_do_not_match": {
+    "message": "两次输入的新密码不一致"
+  },
+  "settings_security_password_successfully_changed": {
+    "message": "密码已成功更改"
+  },
+  "settings_security_re_enter_your_new_password": {
+    "message": "再次输入新密码，以确认输入无误。"
+  },
+  "settings_security_security_settings": {
+    "message": "安全设置"
+  },
+  "settings_security_security_tip": {
+    "message": "安全提示:"
+  },
+  "settings_security_use_a_strong_unique_password": {
+    "message": "使用一个未在其他账户使用过的强密码。建议使用密码管理器。"
+  },
+  "settings_version": {
+    "message": "版本 $1"
+  },
+  "settings_visit_website": {
+    "message": "访问网站"
+  },
+  "setup_create_mnemonic_creating": {
+    "message": "创建中…"
+  },
+  "setup_create_mnemonic_failed_to_create_wallet_please": {
+    "message": "创建钱包失败。请重试。"
+  },
+  "setup_create_mnemonic_generate_new_recovery_phrase": {
+    "message": "生成新助记词"
+  },
+  "setup_create_mnemonic_make_sure_no_one_is": {
+    "message": "确保没有人在旁边偷看！"
+  },
+  "setup_create_mnemonic_password_must_be_at_least": {
+    "message": "密码长度至少为 $1 个字符。"
+  },
+  "setup_create_mnemonic_please_view_and_save_your": {
+    "message": "请先查看并保存你的助记词。"
+  },
+  "setup_create_mnemonic_please_write_down_this_12": {
+    "message": "请抄写这 12 个单词的助记词。"
+  },
+  "setup_create_mnemonic_reveal_recovery_phrase": {
+    "message": "显示助记词"
+  },
+  "setup_create_mnemonic_view_12_word_secret_phrase": {
+    "message": "查看 12 个单词的助记词"
+  },
+  "setup_create_mnemonic_watch_tutorial_how_to_create": {
+    "message": "观看教程: 如何创建钱包"
+  },
+  "setup_create_mnemonic_your_recovery_phrase": {
+    "message": "你的助记词"
+  },
+  "setup_import_mnemonic_a_card_is_written_to": {
+    "message": "卡片本身就是为了交给他人而写的，所以请将这些单词视为交给你的人也知道。这就是它们不被作为钱包导入的原因：从这些单词派生出的每个地址，对方同样可以花费。对方也仍然可以从卡片本身花费，因此请把你想保留的一切转移到你自己的地址。"
+  },
+  "setup_import_mnemonic_an_address_no_wallet_built": {
+    "message": "，这是基于此助记词构建的钱包永远不会显示的地址。导入卡片只保留这一个地址，不会存储助记词。"
+  },
+  "setup_import_mnemonic_at": {
+    "message": "，位于"
+  },
+  "setup_import_mnemonic_couldn_t_check_whether_this": {
+    "message": "无法检查此助记词是否为 Rare Pepe Wallet 礼品卡。无论如何都可以将其作为钱包导入，恢复联网后也可以再导入卡片。"
+  },
+  "setup_import_mnemonic_enter_word": {
+    "message": "输入单词"
+  },
+  "setup_import_mnemonic_failed_to_import_wallet": {
+    "message": "导入钱包失败: $1"
+  },
+  "setup_import_mnemonic_gift_card": {
+    "message": "礼品卡"
+  },
+  "setup_import_mnemonic_hide_recovery_phrase": {
+    "message": "隐藏助记词"
+  },
+  "setup_import_mnemonic_import_gift_card": {
+    "message": "导入礼品卡"
+  },
+  "setup_import_mnemonic_import_your_mnemonic": {
+    "message": "导入助记词"
+  },
+  "setup_import_mnemonic_invalid_recovery_phrase_please_check": {
+    "message": "助记词无效。请仔细检查每个单词。"
+  },
+  "setup_import_mnemonic_its_balance_is_on": {
+    "message": "其余额位于"
+  },
+  "setup_import_mnemonic_please_confirm_you_have_backed": {
+    "message": "请确认你已备份助记词。"
+  },
+  "setup_import_mnemonic_please_enter_your_12_word": {
+    "message": "请在下方输入你的 12 个单词的助记词。"
+  },
+  "setup_import_mnemonic_recovery_phrase_input": {
+    "message": "助记词输入"
+  },
+  "setup_import_mnemonic_recovery_phrase_words": {
+    "message": "助记词单词"
+  },
+  "setup_import_mnemonic_show_recovery_phrase": {
+    "message": "显示助记词"
+  },
+  "setup_import_mnemonic_this_looks_like_a_rare": {
+    "message": "这看起来像是一张 Rare Pepe Wallet 礼品卡。"
+  },
+  "setup_import_mnemonic_unknown_error": {
+    "message": "未知错误"
+  },
+  "setup_import_mnemonic_watch_tutorial_how_to_import": {
+    "message": "观看教程: 如何导入钱包"
+  },
+  "setup_import_mnemonic_word": {
+    "message": "单词 $1"
+  },
+  "setup_import_private_key_bc1p": {
+    "message": "bc1p..."
+  },
+  "setup_import_private_key_bc1q": {
+    "message": "bc1q..."
+  },
+  "setup_import_private_key_enter_your_private_key": {
+    "message": "输入你的私钥"
+  },
+  "setup_import_private_key_enter_your_private_key_to": {
+    "message": "输入你的私钥以使用其地址。"
+  },
+  "setup_import_private_key_failed_to_import_private_key": {
+    "message": "导入私钥失败。"
+  },
+  "setup_import_private_key_i_have_backed_up_this": {
+    "message": "我已安全备份此私钥。"
+  },
+  "setup_import_private_key_import_key": {
+    "message": "导入密钥"
+  },
+  "setup_import_private_key_invalid_private_key_format": {
+    "message": "私钥格式无效。"
+  },
+  "setup_import_private_key_legacy": {
+    "message": "传统"
+  },
+  "setup_import_private_key_native_segwit": {
+    "message": "原生隔离见证"
+  },
+  "setup_import_private_key_nested_segwit": {
+    "message": "嵌套隔离见证"
+  },
+  "setup_import_private_key_please_check_your_input_and": {
+    "message": "请检查你的输入并重试。"
+  },
+  "setup_import_private_key_please_confirm_you_have_backed": {
+    "message": "请确认你已备份私钥。"
+  },
+  "setup_import_private_key_private_key_is_required": {
+    "message": "私钥为必填项。"
+  },
+  "setup_import_private_key_taproot": {
+    "message": "Taproot"
+  },
+  "setup_import_private_key_the_private_key_format_is": {
+    "message": "私钥格式无效。"
+  },
+  "setup_import_private_key_this_private_key_has_already": {
+    "message": "此私钥已被导入。"
+  },
+  "setup_import_private_key_watch_tutorial_how_to_import": {
+    "message": "观看教程: 如何导入私钥"
+  },
+  "setup_import_test_address_bitcoin_address": {
+    "message": "比特币地址"
+  },
+  "setup_import_test_address_development_mode": {
+    "message": "开发模式"
+  },
+  "setup_import_test_address_enter_any_bitcoin_address": {
+    "message": "输入任意比特币地址…"
+  },
+  "setup_import_test_address_failed_to_import_test_address": {
+    "message": "导入测试地址失败"
+  },
+  "setup_import_test_address_import_test_address": {
+    "message": "导入测试地址"
+  },
+  "setup_import_test_address_please_enter_an_address": {
+    "message": "请输入地址"
+  },
+  "setup_import_test_address_this_creates_a_watch_only": {
+    "message": "这将创建一个用于测试的只读钱包。你无法签名或广播交易。"
+  },
+  "swap_form_above_what_the_pending_orders": {
+    "message": "超出了待确认订单成交后剩余的数量。如果它们先确认，此兑换将挂单一个区块后退款而不是成交。请提高滑点或使用“自动”。"
+  },
+  "swap_form_after_mempool": {
+    "message": "前序订单确认后（估算）"
+  },
+  "swap_form_ahead_in_mempool": {
+    "message": "内存池中有 $1 笔在前"
+  },
+  "swap_form_asset_you_are_buying": {
+    "message": "你要买入的资产。"
+  },
+  "swap_form_asset_you_are_selling": {
+    "message": "你要卖出的资产。"
+  },
+  "swap_form_balance": {
+    "message": "余额: $1"
+  },
+  "swap_form_btc_pairs_are_not_supported": {
+    "message": "兑换不支持 BTC 交易对。请改用 DEX 订单。"
+  },
+  "swap_form_estimated_amount_received": {
+    "message": "预计接收数量"
+  },
+  "swap_form_fetching_quote": {
+    "message": "正在获取报价…"
+  },
+  "swap_form_flip_swap_direction": {
+    "message": "翻转兑换方向"
+  },
+  "swap_form_hide_swap_details": {
+    "message": "隐藏兑换详情"
+  },
+  "swap_form_impact": {
+    "message": "价格影响: $p1$$p2$%",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "swap_form_minimum_received": {
+    "message": "最低接收数量"
+  },
+  "swap_form_no_liquidity_pool_exists_for": {
+    "message": "$1/$2 没有流动性池。此交易对只能与订单簿中的 DEX 挂单成交。"
+  },
+  "swap_form_one_unconfirmed_order_on_this": {
+    "message": "此交易对有 1 笔同方向的未确认订单。如果它先确认，此兑换将比报价少约 $1%。自动滑点已考虑到这一点。"
+  },
+  "swap_form_pool": {
+    "message": "流动性池 + $1"
+  },
+  "swap_form_pool_fee": {
+    "message": "流动性池费用 ($1%)"
+  },
+  "swap_form_review_swap": {
+    "message": "确认兑换"
+  },
+  "swap_form_route": {
+    "message": "路径"
+  },
+  "swap_form_show_swap_details": {
+    "message": "显示兑换详情"
+  },
+  "swap_form_unconfirmed_orders_on_this_pair": {
+    "message": "此交易对有 $1 笔同方向的未确认订单。如果它们先确认，此兑换将比报价少约 $2%。自动滑点已考虑到这一点。"
+  },
+  "swap_review_fills": {
+    "message": "成交"
+  },
+  "swap_review_immediately_or_cancels_next_block": {
+    "message": "确认时成交；未成交资产在到期后退回"
+  },
+  "swap_review_minimum_price": {
+    "message": "成交价格限制"
+  },
+  "swap_review_minimum_received": {
+    "message": "最低接收数量"
+  },
+  "sweep_form_asset_balances_only": {
+    "message": "仅资产余额"
+  },
+  "sweep_form_asset_balances_ownership": {
+    "message": "资产余额和所有权"
+  },
+  "sweep_form_asset_ownership_only": {
+    "message": "仅资产所有权"
+  },
+  "sweep_form_btc_to_send_alongside_the": {
+    "message": "与清扫一起发送到同一接收地址的 BTC。"
+  },
+  "sweep_form_choose_whether_to_sweep_asset": {
+    "message": "选择仅清扫资产余额、仅清扫资产所有权，或两者都清扫。"
+  },
+  "sweep_form_enter_destination_address_for_sweep": {
+    "message": "输入清扫的接收地址"
+  },
+  "sweep_form_enter_the_address_to_sweep": {
+    "message": "输入要将所有资产清扫到的地址。"
+  },
+  "sweep_form_sweep_type": {
+    "message": "清扫类型"
+  },
+  "sweep_review_additional_btc_output": {
+    "message": "额外 BTC 输出"
+  },
+  "sweep_review_btc_to": {
+    "message": "$1 BTC 发往 $2"
+  },
+  "sweep_review_flag": {
+    "message": "标志"
+  },
+  "time_compact_days": {
+    "message": "$1天前"
+  },
+  "time_compact_hours": {
+    "message": "$1小时前"
+  },
+  "time_compact_minutes": {
+    "message": "$1分钟前"
+  },
+  "time_compact_weeks": {
+    "message": "$1周前"
+  },
+  "time_compact_years": {
+    "message": "$1年前"
+  },
+  "time_day_ago": {
+    "message": "1天前"
+  },
+  "time_days_ago": {
+    "message": "$1天前"
+  },
+  "time_hour_ago": {
+    "message": "1小时前"
+  },
+  "time_hours_ago": {
+    "message": "$1小时前"
+  },
+  "time_just_now": {
+    "message": "刚刚"
+  },
+  "time_minute_ago": {
+    "message": "1分钟前"
+  },
+  "time_minutes_ago": {
+    "message": "$1分钟前"
+  },
+  "time_month_ago": {
+    "message": "1个月前"
+  },
+  "time_months_ago": {
+    "message": "$1个月前"
+  },
+  "time_second_ago": {
+    "message": "1秒前"
+  },
+  "time_seconds_ago": {
+    "message": "$1秒前"
+  },
+  "time_week_ago": {
+    "message": "1周前"
+  },
+  "time_weeks_ago": {
+    "message": "$1周前"
+  },
+  "time_year_ago": {
+    "message": "1年前"
+  },
+  "time_years_ago": {
+    "message": "$1年前"
+  },
+  "transaction_approve_confirm_the_exceptional_transaction_behavior": {
+    "message": "在钱包添加你的签名之前，请确认以下异常的交易行为。"
+  },
+  "transaction_approve_input_details_could_not_be": {
+    "message": "无法验证输入详情"
+  },
+  "transaction_approve_sign_transaction": {
+    "message": "签名交易"
+  },
+  "transaction_approve_the_wallet_cannot_confirm_the": {
+    "message": "钱包无法确认输入的金额或所有者。签名前请重试验证。"
+  },
+  "transactions_txhash_back_to_history": {
+    "message": "返回历史"
+  },
+  "transactions_txhash_block": {
+    "message": "区块:"
+  },
+  "transactions_txhash_btc_amount": {
+    "message": "BTC 金额:"
+  },
+  "transactions_txhash_failed_to_fetch_transaction": {
+    "message": "获取交易失败"
+  },
+  "transactions_txhash_loading_transaction": {
+    "message": "正在加载交易…"
+  },
+  "transactions_txhash_no_transaction_hash_provided": {
+    "message": "未提供交易哈希"
+  },
+  "transactions_txhash_raw_transaction_data": {
+    "message": "原始交易数据"
+  },
+  "transactions_txhash_status": {
+    "message": "状态:"
+  },
+  "transactions_txhash_time": {
+    "message": "时间:"
+  },
+  "transactions_txhash_transaction_hash": {
+    "message": "交易哈希:"
+  },
+  "transactions_txhash_transaction_not_found": {
+    "message": "未找到交易"
+  },
+  "transactions_txhash_view_on_xchain": {
+    "message": "在 XChain 上查看"
+  },
+  "transfer_ownership_form_cannot_transfer_ownership_of_btc": {
+    "message": "无法转移 BTC 的所有权"
+  },
+  "transfer_ownership_form_enter_address_to_transfer_ownership": {
+    "message": "输入所有权转移的目标地址"
+  },
+  "transfer_ownership_review_to": {
+    "message": "转移给"
+  },
+  "tx_verification_status_retry_the_request_or_ask": {
+    "message": "请重试请求或要求网站重新构建。不要批准你无法验证的替代交易。"
+  },
+  "tx_verification_status_verification_failed_signing_blocked": {
+    "message": "验证失败 - 签名已被阻止"
+  },
+  "tx_verification_status_verification_warning": {
+    "message": "验证警告"
+  },
+  "update_description_form_cannot_update_description_of_btc": {
+    "message": "无法更新 BTC 的描述"
+  },
+  "update_description_form_enter_a_new_description_for": {
+    "message": "输入资产要使用的新描述。"
+  },
+  "utxo_attach_attach_utxo": {
+    "message": "附加到 UTXO"
+  },
+  "utxo_detach_detach_utxo": {
+    "message": "从 UTXO 分离"
+  },
+  "utxo_move_move_utxo": {
+    "message": "移动 UTXO"
+  },
+  "utxo_utxo_list_loading_utxo_balances": {
+    "message": "正在加载 UTXO 余额…"
+  },
+  "utxo_utxo_list_no_matching_utxos": {
+    "message": "没有匹配的 UTXO"
+  },
+  "utxo_utxo_list_no_utxo_attached_balances": {
+    "message": "没有附加到 UTXO 的余额"
+  },
+  "utxo_utxo_list_search_utxos": {
+    "message": "搜索 UTXO…"
+  },
+  "utxo_utxo_menu_utxo_actions": {
+    "message": "UTXO 操作"
+  },
+  "utxos_txhash_btc_value": {
+    "message": "BTC 金额"
+  },
+  "utxos_txhash_confirmations": {
+    "message": "确认数"
+  },
+  "utxos_txhash_copy_utxo": {
+    "message": "复制 UTXO"
+  },
+  "utxos_txhash_detach_assets_from_this_utxo": {
+    "message": "从此 UTXO 分离资产"
+  },
+  "utxos_txhash_details": {
+    "message": "详情"
+  },
+  "utxos_txhash_failed_to_fetch_utxo_data": {
+    "message": "获取 UTXO 数据失败"
+  },
+  "utxos_txhash_invalid_utxo_identifier": {
+    "message": "UTXO 标识符无效: $1"
+  },
+  "utxos_txhash_loading_utxo_details": {
+    "message": "正在加载 UTXO 详情…"
+  },
+  "utxos_txhash_move_this_utxo_to_another": {
+    "message": "将此 UTXO 移动到另一个地址"
+  },
+  "utxos_txhash_time_attached": {
+    "message": "附加时间"
+  },
+  "utxos_txhash_utxo_details": {
+    "message": "UTXO 详情"
+  },
+  "wallet_wallet_card_no_address": {
+    "message": "没有地址"
+  },
+  "wallet_wallet_menu_cannot_remove_only_wallet": {
+    "message": "无法移除唯一的钱包"
+  },
+  "wallet_wallet_menu_remove": {
+    "message": "移除"
+  },
+  "wallet_wallet_menu_show_passphrase": {
+    "message": "显示助记词"
+  },
+  "wallet_wallet_menu_wallet_options": {
+    "message": "钱包选项"
+  },
+  "wallets_add_create_new_wallet": {
+    "message": "创建新钱包"
+  },
+  "wallets_add_disconnect_hardware_wallet": {
+    "message": "断开硬件钱包"
+  },
+  "wallets_add_import_address_dev": {
+    "message": "导入地址（开发）"
+  },
+  "wallets_add_import_address_dev_only": {
+    "message": "导入地址（仅限开发）"
+  },
+  "wallets_add_import_mnemonic": {
+    "message": "导入助记词"
+  },
+  "wallets_add_use_trezor_connect": {
+    "message": "使用 Trezor Connect"
+  },
+  "wallets_connect_hardware_before_connecting": {
+    "message": "连接前:"
+  },
+  "wallets_connect_hardware_connect_trezor": {
+    "message": "连接 Trezor"
+  },
+  "wallets_connect_hardware_connect_your_trezor": {
+    "message": "连接你的 Trezor"
+  },
+  "wallets_connect_hardware_connect_your_trezor_via_usb": {
+    "message": "通过 USB 连接你的 Trezor"
+  },
+  "wallets_connect_hardware_connecting": {
+    "message": "连接中..."
+  },
+  "wallets_connect_hardware_connection_cancelled_please_try_again": {
+    "message": "连接已取消。准备好后请重试。"
+  },
+  "wallets_connect_hardware_failed_to_connect_hardware_wallet": {
+    "message": "连接硬件钱包失败"
+  },
+  "wallets_connect_hardware_select_your_account_on_your": {
+    "message": "在 Trezor 设备上选择你的账户"
+  },
+  "wallets_connect_hardware_select_your_account_when_prompted": {
+    "message": "在提示时选择你的账户"
+  },
+  "wallets_connect_hardware_taproot_requires_newer_trezor_firmware": {
+    "message": "Taproot 需要更新版本的 Trezor 固件。请更新固件或尝试其他账户类型。"
+  },
+  "wallets_connect_hardware_unlock_your_device_with_pin": {
+    "message": "使用 PIN 解锁设备"
+  },
+  "wallets_connect_hardware_your_private_keys_never_leave": {
+    "message": "你的私钥永远不会离开 Trezor 设备。"
+  },
+  "wallets_connect_hardware_your_trezor_will_discover_your": {
+    "message": "Trezor 将发现你的比特币账户，并让你选择要使用的账户。"
+  },
+  "wallets_remove_failed_to_remove_wallet_please": {
+    "message": "移除钱包失败。请重试。"
+  },
+  "wallets_remove_invalid_wallet_identifier": {
+    "message": "钱包标识符无效。"
+  },
+  "wallets_remove_make_sure_you_have_backed": {
+    "message": "移除前请确保你已备份钱包的助记词。"
+  },
+  "wallets_remove_make_sure_you_have_backed_2": {
+    "message": "移除前请确保你已备份钱包的私钥。"
+  },
+  "wallets_remove_remove": {
+    "message": "移除 $1"
+  },
+  "wallets_remove_remove_wallet": {
+    "message": "移除钱包"
+  },
+  "wallets_remove_removing": {
+    "message": "移除中…"
+  },
+  "wallets_reset_failed_to_reset_wallet_please": {
+    "message": "重置钱包失败。请重试。"
+  },
+  "wallets_reset_resetting": {
+    "message": "重置中…"
+  },
+  "wallets_reset_resetting_your_wallet_will_delete": {
+    "message": "重置钱包将删除所有钱包数据。此操作无法撤销。"
+  },
+  "withdraw_form_estimated_receive": {
+    "message": "预计接收数量："
+  },
+  "withdraw_form_loading_withdrawal_quote": {
+    "message": "正在加载取出报价..."
+  },
+  "withdraw_form_lp_tokens_to_withdraw": {
+    "message": "用于赎回的 LP 数量"
+  },
+  "withdraw_form_review_withdrawal": {
+    "message": "确认取出"
+  },
+  "withdraw_review_minimum_receive": {
+    "message": "最低接收数量"
+  },
+  "display_preferences_title": {
+    "message": "语言与显示"
+  },
+  "display_preferences_language": {
+    "message": "界面语言"
+  },
+  "display_preferences_numbers": {
+    "message": "数字格式"
+  },
+  "display_preferences_browser": {
+    "message": "浏览器语言"
+  },
+  "display_preferences_follow_language": {
+    "message": "跟随界面语言"
+  },
+  "display_preferences_fiat": {
+    "message": "价格币种"
+  },
+  "display_preferences_input_help": {
+    "message": "这些设置仅影响显示。输入数量时请使用数字 0–9 和英文小数点，不要使用千位分隔符。价格币种独立保存。"
+  },
+  "display_preferences_save_failed": {
+    "message": "无法保存此设置，请重试。"
+  },
+  "safety_amount_syntax": {
+    "message": "仅限半角数字和小数点，最多8位小数。勿用逗号。"
+  },
+  "safety_amount_indivisible": {
+    "message": "仅限半角整数。勿用小数点或逗号。"
+  },
+  "safety_amount_precision": {
+    "message": "小数位数超出此资产支持的精度。未进行舍入或提交。"
+  },
+  "safety_amount_range": {
+    "message": "数量超出允许范围。请检查资产数量后重试。"
+  },
+  "safety_amount_too_long": {
+    "message": "数量输入过长。未进行截断或提交。"
+  },
+  "safety_divisibility_unknown": {
+    "message": "无法确定资产精度。请刷新资产详情后继续。"
+  },
+  "safety_fraction_inexact": {
+    "message": "Counterparty 无法精确编码此手续费或佣金比例。请选择其他比例。"
+  },
+  "safety_fee_invalid": {
+    "message": "仅限半角数字和小数点，最多8位小数。勿用逗号。"
+  },
+  "safety_fee_minimum": {
+    "message": "费率过低（最低：$1 sat/vB）"
+  },
+  "safety_fee_maximum": {
+    "message": "费率过高（最高：$1 sat/vB）"
+  },
+  "safety_destination_count": {
+    "message": "接收地址数量必须为正整数。"
+  },
+  "safety_max_unavailable": {
+    "message": "无法确认可用数量。请刷新资产详情后再使用“最大”。"
+  },
+  "safety_max_fee": {
+    "message": "请先输入有效费率，再使用“最大”。"
+  },
+  "safety_clipboard_lines": {
+    "message": "请重新粘贴一个不含换行的值。"
+  },
+  "common_custom": {
+    "message": "自定义"
+  },
+  "order_form_select_asset_to_buy": {
+    "message": "选择要买入的资产。"
+  },
+  "order_form_select_asset_to_sell": {
+    "message": "选择要卖出的资产。"
+  },
+  "deposit_form_minimum_lp_with_slippage": {
+    "message": "最低 LP 接收数量（滑点容差 $1%）："
+  },
+  "withdraw_form_minimum_with_slippage": {
+    "message": "最低接收数量（滑点容差 $1%）："
+  },
+  "order_review_expiration_blocks": {
+    "message": "$1 个区块"
+  },
+  "safety_slippage_invalid": {
+    "message": "请输入0–50%，最多2位小数。勿用逗号。"
+  },
+  "inputs_fee_rate_input_fastest": {
+    "message": "最快"
+  },
+  "inputs_fee_rate_input_thirty_minutes": {
+    "message": "30分钟"
+  },
+  "inputs_fee_rate_input_one_hour": {
+    "message": "1小时"
+  },
+  "address_type_legacy": {
+    "message": "传统"
+  },
+  "address_type_native_segwit": {
+    "message": "原生 SegWit"
+  },
+  "address_type_nested_segwit": {
+    "message": "嵌套 SegWit"
+  },
+  "common_destinations": {
+    "message": "接收地址"
+  },
+  "swap_form_route_many_orders": {
+    "message": "$1 笔订单"
+  },
+  "swap_form_route_one_order": {
+    "message": "$1 笔订单"
+  },
+  "approval_structure_attach_missing_output_title": {
+    "message": "附着到不存在的输出"
+  },
+  "approval_structure_attach_missing_output_one": {
+    "message": "此操作将资产附着到输出 #$1，但交易只有 $2 个输出。该附着无法按描述生效。若交易签名后获确认，仍会支付比特币网络手续费。"
+  },
+  "approval_structure_attach_missing_output_many": {
+    "message": "此操作将资产附着到输出 #$1，但交易只有 $2 个输出。该附着无法按描述生效。若交易签名后获确认，仍会支付比特币网络手续费。"
+  },
+  "approval_structure_utxo_source_not_spent_title": {
+    "message": "此交易未花费源 UTXO"
+  },
+  "approval_structure_utxo_source_not_spent_description": {
+    "message": "消息指定 $1 为源，但此交易未花费该 UTXO。签名已被阻止。若交易签名后获确认，仍会支付比特币网络手续费。"
+  },
+  "approval_blocked": {
+    "message": "无法签名"
+  },
+  "approval_review": {
+    "message": "查看"
+  },
+  "common_connect": {
+    "message": "连接"
+  },
+  "provider_review_identity_changed": {
+    "message": "当前地址在发起此请求后发生了变化。请切回已授权的地址，或重新连接网站。"
+  },
+  "provider_review_connection_revoked": {
+    "message": "此网站已断开连接。请重新连接后再签名。"
+  },
+  "provider_review_paired_revoked": {
+    "message": "配对地址的访问权限已被撤销。请重新连接网站后再签名。"
+  },
+  "provider_review_wallet_locked": {
+    "message": "钱包已锁定"
+  },
+  "provider_review_invalid_id": {
+    "message": "签名请求 ID 无效"
+  },
+  "provider_review_missing_id": {
+    "message": "未提供签名请求 ID"
+  },
+  "provider_review_wrong_screen": {
+    "message": "此请求需要在其他授权页面查看"
+  },
+  "provider_review_load_failed": {
+    "message": "无法加载签名请求"
+  },
+  "provider_review_nothing_to_verify": {
+    "message": "没有可验证的签名请求"
+  },
+  "provider_review_not_reviewed": {
+    "message": "没有已核查的签名请求"
+  },
+  "provider_review_verifying": {
+    "message": "正在验证。请等待验证完成后再签名。"
+  },
+  "provider_review_retry_required": {
+    "message": "请重新验证，成功后再签名。"
+  },
+  "provider_review_cancelled": {
+    "message": "签名请求已取消"
+  },
+  "provider_review_unavailable": {
+    "message": "签名请求不存在，或已不再处于待处理状态"
+  },
+  "provider_review_missing_sighash": {
+    "message": "请求签名的输入缺少 sighash 项"
+  },
+  "provider_review_invalid_message": {
+    "message": "消息签名请求无效，或使用了钱包保留格式"
+  },
+  "provider_review_expired_during_review": {
+    "message": "签名请求在核查期间已过期"
+  },
+  "provider_review_invalid_decision": {
+    "message": "签名授权信息无效"
+  },
+  "provider_review_verification_failed": {
+    "message": "此请求未通过交易验证"
+  },
+  "provider_review_review_changed": {
+    "message": "交易核查内容已变化。请重新加载此授权页面并再次查看。"
+  },
+  "provider_review_acknowledge_risks": {
+    "message": "请先查看并确认交易风险，再签名"
+  },
+  "provider_review_missing_attachment": {
+    "message": "缺少附着的父交易"
+  },
+  "provider_review_interrupted": {
+    "message": "签名请求已取消或已过期"
+  },
+  "provider_review_expired_completion": {
+    "message": "签名请求在完成前已过期"
+  },
+  "provider_review_expired_delivery": {
+    "message": "签名请求在返回结果前已过期"
+  },
+  "composer_verification_fee_inputs_unavailable": {
+    "message": "无法获取此交易所花费输入的金额，因此无法核实手续费。请检查连接后重试。"
+  },
+  "composer_verification_fee_inputs_unreadable": {
+    "message": "无法读取此交易的输入，因而无法核实手续费。交易已被拒绝。"
+  },
+  "composer_verification_fee_outputs_exceed_inputs": {
+    "message": "交易输出总额超过输入总额，已拒绝签名。"
+  },
+  "composer_verification_fee_out_of_range": {
+    "message": "交易手续费超出可处理范围，已拒绝签名。"
+  },
+  "composer_verification_fee_abnormally_high": {
+    "message": "交易手续费（$1 sats，约 $2 sat/vB）异常偏高，交易已被拦截。"
+  },
+  "composer_verification_fee_exceeds_selected_rate": {
+    "message": "交易手续费（$1 sats）远超按你所选费率 $2 sat/vB 计算的金额。"
+  },
+  "composer_verification_output_recovery_key_mismatch": {
+    "message": "构建的交易在数据输出中嵌入了不属于你的回收公钥，其他人将能够花费其中的小额 BTC（尘埃）。"
+  },
+  "composer_verification_output_recipient_missing": {
+    "message": "此交易的数据输出之前没有向 $1 付款的输出，因此网络不会将该地址识别为接收方。交易已被拒绝。"
+  },
+  "composer_verification_output_recipient_single": {
+    "message": "此交易数据之前的输出（$1）未将 $2 指定为接收方。交易已被拒绝。"
+  },
+  "composer_verification_output_recipient_multiple": {
+    "message": "此交易数据之前的多个输出（$1）会被解读为拼接后的接收方，而不是 $2。交易已被拒绝。"
+  },
+  "composer_verification_output_unexplained_one": {
+    "message": "此交易包含你的请求无法解释的输出（$1），因此已被拒绝。"
+  },
+  "composer_verification_output_unexplained_many": {
+    "message": "此交易包含你的请求无法解释的多个输出（$1），因此已被拒绝。"
+  },
+  "composer_verification_output_payment": {
+    "message": "向 $2 支付 $1 sats"
+  },
+  "composer_verification_output_unknown_script": {
+    "message": "无法解码的脚本"
+  },
+  "composer_verification_output_unknown_address": {
+    "message": "无法解码的地址"
+  },
+  "approval_sign": {
+    "message": "签名"
+  },
+  "tx_action_send": {
+    "message": "转账"
+  },
+  "tx_action_multi_send": {
+    "message": "批量转账"
+  },
+  "tx_action_btc_pay": {
+    "message": "BTC支付"
+  },
+  "tx_action_order": {
+    "message": "订单"
+  },
+  "tx_action_cancel": {
+    "message": "取消"
+  },
+  "tx_action_dispenser": {
+    "message": "分发器"
+  },
+  "tx_action_dispense": {
+    "message": "发放"
+  },
+  "tx_action_issuance": {
+    "message": "发行"
+  },
+  "tx_action_subasset_issuance": {
+    "message": "子资产发行"
+  },
+  "tx_action_dividend": {
+    "message": "分红"
+  },
+  "tx_action_sweep": {
+    "message": "归集"
+  },
+  "tx_action_broadcast": {
+    "message": "广播"
+  },
+  "tx_action_pool_deposit": {
+    "message": "添加流动性"
+  },
+  "tx_action_pool_withdrawal": {
+    "message": "移除流动性"
+  },
+  "tx_action_utxo_move": {
+    "message": "UTXO转移"
+  },
+  "tx_action_attach": {
+    "message": "附加到UTXO"
+  },
+  "tx_action_detach": {
+    "message": "从UTXO分离"
+  },
+  "tx_action_destroy": {
+    "message": "销毁"
+  },
+  "tx_action_mint": {
+    "message": "铸造"
+  },
+  "tx_action_create_fairminter": {
+    "message": "创建公平铸造"
+  },
+  "tx_action_close_dispenser": {
+    "message": "关闭分发器"
+  },
+  "tx_action_fund_dispenser": {
+    "message": "向分发器存入资产"
+  },
+  "tx_action_send_amount": {
+    "message": "转出$1 $2"
+  },
+  "tx_action_send_amount_to": {
+    "message": "向$3转账$1 $2"
+  },
+  "tx_action_send_one_recipient": {
+    "message": "转账明细：$1项"
+  },
+  "tx_action_send_recipients": {
+    "message": "转账明细：$1项"
+  },
+  "tx_action_give_for": {
+    "message": "以$1 $2换取$3 $4"
+  },
+  "tx_action_cancel_order_details": {
+    "message": "取消订单：$1"
+  },
+  "tx_action_cancel_dex_order": {
+    "message": "取消DEX订单"
+  },
+  "tx_action_sell_for": {
+    "message": "卖出$1 $2，换取$3 $4"
+  },
+  "tx_action_close_asset_dispenser": {
+    "message": "关闭$1分发器"
+  },
+  "tx_action_dispense_rate": {
+    "message": "每$3 sats发放$1 $2"
+  },
+  "tx_action_trigger_dispenser": {
+    "message": "触发分发器发放"
+  },
+  "tx_action_issue_amount": {
+    "message": "发行$1"
+  },
+  "tx_action_no_new_supply": {
+    "message": "不增发"
+  },
+  "tx_action_per_unit": {
+    "message": "每单位$1 $2"
+  },
+  "tx_action_all_holders": {
+    "message": "所有$1持有者"
+  },
+  "tx_action_settle_btc": {
+    "message": "支付BTC以结算已匹配订单"
+  },
+  "tx_action_sweep_to": {
+    "message": "归集到$1"
+  },
+  "tx_action_empty_message": {
+    "message": "空消息"
+  },
+  "tx_action_destroy_lp": {
+    "message": "销毁$1 LP代币"
+  },
+  "tx_action_withdraw_liquidity": {
+    "message": "移除流动性"
+  },
+  "tx_action_deposit_liquidity": {
+    "message": "添加流动性"
+  },
+  "tx_action_attach_amount": {
+    "message": "将$1 $2附加到UTXO"
+  },
+  "tx_action_detach_all": {
+    "message": "从UTXO分离所有资产"
+  },
+  "tx_action_detach_all_to": {
+    "message": "从UTXO分离所有资产并转移到$1"
+  },
+  "tx_action_move_amount": {
+    "message": "转移$1 $2"
+  },
+  "tx_action_move_amount_to": {
+    "message": "将$1 $2转移到$3"
+  },
+  "tx_action_destroy_amount": {
+    "message": "销毁$1 $2"
+  },
+  "tx_action_base_units": {
+    "message": "$1（最小单位）"
+  },
+  "tx_action_memo": {
+    "message": "备注"
+  },
+  "tx_action_tag": {
+    "message": "标签"
+  },
+  "tx_action_hex_label": {
+    "message": "$1（十六进制）"
+  },
+  "tx_action_price": {
+    "message": "价格"
+  },
+  "tx_action_btc_fee": {
+    "message": "BTC费用"
+  },
+  "tx_action_expiry": {
+    "message": "有效期"
+  },
+  "tx_action_blocks": {
+    "message": "$1个区块"
+  },
+  "tx_action_block": {
+    "message": "$1个区块"
+  },
+  "tx_action_escrow": {
+    "message": "托管数量"
+  },
+  "tx_action_per_dispense": {
+    "message": "每次发放的付款额"
+  },
+  "tx_action_dispenses": {
+    "message": "发放次数"
+  },
+  "tx_action_you_receive": {
+    "message": "你将收到"
+  },
+  "tx_action_xcp_price_per_lot": {
+    "message": "每份XCP价格"
+  },
+  "tx_action_lot_size": {
+    "message": "每份数量"
+  },
+  "tx_action_no_limit": {
+    "message": "不限"
+  },
+  "tx_action_per_transaction_limit": {
+    "message": "每笔交易上限"
+  },
+  "tx_action_per_address_limit": {
+    "message": "每个地址上限"
+  },
+  "tx_action_hard_cap": {
+    "message": "发行上限"
+  },
+  "tx_action_soft_cap": {
+    "message": "成立所需的最低数量"
+  },
+  "tx_action_soft_cap_deadline": {
+    "message": "最低数量达标期限"
+  },
+  "tx_action_block_height": {
+    "message": "区块$1"
+  },
+  "tx_action_premint": {
+    "message": "预铸数量"
+  },
+  "tx_action_pool_allocation": {
+    "message": "分配给池的数量"
+  },
+  "tx_action_lp_asset": {
+    "message": "LP资产"
+  },
+  "tx_action_xcp_payment": {
+    "message": "XCP支付去向"
+  },
+  "tx_action_free_mint": {
+    "message": "无（免费铸造）"
+  },
+  "tx_action_burned": {
+    "message": "销毁"
+  },
+  "tx_action_seeds_pool": {
+    "message": "作为流动性池初始资金"
+  },
+  "tx_action_paid_to_issuer": {
+    "message": "支付给发行者"
+  },
+  "tx_action_starts": {
+    "message": "开始"
+  },
+  "tx_action_ends": {
+    "message": "结束"
+  },
+  "tx_action_on_confirmation": {
+    "message": "交易确认时"
+  },
+  "tx_action_no_end_block": {
+    "message": "无结束区块"
+  },
+  "tx_action_minted_asset_commission": {
+    "message": "铸造资产佣金比例"
+  },
+  "tx_action_divisible": {
+    "message": "可分割"
+  },
+  "tx_action_yes": {
+    "message": "是"
+  },
+  "tx_action_no": {
+    "message": "否"
+  },
+  "tx_action_lock_description": {
+    "message": "锁定描述"
+  },
+  "tx_action_lock_quantity": {
+    "message": "锁定发行数量"
+  },
+  "tx_action_description_format": {
+    "message": "描述格式"
+  },
+  "tx_action_description_content": {
+    "message": "描述内容"
+  },
+  "tx_action_description": {
+    "message": "描述"
+  },
+  "tx_action_xcp_burned": {
+    "message": "销毁的XCP"
+  },
+  "tx_action_xcp_to_pool": {
+    "message": "进入池的XCP"
+  },
+  "tx_action_xcp_price": {
+    "message": "XCP价格"
+  },
+  "tx_action_lock": {
+    "message": "锁定"
+  },
+  "tx_action_reset": {
+    "message": "重置"
+  },
+  "tx_action_lock_consequence": {
+    "message": "是 — 此后将永远无法增发"
+  },
+  "tx_action_reset_consequence": {
+    "message": "是 — 销毁并替换现有供应量"
+  },
+  "tx_action_new_owner": {
+    "message": "新所有者"
+  },
+  "tx_action_supply_before": {
+    "message": "销毁前供应量"
+  },
+  "tx_action_supply_after": {
+    "message": "销毁后供应量"
+  },
+  "tx_action_share_destroyed": {
+    "message": "销毁比例"
+  },
+  "tx_action_includes": {
+    "message": "转移内容"
+  },
+  "tx_action_sweep_balances_ownership": {
+    "message": "全部余额和资产所有权"
+  },
+  "tx_action_sweep_ownership": {
+    "message": "仅资产所有权"
+  },
+  "tx_action_sweep_balances": {
+    "message": "全部余额"
+  },
+  "tx_action_format": {
+    "message": "格式"
+  },
+  "tx_action_plain_text": {
+    "message": "纯文本"
+  },
+  "tx_action_content": {
+    "message": "内容"
+  },
+  "tx_action_inscribed_data": {
+    "message": "铭刻数据 — 此广播包含数据，而非消息"
+  },
+  "tx_action_value": {
+    "message": "数值"
+  },
+  "tx_action_fee_fraction": {
+    "message": "费率"
+  },
+  "tx_action_time_left": {
+    "message": "剩余时间"
+  },
+  "tx_action_payment_expired": {
+    "message": "已过期 — 此付款无法结算该匹配订单"
+  },
+  "tx_action_order_match": {
+    "message": "订单匹配ID"
+  },
+  "tx_action_order_hash": {
+    "message": "订单哈希"
+  },
+  "tx_action_deposit": {
+    "message": "存入数量"
+  },
+  "tx_action_ratio": {
+    "message": "比例"
+  },
+  "tx_action_pool": {
+    "message": "流动性池"
+  },
+  "tx_action_pool_fee": {
+    "message": "池手续费"
+  },
+  "tx_action_min_lp_received": {
+    "message": "最低LP接收数量"
+  },
+  "tx_action_min_asset_back": {
+    "message": "最低$1退回数量"
+  },
+  "tx_action_xcp_fee": {
+    "message": "XCP费用"
+  },
+  "tx_action_new_utxo": {
+    "message": "新UTXO"
+  },
+  "tx_action_detached": {
+    "message": "分离数量"
+  },
+  "tx_action_from_utxo": {
+    "message": "来源UTXO"
+  },
+  "tx_action_to": {
+    "message": "目标"
+  },
+  "tx_action_unavailable": {
+    "message": "无法获取"
+  },
+  "swap_quote_outcome_partial": {
+    "message": "当前订单簿的流动性不足以成交全部数量。请减少数量，或在 DEX 挂单等待成交。"
+  },
+  "swap_quote_outcome_dust": {
+    "message": "此数量换算后不足 $1 的最小单位，流动性池不会返回任何资产。请增加 $2 的数量。"
+  },
+  "swap_quote_outcome_no_liquidity": {
+    "message": "此交易对暂无可用流动性。"
+  }
+}

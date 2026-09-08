@@ -4,6 +4,7 @@
  * Tests for proper HeadlessUI component behavior in settings.
  */
 
+import { readFileSync } from 'node:fs';
 import { walletTest, expect, navigateTo, getCurrentAddress } from '../fixtures';
 import { settings, selectAddress } from '../selectors';
 
@@ -82,37 +83,42 @@ walletTest.describe('Settings with Headless UI Components', () => {
     expect(isSelected).toBe('true');
   });
 
-  walletTest('currency selection using Headless UI components', async ({ page }) => {
+  walletTest('currency selection persists independently of language and number format', async ({ page }) => {
+    const messages = Object.fromEntries(['en', 'ja'].map(locale => [locale,
+      JSON.parse(readFileSync(`public/_locales/${locale}/messages.json`, 'utf8')),
+    ]));
+    const control = (locale: 'en' | 'ja', preference: 'language' | 'numbers' | 'fiat') =>
+      page.getByRole('combobox', { name: messages[locale][`display_preferences_${preference}`].message, exact: true });
     await navigateTo(page, 'settings');
 
-    const generalOption = page.getByText('General');
+    await expect(control('en', 'fiat')).toBeVisible();
+    await control('en', 'language').selectOption('en');
+    await control('en', 'numbers').selectOption('de-DE');
+    await control('en', 'fiat').selectOption('eur');
+    await expect(control('en', 'fiat')).toHaveValue('eur');
 
-    // Navigate to General settings if visible
-    try {
-      await expect(generalOption).toBeVisible({ timeout: 2000 });
-      await generalOption.click();
-    } catch {
-      // May already be on general settings page
-    }
+    // A language change keeps the separately chosen currency and number format.
+    await control('en', 'language').selectOption('ja');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
+    await expect(control('ja', 'fiat')).toHaveValue('eur');
+    await expect(control('ja', 'numbers')).toHaveValue('de-DE');
 
-    const currencyOption = page.locator('text=/Currency|Fiat/i').first();
+    // Choose a currency through the translated accessible control, then reload the app.
+    await control('ja', 'fiat').selectOption('cny');
+    await expect(control('ja', 'fiat')).toHaveValue('cny');
+    await expect(control('ja', 'fiat')).toBeEnabled();
+    await expect(control('ja', 'language')).toHaveValue('ja');
+    await expect(control('ja', 'numbers')).toHaveValue('de-DE');
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
+    await expect(control('ja', 'language')).toHaveValue('ja');
+    await expect(control('ja', 'fiat')).toHaveValue('cny');
+    await expect(control('ja', 'numbers')).toHaveValue('de-DE');
 
-    // Skip if currency option not available
-    try {
-      await expect(currencyOption).toBeVisible({ timeout: 3000 });
-    } catch {
-      return; // Currency option not present
-    }
-
-    await currencyOption.click();
-
-    const currencyRadios = await page.locator('[role="radio"]').all();
-    expect(currencyRadios.length).toBeGreaterThan(1);
-
-    await currencyRadios[1].click();
-
-    const isSelected = await currencyRadios[1].getAttribute('aria-checked');
-    expect(isSelected).toBe('true');
+    await control('ja', 'language').selectOption('en');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(control('en', 'fiat')).toHaveValue('cny');
+    await expect(control('en', 'numbers')).toHaveValue('de-DE');
   });
 
   walletTest('headless UI dropdown menus in settings', async ({ page }) => {

@@ -1,6 +1,8 @@
 import type { ReactElement } from "react";
 import { DispenserCard, type DispenserOption } from "@/components/domain/dispenser/dispenser-card";
 
+import { t } from '@/i18n';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -36,7 +38,7 @@ export function DispenserList({
   if (isLoading) {
     return (
       <div className="text-gray-500">
-        Fetching dispenser details…
+        {t('lists_dispenser_list_fetching_dispenser_details')}
       </div>
     );
   }

@@ -3,6 +3,7 @@ import type { Transaction } from "@/core/counterparty/api";
 import { formatAddress, formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for MPMA (Multi-Peer Multi-Asset) transactions
  */
@@ -41,9 +42,11 @@ export function mpma(tx: Transaction): Array<{ label: string; value: string | Re
   const totalDestinations = new Set(assetDestQuantList.map((item: any[]) => item[1])).size;
   const totalAssets = Object.keys(assetGroups).length;
   
+  const assetsText = totalAssets === 1 ? '1 asset' : `${totalAssets} assets`;
+  const addressesText = totalDestinations === 1 ? '1 address' : `${totalDestinations} addresses`;
   fields.push({
-    label: "Type",
-    value: `Multi-Send (${totalAssets} asset${totalAssets > 1 ? 's' : ''} to ${totalDestinations} address${totalDestinations > 1 ? 'es' : ''})`,
+    label: t('common_type'),
+    value: t('messages_mpma_multi_send_to', [String(assetsText), String(addressesText)]),
   });
   
   // Process each asset group
@@ -52,7 +55,7 @@ export function mpma(tx: Transaction): Array<{ label: string; value: string | Re
     const displayTotal = data.isDivisible ? fromSatoshis(data.totalQuantity, true) : data.totalQuantity;
     
     fields.push({
-      label: `${asset} Recipients (${data.destinations.length})`,
+      label: t('messages_mpma_recipients', [String(asset), String(data.destinations.length)]),
       value: (
         <div className="space-y-1 max-h-32 overflow-y-auto">
           {data.destinations.map((dest, idx) => (
@@ -65,7 +68,7 @@ export function mpma(tx: Transaction): Array<{ label: string; value: string | Re
     });
     
     fields.push({
-      label: `${asset} per Address`,
+      label: t('messages_mpma_per_address', [String(asset)]),
       value: formatAmount({
         value: displayQuantity,
         minimumFractionDigits: data.isDivisible ? 8 : 0,
@@ -74,7 +77,7 @@ export function mpma(tx: Transaction): Array<{ label: string; value: string | Re
     });
     
     fields.push({
-      label: `Total ${asset} Sent`,
+      label: t('messages_mpma_total_sent', [String(asset)]),
       value: formatAmount({
         value: displayTotal,
         minimumFractionDigits: data.isDivisible ? 8 : 0,
@@ -86,7 +89,7 @@ export function mpma(tx: Transaction): Array<{ label: string; value: string | Re
   // Add memos if present
   if (params.memos && params.memos.length > 0) {
     fields.push({
-      label: "Memo",
+      label: t('common_memo'),
       value: (
         <div className="break-all">
           {params.memos[0]}

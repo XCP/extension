@@ -9,6 +9,8 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { isSegwitFormat } from '@/core/bitcoin/address';
 
+import { t } from '@/i18n';
+
 /**
  * Constants for navigation paths.
  */
@@ -24,73 +26,73 @@ const getActionSections = (
 ): ActionSection[] => {
   const sections: ActionSection[] = [
     {
-      title: "Tools",
+      title: t('actions_tools'),
       items: [
         {
           id: "sign-message",
-          title: "Sign Message",
-          description: "Sign a message with your address",
+          title: t('common_sign_message'),
+          description: t('actions_sign_a_message_with_your'),
           onClick: () => navigate("/actions/sign-message"),
         },
         {
           id: "verify-message",
-          title: "Verify Message", 
-          description: "Verify a signed message",
+          title: t('common_verify_message'), 
+          description: t('actions_verify_a_signed_message'),
           onClick: () => navigate("/actions/verify-message"),
         },
         // Bare multisig recovery only exists for legacy P2PKH-based addresses
         ...(!isSegwitWallet ? [{
           id: "consolidate",
-          title: "Recover Bitcoin",
-          description: "Find and consolidate bare multisig UTXOs",
+          title: t('actions_recover_bitcoin'),
+          description: t('actions_find_and_consolidate_bare_multisig'),
           onClick: () => navigate("/actions/consolidate"),
           showNotification: showRecoverBitcoinNotification,
           className: showRecoverBitcoinNotification ? "!border !border-orange-500" : "",
         }] : []),
         ...(enableMPMA ? [{
           id: "upload-mpma",
-          title: "Upload MPMA",
-          description: "Multi-Party Multi-Asset transaction",
+          title: t('actions_upload_mpma'),
+          description: t('actions_multi_party_multi_asset_transaction'),
           onClick: () => navigate("/compose/send/mpma"),
         }] : []),
       ],
     },
     {
-      title: "Assets",
+      title: t('common_assets'),
       items: [
         {
           id: "issue-asset",
-          title: "Issue Asset",
-          description: "Create a new asset",
+          title: t('common_issue_asset'),
+          description: t('actions_create_a_new_asset'),
           onClick: () => navigate("/compose/issuance"),
         },
         {
           id: "mint-supply",
-          title: "Start Mint",
-          description: "Create a fairminter", 
+          title: t('common_start_mint'),
+          description: t('actions_create_a_fairminter'), 
           onClick: () => navigate("/compose/fairminter"),
         },
       ],
     },
     {
-      title: "Address",
+      title: t('actions_address'),
       items: [
         {
           id: "compose-broadcast",
-          title: isSegwitWallet ? "Broadcast" : "Broadcast Text",
-          description: isSegwitWallet ? "Broadcast message or inscription" : "Broadcast message from address",
+          title: isSegwitWallet ? "Broadcast" : t('actions_broadcast_text'),
+          description: isSegwitWallet ? t('actions_broadcast_message_or_inscription') : t('actions_broadcast_message_from_address'),
           onClick: () => navigate("/compose/broadcast"),
         },
         {
           id: "compose-sweep",
-          title: "Sweep Address",
-          description: "Transfer every asset and balance",
+          title: t('common_sweep_address'),
+          description: t('actions_transfer_every_asset_and_balance'),
           onClick: () => navigate("/compose/sweep"),
         },
         {
           id: "compose-broadcast-address-options",
-          title: "Update Options", 
-          description: "Set address options like requiring memos",
+          title: t('actions_update_options'), 
+          description: t('actions_set_address_options_like_requiring'),
           onClick: () => navigate("/compose/broadcast/address-options"),
         },
       ],
@@ -100,26 +102,26 @@ const getActionSections = (
       items: [
         {
           id: "cancel-order",
-          title: "Cancel Order",
-          description: "Cancel an existing order",
+          title: t('actions_cancel_order'),
+          description: t('actions_cancel_an_existing_order'),
           onClick: () => navigate("/compose/order/cancel"),
         },
         {
           id: "create-dispenser",
-          title: "Create Dispenser",
-          description: "Sell an asset at a fixed BTC price",
+          title: t('actions_create_dispenser'),
+          description: t('actions_sell_an_asset_at_a'),
           onClick: () => navigate("/compose/dispenser"),
         },
         {
           id: "close-dispenser",
-          title: "Close Dispenser", 
-          description: "Close an existing dispenser",
+          title: t('actions_close_dispenser'), 
+          description: t('actions_close_an_existing_dispenser'),
           onClick: () => navigate("/compose/dispenser/close"),
         },
         {
           id: "close-dispenser-by-hash",
-          title: "Close Dispenser by Hash",
-          description: "Close a dispenser using its transaction hash",
+          title: t('actions_close_dispenser_by_hash'),
+          description: t('actions_close_a_dispenser_using_its'),
           onClick: () => navigate("/compose/dispenser/close-by-hash"),
         },
       ],
@@ -163,7 +165,7 @@ export default function ActionsPage(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Actions",
+      title: t('common_actions'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
@@ -171,7 +173,7 @@ export default function ActionsPage(): ReactElement {
           await lockKeychain();
           navigate("/keychain/unlock");
         },
-        ariaLabel: "Lock Keychain",
+        ariaLabel: t('common_lock_keychain'),
       },
     });
   }, [setHeaderProps, navigate, lockKeychain]);
@@ -179,7 +181,7 @@ export default function ActionsPage(): ReactElement {
   return (
     <section className="flex flex-col h-full" aria-labelledby="actions-title">
       <h2 id="actions-title" className="sr-only">
-        Wallet Actions
+        {t('actions_wallet_actions')}
       </h2>
       <div className="flex-1 overflow-auto no-scrollbar p-4">
         <ActionList sections={actionSections} />

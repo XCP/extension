@@ -14,6 +14,8 @@ import { formatAmount } from "@/core/format";
 import { divide, fromSatoshis, isGreaterThan, isLessThanOrEqualToZero, multiply, roundDown, roundUp, subtract, toNumber } from "@/core/numeric";
 import { validAmountDraft } from "@/core/validation/transaction-amount";
 
+import { t } from '@/i18n';
+
 // ============================================================================
 // Types & Interfaces
 // ============================================================================
@@ -128,7 +130,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
           utxoCount: 0,
           excludedWithAssets: 0,
           isLoading: false,
-          error: err instanceof Error ? err.message : "Failed to fetch balance",
+          error: err instanceof Error ? err.message : t('dispense_form_failed_to_fetch_balance'),
         });
       }
     };
@@ -263,7 +265,7 @@ export function DispenseForm({
         selectedDispenser.dispenser
       );
       if (remainingDispenses === 0) {
-        setValidationError("This dispenser is empty and cannot be triggered.");
+        setValidationError(t('dispense_form_this_dispenser_is_empty_and'));
       }
     }
     previousIndexRef.current = selectedDispenserIndex;
@@ -272,12 +274,12 @@ export function DispenseForm({
   // Handle max button click
   const handleMaxClick = useCallback(() => {
     if (!selectedDispenser) {
-      setValidationError("Please select a dispenser first");
+      setValidationError(t('dispense_form_please_select_a_dispenser_first'));
       return;
     }
 
     if (spendableBtc.isLoading) {
-      setValidationError("Loading balance...");
+      setValidationError(t('dispense_form_loading_balance'));
       return;
     }
 
@@ -287,7 +289,7 @@ export function DispenseForm({
     }
 
     if (feeRate === null) {
-      setValidationError("Fee rates are still loading. Please wait.");
+      setValidationError(t('common_fee_rates_are_still_loading'));
       return;
     }
 
@@ -297,12 +299,12 @@ export function DispenseForm({
       );
 
       if (remainingDispenses === 0) {
-        setValidationError("This dispenser is empty and cannot be triggered.");
+        setValidationError(t('dispense_form_this_dispenser_is_empty_and'));
       } else if (spendableBtc.utxoCount === 0) {
         // No spendable UTXOs
         const message = spendableBtc.excludedWithAssets > 0
-          ? `No spendable balance. ${spendableBtc.excludedWithAssets} UTXOs have attached assets.`
-          : "No available balance.";
+          ? t('common_no_spendable_balance_utxos_have', [String(spendableBtc.excludedWithAssets)])
+          : t('common_no_available_balance');
         setValidationError(message);
       } else {
         // Calculate fee for error message
@@ -310,11 +312,11 @@ export function DispenseForm({
         const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, feeRate)));
         const requiredSatoshis = selectedDispenser.satoshirate + estimatedFee;
         const requiredBTC = requiredSatoshis / SATOSHIS_PER_BTC;
-        setValidationError(`Insufficient BTC balance. You need at least ${formatAmount({
+        setValidationError(t('dispense_form_insufficient_btc_balance_you_need', [String(formatAmount({
             value: requiredBTC,
             minimumFractionDigits: 8,
             maximumFractionDigits: 8
-          })} BTC (including ~${estimatedFee} sats fee) to trigger this dispenser once.`);
+          })), String(estimatedFee)]));
       }
       return;
     }
@@ -388,9 +390,9 @@ export function DispenseForm({
                 showHelpText={showHelpText}
                 sourceAddress={activeAddress}
                 maxAmount={maxDispenses.toString()}
-                label="Times to Dispense"
+                label={t('dispense_form_times_to_dispense')}
                 name="numberOfDispenses"
-                description="Number of times to trigger the dispenser"
+                description={t('dispense_form_number_of_times_to_trigger')}
                 disabled={pending || spendableBtc.isLoading}
                 onMaxClick={handleMaxClick}
                 disableMaxButton={spendableBtc.isLoading}

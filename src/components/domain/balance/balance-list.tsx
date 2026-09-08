@@ -19,6 +19,8 @@ import { useSearchQuery } from "@/hooks/useSearchQuery";
 
 
 
+import { t } from '@/i18n';
+
 interface BalanceListProps {
   /**
    * Changes to ask for a fresh load. A counter rather than a boolean so two presses are two
@@ -138,7 +140,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           quantity_normalized: asDisplayUnits(fromSatoshis(balanceSats)),
           asset_info: {
             asset_longname: null,
-            description: "Bitcoin",
+            description: t('balance_balance_list_bitcoin'),
             issuer: "",
             divisible: true,
             locked: true,
@@ -261,14 +263,14 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           && isGreaterThan(shown.quantity_normalized, 0);
       });
 
-  if (isInitialLoading) return <Spinner message="Loading balances…" />;
+  if (isInitialLoading) return <Spinner message={t('balance_balance_list_loading_balances')} />;
 
   return (
     <div className="space-y-2">
       <SearchInput
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Search balances…"
+        placeholder={t('balance_balance_list_search_balances')}
         name="balance-search"
         className="mt-0.5 mb-3"
         showClearButton={true}
@@ -276,9 +278,9 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
       />
       {searchQuery ? (
         isSearching ? (
-          <Spinner message="Searching balances…" />
+          <Spinner message={t('balance_balance_list_searching_balances')} />
         ) : searchResults.length === 0 ? (
-          <div className="text-center py-4 text-gray-500">No results found</div>
+          <div className="text-center py-4 text-gray-500">{t('common_no_results_found')}</div>
         ) : (
           searchResults.map((asset) => <SearchResultCard key={asset.symbol} symbol={asset.symbol} navigationType="balance" />)
         )
@@ -295,7 +297,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
               isFetchingMore ? (
                 <Spinner className="py-4" />
               ) : (
-                <div className="text-sm text-gray-500">Scroll to load more…</div>
+                <div className="text-sm text-gray-500">{t('common_scroll_to_load_more')}</div>
               )
             ) : null}
           </div>

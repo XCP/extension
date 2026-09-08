@@ -9,6 +9,7 @@ import { API_TIMEOUTS, apiClient } from '@/core/api/client';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchAssetDetails } from '@/core/counterparty/api';
 import { type DescribableMessage, describeMessage } from '@/core/counterparty/describe';
+import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 
@@ -282,8 +283,9 @@ function fromApiDecode(messageData: Record<string, unknown>): DescribableMessage
 
     const divisible = infoFor(field)?.divisible;
     if (divisible === true) return fromSatoshis(String(quantity));
-    if (divisible === false) return BigInt(String(quantity)).toLocaleString();
-    return `${BigInt(String(quantity)).toLocaleString()} (base units)`;
+    const whole = formatAmount({ value: BigInt(String(quantity)).toString(), maximumFractionDigits: 0 });
+    if (divisible === false) return whole;
+    return `${whole} (base units)`;
   };
 
   /**
@@ -490,7 +492,7 @@ export async function resolveMpmaRecipients(
         divisible === true
           ? fromSatoshis(send.quantity.toString())
           : divisible === false
-            ? send.quantity.toLocaleString()
+            ? formatAmount({ value: send.quantity.toString(), maximumFractionDigits: 0 })
             : `${send.quantity.toString()} (base units)`,
     };
   });

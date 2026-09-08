@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { DispenseOptions } from "@/core/counterparty/compose";
 import { composeDispense } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { DispenseForm } from "@/pages/compose/dispenser/dispense/form";
 import { ReviewDispense } from "@/pages/compose/dispenser/dispense/review";
 
@@ -30,7 +31,7 @@ function ComposeDispensePage() {
       <Composer<DispenseOptions>
         composeType="dispense"
         composeApiMethod={composeDispense}
-        initialTitle="Dispense"
+        initialTitle={t('common_dispense')}
         initialFormData={initialFormData as DispenseOptions | undefined}
         FormComponent={DispenseForm}
         ReviewComponent={ReviewDispense}

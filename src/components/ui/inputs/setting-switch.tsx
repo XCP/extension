@@ -3,6 +3,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FiInfo } from "@/components/icons";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the SettingSwitch component
  */
@@ -47,7 +49,7 @@ export function SettingSwitch({
                 onMouseLeave={() => setShowTooltip(false)}
                 onFocus={() => setShowTooltip(true)}
                 onBlur={() => setShowTooltip(false)}
-                aria-label={`Info: ${description}`}
+                aria-label={t('inputs_setting_switch_info', [String(description)])}
               >
                 <FiInfo className="size-3.5" aria-hidden="true" />
               </button>

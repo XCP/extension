@@ -2,21 +2,22 @@ import { RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { FiHelpCircle } from "@/components/icons";
+import { localizedAddressFormatLabel } from '@/components/domain/address/address-format-label';
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, getAddressFormatLabel, isCounterwalletFormat, isFreewalletBIP39Format } from '@/core/bitcoin/address';
+import { AddressFormat, isCounterwalletFormat, isFreewalletBIP39Format } from '@/core/bitcoin/address';
 import { formatAddress } from "@/core/format";
+
+import { t } from '@/i18n';
 
 /**
  * Constants for navigation paths and address type options.
  */
 const PATHS = {
   BACK: "/settings",
-  HELP_URL: "https://youtube.com", // Placeholder for now
 } as const;
 const AVAILABLE_ADDRESS_TYPES = Object.values(AddressFormat);
 
@@ -47,7 +48,7 @@ export default function AddressTypesPage(): ReactElement {
   const hasChangedType = useRef(false);
   const isChanging = useRef(false);
 
-  // Configure header with dynamic back navigation and help button
+  // Configure header with dynamic back navigation.
   useEffect(() => {
     const handleBack = () => {
       // Return to the page that linked here (e.g. the address list)
@@ -63,13 +64,9 @@ export default function AddressTypesPage(): ReactElement {
     };
 
     setHeaderProps({
-      title: "Address Type",
+      title: t('common_address_type'),
       onBack: handleBack,
-      rightButton: {
-        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
-        onClick: () => window.open(PATHS.HELP_URL, "_blank"),
-        ariaLabel: "Help",
-      },
+      rightButton: undefined,
     });
   }, [setHeaderProps, navigate, returnTo]);
 
@@ -136,7 +133,7 @@ export default function AddressTypesPage(): ReactElement {
       setError(null);
     } catch (err) {
       console.error("Error updating address type:", err);
-      setError(err instanceof Error ? err.message : "Failed to update address type");
+      setError(err instanceof Error ? err.message : t('settings_address_types_failed_to_update_address_type'));
       // Revert selection on error
       setSelectedFormat(activeWallet.addressFormat);
       hasChangedType.current = activeWallet.addressFormat !== originalAddressFormat.current;
@@ -154,7 +151,7 @@ export default function AddressTypesPage(): ReactElement {
   }
 
   if (!activeWallet) {
-    return <div className="p-4 text-center text-gray-500">No wallet available</div>;
+    return <div className="p-4 text-center text-gray-500">{t('settings_address_types_no_wallet_available')}</div>;
   }
 
   // Hardware wallets cannot change address type - they need to be reconnected with a different format
@@ -163,14 +160,13 @@ export default function AddressTypesPage(): ReactElement {
   return (
     <section className="space-y-2 p-4" aria-labelledby="address-type-settings-title">
       <h2 id="address-type-settings-title" className="sr-only">
-        Address Type Settings
+        {t('settings_address_types_address_type_settings')}
       </h2>
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
       {isHardwareWallet && (
         <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 mb-4">
           <p className="text-sm text-blue-200">
-            <strong>Hardware Wallet</strong>: Address type is set when you connect your device.
-            To use a different address format, go to Add Wallet and connect your Trezor again with the desired format.
+            <strong>{t('settings_address_types_hardware_wallet')}</strong>{t('settings_address_types_address_type_is_set_when')}
           </p>
         </div>
       )}
@@ -201,7 +197,7 @@ export default function AddressTypesPage(): ReactElement {
 
             return true;
           }).map((type) => {
-            const typeLabel = getAddressFormatLabel(type);
+            const typeLabel = localizedAddressFormatLabel(type);
             // Use loaded address preview
             const address = addresses[type] || "";
             const addressPreview = address ? formatAddress(address) : "";

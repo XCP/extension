@@ -9,6 +9,8 @@ import {
 } from "@/core/counterparty/fairminterModel";
 import { isGreaterThan } from "@/core/numeric";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewFairmint component.
  */
@@ -63,7 +65,7 @@ export function ReviewFairmint({
   }, [asset]);
 
   const customFields: Array<{ label: string; value: string }> = [
-    { label: "Asset", value: asset },
+    { label: t('common_asset'), value: asset },
   ];
 
   if (fairminter) {
@@ -74,33 +76,33 @@ export function ReviewFairmint({
       const cost = getFairmintCost(fairminter, quantityDisplay);
       customFields.push({
         // Core escrows the assets until the soft cap is met, so they do not arrive on confirmation.
-        label: escrowed ? "You Receive (after soft cap)" : "You Receive",
+        label: escrowed ? t('fairmint_review_you_receive_after_soft_cap') : t('common_you_receive'),
         value: `${quantityDisplay} ${asset}`,
       });
       // Absent when the lot size is unknown: see getFairmintCost.
       if (cost !== null) {
-        customFields.push({ label: "You Pay", value: `${cost} XCP` });
+        customFields.push({ label: t('fairmint_review_you_pay'), value: `${cost} XCP` });
       }
     } else {
       // A free mint's quantity is set by the fairminter, so the composed quantity is 0 and
       // reporting it as what you receive would read as receiving nothing.
-      customFields.push({ label: "You Pay", value: "Bitcoin network fee only" });
+      customFields.push({ label: t('fairmint_review_you_pay'), value: t('common_bitcoin_network_fee_only') });
     }
 
-    customFields.push({ label: "Payment", value: describeFairminterPaymentModel(model) });
+    customFields.push({ label: t('common_payment'), value: describeFairminterPaymentModel(model) });
 
     if (model === "issuer" && fairminter.source) {
-      customFields.push({ label: "Paid To", value: fairminter.source });
+      customFields.push({ label: t('fairmint_review_paid_to'), value: fairminter.source });
     }
     if (escrowed) {
       customFields.push({
-        label: "⚠️ Soft Cap",
-        value: "Payment and tokens are held in escrow until the cap is reached, refunded if it is missed.",
+        label: t('fairmint_review_soft_cap'),
+        value: t('fairmint_review_payment_and_tokens_are_held'),
       });
     }
   } else {
     // Pre-fetch, or after a failed lookup: say what was composed without claiming a price.
-    customFields.push({ label: "Quantity", value: quantityDisplay });
+    customFields.push({ label: t('common_quantity'), value: quantityDisplay });
   }
 
   return (
