@@ -168,6 +168,33 @@ describe('DispenseForm', () => {
     });
   });
 
+  it('hides oracle dispensers and selects the fixed-rate option', async () => {
+    mockFetchAddressDispensers.mockResolvedValue({
+      result: [
+        createMockDispenser({ asset: 'XCP', oracle_address: 'feed', satoshirate: asBaseUnits(888) }),
+        createMockDispenser({ tx_hash: 'fixed', oracle_address: null }),
+      ],
+      result_count: 2,
+    });
+    renderWithProvider();
+    await userEvent.type(screen.getByLabelText(/Dispenser Address/i), '1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
+    await waitFor(() => expect(screen.getByText('PEPECASH')).toBeInTheDocument());
+    expect(screen.queryByText('XCP')).not.toBeInTheDocument();
+    expect(document.querySelector('input[name="satoshirate"]')).toHaveValue('5000');
+  });
+
+  it('offers no purchase when the address only has oracle dispensers', async () => {
+    mockFetchAddressDispensers.mockResolvedValue({
+      result: [createMockDispenser({ asset: 'XCP', oracle_address: 'feed' })],
+      result_count: 1,
+    });
+    renderWithProvider();
+    await userEvent.type(screen.getByLabelText(/Dispenser Address/i), '1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
+    await waitFor(() => expect(screen.getAllByText(/No open dispenser found at this address/i).length).toBeGreaterThan(0));
+    expect(screen.queryByText('XCP')).not.toBeInTheDocument();
+    expect(document.querySelector('input[name="satoshirate"]')).toBeNull();
+  });
+
   it('should not fetch dispensers for invalid addresses', async () => {
     renderWithProvider();
     

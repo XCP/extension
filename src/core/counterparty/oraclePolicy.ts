@@ -11,6 +11,13 @@
 
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 
+/** Hide oracle listings before calculating prices or offering a dispenser for selection.
+ * Keep API responses unfiltered so signing checks can still detect oracle payouts.
+ */
+export function isFixedRateDispenser(dispenser: { oracle_address?: string | null }): boolean {
+  return !dispenser.oracle_address;
+}
+
 /** Refuse a dispense that would trigger an oracle-priced dispenser. */
 export function oracleDispenseWarning(oracleAssets: string[]): SecurityWarning | null {
   if (oracleAssets.length === 0) return null;

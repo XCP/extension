@@ -62,7 +62,7 @@ export function validateFeeRate(
   if (String(feeRate).startsWith('-')) return { isValid: false, error: 'Fee rate cannot be negative' };
   const parsed = parseAmountDraft(String(feeRate), { decimals: 8 });
   if (parsed.status !== 'valid') {
-    return { isValid: false, error: 'Use digits and a decimal point with at most 8 decimal places for the fee rate. Do not use grouping separators.' };
+    return { isValid: false, error: 'Use digits and a dot, up to 8 decimals.' };
   }
   const rate = toBigNumber(parsed.canonical);
 

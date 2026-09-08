@@ -9,6 +9,7 @@ import { serializeRawInteger } from "@/core/amount-contract/amounts";
  */
 
 import { apiClient } from '@/core/api/client';
+import { type RateLimitRefusal, RequestGate } from '@/core/counterparty/requestGate';
 import { CounterpartyApiError } from '@/core/errors';
 import { asBaseUnits, asDisplayUnits, type BaseUnits, type DisplayUnits, toBigNumber } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
@@ -30,6 +31,27 @@ interface CacheEntry<T> {
 }
 
 const cache = new Map<string, CacheEntry<unknown>>();
+
+// =============================================================================
+// PACE
+// =============================================================================
+
+/**
+ * Every Counterparty read goes through one gate, so a screen that asks ten questions at once is
+ * answered a few at a time, and a node that says 429 is obeyed by everyone until its Retry-After
+ * passes. See `requestGate.ts` for why.
+ */
+const requestGate = new RequestGate();
+
+/** A 429 from the API client, with the wait the node asked for when it said. */
+function rateLimitRefusal(error: unknown): RateLimitRefusal | null {
+  if (!error || typeof error !== 'object') return null;
+  const { status, retryAfter } = error as { status?: unknown; retryAfter?: unknown };
+  if (status !== 429) return null;
+  return {
+    retryAfterMs: typeof retryAfter === 'number' && Number.isFinite(retryAfter) ? retryAfter * 1000 : undefined,
+  };
+}
 
 /**
  * Generate a cache key from URL and params.
@@ -83,11 +105,43 @@ function setInCache<T>(key: string, data: T): void {
 }
 
 /**
+ * The reads that have been sent and not yet answered, by cache key.
+ *
+ * The response cache above can only collapse a repeat once the first answer is
+ * back. It does nothing for the case that actually produces a 429 storm: a
+ * screen mounting and asking the same question several times in the same tick.
+ * Every one of those misses the empty cache and every one goes to the node.
+ *
+ * That is not hypothetical here. The refusals that started this work were
+ * seventy-odd 429s for a single URL — `/v2/addresses/mempool` for one address
+ * with one event filter — which is one question asked many times at once, not
+ * many questions. `fetchMempoolLedgerEvents` even documents the intent:
+ * "several parts of a screen ask this at once ... collapsing those into one
+ * call matters more than a few seconds of freshness." The cache could not
+ * deliver that. This does.
+ *
+ * The entry is dropped as soon as the request settles, so this shares work
+ * rather than storing it: a caller never receives an answer older than one it
+ * would have fetched itself, and a failure is never remembered. How long an
+ * answer stays good remains the response cache's business.
+ *
+ * `skipCache` callers join too, and should. Asking to skip the cache means
+ * "not a stored answer from up to a minute ago", not "open a second socket
+ * alongside the identical request already in the air".
+ */
+const inFlight = new Map<string, Promise<unknown>>();
+
+/**
  * Clear the API cache. Call after mutations (send, create order, etc.)
  * to ensure fresh data on next read.
  */
 export function clearApiCache(): void {
   cache.clear();
+  // A read already on its way was sent before the mutation, so its answer will
+  // not contain it. Dropping the entry does not cancel that request — its own
+  // caller still gets it — but it stops anyone who asks next from joining an
+  // answer that predates the thing they are refreshing to see.
+  inFlight.clear();
 }
 
 /**
@@ -97,6 +151,12 @@ export function clearApiCacheMatching(pattern: string): void {
   for (const key of cache.keys()) {
     if (key.includes(pattern)) {
       cache.delete(key);
+    }
+  }
+  // Same reasoning as clearApiCache, narrowed to the keys being invalidated.
+  for (const key of inFlight.keys()) {
+    if (key.includes(pattern)) {
+      inFlight.delete(key);
     }
   }
 }
@@ -386,6 +446,7 @@ export interface Dispenser {
   tx_hash: string;
   source: string;
   asset: string;
+  oracle_address?: string | null;
   status: number;
   give_remaining: ApiQuantity;
   give_remaining_normalized: DisplayUnits;
@@ -549,8 +610,16 @@ async function cpApiGet<T = unknown>(
     }
   }
 
-  try {
-    const response = await apiClient.get<T | { error: string }>(url, { params: filteredParams });
+  // Join a request for the same thing that is already on its way, rather than
+  // opening a second one beside it.
+  const running = inFlight.get(cacheKey) as Promise<T> | undefined;
+  if (running) return running;
+
+  const started = (async () => {
+    const response = await requestGate.run(
+      () => apiClient.get<T | { error: string }>(url, { params: filteredParams }),
+      rateLimitRefusal
+    );
 
     if (response.data && typeof response.data === 'object' && 'error' in response.data) {
       throw new CounterpartyApiError(
@@ -560,11 +629,10 @@ async function cpApiGet<T = unknown>(
       );
     }
 
-    // Cache successful response
-    setInCache(cacheKey, response.data as T);
-
     return response.data as T;
-  } catch (error: unknown) {
+  })().catch((error: unknown) => {
+    // Normalize inside the shared promise so joined callers receive the same
+    // error type and status (including the 404 used by new-asset issuance).
     if (error instanceof CounterpartyApiError) throw error;
 
     // Handle errors with response data
@@ -580,6 +648,20 @@ async function cpApiGet<T = unknown>(
     throw new CounterpartyApiError(message, path, {
       cause: error instanceof Error ? error : undefined,
     });
+  });
+
+  inFlight.set(cacheKey, started);
+
+  try {
+    const data = await started;
+    // Invalidation revokes ownership of this key. An older response may still
+    // reach its original caller, but cannot repopulate or overwrite the cache.
+    if (inFlight.get(cacheKey) === started) setInCache(cacheKey, data);
+    return data;
+  } finally {
+    // Only clear our own entry: a later caller may already have started the
+    // next request under the same key.
+    if (inFlight.get(cacheKey) === started) inFlight.delete(cacheKey);
   }
 }
 

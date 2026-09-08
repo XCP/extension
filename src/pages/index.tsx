@@ -41,6 +41,11 @@ export default function HomePage(): ReactElement {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get("tab") as "Assets" | "Balances" | "UTXOs") || "Balances";
+  // A list mounts the first time its tab is looked at and stays mounted after. Hidden tabs cost
+  // no requests on arrival — three lists loading at once was a third of the burst that gets the
+  // public node's 429 — and switching back costs none either.
+  const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<string>>(() => new Set([activeTab]));
+  if (!visitedTabs.has(activeTab)) setVisitedTabs(new Set(visitedTabs).add(activeTab));
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const [hasUtxos, setHasUtxos] = useState(false);
   const [utxoCheckDone, setUtxoCheckDone] = useState(false);
@@ -278,13 +283,17 @@ export default function HomePage(): ReactElement {
         <div className="p-4 pb-0 flex-shrink-0">
           {content}
         </div>
-        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Balances" ? "block" : "none" }}>
-          <BalanceList refreshNonce={refreshNonces.Balances} onRefreshed={stopRefreshing} />
-        </div>
-        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Assets" ? "block" : "none" }}>
-          <AssetList refreshNonce={refreshNonces.Assets} onRefreshed={stopRefreshing} />
-        </div>
-        {hasUtxos && (
+        {visitedTabs.has("Balances") && (
+          <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Balances" ? "block" : "none" }}>
+            <BalanceList refreshNonce={refreshNonces.Balances} onRefreshed={stopRefreshing} />
+          </div>
+        )}
+        {visitedTabs.has("Assets") && (
+          <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Assets" ? "block" : "none" }}>
+            <AssetList refreshNonce={refreshNonces.Assets} onRefreshed={stopRefreshing} />
+          </div>
+        )}
+        {hasUtxos && visitedTabs.has("UTXOs") && (
           <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "UTXOs" ? "block" : "none" }}>
             <UtxoList refreshNonce={refreshNonces.UTXOs} onRefreshed={stopRefreshing} />
           </div>

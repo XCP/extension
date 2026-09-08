@@ -17,6 +17,7 @@ import { useComposer } from "@/contexts/composer-context-object";
 import type { DispenserDetails } from "@/core/counterparty/api";
 import { fetchAddressDispensers } from "@/core/counterparty/api";
 import type { DispenserOptions } from "@/core/counterparty/compose";
+import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 import { t } from '@/i18n';
@@ -79,7 +80,7 @@ export function DispenserCloseForm({
           status: "open",
           verbose: true,
         });
-        setDispensers(response.result);
+        setDispensers(response.result.filter(isFixedRateDispenser));
       } catch (err) {
         console.error("Failed to load dispensers:", err);
       } finally {

@@ -50,7 +50,7 @@ describe('native display-unit normalization', () => {
       asset_dest_quant_list: [['XCP', 'a', '150000000'], ['TOKEN', 'b', '100']],
       verified_asset_info: { XCP: { divisible: true }, TOKEN: { divisible: false } },
     });
-    await expect(normalizeFormData(form({ assets: 'XCP,TOKEN', quantities: '1.5,0.5' }), 'mpma')).rejects.toThrow('amount_precision');
+    await expect(normalizeFormData(form({ assets: 'XCP,TOKEN', quantities: '1.5,0.5' }), 'mpma')).rejects.toMatchObject({ code: 'amount_precision' });
   });
 });
 

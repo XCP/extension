@@ -70,7 +70,7 @@ describe('normalizeFormData — reset issuance divisibility', () => {
     await expect(normalizeFormData(
       resetForm({ quantity: '7.9', divisible: 'false' }),
       'issuance'
-    )).rejects.toThrow('amount_precision');
+    )).rejects.toMatchObject({ code: 'amount_precision' });
   });
 
   it('still reads divisibility from the ledger for a non-reset reissuance', async () => {

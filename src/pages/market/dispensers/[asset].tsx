@@ -19,6 +19,7 @@ import {
   fetchAssetDispensers,
   fetchAssetDispenses,
 } from "@/core/counterparty/api";
+import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 import { formatAmount } from "@/core/format";
 import { type BigNumber, divide, multiply, roundDown, toBigNumber, toNumber } from "@/core/numeric";
 import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/priceFormat";
@@ -152,7 +153,7 @@ export default function AssetDispensersPage(): ReactElement {
       if (infoRes) setAssetInfo(infoRes);
 
       // Sort by price (lowest first) for better UX
-      const sortedDispensers = [...dispensersRes.result].sort(
+      const sortedDispensers = dispensersRes.result.filter(isFixedRateDispenser).sort(
         byPricePerUnit
       );
       setDispensers(sortedDispensers);
@@ -226,7 +227,7 @@ export default function AssetDispensersPage(): ReactElement {
         if (res.result.length > 0) {
           setDispensers((prev) => {
             // Append, dedupe, and re-sort by price
-            const merged = [...prev, ...res.result];
+            const merged = [...prev, ...res.result.filter(isFixedRateDispenser)];
             const deduped = merged.filter(
               (d, i, arr) => arr.findIndex((x) => x.tx_hash === d.tx_hash) === i
             );

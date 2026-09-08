@@ -29,4 +29,5 @@ export function invalidateAddressBalances(address: string): void {
   if (!address) return;
   clearApiCacheMatching(address);
   clearBalanceCache(address);
+  // A refresh invalidates data, not the server's rate-limit deadline.
 }

@@ -7,6 +7,7 @@ import { HashInput } from "@/components/ui/inputs/hash-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { fetchDispenserByHash } from "@/core/counterparty/api";
 import type { DispenserOptions } from "@/core/counterparty/compose";
+import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 
 import { t } from '@/i18n';
 
@@ -63,7 +64,7 @@ export function DispenserCloseByHashForm({
     
     try {
       const dispenser = await fetchDispenserByHash(hashToLookup);
-      if (dispenser && dispenser.status === 0) { // STATUS_OPEN
+      if (dispenser && dispenser.status === 0 && isFixedRateDispenser(dispenser)) { // STATUS_OPEN
         setSelectedDispenser(dispenser);
       } else {
         setSelectedDispenser(null);
