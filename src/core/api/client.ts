@@ -38,6 +38,8 @@ export interface ApiError extends Error {
     data: unknown;
     status: number;
   };
+  /** Seconds to wait from Retry-After delay-seconds or its HTTP-date deadline. */
+  retryAfter?: number;
 }
 
 /**
@@ -46,12 +48,13 @@ export interface ApiError extends Error {
 function createApiError(
   message: string,
   code: ApiError['code'],
-  options?: { status?: number; response?: { data: unknown; status: number } }
+  options?: { status?: number; response?: { data: unknown; status: number }; retryAfter?: number }
 ): ApiError {
   const error = new Error(message) as ApiError;
   error.code = code;
   error.status = options?.status;
   error.response = options?.response;
+  error.retryAfter = options?.retryAfter;
   return error;
 }
 
@@ -139,6 +142,21 @@ function buildUrl(url: string, params?: Record<string, string | number | boolean
   }
 }
 
+/** Retry-After permits integer delay-seconds or an HTTP-date, not a numeric prefix. */
+function parseRetryAfter(value: string | null, now: number): number | undefined {
+  if (value === null) return undefined;
+  const header = value.trim();
+  if (/^\d+$/.test(header)) {
+    const seconds = Number(header);
+    return Number.isFinite(seconds) ? seconds : undefined;
+  }
+  // All HTTP-date forms begin with a weekday. Avoid Date.parse accepting
+  // malformed numeric delays such as "1.5" as a calendar date.
+  if (!/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i.test(header)) return undefined;
+  const deadline = Date.parse(header);
+  return Number.isFinite(deadline) ? Math.max(0, (deadline - now) / 1000) : undefined;
+}
+
 /**
  * Create a timeout-aware fetch with AbortController
  */
@@ -192,23 +210,23 @@ async function fetchWithTimeout<T>(
 
     // Check for HTTP errors
     if (!response.ok) {
+      const retryAfter = parseRetryAfter(response.headers.get('Retry-After'), Date.now());
       // Emit API status for rate limiting or server errors
       const statusType = getStatusTypeFromCode(response.status);
       if (statusType) {
-        const retryAfter = response.headers.get('Retry-After');
         emitApiStatus({
           type: statusType,
           statusCode: response.status,
           message: response.status === 429
             ? 'API rate limited. Requests may be slow.'
             : `API error (${response.status}). Some features may be unavailable.`,
-          retryAfter: retryAfter ? parseInt(retryAfter, 10) : undefined,
+          retryAfter,
         });
       }
       throw createApiError(
         `Request failed with status ${response.status}`,
         'HTTP_ERROR',
-        { status: response.status, response: { data, status: response.status } }
+        { status: response.status, response: { data, status: response.status }, retryAfter }
       );
     }
 
