@@ -3,6 +3,7 @@ import { type ReactElement, useEffect, useState } from "react";
 import { DispenserList, type DispenserOption } from "@/components/ui/lists/dispenser-list";
 import { fetchAddressDispensers } from "@/core/counterparty/api";
 import type { DispenseOptions } from "@/core/counterparty/compose";
+import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 import { isValidBitcoinAddress } from "@/core/validation/bitcoin";
 
 // ============================================================================
@@ -84,7 +85,8 @@ export function DispenserInput({
           verbose: true
         });
 
-        if (!response.result || response.result.length === 0) {
+        const fixedRateDispensers = (response.result ?? []).filter(isFixedRateDispenser);
+        if (fixedRateDispensers.length === 0) {
           const errorMsg = "No open dispenser found at this address.";
           setError(errorMsg);
           if (onError) onError(errorMsg);
@@ -92,7 +94,7 @@ export function DispenserInput({
         }
 
         // Process and normalize dispensers
-        const processedDispensers = (response.result as any[])
+        const processedDispensers = (fixedRateDispensers as any[])
           .map(dispenser => {
             const isDivisible = dispenser.asset_info?.divisible ?? false;
             const divisor = isDivisible ? SATOSHIS_PER_BTC : 1;
