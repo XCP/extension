@@ -1,4 +1,4 @@
-# Localization consolidation (draft)
+# Localization release candidate
 
 This branch preserves the catalogs and machine-review status from `localize-ja-zh`
 at `bdd4a894340fee971afd51d41a7c310bb176b70a` and now incorporates current main,
@@ -59,7 +59,7 @@ remote diagnostic or module-initialized label supports live language switching.
 
 Validation covers focused unit/integration tests, catalog integrity, TypeScript,
 lint, production build, and packaged Chromium tests for sequential invalid typing
-and cross-window preference changes. All 40 GitHub checks passed at `7734dd86`,
+and cross-window preference changes. All 40 GitHub checks passed at `7c770e81`,
 including ten unit shards, twenty browser batches, CodeQL and hardware tests.
 See PR400 for the current revision's status; that result does not certify later
 changes. Browser regressions use fixtures and do not sign or broadcast live
@@ -156,3 +156,24 @@ Counterparty Core evidence and retained machine provenance. The gallery can run
 actual popup or sidepanel entrypoints with `XCP_GALLERY_SURFACE`; widening a popup
 is not a substitute for the sidepanel test. Consult that record and PR400 for
 the completed scenarios and validation limits.
+
+The completed approval matrix covers Japanese and all three explicit Chinese
+locales in the popup and actual sidepanel. Seven scenarios run through both raw
+transaction and PSBT approval: send with memo, order, pool deposit, pool withdrawal,
+invalid attachment output, legacy source-UTXO mismatch, and destruction. The
+sidepanel captures 350/380/520px widths; verification retry and warning dialogs are
+included. Deterministic localization fixtures pin each asset's divisibility and
+exact payload. They are authored API-shaped responses, not evidence of live-node
+parity. The ordinary gallery retains its upstream checks and metadata-unavailable
+fallback coverage.
+
+Foreground Core requests now read settings received from the background, including
+the selected Counterparty node. Display changes do not trigger an extra quote,
+compose or signing call. Settings tests cover pending/failed saves, cross-window
+refreshes, locking and stale asynchronous replies. The fixed approval gallery also
+asserts that foreground order quotes use the configured node. Current-head checks
+and the packaged review artifact are recorded on PR400.
+
+Spanish, Korean, Brazilian Portuguese, French, Russian and Ukrainian catalogs are
+not included in this candidate. Matching Launchpad's remaining languages is a
+separate translation and layout pass; English fallback is not translated coverage.

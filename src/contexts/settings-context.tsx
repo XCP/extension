@@ -28,10 +28,11 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { onMessage } from 'webext-bridge/popup';
-import { type AppSettings, DEFAULT_SETTINGS } from "@/core/settings";
+import { type AppSettings, DEFAULT_SETTINGS, setSettingsProvider } from "@/core/settings";
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { configureLocale } from '@/i18n';
 import { analytics } from "@/platform/fathom";
@@ -63,6 +64,24 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export function SettingsProvider({ children }: { children: ReactNode }): ReactElement {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
+  // Core requests run in this document too. The foreground wallet singleton is not hydrated;
+  // only settings received from the background or a completed save are authoritative here.
+  const persistedSettings = useRef<AppSettings>(DEFAULT_SETTINGS);
+  const generation = useRef(0);
+  const revision = useRef(0);
+  const latestRead = useRef(0);
+  const mounted = useRef(false);
+
+  useLayoutEffect(() => {
+    mounted.current = true;
+    setSettingsProvider(() => persistedSettings.current);
+    return () => {
+      mounted.current = false;
+      generation.current += 1;
+      persistedSettings.current = DEFAULT_SETTINGS;
+      setSettingsProvider(() => DEFAULT_SETTINGS);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     configureLocale({ language: settings.language, numberLocale: settings.numberLocale });
@@ -74,13 +93,20 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
    *   another window would flash all of them.
    */
   const loadSettings = useCallback(async (showLoading = true) => {
+    const startedGeneration = generation.current;
+    const startedRevision = revision.current;
+    const read = ++latestRead.current;
     try {
       if (showLoading) setIsLoading(true);
       const walletService = getWalletService();
       const storedSettings = await walletService.getSettings();
+      if (!mounted.current || generation.current !== startedGeneration
+        || read !== latestRead.current || revision.current !== startedRevision) return;
+      persistedSettings.current = storedSettings;
       setSettings(storedSettings);
     } finally {
-      if (showLoading) setIsLoading(false);
+      if (mounted.current && generation.current === startedGeneration
+        && read === latestRead.current) setIsLoading(false);
     }
   }, []);
 
@@ -89,15 +115,15 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
 
     // Listen for wallet lock events from background
     // When locked, settings encryption key is cleared, so reset to defaults
-    // Use withStateLock to serialize with any concurrent loadSettings operations
+    // Invalidate pending replies immediately; a pre-lock read/save must not restore settings.
     const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
       if (data.locked) {
-        withStateLock('settings-lock', async () => {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[SettingsContext] Lock event - resetting to defaults');
-          }
-          setSettings({ ...DEFAULT_SETTINGS });
-        });
+        generation.current += 1;
+        persistedSettings.current = DEFAULT_SETTINGS;
+        // This synchronous reset must not wait behind a watcher read: a new unlocked refresh
+        // could otherwise finish first and then be erased when that old read releases the queue.
+        setSettings({ ...DEFAULT_SETTINGS });
+        setIsLoading(false);
       }
     };
     const unsubscribe = onMessage('keychainLocked', handleLockMessage);
@@ -105,7 +131,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
     // Settings live inside the keychain record — one blob, one key derivation (#147) — so a change
     // made in any surface lands as a write to it. The popup and the side panel are separate
     // documents, each holding what it read on mount, and this is what stops one going stale while
-    // the other edits. Serialized against loadSettings for the same reason the lock handler is.
+    // the other edits. Watcher reads are serialized; generation/revision guards reject old replies.
     const stopWatching = watchKeychainRecord(() => {
       withStateLock('settings-lock', async () => {
         await loadSettings(false);
@@ -119,6 +145,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   }, [loadSettings]);
 
   const updateSettingsHandler = useCallback(async (newSettings: Partial<AppSettings>) => {
+    const startedGeneration = generation.current;
     try {
       // Optimistically update state for instant UI response
       setSettings(prev => ({ ...prev, ...newSettings }));
@@ -126,13 +153,16 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       // Persist to storage via background service
       const walletService = getWalletService();
       await walletService.updateSettings(newSettings);
+      if (!mounted.current || generation.current !== startedGeneration) return;
+      persistedSettings.current = { ...persistedSettings.current, ...newSettings };
+      revision.current += 1;
       analytics.track('settings_changed');
     } catch (error) {
       console.error('Failed to persist settings:', error);
       // On error, reload from storage to get the authoritative state.
       // This avoids race conditions with stale rollback values when
       // multiple rapid updates are attempted.
-      await loadSettings(false);
+      if (mounted.current && generation.current === startedGeneration) await loadSettings(false);
       throw error; // Re-throw to let component handle user feedback
     }
   }, [loadSettings]);

@@ -133,3 +133,50 @@ their positional contents. A changed message requires a contextual re-review
 and an updated snapshot; matching key names alone are insufficient. Future
 changes should add a dated review record rather than relabel old machine work as
 human-reviewed or silently overwrite historical evidence.
+
+## Completed gallery follow-up — September 8
+
+After the snapshot above, all four JA/CN/TW/HK seven-scenario popup galleries
+completed: 56 raw-transaction/PSBT cases in total, plus failed lookup and retry
+recovery in each locale. The metadata-unavailable path remains intentional coverage;
+an upstream 429 is not evidence that enriched presentation matched between screens.
+
+The same four locales then completed the deterministic gallery through the actual
+sidepanel entrypoint: another 56 cases, with initial 350/380/520px captures, expanded
+details and warning-dialog captures. Representative popup and sidepanel images in
+all four locales were visually inspected. Full blocked outpoints remain readable;
+ordinary form guidance keeps its two-line target without clipping safety details.
+
+`XCP_GALLERY_FIXED_DATA=1` opts into independently authored Core-shaped unpack
+responses for the seven exact fixture payloads. The normal gallery is unchanged.
+The helper supplies explicit per-asset divisibility, fixed prices/height and an
+exact order quote. Local decoding, comparison, repacking and safety checks still
+run. Each sidepanel locale recorded 29 mocked unpack reads (including retry), zero
+live unpack reads and no unknown payload/metadata substitutions. This is localized
+presentation evidence, not live API parity or a claim that every startup request
+is offline. No transaction is signed or broadcast.
+
+This run exposed a foreground custom-node mismatch: background verification used
+the selected node while an order price estimate could use the default node. The
+settings bridge now supplies background settings to foreground Core requests.
+The fixed order gallery asserts the configured request path and exact raw quantity
+for both raw-transaction and PSBT screens. The post-fix CN order/destruction popup
+run passed all four cases, with eight mocked unpack reads and zero live unpack.
+
+The final settings follow-up passed 81 tests across the two settings-context
+suites and the wallet-manager suite. It covers actual Core request URLs, rejected
+saves, queued writes, lock/unmount invalidation, and a stalled watcher that resolves
+after a fresh unlocked refresh. A failed keychain write restores the prior in-memory
+settings; a later session-timeout failure does not undo an already committed
+keychain write. A lock cannot be reversed by the rollback handler.
+
+The form matrix also passed in EN/JA/CN/TW/HK after the foreground-node fix. It
+preserves typed invalid syntax and indivisible fractions, blocks all three invalid
+slippage forms, keeps ordinary amount guidance within two lines, exercises a real
+429 response in the fixture, and verifies exact BTC Max compose quantities after
+changing the number format and fiat currency in another window.
+
+All 40 GitHub checks passed at `7c770e81`. Subsequent settings and fixture changes
+require their own full CI run; consult PR400 for the final tested revision and
+review package. These checks do not change the machine-review status of any text
+or certify the six remaining Launchpad languages.

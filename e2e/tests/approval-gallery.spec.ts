@@ -22,6 +22,8 @@ import { captureApprovalSizes } from '../utils/approval-layout';
  * XCP_GALLERY_INCLUDE_RETRY=1 adds failed-asset-lookup/recovery captures for send-with-memo.
  * XCP_GALLERY_OUT_DIR can point at an artifact directory; locales use separate subdirectories.
  * XCP_GALLERY_SURFACE=sidepanel also checks the real sidepanel entrypoint at 350/380/520px.
+ * XCP_GALLERY_FIXED_DATA=1 uses authored API/ledger/display fixtures for the seven localized
+ * scenarios. It tests presentation and local checks, not parity with a live API response.
  */
 
 import { Address, OutScript } from '@scure/btc-signer';
@@ -29,11 +31,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { expect, walletTest } from '../fixtures';
 import { approvalCatalog, approvalGalleryLocale, literalPattern } from '../utils/approval-locale';
+import { type ApprovalLocalizationFixtureAudit, installApprovalLocalizationFixtures } from '../utils/approval-localization-fixtures';
 import { assertGalleryWorkerRouting, authorizeGalleryOrigin, callGalleryService, createGalleryApi, type GalleryApi, selectGalleryScenarios } from '../utils/provider-gallery';
 
 const LOCALE = approvalGalleryLocale();
 const message = approvalCatalog(LOCALE);
 const SURFACE = process.env.XCP_GALLERY_SURFACE ?? 'popup';
+const FIXED_DATA = process.env.XCP_GALLERY_FIXED_DATA === '1';
 if (!['popup', 'sidepanel'].includes(SURFACE)) throw new Error(`Unsupported approval gallery surface: ${SURFACE}`);
 const OUT_DIR = path.join(process.env.XCP_GALLERY_OUT_DIR ?? 'test-results/approval-gallery', ...(LOCALE === 'en' ? [] : [LOCALE]), ...(SURFACE === 'sidepanel' ? ['sidepanel'] : []));
 const ORIGIN = 'https://launchpad.xcp.fun';
@@ -266,6 +270,13 @@ async function warningsOn(page: import('@playwright/test').Page): Promise<RegExp
 
 /** Consequential facts must survive both approval presentation paths. */
 async function assertScenarioFacts(page: import('@playwright/test').Page, name: string): Promise<void> {
+  if (FIXED_DATA && name === 'order') {
+    await expect(page.getByText('0.00001000 PEPECASH', { exact: true })).toBeVisible();
+    await expect(page.getByText(message('approval_order_card_price_unavailable'), { exact: true })).toHaveCount(0);
+  }
+  if (FIXED_DATA && name === 'destroy') {
+    await expect(page.getByText(message('tx_action_destroy_amount', ['1', 'BONPARTY']), { exact: true })).toBeVisible();
+  }
   if (name === 'dividend') {
     await expect(page.getByText(message('tx_action_per_unit', ['0.00000001', 'XCP']), { exact: true })).toBeVisible();
     // Supply and total holders cannot prove the actual payout or fee: Core excludes the signer
@@ -488,12 +499,14 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
 
   const captured: string[] = [];
   const warningMismatches: string[] = [];
+  const fixtureAudits: ApprovalLocalizationFixtureAudit[] = [];
 
   for (const [name, { rawTxHex }] of scenarios) {
     await walletTest.step('Capture transaction approval', async () => {
       const id = `gallery-${name}`;
       const api = await createGalleryApi(context, page, id);
       await installScenarioStubs(api, name, signerAddress);
+      if (FIXED_DATA) fixtureAudits.push(await installApprovalLocalizationFixtures(api, name));
       let unavailable = includeRetry && name === 'send-with-memo';
       if (unavailable) {
         await api.route(/\/v2\/utxos\/[^/]+\/balances/, route => unavailable
@@ -556,6 +569,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
       const id = `gallery-psbt-${name}`;
       const api = await createGalleryApi(context, page, id);
       await installScenarioStubs(api, name, signerAddress);
+      if (FIXED_DATA) fixtureAudits.push(await installApprovalLocalizationFixtures(api, name));
       await page.evaluate(
         async (req) => {
           await chrome.storage.session.set({ pending_sign_flow: [req] });
@@ -608,5 +622,18 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
   expect(warningMismatches, 'warnings did not match these scenarios').toEqual([]);
 
   expect(captured).toEqual(scenarios.map(([name]) => name));
+  if (FIXED_DATA) {
+    expect(fixtureAudits.every(audit => audit.installed), 'each selected scenario needs explicit metadata').toBe(true);
+    expect(fixtureAudits.flatMap(audit => audit.unfixtureMetadataReads), 'unexpected metadata must not be assumed divisible').toEqual([]);
+    expect(fixtureAudits.flatMap(audit => audit.unconfiguredQuoteReads), 'foreground quotes must use the configured Counterparty node').toEqual([]);
+    if (scenarios.some(([name]) => name === 'order')) {
+      expect(fixtureAudits.flatMap(audit => audit.fixtureReads).filter(read => read.startsWith('quote:')).length,
+        'raw and PSBT order screens must fetch their price estimate').toBeGreaterThanOrEqual(2);
+    }
+    expect(fixtureAudits.flatMap(audit => audit.unexpectedPayloadReads), 'changed payloads must not receive a fabricated response').toEqual([]);
+    expect(fixtureAudits.flatMap(audit => audit.upstreamUnpackReads), 'fixed localization cases must not call live unpack').toEqual([]);
+    expect(fixtureAudits.every(audit => audit.mockedUnpackReads.length > 0), 'each variant must exercise the API-shaped fixture').toBe(true);
+    console.log(`Fixture reads: ${fixtureAudits.reduce((n, audit) => n + audit.fixtureReads.length, 0)}; mocked unpack reads: ${fixtureAudits.reduce((n, audit) => n + audit.mockedUnpackReads.length, 0)}; live unpack reads: 0`);
+  }
   console.log(`\nApproval gallery: ${captured.length * 2} transaction and PSBT screens in ${OUT_DIR}\n`);
 });
