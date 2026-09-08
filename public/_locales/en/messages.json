@@ -1343,10 +1343,6 @@
     "message": "No $1/$2 matches",
     "description": "pages/market/orders/[baseAsset]/[quoteAsset].tsx. $1 = baseAsset; $2 = quoteAsset"
   },
-  "baseasset_quoteasset_no_orders_for": {
-    "message": "No $1 orders for $2/$3",
-    "description": "pages/market/orders/[baseAsset]/[quoteAsset].tsx. $1 = tab; $2 = baseAsset; $3 = quoteAsset"
-  },
   "baseasset_quoteasset_orders": {
     "message": "Orders",
     "description": "pages/market/orders/[baseAsset]/[quoteAsset].tsx"
@@ -3105,11 +3101,11 @@
     "description": "pages/compose/dispenser/form.tsx"
   },
   "dispenser_form_the_quantity_of_the_asset": {
-    "message": "The quantity of the asset to dispense per transaction. Enter up to 8 decimal places.",
+    "message": "Asset quantity per dispense lot. A payment can buy multiple lots. Use up to 8 decimal places.",
     "description": "pages/compose/dispenser/form.tsx"
   },
   "dispenser_form_the_quantity_of_the_asset_2": {
-    "message": "The quantity of the asset to dispense per transaction. Enter whole numbers only.",
+    "message": "Asset quantity per dispense lot. A payment can buy multiple lots. Use whole numbers only.",
     "description": "pages/compose/dispenser/form.tsx"
   },
   "dispenser_form_total_amount_to_lock_in": {
@@ -4901,7 +4897,7 @@
     "description": "pages/transactions/_messages/order.tsx"
   },
   "messages_order_fee_provided": {
-    "message": "Fee Provided",
+    "message": "Order transaction fee",
     "description": "pages/transactions/_messages/order.tsx"
   },
   "messages_order_fill_progress": {
@@ -5533,7 +5529,7 @@
     "description": "pages/keychain/secrets/show-passphrase.tsx"
   },
   "secrets_show_passphrase_passphrase": {
-    "message": "Passphrase",
+    "message": "Recovery Phrase",
     "description": "pages/keychain/secrets/show-passphrase.tsx"
   },
   "secrets_show_passphrase_show_recovery_phrase": {
@@ -5853,7 +5849,7 @@
     "description": "pages/settings/order-settings.tsx. $1 = feeRequired; $2 = (feeRequired / 250).toFixed(1)"
   },
   "settings_order_settings_the_minimum_tx_fee_required": {
-    "message": "The minimum tx fee required for a BTCPay to match this order (in satoshis).",
+    "message": "Miner-fee requirement for matching BTC-paying orders (satoshis).",
     "description": "pages/settings/order-settings.tsx"
   },
   "settings_order_settings_use_0_for_orders_that": {
@@ -6189,7 +6185,7 @@
     "description": "pages/keychain/setup/import-test-address.tsx"
   },
   "swap_form_above_what_the_pending_orders": {
-    "message": "Above what the pending orders would leave. If they confirm first, this swap rests for a block and refunds instead of filling — raise the slippage or use Auto.",
+    "message": "Your minimum is above the projected amount after pending orders. If they confirm first, your minimum may not be met. Unfilled input returns after this order expires. Adjust slippage or use Auto.",
     "description": "pages/compose/swap/form.tsx"
   },
   "swap_form_after_mempool": {
@@ -6605,7 +6601,7 @@
     "description": "components/domain/wallet/wallet-menu.tsx"
   },
   "wallet_wallet_menu_show_passphrase": {
-    "message": "Show Passphrase",
+    "message": "Show Recovery Phrase",
     "description": "components/domain/wallet/wallet-menu.tsx"
   },
   "wallet_wallet_menu_wallet_options": {
@@ -6656,10 +6652,6 @@
     "message": "Connecting...",
     "description": "pages/keychain/wallets/connect-hardware.tsx"
   },
-  "wallets_connect_hardware_connection_cancelled_please_try_again": {
-    "message": "Connection cancelled. Please try again when ready.",
-    "description": "pages/keychain/wallets/connect-hardware.tsx"
-  },
   "wallets_connect_hardware_failed_to_connect_hardware_wallet": {
     "message": "Failed to connect hardware wallet",
     "description": "pages/keychain/wallets/connect-hardware.tsx"
@@ -6670,10 +6662,6 @@
   },
   "wallets_connect_hardware_select_your_account_when_prompted": {
     "message": "Select your account when prompted",
-    "description": "pages/keychain/wallets/connect-hardware.tsx"
-  },
-  "wallets_connect_hardware_taproot_requires_newer_trezor_firmware": {
-    "message": "Taproot requires newer Trezor firmware. Please update your firmware or try a different account type.",
     "description": "pages/keychain/wallets/connect-hardware.tsx"
   },
   "wallets_connect_hardware_unlock_your_device_with_pin": {
@@ -7623,5 +7611,229 @@
   "swap_quote_outcome_no_liquidity": {
     "message": "No liquidity available for this pair.",
     "description": "Existing no_pool outcome when a quote has no positive output and pool existence is not confirmed. Do not guess that increasing or decreasing the amount will help. Any message supplied by the API retains precedence in the form; this is only the existing local fallback."
+  },
+  "api_validation_connection_failed": {
+    "message": "Cannot connect to API — check URL and CORS settings",
+    "description": "API fetch failed with TypeError. Keep both URL and CORS troubleshooting context; do not claim a confirmed outage."
+  },
+  "api_validation_http_error": {
+    "message": "API returned error: $1",
+    "description": "API validation received an unsuccessful HTTP response. $1 is the literal HTTP status code."
+  },
+  "api_validation_invalid_response": {
+    "message": "Invalid API response format",
+    "description": "API response did not contain its required result field. Does not claim a particular network or server version."
+  },
+  "api_validation_invalid_url": {
+    "message": "Invalid URL format",
+    "description": "Local URL parser rejected the supplied API base URL."
+  },
+  "api_validation_mainnet_required": {
+    "message": "API must be connected to mainnet",
+    "description": "This wallet's custom API must report the mainnet network. Do not change the validation policy."
+  },
+  "api_validation_server_not_ready": {
+    "message": "API server is not ready",
+    "description": "Counterparty API reported server_ready false; not necessarily a network outage."
+  },
+  "api_validation_timeout": {
+    "message": "Connection timeout — API not reachable",
+    "description": "The API validation request timed out. No automatic retry is implied."
+  },
+  "api_validation_url_required": {
+    "message": "API URL is required",
+    "description": "Local custom-node validation failure: no API URL was supplied."
+  },
+  "api_validation_version_required": {
+    "message": "API must be Counterparty Core $1 or newer",
+    "description": "Custom-node API is older than the supported Core version. $1 is the exact minimum semantic version, unchanged by locale."
+  },
+  "balance_pending_attaching": {
+    "message": "Attaching",
+    "description": "Compact pending label for attaching Counterparty assets to a UTXO."
+  },
+  "balance_pending_burning": {
+    "message": "Burning",
+    "description": "Compact pending label for Core burn ledger events; an on-chain burn, not wallet deletion."
+  },
+  "balance_pending_confirmation": {
+    "message": "Pending",
+    "description": "Generic network-pending label for mixed or unknown mempool actions, also used when a UTXO transaction has no block time. Not a user approval or a deliberately paused task."
+  },
+  "balance_pending_depositing": {
+    "message": "Depositing",
+    "description": "Compact pending label for pool deposit or escrowed pool liquidity, not a bank deposit."
+  },
+  "balance_pending_detaching": {
+    "message": "Detaching",
+    "description": "Compact pending label for detaching Counterparty assets from a UTXO."
+  },
+  "balance_pending_dispensing": {
+    "message": "Dispensing",
+    "description": "Compact pending label for a dispenser dispense ledger event; token distribution, not physical shipping."
+  },
+  "balance_pending_dividend": {
+    "message": "Paying dividend",
+    "description": "Compact pending label for a dividend distribution event or its fee, not staking yield."
+  },
+  "balance_pending_issuing": {
+    "message": "Issuing",
+    "description": "Compact pending label for issuance/issuance fee; do not infer locking or other narrower issuance intent."
+  },
+  "balance_pending_matching": {
+    "message": "Matching",
+    "description": "Compact pending label for Core order match/filled events observed in mempool parsing, not yet confirmed."
+  },
+  "balance_pending_minting": {
+    "message": "Minting",
+    "description": "Compact pending label for fairminter/fairmint/premint ledger events; not proof-of-work mining or a promise of immediately spendable tokens."
+  },
+  "balance_pending_moving": {
+    "message": "Moving",
+    "description": "Compact pending label for a UTXO move ledger event; no ownership or destination inference."
+  },
+  "balance_pending_opening": {
+    "message": "Opening",
+    "description": "Compact pending label for opening a dispenser, not an already-open dispenser status."
+  },
+  "balance_pending_ordering": {
+    "message": "Ordering",
+    "description": "Compact pending label for an open order ledger event, not a completed fill."
+  },
+  "balance_pending_paying": {
+    "message": "Paying",
+    "description": "Compact pending label for Core btcpay settlement, not a pool or network fee."
+  },
+  "balance_pending_refilling": {
+    "message": "Refilling",
+    "description": "Compact pending label for a dispenser inventory refill."
+  },
+  "balance_pending_resetting": {
+    "message": "Resetting",
+    "description": "Compact pending label for a reset issuance event, not a wallet reset."
+  },
+  "balance_pending_sending": {
+    "message": "Sending",
+    "description": "Compact pending balance label for Core send/mpma send ledger events, before network confirmation."
+  },
+  "balance_pending_sweeping": {
+    "message": "Sweeping",
+    "description": "Compact pending label for Core sweep and sweep fee events; does not infer which optional sweep flags were used."
+  },
+  "balance_pending_withdrawing": {
+    "message": "Withdrawing",
+    "description": "Compact pending label for removing pool liquidity."
+  },
+  "baseasset_quoteasset_no_buy_orders": {
+    "message": "No buy orders for $1/$2",
+    "description": "Empty order book buy side; $1=base asset, $2=quote asset. Preserve asset names and pair direction."
+  },
+  "baseasset_quoteasset_no_sell_orders": {
+    "message": "No sell orders for $1/$2",
+    "description": "Empty order book sell side; $1=base asset, $2=quote asset. Preserve asset names and pair direction."
+  },
+  "charts_range_days": {
+    "message": "$1D",
+    "description": "Compact chart time-range button. $1 is the fixed day count; the API range ID is separate."
+  },
+  "charts_range_hours": {
+    "message": "$1H",
+    "description": "Compact chart time-range button. $1 is the fixed hour count; the API range ID is separate."
+  },
+  "charts_range_years": {
+    "message": "$1Y",
+    "description": "Compact chart time-range button. $1 is the fixed year count; the API range ID is separate."
+  },
+  "hardware_error_address_failed": {
+    "message": "Could not read addresses from Trezor. Check the device and try again.",
+    "description": "Existing Trezor GET_ADDRESS_FAILED/GET_ADDRESSES_FAILED codes; no address is invented or substituted."
+  },
+  "hardware_error_busy": {
+    "message": "Trezor is busy. Finish the other operation and try again.",
+    "description": "Existing Trezor DEVICE_BUSY code. No automatic retry or instruction to sign another operation."
+  },
+  "hardware_error_cancelled": {
+    "message": "Trezor operation cancelled.",
+    "description": "Existing Trezor USER_CANCELLED code; not a failed or completed signature."
+  },
+  "hardware_error_disconnected": {
+    "message": "Trezor disconnected. Reconnect it and try again.",
+    "description": "Existing Trezor DEVICE_DISCONNECTED code, distinct from wallet session expiry."
+  },
+  "hardware_error_discovery_failed": {
+    "message": "Could not read Trezor accounts. Check the device and try again.",
+    "description": "Existing Trezor DISCOVERY_FAILED fallback; does not claim that no account exists."
+  },
+  "hardware_error_init_failed": {
+    "message": "Could not initialize the Trezor connection. Check the connection and try again.",
+    "description": "Trezor INIT_FAILED guidance; does not promise a retry or initialize the device."
+  },
+  "hardware_error_permission_denied": {
+    "message": "Allow access in the Trezor window and try again.",
+    "description": "Existing Trezor PERMISSION_DENIED code. Refer to the device connection flow, not site wallet permissions."
+  },
+  "hardware_error_public_key_failed": {
+    "message": "Could not read the public key from Trezor. Check the device and try again.",
+    "description": "Existing GET_XPUB_FAILED/XPUB_EXTRACTION_FAILED codes; public key, never private key."
+  },
+  "hardware_error_taproot_message": {
+    "message": "Trezor cannot sign messages with Taproot (P2TR) addresses. Use another address type, such as $1.",
+    "description": "Exact TAPROOT_SIGNING_NOT_SUPPORTED code for message signing, not transaction signing or a diagnosis that firmware is old. $1 is the existing localized Native SegWit label; P2TR remains unchanged."
+  },
+  "inputs_api_url_input_api_url": {
+    "message": "API URL",
+    "description": "Accessible label for the custom Counterparty API base URL input."
+  },
+  "messages_mpma_addresses": {
+    "message": "$1 addresses",
+    "description": "MPMA summary count of distinct destination addresses, not transfer entries or people; plural or zero."
+  },
+  "messages_mpma_assets": {
+    "message": "$1 assets",
+    "description": "MPMA summary count of distinct assets; plural or zero."
+  },
+  "messages_mpma_details_unavailable": {
+    "message": "Complete transfer details are unavailable.",
+    "description": "Full transfer detail is unavailable; the Core API unpack list can omit destinations, so no partial total or count is claimed."
+  },
+  "messages_mpma_one_address": {
+    "message": "$1 address",
+    "description": "MPMA summary count of distinct destination addresses, not people; singular."
+  },
+  "messages_mpma_one_asset": {
+    "message": "$1 asset",
+    "description": "MPMA summary count of distinct assets; singular."
+  },
+  "messages_order_expires_after_block": {
+    "message": "After block $1",
+    "description": "Supplied finite expire_index is the last eligible block; Core expires the order at expire_index+1. $1 is the exact block height displayed with the selected number locale. Do not imply a live remaining-block countdown."
+  },
+  "messages_order_recorded_state": {
+    "message": "Recorded order state",
+    "description": "Transaction-history snapshot for this order only, from its OPEN_ORDER/ORDER_UPDATE events; never current live order status."
+  },
+  "messages_order_snapshot_notice": {
+    "message": "This is the order state recorded with this transaction. Later fills or cancellations are not included.",
+    "description": "Explains that order events returned with a historical transaction do not include subsequent fills or cancellations. No polling or live-state claim."
+  },
+  "messages_order_status_cancelled": {
+    "message": "Cancelled",
+    "description": "Counterparty order status cancelled, shown only as recorded historical state."
+  },
+  "messages_order_status_expired": {
+    "message": "Expired",
+    "description": "Counterparty order status expired, shown only as recorded historical state."
+  },
+  "messages_order_status_filled": {
+    "message": "Filled",
+    "description": "Counterparty order status filled; an executed order, not an asset being minted."
+  },
+  "messages_order_status_open": {
+    "message": "Open",
+    "description": "Order status recorded with this historical transaction: still open to matching, including partially filled orders. Not the business/opening action for a dispenser."
+  },
+  "messages_order_status_unknown": {
+    "message": "Unknown",
+    "description": "Missing recorded status, without assuming that successful payload unpack means an open order."
   }
 }

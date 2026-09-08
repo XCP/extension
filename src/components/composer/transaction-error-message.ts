@@ -1,3 +1,4 @@
+import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { AmountValidationError } from '@/core/amount-contract/amounts';
 import { ComposeVerificationError } from '@/core/validation/compose-verification-error';
 import type { FeeValidationResult } from '@/core/validation/fee';
@@ -7,6 +8,8 @@ import { verificationErrorMessage } from './verification-error-message';
 
 /** Unknown API diagnostics retain their original text; only explicit codes are translated. */
 export function transactionErrorMessage(error: unknown): string | undefined {
+  const hardwareMessage = hardwareErrorMessage(error);
+  if (hardwareMessage) return hardwareMessage;
   if (error instanceof ComposeVerificationError) return verificationErrorMessage(error.diagnostic);
   if (error instanceof AmountValidationError) {
     switch (error.code) {

@@ -6,18 +6,23 @@ import { useNavigate } from "react-router";
 import { FiHelpCircle, FiShield } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 export default function ConnectHardware(): ReactElement {
+  const localeRevision = useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { createHardwareWalletWithDiscovery, setHardwareOperationInProgress } = useWallet();
 
   const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<unknown>(null);
+  const error = failure ? hardwareErrorMessage(failure)
+    ?? (failure instanceof Error ? failure.message : t('wallets_connect_hardware_failed_to_connect_hardware_wallet')) : '';
 
   useEffect(() => {
     setHeaderProps({
@@ -29,10 +34,10 @@ export default function ConnectHardware(): ReactElement {
         ariaLabel: t('common_help'),
       },
     });
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, localeRevision]);
 
   async function handleConnect() {
-    setError("");
+    setFailure(null);
     setIsConnecting(true);
     setHardwareOperationInProgress(true);
 
@@ -48,15 +53,7 @@ export default function ConnectHardware(): ReactElement {
       navigate("/index");
     } catch (err) {
       console.error('[ConnectHardware] Error:', err);
-      const errorMsg = err instanceof Error ? err.message : t('wallets_connect_hardware_failed_to_connect_hardware_wallet');
-
-      if (errorMsg.includes("Taproot") || errorMsg.includes("P2TR")) {
-        setError(t('wallets_connect_hardware_taproot_requires_newer_trezor_firmware'));
-      } else if (errorMsg.includes("cancelled") || errorMsg.includes("Cancelled")) {
-        setError(t('wallets_connect_hardware_connection_cancelled_please_try_again'));
-      } else {
-        setError(errorMsg);
-      }
+      setFailure(err instanceof Error ? err : {});
     } finally {
       setIsConnecting(false);
       setHardwareOperationInProgress(false);
@@ -90,7 +87,7 @@ export default function ConnectHardware(): ReactElement {
           </p>
         </div>
 
-        {error && <ErrorAlert message={error} onClose={() => setError("")} />}
+        {error && <ErrorAlert message={error} onClose={() => setFailure(null)} />}
 
         <div className="bg-gray-50 rounded-lg p-4">
           <h3 className="text-sm font-medium text-gray-700 mb-3">{t('wallets_connect_hardware_before_connecting')}</h3>

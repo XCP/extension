@@ -101,6 +101,7 @@ describe.each(locales)('$language quote routing', ({ language, expected }) => {
 });
 
 it('updates a memoized quote display in place without changing valid or invalid amount drafts', () => {
+  fixture.quote = Object.freeze({ ...fixture.quote, fee_bps: 50, fee_amount: 123456 }) as PoolQuote;
   render(<LocalizedSwap />);
   openDetails();
   const quote = fixture.quote;
@@ -108,6 +109,8 @@ it('updates a memoized quote display in place without changing valid or invalid 
   const form = amount.closest('form')!;
   const canonical = hiddenValues(form);
   expect(screen.getByText('1 XCP ≈ 1,234.5 TOKEN')).toBeInTheDocument();
+  expect(screen.getByText(t('swap_form_pool_fee', ['0.50']))).toBeInTheDocument();
+  expect(screen.getByText('0.00123456 XCP')).toBeInTheDocument();
   expect(canonical).toMatchObject({ give_asset: 'XCP', get_asset: 'TOKEN', give_quantity: '2' });
 
   for (const locale of locales) {
@@ -122,6 +125,8 @@ it('updates a memoized quote display in place without changing valid or invalid 
 
   act(() => configureLocale({ language: 'ja', numberLocale: 'de-DE' }));
   expect(screen.getByText('1 XCP ≈ 1.234,5 TOKEN')).toBeInTheDocument();
+  expect(screen.getByText(t('swap_form_pool_fee', ['0,50']))).toBeInTheDocument();
+  expect(screen.getByText('0,00123456 XCP')).toBeInTheDocument();
   expect(routeText()).toBe('プール + 3 件の注文');
   expect(hiddenValues(form)).toEqual(canonical);
 

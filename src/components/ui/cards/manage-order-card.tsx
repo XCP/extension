@@ -80,7 +80,7 @@ export function ManageOrderCard({
         </button>
         {isOpen ? (
           isCancelling ? (
-            <PendingStatus label={t('cards_manage_order_card_cancelling')} className="px-3 py-1.5" />
+            <PendingStatus label="Cancelling" className="px-3 py-1.5" />
           ) : (
             <button type="button"
               onClick={handleCancel}

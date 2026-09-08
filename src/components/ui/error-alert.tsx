@@ -3,6 +3,7 @@ import { IoClose } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 interface ErrorAlertProps {
   /** The error message to display */
@@ -21,17 +22,14 @@ const SEVERITY_STYLES = {
   error: {
     container: 'bg-red-100 border-red-400 text-red-700',
     icon: 'text-red-700',
-    title: t('error_alert_error'),
   },
   warning: {
     container: 'bg-yellow-100 border-yellow-400 text-yellow-700',
     icon: 'text-yellow-700',
-    title: t('error_alert_warning'),
   },
   info: {
     container: 'bg-blue-100 border-blue-400 text-blue-700',
     icon: 'text-blue-700',
-    title: t('error_alert_info'),
   },
 } as const;
 
@@ -52,8 +50,14 @@ export const ErrorAlert = memo<ErrorAlertProps>(({
   title,
   className = ''
 }) => {
+  useLocaleRevision();
   const styles = SEVERITY_STYLES[severity];
-  const displayTitle = title || styles.title;
+  const defaultTitles = {
+    error: t('error_alert_error'),
+    warning: t('error_alert_warning'),
+    info: t('error_alert_info'),
+  };
+  const displayTitle = title || defaultTitles[severity];
   
   return (
     <div 

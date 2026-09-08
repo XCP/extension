@@ -4,12 +4,14 @@ import { useNavigate } from "react-router";
 import { FaCheck, FaCheckCircle, FaLock, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import type { AddressFormat } from "@/core/bitcoin/address";
 import { getSigningCapabilities, signMessage } from "@/core/bitcoin/messageSigner";
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
 /**
  * SignMessage component for signing messages with Bitcoin addresses.
@@ -17,6 +19,7 @@ import { analytics } from "@/platform/fathom";
  * dApp signing requests are handled by /requests/message/approve instead.
  */
 export default function SignMessagePage(): ReactElement {
+  const localeRevision = useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeWallet, activeAddress, getPrivateKey } = useWallet();
@@ -25,7 +28,8 @@ export default function SignMessagePage(): ReactElement {
   const [message, setMessage] = useState("");
   const [signature, setSignature] = useState("");
   const [isSigning, setIsSigning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | Error | null>(null);
+  const visibleError = error instanceof Error ? hardwareErrorMessage(error) ?? error.message : error;
   const [copiedField, setCopiedField] = useState<'message' | 'signature' | null>(null);
 
   // Reset function with stable reference
@@ -50,7 +54,7 @@ export default function SignMessagePage(): ReactElement {
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, handleReset, message, signature, error]);
+  }, [setHeaderProps, navigate, handleReset, message, signature, error, localeRevision]);
 
   // Get signing capabilities for current address
   const addressFormat = activeWallet?.addressFormat;
@@ -122,7 +126,7 @@ export default function SignMessagePage(): ReactElement {
       analytics.track('message_signed');
     } catch (err) {
       console.error("Failed to sign message:", err);
-      setError(err instanceof Error ? err.message : t('actions_sign_message_failed_to_sign_message'));
+      setError(err instanceof Error ? err : t('actions_sign_message_failed_to_sign_message'));
     } finally {
       setIsSigning(false);
     }
@@ -305,8 +309,8 @@ export default function SignMessagePage(): ReactElement {
       </div>
 
       {/* Error Display */}
-      {error && (
-        <ErrorAlert message={error} onClose={() => setError(null)} />
+      {visibleError && (
+        <ErrorAlert message={visibleError} onClose={() => setError(null)} />
       )}
 
       {/* YouTube Tutorial */}

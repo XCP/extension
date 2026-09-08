@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FaBitcoin, FiRefreshCw } from "@/components/icons";
+import { chartRangeLabel } from '@/components/ui/charts/chart-range-label';
 import { PriceChart } from "@/components/ui/charts/price-chart";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
@@ -19,13 +20,11 @@ import { formatAmount } from "@/core/format";
 import { useFeeRates } from "@/hooks/useFeeRates";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
 
 // Time range options (limited to 1h/24h due to CoinGecko API limitations)
-const TIME_RANGES: { id: TimeRange; label: string }[] = [
-  { id: "1h", label: "1H" },
-  { id: "24h", label: "24H" },
-];
+const TIME_RANGES = ['1h', '24h'] as const;
 
 // Chart dimensions
 const CHART_HEIGHT = 200;
@@ -39,6 +38,7 @@ export default function BtcPricePage(): ReactElement {
 }
 
 function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement {
+  const localeRevision = useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { btc: btcUsd, xcp: xcpUsd } = useMarketPrices('usd');
@@ -49,8 +49,8 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
-  const [chartError, setChartError] = useState<string | null>(null);
-  const [statsError, setStatsError] = useState<string | null>(null);
+  const [chartError, setChartError] = useState(false);
+  const [statsError, setStatsError] = useState(false);
 
   // Fee rates from mempool.space
   const { feeRates } = useFeeRates();
@@ -62,31 +62,31 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
 
   // Load stats
   const loadStats = useCallback(async (curr: FiatCurrency) => {
-    setStatsError(null);
+    setStatsError(false);
     try {
       const statsData = await getBtc24hStats(curr);
       if (statsData) {
         setStats(statsData);
       } else {
-        setStatsError(t('common_unable_to_load_price'));
+        setStatsError(true);
       }
     } catch (err) {
       console.error("Failed to load BTC stats:", err);
-      setStatsError(t('common_unable_to_load_price'));
+      setStatsError(true);
     }
   }, []);
 
   // Load chart data
   const loadChartData = useCallback(async (timeRange: TimeRange, curr: FiatCurrency) => {
     setChartLoading(true);
-    setChartError(null);
+    setChartError(false);
     try {
       const history = await getBtcPriceHistory(timeRange, curr);
       setPriceHistory(history);
     } catch (err) {
       console.error("Failed to load BTC price history:", err);
       setPriceHistory([]);
-      setChartError(t('common_unable_to_load_chart_data'));
+      setChartError(true);
     } finally {
       setChartLoading(false);
     }
@@ -135,7 +135,7 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, isRefreshing, handleRefresh]);
+  }, [setHeaderProps, navigate, isRefreshing, handleRefresh, localeRevision]);
 
   // Format price with currency
   const formatPrice = (price: number) => {
@@ -163,7 +163,7 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
             <div className="text-right">
               {statsError ? (
                 <div className="text-sm text-red-600">
-                  <span className="block">{statsError}</span>
+                  <span className="block">{t('common_unable_to_load_price')}</span>
                   <button type="button"
                     onClick={() => loadStats(currency)}
                     className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
@@ -190,17 +190,18 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
         {/* Section Header with Tabs left, Buy Bitcoin link right */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-1">
-            {TIME_RANGES.map((t) => (
+            {TIME_RANGES.map((timeRange) => (
               <button type="button"
-                key={t.id}
-                onClick={() => handleRangeChange(t.id)}
+                key={timeRange}
+                onClick={() => handleRangeChange(timeRange)}
+                aria-pressed={range === timeRange}
                 className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  range === t.id
+                  range === timeRange
                     ? "bg-gray-200 text-gray-900 font-medium"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                {t.label}
+                {chartRangeLabel(timeRange)}
               </button>
             ))}
           </div>
@@ -222,7 +223,7 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
               className="flex flex-col items-center justify-center text-center"
               style={{ height: CHART_HEIGHT }}
             >
-              <span className="text-sm text-red-600 mb-2">{chartError}</span>
+              <span className="text-sm text-red-600 mb-2">{t('common_unable_to_load_chart_data')}</span>
               <button type="button"
                 onClick={() => loadChartData(range, currency)}
                 className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -261,17 +262,17 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-gray-50 rounded-md p-2 text-center">
                   <span className="block text-xs text-gray-500">{t('market_btc_fast')}</span>
-                  <span className="text-sm font-medium text-gray-900">{feeRates.fastestFee}</span>
+                  <span className="text-sm font-medium text-gray-900">{formatAmount({ value: feeRates.fastestFee, maximumFractionDigits: 8 })}</span>
                   <span className="text-xs text-gray-400">{t('market_btc_sat_vb')}</span>
                 </div>
                 <div className="bg-gray-50 rounded-md p-2 text-center">
                   <span className="block text-xs text-gray-500">{t('market_btc_medium')}</span>
-                  <span className="text-sm font-medium text-gray-900">{feeRates.halfHourFee}</span>
+                  <span className="text-sm font-medium text-gray-900">{formatAmount({ value: feeRates.halfHourFee, maximumFractionDigits: 8 })}</span>
                   <span className="text-xs text-gray-400">{t('market_btc_sat_vb')}</span>
                 </div>
                 <div className="bg-gray-50 rounded-md p-2 text-center">
                   <span className="block text-xs text-gray-500">{t('market_btc_slow')}</span>
-                  <span className="text-sm font-medium text-gray-900">{feeRates.hourFee}</span>
+                  <span className="text-sm font-medium text-gray-900">{formatAmount({ value: feeRates.hourFee, maximumFractionDigits: 8 })}</span>
                   <span className="text-xs text-gray-400">{t('market_btc_sat_vb')}</span>
                 </div>
               </div>

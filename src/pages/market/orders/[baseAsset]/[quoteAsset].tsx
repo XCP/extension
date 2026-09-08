@@ -596,7 +596,9 @@ export default function AssetOrdersPage(): ReactElement {
               </div>
             ) : (
               <EmptyState
-                message={t('baseasset_quoteasset_no_orders_for', [String(tab), String(baseAsset), String(quoteAsset)])}
+                message={tab === 'buy'
+                  ? t('baseasset_quoteasset_no_buy_orders', [String(baseAsset), String(quoteAsset)])
+                  : t('baseasset_quoteasset_no_sell_orders', [String(baseAsset), String(quoteAsset)])}
                 linkAction={{
                   label: t('common_create_new_order'),
                   onClick: () => {

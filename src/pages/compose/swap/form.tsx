@@ -463,8 +463,8 @@ export function SwapForm({
                 )}
                 {quoteView.poolFee && (
                   <DetailRow
-                    label={t('swap_form_pool_fee', [String((quoteView.poolFee.bps / 100).toFixed(2))])}
-                    value={quoteView.poolFee.amount ? `${quoteView.poolFee.amount} ${giveAsset}` : "—"}
+                    label={t('swap_form_pool_fee', [formatAmount({ value: quoteView.poolFee.bps / 100, minimumFractionDigits: 2, maximumFractionDigits: 2 })])}
+                    value={quoteView.poolFee.amount ? `${formatAmount({ value: quoteView.poolFee.amount, maximumFractionDigits: 8 })} ${giveAsset}` : "—"}
                   />
                 )}
                 <DetailRow label={t('swap_form_route')} value={quote ? routeLabel(quote) : "—"} />

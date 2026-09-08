@@ -15,6 +15,7 @@ import { fromSatoshis } from "@/core/numeric";
 
 
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 /**
  * Constants for navigation paths.
@@ -37,6 +38,7 @@ const PATHS = {
  * ```
  */
 export default function UtxoPage(): ReactElement {
+  useLocaleRevision();
   const { txHash: txid } = useParams<{ txHash: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
@@ -46,6 +48,8 @@ export default function UtxoPage(): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
   const [btcTxData, setBtcTxData] = useState<any>(null);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
+  const headerTitle = t('utxos_txhash_utxo_details');
+  const copyLabel = t('utxos_txhash_copy_utxo');
 
   // Handle copy UTXO to clipboard
   const handleCopyUtxo = async () => {
@@ -63,16 +67,16 @@ export default function UtxoPage(): ReactElement {
   // setHeaderProps on every render and re-trigger this effect.
   useEffect(() => {
     setHeaderProps({
-      title: t('utxos_txhash_utxo_details'),
+      title: headerTitle,
       onBack: () => navigate(-1),
       rightButton: {
         icon: copiedToClipboard ? <FiCheck className="size-4" aria-hidden="true" /> : <FiCopy className="size-4" aria-hidden="true" />,
         onClick: handleCopyUtxo,
-        ariaLabel: t('utxos_txhash_copy_utxo')
+        ariaLabel: copyLabel
       }
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, txid, copiedToClipboard, balances]);
+  }, [setHeaderProps, navigate, txid, copiedToClipboard, balances, headerTitle, copyLabel]);
 
   // Load UTXO balances and Bitcoin transaction data
   useEffect(() => {
@@ -163,7 +167,7 @@ export default function UtxoPage(): ReactElement {
               <div className="flex justify-between">
                 <span className="text-sm text-gray-500">{t('utxos_txhash_time_attached')}</span>
                 <span className="text-sm text-gray-900">
-                  {btcTxData.blocktime ? formatTimeAgo(btcTxData.blocktime) : 'Pending'}
+                  {btcTxData.blocktime ? formatTimeAgo(btcTxData.blocktime) : t('balance_pending_confirmation')}
                 </span>
               </div>
               <div className="flex justify-between">

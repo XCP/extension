@@ -1,3 +1,4 @@
+import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { providerReviewCode } from '@/core/providerReviewErrors';
 import { t } from '@/i18n';
 
@@ -29,6 +30,6 @@ export function providerReviewErrorMessage(error: unknown, fallback = t('common_
     case 'interrupted': return t('provider_review_interrupted');
     case 'expired_completion': return t('provider_review_expired_completion');
     case 'expired_delivery': return t('provider_review_expired_delivery');
-    default: return error instanceof Error ? error.message : typeof error === 'string' ? error : fallback;
+    default: return hardwareErrorMessage(error) ?? (error instanceof Error ? error.message : typeof error === 'string' ? error : fallback);
   }
 }

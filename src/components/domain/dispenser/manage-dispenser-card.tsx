@@ -77,7 +77,7 @@ export function ManageDispenserCard({
         </button>
         {isOpen ? (
           isClosing ? (
-            <PendingStatus label={t('dispenser_manage_dispenser_card_closing')} className="px-3 py-1.5" />
+            <PendingStatus label="Closing" className="px-3 py-1.5" />
           ) : (
           <div className="flex gap-2">
             <button type="button"

@@ -774,7 +774,7 @@
     "message": "管理流动性池"
   },
   "asset_balance_pay_for_an_order_match": {
-    "message": "用 BTC 支付订单撮合"
+    "message": "用 BTC 结算已撮合订单"
   },
   "asset_balance_permanently_burn_this_asset": {
     "message": "永久销毁此资产"
@@ -1006,9 +1006,6 @@
   },
   "baseasset_quoteasset_no_matches": {
     "message": "没有 $1/$2 的撮合记录"
-  },
-  "baseasset_quoteasset_no_orders_for": {
-    "message": "$2/$3 没有$1订单"
   },
   "baseasset_quoteasset_orders": {
     "message": "订单"
@@ -1482,7 +1479,7 @@
     "message": "注意:"
   },
   "common_open": {
-    "message": "打开"
+    "message": "营业中"
   },
   "common_options": {
     "message": "选项"
@@ -2337,10 +2334,10 @@
     "message": "选择要出售的资产。"
   },
   "dispenser_form_the_quantity_of_the_asset": {
-    "message": "每笔交易给付的资产数量。最多可输入 8 位小数。"
+    "message": "每份发放的资产数量。一次付款可购买多份。最多输入 8 位小数。"
   },
   "dispenser_form_the_quantity_of_the_asset_2": {
-    "message": "每笔交易给付的资产数量。只能输入整数。"
+    "message": "每份发放的资产数量。一次付款可购买多份。只能输入整数。"
   },
   "dispenser_form_total_amount_to_lock_in": {
     "message": "锁定到售货机中的总数量。最多可输入 8 位小数。可用: $1"
@@ -3600,7 +3597,7 @@
     "message": "否（整数单位）"
   },
   "messages_fairminter_premint": {
-    "message": "预挖"
+    "message": "预铸数量"
   },
   "messages_fairminter_price_per_unit": {
     "message": "每单位价格"
@@ -3675,7 +3672,7 @@
     "message": "每地址 $1"
   },
   "messages_mpma_recipients": {
-    "message": "$1 个收款方 ($2)"
+    "message": "$1 收款地址（$2 个）"
   },
   "messages_mpma_total_sent": {
     "message": "$1 发送总量"
@@ -3684,7 +3681,7 @@
     "message": "买单"
   },
   "messages_order_fee_provided": {
-    "message": "提供的费用"
+    "message": "订单交易矿工费"
   },
   "messages_order_fill_progress": {
     "message": "成交进度"
@@ -4296,7 +4293,7 @@
     "message": "为支持的资产启用多地址发送 (MPMA)。"
   },
   "settings_advanced_enable_this_to_chain_transactions": {
-    "message": "启用后可在尚未确认的交易之上链式发起交易。"
+    "message": "允许花费尚未确认交易的输出，继续发起交易。"
   },
   "settings_advanced_privacy_display": {
     "message": "隐私与显示"
@@ -4398,7 +4395,7 @@
     "message": "$1 sats（约 $2 sat/vB）"
   },
   "settings_order_settings_the_minimum_tx_fee_required": {
-    "message": "BTCPay 撮合此订单所需的最低交易费用（聪）。"
+    "message": "对支付 BTC 的匹配订单交易所要求的矿工费（聪）。"
   },
   "settings_order_settings_use_0_for_orders_that": {
     "message": "填 0 表示订单永不过期。有期限的订单将在所选区块数后取消。"
@@ -4650,7 +4647,7 @@
     "message": "这将创建一个用于测试的只读钱包。你无法签名或广播交易。"
   },
   "swap_form_above_what_the_pending_orders": {
-    "message": "超出了待确认订单成交后剩余的数量。如果它们先确认，此兑换将挂单一个区块后退款而不是成交。请提高滑点或使用“自动”。"
+    "message": "你的最低接收数量高于计入待确认订单后的预计数量。如果这些订单先确认，可能无法达到你的最低数量。未成交的投入资产会在本订单到期后退回。请调整滑点或使用自动设置。"
   },
   "swap_form_after_mempool": {
     "message": "前序订单确认后（估算）"
@@ -4709,7 +4706,7 @@
     "message": "流动性池费用 ($1%)"
   },
   "swap_form_review_swap": {
-    "message": "确认兑换"
+    "message": "检查兑换"
   },
   "swap_form_route": {
     "message": "路径"
@@ -5002,9 +4999,6 @@
   "wallets_connect_hardware_connecting": {
     "message": "连接中..."
   },
-  "wallets_connect_hardware_connection_cancelled_please_try_again": {
-    "message": "连接已取消。准备好后请重试。"
-  },
   "wallets_connect_hardware_failed_to_connect_hardware_wallet": {
     "message": "连接硬件钱包失败"
   },
@@ -5013,9 +5007,6 @@
   },
   "wallets_connect_hardware_select_your_account_when_prompted": {
     "message": "在提示时选择你的账户"
-  },
-  "wallets_connect_hardware_taproot_requires_newer_trezor_firmware": {
-    "message": "Taproot 需要更新版本的 Trezor 固件。请更新固件或尝试其他账户类型。"
   },
   "wallets_connect_hardware_unlock_your_device_with_pin": {
     "message": "使用 PIN 解锁设备"
@@ -5727,5 +5718,173 @@
   },
   "swap_quote_outcome_no_liquidity": {
     "message": "此交易对暂无可用流动性。"
+  },
+  "api_validation_connection_failed": {
+    "message": "无法连接 API，请检查网址和 CORS 设置"
+  },
+  "api_validation_http_error": {
+    "message": "API 返回错误：$1"
+  },
+  "api_validation_invalid_response": {
+    "message": "API 响应格式无效"
+  },
+  "api_validation_invalid_url": {
+    "message": "网址格式无效"
+  },
+  "api_validation_mainnet_required": {
+    "message": "API 必须连接主网"
+  },
+  "api_validation_server_not_ready": {
+    "message": "API 服务器尚未就绪"
+  },
+  "api_validation_timeout": {
+    "message": "连接超时，无法访问 API"
+  },
+  "api_validation_url_required": {
+    "message": "请输入 API 地址"
+  },
+  "api_validation_version_required": {
+    "message": "API 必须为 Counterparty Core $1 或更新版本"
+  },
+  "balance_pending_attaching": {
+    "message": "附加中"
+  },
+  "balance_pending_burning": {
+    "message": "销毁中"
+  },
+  "balance_pending_confirmation": {
+    "message": "待确认"
+  },
+  "balance_pending_depositing": {
+    "message": "添加流动性中"
+  },
+  "balance_pending_detaching": {
+    "message": "分离中"
+  },
+  "balance_pending_dispensing": {
+    "message": "发放中"
+  },
+  "balance_pending_dividend": {
+    "message": "分红发放中"
+  },
+  "balance_pending_issuing": {
+    "message": "发行中"
+  },
+  "balance_pending_matching": {
+    "message": "撮合中"
+  },
+  "balance_pending_minting": {
+    "message": "铸造中"
+  },
+  "balance_pending_moving": {
+    "message": "转移中"
+  },
+  "balance_pending_opening": {
+    "message": "开启中"
+  },
+  "balance_pending_ordering": {
+    "message": "挂单中"
+  },
+  "balance_pending_paying": {
+    "message": "付款中"
+  },
+  "balance_pending_refilling": {
+    "message": "补货中"
+  },
+  "balance_pending_resetting": {
+    "message": "重置中"
+  },
+  "balance_pending_sending": {
+    "message": "发送中"
+  },
+  "balance_pending_sweeping": {
+    "message": "归集中"
+  },
+  "balance_pending_withdrawing": {
+    "message": "移除流动性中"
+  },
+  "baseasset_quoteasset_no_buy_orders": {
+    "message": "$1/$2 没有买单"
+  },
+  "baseasset_quoteasset_no_sell_orders": {
+    "message": "$1/$2 没有卖单"
+  },
+  "charts_range_days": {
+    "message": "$1天"
+  },
+  "charts_range_hours": {
+    "message": "$1小时"
+  },
+  "charts_range_years": {
+    "message": "$1年"
+  },
+  "hardware_error_address_failed": {
+    "message": "无法从 Trezor 读取地址。请检查设备后重试。"
+  },
+  "hardware_error_busy": {
+    "message": "Trezor 正忙。请结束其他操作后重试。"
+  },
+  "hardware_error_cancelled": {
+    "message": "已取消 Trezor 操作。"
+  },
+  "hardware_error_disconnected": {
+    "message": "Trezor 已断开连接。请重新连接后重试。"
+  },
+  "hardware_error_discovery_failed": {
+    "message": "无法读取 Trezor 账户。请检查设备后重试。"
+  },
+  "hardware_error_init_failed": {
+    "message": "无法初始化 Trezor 连接。请检查连接后重试。"
+  },
+  "hardware_error_permission_denied": {
+    "message": "请在 Trezor 窗口中允许访问后重试。"
+  },
+  "hardware_error_public_key_failed": {
+    "message": "无法从 Trezor 读取公钥。请检查设备后重试。"
+  },
+  "hardware_error_taproot_message": {
+    "message": "Trezor 无法使用 Taproot（P2TR）地址签署消息。请使用其他地址类型，例如 $1。"
+  },
+  "inputs_api_url_input_api_url": {
+    "message": "API 地址"
+  },
+  "messages_mpma_addresses": {
+    "message": "$1 个地址"
+  },
+  "messages_mpma_assets": {
+    "message": "$1 种资产"
+  },
+  "messages_mpma_details_unavailable": {
+    "message": "无法获取完整的转账明细。"
+  },
+  "messages_mpma_one_address": {
+    "message": "$1 个地址"
+  },
+  "messages_mpma_one_asset": {
+    "message": "$1 种资产"
+  },
+  "messages_order_expires_after_block": {
+    "message": "区块 $1 之后"
+  },
+  "messages_order_recorded_state": {
+    "message": "已记录的订单状态"
+  },
+  "messages_order_snapshot_notice": {
+    "message": "这是随此交易记录的订单状态，不包含之后的成交或取消。"
+  },
+  "messages_order_status_cancelled": {
+    "message": "已取消"
+  },
+  "messages_order_status_expired": {
+    "message": "已到期"
+  },
+  "messages_order_status_filled": {
+    "message": "已完全成交"
+  },
+  "messages_order_status_open": {
+    "message": "挂单中"
+  },
+  "messages_order_status_unknown": {
+    "message": "未知"
   }
 }

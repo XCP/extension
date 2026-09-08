@@ -2,9 +2,28 @@ import { Input } from '@headlessui/react';
 import { useEffect, useState } from 'react';
 import { FiRotateCcw } from '@/components/icons';
 import { DEFAULT_SETTINGS } from '@/core/settings';
-import { validateCounterpartyApi } from '@/core/validation/api';
+import { type ApiValidationResult, validateCounterpartyApi } from '@/core/validation/api';
 
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
+
+/** Local allowlisted facts only; unknown diagnostics retain the original response text. */
+function validationMessage(result: ApiValidationResult): string {
+  const diagnostic = result.diagnostic;
+  switch (diagnostic?.code) {
+    case 'url_required': return t('api_validation_url_required');
+    case 'invalid_url': return t('api_validation_invalid_url');
+    case 'invalid_response': return t('api_validation_invalid_response');
+    case 'server_not_ready': return t('api_validation_server_not_ready');
+    case 'mainnet_required': return t('api_validation_mainnet_required');
+    case 'timeout': return t('api_validation_timeout');
+    case 'connection_failed': return t('api_validation_connection_failed');
+    case 'validation_failed': return t('inputs_api_url_input_failed_to_validate_api');
+    case 'http_error': return t('api_validation_http_error', [String(diagnostic.status)]);
+    case 'version_required': return t('api_validation_version_required', [diagnostic.minimumVersion]);
+    default: return result.error || t('inputs_api_url_input_failed_to_validate_api');
+  }
+}
 
 interface ApiUrlInputProps {
   value: string;
@@ -23,8 +42,9 @@ export const ApiUrlInput = ({
   className = '',
   showHelpText = true
 }: ApiUrlInputProps) => {
+  useLocaleRevision();
   const [localValue, setLocalValue] = useState(value);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -37,21 +57,24 @@ export const ApiUrlInput = ({
     setError(null);
     setShowSuccess(false);
 
-    const result = await validateCounterpartyApi(url);
-    
-    if (result.isValid) {
-      await onValidationSuccess(url);
-      setError(null);
-      setShowSuccess(true);
-      onChange(url);
-      // Clear success message after 3 seconds
-      setTimeout(() => setShowSuccess(false), 3000);
-    } else {
-      setError(result.error || t('inputs_api_url_input_failed_to_validate_api'));
-      setShowSuccess(false);
+    try {
+      const result = await validateCounterpartyApi(url);
+
+      if (result.isValid) {
+        await onValidationSuccess(url);
+        setError(null);
+        setShowSuccess(true);
+        onChange(url);
+        // Clear success message after 3 seconds
+        setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        setError(result);
+        setShowSuccess(false);
+      }
+    } finally {
+      // A caller's save failure still propagates unchanged, but cannot leave the input disabled.
+      setIsValidating(false);
     }
-    
-    setIsValidating(false);
   };
 
   const handleBlur = async () => {
@@ -91,7 +114,7 @@ export const ApiUrlInput = ({
           onBlur={handleBlur}
           disabled={disabled || isValidating}
           placeholder="https://api.counterparty.io:4000"
-          aria-label="API URL"
+          aria-label={t('inputs_api_url_input_api_url')}
           className={`flex-1 p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 disabled:opacity-50 transition-colors ${getBorderClass()}`}
         />
         <button type="button"
@@ -110,7 +133,7 @@ export const ApiUrlInput = ({
             <p className="text-sm text-gray-500">{t('inputs_api_url_input_validating_api_endpoint')}</p>
           )}
           {error && (
-            <p className="text-sm text-red-500">❌ {error}</p>
+            <p className="text-sm text-red-500">❌ {validationMessage(error)}</p>
           )}
           {showSuccess && !isValidating && (
             <p className="text-sm text-green-500">{t('inputs_api_url_input_api_endpoint_validated_and_saved')}</p>

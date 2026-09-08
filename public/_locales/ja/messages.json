@@ -972,7 +972,7 @@
     "message": "利用可能な最大数量を使用"
   },
   "balance_balance_header_incoming": {
-    "message": "$1(+$2 受信中)"
+    "message": "$1(+$2 入金待ち)"
   },
   "balance_balance_list_bitcoin": {
     "message": "Bitcoin"
@@ -1006,9 +1006,6 @@
   },
   "baseasset_quoteasset_no_matches": {
     "message": "$1/$2 の約定はありません"
-  },
-  "baseasset_quoteasset_no_orders_for": {
-    "message": "$2/$3 の$1注文はありません"
   },
   "baseasset_quoteasset_orders": {
     "message": "注文"
@@ -1350,10 +1347,10 @@
     "message": "送信元:"
   },
   "common_get": {
-    "message": "取得"
+    "message": "受取数量"
   },
   "common_give": {
-    "message": "提供"
+    "message": "支払数量"
   },
   "common_hard_cap": {
     "message": "ハードキャップ"
@@ -1365,7 +1362,7 @@
     "message": "履歴"
   },
   "common_i_have_saved_my_secret": {
-    "message": "シークレットリカバリーフレーズを保存しました。"
+    "message": "リカバリーフレーズを保存しました。"
   },
   "common_i_understand_this_cannot_be": {
     "message": "元に戻せないことを理解しました"
@@ -1482,7 +1479,7 @@
     "message": "注記:"
   },
   "common_open": {
-    "message": "開く"
+    "message": "稼働中"
   },
   "common_options": {
     "message": "オプション"
@@ -2337,10 +2334,10 @@
     "message": "販売するアセットを選択してください。"
   },
   "dispenser_form_the_quantity_of_the_asset": {
-    "message": "1 トランザクションあたりに販売するアセットの数量。小数点以下 8 桁まで入力できます。"
+    "message": "1ロットあたりに販売するアセットの数量。1回の支払いで複数ロットを購入できます。小数点以下8桁まで入力できます。"
   },
   "dispenser_form_the_quantity_of_the_asset_2": {
-    "message": "1 トランザクションあたりに販売するアセットの数量。整数のみ入力できます。"
+    "message": "1ロットあたりに販売するアセットの数量。1回の支払いで複数ロットを購入できます。整数で入力してください。"
   },
   "dispenser_form_total_amount_to_lock_in": {
     "message": "自販機にロックする合計数量。小数点以下 8 桁まで入力できます。利用可能: $1"
@@ -2874,7 +2871,7 @@
     "message": "自販機を読み込めませんでした"
   },
   "market_failed_to_load_more_pools": {
-    "message": "さらにプールを読み込めませんでした"
+    "message": "追加のプールを読み込めませんでした"
   },
   "market_failed_to_load_orders": {
     "message": "注文を読み込めませんでした"
@@ -3609,7 +3606,7 @@
     "message": "数量ロック済み"
   },
   "messages_fairminter_quantity_per_price": {
-    "message": "価格あたりの数量"
+    "message": "1ロットの数量"
   },
   "messages_fairminter_yes_8_decimals": {
     "message": "はい（小数点以下 8 桁）"
@@ -3675,7 +3672,7 @@
     "message": "アドレスあたり $1"
   },
   "messages_mpma_recipients": {
-    "message": "受取人 $1 件 ($2)"
+    "message": "$1の送信先（$2件）"
   },
   "messages_mpma_total_sent": {
     "message": "$1 の送付合計"
@@ -3684,16 +3681,16 @@
     "message": "買い注文"
   },
   "messages_order_fee_provided": {
-    "message": "提供した手数料"
+    "message": "注文トランザクションの手数料"
   },
   "messages_order_fill_progress": {
     "message": "約定の進捗"
   },
   "messages_order_get_remaining": {
-    "message": "取得残り"
+    "message": "未約定の受取数量"
   },
   "messages_order_give_remaining": {
-    "message": "提供残り"
+    "message": "未約定の支払数量"
   },
   "messages_order_sell_order": {
     "message": "売り注文"
@@ -4158,7 +4155,7 @@
     "message": "誰にも共有しないでください。これらの単語を知る人は誰でもあなたの資金を盗めます。"
   },
   "secrets_show_passphrase_passphrase": {
-    "message": "パスフレーズ"
+    "message": "リカバリーフレーズ"
   },
   "secrets_show_passphrase_show_recovery_phrase": {
     "message": "リカバリーフレーズを表示"
@@ -4296,7 +4293,7 @@
     "message": "対応アセットの複数宛先送金 (MPMA) を有効にします。"
   },
   "settings_advanced_enable_this_to_chain_transactions": {
-    "message": "未承認のトランザクションに続けてトランザクションを連鎖させる場合に有効にします。"
+    "message": "未承認のトランザクションの出力を、次のトランザクションで使用する場合に有効にします。"
   },
   "settings_advanced_privacy_display": {
     "message": "プライバシーと表示"
@@ -4398,7 +4395,7 @@
     "message": "$1 sats（約 $2 sat/vB）"
   },
   "settings_order_settings_the_minimum_tx_fee_required": {
-    "message": "この注文に BTCPay をマッチさせるために必要な最低 TX 手数料（satoshi）。"
+    "message": "この注文とマッチするBTC支払い側の注文トランザクションに必要なマイナー手数料（satoshi）。"
   },
   "settings_order_settings_use_0_for_orders_that": {
     "message": "無期限の注文には 0 を使用します。有限の注文は選択したブロック数の経過後にキャンセルされます。"
@@ -4497,13 +4494,13 @@
     "message": "先にリカバリーフレーズを表示して保存してください。"
   },
   "setup_create_mnemonic_please_write_down_this_12": {
-    "message": "この 12 単語のシークレットフレーズを書き留めてください。"
+    "message": "12個の単語からなるリカバリーフレーズを書き留めてください。"
   },
   "setup_create_mnemonic_reveal_recovery_phrase": {
     "message": "リカバリーフレーズを表示"
   },
   "setup_create_mnemonic_view_12_word_secret_phrase": {
-    "message": "12 単語のシークレットフレーズを表示"
+    "message": "リカバリーフレーズ（12単語）を表示"
   },
   "setup_create_mnemonic_watch_tutorial_how_to_create": {
     "message": "チュートリアルを見る: ウォレットの作成方法"
@@ -4650,7 +4647,7 @@
     "message": "テスト用の閲覧専用ウォレットを作成します。トランザクションの署名やブロードキャストはできません。"
   },
   "swap_form_above_what_the_pending_orders": {
-    "message": "保留中の注文が残す量を上回っています。それらが先に承認されると、このスワップは 1 ブロックの間待機してから約定せずに返金されます。スリッページを上げるか「自動」を使用してください。"
+    "message": "最低受取数量が、未承認の注文を反映した受取見込みを上回っています。それらが先に承認されると、最低受取数量を満たせない可能性があります。未約定分は注文の有効期限後に返却されます。スリッページを調整するか「自動」を使用してください。"
   },
   "swap_form_after_mempool": {
     "message": "先行注文の承認後（推定）"
@@ -4683,7 +4680,7 @@
     "message": "スワップの詳細を隠す"
   },
   "swap_form_impact": {
-    "message": "価格への影響: $p1$$p2$%",
+    "message": "価格インパクト: $p1$$p2$%",
     "placeholders": {
       "p1": {
         "content": "$1"
@@ -4964,7 +4961,7 @@
     "message": "削除"
   },
   "wallet_wallet_menu_show_passphrase": {
-    "message": "パスフレーズを表示"
+    "message": "リカバリーフレーズを表示"
   },
   "wallet_wallet_menu_wallet_options": {
     "message": "ウォレットのオプション"
@@ -4982,7 +4979,7 @@
     "message": "アドレスをインポート（開発専用）"
   },
   "wallets_add_import_mnemonic": {
-    "message": "ニーモニックをインポート"
+    "message": "リカバリーフレーズをインポート"
   },
   "wallets_add_use_trezor_connect": {
     "message": "Trezor Connect を使用"
@@ -5002,9 +4999,6 @@
   "wallets_connect_hardware_connecting": {
     "message": "接続中..."
   },
-  "wallets_connect_hardware_connection_cancelled_please_try_again": {
-    "message": "接続がキャンセルされました。準備ができたらもう一度お試しください。"
-  },
   "wallets_connect_hardware_failed_to_connect_hardware_wallet": {
     "message": "ハードウェアウォレットに接続できませんでした"
   },
@@ -5013,9 +5007,6 @@
   },
   "wallets_connect_hardware_select_your_account_when_prompted": {
     "message": "求められたらアカウントを選択する"
-  },
-  "wallets_connect_hardware_taproot_requires_newer_trezor_firmware": {
-    "message": "Taproot には新しい Trezor ファームウェアが必要です。ファームウェアを更新するか、別のアカウントタイプをお試しください。"
   },
   "wallets_connect_hardware_unlock_your_device_with_pin": {
     "message": "PIN でデバイスのロックを解除する"
@@ -5033,7 +5024,7 @@
     "message": "ウォレット識別子が無効です。"
   },
   "wallets_remove_make_sure_you_have_backed": {
-    "message": "削除する前に、ウォレットのニーモニックをバックアップしたことを確認してください。"
+    "message": "削除する前に、ウォレットのリカバリーフレーズをバックアップ済みであることを確認してください。"
   },
   "wallets_remove_make_sure_you_have_backed_2": {
     "message": "削除する前に、ウォレットの秘密鍵をバックアップしたことを確認してください。"
@@ -5727,5 +5718,173 @@
   },
   "swap_quote_outcome_no_liquidity": {
     "message": "このペアで利用できる流動性がありません。"
+  },
+  "api_validation_connection_failed": {
+    "message": "APIに接続できません。URLとCORS設定を確認してください"
+  },
+  "api_validation_http_error": {
+    "message": "APIエラー：$1"
+  },
+  "api_validation_invalid_response": {
+    "message": "APIの応答形式が正しくありません"
+  },
+  "api_validation_invalid_url": {
+    "message": "URLの形式が正しくありません"
+  },
+  "api_validation_mainnet_required": {
+    "message": "メインネットに接続したAPIが必要です"
+  },
+  "api_validation_server_not_ready": {
+    "message": "APIサーバーの準備ができていません"
+  },
+  "api_validation_timeout": {
+    "message": "接続がタイムアウトしました。APIに接続できません"
+  },
+  "api_validation_url_required": {
+    "message": "APIのURLを入力してください"
+  },
+  "api_validation_version_required": {
+    "message": "Counterparty Core $1以降のAPIが必要です"
+  },
+  "balance_pending_attaching": {
+    "message": "アタッチ中"
+  },
+  "balance_pending_burning": {
+    "message": "焼却中"
+  },
+  "balance_pending_confirmation": {
+    "message": "承認待ち"
+  },
+  "balance_pending_depositing": {
+    "message": "流動性追加中"
+  },
+  "balance_pending_detaching": {
+    "message": "デタッチ中"
+  },
+  "balance_pending_dispensing": {
+    "message": "払い出し中"
+  },
+  "balance_pending_dividend": {
+    "message": "配当支払い中"
+  },
+  "balance_pending_issuing": {
+    "message": "発行中"
+  },
+  "balance_pending_matching": {
+    "message": "マッチング中"
+  },
+  "balance_pending_minting": {
+    "message": "ミント中"
+  },
+  "balance_pending_moving": {
+    "message": "移動中"
+  },
+  "balance_pending_opening": {
+    "message": "開設中"
+  },
+  "balance_pending_ordering": {
+    "message": "注文送信中"
+  },
+  "balance_pending_paying": {
+    "message": "支払い中"
+  },
+  "balance_pending_refilling": {
+    "message": "補充中"
+  },
+  "balance_pending_resetting": {
+    "message": "リセット中"
+  },
+  "balance_pending_sending": {
+    "message": "送信中"
+  },
+  "balance_pending_sweeping": {
+    "message": "一括移転中"
+  },
+  "balance_pending_withdrawing": {
+    "message": "流動性引き出し中"
+  },
+  "baseasset_quoteasset_no_buy_orders": {
+    "message": "$1/$2の買い注文はありません"
+  },
+  "baseasset_quoteasset_no_sell_orders": {
+    "message": "$1/$2の売り注文はありません"
+  },
+  "charts_range_days": {
+    "message": "$1日"
+  },
+  "charts_range_hours": {
+    "message": "$1時間"
+  },
+  "charts_range_years": {
+    "message": "$1年"
+  },
+  "hardware_error_address_failed": {
+    "message": "Trezorからアドレスを読み込めませんでした。端末を確認して、もう一度お試しください。"
+  },
+  "hardware_error_busy": {
+    "message": "Trezorは別の操作で使用中です。その操作を終了して、もう一度お試しください。"
+  },
+  "hardware_error_cancelled": {
+    "message": "Trezorの操作をキャンセルしました。"
+  },
+  "hardware_error_disconnected": {
+    "message": "Trezorの接続が切れました。再接続して、もう一度お試しください。"
+  },
+  "hardware_error_discovery_failed": {
+    "message": "Trezorのアカウントを読み込めませんでした。端末を確認して、もう一度お試しください。"
+  },
+  "hardware_error_init_failed": {
+    "message": "Trezorとの接続を開始できませんでした。接続を確認して、もう一度お試しください。"
+  },
+  "hardware_error_permission_denied": {
+    "message": "Trezorの画面でアクセスを許可して、もう一度お試しください。"
+  },
+  "hardware_error_public_key_failed": {
+    "message": "Trezorから公開鍵を読み込めませんでした。端末を確認して、もう一度お試しください。"
+  },
+  "hardware_error_taproot_message": {
+    "message": "TrezorではTaproot（P2TR）アドレスでメッセージに署名できません。$1など、別のアドレスタイプを使用してください。"
+  },
+  "inputs_api_url_input_api_url": {
+    "message": "APIのURL"
+  },
+  "messages_mpma_addresses": {
+    "message": "$1件のアドレス"
+  },
+  "messages_mpma_assets": {
+    "message": "$1種類のアセット"
+  },
+  "messages_mpma_details_unavailable": {
+    "message": "送金明細の全体を取得できません。"
+  },
+  "messages_mpma_one_address": {
+    "message": "$1件のアドレス"
+  },
+  "messages_mpma_one_asset": {
+    "message": "$1種類のアセット"
+  },
+  "messages_order_expires_after_block": {
+    "message": "ブロック $1 の後"
+  },
+  "messages_order_recorded_state": {
+    "message": "記録された注文の状態"
+  },
+  "messages_order_snapshot_notice": {
+    "message": "このトランザクションで記録された注文の状態です。その後の約定や取消は含まれません。"
+  },
+  "messages_order_status_cancelled": {
+    "message": "取消済み"
+  },
+  "messages_order_status_expired": {
+    "message": "期限切れ"
+  },
+  "messages_order_status_filled": {
+    "message": "約定済み"
+  },
+  "messages_order_status_open": {
+    "message": "有効"
+  },
+  "messages_order_status_unknown": {
+    "message": "不明"
   }
 }
