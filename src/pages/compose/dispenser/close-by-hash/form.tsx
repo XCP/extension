@@ -9,6 +9,8 @@ import { fetchDispenserByHash } from "@/core/counterparty/api";
 import type { DispenserOptions } from "@/core/counterparty/compose";
 import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 
+import { t } from '@/i18n';
+
 interface DispenserCloseByHashFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DispenserOptions | null;
@@ -89,28 +91,28 @@ export function DispenserCloseByHashForm({
       }
     >
       {isLoading ? (
-        <div className="py-4 text-center">Loading dispenser details…</div>
+        <div className="py-4 text-center">{t('close_by_hash_form_loading_dispenser_details')}</div>
       ) : (
         <>
           <HashInput
             value={txHash}
             onChange={setTxHash}
-            label="Transaction Hash"
+            label={t('close_by_hash_form_transaction_hash')}
             hashType="transaction"
-            placeholder="Enter dispenser transaction hash"
+            placeholder={t('close_by_hash_form_enter_dispenser_transaction_hash')}
             required={false}
             disabled={pending}
             showHelpText={showHelpText}
-            description="Transaction hash of the dispenser to close. Found in your dispenser history."
+            description={t('close_by_hash_form_transaction_hash_of_the_dispenser')}
             showCopyButton={true}
           />
           {selectedDispenser && (
             <div className="mt-2 text-sm text-gray-700 p-3 bg-gray-50 rounded-md">
-              <p><strong>Asset:</strong> {selectedDispenser.asset}</p>
-              <p><strong>Give Quantity:</strong> {selectedDispenser.give_quantity_normalized}</p>
-              <p><strong>Escrow Quantity:</strong> {selectedDispenser.escrow_quantity_normalized}</p>
-              <p><strong>Price:</strong> {selectedDispenser.price_normalized}</p>
-              <p><strong>Source:</strong> {selectedDispenser.source}</p>
+              <p><strong>{t('close_by_hash_form_asset')}</strong> {selectedDispenser.asset}</p>
+              <p><strong>{t('close_by_hash_form_give_quantity')}</strong> {selectedDispenser.give_quantity_normalized}</p>
+              <p><strong>{t('close_by_hash_form_escrow_quantity')}</strong> {selectedDispenser.escrow_quantity_normalized}</p>
+              <p><strong>{t('close_by_hash_form_price')}</strong> {selectedDispenser.price_normalized}</p>
+              <p><strong>{t('close_by_hash_form_source')}</strong> {selectedDispenser.source}</p>
             </div>
           )}
           <input type="hidden" name="asset" value={selectedDispenser?.asset || ""} />

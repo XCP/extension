@@ -10,18 +10,15 @@ import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import type { AutoLockTimer } from "@/core/settings";
 
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
+
 /**
  * Constants for navigation paths and auto-lock options.
  */
 const PATHS = {
   BACK: -1, // Using -1 for navigate(-1)
 } as const;
-const AUTO_LOCK_OPTIONS = [
-  { value: "1m" as AutoLockTimer, label: "1 Minute" },
-  { value: "5m" as AutoLockTimer, label: "5 Minutes" },
-  { value: "15m" as AutoLockTimer, label: "15 Minutes" },
-  { value: "30m" as AutoLockTimer, label: "30 Minutes" },
-] as const;
 
 /**
  * AdvancedSettings component manages advanced wallet settings.
@@ -37,40 +34,47 @@ const AUTO_LOCK_OPTIONS = [
  * ```
  */
 export default function AdvancedSettingsPage(): ReactElement {
+  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
 
+  const autoLockOptions = [
+    { value: "1m" as AutoLockTimer, label: t('settings_advanced_1_minute') },
+    { value: "5m" as AutoLockTimer, label: t('settings_advanced_5_minutes') },
+    { value: "15m" as AutoLockTimer, label: t('settings_advanced_15_minutes') },
+    { value: "30m" as AutoLockTimer, label: t('settings_advanced_30_minutes') },
+  ] as const;
 
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Advanced",
+      title: t('common_advanced'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => setIsHelpTextOverride((prev) => !prev),
-        ariaLabel: "Toggle help text",
+        ariaLabel: t('common_toggle_help_text'),
       },
     });
   }, [setHeaderProps, navigate]);
 
-  if (isLoading || !settings) return <div className="p-4 text-center text-gray-500">Loading…</div>;
+  if (isLoading || !settings) return <div className="p-4 text-center text-gray-500">{t('common_loading')}</div>;
 
   const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
 
   return (
     <section className="space-y-8 p-4 mb-2" aria-labelledby="advanced-settings-title">
       <h2 id="advanced-settings-title" className="sr-only">
-        Advanced Settings
+        {t('settings_advanced_advanced_settings')}
       </h2>
 
-      <SettingsSection id="adv-security" title="Security">
+      <SettingsSection id="adv-security" title={t('common_security')}>
         <Field>
-          <Label className="font-bold">Auto-Lock Timer</Label>
+          <Label className="font-bold">{t('settings_advanced_auto_lock_timer')}</Label>
           <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-            Choose how long to wait before automatically locking your wallet.
+            {t('settings_advanced_choose_how_long_to_wait')}
           </Description>
           <RadioGroup
             value={settings.autoLockTimer}
@@ -78,7 +82,7 @@ export default function AdvancedSettingsPage(): ReactElement {
             className="mt-4"
           >
             <SelectionCardGroup>
-              {AUTO_LOCK_OPTIONS.map((option) => (
+              {autoLockOptions.map((option) => (
                 <SelectionCard
                   key={option.value}
                   value={option.value}
@@ -91,51 +95,51 @@ export default function AdvancedSettingsPage(): ReactElement {
 
       </SettingsSection>
 
-      <SettingsSection id="adv-transactions" title="Transactions">
+      <SettingsSection id="adv-transactions" title={t('common_transactions')}>
         <SettingSwitch
-          label="Strict TXs Verification"
-          description="Block signing if local transaction verification fails. When off, a warning is shown but signing is allowed."
+          label={t('settings_advanced_strict_txs_verification')}
+          description={t('settings_advanced_block_signing_if_local_transaction')}
           checked={settings.strictTransactionVerification}
           onChange={(checked) => updateSettings({ strictTransactionVerification: checked })}
           showHelpText={shouldShowHelpText}
         />
 
         <SettingSwitch
-          label="Use Unconfirmed TXs"
-          description="Enable this to chain transactions that haven't been confirmed yet."
+          label={t('settings_advanced_use_unconfirmed_txs')}
+          description={t('settings_advanced_enable_this_to_chain_transactions')}
           checked={settings.allowUnconfirmedTxs}
           onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
           showHelpText={shouldShowHelpText}
         />
 
         <SettingSwitch
-          label="Enable More Outputs"
-          description="Attach BTC to asset sends. Adds a + BTC option on the send form."
+          label={t('settings_advanced_enable_more_outputs')}
+          description={t('settings_advanced_attach_btc_to_asset_sends')}
           checked={settings.enableMoreOutputs}
           onChange={(checked) => updateSettings({ enableMoreOutputs: checked })}
           showHelpText={shouldShowHelpText}
         />
 
         <SettingSwitch
-          label="Enable MPMA Sends"
-          description="Enable multi-destination sends (MPMA) for supported assets."
+          label={t('settings_advanced_enable_mpma_sends')}
+          description={t('settings_advanced_enable_multi_destination_sends_mpma')}
           checked={settings.enableMPMA}
           onChange={(checked) => updateSettings({ enableMPMA: checked })}
           showHelpText={shouldShowHelpText}
         />
 
         <SettingSwitch
-          label="Advanced Broadcasts"
-          description="Show advanced options for broadcast transactions (value and fee fraction)."
+          label={t('settings_advanced_advanced_broadcasts')}
+          description={t('settings_advanced_show_advanced_options_for_broadcast')}
           checked={settings.enableAdvancedBroadcasts}
           onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
           showHelpText={shouldShowHelpText}
         />
       </SettingsSection>
 
-      <SettingsSection id="adv-connection" title="Connection">
+      <SettingsSection id="adv-connection" title={t('settings_advanced_connection')}>
         <Field>
-          <Label className="font-bold">Counterparty API</Label>
+          <Label className="font-bold">{t('settings_advanced_counterparty_api')}</Label>
           <ApiUrlInput
             value={settings.counterpartyApiBase}
             onChange={() => {}}
@@ -147,24 +151,24 @@ export default function AdvancedSettingsPage(): ReactElement {
           />
           {shouldShowHelpText && (
             <Description className="mt-2 text-sm text-gray-500">
-              The Counterparty API endpoint URL. Must be a mainnet API server running Counterparty Core 11.3.0 or newer.
+              {t('settings_advanced_the_counterparty_api_endpoint_url')}
             </Description>
           )}
         </Field>
       </SettingsSection>
 
-      <SettingsSection id="adv-privacy" title="Privacy & Display">
+      <SettingsSection id="adv-privacy" title={t('settings_advanced_privacy_display')}>
         <SettingSwitch
-          label="Anonymous Analytics"
-          description="Choose whether to share usage data."
+          label={t('settings_advanced_anonymous_analytics')}
+          description={t('settings_advanced_choose_whether_to_share_usage')}
           checked={settings.analyticsAllowed}
           onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
           showHelpText={shouldShowHelpText}
         />
 
         <SettingSwitch
-          label="Show/Hide Help Text"
-          description="Show or hide help text by default."
+          label={t('settings_advanced_show_hide_help_text')}
+          description={t('settings_advanced_show_or_hide_help_text')}
           checked={settings.showHelpText}
           onChange={(checked) => updateSettings({ showHelpText: checked })}
           showHelpText={shouldShowHelpText}
@@ -172,10 +176,10 @@ export default function AdvancedSettingsPage(): ReactElement {
       </SettingsSection>
 
       {process.env.NODE_ENV === 'development' && (
-        <SettingsSection id="adv-developer" title="Developer">
+        <SettingsSection id="adv-developer" title={t('settings_advanced_developer')}>
           <SettingSwitch
-            label="Transaction Dry Run"
-            description="When enabled, transactions will be simulated instead of being broadcast to the network."
+            label={t('settings_advanced_transaction_dry_run')}
+            description={t('settings_advanced_when_enabled_transactions_will_be')}
             checked={settings.transactionDryRun}
             onChange={(checked) => updateSettings({ transactionDryRun: checked })}
             showHelpText={shouldShowHelpText}

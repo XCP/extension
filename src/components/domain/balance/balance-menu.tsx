@@ -5,6 +5,8 @@ import { BsThreeDots, FaBitcoin, FaCoins, FaExchangeAlt, FaPaperPlane } from '@/
 import { Button } from '@/components/ui/button';
 import { BaseMenu } from '@/components/ui/menus/base-menu';
 
+import { t } from '@/i18n';
+
 interface BalanceMenuProps {
   asset: string;
 }
@@ -42,12 +44,13 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
   return (
     <BaseMenu
       trigger={<BsThreeDots className="size-4" aria-hidden="true" />}
-      ariaLabel="Balance actions"
+      ariaLabel={t('balance_balance_menu_balance_actions')}
     >
       <MenuItem>
         <Button variant="menu-item" fullWidth onClick={handleSend}>
           <FaPaperPlane className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Send
+          
+          {t('common_send')}
         </Button>
       </MenuItem>
 
@@ -55,7 +58,8 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
         <MenuItem>
           <Button variant="menu-item" fullWidth onClick={handleSell}>
             <FaBitcoin className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-            Sell
+            
+            {t('common_sell')}
           </Button>
         </MenuItem>
       )}
@@ -63,7 +67,8 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
       <MenuItem>
         <Button variant="menu-item" fullWidth onClick={handleSwap}>
           <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Swap
+          
+          {t('common_swap')}
         </Button>
       </MenuItem>
 
@@ -71,7 +76,8 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
         <MenuItem>
           <Button variant="menu-item" fullWidth onClick={handleMint}>
             <FaCoins className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-            Mint
+            
+            {t('common_mint')}
           </Button>
         </MenuItem>
       )}

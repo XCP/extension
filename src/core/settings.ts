@@ -10,6 +10,8 @@ import type {
   PriceUnit,
 } from '@/core/bitcoin/price';
 
+import type { LanguagePreference, NumberLocalePreference } from '@/i18n/preferences';
+
 // Re-export for convenience
 export type { FiatCurrency, PriceUnit } from '@/core/bitcoin/price';
 
@@ -74,6 +76,11 @@ export interface AppSettings {
 
   /** Auto-lock timer duration */
   autoLockTimer: AutoLockTimer;
+
+  /** Interface catalog; absent on older keychains means browser language. */
+  language?: LanguagePreference;
+  /** Number/date display; auto follows the resolved interface language. */
+  numberLocale?: NumberLocalePreference;
 
   /** Fiat currency for price display */
   fiat: FiatCurrency;
@@ -142,6 +149,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lastActiveAddress: undefined,
   autoLockTimer: '5m',
   fiat: 'usd',
+  language: 'auto',
+  numberLocale: 'auto',
   priceUnit: 'btc',
   showHelpText: false,
   analyticsAllowed: true,
@@ -163,7 +172,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
 /**
  * Live read-only settings access for modules that need config (e.g. the API
  * base) without importing the wallet singleton. walletManager registers the
- * provider on init; until then (or when locked) DEFAULT_SETTINGS is returned.
+ * background provider; SettingsContext supplies confirmed foreground settings.
+ * Until settings load (or when locked), DEFAULT_SETTINGS is returned.
  */
 let settingsProvider: (() => AppSettings) | null = null;
 
@@ -181,7 +191,8 @@ export function setSettingsProvider(provider: () => AppSettings): void {
  *
  * `counterpartyApiBase` is the exception. It falls back to the public node, so a user who pointed
  * the wallet at their own node has any request issued before unlock go somewhere they did not
- * choose. `IdleTimerWrapper` re-reads settings once the keychain is confirmed loaded, which closes
+ * choose. `IdleTimerWrapper` re-reads settings once the keychain is confirmed loaded, and
+ * SettingsContext publishes that confirmed snapshot to foreground Core callers. This closes
  * the window after unlock but not before it. Closing it entirely means storing the API base
  * outside the encrypted keychain — a deliberate trade, since it then becomes readable without the
  * password, rather than something to change quietly here.

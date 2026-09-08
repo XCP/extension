@@ -12,6 +12,8 @@ import { asDisplayUnits } from '@/core/numeric';
 import { validateQuantity } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the DestroySupplyForm component, aligned with Composer's formAction.
  */
@@ -120,7 +122,7 @@ export function DestroySupplyForm({
           />
         ) : null
       }
-      submitText="Destroy Supply"
+      submitText={t('destroy_supply_form_destroy_supply')}
       submitDisabled={!isAmountValid() || !asset}
     >
           {/* Hidden asset field when pre-selected */}
@@ -131,12 +133,12 @@ export function DestroySupplyForm({
               value={assetName}
               onChange={setAssetName}
               onValidationChange={setIsAssetNameValid}
-              label="Asset Name"
+              label={t('common_asset_name')}
               required={true}
-              placeholder="Enter asset name"
+              placeholder={t('destroy_supply_form_enter_asset_name')}
               disabled={pending}
               showHelpText={showHelpText}
-              helpText="The name of the asset to destroy supply from."
+              helpText={t('destroy_supply_form_the_name_of_the_asset')}
             />
           )}
 
@@ -150,12 +152,12 @@ export function DestroySupplyForm({
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             showHelpText={showHelpText}
-            label="Amount to Destroy"
+            label={t('destroy_supply_form_amount_to_destroy')}
             name="quantity"
             description={
               isDivisible
-                ? "Enter the amount to destroy (up to 8 decimal places)."
-                : "Enter a whole number amount to destroy."
+                ? t('destroy_supply_form_enter_the_amount_to_destroy')
+                : t('destroy_supply_form_enter_a_whole_number_amount')
             }
             disabled={pending}
             isDivisible={isDivisible}

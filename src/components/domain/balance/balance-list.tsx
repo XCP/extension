@@ -6,7 +6,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-
 import { spendableBalance, tracksPendingLedgerDebits } from "@/core/balances/spendable";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { TokenBalance } from "@/core/counterparty/api";
@@ -16,6 +15,8 @@ import { asDisplayUnits, fromSatoshis, isGreaterThan } from '@/core/numeric';
 import { useInView } from "@/hooks/useInView";
 import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 
 
@@ -32,6 +33,7 @@ interface BalanceListProps {
 }
 
 export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}): ReactElement => {
+  useLocaleRevision();
   const { activeWallet, activeAddress } = useWallet();
   const { settings } = useSettings();
   const { cacheBalances } = useHeader();
@@ -43,7 +45,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(Boolean(address && walletId));
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<'initial' | 'more' | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const sessionRef = useRef<{ address: string; offset: number; busy: boolean; loaded: boolean; hasMore: boolean } | null>(null);
   const previousRefreshNonce = useRef(refreshNonce);
@@ -121,7 +123,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           quantity_normalized: asDisplayUnits(fromSatoshis(balanceSats)),
           asset_info: {
             asset_longname: null,
-            description: "Bitcoin",
+            description: t('balance_balance_list_bitcoin'),
             issuer: "",
             divisible: true,
             locked: true,
@@ -145,7 +147,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
       } catch (error) {
         if (sessionRef.current === session) {
           console.error("Error in loadInitialBalances:", error);
-          setError("Failed to load balances.");
+          setError('initial');
         }
       } finally {
         if (sessionRef.current === session) {
@@ -195,7 +197,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
     } catch (error) {
       if (sessionRef.current === session) {
         console.error("Error fetching more balances:", error);
-        setError("Failed to load more balances.");
+        setError('more');
       }
     } finally {
       if (sessionRef.current === session) {
@@ -244,7 +246,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
       <SearchInput
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Search balances…"
+        placeholder={t('balance_balance_list_search_balances')}
         name="balance-search"
         className="mt-0.5 mb-3"
         showClearButton={true}
@@ -252,25 +254,25 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
       />
       {isSearchActive ? (
         isSearching ? (
-          <Spinner message="Searching balances…" />
+          <Spinner message={t('balance_balance_list_searching_balances')} />
         ) : searchError ? (
           <div role="alert" className="py-4 text-center text-sm text-red-600">
             <p>{searchError}</p>
-            <button type="button" onClick={retrySearch} className="mt-2 text-blue-600 underline cursor-pointer">Retry</button>
+            <button type="button" onClick={retrySearch} className="mt-2 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
           </div>
         ) : searchResults.length === 0 ? (
-          <div className="text-center py-4 text-gray-500">No results found</div>
+          <div className="text-center py-4 text-gray-500">{t('common_no_results_found')}</div>
         ) : (
           searchResults.map((asset) => <SearchResultCard key={asset.symbol} symbol={asset.symbol} navigationType="balance" />)
         )
       ) : isInitialLoading ? (
-        <Spinner message="Loading balances…" />
+        <Spinner message={t('balance_balance_list_loading_balances')} />
       ) : (
         <>
           {error && (
             <div role="alert" className="py-4 text-center text-sm text-red-600">
-              <p>{error}</p>
-              <button type="button" onClick={() => initialLoaded ? void loadMore() : setRetryNonce((n) => n + 1)} className="mt-2 text-blue-600 underline cursor-pointer">Retry</button>
+              <p>{error === 'initial' ? t('balance_balance_list_load_failed') : t('balance_balance_list_load_more_failed')}</p>
+              <button type="button" onClick={() => initialLoaded ? void loadMore() : setRetryNonce((n) => n + 1)} className="mt-2 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
             </div>
           )}
           {visibleBalances(pinnedBalances).map(({ balance, shown }) => (
@@ -284,7 +286,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
               isFetchingMore ? (
                 <Spinner className="py-4" />
               ) : (
-                <div className="text-sm text-gray-500">Scroll to load more…</div>
+                <div className="text-sm text-gray-500">{t('common_scroll_to_load_more')}</div>
               )
             ) : null}
           </div>

@@ -1,0 +1,5929 @@
+{
+  "actions_address": {
+    "message": "アドレス"
+  },
+  "actions_broadcast_message_from_address": {
+    "message": "アドレスからメッセージをブロードキャスト"
+  },
+  "actions_broadcast_message_or_inscription": {
+    "message": "メッセージまたはインスクリプションをブロードキャスト"
+  },
+  "actions_broadcast_text": {
+    "message": "テキストをブロードキャスト"
+  },
+  "actions_cancel_an_existing_order": {
+    "message": "既存の注文をキャンセルする"
+  },
+  "actions_cancel_order": {
+    "message": "注文をキャンセル"
+  },
+  "actions_close_a_dispenser_using_its": {
+    "message": "トランザクションハッシュを指定して自販機を閉じる"
+  },
+  "actions_close_an_existing_dispenser": {
+    "message": "既存の自販機を閉じる"
+  },
+  "actions_close_dispenser": {
+    "message": "自販機を閉じる"
+  },
+  "actions_close_dispenser_by_hash": {
+    "message": "ハッシュ指定で自販機を閉じる"
+  },
+  "actions_consolidate_recovery_tool": {
+    "message": "回収ツール"
+  },
+  "actions_consolidate_review": {
+    "message": "確認"
+  },
+  "actions_create_a_fairminter": {
+    "message": "フェアミンターを作成する"
+  },
+  "actions_create_a_new_asset": {
+    "message": "新しいアセットを作成する"
+  },
+  "actions_create_dispenser": {
+    "message": "自販機を作成"
+  },
+  "actions_find_and_consolidate_bare_multisig": {
+    "message": "ベアマルチシグ UTXO を検出して統合する"
+  },
+  "actions_multi_party_multi_asset_transaction": {
+    "message": "複数宛先・複数アセットの送金"
+  },
+  "actions_recover_bitcoin": {
+    "message": "Bitcoin を回収"
+  },
+  "actions_sell_an_asset_at_a": {
+    "message": "アセットを固定 BTC 価格で販売する"
+  },
+  "actions_set_address_options_like_requiring": {
+    "message": "メモ必須などのアドレスオプションを設定する"
+  },
+  "actions_sign_a_message_with_your": {
+    "message": "アドレスでメッセージに署名する"
+  },
+  "actions_sign_message_characters": {
+    "message": "$1 文字"
+  },
+  "actions_sign_message_copy_message": {
+    "message": "メッセージをコピー"
+  },
+  "actions_sign_message_copy_signature": {
+    "message": "署名をコピー"
+  },
+  "actions_sign_message_download_json": {
+    "message": "JSON をダウンロード"
+  },
+  "actions_sign_message_enter_your_message_here": {
+    "message": "メッセージを入力してください…"
+  },
+  "actions_sign_message_failed_to_perform_action": {
+    "message": "操作を実行できませんでした"
+  },
+  "actions_sign_message_failed_to_sign_message": {
+    "message": "メッセージに署名できませんでした"
+  },
+  "actions_sign_message_go_to_wallet": {
+    "message": "ウォレットへ"
+  },
+  "actions_sign_message_learn_how_to_sign_and": {
+    "message": "メッセージの署名と検証の方法を見る"
+  },
+  "actions_sign_message_message_signing_not_supported_for": {
+    "message": "$1 アドレスではメッセージ署名に対応していません"
+  },
+  "actions_sign_message_no_active_wallet_or_address": {
+    "message": "アクティブなウォレットまたはアドレスがありません"
+  },
+  "actions_sign_message_please_enter_a_message_to": {
+    "message": "署名するメッセージを入力してください"
+  },
+  "actions_sign_message_reset": {
+    "message": "リセット"
+  },
+  "actions_sign_message_signature_will_appear_here_after": {
+    "message": "署名するとここに署名が表示されます..."
+  },
+  "actions_sign_message_signed": {
+    "message": "署名済み"
+  },
+  "actions_tools": {
+    "message": "ツール"
+  },
+  "actions_transfer_every_asset_and_balance": {
+    "message": "すべてのアセットと残高を移転する"
+  },
+  "actions_update_options": {
+    "message": "オプションを更新"
+  },
+  "actions_upload_mpma": {
+    "message": "MPMA をアップロード"
+  },
+  "actions_verify_a_signed_message": {
+    "message": "署名済みメッセージを検証する"
+  },
+  "actions_verify_message_enter_the_bitcoin_address_that": {
+    "message": "署名に使われた Bitcoin アドレスを入力してください"
+  },
+  "actions_verify_message_enter_the_exact_message_that": {
+    "message": "署名されたメッセージをそのまま入力してください…"
+  },
+  "actions_verify_message_enter_the_signature_base64_or": {
+    "message": "署名を入力してください（base64 または hex 形式）…"
+  },
+  "actions_verify_message_failed_to_parse_json_file": {
+    "message": "JSON ファイルを解析できませんでした。address、message、signature の各フィールドを含む有効な JSON であることを確認してください。"
+  },
+  "actions_verify_message_failed_to_verify_message": {
+    "message": "メッセージを検証できませんでした"
+  },
+  "actions_verify_message_invalid_signature_json_file": {
+    "message": "署名 JSON ファイルが無効です"
+  },
+  "actions_verify_message_must_match_exactly": {
+    "message": "完全に一致する必要があります"
+  },
+  "actions_verify_message_please_enter_the_message_that": {
+    "message": "署名されたメッセージを入力してください"
+  },
+  "actions_verify_message_please_enter_the_signature": {
+    "message": "署名を入力してください"
+  },
+  "actions_verify_message_please_enter_the_signer_s": {
+    "message": "署名者の Bitcoin アドレスを入力してください"
+  },
+  "actions_verify_message_signature_invalid_does_not_match": {
+    "message": "署名が無効です - 指定されたメッセージとアドレスに一致しません"
+  },
+  "actions_verify_message_signature_valid": {
+    "message": "署名は有効です"
+  },
+  "actions_verify_message_signer_s_address": {
+    "message": "署名者のアドレス"
+  },
+  "actions_verify_message_upload_json": {
+    "message": "JSON をアップロード"
+  },
+  "actions_verify_message_verified_using": {
+    "message": "検証方式: $1"
+  },
+  "actions_verify_message_verify_signature": {
+    "message": "署名を検証"
+  },
+  "actions_wallet_actions": {
+    "message": "ウォレットの操作"
+  },
+  "address_destinations_input_add_another_destination": {
+    "message": "送信先を追加"
+  },
+  "address_destinations_input_approaching_destination_limit": {
+    "message": "送信先の上限に近づいています: $1/$2"
+  },
+  "address_destinations_input_enter_destination_address": {
+    "message": "送信先アドレス $1 を入力"
+  },
+  "address_destinations_input_enter_the_address_to_send": {
+    "message": "送信先アドレスを入力してください。複数のアドレス（1 行に 1 つ）を貼り付けると複数の宛先に送れます。（最大: $1）"
+  },
+  "address_destinations_input_enter_the_addresses_to_send": {
+    "message": "送信先アドレスを入力してください。各宛先に同じ数量が送られます。重複するアドレスは使用できません。（$1/$2 宛先）"
+  },
+  "address_destinations_input_looking_up_asset_owner": {
+    "message": "アセットの所有者を検索中"
+  },
+  "address_destinations_input_maximum_destination_limit_reached": {
+    "message": "送信先の上限に達しました: $1"
+  },
+  "address_destinations_input_remove_destination": {
+    "message": "送信先 $1 を削除"
+  },
+  "address_options_form_require_memo_for_incoming_transactions": {
+    "message": "受信トランザクションにメモを必須にする"
+  },
+  "address_options_form_the_require_memo_option_will": {
+    "message": "「メモ必須」を有効にすると、このアドレスはメモのないトランザクションを拒否するようになります。この設定は元に戻せません。"
+  },
+  "address_options_review_require_memo": {
+    "message": "メモを必須にする"
+  },
+  "addresses": {
+    "message": "アドレス一覧"
+  },
+  "addresses_add_address": {
+    "message": "アドレスを追加"
+  },
+  "addresses_adding": {
+    "message": "追加中…"
+  },
+  "addresses_change_address_type": {
+    "message": "アドレスタイプを変更"
+  },
+  "addresses_could_not_read_the_derivation": {
+    "message": "このアドレスの導出インデックスを読み取れませんでした。"
+  },
+  "addresses_details_address_qr_code": {
+    "message": "アドレスの QR コード"
+  },
+  "addresses_details_copy_the_address_shown_here": {
+    "message": "表示されているアドレスをコピー"
+  },
+  "addresses_details_my_address": {
+    "message": "マイアドレス"
+  },
+  "addresses_details_select_address": {
+    "message": "アドレスを選択"
+  },
+  "addresses_failed_to_add_address_please": {
+    "message": "アドレスを追加できませんでした。もう一度お試しください。"
+  },
+  "addresses_failed_to_look_up_utxo": {
+    "message": "UTXO アドレスを検索できませんでした。"
+  },
+  "addresses_failed_to_remove_utxo_address": {
+    "message": "UTXO アドレスを削除できませんでした。"
+  },
+  "addresses_failed_to_select_address_please": {
+    "message": "アドレスを選択できませんでした。もう一度お試しください。"
+  },
+  "addresses_found_now_listed_below": {
+    "message": "$1 が見つかり、下に表示されました。"
+  },
+  "addresses_history_failed_to_fetch_transactions": {
+    "message": "トランザクションを取得できませんでした"
+  },
+  "addresses_history_loading_transactions": {
+    "message": "トランザクションを読み込み中…"
+  },
+  "addresses_history_next": {
+    "message": "次へ"
+  },
+  "addresses_history_no_transactions_yet": {
+    "message": "トランザクションはまだありません"
+  },
+  "addresses_history_page_of": {
+    "message": "ページ $1 / $2"
+  },
+  "addresses_history_previous": {
+    "message": "前へ"
+  },
+  "addresses_history_refresh_transactions": {
+    "message": "トランザクションを更新"
+  },
+  "addresses_history_this_address_hasn_t_made": {
+    "message": "このアドレスは Counterparty 上でまだトランザクションを行っていません。"
+  },
+  "addresses_maximum_number_of_addresses_reached": {
+    "message": "アドレス数の上限（$1）に達しました"
+  },
+  "addresses_no_active_wallet_found": {
+    "message": "アクティブなウォレットが見つかりません"
+  },
+  "addresses_no_utxo_address_is_in": {
+    "message": "$1 で使用中の UTXO アドレスはありません。"
+  },
+  "addresses_select_an_address": {
+    "message": "アドレスを選択"
+  },
+  "addresses_unlock_to_add_address": {
+    "message": "ロックを解除してアドレスを追加"
+  },
+  "app_get_xcp": {
+    "message": "XCP を入手"
+  },
+  "app_loading_wallet_data": {
+    "message": "ウォレットデータを読み込み中…"
+  },
+  "app_no_wallet_unlocked": {
+    "message": "ロック解除されたウォレットがありません。"
+  },
+  "app_providers_application_error": {
+    "message": "アプリケーションエラー"
+  },
+  "app_providers_please_refresh_the_page_to": {
+    "message": "続行するにはページを再読み込みしてください。"
+  },
+  "app_providers_settings_error": {
+    "message": "設定エラー"
+  },
+  "app_providers_unable_to_load_settings_please": {
+    "message": "設定を読み込めません。再読み込みしてください。"
+  },
+  "app_providers_unable_to_load_wallet_please": {
+    "message": "ウォレットを読み込めません。再読み込みしてください。"
+  },
+  "app_providers_wallet_error": {
+    "message": "ウォレットエラー"
+  },
+  "app_receive": {
+    "message": "受け取る"
+  },
+  "app_receive_tokens": {
+    "message": "トークンを受け取る"
+  },
+  "app_refresh_balances": {
+    "message": "残高を更新"
+  },
+  "app_select_wallet": {
+    "message": "ウォレットを選択"
+  },
+  "app_send_tokens": {
+    "message": "トークンを送金"
+  },
+  "app_transaction_history": {
+    "message": "トランザクション履歴"
+  },
+  "app_utxos": {
+    "message": "UTXO"
+  },
+  "app_view_assets": {
+    "message": "アセットを表示"
+  },
+  "app_view_balances": {
+    "message": "残高を表示"
+  },
+  "app_view_utxos": {
+    "message": "UTXO を表示"
+  },
+  "app_wallet_dashboard": {
+    "message": "ウォレットのダッシュボード"
+  },
+  "appDescription": {
+    "message": "Bitcoin 上の Counterparty ウォレット"
+  },
+  "appLocale": {
+    "message": "ja"
+  },
+  "appName": {
+    "message": "XCP Wallet"
+  },
+  "approval_approval_attention_about_sat_vb": {
+    "message": "（約 $1 sat/vB）"
+  },
+  "approval_approval_attention_confirm_that_this_fee_is": {
+    "message": "この手数料が意図したものであることを確認してください。"
+  },
+  "approval_approval_attention_review_this_exception_before_signing": {
+    "message": "$1 署名する前にこの例外を確認してください。"
+  },
+  "approval_approval_attention_strict_verification_is_disabled_review": {
+    "message": "厳格な検証が無効になっています。署名する前にこの例外を確認してください。"
+  },
+  "approval_approval_attention_the_wallet_could_not_reproduce": {
+    "message": "ウォレットがトランザクションの一部の項目を再現できませんでした"
+  },
+  "approval_approval_attention_this_transaction_pays_sats": {
+    "message": "このトランザクションは $1 sats を支払います"
+  },
+  "approval_approval_attention_unusually_high_network_fee": {
+    "message": "ネットワーク手数料が異常に高額です"
+  },
+  "approval_approval_chrome_close_window": {
+    "message": "ウィンドウを閉じる"
+  },
+  "approval_approval_chrome_loading_transaction_details": {
+    "message": "トランザクションの詳細を読み込み中…"
+  },
+  "approval_approval_chrome_request_expired": {
+    "message": "リクエストの期限が切れました"
+  },
+  "approval_approval_chrome_required_information_is_unavailable_retry": {
+    "message": "必要な情報を取得できません。署名する前にチェックを再試行してください。"
+  },
+  "approval_approval_chrome_the_request_details_are_unavailable": {
+    "message": "リクエストの詳細を取得できません。"
+  },
+  "approval_approval_chrome_this_signing_request_is_no": {
+    "message": "この署名リクエストはもう利用できません。"
+  },
+  "approval_approval_chrome_unable_to_review_request": {
+    "message": "リクエストを確認できません"
+  },
+  "approval_approval_notice_signing_blocked": {
+    "message": "署名できません"
+  },
+  "approval_approval_notice_this_request_could_not_be": {
+    "message": "このリクエストを検証できませんでした"
+  },
+  "approval_approval_notice_what_to_review": {
+    "message": "確認事項"
+  },
+  "approval_approval_notice_why_signing_is_unavailable": {
+    "message": "署名できない理由"
+  },
+  "approval_approval_summary_card_protocol_fee": {
+    "message": "プロトコル手数料:"
+  },
+  "approval_approval_summary_card_unusually_high_network_fee_double": {
+    "message": "ネットワーク手数料が異常に高額です。署名する前に再確認してください。"
+  },
+  "approval_approval_transaction_details_asset_status_unavailable": {
+    "message": "アセットの状態を取得できません"
+  },
+  "approval_approval_transaction_details_assets_attach_to_this_output": {
+    "message": "アセットはこの出力にアタッチされます"
+  },
+  "approval_approval_transaction_details_counterparty_protocol": {
+    "message": "Counterparty プロトコル"
+  },
+  "approval_approval_transaction_details_inputs": {
+    "message": "入力 ($1)"
+  },
+  "approval_approval_transaction_details_outputs": {
+    "message": "出力 ($1)"
+  },
+  "approval_approval_warnings_a_memo_description_or_asset": {
+    "message": "メモ、説明文、またはアセットラベルに、テキストの並びを変えたり隠したりできる文字が含まれています。"
+  },
+  "approval_approval_warnings_a_memo_description_or_asset_2": {
+    "message": "メモ、説明文、またはアセットラベルに、表示されない文字が含まれています。"
+  },
+  "approval_approval_warnings_asset_delivery_is_flexible": {
+    "message": "アセットの受け渡し先が固定されていません"
+  },
+  "approval_approval_warnings_assets_are_detached_to_another": {
+    "message": "アセットは別のアドレスにデタッチされます"
+  },
+  "approval_approval_warnings_attached_assets_are_detached_to": {
+    "message": "アタッチされたアセットはあなたのアドレスにデタッチされます"
+  },
+  "approval_approval_warnings_attached_assets_leave_your_wallet": {
+    "message": "アタッチされたアセットがウォレットから出ていきます"
+  },
+  "approval_approval_warnings_attached_assets_move_to_your": {
+    "message": "アタッチされたアセットはあなた自身の出力に移動します"
+  },
+  "approval_approval_warnings_check_the_decoded_amounts_and": {
+    "message": "デコードされた数量と送信先を注意深く確認してください。"
+  },
+  "approval_approval_warnings_couldn_t_verify_asset_status": {
+    "message": "アセットの状態を検証できませんでした"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input": {
+    "message": "入力 $1 にアタッチされたすべてのアセットは $2 にデタッチされます。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input_2": {
+    "message": "入力 $1 にアタッチされたすべてのアセットは送信元アドレスにデタッチされます。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input_3": {
+    "message": "入力 $1 にアタッチされたすべてのアセットは出力 $2 に付与されます。これはあなたが管理するアドレスではありません。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input_4": {
+    "message": "入力 $1 にアタッチされたすべてのアセットは出力 $2 に付与されます。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs": {
+    "message": "入力 $1 にアタッチされたすべてのアセットは $2 にデタッチされます。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs_2": {
+    "message": "入力 $1 にアタッチされたすべてのアセットは送信元アドレスにデタッチされます。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs_3": {
+    "message": "入力 $1 にアタッチされたすべてのアセットは出力 $2 に付与されます。これはあなたが管理するアドレスではありません。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs_4": {
+    "message": "入力 $1 にアタッチされたすべてのアセットは出力 $2 に付与されます。"
+  },
+  "approval_approval_warnings_input": {
+    "message": "入力 #$1: $2 $3"
+  },
+  "approval_approval_warnings_input_status_unknown": {
+    "message": "入力 #$1: 状態不明"
+  },
+  "approval_approval_warnings_inputs_you_are_signing_carry": {
+    "message": "署名する入力にはアタッチされたアセットが含まれています。署名すると BTC だけでなくそのアセットも移動します。"
+  },
+  "approval_approval_warnings_spends_utxos_holding_counterparty_assets": {
+    "message": "Counterparty アセットを保持する UTXO を消費します"
+  },
+  "approval_approval_warnings_the_balance_lookup_failed_so": {
+    "message": "残高の照会に失敗したため、アタッチされたアセットがないとは言い切れません。"
+  },
+  "approval_approval_warnings_the_signature_for_attached_input": {
+    "message": "アタッチされた入力 $1 の署名は、アセットの送り先を確定していません。この PSBT を完成させる側が、明示的なデタッチ先アドレスや別の最初の出力を選べる可能性があります。以下の承認内容を正確に確認してください。"
+  },
+  "approval_approval_warnings_the_signature_for_attached_inputs": {
+    "message": "アタッチされた入力 $1 の署名は、アセットの送り先を確定していません。この PSBT を完成させる側が、明示的なデタッチ先アドレスや別の最初の出力を選べる可能性があります。以下の承認内容を正確に確認してください。"
+  },
+  "approval_approval_warnings_this_transaction_has_no_ordinary": {
+    "message": "このトランザクションには通常の出力がないため、署名する入力にアタッチされたすべてのアセットはあなたのアドレスに戻されます。"
+  },
+  "approval_approval_warnings_transaction_details_contain_control_characters": {
+    "message": "トランザクションの詳細に制御文字が含まれています"
+  },
+  "approval_approval_warnings_transaction_details_contain_hidden_characters": {
+    "message": "トランザクションの詳細に非表示の文字が含まれています"
+  },
+  "approval_bitcoin_payment_card_bitcoin_payment_did_not_verify": {
+    "message": "Bitcoin 支払いを検証できませんでした"
+  },
+  "approval_bitcoin_payment_card_compare_payment_details": {
+    "message": "支払いの詳細を比較"
+  },
+  "approval_bitcoin_payment_card_data_output": {
+    "message": "データ出力"
+  },
+  "approval_bitcoin_payment_card_destination_could_not_be_identified": {
+    "message": "送信先を特定できませんでした"
+  },
+  "approval_bitcoin_payment_card_difference": {
+    "message": "差額"
+  },
+  "approval_bitcoin_payment_card_no_identified_external_payment_address": {
+    "message": "外部の支払先アドレスを特定できません"
+  },
+  "approval_bitcoin_payment_card_output_btc": {
+    "message": "出力 #$1: $2 BTC"
+  },
+  "approval_bitcoin_payment_card_payment_outputs_could_not_be": {
+    "message": "支払い出力を確認できませんでした。"
+  },
+  "approval_bitcoin_payment_card_payment_outputs_could_not_be_2": {
+    "message": "支払い出力を確認できませんでした"
+  },
+  "approval_bitcoin_payment_card_recipient_receives": {
+    "message": "受取人が受け取る額"
+  },
+  "approval_bitcoin_payment_card_reference": {
+    "message": "参照: $1"
+  },
+  "approval_bitcoin_payment_card_site_declared": {
+    "message": "サイトの申告"
+  },
+  "approval_bitcoin_payment_card_site_description": {
+    "message": "サイトの説明: $1"
+  },
+  "approval_bitcoin_payment_card_the_transaction_does_not_match": {
+    "message": "トランザクションが要求された支払いと一致しません。"
+  },
+  "approval_bitcoin_payment_card_the_transaction_pays_a_different": {
+    "message": "トランザクションは別の送信先に支払います。"
+  },
+  "approval_bitcoin_payment_card_total_entering_wallet": {
+    "message": "ウォレットへの入金合計"
+  },
+  "approval_bitcoin_payment_card_total_leaving_wallet": {
+    "message": "ウォレットからの出金合計"
+  },
+  "approval_bitcoin_payment_card_transaction_pays": {
+    "message": "トランザクションの支払額"
+  },
+  "approval_bitcoin_payment_card_transaction_pays_than_requested": {
+    "message": "トランザクションの支払額は要求より $1 $2 $3。"
+  },
+  "approval_bitcoin_payment_card_unavailable": {
+    "message": "取得できません"
+  },
+  "approval_bitcoin_payment_card_wallet_total": {
+    "message": "ウォレットの合計"
+  },
+  "approval_bundle_review_card_payout_and_fee_details": {
+    "message": "支払いと手数料の詳細"
+  },
+  "approval_counterparty_details_card_counterparty": {
+    "message": "Counterparty"
+  },
+  "approval_counterparty_details_card_recipients": {
+    "message": "受取人 ($1)"
+  },
+  "approval_marketplace_review_card_verification_incomplete_retry": {
+    "message": "検証が未完了です。再試行してください"
+  },
+  "approval_money_movement_view_couldn_t_be_determined": {
+    "message": "判定できませんでした"
+  },
+  "approval_money_movement_view_net_effect": {
+    "message": "差し引きの結果"
+  },
+  "approval_money_movement_view_not_guaranteed_back": {
+    "message": "戻ってくる保証はありません"
+  },
+  "approval_money_movement_view_other_inputs_may_be_added": {
+    "message": "他の入力が追加される可能性があります。現在の各出力はあなたの署名で固定されています。"
+  },
+  "approval_money_movement_view_other_inputs_or_outputs_may": {
+    "message": "署名後に他の入力や出力が追加・変更される可能性があります。"
+  },
+  "approval_money_movement_view_protocol_data_recoverable": {
+    "message": "プロトコルデータ（回収可能）"
+  },
+  "approval_money_movement_view_set_by_the_other_party": {
+    "message": "相手側が設定"
+  },
+  "approval_money_movement_view_some_amounts_couldn_t_be": {
+    "message": "一部の金額を判定できませんでした — 詳細を確認してください。"
+  },
+  "approval_money_movement_view_this_can_be_sent_elsewhere": {
+    "message": "これは署名後に別の宛先へ送られる可能性があるため、上の合計では流出として扱っています。"
+  },
+  "approval_money_movement_view_unknown_address": {
+    "message": "不明なアドレス"
+  },
+  "approval_money_movement_view_unusually_high_double_check_before": {
+    "message": "異常に高額です — 署名する前に再確認してください。"
+  },
+  "approval_money_movement_view_you_send": {
+    "message": "送る額"
+  },
+  "approval_order_card_accepts_up_to_below_the": {
+    "message": "ウォレットの見積もりより最大 $1% 低い価格まで受け入れます — スリッページ設定と一致しているか確認してください。"
+  },
+  "approval_order_card_click_to_flip_price": {
+    "message": "クリックで価格の向きを反転"
+  },
+  "approval_order_card_estimated": {
+    "message": "約 $1（見積もり）"
+  },
+  "approval_order_card_estimated_by_your_wallet_from": {
+    "message": "サイトからの値ではなく、ウォレットが自身のノードから見積もった値です。"
+  },
+  "approval_order_card_expires_in_1_block": {
+    "message": "1 ブロック後に期限切れ"
+  },
+  "approval_order_card_expires_in_blocks": {
+    "message": "$1 ブロック後に期限切れ"
+  },
+  "approval_order_card_guaranteed_by_the_transaction_if": {
+    "message": "トランザクションによって保証されます。市場がこの量を提供できない場合、$1 はあなたの手元に残ります。"
+  },
+  "approval_order_card_price_unavailable": {
+    "message": "価格を取得できません"
+  },
+  "approval_order_card_the_market_has_moved_below": {
+    "message": "市場価格がこの最低額を下回っています。この注文は約定せず、未約定のまま残る可能性が高いです。"
+  },
+  "approval_order_card_you_give": {
+    "message": "あなたが渡す額"
+  },
+  "approval_order_card_you_receive_at_least": {
+    "message": "最低受取額"
+  },
+  "approval_psbt_each_single_anyonecanpay_signature_fixes": {
+    "message": "各 SINGLE|ANYONECANPAY 署名は、同じインデックスの出力のみを固定します。署名後に他の入力や出力が追加・変更される可能性があります。"
+  },
+  "approval_psbt_only_paired_outputs_are_fixed": {
+    "message": "固定されるのは対応する出力のみです"
+  },
+  "approval_psbt_other_funding_inputs_may_be": {
+    "message": "他の資金入力が追加される可能性があります"
+  },
+  "approval_psbt_part_of_the_amount_shown": {
+    "message": "ウォレットに戻ると表示されている金額の一部は、署名後に別の宛先へ送られる可能性があります。"
+  },
+  "approval_psbt_some_of_your_funds_can": {
+    "message": "資金の一部が別の宛先に送られる可能性があります"
+  },
+  "approval_psbt_your_all_anyonecanpay_signature_fixes": {
+    "message": "あなたの ALL|ANYONECANPAY 署名は、現在の各出力を固定します。それらの支払いを変更せずに、他の資金入力を追加することを許可します。"
+  },
+  "approval_verification_details_decoder_differences": {
+    "message": "デコーダーの差異"
+  },
+  "approval_verification_details_the_counterparty_service_described_some": {
+    "message": "Counterparty サービスは一部のフィールドを異なる形で記述しました。ウォレットはローカルのデコードを正確なペイロードのバイト列に一致するよう再構築したため、これらの差異は署名を妨げません。"
+  },
+  "approval_verification_details_the_wallet_and_counterparty_service": {
+    "message": "ウォレットと Counterparty サービスは一部のフィールドを異なる形で記述し、ウォレットはローカルのデコードを正確なペイロードのバイト列に一致するよう再構築できませんでした。"
+  },
+  "asset_asset_card_supply": {
+    "message": "発行量: $1"
+  },
+  "asset_asset_card_view_details": {
+    "message": "$1 の詳細を表示"
+  },
+  "asset_asset_header_supply": {
+    "message": "発行量:$1 $2"
+  },
+  "asset_asset_icon_loading_asset_icon": {
+    "message": "アセットアイコンを読み込み中"
+  },
+  "asset_asset_info_popover_issued": {
+    "message": "発行日"
+  },
+  "asset_asset_info_popover_owner": {
+    "message": "所有者"
+  },
+  "asset_asset_info_popover_view_asset_details": {
+    "message": "アセットの詳細を表示"
+  },
+  "asset_asset_info_popover_yes": {
+    "message": "はい"
+  },
+  "asset_asset_list_loading_owned_assets": {
+    "message": "所有アセットを読み込み中…"
+  },
+  "asset_asset_list_no_assets_owned": {
+    "message": "所有アセットはありません"
+  },
+  "asset_asset_list_this_address_hasn_t_issued": {
+    "message": "このアドレスは Counterparty アセットを発行していません。"
+  },
+  "asset_asset_menu_asset_actions": {
+    "message": "アセットの操作"
+  },
+  "asset_asset_menu_change_description": {
+    "message": "説明文を変更"
+  },
+  "asset_asset_name_input_asset_name_already_taken": {
+    "message": "このアセット名はすでに使用されています"
+  },
+  "asset_asset_name_input_asset_name_is_available": {
+    "message": "このアセット名は利用可能です"
+  },
+  "asset_asset_name_input_checking_availability": {
+    "message": "利用可能か確認中…"
+  },
+  "asset_asset_name_input_enter_a_subasset_name": {
+    "message": "サブアセット名を入力"
+  },
+  "asset_asset_name_input_enter_an_asset_name": {
+    "message": "アセット名を入力"
+  },
+  "asset_asset_name_input_generate_random_numeric_asset_name": {
+    "message": "ランダムな数値アセット名を生成"
+  },
+  "asset_asset_name_input_parent_asset_does_not_exist": {
+    "message": "親アセットが存在しません"
+  },
+  "asset_asset_name_input_you_don_t_own_the": {
+    "message": "親アセットを所有していません"
+  },
+  "asset_asset_select_input_search_and_select_an_asset": {
+    "message": "名前またはシンボルでアセットを検索して選択"
+  },
+  "asset_asset_select_input_token": {
+    "message": "$1 トークン"
+  },
+  "asset_balance_balance": {
+    "message": "残高"
+  },
+  "asset_balance_btc_pay": {
+    "message": "BTC 支払い"
+  },
+  "asset_balance_create_a_new_dispenser_for": {
+    "message": "このアセットの自販機を新しく作成する"
+  },
+  "asset_balance_create_a_new_order_on": {
+    "message": "DEX に新しい注文を出す"
+  },
+  "asset_balance_failed_to_load_balance_information": {
+    "message": "残高情報の読み込みに失敗しました"
+  },
+  "asset_balance_loading_balance_details": {
+    "message": "残高の詳細を読み込み中…"
+  },
+  "asset_balance_manage_pool": {
+    "message": "プールを管理"
+  },
+  "asset_balance_pay_for_an_order_match": {
+    "message": "BTC で注文の約定分を支払う"
+  },
+  "asset_balance_permanently_burn_this_asset": {
+    "message": "このアセットを永久にバーンする"
+  },
+  "asset_balance_pool_position": {
+    "message": "プールのポジション"
+  },
+  "asset_balance_pool_share": {
+    "message": "プールのシェア"
+  },
+  "asset_balance_send_bitcoin_to_another_address": {
+    "message": "Bitcoin を別のアドレスに送金"
+  },
+  "asset_balance_send_this_asset_to_another": {
+    "message": "このアセットを別のアドレスに送金"
+  },
+  "asset_balance_trigger_an_open_asset_dispenser": {
+    "message": "稼働中のアセット自販機を利用する"
+  },
+  "asset_balance_trigger_an_open_asset_fairminter": {
+    "message": "稼働中のアセットのフェアミンターを利用する"
+  },
+  "asset_fairmint_summary_xcp_per_lot": {
+    "message": "1 ロットあたり $1 XCP"
+  },
+  "asset_fairmint_summary_you_receive": {
+    "message": "受け取る額"
+  },
+  "asset_fairminter_select_input_failed_to_fetch_fairminters": {
+    "message": "フェアミンターを取得できませんでした"
+  },
+  "asset_fairminter_select_input_failed_to_load_available_assets": {
+    "message": "利用可能なアセットを読み込めませんでした。もう一度お試しください。"
+  },
+  "asset_fairminter_select_input_loading_fairminters": {
+    "message": "フェアミンターを読み込み中…"
+  },
+  "asset_fairminter_select_input_select_an_open_fairminter_asset": {
+    "message": "ミントする稼働中のフェアミンターのアセットを選択"
+  },
+  "asset_pinnable_asset_card_move_down": {
+    "message": "$1 を下へ移動"
+  },
+  "asset_pinnable_asset_card_move_up": {
+    "message": "$1 を上へ移動"
+  },
+  "asset_search_result_card_view": {
+    "message": "$1 を表示"
+  },
+  "asseta_assetb_enter_pool": {
+    "message": "プールに参加"
+  },
+  "asseta_assetb_loading_pool": {
+    "message": "プールを読み込み中..."
+  },
+  "asseta_assetb_pool_pair_not_found": {
+    "message": "プールのペアが見つかりません"
+  },
+  "asseta_assetb_this_pool_has_not_been": {
+    "message": "このプールはまだ作成されていません。"
+  },
+  "assets_asset_create_a_fairminter_for_this": {
+    "message": "このアセットのフェアミンターを作成する"
+  },
+  "assets_asset_create_a_new_asset_under": {
+    "message": "この名前空間の下に新しいアセットを作成する"
+  },
+  "assets_asset_destroy_the_supply_and_re": {
+    "message": "発行量を破棄してアセットを再発行する"
+  },
+  "assets_asset_distribute_dividends_to_token_holders": {
+    "message": "トークン保有者に配当を分配する"
+  },
+  "assets_asset_dividend_history": {
+    "message": "配当履歴"
+  },
+  "assets_asset_failed_to_load_asset_information": {
+    "message": "アセット情報の読み込みに失敗しました"
+  },
+  "assets_asset_failed_to_load_dividend_history": {
+    "message": "配当履歴を読み込めませんでした"
+  },
+  "assets_asset_issue_additional_tokens_for_this": {
+    "message": "このアセットのトークンを追加発行する"
+  },
+  "assets_asset_issue_subasset": {
+    "message": "サブアセットを発行"
+  },
+  "assets_asset_issuer": {
+    "message": "発行者"
+  },
+  "assets_asset_load_more": {
+    "message": "さらに読み込む"
+  },
+  "assets_asset_loading_dividend_history": {
+    "message": "配当履歴を読み込み中…"
+  },
+  "assets_asset_no_dividends_have_been_distributed": {
+    "message": "このアセットではまだ配当が分配されていません"
+  },
+  "assets_asset_pay_dividend": {
+    "message": "配当を支払う"
+  },
+  "assets_asset_per_unit": {
+    "message": "1 単位あたり $1 $2"
+  },
+  "assets_asset_permanently_lock_the_asset_description": {
+    "message": "アセットの説明文を永久にロックする"
+  },
+  "assets_asset_permanently_lock_the_token_supply": {
+    "message": "トークンの発行量を永久にロックする"
+  },
+  "assets_asset_supply": {
+    "message": "発行量"
+  },
+  "assets_asset_total_distributed": {
+    "message": "分配合計: $1 $2"
+  },
+  "assets_asset_transfer_asset_ownership_to_another": {
+    "message": "アセットの所有権を別のアドレスに移転する"
+  },
+  "assets_asset_update_description": {
+    "message": "説明文を更新"
+  },
+  "assets_asset_update_the_asset_description": {
+    "message": "アセットの説明文を更新する"
+  },
+  "assets_asset_view_dividend_transaction": {
+    "message": "配当トランザクション $1 を表示"
+  },
+  "assets_failed_to_add_asset": {
+    "message": "アセットを追加できませんでした。"
+  },
+  "assets_failed_to_remove_asset": {
+    "message": "アセットを削除できませんでした。"
+  },
+  "assets_failed_to_search_assets": {
+    "message": "アセットを検索できませんでした。"
+  },
+  "assets_no_active_wallet_selected": {
+    "message": "アクティブなウォレットが選択されていません"
+  },
+  "assets_pin_up_to_assets_to": {
+    "message": "最大 $1 件のアセットをメイン画面の上部にピン留めできます。"
+  },
+  "assets_remove_from_pinned": {
+    "message": "$1 のピン留めを解除"
+  },
+  "assets_search_assets": {
+    "message": "アセットを検索"
+  },
+  "assets_search_assets_2": {
+    "message": "アセットを検索"
+  },
+  "assets_searching": {
+    "message": "検索中…"
+  },
+  "assets_you_can_only_pin_up": {
+    "message": "ピン留めできるアセットは $1 個までです。"
+  },
+  "attach_form_could_not_load_details_for": {
+    "message": "このアセットの詳細を読み込めませんでした。"
+  },
+  "attach_form_enter_the_amount_to_attach": {
+    "message": "アタッチする数量を入力してください（小数点以下 8 桁まで）。"
+  },
+  "attach_review_destination_output": {
+    "message": "送信先の出力"
+  },
+  "attach_review_unable_to_review_transaction_please": {
+    "message": "トランザクションを確認できません。戻ってもう一度お試しください。"
+  },
+  "balance_amount_with_max_input_amount_per_destination_after_fee": {
+    "message": "手数料控除後の宛先ごとの BTC が、ダスト下限を下回ります。"
+  },
+  "balance_amount_with_max_input_calculating_maximum_amount": {
+    "message": "最大数量を計算中…"
+  },
+  "balance_amount_with_max_input_enter_the_amount_of_you": {
+    "message": "送金する $1 の数量を入力してください（宛先ごと）。"
+  },
+  "balance_amount_with_max_input_enter_the_amount_of_you_2": {
+    "message": "送金する $1 の数量を入力してください。"
+  },
+  "balance_amount_with_max_input_failed_to_calculate_maximum_amount": {
+    "message": "最大数量を計算できませんでした。もう一度お試しください。"
+  },
+  "balance_amount_with_max_input_insufficient_balance_to_cover_transaction": {
+    "message": "手数料を支払うための残高が不足しています。"
+  },
+  "balance_amount_with_max_input_source_address_is_required_to": {
+    "message": "最大数量の計算には送信元アドレスが必要です"
+  },
+  "balance_amount_with_max_input_use_maximum_available_amount": {
+    "message": "利用可能な最大数量を使用"
+  },
+  "balance_balance_header_incoming": {
+    "message": "$1(+$2 入金待ち)"
+  },
+  "balance_balance_list_bitcoin": {
+    "message": "Bitcoin"
+  },
+  "balance_balance_list_loading_balances": {
+    "message": "残高を読み込み中…"
+  },
+  "balance_balance_list_search_balances": {
+    "message": "残高を検索…"
+  },
+  "balance_balance_list_searching_balances": {
+    "message": "残高を検索中…"
+  },
+  "balance_balance_menu_balance_actions": {
+    "message": "残高の操作"
+  },
+  "baseasset_quoteasset_ask": {
+    "message": "売り"
+  },
+  "baseasset_quoteasset_avg_sum_sum": {
+    "message": "平均: $1 $2 合計: $3 $4 合計: $5 $6"
+  },
+  "baseasset_quoteasset_bid": {
+    "message": "買い"
+  },
+  "baseasset_quoteasset_loading_orders": {
+    "message": "$1/$2 の注文を読み込み中…"
+  },
+  "baseasset_quoteasset_my_orders": {
+    "message": "自分の注文"
+  },
+  "baseasset_quoteasset_no_matches": {
+    "message": "$1/$2 の約定はありません"
+  },
+  "baseasset_quoteasset_orders": {
+    "message": "注文"
+  },
+  "baseasset_quoteasset_refresh_orders": {
+    "message": "注文を更新"
+  },
+  "baseasset_quoteasset_spread": {
+    "message": "スプレッド"
+  },
+  "broadcast_form_enter_the_message_you_want": {
+    "message": "ブロードキャストするメッセージを入力してください。"
+  },
+  "broadcast_form_optional_fee_fraction_for_paid": {
+    "message": "有料ブロードキャストの手数料率（任意。例: 5% なら 0.05）。"
+  },
+  "broadcast_form_optional_numeric_value_if_publishing": {
+    "message": "データを公開する場合の数値（任意）。"
+  },
+  "broadcast_form_upload_a_file_to_inscribe": {
+    "message": "ブロードキャストメッセージとしてインスクライブするファイルをアップロードします。ファイルの内容はチェーン上に永久に保存されます。テキストをブロードキャストするには .txt ファイルをアップロードしてください。"
+  },
+  "btcpay_form_enter_order_match_id": {
+    "message": "注文マッチ ID を入力"
+  },
+  "btcpay_form_the_id_of_the_matched": {
+    "message": "約定した注文の ID。約定が発生すると注文履歴に表示されます。"
+  },
+  "button_opens_in_new_tab": {
+    "message": "$1 - 新しいタブで開きます"
+  },
+  "cancel_form_enter_order_transaction_hash": {
+    "message": "注文のトランザクションハッシュを入力"
+  },
+  "cancel_form_transaction_hash_of_the_order": {
+    "message": "キャンセルする注文のトランザクションハッシュ。注文履歴で確認できます。"
+  },
+  "cards_connected_site_card_connected_site": {
+    "message": "接続済みサイト: $1"
+  },
+  "cards_connected_site_card_disconnect": {
+    "message": "$1 との接続を解除"
+  },
+  "cards_manage_order_card_cancelling": {
+    "message": "キャンセル中"
+  },
+  "cards_manage_order_card_remaining": {
+    "message": "残り"
+  },
+  "cards_pool_card_no_liquidity": {
+    "message": "流動性なし"
+  },
+  "cards_transaction_card_0_confirmations": {
+    "message": "(承認 0 回)"
+  },
+  "cards_transaction_card_transaction": {
+    "message": "トランザクション $1"
+  },
+  "charts_price_chart_no_data_available": {
+    "message": "データがありません"
+  },
+  "charts_price_chart_price_chart": {
+    "message": "価格チャート"
+  },
+  "close_by_hash_form_asset": {
+    "message": "アセット:"
+  },
+  "close_by_hash_form_enter_dispenser_transaction_hash": {
+    "message": "自販機のトランザクションハッシュを入力"
+  },
+  "close_by_hash_form_escrow_quantity": {
+    "message": "エスクロー数量:"
+  },
+  "close_by_hash_form_give_quantity": {
+    "message": "提供数量:"
+  },
+  "close_by_hash_form_loading_dispenser_details": {
+    "message": "自販機の詳細を読み込み中…"
+  },
+  "close_by_hash_form_price": {
+    "message": "価格:"
+  },
+  "close_by_hash_form_source": {
+    "message": "送信元:"
+  },
+  "close_by_hash_form_transaction_hash": {
+    "message": "トランザクションハッシュ"
+  },
+  "close_by_hash_form_transaction_hash_of_the_dispenser": {
+    "message": "閉じる自販機のトランザクションハッシュ。自販機履歴で確認できます。"
+  },
+  "close_by_hash_review_dispenser_hash": {
+    "message": "自販機のハッシュ"
+  },
+  "close_form_icon": {
+    "message": "$1 のアイコン"
+  },
+  "close_form_no_open_dispensers_found_for": {
+    "message": "$1 の稼働中の自販機は見つかりません"
+  },
+  "close_form_no_open_dispensers_found_for_2": {
+    "message": "このアドレスの稼働中の自販機は見つかりません"
+  },
+  "close_form_remaining": {
+    "message": "残り"
+  },
+  "close_form_select_a_dispenser": {
+    "message": "自販機を選択"
+  },
+  "close_form_select_the_dispenser_you_want": {
+    "message": "閉じる自販機を選択してください。"
+  },
+  "close_review_escrow_returned": {
+    "message": "返却されるエスクロー"
+  },
+  "common_accept_offer": {
+    "message": "オファーを承諾"
+  },
+  "common_accept_offer_2": {
+    "message": "オファーを承諾"
+  },
+  "common_actions": {
+    "message": "操作"
+  },
+  "common_add_btc": {
+    "message": "BTC を追加"
+  },
+  "common_add_wallet": {
+    "message": "ウォレットを追加"
+  },
+  "common_address": {
+    "message": "アドレス:"
+  },
+  "common_address_type": {
+    "message": "アドレスタイプ"
+  },
+  "common_advanced": {
+    "message": "詳細設定"
+  },
+  "common_amount": {
+    "message": "数量"
+  },
+  "common_amount_per_dispense": {
+    "message": "1 回あたりの提供量"
+  },
+  "common_amount_to_sell_enter_up": {
+    "message": "売却する数量。小数点以下 8 桁まで入力できます。"
+  },
+  "common_amount_to_sell_enter_whole": {
+    "message": "売却する数量。整数のみ入力できます。"
+  },
+  "common_anyone_with_it_can_steal": {
+    "message": "これを知っている人は誰でもあなたの資産を盗めます。"
+  },
+  "common_asset": {
+    "message": "アセット"
+  },
+  "common_asset_details": {
+    "message": "アセットの詳細"
+  },
+  "common_asset_name": {
+    "message": "アセット名"
+  },
+  "common_asset_parameter_is_required": {
+    "message": "アセットのパラメータは必須です"
+  },
+  "common_assets": {
+    "message": "アセット"
+  },
+  "common_avg": {
+    "message": "平均"
+  },
+  "common_awaiting_verification": {
+    "message": "検証待ち"
+  },
+  "common_back": {
+    "message": "戻る"
+  },
+  "common_back_to_wallet": {
+    "message": "ウォレットに戻る"
+  },
+  "common_balances": {
+    "message": "残高"
+  },
+  "common_bitcoin_network_fee_only": {
+    "message": "Bitcoin ネットワーク手数料のみ"
+  },
+  "common_broadcast": {
+    "message": "ブロードキャスト"
+  },
+  "common_buy": {
+    "message": "買う"
+  },
+  "common_cancel": {
+    "message": "キャンセル"
+  },
+  "common_close": {
+    "message": "閉じる"
+  },
+  "common_commission": {
+    "message": "手数料率"
+  },
+  "common_confirm_and_sign": {
+    "message": "確認して署名"
+  },
+  "common_confirm_on_device": {
+    "message": "デバイスで確認してください…"
+  },
+  "common_confirm_your_password": {
+    "message": "パスワードを確認"
+  },
+  "common_confirmation": {
+    "message": "確認"
+  },
+  "common_connected_sites": {
+    "message": "接続済みサイト"
+  },
+  "common_continue": {
+    "message": "続行"
+  },
+  "common_copied": {
+    "message": "コピーしました！"
+  },
+  "common_copy_address": {
+    "message": "アドレスをコピー"
+  },
+  "common_copy_address_2": {
+    "message": "アドレスをコピー"
+  },
+  "common_copy_transaction_hash": {
+    "message": "トランザクションハッシュをコピー"
+  },
+  "common_create_a_password": {
+    "message": "パスワードを作成"
+  },
+  "common_create_new_dispenser": {
+    "message": "自販機を新規作成 →"
+  },
+  "common_create_new_order": {
+    "message": "注文を新規作成 →"
+  },
+  "common_create_wallet": {
+    "message": "ウォレットを作成"
+  },
+  "common_current_address": {
+    "message": "現在のアドレス"
+  },
+  "common_deposit": {
+    "message": "預け入れ"
+  },
+  "common_description": {
+    "message": "説明文"
+  },
+  "common_description_locked": {
+    "message": "説明文ロック済み"
+  },
+  "common_destination": {
+    "message": "送信先"
+  },
+  "common_destroy": {
+    "message": "破棄"
+  },
+  "common_destroy_supply": {
+    "message": "発行量を破棄"
+  },
+  "common_detach": {
+    "message": "デタッチ"
+  },
+  "common_disconnect": {
+    "message": "接続を解除"
+  },
+  "common_dispense": {
+    "message": "自販機で購入"
+  },
+  "common_dispenser": {
+    "message": "自販機"
+  },
+  "common_dispensers": {
+    "message": "自販機一覧"
+  },
+  "common_dividend": {
+    "message": "配当"
+  },
+  "common_dividend_asset": {
+    "message": "配当アセット"
+  },
+  "common_divisible": {
+    "message": "分割可能"
+  },
+  "common_effective_price": {
+    "message": "実効価格"
+  },
+  "common_end_block": {
+    "message": "終了ブロック"
+  },
+  "common_enter_a_whole_number_amount": {
+    "message": "整数の数量を入力してください。"
+  },
+  "common_enter_recipient_s_address": {
+    "message": "受取人のアドレスを入力してください。"
+  },
+  "common_enter_your_password": {
+    "message": "パスワードを入力"
+  },
+  "common_escrow_amount": {
+    "message": "エスクロー額"
+  },
+  "common_expiration": {
+    "message": "有効期限"
+  },
+  "common_failed_to_process_file": {
+    "message": "ファイルを処理できませんでした"
+  },
+  "common_failed_to_reorder_assets": {
+    "message": "アセットを並べ替えできませんでした。"
+  },
+  "common_failed_to_sign_request": {
+    "message": "リクエストに署名できませんでした"
+  },
+  "common_fee": {
+    "message": "手数料:"
+  },
+  "common_fee_fraction": {
+    "message": "手数料率"
+  },
+  "common_fee_rates_are_still_loading": {
+    "message": "手数料率を読み込み中です。お待ちください。"
+  },
+  "common_fee_required": {
+    "message": "必要手数料"
+  },
+  "common_file_size_must_be_less": {
+    "message": "ファイルサイズは 400KB 未満にしてください"
+  },
+  "common_flip_price_ratio": {
+    "message": "価格の比率を反転"
+  },
+  "common_from": {
+    "message": "送信元:"
+  },
+  "common_get": {
+    "message": "受取数量"
+  },
+  "common_give": {
+    "message": "支払数量"
+  },
+  "common_hard_cap": {
+    "message": "ハードキャップ"
+  },
+  "common_help": {
+    "message": "ヘルプ"
+  },
+  "common_history": {
+    "message": "履歴"
+  },
+  "common_i_have_saved_my_secret": {
+    "message": "リカバリーフレーズを保存しました。"
+  },
+  "common_i_understand_this_cannot_be": {
+    "message": "元に戻せないことを理解しました"
+  },
+  "common_import_private_key": {
+    "message": "秘密鍵をインポート"
+  },
+  "common_import_wallet": {
+    "message": "ウォレットをインポート"
+  },
+  "common_importing": {
+    "message": "インポート中…"
+  },
+  "common_inscribe": {
+    "message": "インスクライブしますか？"
+  },
+  "common_issue_asset": {
+    "message": "アセットを発行"
+  },
+  "common_issue_supply": {
+    "message": "追加発行"
+  },
+  "common_keep_this_private": {
+    "message": "他人に見せないでください"
+  },
+  "common_last": {
+    "message": "最終"
+  },
+  "common_loading": {
+    "message": "読み込み中…"
+  },
+  "common_loading_asset_details": {
+    "message": "アセットの詳細を読み込み中…"
+  },
+  "common_loading_dispensers": {
+    "message": "自販機を読み込み中…"
+  },
+  "common_loading_pool_position": {
+    "message": "プールのポジションを読み込み中..."
+  },
+  "common_lock_description": {
+    "message": "説明文をロック"
+  },
+  "common_lock_keychain": {
+    "message": "キーチェーンをロック"
+  },
+  "common_lock_supply": {
+    "message": "発行量をロック"
+  },
+  "common_locked": {
+    "message": "ロック済み"
+  },
+  "common_lp_asset": {
+    "message": "LP アセット"
+  },
+  "common_market": {
+    "message": "マーケット"
+  },
+  "common_marketplace_terms_did_not_verify": {
+    "message": "マーケットプレイスの条件を検証できませんでした"
+  },
+  "common_max": {
+    "message": "最大"
+  },
+  "common_maximum_number_of_wallets_reached": {
+    "message": "ウォレット数の上限（$1）に達しました"
+  },
+  "common_memo": {
+    "message": "メモ"
+  },
+  "common_memo_2": {
+    "message": "メモ: $1"
+  },
+  "common_message": {
+    "message": "メッセージ"
+  },
+  "common_mint": {
+    "message": "ミント"
+  },
+  "common_mint_per_address": {
+    "message": "アドレスあたりのミント上限"
+  },
+  "common_move": {
+    "message": "移動"
+  },
+  "common_network_fee": {
+    "message": "ネットワーク手数料"
+  },
+  "common_never_expires": {
+    "message": "無期限"
+  },
+  "common_new_supply": {
+    "message": "新しい発行量"
+  },
+  "common_no_active_address_selected": {
+    "message": "アクティブなアドレスが選択されていません"
+  },
+  "common_no_address_selected": {
+    "message": "アドレスが選択されていません"
+  },
+  "common_no_available_balance": {
+    "message": "利用可能な残高がありません。"
+  },
+  "common_no_consolidation_data_available": {
+    "message": "統合データがありません"
+  },
+  "common_no_results_found": {
+    "message": "結果が見つかりません"
+  },
+  "common_no_spendable_balance_utxos_have": {
+    "message": "使用可能な残高がありません。$1 件の UTXO にアセットがアタッチされています。"
+  },
+  "common_note": {
+    "message": "注記:"
+  },
+  "common_open": {
+    "message": "稼働中"
+  },
+  "common_options": {
+    "message": "オプション"
+  },
+  "common_order_hash": {
+    "message": "注文ハッシュ"
+  },
+  "common_order_match_id": {
+    "message": "注文マッチ ID"
+  },
+  "common_output": {
+    "message": "出力"
+  },
+  "common_password_cannot_be_empty": {
+    "message": "パスワードを空にすることはできません。"
+  },
+  "common_password_does_not_match": {
+    "message": "パスワードが一致しません。"
+  },
+  "common_password_is_required": {
+    "message": "パスワードは必須です。"
+  },
+  "common_password_must_be_at_least": {
+    "message": "パスワードは $1 文字以上にしてください。"
+  },
+  "common_password_verification_failed": {
+    "message": "パスワードの確認に失敗しました。"
+  },
+  "common_payment": {
+    "message": "支払い"
+  },
+  "common_pending": {
+    "message": "保留中"
+  },
+  "common_pin": {
+    "message": "$1 をピン留め"
+  },
+  "common_pinned_assets": {
+    "message": "ピン留めアセット"
+  },
+  "common_please_unlock_your_wallet_first": {
+    "message": "先にウォレットのロックを解除してください"
+  },
+  "common_pool": {
+    "message": "プール"
+  },
+  "common_pool_position_not_found": {
+    "message": "プールのポジションが見つかりません"
+  },
+  "common_pool_settings": {
+    "message": "プール設定"
+  },
+  "common_price": {
+    "message": "価格"
+  },
+  "common_privacy_policy": {
+    "message": "プライバシーポリシー"
+  },
+  "common_private_key": {
+    "message": "秘密鍵"
+  },
+  "common_quantity": {
+    "message": "数量"
+  },
+  "common_refresh_price": {
+    "message": "価格を更新"
+  },
+  "common_reset_form": {
+    "message": "フォームをリセット"
+  },
+  "common_reset_supply": {
+    "message": "発行量をリセット"
+  },
+  "common_reset_wallet": {
+    "message": "ウォレットをリセット"
+  },
+  "common_retry": {
+    "message": "再試行"
+  },
+  "common_retry_verification": {
+    "message": "検証を再試行"
+  },
+  "common_review_before_signing": {
+    "message": "署名前に確認してください"
+  },
+  "common_review_transaction_risk": {
+    "message": "トランザクションのリスクを確認"
+  },
+  "common_sat_vb": {
+    "message": "$1 sat/vB"
+  },
+  "common_scroll_to_load_more": {
+    "message": "スクロールしてさらに読み込む…"
+  },
+  "common_search_assets": {
+    "message": "アセットを検索…"
+  },
+  "common_search_results": {
+    "message": "検索結果"
+  },
+  "common_searching_assets": {
+    "message": "アセットを検索中…"
+  },
+  "common_security": {
+    "message": "セキュリティ"
+  },
+  "common_select_another_address": {
+    "message": "別のアドレスを選択"
+  },
+  "common_sell": {
+    "message": "売る"
+  },
+  "common_send": {
+    "message": "送金"
+  },
+  "common_send_bitcoin": {
+    "message": "Bitcoin を送金"
+  },
+  "common_settings": {
+    "message": "設定"
+  },
+  "common_show_private_key": {
+    "message": "秘密鍵を表示"
+  },
+  "common_sign_message": {
+    "message": "メッセージに署名"
+  },
+  "common_sign_transaction": {
+    "message": "トランザクションに署名"
+  },
+  "common_signature": {
+    "message": "署名"
+  },
+  "common_signing": {
+    "message": "署名中…"
+  },
+  "common_soft_cap": {
+    "message": "ソフトキャップ"
+  },
+  "common_start_block": {
+    "message": "開始ブロック"
+  },
+  "common_start_mint": {
+    "message": "ミントを開始"
+  },
+  "common_status": {
+    "message": "状態"
+  },
+  "common_store_message_as_a_taproot": {
+    "message": "メッセージを Taproot インスクリプションとして保存する（オンチェーン）"
+  },
+  "common_swap": {
+    "message": "スワップ"
+  },
+  "common_sweep": {
+    "message": "スイープ"
+  },
+  "common_sweep_address": {
+    "message": "アドレスをスイープ"
+  },
+  "common_terms_of_service": {
+    "message": "利用規約"
+  },
+  "common_this_can_t_be_undone": {
+    "message": "この操作は元に戻せません"
+  },
+  "common_this_field_is_required": {
+    "message": "この項目は必須です"
+  },
+  "common_to": {
+    "message": "送信先:"
+  },
+  "common_toggle_help_text": {
+    "message": "ヘルプテキストの表示切替"
+  },
+  "common_total": {
+    "message": "合計"
+  },
+  "common_total_batches": {
+    "message": "バッチ合計:"
+  },
+  "common_transaction": {
+    "message": "トランザクション"
+  },
+  "common_transaction_details_did_not_verify": {
+    "message": "トランザクションの詳細を検証できませんでした"
+  },
+  "common_transactions": {
+    "message": "トランザクション"
+  },
+  "common_transfer_ownership": {
+    "message": "所有権を移転"
+  },
+  "common_try_again": {
+    "message": "もう一度試す"
+  },
+  "common_tx_hash": {
+    "message": "TX ハッシュ"
+  },
+  "common_type": {
+    "message": "種類"
+  },
+  "common_unable_to_load_asset_details": {
+    "message": "アセットの詳細を読み込めません。アセットが存在し、必要な権限があることを確認してください。"
+  },
+  "common_unable_to_load_chart_data": {
+    "message": "チャートデータを読み込めません"
+  },
+  "common_unable_to_load_price": {
+    "message": "価格を読み込めません"
+  },
+  "common_underlying": {
+    "message": "原資産"
+  },
+  "common_unpin": {
+    "message": "$1 のピン留めを解除"
+  },
+  "common_utxos_consolidated": {
+    "message": "統合した UTXO:"
+  },
+  "common_value": {
+    "message": "値"
+  },
+  "common_verify_message": {
+    "message": "メッセージを検証"
+  },
+  "common_verifying": {
+    "message": "検証中…"
+  },
+  "common_view_in_explorer": {
+    "message": "エクスプローラーで表示"
+  },
+  "common_wallet_not_found": {
+    "message": "ウォレットが見つかりません。"
+  },
+  "common_withdraw": {
+    "message": "引き出し"
+  },
+  "common_xcp_wallet": {
+    "message": "XCP Wallet"
+  },
+  "common_you_receive": {
+    "message": "受取数量"
+  },
+  "common_you_send": {
+    "message": "送付数量"
+  },
+  "common_your_balance": {
+    "message": "あなたの残高"
+  },
+  "compose_dispenser_refill_dispenser": {
+    "message": "自販機を補充"
+  },
+  "compose_fairminter_fairminter": {
+    "message": "フェアミンター"
+  },
+  "compose_order_dex_order": {
+    "message": "DEX 注文"
+  },
+  "composer_composer_cancel_and_return_to_index": {
+    "message": "キャンセルして一覧に戻る"
+  },
+  "composer_composer_cancel_transaction": {
+    "message": "トランザクションをキャンセル"
+  },
+  "composer_composer_composed_transaction_differs_from_your": {
+    "message": "作成されたトランザクションがリクエスト内容と異なります"
+  },
+  "composer_composer_composing_transaction": {
+    "message": "トランザクションを作成中…"
+  },
+  "composer_composer_form_submitting": {
+    "message": "送信中…"
+  },
+  "composer_composer_return_to_form": {
+    "message": "フォームに戻る"
+  },
+  "composer_composer_signing_and_broadcasting": {
+    "message": "署名してブロードキャスト中…"
+  },
+  "composer_composer_these_differences_are_not_dangerous": {
+    "message": "これらの差異自体は危険ではありませんが、署名する前に確認してください。"
+  },
+  "composer_context_an_error_occurred_while_composing": {
+    "message": "トランザクションの作成中にエラーが発生しました。"
+  },
+  "composer_context_failed_to_sign_and_broadcast": {
+    "message": "トランザクションの署名とブロードキャストに失敗しました"
+  },
+  "composer_context_invalid_api_response_missing_or": {
+    "message": "API レスポンスが無効です: result フィールドがないか無効です"
+  },
+  "composer_context_invalid_api_response_missing_rawtransaction": {
+    "message": "API レスポンスが無効です: rawtransaction がありません"
+  },
+  "composer_context_invalid_api_response_response_is": {
+    "message": "API レスポンスが無効です: レスポンスがオブジェクトではありません"
+  },
+  "composer_context_invalid_transaction_data": {
+    "message": "トランザクションデータが無効です"
+  },
+  "composer_context_no_active_address_available": {
+    "message": "利用できるアクティブなアドレスがありません"
+  },
+  "composer_context_the_composer_did_not_return": {
+    "message": "コンポーザーがこのインスクリプションのリビールトランザクションを返しませんでした。"
+  },
+  "composer_context_the_inscription_s_commit_transaction": {
+    "message": "インスクリプションのコミットトランザクションはブロードキャストされましたが、コンテンツを公開するリビールは受け付けられませんでした（$1）。コンテンツはまだオンチェーンにありません。リビールトランザクション: $2"
+  },
+  "composer_context_this_transaction_pays_a_sat": {
+    "message": "このトランザクションのマイナー手数料は $1 sat ですが、コンポーザーは $2 と報告しました。表示されている額がトランザクションが実際に支払う額です。"
+  },
+  "composer_context_transaction_data_is_stale_please": {
+    "message": "トランザクションデータが古くなっています。戻ってトランザクションを作り直してください。"
+  },
+  "composer_context_transaction_fee_verification_failed": {
+    "message": "トランザクション手数料の検証に失敗しました"
+  },
+  "composer_context_transaction_pays_outputs_your_request": {
+    "message": "トランザクションにリクエストにない出力への支払いが含まれています"
+  },
+  "composer_context_transaction_replay_detected": {
+    "message": "トランザクションの再送を検出しました: $1"
+  },
+  "composer_context_transaction_verification_failed": {
+    "message": "トランザクションの検証に失敗しました: $1"
+  },
+  "composer_context_transaction_verification_failed_bad_inscription": {
+    "message": "トランザクションの検証に失敗しました: インスクリプションが不正です。"
+  },
+  "composer_context_transaction_verification_failed_bad_reveal": {
+    "message": "トランザクションの検証に失敗しました: リビールが不正です。"
+  },
+  "composer_context_transaction_verification_failed_neither_side": {
+    "message": "トランザクションの検証に失敗しました: この注文マッチのどちら側も BTC ではないため、BTCPay で決済されません。"
+  },
+  "composer_context_transaction_verification_failed_the_composed": {
+    "message": "トランザクションの検証に失敗しました: 作成されたメッセージがリクエストと一致しません。"
+  },
+  "composer_context_transaction_verification_failed_the_composed_2": {
+    "message": "トランザクションの検証に失敗しました: 作成されたトランザクションに Counterparty メッセージが含まれておらず、要求した動作を行いません。"
+  },
+  "composer_context_transaction_verification_failed_this_inscription": {
+    "message": "トランザクションの検証に失敗しました: このインスクリプションを検証用に再構築できませんでした。"
+  },
+  "composer_context_transaction_verification_failed_this_order": {
+    "message": "トランザクションの検証に失敗しました: この注文マッチを読み取れなかったため、決済される支払いを確認できませんでした。"
+  },
+  "connect_approve_both_of_your_wallet_addresses": {
+    "message": "ウォレットの両方のアドレス"
+  },
+  "connect_approve_connect_both": {
+    "message": "両方を接続"
+  },
+  "connect_approve_favicon": {
+    "message": "$1 のファビコン"
+  },
+  "connect_approve_legacy_address": {
+    "message": "レガシーアドレス"
+  },
+  "connect_approve_loading": {
+    "message": "読み込み中..."
+  },
+  "connect_approve_loading_addresses": {
+    "message": "アドレスを読み込み中…"
+  },
+  "connect_approve_loading_request": {
+    "message": "リクエストを読み込み中…"
+  },
+  "connect_approve_native_segwit_address": {
+    "message": "ネイティブ SegWit アドレス"
+  },
+  "connect_approve_paired_addresses_are_unavailable_connecting": {
+    "message": "ペアアドレスは利用できません。接続するとこのアドレスのみへのアクセスが許可されます。"
+  },
+  "connect_approve_paired_addresses_do_not_include": {
+    "message": "ペアアドレスに要求されたアドレスが含まれていません"
+  },
+  "connect_approve_processing": {
+    "message": "処理中…"
+  },
+  "connect_approve_request_message_signatures": {
+    "message": "メッセージ署名を要求する"
+  },
+  "connect_approve_request_signatures_from_either_address": {
+    "message": "どちらのアドレスにも署名を要求する"
+  },
+  "connect_approve_request_transaction_signatures": {
+    "message": "トランザクション署名を要求する"
+  },
+  "connect_approve_the_active_address_changed_after": {
+    "message": "このリクエストの後にアクティブなアドレスが変更されました。要求されたアドレスに戻してからもう一度お試しください。"
+  },
+  "connect_approve_this_connection_request_is_no": {
+    "message": "この接続リクエストはもう利用できません。"
+  },
+  "connect_approve_this_request_expired_please_connect": {
+    "message": "このリクエストは期限切れです。サイトからもう一度接続してください。"
+  },
+  "connect_approve_this_site_is_requesting_access": {
+    "message": "このサイトは次の情報の閲覧を要求しています"
+  },
+  "connect_approve_this_site_is_requesting_access_2": {
+    "message": "このサイトはウォレットアドレスの閲覧を要求しています"
+  },
+  "connect_approve_this_site_will_be_able": {
+    "message": "このサイトは次のことができるようになります:"
+  },
+  "connect_approve_unable_to_load_this_connection": {
+    "message": "この接続リクエストを読み込めません。"
+  },
+  "connect_approve_user_denied_the_request": {
+    "message": "ユーザーがリクエストを拒否しました"
+  },
+  "connect_approve_view_your_wallet_address": {
+    "message": "ウォレットアドレスを閲覧する"
+  },
+  "connect_approve_view_your_wallet_addresses": {
+    "message": "ウォレットアドレスを閲覧する"
+  },
+  "connect_approve_wallet_connect": {
+    "message": "ウォレット接続"
+  },
+  "consolidate_form_continue_to_review": {
+    "message": "確認へ進む"
+  },
+  "consolidate_form_destination_address_optional": {
+    "message": "送信先アドレス（任意）"
+  },
+  "consolidate_form_enter_a_valid_fee_rate": {
+    "message": "続行する前に有効な手数料率を入力してください。"
+  },
+  "consolidate_form_failed_to_fetch_consolidation_data": {
+    "message": "統合データを取得できませんでした"
+  },
+  "consolidate_form_if_left_empty_utxos_will": {
+    "message": "空欄の場合、UTXO は送信元アドレスに統合されます。"
+  },
+  "consolidate_form_include_stamp_utxos_in_recovery": {
+    "message": "Stamp UTXO を回収対象に含める"
+  },
+  "consolidate_form_keep_this_off_unless_you": {
+    "message": "Stamp UTXO を意図的に破棄する場合を除き、オフのままにしてください。"
+  },
+  "consolidate_form_leave_empty_to_consolidate_to": {
+    "message": "空欄で送信元アドレスに統合"
+  },
+  "consolidate_form_of_batches": {
+    "message": "バッチ数"
+  },
+  "consolidate_form_pending_recovery_transaction": {
+    "message": "件の保留中の回収トランザクション"
+  },
+  "consolidate_form_please_wait_for": {
+    "message": "があります。新しい回収を始める前に"
+  },
+  "consolidate_form_protected_utxo_excluded": {
+    "message": "保護された UTXO $p1$$p2$ $p3$$p4$ 件を除外しました。",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      },
+      "p4": {
+        "content": "$4"
+      }
+    }
+  },
+  "consolidate_form_recoverable": {
+    "message": "回収可能"
+  },
+  "consolidate_form_some_utxos_require_special_handling": {
+    "message": "一部の UTXO には特別な処理が必要です。古い Counterparty トランザクションでは通常のことで、自動的に処理されます。"
+  },
+  "consolidate_form_stamp_protection_status_is_still": {
+    "message": "Stamp 保護の状態を更新中です。もう一度お試しください。"
+  },
+  "consolidate_form_to_confirm_before_starting_new": {
+    "message": "承認されるのをお待ちください。"
+  },
+  "consolidate_form_total_bitcoin": {
+    "message": "Bitcoin 合計"
+  },
+  "consolidate_form_total_utxos": {
+    "message": "UTXO 合計"
+  },
+  "consolidate_form_warning": {
+    "message": "警告:"
+  },
+  "consolidate_form_you_have": {
+    "message": "現在"
+  },
+  "consolidate_history_btc_recovered": {
+    "message": "$1 BTC を回収"
+  },
+  "consolidate_history_confirmed": {
+    "message": "承認済み"
+  },
+  "consolidate_history_consolidated_utxos": {
+    "message": "$1 件の UTXO を統合"
+  },
+  "consolidate_history_failed_to_load_recovery_history": {
+    "message": "回収履歴を読み込めませんでした"
+  },
+  "consolidate_history_no_recovery_transactions_yet": {
+    "message": "回収トランザクションはまだありません"
+  },
+  "consolidate_history_recovery_history": {
+    "message": "回収履歴"
+  },
+  "consolidate_review_all_batches_will_be_signed": {
+    "message": "$1 件のバッチすべてがワンクリックで自動的に署名・ブロードキャストされます。"
+  },
+  "consolidate_review_batch": {
+    "message": "バッチ $1:"
+  },
+  "consolidate_review_batch_consolidation": {
+    "message": "バッチ統合"
+  },
+  "consolidate_review_btc_utxos": {
+    "message": "$p1$$p2$ BTC（UTXO $p3$ 件）",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      }
+    }
+  },
+  "consolidate_review_consolidating": {
+    "message": "統合対象:"
+  },
+  "consolidate_review_current_batch": {
+    "message": "現在のバッチ:"
+  },
+  "consolidate_review_fee_breakdown": {
+    "message": "手数料の内訳"
+  },
+  "consolidate_review_fee_breakdown_batches_total": {
+    "message": "手数料の内訳（合計 $1 バッチ）"
+  },
+  "consolidate_review_fee_rate": {
+    "message": "手数料率:"
+  },
+  "consolidate_review_network_fee": {
+    "message": "ネットワーク手数料:"
+  },
+  "consolidate_review_processing_batch_of": {
+    "message": "バッチ $1/$2 を処理中..."
+  },
+  "consolidate_review_processing_batches": {
+    "message": "バッチを処理中..."
+  },
+  "consolidate_review_review_consolidation": {
+    "message": "統合内容の確認"
+  },
+  "consolidate_review_service_fee": {
+    "message": "サービス手数料 ($1%):"
+  },
+  "consolidate_review_service_fee_waived_amount_below": {
+    "message": "✓ サービス手数料は免除されます（金額が基準未満）"
+  },
+  "consolidate_review_sign_broadcast_transaction": {
+    "message": "署名してブロードキャスト"
+  },
+  "consolidate_review_sign_broadcast_transactions": {
+    "message": "$1 件のトランザクションに署名してブロードキャスト"
+  },
+  "consolidate_review_signing_broadcasting": {
+    "message": "署名してブロードキャスト中…"
+  },
+  "consolidate_review_total_fees": {
+    "message": "手数料合計:"
+  },
+  "consolidate_review_total_utxos": {
+    "message": "UTXO 合計:"
+  },
+  "consolidate_review_up_to": {
+    "message": "最大 $1"
+  },
+  "consolidate_review_utxos_per_batch": {
+    "message": "バッチあたりの UTXO 数:"
+  },
+  "consolidate_review_you_will_receive": {
+    "message": "受取額:"
+  },
+  "consolidate_status_amount_recovered": {
+    "message": "回収額:"
+  },
+  "consolidate_status_available_utxos": {
+    "message": "利用可能な UTXO:"
+  },
+  "consolidate_status_confirmed_consolidations": {
+    "message": "承認済みの統合:"
+  },
+  "consolidate_status_consolidation_overview": {
+    "message": "統合の概要"
+  },
+  "consolidate_status_consolidation_status": {
+    "message": "統合の状態"
+  },
+  "consolidate_status_failed_to_fetch_status": {
+    "message": "状態を取得できませんでした"
+  },
+  "consolidate_status_pending_utxos": {
+    "message": "保留中の UTXO:"
+  },
+  "consolidate_status_recent_consolidations": {
+    "message": "最近の統合"
+  },
+  "consolidate_status_refresh_status": {
+    "message": "状態を更新"
+  },
+  "consolidate_status_start_new_consolidation": {
+    "message": "新しい統合を開始"
+  },
+  "consolidate_status_total_recovered": {
+    "message": "回収合計:"
+  },
+  "consolidate_status_utxos_are_pending_confirmation_please": {
+    "message": "$1 件の UTXO が承認待ちです。新しい統合を作成する前にお待ちください。"
+  },
+  "consolidate_success_all_batch_failed_nothing_was": {
+    "message": "$1 件のバッチ$2がすべて失敗しました。何も送信されず、Bitcoin も消費されていません。下のエラーを確認してください。"
+  },
+  "consolidate_success_batch_utxos": {
+    "message": "バッチ $1（UTXO $2 件）"
+  },
+  "consolidate_success_batches_failed_you_can_retry": {
+    "message": "$1 件のバッチが失敗しました。後で再試行できます。"
+  },
+  "consolidate_success_broadcast_but_the_recovery_service": {
+    "message": "ブロードキャストされましたが、回収サービスに通知できませんでした。Bitcoin は安全に送金中です。これらの UTXO は一時的に回収可能として再表示されることがあります。"
+  },
+  "consolidate_success_close_and_go_home": {
+    "message": "閉じてホームへ"
+  },
+  "consolidate_success_consolidation_successful": {
+    "message": "統合が完了しました！"
+  },
+  "consolidate_success_consolidation_summary": {
+    "message": "統合の概要"
+  },
+  "consolidate_success_copy_transaction_id": {
+    "message": "トランザクション ID をコピー"
+  },
+  "consolidate_success_error": {
+    "message": "エラー: $1"
+  },
+  "consolidate_success_failed": {
+    "message": "失敗:"
+  },
+  "consolidate_success_no_batches_broadcast": {
+    "message": "ブロードキャストされたバッチはありません"
+  },
+  "consolidate_success_one_batch_failed_you_can": {
+    "message": "1 件のバッチが失敗しました。後で再試行できます。"
+  },
+  "consolidate_success_started_recovery": {
+    "message": "回収を開始しました"
+  },
+  "consolidate_success_successful": {
+    "message": "成功:"
+  },
+  "consolidate_success_successfully_broadcast_of_batches": {
+    "message": "$2 件中 $1 件のバッチをブロードキャストしました。"
+  },
+  "consolidate_success_successfully_broadcast_the_batch": {
+    "message": "バッチをブロードキャストしました。"
+  },
+  "consolidate_success_transaction_ids": {
+    "message": "トランザクション ID"
+  },
+  "consolidate_success_view_status": {
+    "message": "状態を表示"
+  },
+  "consolidate_success_your_transactions_are_now_in": {
+    "message": "トランザクションはメンプールに入り、次のブロック以降で承認されます。統合された Bitcoin はトランザクションの承認後に利用できるようになります。"
+  },
+  "deposit_form_asset_a": {
+    "message": "アセット A"
+  },
+  "deposit_form_asset_b": {
+    "message": "アセット B"
+  },
+  "deposit_form_loading_pool_quote": {
+    "message": "プールの見積もりを読み込み中..."
+  },
+  "deposit_form_lp_supply_is_zero_this": {
+    "message": "LP の発行量がゼロです。この預け入れはプールを再始動し、既存の準備金を取得する可能性があります。"
+  },
+  "deposit_form_only_the_pool_ratio_amount": {
+    "message": "プールの比率に合う数量のみが預け入れられ、余剰分は使用されません。"
+  },
+  "deposit_form_optional_leave_blank_to_auto": {
+    "message": "任意。空欄の場合は LP アセットを自動生成します。"
+  },
+  "deposit_form_pool_assets_must_be_different": {
+    "message": "プールのアセットは異なるものにしてください。"
+  },
+  "deposit_form_pool_deposits_use_the_current": {
+    "message": "プールへの預け入れは現在のプール比率を使用します。"
+  },
+  "deposit_form_quoted_partner_amount": {
+    "message": "プール比率に必要な数量: $1 $2"
+  },
+  "deposit_form_review_deposit": {
+    "message": "預け入れ内容を確認"
+  },
+  "deposit_form_the_lp_asset_represents_your": {
+    "message": "LP アセットはプールにおけるあなたのシェアを表します。"
+  },
+  "deposit_form_this_deposits_less_than_the": {
+    "message": "この数量では、見積もりのプール比率で預け入れられる量に届きません。"
+  },
+  "deposit_form_use_quote": {
+    "message": "見積もりを使用"
+  },
+  "deposit_review_minimum_lp": {
+    "message": "最低受取 LP 数量"
+  },
+  "destroy_supply_form_amount_to_destroy": {
+    "message": "破棄する数量"
+  },
+  "destroy_supply_form_destroy_supply": {
+    "message": "発行量を破棄"
+  },
+  "destroy_supply_form_enter_a_whole_number_amount": {
+    "message": "破棄する数量を整数で入力してください。"
+  },
+  "destroy_supply_form_enter_asset_name": {
+    "message": "アセット名を入力"
+  },
+  "destroy_supply_form_enter_the_amount_to_destroy": {
+    "message": "破棄する数量を入力してください（小数点以下 8 桁まで）。"
+  },
+  "destroy_supply_form_the_name_of_the_asset": {
+    "message": "発行量を破棄するアセットの名前。"
+  },
+  "detach_form_destination_optional": {
+    "message": "送信先（任意）"
+  },
+  "detach_form_leave_empty_to_use_utxo": {
+    "message": "空欄で UTXO のアドレスを使用"
+  },
+  "detach_form_the_address_to_detach_assets": {
+    "message": "アセットのデタッチ先アドレス。指定しない場合、アセットは UTXO の所有者アドレスにデタッチされます。"
+  },
+  "detach_review_source_utxo": {
+    "message": "送信元 UTXO"
+  },
+  "dispense_form_failed_to_fetch_balance": {
+    "message": "残高を取得できませんでした"
+  },
+  "dispense_form_insufficient_btc_balance_you_need": {
+    "message": "BTC 残高が不足しています。この自販機を 1 回利用するには少なくとも $1 BTC（約 $2 sats の手数料を含む）が必要です。"
+  },
+  "dispense_form_loading_balance": {
+    "message": "残高を読み込み中..."
+  },
+  "dispense_form_number_of_times_to_trigger": {
+    "message": "自販機を利用する回数"
+  },
+  "dispense_form_please_select_a_dispenser_first": {
+    "message": "先に自販機を選択してください"
+  },
+  "dispense_form_this_dispenser_is_empty_and": {
+    "message": "この自販機は空のため利用できません。"
+  },
+  "dispense_form_times_to_dispense": {
+    "message": "購入回数"
+  },
+  "dispense_review_btc_payment": {
+    "message": "BTC 支払い"
+  },
+  "dispense_review_of_dispenses": {
+    "message": "購入回数"
+  },
+  "dispense_review_pending_transaction_s_competing_for": {
+    "message": "この自販機に対して $1 件の保留中トランザクションが競合しています: $2 あなたのトランザクションが承認される前に自販機が売り切れる可能性があります。"
+  },
+  "dispense_review_race_condition_warning": {
+    "message": "⚠️ 競合の警告"
+  },
+  "dispense_review_sat_vb": {
+    "message": "@ $1 sat/vB"
+  },
+  "dispenser_asset_dispenser_card_remaining": {
+    "message": "残り $1"
+  },
+  "dispenser_dispenser_card_per_dispense": {
+    "message": "1 回あたり $p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "dispenser_dispenser_card_remaining": {
+    "message": "残り $1"
+  },
+  "dispenser_dispenser_card_select_dispenser_for": {
+    "message": "$1 の自販機を選択"
+  },
+  "dispenser_dispenser_input_enter_the_dispenser_address_to": {
+    "message": "BTC の送信先となる自販機のアドレスを入力してください。"
+  },
+  "dispenser_dispenser_input_error_fetching_dispenser_details": {
+    "message": "自販機の詳細を取得できませんでした。"
+  },
+  "dispenser_dispenser_input_no_open_dispenser_found_at": {
+    "message": "このアドレスに稼働中の自販機は見つかりません。"
+  },
+  "dispenser_form_amount_per_dispense_is_fixed": {
+    "message": "補充では 1 回あたりの数量は固定です。"
+  },
+  "dispenser_form_btc_required_to_trigger_one": {
+    "message": "1 回の購入に必要な BTC。"
+  },
+  "dispenser_form_cannot_create_a_dispenser_for": {
+    "message": "BTC の自販機は作成できません"
+  },
+  "dispenser_form_escrow_quantity_must_be_greater": {
+    "message": "エスクロー数量は提供数量以上である必要があります"
+  },
+  "dispenser_form_failed_to_load_asset_details": {
+    "message": "アセットの詳細を読み込めませんでした"
+  },
+  "dispenser_form_price_in_bitcoin": {
+    "message": "Bitcoin 建ての価格"
+  },
+  "dispenser_form_price_is_fixed_for_refills": {
+    "message": "補充では価格は固定です。"
+  },
+  "dispenser_form_select_an_asset_to_dispense": {
+    "message": "販売するアセットを選択"
+  },
+  "dispenser_form_select_the_asset_to_dispense": {
+    "message": "販売するアセットを選択してください。"
+  },
+  "dispenser_form_the_quantity_of_the_asset": {
+    "message": "1ロットあたりに販売するアセットの数量。1回の支払いで複数ロットを購入できます。小数点以下8桁まで入力できます。"
+  },
+  "dispenser_form_the_quantity_of_the_asset_2": {
+    "message": "1ロットあたりに販売するアセットの数量。1回の支払いで複数ロットを購入できます。整数で入力してください。"
+  },
+  "dispenser_form_total_amount_to_lock_in": {
+    "message": "自販機にロックする合計数量。小数点以下 8 桁まで入力できます。利用可能: $1"
+  },
+  "dispenser_form_total_amount_to_lock_in_2": {
+    "message": "自販機にロックする合計数量。整数のみ入力できます。利用可能: $1"
+  },
+  "dispenser_manage_dispenser_card_closed": {
+    "message": "閉鎖済み"
+  },
+  "dispenser_manage_dispenser_card_closing": {
+    "message": "閉鎖中"
+  },
+  "dispenser_manage_dispenser_card_refill": {
+    "message": "補充"
+  },
+  "dispenser_market_dispenser_card_per_dispense": {
+    "message": "1 回あたり $1"
+  },
+  "dispenser_review_bitcoin_total": {
+    "message": "Bitcoin 合計"
+  },
+  "dispenser_review_per_dispense": {
+    "message": "1 回あたり"
+  },
+  "dispensers_asset_floor": {
+    "message": "最安値"
+  },
+  "dispensers_asset_loading_dispensers": {
+    "message": "$1 の自販機を読み込み中…"
+  },
+  "dispensers_asset_my_dispensers": {
+    "message": "自分の自販機"
+  },
+  "dispensers_asset_no_open_dispensers_found": {
+    "message": "稼働中の $1 自販機は見つかりません"
+  },
+  "dispensers_asset_no_recent_dispenses": {
+    "message": "最近の $1 の購入はありません"
+  },
+  "dispensers_asset_refresh_dispensers": {
+    "message": "自販機を更新"
+  },
+  "dispensers_asset_switch_price_display_to": {
+    "message": "価格表示を $1 に切り替え"
+  },
+  "dividend_form_amount_of_to_be_paid": {
+    "message": "$2 1 単位あたりに支払う $1 の数量。"
+  },
+  "dividend_form_amount_per_unit": {
+    "message": "1 単位あたりの額"
+  },
+  "dividend_form_not_enough_xcp_for_the": {
+    "message": "配当手数料に必要な XCP が不足しています"
+  },
+  "dividend_form_the_asset_to_pay_dividends": {
+    "message": "配当を支払うアセット（例: XCP）。"
+  },
+  "error_alert_dismiss_message": {
+    "message": "$1メッセージを閉じる"
+  },
+  "error_alert_error": {
+    "message": "エラー"
+  },
+  "error_alert_info": {
+    "message": "情報"
+  },
+  "error_alert_warning": {
+    "message": "警告"
+  },
+  "fairmint_form_btc_and_xcp_cannot_be": {
+    "message": "BTC と XCP はフェアミントには使用できません。別のアセットを選択してください。"
+  },
+  "fairmint_form_each_lot_is_for_xcp": {
+    "message": "1 ロットは $1 $2 で、価格は $3 XCP です。"
+  },
+  "fairmint_form_enter_how_many_lots_to": {
+    "message": "ミントするロット数を入力してください。"
+  },
+  "fairmint_form_fairminter_asset": {
+    "message": "フェアミンターのアセット"
+  },
+  "fairmint_form_fee_rate_must_be_greater": {
+    "message": "手数料率は 0 より大きい値にしてください。"
+  },
+  "fairmint_form_free_mint": {
+    "message": "無料ミント。"
+  },
+  "fairmint_form_lots_to_mint": {
+    "message": "ミントするロット数"
+  },
+  "fairmint_form_please_select_a_fairminter_asset": {
+    "message": "フェアミンターのアセットを選択してください。"
+  },
+  "fairmint_form_select_a_fairminter_that_charges": {
+    "message": "XCP を必要とするフェアミンターを選択"
+  },
+  "fairmint_form_select_a_free_fairminter_these": {
+    "message": "無料のフェアミンターを選択。Bitcoin ネットワーク手数料のみかかります"
+  },
+  "fairmint_form_select_an_available_fairminter": {
+    "message": "利用可能なフェアミンターを選択"
+  },
+  "fairmint_form_the_fairminter_decides_the_amount_2": {
+    "message": "数量はフェアミンターが決めます。1 トランザクションあたり最大 $1 $2 で、ハードキャップを超える場合はそれ未満になります。"
+  },
+  "fairmint_form_the_maximum_allowed": {
+    "message": "許可された上限"
+  },
+  "fairmint_form_you_can_mint_at_most": {
+    "message": "現在ミントできるのは最大 $1 ロットです。"
+  },
+  "fairmint_review_paid_to": {
+    "message": "支払先"
+  },
+  "fairmint_review_payment_and_tokens_are_held": {
+    "message": "支払いとトークンはキャップに到達するまでエスクローに保管され、未達の場合は返金されます。"
+  },
+  "fairmint_review_soft_cap": {
+    "message": "⚠️ ソフトキャップ"
+  },
+  "fairmint_review_you_pay": {
+    "message": "支払額"
+  },
+  "fairmint_review_you_receive_after_soft_cap": {
+    "message": "受け取る額（ソフトキャップ達成後）"
+  },
+  "fairminter_fairmint_fairmint": {
+    "message": "フェアミント"
+  },
+  "fairminter_form_a_textual_description_for_the": {
+    "message": "アセットのテキスト説明文。オンチェーンにインスクライブされます。"
+  },
+  "fairminter_form_advanced_options": {
+    "message": "詳細オプション"
+  },
+  "fairminter_form_amount_of_asset_to_mint": {
+    "message": "販売開始時にミントするアセットの数量。"
+  },
+  "fairminter_form_btc_fee_model_miners": {
+    "message": "BTC 手数料モデル（マイナーへ）"
+  },
+  "fairminter_form_commission_fraction_between_0_and": {
+    "message": "支払われる手数料率（0 以上 1 未満の割合）。"
+  },
+  "fairminter_form_lock_quantity": {
+    "message": "数量をロック"
+  },
+  "fairminter_form_maximum_amount_that_can_be": {
+    "message": "1 トランザクションでミントできる最大数量。"
+  },
+  "fairminter_form_maximum_total_supply_that_can": {
+    "message": "ミントできる総発行量の上限。"
+  },
+  "fairminter_form_minimum_amount_required_for_the": {
+    "message": "販売の成立に必要な最低数量。"
+  },
+  "fairminter_form_mint_method": {
+    "message": "ミント方式"
+  },
+  "fairminter_form_mint_per_tx": {
+    "message": "TX あたりのミント数"
+  },
+  "fairminter_form_no_limit": {
+    "message": "上限なし"
+  },
+  "fairminter_form_number_of_tokens_received_per": {
+    "message": "ミント 1 トランザクションあたりに受け取るトークン数。"
+  },
+  "fairminter_form_optional_maximum_amount_each_address": {
+    "message": "各アドレスがミントできる上限（任意）。空欄の場合はアドレスごとの上限なし。"
+  },
+  "fairminter_form_pre_mine": {
+    "message": "プレマイン"
+  },
+  "fairminter_form_select_the_mint_method_for": {
+    "message": "フェアミンターのミント方式を選択してください。"
+  },
+  "fairminter_form_soft_cap_deadline_block": {
+    "message": "ソフトキャップ期限ブロック"
+  },
+  "fairminter_form_store_description_as_a_taproot": {
+    "message": "説明文を Taproot インスクリプションとして保存する（オンチェーン）"
+  },
+  "fairminter_form_the_block_at_which_the": {
+    "message": "販売が開始されるブロック。"
+  },
+  "fairminter_form_the_block_at_which_the_2": {
+    "message": "販売が終了するブロック。"
+  },
+  "fairminter_form_the_block_by_which_the": {
+    "message": "ソフトキャップに到達しなければならない期限のブロック。"
+  },
+  "fairminter_form_tokens_per_mint": {
+    "message": "ミントあたりのトークン数"
+  },
+  "fairminter_form_xcp_cost_per_mint": {
+    "message": "ミントあたりの XCP 費用"
+  },
+  "fairminter_form_xcp_fee_model_burned": {
+    "message": "XCP 手数料モデル（バーン）"
+  },
+  "fairminter_form_xcp_fee_model_to_you": {
+    "message": "XCP 手数料モデル（あなたへ）"
+  },
+  "fairminter_form_xcp_required_for_each_mint": {
+    "message": "ミント 1 トランザクションあたりに必要な XCP。"
+  },
+  "fairminter_review_lot_price": {
+    "message": "ロット価格"
+  },
+  "fairminter_review_lot_size": {
+    "message": "ロットサイズ"
+  },
+  "fairminter_review_pool_reserve": {
+    "message": "プール準備金"
+  },
+  "fairminter_review_sale_window": {
+    "message": "販売期間"
+  },
+  "inputs_api_url_input_api_endpoint_validated_and_saved": {
+    "message": "✓ API エンドポイントを検証して保存しました"
+  },
+  "inputs_api_url_input_failed_to_validate_api": {
+    "message": "API を検証できませんでした"
+  },
+  "inputs_api_url_input_reset_api_url_to_default": {
+    "message": "API URL をデフォルトに戻す"
+  },
+  "inputs_api_url_input_using_default_api_endpoint": {
+    "message": "デフォルトの API エンドポイントを使用中"
+  },
+  "inputs_api_url_input_validating_api_endpoint": {
+    "message": "API エンドポイントを検証中…"
+  },
+  "inputs_block_height_input_block_height": {
+    "message": "ブロック高"
+  },
+  "inputs_block_height_input_enter_a_block_height_or": {
+    "message": "ブロック高を入力するか、「現在」をクリックして現在のブロック高を使用してください。"
+  },
+  "inputs_block_height_input_enter_block_height": {
+    "message": "ブロック高を入力"
+  },
+  "inputs_block_height_input_failed_to_fetch_current_block": {
+    "message": "現在のブロック高を取得できませんでした。もう一度お試しください。"
+  },
+  "inputs_block_height_input_now": {
+    "message": "現在"
+  },
+  "inputs_block_height_input_use_current_block_height": {
+    "message": "現在のブロック高を使用"
+  },
+  "inputs_destination_input_looking_up_asset_owner": {
+    "message": "アセットの所有者を検索中…"
+  },
+  "inputs_destination_input_resolved_to_owner_address": {
+    "message": "所有者のアドレスに解決しました"
+  },
+  "inputs_fee_rate_input_custom_fee_rate": {
+    "message": "カスタム手数料率"
+  },
+  "inputs_fee_rate_input_esc": {
+    "message": "Esc"
+  },
+  "inputs_fee_rate_input_fee_rate": {
+    "message": "手数料率"
+  },
+  "inputs_fee_rate_input_fee_rate_custom": {
+    "message": "手数料率（カスタム）"
+  },
+  "inputs_fee_rate_input_loading_fee_rates": {
+    "message": "手数料率を読み込み中…"
+  },
+  "inputs_fee_rate_input_populated_with_network_rates_min": {
+    "message": "ネットワークの手数料率を反映しています（最低 0.1 sat/vB）。"
+  },
+  "inputs_fee_rate_input_reset_to_first_preset": {
+    "message": "最初のプリセットに戻す"
+  },
+  "inputs_fee_rate_input_unable_to_fetch_fee_rates": {
+    "message": "手数料率を取得できません。手動で入力してください（最低 0.1 sat/vB）。"
+  },
+  "inputs_file_upload_input_choose_file": {
+    "message": "ファイルを選択"
+  },
+  "inputs_file_upload_input_max_file_size_kb": {
+    "message": "最大ファイルサイズ: $1KB"
+  },
+  "inputs_file_upload_input_remove_file": {
+    "message": "ファイルを削除"
+  },
+  "inputs_file_upload_input_size_kb": {
+    "message": "サイズ: $1 KB"
+  },
+  "inputs_hash_input_copy_hash": {
+    "message": "ハッシュをコピー"
+  },
+  "inputs_hash_input_enter_a_64_character_hexadecimal": {
+    "message": "64 文字の 16 進数ハッシュを入力"
+  },
+  "inputs_hash_input_enter_a_64_character_offer": {
+    "message": "64 文字のオファーハッシュを入力"
+  },
+  "inputs_hash_input_enter_a_64_character_transaction": {
+    "message": "64 文字のトランザクションハッシュを入力"
+  },
+  "inputs_hash_input_enter_an_order_match_id": {
+    "message": "注文マッチ ID を入力（hash_hash 形式）"
+  },
+  "inputs_hash_input_enter_hash": {
+    "message": "ハッシュを入力…"
+  },
+  "inputs_hash_input_invalid_format_expected_hash_hash": {
+    "message": "形式が無効です。期待される形式: hash_hash（64 文字のハッシュ 2 つをアンダースコアで区切る）"
+  },
+  "inputs_hash_input_invalid_hash_must_be_64": {
+    "message": "$1 ハッシュが無効です。64 文字の 16 進数にしてください"
+  },
+  "inputs_memo_input_optional_memo": {
+    "message": "メモ（任意）"
+  },
+  "inputs_memo_input_optional_memo_to_include": {
+    "message": "添付するメモ（任意）。"
+  },
+  "inputs_password_input_enter_password": {
+    "message": "パスワードを入力"
+  },
+  "inputs_password_input_hide_password": {
+    "message": "パスワードを隠す"
+  },
+  "inputs_password_input_show_password": {
+    "message": "パスワードを表示"
+  },
+  "inputs_price_with_suggest_input_flip_trading_pair_to": {
+    "message": "取引ペアを $1 に反転"
+  },
+  "inputs_price_with_suggest_input_last_trade": {
+    "message": "最終取引: $1"
+  },
+  "inputs_price_with_suggest_input_min": {
+    "message": "最小"
+  },
+  "inputs_price_with_suggest_input_use_suggested_price_from_last": {
+    "message": "最終取引の推奨価格を使用"
+  },
+  "inputs_search_input_clear_search": {
+    "message": "検索をクリア"
+  },
+  "inputs_search_input_search": {
+    "message": "検索…"
+  },
+  "inputs_search_input_start_typing_to_search": {
+    "message": "入力して検索"
+  },
+  "inputs_setting_switch_info": {
+    "message": "情報: $1"
+  },
+  "inputs_textarea_input_maximum_characters_allowed": {
+    "message": "最大 $1 文字まで"
+  },
+  "inputs_textarea_input_minimum_characters_required": {
+    "message": "最低 $1 文字必要です"
+  },
+  "issuance_form_a_textual_description_for_the": {
+    "message": "アセットのテキスト説明文。"
+  },
+  "issuance_form_file_size_must_be_less": {
+    "message": "ファイルサイズは $1KB 未満にしてください"
+  },
+  "issuance_form_the_quantity_of_the_asset": {
+    "message": "発行するアセットの数量。"
+  },
+  "issuance_form_upload_a_file_to_inscribe": {
+    "message": "アセットの説明文としてインスクライブするファイルをアップロードします。ファイルの内容はオンチェーンに永久保存されます。"
+  },
+  "issuance_review_issuance": {
+    "message": "発行"
+  },
+  "issuance_review_supply_locked": {
+    "message": "発行量ロック済み"
+  },
+  "issuance_review_supply_unlocked": {
+    "message": "発行量ロックなし"
+  },
+  "issuance_transfer_ownership_transfer_asset": {
+    "message": "アセットを移転"
+  },
+  "issuance_update_description_update_asset": {
+    "message": "アセットを更新"
+  },
+  "issue_supply_form_cannot_issue_additional_supply_of": {
+    "message": "BTC は追加発行できません"
+  },
+  "issue_supply_form_enter_the_amount_of_to": {
+    "message": "発行する $1 の数量を入力"
+  },
+  "issue_supply_form_this_asset_s_supply_is": {
+    "message": "このアセットの発行量はロックされており、増やすことはできません。"
+  },
+  "issue_supply_review_after_issuance": {
+    "message": "発行後"
+  },
+  "issue_supply_review_current_supply": {
+    "message": "現在の発行量"
+  },
+  "keychain_onboarding_by_continuing_you_agree_to": {
+    "message": "続行すると、$1および$2に同意したものとみなされます。"
+  },
+  "keychain_onboarding_create_wallet": {
+    "message": "ウォレットを作成"
+  },
+  "keychain_onboarding_import_wallet": {
+    "message": "ウォレットをインポート"
+  },
+  "keychain_unlock_invalid_password_please_try_again": {
+    "message": "パスワードが無効です。もう一度お試しください。"
+  },
+  "keychain_unlock_password": {
+    "message": "パスワード"
+  },
+  "keychain_unlock_unlock": {
+    "message": "ロック解除"
+  },
+  "keychain_unlock_unlocking": {
+    "message": "ロック解除中…"
+  },
+  "keychain_wallets_failed_to_select_wallet_please": {
+    "message": "ウォレットを選択できませんでした。もう一度お試しください。"
+  },
+  "keychain_wallets_keychain": {
+    "message": "キーチェーン"
+  },
+  "keychain_wallets_open_in_sidepanel": {
+    "message": "サイドパネルで開く"
+  },
+  "keychain_wallets_select_a_wallet": {
+    "message": "ウォレットを選択"
+  },
+  "layout_api_status_banner_api_error_some_features_may": {
+    "message": "API エラーが発生しました。一部の機能を利用できない場合があります。"
+  },
+  "layout_api_status_banner_api_rate_limited_requests_may": {
+    "message": "API のリクエスト上限に達しました。しばらく待ってから再試行してください。"
+  },
+  "layout_api_status_banner_dismiss": {
+    "message": "閉じる"
+  },
+  "layout_error_boundary_an_unexpected_error_occurred_please": {
+    "message": "予期しないエラーが発生しました。もう一度お試しください。"
+  },
+  "layout_error_boundary_something_went_wrong": {
+    "message": "問題が発生しました"
+  },
+  "layout_footer_primary": {
+    "message": "メイン"
+  },
+  "layout_footer_wallet": {
+    "message": "ウォレット"
+  },
+  "layout_header_go_back": {
+    "message": "戻る"
+  },
+  "layout_header_logo": {
+    "message": "ロゴ"
+  },
+  "lists_dispenser_list_fetching_dispenser_details": {
+    "message": "自販機の詳細を取得中…"
+  },
+  "lock_description_form_cannot_lock_description_of_btc": {
+    "message": "BTC の説明文はロックできません"
+  },
+  "lock_description_form_current_description": {
+    "message": "現在の説明文:"
+  },
+  "lock_description_form_locking_the_description_is_permanent": {
+    "message": "説明文のロックは永久的です。二度と変更できなくなります。"
+  },
+  "lock_description_form_the_description_for_this_asset": {
+    "message": "このアセットの説明文はすでにロックされており、変更できません。"
+  },
+  "lock_description_review_action": {
+    "message": "操作"
+  },
+  "lock_supply_form_cannot_lock_supply_of_btc": {
+    "message": "BTC の発行量はロックできません"
+  },
+  "lock_supply_form_current_supply": {
+    "message": "現在の発行量:"
+  },
+  "lock_supply_form_locking_the_supply_is_permanent": {
+    "message": "発行量のロックは永久的です。$1 はこれ以上作成できなくなります。"
+  },
+  "lock_supply_form_the_supply_for_this_asset": {
+    "message": "このアセットの発行量はすでにロックされており、変更できません。"
+  },
+  "lock_supply_review_supply_to_lock": {
+    "message": "ロックする発行量"
+  },
+  "market_btc_bitcoin": {
+    "message": "Bitcoin ($1)"
+  },
+  "market_btc_bitcoin_price": {
+    "message": "Bitcoin 価格"
+  },
+  "market_btc_buy_bitcoin": {
+    "message": "Bitcoin を購入"
+  },
+  "market_btc_fast": {
+    "message": "高速"
+  },
+  "market_btc_loading_bitcoin_price": {
+    "message": "Bitcoin 価格を読み込み中…"
+  },
+  "market_btc_medium": {
+    "message": "標準"
+  },
+  "market_btc_sat_vb": {
+    "message": "sat/vB"
+  },
+  "market_btc_slow": {
+    "message": "低速"
+  },
+  "market_btc_tx_fee_market": {
+    "message": "TX 手数料相場"
+  },
+  "market_enter_pool": {
+    "message": "プールに入る →"
+  },
+  "market_failed_to_load_more_pools": {
+    "message": "追加のプールを読み込めませんでした"
+  },
+  "market_failed_to_load_orders": {
+    "message": "注文を読み込めませんでした"
+  },
+  "market_failed_to_load_pools": {
+    "message": "プールを読み込めませんでした"
+  },
+  "market_filter_your_dispensers": {
+    "message": "自販機を絞り込み..."
+  },
+  "market_filter_your_orders": {
+    "message": "注文を絞り込み..."
+  },
+  "market_loading_orders": {
+    "message": "注文を読み込み中…"
+  },
+  "market_loading_pools": {
+    "message": "プールを読み込み中…"
+  },
+  "market_loading_your_pools": {
+    "message": "あなたのプールを読み込み中…"
+  },
+  "market_no_dispensers_matching": {
+    "message": "「$1」に一致する自販機はありません"
+  },
+  "market_no_open_dispensers_found": {
+    "message": "稼働中の自販機は見つかりません"
+  },
+  "market_no_open_orders_found": {
+    "message": "未約定の注文は見つかりません"
+  },
+  "market_no_orders_matching": {
+    "message": "「$1」に一致する注文はありません"
+  },
+  "market_no_pool_positions_matching": {
+    "message": "「$1」に一致するプールのポジションはありません"
+  },
+  "market_no_pools_found": {
+    "message": "プールが見つかりません"
+  },
+  "market_no_pools_matching": {
+    "message": "「$1」に一致するプールはありません"
+  },
+  "market_search_asset_dispensers": {
+    "message": "アセットの自販機を検索..."
+  },
+  "market_search_asset_orders": {
+    "message": "アセットの注文を検索..."
+  },
+  "market_search_pools": {
+    "message": "プールを検索..."
+  },
+  "market_search_your_pools": {
+    "message": "あなたのプールを検索..."
+  },
+  "market_searching": {
+    "message": "検索中..."
+  },
+  "market_sections": {
+    "message": "マーケットのセクション"
+  },
+  "market_view_mode": {
+    "message": "表示モード"
+  },
+  "market_xcp_1_xcp_sats": {
+    "message": "1 XCP = $1 sats"
+  },
+  "market_xcp_all": {
+    "message": "すべて"
+  },
+  "market_xcp_all_time_high": {
+    "message": "史上最高値"
+  },
+  "market_xcp_buy_xcp": {
+    "message": "XCP を購入"
+  },
+  "market_xcp_counterparty_usd": {
+    "message": "Counterparty (USD)"
+  },
+  "market_xcp_dex_rate": {
+    "message": "DEX レート"
+  },
+  "market_xcp_floor_price": {
+    "message": "最安値"
+  },
+  "market_xcp_loading_xcp_price": {
+    "message": "XCP 価格を読み込み中…"
+  },
+  "market_xcp_view_open_xcp_dispensers": {
+    "message": "稼働中の XCP 自販機を表示"
+  },
+  "market_xcp_xcp_price": {
+    "message": "XCP 価格"
+  },
+  "market_you_don_t_have_any": {
+    "message": "稼働中の自販機はありません"
+  },
+  "market_you_don_t_have_any_2": {
+    "message": "未約定の注文はありません"
+  },
+  "market_you_don_t_have_any_3": {
+    "message": "LP ポジションはありません"
+  },
+  "marketplace_batch_after_confirmation_and_counterparty": {
+    "message": "承認と Counterparty による検証の後"
+  },
+  "marketplace_batch_asset_source": {
+    "message": "アセットの送信元"
+  },
+  "marketplace_batch_attach_and_list_asset": {
+    "message": "$1 をアタッチして出品"
+  },
+  "marketplace_batch_attach_collectibles_for_listing": {
+    "message": "$1 件のコレクティブルを出品用にアタッチ"
+  },
+  "marketplace_batch_attach_costs_are_paid_first": {
+    "message": "アタッチの費用は先に支払われ、受取額は売却が前提です。XCP 手数料は承認時に変動する可能性があります。"
+  },
+  "marketplace_batch_attach_fee": {
+    "message": "アタッチ手数料"
+  },
+  "marketplace_batch_attach_network_fee": {
+    "message": "アタッチのネットワーク手数料"
+  },
+  "marketplace_batch_attach_transaction_only": {
+    "message": "アタッチのトランザクションのみ"
+  },
+  "marketplace_batch_authorize_1_listing_reprice": {
+    "message": "1 件の出品価格変更を承認"
+  },
+  "marketplace_batch_authorize_listing_reprices": {
+    "message": "$1 件の出品価格変更を承認"
+  },
+  "marketplace_batch_authorize_marketplace_listings": {
+    "message": "$1 件のマーケットプレイス出品を承認"
+  },
+  "marketplace_batch_broadcast": {
+    "message": "ブロードキャスト"
+  },
+  "marketplace_batch_broadcast_now": {
+    "message": "今ブロードキャストする対象"
+  },
+  "marketplace_batch_buyer_controls": {
+    "message": "買い手が決めるもの"
+  },
+  "marketplace_batch_combined_asking_prices": {
+    "message": "出品価格の合計"
+  },
+  "marketplace_batch_create_1_listing_utxo": {
+    "message": "出品用 UTXO を 1 件作成"
+  },
+  "marketplace_batch_create_listing_utxos": {
+    "message": "$1 件の出品用 UTXO を作成"
+  },
+  "marketplace_batch_every_attach_proves_its_source": {
+    "message": "各アタッチは、その送信元、クリーンな資金、新しい UTXO、マイナー手数料、ローカルの Counterparty メッセージを検証します。XCP 手数料は承認までブロックに依存したままです。"
+  },
+  "marketplace_batch_every_fan_out_input_and": {
+    "message": "すべてのファンアウトの入力と同一ウォレット宛ての出力は、このバッチが署名される前に検証済みです。この段階では Counterparty のアセットは移動しません。"
+  },
+  "marketplace_batch_every_listing_independently_guarantees_its": {
+    "message": "各出品は、それぞれ独立して出品者への支払いを保証します。柔軟な各署名は、アタッチされたアセットの UTXO が消費されるまで有効なままです。"
+  },
+  "marketplace_batch_funding_fees_and_delivery_destination": {
+    "message": "資金、手数料、受け渡し先"
+  },
+  "marketplace_batch_listing_activation": {
+    "message": "出品の有効化"
+  },
+  "marketplace_batch_listing_price": {
+    "message": "出品価格"
+  },
+  "marketplace_batch_new_utxos": {
+    "message": "新しい UTXO"
+  },
+  "marketplace_batch_not_broadcast_now": {
+    "message": "今はブロードキャストされません。"
+  },
+  "marketplace_batch_prepare_1_collectible": {
+    "message": "コレクティブルを 1 件準備"
+  },
+  "marketplace_batch_prepare_collectibles": {
+    "message": "$1 件のコレクティブルを準備"
+  },
+  "marketplace_batch_quoted_xcp_fee": {
+    "message": "見積もりの XCP 手数料"
+  },
+  "marketplace_batch_sats": {
+    "message": "$1 sats"
+  },
+  "marketplace_batch_seller_wallet": {
+    "message": "出品者のウォレット"
+  },
+  "marketplace_batch_signature_invalidation": {
+    "message": "署名の無効化"
+  },
+  "marketplace_batch_spend_each_attached_asset_utxo": {
+    "message": "アタッチされた各アセットの UTXO を消費する"
+  },
+  "marketplace_batch_spend_the_attached_asset_utxo": {
+    "message": "アタッチされたアセットの UTXO を消費する"
+  },
+  "marketplace_batch_the_attach_transaction_is_broadcast": {
+    "message": "アタッチのトランザクションが先にブロードキャストされます。出品は、承認とアタッチされたアセットの独立した検証の後に利用可能になります。"
+  },
+  "marketplace_batch_total_network_fees": {
+    "message": "ネットワーク手数料の合計"
+  },
+  "marketplace_batch_total_quoted_xcp_fees": {
+    "message": "XCP 手数料の見積もり合計"
+  },
+  "marketplace_batch_transactions": {
+    "message": "トランザクション数"
+  },
+  "marketplace_batch_utxo_returned": {
+    "message": "返還される UTXO"
+  },
+  "marketplace_batch_xcp_fee_quote": {
+    "message": "XCP 手数料の見積もり"
+  },
+  "marketplace_batch_your_payout_if_all_sell": {
+    "message": "すべて売れた場合の受取額"
+  },
+  "marketplace_batch_your_payout_if_sold": {
+    "message": "売れた場合の受取額"
+  },
+  "marketplace_batch_your_utxo_sats_returned": {
+    "message": "返還されるあなたの UTXO の sats"
+  },
+  "marketplace_bundle_accept_btc_for_with_fee_bump": {
+    "message": "$2 を $1 BTC で受諾し、手数料を引き上げ"
+  },
+  "marketplace_bundle_accept_offer_for": {
+    "message": "$1 のオファーを受諾"
+  },
+  "marketplace_bundle_added_child_fee": {
+    "message": "追加する子トランザクションの手数料"
+  },
+  "marketplace_bundle_asset_detaches_to_this_address": {
+    "message": "アセットはこのアドレスにデタッチされます"
+  },
+  "marketplace_bundle_asset_stays_attached_to_a": {
+    "message": "アセットはこのアドレスの $1 sats の UTXO にアタッチされたままになります"
+  },
+  "marketplace_bundle_both_network_fees_are_already": {
+    "message": "両方のネットワーク手数料は、最終的な受取額からすでに差し引かれています。"
+  },
+  "marketplace_bundle_delivery": {
+    "message": "受け渡し先"
+  },
+  "marketplace_bundle_network_fees": {
+    "message": "ネットワーク手数料"
+  },
+  "marketplace_bundle_offer_price": {
+    "message": "オファー価格"
+  },
+  "marketplace_bundle_parent_fee": {
+    "message": "親トランザクションの手数料"
+  },
+  "marketplace_bundle_parent_seller_proceeds": {
+    "message": "親トランザクションの受取額"
+  },
+  "marketplace_bundle_quoted_package_rate": {
+    "message": "パッケージの見積もりレート"
+  },
+  "marketplace_bundle_sat_vb": {
+    "message": "$1 sat/vB"
+  },
+  "marketplace_bundle_sats": {
+    "message": "$1 sats"
+  },
+  "marketplace_bundle_the_parent_completes_the_exact": {
+    "message": "親トランザクションが正確な売却を完了し、子トランザクションは親の受取額のみをあなた宛てに使用します。いずれの署名を要求する前にも、両方のトランザクションは検証済みです。"
+  },
+  "marketplace_bundle_you_receive": {
+    "message": "受け取る額"
+  },
+  "marketplace_bundle_your_proceeds_after_fee_bump": {
+    "message": "手数料引き上げ後の受取額"
+  },
+  "marketplace_bundle_your_utxo_sats_returned": {
+    "message": "返還されるあなたの UTXO の sats"
+  },
+  "marketplace_intent_accept_offer": {
+    "message": "オファーを承諾"
+  },
+  "marketplace_intent_asset_detaches_to_this_address": {
+    "message": "アセットはこのアドレスにデタッチされます"
+  },
+  "marketplace_intent_asset_source": {
+    "message": "アセットの取得元"
+  },
+  "marketplace_intent_asset_stays_attached_to_sat_utxo": {
+    "message": "アセットはこのアドレスの $1 sats の UTXO にアタッチされたままです"
+  },
+  "marketplace_intent_assets_detach_to_this_address": {
+    "message": "アセットはこのアドレスにデタッチされます"
+  },
+  "marketplace_intent_broadcast": {
+    "message": "ブロードキャスト"
+  },
+  "marketplace_intent_buy_collectibles": {
+    "message": "コレクティブルを購入"
+  },
+  "marketplace_intent_buyer_chooses_attached_or_detached_delivery": {
+    "message": "買い手がアタッチかデタッチかを選びます"
+  },
+  "marketplace_intent_buyer_controls": {
+    "message": "買い手が決めるもの"
+  },
+  "marketplace_intent_buyer_funding": {
+    "message": "買い手の資金"
+  },
+  "marketplace_intent_buyer_funding_utxo": {
+    "message": "買い手の資金 UTXO"
+  },
+  "marketplace_intent_cancellation": {
+    "message": "取り消し方法"
+  },
+  "marketplace_intent_change": {
+    "message": "お釣り"
+  },
+  "marketplace_intent_collectibles_count": {
+    "message": "コレクティブル $1 点"
+  },
+  "marketplace_intent_deducted_from_seller_proceeds": {
+    "message": "売り手の受取額から差し引かれます"
+  },
+  "marketplace_intent_delist_without_a_transaction": {
+    "message": "トランザクションなしで出品を取り下げ"
+  },
+  "marketplace_intent_delivery": {
+    "message": "受け渡し"
+  },
+  "marketplace_intent_fee_recipient": {
+    "message": "手数料の受取人"
+  },
+  "marketplace_intent_finalized_at_confirmation": {
+    "message": "確認時に確定します"
+  },
+  "marketplace_intent_funding_fees_and_delivery_destination": {
+    "message": "資金、手数料、受け渡し先"
+  },
+  "marketplace_intent_funding_input": {
+    "message": "資金の入力"
+  },
+  "marketplace_intent_funding_utxo": {
+    "message": "資金の UTXO"
+  },
+  "marketplace_intent_items": {
+    "message": "点数"
+  },
+  "marketplace_intent_items_with_asset_count": {
+    "message": "$1（アセット $2 種類）"
+  },
+  "marketplace_intent_list_for_sale": {
+    "message": "出品する"
+  },
+  "marketplace_intent_marketplace_cancellation": {
+    "message": "マーケットプレイスでの取り消し"
+  },
+  "marketplace_intent_marketplace_expiry": {
+    "message": "マーケットプレイスの有効期限"
+  },
+  "marketplace_intent_network_fee": {
+    "message": "ネットワーク手数料"
+  },
+  "marketplace_intent_new_utxo_owner": {
+    "message": "新しい UTXO の所有者"
+  },
+  "marketplace_intent_new_utxo_value": {
+    "message": "新しい UTXO の金額"
+  },
+  "marketplace_intent_new_utxos": {
+    "message": "新しい UTXO"
+  },
+  "marketplace_intent_none_requested": {
+    "message": "指定なし"
+  },
+  "marketplace_intent_not_broadcast_now": {
+    "message": "今はブロードキャストしません。"
+  },
+  "marketplace_intent_notice_accept_exact_offer": {
+    "message": "あなたの署名でこの売却はそのまま成立し、買い手への確認は不要です。買い手が共有の資金 UTXO をすでに使っていた場合、ブロードキャストは失敗し、アセットはあなたのまま残ります。"
+  },
+  "marketplace_intent_notice_authorize_exact_offer": {
+    "message": "署名すると、この売り手は追加の承認なしにこの取引をそのまま成立させられます。同じ資金 UTXO を裏付けとする他のオファーは代替案です。最初に確認された使用が成立し、残りは無効になります。"
+  },
+  "marketplace_intent_notice_bulk_fanout_outputs_stay_in_wallet": {
+    "message": "すべての出力はこのウォレットの管理下に残ります。これらは通常の Bitcoin の UTXO で、後の Counterparty アタッチトランザクションの資金になります。この段階でアセットは移動しません。"
+  },
+  "marketplace_intent_notice_sighash_all_attached_delivery": {
+    "message": "SIGHASH_ALL により、すべての入力、売り手への支払い、手数料、お釣りの出力、そして上に表示された買い手所有のアセット UTXO が固定されます。"
+  },
+  "marketplace_intent_notice_sighash_all_detach_destination": {
+    "message": "SIGHASH_ALL により、すべての入力、売り手への支払い、手数料、お釣りの出力、そして上に表示されたデタッチ先が固定されます。"
+  },
+  "marketplace_intent_offer_price": {
+    "message": "オファー価格"
+  },
+  "marketplace_intent_offer_price_platform_fee_and_any_attached_delivery_utxo": {
+    "message": "オファー価格、プラットフォーム手数料、アタッチ受け渡し用の UTXO"
+  },
+  "marketplace_intent_offer_to_buy": {
+    "message": "購入オファー"
+  },
+  "marketplace_intent_one_collectible": {
+    "message": "コレクティブル 1 点"
+  },
+  "marketplace_intent_operation_expiry": {
+    "message": "操作の有効期限"
+  },
+  "marketplace_intent_paid_by_the_buyer": {
+    "message": "買い手が負担します"
+  },
+  "marketplace_intent_platform_fee": {
+    "message": "プラットフォーム手数料"
+  },
+  "marketplace_intent_quoted_xcp_fee": {
+    "message": "見積 XCP 手数料"
+  },
+  "marketplace_intent_reprice_listing": {
+    "message": "出品価格を変更"
+  },
+  "marketplace_intent_sale_price": {
+    "message": "販売価格"
+  },
+  "marketplace_intent_sats_kept_with_your_asset": {
+    "message": "アセットに残る sats"
+  },
+  "marketplace_intent_seller_receives": {
+    "message": "売り手が受け取る額"
+  },
+  "marketplace_intent_seller_subtotal": {
+    "message": "売り手への小計"
+  },
+  "marketplace_intent_signature_invalidation": {
+    "message": "署名の無効化"
+  },
+  "marketplace_intent_spend_the_asset_utxo": {
+    "message": "アセットの UTXO を使用する"
+  },
+  "marketplace_intent_still_yours_separate_from_the_offer_cost": {
+    "message": "引き続きあなたのもので、オファーの費用とは別です"
+  },
+  "marketplace_intent_still_yours_separate_from_the_purchase_cost_and_change": {
+    "message": "引き続きあなたのもので、購入費用やお釣りとは別です"
+  },
+  "marketplace_intent_title_accept_btc_for_asset": {
+    "message": "$1 BTC で $2 を承諾"
+  },
+  "marketplace_intent_title_attach_asset_for_listing": {
+    "message": "出品用に $1 をアタッチ"
+  },
+  "marketplace_intent_title_authorize_btc_for_asset": {
+    "message": "$1 BTC で $2 を承認"
+  },
+  "marketplace_intent_title_buy_collectibles_for_btc": {
+    "message": "コレクティブル $1 点を $2 BTC で購入"
+  },
+  "marketplace_intent_title_buy_one_collectible_for_btc": {
+    "message": "コレクティブル 1 点を $1 BTC で購入"
+  },
+  "marketplace_intent_title_create_listing_utxos": {
+    "message": "出品用 UTXO を $1 件作成"
+  },
+  "marketplace_intent_title_create_one_listing_utxo": {
+    "message": "出品用 UTXO を 1 件作成"
+  },
+  "marketplace_intent_title_list_asset_for_btc": {
+    "message": "1 $1 を $2 BTC で出品"
+  },
+  "marketplace_intent_title_prepare_asset": {
+    "message": "$1 を準備"
+  },
+  "marketplace_intent_title_reprice_asset_to_btc": {
+    "message": "1 $1 を $2 BTC に価格変更"
+  },
+  "marketplace_intent_unavailable": {
+    "message": "取得できません"
+  },
+  "marketplace_intent_withdraw_by_spending_your_funding_utxo": {
+    "message": "資金の UTXO を使うと取り下げられます"
+  },
+  "marketplace_intent_you_pay": {
+    "message": "支払額"
+  },
+  "marketplace_intent_you_pay_if_accepted": {
+    "message": "承諾された場合の支払額"
+  },
+  "marketplace_intent_you_receive": {
+    "message": "受け取る額"
+  },
+  "marketplace_intent_your_payout_if_sold": {
+    "message": "売れた場合の受取額"
+  },
+  "marketplace_intent_your_utxo_sats_returned": {
+    "message": "返還される UTXO の sats"
+  },
+  "menus_address_menu_address_actions": {
+    "message": "アドレスの操作"
+  },
+  "menus_address_menu_find_utxo_address": {
+    "message": "UTXO アドレスを探す"
+  },
+  "menus_address_menu_remove_utxo_address": {
+    "message": "UTXO アドレスを削除"
+  },
+  "message_approve_message_to_sign": {
+    "message": "署名するメッセージ"
+  },
+  "message_approve_sign_message": {
+    "message": "メッセージに署名"
+  },
+  "message_risk_a_signature_over_an_empty": {
+    "message": "空のメッセージへの署名は、そのアドレスを管理していることを証明するだけで、それ以上の意味はありません。"
+  },
+  "message_risk_control_characters_are_not_displayed": {
+    "message": "制御文字は表示されないため、署名するメッセージは表示されているものより長くなります。"
+  },
+  "message_risk_it_includes_characters_that_can": {
+    "message": "テキストの並びを変えたり隠したりできる文字が含まれているため、ここに表示されている内容と署名する内容が異なる可能性があります。このサイトを信頼できる場合にのみ続行してください。"
+  },
+  "message_risk_this_message_contains_control_characters": {
+    "message": "このメッセージには制御文字が含まれています"
+  },
+  "message_risk_this_message_contains_hidden_characters": {
+    "message": "このメッセージには非表示の文字が含まれています"
+  },
+  "message_risk_this_message_is_empty": {
+    "message": "このメッセージは空です"
+  },
+  "messages_attach_attach_to_utxo": {
+    "message": "UTXO にアタッチ"
+  },
+  "messages_attach_destination_utxo": {
+    "message": "送信先 UTXO"
+  },
+  "messages_attach_move_to_utxo": {
+    "message": "UTXO に移動"
+  },
+  "messages_attach_operation": {
+    "message": "操作"
+  },
+  "messages_attach_output": {
+    "message": "出力 #$1"
+  },
+  "messages_attach_same_as_source": {
+    "message": "送信元と同じ"
+  },
+  "messages_attach_utxo_attach": {
+    "message": "UTXO アタッチ"
+  },
+  "messages_broadcast_address_options": {
+    "message": "アドレスオプション"
+  },
+  "messages_broadcast_general_broadcast": {
+    "message": "一般ブロードキャスト"
+  },
+  "messages_broadcast_oracle_broadcast": {
+    "message": "オラクルブロードキャスト"
+  },
+  "messages_broadcast_text": {
+    "message": "テキスト"
+  },
+  "messages_broadcast_timestamp": {
+    "message": "タイムスタンプ"
+  },
+  "messages_btcpay_btc_amount": {
+    "message": "BTC 額"
+  },
+  "messages_btcpay_btc_payment_order_settlement": {
+    "message": "BTC 支払い（注文決済）"
+  },
+  "messages_btcpay_valid_payment": {
+    "message": "✅ 有効な支払い"
+  },
+  "messages_cancel_cancelled_order_tx": {
+    "message": "キャンセルした注文 TX"
+  },
+  "messages_cancel_cancelled_successfully": {
+    "message": "✅ キャンセル完了"
+  },
+  "messages_cancel_order_cancellation": {
+    "message": "注文キャンセル"
+  },
+  "messages_detach_assets_detached": {
+    "message": "デタッチしたアセット"
+  },
+  "messages_detach_same_as_source_detach_in": {
+    "message": "送信元と同じ（その場でデタッチ）"
+  },
+  "messages_detach_utxo_detach": {
+    "message": "UTXO デタッチ"
+  },
+  "messages_dispense_asset_received": {
+    "message": "受け取ったアセット"
+  },
+  "messages_dispense_btc_paid": {
+    "message": "支払った BTC"
+  },
+  "messages_dispense_btc_per": {
+    "message": "1 $2 あたり $1 BTC"
+  },
+  "messages_dispense_dispense_index": {
+    "message": "購入インデックス"
+  },
+  "messages_dispense_dispenser_address": {
+    "message": "自販機のアドレス"
+  },
+  "messages_dispense_from_dispenser": {
+    "message": "購入元の自販機"
+  },
+  "messages_dispense_original_dispenser_tx": {
+    "message": "元の自販機 TX"
+  },
+  "messages_dispense_quantity_received": {
+    "message": "受け取った数量"
+  },
+  "messages_dispense_to_address": {
+    "message": "送信先アドレス"
+  },
+  "messages_dispenser_give_per_dispense": {
+    "message": "1 回あたりの提供量"
+  },
+  "messages_dispenser_max_dispenses": {
+    "message": "最大購入回数"
+  },
+  "messages_dispenser_oracle_address": {
+    "message": "オラクルのアドレス"
+  },
+  "messages_dispenser_price_per_dispense": {
+    "message": "1 回あたりの価格"
+  },
+  "messages_dispenser_remaining_dispenses": {
+    "message": "残り購入回数"
+  },
+  "messages_dispenser_remaining_in_escrow": {
+    "message": "エスクロー残高"
+  },
+  "messages_dispenser_total_btc_value": {
+    "message": "BTC 総額"
+  },
+  "messages_dispenser_total_escrow": {
+    "message": "エスクロー合計"
+  },
+  "messages_dividend_dividend_distribution": {
+    "message": "配当の分配"
+  },
+  "messages_dividend_filters_applied": {
+    "message": "適用したフィルター"
+  },
+  "messages_dividend_holders_receiving": {
+    "message": "受け取る保有者"
+  },
+  "messages_dividend_quantity_per_unit": {
+    "message": "1 単位あたりの数量"
+  },
+  "messages_dividend_total_distributed": {
+    "message": "分配合計"
+  },
+  "messages_fairmint_closed_after_this": {
+    "message": "これで終了"
+  },
+  "messages_fairmint_commission_paid": {
+    "message": "支払った手数料"
+  },
+  "messages_fairmint_fairminter_status": {
+    "message": "フェアミンターの状態"
+  },
+  "messages_fairmint_quantity_minted": {
+    "message": "ミントした数量"
+  },
+  "messages_fairmint_still_open": {
+    "message": "まだ受付中"
+  },
+  "messages_fairmint_xcp_paid": {
+    "message": "支払った XCP"
+  },
+  "messages_fairmint_xcp_per": {
+    "message": "1 $2 あたり $1 XCP"
+  },
+  "messages_fairminter_fairminter_creation": {
+    "message": "フェアミンターの作成"
+  },
+  "messages_fairminter_max_mint_per_address": {
+    "message": "アドレスあたりのミント上限"
+  },
+  "messages_fairminter_max_mint_per_tx": {
+    "message": "TX あたりのミント上限"
+  },
+  "messages_fairminter_mint_model": {
+    "message": "ミントモデル"
+  },
+  "messages_fairminter_no_whole_units": {
+    "message": "いいえ（整数単位）"
+  },
+  "messages_fairminter_premint": {
+    "message": "プレミント"
+  },
+  "messages_fairminter_price_per_unit": {
+    "message": "1 単位あたりの価格"
+  },
+  "messages_fairminter_quantity_locked": {
+    "message": "数量ロック済み"
+  },
+  "messages_fairminter_quantity_per_price": {
+    "message": "1ロットの数量"
+  },
+  "messages_fairminter_yes_8_decimals": {
+    "message": "はい（小数点以下 8 桁）"
+  },
+  "messages_issuance_asset_issuance": {
+    "message": "アセット発行"
+  },
+  "messages_issuance_call_date": {
+    "message": "コール日"
+  },
+  "messages_issuance_call_price": {
+    "message": "コール価格"
+  },
+  "messages_issuance_callable": {
+    "message": "コール可能"
+  },
+  "messages_issuance_description_update": {
+    "message": "説明文の更新"
+  },
+  "messages_issuance_no_whole_units_only": {
+    "message": "いいえ（整数単位のみ）"
+  },
+  "messages_issuance_ownership_transfer": {
+    "message": "所有権の移転"
+  },
+  "messages_issuance_parent_asset": {
+    "message": "親アセット"
+  },
+  "messages_issuance_subasset_creation": {
+    "message": "サブアセットの作成"
+  },
+  "messages_issuance_supply_increase": {
+    "message": "発行量の増加"
+  },
+  "messages_issuance_supply_lock": {
+    "message": "発行量のロック"
+  },
+  "messages_issuance_supply_locked": {
+    "message": "発行量ロック済み"
+  },
+  "messages_issuance_supply_reset": {
+    "message": "発行量のリセット"
+  },
+  "messages_issuance_transfer_to": {
+    "message": "移転先"
+  },
+  "messages_issuance_yes_8_decimal_places": {
+    "message": "はい（小数点以下 8 桁）"
+  },
+  "messages_move_utxo_same_as_source_consolidation": {
+    "message": "送信元と同じ（統合）"
+  },
+  "messages_move_utxo_utxo_move": {
+    "message": "UTXO 移動"
+  },
+  "messages_move_utxo_utxos_moved": {
+    "message": "移動した UTXO"
+  },
+  "messages_mpma_multi_send_to": {
+    "message": "マルチ送金（$1 を $2 へ）"
+  },
+  "messages_mpma_per_address": {
+    "message": "アドレスあたり $1"
+  },
+  "messages_mpma_recipients": {
+    "message": "$1の送信先（$2件）"
+  },
+  "messages_mpma_total_sent": {
+    "message": "$1 の送付合計"
+  },
+  "messages_order_buy_order": {
+    "message": "買い注文"
+  },
+  "messages_order_fee_provided": {
+    "message": "注文トランザクションの手数料"
+  },
+  "messages_order_fill_progress": {
+    "message": "約定の進捗"
+  },
+  "messages_order_get_remaining": {
+    "message": "未約定の受取数量"
+  },
+  "messages_order_give_remaining": {
+    "message": "未約定の支払数量"
+  },
+  "messages_order_sell_order": {
+    "message": "売り注文"
+  },
+  "messages_order_token_swap": {
+    "message": "トークンスワップ"
+  },
+  "messages_send_enhanced_send_with_memo": {
+    "message": "拡張送金（メモ付き）"
+  },
+  "messages_send_memo_type": {
+    "message": "メモの種類"
+  },
+  "messages_sweep_assets_swept": {
+    "message": "スイープしたアセット"
+  },
+  "messages_sweep_close_dispensers": {
+    "message": "自販機を閉鎖"
+  },
+  "messages_sweep_flags": {
+    "message": "フラグ"
+  },
+  "messages_sweep_include_balances": {
+    "message": "残高を含む"
+  },
+  "messages_sweep_include_ownership": {
+    "message": "所有権を含む"
+  },
+  "messages_sweep_raw_value": {
+    "message": "生の値: $1"
+  },
+  "messages_sweep_sweep_all_assets": {
+    "message": "すべてのアセットをスイープ"
+  },
+  "move_form_enter_destination_address": {
+    "message": "送信先アドレスを入力"
+  },
+  "mpma_form_and_more": {
+    "message": "… 他 $1 件"
+  },
+  "mpma_form_choose_different_file": {
+    "message": "別のファイルを選択"
+  },
+  "mpma_form_destinations_cannot_receive_an_mpma": {
+    "message": "$1 件の宛先は MPMA 送金を受け取れません。Taproot (bc1p) と P2WSH のアドレスはこのメッセージ形式でエンコードできないため、個別に送金してください。"
+  },
+  "mpma_form_each_line_should_contain_address": {
+    "message": "各行にはアドレス、アセット、数量、メモを含めてください（メモは任意）。"
+  },
+  "mpma_form_failed_to_parse_csv": {
+    "message": "CSV を解析できませんでした"
+  },
+  "mpma_form_failed_to_read_file": {
+    "message": "ファイルを読み込めませんでした"
+  },
+  "mpma_form_format_address_asset_quantity_memo": {
+    "message": "形式: アドレス, アセット, 数量, メモ"
+  },
+  "mpma_form_invalid_csv": {
+    "message": "CSV が無効です"
+  },
+  "mpma_form_line": {
+    "message": "$1 行目: $2"
+  },
+  "mpma_form_line_invalid_bitcoin_address": {
+    "message": "$1 行目: Bitcoin アドレスが無効です: $2。$3"
+  },
+  "mpma_form_line_memo_exceeds_34_bytes": {
+    "message": "$1 行目: メモが 34 バイトを超えています"
+  },
+  "mpma_form_no_valid_data_found_in": {
+    "message": "CSV に有効なデータが見つかりません"
+  },
+  "mpma_form_one_destination_cannot_receive_an": {
+    "message": "1 件の宛先は MPMA 送金を受け取れません。Taproot (bc1p) と P2WSH のアドレスはこのメッセージ形式でエンコードできないため、個別に送金してください。"
+  },
+  "mpma_form_paste_csv_data_here": {
+    "message": "ここに CSV データを貼り付け…"
+  },
+  "mpma_form_pasted_data": {
+    "message": "貼り付けたデータ"
+  },
+  "mpma_form_please_select_a_csv_file": {
+    "message": "CSV ファイルを選択してください"
+  },
+  "mpma_form_preview_first_5": {
+    "message": "プレビュー（先頭 5 件）"
+  },
+  "mpma_form_upload_csv": {
+    "message": "CSV をアップロード"
+  },
+  "mpma_form_upload_csv_file": {
+    "message": "CSV ファイルをアップロード"
+  },
+  "mpma_form_validating": {
+    "message": "検証中…"
+  },
+  "mpma_review_no_sends": {
+    "message": "送金はありません"
+  },
+  "mpma_review_send": {
+    "message": "送金 #$1: $2 $3"
+  },
+  "not_found": {
+    "message": "見つかりません"
+  },
+  "not_found_this_is_a_placeholder": {
+    "message": "これはプレースホルダーです。"
+  },
+  "order_btcpay_btcpay": {
+    "message": "BTCPay"
+  },
+  "order_form_amount_to_buy_enter_up": {
+    "message": "購入する数量。小数点以下 8 桁まで入力できます。"
+  },
+  "order_form_amount_to_buy_enter_whole": {
+    "message": "購入する数量。整数のみ入力できます。"
+  },
+  "order_form_order_settings": {
+    "message": "注文設定"
+  },
+  "order_form_price_per_unit_in": {
+    "message": "$1 建ての単価"
+  },
+  "order_form_quote": {
+    "message": "価格表示用アセット"
+  },
+  "pool_pool_slippage_settings_done": {
+    "message": "完了"
+  },
+  "pool_slippage_input_auto": {
+    "message": "· 自動"
+  },
+  "pool_slippage_input_auto_2": {
+    "message": "自動"
+  },
+  "pool_slippage_input_custom": {
+    "message": "カスタム %"
+  },
+  "pool_slippage_input_custom_slippage_percent": {
+    "message": "カスタムスリッページ（%）"
+  },
+  "pool_slippage_input_how_far_the_pool_ratio": {
+    "message": "許容するプール比率の変動幅です。高くすると実行されやすくなる一方、受取数量が減る場合があります。"
+  },
+  "pool_slippage_input_set_from_the_quote_s": {
+    "message": "数量を入力すると、見積もりの価格インパクトから設定されます。"
+  },
+  "pool_slippage_input_slippage_tolerance": {
+    "message": "許容スリッページ"
+  },
+  "pool_slippage_input_using_matched_to_this_trade": {
+    "message": "この取引の価格インパクトに合わせて $1% を使用しています。"
+  },
+  "pool_slippage_input_very_high_you_may_receive": {
+    "message": "許容値が高いため、受取数量が見積もりを大きく下回る可能性があります。"
+  },
+  "pool_slippage_input_very_low_likely_to_fail": {
+    "message": "非常に低い。トランザクションの承認前にプールが変化すると失敗しやすくなります。"
+  },
+  "pools_pool_overview_dex_order": {
+    "message": "DEX 注文"
+  },
+  "pools_pool_overview_pool_share": {
+    "message": "プールのシェア"
+  },
+  "pools_pool_overview_pool_swap": {
+    "message": "プールスワップ"
+  },
+  "pools_pool_overview_reserve": {
+    "message": "$1 準備金"
+  },
+  "pools_pool_overview_set_your_own_price_on": {
+    "message": "注文板で自分の価格を設定"
+  },
+  "pools_pool_overview_swap_instantly_at_the_quoted": {
+    "message": "見積価格で即座にスワップ"
+  },
+  "price_price_ticker_bitcoin_price": {
+    "message": "Bitcoin 価格"
+  },
+  "price_price_ticker_xcp_price": {
+    "message": "XCP 価格"
+  },
+  "psbt_approve_attach_for_listing": {
+    "message": "出品用にアタッチ"
+  },
+  "psbt_approve_authorize_listing": {
+    "message": "出品を承認"
+  },
+  "psbt_approve_authorize_offer": {
+    "message": "オファーを承認"
+  },
+  "psbt_approve_authorize_offer_2": {
+    "message": "オファーを承認"
+  },
+  "psbt_approve_authorize_reprice": {
+    "message": "価格変更を承認"
+  },
+  "psbt_approve_btc_is_not_guaranteed_back": {
+    "message": "$1 BTC の返還は保証されません"
+  },
+  "psbt_approve_buy_collectibles": {
+    "message": "コレクティブルを購入"
+  },
+  "psbt_approve_buy_collectibles_2": {
+    "message": "コレクティブルを購入"
+  },
+  "psbt_approve_confirm_the_authorization_details_below": {
+    "message": "ウォレットが署名を追加する前に、以下の承認内容を確認してください。"
+  },
+  "psbt_approve_create_listing": {
+    "message": "出品を作成"
+  },
+  "psbt_approve_input": {
+    "message": "入力 #$1: $2"
+  },
+  "psbt_approve_inputs": {
+    "message": "入力 $1"
+  },
+  "psbt_approve_only_the_inputs_shown_below": {
+    "message": "以下に表示された入力のみが、このウォレット内の対応するアドレスで署名されます。"
+  },
+  "psbt_approve_prepare_asset": {
+    "message": "アセットを準備"
+  },
+  "psbt_approve_prepare_asset_2": {
+    "message": "アセットを準備"
+  },
+  "psbt_approve_reprice_listing": {
+    "message": "出品価格を変更"
+  },
+  "psbt_approve_sats": {
+    "message": "$1 sats"
+  },
+  "psbt_approve_signing_addresses": {
+    "message": "署名するアドレス ($1)"
+  },
+  "psbt_approve_the_requested_signature_does_not": {
+    "message": "要求された署名は、この金額を返すすべての出力を確定していません。トランザクションを完成させる側が送り先を変更できる可能性があります。"
+  },
+  "psbt_approve_this_authorization_remains_usable_after": {
+    "message": "この承認は署名後も利用可能なままです"
+  },
+  "psbts_approve_attach_and_list": {
+    "message": "アタッチして出品"
+  },
+  "psbts_approve_attach_and_list_2": {
+    "message": "アタッチして出品"
+  },
+  "psbts_approve_attach_collectibles": {
+    "message": "コレクティブルをアタッチ"
+  },
+  "psbts_approve_authorize_1_listing": {
+    "message": "1 件の出品を承認"
+  },
+  "psbts_approve_authorize_1_reprice": {
+    "message": "1 件の価格変更を承認"
+  },
+  "psbts_approve_authorize_listings": {
+    "message": "出品を承認"
+  },
+  "psbts_approve_authorize_listings_2": {
+    "message": "$1 件の出品を承認"
+  },
+  "psbts_approve_authorize_reprices": {
+    "message": "$1 件の価格変更を承認"
+  },
+  "psbts_approve_fee_sats": {
+    "message": "手数料: $1 sats"
+  },
+  "psbts_approve_listing_activates_after_confirmation": {
+    "message": "出品は承認後に有効になります"
+  },
+  "psbts_approve_prepare_assets": {
+    "message": "アセットを準備"
+  },
+  "psbts_approve_prepare_funds": {
+    "message": "資金を準備"
+  },
+  "psbts_approve_prepare_funds_2": {
+    "message": "資金を準備"
+  },
+  "psbts_approve_required_ledger_information_is_unavailable": {
+    "message": "必要な台帳情報を取得できません"
+  },
+  "psbts_approve_review_transaction_batch": {
+    "message": "トランザクションバッチの確認"
+  },
+  "psbts_approve_sign_transactions": {
+    "message": "トランザクションに署名"
+  },
+  "psbts_approve_the_wallet_returns_this_batch": {
+    "message": "ウォレットは、要求されたすべての署名が成功した場合にのみこのバッチを返します。"
+  },
+  "qr_code_for": {
+    "message": "$1 の QR コード"
+  },
+  "reset_supply_form_a_textual_description_for_the": {
+    "message": "アセットのテキスト説明文。現在のものを維持する場合は変更しないでください。"
+  },
+  "reset_supply_form_cannot_reset": {
+    "message": "$1 はリセットできません"
+  },
+  "reset_supply_form_the_quantity_of_to_issue": {
+    "message": "リセット後に発行する $1 の数量。"
+  },
+  "reset_supply_form_this_asset_s_supply_is": {
+    "message": "このアセットの発行量はロックされているため、リセットできません。"
+  },
+  "reset_supply_form_this_destroys_all_existing_and": {
+    "message": "これにより既存の $1 $2 がすべて破棄され、以下の発行量でアセットが再発行されます。元に戻すことはできません。"
+  },
+  "reset_supply_review_new_description": {
+    "message": "新しい説明文"
+  },
+  "reset_supply_review_supply_destroyed": {
+    "message": "破棄する発行量"
+  },
+  "reset_supply_review_yes_permanent": {
+    "message": "はい（永久）"
+  },
+  "safety_bitcoin_payment": {
+    "message": "Bitcoin の支払い"
+  },
+  "safety_blocked_sweep_transaction": {
+    "message": "ブロック: スイープトランザクション"
+  },
+  "safety_btc_payment": {
+    "message": "BTC の支払い"
+  },
+  "safety_btc_sent_to_an_unrecognized_script": {
+    "message": "BTC が認識できないスクリプトに送金されます"
+  },
+  "safety_btc_sent_to_external_address": {
+    "message": "BTC が外部アドレスに送金されます"
+  },
+  "safety_counterparty_data_outputs": {
+    "message": "Counterparty データ出力"
+  },
+  "safety_danger_supply_destruction": {
+    "message": "危険: 供給量の破棄"
+  },
+  "safety_data_output_embeds_a_recovery_key": {
+    "message": "$1 件のデータ出力に、あなたのものではない回収用の鍵が埋め込まれています。そのダストは他人が使えてしまいます。"
+  },
+  "safety_data_outputs_embed_a_recovery_key": {
+    "message": "$1 件のデータ出力に、あなたのものではない回収用の鍵が埋め込まれています。そのダストは他人が使えてしまいます。"
+  },
+  "safety_data_outputs_not_recoverable_by": {
+    "message": "データ出力をあなたは回収できません"
+  },
+  "safety_detaching_transfers_every_asset_attached": {
+    "message": "デタッチはこの UTXO にアタッチされたすべてのアセットを移動します。数量の指定はありません。署名する前に、トランザクションの詳細で送信先を確認してください。"
+  },
+  "safety_inscription_commit": {
+    "message": "インスクリプションのコミット"
+  },
+  "safety_moves_everything_on_the_utxo": {
+    "message": "UTXO 上のすべてを移動します"
+  },
+  "safety_output_carries_this_transactions_message": {
+    "message": "$1 件の出力が、このトランザクションの Counterparty メッセージをベアマルチシグとして運んでいます（$2 sats）。この sats は誰かへの支払いではなく、後から回収ツールでウォレットに回収できます。"
+  },
+  "safety_outputs_carry_this_transactions_message": {
+    "message": "$1 件の出力が、このトランザクションの Counterparty メッセージをベアマルチシグとして運んでいます（$2 sats）。この sats は誰かへの支払いではなく、後から回収ツールでウォレットに回収できます。"
+  },
+  "safety_this_funds_an_inscription": {
+    "message": "これはインスクリプションへの資金供給です。$1 BTC が $2 に送られます。これはインスクリプション自体から導出されたアドレスで、あなたの秘密鍵でのみ使用できます。続くリビールトランザクションがコンテンツを公開します。その送信先と手数料は別途確認してください。"
+  },
+  "safety_this_sends_btc_matching_the_declared": {
+    "message": "これは $1 BTC を $2 に送金します。サイトが申告した支払い出力と一致しています。アドレスが意図したものかどうか確認してください。"
+  },
+  "safety_this_sends_btc_which_is_how": {
+    "message": "これは $1 BTC を $2 に送金します。この種類のトランザクションはこうして支払いを行います。アドレスが意図したものかどうか確認してください。"
+  },
+  "safety_this_transaction_could_not_be": {
+    "message": "このトランザクションを既知の Counterparty の操作として識別できませんでした。この画面が読み取れない形式でプロトコルデータを含んでいる可能性があります。署名する前によく確認してください。"
+  },
+  "safety_this_transaction_permanently_destroys_supply": {
+    "message": "このトランザクションは供給量を永久に破棄します。この操作は取り消せません。何が破棄されるのかを正確に理解した上で署名してください。"
+  },
+  "safety_this_transaction_sends_btc_to_addresses": {
+    "message": "このトランザクションは $1 BTC を、あなたのものではない $2 件のアドレスに送金します: $3。通常の Counterparty トランザクションは、お釣りとして自分のアドレスに BTC を返すだけです。"
+  },
+  "safety_this_transaction_sends_btc_to_an_address": {
+    "message": "このトランザクションは $1 BTC を、あなたのものではないアドレスに送金します: $2。通常の Counterparty トランザクションは、お釣りとして自分のアドレスに BTC を返すだけです。"
+  },
+  "safety_this_transaction_sends_btc_to_an_output": {
+    "message": "このトランザクションは $1 BTC を、送信先を特定できない出力に送金します。アドレスとして表示することも、あなたのものだと確認することもできません。このスクリプトの動作を理解していない限り、署名しないでください。"
+  },
+  "safety_this_transaction_sends_btc_to_outputs": {
+    "message": "このトランザクションは $1 BTC を、送信先を特定できない $2 件の出力に送金します。アドレスとして表示することも、あなたのものだと確認することもできません。これらのスクリプトの動作を理解していない限り、署名しないでください。"
+  },
+  "safety_this_would_send_all_counterparty": {
+    "message": "これはあなたのアドレスにあるすべての Counterparty アセットを送信します。ウェブサイトがスイープを要求することはできません。本当に実行するなら、ウォレットから直接行ってください。"
+  },
+  "safety_unknown_transaction_type": {
+    "message": "不明なトランザクションタイプ"
+  },
+  "safety_unrecognized_message_type": {
+    "message": "認識できないメッセージタイプ「$1」です。署名する前に、トランザクションの詳細をよく確認してください。"
+  },
+  "safety_unrecognized_transaction": {
+    "message": "認識できないトランザクション"
+  },
+  "screens_review_screen_go_back_to_edit_transaction": {
+    "message": "戻ってトランザクションを編集"
+  },
+  "screens_review_screen_raw_transaction": {
+    "message": "トランザクションデータ"
+  },
+  "screens_review_screen_review_transaction": {
+    "message": "トランザクションの確認"
+  },
+  "screens_review_screen_sats_vb": {
+    "message": "($1 sats/vB)"
+  },
+  "screens_review_screen_sign_and_broadcast_transaction": {
+    "message": "トランザクションに署名してブロードキャスト"
+  },
+  "screens_review_screen_sign_broadcast": {
+    "message": "署名してブロードキャスト"
+  },
+  "screens_review_screen_signing_transaction": {
+    "message": "トランザクションに署名中…"
+  },
+  "screens_review_screen_xcp_fee": {
+    "message": "XCP 手数料:"
+  },
+  "screens_success_screen_click_to_copy_transaction_id": {
+    "message": "クリックしてトランザクション ID をコピー"
+  },
+  "screens_success_screen_copy_transaction_id": {
+    "message": "トランザクション ID をコピー"
+  },
+  "screens_success_screen_transaction_id": {
+    "message": "トランザクション ID"
+  },
+  "screens_success_screen_transaction_id_copied": {
+    "message": "トランザクション ID をコピーしました"
+  },
+  "screens_success_screen_transaction_successful": {
+    "message": "トランザクション成功"
+  },
+  "screens_success_screen_view_on_mempool_space": {
+    "message": "mempool.space で表示 →"
+  },
+  "screens_success_screen_view_transaction_on_mempool_space": {
+    "message": "mempool.space でトランザクションを表示（新しいタブで開きます）"
+  },
+  "screens_success_screen_your_transaction_was_broadcasted": {
+    "message": "トランザクションがブロードキャストされました。"
+  },
+  "secrets_show_passphrase_incorrect_password_or_failed_to": {
+    "message": "パスワードが正しくないか、リカバリーフレーズを表示できませんでした。"
+  },
+  "secrets_show_passphrase_keep_your_recovery_phrase_private": {
+    "message": "リカバリーフレーズは他人に見せないでください"
+  },
+  "secrets_show_passphrase_never_share_it_with_anyone": {
+    "message": "誰にも共有しないでください。これらの単語を知る人は誰でもあなたの資金を盗めます。"
+  },
+  "secrets_show_passphrase_passphrase": {
+    "message": "リカバリーフレーズ"
+  },
+  "secrets_show_passphrase_show_recovery_phrase": {
+    "message": "リカバリーフレーズを表示"
+  },
+  "secrets_show_passphrase_unable_to_retrieve_recovery_phrase": {
+    "message": "リカバリーフレーズを取得できません。"
+  },
+  "secrets_show_passphrase_write_down_these_12_words": {
+    "message": "これらの 12 個の単語を順番どおりに書き留め、安全な場所に保管してください。"
+  },
+  "secrets_show_private_key_address_derivation_path_is_missing": {
+    "message": "アドレスの導出パスがありません。"
+  },
+  "secrets_show_private_key_copy_private_key": {
+    "message": "秘密鍵をコピー"
+  },
+  "secrets_show_private_key_copy_the_private_key_shown": {
+    "message": "ここに表示された秘密鍵をコピー"
+  },
+  "secrets_show_private_key_failed_to_retrieve_private_key": {
+    "message": "秘密鍵を取得できませんでした"
+  },
+  "secrets_show_private_key_failed_to_reveal_private_key": {
+    "message": "秘密鍵を表示できませんでした。"
+  },
+  "secrets_show_private_key_hardware_wallets_do_not_expose": {
+    "message": "ハードウェアウォレットは秘密鍵を公開しません。鍵はデバイス内に安全に保管されています。"
+  },
+  "secrets_show_private_key_keep_your_private_key_private": {
+    "message": "秘密鍵は他人に見せないでください"
+  },
+  "secrets_show_private_key_never_share_it_with_anyone": {
+    "message": "誰にも共有しないでください。この鍵を知る人は誰でもあなたの資金を盗めます。"
+  },
+  "secrets_show_private_key_private_key_wif_format_not": {
+    "message": "WIF 形式の秘密鍵は利用できません"
+  },
+  "secrets_show_private_key_this_is_your_private_key": {
+    "message": "これは Wallet Import Format 形式のあなたの秘密鍵です。誰にも共有しないでください。"
+  },
+  "secrets_show_private_key_your_private_key_wif": {
+    "message": "あなたの秘密鍵 (WIF)"
+  },
+  "send_form_btc_to_send_alongside_the": {
+    "message": "アセットと一緒に同じ送信先へ送る BTC。"
+  },
+  "send_form_enter_the_amount_to_send": {
+    "message": "送金する数量を入力してください。"
+  },
+  "send_form_failed_to_fetch_details_for": {
+    "message": "アセット $1 の詳細を取得できませんでした。$2"
+  },
+  "send_form_please_try_again_later": {
+    "message": "後でもう一度お試しください。"
+  },
+  "send_mpma_mismatched_mpma_form_data_assets": {
+    "message": "MPMA フォームのデータが一致しません: アセット、宛先、数量は同じ数である必要があります"
+  },
+  "send_mpma_mpma_send": {
+    "message": "MPMA 送金"
+  },
+  "send_review_sends": {
+    "message": "送金 ($1)"
+  },
+  "settings_about_xcp_wallet": {
+    "message": "XCP Wallet について"
+  },
+  "settings_address_types_address_type_is_set_when": {
+    "message": ": アドレスタイプはデバイス接続時に設定されます。別のアドレス形式を使うには、「ウォレットを追加」から希望の形式で Trezor を接続し直してください。"
+  },
+  "settings_address_types_address_type_settings": {
+    "message": "アドレスタイプ設定"
+  },
+  "settings_address_types_failed_to_update_address_type": {
+    "message": "アドレスタイプを更新できませんでした"
+  },
+  "settings_address_types_hardware_wallet": {
+    "message": "ハードウェアウォレット"
+  },
+  "settings_address_types_no_wallet_available": {
+    "message": "利用できるウォレットがありません"
+  },
+  "settings_advanced_1_minute": {
+    "message": "1 分"
+  },
+  "settings_advanced_15_minutes": {
+    "message": "15 分"
+  },
+  "settings_advanced_30_minutes": {
+    "message": "30 分"
+  },
+  "settings_advanced_5_minutes": {
+    "message": "5 分"
+  },
+  "settings_advanced_advanced_broadcasts": {
+    "message": "高度なブロードキャスト"
+  },
+  "settings_advanced_advanced_settings": {
+    "message": "詳細設定"
+  },
+  "settings_advanced_anonymous_analytics": {
+    "message": "匿名の利用状況分析"
+  },
+  "settings_advanced_attach_btc_to_asset_sends": {
+    "message": "アセット送金に BTC を添付します。送金フォームに「+ BTC」オプションが追加されます。"
+  },
+  "settings_advanced_auto_lock_timer": {
+    "message": "自動ロックタイマー"
+  },
+  "settings_advanced_block_signing_if_local_transaction": {
+    "message": "ローカルでのトランザクション検証に失敗した場合、署名をブロックします。オフの場合は警告を表示しつつ署名を許可します。"
+  },
+  "settings_advanced_choose_how_long_to_wait": {
+    "message": "ウォレットを自動的にロックするまでの待ち時間を選択します。"
+  },
+  "settings_advanced_choose_whether_to_share_usage": {
+    "message": "利用状況データを共有するかどうかを選択します。"
+  },
+  "settings_advanced_connection": {
+    "message": "接続"
+  },
+  "settings_advanced_counterparty_api": {
+    "message": "Counterparty API"
+  },
+  "settings_advanced_developer": {
+    "message": "開発者"
+  },
+  "settings_advanced_enable_more_outputs": {
+    "message": "追加の出力を有効化"
+  },
+  "settings_advanced_enable_mpma_sends": {
+    "message": "MPMA 送金を有効化"
+  },
+  "settings_advanced_enable_multi_destination_sends_mpma": {
+    "message": "対応アセットの複数宛先送金 (MPMA) を有効にします。"
+  },
+  "settings_advanced_enable_this_to_chain_transactions": {
+    "message": "未承認のトランザクションの出力を、次のトランザクションで使用する場合に有効にします。"
+  },
+  "settings_advanced_privacy_display": {
+    "message": "プライバシーと表示"
+  },
+  "settings_advanced_show_advanced_options_for_broadcast": {
+    "message": "ブロードキャストトランザクションの高度なオプション（値と手数料率）を表示します。"
+  },
+  "settings_advanced_show_hide_help_text": {
+    "message": "ヘルプテキストの表示/非表示"
+  },
+  "settings_advanced_show_or_hide_help_text": {
+    "message": "ヘルプテキストをデフォルトで表示するか非表示にするかを選択します。"
+  },
+  "settings_advanced_strict_txs_verification": {
+    "message": "厳格な TX 検証"
+  },
+  "settings_advanced_the_counterparty_api_endpoint_url": {
+    "message": "Counterparty API エンドポイントの URL。Counterparty Core 11.3.0 以降を実行しているメインネットの API サーバーである必要があります。"
+  },
+  "settings_advanced_transaction_dry_run": {
+    "message": "トランザクションのドライラン"
+  },
+  "settings_advanced_use_unconfirmed_txs": {
+    "message": "未承認 TX を使用"
+  },
+  "settings_advanced_when_enabled_transactions_will_be": {
+    "message": "有効にすると、トランザクションはネットワークにブロードキャストされず、シミュレーションのみ行われます。"
+  },
+  "settings_change_your_wallet_password": {
+    "message": "ウォレットのパスワードを変更"
+  },
+  "settings_connected_sites_disconnect_all_sites": {
+    "message": "すべてのサイトの接続を解除"
+  },
+  "settings_connected_sites_loading_connected_sites": {
+    "message": "接続済みサイトを読み込み中…"
+  },
+  "settings_connected_sites_no_connected_sites": {
+    "message": "接続済みサイトはありません"
+  },
+  "settings_connected_sites_sites_you_connect_to_will": {
+    "message": "接続したサイトがここに表示されます"
+  },
+  "settings_manage_assets_pinned_to_your": {
+    "message": "ダッシュボードにピン留めするアセットを管理"
+  },
+  "settings_manage_website_connections": {
+    "message": "ウェブサイトとの接続を管理"
+  },
+  "settings_network_settings_and_developer_options": {
+    "message": "ネットワーク設定と開発者オプション"
+  },
+  "settings_order_settings_1_day": {
+    "message": "1 日"
+  },
+  "settings_order_settings_1_hour": {
+    "message": "1 時間"
+  },
+  "settings_order_settings_1_month": {
+    "message": "1 か月"
+  },
+  "settings_order_settings_1_week": {
+    "message": "1 週間"
+  },
+  "settings_order_settings_1_year": {
+    "message": "1 年"
+  },
+  "settings_order_settings_2_weeks": {
+    "message": "2 週間"
+  },
+  "settings_order_settings_blocks": {
+    "message": "$1 ブロック（約 $2）"
+  },
+  "settings_order_settings_custom_blocks": {
+    "message": "カスタムブロック数（$1〜$2）"
+  },
+  "settings_order_settings_custom_expiration_in_blocks": {
+    "message": "カスタム有効期限（ブロック数）"
+  },
+  "settings_order_settings_enter_fee_in_satoshis_default": {
+    "message": "手数料を satoshi で入力（デフォルト: 0）"
+  },
+  "settings_order_settings_fee_required_in_satoshis": {
+    "message": "必要手数料 (satoshi)"
+  },
+  "settings_order_settings_never": {
+    "message": "無期限"
+  },
+  "settings_order_settings_no_minimum_fee": {
+    "message": "最低手数料なし"
+  },
+  "settings_order_settings_order_expiration": {
+    "message": "注文の有効期限"
+  },
+  "settings_order_settings_orders_cancel_after_the_selected": {
+    "message": "注文は選択したブロック数の経過後にキャンセルされます。現在の上限は $1 です。"
+  },
+  "settings_order_settings_sats_sat_vb": {
+    "message": "$1 sats（約 $2 sat/vB）"
+  },
+  "settings_order_settings_the_minimum_tx_fee_required": {
+    "message": "この注文とマッチするBTC支払い側の注文トランザクションに必要なマイナー手数料（satoshi）。"
+  },
+  "settings_order_settings_use_0_for_orders_that": {
+    "message": "無期限の注文には 0 を使用します。有限の注文は選択したブロック数の経過後にキャンセルされます。"
+  },
+  "settings_pinned_assets_failed_to_pin_asset": {
+    "message": "アセットをピン留めできませんでした。"
+  },
+  "settings_pinned_assets_failed_to_unpin_asset": {
+    "message": "アセットのピン留めを解除できませんでした。"
+  },
+  "settings_pinned_assets_no_pinned_assets_search_for": {
+    "message": "ピン留めしたアセットはありません。アセットを検索してピン留めしてください。"
+  },
+  "settings_pinned_assets_pin_up_to_10_assets": {
+    "message": "メイン画面の上部に最大 10 個のアセットをピン留めできます。矢印ボタンで並べ替えます。"
+  },
+  "settings_pinned_assets_pinned": {
+    "message": "ピン留め済み"
+  },
+  "settings_pinned_assets_pinned_assets_settings": {
+    "message": "ピン留めアセット設定"
+  },
+  "settings_pinned_assets_search_assets_to_pin": {
+    "message": "ピン留めするアセットを検索…"
+  },
+  "settings_pinned_assets_you_can_only_pin_up": {
+    "message": "ピン留めできるアセットは 10 個までです。"
+  },
+  "settings_security_change_password": {
+    "message": "パスワードを変更"
+  },
+  "settings_security_changing_password": {
+    "message": "パスワードを変更中…"
+  },
+  "settings_security_choose_a_new_password_that": {
+    "message": "$1 文字以上の新しいパスワードを設定してください。"
+  },
+  "settings_security_confirm_new_password": {
+    "message": "新しいパスワードを確認"
+  },
+  "settings_security_current_password": {
+    "message": "現在のパスワード"
+  },
+  "settings_security_enter_your_current_wallet_password": {
+    "message": "変更を承認するため、現在のウォレットのパスワードを入力してください。"
+  },
+  "settings_security_failed_to_change_password": {
+    "message": "パスワードを変更できませんでした"
+  },
+  "settings_security_new_password": {
+    "message": "新しいパスワード"
+  },
+  "settings_security_new_password_must_be_at": {
+    "message": "新しいパスワードは $1 文字以上にしてください"
+  },
+  "settings_security_new_passwords_do_not_match": {
+    "message": "新しいパスワードが一致しません"
+  },
+  "settings_security_password_successfully_changed": {
+    "message": "パスワードを変更しました"
+  },
+  "settings_security_re_enter_your_new_password": {
+    "message": "入力ミスがないか確認するため、新しいパスワードをもう一度入力してください。"
+  },
+  "settings_security_security_settings": {
+    "message": "セキュリティ設定"
+  },
+  "settings_security_security_tip": {
+    "message": "セキュリティのヒント:"
+  },
+  "settings_security_use_a_strong_unique_password": {
+    "message": "他のアカウントで使っていない強力で一意のパスワードを使用してください。パスワードマネージャーの利用をおすすめします。"
+  },
+  "settings_version": {
+    "message": "バージョン $1"
+  },
+  "settings_visit_website": {
+    "message": "ウェブサイトを開く"
+  },
+  "setup_create_mnemonic_creating": {
+    "message": "作成中…"
+  },
+  "setup_create_mnemonic_failed_to_create_wallet_please": {
+    "message": "ウォレットを作成できませんでした。もう一度お試しください。"
+  },
+  "setup_create_mnemonic_generate_new_recovery_phrase": {
+    "message": "新しいリカバリーフレーズを生成"
+  },
+  "setup_create_mnemonic_make_sure_no_one_is": {
+    "message": "誰にも見られていないことを確認してください！"
+  },
+  "setup_create_mnemonic_password_must_be_at_least": {
+    "message": "パスワードは $1 文字以上にしてください。"
+  },
+  "setup_create_mnemonic_please_view_and_save_your": {
+    "message": "先にリカバリーフレーズを表示して保存してください。"
+  },
+  "setup_create_mnemonic_please_write_down_this_12": {
+    "message": "12個の単語からなるリカバリーフレーズを書き留めてください。"
+  },
+  "setup_create_mnemonic_reveal_recovery_phrase": {
+    "message": "リカバリーフレーズを表示"
+  },
+  "setup_create_mnemonic_view_12_word_secret_phrase": {
+    "message": "リカバリーフレーズ（12単語）を表示"
+  },
+  "setup_create_mnemonic_watch_tutorial_how_to_create": {
+    "message": "チュートリアルを見る: ウォレットの作成方法"
+  },
+  "setup_create_mnemonic_your_recovery_phrase": {
+    "message": "あなたのリカバリーフレーズ"
+  },
+  "setup_import_mnemonic_a_card_is_written_to": {
+    "message": "カードは人に手渡すために書かれたものなので、これらの単語は渡してくれた相手にも知られているものとして扱ってください。ウォレットとしてインポートしないのはそのためです。このフレーズから導出されるすべてのアドレスは、相手も使えてしまいます。相手はカード自体からも引き続き送金できるため、残しておきたいものはご自身のアドレスへ移してください。"
+  },
+  "setup_import_mnemonic_an_address_no_wallet_built": {
+    "message": "。このフレーズで作られたウォレットには決して表示されないアドレスです。カードをインポートするとこのアドレスのみが保持され、フレーズは保存されません。"
+  },
+  "setup_import_mnemonic_at": {
+    "message": "、場所は"
+  },
+  "setup_import_mnemonic_couldn_t_check_whether_this": {
+    "message": "このフレーズが Rare Pepe Wallet のギフトカードかどうかを確認できませんでした。いずれにしてもウォレットとしてのインポートは可能で、カードはオンラインに戻ってから後でインポートできます。"
+  },
+  "setup_import_mnemonic_enter_word": {
+    "message": "単語を入力"
+  },
+  "setup_import_mnemonic_failed_to_import_wallet": {
+    "message": "ウォレットをインポートできませんでした: $1"
+  },
+  "setup_import_mnemonic_gift_card": {
+    "message": "ギフトカード"
+  },
+  "setup_import_mnemonic_hide_recovery_phrase": {
+    "message": "リカバリーフレーズを隠す"
+  },
+  "setup_import_mnemonic_import_gift_card": {
+    "message": "ギフトカードをインポート"
+  },
+  "setup_import_mnemonic_import_your_mnemonic": {
+    "message": "ニーモニックをインポート"
+  },
+  "setup_import_mnemonic_invalid_recovery_phrase_please_check": {
+    "message": "リカバリーフレーズが無効です。各単語を注意深く確認してください。"
+  },
+  "setup_import_mnemonic_its_balance_is_on": {
+    "message": "残高があるのは"
+  },
+  "setup_import_mnemonic_please_confirm_you_have_backed": {
+    "message": "リカバリーフレーズをバックアップしたことを確認してください。"
+  },
+  "setup_import_mnemonic_please_enter_your_12_word": {
+    "message": "以下に 12 単語のリカバリーフレーズを入力してください。"
+  },
+  "setup_import_mnemonic_recovery_phrase_input": {
+    "message": "リカバリーフレーズの入力"
+  },
+  "setup_import_mnemonic_recovery_phrase_words": {
+    "message": "リカバリーフレーズの単語"
+  },
+  "setup_import_mnemonic_show_recovery_phrase": {
+    "message": "リカバリーフレーズを表示"
+  },
+  "setup_import_mnemonic_this_looks_like_a_rare": {
+    "message": "これは Rare Pepe Wallet のギフトカードのようです。"
+  },
+  "setup_import_mnemonic_unknown_error": {
+    "message": "不明なエラー"
+  },
+  "setup_import_mnemonic_watch_tutorial_how_to_import": {
+    "message": "チュートリアルを見る: ウォレットのインポート方法"
+  },
+  "setup_import_mnemonic_word": {
+    "message": "単語 $1"
+  },
+  "setup_import_private_key_bc1p": {
+    "message": "bc1p..."
+  },
+  "setup_import_private_key_bc1q": {
+    "message": "bc1q..."
+  },
+  "setup_import_private_key_enter_your_private_key": {
+    "message": "秘密鍵を入力"
+  },
+  "setup_import_private_key_enter_your_private_key_to": {
+    "message": "秘密鍵を入力して、そのアドレスを使用します。"
+  },
+  "setup_import_private_key_failed_to_import_private_key": {
+    "message": "秘密鍵をインポートできませんでした。"
+  },
+  "setup_import_private_key_i_have_backed_up_this": {
+    "message": "この秘密鍵を安全にバックアップしました。"
+  },
+  "setup_import_private_key_import_key": {
+    "message": "鍵をインポート"
+  },
+  "setup_import_private_key_invalid_private_key_format": {
+    "message": "秘密鍵の形式が無効です。"
+  },
+  "setup_import_private_key_legacy": {
+    "message": "レガシー"
+  },
+  "setup_import_private_key_native_segwit": {
+    "message": "ネイティブ SegWit"
+  },
+  "setup_import_private_key_nested_segwit": {
+    "message": "ネスト SegWit"
+  },
+  "setup_import_private_key_please_check_your_input_and": {
+    "message": "入力内容を確認してもう一度お試しください。"
+  },
+  "setup_import_private_key_please_confirm_you_have_backed": {
+    "message": "秘密鍵をバックアップしたことを確認してください。"
+  },
+  "setup_import_private_key_private_key_is_required": {
+    "message": "秘密鍵は必須です。"
+  },
+  "setup_import_private_key_taproot": {
+    "message": "Taproot"
+  },
+  "setup_import_private_key_the_private_key_format_is": {
+    "message": "秘密鍵の形式が無効です。"
+  },
+  "setup_import_private_key_this_private_key_has_already": {
+    "message": "この秘密鍵はすでにインポートされています。"
+  },
+  "setup_import_private_key_watch_tutorial_how_to_import": {
+    "message": "チュートリアルを見る: 秘密鍵のインポート方法"
+  },
+  "setup_import_test_address_bitcoin_address": {
+    "message": "Bitcoin アドレス"
+  },
+  "setup_import_test_address_development_mode": {
+    "message": "開発モード"
+  },
+  "setup_import_test_address_enter_any_bitcoin_address": {
+    "message": "任意の Bitcoin アドレスを入力…"
+  },
+  "setup_import_test_address_failed_to_import_test_address": {
+    "message": "テストアドレスをインポートできませんでした"
+  },
+  "setup_import_test_address_import_test_address": {
+    "message": "テストアドレスをインポート"
+  },
+  "setup_import_test_address_please_enter_an_address": {
+    "message": "アドレスを入力してください"
+  },
+  "setup_import_test_address_this_creates_a_watch_only": {
+    "message": "テスト用の閲覧専用ウォレットを作成します。トランザクションの署名やブロードキャストはできません。"
+  },
+  "swap_form_above_what_the_pending_orders": {
+    "message": "最低受取数量が、未承認の注文を反映した受取見込みを上回っています。それらが先に承認されると、最低受取数量を満たせない可能性があります。未約定分は注文の有効期限後に返却されます。スリッページを調整するか「自動」を使用してください。"
+  },
+  "swap_form_after_mempool": {
+    "message": "先行注文の承認後（推定）"
+  },
+  "swap_form_ahead_in_mempool": {
+    "message": "メンプールで $1 件が先行"
+  },
+  "swap_form_asset_you_are_buying": {
+    "message": "購入するアセット。"
+  },
+  "swap_form_asset_you_are_selling": {
+    "message": "売却するアセット。"
+  },
+  "swap_form_balance": {
+    "message": "残高: $1"
+  },
+  "swap_form_btc_pairs_are_not_supported": {
+    "message": "BTC ペアはスワップに対応していません。代わりに DEX 注文を使用してください。"
+  },
+  "swap_form_estimated_amount_received": {
+    "message": "受取数量の見積もり"
+  },
+  "swap_form_fetching_quote": {
+    "message": "見積もりを取得中…"
+  },
+  "swap_form_flip_swap_direction": {
+    "message": "スワップの方向を反転"
+  },
+  "swap_form_hide_swap_details": {
+    "message": "スワップの詳細を隠す"
+  },
+  "swap_form_impact": {
+    "message": "価格インパクト: $p1$$p2$%",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "swap_form_minimum_received": {
+    "message": "最低受取数量"
+  },
+  "swap_form_no_liquidity_pool_exists_for": {
+    "message": "$1/$2 の流動性プールはありません。このペアのスワップは、注文板にある DEX 注文とのみ約定できます。"
+  },
+  "swap_form_one_unconfirmed_order_on_this": {
+    "message": "このペアに同じ方向の未承認注文が 1 件あります。それが先に承認されると、このスワップの受取額は見積もりより約 $1% 少なくなります。自動スリッページはこれを考慮します。"
+  },
+  "swap_form_pool": {
+    "message": "プール + $1"
+  },
+  "swap_form_pool_fee": {
+    "message": "プール手数料 ($1%)"
+  },
+  "swap_form_review_swap": {
+    "message": "スワップ内容を確認"
+  },
+  "swap_form_route": {
+    "message": "ルート"
+  },
+  "swap_form_show_swap_details": {
+    "message": "スワップの詳細を表示"
+  },
+  "swap_form_unconfirmed_orders_on_this_pair": {
+    "message": "このペアに同じ方向の未承認注文が $1 件あります。それらが先に承認されると、このスワップの受取額は見積もりより約 $2% 少なくなります。自動スリッページはこれを考慮します。"
+  },
+  "swap_review_fills": {
+    "message": "約定"
+  },
+  "swap_review_immediately_or_cancels_next_block": {
+    "message": "承認時に約定。未約定分は期限切れ後に返却"
+  },
+  "swap_review_minimum_price": {
+    "message": "約定価格の限度"
+  },
+  "swap_review_minimum_received": {
+    "message": "最低受取数量"
+  },
+  "sweep_form_asset_balances_only": {
+    "message": "アセット残高のみ"
+  },
+  "sweep_form_asset_balances_ownership": {
+    "message": "アセット残高と所有権"
+  },
+  "sweep_form_asset_ownership_only": {
+    "message": "アセットの所有権のみ"
+  },
+  "sweep_form_btc_to_send_alongside_the": {
+    "message": "スイープと一緒に同じ送信先へ送る BTC。"
+  },
+  "sweep_form_choose_whether_to_sweep_asset": {
+    "message": "アセット残高のみ、アセットの所有権のみ、または両方をスイープするかを選択します。"
+  },
+  "sweep_form_enter_destination_address_for_sweep": {
+    "message": "スイープの送信先アドレスを入力"
+  },
+  "sweep_form_enter_the_address_to_sweep": {
+    "message": "すべてのアセットのスイープ先アドレスを入力してください。"
+  },
+  "sweep_form_sweep_type": {
+    "message": "スイープの種類"
+  },
+  "sweep_review_additional_btc_output": {
+    "message": "追加の BTC 出力"
+  },
+  "sweep_review_btc_to": {
+    "message": "$1 BTC を $2 へ"
+  },
+  "sweep_review_flag": {
+    "message": "フラグ"
+  },
+  "time_compact_days": {
+    "message": "$1日前"
+  },
+  "time_compact_hours": {
+    "message": "$1時間前"
+  },
+  "time_compact_minutes": {
+    "message": "$1分前"
+  },
+  "time_compact_weeks": {
+    "message": "$1週間前"
+  },
+  "time_compact_years": {
+    "message": "$1年前"
+  },
+  "time_day_ago": {
+    "message": "1日前"
+  },
+  "time_days_ago": {
+    "message": "$1日前"
+  },
+  "time_hour_ago": {
+    "message": "1時間前"
+  },
+  "time_hours_ago": {
+    "message": "$1時間前"
+  },
+  "time_just_now": {
+    "message": "たった今"
+  },
+  "time_minute_ago": {
+    "message": "1分前"
+  },
+  "time_minutes_ago": {
+    "message": "$1分前"
+  },
+  "time_month_ago": {
+    "message": "1か月前"
+  },
+  "time_months_ago": {
+    "message": "$1か月前"
+  },
+  "time_second_ago": {
+    "message": "1秒前"
+  },
+  "time_seconds_ago": {
+    "message": "$1秒前"
+  },
+  "time_week_ago": {
+    "message": "1週間前"
+  },
+  "time_weeks_ago": {
+    "message": "$1週間前"
+  },
+  "time_year_ago": {
+    "message": "1年前"
+  },
+  "time_years_ago": {
+    "message": "$1年前"
+  },
+  "transaction_approve_confirm_the_exceptional_transaction_behavior": {
+    "message": "ウォレットが署名を追加する前に、以下の例外的なトランザクション動作を確認してください。"
+  },
+  "transaction_approve_input_details_could_not_be": {
+    "message": "入力の詳細を検証できませんでした"
+  },
+  "transaction_approve_sign_transaction": {
+    "message": "トランザクションに署名"
+  },
+  "transaction_approve_the_wallet_cannot_confirm_the": {
+    "message": "ウォレットは入力の値または所有者を確認できません。署名する前に検証を再試行してください。"
+  },
+  "transactions_txhash_back_to_history": {
+    "message": "履歴に戻る"
+  },
+  "transactions_txhash_block": {
+    "message": "ブロック:"
+  },
+  "transactions_txhash_btc_amount": {
+    "message": "BTC 額:"
+  },
+  "transactions_txhash_failed_to_fetch_transaction": {
+    "message": "トランザクションを取得できませんでした"
+  },
+  "transactions_txhash_loading_transaction": {
+    "message": "トランザクションを読み込み中…"
+  },
+  "transactions_txhash_no_transaction_hash_provided": {
+    "message": "トランザクションハッシュが指定されていません"
+  },
+  "transactions_txhash_raw_transaction_data": {
+    "message": "生トランザクションデータ"
+  },
+  "transactions_txhash_status": {
+    "message": "状態:"
+  },
+  "transactions_txhash_time": {
+    "message": "時刻:"
+  },
+  "transactions_txhash_transaction_hash": {
+    "message": "トランザクションハッシュ:"
+  },
+  "transactions_txhash_transaction_not_found": {
+    "message": "トランザクションが見つかりません"
+  },
+  "transactions_txhash_view_on_xchain": {
+    "message": "XChain で表示"
+  },
+  "transfer_ownership_form_cannot_transfer_ownership_of_btc": {
+    "message": "BTC の所有権は移転できません"
+  },
+  "transfer_ownership_form_enter_address_to_transfer_ownership": {
+    "message": "所有権の移転先アドレスを入力"
+  },
+  "transfer_ownership_review_to": {
+    "message": "移転先"
+  },
+  "tx_verification_status_retry_the_request_or_ask": {
+    "message": "リクエストを再試行するか、サイトに作り直しを依頼してください。検証できない代替トランザクションを承認しないでください。"
+  },
+  "tx_verification_status_verification_failed_signing_blocked": {
+    "message": "検証失敗 - 署名はブロックされています"
+  },
+  "tx_verification_status_verification_warning": {
+    "message": "検証の警告"
+  },
+  "update_description_form_cannot_update_description_of_btc": {
+    "message": "BTC の説明文は更新できません"
+  },
+  "update_description_form_enter_a_new_description_for": {
+    "message": "アセットに使用する新しい説明文を入力してください。"
+  },
+  "utxo_attach_attach_utxo": {
+    "message": "UTXO にアタッチ"
+  },
+  "utxo_detach_detach_utxo": {
+    "message": "UTXO からデタッチ"
+  },
+  "utxo_move_move_utxo": {
+    "message": "UTXO を移動"
+  },
+  "utxo_utxo_list_loading_utxo_balances": {
+    "message": "UTXO 残高を読み込み中…"
+  },
+  "utxo_utxo_list_no_matching_utxos": {
+    "message": "一致する UTXO はありません"
+  },
+  "utxo_utxo_list_no_utxo_attached_balances": {
+    "message": "UTXO にアタッチされた残高はありません"
+  },
+  "utxo_utxo_list_search_utxos": {
+    "message": "UTXO を検索…"
+  },
+  "utxo_utxo_menu_utxo_actions": {
+    "message": "UTXO の操作"
+  },
+  "utxos_txhash_btc_value": {
+    "message": "BTC 額"
+  },
+  "utxos_txhash_confirmations": {
+    "message": "承認数"
+  },
+  "utxos_txhash_copy_utxo": {
+    "message": "UTXO をコピー"
+  },
+  "utxos_txhash_detach_assets_from_this_utxo": {
+    "message": "この UTXO からアセットをデタッチ"
+  },
+  "utxos_txhash_details": {
+    "message": "詳細"
+  },
+  "utxos_txhash_failed_to_fetch_utxo_data": {
+    "message": "UTXO データを取得できませんでした"
+  },
+  "utxos_txhash_invalid_utxo_identifier": {
+    "message": "UTXO 識別子が無効です: $1"
+  },
+  "utxos_txhash_loading_utxo_details": {
+    "message": "UTXO の詳細を読み込み中…"
+  },
+  "utxos_txhash_move_this_utxo_to_another": {
+    "message": "この UTXO を別のアドレスに移動"
+  },
+  "utxos_txhash_time_attached": {
+    "message": "アタッチ日時"
+  },
+  "utxos_txhash_utxo_details": {
+    "message": "UTXO の詳細"
+  },
+  "wallet_wallet_card_no_address": {
+    "message": "アドレスなし"
+  },
+  "wallet_wallet_menu_cannot_remove_only_wallet": {
+    "message": "唯一のウォレットは削除できません"
+  },
+  "wallet_wallet_menu_remove": {
+    "message": "削除"
+  },
+  "wallet_wallet_menu_show_passphrase": {
+    "message": "リカバリーフレーズを表示"
+  },
+  "wallet_wallet_menu_wallet_options": {
+    "message": "ウォレットのオプション"
+  },
+  "wallets_add_create_new_wallet": {
+    "message": "新しいウォレットを作成"
+  },
+  "wallets_add_disconnect_hardware_wallet": {
+    "message": "ハードウェアウォレットの接続を解除"
+  },
+  "wallets_add_import_address_dev": {
+    "message": "アドレスをインポート（開発用）"
+  },
+  "wallets_add_import_address_dev_only": {
+    "message": "アドレスをインポート（開発専用）"
+  },
+  "wallets_add_import_mnemonic": {
+    "message": "リカバリーフレーズをインポート"
+  },
+  "wallets_add_use_trezor_connect": {
+    "message": "Trezor Connect を使用"
+  },
+  "wallets_connect_hardware_before_connecting": {
+    "message": "接続する前に:"
+  },
+  "wallets_connect_hardware_connect_trezor": {
+    "message": "Trezor を接続"
+  },
+  "wallets_connect_hardware_connect_your_trezor": {
+    "message": "Trezor を接続する"
+  },
+  "wallets_connect_hardware_connect_your_trezor_via_usb": {
+    "message": "Trezor を USB で接続する"
+  },
+  "wallets_connect_hardware_connecting": {
+    "message": "接続中..."
+  },
+  "wallets_connect_hardware_failed_to_connect_hardware_wallet": {
+    "message": "ハードウェアウォレットに接続できませんでした"
+  },
+  "wallets_connect_hardware_select_your_account_on_your": {
+    "message": "Trezor デバイスでアカウントを選択する"
+  },
+  "wallets_connect_hardware_select_your_account_when_prompted": {
+    "message": "求められたらアカウントを選択する"
+  },
+  "wallets_connect_hardware_unlock_your_device_with_pin": {
+    "message": "PIN でデバイスのロックを解除する"
+  },
+  "wallets_connect_hardware_your_private_keys_never_leave": {
+    "message": "秘密鍵が Trezor デバイスの外に出ることはありません。"
+  },
+  "wallets_connect_hardware_your_trezor_will_discover_your": {
+    "message": "Trezor が Bitcoin アカウントを検出し、使用するアカウントを選択できます。"
+  },
+  "wallets_remove_failed_to_remove_wallet_please": {
+    "message": "ウォレットを削除できませんでした。もう一度お試しください。"
+  },
+  "wallets_remove_invalid_wallet_identifier": {
+    "message": "ウォレット識別子が無効です。"
+  },
+  "wallets_remove_make_sure_you_have_backed": {
+    "message": "削除する前に、ウォレットのリカバリーフレーズをバックアップ済みであることを確認してください。"
+  },
+  "wallets_remove_make_sure_you_have_backed_2": {
+    "message": "削除する前に、ウォレットの秘密鍵をバックアップしたことを確認してください。"
+  },
+  "wallets_remove_remove": {
+    "message": "$1 を削除"
+  },
+  "wallets_remove_remove_wallet": {
+    "message": "ウォレットを削除"
+  },
+  "wallets_remove_removing": {
+    "message": "削除中…"
+  },
+  "wallets_reset_failed_to_reset_wallet_please": {
+    "message": "ウォレットをリセットできませんでした。もう一度お試しください。"
+  },
+  "wallets_reset_resetting": {
+    "message": "リセット中…"
+  },
+  "wallets_reset_resetting_your_wallet_will_delete": {
+    "message": "ウォレットをリセットすると、すべてのウォレットデータが削除されます。この操作は元に戻せません。"
+  },
+  "withdraw_form_estimated_receive": {
+    "message": "受取数量の見積もり:"
+  },
+  "withdraw_form_loading_withdrawal_quote": {
+    "message": "引き出しの見積もりを読み込み中..."
+  },
+  "withdraw_form_lp_tokens_to_withdraw": {
+    "message": "引き出しに使う LP 数量"
+  },
+  "withdraw_form_review_withdrawal": {
+    "message": "引き出し内容を確認"
+  },
+  "withdraw_review_minimum_receive": {
+    "message": "最低受取数量"
+  },
+  "display_preferences_title": {
+    "message": "言語と表示"
+  },
+  "display_preferences_language": {
+    "message": "表示言語"
+  },
+  "display_preferences_numbers": {
+    "message": "数値の表示形式"
+  },
+  "display_preferences_browser": {
+    "message": "ブラウザーの言語"
+  },
+  "display_preferences_follow_language": {
+    "message": "表示言語に合わせる"
+  },
+  "display_preferences_fiat": {
+    "message": "価格の表示通貨"
+  },
+  "display_preferences_input_help": {
+    "message": "これらの設定は表示にのみ適用されます。数量は半角数字 0–9 と小数点で入力し、桁区切りは使用しないでください。価格の表示通貨は個別に保存されます。"
+  },
+  "display_preferences_save_failed": {
+    "message": "設定を保存できませんでした。もう一度お試しください。"
+  },
+  "safety_amount_syntax": {
+    "message": "半角数字と小数点のみ（小数8桁まで）。カンマ不可。"
+  },
+  "safety_amount_indivisible": {
+    "message": "半角の整数のみ。小数点・カンマ不可。"
+  },
+  "safety_amount_precision": {
+    "message": "数量の小数点以下の桁数が、このアセットで使用できる桁数を超えています。丸め処理や送信は行われていません。"
+  },
+  "safety_amount_range": {
+    "message": "数量が許容範囲外です。アセットの数量を確認して、もう一度お試しください。"
+  },
+  "safety_amount_too_long": {
+    "message": "数量の入力が長すぎます。省略や送信は行われていません。"
+  },
+  "safety_divisibility_unknown": {
+    "message": "アセットの小数精度を確認できません。アセット情報を更新してから続行してください。"
+  },
+  "safety_fraction_inexact": {
+    "message": "Counterpartyはこの手数料またはコミッションの比率を正確に記録できません。別の比率を選択してください。"
+  },
+  "safety_fee_invalid": {
+    "message": "半角数字と小数点のみ（小数8桁まで）。カンマ不可。"
+  },
+  "safety_fee_minimum": {
+    "message": "手数料率が低すぎます（最小: $1 sat/vB）"
+  },
+  "safety_fee_maximum": {
+    "message": "手数料率が高すぎます（最大: $1 sat/vB）"
+  },
+  "safety_destination_count": {
+    "message": "送信先の数は正の整数である必要があります。"
+  },
+  "safety_max_unavailable": {
+    "message": "利用可能な数量を正確に確認できません。「最大」を使う前にアセット情報を更新してください。"
+  },
+  "safety_max_fee": {
+    "message": "「最大」を使う前に、有効な手数料率を入力してください。"
+  },
+  "safety_clipboard_lines": {
+    "message": "改行なしで1つの値を貼り付けてください。"
+  },
+  "common_custom": {
+    "message": "カスタム"
+  },
+  "order_form_select_asset_to_buy": {
+    "message": "購入するアセットを選択してください。"
+  },
+  "order_form_select_asset_to_sell": {
+    "message": "売却するアセットを選択してください。"
+  },
+  "deposit_form_minimum_lp_with_slippage": {
+    "message": "最低受取 LP 数量（許容スリッページ $1%）:"
+  },
+  "withdraw_form_minimum_with_slippage": {
+    "message": "最低受取数量（許容スリッページ $1%）:"
+  },
+  "order_review_expiration_blocks": {
+    "message": "$1 ブロック"
+  },
+  "safety_slippage_invalid": {
+    "message": "0〜50%、小数2桁まで。カンマ不可。"
+  },
+  "inputs_fee_rate_input_fastest": {
+    "message": "最速"
+  },
+  "inputs_fee_rate_input_thirty_minutes": {
+    "message": "30分"
+  },
+  "inputs_fee_rate_input_one_hour": {
+    "message": "1時間"
+  },
+  "address_type_legacy": {
+    "message": "レガシー"
+  },
+  "address_type_native_segwit": {
+    "message": "ネイティブSegWit"
+  },
+  "address_type_nested_segwit": {
+    "message": "ネスト型SegWit"
+  },
+  "common_destinations": {
+    "message": "送信先"
+  },
+  "swap_form_route_many_orders": {
+    "message": "$1 件の注文"
+  },
+  "swap_form_route_one_order": {
+    "message": "$1 件の注文"
+  },
+  "approval_structure_attach_missing_output_title": {
+    "message": "存在しない出力へのアタッチ"
+  },
+  "approval_structure_attach_missing_output_one": {
+    "message": "出力 #$1 にアセットをアタッチしようとしていますが、このトランザクションの出力数は $2 です。このアタッチは記載どおりには成立しません。署名され、承認された場合でも、Bitcoin の手数料は発生します。"
+  },
+  "approval_structure_attach_missing_output_many": {
+    "message": "出力 #$1 にアセットをアタッチしようとしていますが、このトランザクションの出力数は $2 です。このアタッチは記載どおりには成立しません。署名され、承認された場合でも、Bitcoin の手数料は発生します。"
+  },
+  "approval_structure_utxo_source_not_spent_title": {
+    "message": "このトランザクションは送信元 UTXO を消費しません"
+  },
+  "approval_structure_utxo_source_not_spent_description": {
+    "message": "メッセージは $1 を送信元として指定していますが、このトランザクションはその UTXO を消費しません。署名はブロックされます。署名され、承認された場合でも、Bitcoin の手数料は発生します。"
+  },
+  "approval_blocked": {
+    "message": "署名不可"
+  },
+  "approval_review": {
+    "message": "内容を確認"
+  },
+  "common_connect": {
+    "message": "接続"
+  },
+  "provider_review_identity_changed": {
+    "message": "このリクエスト後に使用中のアドレスが変わりました。許可したアドレスに戻すか、サイトに再接続してください。"
+  },
+  "provider_review_connection_revoked": {
+    "message": "このサイトとの接続は解除されています。署名前に再接続してください。"
+  },
+  "provider_review_paired_revoked": {
+    "message": "ペアのアドレスへのアクセス許可が取り消されました。署名前にサイトに再接続してください。"
+  },
+  "provider_review_wallet_locked": {
+    "message": "ウォレットはロックされています"
+  },
+  "provider_review_invalid_id": {
+    "message": "署名リクエスト ID が無効です"
+  },
+  "provider_review_missing_id": {
+    "message": "署名リクエスト ID が指定されていません"
+  },
+  "provider_review_wrong_screen": {
+    "message": "このリクエストは別の承認画面で確認する必要があります"
+  },
+  "provider_review_load_failed": {
+    "message": "署名リクエストを読み込めません"
+  },
+  "provider_review_nothing_to_verify": {
+    "message": "検証する署名リクエストがありません"
+  },
+  "provider_review_not_reviewed": {
+    "message": "確認済みの署名リクエストがありません"
+  },
+  "provider_review_verifying": {
+    "message": "検証中です。完了するまで署名せずにお待ちください。"
+  },
+  "provider_review_retry_required": {
+    "message": "検証を再試行し、成功してから署名してください。"
+  },
+  "provider_review_cancelled": {
+    "message": "署名リクエストはキャンセルされました"
+  },
+  "provider_review_unavailable": {
+    "message": "署名リクエストが見つからないか、現在は処理待ちではありません"
+  },
+  "provider_review_missing_sighash": {
+    "message": "署名対象の入力に対応する sighash の指定がありません"
+  },
+  "provider_review_invalid_message": {
+    "message": "メッセージ署名リクエストが無効か、ウォレットの予約形式を使用しています"
+  },
+  "provider_review_expired_during_review": {
+    "message": "確認中に署名リクエストの有効期限が切れました"
+  },
+  "provider_review_invalid_decision": {
+    "message": "署名の承認情報が無効です"
+  },
+  "provider_review_verification_failed": {
+    "message": "このリクエストはトランザクションの検証に合格しませんでした"
+  },
+  "provider_review_review_changed": {
+    "message": "トランザクションの確認内容が変わりました。この承認画面を再読み込みし、もう一度確認してください。"
+  },
+  "provider_review_acknowledge_risks": {
+    "message": "署名前にトランザクションのリスクを確認し、了承してください"
+  },
+  "provider_review_missing_attachment": {
+    "message": "アタッチ元の親トランザクションがありません"
+  },
+  "provider_review_interrupted": {
+    "message": "署名リクエストはキャンセルされたか、有効期限が切れました"
+  },
+  "provider_review_expired_completion": {
+    "message": "処理が完了する前に署名リクエストの有効期限が切れました"
+  },
+  "provider_review_expired_delivery": {
+    "message": "結果を返す前に署名リクエストの有効期限が切れました"
+  },
+  "composer_verification_fee_inputs_unavailable": {
+    "message": "使用する入力の金額を取得できず、取引手数料を確認できませんでした。接続を確認して再試行してください。"
+  },
+  "composer_verification_fee_inputs_unreadable": {
+    "message": "入力を読み取れず、取引手数料を確認できないため、この取引を拒否しました。"
+  },
+  "composer_verification_fee_outputs_exceed_inputs": {
+    "message": "取引の出力合計額が入力合計額を超えているため、署名を拒否しました。"
+  },
+  "composer_verification_fee_out_of_range": {
+    "message": "取引手数料が扱える範囲を超えているため、署名を拒否しました。"
+  },
+  "composer_verification_fee_abnormally_high": {
+    "message": "取引手数料（$1 sats、約$2 sat/vB）が異常に高いため、取引をブロックしました。"
+  },
+  "composer_verification_fee_exceeds_selected_rate": {
+    "message": "取引手数料（$1 sats）が、選択した手数料率 $2 sat/vB で想定される額を大幅に超えています。"
+  },
+  "composer_verification_output_recovery_key_mismatch": {
+    "message": "作成された取引のデータ出力に、あなたのものではない回収用公開鍵が含まれています。その出力の少額の BTC（ダスト）を他人が使用できてしまいます。"
+  },
+  "composer_verification_output_recipient_missing": {
+    "message": "この取引では、データ出力より前に $1 宛ての出力がないため、ネットワークはそのアドレスを受取先として認識しません。取引を拒否しました。"
+  },
+  "composer_verification_output_recipient_single": {
+    "message": "この取引のデータより前にある出力（$1）は、$2 を受取先として示していません。取引を拒否しました。"
+  },
+  "composer_verification_output_recipient_multiple": {
+    "message": "この取引のデータより前にある複数の出力（$1）は、$2 ではなく、アドレスを連結した受取先として読み取られます。取引を拒否しました。"
+  },
+  "composer_verification_output_unexplained_one": {
+    "message": "この取引にはリクエストで確認できない出力（$1）があるため、取引を拒否しました。"
+  },
+  "composer_verification_output_unexplained_many": {
+    "message": "この取引にはリクエストで確認できない複数の出力（$1）があるため、取引を拒否しました。"
+  },
+  "composer_verification_output_payment": {
+    "message": "$2 宛てに $1 sats"
+  },
+  "composer_verification_output_unknown_script": {
+    "message": "デコードできないスクリプト"
+  },
+  "composer_verification_output_unknown_address": {
+    "message": "デコードできないアドレス"
+  },
+  "approval_sign": {
+    "message": "署名"
+  },
+  "tx_action_send": {
+    "message": "送金"
+  },
+  "tx_action_multi_send": {
+    "message": "複数宛先への送金"
+  },
+  "tx_action_btc_pay": {
+    "message": "BTC決済"
+  },
+  "tx_action_order": {
+    "message": "注文"
+  },
+  "tx_action_cancel": {
+    "message": "キャンセル"
+  },
+  "tx_action_dispenser": {
+    "message": "ディスペンサー"
+  },
+  "tx_action_dispense": {
+    "message": "払い出し"
+  },
+  "tx_action_issuance": {
+    "message": "発行"
+  },
+  "tx_action_subasset_issuance": {
+    "message": "サブアセットの発行"
+  },
+  "tx_action_dividend": {
+    "message": "配当"
+  },
+  "tx_action_sweep": {
+    "message": "一括移転"
+  },
+  "tx_action_broadcast": {
+    "message": "ブロードキャスト"
+  },
+  "tx_action_pool_deposit": {
+    "message": "流動性の追加"
+  },
+  "tx_action_pool_withdrawal": {
+    "message": "流動性の引き出し"
+  },
+  "tx_action_utxo_move": {
+    "message": "UTXOのアセット移転"
+  },
+  "tx_action_attach": {
+    "message": "UTXOへの紐付け"
+  },
+  "tx_action_detach": {
+    "message": "UTXOからの切り離し"
+  },
+  "tx_action_destroy": {
+    "message": "焼却"
+  },
+  "tx_action_mint": {
+    "message": "ミント"
+  },
+  "tx_action_create_fairminter": {
+    "message": "フェアミンターの作成"
+  },
+  "tx_action_close_dispenser": {
+    "message": "ディスペンサーを閉じる"
+  },
+  "tx_action_fund_dispenser": {
+    "message": "ディスペンサーへの入金"
+  },
+  "tx_action_send_amount": {
+    "message": "$1 $2を送金"
+  },
+  "tx_action_send_amount_to": {
+    "message": "$3に$1 $2を送金"
+  },
+  "tx_action_send_one_recipient": {
+    "message": "送金明細：$1件"
+  },
+  "tx_action_send_recipients": {
+    "message": "送金明細：$1件"
+  },
+  "tx_action_give_for": {
+    "message": "$1 $2を$3 $4と交換"
+  },
+  "tx_action_cancel_order_details": {
+    "message": "注文をキャンセル：$1"
+  },
+  "tx_action_cancel_dex_order": {
+    "message": "DEX注文をキャンセル"
+  },
+  "tx_action_sell_for": {
+    "message": "$1 $2を$3 $4で売却"
+  },
+  "tx_action_close_asset_dispenser": {
+    "message": "$1のディスペンサーを閉じる"
+  },
+  "tx_action_dispense_rate": {
+    "message": "$3 satsにつき$1 $2"
+  },
+  "tx_action_trigger_dispenser": {
+    "message": "ディスペンサーの払い出しを実行"
+  },
+  "tx_action_issue_amount": {
+    "message": "$1を発行"
+  },
+  "tx_action_no_new_supply": {
+    "message": "新規発行なし"
+  },
+  "tx_action_per_unit": {
+    "message": "1単位あたり$1 $2"
+  },
+  "tx_action_all_holders": {
+    "message": "すべての$1保有者"
+  },
+  "tx_action_settle_btc": {
+    "message": "BTCを支払い、約定した注文を決済"
+  },
+  "tx_action_sweep_to": {
+    "message": "$1へ一括移転"
+  },
+  "tx_action_empty_message": {
+    "message": "空のメッセージ"
+  },
+  "tx_action_destroy_lp": {
+    "message": "$1 LPトークンを焼却"
+  },
+  "tx_action_withdraw_liquidity": {
+    "message": "流動性を引き出す"
+  },
+  "tx_action_deposit_liquidity": {
+    "message": "流動性を追加"
+  },
+  "tx_action_attach_amount": {
+    "message": "$1 $2をUTXOに紐付け"
+  },
+  "tx_action_detach_all": {
+    "message": "UTXOからすべてのアセットを切り離す"
+  },
+  "tx_action_detach_all_to": {
+    "message": "UTXOからすべてのアセットを切り離し、$1へ移転"
+  },
+  "tx_action_move_amount": {
+    "message": "$1 $2を移転"
+  },
+  "tx_action_move_amount_to": {
+    "message": "$1 $2を$3へ移転"
+  },
+  "tx_action_destroy_amount": {
+    "message": "$1 $2を焼却"
+  },
+  "tx_action_base_units": {
+    "message": "$1（最小単位）"
+  },
+  "tx_action_memo": {
+    "message": "メモ"
+  },
+  "tx_action_tag": {
+    "message": "タグ"
+  },
+  "tx_action_hex_label": {
+    "message": "$1（16進数）"
+  },
+  "tx_action_price": {
+    "message": "価格"
+  },
+  "tx_action_btc_fee": {
+    "message": "BTC手数料"
+  },
+  "tx_action_expiry": {
+    "message": "有効期限"
+  },
+  "tx_action_blocks": {
+    "message": "$1ブロック"
+  },
+  "tx_action_block": {
+    "message": "$1ブロック"
+  },
+  "tx_action_escrow": {
+    "message": "預託数量"
+  },
+  "tx_action_per_dispense": {
+    "message": "1回あたりの支払額"
+  },
+  "tx_action_dispenses": {
+    "message": "払い出し回数"
+  },
+  "tx_action_you_receive": {
+    "message": "受取内容"
+  },
+  "tx_action_xcp_price_per_lot": {
+    "message": "1ロットのXCP価格"
+  },
+  "tx_action_lot_size": {
+    "message": "1ロットの数量"
+  },
+  "tx_action_no_limit": {
+    "message": "制限なし"
+  },
+  "tx_action_per_transaction_limit": {
+    "message": "1取引あたりの上限"
+  },
+  "tx_action_per_address_limit": {
+    "message": "1アドレスあたりの上限"
+  },
+  "tx_action_hard_cap": {
+    "message": "発行上限"
+  },
+  "tx_action_soft_cap": {
+    "message": "成立に必要な最低数量"
+  },
+  "tx_action_soft_cap_deadline": {
+    "message": "最低数量の達成期限"
+  },
+  "tx_action_block_height": {
+    "message": "ブロック$1"
+  },
+  "tx_action_premint": {
+    "message": "プレミント数量"
+  },
+  "tx_action_pool_allocation": {
+    "message": "プールへの割当数量"
+  },
+  "tx_action_lp_asset": {
+    "message": "LPアセット"
+  },
+  "tx_action_xcp_payment": {
+    "message": "XCPの支払先・用途"
+  },
+  "tx_action_free_mint": {
+    "message": "なし（無料ミント）"
+  },
+  "tx_action_burned": {
+    "message": "焼却"
+  },
+  "tx_action_seeds_pool": {
+    "message": "流動性プールの初期資金"
+  },
+  "tx_action_paid_to_issuer": {
+    "message": "発行者に支払い"
+  },
+  "tx_action_starts": {
+    "message": "開始"
+  },
+  "tx_action_ends": {
+    "message": "終了"
+  },
+  "tx_action_on_confirmation": {
+    "message": "承認時"
+  },
+  "tx_action_no_end_block": {
+    "message": "終了ブロックなし"
+  },
+  "tx_action_minted_asset_commission": {
+    "message": "発行アセットの手数料率"
+  },
+  "tx_action_divisible": {
+    "message": "小数単位の利用"
+  },
+  "tx_action_yes": {
+    "message": "はい"
+  },
+  "tx_action_no": {
+    "message": "いいえ"
+  },
+  "tx_action_lock_description": {
+    "message": "説明文をロック"
+  },
+  "tx_action_lock_quantity": {
+    "message": "発行数量をロック"
+  },
+  "tx_action_description_format": {
+    "message": "説明の形式"
+  },
+  "tx_action_description_content": {
+    "message": "説明の内容"
+  },
+  "tx_action_description": {
+    "message": "説明"
+  },
+  "tx_action_xcp_burned": {
+    "message": "焼却するXCP"
+  },
+  "tx_action_xcp_to_pool": {
+    "message": "プールに入るXCP"
+  },
+  "tx_action_xcp_price": {
+    "message": "XCP価格"
+  },
+  "tx_action_lock": {
+    "message": "ロック"
+  },
+  "tx_action_reset": {
+    "message": "リセット"
+  },
+  "tx_action_lock_consequence": {
+    "message": "はい — 以後、発行数量を増やせません"
+  },
+  "tx_action_reset_consequence": {
+    "message": "はい — 既存の供給量を焼却して置き換えます"
+  },
+  "tx_action_new_owner": {
+    "message": "新しい所有者"
+  },
+  "tx_action_supply_before": {
+    "message": "焼却前の供給量"
+  },
+  "tx_action_supply_after": {
+    "message": "焼却後の供給量"
+  },
+  "tx_action_share_destroyed": {
+    "message": "焼却する割合"
+  },
+  "tx_action_includes": {
+    "message": "移転する内容"
+  },
+  "tx_action_sweep_balances_ownership": {
+    "message": "全残高とアセットの所有権"
+  },
+  "tx_action_sweep_ownership": {
+    "message": "アセットの所有権のみ"
+  },
+  "tx_action_sweep_balances": {
+    "message": "全残高"
+  },
+  "tx_action_format": {
+    "message": "形式"
+  },
+  "tx_action_plain_text": {
+    "message": "プレーンテキスト"
+  },
+  "tx_action_content": {
+    "message": "内容"
+  },
+  "tx_action_inscribed_data": {
+    "message": "インスクリプション — このブロードキャストにはメッセージではなくデータが含まれます"
+  },
+  "tx_action_value": {
+    "message": "値"
+  },
+  "tx_action_fee_fraction": {
+    "message": "手数料率"
+  },
+  "tx_action_time_left": {
+    "message": "残り時間"
+  },
+  "tx_action_payment_expired": {
+    "message": "期限切れ — この支払いでは約定を決済できません"
+  },
+  "tx_action_order_match": {
+    "message": "約定ID"
+  },
+  "tx_action_order_hash": {
+    "message": "注文ハッシュ"
+  },
+  "tx_action_deposit": {
+    "message": "追加数量"
+  },
+  "tx_action_ratio": {
+    "message": "比率"
+  },
+  "tx_action_pool": {
+    "message": "プール"
+  },
+  "tx_action_pool_fee": {
+    "message": "プール手数料"
+  },
+  "tx_action_min_lp_received": {
+    "message": "LPの最低受取数量"
+  },
+  "tx_action_min_asset_back": {
+    "message": "$1の最低受取数量"
+  },
+  "tx_action_xcp_fee": {
+    "message": "XCP手数料"
+  },
+  "tx_action_new_utxo": {
+    "message": "新しいUTXO"
+  },
+  "tx_action_detached": {
+    "message": "切り離す数量"
+  },
+  "tx_action_from_utxo": {
+    "message": "移転元UTXO"
+  },
+  "tx_action_to": {
+    "message": "移転先"
+  },
+  "tx_action_unavailable": {
+    "message": "取得できません"
+  },
+  "swap_quote_outcome_partial": {
+    "message": "現在の板の流動性では全量を約定できません。数量を減らすか、DEXで注文を出して約定を待ってください。"
+  },
+  "swap_quote_outcome_dust": {
+    "message": "この数量では $1 の最小単位に届かず、プールから何も受け取れません。$2 の数量を増やしてください。"
+  },
+  "swap_quote_outcome_no_liquidity": {
+    "message": "このペアで利用できる流動性がありません。"
+  },
+  "api_validation_connection_failed": {
+    "message": "APIに接続できません。URLとCORS設定を確認してください"
+  },
+  "api_validation_http_error": {
+    "message": "APIエラー：$1"
+  },
+  "api_validation_invalid_response": {
+    "message": "APIの応答形式が正しくありません"
+  },
+  "api_validation_invalid_url": {
+    "message": "URLの形式が正しくありません"
+  },
+  "api_validation_mainnet_required": {
+    "message": "メインネットに接続したAPIが必要です"
+  },
+  "api_validation_server_not_ready": {
+    "message": "APIサーバーの準備ができていません"
+  },
+  "api_validation_timeout": {
+    "message": "接続がタイムアウトしました。APIに接続できません"
+  },
+  "api_validation_url_required": {
+    "message": "APIのURLを入力してください"
+  },
+  "api_validation_version_required": {
+    "message": "Counterparty Core $1以降のAPIが必要です"
+  },
+  "balance_pending_attaching": {
+    "message": "アタッチ中"
+  },
+  "balance_pending_burning": {
+    "message": "焼却中"
+  },
+  "balance_pending_confirmation": {
+    "message": "承認待ち"
+  },
+  "balance_pending_depositing": {
+    "message": "流動性追加中"
+  },
+  "balance_pending_detaching": {
+    "message": "デタッチ中"
+  },
+  "balance_pending_dispensing": {
+    "message": "払い出し中"
+  },
+  "balance_pending_dividend": {
+    "message": "配当支払い中"
+  },
+  "balance_pending_issuing": {
+    "message": "発行中"
+  },
+  "balance_pending_matching": {
+    "message": "マッチング中"
+  },
+  "balance_pending_minting": {
+    "message": "ミント中"
+  },
+  "balance_pending_moving": {
+    "message": "移動中"
+  },
+  "balance_pending_opening": {
+    "message": "開設中"
+  },
+  "balance_pending_ordering": {
+    "message": "注文送信中"
+  },
+  "balance_pending_paying": {
+    "message": "支払い中"
+  },
+  "balance_pending_refilling": {
+    "message": "補充中"
+  },
+  "balance_pending_resetting": {
+    "message": "リセット中"
+  },
+  "balance_pending_sending": {
+    "message": "送信中"
+  },
+  "balance_pending_sweeping": {
+    "message": "一括移転中"
+  },
+  "balance_pending_withdrawing": {
+    "message": "流動性引き出し中"
+  },
+  "baseasset_quoteasset_no_buy_orders": {
+    "message": "$1/$2の買い注文はありません"
+  },
+  "baseasset_quoteasset_no_sell_orders": {
+    "message": "$1/$2の売り注文はありません"
+  },
+  "charts_range_days": {
+    "message": "$1日"
+  },
+  "charts_range_hours": {
+    "message": "$1時間"
+  },
+  "charts_range_years": {
+    "message": "$1年"
+  },
+  "hardware_error_address_failed": {
+    "message": "Trezorからアドレスを読み込めませんでした。端末を確認して、もう一度お試しください。"
+  },
+  "hardware_error_busy": {
+    "message": "Trezorは別の操作で使用中です。その操作を終了して、もう一度お試しください。"
+  },
+  "hardware_error_cancelled": {
+    "message": "Trezorの操作をキャンセルしました。"
+  },
+  "hardware_error_disconnected": {
+    "message": "Trezorの接続が切れました。再接続して、もう一度お試しください。"
+  },
+  "hardware_error_discovery_failed": {
+    "message": "Trezorのアカウントを読み込めませんでした。端末を確認して、もう一度お試しください。"
+  },
+  "hardware_error_init_failed": {
+    "message": "Trezorとの接続を開始できませんでした。接続を確認して、もう一度お試しください。"
+  },
+  "hardware_error_permission_denied": {
+    "message": "Trezorの画面でアクセスを許可して、もう一度お試しください。"
+  },
+  "hardware_error_public_key_failed": {
+    "message": "Trezorから公開鍵を読み込めませんでした。端末を確認して、もう一度お試しください。"
+  },
+  "hardware_error_taproot_message": {
+    "message": "TrezorではTaproot（P2TR）アドレスでメッセージに署名できません。$1など、別のアドレスタイプを使用してください。"
+  },
+  "inputs_api_url_input_api_url": {
+    "message": "APIのURL"
+  },
+  "messages_mpma_addresses": {
+    "message": "$1件のアドレス"
+  },
+  "messages_mpma_assets": {
+    "message": "$1種類のアセット"
+  },
+  "messages_mpma_details_unavailable": {
+    "message": "送金明細の全体を取得できません。"
+  },
+  "messages_mpma_one_address": {
+    "message": "$1件のアドレス"
+  },
+  "messages_mpma_one_asset": {
+    "message": "$1種類のアセット"
+  },
+  "messages_order_expires_after_block": {
+    "message": "ブロック $1 の後"
+  },
+  "messages_order_recorded_state": {
+    "message": "記録された注文の状態"
+  },
+  "messages_order_snapshot_notice": {
+    "message": "このトランザクションで記録された注文の状態です。その後の約定や取消は含まれません。"
+  },
+  "messages_order_status_cancelled": {
+    "message": "取消済み"
+  },
+  "messages_order_status_expired": {
+    "message": "期限切れ"
+  },
+  "messages_order_status_filled": {
+    "message": "約定済み"
+  },
+  "messages_order_status_open": {
+    "message": "有効"
+  },
+  "messages_order_status_unknown": {
+    "message": "不明"
+  },
+  "settings_order_duration_hours": {
+    "message": "$1時間"
+  },
+  "settings_order_duration_days": {
+    "message": "$1日"
+  },
+  "settings_order_duration_weeks": {
+    "message": "$1週間"
+  },
+  "settings_order_duration_months": {
+    "message": "$1か月"
+  },
+  "transaction_unconfirmed": {
+    "message": "未承認"
+  },
+  "asset_asset_list_load_failed": {
+    "message": "管理しているアセットを読み込めませんでした。"
+  },
+  "asset_asset_list_load_more_failed": {
+    "message": "続きのアセットを読み込めませんでした。"
+  },
+  "balance_balance_list_load_failed": {
+    "message": "残高を読み込めませんでした。"
+  },
+  "balance_balance_list_load_more_failed": {
+    "message": "続きの残高を読み込めませんでした。"
+  },
+  "utxo_utxo_list_load_failed": {
+    "message": "UTXOの残高を読み込めませんでした。"
+  },
+  "utxo_utxo_list_load_more_failed": {
+    "message": "続きのUTXO残高を読み込めませんでした。"
+  },
+  "utxo_utxo_list_searching_utxo_balances": {
+    "message": "UTXOの残高を検索中…"
+  },
+  "common_load_more": {
+    "message": "さらに読み込む"
+  },
+  "common_loading_more": {
+    "message": "追加読み込み中…"
+  },
+  "market_searching_pools": {
+    "message": "プールを検索中…"
+  },
+  "market_failed_to_load_listings": {
+    "message": "一覧を読み込めませんでした。もう一度お試しください。"
+  },
+  "search_error_rate_limited": {
+    "message": "検索の回数制限に達しました。時間をおいて再試行してください。"
+  },
+  "search_error_failed": {
+    "message": "検索できませんでした。もう一度お試しください。"
+  },
+  "search_error_timeout": {
+    "message": "検索がタイムアウトしました。もう一度お試しください。"
+  },
+  "search_error_invalid_response": {
+    "message": "検索結果の応答形式が正しくありません。"
+  },
+  "search_error_detail": {
+    "message": "検索結果を読み込めませんでした：$1"
+  },
+  "baseasset_quoteasset_select_pair": {
+    "message": "取引ペアを選択してください"
+  },
+  "baseasset_quoteasset_loading_matches": {
+    "message": "約定履歴を読み込み中…"
+  }
+}

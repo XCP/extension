@@ -3,6 +3,9 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { validateMemo as validateMemoUtil } from "@/core/validation/memo";
 
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
+
 interface MemoInputProps {
   value?: string;
   onChange?: (value: string) => void;
@@ -30,6 +33,7 @@ export function MemoInput({
   name = "memo",
   maxBytes = 34,
 }: MemoInputProps): ReactElement {
+  useLocaleRevision();
   const [memo, setMemo] = useState(value);
   const [isValid, setIsValid] = useState(true);
 
@@ -76,14 +80,14 @@ export function MemoInput({
   return (
     <Field className={className}>
       <Label className="text-sm font-medium text-gray-700">
-        Memo {required && <span className="text-red-500">*</span>}
+        {t('common_memo')} {required && <span className="text-red-500">*</span>}
       </Label>
       <Input
         type="text"
         name={name}
         value={memo}
         onChange={handleMemoChange}
-        placeholder="Optional memo"
+        placeholder={t('inputs_memo_input_optional_memo')}
         className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 transition-colors ${
           !isValid
             ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
@@ -96,7 +100,7 @@ export function MemoInput({
 
       {showHelpText && (
         <Description id="memo-description" className="mt-2 text-sm text-gray-500">
-          Optional memo to include.
+          {t('inputs_memo_input_optional_memo_to_include')}
         </Description>
       )}
     </Field>

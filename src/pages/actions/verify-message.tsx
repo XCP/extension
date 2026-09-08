@@ -10,6 +10,7 @@ import { useHeader } from "@/contexts/header-context";
 import { verifyMessageWithMethod } from "@/core/bitcoin/messageVerifier";
 import { validateSignatureJson } from "@/core/validation/signatureJson";
 
+import { t } from '@/i18n';
 /**
  * VerifyMessage component for verifying Bitcoin message signatures
  */
@@ -40,10 +41,10 @@ export default function VerifyMessagePage(): ReactElement {
     const hasContent = Boolean(address || message || signature || verificationResult !== null || error);
 
     setHeaderProps({
-      title: "Verify Message",
+      title: t('common_verify_message'),
       onBack: () => navigate(-1),
       rightButton: {
-        ariaLabel: "Reset form",
+        ariaLabel: t('common_reset_form'),
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleClear,
         disabled: !hasContent,
@@ -54,17 +55,17 @@ export default function VerifyMessagePage(): ReactElement {
   
   const handleVerify = async () => {
     if (!message.trim()) {
-      setError("Please enter the message that was signed");
+      setError(t('actions_verify_message_please_enter_the_message_that'));
       return;
     }
 
     if (!signature.trim()) {
-      setError("Please enter the signature");
+      setError(t('actions_verify_message_please_enter_the_signature'));
       return;
     }
 
     if (!address.trim()) {
-      setError("Please enter the signer's Bitcoin address");
+      setError(t('actions_verify_message_please_enter_the_signer_s'));
       return;
     }
     
@@ -79,7 +80,7 @@ export default function VerifyMessagePage(): ReactElement {
       setVerificationMethod(result.method || null);
     } catch (err) {
       console.error("Failed to verify message:", err);
-      setError(err instanceof Error ? err.message : "Failed to verify message");
+      setError(err instanceof Error ? err.message : t('actions_verify_message_failed_to_verify_message'));
       setVerificationResult(false);
     } finally {
       setIsVerifying(false);
@@ -99,7 +100,7 @@ export default function VerifyMessagePage(): ReactElement {
         const result = validateSignatureJson(JSON.parse(text));
 
         if (!result.valid || !result.data) {
-          setError(result.error || "Invalid signature JSON file");
+          setError(result.error || t('actions_verify_message_invalid_signature_json_file'));
           return;
         }
 
@@ -110,7 +111,7 @@ export default function VerifyMessagePage(): ReactElement {
         setVerificationMethod(null);
         setError(null);
       } catch (_err) {
-        setError("Failed to parse JSON file. Make sure it's valid JSON with address, message, and signature fields.");
+        setError(t('actions_verify_message_failed_to_parse_json_file'));
       }
     };
     input.click();
@@ -125,7 +126,8 @@ export default function VerifyMessagePage(): ReactElement {
           className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer"
         >
           <FaUpload className="size-4 mr-2" aria-hidden="true" />
-          Upload JSON
+          
+          {t('actions_verify_message_upload_json')}
         </button>
       </div>
       
@@ -135,12 +137,12 @@ export default function VerifyMessagePage(): ReactElement {
         <TextAreaInput
           value={message}
           onChange={setMessage}
-          label="Message"
-          placeholder="Enter the exact message that was signed…"
+          label={t('common_message')}
+          placeholder={t('actions_verify_message_enter_the_exact_message_that')}
           rows={4}
           required={false}
           showCharCount={true}
-          description="Must match exactly"
+          description={t('actions_verify_message_must_match_exactly')}
         />
 
         {/* Signature Input - Second, usually received with the message */}
@@ -148,8 +150,8 @@ export default function VerifyMessagePage(): ReactElement {
           <TextAreaInput
             value={signature}
             onChange={setSignature}
-            label="Signature"
-            placeholder="Enter the signature (base64 or hex format)…"
+            label={t('common_signature')}
+            placeholder={t('actions_verify_message_enter_the_signature_base64_or')}
             rows={3}
             required={false}
           />
@@ -160,8 +162,8 @@ export default function VerifyMessagePage(): ReactElement {
           <DestinationInput
             value={address}
             onChange={setAddress}
-            label="Signer's Address"
-            placeholder="Enter the Bitcoin address that signed this"
+            label={t('actions_verify_message_signer_s_address')}
+            placeholder={t('actions_verify_message_enter_the_bitcoin_address_that')}
             required={false}
             showHelpText={false}
           />
@@ -171,16 +173,16 @@ export default function VerifyMessagePage(): ReactElement {
                 <div className="space-y-1">
                   <div className="flex items-center gap-1">
                     <FaCheckCircle className="text-green-600 size-3" aria-hidden="true" />
-                    <span className="text-xs text-green-600">Signature Valid</span>
+                    <span className="text-xs text-green-600">{t('actions_verify_message_signature_valid')}</span>
                   </div>
                   {verificationMethod && (
                     <div className="text-xs text-gray-500">
-                      Verified using: {verificationMethod}
+                      {t('actions_verify_message_verified_using', [String(verificationMethod)])}
                     </div>
                   )}
                 </div>
               ) : (
-                <span className="text-xs text-red-600">Signature Invalid - Does not match the message and address provided</span>
+                <span className="text-xs text-red-600">{t('actions_verify_message_signature_invalid_does_not_match')}</span>
               )}
             </div>
           )}
@@ -194,7 +196,7 @@ export default function VerifyMessagePage(): ReactElement {
             disabled={!address.trim() || !message.trim() || !signature.trim() || isVerifying}
             fullWidth
           >
-            {isVerifying ? "Verifying…" : "Verify Signature"}
+            {isVerifying ? t('common_verifying') : t('actions_verify_message_verify_signature')}
           </Button>
         </div>
       </div>

@@ -314,7 +314,7 @@ describe('FeeRateInput', () => {
 
       // Should show dropdown with Medium selected (value=5)
       const button = screen.getByRole('button');
-      expect(button).toHaveTextContent('Medium');
+      expect(button).toHaveTextContent('30 Min');
       expect(button).toHaveTextContent('5 sat/vB');
     });
 

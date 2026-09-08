@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
+import { historyTransactionTypeLabel } from '@/components/domain/tx/tx-action-info';
 import { FaChevronLeft, FaExternalLinkAlt } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -9,13 +10,26 @@ import { useHeader } from "@/contexts/header-context";
 import { fetchTransaction, type Transaction } from "@/core/counterparty/api";
 import { formatAmount, formatDate, formatTimeAgo } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { getMessageHandler } from "@/pages/transactions/_messages";
 
+type TransactionLoadError = { code: 'missing_hash' | 'not_found' | 'fetch_failed' } | Error;
+
+function loadErrorMessage(error: TransactionLoadError): string {
+  if (error instanceof Error) return error.message;
+  switch (error.code) {
+    case 'missing_hash': return t('transactions_txhash_no_transaction_hash_provided');
+    case 'not_found': return t('transactions_txhash_transaction_not_found');
+    case 'fetch_failed': return t('transactions_txhash_failed_to_fetch_transaction');
+  }
+}
 /**
  * ViewTransaction component displays the details of a specific transaction.
  * Uses modular message type handlers for different transaction types.
  */
 export default function TransactionPage(): ReactElement {
+  const localeRevision = useLocaleRevision();
   const { txHash } = useParams<{ txHash: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -23,7 +37,7 @@ export default function TransactionPage(): ReactElement {
   
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<TransactionLoadError | null>(null);
 
   // Get the page number from location state to return to the correct history page
   const savedPage = location.state?.page || 1;
@@ -31,7 +45,7 @@ export default function TransactionPage(): ReactElement {
   useEffect(() => {
     const loadTransaction = async () => {
       if (!txHash) {
-        setError("No transaction hash provided");
+        setError({ code: 'missing_hash' });
         setIsLoading(false);
         return;
       }
@@ -41,10 +55,10 @@ export default function TransactionPage(): ReactElement {
         if (tx) {
           setTransaction(tx);
         } else {
-          setError("Transaction not found");
+          setError({ code: 'not_found' });
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch transaction");
+        setError(err instanceof Error ? err : { code: 'fetch_failed' });
       } finally {
         setIsLoading(false);
       }
@@ -55,20 +69,20 @@ export default function TransactionPage(): ReactElement {
 
   useEffect(() => {
     setHeaderProps({
-      title: "Transaction",
+      title: t('common_transaction'),
       onBack: () => navigate(`/addresses/history?page=${savedPage}`),
       rightButton: {
         icon: <FaExternalLinkAlt className="size-4" aria-hidden="true" />,
         onClick: () => window.open(`https://www.xcp.io/tx/${txHash}`, "_blank"),
-        ariaLabel: "View on XChain",
+        ariaLabel: t('transactions_txhash_view_on_xchain'),
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, txHash, savedPage]);
+  }, [setHeaderProps, navigate, txHash, savedPage, localeRevision]);
 
-  if (isLoading) return <Spinner message="Loading transaction…" />;
-  if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
-  if (!transaction) return <ErrorAlert message="Transaction not found" />;
+  if (isLoading) return <Spinner message={t('transactions_txhash_loading_transaction')} />;
+  if (error) return <ErrorAlert message={loadErrorMessage(error)} onClose={() => setError(null)} />;
+  if (!transaction) return <ErrorAlert message={t('transactions_txhash_transaction_not_found')} />;
 
   // Get the message type
   const messageType = transaction.unpacked_data?.message_type || 
@@ -88,13 +102,13 @@ export default function TransactionPage(): ReactElement {
       <div className="flex-1 overflow-auto no-scrollbar p-4">
         <div className="bg-white rounded-lg shadow-lg p-4 space-y-4">
           <h2 className="text-lg font-bold">
-            {messageType.toUpperCase().replace(/_/g, " ")}
+            {historyTransactionTypeLabel(messageType)}
           </h2>
 
           <div className="space-y-4">
             {/* Transaction Hash */}
             <div className="space-y-1">
-              <span className="font-semibold text-gray-700">Transaction Hash:</span>
+              <span className="font-semibold text-gray-700">{t('transactions_txhash_transaction_hash')}</span>
               <div className="bg-gray-50 p-2 rounded break-all text-gray-900 text-xs">
                 {transaction.tx_hash}
               </div>
@@ -103,13 +117,13 @@ export default function TransactionPage(): ReactElement {
             {/* Block Info */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <span className="font-semibold text-gray-700">Block:</span>
+                <span className="font-semibold text-gray-700">{t('transactions_txhash_block')}</span>
                 <div className="bg-gray-50 p-2 rounded text-gray-900">
                   {transaction.block_index}
                 </div>
               </div>
               <div className="space-y-1">
-                <span className="font-semibold text-gray-700">Time:</span>
+                <span className="font-semibold text-gray-700">{t('transactions_txhash_time')}</span>
                 <div 
                   className="bg-gray-50 p-2 rounded text-gray-900 cursor-help"
                   title={formatDate(transaction.block_time)}
@@ -121,7 +135,7 @@ export default function TransactionPage(): ReactElement {
 
             {/* Source Address */}
             <div className="space-y-1">
-              <span className="font-semibold text-gray-700">From:</span>
+              <span className="font-semibold text-gray-700">{t('common_from')}</span>
               <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
                 {transaction.source || "N/A"}
               </div>
@@ -130,7 +144,7 @@ export default function TransactionPage(): ReactElement {
             {/* Destination Address (if applicable) */}
             {(transaction.destination && transaction.destination !== transaction.source) && (
               <div className="space-y-1">
-                <span className="font-semibold text-gray-700">To:</span>
+                <span className="font-semibold text-gray-700">{t('common_to')}</span>
                 <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
                   {transaction.destination}
                 </div>
@@ -154,7 +168,7 @@ export default function TransactionPage(): ReactElement {
             {/* Fee */}
             {(btcFee !== null && btcFee > 0) && (
               <div className="space-y-1">
-                <span className="font-semibold text-gray-700">Fee:</span>
+                <span className="font-semibold text-gray-700">{t('common_fee')}</span>
                 <div className="bg-gray-50 p-2 rounded text-gray-900">
                   {`${formatAmount({
                     value: btcFee,
@@ -168,7 +182,7 @@ export default function TransactionPage(): ReactElement {
             {/* BTC Amount (if different from fee and greater than 0) */}
             {transaction.btc_amount !== undefined && transaction.btc_amount > 0 && (
               <div className="space-y-1">
-                <span className="font-semibold text-gray-700">BTC Amount:</span>
+                <span className="font-semibold text-gray-700">{t('transactions_txhash_btc_amount')}</span>
                 <div className="bg-gray-50 p-2 rounded text-gray-900">
                   {transaction.btc_amount_normalized ? 
                     `${transaction.btc_amount_normalized} BTC` : 
@@ -184,9 +198,9 @@ export default function TransactionPage(): ReactElement {
 
             {/* Confirmation Status */}
             <div className="space-y-1">
-              <span className="font-semibold text-gray-700">Status:</span>
+              <span className="font-semibold text-gray-700">{t('transactions_txhash_status')}</span>
               <div className="bg-gray-50 p-2 rounded text-gray-900">
-                {transaction.confirmed ? "Confirmed" : "Unconfirmed"}
+                {transaction.confirmed ? t('consolidate_history_confirmed') : t('transaction_unconfirmed')}
               </div>
             </div>
           </div>
@@ -195,7 +209,7 @@ export default function TransactionPage(): ReactElement {
           <div className="mt-4">
             <details>
               <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
-                Raw Transaction Data
+                {t('transactions_txhash_raw_transaction_data')}
               </summary>
               <pre className="mt-2 overflow-y-auto overflow-x-auto text-sm bg-gray-50 p-3 rounded-md h-44 border border-gray-200">
                 {JSON.stringify(transaction, null, 2)}
@@ -214,7 +228,8 @@ export default function TransactionPage(): ReactElement {
         >
           <div className="flex items-center justify-center gap-2">
             <FaChevronLeft className="size-4" aria-hidden="true" />
-            Back to History
+            
+            {t('transactions_txhash_back_to_history')}
           </div>
         </Button>
       </div>

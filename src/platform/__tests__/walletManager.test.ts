@@ -68,7 +68,8 @@ import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
 import { extractPsbtDetails, signPSBT } from '@/core/bitcoin/psbt';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { base64ToBuffer } from '@/core/encryption/buffer';
-import { decryptJsonWithKey, decryptWithKey, deriveKey, deriveKeyAsync } from '@/core/encryption/encryption';
+import { decryptJsonWithKey, decryptWithKey, deriveKey, deriveKeyAsync, encryptJsonWithKey } from '@/core/encryption/encryption';
+import { DEFAULT_SETTINGS } from '@/core/settings';
 // Import modules to get access to mocked functions
 import * as sessionManager from '@/platform/auth/sessionManager';
 import {
@@ -147,6 +148,90 @@ describe('WalletManager', () => {
     it('should update last active time', async () => {
       await walletManager.setLastActiveTime();
       expect(mocks.sessionManager.setLastActiveTime).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('Settings persistence', () => {
+    const originalNode = 'https://saved-node.example';
+    const rejectedNode = 'https://unsaved-node.example';
+
+    function deferredWrite() {
+      let resolve!: () => void;
+      let reject!: (error: Error) => void;
+      const promise = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
+      return { promise, resolve, reject };
+    }
+
+    beforeEach(async () => {
+      const keychain = createTestKeychain();
+      keychain.settings.counterpartyApiBase = originalNode;
+      mockKeychainUnlocked(mocks, keychain);
+      vi.mocked(encryptJsonWithKey).mockReset().mockResolvedValue('settings-encrypted');
+      vi.mocked(saveKeychainRecord).mockResolvedValue(undefined);
+      vi.mocked(sessionManager.updateSessionTimeout).mockReset().mockResolvedValue(undefined);
+      await walletManager.refreshWallets();
+    });
+
+    it.each(['encryption', 'storage'] as const)('restores confirmed settings after a failed %s step', async step => {
+      const before = walletManager.getSettings();
+      const failure = new Error(`${step} failed`);
+      if (step === 'encryption') vi.mocked(encryptJsonWithKey).mockRejectedValueOnce(failure);
+      else vi.mocked(saveKeychainRecord).mockRejectedValueOnce(failure);
+
+      await expect(walletManager.updateSettings({
+        counterpartyApiBase: rejectedNode, strictTransactionVerification: false, autoLockTimer: '1m',
+      })).rejects.toBe(failure);
+
+      expect(walletManager.getSettings()).toEqual(before);
+      expect(sessionManager.updateSessionTimeout).not.toHaveBeenCalled();
+      if (step === 'encryption') expect(saveKeychainRecord).not.toHaveBeenCalled();
+    });
+
+    it('does not carry a rejected node or security flag into the next queued save', async () => {
+      const write = deferredWrite();
+      const failure = new Error('Storage failed');
+      vi.mocked(saveKeychainRecord).mockImplementationOnce(() => write.promise);
+      const failed = expect(walletManager.updateSettings({
+        counterpartyApiBase: rejectedNode, strictTransactionVerification: false,
+      })).rejects.toBe(failure);
+      const next = walletManager.updateSettings({ language: 'ja' });
+      await vi.waitFor(() => expect(saveKeychainRecord).toHaveBeenCalledTimes(1));
+      write.reject(failure);
+      await failed;
+      await next;
+
+      expect(walletManager.getSettings()).toMatchObject({
+        counterpartyApiBase: originalNode, strictTransactionVerification: true, language: 'ja',
+      });
+      expect(saveKeychainRecord).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(encryptJsonWithKey).mock.calls[1]![0]).toMatchObject({ settings: {
+        counterpartyApiBase: originalNode, strictTransactionVerification: true, language: 'ja',
+      } });
+    });
+
+    it('does not restore pre-lock settings when a pending storage write rejects', async () => {
+      const write = deferredWrite();
+      const failure = new Error('Storage failed after lock');
+      vi.mocked(saveKeychainRecord).mockImplementationOnce(() => write.promise);
+      const failed = expect(walletManager.updateSettings({ counterpartyApiBase: rejectedNode })).rejects.toBe(failure);
+      await vi.waitFor(() => expect(saveKeychainRecord).toHaveBeenCalledTimes(1));
+      await walletManager.lockKeychain();
+      write.reject(failure);
+      await failed;
+
+      expect(walletManager.getSettings()).toEqual(DEFAULT_SETTINGS);
+      expect(walletManager['keychain']).toBeNull();
+    });
+
+    it('retains committed keychain settings if the later session timeout update fails', async () => {
+      const failure = new Error('Session timeout storage failed');
+      vi.mocked(sessionManager.updateSessionTimeout).mockRejectedValueOnce(failure);
+      await expect(walletManager.updateSettings({ autoLockTimer: '1m' })).rejects.toBe(failure);
+
+      expect(saveKeychainRecord).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(encryptJsonWithKey).mock.calls[0]![0]).toMatchObject({ settings: { autoLockTimer: '1m' } });
+      expect(walletManager.getSettings()).toMatchObject({ counterpartyApiBase: originalNode, autoLockTimer: '1m' });
+      expect(sessionManager.updateSessionTimeout).toHaveBeenCalledWith(60_000);
     });
   });
 

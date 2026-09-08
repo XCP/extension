@@ -3,6 +3,7 @@ import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import type { AttachOptions } from "@/core/counterparty/compose";
 import { composeAttach } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { UtxoAttachForm } from "@/pages/compose/utxo/attach/form";
 import { ReviewUtxoAttach } from "@/pages/compose/utxo/attach/review";
 
@@ -12,7 +13,7 @@ function ComposeUtxoAttachPage() {
   if (!asset) {
     return (
       <div className="p-4">
-        <ErrorAlert message="Asset parameter is required" />
+        <ErrorAlert message={t('common_asset_parameter_is_required')} />
       </div>
     );
   }
@@ -22,8 +23,8 @@ function ComposeUtxoAttachPage() {
       <Composer<AttachOptions>
         composeType="attach"
         composeApiMethod={composeAttach}
-        initialTitle="Attach UTXO"
-        FormComponent={(props) => (
+        initialTitle={t('utxo_attach_attach_utxo')}
+        renderForm={(props) => (
           <UtxoAttachForm
             {...props}
             initialAsset={asset}

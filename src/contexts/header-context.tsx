@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { AssetInfo, TokenBalance } from "@/core/counterparty/api";
 import { formatAddress } from "@/core/format";
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 /**
  * Props for a button in the header.
@@ -313,11 +314,14 @@ interface HeaderProviderProps {
  */
 export function HeaderProvider({ children }: HeaderProviderProps): ReactElement {
   const [state, dispatch] = useReducer(headerReducer, INITIAL_STATE);
+  const localeRevision = useLocaleRevision();
 
   const setHeaderProps = useCallback(
     (props: Partial<HeaderProps> | null) =>
       dispatch(props ? { type: "SET_MAIN_PROPS", payload: props } : { type: "RESET_MAIN" }),
-    []
+    // Re-run page header effects after a language change without remounting pages.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Locale changes must invalidate translated page-header effects without remounting forms.
+    [localeRevision]
   );
 
   const setAddressHeader = useCallback((address: string, walletName?: string) => {

@@ -1,6 +1,7 @@
 import { Composer } from "@/components/composer/composer";
 import type { BroadcastOptions } from "@/core/counterparty/compose";
 import { composeBroadcast } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { AddressOptionsForm } from "@/pages/compose/broadcast/address-options/form";
 import { ReviewAddressOptions } from "@/pages/compose/broadcast/address-options/review";
 
@@ -10,7 +11,7 @@ function ComposeBroadcastAddressOptionsPage() {
       <Composer<BroadcastOptions>
         composeType="broadcast"
         composeApiMethod={composeBroadcast}
-        initialTitle="Broadcast"
+        initialTitle={t('common_broadcast')}
         FormComponent={AddressOptionsForm}
         ReviewComponent={ReviewAddressOptions}
       />

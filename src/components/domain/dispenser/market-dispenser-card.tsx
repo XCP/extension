@@ -4,6 +4,8 @@ import type { DispenserDetails } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { isEqualTo } from "@/core/numeric";
 
+import { t } from '@/i18n';
+
 interface MarketDispenserCardProps {
   dispenser: DispenserDetails;
   formattedPrice?: string;
@@ -45,13 +47,13 @@ export function MarketDispenserCard({
             <span className="font-medium text-blue-600 text-sm truncate">{assetName}</span>
             {!isEqualTo(dispenser.give_quantity_normalized, 1) && (
               <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                {formatAmount({ value: dispenser.give_quantity_normalized, maximumFractionDigits: 2 })} per dispense
+                {t('dispenser_market_dispenser_card_per_dispense', [String(formatAmount({ value: dispenser.give_quantity_normalized, maximumFractionDigits: 2 }))])}
               </span>
             )}
           </div>
           <div className="flex justify-between text-xs text-gray-500">
             <span>{formattedPrice ?? `${formatAmount({ value: dispenser.satoshirate, maximumFractionDigits: 0 })} sats`}</span>
-            <span>{formatAmount({ value: dispenser.give_remaining_normalized, maximumFractionDigits: 0 })} remaining</span>
+            <span>{t('dispenser_asset_dispenser_card_remaining', [String(formatAmount({ value: dispenser.give_remaining_normalized, maximumFractionDigits: 0 }))])}</span>
           </div>
         </div>
       </div>

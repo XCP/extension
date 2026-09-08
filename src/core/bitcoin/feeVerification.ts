@@ -92,9 +92,16 @@ export interface FeeCheckInput {
   userFeeRate: number | string | null;
 }
 
+/** Stable presentation data; the original error text remains available to non-UI callers. */
+export type FeeVerificationDiagnostic =
+  | { code: 'fee_inputs_unavailable' | 'fee_inputs_unreadable' | 'fee_outputs_exceed_inputs' | 'fee_out_of_range' }
+  | { code: 'fee_abnormally_high'; data: { feeSats: number; approximateRate: string } }
+  | { code: 'fee_exceeds_selected_rate'; data: { feeSats: number; selectedRate: number } };
+
 export interface FeeCheckResult {
   ok: boolean;
   error?: string;
+  diagnostic?: FeeVerificationDiagnostic;
   /** The miner fee implied by inputs minus outputs. */
   computedFee?: number;
 }
@@ -173,6 +180,7 @@ export async function checkTransactionFee(
   if ('failed' in inputsTotal) {
     return {
       ok: false,
+      diagnostic: { code: inputsTotal.failed === 'lookup' ? 'fee_inputs_unavailable' : 'fee_inputs_unreadable' },
       error: inputsTotal.failed === 'lookup'
         ? 'Could not establish this transaction\'s fee: the values of the inputs it spends could '
           + 'not be fetched. Check your connection and try again.'
@@ -187,12 +195,12 @@ export async function checkTransactionFee(
   }
   const fee = inputsTotal.total - outputsTotal;
   if (fee < 0n) {
-    return { ok: false, error: 'Transaction outputs exceed inputs — refusing to sign.' };
+    return { ok: false, error: 'Transaction outputs exceed inputs — refusing to sign.', diagnostic: { code: 'fee_outputs_exceed_inputs' } };
   }
   // A fee is satoshis, so it fits a number exactly — but only while it really does.
   const computedFee = toSafeInteger(fee);
   if (computedFee === undefined) {
-    return { ok: false, error: 'Transaction fee is out of range — refusing to sign.' };
+    return { ok: false, error: 'Transaction fee is out of range — refusing to sign.', diagnostic: { code: 'fee_out_of_range' } };
   }
 
   const vsize = Math.max(1, estimateVsize(tx, rawBytes.length));
@@ -202,6 +210,7 @@ export async function checkTransactionFee(
     return {
       ok: false,
       error: `Transaction fee (${computedFee} sats, ~${roundDown(impliedRate).toFixed()} sat/vB) is abnormally high and was blocked.`,
+      diagnostic: { code: 'fee_abnormally_high', data: { feeSats: computedFee, approximateRate: roundDown(impliedRate).toFixed() } },
       computedFee,
     };
   }
@@ -219,6 +228,7 @@ export async function checkTransactionFee(
       return {
         ok: false,
         error: `Transaction fee (${computedFee} sats) far exceeds your selected rate of ${rate} sat/vB.`,
+        diagnostic: { code: 'fee_exceeds_selected_rate', data: { feeSats: computedFee, selectedRate: rate } },
         computedFee,
       };
     }

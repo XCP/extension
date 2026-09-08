@@ -4,6 +4,9 @@ import { shouldTriggerAssetLookup } from "@/core/validation/assetOwner";
 import { isValidBitcoinAddress } from "@/core/validation/bitcoin";
 import { useAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
 
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
+
 interface DestinationInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -25,18 +28,19 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
       value,
       onChange,
       onValidationChange,
-      placeholder = "Enter destination address",
+      placeholder = t('move_form_enter_destination_address'),
       required = true,
       disabled = false,
       showHelpText = false,
       className = "",
       name = "destination",
-      label = "Destination",
-      helpText = "Enter recipient's address.",
+      label = t('common_destination'),
+      helpText = t('common_enter_recipient_s_address'),
       labelRight,
     },
     ref
   ) => {
+    useLocaleRevision();
     const onResolve = useCallback((assetName: string, ownerAddress: string) => {
       onChange(ownerAddress);
     }, [onChange]);
@@ -80,10 +84,10 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
       displayHelpText = lookupError;
       helpTextColor = "text-red-600";
     } else if (isLookingUp) {
-      displayHelpText = "Looking up asset owner…";
+      displayHelpText = t('inputs_destination_input_looking_up_asset_owner');
       helpTextColor = "text-blue-600";
     } else if (lookupResult && isValidAddress) {
-      displayHelpText = `Resolved to owner address`;
+      displayHelpText = t('inputs_destination_input_resolved_to_owner_address');
       helpTextColor = "text-green-600";
     }
 

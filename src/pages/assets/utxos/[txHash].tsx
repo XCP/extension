@@ -14,6 +14,9 @@ import { formatAmount, formatTimeAgo, formatTxid } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 
 
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
+
 /**
  * Constants for navigation paths.
  */
@@ -35,6 +38,7 @@ const PATHS = {
  * ```
  */
 export default function UtxoPage(): ReactElement {
+  useLocaleRevision();
   const { txHash: txid } = useParams<{ txHash: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
@@ -44,6 +48,8 @@ export default function UtxoPage(): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
   const [btcTxData, setBtcTxData] = useState<any>(null);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
+  const headerTitle = t('utxos_txhash_utxo_details');
+  const copyLabel = t('utxos_txhash_copy_utxo');
 
   // Handle copy UTXO to clipboard
   const handleCopyUtxo = async () => {
@@ -61,16 +67,16 @@ export default function UtxoPage(): ReactElement {
   // setHeaderProps on every render and re-trigger this effect.
   useEffect(() => {
     setHeaderProps({
-      title: "UTXO Details",
+      title: headerTitle,
       onBack: () => navigate(-1),
       rightButton: {
         icon: copiedToClipboard ? <FiCheck className="size-4" aria-hidden="true" /> : <FiCopy className="size-4" aria-hidden="true" />,
         onClick: handleCopyUtxo,
-        ariaLabel: "Copy UTXO"
+        ariaLabel: copyLabel
       }
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, txid, copiedToClipboard, balances]);
+  }, [setHeaderProps, navigate, txid, copiedToClipboard, balances, headerTitle, copyLabel]);
 
   // Load UTXO balances and Bitcoin transaction data
   useEffect(() => {
@@ -86,7 +92,7 @@ export default function UtxoPage(): ReactElement {
         const [transactionId, voutStr] = txid.split(':');
         const vout = parseInt(voutStr ?? '', 10);
         if (!transactionId || !Number.isInteger(vout)) {
-          throw new Error(`Invalid UTXO identifier: ${txid}`);
+          throw new Error(t('utxos_txhash_invalid_utxo_identifier', [String(txid)]));
         }
         
         // Load both UTXO balances and Bitcoin transaction data in parallel
@@ -99,7 +105,7 @@ export default function UtxoPage(): ReactElement {
         setBtcTxData({ ...btcTx, vout });
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch UTXO data");
+        setError(err instanceof Error ? err.message : t('utxos_txhash_failed_to_fetch_utxo_data'));
       } finally {
         setIsLoading(false);
       }
@@ -119,14 +125,14 @@ export default function UtxoPage(): ReactElement {
         items: [
           {
             id: "move",
-            title: "Move",
-            description: "Move this UTXO to another address",
+            title: t('common_move'),
+            description: t('utxos_txhash_move_this_utxo_to_another'),
             onClick: () => navigate(`${PATHS.COMPOSE}/utxo/move/${txid}`),
           },
           {
             id: "detach",
-            title: "Detach",
-            description: "Detach assets from this UTXO",
+            title: t('common_detach'),
+            description: t('utxos_txhash_detach_assets_from_this_utxo'),
             onClick: () => navigate(`${PATHS.COMPOSE}/utxo/detach/${txid}`),
             className: "!border !border-red-500",
           },
@@ -135,7 +141,7 @@ export default function UtxoPage(): ReactElement {
     ];
   };
 
-  if (isLoading) return <div className="p-4 text-center text-gray-600">Loading UTXO details…</div>;
+  if (isLoading) return <div className="p-4 text-center text-gray-600">{t('utxos_txhash_loading_utxo_details')}</div>;
   if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
 
   return (
@@ -149,30 +155,32 @@ export default function UtxoPage(): ReactElement {
       )}
       <div className="bg-white rounded-lg p-4 shadow-sm">
         <h2 id="utxo-title" className="text-sm font-medium text-gray-900">
-          Details
+          {t('utxos_txhash_details')}
         </h2>
         <div className="mt-2 space-y-2">
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Output</span>
+            <span className="text-sm text-gray-500">{t('common_output')}</span>
             <span className="text-sm font-mono text-gray-900">{formatTxid(txid || '')}</span>
           </div>
           {btcTxData && (
             <>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Time Attached</span>
+                <span className="text-sm text-gray-500">{t('utxos_txhash_time_attached')}</span>
                 <span className="text-sm text-gray-900">
-                  {btcTxData.blocktime ? formatTimeAgo(btcTxData.blocktime) : 'Pending'}
+                  {btcTxData.blocktime ? formatTimeAgo(btcTxData.blocktime) : t('balance_pending_confirmation')}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Confirmations</span>
+                <span className="text-sm text-gray-500">{t('utxos_txhash_confirmations')}</span>
                 <span className="text-sm text-gray-900">
-                  {btcTxData.confirmations ? btcTxData.confirmations.toLocaleString() : '0'}
+                  {btcTxData.confirmations
+                    ? formatAmount({ value: btcTxData.confirmations, maximumFractionDigits: 0 })
+                    : '0'}
                 </span>
               </div>
               {btcTxData.vout !== undefined && btcTxData.vout_list && btcTxData.vout_list[btcTxData.vout] && (
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">BTC Value</span>
+                  <span className="text-sm text-gray-500">{t('utxos_txhash_btc_value')}</span>
                   <span className="text-sm text-gray-900">
                     {formatAmount({
                       value: fromSatoshis(btcTxData.vout_list[btcTxData.vout].value_int, true),
@@ -188,7 +196,7 @@ export default function UtxoPage(): ReactElement {
         {balances.length > 0 && (
           <>
             <hr className="my-4 border-gray-200" />
-            <h2 className="text-sm font-medium text-gray-900">Balances</h2>
+            <h2 className="text-sm font-medium text-gray-900">{t('common_balances')}</h2>
             <div className="mt-2 space-y-2">
               {balances.map((balance, index) => (
                 <div key={index} className="flex justify-between p-2 -mx-2">

@@ -259,6 +259,65 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     }
   });
 
+  walletTest('display preferences preserve an invalid draft across wallet surfaces', async ({ page, context }, testInfo) => {
+    await page.setViewportSize({ width: 360, height: 700 });
+    const amount = send.amountInput(page);
+    await amount.pressSequentially('1e5');
+    await expect(amount).toHaveValue('1e5');
+    const composeRequests: string[] = [];
+    context.on('request', request => {
+      if (/\/v2\/addresses\/.*\/compose\//.test(request.url())) composeRequests.push(request.url());
+    });
+    const settingsPage = await context.newPage();
+    try {
+      await settingsPage.goto(page.url().split('#')[0] + '#/settings');
+      const controls = settingsPage.locator('section[aria-label] select');
+      await expect(controls).toHaveCount(3);
+      await expect(controls.nth(2)).toHaveValue('usd');
+      // Natural wrapping only: the normal-width wallet must fit actionable guidance in two lines.
+      for (const language of ['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+        await controls.nth(0).selectOption(language);
+        await expect(page.locator('html')).toHaveAttribute('lang', language);
+        const errorId = await amount.getAttribute('aria-describedby');
+        const guidance = page.locator(`[id="${errorId}"]`);
+        await expect(guidance).toBeVisible();
+        const layout = await guidance.evaluate(element => {
+          const style = getComputedStyle(element);
+          return { height: element.getBoundingClientRect().height, lineHeight: parseFloat(style.lineHeight), clipped: element.scrollHeight > element.clientHeight, overflow: style.overflow };
+        });
+        expect(layout.height).toBeLessThanOrEqual(layout.lineHeight * 2 + 1);
+        expect(layout.clipped).toBe(false);
+        expect(layout.overflow).not.toBe('hidden');
+        const screenshotPath = testInfo.outputPath(`input-guidance-${language}-360px.png`);
+        await page.screenshot({ path: screenshotPath });
+        await testInfo.attach(`input-guidance-${language}-360px`, { path: screenshotPath, contentType: 'image/png' });
+        await expect(amount).toHaveValue('1e5');
+      }
+      await controls.nth(0).selectOption('ja');
+      await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
+      await expect(amount).toHaveValue('1e5');
+      await expect(amount).toHaveAttribute('aria-invalid', 'true');
+      await expect(page.getByText('半角数字と小数点のみ（小数8桁まで）。カンマ不可。')).toBeVisible();
+      await controls.nth(1).selectOption('de-DE');
+      await expect(controls.nth(2)).toHaveValue('usd');
+      await expect(amount).toHaveValue('1e5');
+      await controls.nth(0).selectOption('zh-TW');
+      await expect(page.locator('html')).toHaveAttribute('lang', 'zh-TW');
+      await expect(controls.nth(1)).toHaveValue('de-DE');
+      await expect(controls.nth(2)).toHaveValue('usd');
+      await expect(amount).toHaveValue('1e5');
+      await settingsPage.reload();
+      await expect(controls.nth(0)).toHaveValue('zh-TW');
+      await expect(controls.nth(1)).toHaveValue('de-DE');
+      await expect(controls.nth(2)).toHaveValue('usd');
+      await amount.evaluate(input => (input as HTMLInputElement).form?.requestSubmit());
+      expect(composeRequests).toEqual([]);
+      await amount.fill('1.5');
+      await expect(amount).toHaveValue('1.5');
+      await expect(amount).not.toHaveAttribute('aria-invalid', 'true');
+    } finally { await settingsPage.close(); }
+  });
+
   walletTest('handles very small amount (below dust limit)', async ({ page }) => {
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);

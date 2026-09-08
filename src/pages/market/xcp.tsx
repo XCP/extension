@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { FiRefreshCw } from "@/components/icons";
+import { chartRangeLabel } from '@/components/ui/charts/chart-range-label';
 import { PriceChart } from "@/components/ui/charts/price-chart";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
@@ -12,16 +13,18 @@ import {
   type XcpPriceHistoryData,
   type XcpStats,
 } from "@/core/counterparty/price";
-import { formatAmount } from "@/core/format";
+import { displayLocale, formatAmount } from "@/core/format";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
 
 // Time range options over the daily history from api.xcp.io
 type XcpTimeRange = "7d" | "30d" | "1y" | "all";
-const TIME_RANGES: { id: XcpTimeRange; label: string; days: number | null }[] = [
-  { id: "7d", label: "7D", days: 7 },
-  { id: "30d", label: "30D", days: 30 },
-  { id: "1y", label: "1Y", days: 365 },
-  { id: "all", label: "All", days: null },
+const TIME_RANGES: { id: XcpTimeRange; days: number | null }[] = [
+  { id: "7d", days: 7 },
+  { id: "30d", days: 30 },
+  { id: "1y", days: 365 },
+  { id: "all", days: null },
 ];
 
 // Chart dimensions
@@ -39,6 +42,7 @@ function filterHistory(history: PricePoint[], range: XcpTimeRange): PricePoint[]
  * Price data comes from the xcp.io explorer API (USD).
  */
 export default function XcpPricePage(): ReactElement {
+  const localeRevision = useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
 
@@ -47,33 +51,33 @@ export default function XcpPricePage(): ReactElement {
   const [historyData, setHistoryData] = useState<XcpPriceHistoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [chartError, setChartError] = useState<string | null>(null);
-  const [statsError, setStatsError] = useState<string | null>(null);
+  const [chartError, setChartError] = useState(false);
+  const [statsError, setStatsError] = useState(false);
 
   // UI state
   const [range, setRange] = useState<XcpTimeRange>("30d");
 
   // Load stats
   const loadStats = useCallback(async () => {
-    setStatsError(null);
+    setStatsError(false);
     const statsData = await getXcpStats();
     if (statsData) {
       setStats(statsData);
     } else {
-      setStatsError("Unable to load price");
+      setStatsError(true);
     }
   }, []);
 
   // Load full daily history (range filtering happens client-side)
   const loadHistory = useCallback(async () => {
-    setChartError(null);
+    setChartError(false);
     try {
       const data = await getXcpPriceHistory();
       setHistoryData(data);
     } catch (err) {
       console.error("Failed to load XCP price history:", err);
       setHistoryData(null);
-      setChartError("Unable to load chart data");
+      setChartError(true);
     }
   }, []);
 
@@ -103,17 +107,17 @@ export default function XcpPricePage(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "XCP Price",
+      title: t('market_xcp_xcp_price'),
       onBack: () => navigate("/market"),
       rightButton: {
-        ariaLabel: "Refresh price",
+        ariaLabel: t('common_refresh_price'),
         icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: handleRefresh,
         disabled: isRefreshing,
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, isRefreshing, handleRefresh]);
+  }, [setHeaderProps, navigate, isRefreshing, handleRefresh, localeRevision]);
 
   const handleBuyXcp = () => {
     analytics.track("buy_xcp");
@@ -153,7 +157,7 @@ export default function XcpPricePage(): ReactElement {
   }, [historyData?.ath, stats]);
 
   if (loading) {
-    return <Spinner message="Loading XCP price…" />;
+    return <Spinner message={t('market_xcp_loading_xcp_price')} />;
   }
 
   return (
@@ -172,17 +176,17 @@ export default function XcpPricePage(): ReactElement {
                 />
                 <span className="text-xl font-semibold text-gray-900">XCP</span>
               </div>
-              <span className="text-xs text-gray-500 mt-1">Counterparty (USD)</span>
+              <span className="text-xs text-gray-500 mt-1">{t('market_xcp_counterparty_usd')}</span>
             </div>
             <div className="text-right">
               {statsError ? (
                 <div className="text-sm text-red-600">
-                  <span className="block">{statsError}</span>
+                  <span className="block">{t('common_unable_to_load_price')}</span>
                   <button type="button"
                     onClick={loadStats}
                     className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
-                    Retry
+                    {t('common_retry')}
                   </button>
                 </div>
               ) : (
@@ -204,17 +208,18 @@ export default function XcpPricePage(): ReactElement {
         {/* Section Header with Tabs left, Buy XCP link right */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-1">
-            {TIME_RANGES.map((t) => (
+            {TIME_RANGES.map((timeRange) => (
               <button type="button"
-                key={t.id}
-                onClick={() => setRange(t.id)}
+                key={timeRange.id}
+                onClick={() => setRange(timeRange.id)}
+                aria-pressed={range === timeRange.id}
                 className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  range === t.id
+                  range === timeRange.id
                     ? "bg-gray-200 text-gray-900 font-medium"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                {t.label}
+                {chartRangeLabel(timeRange.id)}
               </button>
             ))}
           </div>
@@ -222,7 +227,7 @@ export default function XcpPricePage(): ReactElement {
             onClick={handleBuyXcp}
             className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
           >
-            Buy XCP
+            {t('market_xcp_buy_xcp')}
           </button>
         </div>
 
@@ -233,12 +238,12 @@ export default function XcpPricePage(): ReactElement {
               className="flex flex-col items-center justify-center text-center"
               style={{ height: CHART_HEIGHT }}
             >
-              <span className="text-sm text-red-600 mb-2">{chartError}</span>
+              <span className="text-sm text-red-600 mb-2">{t('common_unable_to_load_chart_data')}</span>
               <button type="button"
                 onClick={loadHistory}
                 className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
-                Try Again
+                {t('common_try_again')}
               </button>
             </div>
           ) : (
@@ -247,7 +252,7 @@ export default function XcpPricePage(): ReactElement {
               height={CHART_HEIGHT}
               lineColor="#0ea5e9"
               className="w-full"
-              currencySymbol="$"
+              currencySymbol="USD "
               priceDecimals={2}
               timeFormat="date"
             />
@@ -259,30 +264,30 @@ export default function XcpPricePage(): ReactElement {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mt-4">
             {stats?.satsPerXcp ? (
               <div className={`flex items-center justify-between ${ath ? "pb-2 border-b border-gray-100" : ""}`}>
-                <span className="text-sm text-gray-600">Floor Price</span>
+                <span className="text-sm text-gray-600">{t('market_xcp_floor_price')}</span>
                 <button type="button"
                   onClick={handleBuyXcp}
                   className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                  aria-label="View open XCP dispensers"
+                  aria-label={t('market_xcp_view_open_xcp_dispensers')}
                 >
-                  1 XCP = {formatAmount({ value: stats.satsPerXcp, maximumFractionDigits: 0 })} sats
+                  {t('market_xcp_1_xcp_sats', [String(formatAmount({ value: stats.satsPerXcp, maximumFractionDigits: 0 }))])}
                 </button>
               </div>
             ) : historyData?.satsPerXcp ? (
               <div className={`flex items-center justify-between ${ath ? "pb-2 border-b border-gray-100" : ""}`}>
-                <span className="text-sm text-gray-600">DEX Rate</span>
+                <span className="text-sm text-gray-600">{t('market_xcp_dex_rate')}</span>
                 <span className="text-sm font-medium text-gray-900">
-                  1 XCP = {formatAmount({ value: historyData.satsPerXcp, maximumFractionDigits: 0 })} sats
+                  {t('market_xcp_1_xcp_sats', [String(formatAmount({ value: historyData.satsPerXcp, maximumFractionDigits: 0 }))])}
                 </span>
               </div>
             ) : null}
             {ath && (
               <div className={`flex items-center justify-between ${(stats?.satsPerXcp || historyData?.satsPerXcp) ? "pt-2" : ""}`}>
-                <span className="text-sm text-gray-600">All-Time High</span>
+                <span className="text-sm text-gray-600">{t('market_xcp_all_time_high')}</span>
                 <span className="text-sm font-medium text-gray-900">
                   {formatPrice(ath.usd)}
                   <span className="text-gray-400 font-normal">
-                    {" "}· {new Date(`${ath.day}T00:00:00Z`).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                    {" "}· {new Date(`${ath.day}T00:00:00Z`).toLocaleDateString(displayLocale(), { year: "numeric", month: "short" })}
                   </span>
                 </span>
               </div>

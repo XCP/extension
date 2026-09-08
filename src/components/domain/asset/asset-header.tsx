@@ -6,6 +6,8 @@ import type { AssetInfo } from '@/core/counterparty/api';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
+import { t } from '@/i18n';
+
 /**
  * Props for the AssetHeader component.
  */
@@ -73,13 +75,12 @@ export const AssetHeader = ({ assetInfo, showInfoPopover = false, className = ''
           {displayInfo.asset_longname || displayInfo.asset}
         </h2>
         <p className="text-gray-600 text-sm">
-          Supply:{' '}
-          {formatAmount({
+          {t('asset_asset_header_supply', [String(' '), String(formatAmount({
             value: displaySupply,
             minimumFractionDigits: displayInfo.divisible ? 8 : 0,
             maximumFractionDigits: displayInfo.divisible ? 8 : 0,
             useGrouping: true,
-          })}
+          }))])}
         </p>
       </div>
       {showInfoPopover && (

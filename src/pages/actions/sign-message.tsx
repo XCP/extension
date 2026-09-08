@@ -4,19 +4,22 @@ import { useNavigate } from "react-router";
 import { FaCheck, FaCheckCircle, FaLock, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import type { AddressFormat } from "@/core/bitcoin/address";
 import { getSigningCapabilities, signMessage } from "@/core/bitcoin/messageSigner";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
-
 /**
  * SignMessage component for signing messages with Bitcoin addresses.
  * This is the manual signing tool available from the Actions menu.
  * dApp signing requests are handled by /requests/message/approve instead.
  */
 export default function SignMessagePage(): ReactElement {
+  const localeRevision = useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeWallet, activeAddress, getPrivateKey } = useWallet();
@@ -25,7 +28,8 @@ export default function SignMessagePage(): ReactElement {
   const [message, setMessage] = useState("");
   const [signature, setSignature] = useState("");
   const [isSigning, setIsSigning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | Error | null>(null);
+  const visibleError = error instanceof Error ? hardwareErrorMessage(error) ?? error.message : error;
   const [copiedField, setCopiedField] = useState<'message' | 'signature' | null>(null);
 
   // Reset function with stable reference
@@ -40,37 +44,37 @@ export default function SignMessagePage(): ReactElement {
     const hasContent = Boolean(message || signature || error);
 
     setHeaderProps({
-      title: "Sign Message",
+      title: t('common_sign_message'),
       onBack: () => navigate(-1),
       rightButton: {
-        ariaLabel: "Reset form",
+        ariaLabel: t('common_reset_form'),
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleReset,
         disabled: !hasContent,
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, handleReset, message, signature, error]);
+  }, [setHeaderProps, navigate, handleReset, message, signature, error, localeRevision]);
 
   // Get signing capabilities for current address
   const addressFormat = activeWallet?.addressFormat;
   const signingCapabilities = activeAddress && addressFormat ?
     getSigningCapabilities(addressFormat) :
-    { canSign: false, method: "Not available", notes: "No address selected" };
+    { canSign: false, method: "Not available", notes: t('common_no_address_selected') };
 
   const handleSign = async () => {
     if (!activeWallet || !activeAddress) {
-      setError("No active wallet or address");
+      setError(t('actions_sign_message_no_active_wallet_or_address'));
       return;
     }
 
     if (!message.trim()) {
-      setError("Please enter a message to sign");
+      setError(t('actions_sign_message_please_enter_a_message_to'));
       return;
     }
 
     if (!signingCapabilities.canSign) {
-      setError(`Message signing not supported for ${ addressFormat } addresses`);
+      setError(t('actions_sign_message_message_signing_not_supported_for', [String(addressFormat)]));
       return;
     }
 
@@ -122,7 +126,7 @@ export default function SignMessagePage(): ReactElement {
       analytics.track('message_signed');
     } catch (err) {
       console.error("Failed to sign message:", err);
-      setError(err instanceof Error ? err.message : "Failed to sign message");
+      setError(err instanceof Error ? err : t('actions_sign_message_failed_to_sign_message'));
     } finally {
       setIsSigning(false);
     }
@@ -153,16 +157,16 @@ export default function SignMessagePage(): ReactElement {
         setTimeout(() => setCopiedField(null), 1500);
       }
     } catch (_err) {
-      setError("Failed to perform action");
+      setError(t('actions_sign_message_failed_to_perform_action'));
     }
   };
 
   if (!activeAddress) {
     return (
       <div className="p-4 text-center">
-        <div className="text-gray-600 mb-4">No active address selected</div>
+        <div className="text-gray-600 mb-4">{t('common_no_active_address_selected')}</div>
         <Button onClick={() => navigate("/index")} color="blue">
-          Go to Wallet
+          {t('actions_sign_message_go_to_wallet')}
         </Button>
       </div>
     );
@@ -181,8 +185,8 @@ export default function SignMessagePage(): ReactElement {
               setSignature("");
             }
           }}
-          label="Message"
-          placeholder="Enter your message here…"
+          label={t('common_message')}
+          placeholder={t('actions_sign_message_enter_your_message_here')}
           rows={4}
           required={false}
           showCharCount={false}
@@ -190,7 +194,7 @@ export default function SignMessagePage(): ReactElement {
         />
         <div className="mt-2 flex justify-between items-center">
           <span className="text-xs text-gray-500">
-            {message.length} characters
+            {t('actions_sign_message_characters', [String(message.length)])}
           </span>
           {message && (
             <button type="button"
@@ -204,10 +208,11 @@ export default function SignMessagePage(): ReactElement {
               {copiedField === 'message' ? (
                 <>
                   <FaCheck className="size-3" aria-hidden="true" />
-                  Copied!
+                  
+                  {t('common_copied')}
                 </>
               ) : (
-                'Copy message'
+                t('actions_sign_message_copy_message')
               )}
             </button>
           )}
@@ -218,8 +223,8 @@ export default function SignMessagePage(): ReactElement {
           <TextAreaInput
             value={signature}
             onChange={() => {}} // Read-only
-            label="Signature"
-            placeholder="Signature will appear here after signing..."
+            label={t('common_signature')}
+            placeholder={t('actions_sign_message_signature_will_appear_here_after')}
             rows={3}
             disabled={true}
             readOnly={true}
@@ -229,7 +234,8 @@ export default function SignMessagePage(): ReactElement {
             <div className="mt-2 flex justify-between items-center">
               <span className="text-xs text-green-600 flex items-center gap-1">
                 <FaCheckCircle className="size-3" aria-hidden="true" />
-                Signed
+                
+                {t('actions_sign_message_signed')}
               </span>
               <button type="button"
                 onClick={() => handleCopy(signature, 'signature')}
@@ -242,10 +248,11 @@ export default function SignMessagePage(): ReactElement {
                 {copiedField === 'signature' ? (
                   <>
                     <FaCheck className="size-3" aria-hidden="true" />
-                    Copied!
+                    
+                    {t('common_copied')}
                   </>
                 ) : (
-                  'Copy signature'
+                  t('actions_sign_message_copy_signature')
                 )}
               </button>
             </div>
@@ -264,12 +271,13 @@ export default function SignMessagePage(): ReactElement {
               {isSigning ? (
                 <>
                   <FiRefreshCw className="size-4 mr-2 animate-spin" aria-hidden="true" />
-                  {activeWallet?.type === 'hardware' ? 'Confirm on device…' : 'Signing…'}
+                  {activeWallet?.type === 'hardware' ? t('common_confirm_on_device') : t('common_signing')}
                 </>
               ) : (
                 <>
                   <FaLock className="size-4 mr-2" aria-hidden="true" />
-                  Sign Message
+                  
+                  {t('common_sign_message')}
                 </>
               )}
             </Button>
@@ -287,22 +295,22 @@ export default function SignMessagePage(): ReactElement {
               }}
               color="gray"
             >
-              Reset
+              {t('actions_sign_message_reset')}
             </Button>
             <Button
               onClick={() => handleCopy('', 'json')}
               color="blue"
               fullWidth
             >
-              Download JSON
+              {t('actions_sign_message_download_json')}
             </Button>
           </div>
         )}
       </div>
 
       {/* Error Display */}
-      {error && (
-        <ErrorAlert message={error} onClose={() => setError(null)} />
+      {visibleError && (
+        <ErrorAlert message={visibleError} onClose={() => setError(null)} />
       )}
 
       {/* YouTube Tutorial */}
@@ -310,7 +318,7 @@ export default function SignMessagePage(): ReactElement {
         variant="youtube"
         href="https://youtube.com/watch?v=XXXXX"
       >
-        Learn how to sign and verify messages
+        {t('actions_sign_message_learn_how_to_sign_and')}
       </Button>
     </div>
   );

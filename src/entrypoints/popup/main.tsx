@@ -4,6 +4,9 @@ import ReactDOM from 'react-dom/client';
 import { HashRouter as Router } from 'react-router';
 import { AppProviders } from '@/contexts/app-providers';
 import App from '@/entrypoints/popup/app';
+import { applyDocumentLocale } from '@/i18n';
+
+applyDocumentLocale();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <StrictMode>

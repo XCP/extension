@@ -1,6 +1,7 @@
 import { Composer } from '@/components/composer/composer';
 import type { BTCPayOptions } from '@/core/counterparty/compose';
 import { composeBTCPay } from '@/core/counterparty/compose';
+import { t } from '@/i18n';
 import { BTCPayForm } from '@/pages/compose/order/btcpay/form';
 import { ReviewBTCPay } from '@/pages/compose/order/btcpay/review';
 
@@ -10,7 +11,7 @@ function ComposeOrderBtcPayPage() {
       <Composer<BTCPayOptions>
         composeType="btcpay"
         composeApiMethod={composeBTCPay}
-        initialTitle="BTCPay"
+        initialTitle={t('order_btcpay_btcpay')}
         FormComponent={BTCPayForm}
         ReviewComponent={ReviewBTCPay}
       />

@@ -27,6 +27,8 @@ import type { FairminterOptions } from "@/core/counterparty/compose";
 import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
+import { t } from '@/i18n';
+
 const FAIRMINTER_MODELS = {
   MINER_FEE_ONLY: "MINER_FEE_ONLY",
   XCP_FEE_TO_ISSUER: "XCP_FEE_TO_ISSUER",
@@ -37,9 +39,9 @@ type FairminterModel = typeof FAIRMINTER_MODELS[keyof typeof FAIRMINTER_MODELS];
 
 /** Each model decides where the payment goes and leaves the numbers to the creator. */
 const FAIRMINTER_MODEL_OPTIONS = [
-  { value: FAIRMINTER_MODELS.MINER_FEE_ONLY, label: "BTC Fee Model (Miners)" },
-  { value: FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER, label: "XCP Fee Model (To You)" },
-  { value: FAIRMINTER_MODELS.XCP_FEE_BURNED, label: "XCP Fee Model (Burned)" },
+  { value: FAIRMINTER_MODELS.MINER_FEE_ONLY, label: t('fairminter_form_btc_fee_model_miners') },
+  { value: FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER, label: t('fairminter_form_xcp_fee_model_to_you') },
+  { value: FAIRMINTER_MODELS.XCP_FEE_BURNED, label: t('fairminter_form_xcp_fee_model_burned') },
 ];
 
 /**
@@ -217,7 +219,7 @@ export function FairminterForm({
           ) : null}
         </div>
       }
-      submitText="Continue"
+      submitText={t('common_continue')}
       submitDisabled={pending || (!isExistingAsset && !isAssetNameValid)}
     >
           {localError && (
@@ -230,7 +232,8 @@ export function FairminterForm({
           )}
           <Field>
             <Label htmlFor="mintMethod" className="block text-sm font-medium text-gray-700">
-              Mint Method <span className="text-red-500">*</span>
+              
+              {t('fairminter_form_mint_method')} <span className="text-red-500">*</span>
             </Label>
             <div className="mt-1 relative">
               <Listbox value={FAIRMINTER_MODEL_OPTIONS.find(option => option.value === selectedMintMethod)} onChange={(option) => setSelectedMintMethod(option.value)} disabled={pending}>
@@ -261,7 +264,7 @@ export function FairminterForm({
             </div>
             {showHelpText && (
               <Description className="mt-2 text-sm text-gray-500">
-                Select the mint method for your fairminter.
+                {t('fairminter_form_select_the_mint_method_for')}
               </Description>
             )}
           </Field>
@@ -271,7 +274,7 @@ export function FairminterForm({
               value={assetName}
               onChange={setAssetName}
               onValidationChange={setIsAssetNameValid}
-              label="Asset Name"
+              label={t('common_asset_name')}
               disabled={pending}
               showHelpText={showHelpText}
               required
@@ -281,7 +284,7 @@ export function FairminterForm({
           
           {selectedMintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY && (
             <TextField
-              label="Mint per TX"
+              label={t('fairminter_form_mint_per_tx')}
               id="max_mint_per_tx"
               name="max_mint_per_tx"
               type="text"
@@ -293,12 +296,12 @@ export function FairminterForm({
               required
               disabled={pending}
               showHelpText={showHelpText}
-              description="Maximum amount that can be minted in a single transaction."
+              description={t('fairminter_form_maximum_amount_that_can_be')}
             />
           )}
 
           <TextField
-            label="Mint per Address"
+            label={t('common_mint_per_address')}
             id="max_mint_per_address"
             name="max_mint_per_address"
             type="text"
@@ -306,15 +309,15 @@ export function FairminterForm({
             value={maxMintPerAddress}
             onChange={handleQuantityChange(setMaxMintPerAddress)}
             step={getInputStep()}
-            placeholder="No limit"
+            placeholder={t('fairminter_form_no_limit')}
             disabled={pending}
             showHelpText={showHelpText}
-            description="Optional maximum amount each address can mint. Leave blank for no per-address limit."
+            description={t('fairminter_form_optional_maximum_amount_each_address')}
           />
           {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
             <>
               <TextField
-                label="Tokens per Mint"
+                label={t('fairminter_form_tokens_per_mint')}
                 id="lot_size"
                 name="lot_size"
                 type="text"
@@ -325,11 +328,11 @@ export function FairminterForm({
                 placeholder={getInputPlaceholder()}
                 disabled={pending}
                 showHelpText={showHelpText}
-                description="Number of tokens received per mint transaction."
+                description={t('fairminter_form_number_of_tokens_received_per')}
               />
 
               <TextField
-                label="XCP Cost per Mint"
+                label={t('fairminter_form_xcp_cost_per_mint')}
                 id="lot_price"
                 name="lot_price"
                 type="text"
@@ -338,7 +341,7 @@ export function FairminterForm({
                 required
                 disabled={pending}
                 showHelpText={showHelpText}
-                description="XCP required for each mint transaction."
+                description={t('fairminter_form_xcp_required_for_each_mint')}
               />
               {/* Hidden field to indicate lot_price is always in XCP for normalization */}
               <input type="hidden" name="lot_price_asset" value="XCP" />
@@ -348,7 +351,7 @@ export function FairminterForm({
           {!isInitializing && !isExistingAsset && (
             <CheckboxInput
               name="divisible"
-              label="Divisible"
+              label={t('common_divisible')}
               checked={isDivisible}
               onChange={setIsDivisible}
               disabled={pending}
@@ -356,7 +359,7 @@ export function FairminterForm({
           )}
           <Field>
             <Label htmlFor="description" className="block text-sm font-medium text-gray-700">
-              Description
+              {t('common_description')}
             </Label>
             <Textarea
               id="description"
@@ -369,15 +372,15 @@ export function FairminterForm({
             />
             {showHelpText && (
               <Description className="mt-2 text-sm text-gray-500">
-                A textual description for the asset.{inscribeEnabled ? " This will be inscribed on-chain." : ""}
+                {inscribeEnabled ? t('fairminter_form_a_textual_description_for_the') : t('issuance_form_a_textual_description_for_the')}
               </Description>
             )}
           </Field>
           
           {isSegwit && (
             <SettingSwitch
-              label="Inscribe?"
-              description="Store description as a Taproot inscription (on-chain)"
+              label={t('common_inscribe')}
+              description={t('fairminter_form_store_description_as_a_taproot')}
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
               showHelpText={showHelpText}
@@ -387,12 +390,12 @@ export function FairminterForm({
           
           <CheckboxInput
             name="lock_description"
-            label="Lock Description"
+            label={t('common_lock_description')}
             defaultChecked={initialFormData?.lock_description || false}
             disabled={pending}
           />
           <TextField
-            label="Hard Cap"
+            label={t('common_hard_cap')}
             id="hard_cap"
             name="hard_cap"
             type="text"
@@ -403,38 +406,38 @@ export function FairminterForm({
             placeholder={getInputPlaceholder()}
             disabled={pending}
             showHelpText={showHelpText}
-            description="Maximum total supply that can be minted."
+            description={t('fairminter_form_maximum_total_supply_that_can')}
           />
           <CheckboxInput
             name="lock_quantity"
-            label="Lock Quantity"
+            label={t('fairminter_form_lock_quantity')}
             defaultChecked={initialFormData?.lock_quantity || false}
             disabled={pending}
           />
 
-          <Collapsible title="Advanced Options">
+          <Collapsible title={t('fairminter_form_advanced_options')}>
                   <BlockHeightInput
                     name="start_block"
-                    label="Start Block"
+                    label={t('common_start_block')}
                     value={startBlock}
                     onChange={setStartBlock}
                     setError={(message) => message ? setLocalError({ message }) : setLocalError(null)}
                     showHelpText={showHelpText}
-                    description="The block at which the sale starts."
+                    description={t('fairminter_form_the_block_at_which_the')}
                     disabled={pending}
                   />
                   <BlockHeightInput
                     name="end_block"
-                    label="End Block"
+                    label={t('common_end_block')}
                     value={endBlock}
                     onChange={setEndBlock}
                     setError={(message) => message ? setLocalError({ message }) : setLocalError(null)}
                     showHelpText={showHelpText}
-                    description="The block at which the sale ends."
+                    description={t('fairminter_form_the_block_at_which_the_2')}
                     disabled={pending}
                   />
                   <TextField
-                    label="Pre-mine"
+                    label={t('fairminter_form_pre_mine')}
                     id="premint_quantity"
                     name="premint_quantity"
                     type="text"
@@ -445,10 +448,10 @@ export function FairminterForm({
                     placeholder={getInputPlaceholder()}
                     disabled={pending}
                     showHelpText={showHelpText}
-                    description="Amount of asset to mint when the sale starts."
+                    description={t('fairminter_form_amount_of_asset_to_mint')}
                   />
                   <TextField
-                    label="Commission"
+                    label={t('common_commission')}
                     id="minted_asset_commission"
                     name="minted_asset_commission"
                     type="text"
@@ -456,12 +459,12 @@ export function FairminterForm({
                     defaultValue={initialFormData?.minted_asset_commission?.toString() || "0.0"}
                     disabled={pending}
                     showHelpText={showHelpText}
-                    description="Commission (fraction between 0 and less than 1) to be paid."
+                    description={t('fairminter_form_commission_fraction_between_0_and')}
                   />
                   {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
                     <>
                       <TextField
-                        label="Soft Cap"
+                        label={t('common_soft_cap')}
                         id="soft_cap"
                         name="soft_cap"
                         type="text"
@@ -471,16 +474,16 @@ export function FairminterForm({
                         placeholder={getInputPlaceholder()}
                         disabled={pending}
                         showHelpText={showHelpText}
-                        description="Minimum amount required for the sale to succeed."
+                        description={t('fairminter_form_minimum_amount_required_for_the')}
                       />
                       <BlockHeightInput
                         name="soft_cap_deadline_block"
-                        label="Soft Cap Deadline Block"
+                        label={t('fairminter_form_soft_cap_deadline_block')}
                         value={softCapDeadlineBlock}
                         onChange={setSoftCapDeadlineBlock}
                         setError={(message) => message ? setLocalError({ message }) : setLocalError(null)}
                         showHelpText={showHelpText}
-                        description="The block by which the soft cap must be reached."
+                        description={t('fairminter_form_the_block_by_which_the')}
                         disabled={pending}
                       />
                     </>

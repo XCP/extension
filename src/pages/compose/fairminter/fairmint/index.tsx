@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { FairmintOptions } from "@/core/counterparty/compose";
 import { composeFairmint } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { FairmintForm } from "@/pages/compose/fairminter/fairmint/form";
 import { ReviewFairmint } from "@/pages/compose/fairminter/fairmint/review";
 
@@ -13,8 +14,8 @@ function ComposeFairmintPage() {
       <Composer<FairmintOptions>
         composeType="fairmint"
         composeApiMethod={composeFairmint}
-        initialTitle="Fairmint"
-        FormComponent={(props) => <FairmintForm {...props} asset={asset || ""} />}
+        initialTitle={t('fairminter_fairmint_fairmint')}
+        renderForm={(props) => <FairmintForm {...props} asset={asset || ""} />}
         ReviewComponent={ReviewFairmint}
       />
     </div>

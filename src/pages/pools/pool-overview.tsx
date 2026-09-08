@@ -8,6 +8,8 @@ import { getPoolDisplayAssets, getPoolDisplayPair } from "@/core/counterparty/po
 import { divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from "@/core/numeric";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
+import { t } from '@/i18n';
+
 interface PoolOverviewProps {
   pool: Pool;
   /** The viewer's LP position in this pool, when they hold the LP asset */
@@ -55,7 +57,7 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
         <div className="rounded border border-gray-200 bg-white">
           {priceOfFirst && priceOfSecond && (
             <div className="border-b border-gray-200 p-4">
-              <div className="text-xs font-medium uppercase text-gray-500">Price</div>
+              <div className="text-xs font-medium uppercase text-gray-500">{t('common_price')}</div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
                 1 {firstReserveAsset} = {priceOfFirst} {secondReserveAsset}
               </div>
@@ -66,13 +68,13 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
           )}
           <div className="grid grid-cols-2 divide-x divide-gray-200">
             <div className="p-4">
-              <div className="text-xs font-medium uppercase text-gray-500">Reserve {firstReserveAsset}</div>
+              <div className="text-xs font-medium uppercase text-gray-500">{t('pools_pool_overview_reserve', [String(firstReserveAsset)])}</div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
                 {reserveByAsset[firstReserveAsset]}
               </div>
             </div>
             <div className="p-4">
-              <div className="text-xs font-medium uppercase text-gray-500">Reserve {secondReserveAsset}</div>
+              <div className="text-xs font-medium uppercase text-gray-500">{t('pools_pool_overview_reserve', [String(secondReserveAsset)])}</div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
                 {reserveByAsset[secondReserveAsset]}
               </div>
@@ -81,11 +83,11 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
           {poolSharePercent && underlyingA && underlyingB && (
             <div className="grid grid-cols-2 divide-x divide-gray-200 border-t border-gray-200">
               <div className="p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Pool share</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('pools_pool_overview_pool_share')}</div>
                 <div className="mt-1 text-sm font-semibold text-gray-900">{poolSharePercent}%</div>
               </div>
               <div className="p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Underlying</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('common_underlying')}</div>
                 <div className="mt-1 text-sm font-semibold text-gray-900">
                   {underlyingA} {pool.asset_a}
                 </div>
@@ -103,13 +105,13 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
               fullWidth
               onClick={() => navigate(`/compose/pool/deposit/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
             >
-              Deposit
+              {t('common_deposit')}
             </Button>
             <Button
               fullWidth
               onClick={() => navigate(`/compose/pool/withdraw/${encodeURIComponent(pool.lp_asset)}`)}
             >
-              Withdraw
+              {t('common_withdraw')}
             </Button>
           </div>
         ) : (
@@ -117,7 +119,7 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
             fullWidth
             onClick={() => navigate(`/compose/pool/deposit/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
           >
-            Deposit
+            {t('common_deposit')}
           </Button>
         )}
       </section>
@@ -128,14 +130,14 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
             items: [
               {
                 id: "pool-swap",
-                title: "Pool Swap",
-                description: "Swap instantly at the quoted price",
+                title: t('pools_pool_overview_pool_swap'),
+                description: t('pools_pool_overview_swap_instantly_at_the_quoted'),
                 onClick: () => navigate(`/compose/swap/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`),
               },
               {
                 id: "dex-order",
-                title: "DEX Order",
-                description: "Set your own price on the order book",
+                title: t('pools_pool_overview_dex_order'),
+                description: t('pools_pool_overview_set_your_own_price_on'),
                 onClick: () => navigate(`/compose/order/${encodeURIComponent(pool.asset_a)}`),
               },
             ],

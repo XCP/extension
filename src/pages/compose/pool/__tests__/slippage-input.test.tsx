@@ -30,7 +30,7 @@ describe("SlippageInput", () => {
     expect(screen.getByLabelText("Custom slippage percent")).toHaveValue("2");
   });
 
-  it("emits typed custom values and rejects non-numeric input", () => {
+  it("emits complete custom drafts, including invalid text", () => {
     const { onChange } = setup("1");
     const custom = screen.getByLabelText("Custom slippage percent");
 
@@ -39,7 +39,7 @@ describe("SlippageInput", () => {
 
     onChange.mockClear();
     fireEvent.change(custom, { target: { value: "abc" } });
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenCalledWith("abc");
   });
 
   it("warns on a very low tolerance (below the tightest preset)", () => {

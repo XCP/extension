@@ -10,6 +10,8 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchTransactions, type PaginatedResponse, type Transaction } from "@/core/counterparty/api";
 
+import { t } from '@/i18n';
+
 /**
  * Constants for transaction pagination and navigation paths.
  */
@@ -65,7 +67,7 @@ export default function AddressHistoryPage(): ReactElement {
       setTotalTransactions(data.result_count);
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to fetch transactions";
+      const errorMessage = err instanceof Error ? err.message : t('addresses_history_failed_to_fetch_transactions');
       // "Invalid integer: cursor" error occurs for new addresses with no history
       // Treat this as an empty result rather than an error
       if (errorMessage.includes("Invalid integer: cursor")) {
@@ -113,12 +115,12 @@ export default function AddressHistoryPage(): ReactElement {
   // Configure header. loadTransactions omitted (see above).
   useEffect(() => {
     setHeaderProps({
-      title: "History",
+      title: t('common_history'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FiRefreshCw className={`size-3 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: () => loadTransactions(),
-        ariaLabel: "Refresh transactions",
+        ariaLabel: t('addresses_history_refresh_transactions'),
         disabled: isLoading,
       },
     });
@@ -147,7 +149,8 @@ export default function AddressHistoryPage(): ReactElement {
       >
         <div className="flex items-center justify-center gap-2">
           <FaChevronLeft className="size-4" aria-hidden="true" />
-          Previous
+          
+          {t('addresses_history_previous')}
         </div>
       </Button>
       <Button
@@ -157,14 +160,15 @@ export default function AddressHistoryPage(): ReactElement {
         fullWidth
       >
         <div className="flex items-center justify-center gap-2">
-          Next
+          
+          {t('addresses_history_next')}
           <FaChevronRight className="size-4" aria-hidden="true" />
         </div>
       </Button>
     </div>
   );
 
-  if (isLoading) return <Spinner message="Loading transactions…" />;
+  if (isLoading) return <Spinner message={t('addresses_history_loading_transactions')} />;
   if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
 
   return (
@@ -174,7 +178,7 @@ export default function AddressHistoryPage(): ReactElement {
           <div className="space-y-4">
             {totalPages > 1 && (
               <div className="text-center text-sm text-gray-500 mb-4">
-                Page {currentPage} of {totalPages}
+                {t('addresses_history_page_of', [String(currentPage), String(totalPages)])}
               </div>
             )}
             {transactions.map((tx) => (
@@ -190,9 +194,9 @@ export default function AddressHistoryPage(): ReactElement {
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">
             <div className="bg-gray-50 rounded-lg p-6 max-w-sm w-full">
-              <div className="text-gray-600 text-lg font-medium mb-2">No Transactions Yet</div>
+              <div className="text-gray-600 text-lg font-medium mb-2">{t('addresses_history_no_transactions_yet')}</div>
               <div className="text-gray-500 text-sm">
-                This address hasn’t made any transactions on Counterparty.
+                {t('addresses_history_this_address_hasn_t_made')}
               </div>
             </div>
           </div>

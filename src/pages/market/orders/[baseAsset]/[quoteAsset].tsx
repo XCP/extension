@@ -29,6 +29,9 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useInView } from "@/hooks/useInView";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
+
 // Constants
 const FETCH_LIMIT = 20;
 const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
@@ -56,8 +59,9 @@ type OrderTab = "buy" | "sell" | "history";
 interface PairProps { baseAsset: string; quoteAsset: string }
 
 export default function AssetOrdersPage(): ReactElement {
+  useLocaleRevision();
   const { baseAsset, quoteAsset } = useParams<{ baseAsset: string; quoteAsset: string }>();
-  if (!baseAsset || !quoteAsset) return <EmptyState message="Select a trading pair" />;
+  if (!baseAsset || !quoteAsset) return <EmptyState message={t('baseasset_quoteasset_select_pair')} />;
   return <AssetOrdersPair key={JSON.stringify([baseAsset, quoteAsset])} baseAsset={baseAsset} quoteAsset={quoteAsset} />;
 }
 
@@ -95,7 +99,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
   const navigateRouter = useNavigate();
   const navigate = useCallback((to: string) => { void navigateRouter(to); }, [navigateRouter]);
   const { setHeaderProps } = useHeader();
-  const [book, setBook] = useState<{ info: AssetInfo | null; orders: Order[]; error: string | null } | null>(null);
+  const [book, setBook] = useState<{ info: AssetInfo | null; orders: Order[]; error: { message: string | null } | null } | null>(null);
   const baseAssetInfo = book?.info ?? null;
   const orders = book?.orders ?? NO_ORDERS;
   const loading = book === null;
@@ -136,7 +140,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
       } catch (error) {
         if (!cancelled) {
           cancelled = true; // Stop any still-running full-book pagination loop.
-          setBook({ info: null, orders: [], error: error instanceof Error ? error.message : "Failed to load orders" });
+          setBook({ info: null, orders: [], error: { message: error instanceof Error ? error.message : null } });
         }
       }
     };
@@ -146,10 +150,10 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
 
   useEffect(() => {
     setHeaderProps({
-      title: "Orders",
+      title: t('baseasset_quoteasset_orders'),
       onBack: () => navigate("/market"),
       rightButton: {
-        ariaLabel: "Refresh orders",
+        ariaLabel: t('baseasset_quoteasset_refresh_orders'),
         icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: onRefresh,
         disabled: isRefreshing,
@@ -354,13 +358,13 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
   };
 
   if (loading) {
-    return <Spinner message={`Loading ${baseAsset}/${quoteAsset} orders…`} />;
+    return <Spinner message={t('baseasset_quoteasset_loading_orders', [String(baseAsset), String(quoteAsset)])} />;
   }
 
   if (book.error) {
     return <div role="alert" className="p-4 text-center text-sm text-gray-600">
-      <p>{book.error}</p>
-      <button type="button" onClick={onRetry} className="mt-2 rounded px-3 py-1 text-blue-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Retry</button>
+      <p>{book.error.message ?? t('market_failed_to_load_orders')}</p>
+      <button type="button" onClick={onRetry} className="mt-2 rounded px-3 py-1 text-blue-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{t('common_retry')}</button>
     </div>;
   }
 
@@ -384,7 +388,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
               {tab === "buy" && marketStats && marketStats.bestBid !== null && (
                 <>
                   <CopyableStat
-                    label="Bid"
+                    label={t('baseasset_quoteasset_bid')}
                     value={formatOrderPrice(marketStats.bestBid, quoteAsset || "")}
                     rawValue={getRawOrderPrice(marketStats.bestBid)}
                     onCopy={copy}
@@ -392,7 +396,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
                   />
                   {marketStats.spread !== null ? (
                     <CopyableStat
-                      label="Spread"
+                      label={t('baseasset_quoteasset_spread')}
                       value={formatOrderPrice(marketStats.spread, quoteAsset || "")}
                       rawValue={getRawOrderPrice(marketStats.spread)}
                       onCopy={copy}
@@ -400,7 +404,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
                     />
                   ) : (
                     <div>
-                      <span className="text-gray-500">Spread</span>
+                      <span className="text-gray-500">{t('baseasset_quoteasset_spread')}</span>
                       <div className="font-medium text-gray-900">—</div>
                     </div>
                   )}
@@ -409,11 +413,11 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
               {tab === "buy" && (!marketStats || marketStats.bestBid === null) && (
                 <>
                   <div>
-                    <span className="text-gray-500">Bid</span>
+                    <span className="text-gray-500">{t('baseasset_quoteasset_bid')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                   <div>
-                    <span className="text-gray-500">Spread</span>
+                    <span className="text-gray-500">{t('baseasset_quoteasset_spread')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                 </>
@@ -421,7 +425,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
               {tab === "sell" && marketStats && marketStats.bestAsk !== null && (
                 <>
                   <CopyableStat
-                    label="Ask"
+                    label={t('baseasset_quoteasset_ask')}
                     value={formatOrderPrice(marketStats.bestAsk, quoteAsset || "")}
                     rawValue={getRawOrderPrice(marketStats.bestAsk)}
                     onCopy={copy}
@@ -429,7 +433,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
                   />
                   {marketStats.spread !== null ? (
                     <CopyableStat
-                      label="Spread"
+                      label={t('baseasset_quoteasset_spread')}
                       value={formatOrderPrice(marketStats.spread, quoteAsset || "")}
                       rawValue={getRawOrderPrice(marketStats.spread)}
                       onCopy={copy}
@@ -437,7 +441,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
                     />
                   ) : (
                     <div>
-                      <span className="text-gray-500">Spread</span>
+                      <span className="text-gray-500">{t('baseasset_quoteasset_spread')}</span>
                       <div className="font-medium text-gray-900">—</div>
                     </div>
                   )}
@@ -446,11 +450,11 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
               {tab === "sell" && (!marketStats || marketStats.bestAsk === null) && (
                 <>
                   <div>
-                    <span className="text-gray-500">Ask</span>
+                    <span className="text-gray-500">{t('baseasset_quoteasset_ask')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                   <div>
-                    <span className="text-gray-500">Spread</span>
+                    <span className="text-gray-500">{t('baseasset_quoteasset_spread')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                 </>
@@ -458,7 +462,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
               {tab === "history" && matchStats && (
                 <>
                   <CopyableStat
-                    label="Last"
+                    label={t('common_last')}
                     value={formatOrderPrice(matchStats.lastPrice, quoteAsset || "")}
                     rawValue={getRawOrderPrice(matchStats.lastPrice)}
                     onCopy={copy}
@@ -466,7 +470,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
                   />
                   {matchStats.avgPrice !== null && (
                     <CopyableStat
-                      label="Avg"
+                      label={t('common_avg')}
                       value={formatOrderPrice(matchStats.avgPrice, quoteAsset || "")}
                       rawValue={getRawOrderPrice(matchStats.avgPrice)}
                       onCopy={copy}
@@ -478,11 +482,11 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
               {tab === "history" && !matchStats && (
                 <>
                   <div>
-                    <span className="text-gray-500">Last</span>
+                    <span className="text-gray-500">{t('common_last')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                   <div>
-                    <span className="text-gray-500">Avg</span>
+                    <span className="text-gray-500">{t('common_avg')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                 </>
@@ -494,20 +498,20 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
           <div className="flex items-center justify-between mb-2">
             <div className="flex gap-1">
               <TabButton isActive={tab === "buy"} onClick={() => setTab("buy")}>
-                Buy
+                {t('common_buy')}
               </TabButton>
               <TabButton isActive={tab === "sell"} onClick={() => setTab("sell")}>
-                Sell
+                {t('common_sell')}
               </TabButton>
               <TabButton isActive={tab === "history"} onClick={() => setTab("history")}>
-                History
+                {t('common_history')}
               </TabButton>
             </div>
             <button type="button"
               onClick={() => navigate(`/market?tab=orders&mode=manage&search=${baseAsset}`)}
               className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded cursor-pointer"
             >
-              My Orders
+              {t('baseasset_quoteasset_my_orders')}
             </button>
           </div>
         </div>
@@ -519,9 +523,9 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
               <div className="space-y-1">
                 {/* Column headers */}
                 <div className="flex items-center text-xs text-gray-400 px-2 py-1">
-                  <div className="flex-1">Price</div>
-                  <div className="flex-1">Amount</div>
-                  <div className="flex-1 text-right">Total</div>
+                  <div className="flex-1">{t('common_price')}</div>
+                  <div className="flex-1">{t('common_amount')}</div>
+                  <div className="flex-1 text-right">{t('common_total')}</div>
                 </div>
                 {priceLevels.map((level) => {
                   const total = level.price * level.totalAmount;
@@ -535,7 +539,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
                   const formattedTotal = formatAmount({ value: total, minimumFractionDigits: 8, maximumFractionDigits: 8 });
 
                   // Build hover title with cumulative info
-                  const hoverTitle = `Avg: ${formatAmount({ value: avgPrice, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ${quoteAsset}\nSum: ${formatAmount({ value: level.cumulativeBase, maximumFractionDigits: 8 })} ${baseAsset}\nSum: ${formatAmount({ value: level.cumulativeQuote, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ${quoteAsset}`;
+                  const hoverTitle = t('baseasset_quoteasset_avg_sum_sum', [String(formatAmount({ value: avgPrice, minimumFractionDigits: 8, maximumFractionDigits: 8 })), String(quoteAsset), String(formatAmount({ value: level.cumulativeBase, maximumFractionDigits: 8 })), String(baseAsset), String(formatAmount({ value: level.cumulativeQuote, minimumFractionDigits: 8, maximumFractionDigits: 8 })), String(quoteAsset)]);
 
                   return (
                     <OrderBookLevelCard
@@ -553,9 +557,11 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
               </div>
             ) : (
               <EmptyState
-                message={`No ${tab} orders for ${baseAsset}/${quoteAsset}`}
+                message={tab === 'buy'
+                  ? t('baseasset_quoteasset_no_buy_orders', [String(baseAsset), String(quoteAsset)])
+                  : t('baseasset_quoteasset_no_sell_orders', [String(baseAsset), String(quoteAsset)])}
                 linkAction={{
-                  label: "Create New Order →",
+                  label: t('common_create_new_order'),
                   onClick: () => {
                     const params = new URLSearchParams({
                       type: tab,
@@ -569,7 +575,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
           )}
 
           {tab === "history" && (
-            matchesLoading ? <Spinner message="Loading matches…" /> : matches.length > 0 ? (
+            matchesLoading ? <Spinner message={t('baseasset_quoteasset_loading_matches')} /> : matches.length > 0 ? (
               <div className="space-y-2">
                 {matches.map((m) => (
                   <MarketMatchCard
@@ -582,13 +588,13 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
                 ))}
               </div>
             ) : !matchesError ? (
-              <EmptyState message={`No ${baseAsset}/${quoteAsset} matches`} />
+              <EmptyState message={t('baseasset_quoteasset_no_matches', [String(baseAsset), String(quoteAsset)])} />
             ) : null
           )}
           {tab === "history" && matchesError && (
             <div role="alert" className="py-3 text-center text-sm text-gray-600">
               <p>{matchesError.message}</p>
-              <button type="button" onClick={retryMatches} className="mt-2 rounded px-3 py-1 text-blue-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Retry</button>
+              <button type="button" onClick={retryMatches} className="mt-2 rounded px-3 py-1 text-blue-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{t('common_retry')}</button>
             </div>
           )}
 
@@ -600,7 +606,7 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
                   <Spinner className="py-4" />
                 </div>
               ) : (
-                <div className="text-xs text-gray-400 text-center">Scroll to load more…</div>
+                <div className="text-xs text-gray-400 text-center">{t('common_scroll_to_load_more')}</div>
               )
             ) : null}
           </div>

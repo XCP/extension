@@ -1,5 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ProviderReviewError } from '@/core/providerReviewErrors';
+import { configureLocale, t } from '@/i18n';
 import type { ProviderSigningReview } from '@/services/providerSigningService';
 import { useProviderSigningRequest } from '../useProviderSigningRequest';
 
@@ -23,12 +25,31 @@ function review(reviewKey = 'original', id = 'req-1'): ProviderSigningReview {
 
 describe('provider verification retry', () => {
   beforeEach(() => {
+    configureLocale({ language: 'en' });
     vi.clearAllMocks();
     mocks.requestId = 'req-1';
     mocks.wallet = { activeAddress: { address: 'authorized-address' }, activeWallet: { id: 'authorized-wallet' }, isLoading: false };
     mocks.getReview.mockResolvedValue(review());
     mocks.approveAndSign.mockResolvedValue(undefined);
     mocks.reject.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => configureLocale({}));
+
+  it('retranslates a retained authorization failure without refetching or enabling signing', async () => {
+    const failure = new ProviderReviewError('connection_revoked');
+    mocks.getReview.mockRejectedValueOnce(failure);
+    const { result } = renderHook(() => useProviderSigningRequest('sign-message'));
+    await waitFor(() => expect(result.current.error).toBe(failure.message));
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
+      act(() => configureLocale({ language }));
+      expect(result.current.error).toBe(t('provider_review_connection_revoked'));
+      expect(result.current.review).toBeNull();
+      await expect(result.current.handleApprove()).rejects.toThrow('No reviewed signing request');
+      expect(mocks.getReview).toHaveBeenCalledOnce();
+      expect(mocks.approveAndSign).not.toHaveBeenCalled();
+    }
+    expect(failure.message).toBe('This site is no longer connected. Reconnect it before signing.');
   });
 
   it('retries a failed initial load without retrying any signing command', async () => {

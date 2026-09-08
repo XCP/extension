@@ -6,6 +6,8 @@ import type { DispenserDetails } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 
+import { t } from '@/i18n';
+
 interface ManageDispenserCardProps {
   dispenser: DispenserDetails;
   /**
@@ -69,7 +71,7 @@ export function ManageDispenserCard({
               {assetName}
             </div>
             <div className="text-xs text-gray-500">
-              {formatAmount({ value: dispenser.give_remaining_normalized, maximumFractionDigits: 2 })} remaining
+              {t('dispenser_asset_dispenser_card_remaining', [String(formatAmount({ value: dispenser.give_remaining_normalized, maximumFractionDigits: 2 }))])}
             </div>
           </div>
         </button>
@@ -82,19 +84,19 @@ export function ManageDispenserCard({
               onClick={handleRefill}
               className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
-              Refill
+              {t('dispenser_manage_dispenser_card_refill')}
             </button>
             <button type="button"
               onClick={handleClose}
               className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
             >
-              Close
+              {t('common_close')}
             </button>
           </div>
           )
         ) : (
           <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-            Closed
+            {t('dispenser_manage_dispenser_card_closed')}
           </span>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { asBaseUnits } from '@/core/numeric';
+import { configureLocale } from '@/i18n';
 import { useSearchQuery } from "../useSearchQuery";
 
 // Mock fetch
@@ -8,12 +9,14 @@ global.fetch = vi.fn();
 
 describe("useSearchQuery", () => {
   beforeEach(() => {
+    configureLocale({ language: 'en', numberLocale: 'en-US' });
     vi.useFakeTimers();
     vi.clearAllMocks();
     vi.mocked(global.fetch).mockReset();
   });
 
   afterEach(() => {
+    configureLocale({});
     vi.useRealTimers();
   });
 
@@ -539,4 +542,35 @@ describe("useSearchQuery", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(180_000); });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  it.each(['rate_limit', 'http', 'timeout', 'invalid_response', 'other'] as const)(
+    'retranslates a retained %s without changing query, request, retry or raw evidence', async kind => {
+      const detail = 'Node says ASSET.child / 123456789';
+      if (kind === 'rate_limit' || kind === 'http') vi.mocked(fetch).mockResolvedValue({ ok: false, status: kind === 'rate_limit' ? 429 : 503, headers: new Headers() } as Response);
+      else if (kind === 'timeout') vi.mocked(fetch).mockImplementation(() => new Promise<Response>(() => {}));
+      else if (kind === 'invalid_response') vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({ unexpected: true }) } as Response);
+      else vi.mocked(fetch).mockRejectedValue(new Error(detail));
+      const { result } = renderHook(() => useSearchQuery('PARENT.child', { debounceMs: 10, requestTimeoutMs: 20, maxRetries: 0 }));
+      await act(async () => { await vi.advanceTimersByTimeAsync(30); });
+      const english = result.current.error;
+      expect(english).toBeTruthy();
+      for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+        act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+        expect(result.current.error).not.toBe(english);
+        expect(result.current.error).toMatch(/[\u3000-\u9fff]/);
+        if (kind === 'other') expect(result.current.error).toContain(detail);
+        expect(result.current.searchQuery).toBe('PARENT.child');
+        expect(result.current.isSearching).toBe(false);
+        expect(result.current.searchResults).toEqual([]);
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(fetch).toHaveBeenCalledWith('https://api.xcp.io/v2/assets?query=PARENT.child', expect.anything());
+      }
+      act(() => result.current.setError('Caller diagnostic: ' + detail));
+      act(() => configureLocale({ language: 'en' }));
+      expect(result.current.error).toBe('Caller diagnostic: ' + detail);
+      act(() => result.current.setError(null));
+      expect(result.current.error).toBeNull();
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
 });

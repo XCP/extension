@@ -5,6 +5,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useMultiBatchConsolidation } from "@/hooks/useMultiBatchConsolidation";
+import { t } from '@/i18n';
 import { ConsolidationForm, type ConsolidationFormData } from "@/pages/actions/consolidate/form";
 import { ConsolidationHistory } from "@/pages/actions/consolidate/history";
 import { ConsolidationReview } from "@/pages/actions/consolidate/review";
@@ -41,17 +42,17 @@ function ConsolidatePage() {
   useEffect(() => {
     if (step === "form") {
       setHeaderProps({
-        title: "Recovery Tool",
+        title: t('actions_consolidate_recovery_tool'),
         onBack: () => navigate(-1),
         rightButton: {
           icon: <FiHelpCircle className="w-4 h-4" />,
           onClick: toggleHelp,
-          ariaLabel: "Toggle help text",
+          ariaLabel: t('common_toggle_help_text'),
         },
       });
     } else if (step === "review") {
       setHeaderProps({
-        title: "Review",
+        title: t('actions_consolidate_review'),
         onBack: () => setStep("form"),
       });
     }

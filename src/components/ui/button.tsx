@@ -2,6 +2,7 @@ import { Button as HeadlessButton } from '@headlessui/react';
 import { forwardRef, useMemo } from 'react';
 import { FaYoutube } from '@/components/icons';
 
+import { t } from '@/i18n';
 export type ButtonColor = 'blue' | 'gray' | 'green' | 'red' | 'black';
 export type ButtonVariant = 'solid' | 'transparent' | 'icon' | 'header' | 'menu' | 'menu-item' | 'input' | 'youtube';
 
@@ -113,7 +114,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-3 text-gray-700 hover:text-red-600 transition-colors"
-          aria-label={`${children} - Opens in new tab`}
+          aria-label={t('button_opens_in_new_tab', [String(children)])}
         >
           <FaYoutube className="text-2xl text-red-600" aria-hidden="true" />
           <span className="font-medium">{children}</span>

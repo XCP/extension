@@ -12,8 +12,15 @@
  * dissolving into a generic because two reasons disagreed.
  */
 
+/** Stable facts for presentation; translated display text belongs outside core. */
+export type PendingLabel =
+  | 'Sending' | 'Sweeping' | 'Ordering' | 'Cancelling' | 'Matching' | 'Paying'
+  | 'Issuing' | 'Resetting' | 'Dispensing' | 'Opening' | 'Refilling' | 'Closing'
+  | 'Attaching' | 'Detaching' | 'Moving' | 'Depositing' | 'Withdrawing' | 'Minting'
+  | 'Paying dividend' | 'Burning' | 'Pending';
+
 /** Present participles, because the thing is happening now. */
-const LABELS: Record<string, string> = {
+const LABELS: Record<string, PendingLabel> = {
   // Sends and sweeps
   send: 'Sending',
   'mpma send': 'Sending',
@@ -80,7 +87,7 @@ export const GENERIC_PENDING_LABEL = 'Pending';
  * describing the wrong transaction. An unrecognised action does the same, so a protocol addition
  * shows up as "Pending" instead of vanishing from the screen.
  */
-export function pendingLabel(reasons: readonly string[]): string | null {
+export function pendingLabel(reasons: readonly string[]): PendingLabel | null {
   if (reasons.length === 0) return null;
 
   const labels = new Set(reasons.map((reason) => LABELS[reason] ?? GENERIC_PENDING_LABEL));

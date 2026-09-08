@@ -1,5 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 interface ReviewIssuanceTransferOwnershipProps {
   apiResponse: any;
   onSign: () => void;
@@ -18,8 +20,8 @@ export function ReviewIssuanceTransferOwnership({
   const { result } = apiResponse;
 
   const customFields = [
-    { label: "To", value: result.params.transfer_destination },
-    { label: "Asset", value: result.params.asset },
+    { label: t('transfer_ownership_review_to'), value: result.params.transfer_destination },
+    { label: t('common_asset'), value: result.params.asset },
   ];
 
   return (

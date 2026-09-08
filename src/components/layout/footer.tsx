@@ -6,6 +6,7 @@ import { useSettings } from '@/contexts/settings-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { isSegwitFormat } from '@/core/bitcoin/address';
 
+import { t } from '@/i18n';
 /**
  * Footer provides bottom navigation with icons for main app sections.
  *
@@ -31,14 +32,14 @@ export const Footer = (): ReactElement => {
   };
 
   return (
-    <footer className="shrink-0 border-t border-gray-300 bg-white p-2" aria-label="Primary">
+    <footer className="shrink-0 border-t border-gray-300 bg-white p-2" aria-label={t('layout_footer_primary')}>
       <div className="grid grid-cols-4 gap-2">
         <Button
           variant="transparent"
           fullWidth
           onClick={() => handleNavigation('/index', 'Footer - Main')}
           className={`hover:bg-gray-100 ${location.pathname === '/index' ? 'text-blue-600' : 'text-gray-600'}`}
-          aria-label="Wallet"
+          aria-label={t('layout_footer_wallet')}
         >
           <div className="flex flex-col items-center">
             <FaWallet className="text-lg mb-1" aria-hidden="true" />
@@ -49,7 +50,7 @@ export const Footer = (): ReactElement => {
           fullWidth
           onClick={() => handleNavigation('/market', 'Footer - Market')}
           className={`hover:bg-gray-100 ${location.pathname.startsWith('/market') ? 'text-blue-600' : 'text-gray-600'}`}
-          aria-label="Market"
+          aria-label={t('common_market')}
         >
           <div className="flex flex-col items-center">
             <FaUniversity className="text-lg mb-1" aria-hidden="true" />
@@ -60,7 +61,7 @@ export const Footer = (): ReactElement => {
           fullWidth
           onClick={() => handleNavigation('/actions', 'Footer - Actions')}
           className={`hover:bg-gray-100 ${location.pathname === '/actions' ? 'text-blue-600' : 'text-gray-600'}`}
-          aria-label="Actions"
+          aria-label={t('common_actions')}
         >
           <div className="flex flex-col items-center relative">
             <FaTools className="text-lg mb-1" aria-hidden="true" />
@@ -75,7 +76,7 @@ export const Footer = (): ReactElement => {
           fullWidth
           onClick={() => handleNavigation('/settings', 'Footer - Settings')}
           className={`hover:bg-gray-100 ${location.pathname === '/settings' ? 'text-blue-600' : 'text-gray-600'}`}
-          aria-label="Settings"
+          aria-label={t('common_settings')}
         >
           <div className="flex flex-col items-center">
             <FaCog className="text-lg mb-1" aria-hidden="true" />

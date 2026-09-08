@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import { FaPlus, FiHelpCircle, FiUpload } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
@@ -12,6 +14,7 @@ const PATHS = {
 } as const;
 
 function OnboardingPage() {
+  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
 
@@ -21,7 +24,7 @@ function OnboardingPage() {
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(PATHS.HELP_URL, "_blank"),
-        ariaLabel: "Help",
+        ariaLabel: t('common_help'),
       },
     });
   }, [setHeaderProps]);
@@ -42,7 +45,7 @@ function OnboardingPage() {
             id="onboarding-title"
             className="text-3xl mb-5 flex justify-between items-center"
           >
-            <span className="font-bold">XCP Wallet</span>
+            <span className="font-bold">{t('common_xcp_wallet')}</span>
             <span>{getDisplayVersion()}</span>
           </h1>
           <div className="space-y-4">
@@ -50,43 +53,49 @@ function OnboardingPage() {
               color="green"
               fullWidth
               onClick={handleCreateWallet}
-              aria-label="Create wallet"
+              aria-label={t('keychain_onboarding_create_wallet')}
             >
               <FaPlus className="size-4 mr-2" aria-hidden="true" />
-              Create Wallet
+              
+              {t('common_create_wallet')}
             </Button>
             <Button
               color="blue"
               fullWidth
               onClick={handleImportWallet}
-              aria-label="Import wallet"
+              aria-label={t('keychain_onboarding_import_wallet')}
             >
               <FiUpload className="size-4 mr-2" aria-hidden="true" />
-              Import Wallet
+              
+              {t('common_import_wallet')}
             </Button>
           </div>
         </div>
       </div>
       <div className="text-center text-xs p-4">
-        By continuing you agree to our{" "}
-        <a
-          href="https://www.xcp.io/terms"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        >
-          Terms of Service
-        </a>
-        {" "}and{" "}
-        <a
-          href="https://www.xcp.io/privacy"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        >
-          Privacy Policy
-        </a>
-        .
+        {t('keychain_onboarding_by_continuing_you_agree_to', ['{terms}', '{privacy}'])
+          .split(/(\{terms\}|\{privacy\})/)
+          .map(part => part === '{terms}' ? (
+            <a
+              key="terms"
+              href="https://www.xcp.io/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              {t('common_terms_of_service')}
+            </a>
+          ) : part === '{privacy}' ? (
+            <a
+              key="privacy"
+              href="https://www.xcp.io/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              {t('common_privacy_policy')}
+            </a>
+          ) : part)}
       </div>
     </section>
   );

@@ -4,9 +4,11 @@ import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
-import { formatAddress, formatAmount } from "@/core/format";
+import { formatAddress, formatAmount, formatFiatEstimate } from "@/core/format";
 import { formatFeeRate, fromSatoshis } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
+
+import { t } from '@/i18n';
 
 /**
  * Transaction result from API response
@@ -122,7 +124,7 @@ export function ReviewScreen({
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
-      <h2 className="text-lg font-bold text-gray-900">Review Transaction</h2>
+      <h2 className="text-lg font-bold text-gray-900">{t('screens_review_screen_review_transaction')}</h2>
       
       {error && (
         <ErrorAlert
@@ -134,7 +136,7 @@ export function ReviewScreen({
       <div className="space-y-4">
         {/* Source Address */}
         <div className="space-y-1">
-          <span className="block font-semibold text-gray-700">From:</span>
+          <span className="block font-semibold text-gray-700">{t('common_from')}</span>
           <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
             {formatAddress(sourceAddress, true)}
           </div>
@@ -143,7 +145,7 @@ export function ReviewScreen({
         {/* Destination Address (if present) - show full address */}
         {destinationAddress && (
           <div className="space-y-1">
-            <span className="block font-semibold text-gray-700">To:</span>
+            <span className="block font-semibold text-gray-700">{t('common_to')}</span>
             <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
               {formatAddress(destinationAddress, false)}
             </div>
@@ -171,7 +173,7 @@ export function ReviewScreen({
 
         {xcpFee !== null && (
           <div className="space-y-1">
-            <span className="block font-semibold text-gray-700">XCP Fee:</span>
+            <span className="block font-semibold text-gray-700">{t('screens_review_screen_xcp_fee')}</span>
             <div className="bg-gray-50 p-2 rounded text-gray-900">
               <div className="flex justify-between items-center">
                 <span>
@@ -184,7 +186,7 @@ export function ReviewScreen({
                 </span>
                 {xcpFeeInFiat !== null && (
                   <span className="text-gray-500">
-                    ${formatAmount({ value: xcpFeeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatFiatEstimate(xcpFeeInFiat, settings.fiat)}
                   </span>
                 )}
               </div>
@@ -194,7 +196,7 @@ export function ReviewScreen({
         
         {/* Transaction Fee */}
         <div className="space-y-1">
-          <span className="block font-semibold text-gray-700">Fee:</span>
+          <span className="block font-semibold text-gray-700">{t('common_fee')}</span>
           <div className="bg-gray-50 p-2 rounded text-gray-900">
             <div className="flex justify-between items-center">
               <div>
@@ -208,13 +210,13 @@ export function ReviewScreen({
                 </span>
                 {result.signed_tx_estimated_size?.adjusted_vsize && (
                   <span className="text-gray-500 ml-2">
-                    ({formatFeeRate(result.btc_fee, result.signed_tx_estimated_size.adjusted_vsize)} sats/vB)
+                    {t('screens_review_screen_sats_vb', [String(formatFeeRate(result.btc_fee, result.signed_tx_estimated_size.adjusted_vsize))])}
                   </span>
                 )}
               </div>
               {feeInFiat !== null && (
                 <span className="text-gray-500">
-                  ${formatAmount({ value: feeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatFiatEstimate(feeInFiat, settings.fiat)}
                 </span>
               )}
             </div>
@@ -223,7 +225,7 @@ export function ReviewScreen({
       </div>
       
       {/* Raw Transaction Details */}
-      <Collapsible title="Raw Transaction" className="mt-4">
+      <Collapsible title={t('screens_review_screen_raw_transaction')} className="mt-4">
         <pre className="overflow-auto text-sm bg-gray-50 p-3 rounded-md h-44 border border-gray-200">
           {JSON.stringify(apiResponse, null, 2)}
         </pre>
@@ -236,9 +238,9 @@ export function ReviewScreen({
             onClick={onBack}
             color="gray"
             disabled={isSigning}
-            aria-label="Go back to edit transaction"
+            aria-label={t('screens_review_screen_go_back_to_edit_transaction')}
           >
-            Back
+            {t('common_back')}
           </Button>
         )}
         <Button
@@ -246,9 +248,9 @@ export function ReviewScreen({
           color="blue"
           fullWidth
           disabled={isSigning}
-          aria-label={isSigning ? "Signing transaction…" : "Sign and broadcast transaction"}
+          aria-label={isSigning ? t('screens_review_screen_signing_transaction') : t('screens_review_screen_sign_and_broadcast_transaction')}
         >
-          {isSigning ? "Signing…" : "Sign & Broadcast"}
+          {isSigning ? t('common_signing') : t('screens_review_screen_sign_broadcast')}
         </Button>
       </div>
     </div>

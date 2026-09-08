@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
+import { formatDate } from "@/core/format";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for broadcast transactions
  */
@@ -11,22 +13,22 @@ export function broadcast(tx: Transaction): Array<{ label: string; value: string
   const fields: Array<{ label: string; value: string | ReactNode }> = [];
   
   // Determine broadcast type
-  let broadcastType = "General Broadcast";
+  let broadcastType = t('messages_broadcast_general_broadcast');
   if (params.text && params.text.startsWith("options ")) {
-    broadcastType = "Address Options";
+    broadcastType = t('messages_broadcast_address_options');
   } else if (params.value !== undefined && params.value !== null) {
-    broadcastType = "Oracle Broadcast";
+    broadcastType = t('messages_broadcast_oracle_broadcast');
   }
   
   fields.push({
-    label: "Type",
+    label: t('common_type'),
     value: broadcastType,
   });
   
   // Text content
   if (params.text) {
     fields.push({
-      label: "Text",
+      label: t('messages_broadcast_text'),
       value: (
         <div className="break-all font-mono text-xs">
           {params.text}
@@ -38,7 +40,7 @@ export function broadcast(tx: Transaction): Array<{ label: string; value: string
   // Oracle value
   if (params.value !== undefined && params.value !== null) {
     fields.push({
-      label: "Value",
+      label: t('common_value'),
       value: params.value.toString(),
     });
   }
@@ -47,7 +49,7 @@ export function broadcast(tx: Transaction): Array<{ label: string; value: string
   if (params.fee_fraction !== undefined) {
     const feePercentage = (params.fee_fraction / 10000).toFixed(2);
     fields.push({
-      label: "Fee Fraction",
+      label: t('common_fee_fraction'),
       value: `${params.fee_fraction} (${feePercentage}%)`,
     });
   }
@@ -55,15 +57,15 @@ export function broadcast(tx: Transaction): Array<{ label: string; value: string
   // Timestamp
   if (params.timestamp) {
     fields.push({
-      label: "Timestamp",
-      value: new Date(params.timestamp * 1000).toLocaleString(),
+      label: t('messages_broadcast_timestamp'),
+      value: formatDate(params.timestamp),
     });
   }
   
   // Lock status
   if (params.locked !== undefined) {
     fields.push({
-      label: "Locked",
+      label: t('common_locked'),
       value: params.locked ? "🔒 Yes" : "🔓 No",
     });
   }

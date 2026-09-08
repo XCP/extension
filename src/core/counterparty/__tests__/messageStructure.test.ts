@@ -24,7 +24,9 @@ describe('attach', () => {
     // will never exist.
     const found = checkMessageStructure('attach', { destinationVout: 7 }, tx);
     expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ code: 'attach_missing_output', data: { destinationVout: 7, outputCount: 2 } });
     expect(found[0]!.title).toMatch(/does not exist/i);
+    expect(found[0]!.message).toContain('If signed and confirmed, the Bitcoin fee would still be paid.');
   });
 
   it('says nothing when the message carries no vout', () => {
@@ -40,12 +42,22 @@ describe('utxo move', () => {
   it('flags a source the transaction does not spend', () => {
     const found = checkMessageStructure('utxo', { source: `${TXID}:3` }, tx);
     expect(found).toHaveLength(1);
-    expect(found[0]!.title).toMatch(/does not spend/i);
+    expect(found[0]).toMatchObject({ code: 'utxo_source_not_spent', data: { source: `${TXID}:3` } });
+    expect(found[0]!.title).toMatch(/not spent/i);
+    expect(found[0]!.message).not.toMatch(/cannot take effect|Core rejects/);
   });
 
   it('flags a source naming an entirely different transaction', () => {
     const other = 'a'.repeat(64);
     expect(checkMessageStructure('utxo_move', { source: `${other}:2` }, tx)).toHaveLength(1);
+  });
+
+  it('retains the exact outpoint in evidence while comparing txids without case sensitivity', () => {
+    const source = `${TXID.toUpperCase()}:1234`;
+    expect(checkMessageStructure('utxo', { source }, tx)[0]).toMatchObject({
+      code: 'utxo_source_not_spent', data: { source },
+    });
+    expect(checkMessageStructure('utxo', { source: `${TXID.toUpperCase()}:2` }, tx)).toEqual([]);
   });
 });
 

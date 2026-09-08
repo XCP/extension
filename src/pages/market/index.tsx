@@ -33,6 +33,8 @@ import { useMarketData } from "@/hooks/useMarketData";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { usePendingCancellations } from "@/hooks/usePendingStatus";
 
+import { t } from '@/i18n';
+
 // Constants
 const COPY_FEEDBACK_MS = 2000;
 const POOL_PAGE_SIZE = 20;
@@ -48,18 +50,18 @@ interface ListingPage {
 function ListingStatus({ page, searching = false }: { page: ListingPage; searching?: boolean }) {
   if (page.error) return (
     <div role="alert" className="text-center text-sm text-gray-600">
-      <p>Failed to load listings. Please try again.</p>
+      <p>{t('market_failed_to_load_listings')}</p>
       <button type="button" onClick={page.refresh}
         className="mt-2 rounded px-3 py-1 text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-        Retry
+        {t('common_retry')}
       </button>
     </div>
   );
-  if (page.isFetchingMore || searching) return <Spinner message={searching ? "Searching…" : "Loading more…"} />;
+  if (page.isFetchingMore || searching) return <Spinner message={searching ? t('market_searching') : t('common_loading_more')} />;
   return page.hasMore ? (
     <button type="button" onClick={page.loadMore}
       className="rounded px-3 py-1 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-      Load more
+      {t('common_load_more')}
     </button>
   ) : null;
 }
@@ -214,7 +216,7 @@ export default function MarketPage(): ReactElement {
         setPoolsInitialLoaded(true);
       } catch (err) {
         if (!session.cancelled) {
-          setPoolsError(err instanceof Error ? err.message : "Failed to load pools");
+          setPoolsError(err instanceof Error ? err.message : t('market_failed_to_load_pools'));
           setPoolsInitialLoaded(true);
         }
       } finally {
@@ -260,7 +262,7 @@ export default function MarketPage(): ReactElement {
       setPoolsOffset((current) => current + POOL_PAGE_SIZE);
     } catch (err) {
       if (!session.cancelled) {
-        setPoolsError(err instanceof Error ? err.message : "Failed to load more pools");
+        setPoolsError(err instanceof Error ? err.message : t('market_failed_to_load_more_pools'));
       }
     } finally {
       if (!session.cancelled) {
@@ -310,7 +312,7 @@ export default function MarketPage(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Market",
+      title: t('common_market'),
       onBack: () => navigate("/index"),
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
@@ -318,7 +320,7 @@ export default function MarketPage(): ReactElement {
           await lockKeychain();
           navigate("/keychain/unlock");
         },
-        ariaLabel: "Lock Keychain",
+        ariaLabel: t('common_lock_keychain'),
       },
     });
     return () => setHeaderProps(null);
@@ -378,7 +380,7 @@ export default function MarketPage(): ReactElement {
                 type="button"
                 className="block w-full rounded p-4 cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 onClick={handleCopyAddress}
-                aria-label="Current address"
+                aria-label={t('common_current_address')}
               >
                 <div className="text-sm mb-1 font-medium">{activeAddress.name}</div>
                 <div className="flex justify-center items-center">
@@ -395,7 +397,7 @@ export default function MarketPage(): ReactElement {
                   type="button"
                   className="block py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   onClick={handleAddressSelection}
-                  aria-label="Select another address"
+                  aria-label={t('common_select_another_address')}
                 >
                   <FaChevronRight className="size-4" aria-hidden="true" />
                 </button>
@@ -415,7 +417,7 @@ export default function MarketPage(): ReactElement {
           {/* Tab Header */}
           <div className="mb-2">
             <div className="flex items-center justify-between">
-              <div className="flex space-x-4" role="tablist" aria-label="Market sections">
+              <div className="flex space-x-4" role="tablist" aria-label={t('market_sections')}>
                 {(["Dispensers", "Orders", "Pools"] as const).map((label, idx) => (
                   <button type="button"
                     key={label}
@@ -431,7 +433,7 @@ export default function MarketPage(): ReactElement {
                 ))}
               </div>
               {/* View Mode Toggle */}
-              <div className="flex gap-1" role="tablist" aria-label="View mode">
+              <div className="flex gap-1" role="tablist" aria-label={t('market_view_mode')}>
                 <TabButton isActive={viewMode === "explore"} onClick={() => setViewMode("explore")}>
                   <FiGlobe className="size-3.5" aria-hidden="true" />
                 </TabButton>
@@ -448,12 +450,12 @@ export default function MarketPage(): ReactElement {
           {activeTab === 0 && (
             <div className="space-y-3">
               <SearchInput value={searchQuery} onChange={setSearchQuery}
-                placeholder={viewMode === "explore" ? "Search asset dispensers..." : "Filter your dispensers..."}
+                placeholder={viewMode === "explore" ? t('market_search_asset_dispensers') : t('market_filter_your_dispensers')}
                 name={viewMode === "explore" ? "dispenser-search" : "dispenser-filter"}
                 isLoading={viewMode === "explore" && isSearching && dispenserSearchLoading}
                 showClearButton className="mt-0.5" />
               {(dispenserPage.isLoading || (viewMode === "explore" && isSearching && dispenserSearchLoading)) ? (
-                <Spinner message={isSearching ? "Searching…" : "Loading dispensers…"} />
+                <Spinner message={isSearching ? t('market_searching') : t('common_loading_dispensers')} />
               ) : (
                 <>
                   <div className="space-y-2">
@@ -467,8 +469,8 @@ export default function MarketPage(): ReactElement {
                   </div>
                   {!shownDispensers.length && !dispenserPage.hasMore && !dispenserPage.error && (
                     <EmptyState message={isSearching
-                      ? `No dispensers matching "${searchQuery}"`
-                      : viewMode === "manage" ? "You don't have any open dispensers" : "No open dispensers found"} />
+                      ? t('market_no_dispensers_matching', [String(searchQuery)])
+                      : viewMode === "manage" ? t('market_you_don_t_have_any') : t('market_no_open_dispensers_found')} />
                   )}
                   <div ref={loadMoreRef} className="flex justify-center py-2">
                     <ListingStatus page={dispenserPage} searching={dispenserPage.hasMore
@@ -480,7 +482,7 @@ export default function MarketPage(): ReactElement {
                 <button type="button"
                   onClick={() => navigate(isSearching ? `/compose/dispenser/${encodeURIComponent(normalizeAssetQuery(searchQuery))}` : "/compose/dispenser")}
                   className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
-                  Create New Dispenser →
+                  {t('common_create_new_dispenser')}
                 </button>
               )}
             </div>
@@ -489,12 +491,12 @@ export default function MarketPage(): ReactElement {
           {activeTab === 1 && (
             <div className="space-y-3">
               <SearchInput value={searchQuery} onChange={setSearchQuery}
-                placeholder={viewMode === "explore" ? "Search asset orders..." : "Filter your orders..."}
+                placeholder={viewMode === "explore" ? t('market_search_asset_orders') : t('market_filter_your_orders')}
                 name={viewMode === "explore" ? "order-search" : "order-filter"}
                 isLoading={viewMode === "explore" && isSearching && orderSearchLoading}
                 showClearButton className="mt-0.5" />
               {(orderPage.isLoading || (viewMode === "explore" && isSearching && orderSearchLoading)) ? (
-                <Spinner message={isSearching ? "Searching…" : "Loading orders…"} />
+                <Spinner message={isSearching ? t('market_searching') : t('market_loading_orders')} />
               ) : (
                 <>
                   <div className="space-y-2">
@@ -504,8 +506,8 @@ export default function MarketPage(): ReactElement {
                   </div>
                   {!shownOrderCount && !orderPage.hasMore && !orderPage.error && (
                     <EmptyState message={isSearching
-                      ? `No orders matching "${searchQuery}"`
-                      : viewMode === "manage" ? "You don't have any open orders" : "No open orders found"} />
+                      ? t('market_no_orders_matching', [String(searchQuery)])
+                      : viewMode === "manage" ? t('market_you_don_t_have_any_2') : t('market_no_open_orders_found')} />
                   )}
                   <div ref={loadMoreRef} className="flex justify-center py-2">
                     <ListingStatus page={orderPage} searching={viewMode === "manage" && isSearching && orderPage.hasMore} />
@@ -516,7 +518,7 @@ export default function MarketPage(): ReactElement {
                 <button type="button"
                   onClick={() => navigate(isSearching ? `/compose/order/${encodeURIComponent(normalizeAssetQuery(searchQuery))}` : "/compose/order")}
                   className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
-                  Create New Order →
+                  {t('common_create_new_order')}
                 </button>
               )}
             </div>
@@ -527,13 +529,13 @@ export default function MarketPage(): ReactElement {
               <SearchInput
                 value={searchQuery}
                 onChange={setSearchQuery}
-                placeholder={viewMode === "explore" ? "Search pools..." : "Search your pools..."}
+                placeholder={viewMode === "explore" ? t('market_search_pools') : t('market_search_your_pools')}
                 name={viewMode === "explore" ? "pool-filter" : "pool-manage-filter"}
                 showClearButton
                 className="mt-0.5"
               />
               {poolsLoading ? (
-                <Spinner message={viewMode === "explore" ? "Loading pools…" : "Loading your pools…"} />
+                <Spinner message={viewMode === "explore" ? t('market_loading_pools') : t('market_loading_your_pools')} />
               ) : (
                 <>
                   {visiblePools.length > 0 && (
@@ -556,17 +558,17 @@ export default function MarketPage(): ReactElement {
                         onClick={() => poolsOffset === 0 ? setPoolsReload((current) => current + 1) : void loadMorePools()}
                         className="mt-2 rounded px-3 py-1 text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                       >
-                        Retry
+                        {t('common_retry')}
                       </button>
                     </div>
                   ) : visiblePools.length === 0 && !poolsSearchPending && (
                     <EmptyState message={isSearching
-                      ? `No ${viewMode === "manage" ? "pool positions" : "pools"} matching "${searchQuery}"`
-                      : viewMode === "manage" ? "You don't have any LP positions" : "No pools found"} />
+                      ? viewMode === "manage" ? t('market_no_pool_positions_matching', [String(searchQuery)]) : t('market_no_pools_matching', [String(searchQuery)])
+                      : viewMode === "manage" ? t('market_you_don_t_have_any_3') : t('market_no_pools_found')} />
                   )}
                   <div ref={loadMoreRef} className="flex justify-center py-2">
                     {(poolsFetchingMore || poolsSearchPending) && !poolsError && (
-                      <Spinner message={isSearching ? "Searching pools…" : undefined} />
+                      <Spinner message={isSearching ? t('market_searching_pools') : undefined} />
                     )}
                   </div>
                 </>
@@ -575,7 +577,7 @@ export default function MarketPage(): ReactElement {
                 onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${encodeURIComponent(normalizeAssetQuery(searchQuery))}/XCP` : "/compose/pool/deposit")}
                 className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
               >
-                Enter Pool →
+                {t('market_enter_pool')}
               </button>
             </div>
           )}

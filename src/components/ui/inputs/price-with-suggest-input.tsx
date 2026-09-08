@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { formatAmount, formatForInput } from '@/core/format';
 import { divide, isValidPositiveNumber, toBigNumber } from "@/core/numeric";
 
+import { t } from '@/i18n';
+
 interface PriceWithSuggestInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -82,7 +84,7 @@ export function PriceWithSuggestInput({
             type="button"
             className="text-xs text-blue-500 font-normal cursor-pointer hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
             onClick={handlePairFlip}
-            aria-label={`Flip trading pair to ${isPairFlipped ? tradingPairData?.name : flipPairName(tradingPairData?.name || '')}`}
+            aria-label={t('inputs_price_with_suggest_input_flip_trading_pair_to', [String(isPairFlipped ? tradingPairData?.name : flipPairName(tradingPairData?.name || ''))])}
           >
             {displayedPairName}
           </button>
@@ -110,26 +112,26 @@ export function PriceWithSuggestInput({
           <Button
             variant="input"
             onClick={handleSuggestClick}
-            aria-label="Use suggested price from last trade"
+            aria-label={t('inputs_price_with_suggest_input_use_suggested_price_from_last')}
           >
-            Min
+            {t('inputs_price_with_suggest_input_min')}
           </Button>
         )}
       </div>
-      {invalidDraft && <p id={`${name}-draft-error`} role="alert" className="mt-2 text-sm text-red-600">Use digits and a dot, up to 8 decimals.</p>}
+      {invalidDraft && <p id={`${name}-draft-error`} role="alert" className="mt-2 text-sm text-red-600">{t('safety_amount_syntax')}</p>}
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
           {priceDescription}
           {!hideTradingPairInfo && tradingPairData?.last_trade_price && (
             <span className="ml-1">
-              Last trade: {formatAmount({
+              {t('inputs_price_with_suggest_input_last_trade', [String(formatAmount({
                 value: showPairFlip && isPairFlipped
                   ? divide(1, tradingPairData.last_trade_price)
                   : tradingPairData.last_trade_price,
                 minimumFractionDigits: 8,
                 maximumFractionDigits: 8,
                 useGrouping: true
-              })}
+              }))])}
             </span>
           )}
         </Description>

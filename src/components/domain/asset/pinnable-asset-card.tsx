@@ -2,6 +2,8 @@ import type { ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import { FiChevronDown, FiChevronUp, TbPinned, TbPinnedFilled } from "@/components/icons";
 
+import { t } from '@/i18n';
+
 /**
  * Props interface for the PinnableAssetCard component
  */
@@ -111,7 +113,7 @@ export function PinnableAssetCard({
                   ? "text-gray-300 cursor-not-allowed"
                   : "text-gray-600 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
               }`}
-              aria-label={`Move ${symbol} up`}
+              aria-label={t('asset_pinnable_asset_card_move_up', [String(symbol)])}
             >
               <FiChevronUp className="size-3" aria-hidden="true" />
             </button>
@@ -127,7 +129,7 @@ export function PinnableAssetCard({
                   ? "text-gray-300 cursor-not-allowed"
                   : "text-gray-600 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
               }`}
-              aria-label={`Move ${symbol} down`}
+              aria-label={t('asset_pinnable_asset_card_move_down', [String(symbol)])}
             >
               <FiChevronDown className="size-3" aria-hidden="true" />
             </button>
@@ -142,7 +144,7 @@ export function PinnableAssetCard({
               ? "bg-blue-500 text-white hover:bg-blue-600"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
-          aria-label={isPinned ? `Unpin ${symbol}` : `Pin ${symbol}`}
+          aria-label={isPinned ? t('common_unpin', [String(symbol)]) : t('common_pin', [String(symbol)])}
         >
           {isPinned ? (
             <TbPinnedFilled className="size-4" aria-hidden="true" />

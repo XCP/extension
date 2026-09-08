@@ -4,6 +4,8 @@ import type { Pool, PoolPosition } from "@/core/counterparty/api";
 import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { formatAmount } from "@/core/format";
 
+import { t } from '@/i18n';
+
 interface PoolHeaderProps {
   pool: Pool | PoolPosition;
   className?: string;
@@ -29,7 +31,7 @@ export function PoolHeader({ pool, className = "" }: PoolHeaderProps): ReactElem
       <div className="min-w-0">
         <h2 className="text-xl font-bold break-words">{pair}</h2>
         <p className="text-sm text-gray-600">
-          {balance ? `Balance: ${balance}` : `LP: ${pool.lp_asset}`}
+          {balance ? t('swap_form_balance', [String(balance)]) : `LP: ${pool.lp_asset}`}
         </p>
       </div>
     </div>

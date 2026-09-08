@@ -11,11 +11,13 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { rawToInput } from "@/core/amount-contract/amounts";
 import type { PoolWithdrawOptions } from "@/core/counterparty/compose";
 import { applyPoolSlippage, resolvePoolSlippage } from "@/core/counterparty/pool";
-import { fromSatoshis, isGreaterThan, isLessThanOrEqualTo, isValidPositiveNumber } from "@/core/numeric";
+import { fromSatoshis, isGreaterThan, isValidPositiveNumber } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { usePoolWithdrawQuote } from "@/hooks/usePoolQuotes";
+import { t } from '@/i18n';
 import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
+import { isValidSlippageDraft } from "@/pages/compose/pool/slippage-draft";
 
 interface PoolWithdrawFormProps {
   formAction: (formData: FormData) => void;
@@ -39,7 +41,8 @@ export function PoolWithdrawForm({
   const [showSettings, setShowSettings] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const canQuote = !!pool && isValidPositiveNumber(quantity, { maxDecimals: 8 });
+  const isSlippageValid = isValidSlippageDraft(slippage);
+  const canQuote = isSlippageValid && !!pool && isValidPositiveNumber(quantity, { maxDecimals: 8 });
   // Readiness, not a default. `?? true` divides an indivisible reserve by 1e8 whenever details
   // are still loading or failed to load: a 10 RAREPEPE quote renders as 0.0000001 in both
   // "Estimated receive" and "Minimum received after slippage" — the figures the user checks
@@ -66,11 +69,9 @@ export function PoolWithdrawForm({
     return divisible ? fromSatoshis(value.toString(), { removeTrailingZeros: true }) : value.toString();
   };
 
-  const minQuantityA = applyPoolSlippage(quote?.quantity_a_estimate, slippage);
-  const minQuantityB = applyPoolSlippage(quote?.quantity_b_estimate, slippage);
+  const minQuantityA = isSlippageValid ? applyPoolSlippage(quote?.quantity_a_estimate, slippage) : "";
+  const minQuantityB = isSlippageValid ? applyPoolSlippage(quote?.quantity_b_estimate, slippage) : "";
   const hasMinimums = isGreaterThan(minQuantityA, 0) || isGreaterThan(minQuantityB, 0);
-  const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
-    && isLessThanOrEqualTo(slippage, 50);
 
   const submitDisabled = useMemo(() => {
     if (!pool) return true;
@@ -94,7 +95,7 @@ export function PoolWithdrawForm({
   };
 
   if (isLoading) {
-    return <Spinner message="Loading pool position..." className="min-h-[240px]" />;
+    return <Spinner message={t('common_loading_pool_position')} className="min-h-[240px]" />;
   }
 
   if (!pool) {
@@ -105,7 +106,7 @@ export function PoolWithdrawForm({
         </div>
       );
     }
-    return <div className="p-4 text-center text-gray-600">Pool position not found</div>;
+    return <div className="p-4 text-center text-gray-600">{t('common_pool_position_not_found')}</div>;
   }
 
   return (
@@ -119,20 +120,20 @@ export function PoolWithdrawForm({
             onClick={() => navigate(`/compose/pool/deposit/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
             className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
           >
-            Deposit
+            {t('common_deposit')}
           </button>
           <button
             type="button"
             className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded underline"
             onClick={() => setShowSettings(false)}
           >
-            Withdraw
+            {t('common_withdraw')}
           </button>
         </div>
         <button
           type="button"
           onClick={() => setShowSettings(!showSettings)}
-          aria-label="Pool Settings"
+          aria-label={t('common_pool_settings')}
           className={`p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
             showSettings ? "bg-gray-100" : ""
           }`}
@@ -150,7 +151,7 @@ export function PoolWithdrawForm({
       ) : (
         <ComposerForm
           formAction={handleFormAction}
-          submitText="Review Withdrawal"
+          submitText={t('withdraw_form_review_withdrawal')}
           submitDisabled={pending || submitDisabled}
         >
           {localError && <ErrorAlert message={localError} onClose={() => setLocalError(null)} />}
@@ -165,14 +166,14 @@ export function PoolWithdrawForm({
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={rawToInput(pool.quantity, 8)}
-            label="LP Tokens to Withdraw"
+            label={t('withdraw_form_lp_tokens_to_withdraw')}
             name="quantity_display"
             disabled={pending}
             isDivisible
           />
 
           {isLoadingQuote && (
-            <p className="text-sm text-gray-500">Loading withdrawal quote...</p>
+            <p className="text-sm text-gray-500">{t('withdraw_form_loading_withdrawal_quote')}</p>
           )}
 
           {quoteError && (
@@ -181,7 +182,8 @@ export function PoolWithdrawForm({
 
           {quote?.pool_exists && (
             <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-              Estimated receive:
+              
+              {t('withdraw_form_estimated_receive')}
               <div className="mt-1 font-medium text-gray-900">
                 {formatReceived(quote.quantity_a_estimate, isAssetADivisible)} {pool.asset_a}
               </div>
@@ -193,7 +195,8 @@ export function PoolWithdrawForm({
 
           {quote?.pool_exists && hasMinimums && (
             <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-              Minimum received after {slippage || "0"}% slippage:
+              
+              {t('withdraw_form_minimum_with_slippage', [slippage])}
               <div className="mt-1 font-medium text-gray-900">
                 {formatReceived(minQuantityA, isAssetADivisible)} {pool.asset_a}
               </div>

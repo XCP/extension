@@ -1,8 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import * as fc from 'fast-check';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { configureLocale, t } from '@/i18n';
 import { ErrorAlert } from './error-alert';
+
+beforeEach(() => { configureLocale({ language: 'en' }); });
+afterEach(() => { cleanup(); configureLocale({ language: 'en' }); });
 
 // Mock local icons
 vi.mock('@/components/icons', () => ({
@@ -10,6 +14,38 @@ vi.mock('@/components/icons', () => ({
 }));
 
 describe('ErrorAlert', () => {
+  it.each(['error', 'warning', 'info'] as const)('relocalizes a retained %s alert without losing focus, message, or dismiss behavior', severity => {
+    const onClose = vi.fn();
+    const message = 'API diagnostic $1 <raw-address>: unchanged';
+    render(<ErrorAlert severity={severity} message={message} onClose={onClose} />);
+    const originalAlert = screen.getByRole('alert');
+    const originalButton = screen.getByRole('button');
+    originalButton.focus();
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) {
+      act(() => { configureLocale({ language }); });
+      const title = { error: t('error_alert_error'), warning: t('error_alert_warning'), info: t('error_alert_info') }[severity];
+      expect(screen.getByText(title + ':')).toBeInTheDocument();
+      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toBe(originalAlert);
+      expect(originalAlert).toHaveAttribute('aria-live', severity === 'error' ? 'assertive' : 'polite');
+      expect(screen.getByRole('button', { name: t('error_alert_dismiss_message', [title.toLowerCase()]) })).toBe(originalButton);
+      expect(originalButton).toHaveFocus();
+      expect(onClose).not.toHaveBeenCalled();
+    }
+    fireEvent.click(originalButton);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('retains a caller-provided title and raw message while localizing only the dismiss label', () => {
+    const onClose = vi.fn();
+    render(<ErrorAlert title="Custom API $1" message="Unchanged external diagnostic" onClose={onClose} />);
+    act(() => { configureLocale({ language: 'ja' }); });
+    expect(screen.getByText('Custom API $1:')).toBeInTheDocument();
+    expect(screen.getByText('Unchanged external diagnostic')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: t('error_alert_dismiss_message', ['custom api $1']) }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('should render error message', () => {
     render(<ErrorAlert message="Something went wrong" />);
     

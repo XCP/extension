@@ -3,9 +3,11 @@ import { normalizeQuantity } from "@/components/domain/tx/tx-action-info";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
-import { formatAmount } from "@/core/format";
+import { formatAmount, formatFiatEstimate } from "@/core/format";
 import { type BigNumber, fromSatoshis, multiply, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
+
+import { t } from '@/i18n';
 
 /**
  * Props for the ReviewSend component.
@@ -71,7 +73,7 @@ export function ReviewSend({
 
     // Show expanded list as custom field
     customFields.push({
-      label: `Sends (${transactions.length})`,
+      label: t('send_review_sends', [String(transactions.length)]),
       value: "",
       rightElement: (
         <div className="space-y-2 max-h-48 overflow-y-auto mt-2 w-full">
@@ -89,7 +91,7 @@ export function ReviewSend({
               </div>
               {tx.memo && (
                 <div className="text-gray-500 truncate">
-                  Memo: {tx.memo}
+                  {t('common_memo_2', [String(tx.memo)])}
                 </div>
               )}
             </div>
@@ -100,7 +102,7 @@ export function ReviewSend({
 
     // Total amount
     customFields.push({
-      label: "Total",
+      label: t('common_total'),
       value: `${totalQuantity} ${asset}`,
     });
   } else {
@@ -123,25 +125,25 @@ export function ReviewSend({
 
     customFields = [
       {
-        label: "Amount",
+        label: t('common_amount'),
         value: `${quantityDisplay} ${asset}`,
         rightElement: amountInFiat !== null ? (
           <span className="text-gray-500">
-            ${formatAmount({ value: amountInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatFiatEstimate(amountInFiat, settings.fiat)}
           </span>
         ) : undefined,
       },
-      ...(memo ? [{ label: "Memo", value: String(memo) }] : []),
+      ...(memo ? [{ label: t('common_memo'), value: String(memo) }] : []),
       ...(result.params.more_outputs ? [(() => {
         const sats = String(result.params.more_outputs).split(':')[0] ?? '0';
         const btcVal = fromSatoshis(sats);
         const fiatVal = btcPrice ? multiply(btcVal, btcPrice) : null;
         return {
-          label: "Amount",
+          label: t('common_amount'),
           value: `${formatAmount({ value: btcVal, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC`,
           rightElement: fiatVal !== null ? (
             <span className="text-gray-500">
-              ${formatAmount({ value: fiatVal, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatFiatEstimate(fiatVal, settings.fiat)}
             </span>
           ) : undefined,
         };

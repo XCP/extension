@@ -1,0 +1,5929 @@
+{
+  "actions_address": {
+    "message": "地址"
+  },
+  "actions_broadcast_message_from_address": {
+    "message": "從地址廣播訊息"
+  },
+  "actions_broadcast_message_or_inscription": {
+    "message": "廣播訊息或銘文"
+  },
+  "actions_broadcast_text": {
+    "message": "廣播文本"
+  },
+  "actions_cancel_an_existing_order": {
+    "message": "取消現有訂單"
+  },
+  "actions_cancel_order": {
+    "message": "取消訂單"
+  },
+  "actions_close_a_dispenser_using_its": {
+    "message": "通過交易雜湊關閉販賣機"
+  },
+  "actions_close_an_existing_dispenser": {
+    "message": "關閉現有販賣機"
+  },
+  "actions_close_dispenser": {
+    "message": "關閉販賣機"
+  },
+  "actions_close_dispenser_by_hash": {
+    "message": "按雜湊關閉販賣機"
+  },
+  "actions_consolidate_recovery_tool": {
+    "message": "找回工具"
+  },
+  "actions_consolidate_review": {
+    "message": "確認"
+  },
+  "actions_create_a_fairminter": {
+    "message": "建立公平鑄造合約"
+  },
+  "actions_create_a_new_asset": {
+    "message": "建立新資產"
+  },
+  "actions_create_dispenser": {
+    "message": "建立販賣機"
+  },
+  "actions_find_and_consolidate_bare_multisig": {
+    "message": "查詢併合並裸多籤 UTXO"
+  },
+  "actions_multi_party_multi_asset_transaction": {
+    "message": "多方多資產交易"
+  },
+  "actions_recover_bitcoin": {
+    "message": "找回比特幣"
+  },
+  "actions_sell_an_asset_at_a": {
+    "message": "以固定 BTC 價格出售資產"
+  },
+  "actions_set_address_options_like_requiring": {
+    "message": "設定地址選項，例如要求附帶備註"
+  },
+  "actions_sign_a_message_with_your": {
+    "message": "用你的地址簽名訊息"
+  },
+  "actions_sign_message_characters": {
+    "message": "$1 個字元"
+  },
+  "actions_sign_message_copy_message": {
+    "message": "複製訊息"
+  },
+  "actions_sign_message_copy_signature": {
+    "message": "複製簽名"
+  },
+  "actions_sign_message_download_json": {
+    "message": "下載 JSON"
+  },
+  "actions_sign_message_enter_your_message_here": {
+    "message": "在此輸入訊息…"
+  },
+  "actions_sign_message_failed_to_perform_action": {
+    "message": "操作失敗"
+  },
+  "actions_sign_message_failed_to_sign_message": {
+    "message": "簽名訊息失敗"
+  },
+  "actions_sign_message_go_to_wallet": {
+    "message": "前往錢包"
+  },
+  "actions_sign_message_learn_how_to_sign_and": {
+    "message": "瞭解如何簽名和驗證訊息"
+  },
+  "actions_sign_message_message_signing_not_supported_for": {
+    "message": "$1 地址不支援訊息簽名"
+  },
+  "actions_sign_message_no_active_wallet_or_address": {
+    "message": "沒有活動的錢包或地址"
+  },
+  "actions_sign_message_please_enter_a_message_to": {
+    "message": "請輸入要簽名的訊息"
+  },
+  "actions_sign_message_reset": {
+    "message": "重置"
+  },
+  "actions_sign_message_signature_will_appear_here_after": {
+    "message": "簽名後，簽名將顯示在此處..."
+  },
+  "actions_sign_message_signed": {
+    "message": "已簽名"
+  },
+  "actions_tools": {
+    "message": "工具"
+  },
+  "actions_transfer_every_asset_and_balance": {
+    "message": "轉移所有資產和餘額"
+  },
+  "actions_update_options": {
+    "message": "更新選項"
+  },
+  "actions_upload_mpma": {
+    "message": "上傳 MPMA"
+  },
+  "actions_verify_a_signed_message": {
+    "message": "驗證已簽名的訊息"
+  },
+  "actions_verify_message_enter_the_bitcoin_address_that": {
+    "message": "輸入簽名此訊息的比特幣地址"
+  },
+  "actions_verify_message_enter_the_exact_message_that": {
+    "message": "輸入被簽名的原始訊息…"
+  },
+  "actions_verify_message_enter_the_signature_base64_or": {
+    "message": "輸入簽名（base64 或十六進位制格式）…"
+  },
+  "actions_verify_message_failed_to_parse_json_file": {
+    "message": "解析 JSON 檔案失敗。請確認它是包含 address、message 和 signature 欄位的有效 JSON。"
+  },
+  "actions_verify_message_failed_to_verify_message": {
+    "message": "驗證訊息失敗"
+  },
+  "actions_verify_message_invalid_signature_json_file": {
+    "message": "簽名 JSON 檔案無效"
+  },
+  "actions_verify_message_must_match_exactly": {
+    "message": "必須完全一致"
+  },
+  "actions_verify_message_please_enter_the_message_that": {
+    "message": "請輸入被簽名的訊息"
+  },
+  "actions_verify_message_please_enter_the_signature": {
+    "message": "請輸入簽名"
+  },
+  "actions_verify_message_please_enter_the_signer_s": {
+    "message": "請輸入簽名者的比特幣地址"
+  },
+  "actions_verify_message_signature_invalid_does_not_match": {
+    "message": "簽名無效 - 與提供的訊息和地址不匹配"
+  },
+  "actions_verify_message_signature_valid": {
+    "message": "簽名有效"
+  },
+  "actions_verify_message_signer_s_address": {
+    "message": "簽名者地址"
+  },
+  "actions_verify_message_upload_json": {
+    "message": "上傳 JSON"
+  },
+  "actions_verify_message_verified_using": {
+    "message": "驗證方式: $1"
+  },
+  "actions_verify_message_verify_signature": {
+    "message": "驗證簽名"
+  },
+  "actions_wallet_actions": {
+    "message": "錢包操作"
+  },
+  "address_destinations_input_add_another_destination": {
+    "message": "新增另一個接收地址"
+  },
+  "address_destinations_input_approaching_destination_limit": {
+    "message": "接近接收地址上限: $1/$2"
+  },
+  "address_destinations_input_enter_destination_address": {
+    "message": "輸入接收地址 $1"
+  },
+  "address_destinations_input_enter_the_address_to_send": {
+    "message": "輸入接收地址。貼上多個地址（每行一個）可發送到多個接收方。（最多: $1）"
+  },
+  "address_destinations_input_enter_the_addresses_to_send": {
+    "message": "輸入接收地址。每個接收方將收到相同數量。不允許重複地址。（$1/$2 個接收方）"
+  },
+  "address_destinations_input_looking_up_asset_owner": {
+    "message": "正在查詢資產所有者"
+  },
+  "address_destinations_input_maximum_destination_limit_reached": {
+    "message": "已達到接收地址上限: $1"
+  },
+  "address_destinations_input_remove_destination": {
+    "message": "移除接收地址 $1"
+  },
+  "address_options_form_require_memo_for_incoming_transactions": {
+    "message": "要求收款交易附帶備註"
+  },
+  "address_options_form_the_require_memo_option_will": {
+    "message": "啟用“要求備註”後，此地址將拒絕沒有備註的交易。此設定無法撤銷。"
+  },
+  "address_options_review_require_memo": {
+    "message": "要求備註"
+  },
+  "addresses": {
+    "message": "地址"
+  },
+  "addresses_add_address": {
+    "message": "新增地址"
+  },
+  "addresses_adding": {
+    "message": "新增中…"
+  },
+  "addresses_change_address_type": {
+    "message": "更改地址型別"
+  },
+  "addresses_could_not_read_the_derivation": {
+    "message": "無法讀取此地址的派生索引。"
+  },
+  "addresses_details_address_qr_code": {
+    "message": "地址二維碼"
+  },
+  "addresses_details_copy_the_address_shown_here": {
+    "message": "複製此處顯示的地址"
+  },
+  "addresses_details_my_address": {
+    "message": "我的地址"
+  },
+  "addresses_details_select_address": {
+    "message": "選擇地址"
+  },
+  "addresses_failed_to_add_address_please": {
+    "message": "新增地址失敗。請重試。"
+  },
+  "addresses_failed_to_look_up_utxo": {
+    "message": "查詢 UTXO 地址失敗。"
+  },
+  "addresses_failed_to_remove_utxo_address": {
+    "message": "移除 UTXO 地址失敗。"
+  },
+  "addresses_failed_to_select_address_please": {
+    "message": "選擇地址失敗。請重試。"
+  },
+  "addresses_found_now_listed_below": {
+    "message": "已找到 $1，現列於下方。"
+  },
+  "addresses_history_failed_to_fetch_transactions": {
+    "message": "獲取交易失敗"
+  },
+  "addresses_history_loading_transactions": {
+    "message": "正在載入交易…"
+  },
+  "addresses_history_next": {
+    "message": "下一頁"
+  },
+  "addresses_history_no_transactions_yet": {
+    "message": "暫無交易"
+  },
+  "addresses_history_page_of": {
+    "message": "第 $1 頁，共 $2 頁"
+  },
+  "addresses_history_previous": {
+    "message": "上一頁"
+  },
+  "addresses_history_refresh_transactions": {
+    "message": "重新整理交易"
+  },
+  "addresses_history_this_address_hasn_t_made": {
+    "message": "此地址尚未在 Counterparty 上進行任何交易。"
+  },
+  "addresses_maximum_number_of_addresses_reached": {
+    "message": "已達到地址數量上限（$1）"
+  },
+  "addresses_no_active_wallet_found": {
+    "message": "未找到活動錢包"
+  },
+  "addresses_no_utxo_address_is_in": {
+    "message": "$1 沒有正在使用的 UTXO 地址。"
+  },
+  "addresses_select_an_address": {
+    "message": "選擇地址"
+  },
+  "addresses_unlock_to_add_address": {
+    "message": "解鎖以新增地址"
+  },
+  "app_get_xcp": {
+    "message": "獲取 XCP"
+  },
+  "app_loading_wallet_data": {
+    "message": "正在載入錢包資料…"
+  },
+  "app_no_wallet_unlocked": {
+    "message": "沒有已解鎖的錢包。"
+  },
+  "app_providers_application_error": {
+    "message": "應用錯誤"
+  },
+  "app_providers_please_refresh_the_page_to": {
+    "message": "請重新整理頁面以繼續。"
+  },
+  "app_providers_settings_error": {
+    "message": "設定錯誤"
+  },
+  "app_providers_unable_to_load_settings_please": {
+    "message": "無法載入設定。請重新整理。"
+  },
+  "app_providers_unable_to_load_wallet_please": {
+    "message": "無法載入錢包。請重新整理。"
+  },
+  "app_providers_wallet_error": {
+    "message": "錢包錯誤"
+  },
+  "app_receive": {
+    "message": "收款"
+  },
+  "app_receive_tokens": {
+    "message": "接收代幣"
+  },
+  "app_refresh_balances": {
+    "message": "刷新余額"
+  },
+  "app_select_wallet": {
+    "message": "選擇錢包"
+  },
+  "app_send_tokens": {
+    "message": "發送代幣"
+  },
+  "app_transaction_history": {
+    "message": "交易歷史"
+  },
+  "app_utxos": {
+    "message": "UTXO"
+  },
+  "app_view_assets": {
+    "message": "檢視資產"
+  },
+  "app_view_balances": {
+    "message": "檢視餘額"
+  },
+  "app_view_utxos": {
+    "message": "檢視 UTXO"
+  },
+  "app_wallet_dashboard": {
+    "message": "錢包面板"
+  },
+  "appDescription": {
+    "message": "面向比特幣的 Counterparty 錢包"
+  },
+  "appLocale": {
+    "message": "zh-TW"
+  },
+  "appName": {
+    "message": "XCP Wallet"
+  },
+  "approval_approval_attention_about_sat_vb": {
+    "message": "（約 $1 sat/vB）"
+  },
+  "approval_approval_attention_confirm_that_this_fee_is": {
+    "message": "請確認此費用是有意設定的。"
+  },
+  "approval_approval_attention_review_this_exception_before_signing": {
+    "message": "$1 簽名前請檢查此例外情況。"
+  },
+  "approval_approval_attention_strict_verification_is_disabled_review": {
+    "message": "嚴格驗證已關閉。簽名前請檢查此例外情況。"
+  },
+  "approval_approval_attention_the_wallet_could_not_reproduce": {
+    "message": "錢包無法復現交易的每個欄位"
+  },
+  "approval_approval_attention_this_transaction_pays_sats": {
+    "message": "此交易支付 $1 sats"
+  },
+  "approval_approval_attention_unusually_high_network_fee": {
+    "message": "網路費用異常高"
+  },
+  "approval_approval_chrome_close_window": {
+    "message": "關閉視窗"
+  },
+  "approval_approval_chrome_loading_transaction_details": {
+    "message": "正在載入交易詳情…"
+  },
+  "approval_approval_chrome_request_expired": {
+    "message": "請求已過期"
+  },
+  "approval_approval_chrome_required_information_is_unavailable_retry": {
+    "message": "所需資訊不可用。簽名前請重試檢查。"
+  },
+  "approval_approval_chrome_the_request_details_are_unavailable": {
+    "message": "請求詳情不可用。"
+  },
+  "approval_approval_chrome_this_signing_request_is_no": {
+    "message": "此簽名請求已不可用。"
+  },
+  "approval_approval_chrome_unable_to_review_request": {
+    "message": "無法審查請求"
+  },
+  "approval_approval_notice_signing_blocked": {
+    "message": "已阻止簽名"
+  },
+  "approval_approval_notice_this_request_could_not_be": {
+    "message": "無法驗證此請求"
+  },
+  "approval_approval_notice_what_to_review": {
+    "message": "需要檢查的內容"
+  },
+  "approval_approval_notice_why_signing_is_unavailable": {
+    "message": "無法簽名的原因"
+  },
+  "approval_approval_summary_card_protocol_fee": {
+    "message": "協議手續費："
+  },
+  "approval_approval_summary_card_unusually_high_network_fee_double": {
+    "message": "網路費用異常高。簽名前請再次確認。"
+  },
+  "approval_approval_transaction_details_asset_status_unavailable": {
+    "message": "資產狀態不可用"
+  },
+  "approval_approval_transaction_details_assets_attach_to_this_output": {
+    "message": "資產附加到此輸出"
+  },
+  "approval_approval_transaction_details_counterparty_protocol": {
+    "message": "Counterparty 協議"
+  },
+  "approval_approval_transaction_details_inputs": {
+    "message": "輸入 ($1)"
+  },
+  "approval_approval_transaction_details_outputs": {
+    "message": "輸出 ($1)"
+  },
+  "approval_approval_warnings_a_memo_description_or_asset": {
+    "message": "備註、描述或資產標籤中包含可能重排或隱藏文本的字元。"
+  },
+  "approval_approval_warnings_a_memo_description_or_asset_2": {
+    "message": "備註、描述或資產標籤中包含不會顯示的字元。"
+  },
+  "approval_approval_warnings_asset_delivery_is_flexible": {
+    "message": "資產交付方式不固定"
+  },
+  "approval_approval_warnings_assets_are_detached_to_another": {
+    "message": "資產將分離到另一個地址"
+  },
+  "approval_approval_warnings_attached_assets_are_detached_to": {
+    "message": "附加的資產將分離到你的地址"
+  },
+  "approval_approval_warnings_attached_assets_leave_your_wallet": {
+    "message": "附加的資產將離開你的錢包"
+  },
+  "approval_approval_warnings_attached_assets_move_to_your": {
+    "message": "附加的資產將移動到你自己的輸出"
+  },
+  "approval_approval_warnings_check_the_decoded_amounts_and": {
+    "message": "請仔細核對解碼後的數量和接收地址。"
+  },
+  "approval_approval_warnings_couldn_t_verify_asset_status": {
+    "message": "無法驗證資產狀態"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input": {
+    "message": "附加到輸入 $1 的所有資產將分離到 $2。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input_2": {
+    "message": "附加到輸入 $1 的所有資產將分離到來源地址。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input_3": {
+    "message": "附加到輸入 $1 的所有資產將記入輸出 $2，而該地址不受你控制。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_input_4": {
+    "message": "附加到輸入 $1 的所有資產將記入輸出 $2。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs": {
+    "message": "附加到輸入 $1 的所有資產將分離到 $2。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs_2": {
+    "message": "附加到輸入 $1 的所有資產將分離到來源地址。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs_3": {
+    "message": "附加到輸入 $1 的所有資產將記入輸出 $2，而該地址不受你控制。"
+  },
+  "approval_approval_warnings_every_asset_attached_to_inputs_4": {
+    "message": "附加到輸入 $1 的所有資產將記入輸出 $2。"
+  },
+  "approval_approval_warnings_input": {
+    "message": "輸入 #$1: $2 $3"
+  },
+  "approval_approval_warnings_input_status_unknown": {
+    "message": "輸入 #$1: 狀態未知"
+  },
+  "approval_approval_warnings_inputs_you_are_signing_carry": {
+    "message": "你正在簽名的輸入帶有附加資產。簽名會轉移這些資產，而不僅僅是 BTC。"
+  },
+  "approval_approval_warnings_spends_utxos_holding_counterparty_assets": {
+    "message": "花費持有 Counterparty 資產的 UTXO"
+  },
+  "approval_approval_warnings_the_balance_lookup_failed_so": {
+    "message": "餘額查詢失敗，因此無法排除存在附加資產的可能。"
+  },
+  "approval_approval_warnings_the_signature_for_attached_input": {
+    "message": "附加輸入 $1 的簽名沒有鎖定資產的去向。完成此 PSBT 的一方可以選擇明確的分離地址或不同的第一個輸出。請仔細檢視下方的授權內容。"
+  },
+  "approval_approval_warnings_the_signature_for_attached_inputs": {
+    "message": "附加輸入 $1 的簽名沒有鎖定資產的去向。完成此 PSBT 的一方可以選擇明確的分離地址或不同的第一個輸出。請仔細檢視下方的授權內容。"
+  },
+  "approval_approval_warnings_this_transaction_has_no_ordinary": {
+    "message": "此交易沒有普通輸出，因此附加到你所簽名輸入上的所有資產都將記回你的地址。"
+  },
+  "approval_approval_warnings_transaction_details_contain_control_characters": {
+    "message": "交易詳情包含控制字元"
+  },
+  "approval_approval_warnings_transaction_details_contain_hidden_characters": {
+    "message": "交易詳情包含隱藏字元"
+  },
+  "approval_bitcoin_payment_card_bitcoin_payment_did_not_verify": {
+    "message": "比特幣支付未通過驗證"
+  },
+  "approval_bitcoin_payment_card_compare_payment_details": {
+    "message": "對比支付詳情"
+  },
+  "approval_bitcoin_payment_card_data_output": {
+    "message": "資料輸出"
+  },
+  "approval_bitcoin_payment_card_destination_could_not_be_identified": {
+    "message": "無法識別接收地址"
+  },
+  "approval_bitcoin_payment_card_difference": {
+    "message": "差額"
+  },
+  "approval_bitcoin_payment_card_no_identified_external_payment_address": {
+    "message": "未識別到外部支付地址"
+  },
+  "approval_bitcoin_payment_card_output_btc": {
+    "message": "輸出 #$1: $2 BTC"
+  },
+  "approval_bitcoin_payment_card_payment_outputs_could_not_be": {
+    "message": "無法審查支付輸出。"
+  },
+  "approval_bitcoin_payment_card_payment_outputs_could_not_be_2": {
+    "message": "無法審查支付輸出"
+  },
+  "approval_bitcoin_payment_card_recipient_receives": {
+    "message": "收款方收到"
+  },
+  "approval_bitcoin_payment_card_reference": {
+    "message": "參考: $1"
+  },
+  "approval_bitcoin_payment_card_site_declared": {
+    "message": "網站宣告"
+  },
+  "approval_bitcoin_payment_card_site_description": {
+    "message": "網站說明: $1"
+  },
+  "approval_bitcoin_payment_card_the_transaction_does_not_match": {
+    "message": "交易與請求的支付不匹配。"
+  },
+  "approval_bitcoin_payment_card_the_transaction_pays_a_different": {
+    "message": "交易支付到了不同的接收地址。"
+  },
+  "approval_bitcoin_payment_card_total_entering_wallet": {
+    "message": "進入錢包合計"
+  },
+  "approval_bitcoin_payment_card_total_leaving_wallet": {
+    "message": "離開錢包合計"
+  },
+  "approval_bitcoin_payment_card_transaction_pays": {
+    "message": "交易支付"
+  },
+  "approval_bitcoin_payment_card_transaction_pays_than_requested": {
+    "message": "交易支付比請求$3 $1 $2。"
+  },
+  "approval_bitcoin_payment_card_unavailable": {
+    "message": "不可用"
+  },
+  "approval_bitcoin_payment_card_wallet_total": {
+    "message": "錢包合計"
+  },
+  "approval_bundle_review_card_payout_and_fee_details": {
+    "message": "收益與費用詳情"
+  },
+  "approval_counterparty_details_card_counterparty": {
+    "message": "Counterparty"
+  },
+  "approval_counterparty_details_card_recipients": {
+    "message": "收款方 ($1)"
+  },
+  "approval_marketplace_review_card_verification_incomplete_retry": {
+    "message": "驗證未完成，請重試"
+  },
+  "approval_money_movement_view_couldn_t_be_determined": {
+    "message": "無法確定"
+  },
+  "approval_money_movement_view_net_effect": {
+    "message": "淨變動"
+  },
+  "approval_money_movement_view_not_guaranteed_back": {
+    "message": "不保證返還"
+  },
+  "approval_money_movement_view_other_inputs_may_be_added": {
+    "message": "可能會新增其他輸入；當前所有輸出均由你的簽名鎖定。"
+  },
+  "approval_money_movement_view_other_inputs_or_outputs_may": {
+    "message": "簽名後，其他輸入或輸出可能會被新增或更改。"
+  },
+  "approval_money_movement_view_protocol_data_recoverable": {
+    "message": "協議資料（可找回）"
+  },
+  "approval_money_movement_view_set_by_the_other_party": {
+    "message": "由對方設定"
+  },
+  "approval_money_movement_view_some_amounts_couldn_t_be": {
+    "message": "部分金額無法確定，請檢視詳情。"
+  },
+  "approval_money_movement_view_this_can_be_sent_elsewhere": {
+    "message": "簽名後此金額可能被髮往別處，因此上方合計將其計為支出。"
+  },
+  "approval_money_movement_view_unknown_address": {
+    "message": "未知地址"
+  },
+  "approval_money_movement_view_unusually_high_double_check_before": {
+    "message": "異常高，簽名前請再次確認。"
+  },
+  "approval_money_movement_view_you_send": {
+    "message": "你發送"
+  },
+  "approval_order_card_accepts_up_to_below_the": {
+    "message": "接受最多低於錢包估算 $1% 的結果，請確認與你的滑點設定一致。"
+  },
+  "approval_order_card_click_to_flip_price": {
+    "message": "點選翻轉價格"
+  },
+  "approval_order_card_estimated": {
+    "message": "約 $1（估算）"
+  },
+  "approval_order_card_estimated_by_your_wallet_from": {
+    "message": "由你的錢包通過自身節點估算，並非網站提供。"
+  },
+  "approval_order_card_expires_in_1_block": {
+    "message": "1 個區塊後過期"
+  },
+  "approval_order_card_expires_in_blocks": {
+    "message": "$1 個區塊後過期"
+  },
+  "approval_order_card_guaranteed_by_the_transaction_if": {
+    "message": "由交易保證。如果市場無法交付這麼多，你的 $1 將保留。"
+  },
+  "approval_order_card_price_unavailable": {
+    "message": "價格不可用"
+  },
+  "approval_order_card_the_market_has_moved_below": {
+    "message": "市場價格已低於此最低值。此訂單很可能掛單未成交而不會執行。"
+  },
+  "approval_order_card_you_give": {
+    "message": "你付出"
+  },
+  "approval_order_card_you_receive_at_least": {
+    "message": "你至少收到"
+  },
+  "approval_psbt_each_single_anyonecanpay_signature_fixes": {
+    "message": "每個 SINGLE|ANYONECANPAY 簽名只鎖定相同索引的輸出。簽名後，其他輸入或輸出可能會被新增或更改。"
+  },
+  "approval_psbt_only_paired_outputs_are_fixed": {
+    "message": "僅鎖定配對的輸出"
+  },
+  "approval_psbt_other_funding_inputs_may_be": {
+    "message": "可能會新增其他資金輸入"
+  },
+  "approval_psbt_part_of_the_amount_shown": {
+    "message": "顯示為返還到你錢包的金額，有一部分可能在你簽名後被發往別處。"
+  },
+  "approval_psbt_some_of_your_funds_can": {
+    "message": "你的部分資金可能被轉往別處"
+  },
+  "approval_psbt_your_all_anyonecanpay_signature_fixes": {
+    "message": "你的 ALL|ANYONECANPAY 簽名鎖定當前所有輸出。它允許在不改變這些支付的前提下新增其他資金輸入。"
+  },
+  "approval_verification_details_decoder_differences": {
+    "message": "解碼器差異"
+  },
+  "approval_verification_details_the_counterparty_service_described_some": {
+    "message": "Counterparty 服務對部分欄位的描述有所不同。錢包已將本地解碼重建為與載荷位元組完全一致，因此這些差異不會阻止簽名。"
+  },
+  "approval_verification_details_the_wallet_and_counterparty_service": {
+    "message": "錢包與 Counterparty 服務對部分欄位的描述有所不同，且錢包無法將本地解碼重建為與載荷位元組完全一致。"
+  },
+  "asset_asset_card_supply": {
+    "message": "供應量: $1"
+  },
+  "asset_asset_card_view_details": {
+    "message": "檢視 $1 詳情"
+  },
+  "asset_asset_header_supply": {
+    "message": "供應量:$1 $2"
+  },
+  "asset_asset_icon_loading_asset_icon": {
+    "message": "正在載入資產圖示"
+  },
+  "asset_asset_info_popover_issued": {
+    "message": "已發行"
+  },
+  "asset_asset_info_popover_owner": {
+    "message": "所有者"
+  },
+  "asset_asset_info_popover_view_asset_details": {
+    "message": "檢視資產詳情"
+  },
+  "asset_asset_info_popover_yes": {
+    "message": "是"
+  },
+  "asset_asset_list_loading_owned_assets": {
+    "message": "正在載入持有的資產…"
+  },
+  "asset_asset_list_no_assets_owned": {
+    "message": "未持有任何資產"
+  },
+  "asset_asset_list_this_address_hasn_t_issued": {
+    "message": "此地址尚未發行任何 Counterparty 資產。"
+  },
+  "asset_asset_menu_asset_actions": {
+    "message": "資產操作"
+  },
+  "asset_asset_menu_change_description": {
+    "message": "更改描述"
+  },
+  "asset_asset_name_input_asset_name_already_taken": {
+    "message": "資產名稱已被佔用"
+  },
+  "asset_asset_name_input_asset_name_is_available": {
+    "message": "資產名稱可用"
+  },
+  "asset_asset_name_input_checking_availability": {
+    "message": "正在檢查可用性…"
+  },
+  "asset_asset_name_input_enter_a_subasset_name": {
+    "message": "輸入子資產名稱"
+  },
+  "asset_asset_name_input_enter_an_asset_name": {
+    "message": "輸入資產名稱"
+  },
+  "asset_asset_name_input_generate_random_numeric_asset_name": {
+    "message": "生成隨機數字資產名稱"
+  },
+  "asset_asset_name_input_parent_asset_does_not_exist": {
+    "message": "父資產不存在"
+  },
+  "asset_asset_name_input_you_don_t_own_the": {
+    "message": "你不擁有該父資產"
+  },
+  "asset_asset_select_input_search_and_select_an_asset": {
+    "message": "按名稱或符號搜尋並選擇資產"
+  },
+  "asset_asset_select_input_token": {
+    "message": "$1 代幣"
+  },
+  "asset_balance_balance": {
+    "message": "餘額"
+  },
+  "asset_balance_btc_pay": {
+    "message": "BTC 支付"
+  },
+  "asset_balance_create_a_new_dispenser_for": {
+    "message": "為此資產建立新販賣機"
+  },
+  "asset_balance_create_a_new_order_on": {
+    "message": "在 DEX 上建立新訂單"
+  },
+  "asset_balance_failed_to_load_balance_information": {
+    "message": "載入餘額資訊失敗"
+  },
+  "asset_balance_loading_balance_details": {
+    "message": "正在載入餘額詳情…"
+  },
+  "asset_balance_manage_pool": {
+    "message": "管理流動性池"
+  },
+  "asset_balance_pay_for_an_order_match": {
+    "message": "用 BTC 結算已撮合委託"
+  },
+  "asset_balance_permanently_burn_this_asset": {
+    "message": "永久銷毀此資產"
+  },
+  "asset_balance_pool_position": {
+    "message": "流動性池倉位"
+  },
+  "asset_balance_pool_share": {
+    "message": "流動性池份額"
+  },
+  "asset_balance_send_bitcoin_to_another_address": {
+    "message": "將比特幣發送到另一個地址"
+  },
+  "asset_balance_send_this_asset_to_another": {
+    "message": "將此資產發送到另一個地址"
+  },
+  "asset_balance_trigger_an_open_asset_dispenser": {
+    "message": "從開放的販賣機購買資產"
+  },
+  "asset_balance_trigger_an_open_asset_fairminter": {
+    "message": "在開放的公平鑄造合約中鑄造"
+  },
+  "asset_fairmint_summary_xcp_per_lot": {
+    "message": "每份 $1 XCP"
+  },
+  "asset_fairmint_summary_you_receive": {
+    "message": "你收到"
+  },
+  "asset_fairminter_select_input_failed_to_fetch_fairminters": {
+    "message": "獲取公平鑄造合約失敗"
+  },
+  "asset_fairminter_select_input_failed_to_load_available_assets": {
+    "message": "載入可用資產失敗。請重試。"
+  },
+  "asset_fairminter_select_input_loading_fairminters": {
+    "message": "正在載入公平鑄造合約…"
+  },
+  "asset_fairminter_select_input_select_an_open_fairminter_asset": {
+    "message": "選擇一個開放的公平鑄造資產進行鑄造"
+  },
+  "asset_pinnable_asset_card_move_down": {
+    "message": "將 $1 下移"
+  },
+  "asset_pinnable_asset_card_move_up": {
+    "message": "將 $1 上移"
+  },
+  "asset_search_result_card_view": {
+    "message": "檢視 $1"
+  },
+  "asseta_assetb_enter_pool": {
+    "message": "進入流動性池"
+  },
+  "asseta_assetb_loading_pool": {
+    "message": "正在載入流動性池..."
+  },
+  "asseta_assetb_pool_pair_not_found": {
+    "message": "未找到該交易對的流動性池"
+  },
+  "asseta_assetb_this_pool_has_not_been": {
+    "message": "此流動性池尚未建立。"
+  },
+  "assets_asset_create_a_fairminter_for_this": {
+    "message": "為此資產建立公平鑄造合約"
+  },
+  "assets_asset_create_a_new_asset_under": {
+    "message": "在此名稱空間下建立新資產"
+  },
+  "assets_asset_destroy_the_supply_and_re": {
+    "message": "銷毀供應量並重新發行資產"
+  },
+  "assets_asset_distribute_dividends_to_token_holders": {
+    "message": "向代幣持有者分紅"
+  },
+  "assets_asset_dividend_history": {
+    "message": "分紅歷史"
+  },
+  "assets_asset_failed_to_load_asset_information": {
+    "message": "載入資產資訊失敗"
+  },
+  "assets_asset_failed_to_load_dividend_history": {
+    "message": "載入分紅歷史失敗"
+  },
+  "assets_asset_issue_additional_tokens_for_this": {
+    "message": "為此資產增發代幣"
+  },
+  "assets_asset_issue_subasset": {
+    "message": "發行子資產"
+  },
+  "assets_asset_issuer": {
+    "message": "發行者"
+  },
+  "assets_asset_load_more": {
+    "message": "載入更多"
+  },
+  "assets_asset_loading_dividend_history": {
+    "message": "正在載入分紅歷史…"
+  },
+  "assets_asset_no_dividends_have_been_distributed": {
+    "message": "此資產尚未發放過分紅"
+  },
+  "assets_asset_pay_dividend": {
+    "message": "發放分紅"
+  },
+  "assets_asset_per_unit": {
+    "message": "每單位 $1 $2"
+  },
+  "assets_asset_permanently_lock_the_asset_description": {
+    "message": "永久鎖定資產描述"
+  },
+  "assets_asset_permanently_lock_the_token_supply": {
+    "message": "永久鎖定代幣供應量"
+  },
+  "assets_asset_supply": {
+    "message": "供應量"
+  },
+  "assets_asset_total_distributed": {
+    "message": "累計發放: $1 $2"
+  },
+  "assets_asset_transfer_asset_ownership_to_another": {
+    "message": "將資產所有權轉移到另一個地址"
+  },
+  "assets_asset_update_description": {
+    "message": "更新描述"
+  },
+  "assets_asset_update_the_asset_description": {
+    "message": "更新資產描述"
+  },
+  "assets_asset_view_dividend_transaction": {
+    "message": "檢視分紅交易 $1"
+  },
+  "assets_failed_to_add_asset": {
+    "message": "新增資產失敗。"
+  },
+  "assets_failed_to_remove_asset": {
+    "message": "移除資產失敗。"
+  },
+  "assets_failed_to_search_assets": {
+    "message": "搜尋資產失敗。"
+  },
+  "assets_no_active_wallet_selected": {
+    "message": "未選擇活動錢包"
+  },
+  "assets_pin_up_to_assets_to": {
+    "message": "最多可將 $1 個資產置頂到主螢幕。"
+  },
+  "assets_remove_from_pinned": {
+    "message": "取消置頂 $1"
+  },
+  "assets_search_assets": {
+    "message": "搜尋資產"
+  },
+  "assets_search_assets_2": {
+    "message": "搜尋資產"
+  },
+  "assets_searching": {
+    "message": "搜尋中…"
+  },
+  "assets_you_can_only_pin_up": {
+    "message": "最多隻能置頂 $1 個資產。"
+  },
+  "attach_form_could_not_load_details_for": {
+    "message": "無法載入此資產的詳情。"
+  },
+  "attach_form_enter_the_amount_to_attach": {
+    "message": "輸入要附加的數量（最多 8 位小數）。"
+  },
+  "attach_review_destination_output": {
+    "message": "目標輸出"
+  },
+  "attach_review_unable_to_review_transaction_please": {
+    "message": "無法審查交易。請返回重試。"
+  },
+  "balance_amount_with_max_input_amount_per_destination_after_fee": {
+    "message": "扣除手續費後，每個接收地址的 BTC 低於粉塵下限。"
+  },
+  "balance_amount_with_max_input_calculating_maximum_amount": {
+    "message": "正在計算最大數量…"
+  },
+  "balance_amount_with_max_input_enter_the_amount_of_you": {
+    "message": "輸入你要發送的 $1 數量（每個接收方）。"
+  },
+  "balance_amount_with_max_input_enter_the_amount_of_you_2": {
+    "message": "輸入你要發送的 $1 數量。"
+  },
+  "balance_amount_with_max_input_failed_to_calculate_maximum_amount": {
+    "message": "計算最大數量失敗。請重試。"
+  },
+  "balance_amount_with_max_input_insufficient_balance_to_cover_transaction": {
+    "message": "餘額不足以支付交易手續費。"
+  },
+  "balance_amount_with_max_input_source_address_is_required_to": {
+    "message": "計算最大數量需要來源地址"
+  },
+  "balance_amount_with_max_input_use_maximum_available_amount": {
+    "message": "使用最大可用數量"
+  },
+  "balance_balance_header_incoming": {
+    "message": "$1（+$2 待入賬）"
+  },
+  "balance_balance_list_bitcoin": {
+    "message": "比特幣"
+  },
+  "balance_balance_list_loading_balances": {
+    "message": "正在載入餘額…"
+  },
+  "balance_balance_list_search_balances": {
+    "message": "搜尋餘額…"
+  },
+  "balance_balance_list_searching_balances": {
+    "message": "正在搜尋餘額…"
+  },
+  "balance_balance_menu_balance_actions": {
+    "message": "餘額操作"
+  },
+  "baseasset_quoteasset_ask": {
+    "message": "賣價"
+  },
+  "baseasset_quoteasset_avg_sum_sum": {
+    "message": "均價: $1 $2 合計: $3 $4 合計: $5 $6"
+  },
+  "baseasset_quoteasset_bid": {
+    "message": "買價"
+  },
+  "baseasset_quoteasset_loading_orders": {
+    "message": "正在載入 $1/$2 訂單…"
+  },
+  "baseasset_quoteasset_my_orders": {
+    "message": "我的訂單"
+  },
+  "baseasset_quoteasset_no_matches": {
+    "message": "沒有 $1/$2 的撮合記錄"
+  },
+  "baseasset_quoteasset_orders": {
+    "message": "訂單"
+  },
+  "baseasset_quoteasset_refresh_orders": {
+    "message": "重新整理訂單"
+  },
+  "baseasset_quoteasset_spread": {
+    "message": "價差"
+  },
+  "broadcast_form_enter_the_message_you_want": {
+    "message": "輸入要廣播的訊息。"
+  },
+  "broadcast_form_optional_fee_fraction_for_paid": {
+    "message": "付費廣播的費用比例（可選，例如 0.05 表示 5%）。"
+  },
+  "broadcast_form_optional_numeric_value_if_publishing": {
+    "message": "釋出資料時的數值（可選）。"
+  },
+  "broadcast_form_upload_a_file_to_inscribe": {
+    "message": "上傳檔案作為廣播訊息進行銘刻。檔案內容將永久儲存在鏈上。如需廣播文本，請上傳 .txt 檔案。"
+  },
+  "btcpay_form_enter_order_match_id": {
+    "message": "輸入訂單撮合 ID"
+  },
+  "btcpay_form_the_id_of_the_matched": {
+    "message": "已撮合訂單的 ID。撮合發生時可在訂單歷史中找到。"
+  },
+  "button_opens_in_new_tab": {
+    "message": "$1 - 在新標籤頁中開啟"
+  },
+  "cancel_form_enter_order_transaction_hash": {
+    "message": "輸入訂單交易雜湊"
+  },
+  "cancel_form_transaction_hash_of_the_order": {
+    "message": "要取消的訂單的交易雜湊。可在訂單歷史中找到。"
+  },
+  "cards_connected_site_card_connected_site": {
+    "message": "已連接的網站: $1"
+  },
+  "cards_connected_site_card_disconnect": {
+    "message": "斷開 $1"
+  },
+  "cards_manage_order_card_cancelling": {
+    "message": "取消中"
+  },
+  "cards_manage_order_card_remaining": {
+    "message": "剩餘"
+  },
+  "cards_pool_card_no_liquidity": {
+    "message": "無流動性"
+  },
+  "cards_transaction_card_0_confirmations": {
+    "message": "（0 次確認）"
+  },
+  "cards_transaction_card_transaction": {
+    "message": "交易 $1"
+  },
+  "charts_price_chart_no_data_available": {
+    "message": "暫無資料"
+  },
+  "charts_price_chart_price_chart": {
+    "message": "價格圖表"
+  },
+  "close_by_hash_form_asset": {
+    "message": "資產:"
+  },
+  "close_by_hash_form_enter_dispenser_transaction_hash": {
+    "message": "輸入販賣機交易雜湊"
+  },
+  "close_by_hash_form_escrow_quantity": {
+    "message": "託管數量:"
+  },
+  "close_by_hash_form_give_quantity": {
+    "message": "每次給付數量:"
+  },
+  "close_by_hash_form_loading_dispenser_details": {
+    "message": "正在載入販賣機詳情…"
+  },
+  "close_by_hash_form_price": {
+    "message": "價格:"
+  },
+  "close_by_hash_form_source": {
+    "message": "來源:"
+  },
+  "close_by_hash_form_transaction_hash": {
+    "message": "交易雜湊"
+  },
+  "close_by_hash_form_transaction_hash_of_the_dispenser": {
+    "message": "要關閉的販賣機的交易雜湊。可在販賣機歷史中找到。"
+  },
+  "close_by_hash_review_dispenser_hash": {
+    "message": "販賣機雜湊"
+  },
+  "close_form_icon": {
+    "message": "$1 圖示"
+  },
+  "close_form_no_open_dispensers_found_for": {
+    "message": "未找到 $1 的開放販賣機"
+  },
+  "close_form_no_open_dispensers_found_for_2": {
+    "message": "未找到此地址的開放販賣機"
+  },
+  "close_form_remaining": {
+    "message": "剩餘"
+  },
+  "close_form_select_a_dispenser": {
+    "message": "選擇販賣機"
+  },
+  "close_form_select_the_dispenser_you_want": {
+    "message": "選擇要關閉的販賣機。"
+  },
+  "close_review_escrow_returned": {
+    "message": "退還的託管資產"
+  },
+  "common_accept_offer": {
+    "message": "接受報價"
+  },
+  "common_accept_offer_2": {
+    "message": "接受報價"
+  },
+  "common_actions": {
+    "message": "操作"
+  },
+  "common_add_btc": {
+    "message": "新增 BTC"
+  },
+  "common_add_wallet": {
+    "message": "新增錢包"
+  },
+  "common_address": {
+    "message": "地址:"
+  },
+  "common_address_type": {
+    "message": "地址型別"
+  },
+  "common_advanced": {
+    "message": "高階"
+  },
+  "common_amount": {
+    "message": "數量"
+  },
+  "common_amount_per_dispense": {
+    "message": "每次給付數量"
+  },
+  "common_amount_to_sell_enter_up": {
+    "message": "賣出數量。最多可輸入 8 位小數。"
+  },
+  "common_amount_to_sell_enter_whole": {
+    "message": "賣出數量。只能輸入整數。"
+  },
+  "common_anyone_with_it_can_steal": {
+    "message": "任何擁有它的人都可以盜取你的資金。"
+  },
+  "common_asset": {
+    "message": "資產"
+  },
+  "common_asset_details": {
+    "message": "資產詳情"
+  },
+  "common_asset_name": {
+    "message": "資產名稱"
+  },
+  "common_asset_parameter_is_required": {
+    "message": "資產引數為必填項"
+  },
+  "common_assets": {
+    "message": "資產"
+  },
+  "common_avg": {
+    "message": "均價"
+  },
+  "common_awaiting_verification": {
+    "message": "等待驗證"
+  },
+  "common_back": {
+    "message": "返回"
+  },
+  "common_back_to_wallet": {
+    "message": "返回錢包"
+  },
+  "common_balances": {
+    "message": "餘額"
+  },
+  "common_bitcoin_network_fee_only": {
+    "message": "僅比特幣網路費用"
+  },
+  "common_broadcast": {
+    "message": "廣播"
+  },
+  "common_buy": {
+    "message": "買入"
+  },
+  "common_cancel": {
+    "message": "取消"
+  },
+  "common_close": {
+    "message": "關閉"
+  },
+  "common_commission": {
+    "message": "佣金"
+  },
+  "common_confirm_and_sign": {
+    "message": "確認並簽名"
+  },
+  "common_confirm_on_device": {
+    "message": "請在裝置上確認…"
+  },
+  "common_confirm_your_password": {
+    "message": "確認密碼"
+  },
+  "common_confirmation": {
+    "message": "確認"
+  },
+  "common_connected_sites": {
+    "message": "已連接的網站"
+  },
+  "common_continue": {
+    "message": "繼續"
+  },
+  "common_copied": {
+    "message": "已複製！"
+  },
+  "common_copy_address": {
+    "message": "複製地址"
+  },
+  "common_copy_address_2": {
+    "message": "複製地址"
+  },
+  "common_copy_transaction_hash": {
+    "message": "複製交易雜湊"
+  },
+  "common_create_a_password": {
+    "message": "建立密碼"
+  },
+  "common_create_new_dispenser": {
+    "message": "建立新販賣機 →"
+  },
+  "common_create_new_order": {
+    "message": "建立新訂單 →"
+  },
+  "common_create_wallet": {
+    "message": "建立錢包"
+  },
+  "common_current_address": {
+    "message": "當前地址"
+  },
+  "common_deposit": {
+    "message": "存入"
+  },
+  "common_description": {
+    "message": "描述"
+  },
+  "common_description_locked": {
+    "message": "描述已鎖定"
+  },
+  "common_destination": {
+    "message": "接收地址"
+  },
+  "common_destroy": {
+    "message": "銷毀"
+  },
+  "common_destroy_supply": {
+    "message": "銷毀供應量"
+  },
+  "common_detach": {
+    "message": "分離"
+  },
+  "common_disconnect": {
+    "message": "斷開連接"
+  },
+  "common_dispense": {
+    "message": "購買"
+  },
+  "common_dispenser": {
+    "message": "販賣機"
+  },
+  "common_dispensers": {
+    "message": "販賣機"
+  },
+  "common_dividend": {
+    "message": "分紅"
+  },
+  "common_dividend_asset": {
+    "message": "分紅資產"
+  },
+  "common_divisible": {
+    "message": "可分割"
+  },
+  "common_effective_price": {
+    "message": "實際價格"
+  },
+  "common_end_block": {
+    "message": "結束區塊"
+  },
+  "common_enter_a_whole_number_amount": {
+    "message": "請輸入整數數量。"
+  },
+  "common_enter_recipient_s_address": {
+    "message": "輸入收款人地址。"
+  },
+  "common_enter_your_password": {
+    "message": "輸入密碼"
+  },
+  "common_escrow_amount": {
+    "message": "託管數量"
+  },
+  "common_expiration": {
+    "message": "有效期"
+  },
+  "common_failed_to_process_file": {
+    "message": "處理檔案失敗"
+  },
+  "common_failed_to_reorder_assets": {
+    "message": "調整資產順序失敗。"
+  },
+  "common_failed_to_sign_request": {
+    "message": "簽名請求失敗"
+  },
+  "common_fee": {
+    "message": "費用:"
+  },
+  "common_fee_fraction": {
+    "message": "費用比例"
+  },
+  "common_fee_rates_are_still_loading": {
+    "message": "費率仍在載入中。請稍候。"
+  },
+  "common_fee_required": {
+    "message": "所需費用"
+  },
+  "common_file_size_must_be_less": {
+    "message": "檔案大小必須小於 400KB"
+  },
+  "common_flip_price_ratio": {
+    "message": "翻轉價格比率"
+  },
+  "common_from": {
+    "message": "來自:"
+  },
+  "common_get": {
+    "message": "獲得"
+  },
+  "common_give": {
+    "message": "付出"
+  },
+  "common_hard_cap": {
+    "message": "硬頂"
+  },
+  "common_help": {
+    "message": "幫助"
+  },
+  "common_history": {
+    "message": "歷史"
+  },
+  "common_i_have_saved_my_secret": {
+    "message": "我已儲存我的助記詞。"
+  },
+  "common_i_understand_this_cannot_be": {
+    "message": "我瞭解此操作無法撤銷"
+  },
+  "common_import_private_key": {
+    "message": "匯入私鑰"
+  },
+  "common_import_wallet": {
+    "message": "匯入錢包"
+  },
+  "common_importing": {
+    "message": "匯入中…"
+  },
+  "common_inscribe": {
+    "message": "銘刻？"
+  },
+  "common_issue_asset": {
+    "message": "發行資產"
+  },
+  "common_issue_supply": {
+    "message": "增發"
+  },
+  "common_keep_this_private": {
+    "message": "請妥善保密"
+  },
+  "common_last": {
+    "message": "最新"
+  },
+  "common_loading": {
+    "message": "載入中…"
+  },
+  "common_loading_asset_details": {
+    "message": "正在載入資產詳情…"
+  },
+  "common_loading_dispensers": {
+    "message": "正在載入販賣機…"
+  },
+  "common_loading_pool_position": {
+    "message": "正在載入流動性池倉位..."
+  },
+  "common_lock_description": {
+    "message": "鎖定描述"
+  },
+  "common_lock_keychain": {
+    "message": "鎖定鑰匙串"
+  },
+  "common_lock_supply": {
+    "message": "鎖定供應量"
+  },
+  "common_locked": {
+    "message": "已鎖定"
+  },
+  "common_lp_asset": {
+    "message": "LP 資產"
+  },
+  "common_market": {
+    "message": "市場"
+  },
+  "common_marketplace_terms_did_not_verify": {
+    "message": "市場條款未通過驗證"
+  },
+  "common_max": {
+    "message": "最大"
+  },
+  "common_maximum_number_of_wallets_reached": {
+    "message": "已達到錢包數量上限（$1）"
+  },
+  "common_memo": {
+    "message": "備註"
+  },
+  "common_memo_2": {
+    "message": "備註: $1"
+  },
+  "common_message": {
+    "message": "訊息"
+  },
+  "common_mint": {
+    "message": "鑄造"
+  },
+  "common_mint_per_address": {
+    "message": "每地址鑄造上限"
+  },
+  "common_move": {
+    "message": "移動"
+  },
+  "common_network_fee": {
+    "message": "網路費用"
+  },
+  "common_never_expires": {
+    "message": "永不過期"
+  },
+  "common_new_supply": {
+    "message": "新供應量"
+  },
+  "common_no_active_address_selected": {
+    "message": "未選擇活動地址"
+  },
+  "common_no_address_selected": {
+    "message": "未選擇地址"
+  },
+  "common_no_available_balance": {
+    "message": "沒有可用餘額。"
+  },
+  "common_no_consolidation_data_available": {
+    "message": "沒有合併資料"
+  },
+  "common_no_results_found": {
+    "message": "未找到結果"
+  },
+  "common_no_spendable_balance_utxos_have": {
+    "message": "沒有可花費的餘額。$1 個 UTXO 附有資產。"
+  },
+  "common_note": {
+    "message": "注意:"
+  },
+  "common_open": {
+    "message": "營業中"
+  },
+  "common_options": {
+    "message": "選項"
+  },
+  "common_order_hash": {
+    "message": "訂單雜湊"
+  },
+  "common_order_match_id": {
+    "message": "訂單撮合 ID"
+  },
+  "common_output": {
+    "message": "輸出"
+  },
+  "common_password_cannot_be_empty": {
+    "message": "密碼不能為空。"
+  },
+  "common_password_does_not_match": {
+    "message": "密碼不匹配。"
+  },
+  "common_password_is_required": {
+    "message": "密碼為必填項。"
+  },
+  "common_password_must_be_at_least": {
+    "message": "密碼長度至少為 $1 個字元。"
+  },
+  "common_password_verification_failed": {
+    "message": "密碼驗證失敗。"
+  },
+  "common_payment": {
+    "message": "支付"
+  },
+  "common_pending": {
+    "message": "待處理"
+  },
+  "common_pin": {
+    "message": "置頂 $1"
+  },
+  "common_pinned_assets": {
+    "message": "置頂資產"
+  },
+  "common_please_unlock_your_wallet_first": {
+    "message": "請先解鎖錢包"
+  },
+  "common_pool": {
+    "message": "流動性池"
+  },
+  "common_pool_position_not_found": {
+    "message": "未找到流動性池倉位"
+  },
+  "common_pool_settings": {
+    "message": "流動性池設定"
+  },
+  "common_price": {
+    "message": "價格"
+  },
+  "common_privacy_policy": {
+    "message": "隱私政策"
+  },
+  "common_private_key": {
+    "message": "私鑰"
+  },
+  "common_quantity": {
+    "message": "數量"
+  },
+  "common_refresh_price": {
+    "message": "重新整理價格"
+  },
+  "common_reset_form": {
+    "message": "重置表單"
+  },
+  "common_reset_supply": {
+    "message": "重置供應量"
+  },
+  "common_reset_wallet": {
+    "message": "重置錢包"
+  },
+  "common_retry": {
+    "message": "重試"
+  },
+  "common_retry_verification": {
+    "message": "重試驗證"
+  },
+  "common_review_before_signing": {
+    "message": "簽名前請檢查"
+  },
+  "common_review_transaction_risk": {
+    "message": "檢查交易風險"
+  },
+  "common_sat_vb": {
+    "message": "$1 sat/vB"
+  },
+  "common_scroll_to_load_more": {
+    "message": "滾動載入更多…"
+  },
+  "common_search_assets": {
+    "message": "搜尋資產…"
+  },
+  "common_search_results": {
+    "message": "搜尋結果"
+  },
+  "common_searching_assets": {
+    "message": "正在搜尋資產…"
+  },
+  "common_security": {
+    "message": "安全"
+  },
+  "common_select_another_address": {
+    "message": "選擇另一個地址"
+  },
+  "common_sell": {
+    "message": "賣出"
+  },
+  "common_send": {
+    "message": "發送"
+  },
+  "common_send_bitcoin": {
+    "message": "發送比特幣"
+  },
+  "common_settings": {
+    "message": "設定"
+  },
+  "common_show_private_key": {
+    "message": "顯示私鑰"
+  },
+  "common_sign_message": {
+    "message": "簽名訊息"
+  },
+  "common_sign_transaction": {
+    "message": "簽名交易"
+  },
+  "common_signature": {
+    "message": "簽名"
+  },
+  "common_signing": {
+    "message": "簽名中…"
+  },
+  "common_soft_cap": {
+    "message": "軟頂"
+  },
+  "common_start_block": {
+    "message": "開始區塊"
+  },
+  "common_start_mint": {
+    "message": "開始鑄造"
+  },
+  "common_status": {
+    "message": "狀態"
+  },
+  "common_store_message_as_a_taproot": {
+    "message": "將訊息儲存為 Taproot 銘文（鏈上）"
+  },
+  "common_swap": {
+    "message": "兌換"
+  },
+  "common_sweep": {
+    "message": "清掃"
+  },
+  "common_sweep_address": {
+    "message": "清掃地址"
+  },
+  "common_terms_of_service": {
+    "message": "服務條款"
+  },
+  "common_this_can_t_be_undone": {
+    "message": "此操作無法撤銷"
+  },
+  "common_this_field_is_required": {
+    "message": "此欄位為必填項"
+  },
+  "common_to": {
+    "message": "發往:"
+  },
+  "common_toggle_help_text": {
+    "message": "切換幫助文本"
+  },
+  "common_total": {
+    "message": "合計"
+  },
+  "common_total_batches": {
+    "message": "批次總數:"
+  },
+  "common_transaction": {
+    "message": "交易"
+  },
+  "common_transaction_details_did_not_verify": {
+    "message": "交易詳情未通過驗證"
+  },
+  "common_transactions": {
+    "message": "交易"
+  },
+  "common_transfer_ownership": {
+    "message": "轉移所有權"
+  },
+  "common_try_again": {
+    "message": "重試"
+  },
+  "common_tx_hash": {
+    "message": "交易雜湊"
+  },
+  "common_type": {
+    "message": "型別"
+  },
+  "common_unable_to_load_asset_details": {
+    "message": "無法載入資產詳情。請確認該資產存在且你擁有所需許可權。"
+  },
+  "common_unable_to_load_chart_data": {
+    "message": "無法載入圖表資料"
+  },
+  "common_unable_to_load_price": {
+    "message": "無法載入價格"
+  },
+  "common_underlying": {
+    "message": "底層資產"
+  },
+  "common_unpin": {
+    "message": "取消置頂 $1"
+  },
+  "common_utxos_consolidated": {
+    "message": "已合併的 UTXO:"
+  },
+  "common_value": {
+    "message": "值"
+  },
+  "common_verify_message": {
+    "message": "驗證訊息"
+  },
+  "common_verifying": {
+    "message": "驗證中…"
+  },
+  "common_view_in_explorer": {
+    "message": "在瀏覽器中檢視"
+  },
+  "common_wallet_not_found": {
+    "message": "未找到錢包。"
+  },
+  "common_withdraw": {
+    "message": "取出"
+  },
+  "common_xcp_wallet": {
+    "message": "XCP Wallet"
+  },
+  "common_you_receive": {
+    "message": "接收數量"
+  },
+  "common_you_send": {
+    "message": "支付數量"
+  },
+  "common_your_balance": {
+    "message": "你的餘額"
+  },
+  "compose_dispenser_refill_dispenser": {
+    "message": "補貨販賣機"
+  },
+  "compose_fairminter_fairminter": {
+    "message": "公平鑄造合約"
+  },
+  "compose_order_dex_order": {
+    "message": "DEX 訂單"
+  },
+  "composer_composer_cancel_and_return_to_index": {
+    "message": "取消並返回列表"
+  },
+  "composer_composer_cancel_transaction": {
+    "message": "取消交易"
+  },
+  "composer_composer_composed_transaction_differs_from_your": {
+    "message": "構建的交易與你的請求不一致"
+  },
+  "composer_composer_composing_transaction": {
+    "message": "正在構建交易…"
+  },
+  "composer_composer_form_submitting": {
+    "message": "提交中…"
+  },
+  "composer_composer_return_to_form": {
+    "message": "返回表單"
+  },
+  "composer_composer_signing_and_broadcasting": {
+    "message": "正在簽名並廣播…"
+  },
+  "composer_composer_these_differences_are_not_dangerous": {
+    "message": "這些差異本身並不危險，但請在簽名前仔細核對。"
+  },
+  "composer_context_an_error_occurred_while_composing": {
+    "message": "構建交易時發生錯誤。"
+  },
+  "composer_context_failed_to_sign_and_broadcast": {
+    "message": "簽名並廣播交易失敗"
+  },
+  "composer_context_invalid_api_response_missing_or": {
+    "message": "API 響應無效: result 欄位缺失或無效"
+  },
+  "composer_context_invalid_api_response_missing_rawtransaction": {
+    "message": "API 響應無效: 缺少 rawtransaction"
+  },
+  "composer_context_invalid_api_response_response_is": {
+    "message": "API 響應無效: 響應不是物件"
+  },
+  "composer_context_invalid_transaction_data": {
+    "message": "交易資料無效"
+  },
+  "composer_context_no_active_address_available": {
+    "message": "沒有可用的活動地址"
+  },
+  "composer_context_the_composer_did_not_return": {
+    "message": "構建器沒有返回此銘文的揭示交易。"
+  },
+  "composer_context_the_inscription_s_commit_transaction": {
+    "message": "銘文的提交交易已廣播，但釋出內容的揭示交易未被接受（$1）。內容尚未上鍊。揭示交易: $2"
+  },
+  "composer_context_this_transaction_pays_a_sat": {
+    "message": "此交易支付 $1 sat 礦工費，但構建器報告為 $2。顯示的金額是交易實際支付的金額。"
+  },
+  "composer_context_transaction_data_is_stale_please": {
+    "message": "交易資料已過期。請返回並重新構建交易。"
+  },
+  "composer_context_transaction_fee_verification_failed": {
+    "message": "交易費用驗證失敗"
+  },
+  "composer_context_transaction_pays_outputs_your_request": {
+    "message": "交易支付了你的請求中沒有要求的輸出"
+  },
+  "composer_context_transaction_replay_detected": {
+    "message": "檢測到交易重放: $1"
+  },
+  "composer_context_transaction_verification_failed": {
+    "message": "交易驗證失敗: $1"
+  },
+  "composer_context_transaction_verification_failed_bad_inscription": {
+    "message": "交易驗證失敗: 銘文無效。"
+  },
+  "composer_context_transaction_verification_failed_bad_reveal": {
+    "message": "交易驗證失敗: 揭示交易無效。"
+  },
+  "composer_context_transaction_verification_failed_neither_side": {
+    "message": "交易驗證失敗: 此訂單撮合的雙方都不是 BTC，因此不會通過 BTCPay 結算。"
+  },
+  "composer_context_transaction_verification_failed_the_composed": {
+    "message": "交易驗證失敗: 構建的訊息與你的請求不匹配。"
+  },
+  "composer_context_transaction_verification_failed_the_composed_2": {
+    "message": "交易驗證失敗: 構建的交易不包含 Counterparty 訊息，因此不會執行你的請求。"
+  },
+  "composer_context_transaction_verification_failed_this_inscription": {
+    "message": "交易驗證失敗: 無法重建此銘文以進行檢查。"
+  },
+  "composer_context_transaction_verification_failed_this_order": {
+    "message": "交易驗證失敗: 無法讀取此訂單撮合，因此無法檢查其結算的支付。"
+  },
+  "connect_approve_both_of_your_wallet_addresses": {
+    "message": "你錢包中的兩個地址"
+  },
+  "connect_approve_connect_both": {
+    "message": "同時連接兩者"
+  },
+  "connect_approve_favicon": {
+    "message": "$1 的網站圖示"
+  },
+  "connect_approve_legacy_address": {
+    "message": "傳統地址"
+  },
+  "connect_approve_loading": {
+    "message": "載入中..."
+  },
+  "connect_approve_loading_addresses": {
+    "message": "正在載入地址…"
+  },
+  "connect_approve_loading_request": {
+    "message": "正在載入請求…"
+  },
+  "connect_approve_native_segwit_address": {
+    "message": "原生隔離見證地址"
+  },
+  "connect_approve_paired_addresses_are_unavailable_connecting": {
+    "message": "配對地址不可用。連接後將僅授權訪問此地址。"
+  },
+  "connect_approve_paired_addresses_do_not_include": {
+    "message": "配對地址不包含所請求的地址"
+  },
+  "connect_approve_processing": {
+    "message": "處理中…"
+  },
+  "connect_approve_request_message_signatures": {
+    "message": "請求訊息簽名"
+  },
+  "connect_approve_request_signatures_from_either_address": {
+    "message": "向任一地址請求籤名"
+  },
+  "connect_approve_request_transaction_signatures": {
+    "message": "請求交易簽名"
+  },
+  "connect_approve_the_active_address_changed_after": {
+    "message": "此請求發出後，活動地址已更改。請切換回所請求的地址並重試。"
+  },
+  "connect_approve_this_connection_request_is_no": {
+    "message": "此連接請求已不可用。"
+  },
+  "connect_approve_this_request_expired_please_connect": {
+    "message": "此請求已過期。請從網站重新連接。"
+  },
+  "connect_approve_this_site_is_requesting_access": {
+    "message": "此網站請求檢視"
+  },
+  "connect_approve_this_site_is_requesting_access_2": {
+    "message": "此網站請求檢視你的錢包地址"
+  },
+  "connect_approve_this_site_will_be_able": {
+    "message": "此網站將能夠:"
+  },
+  "connect_approve_unable_to_load_this_connection": {
+    "message": "無法載入此連接請求。"
+  },
+  "connect_approve_user_denied_the_request": {
+    "message": "使用者拒絕了請求"
+  },
+  "connect_approve_view_your_wallet_address": {
+    "message": "檢視你的錢包地址"
+  },
+  "connect_approve_view_your_wallet_addresses": {
+    "message": "檢視你的錢包地址"
+  },
+  "connect_approve_wallet_connect": {
+    "message": "錢包連接"
+  },
+  "consolidate_form_continue_to_review": {
+    "message": "繼續確認"
+  },
+  "consolidate_form_destination_address_optional": {
+    "message": "接收地址（可選）"
+  },
+  "consolidate_form_enter_a_valid_fee_rate": {
+    "message": "繼續前請輸入有效的費率。"
+  },
+  "consolidate_form_failed_to_fetch_consolidation_data": {
+    "message": "獲取合併資料失敗"
+  },
+  "consolidate_form_if_left_empty_utxos_will": {
+    "message": "留空時，UTXO 將合併到來源地址。"
+  },
+  "consolidate_form_include_stamp_utxos_in_recovery": {
+    "message": "找回時包含 Stamp UTXO"
+  },
+  "consolidate_form_keep_this_off_unless_you": {
+    "message": "除非你有意銷毀 Stamp UTXO，否則請保持關閉。"
+  },
+  "consolidate_form_leave_empty_to_consolidate_to": {
+    "message": "留空則合併到來源地址"
+  },
+  "consolidate_form_of_batches": {
+    "message": "批次數"
+  },
+  "consolidate_form_pending_recovery_transaction": {
+    "message": "筆待確認的找回交易"
+  },
+  "consolidate_form_please_wait_for": {
+    "message": "。在開始新的找回之前，請等待"
+  },
+  "consolidate_form_protected_utxo_excluded": {
+    "message": "已排除 $p1$$p2$ $p3$$p4$ 個受保護的 UTXO。",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      },
+      "p4": {
+        "content": "$4"
+      }
+    }
+  },
+  "consolidate_form_recoverable": {
+    "message": "可找回"
+  },
+  "consolidate_form_some_utxos_require_special_handling": {
+    "message": "部分 UTXO 需要特殊處理。這在較早的 Counterparty 交易中很常見，會自動處理。"
+  },
+  "consolidate_form_stamp_protection_status_is_still": {
+    "message": "Stamp 保護狀態仍在更新中。請重試。"
+  },
+  "consolidate_form_to_confirm_before_starting_new": {
+    "message": "其確認。"
+  },
+  "consolidate_form_total_bitcoin": {
+    "message": "比特幣總額"
+  },
+  "consolidate_form_total_utxos": {
+    "message": "UTXO 總數"
+  },
+  "consolidate_form_warning": {
+    "message": "警告:"
+  },
+  "consolidate_form_you_have": {
+    "message": "你有"
+  },
+  "consolidate_history_btc_recovered": {
+    "message": "已找回 $1 BTC"
+  },
+  "consolidate_history_confirmed": {
+    "message": "已確認"
+  },
+  "consolidate_history_consolidated_utxos": {
+    "message": "已合併 $1 個 UTXO"
+  },
+  "consolidate_history_failed_to_load_recovery_history": {
+    "message": "載入找回歷史失敗"
+  },
+  "consolidate_history_no_recovery_transactions_yet": {
+    "message": "暫無找回交易"
+  },
+  "consolidate_history_recovery_history": {
+    "message": "找回歷史"
+  },
+  "consolidate_review_all_batches_will_be_signed": {
+    "message": "全部 $1 個批次將一鍵自動簽名並廣播。"
+  },
+  "consolidate_review_batch": {
+    "message": "批次 $1:"
+  },
+  "consolidate_review_batch_consolidation": {
+    "message": "批次合併"
+  },
+  "consolidate_review_btc_utxos": {
+    "message": "$p1$$p2$ BTC（$p3$ 個 UTXO）",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      }
+    }
+  },
+  "consolidate_review_consolidating": {
+    "message": "合併物件:"
+  },
+  "consolidate_review_current_batch": {
+    "message": "當前批次:"
+  },
+  "consolidate_review_fee_breakdown": {
+    "message": "費用明細"
+  },
+  "consolidate_review_fee_breakdown_batches_total": {
+    "message": "費用明細（共 $1 個批次）"
+  },
+  "consolidate_review_fee_rate": {
+    "message": "費率:"
+  },
+  "consolidate_review_network_fee": {
+    "message": "網路費用:"
+  },
+  "consolidate_review_processing_batch_of": {
+    "message": "正在處理批次 $1/$2..."
+  },
+  "consolidate_review_processing_batches": {
+    "message": "正在處理批次..."
+  },
+  "consolidate_review_review_consolidation": {
+    "message": "確認合併"
+  },
+  "consolidate_review_service_fee": {
+    "message": "服務費 ($1%):"
+  },
+  "consolidate_review_service_fee_waived_amount_below": {
+    "message": "✓ 服務費已免除（金額低於門檻）"
+  },
+  "consolidate_review_sign_broadcast_transaction": {
+    "message": "簽名並廣播交易"
+  },
+  "consolidate_review_sign_broadcast_transactions": {
+    "message": "簽名並廣播 $1 筆交易"
+  },
+  "consolidate_review_signing_broadcasting": {
+    "message": "正在簽名並廣播…"
+  },
+  "consolidate_review_total_fees": {
+    "message": "費用合計:"
+  },
+  "consolidate_review_total_utxos": {
+    "message": "UTXO 總數:"
+  },
+  "consolidate_review_up_to": {
+    "message": "最多 $1"
+  },
+  "consolidate_review_utxos_per_batch": {
+    "message": "每批 UTXO 數:"
+  },
+  "consolidate_review_you_will_receive": {
+    "message": "你將收到:"
+  },
+  "consolidate_status_amount_recovered": {
+    "message": "找回金額:"
+  },
+  "consolidate_status_available_utxos": {
+    "message": "可用 UTXO:"
+  },
+  "consolidate_status_confirmed_consolidations": {
+    "message": "已確認的合併:"
+  },
+  "consolidate_status_consolidation_overview": {
+    "message": "合併概覽"
+  },
+  "consolidate_status_consolidation_status": {
+    "message": "合併狀態"
+  },
+  "consolidate_status_failed_to_fetch_status": {
+    "message": "獲取狀態失敗"
+  },
+  "consolidate_status_pending_utxos": {
+    "message": "待確認 UTXO:"
+  },
+  "consolidate_status_recent_consolidations": {
+    "message": "最近的合併"
+  },
+  "consolidate_status_refresh_status": {
+    "message": "重新整理狀態"
+  },
+  "consolidate_status_start_new_consolidation": {
+    "message": "開始新的合併"
+  },
+  "consolidate_status_total_recovered": {
+    "message": "累計找回:"
+  },
+  "consolidate_status_utxos_are_pending_confirmation_please": {
+    "message": "$1 個 UTXO 正在等待確認。請等待後再建立新的合併。"
+  },
+  "consolidate_success_all_batch_failed_nothing_was": {
+    "message": "全部 $1 個批次$2均失敗。沒有發送任何內容，也沒有花費比特幣。請檢視下方錯誤。"
+  },
+  "consolidate_success_batch_utxos": {
+    "message": "批次 $1（$2 個 UTXO）"
+  },
+  "consolidate_success_batches_failed_you_can_retry": {
+    "message": "$1 個批次失敗，你可以稍後重試。"
+  },
+  "consolidate_success_broadcast_but_the_recovery_service": {
+    "message": "已廣播，但無法通知找回服務。你的比特幣正在安全轉移中。這些 UTXO 可能會暫時再次顯示為可找回。"
+  },
+  "consolidate_success_close_and_go_home": {
+    "message": "關閉並返回首頁"
+  },
+  "consolidate_success_consolidation_successful": {
+    "message": "合併成功！"
+  },
+  "consolidate_success_consolidation_summary": {
+    "message": "合併摘要"
+  },
+  "consolidate_success_copy_transaction_id": {
+    "message": "複製交易 ID"
+  },
+  "consolidate_success_error": {
+    "message": "錯誤: $1"
+  },
+  "consolidate_success_failed": {
+    "message": "失敗:"
+  },
+  "consolidate_success_no_batches_broadcast": {
+    "message": "沒有已廣播的批次"
+  },
+  "consolidate_success_one_batch_failed_you_can": {
+    "message": "1 個批次失敗，你可以稍後重試。"
+  },
+  "consolidate_success_started_recovery": {
+    "message": "已開始找回"
+  },
+  "consolidate_success_successful": {
+    "message": "成功:"
+  },
+  "consolidate_success_successfully_broadcast_of_batches": {
+    "message": "已成功廣播 $2 個批次中的 $1 個。"
+  },
+  "consolidate_success_successfully_broadcast_the_batch": {
+    "message": "批次已成功廣播。"
+  },
+  "consolidate_success_transaction_ids": {
+    "message": "交易 ID"
+  },
+  "consolidate_success_view_status": {
+    "message": "檢視狀態"
+  },
+  "consolidate_success_your_transactions_are_now_in": {
+    "message": "你的交易已進入記憶體池，將在接下來的區塊中確認。合併後的比特幣將在交易確認後可用。"
+  },
+  "deposit_form_asset_a": {
+    "message": "資產 A"
+  },
+  "deposit_form_asset_b": {
+    "message": "資產 B"
+  },
+  "deposit_form_loading_pool_quote": {
+    "message": "正在載入流動性池報價..."
+  },
+  "deposit_form_lp_supply_is_zero_this": {
+    "message": "LP 供應量為零。此次存入將重啟流動性池，並可能獲得現有儲備。"
+  },
+  "deposit_form_only_the_pool_ratio_amount": {
+    "message": "只會按流動性池比率存入相應數量，多餘部分不會使用。"
+  },
+  "deposit_form_optional_leave_blank_to_auto": {
+    "message": "可選。留空則自動生成 LP 資產。"
+  },
+  "deposit_form_pool_assets_must_be_different": {
+    "message": "流動性池的兩種資產必須不同。"
+  },
+  "deposit_form_pool_deposits_use_the_current": {
+    "message": "存入流動性池按當前池比率進行。"
+  },
+  "deposit_form_quoted_partner_amount": {
+    "message": "依池比例所需數量：$1 $2"
+  },
+  "deposit_form_review_deposit": {
+    "message": "確認存入"
+  },
+  "deposit_form_the_lp_asset_represents_your": {
+    "message": "LP 資產代表你在流動性池中的份額。"
+  },
+  "deposit_form_this_deposits_less_than_the": {
+    "message": "此數量不足以依報價中的池比例全部存入。"
+  },
+  "deposit_form_use_quote": {
+    "message": "使用報價"
+  },
+  "deposit_review_minimum_lp": {
+    "message": "最低 LP 接收數量"
+  },
+  "destroy_supply_form_amount_to_destroy": {
+    "message": "銷毀數量"
+  },
+  "destroy_supply_form_destroy_supply": {
+    "message": "銷毀供應量"
+  },
+  "destroy_supply_form_enter_a_whole_number_amount": {
+    "message": "請輸入要銷毀的整數數量。"
+  },
+  "destroy_supply_form_enter_asset_name": {
+    "message": "輸入資產名稱"
+  },
+  "destroy_supply_form_enter_the_amount_to_destroy": {
+    "message": "輸入要銷毀的數量（最多 8 位小數）。"
+  },
+  "destroy_supply_form_the_name_of_the_asset": {
+    "message": "要銷毀供應量的資產名稱。"
+  },
+  "detach_form_destination_optional": {
+    "message": "接收地址（可選）"
+  },
+  "detach_form_leave_empty_to_use_utxo": {
+    "message": "留空則使用 UTXO 的地址"
+  },
+  "detach_form_the_address_to_detach_assets": {
+    "message": "資產分離後的接收地址。未指定時，資產將分離到 UTXO 所有者的地址。"
+  },
+  "detach_review_source_utxo": {
+    "message": "來源 UTXO"
+  },
+  "dispense_form_failed_to_fetch_balance": {
+    "message": "獲取餘額失敗"
+  },
+  "dispense_form_insufficient_btc_balance_you_need": {
+    "message": "BTC 餘額不足。觸發此販賣機一次至少需要 $1 BTC（含約 $2 sats 費用）。"
+  },
+  "dispense_form_loading_balance": {
+    "message": "正在載入餘額..."
+  },
+  "dispense_form_number_of_times_to_trigger": {
+    "message": "觸發販賣機的次數"
+  },
+  "dispense_form_please_select_a_dispenser_first": {
+    "message": "請先選擇販賣機"
+  },
+  "dispense_form_this_dispenser_is_empty_and": {
+    "message": "此販賣機已售空，無法觸發。"
+  },
+  "dispense_form_times_to_dispense": {
+    "message": "購買次數"
+  },
+  "dispense_review_btc_payment": {
+    "message": "BTC 支付"
+  },
+  "dispense_review_of_dispenses": {
+    "message": "購買次數"
+  },
+  "dispense_review_pending_transaction_s_competing_for": {
+    "message": "有 $1 筆待確認交易正在競爭此販賣機: $2 販賣機可能在你的交易確認前售空。"
+  },
+  "dispense_review_race_condition_warning": {
+    "message": "⚠️ 競爭風險警告"
+  },
+  "dispense_review_sat_vb": {
+    "message": "@ $1 sat/vB"
+  },
+  "dispenser_asset_dispenser_card_remaining": {
+    "message": "剩餘 $1"
+  },
+  "dispenser_dispenser_card_per_dispense": {
+    "message": "每次 $p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "dispenser_dispenser_card_remaining": {
+    "message": "剩餘 $1"
+  },
+  "dispenser_dispenser_card_select_dispenser_for": {
+    "message": "選擇 $1 的販賣機"
+  },
+  "dispenser_dispenser_input_enter_the_dispenser_address_to": {
+    "message": "輸入要向其發送 BTC 的販賣機地址。"
+  },
+  "dispenser_dispenser_input_error_fetching_dispenser_details": {
+    "message": "獲取販賣機詳情出錯。"
+  },
+  "dispenser_dispenser_input_no_open_dispenser_found_at": {
+    "message": "此地址沒有開放的販賣機。"
+  },
+  "dispenser_form_amount_per_dispense_is_fixed": {
+    "message": "補貨時每次給付數量固定不變。"
+  },
+  "dispenser_form_btc_required_to_trigger_one": {
+    "message": "觸發一次購買所需的 BTC。"
+  },
+  "dispenser_form_cannot_create_a_dispenser_for": {
+    "message": "無法為 BTC 建立販賣機"
+  },
+  "dispenser_form_escrow_quantity_must_be_greater": {
+    "message": "託管數量必須大於或等於每次給付數量"
+  },
+  "dispenser_form_failed_to_load_asset_details": {
+    "message": "載入資產詳情失敗"
+  },
+  "dispenser_form_price_in_bitcoin": {
+    "message": "以比特幣計的價格"
+  },
+  "dispenser_form_price_is_fixed_for_refills": {
+    "message": "補貨時價格固定不變。"
+  },
+  "dispenser_form_select_an_asset_to_dispense": {
+    "message": "選擇要出售的資產"
+  },
+  "dispenser_form_select_the_asset_to_dispense": {
+    "message": "選擇要出售的資產。"
+  },
+  "dispenser_form_the_quantity_of_the_asset": {
+    "message": "每份發放的資產數量。一次付款可購買多份。最多輸入 8 位小數。"
+  },
+  "dispenser_form_the_quantity_of_the_asset_2": {
+    "message": "每份發放的資產數量。一次付款可購買多份。只能輸入整數。"
+  },
+  "dispenser_form_total_amount_to_lock_in": {
+    "message": "鎖定到販賣機中的總數量。最多可輸入 8 位小數。可用: $1"
+  },
+  "dispenser_form_total_amount_to_lock_in_2": {
+    "message": "鎖定到販賣機中的總數量。只能輸入整數。可用: $1"
+  },
+  "dispenser_manage_dispenser_card_closed": {
+    "message": "已關閉"
+  },
+  "dispenser_manage_dispenser_card_closing": {
+    "message": "關閉中"
+  },
+  "dispenser_manage_dispenser_card_refill": {
+    "message": "補貨"
+  },
+  "dispenser_market_dispenser_card_per_dispense": {
+    "message": "每次 $1"
+  },
+  "dispenser_review_bitcoin_total": {
+    "message": "比特幣總額"
+  },
+  "dispenser_review_per_dispense": {
+    "message": "每次"
+  },
+  "dispensers_asset_floor": {
+    "message": "地板價"
+  },
+  "dispensers_asset_loading_dispensers": {
+    "message": "正在載入 $1 販賣機…"
+  },
+  "dispensers_asset_my_dispensers": {
+    "message": "我的販賣機"
+  },
+  "dispensers_asset_no_open_dispensers_found": {
+    "message": "未找到開放的 $1 販賣機"
+  },
+  "dispensers_asset_no_recent_dispenses": {
+    "message": "最近沒有 $1 的購買記錄"
+  },
+  "dispensers_asset_refresh_dispensers": {
+    "message": "重新整理販賣機"
+  },
+  "dispensers_asset_switch_price_display_to": {
+    "message": "將價格顯示切換為 $1"
+  },
+  "dividend_form_amount_of_to_be_paid": {
+    "message": "每單位 $2 應支付的 $1 數量。"
+  },
+  "dividend_form_amount_per_unit": {
+    "message": "每單位數量"
+  },
+  "dividend_form_not_enough_xcp_for_the": {
+    "message": "XCP 不足以支付分紅費用"
+  },
+  "dividend_form_the_asset_to_pay_dividends": {
+    "message": "用於支付分紅的資產（例如 XCP）。"
+  },
+  "error_alert_dismiss_message": {
+    "message": "關閉$1訊息"
+  },
+  "error_alert_error": {
+    "message": "錯誤"
+  },
+  "error_alert_info": {
+    "message": "資訊"
+  },
+  "error_alert_warning": {
+    "message": "警告"
+  },
+  "fairmint_form_btc_and_xcp_cannot_be": {
+    "message": "BTC 和 XCP 不能用於公平鑄造操作。請選擇其他資產。"
+  },
+  "fairmint_form_each_lot_is_for_xcp": {
+    "message": "每份為 $1 $2，價格 $3 XCP。"
+  },
+  "fairmint_form_enter_how_many_lots_to": {
+    "message": "輸入要鑄造的份數。"
+  },
+  "fairmint_form_fairminter_asset": {
+    "message": "公平鑄造資產"
+  },
+  "fairmint_form_fee_rate_must_be_greater": {
+    "message": "費率必須大於零。"
+  },
+  "fairmint_form_free_mint": {
+    "message": "免費鑄造。"
+  },
+  "fairmint_form_lots_to_mint": {
+    "message": "鑄造份數"
+  },
+  "fairmint_form_please_select_a_fairminter_asset": {
+    "message": "請選擇公平鑄造資產。"
+  },
+  "fairmint_form_select_a_fairminter_that_charges": {
+    "message": "選擇收取 XCP 的公平鑄造合約"
+  },
+  "fairmint_form_select_a_free_fairminter_these": {
+    "message": "選擇免費的公平鑄造合約，僅需支付比特幣網路費用"
+  },
+  "fairmint_form_select_an_available_fairminter": {
+    "message": "選擇可用的公平鑄造合約"
+  },
+  "fairmint_form_the_fairminter_decides_the_amount_2": {
+    "message": "數量由公平鑄造合約決定，每筆交易最多 $1 $2，若超過硬頂則更少。"
+  },
+  "fairmint_form_the_maximum_allowed": {
+    "message": "允許的最大值"
+  },
+  "fairmint_form_you_can_mint_at_most": {
+    "message": "你當前最多可鑄造 $1 份。"
+  },
+  "fairmint_review_paid_to": {
+    "message": "支付給"
+  },
+  "fairmint_review_payment_and_tokens_are_held": {
+    "message": "付款和代幣將託管至達到目標，未達到則退款。"
+  },
+  "fairmint_review_soft_cap": {
+    "message": "⚠️ 軟頂"
+  },
+  "fairmint_review_you_pay": {
+    "message": "你支付"
+  },
+  "fairmint_review_you_receive_after_soft_cap": {
+    "message": "你收到（達到軟頂後）"
+  },
+  "fairminter_fairmint_fairmint": {
+    "message": "公平鑄造"
+  },
+  "fairminter_form_a_textual_description_for_the": {
+    "message": "資產的文字描述。將銘刻到鏈上。"
+  },
+  "fairminter_form_advanced_options": {
+    "message": "進階選項"
+  },
+  "fairminter_form_amount_of_asset_to_mint": {
+    "message": "銷售開始時鑄造的資產數量。"
+  },
+  "fairminter_form_btc_fee_model_miners": {
+    "message": "BTC 費用模式（付給礦工）"
+  },
+  "fairminter_form_commission_fraction_between_0_and": {
+    "message": "需支付的佣金比例（0 到 1 之間，不含 1）。"
+  },
+  "fairminter_form_lock_quantity": {
+    "message": "鎖定數量"
+  },
+  "fairminter_form_maximum_amount_that_can_be": {
+    "message": "單筆交易可鑄造的最大數量。"
+  },
+  "fairminter_form_maximum_total_supply_that_can": {
+    "message": "可鑄造的最大總供應量。"
+  },
+  "fairminter_form_minimum_amount_required_for_the": {
+    "message": "銷售成功所需的最低數量。"
+  },
+  "fairminter_form_mint_method": {
+    "message": "鑄造方式"
+  },
+  "fairminter_form_mint_per_tx": {
+    "message": "每筆交易鑄造量"
+  },
+  "fairminter_form_no_limit": {
+    "message": "無限制"
+  },
+  "fairminter_form_number_of_tokens_received_per": {
+    "message": "每筆鑄造交易獲得的代幣數量。"
+  },
+  "fairminter_form_optional_maximum_amount_each_address": {
+    "message": "每個地址可鑄造的上限（可選）。留空則不設每地址限制。"
+  },
+  "fairminter_form_pre_mine": {
+    "message": "預挖"
+  },
+  "fairminter_form_select_the_mint_method_for": {
+    "message": "選擇公平鑄造合約的鑄造方式。"
+  },
+  "fairminter_form_soft_cap_deadline_block": {
+    "message": "軟頂截止區塊"
+  },
+  "fairminter_form_store_description_as_a_taproot": {
+    "message": "將描述儲存為 Taproot 銘文（鏈上）"
+  },
+  "fairminter_form_the_block_at_which_the": {
+    "message": "銷售開始的區塊。"
+  },
+  "fairminter_form_the_block_at_which_the_2": {
+    "message": "銷售結束的區塊。"
+  },
+  "fairminter_form_the_block_by_which_the": {
+    "message": "必須達到軟頂的截止區塊。"
+  },
+  "fairminter_form_tokens_per_mint": {
+    "message": "每次鑄造代幣數"
+  },
+  "fairminter_form_xcp_cost_per_mint": {
+    "message": "每次鑄造 XCP 費用"
+  },
+  "fairminter_form_xcp_fee_model_burned": {
+    "message": "XCP 費用模式（銷毀）"
+  },
+  "fairminter_form_xcp_fee_model_to_you": {
+    "message": "XCP 費用模式（付給你）"
+  },
+  "fairminter_form_xcp_required_for_each_mint": {
+    "message": "每筆鑄造交易所需的 XCP。"
+  },
+  "fairminter_review_lot_price": {
+    "message": "每份價格"
+  },
+  "fairminter_review_lot_size": {
+    "message": "每份數量"
+  },
+  "fairminter_review_pool_reserve": {
+    "message": "流動性池儲備"
+  },
+  "fairminter_review_sale_window": {
+    "message": "銷售視窗"
+  },
+  "inputs_api_url_input_api_endpoint_validated_and_saved": {
+    "message": "✓ API 端點已驗證並儲存"
+  },
+  "inputs_api_url_input_failed_to_validate_api": {
+    "message": "驗證 API 失敗"
+  },
+  "inputs_api_url_input_reset_api_url_to_default": {
+    "message": "將 API URL 重置為預設值"
+  },
+  "inputs_api_url_input_using_default_api_endpoint": {
+    "message": "正在使用預設 API 端點"
+  },
+  "inputs_api_url_input_validating_api_endpoint": {
+    "message": "正在驗證 API 端點…"
+  },
+  "inputs_block_height_input_block_height": {
+    "message": "區塊高度"
+  },
+  "inputs_block_height_input_enter_a_block_height_or": {
+    "message": "輸入區塊高度，或點選“當前”使用當前區塊高度。"
+  },
+  "inputs_block_height_input_enter_block_height": {
+    "message": "輸入區塊高度"
+  },
+  "inputs_block_height_input_failed_to_fetch_current_block": {
+    "message": "獲取當前區塊高度失敗。請重試。"
+  },
+  "inputs_block_height_input_now": {
+    "message": "當前"
+  },
+  "inputs_block_height_input_use_current_block_height": {
+    "message": "使用當前區塊高度"
+  },
+  "inputs_destination_input_looking_up_asset_owner": {
+    "message": "正在查詢資產所有者…"
+  },
+  "inputs_destination_input_resolved_to_owner_address": {
+    "message": "已解析為所有者地址"
+  },
+  "inputs_fee_rate_input_custom_fee_rate": {
+    "message": "自訂費率"
+  },
+  "inputs_fee_rate_input_esc": {
+    "message": "Esc"
+  },
+  "inputs_fee_rate_input_fee_rate": {
+    "message": "費率"
+  },
+  "inputs_fee_rate_input_fee_rate_custom": {
+    "message": "費率（自訂）"
+  },
+  "inputs_fee_rate_input_loading_fee_rates": {
+    "message": "正在載入費率…"
+  },
+  "inputs_fee_rate_input_populated_with_network_rates_min": {
+    "message": "已填入網路費率（最低 0.1 sat/vB）。"
+  },
+  "inputs_fee_rate_input_reset_to_first_preset": {
+    "message": "重置為第一個預設"
+  },
+  "inputs_fee_rate_input_unable_to_fetch_fee_rates": {
+    "message": "無法取得費率。請手動輸入（最低 0.1 sat/vB）。"
+  },
+  "inputs_file_upload_input_choose_file": {
+    "message": "選擇檔案"
+  },
+  "inputs_file_upload_input_max_file_size_kb": {
+    "message": "最大檔案大小: $1KB"
+  },
+  "inputs_file_upload_input_remove_file": {
+    "message": "移除檔案"
+  },
+  "inputs_file_upload_input_size_kb": {
+    "message": "大小: $1 KB"
+  },
+  "inputs_hash_input_copy_hash": {
+    "message": "複製雜湊"
+  },
+  "inputs_hash_input_enter_a_64_character_hexadecimal": {
+    "message": "輸入 64 位十六進位制雜湊"
+  },
+  "inputs_hash_input_enter_a_64_character_offer": {
+    "message": "輸入 64 位報價雜湊"
+  },
+  "inputs_hash_input_enter_a_64_character_transaction": {
+    "message": "輸入 64 位交易雜湊"
+  },
+  "inputs_hash_input_enter_an_order_match_id": {
+    "message": "輸入訂單撮合 ID（hash_hash 格式）"
+  },
+  "inputs_hash_input_enter_hash": {
+    "message": "輸入雜湊…"
+  },
+  "inputs_hash_input_invalid_format_expected_hash_hash": {
+    "message": "格式無效。應為: hash_hash（兩個 64 位雜湊以下劃線分隔）"
+  },
+  "inputs_hash_input_invalid_hash_must_be_64": {
+    "message": "$1 雜湊無效。必須是 64 位十六進位制字元"
+  },
+  "inputs_memo_input_optional_memo": {
+    "message": "備註（可選）"
+  },
+  "inputs_memo_input_optional_memo_to_include": {
+    "message": "要附帶的備註（可選）。"
+  },
+  "inputs_password_input_enter_password": {
+    "message": "輸入密碼"
+  },
+  "inputs_password_input_hide_password": {
+    "message": "隱藏密碼"
+  },
+  "inputs_password_input_show_password": {
+    "message": "顯示密碼"
+  },
+  "inputs_price_with_suggest_input_flip_trading_pair_to": {
+    "message": "將交易對翻轉為 $1"
+  },
+  "inputs_price_with_suggest_input_last_trade": {
+    "message": "最近成交: $1"
+  },
+  "inputs_price_with_suggest_input_min": {
+    "message": "最小"
+  },
+  "inputs_price_with_suggest_input_use_suggested_price_from_last": {
+    "message": "使用最近成交的建議價格"
+  },
+  "inputs_search_input_clear_search": {
+    "message": "清除搜尋"
+  },
+  "inputs_search_input_search": {
+    "message": "搜尋…"
+  },
+  "inputs_search_input_start_typing_to_search": {
+    "message": "輸入以開始搜尋"
+  },
+  "inputs_setting_switch_info": {
+    "message": "資訊: $1"
+  },
+  "inputs_textarea_input_maximum_characters_allowed": {
+    "message": "最多允許 $1 個字元"
+  },
+  "inputs_textarea_input_minimum_characters_required": {
+    "message": "至少需要 $1 個字元"
+  },
+  "issuance_form_a_textual_description_for_the": {
+    "message": "資產的文字描述。"
+  },
+  "issuance_form_file_size_must_be_less": {
+    "message": "檔案大小必須小於 $1KB"
+  },
+  "issuance_form_the_quantity_of_the_asset": {
+    "message": "要發行的資產數量。"
+  },
+  "issuance_form_upload_a_file_to_inscribe": {
+    "message": "上傳檔案作為資產描述進行銘刻。檔案內容將永久儲存在鏈上。"
+  },
+  "issuance_review_issuance": {
+    "message": "發行"
+  },
+  "issuance_review_supply_locked": {
+    "message": "供應量已鎖定"
+  },
+  "issuance_review_supply_unlocked": {
+    "message": "供應量未鎖定"
+  },
+  "issuance_transfer_ownership_transfer_asset": {
+    "message": "轉移資產"
+  },
+  "issuance_update_description_update_asset": {
+    "message": "更新資產"
+  },
+  "issue_supply_form_cannot_issue_additional_supply_of": {
+    "message": "無法增發 BTC"
+  },
+  "issue_supply_form_enter_the_amount_of_to": {
+    "message": "輸入要發行的 $1 數量"
+  },
+  "issue_supply_form_this_asset_s_supply_is": {
+    "message": "此資產的供應量已鎖定，無法增加。"
+  },
+  "issue_supply_review_after_issuance": {
+    "message": "發行後"
+  },
+  "issue_supply_review_current_supply": {
+    "message": "當前供應量"
+  },
+  "keychain_onboarding_by_continuing_you_agree_to": {
+    "message": "繼續即表示你同意我們的$1及$2。"
+  },
+  "keychain_onboarding_create_wallet": {
+    "message": "建立錢包"
+  },
+  "keychain_onboarding_import_wallet": {
+    "message": "匯入錢包"
+  },
+  "keychain_unlock_invalid_password_please_try_again": {
+    "message": "密碼無效。請重試。"
+  },
+  "keychain_unlock_password": {
+    "message": "密碼"
+  },
+  "keychain_unlock_unlock": {
+    "message": "解鎖"
+  },
+  "keychain_unlock_unlocking": {
+    "message": "解鎖中…"
+  },
+  "keychain_wallets_failed_to_select_wallet_please": {
+    "message": "選擇錢包失敗。請重試。"
+  },
+  "keychain_wallets_keychain": {
+    "message": "鑰匙串"
+  },
+  "keychain_wallets_open_in_sidepanel": {
+    "message": "在側邊欄中開啟"
+  },
+  "keychain_wallets_select_a_wallet": {
+    "message": "選擇錢包"
+  },
+  "layout_api_status_banner_api_error_some_features_may": {
+    "message": "API 發生錯誤，部分功能可能暫時無法使用。"
+  },
+  "layout_api_status_banner_api_rate_limited_requests_may": {
+    "message": "API 請求過於頻繁。請稍候再試。"
+  },
+  "layout_api_status_banner_dismiss": {
+    "message": "關閉"
+  },
+  "layout_error_boundary_an_unexpected_error_occurred_please": {
+    "message": "發生意外錯誤。請重試。"
+  },
+  "layout_error_boundary_something_went_wrong": {
+    "message": "出了點問題"
+  },
+  "layout_footer_primary": {
+    "message": "主頁"
+  },
+  "layout_footer_wallet": {
+    "message": "錢包"
+  },
+  "layout_header_go_back": {
+    "message": "返回"
+  },
+  "layout_header_logo": {
+    "message": "標誌"
+  },
+  "lists_dispenser_list_fetching_dispenser_details": {
+    "message": "正在獲取販賣機詳情…"
+  },
+  "lock_description_form_cannot_lock_description_of_btc": {
+    "message": "無法鎖定 BTC 的描述"
+  },
+  "lock_description_form_current_description": {
+    "message": "當前描述:"
+  },
+  "lock_description_form_locking_the_description_is_permanent": {
+    "message": "鎖定描述是永久性的，之後無法再更改。"
+  },
+  "lock_description_form_the_description_for_this_asset": {
+    "message": "此資產的描述已鎖定，無法更改。"
+  },
+  "lock_description_review_action": {
+    "message": "操作"
+  },
+  "lock_supply_form_cannot_lock_supply_of_btc": {
+    "message": "無法鎖定 BTC 的供應量"
+  },
+  "lock_supply_form_current_supply": {
+    "message": "當前供應量:"
+  },
+  "lock_supply_form_locking_the_supply_is_permanent": {
+    "message": "鎖定供應量是永久性的，之後無法再建立更多 $1。"
+  },
+  "lock_supply_form_the_supply_for_this_asset": {
+    "message": "此資產的供應量已鎖定，無法更改。"
+  },
+  "lock_supply_review_supply_to_lock": {
+    "message": "要鎖定的供應量"
+  },
+  "market_btc_bitcoin": {
+    "message": "比特幣 ($1)"
+  },
+  "market_btc_bitcoin_price": {
+    "message": "比特幣價格"
+  },
+  "market_btc_buy_bitcoin": {
+    "message": "購買比特幣"
+  },
+  "market_btc_fast": {
+    "message": "快速"
+  },
+  "market_btc_loading_bitcoin_price": {
+    "message": "正在載入比特幣價格…"
+  },
+  "market_btc_medium": {
+    "message": "中速"
+  },
+  "market_btc_sat_vb": {
+    "message": "sat/vB"
+  },
+  "market_btc_slow": {
+    "message": "慢速"
+  },
+  "market_btc_tx_fee_market": {
+    "message": "交易費市場"
+  },
+  "market_enter_pool": {
+    "message": "進入流動性池 →"
+  },
+  "market_failed_to_load_more_pools": {
+    "message": "載入更多流動性池失敗"
+  },
+  "market_failed_to_load_orders": {
+    "message": "載入訂單失敗"
+  },
+  "market_failed_to_load_pools": {
+    "message": "載入流動性池失敗"
+  },
+  "market_filter_your_dispensers": {
+    "message": "篩選你的販賣機..."
+  },
+  "market_filter_your_orders": {
+    "message": "篩選你的訂單..."
+  },
+  "market_loading_orders": {
+    "message": "正在載入訂單…"
+  },
+  "market_loading_pools": {
+    "message": "正在載入流動性池…"
+  },
+  "market_loading_your_pools": {
+    "message": "正在載入你的流動性池…"
+  },
+  "market_no_dispensers_matching": {
+    "message": "沒有與“$1”匹配的販賣機"
+  },
+  "market_no_open_dispensers_found": {
+    "message": "未找到開放的販賣機"
+  },
+  "market_no_open_orders_found": {
+    "message": "未找到未成交訂單"
+  },
+  "market_no_orders_matching": {
+    "message": "沒有與“$1”匹配的訂單"
+  },
+  "market_no_pool_positions_matching": {
+    "message": "沒有與“$1”匹配的流動性池倉位"
+  },
+  "market_no_pools_found": {
+    "message": "未找到流動性池"
+  },
+  "market_no_pools_matching": {
+    "message": "沒有與“$1”匹配的流動性池"
+  },
+  "market_search_asset_dispensers": {
+    "message": "搜尋資產販賣機..."
+  },
+  "market_search_asset_orders": {
+    "message": "搜尋資產訂單..."
+  },
+  "market_search_pools": {
+    "message": "搜尋流動性池..."
+  },
+  "market_search_your_pools": {
+    "message": "搜尋你的流動性池..."
+  },
+  "market_searching": {
+    "message": "搜尋中..."
+  },
+  "market_sections": {
+    "message": "市場板塊"
+  },
+  "market_view_mode": {
+    "message": "檢視模式"
+  },
+  "market_xcp_1_xcp_sats": {
+    "message": "1 XCP = $1 sats"
+  },
+  "market_xcp_all": {
+    "message": "全部"
+  },
+  "market_xcp_all_time_high": {
+    "message": "歷史最高"
+  },
+  "market_xcp_buy_xcp": {
+    "message": "購買 XCP"
+  },
+  "market_xcp_counterparty_usd": {
+    "message": "Counterparty (USD)"
+  },
+  "market_xcp_dex_rate": {
+    "message": "DEX 匯率"
+  },
+  "market_xcp_floor_price": {
+    "message": "地板價"
+  },
+  "market_xcp_loading_xcp_price": {
+    "message": "正在載入 XCP 價格…"
+  },
+  "market_xcp_view_open_xcp_dispensers": {
+    "message": "檢視開放的 XCP 販賣機"
+  },
+  "market_xcp_xcp_price": {
+    "message": "XCP 價格"
+  },
+  "market_you_don_t_have_any": {
+    "message": "你沒有開放的販賣機"
+  },
+  "market_you_don_t_have_any_2": {
+    "message": "你沒有未成交訂單"
+  },
+  "market_you_don_t_have_any_3": {
+    "message": "你沒有 LP 倉位"
+  },
+  "marketplace_batch_after_confirmation_and_counterparty": {
+    "message": "在確認並經 Counterparty 驗證後"
+  },
+  "marketplace_batch_asset_source": {
+    "message": "資產來源"
+  },
+  "marketplace_batch_attach_and_list_asset": {
+    "message": "附加並上架 $1"
+  },
+  "marketplace_batch_attach_collectibles_for_listing": {
+    "message": "為上架附加 $1 個收藏品"
+  },
+  "marketplace_batch_attach_costs_are_paid_first": {
+    "message": "附加成本先行支付，收益需成交後才有。XCP 費用可能在確認時變動。"
+  },
+  "marketplace_batch_attach_fee": {
+    "message": "附加費用"
+  },
+  "marketplace_batch_attach_network_fee": {
+    "message": "附加的網路費用"
+  },
+  "marketplace_batch_attach_transaction_only": {
+    "message": "僅附加交易"
+  },
+  "marketplace_batch_authorize_1_listing_reprice": {
+    "message": "授權 1 次上架改價"
+  },
+  "marketplace_batch_authorize_listing_reprices": {
+    "message": "授權 $1 次上架改價"
+  },
+  "marketplace_batch_authorize_marketplace_listings": {
+    "message": "授權 $1 個市場上架"
+  },
+  "marketplace_batch_broadcast": {
+    "message": "廣播"
+  },
+  "marketplace_batch_broadcast_now": {
+    "message": "立即廣播的內容"
+  },
+  "marketplace_batch_buyer_controls": {
+    "message": "由買家決定"
+  },
+  "marketplace_batch_combined_asking_prices": {
+    "message": "上架價格合計"
+  },
+  "marketplace_batch_create_1_listing_utxo": {
+    "message": "建立 1 個上架 UTXO"
+  },
+  "marketplace_batch_create_listing_utxos": {
+    "message": "建立 $1 個上架 UTXO"
+  },
+  "marketplace_batch_every_attach_proves_its_source": {
+    "message": "每筆附加都驗證其來源、乾淨的資金、新 UTXO、礦工費用和本地 Counterparty 訊息。XCP 費用在確認前始終取決於區塊。"
+  },
+  "marketplace_batch_every_fan_out_input_and": {
+    "message": "在本批次可以簽名之前，每一個扇出輸入和同錢包輸出都已驗證。此階段不會移動任何 Counterparty 資產。"
+  },
+  "marketplace_batch_every_listing_independently_guarantees_its": {
+    "message": "每個上架都獨立保證其賣家收款。每個靈活簽名在其已附加資產的 UTXO 被花費之前始終有效。"
+  },
+  "marketplace_batch_funding_fees_and_delivery_destination": {
+    "message": "資金、費用和交付地址"
+  },
+  "marketplace_batch_listing_activation": {
+    "message": "上架生效"
+  },
+  "marketplace_batch_listing_price": {
+    "message": "上架價格"
+  },
+  "marketplace_batch_new_utxos": {
+    "message": "新增 UTXO"
+  },
+  "marketplace_batch_not_broadcast_now": {
+    "message": "現在不會廣播。"
+  },
+  "marketplace_batch_prepare_1_collectible": {
+    "message": "準備 1 個收藏品"
+  },
+  "marketplace_batch_prepare_collectibles": {
+    "message": "準備 $1 個收藏品"
+  },
+  "marketplace_batch_quoted_xcp_fee": {
+    "message": "XCP 費用報價"
+  },
+  "marketplace_batch_sats": {
+    "message": "$1 sats"
+  },
+  "marketplace_batch_seller_wallet": {
+    "message": "賣家錢包"
+  },
+  "marketplace_batch_signature_invalidation": {
+    "message": "簽名失效"
+  },
+  "marketplace_batch_spend_each_attached_asset_utxo": {
+    "message": "花費每個已附加資產的 UTXO"
+  },
+  "marketplace_batch_spend_the_attached_asset_utxo": {
+    "message": "花費已附加資產的 UTXO"
+  },
+  "marketplace_batch_the_attach_transaction_is_broadcast": {
+    "message": "附加交易會先廣播。上架將在確認並對已附加資產完成獨立驗證後可用。"
+  },
+  "marketplace_batch_total_network_fees": {
+    "message": "網路費用合計"
+  },
+  "marketplace_batch_total_quoted_xcp_fees": {
+    "message": "XCP 費用報價合計"
+  },
+  "marketplace_batch_transactions": {
+    "message": "交易數"
+  },
+  "marketplace_batch_utxo_returned": {
+    "message": "返還的 UTXO"
+  },
+  "marketplace_batch_xcp_fee_quote": {
+    "message": "XCP 費用報價"
+  },
+  "marketplace_batch_your_payout_if_all_sell": {
+    "message": "全部售出後你的收益"
+  },
+  "marketplace_batch_your_payout_if_sold": {
+    "message": "售出後你的收益"
+  },
+  "marketplace_batch_your_utxo_sats_returned": {
+    "message": "返還給你的 UTXO sats"
+  },
+  "marketplace_bundle_accept_btc_for_with_fee_bump": {
+    "message": "以 $1 BTC 接受 $2 並提高費用"
+  },
+  "marketplace_bundle_accept_offer_for": {
+    "message": "接受 $1 的報價"
+  },
+  "marketplace_bundle_added_child_fee": {
+    "message": "新增的子交易費用"
+  },
+  "marketplace_bundle_asset_detaches_to_this_address": {
+    "message": "資產將分離到此地址"
+  },
+  "marketplace_bundle_asset_stays_attached_to_a": {
+    "message": "資產將保持附加在此地址的 $1 sats UTXO 上"
+  },
+  "marketplace_bundle_both_network_fees_are_already": {
+    "message": "兩筆網路費用已從你的最終收益中扣除。"
+  },
+  "marketplace_bundle_delivery": {
+    "message": "交付地址"
+  },
+  "marketplace_bundle_network_fees": {
+    "message": "網路費用"
+  },
+  "marketplace_bundle_offer_price": {
+    "message": "報價金額"
+  },
+  "marketplace_bundle_parent_fee": {
+    "message": "父交易費用"
+  },
+  "marketplace_bundle_parent_seller_proceeds": {
+    "message": "父交易的賣家收益"
+  },
+  "marketplace_bundle_quoted_package_rate": {
+    "message": "交易包費率報價"
+  },
+  "marketplace_bundle_sat_vb": {
+    "message": "$1 sat/vB"
+  },
+  "marketplace_bundle_sats": {
+    "message": "$1 sats"
+  },
+  "marketplace_bundle_the_parent_completes_the_exact": {
+    "message": "父交易完成這筆精確的出售，子交易僅將你在父交易中的收益花回給你。在請求任一簽名之前，兩筆交易都已通過驗證。"
+  },
+  "marketplace_bundle_you_receive": {
+    "message": "你收到"
+  },
+  "marketplace_bundle_your_proceeds_after_fee_bump": {
+    "message": "提高費用後你的收益"
+  },
+  "marketplace_bundle_your_utxo_sats_returned": {
+    "message": "返還給你的 UTXO sats"
+  },
+  "marketplace_intent_accept_offer": {
+    "message": "接受報價"
+  },
+  "marketplace_intent_asset_detaches_to_this_address": {
+    "message": "資產將分離到此地址"
+  },
+  "marketplace_intent_asset_source": {
+    "message": "資產來源"
+  },
+  "marketplace_intent_asset_stays_attached_to_sat_utxo": {
+    "message": "資產將保持附加在此地址下一個 $1 sats 的 UTXO 上"
+  },
+  "marketplace_intent_assets_detach_to_this_address": {
+    "message": "資產將分離到此地址"
+  },
+  "marketplace_intent_broadcast": {
+    "message": "廣播"
+  },
+  "marketplace_intent_buy_collectibles": {
+    "message": "購買收藏品"
+  },
+  "marketplace_intent_buyer_chooses_attached_or_detached_delivery": {
+    "message": "由買家選擇附加或分離交付"
+  },
+  "marketplace_intent_buyer_controls": {
+    "message": "由買家決定"
+  },
+  "marketplace_intent_buyer_funding": {
+    "message": "買家出資"
+  },
+  "marketplace_intent_buyer_funding_utxo": {
+    "message": "買家出資 UTXO"
+  },
+  "marketplace_intent_cancellation": {
+    "message": "取消方式"
+  },
+  "marketplace_intent_change": {
+    "message": "找零"
+  },
+  "marketplace_intent_collectibles_count": {
+    "message": "$1 件收藏品"
+  },
+  "marketplace_intent_deducted_from_seller_proceeds": {
+    "message": "從賣家收益中扣除"
+  },
+  "marketplace_intent_delist_without_a_transaction": {
+    "message": "無需交易即可下架"
+  },
+  "marketplace_intent_delivery": {
+    "message": "交付"
+  },
+  "marketplace_intent_fee_recipient": {
+    "message": "費用收款方"
+  },
+  "marketplace_intent_finalized_at_confirmation": {
+    "message": "確認時才最終確定"
+  },
+  "marketplace_intent_funding_fees_and_delivery_destination": {
+    "message": "資金、費用和交付地址"
+  },
+  "marketplace_intent_funding_input": {
+    "message": "出資輸入"
+  },
+  "marketplace_intent_funding_utxo": {
+    "message": "出資 UTXO"
+  },
+  "marketplace_intent_items": {
+    "message": "件數"
+  },
+  "marketplace_intent_items_with_asset_count": {
+    "message": "$1（$2 種資產）"
+  },
+  "marketplace_intent_list_for_sale": {
+    "message": "上架出售"
+  },
+  "marketplace_intent_marketplace_cancellation": {
+    "message": "市場取消方式"
+  },
+  "marketplace_intent_marketplace_expiry": {
+    "message": "市場有效期"
+  },
+  "marketplace_intent_network_fee": {
+    "message": "網路費用"
+  },
+  "marketplace_intent_new_utxo_owner": {
+    "message": "新 UTXO 所有者"
+  },
+  "marketplace_intent_new_utxo_value": {
+    "message": "新 UTXO 金額"
+  },
+  "marketplace_intent_new_utxos": {
+    "message": "新 UTXO"
+  },
+  "marketplace_intent_none_requested": {
+    "message": "未設定"
+  },
+  "marketplace_intent_not_broadcast_now": {
+    "message": "現在不廣播。"
+  },
+  "marketplace_intent_notice_accept_exact_offer": {
+    "message": "你的簽名即可按此條件完成這筆出售，無需買家再次確認。如果買家已經花費了共用的出資 UTXO，廣播會失敗，你的資產仍歸你所有。"
+  },
+  "marketplace_intent_notice_authorize_exact_offer": {
+    "message": "簽名後，該賣家無需再次批准即可按此條件完成交易。以同一出資 UTXO 為支撐的其他報價互為備選：最先確認的那筆花費生效，其餘全部作廢。"
+  },
+  "marketplace_intent_notice_bulk_fanout_outputs_stay_in_wallet": {
+    "message": "所有輸出仍由本錢包控制。這些普通比特幣 UTXO 將為後續的 Counterparty 附加交易提供資金；此階段沒有資產移動。"
+  },
+  "marketplace_intent_notice_sighash_all_attached_delivery": {
+    "message": "SIGHASH_ALL 固定了每一個輸入、賣家付款、費用、找零輸出，以及上方顯示的由買家持有的獨立資產 UTXO。"
+  },
+  "marketplace_intent_notice_sighash_all_detach_destination": {
+    "message": "SIGHASH_ALL 固定了每一個輸入、賣家付款、費用、找零輸出，以及上方顯示的分離目標地址。"
+  },
+  "marketplace_intent_offer_price": {
+    "message": "報價金額"
+  },
+  "marketplace_intent_offer_price_platform_fee_and_any_attached_delivery_utxo": {
+    "message": "報價金額、平台費用，以及附加交付所需的 UTXO"
+  },
+  "marketplace_intent_offer_to_buy": {
+    "message": "出價購買"
+  },
+  "marketplace_intent_one_collectible": {
+    "message": "1 件收藏品"
+  },
+  "marketplace_intent_operation_expiry": {
+    "message": "操作有效期"
+  },
+  "marketplace_intent_paid_by_the_buyer": {
+    "message": "由買家支付"
+  },
+  "marketplace_intent_platform_fee": {
+    "message": "平台費用"
+  },
+  "marketplace_intent_quoted_xcp_fee": {
+    "message": "XCP 費用報價"
+  },
+  "marketplace_intent_reprice_listing": {
+    "message": "修改上架價格"
+  },
+  "marketplace_intent_sale_price": {
+    "message": "售價"
+  },
+  "marketplace_intent_sats_kept_with_your_asset": {
+    "message": "隨資產保留的 sats"
+  },
+  "marketplace_intent_seller_receives": {
+    "message": "賣家收到"
+  },
+  "marketplace_intent_seller_subtotal": {
+    "message": "賣家小計"
+  },
+  "marketplace_intent_signature_invalidation": {
+    "message": "簽名失效方式"
+  },
+  "marketplace_intent_spend_the_asset_utxo": {
+    "message": "花費該資產 UTXO"
+  },
+  "marketplace_intent_still_yours_separate_from_the_offer_cost": {
+    "message": "仍歸你所有，與報價成本分開計算"
+  },
+  "marketplace_intent_still_yours_separate_from_the_purchase_cost_and_change": {
+    "message": "仍歸你所有，與購買成本和找零分開計算"
+  },
+  "marketplace_intent_title_accept_btc_for_asset": {
+    "message": "接受以 $1 BTC 出售 $2"
+  },
+  "marketplace_intent_title_attach_asset_for_listing": {
+    "message": "為上架附加 $1"
+  },
+  "marketplace_intent_title_authorize_btc_for_asset": {
+    "message": "授權以 $1 BTC 購買 $2"
+  },
+  "marketplace_intent_title_buy_collectibles_for_btc": {
+    "message": "以 $2 BTC 購買 $1 件收藏品"
+  },
+  "marketplace_intent_title_buy_one_collectible_for_btc": {
+    "message": "以 $1 BTC 購買 1 件收藏品"
+  },
+  "marketplace_intent_title_create_listing_utxos": {
+    "message": "建立 $1 個上架 UTXO"
+  },
+  "marketplace_intent_title_create_one_listing_utxo": {
+    "message": "建立 1 個上架 UTXO"
+  },
+  "marketplace_intent_title_list_asset_for_btc": {
+    "message": "將 1 $1 以 $2 BTC 上架"
+  },
+  "marketplace_intent_title_prepare_asset": {
+    "message": "準備 $1"
+  },
+  "marketplace_intent_title_reprice_asset_to_btc": {
+    "message": "將 1 $1 改價為 $2 BTC"
+  },
+  "marketplace_intent_unavailable": {
+    "message": "不可用"
+  },
+  "marketplace_intent_withdraw_by_spending_your_funding_utxo": {
+    "message": "花費你的出資 UTXO 即可撤回"
+  },
+  "marketplace_intent_you_pay": {
+    "message": "你支付"
+  },
+  "marketplace_intent_you_pay_if_accepted": {
+    "message": "如被接受你支付"
+  },
+  "marketplace_intent_you_receive": {
+    "message": "你收到"
+  },
+  "marketplace_intent_your_payout_if_sold": {
+    "message": "售出後的收益"
+  },
+  "marketplace_intent_your_utxo_sats_returned": {
+    "message": "返還的 UTXO sats"
+  },
+  "menus_address_menu_address_actions": {
+    "message": "地址操作"
+  },
+  "menus_address_menu_find_utxo_address": {
+    "message": "查詢 UTXO 地址"
+  },
+  "menus_address_menu_remove_utxo_address": {
+    "message": "移除 UTXO 地址"
+  },
+  "message_approve_message_to_sign": {
+    "message": "待簽名訊息"
+  },
+  "message_approve_sign_message": {
+    "message": "簽名訊息"
+  },
+  "message_risk_a_signature_over_an_empty": {
+    "message": "對空訊息的簽名只能證明你控制該地址，除此之外什麼也證明不了。"
+  },
+  "message_risk_control_characters_are_not_displayed": {
+    "message": "控制字元不會顯示，因此你簽名的訊息比顯示的更長。"
+  },
+  "message_risk_it_includes_characters_that_can": {
+    "message": "其中包含可能重排或隱藏文本的字元，因此這裡顯示的內容可能不是你簽名的內容。只有在你信任此網站時才繼續。"
+  },
+  "message_risk_this_message_contains_control_characters": {
+    "message": "此訊息包含控制字元"
+  },
+  "message_risk_this_message_contains_hidden_characters": {
+    "message": "此訊息包含隱藏字元"
+  },
+  "message_risk_this_message_is_empty": {
+    "message": "此訊息為空"
+  },
+  "messages_attach_attach_to_utxo": {
+    "message": "附加到 UTXO"
+  },
+  "messages_attach_destination_utxo": {
+    "message": "目標 UTXO"
+  },
+  "messages_attach_move_to_utxo": {
+    "message": "移動到 UTXO"
+  },
+  "messages_attach_operation": {
+    "message": "操作"
+  },
+  "messages_attach_output": {
+    "message": "輸出 #$1"
+  },
+  "messages_attach_same_as_source": {
+    "message": "與來源相同"
+  },
+  "messages_attach_utxo_attach": {
+    "message": "UTXO 附加"
+  },
+  "messages_broadcast_address_options": {
+    "message": "地址選項"
+  },
+  "messages_broadcast_general_broadcast": {
+    "message": "普通廣播"
+  },
+  "messages_broadcast_oracle_broadcast": {
+    "message": "預言機廣播"
+  },
+  "messages_broadcast_text": {
+    "message": "文本"
+  },
+  "messages_broadcast_timestamp": {
+    "message": "時間戳"
+  },
+  "messages_btcpay_btc_amount": {
+    "message": "BTC 金額"
+  },
+  "messages_btcpay_btc_payment_order_settlement": {
+    "message": "BTC 支付（訂單結算）"
+  },
+  "messages_btcpay_valid_payment": {
+    "message": "✅ 有效支付"
+  },
+  "messages_cancel_cancelled_order_tx": {
+    "message": "已取消的訂單交易"
+  },
+  "messages_cancel_cancelled_successfully": {
+    "message": "✅ 已成功取消"
+  },
+  "messages_cancel_order_cancellation": {
+    "message": "訂單取消"
+  },
+  "messages_detach_assets_detached": {
+    "message": "已分離的資產"
+  },
+  "messages_detach_same_as_source_detach_in": {
+    "message": "與來源相同（原地分離）"
+  },
+  "messages_detach_utxo_detach": {
+    "message": "UTXO 分離"
+  },
+  "messages_dispense_asset_received": {
+    "message": "收到的資產"
+  },
+  "messages_dispense_btc_paid": {
+    "message": "支付的 BTC"
+  },
+  "messages_dispense_btc_per": {
+    "message": "每 $2 $1 BTC"
+  },
+  "messages_dispense_dispense_index": {
+    "message": "購買序號"
+  },
+  "messages_dispense_dispenser_address": {
+    "message": "販賣機地址"
+  },
+  "messages_dispense_from_dispenser": {
+    "message": "來自販賣機"
+  },
+  "messages_dispense_original_dispenser_tx": {
+    "message": "原販賣機交易"
+  },
+  "messages_dispense_quantity_received": {
+    "message": "收到數量"
+  },
+  "messages_dispense_to_address": {
+    "message": "接收地址"
+  },
+  "messages_dispenser_give_per_dispense": {
+    "message": "每次給付"
+  },
+  "messages_dispenser_max_dispenses": {
+    "message": "最大購買次數"
+  },
+  "messages_dispenser_oracle_address": {
+    "message": "預言機地址"
+  },
+  "messages_dispenser_price_per_dispense": {
+    "message": "每次價格"
+  },
+  "messages_dispenser_remaining_dispenses": {
+    "message": "剩餘購買次數"
+  },
+  "messages_dispenser_remaining_in_escrow": {
+    "message": "託管剩餘"
+  },
+  "messages_dispenser_total_btc_value": {
+    "message": "BTC 總值"
+  },
+  "messages_dispenser_total_escrow": {
+    "message": "託管總量"
+  },
+  "messages_dividend_dividend_distribution": {
+    "message": "分紅發放"
+  },
+  "messages_dividend_filters_applied": {
+    "message": "已應用篩選"
+  },
+  "messages_dividend_holders_receiving": {
+    "message": "受益持有者"
+  },
+  "messages_dividend_quantity_per_unit": {
+    "message": "每單位數量"
+  },
+  "messages_dividend_total_distributed": {
+    "message": "累計發放"
+  },
+  "messages_fairmint_closed_after_this": {
+    "message": "此後關閉"
+  },
+  "messages_fairmint_commission_paid": {
+    "message": "已付佣金"
+  },
+  "messages_fairmint_fairminter_status": {
+    "message": "公平鑄造合約狀態"
+  },
+  "messages_fairmint_quantity_minted": {
+    "message": "鑄造數量"
+  },
+  "messages_fairmint_still_open": {
+    "message": "仍然開放"
+  },
+  "messages_fairmint_xcp_paid": {
+    "message": "已付 XCP"
+  },
+  "messages_fairmint_xcp_per": {
+    "message": "每 $2 $1 XCP"
+  },
+  "messages_fairminter_fairminter_creation": {
+    "message": "建立公平鑄造合約"
+  },
+  "messages_fairminter_max_mint_per_address": {
+    "message": "每地址鑄造上限"
+  },
+  "messages_fairminter_max_mint_per_tx": {
+    "message": "每筆交易鑄造上限"
+  },
+  "messages_fairminter_mint_model": {
+    "message": "鑄造模式"
+  },
+  "messages_fairminter_no_whole_units": {
+    "message": "否（整數單位）"
+  },
+  "messages_fairminter_premint": {
+    "message": "預鑄數量"
+  },
+  "messages_fairminter_price_per_unit": {
+    "message": "每單位價格"
+  },
+  "messages_fairminter_quantity_locked": {
+    "message": "數量已鎖定"
+  },
+  "messages_fairminter_quantity_per_price": {
+    "message": "每價格單位數量"
+  },
+  "messages_fairminter_yes_8_decimals": {
+    "message": "是（8 位小數）"
+  },
+  "messages_issuance_asset_issuance": {
+    "message": "資產發行"
+  },
+  "messages_issuance_call_date": {
+    "message": "贖回日期"
+  },
+  "messages_issuance_call_price": {
+    "message": "贖回價格"
+  },
+  "messages_issuance_callable": {
+    "message": "可贖回"
+  },
+  "messages_issuance_description_update": {
+    "message": "描述更新"
+  },
+  "messages_issuance_no_whole_units_only": {
+    "message": "否（僅整數單位）"
+  },
+  "messages_issuance_ownership_transfer": {
+    "message": "所有權轉移"
+  },
+  "messages_issuance_parent_asset": {
+    "message": "父資產"
+  },
+  "messages_issuance_subasset_creation": {
+    "message": "建立子資產"
+  },
+  "messages_issuance_supply_increase": {
+    "message": "增發"
+  },
+  "messages_issuance_supply_lock": {
+    "message": "鎖定供應量"
+  },
+  "messages_issuance_supply_locked": {
+    "message": "供應量已鎖定"
+  },
+  "messages_issuance_supply_reset": {
+    "message": "重置供應量"
+  },
+  "messages_issuance_transfer_to": {
+    "message": "轉移給"
+  },
+  "messages_issuance_yes_8_decimal_places": {
+    "message": "是（8 位小數）"
+  },
+  "messages_move_utxo_same_as_source_consolidation": {
+    "message": "與來源相同（合併）"
+  },
+  "messages_move_utxo_utxo_move": {
+    "message": "UTXO 移動"
+  },
+  "messages_move_utxo_utxos_moved": {
+    "message": "已移動的 UTXO"
+  },
+  "messages_mpma_multi_send_to": {
+    "message": "多地址發送（$1 發往 $2）"
+  },
+  "messages_mpma_per_address": {
+    "message": "每地址 $1"
+  },
+  "messages_mpma_recipients": {
+    "message": "$1 收款地址（$2 個）"
+  },
+  "messages_mpma_total_sent": {
+    "message": "$1 發送總量"
+  },
+  "messages_order_buy_order": {
+    "message": "買單"
+  },
+  "messages_order_fee_provided": {
+    "message": "委託交易礦工費"
+  },
+  "messages_order_fill_progress": {
+    "message": "成交進度"
+  },
+  "messages_order_get_remaining": {
+    "message": "待獲得"
+  },
+  "messages_order_give_remaining": {
+    "message": "待付出"
+  },
+  "messages_order_sell_order": {
+    "message": "賣單"
+  },
+  "messages_order_token_swap": {
+    "message": "代幣兌換"
+  },
+  "messages_send_enhanced_send_with_memo": {
+    "message": "增強發送（帶備註）"
+  },
+  "messages_send_memo_type": {
+    "message": "備註型別"
+  },
+  "messages_sweep_assets_swept": {
+    "message": "已清掃的資產"
+  },
+  "messages_sweep_close_dispensers": {
+    "message": "關閉販賣機"
+  },
+  "messages_sweep_flags": {
+    "message": "標誌"
+  },
+  "messages_sweep_include_balances": {
+    "message": "包含餘額"
+  },
+  "messages_sweep_include_ownership": {
+    "message": "包含所有權"
+  },
+  "messages_sweep_raw_value": {
+    "message": "原始值: $1"
+  },
+  "messages_sweep_sweep_all_assets": {
+    "message": "清掃所有資產"
+  },
+  "move_form_enter_destination_address": {
+    "message": "輸入接收地址"
+  },
+  "mpma_form_and_more": {
+    "message": "… 還有 $1 個"
+  },
+  "mpma_form_choose_different_file": {
+    "message": "選擇其他檔案"
+  },
+  "mpma_form_destinations_cannot_receive_an_mpma": {
+    "message": "$1 個接收方無法接收 MPMA 發送。Taproot (bc1p) 和 P2WSH 地址無法在此訊息型別中編碼，請單獨向它們發送。"
+  },
+  "mpma_form_each_line_should_contain_address": {
+    "message": "每行應包含：地址、資產、數量和備註。（備註可選。）"
+  },
+  "mpma_form_failed_to_parse_csv": {
+    "message": "解析 CSV 失敗"
+  },
+  "mpma_form_failed_to_read_file": {
+    "message": "讀取檔案失敗"
+  },
+  "mpma_form_format_address_asset_quantity_memo": {
+    "message": "格式: 地址, 資產, 數量, 備註"
+  },
+  "mpma_form_invalid_csv": {
+    "message": "CSV 無效"
+  },
+  "mpma_form_line": {
+    "message": "第 $1 行: $2"
+  },
+  "mpma_form_line_invalid_bitcoin_address": {
+    "message": "第 $1 行: 比特幣地址無效: $2。$3"
+  },
+  "mpma_form_line_memo_exceeds_34_bytes": {
+    "message": "第 $1 行: 備註超過 34 位元組"
+  },
+  "mpma_form_no_valid_data_found_in": {
+    "message": "CSV 中未找到有效資料"
+  },
+  "mpma_form_one_destination_cannot_receive_an": {
+    "message": "1 個接收方無法接收 MPMA 發送。Taproot (bc1p) 和 P2WSH 地址無法在此訊息型別中編碼，請單獨向它發送。"
+  },
+  "mpma_form_paste_csv_data_here": {
+    "message": "在此貼上 CSV 資料…"
+  },
+  "mpma_form_pasted_data": {
+    "message": "貼上的資料"
+  },
+  "mpma_form_please_select_a_csv_file": {
+    "message": "請選擇 CSV 檔案"
+  },
+  "mpma_form_preview_first_5": {
+    "message": "預覽（前 5 條）"
+  },
+  "mpma_form_upload_csv": {
+    "message": "上傳 CSV"
+  },
+  "mpma_form_upload_csv_file": {
+    "message": "上傳 CSV 檔案"
+  },
+  "mpma_form_validating": {
+    "message": "驗證中…"
+  },
+  "mpma_review_no_sends": {
+    "message": "沒有發送項"
+  },
+  "mpma_review_send": {
+    "message": "發送 #$1: $2 $3"
+  },
+  "not_found": {
+    "message": "未找到"
+  },
+  "not_found_this_is_a_placeholder": {
+    "message": "這是一個佔位頁面。"
+  },
+  "order_btcpay_btcpay": {
+    "message": "BTCPay"
+  },
+  "order_form_amount_to_buy_enter_up": {
+    "message": "買入數量。最多可輸入 8 位小數。"
+  },
+  "order_form_amount_to_buy_enter_whole": {
+    "message": "買入數量。只能輸入整數。"
+  },
+  "order_form_order_settings": {
+    "message": "訂單設定"
+  },
+  "order_form_price_per_unit_in": {
+    "message": "以 $1 計的單價"
+  },
+  "order_form_quote": {
+    "message": "計價資產"
+  },
+  "pool_pool_slippage_settings_done": {
+    "message": "完成"
+  },
+  "pool_slippage_input_auto": {
+    "message": "· 自動"
+  },
+  "pool_slippage_input_auto_2": {
+    "message": "自動"
+  },
+  "pool_slippage_input_custom": {
+    "message": "自訂 %"
+  },
+  "pool_slippage_input_custom_slippage_percent": {
+    "message": "自訂滑點百分比"
+  },
+  "pool_slippage_input_how_far_the_pool_ratio": {
+    "message": "可接受的池比例最大變動幅度。提高容差可能有助於執行，但接收數量可能減少。"
+  },
+  "pool_slippage_input_set_from_the_quote_s": {
+    "message": "輸入數量後，將根據報價的價格影響自動設定。"
+  },
+  "pool_slippage_input_slippage_tolerance": {
+    "message": "滑點容差"
+  },
+  "pool_slippage_input_using_matched_to_this_trade": {
+    "message": "使用 $1%，與此交易的價格影響相匹配。"
+  },
+  "pool_slippage_input_very_high_you_may_receive": {
+    "message": "容差過高，接收數量可能明顯低於報價。"
+  },
+  "pool_slippage_input_very_low_likely_to_fail": {
+    "message": "非常低，如果流動性池在你的交易確認前發生變化，很可能失敗。"
+  },
+  "pools_pool_overview_dex_order": {
+    "message": "DEX 訂單"
+  },
+  "pools_pool_overview_pool_share": {
+    "message": "流動性池份額"
+  },
+  "pools_pool_overview_pool_swap": {
+    "message": "流動性池兌換"
+  },
+  "pools_pool_overview_reserve": {
+    "message": "$1 儲備"
+  },
+  "pools_pool_overview_set_your_own_price_on": {
+    "message": "在訂單簿上設定你自己的價格"
+  },
+  "pools_pool_overview_swap_instantly_at_the_quoted": {
+    "message": "按報價即時兌換"
+  },
+  "price_price_ticker_bitcoin_price": {
+    "message": "比特幣價格"
+  },
+  "price_price_ticker_xcp_price": {
+    "message": "XCP 價格"
+  },
+  "psbt_approve_attach_for_listing": {
+    "message": "為上架附加"
+  },
+  "psbt_approve_authorize_listing": {
+    "message": "授權上架"
+  },
+  "psbt_approve_authorize_offer": {
+    "message": "授權報價"
+  },
+  "psbt_approve_authorize_offer_2": {
+    "message": "授權報價"
+  },
+  "psbt_approve_authorize_reprice": {
+    "message": "授權改價"
+  },
+  "psbt_approve_btc_is_not_guaranteed_back": {
+    "message": "$1 BTC 不保證返還"
+  },
+  "psbt_approve_buy_collectibles": {
+    "message": "購買收藏品"
+  },
+  "psbt_approve_buy_collectibles_2": {
+    "message": "購買收藏品"
+  },
+  "psbt_approve_confirm_the_authorization_details_below": {
+    "message": "在錢包新增你的簽名之前，請確認以下授權詳情。"
+  },
+  "psbt_approve_create_listing": {
+    "message": "建立上架"
+  },
+  "psbt_approve_input": {
+    "message": "輸入 #$1: $2"
+  },
+  "psbt_approve_inputs": {
+    "message": "輸入 $1"
+  },
+  "psbt_approve_only_the_inputs_shown_below": {
+    "message": "只有下方顯示的輸入會由本錢包中對應的地址簽名。"
+  },
+  "psbt_approve_prepare_asset": {
+    "message": "準備資產"
+  },
+  "psbt_approve_prepare_asset_2": {
+    "message": "準備資產"
+  },
+  "psbt_approve_reprice_listing": {
+    "message": "修改上架價格"
+  },
+  "psbt_approve_sats": {
+    "message": "$1 sats"
+  },
+  "psbt_approve_signing_addresses": {
+    "message": "簽名地址 ($1)"
+  },
+  "psbt_approve_the_requested_signature_does_not": {
+    "message": "所請求的簽名並未鎖定返還此金額的所有輸出。完成交易的一方可能會改變其去向。"
+  },
+  "psbt_approve_this_authorization_remains_usable_after": {
+    "message": "此授權在簽名後仍然可用"
+  },
+  "psbts_approve_attach_and_list": {
+    "message": "附加並上架"
+  },
+  "psbts_approve_attach_and_list_2": {
+    "message": "附加並上架"
+  },
+  "psbts_approve_attach_collectibles": {
+    "message": "附加收藏品"
+  },
+  "psbts_approve_authorize_1_listing": {
+    "message": "授權 1 個上架"
+  },
+  "psbts_approve_authorize_1_reprice": {
+    "message": "授權 1 次改價"
+  },
+  "psbts_approve_authorize_listings": {
+    "message": "授權上架"
+  },
+  "psbts_approve_authorize_listings_2": {
+    "message": "授權 $1 個上架"
+  },
+  "psbts_approve_authorize_reprices": {
+    "message": "授權 $1 次改價"
+  },
+  "psbts_approve_fee_sats": {
+    "message": "費用: $1 sats"
+  },
+  "psbts_approve_listing_activates_after_confirmation": {
+    "message": "上架將在確認後生效"
+  },
+  "psbts_approve_prepare_assets": {
+    "message": "準備資產"
+  },
+  "psbts_approve_prepare_funds": {
+    "message": "準備資金"
+  },
+  "psbts_approve_prepare_funds_2": {
+    "message": "準備資金"
+  },
+  "psbts_approve_required_ledger_information_is_unavailable": {
+    "message": "所需的賬本資訊不可用"
+  },
+  "psbts_approve_review_transaction_batch": {
+    "message": "確認交易批次"
+  },
+  "psbts_approve_sign_transactions": {
+    "message": "簽名交易"
+  },
+  "psbts_approve_the_wallet_returns_this_batch": {
+    "message": "只有在所有請求的簽名都成功後，錢包才會返回此批次。"
+  },
+  "qr_code_for": {
+    "message": "$1 的二維碼"
+  },
+  "reset_supply_form_a_textual_description_for_the": {
+    "message": "資產的文字描述。保持不變則沿用當前描述。"
+  },
+  "reset_supply_form_cannot_reset": {
+    "message": "無法重置 $1"
+  },
+  "reset_supply_form_the_quantity_of_to_issue": {
+    "message": "重置後要發行的 $1 數量。"
+  },
+  "reset_supply_form_this_asset_s_supply_is": {
+    "message": "此資產的供應量已鎖定，因此無法重置。"
+  },
+  "reset_supply_form_this_destroys_all_existing_and": {
+    "message": "此操作將銷毀全部 $1 個現有 $2，並以下方的供應量重新發行該資產。無法撤銷。"
+  },
+  "reset_supply_review_new_description": {
+    "message": "新描述"
+  },
+  "reset_supply_review_supply_destroyed": {
+    "message": "銷毀的供應量"
+  },
+  "reset_supply_review_yes_permanent": {
+    "message": "是，永久"
+  },
+  "safety_bitcoin_payment": {
+    "message": "比特幣支付"
+  },
+  "safety_blocked_sweep_transaction": {
+    "message": "已阻止：清掃交易"
+  },
+  "safety_btc_payment": {
+    "message": "BTC 支付"
+  },
+  "safety_btc_sent_to_an_unrecognized_script": {
+    "message": "BTC 將發送到無法識別的腳本"
+  },
+  "safety_btc_sent_to_external_address": {
+    "message": "BTC 將發送到外部地址"
+  },
+  "safety_counterparty_data_outputs": {
+    "message": "Counterparty 資料輸出"
+  },
+  "safety_danger_supply_destruction": {
+    "message": "危險：銷毀供應量"
+  },
+  "safety_data_output_embeds_a_recovery_key": {
+    "message": "$1 個資料輸出中嵌入了不屬於你的找回金鑰，其中的粉塵將可被他人花費。"
+  },
+  "safety_data_outputs_embed_a_recovery_key": {
+    "message": "$1 個資料輸出中嵌入了不屬於你的找回金鑰，其中的粉塵將可被他人花費。"
+  },
+  "safety_data_outputs_not_recoverable_by": {
+    "message": "資料輸出你無法找回"
+  },
+  "safety_detaching_transfers_every_asset_attached": {
+    "message": "分離會轉移附加到該 UTXO 的所有資產，而不是某個指定數量。簽名前請在交易詳情中核對接收地址。"
+  },
+  "safety_inscription_commit": {
+    "message": "銘文提交交易"
+  },
+  "safety_moves_everything_on_the_utxo": {
+    "message": "轉移該 UTXO 上的全部資產"
+  },
+  "safety_output_carries_this_transactions_message": {
+    "message": "$1 個輸出以裸多簽形式承載此交易的 Counterparty 訊息（$2 sats）。這些 sats 不是給任何人的付款，之後可以用找回工具取回到你的錢包。"
+  },
+  "safety_outputs_carry_this_transactions_message": {
+    "message": "$1 個輸出以裸多簽形式承載此交易的 Counterparty 訊息（$2 sats）。這些 sats 不是給任何人的付款，之後可以用找回工具取回到你的錢包。"
+  },
+  "safety_this_funds_an_inscription": {
+    "message": "這筆交易為銘文提供資金：$1 BTC 將發送到 $2，該地址由銘文本身推導而來，只有你的私鑰能夠花費。隨後的揭示交易會釋出內容，請另行核對它的接收地址和手續費。"
+  },
+  "safety_this_sends_btc_matching_the_declared": {
+    "message": "這會把 $1 BTC 發送到 $2，與該網站聲明的支付輸出一致。請確認地址正是你想要的那個。"
+  },
+  "safety_this_sends_btc_which_is_how": {
+    "message": "這會把 $1 BTC 發送到 $2，這正是此類交易的付款方式。請確認地址正是你想要的那個。"
+  },
+  "safety_this_transaction_could_not_be": {
+    "message": "無法將此交易識別為已知的 Counterparty 操作。它可能以本頁面無法讀取的形式攜帶協議資料。簽名前請仔細檢查。"
+  },
+  "safety_this_transaction_permanently_destroys_supply": {
+    "message": "此交易將永久銷毀供應量。該操作不可撤銷。請確認你清楚知道被銷毀的是什麼。"
+  },
+  "safety_this_transaction_sends_btc_to_addresses": {
+    "message": "此交易會把 $1 BTC 發送到 $2 個不屬於你的地址: $3。正常的 Counterparty 交易只會把 BTC 作為找零退回你自己的地址。"
+  },
+  "safety_this_transaction_sends_btc_to_an_address": {
+    "message": "此交易會把 $1 BTC 發送到一個不屬於你的地址: $2。正常的 Counterparty 交易只會把 BTC 作為找零退回你自己的地址。"
+  },
+  "safety_this_transaction_sends_btc_to_an_output": {
+    "message": "此交易會把 $1 BTC 發送到一個無法確定去向的輸出，因此它既無法顯示為地址，也無法確認屬於你。除非你清楚這個腳本的作用，否則不要簽名。"
+  },
+  "safety_this_transaction_sends_btc_to_outputs": {
+    "message": "此交易會把 $1 BTC 發送到 $2 個無法確定去向的輸出，因此它們既無法顯示為地址，也無法確認屬於你。除非你清楚這些腳本的作用，否則不要簽名。"
+  },
+  "safety_this_would_send_all_counterparty": {
+    "message": "這會把你地址上的全部 Counterparty 資產發送出去。網站無法請求清掃。如果你確實要清掃，請直接在錢包中操作。"
+  },
+  "safety_unknown_transaction_type": {
+    "message": "未知的交易類型"
+  },
+  "safety_unrecognized_message_type": {
+    "message": "無法識別的訊息類型「$1」。簽名前請仔細核對交易詳情。"
+  },
+  "safety_unrecognized_transaction": {
+    "message": "無法識別的交易"
+  },
+  "screens_review_screen_go_back_to_edit_transaction": {
+    "message": "返回編輯交易"
+  },
+  "screens_review_screen_raw_transaction": {
+    "message": "原始交易"
+  },
+  "screens_review_screen_review_transaction": {
+    "message": "確認交易"
+  },
+  "screens_review_screen_sats_vb": {
+    "message": "($1 sats/vB)"
+  },
+  "screens_review_screen_sign_and_broadcast_transaction": {
+    "message": "簽名並廣播交易"
+  },
+  "screens_review_screen_sign_broadcast": {
+    "message": "簽名並廣播"
+  },
+  "screens_review_screen_signing_transaction": {
+    "message": "正在簽名交易…"
+  },
+  "screens_review_screen_xcp_fee": {
+    "message": "XCP 手續費："
+  },
+  "screens_success_screen_click_to_copy_transaction_id": {
+    "message": "點選複製交易 ID"
+  },
+  "screens_success_screen_copy_transaction_id": {
+    "message": "複製交易 ID"
+  },
+  "screens_success_screen_transaction_id": {
+    "message": "交易 ID"
+  },
+  "screens_success_screen_transaction_id_copied": {
+    "message": "交易 ID 已複製"
+  },
+  "screens_success_screen_transaction_successful": {
+    "message": "交易成功"
+  },
+  "screens_success_screen_view_on_mempool_space": {
+    "message": "在 mempool.space 上檢視 →"
+  },
+  "screens_success_screen_view_transaction_on_mempool_space": {
+    "message": "在 mempool.space 上檢視交易（在新標籤頁中開啟）"
+  },
+  "screens_success_screen_your_transaction_was_broadcasted": {
+    "message": "你的交易已廣播。"
+  },
+  "secrets_show_passphrase_incorrect_password_or_failed_to": {
+    "message": "密碼錯誤或無法顯示助記詞。"
+  },
+  "secrets_show_passphrase_keep_your_recovery_phrase_private": {
+    "message": "請妥善保密你的助記詞"
+  },
+  "secrets_show_passphrase_never_share_it_with_anyone": {
+    "message": "切勿與任何人分享。任何擁有這些詞的人都可以盜取你的資金。"
+  },
+  "secrets_show_passphrase_passphrase": {
+    "message": "助記詞"
+  },
+  "secrets_show_passphrase_show_recovery_phrase": {
+    "message": "顯示助記詞"
+  },
+  "secrets_show_passphrase_unable_to_retrieve_recovery_phrase": {
+    "message": "無法獲取助記詞。"
+  },
+  "secrets_show_passphrase_write_down_these_12_words": {
+    "message": "按順序抄寫這 12 個單詞，並儲存在安全的地方。"
+  },
+  "secrets_show_private_key_address_derivation_path_is_missing": {
+    "message": "缺少地址派生路徑。"
+  },
+  "secrets_show_private_key_copy_private_key": {
+    "message": "複製私鑰"
+  },
+  "secrets_show_private_key_copy_the_private_key_shown": {
+    "message": "複製此處顯示的私鑰"
+  },
+  "secrets_show_private_key_failed_to_retrieve_private_key": {
+    "message": "獲取私鑰失敗"
+  },
+  "secrets_show_private_key_failed_to_reveal_private_key": {
+    "message": "顯示私鑰失敗。"
+  },
+  "secrets_show_private_key_hardware_wallets_do_not_expose": {
+    "message": "硬體錢包不會暴露私鑰。金鑰安全地儲存在你的裝置上。"
+  },
+  "secrets_show_private_key_keep_your_private_key_private": {
+    "message": "請妥善保密你的私鑰"
+  },
+  "secrets_show_private_key_never_share_it_with_anyone": {
+    "message": "切勿與任何人分享。任何擁有此金鑰的人都可以盜取你的資金。"
+  },
+  "secrets_show_private_key_private_key_wif_format_not": {
+    "message": "WIF 格式的私鑰不可用"
+  },
+  "secrets_show_private_key_this_is_your_private_key": {
+    "message": "這是你的 Wallet Import Format 格式私鑰。切勿與任何人分享。"
+  },
+  "secrets_show_private_key_your_private_key_wif": {
+    "message": "你的私鑰 (WIF)"
+  },
+  "send_form_btc_to_send_alongside_the": {
+    "message": "與資產一起發送到同一接收地址的 BTC。"
+  },
+  "send_form_enter_the_amount_to_send": {
+    "message": "輸入要發送的數量。"
+  },
+  "send_form_failed_to_fetch_details_for": {
+    "message": "獲取資產 $1 的詳情失敗。$2"
+  },
+  "send_form_please_try_again_later": {
+    "message": "請稍後重試。"
+  },
+  "send_mpma_mismatched_mpma_form_data_assets": {
+    "message": "MPMA 表單資料不匹配: 資產、接收方和數量的數目必須一致"
+  },
+  "send_mpma_mpma_send": {
+    "message": "MPMA 發送"
+  },
+  "send_review_sends": {
+    "message": "發送項 ($1)"
+  },
+  "settings_about_xcp_wallet": {
+    "message": "關於 XCP Wallet"
+  },
+  "settings_address_types_address_type_is_set_when": {
+    "message": ": 地址型別在連接裝置時設定。如需使用其他地址格式，請前往“新增錢包”並以所需格式重新連接你的 Trezor。"
+  },
+  "settings_address_types_address_type_settings": {
+    "message": "地址型別設定"
+  },
+  "settings_address_types_failed_to_update_address_type": {
+    "message": "更新地址型別失敗"
+  },
+  "settings_address_types_hardware_wallet": {
+    "message": "硬體錢包"
+  },
+  "settings_address_types_no_wallet_available": {
+    "message": "沒有可用的錢包"
+  },
+  "settings_advanced_1_minute": {
+    "message": "1 分鐘"
+  },
+  "settings_advanced_15_minutes": {
+    "message": "15 分鐘"
+  },
+  "settings_advanced_30_minutes": {
+    "message": "30 分鐘"
+  },
+  "settings_advanced_5_minutes": {
+    "message": "5 分鐘"
+  },
+  "settings_advanced_advanced_broadcasts": {
+    "message": "高階廣播"
+  },
+  "settings_advanced_advanced_settings": {
+    "message": "進階設定"
+  },
+  "settings_advanced_anonymous_analytics": {
+    "message": "匿名統計"
+  },
+  "settings_advanced_attach_btc_to_asset_sends": {
+    "message": "在資產發送中附帶 BTC。在發送表單中新增“+ BTC”選項。"
+  },
+  "settings_advanced_auto_lock_timer": {
+    "message": "自動鎖定計時器"
+  },
+  "settings_advanced_block_signing_if_local_transaction": {
+    "message": "本地交易驗證失敗時阻止簽名。關閉時會顯示警告，但仍允許簽名。"
+  },
+  "settings_advanced_choose_how_long_to_wait": {
+    "message": "選擇錢包自動鎖定前的等待時間。"
+  },
+  "settings_advanced_choose_whether_to_share_usage": {
+    "message": "選擇是否分享使用資料。"
+  },
+  "settings_advanced_connection": {
+    "message": "連接"
+  },
+  "settings_advanced_counterparty_api": {
+    "message": "Counterparty API"
+  },
+  "settings_advanced_developer": {
+    "message": "開發者"
+  },
+  "settings_advanced_enable_more_outputs": {
+    "message": "啟用更多輸出"
+  },
+  "settings_advanced_enable_mpma_sends": {
+    "message": "啟用 MPMA 發送"
+  },
+  "settings_advanced_enable_multi_destination_sends_mpma": {
+    "message": "為支援的資產啟用多地址發送 (MPMA)。"
+  },
+  "settings_advanced_enable_this_to_chain_transactions": {
+    "message": "允許使用尚未確認交易的輸出，繼續發送交易。"
+  },
+  "settings_advanced_privacy_display": {
+    "message": "隱私與顯示"
+  },
+  "settings_advanced_show_advanced_options_for_broadcast": {
+    "message": "顯示廣播交易的進階選項（數值和費用比例）。"
+  },
+  "settings_advanced_show_hide_help_text": {
+    "message": "顯示/隱藏幫助文本"
+  },
+  "settings_advanced_show_or_hide_help_text": {
+    "message": "預設顯示或隱藏幫助文本。"
+  },
+  "settings_advanced_strict_txs_verification": {
+    "message": "嚴格交易驗證"
+  },
+  "settings_advanced_the_counterparty_api_endpoint_url": {
+    "message": "Counterparty API 端點 URL。必須是執行 Counterparty Core 11.3.0 或更新版本的主網 API 伺服器。"
+  },
+  "settings_advanced_transaction_dry_run": {
+    "message": "交易模擬執行"
+  },
+  "settings_advanced_use_unconfirmed_txs": {
+    "message": "使用未確認交易"
+  },
+  "settings_advanced_when_enabled_transactions_will_be": {
+    "message": "啟用後，交易將僅進行模擬，而不會廣播到網路。"
+  },
+  "settings_change_your_wallet_password": {
+    "message": "更改錢包密碼"
+  },
+  "settings_connected_sites_disconnect_all_sites": {
+    "message": "斷開所有網站"
+  },
+  "settings_connected_sites_loading_connected_sites": {
+    "message": "正在載入已連接的網站…"
+  },
+  "settings_connected_sites_no_connected_sites": {
+    "message": "沒有已連接的網站"
+  },
+  "settings_connected_sites_sites_you_connect_to_will": {
+    "message": "你連接的網站將顯示在這裡"
+  },
+  "settings_manage_assets_pinned_to_your": {
+    "message": "管理置頂到面板的資產"
+  },
+  "settings_manage_website_connections": {
+    "message": "管理網站連接"
+  },
+  "settings_network_settings_and_developer_options": {
+    "message": "網路設定與開發者選項"
+  },
+  "settings_order_settings_1_day": {
+    "message": "1 天"
+  },
+  "settings_order_settings_1_hour": {
+    "message": "1 小時"
+  },
+  "settings_order_settings_1_month": {
+    "message": "1 個月"
+  },
+  "settings_order_settings_1_week": {
+    "message": "1 周"
+  },
+  "settings_order_settings_1_year": {
+    "message": "1 年"
+  },
+  "settings_order_settings_2_weeks": {
+    "message": "2 周"
+  },
+  "settings_order_settings_blocks": {
+    "message": "$1 個區塊（約 $2）"
+  },
+  "settings_order_settings_custom_blocks": {
+    "message": "自定義區塊數，$1-$2"
+  },
+  "settings_order_settings_custom_expiration_in_blocks": {
+    "message": "自定義有效期（區塊數）"
+  },
+  "settings_order_settings_enter_fee_in_satoshis_default": {
+    "message": "輸入費用（聰，預設: 0）"
+  },
+  "settings_order_settings_fee_required_in_satoshis": {
+    "message": "所需費用（聰）"
+  },
+  "settings_order_settings_never": {
+    "message": "永不"
+  },
+  "settings_order_settings_no_minimum_fee": {
+    "message": "無最低費用"
+  },
+  "settings_order_settings_order_expiration": {
+    "message": "訂單有效期"
+  },
+  "settings_order_settings_orders_cancel_after_the_selected": {
+    "message": "訂單將在所選區塊數後取消。當前最大值為 $1。"
+  },
+  "settings_order_settings_sats_sat_vb": {
+    "message": "$1 sats（約 $2 sat/vB）"
+  },
+  "settings_order_settings_the_minimum_tx_fee_required": {
+    "message": "對支付 BTC 的配對委託交易所要求的礦工費（聰）。"
+  },
+  "settings_order_settings_use_0_for_orders_that": {
+    "message": "填 0 表示訂單永不過期。有期限的訂單將在所選區塊數後取消。"
+  },
+  "settings_pinned_assets_failed_to_pin_asset": {
+    "message": "置頂資產失敗。"
+  },
+  "settings_pinned_assets_failed_to_unpin_asset": {
+    "message": "取消置頂資產失敗。"
+  },
+  "settings_pinned_assets_no_pinned_assets_search_for": {
+    "message": "沒有置頂資產。搜尋資產以置頂。"
+  },
+  "settings_pinned_assets_pin_up_to_10_assets": {
+    "message": "最多可將 10 個資產置頂到主螢幕頂部。使用箭頭按鈕調整順序。"
+  },
+  "settings_pinned_assets_pinned": {
+    "message": "已置頂"
+  },
+  "settings_pinned_assets_pinned_assets_settings": {
+    "message": "置頂資產設定"
+  },
+  "settings_pinned_assets_search_assets_to_pin": {
+    "message": "搜尋要置頂的資產…"
+  },
+  "settings_pinned_assets_you_can_only_pin_up": {
+    "message": "最多隻能置頂 10 個資產。"
+  },
+  "settings_security_change_password": {
+    "message": "更改密碼"
+  },
+  "settings_security_changing_password": {
+    "message": "正在更改密碼…"
+  },
+  "settings_security_choose_a_new_password_that": {
+    "message": "設定一個至少 $1 個字元的新密碼。"
+  },
+  "settings_security_confirm_new_password": {
+    "message": "確認新密碼"
+  },
+  "settings_security_current_password": {
+    "message": "當前密碼"
+  },
+  "settings_security_enter_your_current_wallet_password": {
+    "message": "輸入當前錢包密碼以授權更改。"
+  },
+  "settings_security_failed_to_change_password": {
+    "message": "更改密碼失敗"
+  },
+  "settings_security_new_password": {
+    "message": "新密碼"
+  },
+  "settings_security_new_password_must_be_at": {
+    "message": "新密碼長度至少為 $1 個字元"
+  },
+  "settings_security_new_passwords_do_not_match": {
+    "message": "兩次輸入的新密碼不一致"
+  },
+  "settings_security_password_successfully_changed": {
+    "message": "密碼已成功更改"
+  },
+  "settings_security_re_enter_your_new_password": {
+    "message": "再次輸入新密碼，以確認輸入無誤。"
+  },
+  "settings_security_security_settings": {
+    "message": "安全設定"
+  },
+  "settings_security_security_tip": {
+    "message": "安全提示:"
+  },
+  "settings_security_use_a_strong_unique_password": {
+    "message": "使用一個未在其他賬戶使用過的強密碼。建議使用密碼管理器。"
+  },
+  "settings_version": {
+    "message": "版本 $1"
+  },
+  "settings_visit_website": {
+    "message": "訪問網站"
+  },
+  "setup_create_mnemonic_creating": {
+    "message": "建立中…"
+  },
+  "setup_create_mnemonic_failed_to_create_wallet_please": {
+    "message": "建立錢包失敗。請重試。"
+  },
+  "setup_create_mnemonic_generate_new_recovery_phrase": {
+    "message": "生成新助記詞"
+  },
+  "setup_create_mnemonic_make_sure_no_one_is": {
+    "message": "確保沒有人在旁邊偷看！"
+  },
+  "setup_create_mnemonic_password_must_be_at_least": {
+    "message": "密碼長度至少為 $1 個字元。"
+  },
+  "setup_create_mnemonic_please_view_and_save_your": {
+    "message": "請先檢視並儲存你的助記詞。"
+  },
+  "setup_create_mnemonic_please_write_down_this_12": {
+    "message": "請抄寫這 12 個單詞的助記詞。"
+  },
+  "setup_create_mnemonic_reveal_recovery_phrase": {
+    "message": "顯示助記詞"
+  },
+  "setup_create_mnemonic_view_12_word_secret_phrase": {
+    "message": "檢視 12 個單詞的助記詞"
+  },
+  "setup_create_mnemonic_watch_tutorial_how_to_create": {
+    "message": "觀看教程: 如何建立錢包"
+  },
+  "setup_create_mnemonic_your_recovery_phrase": {
+    "message": "你的助記詞"
+  },
+  "setup_import_mnemonic_a_card_is_written_to": {
+    "message": "卡片本身就是為了交給他人而寫的，所以請將這些單詞視為交給你的人也知道。這就是它們不被作為錢包匯入的原因：從這些單詞派生出的每個地址，對方同樣可以花費。對方也仍然可以從卡片本身花費，因此請把你想保留的一切轉移到你自己的地址。"
+  },
+  "setup_import_mnemonic_an_address_no_wallet_built": {
+    "message": "，這是基於此助記詞構建的錢包永遠不會顯示的地址。匯入卡片只保留這一個地址，不會儲存助記詞。"
+  },
+  "setup_import_mnemonic_at": {
+    "message": "，位於"
+  },
+  "setup_import_mnemonic_couldn_t_check_whether_this": {
+    "message": "無法檢查此助記詞是否為 Rare Pepe Wallet 禮品卡。無論如何都可以將其作為錢包匯入，恢復聯網後也可以再匯入卡片。"
+  },
+  "setup_import_mnemonic_enter_word": {
+    "message": "輸入單詞"
+  },
+  "setup_import_mnemonic_failed_to_import_wallet": {
+    "message": "匯入錢包失敗: $1"
+  },
+  "setup_import_mnemonic_gift_card": {
+    "message": "禮品卡"
+  },
+  "setup_import_mnemonic_hide_recovery_phrase": {
+    "message": "隱藏助記詞"
+  },
+  "setup_import_mnemonic_import_gift_card": {
+    "message": "匯入禮品卡"
+  },
+  "setup_import_mnemonic_import_your_mnemonic": {
+    "message": "匯入助記詞"
+  },
+  "setup_import_mnemonic_invalid_recovery_phrase_please_check": {
+    "message": "助記詞無效。請仔細檢查每個單詞。"
+  },
+  "setup_import_mnemonic_its_balance_is_on": {
+    "message": "其餘額位於"
+  },
+  "setup_import_mnemonic_please_confirm_you_have_backed": {
+    "message": "請確認你已備份助記詞。"
+  },
+  "setup_import_mnemonic_please_enter_your_12_word": {
+    "message": "請在下方輸入你的 12 個單詞的助記詞。"
+  },
+  "setup_import_mnemonic_recovery_phrase_input": {
+    "message": "助記詞輸入"
+  },
+  "setup_import_mnemonic_recovery_phrase_words": {
+    "message": "助記詞單詞"
+  },
+  "setup_import_mnemonic_show_recovery_phrase": {
+    "message": "顯示助記詞"
+  },
+  "setup_import_mnemonic_this_looks_like_a_rare": {
+    "message": "這看起來像是一張 Rare Pepe Wallet 禮品卡。"
+  },
+  "setup_import_mnemonic_unknown_error": {
+    "message": "未知錯誤"
+  },
+  "setup_import_mnemonic_watch_tutorial_how_to_import": {
+    "message": "觀看教程: 如何匯入錢包"
+  },
+  "setup_import_mnemonic_word": {
+    "message": "單詞 $1"
+  },
+  "setup_import_private_key_bc1p": {
+    "message": "bc1p..."
+  },
+  "setup_import_private_key_bc1q": {
+    "message": "bc1q..."
+  },
+  "setup_import_private_key_enter_your_private_key": {
+    "message": "輸入你的私鑰"
+  },
+  "setup_import_private_key_enter_your_private_key_to": {
+    "message": "輸入你的私鑰以使用其地址。"
+  },
+  "setup_import_private_key_failed_to_import_private_key": {
+    "message": "匯入私鑰失敗。"
+  },
+  "setup_import_private_key_i_have_backed_up_this": {
+    "message": "我已安全備份此私鑰。"
+  },
+  "setup_import_private_key_import_key": {
+    "message": "匯入金鑰"
+  },
+  "setup_import_private_key_invalid_private_key_format": {
+    "message": "私鑰格式無效。"
+  },
+  "setup_import_private_key_legacy": {
+    "message": "傳統"
+  },
+  "setup_import_private_key_native_segwit": {
+    "message": "原生隔離見證"
+  },
+  "setup_import_private_key_nested_segwit": {
+    "message": "巢狀隔離見證"
+  },
+  "setup_import_private_key_please_check_your_input_and": {
+    "message": "請檢查你的輸入並重試。"
+  },
+  "setup_import_private_key_please_confirm_you_have_backed": {
+    "message": "請確認你已備份私鑰。"
+  },
+  "setup_import_private_key_private_key_is_required": {
+    "message": "私鑰為必填項。"
+  },
+  "setup_import_private_key_taproot": {
+    "message": "Taproot"
+  },
+  "setup_import_private_key_the_private_key_format_is": {
+    "message": "私鑰格式無效。"
+  },
+  "setup_import_private_key_this_private_key_has_already": {
+    "message": "此私鑰已被匯入。"
+  },
+  "setup_import_private_key_watch_tutorial_how_to_import": {
+    "message": "觀看教程: 如何匯入私鑰"
+  },
+  "setup_import_test_address_bitcoin_address": {
+    "message": "比特幣地址"
+  },
+  "setup_import_test_address_development_mode": {
+    "message": "開發模式"
+  },
+  "setup_import_test_address_enter_any_bitcoin_address": {
+    "message": "輸入任意比特幣地址…"
+  },
+  "setup_import_test_address_failed_to_import_test_address": {
+    "message": "匯入測試地址失敗"
+  },
+  "setup_import_test_address_import_test_address": {
+    "message": "匯入測試地址"
+  },
+  "setup_import_test_address_please_enter_an_address": {
+    "message": "請輸入地址"
+  },
+  "setup_import_test_address_this_creates_a_watch_only": {
+    "message": "這將建立一個用於測試的只讀錢包。你無法簽名或廣播交易。"
+  },
+  "swap_form_above_what_the_pending_orders": {
+    "message": "你的最低接收數量高於計入待確認委託後的預估數量。如果這些委託先確認，可能無法達到你的最低數量。未成交的投入資產會在本委託到期後退回。請調整滑點或使用自動設定。"
+  },
+  "swap_form_after_mempool": {
+    "message": "前序訂單確認後（估算）"
+  },
+  "swap_form_ahead_in_mempool": {
+    "message": "記憶體池中有 $1 筆在前"
+  },
+  "swap_form_asset_you_are_buying": {
+    "message": "你要買入的資產。"
+  },
+  "swap_form_asset_you_are_selling": {
+    "message": "你要賣出的資產。"
+  },
+  "swap_form_balance": {
+    "message": "餘額: $1"
+  },
+  "swap_form_btc_pairs_are_not_supported": {
+    "message": "兌換不支援 BTC 交易對。請改用 DEX 訂單。"
+  },
+  "swap_form_estimated_amount_received": {
+    "message": "預估接收數量"
+  },
+  "swap_form_fetching_quote": {
+    "message": "正在獲取報價…"
+  },
+  "swap_form_flip_swap_direction": {
+    "message": "翻轉兌換方向"
+  },
+  "swap_form_hide_swap_details": {
+    "message": "隱藏兌換詳情"
+  },
+  "swap_form_impact": {
+    "message": "價格影響: $p1$$p2$%",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "swap_form_minimum_received": {
+    "message": "最低接收數量"
+  },
+  "swap_form_no_liquidity_pool_exists_for": {
+    "message": "$1/$2 沒有流動性池。此交易對只能與委託簿中的 DEX 掛單成交。"
+  },
+  "swap_form_one_unconfirmed_order_on_this": {
+    "message": "此交易對有 1 筆同方向的未確認訂單。如果它先確認，此兌換將比報價少約 $1%。自動滑點已考慮到這一點。"
+  },
+  "swap_form_pool": {
+    "message": "流動性池 + $1"
+  },
+  "swap_form_pool_fee": {
+    "message": "流動性池費用 ($1%)"
+  },
+  "swap_form_review_swap": {
+    "message": "檢閱兌換"
+  },
+  "swap_form_route": {
+    "message": "路徑"
+  },
+  "swap_form_show_swap_details": {
+    "message": "顯示兌換詳情"
+  },
+  "swap_form_unconfirmed_orders_on_this_pair": {
+    "message": "此交易對有 $1 筆同方向的未確認訂單。如果它們先確認，此兌換將比報價少約 $2%。自動滑點已考慮到這一點。"
+  },
+  "swap_review_fills": {
+    "message": "成交"
+  },
+  "swap_review_immediately_or_cancels_next_block": {
+    "message": "確認時成交；未成交資產在到期後退回"
+  },
+  "swap_review_minimum_price": {
+    "message": "成交價格限制"
+  },
+  "swap_review_minimum_received": {
+    "message": "最低接收數量"
+  },
+  "sweep_form_asset_balances_only": {
+    "message": "僅資產餘額"
+  },
+  "sweep_form_asset_balances_ownership": {
+    "message": "資產餘額和所有權"
+  },
+  "sweep_form_asset_ownership_only": {
+    "message": "僅資產所有權"
+  },
+  "sweep_form_btc_to_send_alongside_the": {
+    "message": "與清掃一起發送到同一接收地址的 BTC。"
+  },
+  "sweep_form_choose_whether_to_sweep_asset": {
+    "message": "選擇僅清掃資產餘額、僅清掃資產所有權，或兩者都清掃。"
+  },
+  "sweep_form_enter_destination_address_for_sweep": {
+    "message": "輸入清掃的接收地址"
+  },
+  "sweep_form_enter_the_address_to_sweep": {
+    "message": "輸入要將所有資產清掃到的地址。"
+  },
+  "sweep_form_sweep_type": {
+    "message": "清掃型別"
+  },
+  "sweep_review_additional_btc_output": {
+    "message": "額外 BTC 輸出"
+  },
+  "sweep_review_btc_to": {
+    "message": "$1 BTC 發往 $2"
+  },
+  "sweep_review_flag": {
+    "message": "標誌"
+  },
+  "time_compact_days": {
+    "message": "$1天前"
+  },
+  "time_compact_hours": {
+    "message": "$1小時前"
+  },
+  "time_compact_minutes": {
+    "message": "$1分鐘前"
+  },
+  "time_compact_weeks": {
+    "message": "$1週前"
+  },
+  "time_compact_years": {
+    "message": "$1年前"
+  },
+  "time_day_ago": {
+    "message": "1天前"
+  },
+  "time_days_ago": {
+    "message": "$1天前"
+  },
+  "time_hour_ago": {
+    "message": "1小時前"
+  },
+  "time_hours_ago": {
+    "message": "$1小時前"
+  },
+  "time_just_now": {
+    "message": "剛剛"
+  },
+  "time_minute_ago": {
+    "message": "1分鐘前"
+  },
+  "time_minutes_ago": {
+    "message": "$1分鐘前"
+  },
+  "time_month_ago": {
+    "message": "1個月前"
+  },
+  "time_months_ago": {
+    "message": "$1個月前"
+  },
+  "time_second_ago": {
+    "message": "1秒前"
+  },
+  "time_seconds_ago": {
+    "message": "$1秒前"
+  },
+  "time_week_ago": {
+    "message": "1週前"
+  },
+  "time_weeks_ago": {
+    "message": "$1週前"
+  },
+  "time_year_ago": {
+    "message": "1年前"
+  },
+  "time_years_ago": {
+    "message": "$1年前"
+  },
+  "transaction_approve_confirm_the_exceptional_transaction_behavior": {
+    "message": "在錢包新增你的簽名之前，請確認以下異常的交易行為。"
+  },
+  "transaction_approve_input_details_could_not_be": {
+    "message": "無法驗證輸入詳情"
+  },
+  "transaction_approve_sign_transaction": {
+    "message": "簽名交易"
+  },
+  "transaction_approve_the_wallet_cannot_confirm_the": {
+    "message": "錢包無法確認輸入的金額或所有者。簽名前請重試驗證。"
+  },
+  "transactions_txhash_back_to_history": {
+    "message": "返回歷史"
+  },
+  "transactions_txhash_block": {
+    "message": "區塊:"
+  },
+  "transactions_txhash_btc_amount": {
+    "message": "BTC 金額:"
+  },
+  "transactions_txhash_failed_to_fetch_transaction": {
+    "message": "獲取交易失敗"
+  },
+  "transactions_txhash_loading_transaction": {
+    "message": "正在載入交易…"
+  },
+  "transactions_txhash_no_transaction_hash_provided": {
+    "message": "未提供交易雜湊"
+  },
+  "transactions_txhash_raw_transaction_data": {
+    "message": "原始交易資料"
+  },
+  "transactions_txhash_status": {
+    "message": "狀態:"
+  },
+  "transactions_txhash_time": {
+    "message": "時間:"
+  },
+  "transactions_txhash_transaction_hash": {
+    "message": "交易雜湊:"
+  },
+  "transactions_txhash_transaction_not_found": {
+    "message": "未找到交易"
+  },
+  "transactions_txhash_view_on_xchain": {
+    "message": "在 XChain 上檢視"
+  },
+  "transfer_ownership_form_cannot_transfer_ownership_of_btc": {
+    "message": "無法轉移 BTC 的所有權"
+  },
+  "transfer_ownership_form_enter_address_to_transfer_ownership": {
+    "message": "輸入所有權轉移的目標地址"
+  },
+  "transfer_ownership_review_to": {
+    "message": "轉移給"
+  },
+  "tx_verification_status_retry_the_request_or_ask": {
+    "message": "請重試請求或要求網站重新構建。不要批准你無法驗證的替代交易。"
+  },
+  "tx_verification_status_verification_failed_signing_blocked": {
+    "message": "驗證失敗 - 簽名已被阻止"
+  },
+  "tx_verification_status_verification_warning": {
+    "message": "驗證警告"
+  },
+  "update_description_form_cannot_update_description_of_btc": {
+    "message": "無法更新 BTC 的描述"
+  },
+  "update_description_form_enter_a_new_description_for": {
+    "message": "輸入資產要使用的新描述。"
+  },
+  "utxo_attach_attach_utxo": {
+    "message": "附加到 UTXO"
+  },
+  "utxo_detach_detach_utxo": {
+    "message": "從 UTXO 分離"
+  },
+  "utxo_move_move_utxo": {
+    "message": "移動 UTXO"
+  },
+  "utxo_utxo_list_loading_utxo_balances": {
+    "message": "正在載入 UTXO 餘額…"
+  },
+  "utxo_utxo_list_no_matching_utxos": {
+    "message": "沒有匹配的 UTXO"
+  },
+  "utxo_utxo_list_no_utxo_attached_balances": {
+    "message": "沒有附加到 UTXO 的餘額"
+  },
+  "utxo_utxo_list_search_utxos": {
+    "message": "搜尋 UTXO…"
+  },
+  "utxo_utxo_menu_utxo_actions": {
+    "message": "UTXO 操作"
+  },
+  "utxos_txhash_btc_value": {
+    "message": "BTC 金額"
+  },
+  "utxos_txhash_confirmations": {
+    "message": "確認數"
+  },
+  "utxos_txhash_copy_utxo": {
+    "message": "複製 UTXO"
+  },
+  "utxos_txhash_detach_assets_from_this_utxo": {
+    "message": "從此 UTXO 分離資產"
+  },
+  "utxos_txhash_details": {
+    "message": "詳情"
+  },
+  "utxos_txhash_failed_to_fetch_utxo_data": {
+    "message": "獲取 UTXO 資料失敗"
+  },
+  "utxos_txhash_invalid_utxo_identifier": {
+    "message": "UTXO 識別符號無效: $1"
+  },
+  "utxos_txhash_loading_utxo_details": {
+    "message": "正在載入 UTXO 詳情…"
+  },
+  "utxos_txhash_move_this_utxo_to_another": {
+    "message": "將此 UTXO 移動到另一個地址"
+  },
+  "utxos_txhash_time_attached": {
+    "message": "附加時間"
+  },
+  "utxos_txhash_utxo_details": {
+    "message": "UTXO 詳情"
+  },
+  "wallet_wallet_card_no_address": {
+    "message": "沒有地址"
+  },
+  "wallet_wallet_menu_cannot_remove_only_wallet": {
+    "message": "無法移除唯一的錢包"
+  },
+  "wallet_wallet_menu_remove": {
+    "message": "移除"
+  },
+  "wallet_wallet_menu_show_passphrase": {
+    "message": "顯示助記詞"
+  },
+  "wallet_wallet_menu_wallet_options": {
+    "message": "錢包選項"
+  },
+  "wallets_add_create_new_wallet": {
+    "message": "建立新錢包"
+  },
+  "wallets_add_disconnect_hardware_wallet": {
+    "message": "斷開硬體錢包"
+  },
+  "wallets_add_import_address_dev": {
+    "message": "匯入地址（開發）"
+  },
+  "wallets_add_import_address_dev_only": {
+    "message": "匯入地址（僅限開發）"
+  },
+  "wallets_add_import_mnemonic": {
+    "message": "匯入助記詞"
+  },
+  "wallets_add_use_trezor_connect": {
+    "message": "使用 Trezor Connect"
+  },
+  "wallets_connect_hardware_before_connecting": {
+    "message": "連接前:"
+  },
+  "wallets_connect_hardware_connect_trezor": {
+    "message": "連接 Trezor"
+  },
+  "wallets_connect_hardware_connect_your_trezor": {
+    "message": "連接你的 Trezor"
+  },
+  "wallets_connect_hardware_connect_your_trezor_via_usb": {
+    "message": "通過 USB 連接你的 Trezor"
+  },
+  "wallets_connect_hardware_connecting": {
+    "message": "連接中..."
+  },
+  "wallets_connect_hardware_failed_to_connect_hardware_wallet": {
+    "message": "連接硬體錢包失敗"
+  },
+  "wallets_connect_hardware_select_your_account_on_your": {
+    "message": "在 Trezor 裝置上選擇你的賬戶"
+  },
+  "wallets_connect_hardware_select_your_account_when_prompted": {
+    "message": "在提示時選擇你的賬戶"
+  },
+  "wallets_connect_hardware_unlock_your_device_with_pin": {
+    "message": "使用 PIN 解鎖裝置"
+  },
+  "wallets_connect_hardware_your_private_keys_never_leave": {
+    "message": "你的私鑰永遠不會離開 Trezor 裝置。"
+  },
+  "wallets_connect_hardware_your_trezor_will_discover_your": {
+    "message": "Trezor 將發現你的比特幣賬戶，並讓你選擇要使用的賬戶。"
+  },
+  "wallets_remove_failed_to_remove_wallet_please": {
+    "message": "移除錢包失敗。請重試。"
+  },
+  "wallets_remove_invalid_wallet_identifier": {
+    "message": "錢包識別符號無效。"
+  },
+  "wallets_remove_make_sure_you_have_backed": {
+    "message": "移除前請確保你已備份錢包的助記詞。"
+  },
+  "wallets_remove_make_sure_you_have_backed_2": {
+    "message": "移除前請確保你已備份錢包的私鑰。"
+  },
+  "wallets_remove_remove": {
+    "message": "移除 $1"
+  },
+  "wallets_remove_remove_wallet": {
+    "message": "移除錢包"
+  },
+  "wallets_remove_removing": {
+    "message": "移除中…"
+  },
+  "wallets_reset_failed_to_reset_wallet_please": {
+    "message": "重置錢包失敗。請重試。"
+  },
+  "wallets_reset_resetting": {
+    "message": "重置中…"
+  },
+  "wallets_reset_resetting_your_wallet_will_delete": {
+    "message": "重置錢包將刪除所有錢包資料。此操作無法撤銷。"
+  },
+  "withdraw_form_estimated_receive": {
+    "message": "預估接收數量："
+  },
+  "withdraw_form_loading_withdrawal_quote": {
+    "message": "正在載入取出報價..."
+  },
+  "withdraw_form_lp_tokens_to_withdraw": {
+    "message": "用於贖回的 LP 數量"
+  },
+  "withdraw_form_review_withdrawal": {
+    "message": "確認取出"
+  },
+  "withdraw_review_minimum_receive": {
+    "message": "最低接收數量"
+  },
+  "display_preferences_title": {
+    "message": "語言與顯示"
+  },
+  "display_preferences_language": {
+    "message": "介面語言"
+  },
+  "display_preferences_numbers": {
+    "message": "數字格式"
+  },
+  "display_preferences_browser": {
+    "message": "瀏覽器語言"
+  },
+  "display_preferences_follow_language": {
+    "message": "跟隨介面語言"
+  },
+  "display_preferences_fiat": {
+    "message": "價格幣別"
+  },
+  "display_preferences_input_help": {
+    "message": "這些設定僅影響顯示。輸入數量時請使用數字 0–9 和英文小數點，不要使用千位分隔符。價格幣別獨立儲存。"
+  },
+  "display_preferences_save_failed": {
+    "message": "無法儲存此設定，請重試。"
+  },
+  "safety_amount_syntax": {
+    "message": "僅限半形數字和小數點，最多8位小數。勿用逗號。"
+  },
+  "safety_amount_indivisible": {
+    "message": "僅限半形整數。勿用小數點或逗號。"
+  },
+  "safety_amount_precision": {
+    "message": "小數位數超出此資產支援的精度。未進行捨入或提交。"
+  },
+  "safety_amount_range": {
+    "message": "數量超出允許範圍。請檢查資產數量後重試。"
+  },
+  "safety_amount_too_long": {
+    "message": "數量輸入過長。未進行截斷或提交。"
+  },
+  "safety_divisibility_unknown": {
+    "message": "無法確定資產精度。請重新整理資產詳情後繼續。"
+  },
+  "safety_fraction_inexact": {
+    "message": "Counterparty 無法精確編碼此手續費或佣金比例。請選擇其他比例。"
+  },
+  "safety_fee_invalid": {
+    "message": "僅限半形數字和小數點，最多8位小數。勿用逗號。"
+  },
+  "safety_fee_minimum": {
+    "message": "費率過低（最低：$1 sat/vB）"
+  },
+  "safety_fee_maximum": {
+    "message": "費率過高（最高：$1 sat/vB）"
+  },
+  "safety_destination_count": {
+    "message": "接收地址數量必須為正整數。"
+  },
+  "safety_max_unavailable": {
+    "message": "無法確認可用數量。請重新整理資產詳情後再使用「最大」。"
+  },
+  "safety_max_fee": {
+    "message": "請先輸入有效費率，再使用「最大」。"
+  },
+  "safety_clipboard_lines": {
+    "message": "請重新貼上一個不含換行的值。"
+  },
+  "common_custom": {
+    "message": "自訂"
+  },
+  "order_form_select_asset_to_buy": {
+    "message": "選擇要買入的資產。"
+  },
+  "order_form_select_asset_to_sell": {
+    "message": "選擇要賣出的資產。"
+  },
+  "deposit_form_minimum_lp_with_slippage": {
+    "message": "最低 LP 接收數量（滑點容差 $1%）："
+  },
+  "withdraw_form_minimum_with_slippage": {
+    "message": "最低接收數量（滑點容差 $1%）："
+  },
+  "order_review_expiration_blocks": {
+    "message": "$1 個區塊"
+  },
+  "safety_slippage_invalid": {
+    "message": "請輸入0–50%，最多2位小數。勿用逗號。"
+  },
+  "inputs_fee_rate_input_fastest": {
+    "message": "最快"
+  },
+  "inputs_fee_rate_input_thirty_minutes": {
+    "message": "30分鐘"
+  },
+  "inputs_fee_rate_input_one_hour": {
+    "message": "1小時"
+  },
+  "address_type_legacy": {
+    "message": "傳統"
+  },
+  "address_type_native_segwit": {
+    "message": "原生 SegWit"
+  },
+  "address_type_nested_segwit": {
+    "message": "巢狀 SegWit"
+  },
+  "common_destinations": {
+    "message": "接收地址"
+  },
+  "swap_form_route_many_orders": {
+    "message": "$1 筆委託"
+  },
+  "swap_form_route_one_order": {
+    "message": "$1 筆委託"
+  },
+  "approval_structure_attach_missing_output_title": {
+    "message": "附著至不存在的輸出"
+  },
+  "approval_structure_attach_missing_output_one": {
+    "message": "此操作將資產附著至輸出 #$1，但交易只有 $2 個輸出。此附著無法按描述生效。若交易簽署後獲確認，仍會支付比特幣網路手續費。"
+  },
+  "approval_structure_attach_missing_output_many": {
+    "message": "此操作將資產附著至輸出 #$1，但交易只有 $2 個輸出。此附著無法按描述生效。若交易簽署後獲確認，仍會支付比特幣網路手續費。"
+  },
+  "approval_structure_utxo_source_not_spent_title": {
+    "message": "此交易未花費來源 UTXO"
+  },
+  "approval_structure_utxo_source_not_spent_description": {
+    "message": "訊息指定 $1 為來源，但此交易未花費該 UTXO。簽署已遭封鎖。若交易簽署後獲確認，仍會支付比特幣網路手續費。"
+  },
+  "approval_blocked": {
+    "message": "無法簽署"
+  },
+  "approval_review": {
+    "message": "檢視"
+  },
+  "common_connect": {
+    "message": "連線"
+  },
+  "provider_review_identity_changed": {
+    "message": "目前地址在發出此請求後發生變更。請切回已授權的地址，或重新連線至網站。"
+  },
+  "provider_review_connection_revoked": {
+    "message": "此網站已中斷連線。請重新連線後再簽署。"
+  },
+  "provider_review_paired_revoked": {
+    "message": "配對地址的存取權限已撤銷。請重新連線至網站後再簽署。"
+  },
+  "provider_review_wallet_locked": {
+    "message": "錢包已鎖定"
+  },
+  "provider_review_invalid_id": {
+    "message": "簽署請求 ID 無效"
+  },
+  "provider_review_missing_id": {
+    "message": "未提供簽署請求 ID"
+  },
+  "provider_review_wrong_screen": {
+    "message": "此請求須在其他授權頁面檢視"
+  },
+  "provider_review_load_failed": {
+    "message": "無法載入簽署請求"
+  },
+  "provider_review_nothing_to_verify": {
+    "message": "沒有可驗證的簽署請求"
+  },
+  "provider_review_not_reviewed": {
+    "message": "沒有已檢查的簽署請求"
+  },
+  "provider_review_verifying": {
+    "message": "正在驗證。請等待驗證完成後再簽署。"
+  },
+  "provider_review_retry_required": {
+    "message": "請重新驗證，成功後再簽署。"
+  },
+  "provider_review_cancelled": {
+    "message": "簽署請求已取消"
+  },
+  "provider_review_unavailable": {
+    "message": "簽署請求不存在，或已不再處於待處理狀態"
+  },
+  "provider_review_missing_sighash": {
+    "message": "請求簽署的輸入缺少 sighash 項目"
+  },
+  "provider_review_invalid_message": {
+    "message": "訊息簽署請求無效，或使用了錢包保留格式"
+  },
+  "provider_review_expired_during_review": {
+    "message": "簽署請求在檢查期間已過期"
+  },
+  "provider_review_invalid_decision": {
+    "message": "簽署授權資訊無效"
+  },
+  "provider_review_verification_failed": {
+    "message": "此請求未通過交易驗證"
+  },
+  "provider_review_review_changed": {
+    "message": "交易檢查內容已變更。請重新載入此授權頁面並再次檢視。"
+  },
+  "provider_review_acknowledge_risks": {
+    "message": "請先檢視並確認交易風險，再簽署"
+  },
+  "provider_review_missing_attachment": {
+    "message": "缺少附著的父交易"
+  },
+  "provider_review_interrupted": {
+    "message": "簽署請求已取消或已過期"
+  },
+  "provider_review_expired_completion": {
+    "message": "簽署請求在完成前已過期"
+  },
+  "provider_review_expired_delivery": {
+    "message": "簽署請求在傳回結果前已過期"
+  },
+  "composer_verification_fee_inputs_unavailable": {
+    "message": "無法取得此交易所花費輸入的金額，因此無法核實手續費。請檢查連線後重試。"
+  },
+  "composer_verification_fee_inputs_unreadable": {
+    "message": "無法讀取此交易的輸入，因而無法核實手續費。交易已被拒絕。"
+  },
+  "composer_verification_fee_outputs_exceed_inputs": {
+    "message": "交易輸出總額超過輸入總額，已拒絕簽章。"
+  },
+  "composer_verification_fee_out_of_range": {
+    "message": "交易手續費超出可處理範圍，已拒絕簽章。"
+  },
+  "composer_verification_fee_abnormally_high": {
+    "message": "交易手續費（$1 sats，約 $2 sat/vB）異常偏高，交易已被阻擋。"
+  },
+  "composer_verification_fee_exceeds_selected_rate": {
+    "message": "交易手續費（$1 sats）遠超按你所選費率 $2 sat/vB 計算的金額。"
+  },
+  "composer_verification_output_recovery_key_mismatch": {
+    "message": "建立的交易在資料輸出中嵌入了不屬於你的回收公鑰，其他人將能夠花費其中的小額 BTC（塵埃）。"
+  },
+  "composer_verification_output_recipient_missing": {
+    "message": "此交易的資料輸出之前沒有向 $1 付款的輸出，因此網路不會將該地址識別為接收方。交易已被拒絕。"
+  },
+  "composer_verification_output_recipient_single": {
+    "message": "此交易資料之前的輸出（$1）未將 $2 指定為接收方。交易已被拒絕。"
+  },
+  "composer_verification_output_recipient_multiple": {
+    "message": "此交易資料之前的多個輸出（$1）會被解讀為串接後的接收方，而不是 $2。交易已被拒絕。"
+  },
+  "composer_verification_output_unexplained_one": {
+    "message": "此交易包含你的請求無法解釋的輸出（$1），因此已被拒絕。"
+  },
+  "composer_verification_output_unexplained_many": {
+    "message": "此交易包含你的請求無法解釋的多個輸出（$1），因此已被拒絕。"
+  },
+  "composer_verification_output_payment": {
+    "message": "向 $2 支付 $1 sats"
+  },
+  "composer_verification_output_unknown_script": {
+    "message": "無法解碼的腳本"
+  },
+  "composer_verification_output_unknown_address": {
+    "message": "無法解碼的地址"
+  },
+  "approval_sign": {
+    "message": "簽署"
+  },
+  "tx_action_send": {
+    "message": "轉帳"
+  },
+  "tx_action_multi_send": {
+    "message": "批次轉帳"
+  },
+  "tx_action_btc_pay": {
+    "message": "BTC支付"
+  },
+  "tx_action_order": {
+    "message": "委託"
+  },
+  "tx_action_cancel": {
+    "message": "取消"
+  },
+  "tx_action_dispenser": {
+    "message": "分發器"
+  },
+  "tx_action_dispense": {
+    "message": "發放"
+  },
+  "tx_action_issuance": {
+    "message": "發行"
+  },
+  "tx_action_subasset_issuance": {
+    "message": "子資產發行"
+  },
+  "tx_action_dividend": {
+    "message": "分紅"
+  },
+  "tx_action_sweep": {
+    "message": "歸集"
+  },
+  "tx_action_broadcast": {
+    "message": "廣播"
+  },
+  "tx_action_pool_deposit": {
+    "message": "新增流動性"
+  },
+  "tx_action_pool_withdrawal": {
+    "message": "移除流動性"
+  },
+  "tx_action_utxo_move": {
+    "message": "UTXO轉移"
+  },
+  "tx_action_attach": {
+    "message": "附加至UTXO"
+  },
+  "tx_action_detach": {
+    "message": "從UTXO分離"
+  },
+  "tx_action_destroy": {
+    "message": "銷毀"
+  },
+  "tx_action_mint": {
+    "message": "鑄造"
+  },
+  "tx_action_create_fairminter": {
+    "message": "建立公平鑄造"
+  },
+  "tx_action_close_dispenser": {
+    "message": "關閉分發器"
+  },
+  "tx_action_fund_dispenser": {
+    "message": "向分發器存入資產"
+  },
+  "tx_action_send_amount": {
+    "message": "轉出$1 $2"
+  },
+  "tx_action_send_amount_to": {
+    "message": "向$3轉帳$1 $2"
+  },
+  "tx_action_send_one_recipient": {
+    "message": "轉帳明細：$1項"
+  },
+  "tx_action_send_recipients": {
+    "message": "轉帳明細：$1項"
+  },
+  "tx_action_give_for": {
+    "message": "以$1 $2換取$3 $4"
+  },
+  "tx_action_cancel_order_details": {
+    "message": "取消委託：$1"
+  },
+  "tx_action_cancel_dex_order": {
+    "message": "取消DEX委託"
+  },
+  "tx_action_sell_for": {
+    "message": "賣出$1 $2，換取$3 $4"
+  },
+  "tx_action_close_asset_dispenser": {
+    "message": "關閉$1分發器"
+  },
+  "tx_action_dispense_rate": {
+    "message": "每$3 sats發放$1 $2"
+  },
+  "tx_action_trigger_dispenser": {
+    "message": "觸發分發器發放"
+  },
+  "tx_action_issue_amount": {
+    "message": "發行$1"
+  },
+  "tx_action_no_new_supply": {
+    "message": "不增發"
+  },
+  "tx_action_per_unit": {
+    "message": "每單位$1 $2"
+  },
+  "tx_action_all_holders": {
+    "message": "所有$1持有者"
+  },
+  "tx_action_settle_btc": {
+    "message": "支付BTC以結算已撮合委託"
+  },
+  "tx_action_sweep_to": {
+    "message": "歸集至$1"
+  },
+  "tx_action_empty_message": {
+    "message": "空訊息"
+  },
+  "tx_action_destroy_lp": {
+    "message": "銷毀$1 LP代幣"
+  },
+  "tx_action_withdraw_liquidity": {
+    "message": "移除流動性"
+  },
+  "tx_action_deposit_liquidity": {
+    "message": "新增流動性"
+  },
+  "tx_action_attach_amount": {
+    "message": "將$1 $2附加至UTXO"
+  },
+  "tx_action_detach_all": {
+    "message": "從UTXO分離所有資產"
+  },
+  "tx_action_detach_all_to": {
+    "message": "從UTXO分離所有資產並轉移至$1"
+  },
+  "tx_action_move_amount": {
+    "message": "轉移$1 $2"
+  },
+  "tx_action_move_amount_to": {
+    "message": "將$1 $2轉移至$3"
+  },
+  "tx_action_destroy_amount": {
+    "message": "銷毀$1 $2"
+  },
+  "tx_action_base_units": {
+    "message": "$1（最小單位）"
+  },
+  "tx_action_memo": {
+    "message": "備註"
+  },
+  "tx_action_tag": {
+    "message": "標籤"
+  },
+  "tx_action_hex_label": {
+    "message": "$1（十六進位）"
+  },
+  "tx_action_price": {
+    "message": "價格"
+  },
+  "tx_action_btc_fee": {
+    "message": "BTC費用"
+  },
+  "tx_action_expiry": {
+    "message": "有效期限"
+  },
+  "tx_action_blocks": {
+    "message": "$1個區塊"
+  },
+  "tx_action_block": {
+    "message": "$1個區塊"
+  },
+  "tx_action_escrow": {
+    "message": "託管數量"
+  },
+  "tx_action_per_dispense": {
+    "message": "每次發放的付款額"
+  },
+  "tx_action_dispenses": {
+    "message": "發放次數"
+  },
+  "tx_action_you_receive": {
+    "message": "你將收到"
+  },
+  "tx_action_xcp_price_per_lot": {
+    "message": "每份XCP價格"
+  },
+  "tx_action_lot_size": {
+    "message": "每份數量"
+  },
+  "tx_action_no_limit": {
+    "message": "不限"
+  },
+  "tx_action_per_transaction_limit": {
+    "message": "每筆交易上限"
+  },
+  "tx_action_per_address_limit": {
+    "message": "每個地址上限"
+  },
+  "tx_action_hard_cap": {
+    "message": "發行上限"
+  },
+  "tx_action_soft_cap": {
+    "message": "成立所需的最低數量"
+  },
+  "tx_action_soft_cap_deadline": {
+    "message": "最低數量達標期限"
+  },
+  "tx_action_block_height": {
+    "message": "區塊$1"
+  },
+  "tx_action_premint": {
+    "message": "預鑄數量"
+  },
+  "tx_action_pool_allocation": {
+    "message": "分配給池的數量"
+  },
+  "tx_action_lp_asset": {
+    "message": "LP資產"
+  },
+  "tx_action_xcp_payment": {
+    "message": "XCP支付去向"
+  },
+  "tx_action_free_mint": {
+    "message": "無（免費鑄造）"
+  },
+  "tx_action_burned": {
+    "message": "銷毀"
+  },
+  "tx_action_seeds_pool": {
+    "message": "作為流動性池初始資金"
+  },
+  "tx_action_paid_to_issuer": {
+    "message": "支付給發行者"
+  },
+  "tx_action_starts": {
+    "message": "開始"
+  },
+  "tx_action_ends": {
+    "message": "結束"
+  },
+  "tx_action_on_confirmation": {
+    "message": "交易確認時"
+  },
+  "tx_action_no_end_block": {
+    "message": "無結束區塊"
+  },
+  "tx_action_minted_asset_commission": {
+    "message": "鑄造資產佣金比例"
+  },
+  "tx_action_divisible": {
+    "message": "可分割"
+  },
+  "tx_action_yes": {
+    "message": "是"
+  },
+  "tx_action_no": {
+    "message": "否"
+  },
+  "tx_action_lock_description": {
+    "message": "鎖定描述"
+  },
+  "tx_action_lock_quantity": {
+    "message": "鎖定發行數量"
+  },
+  "tx_action_description_format": {
+    "message": "描述格式"
+  },
+  "tx_action_description_content": {
+    "message": "描述內容"
+  },
+  "tx_action_description": {
+    "message": "描述"
+  },
+  "tx_action_xcp_burned": {
+    "message": "銷毀的XCP"
+  },
+  "tx_action_xcp_to_pool": {
+    "message": "進入池的XCP"
+  },
+  "tx_action_xcp_price": {
+    "message": "XCP價格"
+  },
+  "tx_action_lock": {
+    "message": "鎖定"
+  },
+  "tx_action_reset": {
+    "message": "重設"
+  },
+  "tx_action_lock_consequence": {
+    "message": "是 — 此後將永遠無法增發"
+  },
+  "tx_action_reset_consequence": {
+    "message": "是 — 銷毀並替換現有供應量"
+  },
+  "tx_action_new_owner": {
+    "message": "新擁有者"
+  },
+  "tx_action_supply_before": {
+    "message": "銷毀前供應量"
+  },
+  "tx_action_supply_after": {
+    "message": "銷毀後供應量"
+  },
+  "tx_action_share_destroyed": {
+    "message": "銷毀比例"
+  },
+  "tx_action_includes": {
+    "message": "轉移內容"
+  },
+  "tx_action_sweep_balances_ownership": {
+    "message": "全部餘額與資產所有權"
+  },
+  "tx_action_sweep_ownership": {
+    "message": "僅資產所有權"
+  },
+  "tx_action_sweep_balances": {
+    "message": "全部餘額"
+  },
+  "tx_action_format": {
+    "message": "格式"
+  },
+  "tx_action_plain_text": {
+    "message": "純文字"
+  },
+  "tx_action_content": {
+    "message": "內容"
+  },
+  "tx_action_inscribed_data": {
+    "message": "銘刻資料 — 此廣播包含資料，而非訊息"
+  },
+  "tx_action_value": {
+    "message": "數值"
+  },
+  "tx_action_fee_fraction": {
+    "message": "費率"
+  },
+  "tx_action_time_left": {
+    "message": "剩餘時間"
+  },
+  "tx_action_payment_expired": {
+    "message": "已到期 — 此付款無法結算該撮合委託"
+  },
+  "tx_action_order_match": {
+    "message": "委託撮合ID"
+  },
+  "tx_action_order_hash": {
+    "message": "委託雜湊"
+  },
+  "tx_action_deposit": {
+    "message": "存入數量"
+  },
+  "tx_action_ratio": {
+    "message": "比例"
+  },
+  "tx_action_pool": {
+    "message": "流動性池"
+  },
+  "tx_action_pool_fee": {
+    "message": "池手續費"
+  },
+  "tx_action_min_lp_received": {
+    "message": "最低LP接收數量"
+  },
+  "tx_action_min_asset_back": {
+    "message": "最低$1退回數量"
+  },
+  "tx_action_xcp_fee": {
+    "message": "XCP費用"
+  },
+  "tx_action_new_utxo": {
+    "message": "新UTXO"
+  },
+  "tx_action_detached": {
+    "message": "分離數量"
+  },
+  "tx_action_from_utxo": {
+    "message": "來源UTXO"
+  },
+  "tx_action_to": {
+    "message": "目的地"
+  },
+  "tx_action_unavailable": {
+    "message": "無法取得"
+  },
+  "swap_quote_outcome_partial": {
+    "message": "目前委託簿的流動性不足以成交全部數量。請減少數量，或在 DEX 掛單等待成交。"
+  },
+  "swap_quote_outcome_dust": {
+    "message": "此數量換算後不足 $1 的最小單位，流動性池不會回傳任何資產。請增加 $2 的數量。"
+  },
+  "swap_quote_outcome_no_liquidity": {
+    "message": "此交易對暫無可用流動性。"
+  },
+  "api_validation_connection_failed": {
+    "message": "無法連接 API，請檢查網址與 CORS 設定"
+  },
+  "api_validation_http_error": {
+    "message": "API 回傳錯誤：$1"
+  },
+  "api_validation_invalid_response": {
+    "message": "API 回應格式無效"
+  },
+  "api_validation_invalid_url": {
+    "message": "網址格式無效"
+  },
+  "api_validation_mainnet_required": {
+    "message": "API 必須連接主網"
+  },
+  "api_validation_server_not_ready": {
+    "message": "API 伺服器尚未就緒"
+  },
+  "api_validation_timeout": {
+    "message": "連線逾時，無法存取 API"
+  },
+  "api_validation_url_required": {
+    "message": "請輸入 API 網址"
+  },
+  "api_validation_version_required": {
+    "message": "API 必須為 Counterparty Core $1 或更新版本"
+  },
+  "balance_pending_attaching": {
+    "message": "附加中"
+  },
+  "balance_pending_burning": {
+    "message": "銷毀中"
+  },
+  "balance_pending_confirmation": {
+    "message": "待確認"
+  },
+  "balance_pending_depositing": {
+    "message": "新增流動性中"
+  },
+  "balance_pending_detaching": {
+    "message": "分離中"
+  },
+  "balance_pending_dispensing": {
+    "message": "發放中"
+  },
+  "balance_pending_dividend": {
+    "message": "分紅發放中"
+  },
+  "balance_pending_issuing": {
+    "message": "發行中"
+  },
+  "balance_pending_matching": {
+    "message": "撮合中"
+  },
+  "balance_pending_minting": {
+    "message": "鑄造中"
+  },
+  "balance_pending_moving": {
+    "message": "移轉中"
+  },
+  "balance_pending_opening": {
+    "message": "開啟中"
+  },
+  "balance_pending_ordering": {
+    "message": "掛單中"
+  },
+  "balance_pending_paying": {
+    "message": "付款中"
+  },
+  "balance_pending_refilling": {
+    "message": "補貨中"
+  },
+  "balance_pending_resetting": {
+    "message": "重設中"
+  },
+  "balance_pending_sending": {
+    "message": "傳送中"
+  },
+  "balance_pending_sweeping": {
+    "message": "歸集中"
+  },
+  "balance_pending_withdrawing": {
+    "message": "移除流動性中"
+  },
+  "baseasset_quoteasset_no_buy_orders": {
+    "message": "$1/$2 沒有買單"
+  },
+  "baseasset_quoteasset_no_sell_orders": {
+    "message": "$1/$2 沒有賣單"
+  },
+  "charts_range_days": {
+    "message": "$1天"
+  },
+  "charts_range_hours": {
+    "message": "$1小時"
+  },
+  "charts_range_years": {
+    "message": "$1年"
+  },
+  "hardware_error_address_failed": {
+    "message": "無法從 Trezor 讀取地址。請檢查裝置後再試。"
+  },
+  "hardware_error_busy": {
+    "message": "Trezor 忙碌中。請結束其他操作後再試。"
+  },
+  "hardware_error_cancelled": {
+    "message": "已取消 Trezor 操作。"
+  },
+  "hardware_error_disconnected": {
+    "message": "Trezor 已中斷連線。請重新連線後再試。"
+  },
+  "hardware_error_discovery_failed": {
+    "message": "無法讀取 Trezor 帳戶。請檢查裝置後再試。"
+  },
+  "hardware_error_init_failed": {
+    "message": "無法初始化 Trezor 連線。請檢查連線後再試。"
+  },
+  "hardware_error_permission_denied": {
+    "message": "請在 Trezor 視窗中允許存取後再試。"
+  },
+  "hardware_error_public_key_failed": {
+    "message": "無法從 Trezor 讀取公鑰。請檢查裝置後再試。"
+  },
+  "hardware_error_taproot_message": {
+    "message": "Trezor 無法使用 Taproot（P2TR）地址簽署訊息。請使用其他地址類型，例如 $1。"
+  },
+  "inputs_api_url_input_api_url": {
+    "message": "API 網址"
+  },
+  "messages_mpma_addresses": {
+    "message": "$1 個地址"
+  },
+  "messages_mpma_assets": {
+    "message": "$1 種資產"
+  },
+  "messages_mpma_details_unavailable": {
+    "message": "無法取得完整的轉帳明細。"
+  },
+  "messages_mpma_one_address": {
+    "message": "$1 個地址"
+  },
+  "messages_mpma_one_asset": {
+    "message": "$1 種資產"
+  },
+  "messages_order_expires_after_block": {
+    "message": "區塊 $1 之後"
+  },
+  "messages_order_recorded_state": {
+    "message": "已記錄的委託狀態"
+  },
+  "messages_order_snapshot_notice": {
+    "message": "這是隨此交易記錄的委託狀態，不包含之後的成交或取消。"
+  },
+  "messages_order_status_cancelled": {
+    "message": "已取消"
+  },
+  "messages_order_status_expired": {
+    "message": "已到期"
+  },
+  "messages_order_status_filled": {
+    "message": "已完全成交"
+  },
+  "messages_order_status_open": {
+    "message": "委託中"
+  },
+  "messages_order_status_unknown": {
+    "message": "未知"
+  },
+  "settings_order_duration_hours": {
+    "message": "$1小時"
+  },
+  "settings_order_duration_days": {
+    "message": "$1天"
+  },
+  "settings_order_duration_weeks": {
+    "message": "$1週"
+  },
+  "settings_order_duration_months": {
+    "message": "$1個月"
+  },
+  "transaction_unconfirmed": {
+    "message": "未確認"
+  },
+  "asset_asset_list_load_failed": {
+    "message": "無法載入你管理的資產。"
+  },
+  "asset_asset_list_load_more_failed": {
+    "message": "無法載入更多資產。"
+  },
+  "balance_balance_list_load_failed": {
+    "message": "無法載入餘額。"
+  },
+  "balance_balance_list_load_more_failed": {
+    "message": "無法載入更多餘額。"
+  },
+  "utxo_utxo_list_load_failed": {
+    "message": "無法載入 UTXO 餘額。"
+  },
+  "utxo_utxo_list_load_more_failed": {
+    "message": "無法載入更多 UTXO 餘額。"
+  },
+  "utxo_utxo_list_searching_utxo_balances": {
+    "message": "正在搜尋 UTXO 餘額…"
+  },
+  "common_load_more": {
+    "message": "載入更多"
+  },
+  "common_loading_more": {
+    "message": "正在載入更多…"
+  },
+  "market_searching_pools": {
+    "message": "正在搜尋流動性池…"
+  },
+  "market_failed_to_load_listings": {
+    "message": "無法載入清單。請再試一次。"
+  },
+  "search_error_rate_limited": {
+    "message": "搜尋請求暫時受限，請稍後再試。"
+  },
+  "search_error_failed": {
+    "message": "搜尋失敗，請再試一次。"
+  },
+  "search_error_timeout": {
+    "message": "搜尋請求逾時，請再試一次。"
+  },
+  "search_error_invalid_response": {
+    "message": "搜尋結果的回應格式無效。"
+  },
+  "search_error_detail": {
+    "message": "無法載入搜尋結果：$1"
+  },
+  "baseasset_quoteasset_select_pair": {
+    "message": "請選擇交易對"
+  },
+  "baseasset_quoteasset_loading_matches": {
+    "message": "正在載入成交紀錄…"
+  }
+}

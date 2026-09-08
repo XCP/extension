@@ -6,6 +6,7 @@ import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
+import { TransactionInputError } from '@/core/validation/transaction-input-error';
 
 /**
  * A composed transaction spent a UTXO the request never offered.
@@ -36,7 +37,7 @@ function serializeFraction(value: string | number): string {
   // Reject a value that loses a unit there; changing the fraction to compensate
   // would change the user's request, while byte equality alone would miss it.
   if (exact.status !== 'valid' || BigInt(Math.trunc(Number(canonical) * 1e8)) !== exact.raw) {
-    throw new Error('Counterparty cannot encode this fee or commission fraction exactly. Choose another fraction.');
+    throw new TransactionInputError('fraction_inexact', 'Counterparty cannot encode this fee or commission fraction exactly. Choose another fraction.');
   }
   return canonical;
 }

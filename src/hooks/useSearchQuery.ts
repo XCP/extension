@@ -1,4 +1,6 @@
 import { type SetStateAction, useCallback, useEffect, useState } from "react";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
 
 interface Asset {
@@ -23,7 +25,27 @@ interface SearchState {
   key: string;
   results: Asset[];
   error: string | null;
+  failure?: { kind: 'rate_limit' | 'http' | 'timeout' | 'invalid_response' } | { kind: 'other'; detail: string };
   pending: boolean;
+}
+
+function visibleError(state: SearchState): string | null {
+  if (state.error === null) return null;
+  switch (state.failure?.kind) {
+    case 'rate_limit': return t('search_error_rate_limited');
+    case 'http': return t('search_error_failed');
+    case 'timeout': return t('search_error_timeout');
+    case 'invalid_response': return t('search_error_invalid_response');
+    case 'other': return t('search_error_detail', [state.failure.detail]);
+    default: return state.error;
+  }
+}
+
+/** Existing local diagnostics with a presentation tag; retry policy still uses the same errors. */
+class SearchResponseError extends Error {
+  constructor(readonly reason: 'timeout' | 'invalid_response') {
+    super(reason === 'timeout' ? 'Search request timed out. Please try again.' : 'Invalid search response');
+  }
 }
 
 class SearchHttpError extends Error {
@@ -76,7 +98,7 @@ async function searchAttempt(
     };
     signal.addEventListener("abort", onAbort, { once: true });
     timer = setTimeout(() => {
-      reject(new Error("Search request timed out. Please try again."));
+      reject(new SearchResponseError('timeout'));
       controller.abort();
     }, timeoutMs);
   });
@@ -99,7 +121,7 @@ async function searchAttempt(
         }
         // Preserve custom-endpoint injection; the maintained default uses result.
         if (Array.isArray(data.assets)) return data.assets as Asset[];
-        throw new Error("Invalid search response");
+        throw new SearchResponseError('invalid_response');
       })(),
       interrupted,
     ]);
@@ -111,6 +133,7 @@ async function searchAttempt(
 
 /** Asset search with immediate pending state, cancellation, and bounded retries. */
 export const useSearchQuery = (initialQuery: string = "", options?: UseSearchQueryOptions) => {
+  useLocaleRevision();
   const {
     apiEndpoint = "https://api.xcp.io/v2/assets",
     debounceMs = 500,
@@ -142,7 +165,7 @@ export const useSearchQuery = (initialQuery: string = "", options?: UseSearchQue
       const previous = current.key === requestKey
         ? current
         : { key: requestKey, results: [], error: null, pending: searchQuery.trim().length > 0 };
-      return { ...previous, error: typeof next === "function" ? next(previous.error) : next };
+      return { ...previous, error: typeof next === "function" ? next(previous.error) : next, failure: undefined };
     });
   }, [requestKey, searchQuery]);
 
@@ -174,7 +197,11 @@ export const useSearchQuery = (initialQuery: string = "", options?: UseSearchQue
             ? "Search is temporarily rate limited. Please try again."
             : "Search failed. Please try again."
           : `Failed to load search results: ${err instanceof Error ? err.message : String(err)}`;
-        setState({ key: requestKey, results: [], error: message, pending: false });
+        const failure: SearchState['failure'] = err instanceof SearchHttpError
+          ? { kind: err.status === 429 ? 'rate_limit' : 'http' }
+          : err instanceof SearchResponseError ? { kind: err.reason }
+            : { kind: 'other', detail: err instanceof Error ? err.message : String(err) };
+        setState({ key: requestKey, results: [], error: message, failure, pending: false });
       }
     };
     const timer = setTimeout(() => { void performSearch(); }, debounceMs);
@@ -190,7 +217,7 @@ export const useSearchQuery = (initialQuery: string = "", options?: UseSearchQue
     setSearchQuery,
     searchResults: isCurrent && searchQuery.trim() ? state.results : [],
     isSearching,
-    error: isCurrent ? state.error : null,
+    error: isCurrent ? visibleError(state) : null,
     setError,
     retry,
   };

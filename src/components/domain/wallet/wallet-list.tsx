@@ -1,6 +1,7 @@
 import { RadioGroup } from '@headlessui/react';
 import type { ReactElement } from 'react';
 import { WalletCard } from '@/components/domain/wallet/wallet-card';
+import { t } from '@/i18n';
 import type { Address, Wallet } from '@/types/wallet';
 
 interface WalletListProps {
@@ -24,7 +25,7 @@ export function WalletList({
   selectedAddress,
   onSelectWallet,
   disableHardwareWallets = false,
-  hardwareWalletDisabledMessage = 'Open in sidepanel',
+  hardwareWalletDisabledMessage = t('keychain_wallets_open_in_sidepanel'),
 }: WalletListProps): ReactElement {
   const handleWalletChange = (wallet: Wallet | null) => {
     if (wallet && !(disableHardwareWallets && wallet.type === 'hardware')) {

@@ -7,6 +7,8 @@ import type { UtxoBalance } from "@/core/counterparty/api";
 import { fetchTokenBalances } from "@/core/counterparty/api";
 import { useInView } from "@/hooks/useInView";
 import { usePendingStatus } from "@/hooks/usePendingStatus";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 const PAGE_SIZE = 20;
 
@@ -16,6 +18,7 @@ interface UtxoListProps {
 }
 
 export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): ReactElement => {
+  useLocaleRevision();
   const { activeWallet, activeAddress } = useWallet();
   const address = activeAddress?.address;
   const walletId = activeWallet?.id;
@@ -25,7 +28,7 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
   const [isInitialLoading, setIsInitialLoading] = useState(Boolean(address && walletId));
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<'initial' | 'more' | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const sessionRef = useRef<{ address: string; offset: number; busy: boolean; loaded: boolean; hasMore: boolean } | null>(null);
   const previousRefreshNonce = useRef(refreshNonce);
@@ -63,7 +66,7 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
         setHasMore(session.hasMore);
         setInitialLoaded(true);
       } catch {
-        if (sessionRef.current === session) setError("Failed to load UTXO balances.");
+        if (sessionRef.current === session) setError('initial');
       } finally {
         if (sessionRef.current === session) {
           session.busy = false;
@@ -109,7 +112,7 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
       session.hasMore = fetched.length === PAGE_SIZE;
       setHasMore(session.hasMore);
     } catch {
-      if (sessionRef.current === session) setError("Failed to load more UTXO balances.");
+      if (sessionRef.current === session) setError('more');
     } finally {
       if (sessionRef.current === session) {
         session.busy = false;
@@ -135,28 +138,28 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
 
   return (
     <div className="space-y-2">
-      <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search utxos…"
+      <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder={t('utxo_utxo_list_search_utxos')}
         name="utxo-search" className="mt-0.5 mb-3" showClearButton />
-      {isInitialLoading ? <Spinner message="Loading UTXO balances…" /> : (
+      {isInitialLoading ? <Spinner message={t('utxo_utxo_list_loading_utxo_balances')} /> : (
         <>
           {filteredBalances.map(token => (
             <UtxoCard token={token} key={`${token.utxo}:${token.asset}`} pendingStatus={pendingByUtxoLabel.get(token.utxo)} />
           ))}
           {error ? (
             <div role="alert" className="py-4 text-center text-sm text-red-600">
-              <p>{error}</p>
+              <p>{error === 'initial' ? t('utxo_utxo_list_load_failed') : t('utxo_utxo_list_load_more_failed')}</p>
               <button type="button" onClick={() => initialLoaded ? void loadMore() : setRetryNonce(n => n + 1)}
-                className="mt-2 text-blue-600 underline cursor-pointer">Retry</button>
+                className="mt-2 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
             </div>
           ) : !filteredBalances.length && !hasMore && (
             <div className="text-center py-4 text-gray-500">
-              {isSearching ? "No matching UTXOs" : "No UTXO-attached balances"}
+              {isSearching ? t('utxo_utxo_list_no_matching_utxos') : t('utxo_utxo_list_no_utxo_attached_balances')}
             </div>
           )}
           <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
             {hasMore && !error && (isFetchingMore || isSearching
-              ? <Spinner message={isSearching ? "Searching UTXO balances…" : undefined} />
-              : <div className="text-sm text-gray-500">Scroll to load more…</div>)}
+              ? <Spinner message={isSearching ? t('utxo_utxo_list_searching_utxo_balances') : undefined} />
+              : <div className="text-sm text-gray-500">{t('common_scroll_to_load_more')}</div>)}
           </div>
         </>
       )}

@@ -13,6 +13,8 @@ import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the UpdateDescriptionForm component, aligned with Composer's formAction.
  */
@@ -46,7 +48,7 @@ export function UpdateDescriptionForm({
   const handleFileChange = (file: File | null) => {
     setFileError(null);
     if (file && file.size > 400 * 1024) {
-      setFileError("File size must be less than 400KB");
+      setFileError(t('common_file_size_must_be_less'));
       setSelectedFile(null);
       return;
     }
@@ -67,18 +69,17 @@ export function UpdateDescriptionForm({
   }, []);
 
   if (assetLoading) {
-    return <Spinner message="Loading asset details…" />;
+    return <Spinner message={t('common_loading_asset_details')} />;
   }
 
   if (assetError || !assetInfo) {
     return (
       <div className="p-4 text-red-500">
-        Unable to load asset details. Please ensure the asset exists and you have the necessary
-        permissions.
+        {t('common_unable_to_load_asset_details')}
       </div>
     );
   }
-  if (asset === "BTC") return <div className="p-4 text-red-500">Cannot update description of BTC</div>;
+  if (asset === "BTC") return <div className="p-4 text-red-500">{t('update_description_form_cannot_update_description_of_btc')}</div>;
 
   return (
     <ComposerForm
@@ -107,8 +108,8 @@ export function UpdateDescriptionForm({
           {/* Only show inscribe switch for SegWit addresses */}
           {isSegwitAddress && (
             <SettingSwitch
-              label="Inscribe?"
-              description="Store message as a Taproot inscription (on-chain)"
+              label={t('common_inscribe')}
+              description={t('common_store_message_as_a_taproot')}
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
               showHelpText={showHelpText}
@@ -132,7 +133,8 @@ export function UpdateDescriptionForm({
           ) : (
             <Field>
               <Label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                Description <span className="text-red-500">*</span>
+                
+                {t('common_description')} <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 ref={descriptionRef}
@@ -147,7 +149,7 @@ export function UpdateDescriptionForm({
               />
               {showHelpText && (
                 <Description className="mt-2 text-sm text-gray-500">
-                  Enter a new description for the asset to use.
+                  {t('update_description_form_enter_a_new_description_for')}
                 </Description>
               )}
             </Field>

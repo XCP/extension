@@ -1,4 +1,8 @@
 /** Explicit, sender-scoped RPC over reconnectable extension ports. */
+
+import { type HardwareErrorMetadata, parseHardwareErrorMetadata, withHardwareErrorMetadata } from '@/core/hardware/errorMetadata';
+import { HardwareWalletError } from '@/core/hardware/types';
+import { isProviderReviewCode, type ProviderReviewCode, providerReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { decodeProxyResult, encodeProxyResult } from '@/platform/proxySerialization';
 import { whenServicesReady } from '@/services/core/serviceReadiness';
@@ -17,7 +21,7 @@ export interface ProxyServicePolicy<T> {
 interface PortRequest { id: number; methodName: string; args: unknown[] }
 type PortResponse =
   | { id: number; success: true; result: unknown; resultEncoding?: 'xcp-json-v1' }
-  | { id: number; success: false; error: { message: string; code?: number } };
+  | { id: number; success: false; error: { message: string; code?: number; reviewCode?: ProviderReviewCode; hardware?: HardwareErrorMetadata } };
 
 const registeredServices = new Set<string>();
 const activePorts = new Map<string, chrome.runtime.Port>();
@@ -56,7 +60,9 @@ function parseResponse(value: unknown): PortResponse | null {
   if (value.success !== false || !isRecord(value.error) || typeof value.error.message !== 'string') return null;
   return {
     id: value.id as number, success: false,
-    error: { message: value.error.message, code: typeof value.error.code === 'number' ? value.error.code : undefined },
+    error: { message: value.error.message, code: typeof value.error.code === 'number' ? value.error.code : undefined,
+      reviewCode: isProviderReviewCode(value.error.reviewCode) ? value.error.reviewCode : undefined,
+      hardware: parseHardwareErrorMetadata(value.error.hardware) },
   };
 }
 
@@ -154,6 +160,9 @@ export function defineProxyService<T extends object>(
           reply({ id, success: false, error: {
             message: error instanceof Error ? error.message : 'Service call failed',
             code: error instanceof ProviderError ? error.code : undefined,
+            reviewCode: providerReviewCode(error),
+            // Device diagnostics are for extension UI, not a new public provider contract.
+            hardware: trustedUI && error instanceof HardwareWalletError ? parseHardwareErrorMetadata(error) : undefined,
           } });
         }
       };
@@ -184,9 +193,13 @@ export function defineProxyService<T extends object>(
       if (!pending || pending.port !== connected) return;
       pendingCalls.delete(response.id);
       if (response.success) pending.resolve(response.result);
-      else pending.reject(typeof response.error.code === 'number'
-        ? new ProviderError(response.error.code, response.error.message)
-        : new Error(response.error.message));
+      else {
+        const error = typeof response.error.code === 'number'
+          ? new ProviderError(response.error.code, response.error.message)
+          : new Error(response.error.message);
+        if (response.error.hardware) withHardwareErrorMetadata(error, response.error.hardware);
+        pending.reject(response.error.reviewCode ? withProviderReviewCode(error, response.error.reviewCode) : error);
+      }
     });
     connected.onDisconnect.addListener(() => {
       if (chrome.runtime?.lastError) { /* consumed */ }

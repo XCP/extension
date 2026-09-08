@@ -2,11 +2,14 @@ import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { useSettings } from '@/contexts/settings-context';
 import { getCounterpartyFeatureStatus } from '@/core/counterparty/capabilities';
+import { formatAmount } from '@/core/format';
 import {
   DEFAULT_ORDER_EXPIRATION,
   LEGACY_MAX_ORDER_EXPIRATION,
   MAX_ORDER_EXPIRATION,
 } from '@/core/settings';
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 interface OrderSettingsProps {
   customExpiration?: number;
@@ -17,24 +20,6 @@ interface OrderSettingsProps {
   showHelpText?: boolean;
 }
 
-const LEGACY_EXPIRATION_PRESETS = [
-  { label: '1 Hour', blocks: 6 },
-  { label: '1 Day', blocks: 144 },
-  { label: '1 Week', blocks: 1008 },
-  { label: '2 Weeks', blocks: 2016 },
-  { label: '1 Month', blocks: 4320 },
-  { label: 'Max', blocks: LEGACY_MAX_ORDER_EXPIRATION },
-];
-
-const EXPIRATION_PRESETS = [
-  { label: 'Never', blocks: 0 },
-  { label: '1 Day', blocks: 144 },
-  { label: '1 Week', blocks: 1008 },
-  { label: '1 Month', blocks: 4320 },
-  { label: '1 Year', blocks: 52560 },
-  { label: 'Max', blocks: MAX_ORDER_EXPIRATION },
-];
-
 export function OrderSettings({
   customExpiration,
   onExpirationChange,
@@ -43,6 +28,7 @@ export function OrderSettings({
   isBuyingBTC = false,
   showHelpText = false
 }: OrderSettingsProps): ReactElement {
+  useLocaleRevision();
   const { settings, updateSettings } = useSettings();
 
   const getInitialExpiration = () => {
@@ -57,7 +43,21 @@ export function OrderSettings({
   const [usesLegacyExpirations, setUsesLegacyExpirations] = useState(true);
   const minCustomExpiration = usesLegacyExpirations ? 1 : 0;
   const maxCustomExpiration = usesLegacyExpirations ? LEGACY_MAX_ORDER_EXPIRATION : MAX_ORDER_EXPIRATION;
-  const expirationPresets = usesLegacyExpirations ? LEGACY_EXPIRATION_PRESETS : EXPIRATION_PRESETS;
+  const expirationPresets = usesLegacyExpirations ? [
+    { label: t('settings_order_settings_1_hour'), blocks: 6 },
+    { label: t('settings_order_settings_1_day'), blocks: 144 },
+    { label: t('settings_order_settings_1_week'), blocks: 1008 },
+    { label: t('settings_order_settings_2_weeks'), blocks: 2016 },
+    { label: t('settings_order_settings_1_month'), blocks: 4320 },
+    { label: t('common_max'), blocks: LEGACY_MAX_ORDER_EXPIRATION },
+  ] : [
+    { label: t('settings_order_settings_never'), blocks: 0 },
+    { label: t('settings_order_settings_1_day'), blocks: 144 },
+    { label: t('settings_order_settings_1_week'), blocks: 1008 },
+    { label: t('settings_order_settings_1_month'), blocks: 4320 },
+    { label: t('settings_order_settings_1_year'), blocks: 52560 },
+    { label: t('common_max'), blocks: MAX_ORDER_EXPIRATION },
+  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -125,17 +125,21 @@ export function OrderSettings({
   };
 
   const calculateDays = (blocks: number) => {
-    if (blocks === 0) return 'never';
+    if (blocks === 0) return t('settings_order_settings_never');
     const days = blocks / 144;
-    if (days < 1) return `${(days * 24).toFixed(0)}h`;
-    if (days < 7) return `${days.toFixed(1)}d`;
-    if (days >= 30) return `${(days / 30).toFixed(1)}mo`;
-    return `${(days / 7).toFixed(1)}w`;
+    // Keep the existing approximation/rounding, then localize only its displayed number and unit.
+    const display = (value: number, decimals: number) => formatAmount({
+      value: value.toFixed(decimals), minimumFractionDigits: decimals, maximumFractionDigits: decimals,
+    });
+    if (days < 1) return t('settings_order_duration_hours', [display(days * 24, 0)]);
+    if (days < 7) return t('settings_order_duration_days', [display(days, 1)]);
+    if (days >= 30) return t('settings_order_duration_months', [display(days / 30, 1)]);
+    return t('settings_order_duration_weeks', [display(days / 7, 1)]);
   };
 
   const expirationLabel = (expiration === 0 && !usesLegacyExpirations)
-    ? 'Never expires'
-    : `${expiration.toLocaleString()} blocks (~${calculateDays(expiration)})`;
+    ? t('common_never_expires')
+    : t('settings_order_settings_blocks', [formatAmount({ value: expiration, maximumFractionDigits: 0 }), String(calculateDays(expiration))]);
 
   const handleFeeRequiredChange = (value: string) => {
     // Only allow numbers
@@ -157,7 +161,7 @@ export function OrderSettings({
               htmlFor="custom-expiration"
               className="text-sm font-semibold cursor-pointer"
             >
-              Order Expiration
+              {t('settings_order_settings_order_expiration')}
             </label>
             <span className="text-sm text-gray-500 tabular-nums">
               {expirationLabel}
@@ -194,16 +198,16 @@ export function OrderSettings({
               value={customValue}
               onChange={(e) => handleCustomChange(e.target.value)}
               onKeyDown={handleCustomKeyDown}
-              placeholder={`Custom blocks, ${minCustomExpiration}-${maxCustomExpiration}`}
+              placeholder={t('settings_order_settings_custom_blocks', [String(minCustomExpiration), String(maxCustomExpiration)])}
               inputMode="numeric"
-              aria-label="Custom expiration in blocks"
+              aria-label={t('settings_order_settings_custom_expiration_in_blocks')}
               className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
             />
             {showHelpText && (
               <p className="text-xs text-gray-500">
                 {usesLegacyExpirations
-                  ? `Orders cancel after the selected number of blocks. The current maximum is ${LEGACY_MAX_ORDER_EXPIRATION}.`
-                  : 'Use 0 for orders that never expire. Finite orders cancel after the selected number of blocks.'}
+                  ? t('settings_order_settings_orders_cancel_after_the_selected', [String(LEGACY_MAX_ORDER_EXPIRATION)])
+                  : t('settings_order_settings_use_0_for_orders_that')}
               </p>
             )}
           </div>
@@ -217,10 +221,10 @@ export function OrderSettings({
                 htmlFor="fee-required"
                 className="text-sm font-semibold cursor-pointer"
               >
-                Fee Required
+                {t('common_fee_required')}
               </label>
               <span className="text-sm text-gray-500 tabular-nums">
-                {feeRequired === 0 ? "No minimum fee" : `${feeRequired} sats (~${(feeRequired / 250).toFixed(1)} sat/vB)`}
+                {feeRequired === 0 ? t('settings_order_settings_no_minimum_fee') : t('settings_order_settings_sats_sat_vb', [String(feeRequired), String((feeRequired / 250).toFixed(1))])}
               </span>
             </div>
 
@@ -230,13 +234,13 @@ export function OrderSettings({
                 id="fee-required"
                 value={feeRequired}
                 onChange={(e) => handleFeeRequiredChange(e.target.value)}
-                placeholder="Enter fee in satoshis (default: 0)"
+                placeholder={t('settings_order_settings_enter_fee_in_satoshis_default')}
                 inputMode="numeric"
-                aria-label="Fee required in satoshis"
+                aria-label={t('settings_order_settings_fee_required_in_satoshis')}
                 className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
               />
               <p className="text-xs text-gray-500">
-                The minimum tx fee required for a BTCPay to match this order (in satoshis).
+                {t('settings_order_settings_the_minimum_tx_fee_required')}
               </p>
             </div>
           </div>

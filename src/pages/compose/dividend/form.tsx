@@ -20,6 +20,8 @@ import { formatForInput } from "@/core/format";
 import { toBigNumber } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
+import { t } from '@/i18n';
+
 interface DividendFormProps {
   formAction: (formData: FormData) => void;
   asset: string;
@@ -129,14 +131,13 @@ export function DividendForm({
   
   // Early returns
   if (assetLoading) {
-    return <Spinner message="Loading asset details…" />;
+    return <Spinner message={t('common_loading_asset_details')} />;
   }
 
   if (assetError || !assetInfo?.assetInfo) {
     return (
       <div className="p-4 text-red-500">
-        Unable to load asset details. Please ensure the asset exists and you have the necessary
-        permissions.
+        {t('common_unable_to_load_asset_details')}
       </div>
     );
   }
@@ -150,7 +151,7 @@ export function DividendForm({
           {feeShortfall && (
             <Banner
               severity="warning"
-              title="Not enough XCP for the dividend fee"
+              title={t('dividend_form_not_enough_xcp_for_the')}
               description={feeShortfall}
               className="mb-4"
             />
@@ -173,10 +174,10 @@ export function DividendForm({
           <AssetSelectInput
             selectedAsset={selectedDividendAsset}
             onChange={handleDividendAssetChange}
-            label="Dividend Asset"
+            label={t('common_dividend_asset')}
             required
             showHelpText={showHelpText}
-            description="The asset to pay dividends in (e.g., XCP)."
+            description={t('dividend_form_the_asset_to_pay_dividends')}
           />
 
           <AmountWithMaxInput
@@ -188,9 +189,9 @@ export function DividendForm({
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={calculateMaxAmountPerUnit()}
-            label="Amount Per Unit"
+            label={t('dividend_form_amount_per_unit')}
             name="quantity_per_unit"
-            description={[`Amount of ${selectedDividendAsset} to be paid per unit of ${asset}.`, feeNote]
+            description={[t('dividend_form_amount_of_to_be_paid', [String(selectedDividendAsset), String(asset)]), feeNote]
               .filter(Boolean)
               .join(" ")}
             disableMaxButton={typeof assetInfo?.assetInfo?.divisible !== "boolean" || typeof dividendAssetInfo?.assetInfo?.divisible !== "boolean"}

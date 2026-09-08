@@ -17,6 +17,7 @@ import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePool } from "@/hooks/usePool";
 import { useTradingPair } from "@/hooks/useTradingPair";
+import { t } from '@/i18n';
 import { OrderSettings } from "@/pages/settings/order-settings";
 
 // Extended type for form data that includes user-facing fields
@@ -242,7 +243,7 @@ export function OrderForm({
             onClick={() => handleTabChange("buy")}
             disabled={false}
           >
-            Buy
+            {t('common_buy')}
           </button>
           <button
             type="button"
@@ -252,7 +253,7 @@ export function OrderForm({
             onClick={() => handleTabChange("sell")}
             disabled={false}
           >
-            Sell
+            {t('common_sell')}
           </button>
           {pairPool && (
             <button
@@ -260,7 +261,7 @@ export function OrderForm({
               className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
               onClick={() => navigate(`/compose/swap/${encodeURIComponent(baseAsset)}/${encodeURIComponent(quoteAsset)}`)}
             >
-              Swap
+              {t('common_swap')}
             </button>
           )}
         </div>
@@ -271,13 +272,13 @@ export function OrderForm({
           }`}
           onClick={() => activeTab === "settings" ? handleTabChange(previousTab) : handleTabChange("settings")}
           disabled={false}
-          aria-label="Order Settings"
+          aria-label={t('order_form_order_settings')}
         >
           <FaCog className="size-4 text-gray-600" aria-hidden="true" />
         </button>
       </div>
       {tabLoading ? (
-        <div className="flex justify-center items-center h-[21rem]">Loading…</div>
+        <div className="flex justify-center items-center h-[21rem]">{t('common_loading')}</div>
       ) : activeTab === "settings" ? (
         <OrderSettings
           customExpiration={customExpiration}
@@ -344,8 +345,8 @@ export function OrderForm({
               <AssetSelectInput
                 selectedAsset={baseAsset}
                 onChange={handleBaseAssetChange}
-                label="Asset"
-                description={`Select the asset to ${isBuy ? "buy" : "sell"}.`}
+                label={t('common_asset')}
+                description={isBuy ? t('order_form_select_asset_to_buy') : t('order_form_select_asset_to_sell')}
                 showHelpText={showHelpText}
                 required
               />
@@ -371,16 +372,18 @@ export function OrderForm({
               sourceAddress={activeAddress}
               maxAmount={isBuy ? buyMaximum : availableBalance}
               disableMaxButton={!baseReady || !quoteReady || (isBuy && !validPrice)}
-              label="Amount"
+              label={t('common_amount')}
               name="amount"
-              description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
+              description={isBuy
+                ? (isGetAssetDivisible ? t('order_form_amount_to_buy_enter_up') : t('order_form_amount_to_buy_enter_whole'))
+                : (isGiveAssetDivisible ? t('common_amount_to_sell_enter_up') : t('common_amount_to_sell_enter_whole'))}
               disabled={false}
               isDivisible={isBuy ? isGetAssetDivisible : isGiveAssetDivisible}
             />
             <AssetSelectInput
               selectedAsset={quoteAsset}
               onChange={handleQuoteAssetChange}
-              label="Quote"
+              label={t('order_form_quote')}
               showHelpText={showHelpText}
             />
             <PriceWithSuggestInput
@@ -388,9 +391,9 @@ export function OrderForm({
               onChange={handlePriceChange}
               tradingPairData={tradingPairData}
               showHelpText={showHelpText}
-              label="Price"
+              label={t('common_price')}
               name="price"
-              priceDescription={`Price per unit in ${quoteAsset}`}
+              priceDescription={t('order_form_price_per_unit_in', [String(quoteAsset)])}
               showPairFlip={true}
               isPairFlipped={isPairFlipped}
               setIsPairFlipped={setIsPairFlipped}

@@ -9,6 +9,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { isCounterwalletFormat } from "@/core/bitcoin/address";
 import { MAX_ADDRESSES_PER_WALLET } from "@/core/wallet/constants";
+import { t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 import type { Address } from "@/types/wallet";
 
@@ -65,7 +66,7 @@ export default function AddressesPage(): ReactElement {
     if (!activeWallet?.id || activeWallet.type !== "mnemonic") return;
     if (isAddingAddress) return; // Prevent spam clicks
     if (activeWallet.addresses.length >= MAX_ADDRESSES_PER_WALLET) {
-      setError(`Maximum number of addresses (${MAX_ADDRESSES_PER_WALLET}) reached`);
+      setError(t('addresses_maximum_number_of_addresses_reached', [String(MAX_ADDRESSES_PER_WALLET)]));
       return;
     }
 
@@ -91,7 +92,7 @@ export default function AddressesPage(): ReactElement {
           try {
             const found = await sweepUtxoAddresses(activeWallet.id, [index]);
             if (found.length > 0) {
-              setNotice(`Found ${found[0]?.name}, now listed below.`);
+              setNotice(t('addresses_found_now_listed_below', [String(found[0]?.name)]));
             }
           } catch (sweepError) {
             console.warn("UTXO address lookup failed after adding an address:", sweepError);
@@ -100,7 +101,7 @@ export default function AddressesPage(): ReactElement {
       }
     } catch (err) {
       console.error("Failed to add address:", err);
-      setError("Failed to add address. Please try again.");
+      setError(t('addresses_failed_to_add_address_please'));
     } finally {
       setIsAddingAddress(false);
     }
@@ -113,7 +114,7 @@ export default function AddressesPage(): ReactElement {
     if (!activeWallet?.id) return;
     const index = Number(address.path.split("/").at(-1));
     if (!Number.isSafeInteger(index) || index < 0) {
-      setError("Could not read the derivation index for this address.");
+      setError(t('addresses_could_not_read_the_derivation'));
       return;
     }
 
@@ -123,12 +124,12 @@ export default function AddressesPage(): ReactElement {
       const found = await addUtxoAddress(activeWallet.id, index);
       setNotice(
         found
-          ? `Found ${found.name}, now listed below.`
-          : `No UTXO address is in use for ${address.name}.`
+          ? t('addresses_found_now_listed_below', [String(found.name)])
+          : t('addresses_no_utxo_address_is_in', [String(address.name)])
       );
     } catch (err) {
       console.error("Failed to look up UTXO address:", err);
-      setError(err instanceof Error ? err.message : "Failed to look up UTXO address.");
+      setError(err instanceof Error ? err.message : t('addresses_failed_to_look_up_utxo'));
     }
   }, [activeWallet?.id, addUtxoAddress]);
 
@@ -143,7 +144,7 @@ export default function AddressesPage(): ReactElement {
       await removeUtxoAddress(activeWallet.id, address.path);
     } catch (err) {
       console.error("Failed to remove UTXO address:", err);
-      setError(err instanceof Error ? err.message : "Failed to remove UTXO address.");
+      setError(err instanceof Error ? err.message : t('addresses_failed_to_remove_utxo_address'));
     }
   }, [activeWallet?.id, removeUtxoAddress]);
 
@@ -157,27 +158,27 @@ export default function AddressesPage(): ReactElement {
       navigate(returnTo, { replace: true });
     } catch (err) {
       console.error("Failed to select address:", err);
-      setError("Failed to select address. Please try again.");
+      setError(t('addresses_failed_to_select_address_please'));
     }
   }, [setActiveAddress, navigate, returnTo]);
 
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Addresses",
+      title: t('addresses'),
       onBack: () => navigate(returnTo, { replace: true }),
       rightButton:
         activeWallet?.type === "mnemonic"
           ? {
               icon: <FaCog aria-hidden="true" />,
               onClick: () => navigate("/settings/address-types", { state: { returnTo: PATHS.SELECT } }),
-              ariaLabel: "Change Address Type",
+              ariaLabel: t('addresses_change_address_type'),
             }
           : undefined,
     });
   }, [setHeaderProps, navigate, returnTo, activeWallet?.type]);
 
-  if (!activeWallet) return <div className="p-4">No active wallet found</div>;
+  if (!activeWallet) return <div className="p-4">{t('addresses_no_active_wallet_found')}</div>;
 
   return (
     <section className="flex flex-col h-full" aria-labelledby="address-selection-title">
@@ -186,7 +187,7 @@ export default function AddressesPage(): ReactElement {
         {notice && (
           <ErrorAlert message={notice} severity="info" onClose={() => setNotice(null)} />
         )}
-        <h2 id="address-selection-title" className="sr-only">Select an Address</h2>
+        <h2 id="address-selection-title" className="sr-only">{t('addresses_select_an_address')}</h2>
         <AddressList
           addresses={activeWallet.addresses}
           selectedAddress={activeAddress}
@@ -208,10 +209,10 @@ export default function AddressesPage(): ReactElement {
             activeWallet.type !== "mnemonic" ||
             isAddingAddress
           }
-          aria-label="Add Address"
+          aria-label={t('addresses_add_address')}
         >
           <FaPlus className="size-4 mr-2" aria-hidden="true" />
-          {isAddingAddress ? "Adding…" : keychainLocked ? "Unlock to Add Address" : "Add Address"}
+          {isAddingAddress ? t('addresses_adding') : keychainLocked ? t('addresses_unlock_to_add_address') : t('addresses_add_address')}
         </Button>
       </div>
     </section>

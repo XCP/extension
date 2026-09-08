@@ -8,6 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getPairedAddressFormats } from "@/core/wallet/addressDeriver";
+import { t } from '@/i18n';
 import { getApprovalService } from "@/services/approvalService";
 import { getWalletService } from "@/services/walletService";
 import type { ApprovalRequest } from "@/types/provider";
@@ -20,10 +21,10 @@ function getApprovalIdentityError(
   activeWalletId: string | undefined,
 ): string | null {
   if (!approval || approval.id !== requestId)
-    return "This connection request is no longer available.";
+    return t('connect_approve_this_connection_request_is_no');
   const request = approval.params?.[0];
   if (request?.address !== activeAddress || request?.walletId !== activeWalletId) {
-    return "The active address changed after this request was made. Switch back to the requested address and try again.";
+    return t('connect_approve_the_active_address_changed_after');
   }
   return null;
 }
@@ -115,7 +116,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
           // The service derives the currently selected wallet. A late background selection
           // must not turn a valid request for A into displayed consent for B's addresses.
           if (!pairs || (pairs.legacy.address !== address && pairs.segwit.address !== address)) {
-            throw new Error("Paired addresses do not include the requested address");
+            throw new Error(t('connect_approve_paired_addresses_do_not_include'));
           }
           setPairedAddresses(pairs);
         } catch {
@@ -124,7 +125,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
         }
       } catch {
         if (cancelled) return;
-        setApprovalError("Unable to load this connection request.");
+        setApprovalError(t('connect_approve_unable_to_load_this_connection'));
         setApprovalLoading(false);
       }
     };
@@ -135,7 +136,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Wallet Connect",
+      title: t('connect_approve_wallet_connect'),
     });
   }, [setHeaderProps]);
 
@@ -178,7 +179,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
       if (!resolved) {
         // The request is gone and could not be completed without its caller. Say so rather than
         // closing on a click that did nothing.
-        setApprovalError("This request expired. Please connect again from the site.");
+        setApprovalError(t('connect_approve_this_request_expired_please_connect'));
         setIsProcessing(false);
         return;
       }
@@ -196,7 +197,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
     try {
       // Reject approval via ApprovalService proxy
       const approvalService = getApprovalService();
-      await approvalService.rejectApproval(requestId, "User denied the request");
+      await approvalService.rejectApproval(requestId, t('connect_approve_user_denied_the_request'));
       if (!mounted.current) return;
       // Close the popup
       window.close();
@@ -211,7 +212,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
     return (
       <div className="flex items-center justify-center h-dvh p-4">
         <div className="text-center">
-          <p className="text-gray-500">Loading...</p>
+          <p className="text-gray-500">{t('connect_approve_loading')}</p>
         </div>
       </div>
     );
@@ -221,7 +222,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
     return (
       <div className="flex items-center justify-center h-dvh p-4">
         <div className="text-center">
-          <p className="text-gray-500">Please unlock your wallet first</p>
+          <p className="text-gray-500">{t('common_please_unlock_your_wallet_first')}</p>
         </div>
       </div>
     );
@@ -255,7 +256,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
               ) : (
                 <img
                   src={faviconUrl}
-                  alt={`${domain} favicon`}
+                  alt={t('connect_approve_favicon', [String(domain)])}
                   className="size-7 rounded"
                   onError={() => setFaviconError(true)}
                 />
@@ -269,21 +270,22 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
               <p className="text-sm text-yellow-800">
                 {showPairedConsent ? (
                   <>
-                    This site is requesting access to view{" "}
-                    <span className="font-bold">both of your wallet addresses</span>
+                    
+                    {t('connect_approve_this_site_is_requesting_access')}{" "}
+                    <span className="font-bold">{t('connect_approve_both_of_your_wallet_addresses')}</span>
                   </>
                 ) : (
-                  'This site is requesting access to view your wallet address'
+                  t('connect_approve_this_site_is_requesting_access_2')
                 )}
               </p>
               {pairedAddresses && showPairedConsent && (
                 <dl className="mt-3 space-y-3 text-left text-yellow-900">
                   <div>
-                    <dt className="text-xs">Legacy address</dt>
+                    <dt className="text-xs">{t('connect_approve_legacy_address')}</dt>
                     <dd className="mt-1"><ApprovalIdentifier value={pairedAddresses.legacy.address} /></dd>
                   </div>
                   <div>
-                    <dt className="text-xs">Native SegWit address</dt>
+                    <dt className="text-xs">{t('connect_approve_native_segwit_address')}</dt>
                     <dd className="mt-1"><ApprovalIdentifier value={pairedAddresses.segwit.address} /></dd>
                   </div>
                 </dl>
@@ -293,30 +295,30 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
 
           {/* Permissions */}
           <div className="mt-4 px-1">
-            <p className="text-xs font-medium text-gray-500 mb-2">This site will be able to:</p>
+            <p className="text-xs font-medium text-gray-500 mb-2">{t('connect_approve_this_site_will_be_able')}</p>
             <ul className="space-y-1.5">
               <li className="flex items-center">
                 <FaCheck className="size-3.5 text-green-500 mr-2 flex-shrink-0" aria-hidden="true" />
                 <span className="text-sm text-gray-600">
-                  {showPairedConsent ? 'View your wallet addresses' : 'View your wallet address'}
+                  {showPairedConsent ? t('connect_approve_view_your_wallet_addresses') : t('connect_approve_view_your_wallet_address')}
                 </span>
               </li>
               <li className="flex items-center">
                 <FaCheck className="size-3.5 text-green-500 mr-2 flex-shrink-0" aria-hidden="true" />
                 <span className="text-sm text-gray-600">
                   {showPairedConsent
-                    ? 'Request signatures from either address'
-                    : 'Request transaction signatures'}
+                    ? t('connect_approve_request_signatures_from_either_address')
+                    : t('connect_approve_request_transaction_signatures')}
                 </span>
               </li>
               <li className="flex items-center">
                 <FaCheck className="size-3.5 text-green-500 mr-2 flex-shrink-0" aria-hidden="true" />
-                <span className="text-sm text-gray-600">Request message signatures</span>
+                <span className="text-sm text-gray-600">{t('connect_approve_request_message_signatures')}</span>
               </li>
             </ul>
             {pairedAddressError && (
               <p className="mt-2 text-xs font-medium text-red-700">
-                Paired addresses are unavailable. Connecting grants access to this address only.
+                {t('connect_approve_paired_addresses_are_unavailable_connecting')}
               </p>
             )}
           </div>
@@ -334,7 +336,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
             disabled={isProcessing}
             fullWidth
           >
-            Cancel
+            {t('common_cancel')}
           </Button>
           <Button
             color="blue"
@@ -342,7 +344,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
             disabled={isProcessing || approvalLoading || Boolean(approvalError) || pairedAddressesPending}
             fullWidth
           >
-            {isProcessing ? "Processing…" : approvalLoading ? "Loading request…" : pairedAddressesPending ? "Loading addresses…" : approvalError ? "Unavailable" : showPairedConsent ? "Connect both" : "Connect"}
+            {isProcessing ? t('connect_approve_processing') : approvalLoading ? t('connect_approve_loading_request') : pairedAddressesPending ? t('connect_approve_loading_addresses') : approvalError ? t('approval_bitcoin_payment_card_unavailable') : showPairedConsent ? t('connect_approve_connect_both') : t('common_connect')}
           </Button>
         </div>
       </div>

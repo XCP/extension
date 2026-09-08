@@ -3,10 +3,10 @@
  * Used by useAssetBalance and useAssetInfo hooks.
  */
 
+import { rawToInput } from '@/core/amount-contract/amounts';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { type AssetInfo, fetchAssetDetails, fetchTokenBalance } from '@/core/counterparty/api';
-import { formatAmount } from '@/core/format';
-import { asDisplayUnits, fromSatoshis } from '@/core/numeric';
+import { asDisplayUnits } from '@/core/numeric';
 
 export async function fetchAssetDetailsAndBalance(
   asset: string,
@@ -26,12 +26,8 @@ export async function fetchAssetDetailsAndBalance(
     };
 
     const balanceSats = await fetchBTCBalance(address);
-    const balanceBTC = fromSatoshis(balanceSats, true);
-    const availableBalance = formatAmount({
-      value: balanceBTC,
-      maximumFractionDigits: 8,
-      minimumFractionDigits: 8,
-    });
+    // This value feeds balance comparisons and form limits. Localize it only at render time.
+    const availableBalance = rawToInput(balanceSats, 8);
 
     return { isDivisible: true, assetInfo, availableBalance };
   }

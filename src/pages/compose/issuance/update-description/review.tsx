@@ -1,5 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 interface ReviewIssuanceUpdateDescriptionProps {
   apiResponse: any;
   onSign: () => void;
@@ -18,8 +20,8 @@ export function ReviewIssuanceUpdateDescription({
   const { result } = apiResponse;
 
   const customFields = [
-    { label: "Asset", value: result.params.asset },
-    { label: "Description", value: result.params.description },
+    { label: t('common_asset'), value: result.params.asset },
+    { label: t('common_description'), value: result.params.description },
   ];
 
   return (

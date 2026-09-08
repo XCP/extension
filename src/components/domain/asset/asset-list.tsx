@@ -8,6 +8,8 @@ import { useWallet } from "@/contexts/wallet-context";
 import { fetchOwnedAssets, type OwnedAsset } from "@/core/counterparty/api";
 import { useInView } from "@/hooks/useInView";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
+import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 const PAGE_SIZE = 20;
 
@@ -19,6 +21,7 @@ interface AssetListProps {
 }
 
 export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): React.ReactElement => {
+  useLocaleRevision();
   const { activeAddress } = useWallet();
   const { cacheOwnedAssets } = useHeader();
   const address = activeAddress?.address;
@@ -27,7 +30,7 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
   const [isLoading, setIsLoading] = useState(Boolean(address));
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<'initial' | 'more' | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const sessionRef = useRef<{ address: string; offset: number; busy: boolean; loaded: boolean; hasMore: boolean } | null>(null);
   const previousRefreshNonce = useRef(refreshNonce);
@@ -81,7 +84,7 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
       } catch (error) {
         if (sessionRef.current === session) {
           console.error("Error fetching owned assets:", error);
-          setError("Failed to load owned assets.");
+          setError('initial');
         }
       } finally {
         if (sessionRef.current === session) {
@@ -129,7 +132,7 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
     } catch (error) {
       if (sessionRef.current === session) {
         console.error("Error fetching more assets:", error);
-        setError("Failed to load more assets.");
+        setError('more');
       }
     } finally {
       if (sessionRef.current === session) {
@@ -151,7 +154,7 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
       <SearchInput
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Search assets…"
+        placeholder={t('common_search_assets')}
         name="asset-search"
         className="mt-0.5 mb-3"
         showClearButton={true}
@@ -159,33 +162,33 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
       />
       {isSearchActive ? (
         isSearching ? (
-          <Spinner message="Searching assets…" />
+          <Spinner message={t('common_searching_assets')} />
         ) : searchError ? (
           <div role="alert" className="py-4 text-center text-sm text-red-600">
             <p>{searchError}</p>
-            <button type="button" onClick={retrySearch} className="mt-2 text-blue-600 underline cursor-pointer">Retry</button>
+            <button type="button" onClick={retrySearch} className="mt-2 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
           </div>
         ) : searchResults.length === 0 ? (
-          <div className="text-center py-4 text-gray-500">No results found</div>
+          <div className="text-center py-4 text-gray-500">{t('common_no_results_found')}</div>
         ) : (
           searchResults.map((asset) => <SearchResultCard key={asset.symbol} symbol={asset.symbol} navigationType="asset" />)
         )
       ) : isLoading ? (
-        <Spinner message="Loading owned assets…" />
+        <Spinner message={t('asset_asset_list_loading_owned_assets')} />
       ) : (
         <>
           {error && (
             <div role="alert" className="py-4 text-center text-sm text-red-600">
-              <p>{error}</p>
-              <button type="button" onClick={() => initialLoaded ? void loadMore() : setRetryNonce((n) => n + 1)} className="mt-2 text-blue-600 underline cursor-pointer">Retry</button>
+              <p>{error === 'initial' ? t('asset_asset_list_load_failed') : t('asset_asset_list_load_more_failed')}</p>
+              <button type="button" onClick={() => initialLoaded ? void loadMore() : setRetryNonce((n) => n + 1)} className="mt-2 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
             </div>
           )}
           {ownedAssets.length === 0 ? (
             !error && (
               <div className="flex flex-col items-center justify-center text-center">
                 <div className="bg-gray-50 rounded-lg p-6 max-w-sm w-full">
-                  <div className="text-gray-600 text-lg font-medium mb-2">No Assets Owned</div>
-                  <div className="text-gray-500 text-sm">This address hasn't issued any Counterparty assets.</div>
+                  <div className="text-gray-600 text-lg font-medium mb-2">{t('asset_asset_list_no_assets_owned')}</div>
+                  <div className="text-gray-500 text-sm">{t('asset_asset_list_this_address_hasn_t_issued')}</div>
                 </div>
               </div>
             )
@@ -199,7 +202,7 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
                   isFetchingMore ? (
                     <Spinner className="py-4" />
                   ) : (
-                    <div className="text-sm text-gray-500">Scroll to load more…</div>
+                    <div className="text-sm text-gray-500">{t('common_scroll_to_load_more')}</div>
                   )
                 ) : null}
               </div>

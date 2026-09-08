@@ -16,6 +16,8 @@ import { validateAmount, validateQuantity } from "@/core/validation/amount";
 import type { Destination } from "@/core/validation/destinations";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
+import { t } from '@/i18n';
+
 interface SendFormProps {
   formAction: (formData: FormData) => void | Promise<void>;
   initialAsset?: string;
@@ -83,7 +85,9 @@ export function SendForm({
   // Asset details error effect
   useEffect(() => {
     if (assetDetailsError) {
-      setValidationError(`Failed to fetch details for asset ${initialAsset || initialFormData?.asset || "BTC"}. ${assetDetailsError.message || "Please try again later."}`);
+      const assetName = initialAsset || initialFormData?.asset || "BTC";
+      const detail = assetDetailsError.message || t('send_form_please_try_again_later');
+      setValidationError(t('send_form_failed_to_fetch_details_for', [String(assetName), String(detail)]));
     } else {
       setValidationError(null);
     }
@@ -181,7 +185,7 @@ export function SendForm({
           />
         ) : null
       }
-      submitText="Continue"
+      submitText={t('common_continue')}
       submitDisabled={isSubmitDisabled}
       showFeeRate={true}
     >
@@ -213,12 +217,12 @@ export function SendForm({
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             showHelpText={showHelpText}
-            label="Amount"
+            label={t('common_amount')}
             name="quantity"
             description={
               isDivisible
-                ? "Enter the amount to send."
-                : "Enter a whole number amount."
+                ? t('send_form_enter_the_amount_to_send')
+                : t('common_enter_a_whole_number_amount')
             }
             disabled={pending}
             destinationCount={destinations.length}
@@ -254,11 +258,11 @@ export function SendForm({
               sourceAddress={activeAddress}
               maxAmount={btcBalance}
               showHelpText={showHelpText}
-              label="Add BTC"
+              label={t('common_add_btc')}
               labelSrOnly
               placeholder="0.00000000 BTC"
               name="btc_output_display"
-              description="BTC to send alongside the asset to the same destination."
+              description={t('send_form_btc_to_send_alongside_the')}
               disabled={pending}
               isDivisible={true}
               extraOutputCount={1}
