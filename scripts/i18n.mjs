@@ -206,7 +206,7 @@ function review() {
   const machine = new Set(status.machine);
   const onlyMachine = flags.includes('--machine');
   const used = usedKeys();
-  const esc = (s) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+  const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/[\r\n]/g, ' ');
   const keys = Object.keys(messages).filter((key) => !onlyMachine || machine.has(key));
   console.log(`# ${locale}: ${keys.length} strings${onlyMachine ? ' awaiting review' : ''}\n`);
   console.log(`| | English | ${locale} | Where | Meaning |`);
