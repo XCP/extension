@@ -2,8 +2,7 @@
  * Ledger facts a Counterparty message does not carry.
  *
  * A cancel names an order by hash and nothing else. A destroy names an amount with no sense of
- * scale. A dividend names a per-unit rate whose actual cost depends on the supply it is paid
- * across. A dispense carries a single marker byte and says nothing at all about what comes back.
+ * scale. A dispense carries a single marker byte and says nothing at all about what comes back.
  * None of that is in the bytes being signed, and no amount of local decoding will produce it —
  * this is the class of question the API is the correct source for, as distinct from asking it to
  * re-read bytes we already hold.
@@ -20,7 +19,6 @@ import { getCurrentBlockHeight } from '@/core/bitcoin/blockHeight';
 import {
   fetchAssetDetails,
   fetchAssetFairminter,
-  fetchAssetHolderCount,
   fetchOrder,
   fetchOrderMatch,
   fetchPool,
@@ -28,7 +26,6 @@ import {
 } from '@/core/counterparty/api';
 import type { ProtocolContext } from '@/core/counterparty/describe';
 import { describePayout, resolveDispensersAt } from '@/core/counterparty/dispenseOutcome';
-import { DIVIDEND_FEE_XCP_PER_HOLDER } from '@/core/counterparty/dividendModel';
 import { readFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
 import {
   oracleDispenserWarning,
@@ -123,28 +120,11 @@ export async function resolveProtocolContext(
       if (details?.supply_normalized) context.assetSupply = String(details.supply_normalized);
     }
 
-    if (messageType === 'dividend' && typeof fields.asset === 'string') {
-      const details = await fetchAssetDetails(fields.asset);
-      if (details?.supply_normalized) {
-        context.assetSupply = String(details.supply_normalized);
-        // The rate is what the message states; the bill is rate × supply, which is what the sender
-        // actually parts with and the number they are most likely to have got wrong.
-        const perUnit = fields.quantityPerUnit;
-        if (perUnit != null) {
-          const total = toBigNumber(details.supply_normalized).times(
-            toBigNumber(fromSatoshis(String(perUnit)))
-          );
-          context.dividendTotal = toDisplayAmount(total);
-        }
-      }
-      // The XCP half of the bill, which is charged per distinct holder rather than per unit.
-      const holders = await fetchAssetHolderCount(fields.asset);
-      if (holders != null && holders > 0) {
-        context.dividendFeeXcp = toDisplayAmount(
-          toBigNumber(DIVIDEND_FEE_XCP_PER_HOLDER).times(holders)
-        );
-      }
-    }
+    // Dividend supply and global holder count do not establish the bill. Core's
+    // dividend.validate skips the sender, truncates each eligible holder row's payout,
+    // and charges XCP for distinct eligible addresses. Current mainnet includes escrow
+    // holdings (price_as_fraction); BTC payouts also skip dust. Without that execution
+    // context, retain only the byte-derived per-unit rate, scaled by the payout asset.
 
     if (messageType === 'fairmint' && typeof fields.asset === 'string' && !context.protocolFeeXcp) {
       // A fairmint's cost is not in the message — and neither is where the payment goes: burned,

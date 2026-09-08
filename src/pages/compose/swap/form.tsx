@@ -9,6 +9,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
+import { parseAmountDraft } from "@/core/amount-contract/amounts";
 import type { PoolQuote } from "@/core/counterparty/api";
 import type { OrderOptions } from "@/core/counterparty/compose";
 import {
@@ -23,9 +24,7 @@ import {
   isGreaterThan,
   isLessThanOrEqualTo,
   isValidPositiveNumber,
-  roundDown,
   toBigNumber,
-  toSatoshis,
 } from "@/core/numeric";
 import { POOL_SLIPPAGE_AUTO } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -135,9 +134,9 @@ export function SwapForm({
   // ---- Pair and asset data ----
   const { data: giveDetails } = useAssetDetails(giveAsset);
   const { data: getDetails } = useAssetDetails(getAsset);
-  const giveDetailsReady = giveDetails?.assetInfo?.asset === giveAsset;
+  const giveDetailsReady = giveDetails?.assetInfo?.asset === giveAsset && typeof giveDetails.assetInfo.divisible === "boolean";
   const isGiveDivisible = giveDetailsReady && giveDetails ? giveDetails.isDivisible : true;
-  const isGetDivisible = getDetails?.assetInfo?.asset === getAsset ? getDetails.isDivisible : true;
+  const isGetDivisible = getDetails?.assetInfo?.asset === getAsset && typeof getDetails.assetInfo.divisible === "boolean" ? getDetails.isDivisible : true;
   const availableBalance = giveDetailsReady && giveDetails ? (giveDetails.spendableBalance ?? giveDetails.availableBalance) : "";
 
   const hasBtc = giveAsset === "BTC" || getAsset === "BTC";
@@ -151,7 +150,8 @@ export function SwapForm({
   const noPool = pairUsable && !isPoolLoading && pool === null;
 
   // ---- Quote ----
-  const canQuote = pairUsable && giveDetailsReady && isGreaterThan(amount || 0, 0);
+  const parsedAmount = parseAmountDraft(amount, { decimals: isGiveDivisible ? 8 : 0, minRaw: 1n });
+  const canQuote = pairUsable && giveDetailsReady && getDetails?.assetInfo?.asset === getAsset && typeof getDetails.assetInfo.divisible === "boolean" && parsedAmount.status === "valid";
   const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolSwapQuote({
     giveAsset,
     getAsset,
@@ -173,7 +173,7 @@ export function SwapForm({
   const { data: ahead } = useMempoolAheadQuote({
     giveAsset,
     getAsset,
-    quantity: isGiveDivisible ? toSatoshis(amount || "0") : roundDown(amount || "0").toString(),
+    quantity: parsedAmount.status === "valid" ? parsedAmount.raw.toString() : "0",
     pool: isPoolLoading ? undefined : pool,
     feeBps: typeof quote?.fee_bps === "number" ? quote.fee_bps : undefined,
     enabled: canQuote,
@@ -241,8 +241,7 @@ export function SwapForm({
     && isLessThanOrEqualTo(slippage, 50);
 
   const submitDisabled =
-    !pairUsable
-    || !isGreaterThan(amount || 0, 0)
+    !canQuote
     || isLoadingQuote
     || !quoteView
     || unfilled

@@ -1,0 +1,8 @@
+{
+  "upstream": "https://github.com/XCP/wallet-sdk",
+  "commit": "6296162d6cb1bb3b17d48e9879f4f106baef9212",
+  "files": {
+    "amounts.ts": "2d1f7336a79fbfe3ae08f65fc55dd9dd1ed8ad564d3a12432a98e244b221fdbe",
+    "amounts-v1.json": "0f47142327bca69ac8554b953ce47ec957e98406b1e147901c0a312c0a07d30e"
+  }
+}

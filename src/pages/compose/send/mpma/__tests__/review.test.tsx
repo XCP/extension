@@ -50,7 +50,7 @@ describe('ReviewMPMA', () => {
         // No asset_dest_quant_list_normalized: compose does not emit one, and inventing it here
         // is what let the component read an absent field and render "No sends" in production
         // while these tests passed. Divisibility comes from the response, as it does live.
-        asset_info: { divisible: true },
+        verified_asset_info: { PEPE: { divisible: true } },
         memos: ['Memo 1', 'Memo 2', 'Memo 3']
       }
     }

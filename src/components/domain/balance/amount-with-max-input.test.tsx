@@ -325,7 +325,7 @@ describe('AmountWithMaxInput', () => {
 
     expect(onChange).not.toHaveBeenCalled();
     expect(selectUtxosForTransaction).not.toHaveBeenCalled();
-    expect(setError).toHaveBeenCalledWith('Fee rates are still loading. Please wait.');
+    expect(setError).toHaveBeenCalledWith('Enter a valid fee rate before using Max.');
   });
 
   it('should show error when no spendable UTXOs available', async () => {
@@ -513,10 +513,7 @@ describe('AmountWithMaxInput', () => {
     const maxButton = screen.getByLabelText('Use maximum available amount');
     fireEvent.click(maxButton);
 
-    // The comment here used to claim Max "falls through without calling onChange". It does call it,
-    // with "0" — which is why the claim was never asserted. Pinned as the actual behaviour; whether
-    // zeroing the field is the right answer when no maximum is known is a separate question.
-    expect(onChange).toHaveBeenCalledWith('0');
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it('should preserve input value prop', () => {

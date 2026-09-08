@@ -38,15 +38,12 @@ describe('isAssetDivisible', () => {
 });
 
 describe('getTxActionInfo', () => {
-  it('distinguishes the per-unit dividend rate from the total dividend and protocol fee', () => {
+  it('states the per-unit dividend rate without inventing an aggregate payout or fee', () => {
     const info = getTxActionInfo(fromUnpack('dividend', {
       asset: 'BONPARTY', quantityPerUnit: 1n, dividendAsset: 'XCP',
-    }), { dividendTotal: '0.00001779', dividendFeeXcp: '0.003' });
+    }));
     expect(info?.description).toBe('0.00000001 XCP per unit\nAll BONPARTY holders');
-    expect(info?.protocol).toEqual([
-      { label: 'Total dividend', value: '0.00001779 XCP', kind: 'amount' },
-      { label: 'XCP fee', value: '0.003 XCP', kind: 'amount' },
-    ]);
+    expect(info?.protocol).toEqual([]);
   });
 
   it.each([

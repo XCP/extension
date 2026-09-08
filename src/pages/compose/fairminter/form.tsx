@@ -130,11 +130,9 @@ export function FairminterForm({
   const getInputStep = () => isDivisible ? "0.00000001" : "1";
   const getInputPlaceholder = () => isDivisible ? "0.00000000" : "0";
 
-  // Shared onChange handler that enforces decimal rules based on divisibility
+  // Keep invalid drafts intact; normalization checks precision and divisibility.
   const handleQuantityChange = (setter: (val: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    if (!isDivisible && val.includes('.')) return;
-    if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
     setter(val);
   };
 

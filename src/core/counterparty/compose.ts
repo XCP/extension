@@ -1,3 +1,4 @@
+import { parseAmountDraft, serializeDecimal, serializeRawInteger } from "@/core/amount-contract/amounts";
 import { apiClient } from '@/core/api/client';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
@@ -26,6 +27,20 @@ function isApiErrorWithResponse(error: unknown): error is {
   return typeof error === 'object' && error !== null;
 }
 
+const RAW_INTEGER_FIELDS = new Set(['quantity', 'give_quantity', 'get_quantity', 'escrow_quantity', 'mainchainrate', 'quantity_per_unit', 'lot_price', 'lot_size', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'premint_quantity', 'soft_cap', 'pool_quantity', 'quantity_a', 'quantity_b', 'min_lp_quantity', 'min_quantity_a', 'min_quantity_b', 'utxo_value', 'destination_vout', 'max_fee', 'fee_required', 'expiration', 'start_block', 'end_block', 'soft_cap_deadline_block', 'timestamp', 'flags', 'status']);
+
+function serializeFraction(value: string | number): string {
+  const canonical = serializeDecimal(value, { min: 0, max: 1, maxExclusive: true, maxDecimals: 8 });
+  const exact = parseAmountDraft(canonical, { decimals: 8 });
+  // Core broadcast.py and fairminter.py currently use int(float * 1e8).
+  // Reject a value that loses a unit there; changing the fraction to compensate
+  // would change the user's request, while byte equality alone would miss it.
+  if (exact.status !== 'valid' || BigInt(Math.trunc(Number(canonical) * 1e8)) !== exact.raw) {
+    throw new Error('Counterparty cannot encode this fee or commission fraction exactly. Choose another fraction.');
+  }
+  return canonical;
+}
+
 /**
  * Convert a params object to a string record for URLSearchParams.
  * All values are explicitly converted to strings.
@@ -34,7 +49,15 @@ function toStringParams(obj: Record<string, unknown>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (value !== undefined && value !== null) {
-      result[key] = String(value);
+      result[key] = RAW_INTEGER_FIELDS.has(key)
+        ? serializeRawInteger(value as string | number | bigint)
+        : key === 'quantities'
+          ? String(value).split(',').map(q => serializeRawInteger(q)).join(',')
+          : key === 'minted_asset_commission' || key === 'fee_fraction'
+            ? serializeFraction(value as string | number)
+            : key === 'value'
+              ? serializeDecimal(value as string | number)
+              : String(value);
     }
   }
   return result;
@@ -473,6 +496,8 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   sat_per_vbyte: number,
   encoding?: string
 ): Promise<ApiResponse> {
+  const validatedParams = toStringParams(paramsObj);
+  const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   const settings = getActiveSettings();
@@ -486,8 +511,8 @@ export async function composeTransaction<T extends Record<string, unknown>>(
 
   const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
-      ...paramsObj,
-      sat_per_vbyte: sat_per_vbyte.toString(),
+      ...validatedParams,
+      sat_per_vbyte: validatedFee,
       exclude_utxos_with_balances: 'true',
       allow_unconfirmed_inputs: allowUnconfirmed.toString(),
       disable_utxo_locks: 'true',
@@ -534,6 +559,8 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   sat_per_vbyte: number,
   encoding?: string
 ): Promise<ApiResponse> {
+  const validatedParams = toStringParams(paramsObj);
+  const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   const settings = getActiveSettings();
@@ -543,8 +570,8 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
 
   const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
-      ...paramsObj,
-      sat_per_vbyte: sat_per_vbyte.toString(),
+      ...validatedParams,
+      sat_per_vbyte: validatedFee,
       exclude_utxos_with_balances: 'true',
       allow_unconfirmed_inputs: allowUnconfirmed.toString(),
       disable_utxo_locks: 'true',
@@ -601,6 +628,8 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   sat_per_vbyte: number,
   encoding?: string
 ): Promise<ApiResponse> {
+  const validatedParams = toStringParams(paramsObj);
+  const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
   const base = await getApiBase();
   const apiUrl = `${base}/v2/utxos/${sourceUtxo}/compose/${endpoint}`;
 
@@ -608,8 +637,8 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   const settings = getActiveSettings();
 
   const params = new URLSearchParams(toStringParams({
-    ...paramsObj,
-    sat_per_vbyte: sat_per_vbyte.toString(),
+    ...validatedParams,
+    sat_per_vbyte: validatedFee,
     exclude_utxos_with_balances: 'true',
     allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
     disable_utxo_locks: 'true',
@@ -674,7 +703,7 @@ export async function composeBroadcast(options: BroadcastOptions): Promise<ApiRe
     text, value, fee_fraction, timestamp,
     ...(inscription && { inscription }),
     ...(mime_type && { mime_type }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('broadcast', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -689,7 +718,7 @@ export async function composeBTCPay(options: BTCPayOptions): Promise<ApiResponse
   } = options;
   const paramsObj = {
     order_match_id,
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('btcpay', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -704,9 +733,9 @@ export async function composeBurn(options: BurnOptions): Promise<ApiResponse> {
     encoding,
   } = options;
   const paramsObj = {
-    quantity: quantity.toString(),
+    quantity: serializeRawInteger(quantity),
     overburn: overburn.toString(),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('burn', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -721,7 +750,7 @@ export async function composeCancel(options: CancelOptions): Promise<ApiResponse
   } = options;
   const paramsObj = {
     offer_hash: offer_hash.trim(),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('cancel', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -738,9 +767,9 @@ export async function composeDestroy(options: DestroyOptions): Promise<ApiRespon
   } = options;
   const paramsObj = {
     asset,
-    quantity: quantity.toString(),
+    quantity: serializeRawInteger(quantity),
     tag: tag || '',
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('destroy', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -762,13 +791,13 @@ export async function composeDispenser(options: DispenserOptions): Promise<ApiRe
   const paramsObj = {
     asset,
     // When closing a dispenser (status != 0), these values may be undefined - default to 0
-    give_quantity: (give_quantity ?? 0).toString(),
-    escrow_quantity: (escrow_quantity ?? 0).toString(),
-    mainchainrate: (mainchainrate ?? 0).toString(),
-    status: status.toString(),
+    give_quantity: serializeRawInteger(give_quantity),
+    escrow_quantity: serializeRawInteger(escrow_quantity),
+    mainchainrate: serializeRawInteger(mainchainrate),
+    status: serializeRawInteger(status),
     ...(open_address && { open_address }),
     ...(oracle_address && { oracle_address }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('dispenser', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -785,9 +814,9 @@ export async function composeDispense(options: DispenseOptions): Promise<ApiResp
   } = options;
   const paramsObj = {
     dispenser,
-    quantity: quantity.toString(),
+    quantity: serializeRawInteger(quantity),
     ...(pubkeys && { pubkeys }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -805,8 +834,8 @@ export async function composeDividend(options: DividendOptions): Promise<ApiResp
   const paramsObj = {
     asset,
     dividend_asset,
-    quantity_per_unit: quantity_per_unit.toString(),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    quantity_per_unit: serializeRawInteger(quantity_per_unit),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('dividend', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -832,7 +861,7 @@ export async function composeIssuance(options: IssuanceOptions): Promise<ApiResp
   // Always include divisible to avoid API defaulting to true when we want false
   const paramsObj = {
     asset,
-    quantity: quantity.toString(),
+    quantity: serializeRawInteger(quantity),
     divisible: divisible ? 'true' : 'false',
     lock: lock ? 'true' : 'false',
     reset: reset ? 'true' : 'false',
@@ -841,7 +870,7 @@ export async function composeIssuance(options: IssuanceOptions): Promise<ApiResp
     ...(pubkeys && { pubkeys }),
     ...(inscription && { inscription }),
     ...(mime_type && { mime_type }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('issuance', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -886,18 +915,18 @@ export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
     return composeTransactionWithArrays('mpma', {
       assets: assets.join(','),
       destinations: destinations.join(','),
-      quantities: quantities.join(','),
+      quantities: quantities.map(q => serializeRawInteger(q)).join(','),
       memos_are_hex: (hexFlags.values().next().value ?? false).toString(),
-      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+      ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
     }, { memos }, sourceAddress, sat_per_vbyte, encoding);
   }
 
   const paramsObj = {
     assets: assets.join(','),
     destinations: destinations.join(','),
-    quantities: quantities.join(','),
+    quantities: quantities.map(q => serializeRawInteger(q)).join(','),
     ...(memo && { memo, memo_is_hex: (memo_is_hex ?? false).toString() }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('mpma', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -926,12 +955,12 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
 
   const paramsObj = {
     give_asset,
-    give_quantity: give_quantity.toString(),
+    give_quantity: serializeRawInteger(give_quantity),
     get_asset,
-    get_quantity: get_quantity.toString(),
-    expiration: expiration.toString(),
-    fee_required: fee_required.toString(),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    get_quantity: serializeRawInteger(get_quantity),
+    expiration: serializeRawInteger(expiration),
+    fee_required: serializeRawInteger(fee_required),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -953,12 +982,12 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
   const paramsObj = {
     destination,
     asset,
-    quantity: quantity.toString(),
+    quantity: serializeRawInteger(quantity),
     ...(memo !== undefined ? { memo } : {}),
     ...(memo_is_hex !== undefined ? { memo_is_hex: memo_is_hex.toString() } : {}),
     ...(no_dispense !== undefined ? { no_dispense: no_dispense.toString() } : {}),
     ...(more_outputs ? { more_outputs } : {}),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -989,7 +1018,7 @@ export async function composeSendOrMPMA(options: SendOrMPMAOptions): Promise<Api
       sourceAddress: options.sourceAddress,
       assets: destArray.map(() => options.asset),
       destinations: destArray,
-      quantities: destArray.map(() => options.quantity.toString()),
+      quantities: destArray.map(() => serializeRawInteger(options.quantity)),
       sat_per_vbyte: options.sat_per_vbyte,
       ...(options.memo && {
         memo: options.memo,
@@ -1025,10 +1054,10 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
   } = options;
   const paramsObj = {
     destination,
-    flags: flags.toString(),
+    flags: serializeRawInteger(flags),
     memo,
     ...(more_outputs ? { more_outputs } : {}),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   const response = await composeTransaction('sweep', paramsObj, sourceAddress, sat_per_vbyte, encoding);
   if (more_outputs && response.result?.params) {
@@ -1071,28 +1100,28 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
   const paramsObj = {
     asset,
     ...(asset_parent && { asset_parent }),
-    lot_price: lot_price.toString(),
-    lot_size: lot_size.toString(),
-    max_mint_per_tx: max_mint_per_tx.toString(),
-    max_mint_per_address: max_mint_per_address.toString(),
-    hard_cap: hard_cap.toString(),
-    premint_quantity: premint_quantity.toString(),
-    start_block: start_block.toString(),
-    end_block: end_block.toString(),
-    soft_cap: soft_cap.toString(),
-    soft_cap_deadline_block: soft_cap_deadline_block.toString(),
+    lot_price: serializeRawInteger(lot_price),
+    lot_size: serializeRawInteger(lot_size),
+    max_mint_per_tx: serializeRawInteger(max_mint_per_tx),
+    max_mint_per_address: serializeRawInteger(max_mint_per_address),
+    hard_cap: serializeRawInteger(hard_cap),
+    premint_quantity: serializeRawInteger(premint_quantity),
+    start_block: serializeRawInteger(start_block),
+    end_block: serializeRawInteger(end_block),
+    soft_cap: serializeRawInteger(soft_cap),
+    soft_cap_deadline_block: serializeRawInteger(soft_cap_deadline_block),
     minted_asset_commission: minted_asset_commission.toString(),
     burn_payment: burn_payment ? 'true' : 'false',
     lock_description: lock_description ? 'true' : 'false',
     lock_quantity: lock_quantity ? 'true' : 'false',
     divisible: divisible ? 'true' : 'false',
-    ...(pool_quantity > 0 && { pool_quantity: pool_quantity.toString() }),
+    pool_quantity: serializeRawInteger(pool_quantity),
     ...(lp_asset && { lp_asset }),
     ...(description && { description }),
     ...(pubkeys && { pubkeys }),
     ...(inscription && { inscription }),
     ...(mime_type && { mime_type }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('fairminter', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -1108,8 +1137,8 @@ export async function composeFairmint(options: FairmintOptions): Promise<ApiResp
   } = options;
   const paramsObj = {
     asset,
-    quantity: quantity.toString(),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    quantity: serializeRawInteger(quantity),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('fairmint', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -1132,11 +1161,11 @@ export async function composePoolDeposit(options: PoolDepositOptions): Promise<A
   const paramsObj = {
     asset_a,
     asset_b,
-    quantity_a: quantity_a.toString(),
-    quantity_b: quantity_b.toString(),
-    min_lp_quantity: min_lp_quantity.toString(),
+    quantity_a: serializeRawInteger(quantity_a),
+    quantity_b: serializeRawInteger(quantity_b),
+    min_lp_quantity: serializeRawInteger(min_lp_quantity),
     ...(lp_asset && { lp_asset }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('pooldeposit', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -1159,11 +1188,11 @@ export async function composePoolWithdraw(options: PoolWithdrawOptions): Promise
   const paramsObj = {
     ...(asset_a && { asset_a }),
     ...(asset_b && { asset_b }),
-    quantity: quantity.toString(),
-    min_quantity_a: min_quantity_a.toString(),
-    min_quantity_b: min_quantity_b.toString(),
+    quantity: serializeRawInteger(quantity),
+    min_quantity_a: serializeRawInteger(min_quantity_a),
+    min_quantity_b: serializeRawInteger(min_quantity_b),
     ...(lp_asset && { lp_asset }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   const response = await composeTransaction('poolwithdraw', paramsObj, sourceAddress, sat_per_vbyte, encoding);
   if (lp_asset && response.result?.params) {
@@ -1185,10 +1214,10 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
   } = options;
   const paramsObj = {
     asset,
-    quantity: quantity.toString(),
-    ...(utxo_value !== undefined ? { utxo_value: utxo_value.toString() } : {}),
-    ...(destination_vout !== undefined ? { destination_vout: destination_vout.toString() } : {}),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    quantity: serializeRawInteger(quantity),
+    ...(utxo_value !== undefined ? { utxo_value: serializeRawInteger(utxo_value) } : {}),
+    ...(destination_vout !== undefined ? { destination_vout: serializeRawInteger(destination_vout) } : {}),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }

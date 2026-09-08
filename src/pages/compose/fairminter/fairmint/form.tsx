@@ -19,6 +19,7 @@ import {
   readFairminterPaymentModel,
 } from "@/core/counterparty/fairminterModel";
 import { asDisplayUnits, divide, isGreaterThan } from "@/core/numeric";
+import { validAmountDraft } from "@/core/validation/transaction-amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 interface FairmintFormDataInternal {
@@ -202,7 +203,7 @@ export function FairmintForm({
     // There is no lot-multiple check here any more. A lot count can only compose to a multiple of
     // the lot size, so core's "quantity is not a multiple of lot_size" is unreachable from this
     // form rather than caught after the fact.
-    if (!isFreeMint && !isGreaterThan(formData.lots || 0, 0)) {
+    if (!isFreeMint && !validAmountDraft(formData.lots, 0)) {
       setValidationError("Enter how many lots to mint.");
       return;
     }
@@ -255,7 +256,7 @@ export function FairmintForm({
   const isSubmitDisabled = !formData.asset ||
     (formData.asset === "BTC") ||
     (formData.asset === "XCP") ||
-    (!isFreeMint && !isGreaterThan(formData.lots || 0, 0));
+    (!isFreeMint && !validAmountDraft(formData.lots, 0));
 
   return (
     <ComposerForm
@@ -313,7 +314,7 @@ export function FairmintForm({
           {formData.asset && selectedFairminter && (
             <FairmintSummary
               fairminter={selectedFairminter}
-              quantity={getQuantityForLots(selectedFairminter, formData.lots)}
+              quantity={validAmountDraft(formData.lots, 0) ? getQuantityForLots(selectedFairminter, formData.lots) : "0"}
             />
           )}
 

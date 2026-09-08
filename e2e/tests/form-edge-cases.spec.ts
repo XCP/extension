@@ -237,20 +237,26 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     await expect(submitButton).toBeDisabled();
   });
 
-  walletTest('handles negative amount send attempt', async ({ page }) => {
+  walletTest('preserves sequential invalid amounts and never composes a repaired value', async ({ page, context }) => {
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
-
     const amountInput = send.amountInput(page);
     await expect(amountInput).toBeVisible({ timeout: 5000 });
-
-    await amountInput.fill('-1');
-    await amountInput.blur();
-
-    // Input accepts the value - validation happens on submission
-    // This tests that the form doesn't crash on negative input
-    const inputValue = await amountInput.inputValue();
-    expect(inputValue).toBeTruthy();
+    const composeRequests: string[] = [];
+    context.on('request', request => {
+      if (/\/v2\/addresses\/.*\/compose\//.test(request.url())) composeRequests.push(request.url());
+    });
+    for (const draft of ['-5', '1e5', '0,5', '1,234', '1.2.3', '0.000000001']) {
+      await amountInput.fill('');
+      await amountInput.pressSequentially(draft);
+      await amountInput.blur();
+      await expect(amountInput).toHaveValue(draft);
+      await expect(amountInput).toHaveAttribute('aria-invalid', 'true');
+      // Exercise a real submit attempt even if a parent form also disabled its button.
+      await amountInput.evaluate(input => (input as HTMLInputElement).form?.requestSubmit());
+      expect(composeRequests).toEqual([]);
+      await expect(page).toHaveURL(/compose\/send/);
+    }
   });
 
   walletTest('handles very small amount (below dust limit)', async ({ page }) => {

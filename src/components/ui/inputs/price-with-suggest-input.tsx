@@ -1,8 +1,8 @@
 import { Description, Field, Label } from '@headlessui/react';
 import type { ReactElement } from 'react';
 import { Button } from '@/components/ui/button';
-import { formatAmount } from '@/core/format';
-import { divide, isValidPositiveNumber, toFiniteNumber } from "@/core/numeric";
+import { formatAmount, formatForInput } from '@/core/format';
+import { divide, isValidPositiveNumber, toBigNumber } from "@/core/numeric";
 
 interface PriceWithSuggestInputProps {
   value: string;
@@ -56,44 +56,19 @@ export function PriceWithSuggestInput({
     if (showPairFlip && setIsPairFlipped) {
       setIsPairFlipped(prev => !prev);
 
-      if (value) {
-        const priceValue = toFiniteNumber(value);
-        if (priceValue !== undefined && priceValue !== 0) {
-          const invertedPrice = formatAmount({
-            value: divide(1, priceValue),
-            maximumFractionDigits: 8,
-            minimumFractionDigits: 8
-          });
-          onChange(invertedPrice);
-        }
+      if (isValidPositiveNumber(value)) {
+        // A reciprocal is a generated price: explicitly round it to the supported precision.
+        onChange(formatForInput(divide(1, value).decimalPlaces(8, 1), 8));
       }
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const sanitizedValue = e.target.value.replace(/[^\d.]/g, '');
-    
-    const parts = sanitizedValue.split('.');
-    const cleanedValue = parts.length > 2 
-      ? `${parts[0]}.${parts.slice(1).join('')}`
-      : sanitizedValue;
-
-    if (cleanedValue === '' || isValidPositiveNumber(cleanedValue, { allowZero: true, maxDecimals: 8 })) {
-      onChange(cleanedValue);
-    }
-  };
-
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value);
+  const invalidDraft = value !== '' && !isValidPositiveNumber(value);
   const handleSuggestClick = () => {
-    if (!tradingPairData?.last_trade_price) return;
-
-    const suggestedPrice = toFiniteNumber(tradingPairData.last_trade_price);
-    if (suggestedPrice !== undefined) {
-      onChange(formatAmount({
-        value: suggestedPrice,
-        maximumFractionDigits: 8,
-        minimumFractionDigits: 8
-      }));
-    }
+    const suggested = tradingPairData?.last_trade_price;
+    if (!suggested || !isValidPositiveNumber(suggested)) return;
+    onChange(formatForInput(toBigNumber(suggested), 8));
   };
 
   return (
@@ -120,6 +95,10 @@ export function PriceWithSuggestInput({
           name={name}
           value={value}
           onChange={handleInputChange}
+          inputMode="decimal"
+          pattern={'([0-9]+(\\.[0-9]{1,8})?|\\.[0-9]{1,8})'}
+          aria-invalid={invalidDraft || undefined}
+          aria-describedby={invalidDraft ? `${name}-draft-error` : undefined}
           className={`mt-1 block w-full p-2.5 rounded-md border border-gray-300 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 pr-16 ${
             disabled ? "bg-gray-100 cursor-not-allowed" : "bg-gray-50"
           }`}
@@ -137,6 +116,7 @@ export function PriceWithSuggestInput({
           </Button>
         )}
       </div>
+      {invalidDraft && <p id={`${name}-draft-error`} role="alert" className="mt-2 text-sm text-red-600">Use digits and a decimal point, with at most 8 decimal places. Do not use grouping separators.</p>}
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
           {priceDescription}
