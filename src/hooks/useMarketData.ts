@@ -1,28 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  type DispenserDetails,
-  fetchAddressDispensers,
-  fetchAllDispensers,
-  fetchAllOrders,
-  fetchAssetDispensers,
-  fetchAssetOrders,
-  fetchOrders,
-  type Order,
-  type OrderDetails,
+  type DispenserDetails, fetchAddressDispensers, fetchAllDispensers, fetchAllOrders,
+  fetchAssetDispensers, fetchAssetOrders, fetchOrders, type Order, type OrderDetails,
 } from "@/core/counterparty/api";
 import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 import { normalizeAssetQuery } from "@/core/format";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
-// Key extractors for deduplication
-const getDispenserKey = (d: DispenserDetails) => d.tx_hash;
-const getOrderKey = (o: OrderDetails) => o.tx_hash;
-const getUserDispenserKey = (d: DispenserDetails) => d.tx_hash;
-const getUserOrderKey = (o: Order) => o.tx_hash;
-
-// Constants
 const PAGE_SIZE = 20;
-const MAX_ITEMS = 100;
+const getDispenserKey = (d: DispenserDetails) => d.tx_hash;
+const getOrderKey = (o: Order) => o.tx_hash;
 
 interface UseMarketDataOptions {
   activeAddress: string | undefined;
@@ -32,245 +19,109 @@ interface UseMarketDataOptions {
   inView: boolean;
 }
 
-interface UseMarketDataReturn {
-  // Explore mode data
-  dispensers: ReturnType<typeof usePaginatedFetch<DispenserDetails>>;
-  orders: ReturnType<typeof usePaginatedFetch<OrderDetails>>;
+/** Market lists share paging, cancellation and retry behavior, including asset searches. */
+export function useMarketData({ activeAddress, activeTab, viewMode, searchQuery, inView }: UseMarketDataOptions) {
+  const query = normalizeAssetQuery(searchQuery);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
-  // Manage mode data
-  userDispensers: ReturnType<typeof usePaginatedFetch<DispenserDetails>>;
-  userOrders: ReturnType<typeof usePaginatedFetch<Order>>;
-  filteredUserDispensers: DispenserDetails[];
-  filteredUserOrders: Order[];
-
-  // Search results
-  dispenserResults: DispenserDetails[];
-  orderResults: OrderDetails[];
-  dispenserSearchLoading: boolean;
-  orderSearchLoading: boolean;
-  dispenserSearchError: string | null;
-  orderSearchError: string | null;
-
-  // Search handlers
-  handleDispenserSearch: (query: string) => Promise<void>;
-  handleOrderSearch: (query: string) => Promise<void>;
-
-  // Constants
-  PAGE_SIZE: number;
-}
-
-/**
- * Custom hook that encapsulates all market data fetching and filtering logic.
- * Handles explore mode (global dispensers/orders), manage mode (user's dispensers/orders),
- * and search functionality.
- */
-export function useMarketData({
-  activeAddress,
-  activeTab,
-  viewMode,
-  searchQuery,
-  inView,
-}: UseMarketDataOptions): UseMarketDataReturn {
-  // Search results state
-  const [dispenserResults, setDispenserResults] = useState<DispenserDetails[]>([]);
-  const [dispenserSearchLoading, setDispenserSearchLoading] = useState(false);
-  const [dispenserSearchError, setDispenserSearchError] = useState<string | null>(null);
-  const [orderResults, setOrderResults] = useState<OrderDetails[]>([]);
-  const [orderSearchLoading, setOrderSearchLoading] = useState(false);
-  const [orderSearchError, setOrderSearchError] = useState<string | null>(null);
-
-  // Paginated data fetchers - memoized to prevent effect re-runs
+  const explore = viewMode === "explore";
+  const searchReady = !!query && query === debouncedQuery;
   const dispensersFetch = useCallback(
-    (offset: number, limit: number) => fetchAllDispensers({ offset, limit, status: "open" }),
-    []
-  );
+    (offset: number, limit: number) => fetchAllDispensers({ offset, limit, status: "open" }), []);
   const ordersFetch = useCallback(
-    (offset: number, limit: number) => fetchAllOrders({ offset, limit, status: "open" }),
-    []
-  );
+    (offset: number, limit: number) => fetchAllOrders({ offset, limit, status: "open" }), []);
   const userDispensersFetch = useCallback(
-    (offset: number, limit: number) =>
-      activeAddress
-        ? fetchAddressDispensers(activeAddress, { offset, limit, status: "open" })
-        : Promise.resolve({ result: [], next_cursor: null, result_count: 0 }),
-    [activeAddress]
-  );
+    (offset: number, limit: number) => activeAddress
+      ? fetchAddressDispensers(activeAddress, { offset, limit, status: "open" })
+      : Promise.resolve({ result: [], result_count: 0 }), [activeAddress]);
   const userOrdersFetch = useCallback(
-    (offset: number, limit: number) =>
-      activeAddress
-        ? fetchOrders(activeAddress, { offset, limit, status: "open" })
-        : Promise.resolve({ result: [], next_cursor: null, result_count: 0 }),
-    [activeAddress]
-  );
+    (offset: number, limit: number) => activeAddress
+      ? fetchOrders(activeAddress, { offset, limit, status: "open" })
+      : Promise.resolve({ result: [], result_count: 0 }), [activeAddress]);
+  const dispenserSearchFetch = useCallback(
+    (offset: number, limit: number) => fetchAssetDispensers(debouncedQuery, { offset, limit, status: "open" }),
+    [debouncedQuery]);
+  const orderSearchFetch = useCallback(
+    (offset: number, limit: number) => fetchAssetOrders(debouncedQuery, { offset, limit, status: "open" }),
+    [debouncedQuery]);
 
-  // Paginated data hooks
+  // Only the selected list spends requests. Each page remains bounded, but an
+  // arbitrary total-row cap must not make later listings or positions disappear.
+  const paging = { pageSize: PAGE_SIZE, maxItems: Infinity };
   const dispensers = usePaginatedFetch<DispenserDetails>({
-    fetchFn: dispensersFetch,
-    getKey: getDispenserKey,
-    pageSize: PAGE_SIZE,
-    maxItems: MAX_ITEMS,
+    ...paging, fetchFn: dispensersFetch, getKey: getDispenserKey,
+    enabled: activeTab === 0 && explore && !query,
   });
   const orders = usePaginatedFetch<OrderDetails>({
-    fetchFn: ordersFetch,
-    getKey: getOrderKey,
-    pageSize: PAGE_SIZE,
-    maxItems: MAX_ITEMS,
+    ...paging, fetchFn: ordersFetch, getKey: getOrderKey,
+    enabled: activeTab === 1 && explore && !query,
   });
   const userDispensers = usePaginatedFetch<DispenserDetails>({
-    fetchFn: userDispensersFetch,
-    getKey: getUserDispenserKey,
-    pageSize: PAGE_SIZE,
-    maxItems: MAX_ITEMS,
+    ...paging, fetchFn: userDispensersFetch, getKey: getDispenserKey,
+    enabled: activeTab === 0 && !explore,
   });
   const userOrders = usePaginatedFetch<Order>({
-    fetchFn: userOrdersFetch,
-    getKey: getUserOrderKey,
-    pageSize: PAGE_SIZE,
-    maxItems: MAX_ITEMS,
+    ...paging, fetchFn: userOrdersFetch, getKey: getOrderKey,
+    enabled: activeTab === 1 && !explore,
+  });
+  const dispenserSearch = usePaginatedFetch<DispenserDetails>({
+    ...paging, fetchFn: dispenserSearchFetch, getKey: getDispenserKey,
+    enabled: activeTab === 0 && explore && searchReady,
+  });
+  const orderSearch = usePaginatedFetch<OrderDetails>({
+    ...paging, fetchFn: orderSearchFetch, getKey: getOrderKey,
+    enabled: activeTab === 1 && explore && searchReady,
   });
 
-  // Filter only the displayed data; pagination must count the original API rows.
-  const visibleDispensers = useMemo(
-    () => dispensers.data.filter(isFixedRateDispenser),
-    [dispensers.data]
-  );
-  const visibleUserDispensers = useMemo(
-    () => userDispensers.data.filter(isFixedRateDispenser),
-    [userDispensers.data]
-  );
+  const visibleDispensers = useMemo(() => dispensers.data.filter(isFixedRateDispenser), [dispensers.data]);
+  const visibleUserDispensers = useMemo(() => userDispensers.data.filter(isFixedRateDispenser), [userDispensers.data]);
+  const dispenserResults = useMemo(() => searchReady
+    ? dispenserSearch.data.filter(isFixedRateDispenser) : [], [searchReady, dispenserSearch.data]);
+  const orderResults = searchReady ? orderSearch.data : [];
 
-  // An oracle-only page has no cards (and thus no scroll sentinel). Continue to
-  // the next page so it cannot hide fixed-rate listings further down the results.
-  useEffect(() => {
-    if (activeTab !== 0 || (viewMode === "explore" && searchQuery.trim())) return;
-    const page = viewMode === "explore" ? dispensers : userDispensers;
-    const visible = viewMode === "explore" ? visibleDispensers : visibleUserDispensers;
-    if (page.data.length > 0 && visible.length === 0 && page.hasMore
-      && !page.isLoading && !page.isFetchingMore && !page.error) {
-      page.loadMore();
-    }
-  }, [activeTab, searchQuery, viewMode, dispensers, userDispensers, visibleDispensers, visibleUserDispensers]);
-
-  // Memoized filtered data for manage mode
   const filteredUserDispensers = useMemo(() => {
-    if (!searchQuery.trim()) return visibleUserDispensers;
-    const query = searchQuery.toLowerCase();
-    return visibleUserDispensers.filter((d) => {
-      const asset = d.asset.toLowerCase();
-      const longname = d.asset_info?.asset_longname?.toLowerCase() || "";
-      return asset.includes(query) || longname.includes(query);
-    });
-  }, [visibleUserDispensers, searchQuery]);
-
+    const q = query.toLowerCase();
+    return visibleUserDispensers.filter(d => !q || d.asset.toLowerCase().includes(q)
+      || (d.asset_info?.asset_longname?.toLowerCase() || "").includes(q));
+  }, [visibleUserDispensers, query]);
   const filteredUserOrders = useMemo(() => {
-    if (!searchQuery.trim()) return userOrders.data;
-    const query = searchQuery.toLowerCase();
-    // Longnames too, like the dispenser filter five lines up: a subasset's give/get_asset is its
-    // numeric name, so matching only those made every longname fragment come back empty.
-    return userOrders.data.filter((o) =>
-      o.give_asset.toLowerCase().includes(query) ||
-      o.get_asset.toLowerCase().includes(query) ||
-      (o.give_asset_info?.asset_longname?.toLowerCase() || "").includes(query) ||
-      (o.get_asset_info?.asset_longname?.toLowerCase() || "").includes(query)
-    );
-  }, [userOrders.data, searchQuery]);
+    const q = query.toLowerCase();
+    return userOrders.data.filter(o => !q || o.give_asset.toLowerCase().includes(q)
+      || o.get_asset.toLowerCase().includes(q)
+      || (o.give_asset_info?.asset_longname?.toLowerCase() || "").includes(q)
+      || (o.get_asset_info?.asset_longname?.toLowerCase() || "").includes(q));
+  }, [userOrders.data, query]);
 
-  // Search handlers
-  const handleDispenserSearch = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setDispenserResults([]);
-      setDispenserSearchLoading(false);
-      setDispenserSearchError(null);
-      return;
-    }
-    setDispenserSearchLoading(true);
-    setDispenserSearchError(null);
-    try {
-      const res = await fetchAssetDispensers(normalizeAssetQuery(query), { status: "open", limit: PAGE_SIZE });
-      setDispenserResults(res.result.filter(isFixedRateDispenser));
-    } catch (err) {
-      console.error("Failed to search dispensers:", err);
-      setDispenserResults([]);
-      setDispenserSearchError("Failed to search dispensers");
-    } finally {
-      setDispenserSearchLoading(false);
-    }
-  }, []);
-
-  const handleOrderSearch = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setOrderResults([]);
-      setOrderSearchLoading(false);
-      setOrderSearchError(null);
-      return;
-    }
-    setOrderSearchLoading(true);
-    setOrderSearchError(null);
-    try {
-      // normalizeAssetQuery, not toUpperCase: uppercasing a subasset longname names a different
-      // asset, so even an exactly typed PARENT.child found nothing here.
-      const res = await fetchAssetOrders(normalizeAssetQuery(query), { status: "open", limit: PAGE_SIZE });
-      setOrderResults(res.result);
-    } catch (err) {
-      console.error("Failed to search orders:", err);
-      setOrderResults([]);
-      setOrderSearchError("Failed to search orders");
-    } finally {
-      setOrderSearchLoading(false);
-    }
-  }, []);
-
-  // Trigger search when searchQuery changes in explore mode
+  const selected = activeTab === 0
+    ? (explore ? (query ? dispenserSearch : dispensers) : userDispensers)
+    : activeTab === 1 ? (explore ? (query ? orderSearch : orders) : userOrders) : null;
+  const visibleCount = activeTab === 0
+    ? (explore ? (query ? dispenserResults.length : visibleDispensers.length) : filteredUserDispensers.length)
+    : (explore ? (query ? orderResults.length : orders.data.length) : filteredUserOrders.length);
   useEffect(() => {
-    if (searchQuery && viewMode === "explore") {
-      if (activeTab === 0) {
-        handleDispenserSearch(searchQuery);
-      } else {
-        handleOrderSearch(searchQuery);
-      }
-    }
-  }, [searchQuery, activeTab, viewMode, handleDispenserSearch, handleOrderSearch]);
-
-  // Track previous inView state to only trigger on rising edge
-  const prevInViewRef = useRef(false);
-
-  // Trigger load more when scrolled into view
-  useEffect(() => {
-    const wasInView = prevInViewRef.current;
-    prevInViewRef.current = inView;
-
-    if (!inView || wasInView) return;
-
-    if (viewMode === "explore") {
-      if (activeTab === 0) {
-        dispensers.loadMore();
-      } else {
-        orders.loadMore();
-      }
-    } else {
-      if (activeTab === 0) {
-        userDispensers.loadMore();
-      } else {
-        userOrders.loadMore();
-      }
-    }
-  }, [inView, activeTab, viewMode, dispensers, orders, userDispensers, userOrders]);
+    if (!selected || selected.error || selected.isLoading || selected.isFetchingMore || !selected.hasMore) return;
+    if (explore && query && !searchReady) return;
+    // Local position filters need the remaining pages even if the filter hides
+    // every card. Oracle-only dispenser pages also cannot hide fixed listings.
+    const filteredPageIsEmpty = selected.data.length > 0 && visibleCount === 0;
+    if (!inView && !(!explore && query) && !filteredPageIsEmpty) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) selected.loadMore(); });
+    return () => { cancelled = true; };
+  }, [selected, visibleCount, explore, query, searchReady, inView]);
 
   return {
     dispensers: { ...dispensers, data: visibleDispensers },
-    orders,
-    userDispensers: { ...userDispensers, data: visibleUserDispensers },
-    userOrders,
-    filteredUserDispensers,
-    filteredUserOrders,
-    dispenserResults,
-    orderResults,
-    dispenserSearchLoading,
-    orderSearchLoading,
-    dispenserSearchError,
-    orderSearchError,
-    handleDispenserSearch,
-    handleOrderSearch,
-    PAGE_SIZE,
+    orders, userDispensers: { ...userDispensers, data: visibleUserDispensers }, userOrders,
+    filteredUserDispensers, filteredUserOrders,
+    dispenserSearch, orderSearch, dispenserResults, orderResults,
+    dispenserSearchLoading: !!query && (!searchReady || dispenserSearch.isLoading),
+    orderSearchLoading: !!query && (!searchReady || orderSearch.isLoading),
+    dispenserSearchError: searchReady ? dispenserSearch.error?.message ?? null : null,
+    orderSearchError: searchReady ? orderSearch.error?.message ?? null : null,
   };
 }
