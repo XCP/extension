@@ -3837,13 +3837,13 @@
     "message": "許容するプール比率の変動幅です。高くすると実行されやすくなる一方、受取数量が減る場合があります。"
   },
   "pool_slippage_input_set_from_the_quote_s": {
-    "message": "数量を入力すると、見積もりの価格影響から設定されます。"
+    "message": "数量を入力すると、見積もりの価格インパクトから設定されます。"
   },
   "pool_slippage_input_slippage_tolerance": {
     "message": "許容スリッページ"
   },
   "pool_slippage_input_using_matched_to_this_trade": {
-    "message": "この取引の価格影響に合わせて $1% を使用しています。"
+    "message": "この取引の価格インパクトに合わせて $1% を使用しています。"
   },
   "pool_slippage_input_very_high_you_may_receive": {
     "message": "許容値が高いため、受取数量が見積もりを大きく下回る可能性があります。"
@@ -5163,5 +5163,23 @@
   },
   "inputs_fee_rate_input_one_hour": {
     "message": "1時間"
+  },
+  "address_type_legacy": {
+    "message": "レガシー"
+  },
+  "address_type_native_segwit": {
+    "message": "ネイティブSegWit"
+  },
+  "address_type_nested_segwit": {
+    "message": "ネスト型SegWit"
+  },
+  "common_destinations": {
+    "message": "送信先"
+  },
+  "swap_form_route_many_orders": {
+    "message": "$1 件の注文"
+  },
+  "swap_form_route_one_order": {
+    "message": "$1 件の注文"
   }
 }

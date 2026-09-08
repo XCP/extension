@@ -46,10 +46,9 @@ interface QuoteView {
   afterMempool: string | null;
   estimated: string;
   minReceived: string;
-  price: string | null;
+  price: { value: number; maximumFractionDigits: number } | null;
   impact: number | null;
   poolFee: { bps: number; amount: string | null } | null;
-  route: string;
 }
 
 const CARD_CLASS = "bg-white rounded-lg shadow-lg p-3 sm:p-4 space-y-4";
@@ -72,8 +71,11 @@ function toDisplayUnits(sats: number | string, divisible: boolean): string {
 /** "Pool", "3 orders", or "Pool + 3 orders" depending on where the fill comes from. */
 function routeLabel(quote: PoolQuote): string {
   const orders = quote.book_orders_matched ?? 0;
-  const orderText = orders === 1 ? "1 order" : `${orders} orders`;
-  if ((quote.book_output ?? 0) <= 0) return "Pool";
+  const orderCount = formatAmount({ value: orders, maximumFractionDigits: 0 });
+  const orderText = orders === 1
+    ? t('swap_form_route_one_order', [orderCount])
+    : t('swap_form_route_many_orders', [orderCount]);
+  if ((quote.book_output ?? 0) <= 0) return t('common_pool');
   return quote.pool_exists && (quote.pool_output ?? 0) > 0 ? t('swap_form_pool', [String(orderText)]) : orderText;
 }
 
@@ -213,10 +215,10 @@ export function SwapForm({
       // Computed in display units: the API's effective_price is a raw satoshi
       // ratio, which is wrong across mixed divisibility.
       price: priceValid && priceRatio
-        ? formatAmount({
+        ? {
             value: priceRatio.toNumber(),
             maximumFractionDigits: priceRatio.isGreaterThanOrEqualTo(1) ? 4 : 8,
-          })
+          }
         : null,
       impact: typeof quote.price_impact === "number" ? quote.price_impact : null,
       poolFee: quote.pool_exists && typeof quote.fee_bps === "number"
@@ -227,7 +229,6 @@ export function SwapForm({
               : null,
           }
         : null,
-      route: routeLabel(quote),
     };
   }, [quote, amount, slippage, isSlippageValid, isGetDivisible, isGiveDivisible, ahead]);
 
@@ -276,7 +277,7 @@ export function SwapForm({
   };
 
   const priceRowText = quoteView?.price
-    ? `1 ${giveAsset} ≈ ${quoteView.price} ${getAsset}`
+    ? `1 ${giveAsset} ≈ ${formatAmount(quoteView.price)} ${getAsset}`
     : isLoadingQuote
       ? t('swap_form_fetching_quote')
       : `1 ${giveAsset || "—"} = —`;
@@ -466,7 +467,7 @@ export function SwapForm({
                     value={quoteView.poolFee.amount ? `${quoteView.poolFee.amount} ${giveAsset}` : "—"}
                   />
                 )}
-                <DetailRow label={t('swap_form_route')} value={quoteView.route} />
+                <DetailRow label={t('swap_form_route')} value={quote ? routeLabel(quote) : "—"} />
               </>
             )}
             <div className="border-t border-gray-200 pt-3">

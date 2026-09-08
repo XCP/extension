@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { validateMemo as validateMemoUtil } from "@/core/validation/memo";
 
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 interface MemoInputProps {
   value?: string;
@@ -32,6 +33,7 @@ export function MemoInput({
   name = "memo",
   maxBytes = 34,
 }: MemoInputProps): ReactElement {
+  useLocaleRevision();
   const [memo, setMemo] = useState(value);
   const [isValid, setIsValid] = useState(true);
 
@@ -78,7 +80,7 @@ export function MemoInput({
   return (
     <Field className={className}>
       <Label className="text-sm font-medium text-gray-700">
-        {'Memo'} {required && <span className="text-red-500">*</span>}
+        {t('common_memo')} {required && <span className="text-red-500">*</span>}
       </Label>
       <Input
         type="text"

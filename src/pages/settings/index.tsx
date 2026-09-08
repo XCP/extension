@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
+import { localizedAddressFormatLabel } from '@/components/domain/address/address-format-label';
 import { FaLock } from "@/components/icons";
 import { DisplayPreferences } from '@/components/settings/display-preferences';
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,6 @@ import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { getAddressFormatLabel } from '@/core/bitcoin/address';
 
 
 import { t } from '@/i18n';
@@ -74,7 +74,7 @@ export default function SettingsPage(): ReactElement {
    */
   const getAddressTypeDescription = (): string => {
     if (!activeWallet) return "";
-    return getAddressFormatLabel(activeWallet.addressFormat);
+    return localizedAddressFormatLabel(activeWallet.addressFormat);
   };
 
   const settingSections: ActionSection[] = [

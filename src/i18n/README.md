@@ -1,10 +1,11 @@
 # Localization consolidation (draft)
 
 This branch preserves the catalogs and machine-review status from `localize-ja-zh`
-at `bdd4a894340fee971afd51d41a7c310bb176b70a` and incorporates the amount-safety
-changes from PR399. New Japanese and Chinese preference/safety messages remain
-listed in `status/<locale>.json` as machine drafts. They have not received native
-speaker or terminology review.
+at `bdd4a894340fee971afd51d41a7c310bb176b70a` and now incorporates current main,
+including the API pacing and amount-safety changes from PR398 and PR399. New
+Japanese and Chinese preference/safety messages remain listed in
+`status/<locale>.json` as machine drafts. A bounded primary-source terminology
+review is recorded below; native-speaker review remains outstanding.
 
 Settings saves three independent choices inside the encrypted keychain:
 
@@ -42,10 +43,12 @@ their original text. Exhaustive structured translation of protocol verification
 blockers remains follow-up work; the draft is not a claim that every diagnostic
 or module-initialized label supports live language switching.
 
-Validation: focused unit/integration tests, catalog integrity, TypeScript, lint,
-production build, and packaged Chromium tests for sequential invalid typing and
-cross-window preference changes. No live transactions are composed or signed by
-the browser regressions.
+Earlier branch validation covered focused unit/integration tests, catalog
+integrity, TypeScript, lint, production build, and packaged Chromium tests for
+sequential invalid typing and cross-window preference changes. Validation of the
+current resumed changes is pending; this earlier evidence is not a claim that
+the current browser matrix or CI has passed. No live transactions are composed
+or signed by the browser regressions.
 
 ## Fiat coverage and data limits
 
@@ -78,27 +81,30 @@ Dispenser history's Last and Avg fiat values are current fiat equivalents of
 the historical BTC amounts, not fiat prices recorded at the time of each trade.
 
 The primary amount, indivisible amount, fee and clipboard guidance uses concise
-copy without fixed heights or clipping. Packaged Chromium checks the normal
-360px wallet at English, Japanese and all three explicit Chinese locales. Longer
-protocol diagnostics retain their details and are not forced into two lines.
+copy without fixed heights or clipping. The packaged Chromium matrix exercises
+the popup in English, Japanese and all three explicit Chinese locales at a 360px
+browser viewport. The popup retains its fixed 350px content width when the browser
+is resized to 1100px; those captures do not certify wider sidepanel layouts.
+Longer protocol diagnostics retain their details and are not forced into two lines.
 
-The stacked PR's base is PR399's branch. The repository currently runs PR CI only
-when targeting main/develop, so draft PR400 has no automatic checks until its
-base changes; the local focused and packaged-browser evidence is reported
-explicitly instead of claiming full CI coverage.
+PR398 and PR399 have merged, and current main has been integrated into this
+branch. PR400 targets main so the repository's complete PR checks can run.
+See the PR validation record and checks for the tested revision and results.
 
-## Bounded wording review (saved; expanded layout pass paused)
+## Bounded wording review (resumed)
 
 `review/critical-journeys-2026-09-07.json` lists the 181 exact keys read during
 an AI semantic wording review of Japanese and the three explicit Chinese
 catalogs. It records hashes, changed versus retained wording, primary references
 and outstanding gaps. This is not a native-speaker approval: every machine flag
-remains, and previously non-machine wording was protected.
+remains, and previously non-machine wording was protected. That manifest is a
+historical snapshot: its hashes, paused status and recorded gaps are unchanged.
 
-The user paused the expanded translation/layout work to prioritize API
-reliability and trade-history releases. The completed technical and safety checks
-are reported separately in the PR. The optional `XCP_LAYOUT_LOCALES` browser
-matrix is review tooling, not evidence that all localized flows have passed.
-Native SegWit/address-type labels and broader English protocol diagnostics remain
-queued. Do not treat this manifest or a passing catalog checker as approval to
-release every localized journey.
+After the API and launchpad releases, the user resumed a bounded extension pass.
+`review/terminology-2026-09-08.md` records primary references and decisions for
+address types, Japanese price-impact terms and swap routing. Address labels,
+shared destination/memo headings and live preference-label updates are included;
+broader English protocol diagnostics remain follow-up work. The optional
+`XCP_LAYOUT_LOCALES` matrix is review tooling, not evidence that all localized
+flows have passed. Do not treat either review note or a passing catalog checker
+as approval of every localized journey.

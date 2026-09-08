@@ -6871,5 +6871,29 @@
   "inputs_fee_rate_input_one_hour": {
     "message": "1 Hour",
     "description": "components/ui/inputs/fee-rate-input.tsx. Network estimate preset."
+  },
+  "address_type_legacy": {
+    "message": "Legacy",
+    "description": "Bitcoin address-type label in Settings and its address list. The UI appends the unchanged protocol identifier P2PKH."
+  },
+  "address_type_native_segwit": {
+    "message": "Native SegWit",
+    "description": "Bitcoin address-type label in Settings and its address list. The UI appends the unchanged protocol identifier P2WPKH. SegWit is the protocol name."
+  },
+  "address_type_nested_segwit": {
+    "message": "Nested SegWit",
+    "description": "Bitcoin address-type label in Settings and its address list. The UI appends the unchanged protocol identifier P2SH-P2WPKH. SegWit is the protocol name."
+  },
+  "common_destinations": {
+    "message": "Destinations",
+    "description": "Heading above multiple recipient address fields in a send form."
+  },
+  "swap_form_route_many_orders": {
+    "message": "$1 orders",
+    "description": "pages/compose/swap/form.tsx. Number of resting orders matched by the quote route. $1 = localized order count."
+  },
+  "swap_form_route_one_order": {
+    "message": "$1 order",
+    "description": "pages/compose/swap/form.tsx. One resting order matched by the quote route. $1 = localized order count."
   }
 }

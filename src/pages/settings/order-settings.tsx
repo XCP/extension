@@ -9,6 +9,7 @@ import {
   MAX_ORDER_EXPIRATION,
 } from '@/core/settings';
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 interface OrderSettingsProps {
   customExpiration?: number;
@@ -19,24 +20,6 @@ interface OrderSettingsProps {
   showHelpText?: boolean;
 }
 
-const LEGACY_EXPIRATION_PRESETS = [
-  { label: t('settings_order_settings_1_hour'), blocks: 6 },
-  { label: t('settings_order_settings_1_day'), blocks: 144 },
-  { label: t('settings_order_settings_1_week'), blocks: 1008 },
-  { label: t('settings_order_settings_2_weeks'), blocks: 2016 },
-  { label: t('settings_order_settings_1_month'), blocks: 4320 },
-  { label: t('common_max'), blocks: LEGACY_MAX_ORDER_EXPIRATION },
-];
-
-const EXPIRATION_PRESETS = [
-  { label: t('settings_order_settings_never'), blocks: 0 },
-  { label: t('settings_order_settings_1_day'), blocks: 144 },
-  { label: t('settings_order_settings_1_week'), blocks: 1008 },
-  { label: t('settings_order_settings_1_month'), blocks: 4320 },
-  { label: t('settings_order_settings_1_year'), blocks: 52560 },
-  { label: t('common_max'), blocks: MAX_ORDER_EXPIRATION },
-];
-
 export function OrderSettings({
   customExpiration,
   onExpirationChange,
@@ -45,6 +28,7 @@ export function OrderSettings({
   isBuyingBTC = false,
   showHelpText = false
 }: OrderSettingsProps): ReactElement {
+  useLocaleRevision();
   const { settings, updateSettings } = useSettings();
 
   const getInitialExpiration = () => {
@@ -59,7 +43,21 @@ export function OrderSettings({
   const [usesLegacyExpirations, setUsesLegacyExpirations] = useState(true);
   const minCustomExpiration = usesLegacyExpirations ? 1 : 0;
   const maxCustomExpiration = usesLegacyExpirations ? LEGACY_MAX_ORDER_EXPIRATION : MAX_ORDER_EXPIRATION;
-  const expirationPresets = usesLegacyExpirations ? LEGACY_EXPIRATION_PRESETS : EXPIRATION_PRESETS;
+  const expirationPresets = usesLegacyExpirations ? [
+    { label: t('settings_order_settings_1_hour'), blocks: 6 },
+    { label: t('settings_order_settings_1_day'), blocks: 144 },
+    { label: t('settings_order_settings_1_week'), blocks: 1008 },
+    { label: t('settings_order_settings_2_weeks'), blocks: 2016 },
+    { label: t('settings_order_settings_1_month'), blocks: 4320 },
+    { label: t('common_max'), blocks: LEGACY_MAX_ORDER_EXPIRATION },
+  ] : [
+    { label: t('settings_order_settings_never'), blocks: 0 },
+    { label: t('settings_order_settings_1_day'), blocks: 144 },
+    { label: t('settings_order_settings_1_week'), blocks: 1008 },
+    { label: t('settings_order_settings_1_month'), blocks: 4320 },
+    { label: t('settings_order_settings_1_year'), blocks: 52560 },
+    { label: t('common_max'), blocks: MAX_ORDER_EXPIRATION },
+  ];
 
   useEffect(() => {
     let cancelled = false;

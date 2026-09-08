@@ -7,6 +7,7 @@ import { type Destination, getDestinationLimitState, isMPMASupported, MAX_DESTIN
 import { useMultiAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
 
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 interface DestinationsInputProps {
   destinations: Destination[];
@@ -36,6 +37,7 @@ export function DestinationsInput({
   disabled = false,
   showHelpText = false,
 }: DestinationsInputProps): ReactElement {
+  useLocaleRevision();
   const firstInputRef = useRef<HTMLInputElement>(null);
   const [validationErrors, setValidationErrors] = useState<{ [key: number]: boolean }>({});
   
@@ -155,7 +157,7 @@ export function DestinationsInput({
   return (
     <Field>
       <Label className="text-sm font-medium text-gray-700">
-        {destinations.length > 1 ? 'Destinations' : 'Destination'} {required && <span className="text-red-500">*</span>}
+        {destinations.length > 1 ? t('common_destinations') : t('common_destination')} {required && <span className="text-red-500">*</span>}
       </Label>
       
       {destinations.map((destination, index) => (

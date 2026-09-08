@@ -5163,5 +5163,23 @@
   },
   "inputs_fee_rate_input_one_hour": {
     "message": "1小時"
+  },
+  "address_type_legacy": {
+    "message": "傳統"
+  },
+  "address_type_native_segwit": {
+    "message": "原生 SegWit"
+  },
+  "address_type_nested_segwit": {
+    "message": "Nested SegWit"
+  },
+  "common_destinations": {
+    "message": "接收地址"
+  },
+  "swap_form_route_many_orders": {
+    "message": "$1 筆訂單"
+  },
+  "swap_form_route_one_order": {
+    "message": "$1 筆訂單"
   }
 }

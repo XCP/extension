@@ -30,6 +30,7 @@ async function capture(page: Page, info: TestInfo, name: string, width: number) 
   expect(metrics.scroll, name).toBeLessThanOrEqual(metrics.width + 1);
   expect(metrics.clipped, name).toEqual([]);
   expect(await page.locator('body').innerText()).not.toMatch(/\$[1-9]|\$p[1-9]\$/);
+  expect(await page.locator('body').innerText()).not.toContain('undefined/undefined');
   const path = info.outputPath(`${name}-${width}.png`);
   await page.screenshot({ path, fullPage: true });
   await info.attach(`${name}-${width}`, { path, contentType: 'image/png' });
@@ -58,6 +59,10 @@ walletTest('canonical slippage and BTC Max survive display preferences', async (
         : { estimated_output: 10, pool_output: 10, give_remaining: 0, pool_exists: true, fee_bps: 30, price_impact: 0 };
       await route.fulfill({ json: { result } }); return;
     }
+    if (/^markets\/[^/]+\/[^/]+$/.test(path)) {
+      const [, baseAsset, quoteAsset] = path.split('/').map(decodeURIComponent);
+      await route.fulfill({ json: { result: { baseAsset, quoteAsset, lastPrice: null } } }); return;
+    }
     if (/^assets\/[^/]+$/.test(path)) { await route.fulfill({ json: { result: asset(path.split('/')[1]!) } }); return; }
     if (/^pools\/[^/]+\/[^/]+$/.test(path)) { await route.fulfill({ json: { result: pool } }); return; }
     if (/addresses\/[^/]+\/pools$/.test(path)) { await route.fulfill({ json: { result: [pool], result_count: 1 } }); return; }
@@ -81,6 +86,14 @@ walletTest('canonical slippage and BTC Max survive display preferences', async (
     for (const locale of (process.env.XCP_LAYOUT_LOCALES?.split(',') ?? ['en'])) {
       await controls.nth(0).selectOption(locale);
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
+      const beforeAddressSettings = await callGalleryService<{ address: string }>(page, 'getActiveAddress');
+      await go(page, 'settings/address-types');
+      await expect(page.getByText(`${message(locale, 'address_type_native_segwit')} (P2WPKH)`, { exact: true })).toBeVisible();
+      for (const width of [360, 1100]) await capture(page, info, `${locale}-address-types`, width);
+      expect(await callGalleryService(page, 'getActiveAddress')).toEqual(beforeAddressSettings);
+      await go(page, 'settings/advanced');
+      await expect(page.getByText(message(locale, 'settings_advanced_5_minutes'), { exact: true })).toBeVisible();
+      await capture(page, info, `${locale}-advanced-settings`, 360);
       await go(page, 'compose/send/XCP');
       const sendAmount = page.locator('input[name="quantity"]');
       await expect(sendAmount).toBeVisible();
@@ -100,6 +113,7 @@ walletTest('canonical slippage and BTC Max survive display preferences', async (
       await go(page, 'compose/order/TOKEN?type=buy&quote=XCP');
       const orderAmount = page.locator('input[name="amount"]');
       await expect(orderAmount).toBeVisible();
+      await expect(page.getByRole('button', { name: message(locale, 'inputs_price_with_suggest_input_flip_trading_pair_to').replace('$1', 'TOKEN/XCP'), exact: true })).toHaveText('XCP/TOKEN');
       await orderAmount.fill('1'); await page.locator('input[name="price"]').fill('2.5');
       for (const width of [360, 1100]) await capture(page, info, `${locale}-order-normal`, width);
       await orderAmount.fill(''); await orderAmount.pressSequentially('0.5');

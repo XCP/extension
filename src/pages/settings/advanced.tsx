@@ -11,6 +11,7 @@ import { useSettings } from "@/contexts/settings-context";
 import type { AutoLockTimer } from "@/core/settings";
 
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 
 /**
  * Constants for navigation paths and auto-lock options.
@@ -18,12 +19,6 @@ import { t } from '@/i18n';
 const PATHS = {
   BACK: -1, // Using -1 for navigate(-1)
 } as const;
-const AUTO_LOCK_OPTIONS = [
-  { value: "1m" as AutoLockTimer, label: t('settings_advanced_1_minute') },
-  { value: "5m" as AutoLockTimer, label: t('settings_advanced_5_minutes') },
-  { value: "15m" as AutoLockTimer, label: t('settings_advanced_15_minutes') },
-  { value: "30m" as AutoLockTimer, label: t('settings_advanced_30_minutes') },
-] as const;
 
 /**
  * AdvancedSettings component manages advanced wallet settings.
@@ -39,11 +34,18 @@ const AUTO_LOCK_OPTIONS = [
  * ```
  */
 export default function AdvancedSettingsPage(): ReactElement {
+  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
 
+  const autoLockOptions = [
+    { value: "1m" as AutoLockTimer, label: t('settings_advanced_1_minute') },
+    { value: "5m" as AutoLockTimer, label: t('settings_advanced_5_minutes') },
+    { value: "15m" as AutoLockTimer, label: t('settings_advanced_15_minutes') },
+    { value: "30m" as AutoLockTimer, label: t('settings_advanced_30_minutes') },
+  ] as const;
 
   // Configure header
   useEffect(() => {
@@ -80,7 +82,7 @@ export default function AdvancedSettingsPage(): ReactElement {
             className="mt-4"
           >
             <SelectionCardGroup>
-              {AUTO_LOCK_OPTIONS.map((option) => (
+              {autoLockOptions.map((option) => (
                 <SelectionCard
                   key={option.value}
                   value={option.value}
