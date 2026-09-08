@@ -5184,5 +5184,548 @@
   },
   "swap_form_route_one_order": {
     "message": "$1 件の注文"
+  },
+  "approval_structure_attach_missing_output_title": {
+    "message": "存在しない出力へのアタッチ"
+  },
+  "approval_structure_attach_missing_output_one": {
+    "message": "出力 #$1 にアセットをアタッチしようとしていますが、このトランザクションの出力数は $2 です。このアタッチは記載どおりには成立しません。署名され、承認された場合でも、Bitcoin の手数料は発生します。"
+  },
+  "approval_structure_attach_missing_output_many": {
+    "message": "出力 #$1 にアセットをアタッチしようとしていますが、このトランザクションの出力数は $2 です。このアタッチは記載どおりには成立しません。署名され、承認された場合でも、Bitcoin の手数料は発生します。"
+  },
+  "approval_structure_utxo_source_not_spent_title": {
+    "message": "このトランザクションは送信元 UTXO を消費しません"
+  },
+  "approval_structure_utxo_source_not_spent_description": {
+    "message": "メッセージは $1 を送信元として指定していますが、このトランザクションはその UTXO を消費しません。署名はブロックされます。署名され、承認された場合でも、Bitcoin の手数料は発生します。"
+  },
+  "approval_blocked": {
+    "message": "署名不可"
+  },
+  "approval_review": {
+    "message": "内容を確認"
+  },
+  "common_connect": {
+    "message": "接続"
+  },
+  "provider_review_identity_changed": {
+    "message": "このリクエスト後に使用中のアドレスが変わりました。許可したアドレスに戻すか、サイトに再接続してください。"
+  },
+  "provider_review_connection_revoked": {
+    "message": "このサイトとの接続は解除されています。署名前に再接続してください。"
+  },
+  "provider_review_paired_revoked": {
+    "message": "ペアのアドレスへのアクセス許可が取り消されました。署名前にサイトに再接続してください。"
+  },
+  "provider_review_wallet_locked": {
+    "message": "ウォレットはロックされています"
+  },
+  "provider_review_invalid_id": {
+    "message": "署名リクエスト ID が無効です"
+  },
+  "provider_review_missing_id": {
+    "message": "署名リクエスト ID が指定されていません"
+  },
+  "provider_review_wrong_screen": {
+    "message": "このリクエストは別の承認画面で確認する必要があります"
+  },
+  "provider_review_load_failed": {
+    "message": "署名リクエストを読み込めません"
+  },
+  "provider_review_nothing_to_verify": {
+    "message": "検証する署名リクエストがありません"
+  },
+  "provider_review_not_reviewed": {
+    "message": "確認済みの署名リクエストがありません"
+  },
+  "provider_review_verifying": {
+    "message": "検証中です。完了するまで署名せずにお待ちください。"
+  },
+  "provider_review_retry_required": {
+    "message": "検証を再試行し、成功してから署名してください。"
+  },
+  "provider_review_cancelled": {
+    "message": "署名リクエストはキャンセルされました"
+  },
+  "provider_review_unavailable": {
+    "message": "署名リクエストが見つからないか、現在は処理待ちではありません"
+  },
+  "provider_review_missing_sighash": {
+    "message": "署名対象の入力に対応する sighash の指定がありません"
+  },
+  "provider_review_invalid_message": {
+    "message": "メッセージ署名リクエストが無効か、ウォレットの予約形式を使用しています"
+  },
+  "provider_review_expired_during_review": {
+    "message": "確認中に署名リクエストの有効期限が切れました"
+  },
+  "provider_review_invalid_decision": {
+    "message": "署名の承認情報が無効です"
+  },
+  "provider_review_verification_failed": {
+    "message": "このリクエストはトランザクションの検証に合格しませんでした"
+  },
+  "provider_review_review_changed": {
+    "message": "トランザクションの確認内容が変わりました。この承認画面を再読み込みし、もう一度確認してください。"
+  },
+  "provider_review_acknowledge_risks": {
+    "message": "署名前にトランザクションのリスクを確認し、了承してください"
+  },
+  "provider_review_missing_attachment": {
+    "message": "アタッチ元の親トランザクションがありません"
+  },
+  "provider_review_interrupted": {
+    "message": "署名リクエストはキャンセルされたか、有効期限が切れました"
+  },
+  "provider_review_expired_completion": {
+    "message": "処理が完了する前に署名リクエストの有効期限が切れました"
+  },
+  "provider_review_expired_delivery": {
+    "message": "結果を返す前に署名リクエストの有効期限が切れました"
+  },
+  "composer_verification_fee_inputs_unavailable": {
+    "message": "使用する入力の金額を取得できず、取引手数料を確認できませんでした。接続を確認して再試行してください。"
+  },
+  "composer_verification_fee_inputs_unreadable": {
+    "message": "入力を読み取れず、取引手数料を確認できないため、この取引を拒否しました。"
+  },
+  "composer_verification_fee_outputs_exceed_inputs": {
+    "message": "取引の出力合計額が入力合計額を超えているため、署名を拒否しました。"
+  },
+  "composer_verification_fee_out_of_range": {
+    "message": "取引手数料が扱える範囲を超えているため、署名を拒否しました。"
+  },
+  "composer_verification_fee_abnormally_high": {
+    "message": "取引手数料（$1 sats、約$2 sat/vB）が異常に高いため、取引をブロックしました。"
+  },
+  "composer_verification_fee_exceeds_selected_rate": {
+    "message": "取引手数料（$1 sats）が、選択した手数料率 $2 sat/vB で想定される額を大幅に超えています。"
+  },
+  "composer_verification_output_recovery_key_mismatch": {
+    "message": "作成された取引のデータ出力に、あなたのものではない回収用公開鍵が含まれています。その出力の少額の BTC（ダスト）を他人が使用できてしまいます。"
+  },
+  "composer_verification_output_recipient_missing": {
+    "message": "この取引では、データ出力より前に $1 宛ての出力がないため、ネットワークはそのアドレスを受取先として認識しません。取引を拒否しました。"
+  },
+  "composer_verification_output_recipient_single": {
+    "message": "この取引のデータより前にある出力（$1）は、$2 を受取先として示していません。取引を拒否しました。"
+  },
+  "composer_verification_output_recipient_multiple": {
+    "message": "この取引のデータより前にある複数の出力（$1）は、$2 ではなく、アドレスを連結した受取先として読み取られます。取引を拒否しました。"
+  },
+  "composer_verification_output_unexplained_one": {
+    "message": "この取引にはリクエストで確認できない出力（$1）があるため、取引を拒否しました。"
+  },
+  "composer_verification_output_unexplained_many": {
+    "message": "この取引にはリクエストで確認できない複数の出力（$1）があるため、取引を拒否しました。"
+  },
+  "composer_verification_output_payment": {
+    "message": "$2 宛てに $1 sats"
+  },
+  "composer_verification_output_unknown_script": {
+    "message": "デコードできないスクリプト"
+  },
+  "composer_verification_output_unknown_address": {
+    "message": "デコードできないアドレス"
+  },
+  "approval_sign": {
+    "message": "署名"
+  },
+  "tx_action_send": {
+    "message": "送金"
+  },
+  "tx_action_multi_send": {
+    "message": "複数宛先への送金"
+  },
+  "tx_action_btc_pay": {
+    "message": "BTC決済"
+  },
+  "tx_action_order": {
+    "message": "注文"
+  },
+  "tx_action_cancel": {
+    "message": "キャンセル"
+  },
+  "tx_action_dispenser": {
+    "message": "ディスペンサー"
+  },
+  "tx_action_dispense": {
+    "message": "払い出し"
+  },
+  "tx_action_issuance": {
+    "message": "発行"
+  },
+  "tx_action_subasset_issuance": {
+    "message": "サブアセットの発行"
+  },
+  "tx_action_dividend": {
+    "message": "配当"
+  },
+  "tx_action_sweep": {
+    "message": "一括移転"
+  },
+  "tx_action_broadcast": {
+    "message": "ブロードキャスト"
+  },
+  "tx_action_pool_deposit": {
+    "message": "流動性の追加"
+  },
+  "tx_action_pool_withdrawal": {
+    "message": "流動性の引き出し"
+  },
+  "tx_action_utxo_move": {
+    "message": "UTXOのアセット移転"
+  },
+  "tx_action_attach": {
+    "message": "UTXOへの紐付け"
+  },
+  "tx_action_detach": {
+    "message": "UTXOからの切り離し"
+  },
+  "tx_action_destroy": {
+    "message": "焼却"
+  },
+  "tx_action_mint": {
+    "message": "ミント"
+  },
+  "tx_action_create_fairminter": {
+    "message": "フェアミンターの作成"
+  },
+  "tx_action_close_dispenser": {
+    "message": "ディスペンサーを閉じる"
+  },
+  "tx_action_fund_dispenser": {
+    "message": "ディスペンサーへの入金"
+  },
+  "tx_action_send_amount": {
+    "message": "$1 $2を送金"
+  },
+  "tx_action_send_amount_to": {
+    "message": "$3に$1 $2を送金"
+  },
+  "tx_action_send_one_recipient": {
+    "message": "送金明細：$1件"
+  },
+  "tx_action_send_recipients": {
+    "message": "送金明細：$1件"
+  },
+  "tx_action_give_for": {
+    "message": "$1 $2を$3 $4と交換"
+  },
+  "tx_action_cancel_order_details": {
+    "message": "注文をキャンセル：$1"
+  },
+  "tx_action_cancel_dex_order": {
+    "message": "DEX注文をキャンセル"
+  },
+  "tx_action_sell_for": {
+    "message": "$1 $2を$3 $4で売却"
+  },
+  "tx_action_close_asset_dispenser": {
+    "message": "$1のディスペンサーを閉じる"
+  },
+  "tx_action_dispense_rate": {
+    "message": "$3 satsにつき$1 $2"
+  },
+  "tx_action_trigger_dispenser": {
+    "message": "ディスペンサーの払い出しを実行"
+  },
+  "tx_action_issue_amount": {
+    "message": "$1を発行"
+  },
+  "tx_action_no_new_supply": {
+    "message": "新規発行なし"
+  },
+  "tx_action_per_unit": {
+    "message": "1単位あたり$1 $2"
+  },
+  "tx_action_all_holders": {
+    "message": "すべての$1保有者"
+  },
+  "tx_action_settle_btc": {
+    "message": "BTCを支払い、約定した注文を決済"
+  },
+  "tx_action_sweep_to": {
+    "message": "$1へ一括移転"
+  },
+  "tx_action_empty_message": {
+    "message": "空のメッセージ"
+  },
+  "tx_action_destroy_lp": {
+    "message": "$1 LPトークンを焼却"
+  },
+  "tx_action_withdraw_liquidity": {
+    "message": "流動性を引き出す"
+  },
+  "tx_action_deposit_liquidity": {
+    "message": "流動性を追加"
+  },
+  "tx_action_attach_amount": {
+    "message": "$1 $2をUTXOに紐付け"
+  },
+  "tx_action_detach_all": {
+    "message": "UTXOからすべてのアセットを切り離す"
+  },
+  "tx_action_detach_all_to": {
+    "message": "UTXOからすべてのアセットを切り離し、$1へ移転"
+  },
+  "tx_action_move_amount": {
+    "message": "$1 $2を移転"
+  },
+  "tx_action_move_amount_to": {
+    "message": "$1 $2を$3へ移転"
+  },
+  "tx_action_destroy_amount": {
+    "message": "$1 $2を焼却"
+  },
+  "tx_action_base_units": {
+    "message": "$1（最小単位）"
+  },
+  "tx_action_memo": {
+    "message": "メモ"
+  },
+  "tx_action_tag": {
+    "message": "タグ"
+  },
+  "tx_action_hex_label": {
+    "message": "$1（16進数）"
+  },
+  "tx_action_price": {
+    "message": "価格"
+  },
+  "tx_action_btc_fee": {
+    "message": "BTC手数料"
+  },
+  "tx_action_expiry": {
+    "message": "有効期限"
+  },
+  "tx_action_blocks": {
+    "message": "$1ブロック"
+  },
+  "tx_action_block": {
+    "message": "$1ブロック"
+  },
+  "tx_action_escrow": {
+    "message": "預託数量"
+  },
+  "tx_action_per_dispense": {
+    "message": "1回あたりの支払額"
+  },
+  "tx_action_dispenses": {
+    "message": "払い出し回数"
+  },
+  "tx_action_you_receive": {
+    "message": "受取内容"
+  },
+  "tx_action_xcp_price_per_lot": {
+    "message": "1ロットのXCP価格"
+  },
+  "tx_action_lot_size": {
+    "message": "1ロットの数量"
+  },
+  "tx_action_no_limit": {
+    "message": "制限なし"
+  },
+  "tx_action_per_transaction_limit": {
+    "message": "1取引あたりの上限"
+  },
+  "tx_action_per_address_limit": {
+    "message": "1アドレスあたりの上限"
+  },
+  "tx_action_hard_cap": {
+    "message": "発行上限"
+  },
+  "tx_action_soft_cap": {
+    "message": "成立に必要な最低数量"
+  },
+  "tx_action_soft_cap_deadline": {
+    "message": "最低数量の達成期限"
+  },
+  "tx_action_block_height": {
+    "message": "ブロック$1"
+  },
+  "tx_action_premint": {
+    "message": "プレミント数量"
+  },
+  "tx_action_pool_allocation": {
+    "message": "プールへの割当数量"
+  },
+  "tx_action_lp_asset": {
+    "message": "LPアセット"
+  },
+  "tx_action_xcp_payment": {
+    "message": "XCPの支払先・用途"
+  },
+  "tx_action_free_mint": {
+    "message": "なし（無料ミント）"
+  },
+  "tx_action_burned": {
+    "message": "焼却"
+  },
+  "tx_action_seeds_pool": {
+    "message": "流動性プールの初期資金"
+  },
+  "tx_action_paid_to_issuer": {
+    "message": "発行者に支払い"
+  },
+  "tx_action_starts": {
+    "message": "開始"
+  },
+  "tx_action_ends": {
+    "message": "終了"
+  },
+  "tx_action_on_confirmation": {
+    "message": "承認時"
+  },
+  "tx_action_no_end_block": {
+    "message": "終了ブロックなし"
+  },
+  "tx_action_minted_asset_commission": {
+    "message": "発行アセットの手数料率"
+  },
+  "tx_action_divisible": {
+    "message": "小数単位の利用"
+  },
+  "tx_action_yes": {
+    "message": "はい"
+  },
+  "tx_action_no": {
+    "message": "いいえ"
+  },
+  "tx_action_lock_description": {
+    "message": "説明文をロック"
+  },
+  "tx_action_lock_quantity": {
+    "message": "発行数量をロック"
+  },
+  "tx_action_description_format": {
+    "message": "説明の形式"
+  },
+  "tx_action_description_content": {
+    "message": "説明の内容"
+  },
+  "tx_action_description": {
+    "message": "説明"
+  },
+  "tx_action_xcp_burned": {
+    "message": "焼却するXCP"
+  },
+  "tx_action_xcp_to_pool": {
+    "message": "プールに入るXCP"
+  },
+  "tx_action_xcp_price": {
+    "message": "XCP価格"
+  },
+  "tx_action_lock": {
+    "message": "ロック"
+  },
+  "tx_action_reset": {
+    "message": "リセット"
+  },
+  "tx_action_lock_consequence": {
+    "message": "はい — 以後、発行数量を増やせません"
+  },
+  "tx_action_reset_consequence": {
+    "message": "はい — 既存の供給量を焼却して置き換えます"
+  },
+  "tx_action_new_owner": {
+    "message": "新しい所有者"
+  },
+  "tx_action_supply_before": {
+    "message": "焼却前の供給量"
+  },
+  "tx_action_supply_after": {
+    "message": "焼却後の供給量"
+  },
+  "tx_action_share_destroyed": {
+    "message": "焼却する割合"
+  },
+  "tx_action_includes": {
+    "message": "移転する内容"
+  },
+  "tx_action_sweep_balances_ownership": {
+    "message": "全残高とアセットの所有権"
+  },
+  "tx_action_sweep_ownership": {
+    "message": "アセットの所有権のみ"
+  },
+  "tx_action_sweep_balances": {
+    "message": "全残高"
+  },
+  "tx_action_format": {
+    "message": "形式"
+  },
+  "tx_action_plain_text": {
+    "message": "プレーンテキスト"
+  },
+  "tx_action_content": {
+    "message": "内容"
+  },
+  "tx_action_inscribed_data": {
+    "message": "インスクリプション — このブロードキャストにはメッセージではなくデータが含まれます"
+  },
+  "tx_action_value": {
+    "message": "値"
+  },
+  "tx_action_fee_fraction": {
+    "message": "手数料率"
+  },
+  "tx_action_time_left": {
+    "message": "残り時間"
+  },
+  "tx_action_payment_expired": {
+    "message": "期限切れ — この支払いでは約定を決済できません"
+  },
+  "tx_action_order_match": {
+    "message": "約定ID"
+  },
+  "tx_action_order_hash": {
+    "message": "注文ハッシュ"
+  },
+  "tx_action_deposit": {
+    "message": "追加数量"
+  },
+  "tx_action_ratio": {
+    "message": "比率"
+  },
+  "tx_action_pool": {
+    "message": "プール"
+  },
+  "tx_action_pool_fee": {
+    "message": "プール手数料"
+  },
+  "tx_action_min_lp_received": {
+    "message": "LPの最低受取数量"
+  },
+  "tx_action_min_asset_back": {
+    "message": "$1の最低受取数量"
+  },
+  "tx_action_xcp_fee": {
+    "message": "XCP手数料"
+  },
+  "tx_action_new_utxo": {
+    "message": "新しいUTXO"
+  },
+  "tx_action_detached": {
+    "message": "切り離す数量"
+  },
+  "tx_action_from_utxo": {
+    "message": "移転元UTXO"
+  },
+  "tx_action_to": {
+    "message": "移転先"
+  },
+  "tx_action_unavailable": {
+    "message": "取得できません"
+  },
+  "swap_quote_outcome_partial": {
+    "message": "現在の板の流動性では全量を約定できません。数量を減らすか、DEXで注文を出して約定を待ってください。"
+  },
+  "swap_quote_outcome_dust": {
+    "message": "この数量では $1 の最小単位に届かず、プールから何も受け取れません。$2 の数量を増やしてください。"
+  },
+  "swap_quote_outcome_no_liquidity": {
+    "message": "このペアで利用できる流動性がありません。"
   }
 }

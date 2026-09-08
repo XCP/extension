@@ -18,15 +18,24 @@ import { captureApprovalSizes } from '../utils/approval-layout';
  *
  * Output: test-results/approval-gallery/*.png
  * Optional subset: XCP_GALLERY_SCENARIOS=attach,detach (both raw and PSBT variants).
+ * Optional real wallet locale: XCP_GALLERY_LOCALE=ja (also zh-CN, zh-TW, zh-HK).
+ * XCP_GALLERY_INCLUDE_RETRY=1 adds failed-asset-lookup/recovery captures for send-with-memo.
+ * XCP_GALLERY_OUT_DIR can point at an artifact directory; locales use separate subdirectories.
+ * XCP_GALLERY_SURFACE=sidepanel also checks the real sidepanel entrypoint at 350/380/520px.
  */
 
 import { Address, OutScript } from '@scure/btc-signer';
 import * as fs from 'fs';
 import * as path from 'path';
 import { expect, walletTest } from '../fixtures';
-import { assertGalleryWorkerRouting, authorizeGalleryOrigin, createGalleryApi, type GalleryApi, selectGalleryScenarios } from '../utils/provider-gallery';
+import { approvalCatalog, approvalGalleryLocale, literalPattern } from '../utils/approval-locale';
+import { assertGalleryWorkerRouting, authorizeGalleryOrigin, callGalleryService, createGalleryApi, type GalleryApi, selectGalleryScenarios } from '../utils/provider-gallery';
 
-const OUT_DIR = 'test-results/approval-gallery';
+const LOCALE = approvalGalleryLocale();
+const message = approvalCatalog(LOCALE);
+const SURFACE = process.env.XCP_GALLERY_SURFACE ?? 'popup';
+if (!['popup', 'sidepanel'].includes(SURFACE)) throw new Error(`Unsupported approval gallery surface: ${SURFACE}`);
+const OUT_DIR = path.join(process.env.XCP_GALLERY_OUT_DIR ?? 'test-results/approval-gallery', ...(LOCALE === 'en' ? [] : [LOCALE]), ...(SURFACE === 'sidepanel' ? ['sidepanel'] : []));
 const ORIGIN = 'https://launchpad.xcp.fun';
 
 
@@ -210,38 +219,43 @@ function toPsbt(rawTxHex: string, signerAddress: string): string {
  *
  * Scenarios absent from this table are expected to raise nothing at all.
  */
+const WARNINGS = {
+  sweep: literalPattern(message('safety_blocked_sweep_transaction')),
+  destroy: literalPattern(message('safety_danger_supply_destruction')),
+  detach: literalPattern(message('approval_approval_warnings_assets_are_detached_to_another')),
+  attach: literalPattern(message('approval_structure_attach_missing_output_title')),
+  move: literalPattern(message('approval_structure_utxo_source_not_spent_title')),
+};
 const EXPECTED_WARNINGS: Record<string, RegExp[]> = {
-  'sweep-blocked': [/blocked: sweep/i],
-  destroy: [/supply destruction/i],
+  'sweep-blocked': [WARNINGS.sweep],
+  destroy: [WARNINGS.destroy],
   // The fixture detaches to a foreign address, which genuinely deserves attention; a detach to
   // your own address is routine and raises nothing (its generic note is info-severity now).
-  detach: [/detached to another address/i],
+  detach: [WARNINGS.detach],
   // Paying the dispenser or the order-match counterparty is what those transactions are; the
   // movement rows state the payment and no warning or note fires on a correct one.
-  'attach-bad-vout': [/attaches to an output that does not exist/i],
-  'utxo-move-foreign-source': [/moves a utxo this transaction does not spend/i],
+  'attach-bad-vout': [WARNINGS.attach],
+  'utxo-move-foreign-source': [WARNINGS.move],
 };
 
 /** Every warning title the safety layer and the approval screens can raise. */
 const ALL_WARNING_PATTERNS: RegExp[] = [
-  /blocked: sweep/i,
-  /supply destruction/i,
-  /moves everything on the utxo/i,
-  /detached to another address/i,
-  /unknown transaction type/i,
-  /unrecognized transaction/i,
-  /btc sent to external address/i,
-  /btc payment/i,
-  /btc sent to an unrecognized script/i,
-  /counterparty data outputs/i,
-  /attaches to an output that does not exist/i,
-  /moves a utxo this transaction does not spend/i,
-  /attached assets leave your wallet/i,
-  /attached assets move to your own output/i,
-  /attached assets are detached/i,
-  /spends utxos holding counterparty assets/i,
-  /verification failed/i,
-  /some amounts couldn.t be determined/i,
+  ...Object.values(WARNINGS),
+  ...[
+    'safety_moves_everything_on_the_utxo',
+    'safety_unknown_transaction_type',
+    'safety_unrecognized_transaction',
+    'safety_btc_sent_to_external_address',
+    'safety_btc_payment',
+    'safety_btc_sent_to_an_unrecognized_script',
+    'safety_counterparty_data_outputs',
+    'approval_approval_warnings_attached_assets_leave_your_wallet',
+    'approval_approval_warnings_attached_assets_move_to_your',
+    'approval_approval_warnings_attached_assets_are_detached_to',
+    'approval_approval_warnings_spends_utxos_holding_counterparty_assets',
+    'tx_verification_status_verification_failed_signing_blocked',
+    'approval_money_movement_view_some_amounts_couldn_t_be',
+  ].map(key => literalPattern(message(key))),
 ];
 
 /** Which of the known warnings are actually on screen. */
@@ -253,17 +267,35 @@ async function warningsOn(page: import('@playwright/test').Page): Promise<RegExp
 /** Consequential facts must survive both approval presentation paths. */
 async function assertScenarioFacts(page: import('@playwright/test').Page, name: string): Promise<void> {
   if (name === 'dividend') {
-    await expect(page.getByText('0.00000001 XCP per unit', { exact: true })).toBeVisible();
+    await expect(page.getByText(message('tx_action_per_unit', ['0.00000001', 'XCP']), { exact: true })).toBeVisible();
     // Supply and total holders cannot prove the actual payout or fee: Core excludes the signer
     // and truncates each eligible holder independently. Do not present those estimates as facts.
     await expect(page.getByText('Total dividend', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('XCP fee', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(message('tx_action_xcp_fee'), { exact: true })).toHaveCount(0);
     return;
   }
   if (name !== 'send-with-memo') return;
-  const memo = page.locator('dl > div').filter({ has: page.locator('dt').filter({ hasText: /^Memo$/ }) });
+  const memo = page.locator('dl > div').filter({ has: page.locator('dt').filter({ hasText: new RegExp(`^${literalPattern(message('common_memo')).source}$`) }) });
   await expect(memo.locator('dd')).toHaveText('invoice 42');
   await expect(memo.locator('dd')).toBeVisible();
+}
+
+/** Inspect the expanded evidence too; a collapsed title cannot prove the outpoint fits. */
+async function captureStructureEvidence(page: import('@playwright/test').Page, name: string, captureName: string) {
+  if (!['attach-bad-vout', 'utxo-move-foreign-source'].includes(name)) return;
+  const notice = page.getByTestId('approval-notice');
+  await notice.getByRole('button', { name: message('approval_approval_notice_why_signing_is_unavailable'), exact: true }).click();
+  // These exact values are encoded in the committed fixture payloads, not supplied by the API.
+  const description = name === 'attach-bad-vout'
+    ? message('approval_structure_attach_missing_output_many', ['9', '2'])
+    : message('approval_structure_utxo_source_not_spent_description', [`${'f'.repeat(64)}:7`]);
+  await expect(notice.getByText(description, { exact: true })).toBeVisible();
+  for (const width of [350, 380]) {
+    await page.setViewportSize({ width, height: 1400 });
+    expect(await notice.evaluate(element => element.scrollWidth <= element.clientWidth),
+      `${captureName}: full diagnostic evidence overflows at ${width}px`).toBe(true);
+    await page.screenshot({ path: path.join(OUT_DIR, `${captureName}-evidence-${width}.png`), fullPage: true });
+  }
 }
 
 /**
@@ -373,13 +405,23 @@ async function collectWarnings(
 ): Promise<RegExp[]> {
   const shown = new Set(await warningsOn(approval));
 
-  const review = approval.getByRole('button', { name: /^review$/i });
+  const review = approval.getByRole('button', { name: message('approval_review'), exact: true });
   if (await review.count()) {
     await review.click();
-    await expect(approval.getByRole('button', { name: 'Back' })).toBeVisible({ timeout: 10_000 });
+    await expect(approval.getByRole('button', { name: message('common_back'), exact: true })).toBeVisible({ timeout: 10_000 });
     for (const re of await warningsOn(approval)) shown.add(re);
+    for (const width of SURFACE === 'sidepanel' ? [350, 380, 520] : [350, 380]) {
+      await approval.setViewportSize({ width, height: 600 });
+      const dialog = approval.getByRole('dialog');
+      expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth),
+        `attention screen overflows at ${width}px`).toBe(true);
+      await expect(dialog.getByRole('button', { name: message('common_back'), exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(dialog.getByRole('button').last()).toBeInViewport({ ratio: 1 });
+      await approval.screenshot({ path: attentionShotPath.replace(/\.png$/, `-${width}.png`) });
+    }
+    await approval.setViewportSize({ width: 380, height: 1400 });
     await approval.screenshot({ path: attentionShotPath, fullPage: true });
-    await approval.getByRole('button', { name: 'Back' }).click();
+    await approval.getByRole('button', { name: message('common_back'), exact: true }).click();
   }
 
   return ALL_WARNING_PATTERNS.filter((re) => shown.has(re));
@@ -390,9 +432,18 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
   const scenarios = selectGalleryScenarios(Object.entries(scenarioFixtures.scenarios), ([name]) => name);
+  const includeRetry = process.env.XCP_GALLERY_INCLUDE_RETRY === '1';
+  if (includeRetry && !scenarios.some(([name]) => name === 'send-with-memo')) {
+    throw new Error('XCP_GALLERY_INCLUDE_RETRY requires send-with-memo in the selected scenarios');
+  }
   const identity = await authorizeGalleryOrigin(page, ORIGIN);
   const signerAddress = identity.address;
   await assertGalleryWorkerRouting(context, extensionId);
+  await callGalleryService(page, 'updateSettings', [{ language: LOCALE }]);
+  await expect(page.locator('html')).toHaveAttribute('lang', LOCALE);
+  const finalAction = (approval: import('@playwright/test').Page) => approval.getByRole('button', {
+    name: new RegExp(`^(?:${['common_sign_transaction', 'approval_review', 'approval_blocked', 'common_awaiting_verification'].map(key => literalPattern(message(key)).source).join('|')})$`),
+  });
 
   // One record per signing request, in the shape `beginSignFlow` writes (`signFlow.ts`). Seeded
   // directly after granting the origin through WalletService. `requestKey` exists for rejoining
@@ -424,11 +475,14 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
     // viewport puts the whole screen in one image.
     await approval.setViewportSize({ width: 380, height: 1400 });
     await approval.goto(
-      `chrome-extension://${extensionId}/popup.html#/requests/transaction/approve?requestId=${id}`
+      `chrome-extension://${extensionId}/${SURFACE}.html#/requests/transaction/approve?requestId=${id}`
     );
     // The screen decodes and cross-checks before it can describe anything, so wait on the footer
     // rather than a fixed delay. A signable request with cautions labels the button Review.
-    await expect(approval.getByRole('button', { name: /^(sign transaction|review|blocked|awaiting verification)$/i })).toBeVisible({ timeout: 60_000 });
+    await expect(approval.locator('html')).toHaveAttribute('lang', LOCALE);
+    await expect(finalAction(approval)).toBeVisible({ timeout: 60_000 });
+    const heading = approval.getByRole('banner').getByRole('heading');
+    expect(await heading.evaluate(element => element.scrollWidth <= element.clientWidth), 'approval title must fit').toBe(true);
     return approval;
   };
 
@@ -440,19 +494,41 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
       const id = `gallery-${name}`;
       const api = await createGalleryApi(context, page, id);
       await installScenarioStubs(api, name, signerAddress);
+      let unavailable = includeRetry && name === 'send-with-memo';
+      if (unavailable) {
+        await api.route(/\/v2\/utxos\/[^/]+\/balances/, route => unavailable
+          ? route.fulfill({ status: 503, json: { error: 'Fixture asset status unavailable' } })
+          : route.fallback());
+      }
       await seed(id, rebuildForSigner(rawTxHex, signerAddress, PAYS_EXTERNAL.has(name), HAS_ATTACH_UTXO.has(name)));
       const approval = await openApproval(id);
+      if (unavailable) {
+        await expect(finalAction(approval)).toBeDisabled();
+        await expect(approval.getByText(message('approval_approval_warnings_couldn_t_verify_asset_status'), { exact: true })).toBeVisible();
+        await captureApprovalSizes(approval, OUT_DIR, `${name}-retry`, message('approval_review'));
+        unavailable = false;
+        await approval.getByRole('button', { name: message('common_retry_verification'), exact: true }).click();
+        await expect(finalAction(approval)).toBeEnabled({ timeout: 60_000 });
+        await expect(approval.getByText(message('approval_approval_warnings_couldn_t_verify_asset_status'), { exact: true })).toHaveCount(0);
+        await captureApprovalSizes(approval, OUT_DIR, `${name}-retry-recovered`, message('approval_review'));
+      }
+      if (['sweep-blocked', 'attach-bad-vout', 'utxo-move-foreign-source'].includes(name)) {
+        await expect(finalAction(approval)).toBeDisabled();
+        await expect(finalAction(approval)).toHaveText(message('approval_blocked'));
+      }
       await assertScenarioFacts(approval, name);
-      await captureApprovalSizes(approval, OUT_DIR, name);
+      await captureApprovalSizes(approval, OUT_DIR, name, message('approval_review'));
+      await captureStructureEvidence(approval, name, name);
 
       // Expanded, so inputs, outputs and the mpma recipient list are part of the captured state —
       // for a multi-destination send that panel is the only place the payees appear at all.
       // Exact match: warning copy also mentions 'the transaction details', which makes a loose
       // locator ambiguous on any screen that carries one.
-      const details = approval.getByText(/^Transaction$/);
+      const details = approval.getByText(message('common_transaction'), { exact: true });
       await expect(details).toBeVisible({ timeout: 30_000 });
       await details.click();
-      await expect(approval.getByText(/^Outputs \(/)).toBeVisible({ timeout: 10_000 });
+      const outputHeading = literalPattern(message('approval_approval_transaction_details_outputs')).source.replace('\\$1', '\\d+');
+      await expect(approval.getByText(new RegExp(`^${outputHeading}$`))).toBeVisible({ timeout: 10_000 });
 
       const shown = (
         await collectWarnings(approval, path.join(OUT_DIR, `${name}-attention.png`))
@@ -500,16 +576,22 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
       const approval = await context.newPage();
       await approval.setViewportSize({ width: 380, height: 1400 });
       await approval.goto(
-        `chrome-extension://${extensionId}/popup.html#/requests/psbt/approve?requestId=${id}`
+        `chrome-extension://${extensionId}/${SURFACE}.html#/requests/psbt/approve?requestId=${id}`
       );
-      await expect(approval.getByRole('button', { name: /^(sign transaction|review|blocked|awaiting verification)$/i })).toBeVisible({ timeout: 60_000 });
+      await expect(approval.locator('html')).toHaveAttribute('lang', LOCALE);
+      await expect(finalAction(approval)).toBeVisible({ timeout: 60_000 });
+      if (['sweep-blocked', 'attach-bad-vout', 'utxo-move-foreign-source'].includes(name)) {
+        await expect(finalAction(approval)).toBeDisabled();
+        await expect(finalAction(approval)).toHaveText(message('approval_blocked'));
+      }
 
       await assertScenarioFacts(approval, name);
-      await captureApprovalSizes(approval, OUT_DIR, `psbt-${name}`);
+      await captureApprovalSizes(approval, OUT_DIR, `psbt-${name}`, message('approval_review'));
+      await captureStructureEvidence(approval, name, `psbt-${name}`);
 
       // Expanded, for the same reason as above: the recipients list and the checks line live in
       // this panel, and they are precisely what was missing from this screen.
-      const psbtDetails = approval.getByText(/^Transaction$/);
+      const psbtDetails = approval.getByText(message('common_transaction'), { exact: true });
       await expect(psbtDetails).toBeVisible({ timeout: 30_000 });
       await psbtDetails.click();
 

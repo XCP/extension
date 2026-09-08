@@ -4,14 +4,15 @@ import type { MoneyMovement } from '@/components/domain/approval/money-movement'
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
 import type { PsbtFlexibilityKind } from '@/components/domain/approval/psbt-flexibility';
-import type { ProtocolField } from '@/core/counterparty/describe';
+import type { MessageHeadline, ProtocolField } from '@/core/counterparty/describe';
 import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
 import { t } from '@/i18n';
 /**
- * Split a trailing address off a headline so the two can be set differently.
+ * Legacy English-only fallback for existing unstructured/API summaries.
+ * Verified local descriptions supply MessageHeadline and never parse translated prose.
  *
  * A send or sweep headline ends in an address, which is one unbreakable token: set in 18px bold it
  * overflows the popup and puts a horizontal scrollbar under the whole screen, pushing the tail of
@@ -41,7 +42,7 @@ export function splitTrailingAddress(
 
 interface ApprovalSummaryCardProps {
   /** Decoded Counterparty action, if any — the "what kind" headline. */
-  txAction: { label: string; description: string } | null;
+  txAction: { label: string; description: string; presentation?: MessageHeadline } | null;
   /** A structured marketplace summary contains a quantity, rather than a sentence. */
   principal?: boolean;
   /** Verified principal consequences that must precede supporting BTC movement. */
@@ -78,7 +79,7 @@ function formatProtocolFee(value: unknown): string | null {
   if (typeof value === 'bigint' && value >= 0n) digits = value.toString();
   else if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) digits = String(value);
   else if (typeof value === 'string' && /^\d+$/.test(value.trim())) digits = value.trim();
-  else return 'Unavailable';
+  else return t('tx_action_unavailable');
   if (!/[1-9]/.test(digits)) return null;
   // Both the division and the formatter consume decimal strings: Number would round a uint64.
   return `${formatAmount({
@@ -118,10 +119,13 @@ export function ApprovalSummaryCard({
           {/* No eyebrow when the page header already names the action (marketplace screens). */}
           {txAction.label && <p className={principal ? 'mb-2 text-lg leading-6 font-semibold text-gray-900' : 'text-xs text-gray-500 mb-1'}>{txAction.label}</p>}
           {(() => {
-            const { sentence, address, subline } = splitTrailingAddress(txAction.description);
+            const { headline, address, subline } = txAction.presentation ?? (() => {
+              const { sentence, ...rest } = splitTrailingAddress(txAction.description);
+              return { headline: sentence, ...rest };
+            })();
             return (
               <>
-                <p className={`${principal ? 'text-2xl leading-tight tabular-nums' : 'text-lg leading-6'} font-semibold text-gray-900 break-words`}>{sentence}</p>
+                <p className={`${principal ? 'text-2xl leading-tight tabular-nums' : 'text-lg leading-6'} font-semibold text-gray-900 break-words`}>{headline}</p>
                 {subline && <p className="mt-1 text-sm leading-5 text-gray-700 break-words">{subline}</p>}
                 {address && (
                   <p className="mt-2 text-gray-700">

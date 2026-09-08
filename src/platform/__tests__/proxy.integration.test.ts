@@ -191,4 +191,31 @@ describe('Proxy Service Integration', () => {
     setupIntegration();
     await expect(getService().getReview()).rejects.toThrow('unsupported value');
   });
+
+  it('preserves a review diagnostic, original message and public RPC code through Chrome JSON messaging', async () => {
+    const { ProviderError } = await import('@/core/rpcErrors');
+    const { withProviderReviewCode, providerReviewCode } = await import('@/core/providerReviewErrors');
+    const failure = withProviderReviewCode(new ProviderError(4100, 'Original permission evidence'), 'paired_revoked');
+    vi.mocked(mockWalletService.getReview).mockRejectedValue(failure);
+    setupIntegration();
+    const received = await getService().getReview().catch(error => error);
+    expect(received).toBeInstanceOf(ProviderError);
+    expect(received.code).toBe(4100);
+    expect(received.message).toBe('Original permission evidence');
+    expect(providerReviewCode(received)).toBe('paired_revoked');
+    expect(mockWalletService.getReview).toHaveBeenCalledOnce();
+  });
+
+  it('does not turn arbitrary error metadata or English text into a local review diagnostic', async () => {
+    const { providerReviewCode } = await import('@/core/providerReviewErrors');
+    vi.mocked(mockWalletService.getReview).mockRejectedValue(Object.assign(new Error('Wallet is locked'), {
+      reviewCode: '__proto__', code: 4100,
+    }));
+    setupIntegration();
+    const received = await getService().getReview().catch(error => error);
+    expect(received.message).toBe('Wallet is locked');
+    expect(received.code).toBeUndefined();
+    expect(providerReviewCode(received)).toBeUndefined();
+    expect(mockWalletService.getReview).toHaveBeenCalledOnce();
+  });
 });

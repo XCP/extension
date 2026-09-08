@@ -18,8 +18,80 @@ import type { AttachedAssetDestination } from '@/core/counterparty/attachedAsset
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
+import { formatAmount } from '@/core/format';
 
 import { t } from '@/i18n';
+
+/** Known local findings are translated here, after crossing the background/UI language boundary. */
+function safetyWarningText(warning: SecurityWarning): { title: string; description: string } {
+  switch (warning.code) {
+    case 'sweep':
+      return { title: t('safety_blocked_sweep_transaction'), description: t('safety_this_would_send_all_counterparty') };
+    case 'destroy':
+      return { title: t('safety_danger_supply_destruction'), description: t('safety_this_transaction_permanently_destroys_supply') };
+    case 'detach_all':
+      return { title: t('safety_moves_everything_on_the_utxo'), description: t('safety_detaching_transfers_every_asset_attached') };
+    case 'unknown_message_type':
+      return { title: t('safety_unknown_transaction_type'), description: t('safety_unrecognized_message_type', warning.data.messageType) };
+    case 'unrecognized_payload':
+      return { title: t('safety_unrecognized_transaction'), description: t('safety_this_transaction_could_not_be') };
+    case 'inscription_commit':
+      return {
+        title: t('safety_inscription_commit'),
+        description: t('safety_this_funds_an_inscription', [
+          (warning.data.totalSats / 100_000_000).toFixed(8), `${warning.data.address.slice(0, 12)}…`,
+        ]),
+      };
+    case 'misdirected_recovery_key':
+      return {
+        title: t('safety_data_outputs_not_recoverable_by'),
+        description: warning.data.count > 1
+          ? t('safety_data_outputs_embed_a_recovery_key', String(warning.data.count))
+          : t('safety_data_output_embeds_a_recovery_key', String(warning.data.count)),
+      };
+    case 'expected_btc_payment':
+    case 'external_btc_output': {
+      const btcAmount = (warning.data.totalSats / 100_000_000).toFixed(8);
+      const addressList = warning.data.addresses.map(address => `${address.slice(0, 12)}…`).join(', ');
+      if (warning.code === 'expected_btc_payment') {
+        return {
+          title: warning.data.plainBitcoinPayment ? t('safety_bitcoin_payment') : t('safety_btc_payment'),
+          description: warning.data.plainBitcoinPayment
+            ? t('safety_this_sends_btc_matching_the_declared', [btcAmount, addressList])
+            : t('safety_this_sends_btc_which_is_how', [btcAmount, addressList]),
+        };
+      }
+      return {
+        title: t('safety_btc_sent_to_external_address'),
+        description: warning.data.addresses.length === 1
+          ? t('safety_this_transaction_sends_btc_to_an_address', [btcAmount, addressList])
+          : t('safety_this_transaction_sends_btc_to_addresses', [btcAmount, String(warning.data.addresses.length), addressList]),
+      };
+    }
+    case 'counterparty_data_outputs': {
+      const subs = [String(warning.data.count), formatAmount({ value: warning.data.totalSats, maximumFractionDigits: 0 })];
+      return {
+        title: t('safety_counterparty_data_outputs'),
+        description: warning.data.count === 1
+          ? t('safety_output_carries_this_transactions_message', subs)
+          : t('safety_outputs_carry_this_transactions_message', subs),
+      };
+    }
+    case 'unattributable_outputs': {
+      const btcAmount = (warning.data.totalSats / 100_000_000).toFixed(8);
+      return {
+        title: t('safety_btc_sent_to_an_unrecognized_script'),
+        description: warning.data.count === 1
+          ? t('safety_this_transaction_sends_btc_to_an_output', btcAmount)
+          : t('safety_this_transaction_sends_btc_to_outputs', [btcAmount, String(warning.data.count)]),
+      };
+    }
+    default:
+      // Other analyzers and unstructured/API diagnostics keep their original evidence verbatim.
+      return { title: warning.title, description: warning.message };
+  }
+}
+
 export interface ApprovalWarningInput {
   /** Free text actually rendered in the action summary or protocol details. */
   displayedText?: string[];
@@ -53,8 +125,7 @@ export function buildApprovalWarnings({
     key: `safety-${idx}`,
     severity: warning.severity === 'block' ? 'danger' : warning.severity,
     blocking: warning.severity === 'block',
-    title: warning.title,
-    description: warning.message,
+    ...safetyWarningText(warning),
   }));
 
   const renderedText = displayedText.filter((value) => value.length > 0).join('\n');
@@ -140,16 +211,25 @@ export function buildApprovalWarnings({
     }
   }
 
-  // The message's own references to this transaction, where they do not resolve against it. A
-  // Core rejects such a transaction. Signing is blocked because the screen cannot describe what
-  // it claims to do; the finding must lead ahead of unrelated signable cautions.
+  // These local mismatches keep the existing wallet block. Missing attach outputs are invalid in
+  // Core; the legacy UTXO source check is stricter wallet policy, not a Core-invalidity claim.
   for (const [idx, finding] of structureFindings.entries()) {
+    const text = finding.code === 'attach_missing_output'
+      ? {
+          title: t('approval_structure_attach_missing_output_title'),
+          description: finding.data.outputCount === 1
+            ? t('approval_structure_attach_missing_output_one', [String(finding.data.destinationVout), String(finding.data.outputCount)])
+            : t('approval_structure_attach_missing_output_many', [String(finding.data.destinationVout), String(finding.data.outputCount)]),
+        }
+      : {
+          title: t('approval_structure_utxo_source_not_spent_title'),
+          description: t('approval_structure_utxo_source_not_spent_description', [finding.data.source]),
+        };
     warningItems.push({
       key: `structure-${idx}`,
       severity: 'warning',
       blocking: true,
-      title: finding.title,
-      description: finding.message,
+      ...text,
     });
   }
 

@@ -91,7 +91,7 @@ export function MoneyMovementView({
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <span className="text-gray-500">{t('common_network_fee')}</span>
           <span className={`font-medium tabular-nums ${hasHighFee && !deferCautions ? 'text-warning-600' : 'text-gray-900'}`}>
-            {unfunded ? t('approval_money_movement_view_set_by_the_other_party') : incomplete ? 'Unavailable' : `${btc(fee)} BTC`}
+            {unfunded ? t('approval_money_movement_view_set_by_the_other_party') : incomplete ? t('approval_bitcoin_payment_card_unavailable') : `${btc(fee)} BTC`}
           </span>
         </div>
         {/* Outputs that come back to this wallet are not listed: change is routine, and every

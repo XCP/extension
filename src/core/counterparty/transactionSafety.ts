@@ -19,21 +19,25 @@ import { t } from '@/i18n';
 /** Severity of a security warning */
 export type WarningSeverity = 'block' | 'danger' | 'warning' | 'info';
 
-/** Stable identifiers for warnings that another presentation layer may describe more precisely. */
-export type SecurityWarningCode =
-  | 'bitcoin_payment_gate'
-  | 'counterparty_only_gate'
-  | 'detach_all'
-  | 'expected_btc_payment'
-  | 'external_btc_output';
-
-/** A single security warning */
-export interface SecurityWarning {
-  code?: SecurityWarningCode;
+/** Existing fallback text plus facts the foreground can translate after background serialization. */
+interface SecurityWarningText {
   severity: WarningSeverity;
   title: string;
   message: string;
 }
+
+export type SecurityWarning = SecurityWarningText & (
+  | { code?: 'bitcoin_payment_gate' | 'counterparty_only_gate' | 'detach_all' | 'sweep' | 'destroy' | 'unrecognized_payload'; data?: never }
+  | { code: 'unknown_message_type'; data: { messageType: string } }
+  | { code: 'inscription_commit'; data: { totalSats: number; address: string } }
+  | { code: 'misdirected_recovery_key'; data: { count: number } }
+  | { code: 'expected_btc_payment'; data: { totalSats: number; addresses: string[]; plainBitcoinPayment: boolean } }
+  | { code: 'external_btc_output'; data: { totalSats: number; addresses: string[] } }
+  | { code: 'counterparty_data_outputs' | 'unattributable_outputs'; data: { totalSats: number; count: number } }
+);
+
+/** Stable identifiers for warnings that another presentation layer may describe more precisely. */
+export type SecurityWarningCode = Exclude<SecurityWarning['code'], undefined>;
 
 /** Full safety analysis result */
 export interface SafetyAnalysis {
@@ -197,12 +201,14 @@ export function analyzeTransactionSafety(
     if (BLOCKED_MESSAGE_TYPES.has(messageType)) {
       blocked = true;
       warnings.push({
+        code: 'sweep',
         severity: 'block',
         title: t('safety_blocked_sweep_transaction'),
         message: t('safety_this_would_send_all_counterparty'),
       });
     } else if (DANGEROUS_MESSAGE_TYPES.has(messageType)) {
       warnings.push({
+        code: 'destroy',
         severity: 'danger',
         title: t('safety_danger_supply_destruction'),
         message: t('safety_this_transaction_permanently_destroys_supply'),
@@ -219,6 +225,8 @@ export function analyzeTransactionSafety(
       });
     } else if (!SAFE_MESSAGE_TYPES.has(messageType)) {
       warnings.push({
+        code: 'unknown_message_type',
+        data: { messageType },
         severity: 'warning',
         title: t('safety_unknown_transaction_type'),
         message: t('safety_unrecognized_message_type', messageType),
@@ -228,6 +236,7 @@ export function analyzeTransactionSafety(
     // Every check above is keyed on the message type, so a payload that could not be read
     // reaches none of them. Say so rather than presenting it as an ordinary transfer.
     warnings.push({
+      code: 'unrecognized_payload',
       severity: 'warning',
       title: t('safety_unrecognized_transaction'),
       message: t('safety_this_transaction_could_not_be'),
@@ -294,6 +303,8 @@ export function analyzeTransactionSafety(
   if (options.verifiedCommit) {
     const btcAmount = (options.verifiedCommit.value / 100_000_000).toFixed(8);
     warnings.push({
+      code: 'inscription_commit',
+      data: { totalSats: options.verifiedCommit.value, address: options.verifiedCommit.address },
       severity: 'info',
       title: t('safety_inscription_commit'),
       message: t('safety_this_funds_an_inscription', [
@@ -310,6 +321,8 @@ export function analyzeTransactionSafety(
     // exactly what the user asked for, and the dust is bounded — but nobody chooses this
     // knowingly, so it must not pass in silence.
     warnings.push({
+      code: 'misdirected_recovery_key',
+      data: { count: misdirectedRecoveryKeys },
       severity: 'warning',
       title: t('safety_data_outputs_not_recoverable_by'),
       // One and several read differently in every language, so each sentence exists in both
@@ -335,6 +348,7 @@ export function analyzeTransactionSafety(
       expected
         ? {
             code: 'expected_btc_payment',
+            data: { totalSats, addresses, plainBitcoinPayment: Boolean(options.plainBitcoinPayment) },
             // The payment is the transaction, so this is information rather than a warning.
             // The address and amount still need checking, hence the wording.
             severity: 'info',
@@ -345,6 +359,7 @@ export function analyzeTransactionSafety(
           }
         : {
             code: 'external_btc_output',
+            data: { totalSats, addresses },
             severity: 'danger',
             title: t('safety_btc_sent_to_external_address'),
             // One address and several read differently in every language, so each sentence
@@ -367,6 +382,8 @@ export function analyzeTransactionSafety(
       formatAmount({ value: totalSats, maximumFractionDigits: 0 }),
     ];
     warnings.push({
+      code: 'counterparty_data_outputs',
+      data: { totalSats, count: dataOutputs.length },
       severity: 'info',
       title: t('safety_counterparty_data_outputs'),
       // One output and several read differently in every language, so each sentence exists in
@@ -383,6 +400,8 @@ export function analyzeTransactionSafety(
     const count = unattributableOutputs.length;
 
     warnings.push({
+      code: 'unattributable_outputs',
+      data: { totalSats, count },
       severity: 'danger',
       title: t('safety_btc_sent_to_an_unrecognized_script'),
       message: count === 1

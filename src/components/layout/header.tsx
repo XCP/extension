@@ -14,6 +14,7 @@ export function Header({
   rightButton,
   onBack,
 }: HeaderProps): ReactElement {
+  const hasControls = Boolean(onBack || leftButton || rightButton);
 
   /**
    * Handles the click event for the left/back button.
@@ -55,7 +56,7 @@ export function Header({
   return (
     <header className="grid h-16 shrink-0 grid-cols-4 items-center bg-white p-4 shadow-md">
       {/* Left Section */}
-      <div className="col-span-1 flex justify-start">
+      {hasControls && <div className="col-span-1 flex justify-start">
         {onBack ? (
           <Button
             onClick={handleLeftClick}
@@ -72,10 +73,10 @@ export function Header({
         ) : (
           renderButton(leftButton)
         )}
-      </div>
+      </div>}
 
       {/* Center Section */}
-      <div className="col-span-2 flex justify-center items-center min-w-0">
+      <div className={`${hasControls ? 'col-span-2' : 'col-span-4'} flex justify-center items-center min-w-0`}>
         {useLogoTitle ? (
           <img src={typeof logo === 'string' ? logo : (logo as any).src || logo} alt={t('layout_header_logo')} className="h-8" />
         ) : typeof title === 'string' ? (
@@ -86,9 +87,9 @@ export function Header({
       </div>
 
       {/* Right Section */}
-      <div className="col-span-1 flex justify-end">
+      {hasControls && <div className="col-span-1 flex justify-end">
         {renderButton(rightButton)}
-      </div>
+      </div>}
     </header>
   );
 }

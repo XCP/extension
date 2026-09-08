@@ -6899,5 +6899,729 @@
   "swap_form_route_one_order": {
     "message": "$1 order",
     "description": "pages/compose/swap/form.tsx. One resting order matched by the quote route. $1 = localized order count."
+  },
+  "approval_structure_attach_missing_output_title": {
+    "message": "Attaches to an output that does not exist",
+    "description": "Blocking local attach finding: the explicit destination output index does not exist in the transaction."
+  },
+  "approval_structure_attach_missing_output_one": {
+    "message": "This attaches assets to output #$1, but the transaction has $2 output. The attachment cannot take effect as described. If signed and confirmed, the Bitcoin fee would still be paid.",
+    "description": "$1 is the exact zero-based destination output index; $2 is the actual output count (1). Invalid Counterparty attachment does not refund or prevent the Bitcoin fee if signed and confirmed."
+  },
+  "approval_structure_attach_missing_output_many": {
+    "message": "This attaches assets to output #$1, but the transaction has $2 outputs. The attachment cannot take effect as described. If signed and confirmed, the Bitcoin fee would still be paid.",
+    "description": "$1 is the exact zero-based destination output index; $2 is the actual output count (0 or more than 1). Invalid Counterparty attachment does not refund or prevent the Bitcoin fee if signed and confirmed."
+  },
+  "approval_structure_utxo_source_not_spent_title": {
+    "message": "Source UTXO is not spent by this transaction",
+    "description": "Existing wallet signing policy blocks a legacy UTXO message whose named source is not among the transaction's inputs. This title does not claim Core universally rejects that message."
+  },
+  "approval_structure_utxo_source_not_spent_description": {
+    "message": "The message names $1 as its source, but this transaction does not spend that UTXO. Signing is blocked. If signed and confirmed, the Bitcoin fee would still be paid.",
+    "description": "$1 is the complete exact source outpoint (txid:vout), preserved without truncation, case changes or number formatting. Describe observed mismatch and wallet block; do not claim all legacy ID100 messages require spending their source UTXO in Core. Bitcoin fees still apply if a signed transaction confirms."
+  },
+  "approval_blocked": {
+    "message": "Blocked",
+    "description": "Disabled signing button when wallet verification blocks approval; not a blockchain block."
+  },
+  "approval_review": {
+    "message": "Review",
+    "description": "Opens the attention/review step; this button does not sign the transaction."
+  },
+  "common_connect": {
+    "message": "Connect",
+    "description": "Connect the requesting website to the wallet under the displayed permissions."
+  },
+  "provider_review_identity_changed": {
+    "message": "The active address changed after this request was made. Switch back to the authorized address, or reconnect the site.",
+    "description": "Signing identity changed; the authorized address remains bound to the original request."
+  },
+  "provider_review_connection_revoked": {
+    "message": "This site is no longer connected. Reconnect it before signing.",
+    "description": "Ordinary site connection was revoked before signing or delivery."
+  },
+  "provider_review_paired_revoked": {
+    "message": "Paired address access was revoked. Reconnect the site before signing.",
+    "description": "Additional permission for the wallet's paired Legacy/SegWit address was revoked."
+  },
+  "provider_review_wallet_locked": {
+    "message": "Wallet is locked",
+    "description": "Wallet must be unlocked before reviewing/signing this request."
+  },
+  "provider_review_invalid_id": {
+    "message": "Invalid signing request ID",
+    "description": "Invalid internal request identifier, not a transaction ID."
+  },
+  "provider_review_missing_id": {
+    "message": "No signing request ID provided",
+    "description": "Approval URL does not identify a signing request."
+  },
+  "provider_review_wrong_screen": {
+    "message": "This request belongs to a different approval screen",
+    "description": "Request kind does not match this approval route."
+  },
+  "provider_review_load_failed": {
+    "message": "Unable to load signing request",
+    "description": "Fallback for a non-Error failure while retrieving the review; not proof of expiry."
+  },
+  "provider_review_nothing_to_verify": {
+    "message": "No signing request to verify",
+    "description": "No current request scope exists for retry."
+  },
+  "provider_review_not_reviewed": {
+    "message": "No reviewed signing request",
+    "description": "Signing blocked because no valid reviewed request exists."
+  },
+  "provider_review_verifying": {
+    "message": "Verification is in progress. Wait before signing.",
+    "description": "Review refresh is pending; signing remains blocked."
+  },
+  "provider_review_retry_required": {
+    "message": "Retry verification successfully before signing.",
+    "description": "An old review cannot authorize signing after a failed refresh."
+  },
+  "provider_review_cancelled": {
+    "message": "Signing request cancelled",
+    "description": "Signing request cancelled; no authorization remains."
+  },
+  "provider_review_unavailable": {
+    "message": "Signing request not found or no longer pending",
+    "description": "Request lookup confirms no pending request; not merely an API outage."
+  },
+  "provider_review_missing_sighash": {
+    "message": "Missing sighash entry for a requested input",
+    "description": "Requested input has no corresponding sighash policy entry; preserve the technical term."
+  },
+  "provider_review_invalid_message": {
+    "message": "Invalid or reserved message signing request",
+    "description": "Message is invalid or uses the wallet-reserved signing prefix."
+  },
+  "provider_review_expired_during_review": {
+    "message": "Signing request expired during review",
+    "description": "The request expired while its review was being prepared."
+  },
+  "provider_review_invalid_decision": {
+    "message": "Invalid signing decision",
+    "description": "Malformed decision envelope; does not authorize signing."
+  },
+  "provider_review_verification_failed": {
+    "message": "This request did not pass transaction verification",
+    "description": "Wallet transaction verification blocks signing."
+  },
+  "provider_review_review_changed": {
+    "message": "The transaction review changed. Reload this approval and review it again.",
+    "description": "The reviewed facts changed. Require a new review; never silently approve new facts."
+  },
+  "provider_review_acknowledge_risks": {
+    "message": "Review and acknowledge the transaction risks before signing",
+    "description": "Existing second confirmation requires the user to review and acknowledge risks before signing."
+  },
+  "provider_review_missing_attachment": {
+    "message": "Missing attachment parent",
+    "description": "A transaction bundle is missing the required parent attachment transaction."
+  },
+  "provider_review_interrupted": {
+    "message": "Signing request was cancelled or expired",
+    "description": "Signing request was cancelled or expired while execution was outstanding."
+  },
+  "provider_review_expired_completion": {
+    "message": "Signing request expired before completion",
+    "description": "Request expiry prevented completion; no promise about transaction broadcast."
+  },
+  "provider_review_expired_delivery": {
+    "message": "Signing request expired before delivery",
+    "description": "Signature delivery was refused because the request had expired."
+  },
+  "composer_verification_fee_inputs_unavailable": {
+    "message": "Could not establish this transaction's fee: the values of the inputs it spends could not be fetched. Check your connection and try again.",
+    "description": "Independent input-value lookup failed; fee could not be verified. This does not trust the compose response's own input values."
+  },
+  "composer_verification_fee_inputs_unreadable": {
+    "message": "Could not establish this transaction's fee: its inputs could not be read, so it was not accepted.",
+    "description": "Transaction inputs could not be read, so the fee check rejects the transaction."
+  },
+  "composer_verification_fee_outputs_exceed_inputs": {
+    "message": "Transaction outputs exceed inputs — refusing to sign.",
+    "description": "Total output value exceeds independently resolved input value; signing is refused."
+  },
+  "composer_verification_fee_out_of_range": {
+    "message": "Transaction fee is out of range — refusing to sign.",
+    "description": "Miner fee is outside the exact integer range supported by the verifier; signing is refused."
+  },
+  "composer_verification_fee_abnormally_high": {
+    "message": "Transaction fee ($1 sats, ~$2 sat/vB) is abnormally high and was blocked.",
+    "description": "Fee exceeds the verifier's absolute rate limit. $1 is exact fee in sats; $2 is the existing rounded-down approximate rate in sat/vB. Keep units and approximation."
+  },
+  "composer_verification_fee_exceeds_selected_rate": {
+    "message": "Transaction fee ($1 sats) far exceeds your selected rate of $2 sat/vB.",
+    "description": "$1 is the exact miner fee in sats, $2 the selected rate in sat/vB. The transaction exceeds the existing tolerance, not merely the selected nominal fee."
+  },
+  "composer_verification_output_recovery_key_mismatch": {
+    "message": "The composed transaction embeds a recovery key that is not yours in its data outputs, so their dust would be spendable by someone else.",
+    "description": "Counterparty bare-multisig data output embeds a substituted public recovery key; its small BTC dust amount would be spendable by someone else. This is not a recovery phrase."
+  },
+  "composer_verification_output_recipient_missing": {
+    "message": "This transaction does not pay $1 ahead of its data output, so the network would not read it as the recipient. It was not accepted.",
+    "description": "No destination output precedes Counterparty data. $1 is the exact intended ownership-transfer recipient address, not an amount or translated label."
+  },
+  "composer_verification_output_recipient_single": {
+    "message": "The output before this transaction's data ($1) does not identify $2 as the recipient. It was not accepted.",
+    "description": "Exactly one output precedes Counterparty data but it does not match the intended recipient. $1 is the output's exact amount/address description; $2 is the intended address. Do not claim multiple outputs in this branch."
+  },
+  "composer_verification_output_recipient_multiple": {
+    "message": "The outputs before this transaction's data ($1) would be read as a combined recipient instead of $2. It was not accepted.",
+    "description": "Multiple destination outputs before Counterparty data are joined by the parser. $1 is the complete list of exact amount/address descriptions; $2 is the intended recipient address."
+  },
+  "composer_verification_output_unexplained_one": {
+    "message": "This transaction pays an output your request does not account for ($1), so it was not accepted.",
+    "description": "$1 describes the exact amount and address of one output the user's request does not account for. Do not imply this is always an unknown address; it can be a named address paid the wrong amount."
+  },
+  "composer_verification_output_unexplained_many": {
+    "message": "This transaction pays outputs your request does not account for ($1), so it was not accepted.",
+    "description": "$1 is the full list of exact amounts and addresses of multiple outputs the request does not account for."
+  },
+  "composer_verification_output_payment": {
+    "message": "$1 sats to $2",
+    "description": "One output in a diagnostic list. $1 is its exact integer satoshi value; $2 is the original address or a localized undecodable-script/address fallback. Do not convert BTC units or address text."
+  },
+  "composer_verification_output_unknown_script": {
+    "message": "an undecodable script",
+    "description": "Fallback in a positional output diagnostic when its script cannot be decoded as an address."
+  },
+  "composer_verification_output_unknown_address": {
+    "message": "an address that could not be decoded",
+    "description": "Fallback in an unexplained output diagnostic when an address could not be decoded."
+  },
+  "approval_sign": {
+    "message": "Sign",
+    "description": "Generic signing action in the shared approval footer."
+  },
+  "tx_action_send": {
+    "message": "Send",
+    "description": "Counterparty approval send. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_multi_send": {
+    "message": "Multi-Send",
+    "description": "Counterparty approval multi send. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_btc_pay": {
+    "message": "BTC Pay",
+    "description": "Counterparty approval btc pay. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_order": {
+    "message": "Order",
+    "description": "Counterparty approval order. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_cancel": {
+    "message": "Cancel",
+    "description": "Counterparty approval cancel. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_dispenser": {
+    "message": "Dispenser",
+    "description": "Counterparty approval dispenser. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_dispense": {
+    "message": "Dispense",
+    "description": "Counterparty approval dispense. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_issuance": {
+    "message": "Issuance",
+    "description": "Counterparty approval issuance. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_subasset_issuance": {
+    "message": "Subasset Issuance",
+    "description": "Counterparty approval subasset issuance. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_dividend": {
+    "message": "Dividend",
+    "description": "Counterparty approval dividend. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_sweep": {
+    "message": "Sweep",
+    "description": "Counterparty approval sweep. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_broadcast": {
+    "message": "Broadcast",
+    "description": "Counterparty approval broadcast. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_pool_deposit": {
+    "message": "Pool Deposit",
+    "description": "Counterparty approval pool deposit. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_pool_withdrawal": {
+    "message": "Pool Withdrawal",
+    "description": "Counterparty approval pool withdrawal. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_utxo_move": {
+    "message": "UTXO Move",
+    "description": "Counterparty approval utxo move. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_attach": {
+    "message": "Attach",
+    "description": "Counterparty approval attach. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_detach": {
+    "message": "Detach",
+    "description": "Counterparty approval detach. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_destroy": {
+    "message": "Destroy",
+    "description": "Counterparty approval destroy. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_mint": {
+    "message": "Mint",
+    "description": "Counterparty approval mint. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_create_fairminter": {
+    "message": "Create fairminter",
+    "description": "Counterparty approval create fairminter. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_close_dispenser": {
+    "message": "Close dispenser",
+    "description": "Counterparty approval close dispenser. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_fund_dispenser": {
+    "message": "Fund dispenser",
+    "description": "Counterparty approval fund dispenser. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_send_amount": {
+    "message": "Send $1 $2",
+    "description": "Counterparty approval send amount. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_send_amount_to": {
+    "message": "Send $1 $2 to $3",
+    "description": "Counterparty approval send amount to. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_send_one_recipient": {
+    "message": "Send to $1 recipient",
+    "description": "Counterparty approval send one recipient. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_send_recipients": {
+    "message": "Send to $1 recipients",
+    "description": "Counterparty approval send recipients. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_give_for": {
+    "message": "Give $1 $2 for $3 $4",
+    "description": "Counterparty approval give for. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_cancel_order_details": {
+    "message": "Cancel order: $1",
+    "description": "Counterparty approval cancel order details. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_cancel_dex_order": {
+    "message": "Cancel a DEX order",
+    "description": "Counterparty approval cancel dex order. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_sell_for": {
+    "message": "sell $1 $2 for $3 $4",
+    "description": "Counterparty approval sell for. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_close_asset_dispenser": {
+    "message": "Close the $1 dispenser",
+    "description": "Counterparty approval close asset dispenser. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_dispense_rate": {
+    "message": "$1 $2 per $3 sats",
+    "description": "Counterparty approval dispense rate. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_trigger_dispenser": {
+    "message": "Trigger a dispenser",
+    "description": "Counterparty approval trigger dispenser. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_issue_amount": {
+    "message": "Issue $1",
+    "description": "Counterparty approval issue amount. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_no_new_supply": {
+    "message": "No new supply",
+    "description": "Counterparty approval no new supply. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_per_unit": {
+    "message": "$1 $2 per unit",
+    "description": "Dividend payment rate: $1 is the exact payment quantity, $2 is the payment asset; per unit refers to each unit of the held asset, not each holder. No aggregate payout is inferred."
+  },
+  "tx_action_all_holders": {
+    "message": "All $1 holders",
+    "description": "Dividend headline names the held asset ($1). Exact eligibility and payout are determined by Counterparty Core; do not infer an aggregate from this label."
+  },
+  "tx_action_settle_btc": {
+    "message": "Pay BTC to settle a matched order",
+    "description": "Counterparty approval settle btc. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_sweep_to": {
+    "message": "Sweep to $1",
+    "description": "Counterparty approval sweep to. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_empty_message": {
+    "message": "an empty message",
+    "description": "Counterparty approval empty message. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_destroy_lp": {
+    "message": "Destroy $1 LP Tokens",
+    "description": "Counterparty approval destroy lp. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_withdraw_liquidity": {
+    "message": "Withdraw liquidity",
+    "description": "Counterparty approval withdraw liquidity. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_deposit_liquidity": {
+    "message": "Deposit liquidity",
+    "description": "Counterparty approval deposit liquidity. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_attach_amount": {
+    "message": "Attach $1 $2",
+    "description": "Counterparty approval attach amount. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_detach_all": {
+    "message": "Detach all assets from UTXO",
+    "description": "Counterparty approval detach all. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_detach_all_to": {
+    "message": "Detach all assets from UTXO to $1",
+    "description": "Counterparty approval detach all to. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_move_amount": {
+    "message": "Move $1 $2",
+    "description": "Counterparty approval move amount. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_move_amount_to": {
+    "message": "Move $1 $2 to $3",
+    "description": "Counterparty approval move amount to. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_destroy_amount": {
+    "message": "Destroy $1 $2",
+    "description": "Counterparty approval destroy amount. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_base_units": {
+    "message": "$1 (base units)",
+    "description": "Unknown asset divisibility: $1 is the exact raw integer count in base units, not an assumed display quantity. Do not imply that the asset is indivisible."
+  },
+  "tx_action_memo": {
+    "message": "Memo",
+    "description": "Counterparty approval memo. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_tag": {
+    "message": "Tag",
+    "description": "Counterparty approval tag. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_hex_label": {
+    "message": "$1 (hex)",
+    "description": "Counterparty approval hex label. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_price": {
+    "message": "Price",
+    "description": "Counterparty approval price. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_btc_fee": {
+    "message": "BTC fee",
+    "description": "Counterparty approval btc fee. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_expiry": {
+    "message": "Expiry",
+    "description": "Counterparty approval expiry. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_blocks": {
+    "message": "$1 blocks",
+    "description": "Counterparty approval blocks. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_block": {
+    "message": "$1 block",
+    "description": "Counterparty approval block. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_escrow": {
+    "message": "Escrow",
+    "description": "Counterparty approval escrow. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_per_dispense": {
+    "message": "Per dispense",
+    "description": "Counterparty approval per dispense. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_dispenses": {
+    "message": "Dispenses",
+    "description": "Counterparty approval dispenses. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_you_receive": {
+    "message": "You receive",
+    "description": "Counterparty approval you receive. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_xcp_price_per_lot": {
+    "message": "XCP price per lot",
+    "description": "Counterparty approval xcp price per lot. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_lot_size": {
+    "message": "Lot size",
+    "description": "Counterparty approval lot size. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_no_limit": {
+    "message": "No limit",
+    "description": "Counterparty approval no limit. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_per_transaction_limit": {
+    "message": "Per transaction limit",
+    "description": "Counterparty approval per transaction limit. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_per_address_limit": {
+    "message": "Per address limit",
+    "description": "Counterparty approval per address limit. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_hard_cap": {
+    "message": "Hard cap",
+    "description": "Fairminter maximum asset issuance quantity, in the minted asset; not an XCP fundraising target."
+  },
+  "tx_action_soft_cap": {
+    "message": "Soft cap",
+    "description": "Minimum minted asset quantity required by the fairminter deadline, in the minted asset; not an XCP amount."
+  },
+  "tx_action_soft_cap_deadline": {
+    "message": "Soft cap deadline",
+    "description": "Counterparty approval soft cap deadline. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_block_height": {
+    "message": "Block $1",
+    "description": "Counterparty approval block height. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_premint": {
+    "message": "Premint",
+    "description": "Counterparty approval premint. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_pool_allocation": {
+    "message": "Pool allocation",
+    "description": "Counterparty approval pool allocation. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_lp_asset": {
+    "message": "LP asset",
+    "description": "Counterparty approval lp asset. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_xcp_payment": {
+    "message": "XCP payment",
+    "description": "Counterparty approval xcp payment. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_free_mint": {
+    "message": "None (free mint)",
+    "description": "Counterparty approval free mint. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_burned": {
+    "message": "Burned",
+    "description": "Counterparty approval burned. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_seeds_pool": {
+    "message": "Seeds the liquidity pool",
+    "description": "Fairmint XCP payment funds initial pool liquidity. May be escrowed pending fairminter completion; does not promise an immediate pool or withdrawable LP."
+  },
+  "tx_action_paid_to_issuer": {
+    "message": "Paid to issuer",
+    "description": "Counterparty approval paid to issuer. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_starts": {
+    "message": "Starts",
+    "description": "Counterparty approval starts. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_ends": {
+    "message": "Ends",
+    "description": "Counterparty approval ends. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_on_confirmation": {
+    "message": "On confirmation",
+    "description": "Counterparty approval on confirmation. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_no_end_block": {
+    "message": "No end block",
+    "description": "Counterparty approval no end block. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_minted_asset_commission": {
+    "message": "Minted asset commission",
+    "description": "Counterparty approval minted asset commission. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_divisible": {
+    "message": "Divisible",
+    "description": "Counterparty approval divisible. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_yes": {
+    "message": "Yes",
+    "description": "Counterparty approval yes. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_no": {
+    "message": "No",
+    "description": "Counterparty approval no. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_lock_description": {
+    "message": "Lock description",
+    "description": "Counterparty approval lock description. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_lock_quantity": {
+    "message": "Lock quantity",
+    "description": "Counterparty approval lock quantity. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_description_format": {
+    "message": "Description format",
+    "description": "Counterparty approval description format. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_description_content": {
+    "message": "Description content",
+    "description": "Counterparty approval description content. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_description": {
+    "message": "Description",
+    "description": "Counterparty approval description. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_xcp_burned": {
+    "message": "XCP burned",
+    "description": "Counterparty approval xcp burned. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_xcp_to_pool": {
+    "message": "XCP to pool",
+    "description": "Counterparty approval xcp to pool. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_xcp_price": {
+    "message": "XCP price",
+    "description": "Counterparty approval xcp price. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_lock": {
+    "message": "Lock",
+    "description": "Counterparty approval lock. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_reset": {
+    "message": "Reset",
+    "description": "Counterparty approval reset. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_lock_consequence": {
+    "message": "Yes - supply can never be increased again",
+    "description": "Issuance supply lock: future supply increases are permanently prohibited. Does not freeze balances, transfers or pool reserves."
+  },
+  "tx_action_reset_consequence": {
+    "message": "Yes - existing supply is destroyed and replaced",
+    "description": "Issuance reset flag: existing supply is destroyed and replaced. Preserve both irreversible consequences."
+  },
+  "tx_action_new_owner": {
+    "message": "New owner",
+    "description": "Counterparty approval new owner. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_supply_before": {
+    "message": "Supply before",
+    "description": "Counterparty approval supply before. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_supply_after": {
+    "message": "Supply after",
+    "description": "Counterparty approval supply after. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_share_destroyed": {
+    "message": "Share destroyed",
+    "description": "Counterparty approval share destroyed. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_includes": {
+    "message": "Includes",
+    "description": "Counterparty approval includes. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_sweep_balances_ownership": {
+    "message": "All balances and asset ownership",
+    "description": "Sweep includes all balances and the source address's asset issuer ownership rights, as selected by the decoded flags."
+  },
+  "tx_action_sweep_ownership": {
+    "message": "Asset ownership only",
+    "description": "Counterparty approval sweep ownership. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_sweep_balances": {
+    "message": "All balances",
+    "description": "Counterparty approval sweep balances. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_format": {
+    "message": "Format",
+    "description": "Counterparty approval format. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_plain_text": {
+    "message": "Plain text",
+    "description": "Counterparty approval plain text. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_content": {
+    "message": "Content",
+    "description": "Counterparty approval content. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_inscribed_data": {
+    "message": "Inscribed - this broadcast carries data, not a message",
+    "description": "Counterparty approval inscribed data. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_value": {
+    "message": "Value",
+    "description": "Counterparty approval value. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_fee_fraction": {
+    "message": "Fee fraction",
+    "description": "Counterparty approval fee fraction. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_time_left": {
+    "message": "Time left",
+    "description": "Counterparty approval time left. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_payment_expired": {
+    "message": "Expired - this payment will not settle the match",
+    "description": "Counterparty approval payment expired. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_order_match": {
+    "message": "Order match",
+    "description": "Counterparty approval order match. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_order_hash": {
+    "message": "Order hash",
+    "description": "Counterparty approval order hash. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_deposit": {
+    "message": "Deposit",
+    "description": "Counterparty approval deposit. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_ratio": {
+    "message": "Ratio",
+    "description": "Counterparty approval ratio. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_pool": {
+    "message": "Pool",
+    "description": "Counterparty approval pool. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_pool_fee": {
+    "message": "Pool fee",
+    "description": "Counterparty approval pool fee. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_min_lp_received": {
+    "message": "Min LP received",
+    "description": "Counterparty approval min lp received. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_min_asset_back": {
+    "message": "Min $1 back",
+    "description": "Counterparty approval min asset back. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged. Keep every numbered placeholder; reorder for natural grammar."
+  },
+  "tx_action_xcp_fee": {
+    "message": "XCP fee",
+    "description": "Counterparty approval xcp fee. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_new_utxo": {
+    "message": "New UTXO",
+    "description": "Counterparty approval new utxo. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_detached": {
+    "message": "Detached",
+    "description": "Counterparty approval detached. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_from_utxo": {
+    "message": "From UTXO",
+    "description": "Counterparty approval from utxo. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_to": {
+    "message": "To",
+    "description": "Counterparty approval to. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  },
+  "tx_action_unavailable": {
+    "message": "Unavailable",
+    "description": "Protocol fee is present but cannot be represented safely; do not display zero or an estimated fee."
+  },
+  "swap_quote_outcome_partial": {
+    "message": "Not enough order-book liquidity to fill this amount right now. Try a smaller amount, or place a DEX order to rest on the book.",
+    "description": "Book-only quote with positive output and positive unfilled input. Preserve the distinction from pool input refunded because the output is rounded down. Source: counterparty-core 67e10db3ee266068c1effc4e83653df39ace5ca8, lib/api/queries.py get_pool_quote and lib/ledger/markets.py compute_pool_fill. UI-only translation of existing readSwapQuoteOutcome classification; no execution or quantity changes."
+  },
+  "swap_quote_outcome_dust": {
+    "message": "This amount is too small to swap: it works out to less than the smallest unit of $1, so the pool would return nothing. Try a larger amount of $2.",
+    "description": "Known existing pool, zero output: input is too small to buy one smallest integer unit of the receive asset. $1 is the receive asset identifier; $2 is the give asset identifier. Keep both unchanged. This is asset indivisibility/rounding, not Bitcoin UTXO dust policy. Source: counterparty-core 67e10db3ee266068c1effc4e83653df39ace5ca8, lib/ledger/markets.py compute_pool_output/compute_pool_fill and lib/api/queries.py get_pool_quote."
+  },
+  "swap_quote_outcome_no_liquidity": {
+    "message": "No liquidity available for this pair.",
+    "description": "Existing no_pool outcome when a quote has no positive output and pool existence is not confirmed. Do not guess that increasing or decreasing the amount will help. Any message supplied by the API retains precedence in the form; this is only the existing local fallback."
   }
 }

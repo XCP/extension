@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { useWallet } from '@/contexts/wallet-context';
-import { getIdentityMismatchError } from '@/platform/provider/requestIdentity';
+import { ProviderReviewError } from '@/core/providerReviewErrors';
+import { useLocaleRevision } from '@/i18n/use-locale';
+import { getIdentityMismatchCode } from '@/platform/provider/requestIdentity';
 import { getProviderSigningService, type ProviderSigningReview } from '@/services/providerSigningService';
 
 /** The popup reads a background review and sends only its bound decision. */
 export function useProviderSigningRequest<K extends ProviderSigningReview['kind']>(kind: K) {
+  useLocaleRevision();
   const [searchParams] = useSearchParams();
   const requestId = searchParams.get('requestId');
   const { activeAddress, activeWallet, isLoading: walletLoading } = useWallet();
@@ -22,8 +26,8 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
   const [loaded, setLoaded] = useState<{
     requestId: string; kind: K;
     review: Review | null;
-    error: string | null;
-    refreshError: string | null;
+    error: Error | null;
+    refreshError: Error | null;
     pending: boolean;
     retrying: boolean;
   } | null>(null);
@@ -34,13 +38,15 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
   // Policy is still checked in the background at execution. This guard also keeps
   // an already loaded review from being labelled or calculated for a different wallet.
   const identityError = loadedReview && !walletLoading
-    ? getIdentityMismatchError(loadedReview.request, activeAddress?.address, activeWallet?.id)
+    ? getIdentityMismatchCode(loadedReview.request, activeAddress?.address, activeWallet?.id)
     : null;
   const review = walletLoading || identityError ? null : loadedReview;
   const isLoading = !!requestId && (walletLoading || !current || (current.pending && !current.review));
   const isRefreshing = current?.pending === true && current.retrying;
-  const error = requestId ? identityError ?? current?.error ?? null : 'No signing request ID provided';
-  const refreshError = current?.refreshError ?? null;
+  const failure = requestId ? (identityError ? new ProviderReviewError(identityError) : current?.error ?? null)
+    : new ProviderReviewError('missing_id');
+  const error = failure ? providerReviewErrorMessage(failure) : null;
+  const refreshError = current?.refreshError ? providerReviewErrorMessage(current.refreshError) : null;
 
   const loadReview = useCallback(async (scope: LoadScope, retrying: boolean) => {
     // Invalidate approval synchronously, before React paints the disabled button.
@@ -55,7 +61,7 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
       // Re-run background verification. Failed evidence lookups are retried; successful
       // ledger, block-height and fee facts retain their existing short-lived caches.
       const result = await getProviderSigningService().getReview(scope.requestId);
-      if (result.kind !== scope.kind) throw new Error('This request belongs to a different approval screen');
+      if (result.kind !== scope.kind) throw new ProviderReviewError('wrong_screen');
       if (scope.cancelled || scopeRef.current !== scope) return;
       scope.pending = false;
       scope.reviewKey = result.reviewKey;
@@ -64,7 +70,7 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
     } catch (failure) {
       if (scope.cancelled || scopeRef.current !== scope) return;
       scope.pending = false;
-      const message = failure instanceof Error ? failure.message : 'Unable to load signing request';
+      const message = failure instanceof Error ? failure : new ProviderReviewError('load_failed');
       setLoaded(previous => {
         const previousReview = previous?.requestId === scope.requestId && previous.kind === scope.kind
           ? previous.review : null;
@@ -91,7 +97,7 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
   const handleRetry = useCallback(async () => {
     const scope = scopeRef.current;
     if (!scope || scope.cancelled || scope.requestId !== requestId || scope.kind !== kind) {
-      throw new Error('No signing request to verify');
+      throw new ProviderReviewError('nothing_to_verify');
     }
     if (scope.pending) return scope.operation;
     scope.operation = loadReview(scope, true);
@@ -99,13 +105,13 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
   }, [requestId, kind, loadReview]);
 
   const handleApprove = useCallback(async (risksAcknowledged = false) => {
-    if (identityError) throw new Error(identityError);
-    if (!requestId || !review) throw new Error('No reviewed signing request');
+    if (identityError) throw new ProviderReviewError(identityError);
+    if (!requestId || !review) throw new ProviderReviewError('not_reviewed');
     const scope = scopeRef.current;
-    if (scope?.pending) throw new Error('Verification is in progress. Wait before signing.');
+    if (scope?.pending) throw new ProviderReviewError('verifying');
     if (!scope || scope.cancelled || scope.requestId !== requestId || scope.kind !== kind
       || scope.reviewKey !== review.reviewKey) {
-      throw new Error('Retry verification successfully before signing.');
+      throw new ProviderReviewError('retry_required');
     }
     await getProviderSigningService().approveAndSign(requestId, {
       reviewKey: review.reviewKey, risksAcknowledged,
@@ -120,7 +126,7 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
     scope.cancelled = true;
     scope.pending = false;
     scope.reviewKey = null;
-    setLoaded({ requestId, kind, review: null, error: 'Signing request cancelled',
+    setLoaded({ requestId, kind, review: null, error: new ProviderReviewError('cancelled'),
       refreshError: null, pending: false, retrying: false });
   }, [requestId, kind]);
 

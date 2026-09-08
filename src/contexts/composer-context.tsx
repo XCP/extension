@@ -82,7 +82,9 @@ import { extractCounterpartyPayload } from "@/core/counterparty/unpack/opReturn"
 import { verifyTransaction } from "@/core/counterparty/unpack/verify";
 import { fromSatoshis } from '@/core/numeric';
 import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
+import { ComposeVerificationError } from '@/core/validation/compose-verification-error';
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 
 /**
@@ -99,6 +101,11 @@ const STALE_TRANSACTION_MS = 5 * 60 * 1000;
  * are listed because both are provably unspendable.
  */
 const BURN_ADDRESSES = ['1CounterpartyXXXXXXXXXXXXXXXUWLpVr', 'mvCounterpartyXXXXXXXXXXXXXXW24Hef'];
+
+/** Keep structured local failures until render, so a language change cannot stale the diagnostic. */
+type InternalComposerState<T> = Omit<ComposerState<T>, 'error'> & {
+  error: string | ComposeVerificationError | null;
+};
 
 /**
  * Every Bitcoin address named anywhere in the request, regardless of field. The property being
@@ -168,6 +175,7 @@ export function ComposerProvider<T>({
   composeApi,
   initialTitle,
 }: ComposerProviderProps<T>): ReactElement {
+  useLocaleRevision();
   const navigate = useNavigate();
   const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress } = useWallet();
   const { settings } = useSettings();
@@ -182,7 +190,7 @@ export function ComposerProvider<T>({
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Initialize state
-  const [state, setState] = useState<ComposerState<T>>(freshComposerState);
+  const [state, setState] = useState<InternalComposerState<T>>(freshComposerState);
 
 
   // Help text state (can be toggled locally)
@@ -384,7 +392,10 @@ export function ComposerProvider<T>({
         userFeeRate: dataForApi.sat_per_vbyte ?? null,
       }, fetchInputValues);
       if (!feeCheck.ok) {
-        throw new Error(feeCheck.error || t('composer_context_transaction_fee_verification_failed'));
+        throw new ComposeVerificationError(
+          feeCheck.error || t('composer_context_transaction_fee_verification_failed'),
+          feeCheck.diagnostic,
+        );
       }
 
       // Show the fee computed from the transaction's own inputs and outputs, not `btc_fee` as the
@@ -469,7 +480,10 @@ export function ComposerProvider<T>({
             : undefined,
         });
         if (!outputCheck.ok) {
-          throw new Error(outputCheck.error || t('composer_context_transaction_pays_outputs_your_request'));
+          throw new ComposeVerificationError(
+            outputCheck.error || t('composer_context_transaction_pays_outputs_your_request'),
+            outputCheck.diagnostic,
+          );
         }
       }
 
@@ -521,7 +535,7 @@ export function ComposerProvider<T>({
 
       setState(prev => ({
         ...prev,
-        error: errorMessage,
+        error: error instanceof ComposeVerificationError ? error : errorMessage,
         isComposing: false,
       }));
     }
@@ -697,7 +711,7 @@ export function ComposerProvider<T>({
 
       setState(prev => ({
         ...prev,
-        error: errorMessage,
+        error: error instanceof ComposeVerificationError ? error : errorMessage,
         isSigning: false,
       }));
     }
@@ -730,8 +744,15 @@ export function ComposerProvider<T>({
     setState(prev => ({ ...prev, error: null }));
   }, []);
 
+  const displayedError = state.error instanceof ComposeVerificationError
+    ? transactionErrorMessage(state.error) ?? state.error.message
+    : state.error;
+
   const contextValue = useMemo(() => ({
-    state,
+    state: {
+      ...state,
+      error: displayedError,
+    },
     composeTransaction,
     signAndBroadcast,
     goBack,
@@ -746,6 +767,7 @@ export function ComposerProvider<T>({
     settings,
   }), [
     state,
+    displayedError,
     composeTransaction,
     signAndBroadcast,
     goBack,

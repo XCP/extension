@@ -6,6 +6,7 @@ import {
   ApprovalLoading,
   ApprovalNoWallet,
 } from "@/components/domain/approval/approval-chrome";
+import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { WarningStack } from "@/components/ui/warning-stack";
 import { useHeader } from "@/contexts/header-context";
@@ -13,7 +14,6 @@ import { useWallet } from "@/contexts/wallet-context";
 import { getMessageSigningRisks } from "@/core/bitcoin/messageRisk";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import { useSignMessageRequest } from "@/hooks/useSignMessageRequest";
-
 import { t } from '@/i18n';
 export default function ApproveMessagePage() {
   const { activeAddress, activeWallet } = useWallet();
@@ -30,7 +30,8 @@ export default function ApproveMessagePage() {
   const signingRisks = getMessageSigningRisks(request?.message ?? "");
 
   const [isSigning, setIsSigning] = useState(false);
-  const [error, setError] = useState<string>("");
+  const [signingError, setError] = useState<unknown>(null);
+  const error = signingError ? providerReviewErrorMessage(signingError) : '';
 
   // Configure header
   useEffect(() => {
@@ -47,7 +48,7 @@ export default function ApproveMessagePage() {
       await handleApprove(false);
       window.close();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : t('common_failed_to_sign_request'));
+      setError(failure instanceof Error ? failure : {});
       setIsSigning(false);
     }
   };

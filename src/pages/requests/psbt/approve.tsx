@@ -22,6 +22,7 @@ import { CounterpartyDetailsCard } from "@/components/domain/approval/counterpar
 import { MarketplaceReviewCard } from "@/components/domain/approval/marketplace-review-card";
 import { computeMoneyMovement } from "@/components/domain/approval/money-movement";
 import { buildOrderAction } from "@/components/domain/approval/order-card";
+import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { describePsbtFlexibility } from "@/components/domain/approval/psbt-flexibility";
 import { attachDestinationVout, getTxActionInfo } from "@/components/domain/tx/tx-action-info";
 import { Collapsible } from "@/components/ui/collapsible";
@@ -39,7 +40,6 @@ import { formatAddress, formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import { useSignPsbtRequest } from "@/hooks/useSignPsbtRequest";
-
 import { t } from '@/i18n';
 
 function formatSighashType(sighashType: number): string {
@@ -76,7 +76,8 @@ export default function ApprovePsbtPage() {
   usePopupLifecycle(requestId, "sign-psbt");
 
   const [isSigning, setIsSigning] = useState(false);
-  const [error, setError] = useState<string>("");
+  const [signingError, setError] = useState<unknown>(null);
+  const error = signingError ? providerReviewErrorMessage(signingError) : '';
   const [showAttention, setShowAttention] = useState(false);
   const listingContext =
     request?.marketplaceIntent?.action === "create_listing"
@@ -117,7 +118,7 @@ export default function ApprovePsbtPage() {
       await handleApprove(showAttention);
       window.close();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : t('common_failed_to_sign_request'));
+      setError(failure instanceof Error ? failure : {});
       setIsSigning(false);
     }
   };
@@ -429,12 +430,12 @@ export default function ApprovePsbtPage() {
           busy={isSigning}
           blocked={blockSigning || isRefreshing || Boolean(refreshError)}
           blockedLabel={
-            retryAvailable || isRefreshing || refreshError ? t('common_awaiting_verification') : "Blocked"
+            retryAvailable || isRefreshing || refreshError ? t('common_awaiting_verification') : t('approval_blocked')
           }
           isHardware={activeWallet.type === "hardware"}
           signLabel={
             requiresAttention
-              ? "Review"
+              ? t('approval_review')
               : marketplaceReview?.family === "create_listing"
                 ? confirmLabel
                 : marketplaceReview?.family === "prepare_asset"

@@ -1,6 +1,7 @@
 import { type ReactElement, type ReactNode, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { swapQuoteOutcomeMessage } from '@/components/composer/swap-quote-message';
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
@@ -14,7 +15,6 @@ import type { PoolQuote } from "@/core/counterparty/api";
 import type { OrderOptions } from "@/core/counterparty/compose";
 import {
   applyPoolSlippage,
-  describeSwapQuoteOutcome,
   readSwapQuoteOutcome,
   resolvePoolSlippage,
 } from "@/core/counterparty/pool";
@@ -166,7 +166,7 @@ export function SwapForm({
   // is too small for this pool" alike, and those want opposite advice.
   const outcome = readSwapQuoteOutcome(quote);
   const outcomeMessage = quote && !isLoadingQuote
-    ? describeSwapQuoteOutcome(outcome, { giveAsset, getAsset })
+    ? swapQuoteOutcomeMessage(outcome, { giveAsset, getAsset })
     : null;
   const unfilled = outcome === "partial";
 

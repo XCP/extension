@@ -344,7 +344,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
             disabled={isProcessing || approvalLoading || Boolean(approvalError) || pairedAddressesPending}
             fullWidth
           >
-            {isProcessing ? t('connect_approve_processing') : approvalLoading ? t('connect_approve_loading_request') : pairedAddressesPending ? t('connect_approve_loading_addresses') : approvalError ? "Unavailable" : showPairedConsent ? t('connect_approve_connect_both') : "Connect"}
+            {isProcessing ? t('connect_approve_processing') : approvalLoading ? t('connect_approve_loading_request') : pairedAddressesPending ? t('connect_approve_loading_addresses') : approvalError ? t('approval_bitcoin_payment_card_unavailable') : showPairedConsent ? t('connect_approve_connect_both') : t('common_connect')}
           </Button>
         </div>
       </div>

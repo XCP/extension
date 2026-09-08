@@ -99,9 +99,17 @@ export interface UnexplainedOutput {
   value: number;
 }
 
+/** Values are the same exact satoshi amounts and addresses used by the policy, never display units. */
+export type OutputPolicyDiagnostic =
+  | { code: 'output_recovery_key_mismatch' }
+  | { code: 'output_recipient_missing'; data: { expected: string } }
+  | { code: 'output_recipient_position'; data: { expected: string; preceding: Array<{ address: string | null; value: number }> } }
+  | { code: 'output_unexplained'; data: { outputs: UnexplainedOutput[] } };
+
 export interface OutputPolicyResult {
   ok: boolean;
   error?: string;
+  diagnostic?: OutputPolicyDiagnostic;
   unexplained: UnexplainedOutput[];
 }
 
@@ -216,9 +224,9 @@ function isDataOutput(script: Uint8Array, scriptHex: string): boolean {
  * honest compose puts the destination alone in front — and `more_outputs` entries, sitting behind
  * the data output, are correctly not counted as destinations.
  *
- * @returns An error message, or null when the arrangement is right.
+ * @returns The original error and presentation data, or null when the arrangement is right.
  */
-function checkPositionalDestination(tx: Transaction, expected: string): string | null {
+function checkPositionalDestination(tx: Transaction, expected: string): { error: string; diagnostic: OutputPolicyDiagnostic } | null {
   const preceding: Array<{ address: string | null; value: number }> = [];
   let foundDataOutput = false;
 
@@ -253,17 +261,23 @@ function checkPositionalDestination(tx: Transaction, expected: string): string |
   if (preceding.length === 0) {
     // Read as no destination at all, which for an issuance means the transfer silently does not
     // happen — the issuer stays put — while the wallet shows a transfer.
-    return `This transaction does not pay ${expected} ahead of its data output, so the network `
-      + 'would not read it as the recipient. It was not accepted.';
+    return {
+      error: `This transaction does not pay ${expected} ahead of its data output, so the network `
+        + 'would not read it as the recipient. It was not accepted.',
+      diagnostic: { code: 'output_recipient_missing', data: { expected } },
+    };
   }
 
   const describe = preceding
     .map(({ address, value }) => `${value} sats to ${address ?? 'an undecodable script'}`)
     .join('; ');
 
-  return 'This transaction puts more than one output ahead of its data output '
-    + `(${describe}), so the network would join them into a single recipient that nobody controls `
-    + `rather than paying ${expected}. It was not accepted.`;
+  return {
+    error: 'This transaction puts more than one output ahead of its data output '
+      + `(${describe}), so the network would join them into a single recipient that nobody controls `
+      + `rather than paying ${expected}. It was not accepted.`,
+    diagnostic: { code: 'output_recipient_position', data: { expected, preceding } },
+  };
 }
 
 /**
@@ -313,6 +327,7 @@ export function checkOutputPolicy(input: OutputPolicyInput): OutputPolicyResult 
             error:
               'The composed transaction embeds a recovery key that is not yours in its data '
               + 'outputs, so their dust would be spendable by someone else.',
+            diagnostic: { code: 'output_recovery_key_mismatch' },
             unexplained: [],
           };
         }
@@ -350,7 +365,7 @@ export function checkOutputPolicy(input: OutputPolicyInput): OutputPolicyResult 
     // the recipient is in the place it has to be.
     if (input.positionalDestination) {
       const positionError = checkPositionalDestination(tx, input.positionalDestination);
-      if (positionError) return { ok: false, unexplained: [], error: positionError };
+      if (positionError) return { ok: false, unexplained: [], ...positionError };
     }
     return { ok: true, unexplained: [] };
   }
@@ -361,6 +376,7 @@ export function checkOutputPolicy(input: OutputPolicyInput): OutputPolicyResult 
   return {
     ok: false,
     unexplained,
+    diagnostic: { code: 'output_unexplained', data: { outputs: unexplained } },
     error: `This transaction pays ${unexplained.length === 1 ? 'an output' : 'outputs'} your request `
       + `does not account for (${unexplained.map(describe).join('; ')}), so it was not accepted.`,
   };

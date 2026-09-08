@@ -1,10 +1,13 @@
 import { AmountValidationError } from '@/core/amount-contract/amounts';
+import { ComposeVerificationError } from '@/core/validation/compose-verification-error';
 import type { FeeValidationResult } from '@/core/validation/fee';
 import { TransactionInputError } from '@/core/validation/transaction-input-error';
 import { t } from '@/i18n';
+import { verificationErrorMessage } from './verification-error-message';
 
 /** Unknown API diagnostics retain their original text; only explicit codes are translated. */
 export function transactionErrorMessage(error: unknown): string | undefined {
+  if (error instanceof ComposeVerificationError) return verificationErrorMessage(error.diagnostic);
   if (error instanceof AmountValidationError) {
     switch (error.code) {
       case 'amount_precision': return t('safety_amount_precision');

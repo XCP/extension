@@ -42,15 +42,24 @@ Chrome interprets `$1$` as a named variable. Those catalog entries use named
 placeholders with positional `content` instead. The catalog checker validates
 named references and compares expanded positional substitutions across locales.
 
-Critical shared amount, fee, divisibility and inexact-fraction diagnostics use
-stable codes translated at the UI boundary. Unrecognized API diagnostics retain
-their original text. Exhaustive structured translation of protocol verification
-blockers remains follow-up work; the draft is not a claim that every diagnostic
-or module-initialized label supports live language switching.
+Critical amount, fee, divisibility, output verification and provider-request
+diagnostics use stable codes translated at the UI boundary. Provider errors retain
+their original messages and numeric RPC codes; recognized presentation codes cross
+the background/UI boundary independently. Changing language re-renders an existing
+error without another compose, verification or signing call. Unknown API diagnostics
+retain their original text.
+
+Counterparty action summaries use structured translated headlines, separate full
+addresses and exact quantities. Unknown divisibility remains explicitly in base
+units; each pool/order leg uses its own asset metadata. Safety warnings carry typed
+facts from the background and translate in the foreground, including destruction,
+sweep, unreadable payloads and output risks. Severity and signing decisions do not
+depend on the selected language. This is bounded coverage, not a claim that every
+remote diagnostic or module-initialized label supports live language switching.
 
 Validation covers focused unit/integration tests, catalog integrity, TypeScript,
 lint, production build, and packaged Chromium tests for sequential invalid typing
-and cross-window preference changes. All 40 GitHub checks passed at `fa2ec3da`,
+and cross-window preference changes. All 40 GitHub checks passed at `7734dd86`,
 including ten unit shards, twenty browser batches, CodeQL and hardware tests.
 See PR400 for the current revision's status; that result does not certify later
 changes. Browser regressions use fixtures and do not sign or broadcast live
@@ -134,8 +143,16 @@ historical snapshot: its hashes, paused status and recorded gaps are unchanged.
 After the API and launchpad releases, the user resumed a bounded extension pass.
 `review/terminology-2026-09-08.md` records primary references and decisions for
 address types, Japanese price-impact terms and swap routing. Address labels,
-shared destination/memo headings and live preference-label updates are included;
-broader English protocol diagnostics remain follow-up work. The optional
+shared destination/memo headings and live preference-label updates are included.
+The September 8 approval review adds structured action and safety presentations;
+unknown external diagnostics remain unchanged. The optional
 `XCP_LAYOUT_LOCALES` matrix is review tooling, not evidence that all localized
 flows have passed. Do not treat either review note or a passing catalog checker
 as approval of every localized journey.
+
+`review/approval-localization-2026-09-08.md` and its JSON manifest record the
+subsequent 181 new messages and 28 reused safety messages, exact reviewed hashes,
+Counterparty Core evidence and retained machine provenance. The gallery can run
+actual popup or sidepanel entrypoints with `XCP_GALLERY_SURFACE`; widening a popup
+is not a substitute for the sidepanel test. Consult that record and PR400 for
+the completed scenarios and validation limits.

@@ -5184,5 +5184,548 @@
   },
   "swap_form_route_one_order": {
     "message": "$1 笔订单"
+  },
+  "approval_structure_attach_missing_output_title": {
+    "message": "附着到不存在的输出"
+  },
+  "approval_structure_attach_missing_output_one": {
+    "message": "此操作将资产附着到输出 #$1，但交易只有 $2 个输出。该附着无法按描述生效。若交易签名后获确认，仍会支付比特币网络手续费。"
+  },
+  "approval_structure_attach_missing_output_many": {
+    "message": "此操作将资产附着到输出 #$1，但交易只有 $2 个输出。该附着无法按描述生效。若交易签名后获确认，仍会支付比特币网络手续费。"
+  },
+  "approval_structure_utxo_source_not_spent_title": {
+    "message": "此交易未花费源 UTXO"
+  },
+  "approval_structure_utxo_source_not_spent_description": {
+    "message": "消息指定 $1 为源，但此交易未花费该 UTXO。签名已被阻止。若交易签名后获确认，仍会支付比特币网络手续费。"
+  },
+  "approval_blocked": {
+    "message": "无法签名"
+  },
+  "approval_review": {
+    "message": "查看"
+  },
+  "common_connect": {
+    "message": "连接"
+  },
+  "provider_review_identity_changed": {
+    "message": "当前地址在发起此请求后发生了变化。请切回已授权的地址，或重新连接网站。"
+  },
+  "provider_review_connection_revoked": {
+    "message": "此网站已断开连接。请重新连接后再签名。"
+  },
+  "provider_review_paired_revoked": {
+    "message": "配对地址的访问权限已被撤销。请重新连接网站后再签名。"
+  },
+  "provider_review_wallet_locked": {
+    "message": "钱包已锁定"
+  },
+  "provider_review_invalid_id": {
+    "message": "签名请求 ID 无效"
+  },
+  "provider_review_missing_id": {
+    "message": "未提供签名请求 ID"
+  },
+  "provider_review_wrong_screen": {
+    "message": "此请求需要在其他授权页面查看"
+  },
+  "provider_review_load_failed": {
+    "message": "无法加载签名请求"
+  },
+  "provider_review_nothing_to_verify": {
+    "message": "没有可验证的签名请求"
+  },
+  "provider_review_not_reviewed": {
+    "message": "没有已核查的签名请求"
+  },
+  "provider_review_verifying": {
+    "message": "正在验证。请等待验证完成后再签名。"
+  },
+  "provider_review_retry_required": {
+    "message": "请重新验证，成功后再签名。"
+  },
+  "provider_review_cancelled": {
+    "message": "签名请求已取消"
+  },
+  "provider_review_unavailable": {
+    "message": "签名请求不存在，或已不再处于待处理状态"
+  },
+  "provider_review_missing_sighash": {
+    "message": "请求签名的输入缺少 sighash 项"
+  },
+  "provider_review_invalid_message": {
+    "message": "消息签名请求无效，或使用了钱包保留格式"
+  },
+  "provider_review_expired_during_review": {
+    "message": "签名请求在核查期间已过期"
+  },
+  "provider_review_invalid_decision": {
+    "message": "签名授权信息无效"
+  },
+  "provider_review_verification_failed": {
+    "message": "此请求未通过交易验证"
+  },
+  "provider_review_review_changed": {
+    "message": "交易核查内容已变化。请重新加载此授权页面并再次查看。"
+  },
+  "provider_review_acknowledge_risks": {
+    "message": "请先查看并确认交易风险，再签名"
+  },
+  "provider_review_missing_attachment": {
+    "message": "缺少附着的父交易"
+  },
+  "provider_review_interrupted": {
+    "message": "签名请求已取消或已过期"
+  },
+  "provider_review_expired_completion": {
+    "message": "签名请求在完成前已过期"
+  },
+  "provider_review_expired_delivery": {
+    "message": "签名请求在返回结果前已过期"
+  },
+  "composer_verification_fee_inputs_unavailable": {
+    "message": "无法获取此交易所花费输入的金额，因此无法核实手续费。请检查连接后重试。"
+  },
+  "composer_verification_fee_inputs_unreadable": {
+    "message": "无法读取此交易的输入，因而无法核实手续费。交易已被拒绝。"
+  },
+  "composer_verification_fee_outputs_exceed_inputs": {
+    "message": "交易输出总额超过输入总额，已拒绝签名。"
+  },
+  "composer_verification_fee_out_of_range": {
+    "message": "交易手续费超出可处理范围，已拒绝签名。"
+  },
+  "composer_verification_fee_abnormally_high": {
+    "message": "交易手续费（$1 sats，约 $2 sat/vB）异常偏高，交易已被拦截。"
+  },
+  "composer_verification_fee_exceeds_selected_rate": {
+    "message": "交易手续费（$1 sats）远超按你所选费率 $2 sat/vB 计算的金额。"
+  },
+  "composer_verification_output_recovery_key_mismatch": {
+    "message": "构建的交易在数据输出中嵌入了不属于你的回收公钥，其他人将能够花费其中的小额 BTC（尘埃）。"
+  },
+  "composer_verification_output_recipient_missing": {
+    "message": "此交易的数据输出之前没有向 $1 付款的输出，因此网络不会将该地址识别为接收方。交易已被拒绝。"
+  },
+  "composer_verification_output_recipient_single": {
+    "message": "此交易数据之前的输出（$1）未将 $2 指定为接收方。交易已被拒绝。"
+  },
+  "composer_verification_output_recipient_multiple": {
+    "message": "此交易数据之前的多个输出（$1）会被解读为拼接后的接收方，而不是 $2。交易已被拒绝。"
+  },
+  "composer_verification_output_unexplained_one": {
+    "message": "此交易包含你的请求无法解释的输出（$1），因此已被拒绝。"
+  },
+  "composer_verification_output_unexplained_many": {
+    "message": "此交易包含你的请求无法解释的多个输出（$1），因此已被拒绝。"
+  },
+  "composer_verification_output_payment": {
+    "message": "向 $2 支付 $1 sats"
+  },
+  "composer_verification_output_unknown_script": {
+    "message": "无法解码的脚本"
+  },
+  "composer_verification_output_unknown_address": {
+    "message": "无法解码的地址"
+  },
+  "approval_sign": {
+    "message": "签名"
+  },
+  "tx_action_send": {
+    "message": "转账"
+  },
+  "tx_action_multi_send": {
+    "message": "批量转账"
+  },
+  "tx_action_btc_pay": {
+    "message": "BTC支付"
+  },
+  "tx_action_order": {
+    "message": "订单"
+  },
+  "tx_action_cancel": {
+    "message": "取消"
+  },
+  "tx_action_dispenser": {
+    "message": "分发器"
+  },
+  "tx_action_dispense": {
+    "message": "发放"
+  },
+  "tx_action_issuance": {
+    "message": "发行"
+  },
+  "tx_action_subasset_issuance": {
+    "message": "子资产发行"
+  },
+  "tx_action_dividend": {
+    "message": "分红"
+  },
+  "tx_action_sweep": {
+    "message": "归集"
+  },
+  "tx_action_broadcast": {
+    "message": "广播"
+  },
+  "tx_action_pool_deposit": {
+    "message": "添加流动性"
+  },
+  "tx_action_pool_withdrawal": {
+    "message": "移除流动性"
+  },
+  "tx_action_utxo_move": {
+    "message": "UTXO转移"
+  },
+  "tx_action_attach": {
+    "message": "附加到UTXO"
+  },
+  "tx_action_detach": {
+    "message": "从UTXO分离"
+  },
+  "tx_action_destroy": {
+    "message": "销毁"
+  },
+  "tx_action_mint": {
+    "message": "铸造"
+  },
+  "tx_action_create_fairminter": {
+    "message": "创建公平铸造"
+  },
+  "tx_action_close_dispenser": {
+    "message": "关闭分发器"
+  },
+  "tx_action_fund_dispenser": {
+    "message": "向分发器存入资产"
+  },
+  "tx_action_send_amount": {
+    "message": "转出$1 $2"
+  },
+  "tx_action_send_amount_to": {
+    "message": "向$3转账$1 $2"
+  },
+  "tx_action_send_one_recipient": {
+    "message": "转账明细：$1项"
+  },
+  "tx_action_send_recipients": {
+    "message": "转账明细：$1项"
+  },
+  "tx_action_give_for": {
+    "message": "以$1 $2换取$3 $4"
+  },
+  "tx_action_cancel_order_details": {
+    "message": "取消订单：$1"
+  },
+  "tx_action_cancel_dex_order": {
+    "message": "取消DEX订单"
+  },
+  "tx_action_sell_for": {
+    "message": "卖出$1 $2，换取$3 $4"
+  },
+  "tx_action_close_asset_dispenser": {
+    "message": "关闭$1分发器"
+  },
+  "tx_action_dispense_rate": {
+    "message": "每$3 sats发放$1 $2"
+  },
+  "tx_action_trigger_dispenser": {
+    "message": "触发分发器发放"
+  },
+  "tx_action_issue_amount": {
+    "message": "发行$1"
+  },
+  "tx_action_no_new_supply": {
+    "message": "不增发"
+  },
+  "tx_action_per_unit": {
+    "message": "每单位$1 $2"
+  },
+  "tx_action_all_holders": {
+    "message": "所有$1持有者"
+  },
+  "tx_action_settle_btc": {
+    "message": "支付BTC以结算已匹配订单"
+  },
+  "tx_action_sweep_to": {
+    "message": "归集到$1"
+  },
+  "tx_action_empty_message": {
+    "message": "空消息"
+  },
+  "tx_action_destroy_lp": {
+    "message": "销毁$1 LP代币"
+  },
+  "tx_action_withdraw_liquidity": {
+    "message": "移除流动性"
+  },
+  "tx_action_deposit_liquidity": {
+    "message": "添加流动性"
+  },
+  "tx_action_attach_amount": {
+    "message": "将$1 $2附加到UTXO"
+  },
+  "tx_action_detach_all": {
+    "message": "从UTXO分离所有资产"
+  },
+  "tx_action_detach_all_to": {
+    "message": "从UTXO分离所有资产并转移到$1"
+  },
+  "tx_action_move_amount": {
+    "message": "转移$1 $2"
+  },
+  "tx_action_move_amount_to": {
+    "message": "将$1 $2转移到$3"
+  },
+  "tx_action_destroy_amount": {
+    "message": "销毁$1 $2"
+  },
+  "tx_action_base_units": {
+    "message": "$1（最小单位）"
+  },
+  "tx_action_memo": {
+    "message": "备注"
+  },
+  "tx_action_tag": {
+    "message": "标签"
+  },
+  "tx_action_hex_label": {
+    "message": "$1（十六进制）"
+  },
+  "tx_action_price": {
+    "message": "价格"
+  },
+  "tx_action_btc_fee": {
+    "message": "BTC费用"
+  },
+  "tx_action_expiry": {
+    "message": "有效期"
+  },
+  "tx_action_blocks": {
+    "message": "$1个区块"
+  },
+  "tx_action_block": {
+    "message": "$1个区块"
+  },
+  "tx_action_escrow": {
+    "message": "托管数量"
+  },
+  "tx_action_per_dispense": {
+    "message": "每次发放的付款额"
+  },
+  "tx_action_dispenses": {
+    "message": "发放次数"
+  },
+  "tx_action_you_receive": {
+    "message": "你将收到"
+  },
+  "tx_action_xcp_price_per_lot": {
+    "message": "每份XCP价格"
+  },
+  "tx_action_lot_size": {
+    "message": "每份数量"
+  },
+  "tx_action_no_limit": {
+    "message": "不限"
+  },
+  "tx_action_per_transaction_limit": {
+    "message": "每笔交易上限"
+  },
+  "tx_action_per_address_limit": {
+    "message": "每个地址上限"
+  },
+  "tx_action_hard_cap": {
+    "message": "发行上限"
+  },
+  "tx_action_soft_cap": {
+    "message": "成立所需的最低数量"
+  },
+  "tx_action_soft_cap_deadline": {
+    "message": "最低数量达标期限"
+  },
+  "tx_action_block_height": {
+    "message": "区块$1"
+  },
+  "tx_action_premint": {
+    "message": "预铸数量"
+  },
+  "tx_action_pool_allocation": {
+    "message": "分配给池的数量"
+  },
+  "tx_action_lp_asset": {
+    "message": "LP资产"
+  },
+  "tx_action_xcp_payment": {
+    "message": "XCP支付去向"
+  },
+  "tx_action_free_mint": {
+    "message": "无（免费铸造）"
+  },
+  "tx_action_burned": {
+    "message": "销毁"
+  },
+  "tx_action_seeds_pool": {
+    "message": "作为流动性池初始资金"
+  },
+  "tx_action_paid_to_issuer": {
+    "message": "支付给发行者"
+  },
+  "tx_action_starts": {
+    "message": "开始"
+  },
+  "tx_action_ends": {
+    "message": "结束"
+  },
+  "tx_action_on_confirmation": {
+    "message": "交易确认时"
+  },
+  "tx_action_no_end_block": {
+    "message": "无结束区块"
+  },
+  "tx_action_minted_asset_commission": {
+    "message": "铸造资产佣金比例"
+  },
+  "tx_action_divisible": {
+    "message": "可分割"
+  },
+  "tx_action_yes": {
+    "message": "是"
+  },
+  "tx_action_no": {
+    "message": "否"
+  },
+  "tx_action_lock_description": {
+    "message": "锁定描述"
+  },
+  "tx_action_lock_quantity": {
+    "message": "锁定发行数量"
+  },
+  "tx_action_description_format": {
+    "message": "描述格式"
+  },
+  "tx_action_description_content": {
+    "message": "描述内容"
+  },
+  "tx_action_description": {
+    "message": "描述"
+  },
+  "tx_action_xcp_burned": {
+    "message": "销毁的XCP"
+  },
+  "tx_action_xcp_to_pool": {
+    "message": "进入池的XCP"
+  },
+  "tx_action_xcp_price": {
+    "message": "XCP价格"
+  },
+  "tx_action_lock": {
+    "message": "锁定"
+  },
+  "tx_action_reset": {
+    "message": "重置"
+  },
+  "tx_action_lock_consequence": {
+    "message": "是 — 此后将永远无法增发"
+  },
+  "tx_action_reset_consequence": {
+    "message": "是 — 销毁并替换现有供应量"
+  },
+  "tx_action_new_owner": {
+    "message": "新所有者"
+  },
+  "tx_action_supply_before": {
+    "message": "销毁前供应量"
+  },
+  "tx_action_supply_after": {
+    "message": "销毁后供应量"
+  },
+  "tx_action_share_destroyed": {
+    "message": "销毁比例"
+  },
+  "tx_action_includes": {
+    "message": "转移内容"
+  },
+  "tx_action_sweep_balances_ownership": {
+    "message": "全部余额和资产所有权"
+  },
+  "tx_action_sweep_ownership": {
+    "message": "仅资产所有权"
+  },
+  "tx_action_sweep_balances": {
+    "message": "全部余额"
+  },
+  "tx_action_format": {
+    "message": "格式"
+  },
+  "tx_action_plain_text": {
+    "message": "纯文本"
+  },
+  "tx_action_content": {
+    "message": "内容"
+  },
+  "tx_action_inscribed_data": {
+    "message": "铭刻数据 — 此广播包含数据，而非消息"
+  },
+  "tx_action_value": {
+    "message": "数值"
+  },
+  "tx_action_fee_fraction": {
+    "message": "费率"
+  },
+  "tx_action_time_left": {
+    "message": "剩余时间"
+  },
+  "tx_action_payment_expired": {
+    "message": "已过期 — 此付款无法结算该匹配订单"
+  },
+  "tx_action_order_match": {
+    "message": "订单匹配ID"
+  },
+  "tx_action_order_hash": {
+    "message": "订单哈希"
+  },
+  "tx_action_deposit": {
+    "message": "存入数量"
+  },
+  "tx_action_ratio": {
+    "message": "比例"
+  },
+  "tx_action_pool": {
+    "message": "流动性池"
+  },
+  "tx_action_pool_fee": {
+    "message": "池手续费"
+  },
+  "tx_action_min_lp_received": {
+    "message": "最低LP接收数量"
+  },
+  "tx_action_min_asset_back": {
+    "message": "最低$1退回数量"
+  },
+  "tx_action_xcp_fee": {
+    "message": "XCP费用"
+  },
+  "tx_action_new_utxo": {
+    "message": "新UTXO"
+  },
+  "tx_action_detached": {
+    "message": "分离数量"
+  },
+  "tx_action_from_utxo": {
+    "message": "来源UTXO"
+  },
+  "tx_action_to": {
+    "message": "目标"
+  },
+  "tx_action_unavailable": {
+    "message": "无法获取"
+  },
+  "swap_quote_outcome_partial": {
+    "message": "当前订单簿的流动性不足以成交全部数量。请减少数量，或在 DEX 挂单等待成交。"
+  },
+  "swap_quote_outcome_dust": {
+    "message": "此数量换算后不足 $1 的最小单位，流动性池不会返回任何资产。请增加 $2 的数量。"
+  },
+  "swap_quote_outcome_no_liquidity": {
+    "message": "此交易对暂无可用流动性。"
   }
 }

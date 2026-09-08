@@ -167,8 +167,8 @@ export function ApprovalFooter({
   busy,
   blocked,
   isHardware,
-  signLabel = 'Sign',
-  blockedLabel = 'Blocked',
+  signLabel = t('approval_sign'),
+  blockedLabel = t('approval_blocked'),
   busyLabel,
 }: {
   onCancel: () => void;

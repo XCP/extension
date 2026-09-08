@@ -20,6 +20,7 @@ import { buildApprovalWarnings } from "@/components/domain/approval/approval-war
 import { CounterpartyDetailsCard } from "@/components/domain/approval/counterparty-details-card";
 import { computeMoneyMovement } from "@/components/domain/approval/money-movement";
 import { buildOrderAction, type OrderAction } from "@/components/domain/approval/order-card";
+import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { attachDestinationVout, getTxActionInfo } from "@/components/domain/tx/tx-action-info";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import type { WarningItem } from "@/components/ui/warning-stack";
@@ -28,13 +29,11 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { normalizeAddressForComparison } from "@/core/bitcoin/address";
 import { exceedsSaneFeeRate } from "@/core/bitcoin/feeVerification";
-import type { ProtocolField } from "@/core/counterparty/describe";
 import { classifySignedInputAssets } from "@/core/counterparty/inputAssets";
 import { shouldBlockSigning } from "@/core/counterparty/unpack/providerVerify";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import type { DecodedTransactionInfo } from "@/hooks/useSignTransactionRequest";
 import { useSignTransactionRequest } from "@/hooks/useSignTransactionRequest";
-
 import { t } from '@/i18n';
 
 /**
@@ -45,7 +44,7 @@ import { t } from '@/i18n';
  */
 type TxActionData =
   | { type: "order"; order: OrderAction }
-  | { type: "fallback"; label: string; description: string; protocol: ProtocolField[] }
+  | ({ type: "fallback" } & NonNullable<ReturnType<typeof getTxActionInfo>>)
   | null;
 
 function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
@@ -54,12 +53,7 @@ function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
 
   const info = getTxActionInfo(decodedInfo, decodedInfo.protocolContext);
   if (info) {
-    return {
-      type: "fallback",
-      label: info.label,
-      description: info.description,
-      protocol: info.protocol,
-    };
+    return { type: "fallback", ...info };
   }
   return null;
 }
@@ -85,7 +79,8 @@ export default function ApproveTransactionPage() {
   usePopupLifecycle(requestId, "sign-transaction");
 
   const [isSigning, setIsSigning] = useState(false);
-  const [error, setError] = useState<string>("");
+  const [signingError, setError] = useState<unknown>(null);
+  const error = signingError ? providerReviewErrorMessage(signingError) : '';
   const [showAttention, setShowAttention] = useState(false);
 
   // Configure header
@@ -105,7 +100,7 @@ export default function ApproveTransactionPage() {
       await handleApprove(showAttention);
       window.close();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : t('common_failed_to_sign_request'));
+      setError(failure instanceof Error ? failure : {});
       setIsSigning(false);
     }
   };
@@ -254,10 +249,10 @@ export default function ApproveTransactionPage() {
           busy={isSigning}
           blocked={blockSigning || isRefreshing || Boolean(refreshError)}
           blockedLabel={
-            retryAvailable || isRefreshing || refreshError ? t('common_awaiting_verification') : "Blocked"
+            retryAvailable || isRefreshing || refreshError ? t('common_awaiting_verification') : t('approval_blocked')
           }
           isHardware={activeWallet.type === "hardware"}
-          signLabel={requiresAttention ? "Review" : t('common_sign_transaction')}
+          signLabel={requiresAttention ? t('approval_review') : t('common_sign_transaction')}
         />
       }
       attention={

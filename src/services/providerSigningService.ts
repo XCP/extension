@@ -9,10 +9,11 @@ import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/c
 import { type DecodedPsbtInfo, decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
 import { type DecodedPsbtBundleInfo, decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
+import { ProviderReviewError } from '@/core/providerReviewErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
-import { getConnectionRevokedError, getIdentityMismatchError, getMessagePermissionError, getPsbtPermissionError } from '@/platform/provider/requestIdentity';
+import { getConnectionRevokedCode, getIdentityMismatchCode, getMessagePermissionCode, getPsbtPermissionCode } from '@/platform/provider/requestIdentity';
 import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/platform/provider/signDelivery';
 import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignMessageRequest, type SignPsbtRequest, type SignPsbtsRequest, type SignTransactionRequest } from '@/platform/provider/signFlow';
 import { signAttachAndListingForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
@@ -63,7 +64,7 @@ export function createProviderSigningService(): ProviderSigningService {
 
   async function getRequest(requestId: string): Promise<ProviderSigningRequest | null> {
     if (typeof requestId !== 'string' || requestId.length === 0 || requestId.length > 4096) {
-      throw new Error('Invalid signing request ID');
+      throw new ProviderReviewError('invalid_id');
     }
     const request = await getSignFlow(requestId);
     return request?.status === 'pending' ? effectiveRequest(request) : null;
@@ -71,20 +72,20 @@ export function createProviderSigningService(): ProviderSigningService {
 
   async function assertAuthorization(request: ProviderSigningRequest): Promise<void> {
     const wallet = getWalletService();
-    if (!await wallet.isKeychainUnlocked()) throw new Error('Wallet is locked');
+    if (!await wallet.isKeychainUnlocked()) throw new ProviderReviewError('wallet_locked');
     const activeAddress = await wallet.getActiveAddress();
     const activeWallet = await wallet.getActiveWallet();
-    const identityError = getIdentityMismatchError(request, activeAddress?.address, activeWallet?.id);
-    if (identityError) throw new Error(identityError);
+    const identityError = getIdentityMismatchCode(request, activeAddress?.address, activeWallet?.id);
+    if (identityError) throw new ProviderReviewError(identityError);
     const permissions = getConnectionService();
     const permissionError = request.kind === 'sign-message'
-      ? await getMessagePermissionError(request, permissions)
+      ? await getMessagePermissionCode(request, permissions)
       : request.kind === 'sign-transaction'
-        ? await getConnectionRevokedError(request, permissions)
-        : await getPsbtPermissionError({ ...request, signInputs: request.kind === 'sign-psbts'
+        ? await getConnectionRevokedCode(request, permissions)
+        : await getPsbtPermissionCode({ ...request, signInputs: request.kind === 'sign-psbts'
           ? Object.fromEntries(request.items.flatMap(item => Object.entries(item.signInputs)))
           : request.signInputs }, request.address, permissions);
-    if (permissionError) throw new Error(permissionError);
+    if (permissionError) throw new ProviderReviewError(permissionError);
 
     // Repeat structural ownership validation using background wallet data. The
     // request is immutable, but grants and the selected identity are not.
@@ -104,7 +105,7 @@ export function createProviderSigningService(): ProviderSigningService {
           const indices = item.signInputs ? Object.values(item.signInputs).flat()
             : details.inputs.map(input => input.index);
           if (indices.some(index => item.sighashTypes?.[index] === undefined)) {
-            throw new Error('Missing sighash entry for a requested input');
+            throw new ProviderReviewError('missing_sighash');
           }
         }
       }
@@ -113,7 +114,7 @@ export function createProviderSigningService(): ProviderSigningService {
 
   async function getReview(requestId: string): Promise<ProviderSigningReview> {
     const request = await getRequest(requestId);
-    if (!request) throw new Error('Signing request not found or no longer pending');
+    if (!request) throw new ProviderReviewError('unavailable');
     await assertAuthorization(request);
     const strictMode = (await getWalletService().getSettings()).strictTransactionVerification !== false;
     const fastestFee = request.kind === 'sign-message' ? undefined
@@ -125,7 +126,7 @@ export function createProviderSigningService(): ProviderSigningService {
     switch (request.kind) {
       case 'sign-message':
         if (!request.message || typeof request.message !== 'string' || request.message.startsWith('xcp-wallet\n')) {
-          throw new Error('Invalid or reserved message signing request');
+          throw new ProviderReviewError('invalid_message');
         }
         review = { kind: request.kind, request, policy: ordinaryPolicy };
         break;
@@ -156,7 +157,7 @@ export function createProviderSigningService(): ProviderSigningService {
         break;
       }
     }
-    if (!await getRequest(requestId)) throw new Error('Signing request expired during review');
+    if (!await getRequest(requestId)) throw new ProviderReviewError('expired_during_review');
     // The precise quote can change without changing any consequence. Include
     // the fee policy decision, rather than that volatile quote, in the digest.
     const { fastestFee: _quote, ...facts } = review;
@@ -166,15 +167,15 @@ export function createProviderSigningService(): ProviderSigningService {
   async function execute(requestId: string, decision: SigningDecision): Promise<void> {
     const sessionGeneration = getSessionGeneration();
     if (!decision || typeof decision.reviewKey !== 'string' || typeof decision.risksAcknowledged !== 'boolean') {
-      throw new Error('Invalid signing decision');
+      throw new ProviderReviewError('invalid_decision');
     }
     const review = await getReview(requestId);
-    if (review.policy.blocked) throw new Error('This request did not pass transaction verification');
+    if (review.policy.blocked) throw new ProviderReviewError('verification_failed');
     if (review.reviewKey !== decision.reviewKey) {
-      throw new Error('The transaction review changed. Reload this approval and review it again.');
+      throw new ProviderReviewError('review_changed');
     }
     if (review.policy.requiresAcknowledgement && !decision.risksAcknowledged) {
-      throw new Error('Review and acknowledge the transaction risks before signing');
+      throw new ProviderReviewError('acknowledge_risks');
     }
     const request = effectiveRequest(await claimSignFlow(requestId));
     try {
@@ -204,7 +205,7 @@ export function createProviderSigningService(): ProviderSigningService {
           const signedPsbtHexes = request.bundleKind === 'attach-and-list'
             ? await signAttachAndListingForDelivery(request.items,
               attach?.action === 'attach_for_listing' ? attach.expectedAttachedOutpoint
-                : (() => { throw new Error('Missing attachment parent'); })(), sign)
+                : (() => { throw new ProviderReviewError('missing_attachment'); })(), sign)
             : await signPsbtPhaseForDelivery(request.items, sign);
           result = { signedPsbtHexes };
           break;
@@ -214,10 +215,10 @@ export function createProviderSigningService(): ProviderSigningService {
       // Do not disclose the result after revocation, cancellation, or expiration.
       await assertAuthorization(request);
       const current = await getSignFlow(requestId);
-      if (current?.status !== 'signing') throw new Error('Signing request was cancelled or expired');
+      if (current?.status !== 'signing') throw new ProviderReviewError('interrupted');
       await recordSignOutcome(requestId, 'completed', result);
       const completed = await getSignFlow(requestId);
-      if (completed?.status !== 'completed') throw new Error('Signing request expired before completion');
+      if (completed?.status !== 'completed') throw new ProviderReviewError('expired_completion');
       const assertDelivery = await assertSignDeliveryAuthorized(completed, needsPairedAddressGrant(request), sessionGeneration);
       assertDelivery();
       eventEmitterService.emit(`${getSignFlowEventPrefix(request.kind)}-complete-${requestId}`, completed.result);

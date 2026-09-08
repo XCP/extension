@@ -70,6 +70,7 @@ describe('checkOutputPolicy', () => {
     expect(result.unexplained).toHaveLength(1);
     expect(result.unexplained[0]!.address).toBe(STRANGER);
     expect(result.error).toMatch(/does not account for/i);
+    expect(result.diagnostic).toEqual({ code: 'output_unexplained', data: { outputs: [{ index: 1, address: STRANGER, value: 50_000 }] } });
   });
 
   it('accepts an output to an address the user asked to pay', () => {
@@ -207,6 +208,7 @@ describe('checkOutputPolicy', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error).toMatch(/recovery key/);
+      expect(result.diagnostic).toEqual({ code: 'output_recovery_key_mismatch' });
     });
 
     // No expectation, no check: an absent key means the wallet sent none, and core then chose one
@@ -316,6 +318,10 @@ describe('checkOutputPolicy, where the destination is read from output order', (
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain('join them into a single recipient');
+    expect(result.diagnostic).toEqual({ code: 'output_recipient_position', data: {
+      expected: RECIPIENT,
+      preceding: [{ address: OWNER, value: 400_000 }, { address: RECIPIENT, value: 546 }],
+    } });
   });
 
   it('rejects a recipient that is not paid ahead of the data output at all', () => {
@@ -332,6 +338,7 @@ describe('checkOutputPolicy, where the destination is read from output order', (
     });
 
     expect(result.ok).toBe(false);
+    expect(result.diagnostic).toEqual({ code: 'output_recipient_missing', data: { expected: RECIPIENT } });
   });
 
   it('rejects a different address standing in the recipient\'s position', () => {
@@ -347,6 +354,12 @@ describe('checkOutputPolicy, where the destination is read from output order', (
     });
 
     expect(result.ok).toBe(false);
+    // Preserve legacy diagnostics for existing callers while supplying the actual one-output
+    // evidence, so translated UI must not repeat the historical "more than one" assumption.
+    expect(result.error).toContain('more than one output');
+    expect(result.diagnostic).toEqual({ code: 'output_recipient_position', data: {
+      expected: RECIPIENT, preceding: [{ address: OWNER, value: 546 }],
+    } });
   });
 
   it('does not apply to a transaction with no data output', () => {

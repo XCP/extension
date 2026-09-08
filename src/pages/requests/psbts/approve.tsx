@@ -8,6 +8,7 @@ import {
 } from "@/components/domain/approval/approval-chrome";
 import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
 import { BundleReviewCard } from "@/components/domain/approval/bundle-review-card";
+import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { Button } from "@/components/ui/button";
 import { Collapsible } from "@/components/ui/collapsible";
 import type { WarningItem } from "@/components/ui/warning-stack";
@@ -16,7 +17,6 @@ import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/core/format";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import { useSignPsbtsRequest } from "@/hooks/useSignPsbtsRequest";
-
 import { t } from '@/i18n';
 export default function ApprovePsbtsPage() {
   const { activeAddress, activeWallet } = useWallet();
@@ -35,7 +35,8 @@ export default function ApprovePsbtsPage() {
   } = useSignPsbtsRequest();
   usePopupLifecycle(requestId, "sign-psbts");
   const [isSigning, setIsSigning] = useState(false);
-  const [error, setError] = useState("");
+  const [signingError, setError] = useState<unknown>(null);
+  const error = signingError ? providerReviewErrorMessage(signingError) : '';
 
   useEffect(() => {
     // "Accept Offer", not "Accept Offer + Fee Bump": the longer form truncates at popup width,
@@ -65,7 +66,7 @@ export default function ApprovePsbtsPage() {
       await handleApprove(false);
       window.close();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : t('common_failed_to_sign_request'));
+      setError(failure instanceof Error ? failure : {});
       setIsSigning(false);
     }
   };
@@ -145,7 +146,7 @@ export default function ApprovePsbtsPage() {
           blockedLabel={
             decodedInfo.review.status === "retry" || isRefreshing || refreshError
               ? t('common_awaiting_verification')
-              : "Blocked"
+              : t('approval_blocked')
           }
           isHardware={activeWallet.type === "hardware"}
           signLabel={signLabel}
