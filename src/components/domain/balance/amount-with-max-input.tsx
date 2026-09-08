@@ -86,8 +86,8 @@ export function AmountWithMaxInput({
   const [isLoading, setIsLoading] = useState(false);
   const invalidDraft = value !== '' && !isComposableAmount(value, isDivisible ? 8 : 0);
   const draftError = isDivisible
-    ? 'Use digits and a decimal point, with at most 8 decimal places. Do not use grouping separators.'
-    : 'This asset is indivisible. Enter whole digits only.';
+    ? 'Use digits and a dot, up to 8 decimals.'
+    : 'Enter whole numbers only.';
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     // Retain the complete draft. Dropping '-' or '.' here lets the next
