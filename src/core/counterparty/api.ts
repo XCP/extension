@@ -630,17 +630,9 @@ async function cpApiGet<T = unknown>(
     }
 
     return response.data as T;
-  })();
-
-  inFlight.set(cacheKey, started);
-
-  try {
-    const data = await started;
-    // Invalidation revokes ownership of this key. An older response may still
-    // reach its original caller, but cannot repopulate or overwrite the cache.
-    if (inFlight.get(cacheKey) === started) setInCache(cacheKey, data);
-    return data;
-  } catch (error: unknown) {
+  })().catch((error: unknown) => {
+    // Normalize inside the shared promise so joined callers receive the same
+    // error type and status (including the 404 used by new-asset issuance).
     if (error instanceof CounterpartyApiError) throw error;
 
     // Handle errors with response data
@@ -656,6 +648,16 @@ async function cpApiGet<T = unknown>(
     throw new CounterpartyApiError(message, path, {
       cause: error instanceof Error ? error : undefined,
     });
+  });
+
+  inFlight.set(cacheKey, started);
+
+  try {
+    const data = await started;
+    // Invalidation revokes ownership of this key. An older response may still
+    // reach its original caller, but cannot repopulate or overwrite the cache.
+    if (inFlight.get(cacheKey) === started) setInCache(cacheKey, data);
+    return data;
   } finally {
     // Only clear our own entry: a later caller may already have started the
     // next request under the same key.

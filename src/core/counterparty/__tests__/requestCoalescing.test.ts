@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/core/api/client';
+import { CounterpartyApiError } from '@/core/errors';
 import {
   clearApiCache,
   clearApiCacheMatching,
+  fetchAssetDetails,
   fetchMempoolLedgerEvents,
   fetchTokenBalances,
 } from '../api';
@@ -61,6 +63,28 @@ beforeEach(() => {
 });
 
 describe('collapsing identical reads that are in flight together', () => {
+  it('preserves the API error contract for every caller sharing a missing-asset lookup', async () => {
+    const pending = deferred<ReturnType<typeof page>>();
+    mockedApiClient.get.mockReturnValueOnce(pending.promise as never);
+    const results = Promise.allSettled([
+      fetchAssetDetails('NEWASSET'),
+      fetchAssetDetails('NEWASSET'),
+    ]);
+    await flush();
+    expect(mockedApiClient.get).toHaveBeenCalledTimes(1);
+    pending.fail(Object.assign(new Error('Request failed with status 404'), {
+      status: 404,
+      response: { status: 404, data: { error: 'Asset not found' } },
+    }));
+    for (const result of await results) {
+      expect(result.status).toBe('rejected');
+      if (result.status === 'rejected') {
+        expect(result.reason).toBeInstanceOf(CounterpartyApiError);
+        expect(result.reason).toMatchObject({ statusCode: 404, message: 'Asset not found' });
+      }
+    }
+  });
+
   it('asks the node once when a screen asks the same question ten times', async () => {
     const gate = deferred<ReturnType<typeof page>>();
     mockedApiClient.get.mockReturnValue(gate.promise as never);
