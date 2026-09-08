@@ -66,7 +66,7 @@ describe('complete draft to native compose intent', () => {
   it('a multiline paste cannot leave a last-valid amount submittable', async () => {
     const submitted = vi.fn(); const user = userEvent.setup(); render(<AmountHarness submitted={submitted} />);
     const input = screen.getByRole('textbox'); await user.type(input, '5'); await user.paste('1\n234');
-    expect(input).toHaveValue('5'); expect(screen.getByText(/pasted value contains line breaks/)).toBeInTheDocument(); fireEvent.submit(input.closest('form')!); expect(submitted).not.toHaveBeenCalled();
+    expect(input).toHaveValue('5'); expect(screen.getByText(/Paste a single value without line breaks/)).toBeInTheDocument(); fireEvent.submit(input.closest('form')!); expect(submitted).not.toHaveBeenCalled();
   });
   it('editing another field cannot dismiss a rejected amount paste', async () => {
     const submitted = vi.fn(); const user = userEvent.setup(); render(<AmountHarness memo submitted={submitted} />);

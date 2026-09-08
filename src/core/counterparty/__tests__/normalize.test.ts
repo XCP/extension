@@ -578,7 +578,7 @@ describe('normalize.ts', () => {
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
 
 
-        await expect(normalizeFormData(formData, 'send')).rejects.toThrow('amount_syntax');
+        await expect(normalizeFormData(formData, 'send')).rejects.toMatchObject({ code: 'amount_syntax' });
       });
 
       it('rejects indivisible amounts above the Core limit', async () => {
@@ -596,7 +596,7 @@ describe('normalize.ts', () => {
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
 
-        await expect(normalizeFormData(formData, 'send')).rejects.toThrow('amount_range');
+        await expect(normalizeFormData(formData, 'send')).rejects.toMatchObject({ code: 'amount_range' });
       });
     });
 

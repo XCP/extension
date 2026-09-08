@@ -84,7 +84,7 @@ export function ComposerForm({
             if (!/[\r\n]/.test(event.clipboardData.getData('text/plain'))) return;
             event.preventDefault();
             clipboardTarget.current = event.target;
-            setClipboardError('The pasted value contains line breaks. Enter a single value before continuing.');
+            setClipboardError('Paste a single value without line breaks.');
           }}
           onChangeCapture={(event) => {
             if ((event.target as EventTarget) === clipboardTarget.current) {

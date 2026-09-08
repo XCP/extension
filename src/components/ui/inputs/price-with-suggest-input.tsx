@@ -116,7 +116,7 @@ export function PriceWithSuggestInput({
           </Button>
         )}
       </div>
-      {invalidDraft && <p id={`${name}-draft-error`} role="alert" className="mt-2 text-sm text-red-600">Use digits and a decimal point, with at most 8 decimal places. Do not use grouping separators.</p>}
+      {invalidDraft && <p id={`${name}-draft-error`} role="alert" className="mt-2 text-sm text-red-600">Use digits and a dot, up to 8 decimals.</p>}
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
           {priceDescription}
