@@ -10,6 +10,7 @@ import {
   type Order,
   type OrderDetails,
 } from "@/core/counterparty/api";
+import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 import { normalizeAssetQuery } from "@/core/format";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
@@ -128,16 +129,38 @@ export function useMarketData({
     maxItems: MAX_ITEMS,
   });
 
+  // Filter only the displayed data; pagination must count the original API rows.
+  const visibleDispensers = useMemo(
+    () => dispensers.data.filter(isFixedRateDispenser),
+    [dispensers.data]
+  );
+  const visibleUserDispensers = useMemo(
+    () => userDispensers.data.filter(isFixedRateDispenser),
+    [userDispensers.data]
+  );
+
+  // An oracle-only page has no cards (and thus no scroll sentinel). Continue to
+  // the next page so it cannot hide fixed-rate listings further down the results.
+  useEffect(() => {
+    if (activeTab !== 0 || (viewMode === "explore" && searchQuery.trim())) return;
+    const page = viewMode === "explore" ? dispensers : userDispensers;
+    const visible = viewMode === "explore" ? visibleDispensers : visibleUserDispensers;
+    if (page.data.length > 0 && visible.length === 0 && page.hasMore
+      && !page.isLoading && !page.isFetchingMore && !page.error) {
+      page.loadMore();
+    }
+  }, [activeTab, searchQuery, viewMode, dispensers, userDispensers, visibleDispensers, visibleUserDispensers]);
+
   // Memoized filtered data for manage mode
   const filteredUserDispensers = useMemo(() => {
-    if (!searchQuery.trim()) return userDispensers.data;
+    if (!searchQuery.trim()) return visibleUserDispensers;
     const query = searchQuery.toLowerCase();
-    return userDispensers.data.filter((d) => {
+    return visibleUserDispensers.filter((d) => {
       const asset = d.asset.toLowerCase();
       const longname = d.asset_info?.asset_longname?.toLowerCase() || "";
       return asset.includes(query) || longname.includes(query);
     });
-  }, [userDispensers.data, searchQuery]);
+  }, [visibleUserDispensers, searchQuery]);
 
   const filteredUserOrders = useMemo(() => {
     if (!searchQuery.trim()) return userOrders.data;
@@ -164,7 +187,7 @@ export function useMarketData({
     setDispenserSearchError(null);
     try {
       const res = await fetchAssetDispensers(normalizeAssetQuery(query), { status: "open", limit: PAGE_SIZE });
-      setDispenserResults(res.result);
+      setDispenserResults(res.result.filter(isFixedRateDispenser));
     } catch (err) {
       console.error("Failed to search dispensers:", err);
       setDispenserResults([]);
@@ -234,9 +257,9 @@ export function useMarketData({
   }, [inView, activeTab, viewMode, dispensers, orders, userDispensers, userOrders]);
 
   return {
-    dispensers,
+    dispensers: { ...dispensers, data: visibleDispensers },
     orders,
-    userDispensers,
+    userDispensers: { ...userDispensers, data: visibleUserDispensers },
     userOrders,
     filteredUserDispensers,
     filteredUserOrders,

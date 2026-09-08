@@ -446,6 +446,7 @@ export interface Dispenser {
   tx_hash: string;
   source: string;
   asset: string;
+  oracle_address?: string | null;
   status: number;
   give_remaining: ApiQuantity;
   give_remaining_normalized: DisplayUnits;

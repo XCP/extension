@@ -84,7 +84,7 @@ export async function resolveDispensersAt(
   for (const d of ordered) {
     const name = d.asset_info?.asset_longname || d.asset;
 
-    if ((d as { oracle_address?: string | null }).oracle_address) {
+    if (d.oracle_address) {
       payouts.push({ asset: name, oraclePriced: true, partiallyFilled: false });
       continue;
     }
