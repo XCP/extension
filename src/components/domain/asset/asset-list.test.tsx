@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import type { OwnedAsset } from "@/core/counterparty/api";
@@ -22,9 +22,11 @@ vi.mock("@/contexts/wallet-context", () => ({
   }),
 }));
 
+const mockCacheOwnedAssets = vi.fn();
 vi.mock("@/contexts/header-context", () => ({
   useHeader: () => ({
     setHeaderProps: vi.fn(),
+    cacheOwnedAssets: mockCacheOwnedAssets,
   }),
 }));
 
@@ -34,6 +36,7 @@ vi.mock("@/core/counterparty/api", () => ({
 }));
 
 vi.mock("@/core/format", () => ({
+  normalizeAssetQuery: (query: string) => query.includes('.') ? query.trim() : query.trim().toUpperCase(),
   formatAsset: vi.fn((asset, options) => {
     if (options?.assetInfo?.asset_longname) {
       return options.assetInfo.asset_longname;
@@ -79,6 +82,13 @@ const mockSetSearchQuery = vi.fn();
 let mockSearchQuery = "";
 let mockSearchResults: any[] = [];
 let mockIsSearching = false;
+let mockSearchError: string | null = null;
+const mockRetrySearch = vi.fn();
+let mockInView = false;
+
+vi.mock("@/hooks/useInView", () => ({
+  useInView: () => ({ ref: vi.fn(), inView: mockInView }),
+}));
 
 vi.mock("@/hooks/useSearchQuery", () => ({
   useSearchQuery: () => ({
@@ -86,6 +96,8 @@ vi.mock("@/hooks/useSearchQuery", () => ({
     setSearchQuery: mockSetSearchQuery,
     searchResults: mockSearchResults,
     isSearching: mockIsSearching,
+    error: mockSearchError,
+    retry: mockRetrySearch,
   }),
 }));
 
@@ -110,10 +122,13 @@ describe("AssetList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockActiveAddress = { address: "bc1qtest123", name: "Test Address" };
+    mockFetchOwnedAssets.mockReset();
     mockFetchOwnedAssets.mockResolvedValue([]);
     mockSearchQuery = "";
     mockSearchResults = [];
     mockIsSearching = false;
+    mockSearchError = null;
+    mockInView = false;
   });
 
   it("should render loading spinner initially", () => {
@@ -379,7 +394,7 @@ describe("AssetList", () => {
     mockFetchOwnedAssets.mockImplementation(() => new Promise(() => {})); // Never resolves
 
     const { unmount } = render(<AssetList />);
-
+    await waitFor(() => expect(mockFetchOwnedAssets).toHaveBeenCalledOnce());
     unmount();
 
     // Should not cause errors when unmounting during loading
@@ -447,5 +462,111 @@ describe("AssetList", () => {
     expect(searchInput).toHaveClass("border");
     expect(searchInput).toHaveClass("rounded-md");
     expect(searchInput).toHaveClass("bg-gray-50");
+  });
+
+  it("discards a late page after switching to another address", async () => {
+    let resolvePage!: (assets: OwnedAsset[]) => void;
+    const latePage = new Promise<OwnedAsset[]>((resolve) => { resolvePage = resolve; });
+    const firstPage = Array.from({ length: 20 }, (_, i) => ({ ...mockOwnedAssets[0]!, asset: `FIRST${i}` }));
+    mockFetchOwnedAssets.mockImplementation((address, { offset }) => {
+      if (address === "bc1qsecond") return Promise.resolve([{ ...mockOwnedAssets[0]!, asset: "SECOND" }]);
+      return offset === 0 ? Promise.resolve(firstPage) : latePage;
+    });
+    const { rerender } = render(<AssetList />);
+    await screen.findByText("FIRST0");
+    mockInView = true;
+    rerender(<AssetList />);
+    await waitFor(() => expect(mockFetchOwnedAssets).toHaveBeenCalledWith("bc1qtest123", { limit: 20, offset: 20 }));
+    mockActiveAddress = { address: "bc1qsecond", name: "Second" };
+    rerender(<AssetList />);
+    await screen.findByText("SECOND");
+    await act(async () => resolvePage([{ ...mockOwnedAssets[0]!, asset: "STALE" }]));
+    expect(screen.queryByText("FIRST0")).not.toBeInTheDocument();
+    expect(screen.queryByText("STALE")).not.toBeInTheDocument();
+    expect(mockCacheOwnedAssets).not.toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ asset: "STALE" })]));
+  });
+
+  it("offers retry after an owned-asset failure instead of claiming the address owns nothing", async () => {
+    mockFetchOwnedAssets.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(mockOwnedAssets);
+    render(<AssetList />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load owned assets");
+    expect(screen.queryByText("No Assets Owned")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText("PEPECASH");
+    expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders global results while an empty address's owned-asset request is pending", async () => {
+    mockFetchOwnedAssets.mockImplementation(() => new Promise(() => {}));
+    mockSearchQuery = "UNOWNED";
+    mockSearchResults = [{ symbol: "UNOWNED" }];
+    render(<AssetList />);
+    fireEvent.click(await screen.findByRole("button", { name: "View UNOWNED" }));
+    expect(mockNavigate).toHaveBeenCalledWith("/assets/UNOWNED");
+  });
+
+  it("shows a failed global search and retries without displaying No results", async () => {
+    mockSearchQuery = "UNOWNED";
+    mockSearchError = "Search failed. Please try again.";
+    render(<AssetList />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(mockSearchError);
+    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(mockRetrySearch).toHaveBeenCalledOnce();
+  });
+
+  it("retries a failed later page without discarding existing assets or restarting at zero", async () => {
+    const firstPage = Array.from({ length: 20 }, (_, i) => ({ ...mockOwnedAssets[0]!, asset: `FIRST${i}` }));
+    mockFetchOwnedAssets.mockResolvedValueOnce(firstPage).mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(mockOwnedAssets);
+    mockInView = true;
+    render(<AssetList />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load more assets");
+    expect(screen.getByText("FIRST0")).toBeInTheDocument();
+    expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText("PEPECASH");
+    expect(mockFetchOwnedAssets).toHaveBeenNthCalledWith(3, "bc1qtest123", { limit: 20, offset: 20 });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("discards old pagination when a refresh returns a shorter replacement list", async () => {
+    let resolvePage!: (assets: OwnedAsset[]) => void;
+    const latePage = new Promise<OwnedAsset[]>((resolve) => { resolvePage = resolve; });
+    const firstPage = Array.from({ length: 20 }, (_, i) => ({ ...mockOwnedAssets[0]!, asset: `FIRST${i}` }));
+    mockFetchOwnedAssets.mockResolvedValueOnce(firstPage).mockReturnValueOnce(latePage).mockResolvedValueOnce(mockOwnedAssets);
+    mockInView = true;
+    const onRefreshed = vi.fn();
+    const { rerender } = render(<AssetList refreshNonce={0} onRefreshed={onRefreshed} />);
+    await waitFor(() => expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(2));
+    rerender(<AssetList refreshNonce={1} onRefreshed={onRefreshed} />);
+    await screen.findByText("PEPECASH");
+    expect(onRefreshed).toHaveBeenCalledOnce();
+    await act(async () => resolvePage([{ ...mockOwnedAssets[0]!, asset: "STALE" }]));
+    expect(screen.queryByText("FIRST0")).not.toBeInTheDocument();
+    expect(screen.queryByText("STALE")).not.toBeInTheDocument();
+    expect(screen.queryByText("Scroll to load more…")).not.toBeInTheDocument();
+    expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(3);
+    expect(mockCacheOwnedAssets).not.toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ asset: "STALE" })]));
+  });
+
+  it("does not overlap initial loading and pagination when the sentinel is visible", async () => {
+    let resolveInitial!: (assets: OwnedAsset[]) => void;
+    let resolveMore!: (assets: OwnedAsset[]) => void;
+    mockFetchOwnedAssets
+      .mockReturnValueOnce(new Promise<OwnedAsset[]>((resolve) => { resolveInitial = resolve; }))
+      .mockReturnValueOnce(new Promise<OwnedAsset[]>((resolve) => { resolveMore = resolve; }));
+    mockInView = true;
+    const { rerender } = render(<AssetList />);
+    await waitFor(() => expect(mockFetchOwnedAssets).toHaveBeenCalledOnce());
+    rerender(<AssetList />);
+    await act(async () => {});
+    expect(mockFetchOwnedAssets).toHaveBeenCalledOnce();
+    await act(async () => resolveInitial(Array.from({ length: 20 }, (_, i) => ({ ...mockOwnedAssets[0]!, asset: `FIRST${i}` }))));
+    await waitFor(() => expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(2));
+    rerender(<AssetList />);
+    await act(async () => {});
+    expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(2);
+    expect(mockFetchOwnedAssets).toHaveBeenLastCalledWith("bc1qtest123", { limit: 20, offset: 20 });
+    await act(async () => resolveMore([]));
   });
 });

@@ -2,6 +2,44 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface PaginatedResult<T> {
   result: T[];
+  result_count?: number;
+}
+
+interface PaginationSource<T> {
+  fetchFn: (offset: number, limit: number) => Promise<PaginatedResult<T>>;
+  pageSize: number;
+  maxItems: number;
+}
+
+interface PaginationSession<T> extends PaginationSource<T> {
+  data: T[];
+  enabled: boolean;
+  cancelled: boolean;
+  generation: number;
+  busy: boolean;
+  loaded: boolean;
+  offset: number;
+  hasMore: boolean;
+  error: Error | null;
+}
+
+interface PaginationState<T> extends PaginationSource<T> {
+  data: T[];
+  hasMore: boolean;
+  isLoading: boolean;
+  isFetchingMore: boolean;
+  error: Error | null;
+}
+
+function emptyState<T>(source: PaginationSource<T>): PaginationState<T> {
+  return {
+    fetchFn: source.fetchFn, pageSize: source.pageSize, maxItems: source.maxItems,
+    data: [], hasMore: source.maxItems > 0, isLoading: false, isFetchingMore: false, error: null,
+  };
+}
+
+function sameSource<T>(left: PaginationSource<T>, right: PaginationSource<T>): boolean {
+  return left.fetchFn === right.fetchFn && left.pageSize === right.pageSize && left.maxItems === right.maxItems;
 }
 
 interface UsePaginatedFetchOptions<T> {
@@ -45,105 +83,107 @@ export function usePaginatedFetch<T>({
   maxItems = 100,
   enabled = true,
 }: UsePaginatedFetchOptions<T>): UsePaginatedFetchReturn<T> {
-  const [data, setData] = useState<T[]>([]);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  // Trigger for manual refresh - incrementing this causes the effect to re-run
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [state, setState] = useState<PaginationState<T>>(() => emptyState({ fetchFn, pageSize, maxItems }));
+  const sessionRef = useRef<PaginationSession<T> | null>(null);
 
-  // Refs for race condition prevention
-  const isFetchingRef = useRef(false);
-  const offsetRef = useRef(0);
-  const hasLoadedRef = useRef(false);
+  const requestPage = useCallback(async (session: PaginationSession<T>) => {
+    if (session.cancelled || !session.enabled || session.busy || !session.hasMore || session.error) return;
+    const offset = session.offset;
+    const limit = Math.min(session.pageSize, session.maxItems - offset);
+    if (limit <= 0) return;
 
-  // Initial load - runs when enabled and hasn't loaded yet, or when refresh is triggered
+    // Lock before the first await: multiple observers in the same render can ask for this page.
+    session.busy = true;
+    const generation = session.generation;
+    const initial = !session.loaded;
+    const isCurrent = () => sessionRef.current === session && !session.cancelled && session.generation === generation;
+    setState((previous) => ({ ...previous, isLoading: initial, isFetchingMore: !initial, error: null }));
+
+    try {
+      const response = await session.fetchFn(offset, limit);
+      if (!isCurrent()) return;
+      const rows = response.result.slice(0, limit);
+      session.offset = offset + rows.length;
+      session.loaded = true;
+      const total = response.result_count;
+      const hasKnownTotal = typeof total === 'number' && Number.isSafeInteger(total) && total >= 0;
+      session.hasMore = rows.length === limit && session.offset < session.maxItems
+        && (!hasKnownTotal || session.offset < total);
+      session.data = initial ? rows : [...session.data, ...rows];
+      setState((previous) => isCurrent() ? {
+        ...previous,
+        data: session.data,
+        hasMore: session.hasMore,
+      } : previous);
+    } catch (error) {
+      if (!isCurrent()) return;
+      session.error = error instanceof Error ? error : new Error(String(error));
+      // Keep the rows already shown. Scroll observers cannot retry a failed page in a loop;
+      // refresh/reset explicitly clear the error before another request is allowed.
+      setState((previous) => isCurrent() ? { ...previous, error: session.error } : previous);
+    } finally {
+      if (isCurrent()) {
+        session.busy = false;
+        setState((previous) => isCurrent() ? { ...previous, isLoading: false, isFetchingMore: false } : previous);
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    if (!enabled || hasLoadedRef.current) return;
-
-    let cancelled = false;
-    isFetchingRef.current = true;
-    offsetRef.current = 0;
-    setIsLoading(true);
-    setError(null);
-
-    fetchFn(0, pageSize)
-      .then((res) => {
-        if (!cancelled) {
-          setData(res.result);
-          offsetRef.current = pageSize;
-          setHasMore(res.result.length >= pageSize && res.result.length < maxItems);
-          hasLoadedRef.current = true;
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          console.error("Failed to load initial data:", err);
-          setError(err instanceof Error ? err : new Error(String(err)));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoading(false);
-          isFetchingRef.current = false;
-        }
-      });
-
-    return () => {
-      cancelled = true;
-      isFetchingRef.current = false;
+    const previous = sessionRef.current;
+    const source = { fetchFn, pageSize, maxItems };
+    const resume = previous !== null && sameSource(previous, source);
+    const session: PaginationSession<T> = {
+      ...source, enabled, cancelled: false, generation: 0, busy: false,
+      data: resume ? previous.data : [],
+      loaded: resume ? previous.loaded : false,
+      offset: resume ? previous.offset : 0,
+      hasMore: resume ? previous.hasMore : maxItems > 0,
+      error: resume ? previous.error : null,
     };
-  }, [enabled, fetchFn, pageSize, maxItems, refreshTrigger]);
+    sessionRef.current = session;
+    setState({ ...emptyState(source), data: session.data, hasMore: session.hasMore, error: session.error });
+    if (enabled && !session.loaded) void requestPage(session);
 
-  // Reset when fetchFn changes (e.g., different filters)
-  useEffect(() => {
-    hasLoadedRef.current = false;
-  }, [fetchFn]);
+    // Changing address/filter, disabling, or unmounting invalidates every request of this
+    // session, including a loadMore that started outside the initial-load effect.
+    return () => { session.cancelled = true; };
+  }, [enabled, fetchFn, pageSize, maxItems, requestPage]);
+
+  const currentSession = useCallback(() => {
+    const session = sessionRef.current;
+    return session && !session.cancelled && session.enabled === enabled
+      && sameSource(session, { fetchFn, pageSize, maxItems }) ? session : null;
+  }, [enabled, fetchFn, pageSize, maxItems]);
 
   const loadMore = useCallback(() => {
-    if (isFetchingRef.current || !hasMore) return;
-
-    const currentDataLength = data.length;
-    if (currentDataLength >= maxItems) return;
-
-    isFetchingRef.current = true;
-    setIsFetchingMore(true);
-    setError(null);
-
-    const currentOffset = offsetRef.current;
-
-    fetchFn(currentOffset, pageSize)
-      .then((res) => {
-        setData((prev) => [...prev, ...res.result]);
-        offsetRef.current = currentOffset + pageSize;
-        setHasMore(res.result.length >= pageSize && currentDataLength + res.result.length < maxItems);
-      })
-      .catch((err) => {
-        console.error("Failed to load more data:", err);
-        setError(err instanceof Error ? err : new Error(String(err)));
-      })
-      .finally(() => {
-        isFetchingRef.current = false;
-        setIsFetchingMore(false);
-      });
-  }, [fetchFn, pageSize, maxItems, hasMore, data.length]);
+    const session = currentSession();
+    if (session) void requestPage(session);
+  }, [currentSession, requestPage]);
 
   const reset = useCallback(() => {
-    setData([]);
-    setHasMore(true);
-    setIsLoading(false);
-    setError(null);
-    offsetRef.current = 0;
-    isFetchingRef.current = false;
-    hasLoadedRef.current = false;
-  }, []);
+    const session = currentSession();
+    if (!session) return;
+    // Retain the session for its effect cleanup, but invalidate any work already in flight.
+    session.generation += 1;
+    session.busy = false;
+    session.loaded = false;
+    session.data = [];
+    session.offset = 0;
+    session.hasMore = maxItems > 0;
+    session.error = null;
+    setState(emptyState(session));
+  }, [currentSession, maxItems]);
 
   const refresh = useCallback(() => {
     reset();
-    // Increment trigger to cause useEffect to re-run after reset clears hasLoadedRef
-    setRefreshTrigger((prev) => prev + 1);
-  }, [reset]);
+    loadMore();
+  }, [reset, loadMore]);
+
+  // Effects reset the stored state after a source change. Hide the old source immediately,
+  // including the render before that effect runs, so another address's rows never leak through.
+  const visible = sameSource(state, { fetchFn, pageSize, maxItems }) ? state : emptyState({ fetchFn, pageSize, maxItems });
+  const { data, hasMore, isLoading, isFetchingMore, error } = visible;
 
   // Deduplicate data as defensive measure
   const deduplicatedData = useMemo(() => {

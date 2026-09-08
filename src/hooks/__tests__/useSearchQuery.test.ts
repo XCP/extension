@@ -10,7 +10,7 @@ describe("useSearchQuery", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
-    (global.fetch as any).mockClear();
+    vi.mocked(global.fetch).mockReset();
   });
 
   afterEach(() => {
@@ -130,6 +130,7 @@ describe("useSearchQuery", () => {
       "Failed to load search results: Network error",
     );
     expect(result.current.isSearching).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(3); // Original request plus the two default retries.
   }, 10000);
 
   it("should handle non-ok response", async () => {
@@ -194,6 +195,7 @@ describe("useSearchQuery", () => {
 
     expect(result.current.searchResults).toEqual([]);
     expect(result.current.isSearching).toBe(false);
+    expect(result.current.error).toBeNull();
   }, 10000);
 
   it("should cancel previous search when new query is set", async () => {
@@ -285,7 +287,7 @@ describe("useSearchQuery", () => {
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
-  it("should handle missing assets field in response", async () => {
+  it("should report a malformed response instead of claiming there are no matches", async () => {
     (global.fetch as any).mockResolvedValue({
       ok: true,
       json: async () => ({}),
@@ -307,6 +309,7 @@ describe("useSearchQuery", () => {
 
     expect(result.current.searchResults).toEqual([]);
     expect(result.current.isSearching).toBe(false);
+    expect(result.current.error).toContain("Invalid search response");
   }, 10000);
 
   it("should encode search query properly", async () => {
@@ -377,8 +380,9 @@ describe("useSearchQuery", () => {
       result.current.setSearchQuery("success");
     });
 
-    // Error should still be present before debounce timeout
-    expect(result.current.error).toContain("Failed to load search results");
+    // A previous query's error must not appear under the new query during debounce.
+    expect(result.current.error).toBeNull();
+    expect(result.current.isSearching).toBe(true);
 
     // Advance time to trigger second search
     act(() => {
@@ -397,5 +401,142 @@ describe("useSearchQuery", () => {
     expect(result.current.error).toBeNull();
     expect(result.current.searchResults).toHaveLength(1);
     expect(result.current.isSearching).toBe(false);
+  });
+
+  it("reports pending throughout debounce and immediately hides the previous query's rows", async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({ assets: [{ symbol: "OLD" }] }) } as Response);
+    const { result } = renderHook(() => useSearchQuery("OLD", { maxRetries: 0 }));
+    expect.soft(result.current.isSearching).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(result.current.searchResults).toEqual([{ symbol: "OLD" }]);
+
+    act(() => { result.current.setSearchQuery("NEW"); });
+    expect(result.current.isSearching).toBe(true);
+    expect(result.current.searchResults).toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels retry backoff when the query is cleared without issuing another request", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("Network error"));
+    const { result } = renderHook(() => useSearchQuery("OLD"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    act(() => { result.current.setSearchQuery(""); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.searchResults).toEqual([]);
+    expect(result.current.isSearching).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it.each(["fetch", "body"])("times out a never-settling %s and ignores its late result", async (stage) => {
+    let finish!: (value: any) => void;
+    const pending = new Promise<any>((resolve) => { finish = resolve; });
+    vi.mocked(fetch).mockReturnValue(stage === "fetch" ? pending : Promise.resolve({ ok: true, json: () => pending } as Response));
+    const { result } = renderHook(() => useSearchQuery("SLOW", { maxRetries: 0 }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    const signal = vi.mocked(fetch).mock.calls[0]![1]!.signal!;
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+    expect.soft(result.current.isSearching).toBe(false);
+    expect.soft(result.current.error).toMatch(/timed out/i);
+    expect.soft(signal.aborted).toBe(true);
+    await act(async () => {
+      finish(stage === "fetch" ? { ok: true, json: async () => ({ assets: [{ symbol: "LATE" }] }) } : { assets: [{ symbol: "LATE" }] });
+      await pending;
+    });
+    expect(result.current.searchResults).toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries the current failed query and ignores retry while pending or after clearing", async () => {
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new Error("Offline"))
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ result: [{ asset: "XCP", supply_normalized: "2.6" }] }) } as Response);
+    const { result } = renderHook(() => useSearchQuery("XCP", { maxRetries: 0 }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(result.current.error).toContain("Offline");
+    act(() => { result.current.retry(); });
+    expect(result.current.isSearching).toBe(true);
+    expect(result.current.error).toBeNull();
+    act(() => { result.current.retry(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(result.current.searchResults).toEqual([{ symbol: "XCP", supply: "2.6" }]);
+    act(() => { result.current.setSearchQuery(""); });
+    act(() => { result.current.retry(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("treats revisiting a previous query as pending instead of reusing stale completed state", async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({ assets: [{ symbol: "OLD" }] }) } as Response);
+    const { result } = renderHook(() => useSearchQuery("OLD"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    act(() => { result.current.setSearchQuery("NEW"); });
+    act(() => { result.current.setSearchQuery("OLD"); });
+    expect(result.current.isSearching).toBe(true);
+    expect(result.current.searchResults).toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts retry backoff on unmount", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("Network error"));
+    const { unmount } = renderHook(() => useSearchQuery("OLD"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    unmount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("preserves custom endpoint and retry timing options with a fresh timeout signal per attempt", async () => {
+    vi.mocked(fetch)
+      .mockImplementationOnce(() => new Promise<Response>(() => {}))
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ assets: [{ symbol: "CUSTOM", supply: "12" }] }) } as Response);
+    const { result } = renderHook(() => useSearchQuery("CUSTOM", {
+      apiEndpoint: "https://example.test/assets", debounceMs: 25, maxRetries: 1, retryDelayMs: 10, requestTimeoutMs: 50,
+    }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(25); });
+    const firstSignal = vi.mocked(fetch).mock.calls[0]![1]!.signal!;
+    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    expect(firstSignal.aborted).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.isSearching).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenLastCalledWith("https://example.test/assets?query=CUSTOM", expect.anything());
+    const secondSignal = vi.mocked(fetch).mock.calls[1]![1]!.signal!;
+    expect(secondSignal).not.toBe(firstSignal);
+    expect(secondSignal.aborted).toBe(false);
+    expect(result.current.searchResults).toEqual([{ symbol: "CUSTOM", supply: "12" }]);
+    expect(result.current.isSearching).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(["seconds", "date"])("respects Retry-After %s and surfaces rate limiting after the configured retry", async (format) => {
+    vi.setSystemTime(new Date("2026-09-08T15:00:00Z"));
+    const headers = new Headers({ "Retry-After": format === "seconds" ? "5" : new Date(Date.now() + 5_500).toUTCString() });
+    vi.mocked(fetch).mockResolvedValue({ ok: false, status: 429, headers } as Response);
+    const { result } = renderHook(() => useSearchQuery("RATE", { maxRetries: 1 }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    // HTTP dates are rounded to whole seconds, leaving 4.5 seconds after debounce.
+    const delay = format === "seconds" ? 5_000 : 4_500;
+    await act(async () => { await vi.advanceTimersByTimeAsync(delay - 1); });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.isSearching).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(result.current.isSearching).toBe(false);
+    expect(result.current.error).toBe("Search is temporarily rate limited. Please try again.");
+  });
+
+  it("surfaces long rate-limit windows without retrying early or keeping search pending", async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: false, status: 429, headers: new Headers({ "Retry-After": "120" }) } as Response);
+    const { result } = renderHook(() => useSearchQuery("RATE"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(result.current.isSearching).toBe(false);
+    expect(result.current.error).toMatch(/rate limited/i);
+    await act(async () => { await vi.advanceTimersByTimeAsync(180_000); });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

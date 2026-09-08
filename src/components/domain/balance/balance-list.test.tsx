@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import type { TokenBalance } from "@/core/counterparty/api";
@@ -56,6 +56,7 @@ vi.mock("@/core/counterparty/api", () => ({
 }));
 
 vi.mock("@/core/format", () => ({
+  normalizeAssetQuery: (query: string) => query.includes('.') ? query.trim() : query.trim().toUpperCase(),
   formatAmount: vi.fn(
     ({ value, minimumFractionDigits, maximumFractionDigits }) => {
       if (minimumFractionDigits === 8 || maximumFractionDigits === 8) {
@@ -116,6 +117,8 @@ let mockSearchQuery = "";
 let mockSearchResults: any[] = [];
 let mockIsSearching = false;
 const mockSetSearchQuery = vi.fn();
+let mockSearchError: string | null = null;
+const mockRetrySearch = vi.fn();
 
 vi.mock("@/hooks/useSearchQuery", () => ({
   useSearchQuery: () => ({
@@ -123,6 +126,8 @@ vi.mock("@/hooks/useSearchQuery", () => ({
     setSearchQuery: mockSetSearchQuery,
     searchResults: mockSearchResults,
     isSearching: mockIsSearching,
+    error: mockSearchError,
+    retry: mockRetrySearch,
   }),
 }));
 
@@ -135,6 +140,24 @@ vi.mock("@/hooks/useInView", () => ({
 }));
 
 describe("BalanceList", () => {
+  it("preserves pinned subasset casing in API lookups and reloads after a case change", async () => {
+    const previous = mockSettings.pinnedAssets;
+    mockSettings.pinnedAssets = ["PARENT.child"];
+    try {
+      const view = render(<BalanceList />);
+      await waitFor(() => expect(mockFetchTokenBalance).toHaveBeenCalledWith(
+        "bc1qtest123", "PARENT.child", { type: "address" }));
+      mockSettings.pinnedAssets = ["PARENT.Child"];
+      view.rerender(<BalanceList />);
+      await waitFor(() => expect(mockFetchTokenBalance).toHaveBeenCalledWith(
+        "bc1qtest123", "PARENT.Child", { type: "address" }));
+      expect(mockFetchTokenBalance).not.toHaveBeenCalledWith(
+        "bc1qtest123", "PARENT.CHILD", { type: "address" });
+    } finally {
+      mockSettings.pinnedAssets = previous;
+    }
+  });
+
   const mockTokenBalances: TokenBalance[] = [
     {
       asset: "XCP",
@@ -178,6 +201,10 @@ describe("BalanceList", () => {
     vi.clearAllMocks();
     mockActiveWallet = { id: "wallet1", name: "Test Wallet" };
     mockActiveAddress = { address: "bc1qtest123", name: "Test Address" };
+    mockSettings.pinnedAssets = ["XCP", "PEPECASH"];
+    mockFetchBTCBalance.mockReset();
+    mockFetchTokenBalance.mockReset();
+    mockFetchTokenBalances.mockReset();
     mockFetchBTCBalance.mockResolvedValue(100000000); // 1 BTC in sats
     mockFetchTokenBalance.mockResolvedValue(null);
     mockFetchTokenBalances.mockResolvedValue([]);
@@ -185,6 +212,7 @@ describe("BalanceList", () => {
     mockSearchQuery = "";
     mockSearchResults = [];
     mockIsSearching = false;
+    mockSearchError = null;
     mockInView.mockReturnValue(false);
   });
 
@@ -668,5 +696,107 @@ describe("BalanceList", () => {
     expect(searchInput).toHaveClass("border");
     expect(searchInput).toHaveClass("rounded-md");
     expect(searchInput).toHaveClass("bg-gray-50");
+  });
+
+  it("waits for the initial BTC/pinned load before fetching one balance page", async () => {
+    let resolveBTC!: (sats: number) => void;
+    let resolvePage!: (balances: TokenBalance[]) => void;
+    mockFetchBTCBalance.mockReturnValue(new Promise<number>((resolve) => { resolveBTC = resolve; }));
+    mockFetchTokenBalances.mockReturnValue(new Promise<TokenBalance[]>((resolve) => { resolvePage = resolve; }));
+    mockInView.mockReturnValue(true);
+    const { rerender } = render(<BalanceList />);
+    await act(async () => {});
+    expect(mockFetchTokenBalances).not.toHaveBeenCalled();
+    await act(async () => resolveBTC(0));
+    await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(1));
+    rerender(<BalanceList />);
+    await act(async () => {});
+    expect(mockFetchTokenBalances).toHaveBeenCalledTimes(1);
+    await act(async () => resolvePage([]));
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+  });
+
+  it.each(["address", "refresh"])("discards a late balance page after %s changes", async (change) => {
+    let resolvePage!: (balances: TokenBalance[]) => void;
+    const page = new Promise<TokenBalance[]>((resolve) => { resolvePage = resolve; });
+    mockFetchTokenBalances.mockReturnValueOnce(page).mockResolvedValue([]);
+    mockInView.mockReturnValue(true);
+    const onRefreshed = vi.fn();
+    const { rerender } = render(<BalanceList refreshNonce={0} onRefreshed={onRefreshed} />);
+    await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(1));
+    if (change === "address") mockActiveAddress = { address: "bc1qsecond", name: "Second" };
+    rerender(<BalanceList refreshNonce={change === "refresh" ? 1 : 0} onRefreshed={onRefreshed} />);
+    await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2));
+    await act(async () => resolvePage([{ ...mockTokenBalances[0]!, asset: "STALE" }]));
+    expect(screen.queryByText("STALE")).not.toBeInTheDocument();
+    expect(mockCacheBalances).not.toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ asset: "STALE" })]));
+    expect(mockFetchTokenBalances).toHaveBeenLastCalledWith(change === "address" ? "bc1qsecond" : "bc1qtest123", { type: "address", limit: 20, offset: 0 });
+    expect(onRefreshed).toHaveBeenCalledTimes(change === "refresh" ? 1 : 0);
+  });
+
+  it("does not let a cancelled initial load finish a newer requested refresh", async () => {
+    let resolveOld!: (sats: number) => void;
+    let resolveFresh!: (sats: number) => void;
+    mockFetchBTCBalance
+      .mockReturnValueOnce(new Promise<number>((resolve) => { resolveOld = resolve; }))
+      .mockReturnValueOnce(new Promise<number>((resolve) => { resolveFresh = resolve; }));
+    const onRefreshed = vi.fn();
+    const { rerender } = render(<BalanceList refreshNonce={0} onRefreshed={onRefreshed} />);
+    await waitFor(() => expect(mockFetchBTCBalance).toHaveBeenCalledOnce());
+    rerender(<BalanceList refreshNonce={1} onRefreshed={onRefreshed} />);
+    await waitFor(() => expect(mockFetchBTCBalance).toHaveBeenCalledTimes(2));
+    await act(async () => resolveOld(100_000_000));
+    expect(onRefreshed).not.toHaveBeenCalled();
+    expect(screen.getByText("Loading balances…")).toBeInTheDocument();
+    await act(async () => resolveFresh(0));
+    expect(onRefreshed).toHaveBeenCalledOnce();
+    expect(screen.getByText("0.00000000")).toBeInTheDocument();
+    expect(screen.queryByText("1.00000000")).not.toBeInTheDocument();
+  });
+
+  it("retains loaded balances and retries the failed page at the same offset", async () => {
+    mockFetchTokenBalances.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce([mockTokenBalances[0]!]);
+    mockInView.mockReturnValue(true);
+    render(<BalanceList />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load more balances");
+    expect(screen.getByText("BTC")).toBeInTheDocument();
+    expect(mockFetchTokenBalances).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText("XCP");
+    expect(mockFetchTokenBalances).toHaveBeenNthCalledWith(2, "bc1qtest123", { type: "address", limit: 20, offset: 0 });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows initial failures and completes a failed refresh with a working retry", async () => {
+    const onRefreshed = vi.fn();
+    const { rerender } = render(<BalanceList refreshNonce={0} onRefreshed={onRefreshed} />);
+    await screen.findByText("BTC");
+    mockFetchBTCBalance.mockRejectedValueOnce(new Error("offline"));
+    rerender(<BalanceList refreshNonce={1} onRefreshed={onRefreshed} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load balances");
+    expect(onRefreshed).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText("BTC");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(onRefreshed).toHaveBeenCalledOnce();
+  });
+
+  it("renders an unowned global result while empty-wallet balances are pending", async () => {
+    mockFetchBTCBalance.mockReturnValue(new Promise(() => {}));
+    mockSearchQuery = "A95428956661682177";
+    mockSearchResults = [{ symbol: mockSearchQuery }];
+    render(<BalanceList />);
+    fireEvent.click(await screen.findByRole("button", { name: `View ${mockSearchQuery}` }));
+    expect(mockNavigate).toHaveBeenCalledWith(`/assets/${mockSearchQuery}/balance`);
+  });
+
+  it("shows a failed global search and retries without displaying No results", async () => {
+    mockSearchQuery = "UNOWNED";
+    mockSearchError = "Search failed. Please try again.";
+    render(<BalanceList />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(mockSearchError);
+    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(mockRetrySearch).toHaveBeenCalledOnce();
   });
 });
