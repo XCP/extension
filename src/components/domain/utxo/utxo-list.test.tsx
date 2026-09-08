@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import type { UtxoBalance } from '@/core/counterparty/api';
 import { asDisplayUnits } from '@/core/numeric';
+import { configureLocale, t } from '@/i18n';
 import { UtxoList } from './utxo-list';
 
 const mockNavigate = vi.fn();
@@ -102,10 +103,16 @@ const fullPage = () => Array.from({ length: 20 }, (_, i) => ({
 
 describe('UtxoList', () => {
   beforeEach(() => {
+    configureLocale({ language: 'en', numberLocale: 'en-US' });
     vi.clearAllMocks();
     mockActiveAddress.address = 'bc1qtest123';
     mockInView = false;
     mockFetchTokenBalances.mockResolvedValue(mockUtxoBalances);
+  });
+
+  afterEach(() => {
+    cleanup();
+    configureLocale({ language: 'en', numberLocale: 'en-US' });
   });
 
   it('should show loading spinner initially', () => {
@@ -211,6 +218,11 @@ describe('UtxoList', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Failed to load UTXO balances.');
       expect(screen.queryByText('No UTXO-attached balances')).not.toBeInTheDocument();
     });
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      expect(screen.getByRole('alert')).toHaveTextContent(t('utxo_utxo_list_load_failed'));
+      expect(mockFetchTokenBalances).toHaveBeenCalledTimes(1);
+    }
   });
 
   it('finds a later-page UTXO with no loaded search match and finishes the spinner', async () => {
@@ -222,6 +234,12 @@ describe('UtxoList', () => {
     await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2));
     expect(screen.queryByText('No matching UTXOs')).not.toBeInTheDocument();
     expect(screen.getByTestId('spinner')).toHaveTextContent('Searching UTXO balances…');
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      expect(screen.getByTestId('spinner')).toHaveTextContent(t('utxo_utxo_list_searching_utxo_balances'));
+      expect(screen.getByRole('textbox')).toHaveValue('RAREPEPE');
+      expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2);
+    }
     await act(async () => more.resolve([mockUtxoBalances[1]!]));
     expect(screen.getByText('RAREPEPE')).toBeInTheDocument();
     expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
@@ -263,7 +281,13 @@ describe('UtxoList', () => {
     expect(screen.getAllByText('XCP')).toHaveLength(20);
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to load more UTXO balances.');
     expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      expect(screen.getByRole('alert')).toHaveTextContent(t('utxo_utxo_list_load_more_failed'));
+      expect(screen.getAllByText('XCP')).toHaveLength(20);
+      expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2);
+    }
+    fireEvent.click(screen.getByRole('button', { name: t('common_retry') }));
     await waitFor(() => expect(screen.getByText('RAREPEPE')).toBeInTheDocument());
     expect(mockFetchTokenBalances).toHaveBeenLastCalledWith('bc1qtest123', { type: 'utxo', limit: 20, offset: 20 });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
