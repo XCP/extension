@@ -289,6 +289,15 @@ function packSubasset(
   if (!compacted) return null;
 
   const description = typeof params.description === 'string' ? params.description : '';
+  // Core distinguishes an absent description (CBOR null) from an empty one, so only a non-empty
+  // description is encoded — and it goes through `encodeMessageContent` for the same reason the
+  // standard issuance body does: an inscribed subasset carries binary content as hex, and UTF-8
+  // encoding that hex would put twice the bytes on the wire under a length core never wrote.
+  let descriptionBytes: Uint8Array | null = null;
+  if (description.length > 0) {
+    descriptionBytes = encodeMessageContent(description, mimeType);
+    if (!descriptionBytes) return null;
+  }
 
   const body: CborEncodable = [
     assetId,
@@ -299,7 +308,7 @@ function packSubasset(
     BigInt(compacted.length),
     compacted,
     mimeType,
-    description.length > 0 ? new TextEncoder().encode(description) : null,
+    descriptionBytes,
   ];
   return withPrefix(MessageTypeId.LR_SUBASSET, encodeCbor(body));
 }
@@ -508,7 +517,13 @@ function packFairminter(params: Params): PackedMessage | null {
     bool('divisible', true),
   ];
   if (poolQuantity! > 0n) fields.push(poolQuantity!, lpAssetId);
-  fields.push(mimeType, new TextEncoder().encode(description));
+  // Binary content — an inscribed image, say — reaches the request as hex, and core writes the
+  // decoded bytes (`helpers.content_to_bytes`). Encoding the hex text instead put double the
+  // bytes on the wire under a length core never wrote, so byte equality failed and the compose
+  // was refused: an inscribed fairminter could not be created at all.
+  const descriptionBytes = encodeMessageContent(description, mimeType);
+  if (!descriptionBytes) return null;
+  fields.push(mimeType, descriptionBytes);
 
   return withPrefix(MessageTypeId.FAIRMINTER, encodeCbor(fields));
 }
