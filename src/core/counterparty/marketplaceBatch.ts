@@ -261,7 +261,10 @@ export function analyzeMarketplaceBatch(
       { kind: 'text' as const, label: 'Broadcast', value: 'Not broadcast now.' },
       { kind: 'paragraph' as const, label: 'Signature invalidation', value: 'Spend each attached asset UTXO' },
     );
-    notice = 'Every listing independently guarantees its seller payment. Each flexible signature remains valid until its attached asset outpoint is spent.';
+    // No notice, for the reason stated above the facts: the durable-signature boundary is the
+    // `Signature invalidation` row, and the per-listing guarantee is what the payout rows say.
+    // Restating both in an amber box warned about a batch that had verified completely.
+    notice = '';
   }
 
   return {
