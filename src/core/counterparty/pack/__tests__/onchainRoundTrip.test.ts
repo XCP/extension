@@ -71,6 +71,42 @@ function sameBroadcastFields(
  * Preserve the order of sends within each asset group while ignoring only the unknowable order
  * between groups. This keeps quantity, destination and memo changes visible to the oracle.
  */
+/**
+ * A fairminter whose on-chain message carries CBOR items past the ones core reads.
+ *
+ * `fairminter.py` unpacks `fields[:17]`, then the pool pair and `mime_type`/`description` by
+ * position, and never looks past field 20 — so a composer may append anything after them and the
+ * protocol ignores it. LIKETHIS (block 965856) does exactly that: 23 items, where core reads 21
+ * and the trailing `image/webp` and its 7KB of artwork are inert. The node's own decode reports
+ * only the `text/plain` description URI, and this wallet's decoder applies core's identical
+ * `len(fields) >= 21` rule, so both read it the same way.
+ *
+ * Such a message is not reproducible from its decoded fields by anyone, this wallet included: the
+ * trailing bytes are not in the decode, and core's own compose never emits them. So it is accepted
+ * only when the rebuilt message is the original with trailing items removed and nothing else —
+ * every byte we emitted matches, and the parts core reads still decode identically. A packer that
+ * changed a field fails on the decode; one that dropped a field core reads fails on it too, which
+ * is why byte-prefixing alone is not enough to earn the exemption.
+ */
+function trailingItemsCoreIgnores(original: string, rebuilt: string): boolean {
+  const head = COUNTERPARTY_PREFIX_HEX.length + 2; // CNTRPRTY, then the one-byte message type id.
+  if (original.slice(0, head) !== rebuilt.slice(0, head)) return false;
+  const originalHead = Number.parseInt(original.slice(head, head + 2), 16);
+  const rebuiltHead = Number.parseInt(rebuilt.slice(head, head + 2), 16);
+  // CBOR major type 4 with an inline count, which is every fairminter array core composes.
+  const inlineArray = (head: number) => (head & 0xe0) === 0x80 && (head & 0x1f) < 24;
+  if (!inlineArray(originalHead) || !inlineArray(rebuiltHead)) return false;
+  if (originalHead <= rebuiltHead) return false;
+  return original.slice(head + 2).startsWith(rebuilt.slice(head + 2));
+}
+
+/** Decoded-message equality, with bigint quantities compared by value. */
+function sameDecodedMessage(original: unknown, rebuilt: unknown): boolean {
+  const stable = (value: unknown) =>
+    JSON.stringify(value, (_key, item) => (typeof item === 'bigint' ? item.toString() : item));
+  return stable(original) === stable(rebuilt);
+}
+
 function sameMpmaFields(
   original: MPMAData,
   rebuilt: MPMAData
@@ -342,6 +378,19 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
           declined += 1;
           continue;
         }
+        if (
+          apiType === 'fairminter'
+          && rebuiltMessage.success
+          && rebuiltMessage.messageType === 'fairminter'
+          && rebuiltMessage.data
+          && trailingItemsCoreIgnores(original, rebuilt)
+          && sameDecodedMessage(unpacked.data, rebuiltMessage.data)
+        ) {
+          // Inert bytes appended past the fields core reads. Nothing in the decode names them, so
+          // no compose path can reproduce them — see `trailingItemsCoreIgnores`.
+          declined += 1;
+          continue;
+        }
         failures.push(`${transaction.tx_hash} (block ${transaction.block_index})\n  on-chain: ${original}\n  rebuilt:  ${rebuilt}`);
       }
       compared += 1;
@@ -367,6 +416,41 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
       return;
     }
   }, 30_000);
+});
+
+describe('on-chain fairminter sample classification', () => {
+  // The real shape, shortened: CNTRPRTY, type 0x5a, then an array head and a body. Only the head
+  // and the trailing bytes matter to the rule under test.
+  const message = (head: string, tail = '') => `${COUNTERPARTY_PREFIX_HEX}5a${head}0102030405${tail}`;
+
+  it('accepts a rebuild that is the original minus trailing items', () => {
+    // LIKETHIS's shape: 23 items on chain, 21 rebuilt, every rebuilt byte matching.
+    expect(trailingItemsCoreIgnores(message('97', '6a696d6167652f77656270'), message('95'))).toBe(true);
+  });
+
+  it('refuses a rebuild that changed a byte core reads', () => {
+    expect(trailingItemsCoreIgnores(
+      `${COUNTERPARTY_PREFIX_HEX}5a970102030405ff`,
+      `${COUNTERPARTY_PREFIX_HEX}5a950102030499`
+    )).toBe(false);
+  });
+
+  it('refuses a rebuild with more items than the chain, or the same count', () => {
+    expect(trailingItemsCoreIgnores(message('95'), message('97'))).toBe(false);
+    expect(trailingItemsCoreIgnores(message('95'), message('95'))).toBe(false);
+  });
+
+  it('refuses a different message type wearing the same shape', () => {
+    expect(trailingItemsCoreIgnores(
+      `${COUNTERPARTY_PREFIX_HEX}5a970102030405ff`,
+      `${COUNTERPARTY_PREFIX_HEX}5b950102030405`
+    )).toBe(false);
+  });
+
+  it('compares decoded quantities by value, not by reference', () => {
+    expect(sameDecodedMessage({ hardCap: 10n }, { hardCap: 10n })).toBe(true);
+    expect(sameDecodedMessage({ hardCap: 10n }, { hardCap: 11n })).toBe(false);
+  });
 });
 
 describe('on-chain broadcast sample classification', () => {
