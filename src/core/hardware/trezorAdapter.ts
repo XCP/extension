@@ -894,6 +894,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     const result = await TrezorConnect.signTransaction(signRequest);
 
     if (!result.success) {
+      await this.recoverFromSignFailure(result.payload?.code);
       throw new HardwareWalletError(
         `Failed to sign transaction: ${result.payload?.error}`,
         result.payload?.code ?? 'SIGN_TX_FAILED',
@@ -1165,6 +1166,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     const result = await TrezorConnect.signTransaction(signRequest);
 
     if (!result.success) {
+      await this.recoverFromSignFailure(result.payload?.code);
       throw new HardwareWalletError(
         `Failed to sign PSBT: ${result.payload?.error}`,
         result.payload?.code ?? 'SIGN_PSBT_FAILED',
@@ -1332,6 +1334,44 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         'Hardware wallet not initialized. Please reconnect.'
       );
     }
+  }
+
+  /**
+   * Recover from non-user sign failures that can leave the popup/transport session stale.
+   * We keep this narrow to avoid retrying after explicit user cancellation.
+   */
+  private async recoverFromSignFailure(code?: string): Promise<void> {
+    if (!this.shouldRecoverFromSignFailure(code) || !this.initialized) {
+      return;
+    }
+
+    try {
+      await this.dispose();
+      await this.init(this.options);
+    } catch {
+      // Re-initialization failure is expected to be surfaced via the existing signing error path
+    }
+  }
+
+  private shouldRecoverFromSignFailure(code?: string): boolean {
+    if (!code) {
+      return false;
+    }
+
+    // Explicit user cancellations should stay user-facing; avoid reinitialize loops.
+    if (code === 'Failure_ActionCancelled') {
+      return false;
+    }
+
+    const lower = code.toLowerCase();
+    return (
+      lower.includes('initialize') ||
+      lower.includes('initializefailed') ||
+      lower.includes('interrupted') ||
+      lower.includes('transport') ||
+      lower.includes('disconnect') ||
+      lower.includes('session')
+    );
   }
 }
 
