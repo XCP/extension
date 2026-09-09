@@ -211,7 +211,7 @@ describe('ApproveConnection', () => {
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       expect(screen.getByText('This site is requesting access to view your wallet address')).toBeVisible();
       expect(screen.getAllByRole('listitem').map(item => item.textContent?.trim())).toEqual([
-        'View your wallet address', 'Request transaction signatures', 'Request message signatures',
+        'View your wallet address', 'Request transaction signatures', 'Prove address ownership to this site (one-time signature)',
       ]);
     });
 
@@ -246,7 +246,7 @@ describe('ApproveConnection', () => {
       expect(screen.getByText('Native SegWit address').nextElementSibling?.textContent).toBe('bc1qtest123');
       expect(screen.getByText('both of your wallet addresses')).toBeVisible();
       expect(screen.getAllByRole('listitem').map(item => item.textContent?.trim())).toEqual([
-        'View your wallet addresses', 'Request signatures from either address', 'Request message signatures',
+        'View your wallet addresses', 'Request signatures from either address', 'Prove address ownership to this site (one-time signature)',
       ]);
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
       await waitFor(() => {
