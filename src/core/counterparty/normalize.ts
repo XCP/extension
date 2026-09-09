@@ -37,12 +37,17 @@ type MemoConfig =
  * - `quantityFields`: Fields containing quantities that may need conversion
  * - `assetFields`: Maps quantity field → form field name to look up the asset
  *                  For hardcoded assets (e.g., BTC), use a hidden form field
+ * - `rawQuantityFields`: Fields the form already submits in protocol base units. They are checked
+ *                  as raw integers and never scaled, and they name no asset because there is no
+ *                  divisibility to apply. Declaring one here is not the same as leaving a field
+ *                  out of `quantityFields`: an omitted field is a gap, a declared one is a claim.
  * - `booleanFields`: Fields that should be converted from strings to booleans
  * - `memoConfig`: How to handle hex memo detection (set boolean or OR flag)
  */
 export const NORMALIZATION_CONFIG: Record<string, {
   quantityFields: string[];
   assetFields: Record<string, string>;
+  rawQuantityFields?: string[];
   booleanFields?: string[];
   memoConfig?: MemoConfig;
 }> = {
@@ -81,8 +86,16 @@ export const NORMALIZATION_CONFIG: Record<string, {
     }
   },
   dispense: {
-    quantityFields: ['quantity'],
-    assetFields: { quantity: 'asset' }
+    // A dispense names no asset — which asset comes back is the dispenser's decision, not the
+    // payer's — so `quantity` here is the BTC paid to it, in satoshis. The form multiplies the
+    // number of dispenses by the dispenser's `satoshirate`, which is already a base-unit figure,
+    // and `composeDispense` hands it to core as a raw integer. Listing it as a display quantity
+    // asked for an `asset` field this form has never rendered, which failed every dispense with
+    // "An asset is required to interpret quantity."; scaling it by 1e8 had it been found would
+    // have paid a hundred million times the intended amount.
+    quantityFields: [],
+    assetFields: {},
+    rawQuantityFields: ['quantity']
   },
   broadcast: {
     // A broadcast's `value` is a feed reading, not a quantity of anything: core packs it as a raw
@@ -258,8 +271,9 @@ export async function normalizeFormData(
     normalizedData[field] = exactQuantity(String(value), await divisibility(asset), field);
   }
 
-  // These form fields already use protocol base units, not display quantities.
-  for (const field of ['min_lp_quantity', 'min_quantity_a', 'min_quantity_b', 'fee_required', 'utxo_value', 'destination_vout']) {
+  // These form fields already use protocol base units, not display quantities. The shared names
+  // mean the same thing wherever they appear; `rawQuantityFields` covers the ones that do not.
+  for (const field of ['min_lp_quantity', 'min_quantity_a', 'min_quantity_b', 'fee_required', 'utxo_value', 'destination_vout', ...(config.rawQuantityFields ?? [])]) {
     if (field in rawData) normalizedData[field] = parseRawInteger(String(rawData[field])).toString();
   }
 

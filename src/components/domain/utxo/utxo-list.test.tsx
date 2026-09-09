@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import type { UtxoBalance } from '@/core/counterparty/api';
@@ -25,6 +25,7 @@ vi.mock('@/core/counterparty/api', () => ({
 }));
 
 vi.mock('@/core/format', () => ({
+  normalizeAssetQuery: (query: string) => query.includes('.') ? query.trim() : query.trim().toUpperCase(),
   formatAmount: vi.fn(({ value }: { value: string | number }) => Number(value).toFixed(8)),
   formatAsset: vi.fn((asset: string) => asset),
   formatTxid: vi.fn((txid: string) => `${txid.slice(0, 8)}...`)
@@ -89,9 +90,20 @@ const mockUtxoBalances: UtxoBalance[] = [
   },
 ];
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+const fullPage = () => Array.from({ length: 20 }, (_, i) => ({
+  ...mockUtxoBalances[0]!, utxo: `page-utxo-${i}:0`,
+}));
+
 describe('UtxoList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockActiveAddress.address = 'bc1qtest123';
     mockInView = false;
     mockFetchTokenBalances.mockResolvedValue(mockUtxoBalances);
   });
@@ -196,7 +208,80 @@ describe('UtxoList', () => {
     render(<UtxoList />);
 
     await waitFor(() => {
-      expect(screen.getByText('No UTXO-attached balances')).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent('Failed to load UTXO balances.');
+      expect(screen.queryByText('No UTXO-attached balances')).not.toBeInTheDocument();
     });
+  });
+
+  it('finds a later-page UTXO with no loaded search match and finishes the spinner', async () => {
+    const more = deferred<UtxoBalance[]>();
+    mockFetchTokenBalances.mockResolvedValueOnce(fullPage()).mockReturnValueOnce(more.promise);
+    render(<UtxoList />);
+    await waitFor(() => expect(screen.getAllByText('XCP')).toHaveLength(20));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'RAREPEPE' } });
+    await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText('No matching UTXOs')).not.toBeInTheDocument();
+    expect(screen.getByTestId('spinner')).toHaveTextContent('Searching UTXO balances…');
+    await act(async () => more.resolve([mockUtxoBalances[1]!]));
+    expect(screen.getByText('RAREPEPE')).toBeInTheDocument();
+    expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
+    expect(mockFetchTokenBalances).toHaveBeenLastCalledWith('bc1qtest123', { type: 'utxo', limit: 20, offset: 20 });
+  });
+
+  it.each(['address', 'refresh'])('ignores a late page across a %s change', async change => {
+    const stale = deferred<UtxoBalance[]>();
+    const current = deferred<UtxoBalance[]>();
+    mockFetchTokenBalances.mockResolvedValueOnce(fullPage())
+      .mockReturnValueOnce(stale.promise).mockReturnValueOnce(current.promise);
+    const view = render(<UtxoList refreshNonce={0} />);
+    await waitFor(() => expect(screen.getAllByText('XCP')).toHaveLength(20));
+    mockInView = true;
+    view.rerender(<UtxoList refreshNonce={0} />);
+    await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2));
+    mockInView = false;
+    if (change === 'address') mockActiveAddress.address = 'other-address';
+    view.rerender(<UtxoList refreshNonce={change === 'refresh' ? 1 : 0} />);
+    await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(3));
+    await act(async () => stale.resolve([mockUtxoBalances[1]!]));
+    expect(screen.queryByText('RAREPEPE')).not.toBeInTheDocument();
+    expect(screen.getByTestId('spinner')).toHaveTextContent('Loading UTXO balances…');
+    await act(async () => current.resolve([{ ...mockUtxoBalances[0]!, asset: 'CURRENT' }]));
+    expect(screen.getByText('CURRENT')).toBeInTheDocument();
+    expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
+  });
+
+  it('retains rows on page failure and retries the same offset', async () => {
+    const failed = deferred<UtxoBalance[]>();
+    mockFetchTokenBalances.mockResolvedValueOnce(fullPage()).mockReturnValueOnce(failed.promise)
+      .mockResolvedValueOnce([mockUtxoBalances[1]!]);
+    const view = render(<UtxoList />);
+    await waitFor(() => expect(screen.getAllByText('XCP')).toHaveLength(20));
+    mockInView = true;
+    view.rerender(<UtxoList />);
+    await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2));
+    await act(async () => failed.reject(new Error('Rate limited')));
+    expect(screen.getAllByText('XCP')).toHaveLength(20);
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to load more UTXO balances.');
+    expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.getByText('RAREPEPE')).toBeInTheDocument());
+    expect(mockFetchTokenBalances).toHaveBeenLastCalledWith('bc1qtest123', { type: 'utxo', limit: 20, offset: 20 });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
+  });
+
+  it('an old initial load cannot finish a newer refresh', async () => {
+    const old = deferred<UtxoBalance[]>();
+    const current = deferred<UtxoBalance[]>();
+    const onRefreshed = vi.fn();
+    mockFetchTokenBalances.mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise);
+    const view = render(<UtxoList refreshNonce={0} onRefreshed={onRefreshed} />);
+    await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(1));
+    view.rerender(<UtxoList refreshNonce={1} onRefreshed={onRefreshed} />);
+    await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2));
+    await act(async () => old.resolve([]));
+    expect(onRefreshed).not.toHaveBeenCalled();
+    await act(async () => current.resolve(mockUtxoBalances));
+    expect(onRefreshed).toHaveBeenCalledTimes(1);
   });
 });

@@ -788,13 +788,24 @@ export async function composeDispenser(options: DispenserOptions): Promise<ApiRe
     max_fee,
     encoding,
   } = options;
+  // A close (status != 0) names no quantities: the close forms submit only the asset and the
+  // status, so these three arrive undefined and core reads the zeros as "leave them alone" — the
+  // packer in `pack/messages.ts` defaults them the same way for the same reason. An open must
+  // still name all three; defaulting there would quietly compose a dispenser that gives nothing.
+  const statusCode = serializeRawInteger(status);
+  const dispenserQuantity = (value: string | number | undefined, field: string): string => {
+    if (value === undefined || value === '') {
+      if (statusCode === '0') throw new Error(`A dispenser needs a ${field}.`);
+      return '0';
+    }
+    return serializeRawInteger(value);
+  };
   const paramsObj = {
     asset,
-    // When closing a dispenser (status != 0), these values may be undefined - default to 0
-    give_quantity: serializeRawInteger(give_quantity),
-    escrow_quantity: serializeRawInteger(escrow_quantity),
-    mainchainrate: serializeRawInteger(mainchainrate),
-    status: serializeRawInteger(status),
+    give_quantity: dispenserQuantity(give_quantity, 'give quantity'),
+    escrow_quantity: dispenserQuantity(escrow_quantity, 'escrow quantity'),
+    mainchainrate: dispenserQuantity(mainchainrate, 'price per dispense'),
+    status: statusCode,
     ...(open_address && { open_address }),
     ...(oracle_address && { oracle_address }),
     ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),

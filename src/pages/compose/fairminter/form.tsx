@@ -322,10 +322,14 @@ export function FairminterForm({
                 value={lotSize}
                 onChange={handleQuantityChange(setLotSize)}
                 step={getInputStep()}
-                placeholder={getInputPlaceholder()}
+                // Core's own default is 1 (`quantity_by_price=1` in messages/fairminter.py, which
+                // also rejects anything below it), and `composeFairminter` mirrors that. So blank
+                // is a real choice, not a missing answer — the placeholder has to say which one,
+                // because the shared "0" placeholder named a value core would refuse.
+                placeholder="1"
                 disabled={pending}
                 showHelpText={showHelpText}
-                description="Number of tokens received per mint transaction."
+                description="Number of tokens received per mint transaction. Defaults to 1."
               />
 
               <TextField

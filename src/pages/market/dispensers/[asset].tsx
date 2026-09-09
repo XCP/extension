@@ -27,9 +27,11 @@ import type { PriceUnit } from "@/core/settings";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useInView } from "@/hooks/useInView";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
 // Constants
 const FETCH_LIMIT = 20;
+const dispenserKey = (row: DispenserDetails) => row.tx_hash;
 const SATS_PER_BTC = 100_000_000;
 const DEBOUNCE_MS = 1000;
 const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
@@ -66,22 +68,33 @@ export default function AssetDispensersPage(): ReactElement {
   const { settings, updateSettings } = useSettings();
   const { btc: btcPrice } = useMarketPrices(settings.fiat);
 
-  // Data state
-  const [assetInfo, setAssetInfo] = useState<AssetInfo | null>(null);
-  const [dispensers, setDispensers] = useState<DispenserDetails[]>([]);
-  const [dispenses, setDispenses] = useState<Dispense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Pagination state for dispensers
-  const [dispenserOffset, setDispenserOffset] = useState(0);
-  const [hasMoreDispensers, setHasMoreDispensers] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-
-  // Pagination state for dispenses
-  const [dispenseOffset, setDispenseOffset] = useState(0);
-  const [hasMoreDispenses, setHasMoreDispenses] = useState(true);
-  const [isFetchingMoreDispenses, setIsFetchingMoreDispenses] = useState(false);
+  const fetchInfo = useCallback(async () => {
+    const info = asset ? await fetchAssetDetails(asset) : null;
+    return { result: info ? [info] : [], result_count: info ? 1 : 0 };
+  }, [asset]);
+  const fetchDispensers = useCallback((offset: number, limit: number) =>
+    asset ? fetchAssetDispensers(asset, { limit, offset, status: "open" })
+      : Promise.resolve({ result: [], result_count: 0 }), [asset]);
+  const fetchDispenses = useCallback((offset: number, limit: number) =>
+    asset ? fetchAssetDispenses(asset, { limit, offset })
+      : Promise.resolve({ result: [], result_count: 0 }), [asset]);
+  const infoPage = usePaginatedFetch<AssetInfo>({
+    fetchFn: fetchInfo, pageSize: 1, maxItems: 1, enabled: !!asset,
+  });
+  const dispenserPage = usePaginatedFetch<DispenserDetails>({
+    fetchFn: fetchDispensers, getKey: dispenserKey, pageSize: FETCH_LIMIT, maxItems: Infinity, enabled: !!asset,
+  });
+  const dispensePage = usePaginatedFetch<Dispense>({
+    fetchFn: fetchDispenses, pageSize: FETCH_LIMIT, maxItems: Infinity, enabled: !!asset,
+  });
+  const assetInfo = infoPage.data[0] ?? null;
+  const dispensers = useMemo(
+    () => dispenserPage.data.filter(isFixedRateDispenser).sort(byPricePerUnit),
+    [dispenserPage.data],
+  );
+  const dispenses = dispensePage.data;
+  const loading = infoPage.isLoading || dispenserPage.isLoading || dispensePage.isLoading;
+  const isRefreshing = loading;
 
   // UI state - initialize from settings
   const [tab, setTab] = useState<"open" | "history">("open");
@@ -125,53 +138,14 @@ export default function AssetDispensersPage(): ReactElement {
     };
   }, []);
 
-  // Load data function (used for initial load and refresh)
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (!asset) return;
-
-    if (isRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setDispensers([]);
-    setDispenses([]);
-    setDispenserOffset(0);
-    setDispenseOffset(0);
-    setHasMoreDispensers(true);
-    setHasMoreDispenses(true);
-
-    try {
-      const [infoRes, dispensersRes, dispensesRes] = await Promise.all([
-        fetchAssetDetails(asset),
-        fetchAssetDispensers(asset, { limit: FETCH_LIMIT, status: "open" }),
-        fetchAssetDispenses(asset, { limit: FETCH_LIMIT }),
-      ]);
-
-      if (infoRes) setAssetInfo(infoRes);
-
-      // Sort by price (lowest first) for better UX
-      const sortedDispensers = dispensersRes.result.filter(isFixedRateDispenser).sort(
-        byPricePerUnit
-      );
-      setDispensers(sortedDispensers);
-      setDispenserOffset(FETCH_LIMIT);
-      if (dispensersRes.result.length < FETCH_LIMIT) {
-        setHasMoreDispensers(false);
-      }
-
-      setDispenses(dispensesRes.result);
-      setDispenseOffset(FETCH_LIMIT);
-      if (dispensesRes.result.length < FETCH_LIMIT) {
-        setHasMoreDispenses(false);
-      }
-    } catch (err) {
-      console.error('Failed to load dispensers:', { asset }, err);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [asset]);
+  const { refresh: refreshInfo } = infoPage;
+  const { refresh: refreshDispensers } = dispenserPage;
+  const { refresh: refreshDispenses } = dispensePage;
+  const loadData = useCallback(() => {
+    refreshInfo();
+    refreshDispensers();
+    refreshDispenses();
+  }, [refreshInfo, refreshDispensers, refreshDispenses]);
 
   // Refresh handler with cooldown to prevent spam
   const handleRefresh = useCallback(() => {
@@ -180,7 +154,7 @@ export default function AssetDispensersPage(): ReactElement {
       return; // Still in cooldown
     }
     lastRefreshRef.current = now;
-    loadData(true);
+    loadData();
   }, [loadData]);
 
   // Configure header with refresh button
@@ -198,90 +172,15 @@ export default function AssetDispensersPage(): ReactElement {
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate, isRefreshing, handleRefresh]);
 
-  // Load initial data
+  const activePage = tab === "open" ? dispenserPage : dispensePage;
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Load more dispensers on scroll (when on "open" tab)
-  useEffect(() => {
-    if (!asset || !inView || isFetchingMore || !hasMoreDispensers || tab !== "open") {
-      return;
+    // An oracle-only page cannot establish that no fixed-rate listing exists.
+    const needsVisibleListing = tab === "open" && dispensers.length === 0;
+    if (!loading && !infoPage.error && (inView || needsVisibleListing)
+      && activePage.hasMore && !activePage.error) {
+      activePage.loadMore();
     }
-
-    const loadMore = async () => {
-      setIsFetchingMore(true);
-      try {
-        const res = await fetchAssetDispensers(asset, {
-          limit: FETCH_LIMIT,
-          offset: dispenserOffset,
-          status: "open",
-        });
-
-        if (res.result.length < FETCH_LIMIT) {
-          setHasMoreDispensers(false);
-        }
-
-        if (res.result.length > 0) {
-          setDispensers((prev) => {
-            // Append, dedupe, and re-sort by price
-            const merged = [...prev, ...res.result.filter(isFixedRateDispenser)];
-            const deduped = merged.filter(
-              (d, i, arr) => arr.findIndex((x) => x.tx_hash === d.tx_hash) === i
-            );
-            return deduped.sort(byPricePerUnit);
-          });
-          setDispenserOffset((prev) => prev + FETCH_LIMIT);
-        }
-      } catch (err) {
-        console.error("Failed to load more dispensers:", err);
-        setHasMoreDispensers(false);
-      } finally {
-        setIsFetchingMore(false);
-      }
-    };
-
-    loadMore();
-  }, [asset, inView, isFetchingMore, hasMoreDispensers, dispenserOffset, tab]);
-
-  // Load more dispenses on scroll (when on "history" tab)
-  useEffect(() => {
-    if (!asset || !inView || isFetchingMoreDispenses || !hasMoreDispenses || tab !== "history") {
-      return;
-    }
-
-    const loadMore = async () => {
-      setIsFetchingMoreDispenses(true);
-      try {
-        const res = await fetchAssetDispenses(asset, {
-          limit: FETCH_LIMIT,
-          offset: dispenseOffset,
-        });
-
-        if (res.result.length < FETCH_LIMIT) {
-          setHasMoreDispenses(false);
-        }
-
-        if (res.result.length > 0) {
-          setDispenses((prev) => {
-            const merged = [...prev, ...res.result];
-            // Dedupe by tx_hash
-            return merged.filter(
-              (d, i, arr) => arr.findIndex((x) => x.tx_hash === d.tx_hash) === i
-            );
-          });
-          setDispenseOffset((prev) => prev + FETCH_LIMIT);
-        }
-      } catch (err) {
-        console.error("Failed to load more dispenses:", err);
-        setHasMoreDispenses(false);
-      } finally {
-        setIsFetchingMoreDispenses(false);
-      }
-    };
-
-    loadMore();
-  }, [asset, inView, isFetchingMoreDispenses, hasMoreDispenses, dispenseOffset, tab]);
+  }, [loading, infoPage.error, inView, tab, dispensers.length, activePage]);
 
   // Calculate stats for open dispensers (updates as more load)
   const dispenserStats = useMemo(() => {
@@ -363,8 +262,9 @@ export default function AssetDispensersPage(): ReactElement {
     return <Spinner message={`Loading ${asset} dispensers…`} />;
   }
 
-  const hasMore = tab === "open" ? hasMoreDispensers : tab === "history" ? hasMoreDispenses : false;
-  const isFetching = tab === "open" ? isFetchingMore : tab === "history" ? isFetchingMoreDispenses : false;
+  const hasMore = activePage.hasMore;
+  const isFetching = activePage.isFetchingMore;
+  const pageError = infoPage.error ?? activePage.error;
 
   /** A dispenser giving nothing has no price to show, rather than a price of zero. */
   const pricePerUnitLabel = (dispenser: DispenserDetails): string => {
@@ -496,7 +396,7 @@ export default function AssetDispensersPage(): ReactElement {
                   />
                 ))}
               </div>
-            ) : (
+            ) : !pageError && !hasMore && (
               <EmptyState
                 message={`No open ${asset} dispensers found`}
                 linkAction={{
@@ -510,7 +410,7 @@ export default function AssetDispensersPage(): ReactElement {
           {tab === "history" && (
             dispenses.length > 0 ? (
               <div className="space-y-2">
-                {dispenses.map((d) => {
+                {dispenses.map((d, index) => {
                   const quantity = toBigNumber(d.dispense_quantity_normalized);
                   // A dispense of nothing has no price per unit; zero would read as free.
                   const pricePerUnit = quantity.isGreaterThan(0)
@@ -518,7 +418,7 @@ export default function AssetDispensersPage(): ReactElement {
                     : null;
                   return (
                     <AssetDispenseCard
-                      key={d.tx_hash}
+                      key={`${d.tx_hash}:${index}`}
                       dispense={d}
                       asset={asset || ""}
                       formattedPricePerUnit={pricePerUnit === null
@@ -530,14 +430,26 @@ export default function AssetDispensersPage(): ReactElement {
                   );
                 })}
               </div>
-            ) : (
+            ) : !pageError && (
               <EmptyState message={`No recent ${asset} dispenses`} />
             )
           )}
 
+          {pageError && (
+            <div role="alert" className="py-3 text-center text-sm text-gray-600">
+              <p>{pageError.message}</p>
+              <button type="button"
+                onClick={infoPage.error ? loadData : activePage.refresh}
+                className="mt-2 rounded px-3 py-1 text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Load more sentinel */}
           <div ref={loadMoreRef} className="py-2">
-            {hasMore ? (
+            {hasMore && !pageError ? (
               isFetching ? (
                 <div className="flex justify-center">
                   <Spinner className="py-4" />

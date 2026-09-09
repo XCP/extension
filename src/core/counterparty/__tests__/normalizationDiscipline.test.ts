@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { NORMALIZATION_CONFIG } from '../normalize';
 
@@ -47,9 +47,11 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-const APP_SOURCE = sourceFiles(SRC)
-  .map((file) => readFileSync(file, 'utf8'))
-  .join('\n');
+const SOURCE_BY_FILE = new Map(
+  sourceFiles(SRC).map((file) => [file, readFileSync(file, 'utf8')] as const)
+);
+
+const APP_SOURCE = [...SOURCE_BY_FILE.values()].join('\n');
 
 /**
  * The compose types the app actually asks for, read from the `composeType` every compose page
@@ -64,8 +66,35 @@ function composeTypesInUse(): string[] {
   return [...found].sort();
 }
 
-/** A form field is submitted if some form renders an input under that name. */
-const isSubmitted = (field: string) => APP_SOURCE.includes(`name="${field}"`);
+/**
+ * A field is submitted by a source file if it renders an input under that name, or writes the name
+ * into the FormData on the way to `formAction` — several forms hold their values in React state
+ * and set them at submit time, which is submitting the field just as much as rendering it.
+ */
+function submits(source: string, field: string): boolean {
+  return source.includes(`name="${field}"`)
+    || new RegExp(`\\.(?:set|append)\\(\\s*["']${field}["']`).test(source);
+}
+
+/** Whether any form in the app submits the field, wherever it lives. */
+const isSubmitted = (field: string) => [...SOURCE_BY_FILE.values()].some((s) => submits(s, field));
+
+/**
+ * The directories that make up one compose type's screens: wherever its `composeType` string is
+ * handed to `Composer`, plus everything under that directory. Scoping matters — `name="asset"` is
+ * rendered by a dozen unrelated forms, so asking only whether *some* file in the app submits a
+ * field says nothing about whether *this* type's form does. That is exactly how `dispense` shipped
+ * pointing at an `asset` field its own form has never rendered.
+ */
+function screensFor(type: string): string[] {
+  const roots: string[] = [];
+  for (const [file, source] of SOURCE_BY_FILE) {
+    if (new RegExp(`composeType[=:]\\s*["']${type}["']`).test(source)) {
+      roots.push(file.slice(0, file.lastIndexOf(sep)));
+    }
+  }
+  return [...SOURCE_BY_FILE.keys()].filter((file) => roots.some((root) => file.startsWith(root + sep)));
+}
 
 describe('every compose form normalizes its quantities', () => {
   const inUse = composeTypesInUse();
@@ -106,10 +135,55 @@ describe('every compose form normalizes its quantities', () => {
     expect(missing).toEqual([]);
   });
 
+  /**
+   * The fourth way, and the one the checks above could not see. `dispense` declared `quantity` a
+   * display quantity taking its scale from an `asset` field — a field its form has never rendered,
+   * because a dispense does not name an asset. The global check passed on some other form's
+   * `name="asset"`, and every dispense failed at the node's doorstep with "An asset is required to
+   * interpret quantity." The value is the BTC paid in satoshis, so it is declared raw instead.
+   */
+  it('points every asset field at one the same screens submit', () => {
+    const missing: string[] = [];
+    for (const type of inUse) {
+      const config = NORMALIZATION_CONFIG[type];
+      if (!config) continue;
+      const screens = screensFor(type).map((file) => SOURCE_BY_FILE.get(file)!);
+      for (const [quantity, assetField] of Object.entries(config.assetFields)) {
+        if (!screens.some((source) => submits(source, assetField))) {
+          missing.push(`${type}.${quantity} -> ${assetField}`);
+        }
+      }
+    }
+
+    expect(missing).toEqual([]);
+  });
+
+  it('keeps raw and display quantities apart', () => {
+    const overlapping: string[] = [];
+    for (const [type, config] of Object.entries(NORMALIZATION_CONFIG)) {
+      for (const field of config.rawQuantityFields ?? []) {
+        if (config.quantityFields.includes(field)) overlapping.push(`${type}.${field}`);
+        if (config.assetFields[field]) overlapping.push(`${type}.${field} names an asset`);
+      }
+    }
+
+    expect(overlapping).toEqual([]);
+  });
+
   // The checks above read source text, so it is worth knowing they still react to what they hunt.
   it('would catch a new one', () => {
     expect(isSubmitted('lot_price_asset')).toBe(true);
     expect(isSubmitted('a_field_no_form_renders')).toBe(false);
+    expect(submits('<input type="hidden" name="asset" />', 'asset')).toBe(true);
+    expect(submits("formData.set('asset', assetName)", 'asset')).toBe(true);
+    expect(submits('formData.set("quantity", amount)', 'asset')).toBe(false);
+
+    // Scoping is what makes the per-screen check different from the global one: the dispense
+    // screens submit `quantity` but no `asset`, while the app at large submits both.
+    const dispenseScreens = screensFor('dispense').map((file) => SOURCE_BY_FILE.get(file)!);
+    expect(dispenseScreens.length).toBeGreaterThan(0);
+    expect(dispenseScreens.some((source) => submits(source, 'quantity'))).toBe(true);
+    expect(dispenseScreens.some((source) => submits(source, 'asset'))).toBe(false);
 
     const parsed = [...'composeType="send" composeType: \'fairminter\''.matchAll(
       /composeType[=:]\s*["']([a-z]+)["']/g
