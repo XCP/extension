@@ -81,15 +81,18 @@ describe('TrezorAdapter', () => {
       await adapter.init();
 
       // Production mode: popup=true, no explicit transports (auto-detect)
-      expect(mockInit).toHaveBeenCalledWith({
+      expect(mockInit).toHaveBeenCalledWith(
+        expect.objectContaining({
         manifest: {
           appName: 'XCP Wallet',
           email: 'support@xcpwallet.com',
           appUrl: 'https://xcpwallet.com',
         },
         popup: true,
+        coreMode: 'popup',
         debug: expect.any(Boolean),
-      });
+        })
+      );
     });
 
     it('should set initialized flag after successful init', async () => {
