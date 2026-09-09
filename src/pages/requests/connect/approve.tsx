@@ -311,9 +311,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
               </li>
               <li className="flex items-center">
                 <FaCheck className="size-3.5 text-green-500 mr-2 flex-shrink-0" aria-hidden="true" />
-                <span className="text-sm text-gray-600">
-                  Prove address ownership to this site (one-time signature)
-                </span>
+                <span className="text-sm text-gray-600">Request message signatures</span>
               </li>
             </ul>
             {pairedAddressError && (
