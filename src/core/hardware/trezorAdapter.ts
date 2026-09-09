@@ -419,6 +419,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         // Don't specify transports - let @trezor/connect-webextension auto-detect
         // The popup window handles USB/Bridge communication
         initConfig.popup = true;
+        initConfig.coreMode = 'popup';
       }
 
       console.log('[TrezorAdapter] Calling TrezorConnect.init with config:', JSON.stringify(initConfig, null, 2));
