@@ -90,6 +90,16 @@ export default function AssetBalancePage(): ReactElement {
       onClick: () => navigate(`${PATHS.COMPOSE}/dispenser/${encodedAsset}`),
     };
 
+    // Attach moves the balance onto a Bitcoin UTXO, where it travels with that output. BTC is
+    // excluded for the same reason Destroy is: it is not a Counterparty asset, so it has no
+    // balance to attach.
+    const attachAction = {
+      id: "attach",
+      title: "Attach",
+      description: "Attach this asset to a Bitcoin UTXO",
+      onClick: () => navigate(`${PATHS.COMPOSE}/utxo/attach/${encodedAsset}`),
+    };
+
     // Destroy burns the asset irreversibly; BTC is not a Counterparty asset, so it has none.
     const destroyAction = {
       id: "destroy",
@@ -118,8 +128,8 @@ export default function AssetBalancePage(): ReactElement {
           },
         ]
       : isXCP
-      ? [sendAction, sellAction, swapAction, mintAction, destroyAction]
-      : [sendAction, sellAction, swapAction, destroyAction];
+      ? [sendAction, sellAction, swapAction, mintAction, attachAction, destroyAction]
+      : [sendAction, sellAction, swapAction, attachAction, destroyAction];
     if (lpPool) {
       return [
         {

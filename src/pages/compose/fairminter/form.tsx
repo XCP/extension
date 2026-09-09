@@ -323,6 +323,7 @@ export function FairminterForm({
                 onChange={handleQuantityChange(setLotSize)}
                 step={getInputStep()}
                 placeholder={getInputPlaceholder()}
+                required
                 disabled={pending}
                 showHelpText={showHelpText}
                 description="Number of tokens received per mint transaction."
