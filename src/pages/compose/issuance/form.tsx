@@ -12,14 +12,23 @@ import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/core/bitcoin/address';
-import type { IssuanceOptions } from "@/core/counterparty/compose";
+import { type IssuanceOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
 import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
 import { asDisplayUnits } from '@/core/numeric';
 import { maxSupplyForDivisibility } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
-/** Maximum file size for inscriptions in KB */
-const INSCRIPTION_MAX_SIZE_KB = 400;
+/**
+ * Maximum file size for inscriptions in KB.
+ *
+ * Read from the compose layer rather than stated here: the two disagreed, and the form won the
+ * argument in the worst way. It advertised 400KB while a compose carried the file in the request
+ * URL, where anything past ~15KB was refused by the node's front door — with no CORS headers, so
+ * the browser reported it as a failed fetch and the wallet said "Network error. Please check your
+ * internet connection." Compose now posts a body when the URL would overflow; this is what that
+ * body can actually hold.
+ */
+const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
 /**
  * Props for the IssuanceForm component, aligned with Composer's formAction.
@@ -87,7 +96,7 @@ export function IssuanceForm({
   // Handlers
   const handleFileChange = (file: File | null) => {
     setFileError(null);
-    if (file && file.size > INSCRIPTION_MAX_SIZE_KB * 1024) {
+    if (file && file.size > MAX_INSCRIPTION_FILE_BYTES) {
       setFileError(`File size must be less than ${INSCRIPTION_MAX_SIZE_KB}KB`);
       return;
     }

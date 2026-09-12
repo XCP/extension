@@ -96,7 +96,7 @@ walletTest.describe('FileUploadInput Component', () => {
       const inscribeEnabled = await enableInscribeMode(page);
       walletTest.skip(!inscribeEnabled, 'Inscribe mode not available');
 
-      const maxSizeText = page.locator('text=/Max file size.*400KB/');
+      const maxSizeText = page.locator('text=/Max file size.*240KB/');
       await expect(maxSizeText).toBeVisible({ timeout: 3000 });
     });
 
@@ -272,14 +272,14 @@ walletTest.describe('FileUploadInput Component', () => {
   });
 
   walletTest.describe('File Size Validation', () => {
-    walletTest('shows error for file over 400KB', async ({ page }) => {
+    walletTest('shows error for file over 240KB', async ({ page }) => {
       const inscribeEnabled = await enableInscribeMode(page);
       walletTest.skip(!inscribeEnabled, 'Inscribe mode not available');
 
       const hiddenInput = getHiddenInput(page);
 
-      // Create a file larger than 400KB (401KB)
-      const largeContent = 'A'.repeat(401 * 1024);
+      // Create a file larger than 240KB (241KB)
+      const largeContent = 'A'.repeat(241 * 1024);
       const buffer = Buffer.from(largeContent);
 
       await hiddenInput.setInputFiles({
@@ -293,13 +293,13 @@ walletTest.describe('FileUploadInput Component', () => {
       await expect(errorText).toBeVisible({ timeout: 3000 });
     });
 
-    walletTest('accepts file under 400KB', async ({ page }) => {
+    walletTest('accepts file under 240KB', async ({ page }) => {
       const inscribeEnabled = await enableInscribeMode(page);
       walletTest.skip(!inscribeEnabled, 'Inscribe mode not available');
 
       const hiddenInput = getHiddenInput(page);
 
-      // Create a file under 400KB (100KB)
+      // Create a file under 240KB (100KB)
       const content = 'A'.repeat(100 * 1024);
       const buffer = Buffer.from(content);
 
@@ -310,7 +310,7 @@ walletTest.describe('FileUploadInput Component', () => {
       });
 
       // Check for file size error - should NOT appear
-      const sizeError = page.locator('text=/exceed|too large|400/i');
+      const sizeError = page.locator('text=/exceed|too large|must be less than/i');
       await expect(sizeError).not.toBeVisible({ timeout: 2000 });
     });
   });

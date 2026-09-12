@@ -195,8 +195,8 @@ walletTest.describe('Broadcast Inscription (File Upload)', () => {
     await toggleButton.click();
     await page.waitForLoadState('networkidle');
 
-    // Create a file larger than 400KB limit
-    const largeContent = 'x'.repeat(450 * 1024);
+    // Create a file larger than the 240KB limit
+    const largeContent = 'x'.repeat(300 * 1024);
 
     const chooseFileButton = page.locator('text=/Choose File/i').first();
     await expect(chooseFileButton).toBeVisible({ timeout: 5000 });
@@ -212,6 +212,6 @@ walletTest.describe('Broadcast Inscription (File Upload)', () => {
     });
 
     // Should show error about file size
-    await expect(page.locator('text=/File size must be less than 400KB/i')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=/File size must be less than 240KB/i')).toBeVisible({ timeout: 5000 });
   });
 });
