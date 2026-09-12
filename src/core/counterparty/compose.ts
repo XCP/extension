@@ -482,6 +482,80 @@ async function executeWithUtxoFallback(
   }
 }
 
+/**
+ * The node's front door refuses a request line past 32,768 bytes, and its refusal carries no CORS
+ * headers. The browser therefore blocks the response and `fetch` rejects as a failed request, so
+ * the wallet reported "Network error. Please check your internet connection." for what was really
+ * an oversized URL — the message sent a user checking their router over a 150KB image. Measured
+ * against api.counterparty.io:4000: a 32,053-byte URL reached the application, 33,053 came back
+ * 503 from the proxy with no `server` header, and past ~65,000 it is a bare 431.
+ *
+ * The margin under 32,768 covers what `url.length` does not — the request line's method and
+ * version, and HTTP/2's encoded header block.
+ */
+const MAX_COMPOSE_URL_BYTES = 30_000;
+
+/**
+ * waitress refuses a form body past 512,000 bytes, answering 500 rather than a size error.
+ * Measured the same way: a 491,610-byte body composed, 512,090 did not.
+ */
+const MAX_COMPOSE_BODY_BYTES = 500_000;
+
+/**
+ * The largest file an inscription can carry, for the upload forms to refuse before the user waits
+ * on a compose that cannot finish. Derived from the transport rather than asserted next to it —
+ * the forms claimed 400KB while anything past ~15KB failed on the wire.
+ *
+ * Binary content travels hex-encoded (`encodeInscriptionContent`), so a file costs twice its size
+ * in the request, and the remaining parameters need a few hundred bytes more. Textual content is
+ * sent verbatim and percent-encoded instead, which can cost more than double for non-ASCII;
+ * `sendComposeRequest` measures the request that will actually be sent and is the check that
+ * cannot be fooled by encoding.
+ */
+export const MAX_INSCRIPTION_FILE_BYTES = 240 * 1024;
+
+/**
+ * Send a compose request, as a POST once the query outgrows what a URL may carry.
+ *
+ * GET stays the default and is what every ordinary compose still sends: it is cacheable, and it is
+ * legible in a network log. Only an inscription approaches the limit, because it carries its file
+ * in the query string. Core reads the same parameters from a form-encoded body — repeated keys
+ * included, so the MPMA array form survives the switch — and a body is not subject to the request
+ * line's limit. `application/x-www-form-urlencoded` is a CORS-safelisted content type, so the POST
+ * costs no preflight round trip.
+ */
+async function sendComposeRequest(
+  apiUrl: string,
+  query: string,
+  endpoint: string
+): Promise<ApiResponse> {
+  const url = `${apiUrl}?${query}`;
+  const fitsInUrl = url.length <= MAX_COMPOSE_URL_BYTES;
+
+  // Said here, where the size is known, rather than left to the node: past the body limit it
+  // answers 500 "Internal server error", which the error layer shows as a generic API failure.
+  if (!fitsInUrl && query.length > MAX_COMPOSE_BODY_BYTES) {
+    throw new CounterpartyApiError(
+      'This inscription is too large for the Counterparty API to compose. Use a smaller file.',
+      endpoint,
+      {}
+    );
+  }
+
+  const response = fitsInUrl
+    ? await apiClient.get<ApiResponse | { error: string }>(url, {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    : await apiClient.post<ApiResponse | { error: string }>(apiUrl, query, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+
+  if ('error' in response.data) {
+    throw new CounterpartyApiError(response.data.error, endpoint, {});
+  }
+  return response.data as ApiResponse;
+}
+
 // ============================================================================
 // Compose Functions
 // ============================================================================
@@ -522,16 +596,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
       ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
-    const response = await apiClient.get<ApiResponse | { error: string }>(
-      `${apiUrl}?${params.toString()}`,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-
-    if ('error' in response.data) {
-      throw new CounterpartyApiError(response.data.error, endpoint, {});
-    }
-
-    const composed = response.data as ApiResponse;
+    const composed = await sendComposeRequest(apiUrl, params.toString(), endpoint);
     // Checked here, where the set actually sent is in scope: the fallbacks below send different
     // ones, and the last sends none at all.
     const inputCheck = checkInputPolicy({
@@ -582,25 +647,19 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
     }));
 
     // Array params must be repeated plain keys: core's `query_params()` builds lists from
-    // repeated keys and treats a PHP-style `memos[]` as a different, ignored parameter.
-    let url = `${apiUrl}?${params.toString()}`;
+    // repeated keys and treats a PHP-style `memos[]` as a different, ignored parameter. A
+    // form-encoded body carries repeated keys the same way, which is what lets the POST fallback
+    // in `sendComposeRequest` serve this path too.
+    let query = params.toString();
     for (const [key, values] of Object.entries(arrayParams)) {
       if (Array.isArray(values)) {
         for (const value of values) {
-          url += `&${key}=${encodeURIComponent(String(value ?? ''))}`;
+          query += `&${key}=${encodeURIComponent(String(value ?? ''))}`;
         }
       }
     }
 
-    const response = await apiClient.get<ApiResponse | { error: string }>(url, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if ('error' in response.data) {
-      throw new CounterpartyApiError(response.data.error, endpoint, {});
-    }
-
-    const composed = response.data as ApiResponse;
+    const composed = await sendComposeRequest(apiUrl, query, endpoint);
     // Checked here, where the set actually sent is in scope: the fallbacks below send different
     // ones, and the last sends none at all.
     const inputCheck = checkInputPolicy({
@@ -646,20 +705,10 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
     ...(encoding && { encoding }),
   }));
 
-  const url = `${apiUrl}?${params.toString()}`;
-
   try {
-    // Use apiClient for automatic timeout (60s for /compose) and retry logic
-    const response = await apiClient.get<ApiResponse | { error: string }>(url, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    // Check if the API returned an error response
-    if ('error' in response.data) {
-      throw new CounterpartyApiError(response.data.error, endpoint, {});
-    }
-
-    return response.data as ApiResponse;
+    // Routed through sendComposeRequest for the apiClient timeout (60s for /compose) and retry
+    // logic, and for the POST fallback when the query outgrows a URL.
+    return await sendComposeRequest(apiUrl, params.toString(), endpoint);
   } catch (error: unknown) {
     if (error instanceof CounterpartyApiError) throw error;
 
