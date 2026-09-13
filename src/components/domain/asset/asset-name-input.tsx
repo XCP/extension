@@ -101,8 +101,13 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
               return;
             }
 
-            // Check if user owns the parent asset
-            if (activeAddress && parentAssetInfo.issuer !== activeAddress.address) {
+            // Ownership follows `owner`, not `issuer`. Core writes `issuer` once, at first issuance,
+            // and every ASSET_TRANSFER moves `owner` alone; core's own `issuance.validate` accepts a
+            // subasset from whoever holds the parent now. Checking `issuer` marked every subasset
+            // name red for the address that received the parent. Never-transferred assets, and
+            // older API responses without `owner`, still resolve through `issuer`.
+            const parentOwner = parentAssetInfo.owner ?? parentAssetInfo.issuer;
+            if (activeAddress && parentOwner !== activeAddress.address) {
               setAvailabilityError("You don't own the parent asset");
               setIsValid(false);
               if (onValidationChange) {
