@@ -584,6 +584,8 @@ export interface ComposeLayout {
    * With change first, ZELD on the inputs stays with the wallet and the transaction can hunt.
    */
   changeFirst?: boolean;
+  /** With `changeFirst`, place change just after the data output instead of at output 0. */
+  afterData?: boolean;
 }
 
 export async function composeTransaction<T extends Record<string, unknown>>(
@@ -636,7 +638,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
   const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
-  const arranged = layout.changeFirst ? withComposedChangeFirst(composed, sourceAddress) : composed;
+  const arranged = layout.changeFirst ? withComposedChangeFirst(composed, sourceAddress, layout) : composed;
   return guardZeldExposure(arranged, sourceAddress, endpoint, async (excludeUtxos) => {
     const recomposed = await executeWithUtxoFallback(
       (options) => makeRequest({ ...options, excludeUtxos }),
@@ -644,7 +646,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
       settings.allowUnconfirmedTxs,
       endpoint,
     );
-    return layout.changeFirst ? withComposedChangeFirst(recomposed, sourceAddress) : recomposed;
+    return layout.changeFirst ? withComposedChangeFirst(recomposed, sourceAddress, layout) : recomposed;
   });
 }
 
@@ -1098,8 +1100,10 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   // A plain BTC send carries no Counterparty message, so its outputs may sit in any order; change
-  // first keeps ZELD with the wallet. Asset sends put their data output first already.
-  const layout = asset === 'BTC' ? { changeFirst: true } : {};
+  // first keeps ZELD with the wallet. An asset send puts its data output first already, and its
+  // extra BTC outputs (`more_outputs`) have no positional meaning, so change goes right after
+  // the data.
+  const layout = asset === 'BTC' ? { changeFirst: true } : { changeFirst: true, afterData: true };
   return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding, layout);
 }
 

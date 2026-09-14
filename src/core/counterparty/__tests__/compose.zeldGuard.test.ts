@@ -13,6 +13,11 @@ vi.mock('@/core/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/core/settings')>();
   return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
 });
+// The six-zero heuristic reads the parent to find the reward output; none here means "assume it".
+vi.mock('@/core/bitcoin/utxo', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/bitcoin/utxo')>()),
+  fetchPreviousRawTransaction: vi.fn(async () => null),
+}));
 vi.mock('@/core/zeld/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/zeld/api')>()),
   fetchZeldUtxos: vi.fn(),
@@ -96,7 +101,7 @@ describe('ZELD guard on composed transactions', () => {
       .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never)
       .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never);
     // The recompose comes back spending the six-zero output instead, which is also ZELD: refuse.
-    await expect(burn()).rejects.toThrow('would send your ZELD');
+    await expect(burn()).rejects.toThrow('move your ZELD to a small output');
     expect(zeldUtxos).toHaveBeenCalledWith(SOURCE_ADDRESS);
   });
 
@@ -115,14 +120,39 @@ describe('ZELD guard on composed transactions', () => {
     expect(composed.result.zeld_protection).toBeUndefined();
   });
 
-  it('applies the txid heuristic without the indexer when hunting is off', async () => {
+  it('protects ZELD even when hunting is off, so what was earned stays safe', async () => {
     settings.mockReturnValue({ ...mockSettings, zeldHuntSeconds: 0 } as never);
     api.get
       .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never)
       .mockResolvedValueOnce(response(burnSpending(CLEAN_TXID)) as never);
     const composed = await burn();
-    expect(zeldUtxos).not.toHaveBeenCalled();
+    expect(zeldUtxos).toHaveBeenCalledWith(SOURCE_ADDRESS);
     expect(composed.result.zeld_protection?.excluded).toEqual([`${ZELD_TXID}:0`]);
+  });
+
+  it('says what to do when nothing clean is left to recompose from', async () => {
+    api.get
+      .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never)
+      .mockRejectedValueOnce(new Error('Insufficient BTC at address') as never);
+    await expect(burn()).rejects.toThrow('move your ZELD to a small output');
+  });
+
+  it('places change right after the data on an asset send with extra BTC outputs', async () => {
+    const withExtra = unsignedRawTx({
+      inputs: [{ txid: CLEAN_TXID, index: 0 }],
+      outputs: [
+        { script: opReturnScript(), amount: 0n },
+        { script: otherScript, amount: 1_000n },
+        { script: SOURCE_P2WPKH.script, amount: 90_000n },
+      ],
+    });
+    api.get.mockResolvedValueOnce(response(withExtra) as never);
+    const composed = await composeSend({
+      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, asset: 'XCP', quantity: 1, sat_per_vbyte: 2,
+      more_outputs: `1000:${OTHER_ADDRESS}`,
+    });
+    const parsed = parseRawTransactionLocally(composed.result.rawtransaction)!;
+    expect(parsed.outputs.map(o => o.type === 'op_return' ? 'data' : o.value)).toEqual(['data', 90_000, 1_000]);
   });
 
   it('does not decorate a clean transaction just because the indexer was unreachable', async () => {

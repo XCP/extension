@@ -35,7 +35,17 @@ export interface ReorderResult {
  * Returns the input unchanged when there is no change, when change is already first, or when the
  * bytes cannot be parsed.
  */
-export function withChangeFirst(rawTxHex: string, sourceAddress: string): ReorderResult {
+export interface ReorderOptions {
+  /**
+   * Move change to the first spendable slot after the data output rather than to output 0.
+   * For OP_RETURN-first messages whose extra BTC outputs (an enhanced send's `more_outputs`)
+   * carry no positional meaning: Counterparty stops reading at the first ordinary output after
+   * its data, so change there is change, and the payment after it is still paid.
+   */
+  afterData?: boolean;
+}
+
+export function withChangeFirst(rawTxHex: string, sourceAddress: string, options: ReorderOptions = {}): ReorderResult {
   const sourceScript = scriptHexForAddress(sourceAddress);
   if (!sourceScript) return { rawtransaction: rawTxHex };
   let tx: Transaction;
@@ -46,14 +56,18 @@ export function withChangeFirst(rawTxHex: string, sourceAddress: string): Reorde
   }
 
   let changeIndex = -1;
+  let target = 0;
   for (let index = 0; index < tx.outputsLength; index++) {
     const output = tx.getOutput(index);
-    if (output.script && bytesToHex(output.script).toLowerCase() === sourceScript) {
+    if (!output.script) continue;
+    const isData = output.script[0] === 0x6a;
+    if (options.afterData && isData && changeIndex === -1 && target === index) target = index + 1;
+    if (!isData && bytesToHex(output.script).toLowerCase() === sourceScript) {
       changeIndex = index;
       break;
     }
   }
-  if (changeIndex <= 0) return { rawtransaction: rawTxHex };
+  if (changeIndex === -1 || changeIndex <= target) return { rawtransaction: rawTxHex };
 
   const reordered = new Transaction({
     version: tx.version,
@@ -71,7 +85,8 @@ export function withChangeFirst(rawTxHex: string, sourceAddress: string): Reorde
       ...(input.finalScriptSig ? { finalScriptSig: input.finalScriptSig } : {}),
     });
   }
-  const order = [changeIndex, ...Array.from({ length: tx.outputsLength }, (_, i) => i).filter(i => i !== changeIndex)];
+  const rest = Array.from({ length: tx.outputsLength }, (_, i) => i).filter(i => i !== changeIndex);
+  const order = [...rest.slice(0, target), changeIndex, ...rest.slice(target)];
   for (const index of order) {
     const output = tx.getOutput(index);
     if (!output.script || output.amount === undefined) return { rawtransaction: rawTxHex };
@@ -87,7 +102,7 @@ export function withChangeFirst(rawTxHex: string, sourceAddress: string): Reorde
  * hardware path's byte-identity check between PSBT and reviewed transaction still holds. Input
  * fields the composer supplied (witness UTXOs, redeem scripts) are carried across untouched.
  */
-export function psbtWithChangeFirst(psbt: string, sourceAddress: string): string {
+export function psbtWithChangeFirst(psbt: string, sourceAddress: string, options: ReorderOptions = {}): string {
   const sourceScript = scriptHexForAddress(sourceAddress);
   if (!sourceScript) return psbt;
   const tx = Transaction.fromPSBT(hexToBytes(normalizePsbtToHex(psbt)), {
@@ -98,14 +113,18 @@ export function psbtWithChangeFirst(psbt: string, sourceAddress: string): string
     proprietary: 'strip',
   });
   let changeIndex = -1;
+  let target = 0;
   for (let index = 0; index < tx.outputsLength; index++) {
     const output = tx.getOutput(index);
-    if (output.script && bytesToHex(output.script).toLowerCase() === sourceScript) {
+    if (!output.script) continue;
+    const isData = output.script[0] === 0x6a;
+    if (options.afterData && isData && changeIndex === -1 && target === index) target = index + 1;
+    if (!isData && bytesToHex(output.script).toLowerCase() === sourceScript) {
       changeIndex = index;
       break;
     }
   }
-  if (changeIndex <= 0) return psbt;
+  if (changeIndex === -1 || changeIndex <= target) return psbt;
   const reordered = new Transaction({
     version: tx.version,
     lockTime: tx.lockTime,
@@ -114,7 +133,8 @@ export function psbtWithChangeFirst(psbt: string, sourceAddress: string): string
     allowLegacyWitnessUtxo: true,
   });
   for (let index = 0; index < tx.inputsLength; index++) reordered.addInput(tx.getInput(index));
-  const order = [changeIndex, ...Array.from({ length: tx.outputsLength }, (_, i) => i).filter(i => i !== changeIndex)];
+  const rest = Array.from({ length: tx.outputsLength }, (_, i) => i).filter(i => i !== changeIndex);
+  const order = [...rest.slice(0, target), changeIndex, ...rest.slice(target)];
   for (const index of order) reordered.addOutput(tx.getOutput(index));
   return bytesToHex(reordered.toPSBT());
 }

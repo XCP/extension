@@ -98,11 +98,24 @@ export async function fund(minerAddress: string, keys: RegtestKey[], btcEach: nu
   await mineBlocks(1, minerAddress);
 }
 
+export interface ScannedUnspent { txid: string; vout: number; amount: number; height: number }
+
+// bitcoind runs one UTXO-set scan at a time; a second concurrent call fails outright rather than
+// waiting. The wallet reads UTXOs and ZELD balances side by side, so scans queue here.
+let scanQueue: Promise<unknown> = Promise.resolve();
+
+/** Confirmed unspents of an address from the node's UTXO set, one scan at a time. */
+export function scanUnspents(address: string): Promise<ScannedUnspent[]> {
+  const next = scanQueue.then(() => rpc<{ unspents: ScannedUnspent[] }>('scantxoutset', ['start', [{ desc: `addr(${address})` }]], null));
+  scanQueue = next.catch(() => undefined);
+  return next.then(scan => scan.unspents);
+}
+
 /** Confirmed outpoints of an address, read from the UTXO set the way the wallet reads its own. */
 export async function inputsSetFor(address: string): Promise<string> {
-  const scan = await rpc<{ unspents: Array<{ txid: string; vout: number }> }>('scantxoutset', ['start', [{ desc: `addr(${address})` }]], null);
-  if (scan.unspents.length === 0) throw new Error(`${address} has no confirmed UTXOs`);
-  return scan.unspents.map(utxo => `${utxo.txid}:${utxo.vout}`).join(',');
+  const unspents = await scanUnspents(address);
+  if (unspents.length === 0) throw new Error(`${address} has no confirmed UTXOs`);
+  return unspents.map(utxo => `${utxo.txid}:${utxo.vout}`).join(',');
 }
 
 /** Compose through Counterparty's real API. The regtest node has no Electrs, so inputs are named. */

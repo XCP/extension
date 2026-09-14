@@ -131,24 +131,22 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           },
         }));
         const nonBTCAssets = [...new Set(pinnedAssetKey.split("\n").filter((asset) => asset && asset !== "BTC"))];
-        // ZELD rides on the wallet's own outputs and comes from its own indexer. Read only while
-        // hunting is on, which is also the only time the wallet talks to that indexer at all.
-        const zeldPromise = zeldEnabled
-          ? fetchZeldBalance(session.address).then((zeld): TokenBalance => ({
-              asset: ZELD_WALLET_ASSET,
-              quantity_normalized: zeldBaseUnitsToDisplay(zeld.baseUnits),
-              asset_info: {
-                asset_longname: null,
-                description: "ZeldHash ZELD",
-                issuer: "",
-                divisible: true,
-                locked: false,
-              },
-            }))
-          : null;
+        // ZELD rides on the wallet's own outputs and comes from its own indexer. Always read, so
+        // ZELD earned while hunting was on stays visible after it is turned off.
+        const zeldPromise = fetchZeldBalance(session.address).then((zeld): TokenBalance => ({
+          asset: ZELD_WALLET_ASSET,
+          quantity_normalized: zeldBaseUnitsToDisplay(zeld.baseUnits),
+          asset_info: {
+            asset_longname: null,
+            description: "ZeldHash ZELD",
+            issuer: "",
+            divisible: true,
+            locked: false,
+          },
+        }));
         const results = await Promise.allSettled([
           btcPromise,
-          ...(zeldPromise ? [zeldPromise] : []),
+          zeldPromise,
           ...nonBTCAssets.map((asset) => fetchTokenBalance(session.address, asset, { type: "address" })),
         ]);
         if (sessionRef.current !== session) return;
@@ -157,7 +155,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         cacheBalances(balances);
         // The ZELD indexer being down must not hide BTC or Counterparty balances: its row is
         // simply absent until the next load, and the ZELD page says why.
-        const failure = results.find((result, index) => result.status === "rejected" && !(zeldPromise && index === 1));
+        const failure = results.find((result, index) => result.status === "rejected" && index !== 1);
         if (failure?.status === "rejected") throw failure.reason;
         session.loaded = true;
         setInitialLoaded(true);
@@ -195,7 +193,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
       if (sessionRef.current === session) sessionRef.current = null;
       settleRefresh();
     };
-  }, [address, walletId, cacheBalances, pinnedAssetKey, refreshNonce, retryNonce, zeldEnabled]);
+  }, [address, walletId, cacheBalances, pinnedAssetKey, refreshNonce, retryNonce]);
 
   // Load more on scroll
   const loadMore = useCallback(async () => {
@@ -232,9 +230,8 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
     return () => { cancelled = true; };
   }, [inView, initialLoaded, hasMore, isFetchingMore, error, isSearchActive, loadMore]);
 
-  // BTC is always pinned, ZELD while hunting is on, plus user's pinned assets
-  const pinnedAssets = ["BTC"]
-    .concat(zeldEnabled ? [ZELD_WALLET_ASSET.toUpperCase()] : [])
+  // BTC is always pinned, then ZELD, then the user's pinned assets
+  const pinnedAssets = ["BTC", ZELD_WALLET_ASSET.toUpperCase()]
     .concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
 
   const pinnedBalances = allBalances.filter((balance) =>
@@ -257,7 +254,8 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         const assetUpper = balance.asset.toUpperCase();
         if (assetUpper === "BTC") return true;
         if (assetUpper === "XCP" && pinnedAssets.includes("XCP")) return true;
-        // ZELD shows at zero while hunting is on: the row is where the hunt explains itself.
+        // ZELD shows at zero while hunting is on, since the row is where the hunt explains itself,
+        // and whenever there is a balance, so turning hunting off never hides ZELD already earned.
         if (assetUpper === ZELD_WALLET_ASSET.toUpperCase() && zeldEnabled) return true;
         return shown.quantity_normalized !== undefined
           && isGreaterThan(shown.quantity_normalized, 0);

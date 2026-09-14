@@ -68,11 +68,18 @@ describe("BalanceList ZELD row", () => {
     expect(await screen.findByText("ZELD")).toBeInTheDocument();
   });
 
-  it("does not read the indexer or show a row when hunting is off", async () => {
+  it("still shows ZELD already earned when hunting is off", async () => {
     zeldHuntSeconds = 0;
     render(<BalanceList />);
+    expect(await screen.findByText("ZELD")).toBeInTheDocument();
+    expect(screen.getByText("4,096.00000000")).toBeInTheDocument();
+  });
+
+  it("hides an empty ZELD row when hunting is off", async () => {
+    zeldHuntSeconds = 0;
+    mockFetchZeldBalance.mockResolvedValue({ baseUnits: 0n, utxos: [] });
+    render(<BalanceList />);
     expect(await screen.findAllByText("BTC")).not.toHaveLength(0);
-    expect(mockFetchZeldBalance).not.toHaveBeenCalled();
     expect(screen.queryByText("ZELD")).not.toBeInTheDocument();
   });
 
