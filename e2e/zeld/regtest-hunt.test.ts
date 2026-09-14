@@ -47,8 +47,10 @@ const COUNTERPARTY = process.env.ZELD_REGTEST_COUNTERPARTY ?? 'http://127.0.0.1:
 const MINER_WALLET = 'miner';
 const REGTEST = { bech32: 'bcrt', pubKeyHash: 0x6f, scriptHash: 0xc4, wif: 0xef };
 
-// A throwaway key that only ever holds regtest coins.
-const HUNTER_PRIVATE_KEY = sha256(utf8ToBytes('xcp-wallet zeld regtest hunter'));
+// A throwaway key that only ever holds regtest coins, fresh per run so Counterparty's one-burn-
+// per-address rule and earlier runs' UTXOs never bleed into this one.
+const RUN_ID = process.env.ZELD_REGTEST_RUN ?? String(Date.now());
+const HUNTER_PRIVATE_KEY = sha256(utf8ToBytes(`xcp-wallet zeld regtest hunter ${RUN_ID}`));
 const HUNTER_PUBLIC_KEY = secp256k1.getPublicKey(HUNTER_PRIVATE_KEY, true);
 const HUNTER = btc.p2wpkh(HUNTER_PUBLIC_KEY, REGTEST);
 const HUNTER_ADDRESS = HUNTER.address!;
