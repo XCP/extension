@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { type HuntWorkerLike, huntTxid } from '@/core/zeld/hunt';
-import { assessZeldHunt, type HuntTemplate, rawTransactionWithSequence } from '@/core/zeld/huntTemplate';
+import { assessZeldHunt, type HuntTemplate, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
 import type { HuntWorkerRequest, HuntWorkerResponse } from '@/core/zeld/huntWorkerProtocol';
 import { mineRange } from '@/core/zeld/mineRange';
-import { SEQUENCE_NONCE_BASE, SEQUENCE_NONCE_COUNT } from '@/core/zeld/protocol';
+import { LOCKTIME_NONCE_COUNT } from '@/core/zeld/protocol';
 import { enhancedSendRawTx, SOURCE_ADDRESS } from './fixtures';
 
 function template(): HuntTemplate {
@@ -22,25 +22,25 @@ describe('mineRange', () => {
   it('finds a txid with two leading zeros and reports the nonce that produced it', () => {
     const t = template();
     // 1 in 256 per attempt; 20,000 attempts fail with probability e^-78.
-    const result = mineRange(t.message, t.nonceOffset, SEQUENCE_NONCE_BASE, 20_000, 2);
+    const result = mineRange(t.message, t.nonceOffset, 0, 20_000, 2);
     expect(result.found).toBeDefined();
     const found = result.found!;
     expect(found.txid.startsWith('00')).toBe(true);
     expect(found.zeroCount).toBeGreaterThanOrEqual(2);
-    expect(result.attempts).toBe(found.nonce - SEQUENCE_NONCE_BASE + 1);
-    const patched = rawTransactionWithSequence(enhancedSendRawTx(), found.nonce);
+    expect(result.attempts).toBe(found.nonce + 1);
+    const patched = rawTransactionWithNonce(enhancedSendRawTx(), found.nonce);
     expect(parseRawTransactionLocally(patched)?.txid).toBe(found.txid);
   });
 
   it('counts every attempt when nothing qualifies', () => {
     const t = template();
-    const result = mineRange(t.message, t.nonceOffset, SEQUENCE_NONCE_BASE, 100, 32);
+    const result = mineRange(t.message, t.nonceOffset, 0, 100, 32);
     expect(result).toEqual({ attempts: 100 });
   });
 
   it('refuses a range outside 32 bits', () => {
     const t = template();
-    expect(() => mineRange(t.message, t.nonceOffset, SEQUENCE_NONCE_BASE, SEQUENCE_NONCE_COUNT + 1, 1)).toThrow(RangeError);
+    expect(() => mineRange(t.message, t.nonceOffset, 0, LOCKTIME_NONCE_COUNT + 1, 1)).toThrow(RangeError);
   });
 });
 
@@ -95,7 +95,7 @@ describe('huntTxid', () => {
     expect(result.status).toBe('found');
     if (result.status !== 'found') return;
     expect(result.txid.startsWith('00')).toBe(true);
-    expect(result.nonce).toBeGreaterThanOrEqual(SEQUENCE_NONCE_BASE);
+    expect(result.nonce).toBeGreaterThanOrEqual(0);
     expect(workers).toHaveLength(3);
     expect(workers.every(worker => worker.terminated)).toBe(true);
   });

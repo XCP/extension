@@ -1,7 +1,7 @@
 /**
  * Run a time-boxed hunt for a txid with leading zeros across Web Workers.
  *
- * The nonce space (`SEQUENCE_NONCE_COUNT` values) is split into one contiguous slice per worker.
+ * The nonce space (`LOCKTIME_NONCE_COUNT` values) is split into one contiguous slice per worker.
  * The first worker to find a qualifying txid ends the hunt; otherwise the deadline does, or the
  * caller's abort signal. Workers are always terminated on the way out, so a hunt never outlives
  * the compose that started it.
@@ -13,7 +13,7 @@
 import type { HuntTemplate } from '@/core/zeld/huntTemplate';
 import type { HuntWorkerRequest, HuntWorkerResponse } from '@/core/zeld/huntWorkerProtocol';
 import { mineRange } from '@/core/zeld/mineRange';
-import { SEQUENCE_NONCE_BASE, SEQUENCE_NONCE_COUNT } from '@/core/zeld/protocol';
+import { LOCKTIME_NONCE_COUNT } from '@/core/zeld/protocol';
 import { MutableSha256d } from '@/core/zeld/sha256d';
 import type { ZeldHuntProgress } from '@/core/zeld/types';
 
@@ -121,7 +121,7 @@ export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions)
       budgetMs,
     ));
 
-    const slice = Math.floor(SEQUENCE_NONCE_COUNT / workers.length);
+    const slice = Math.floor(LOCKTIME_NONCE_COUNT / workers.length);
     workers.forEach((worker, index) => {
       worker.addEventListener('message', ({ data }) => {
         if (settled) return;
@@ -164,8 +164,8 @@ export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions)
           finish({ status: 'not_found', attempts: totalAttempts(), elapsedMs: elapsed() });
         }
       });
-      const startNonce = SEQUENCE_NONCE_BASE + index * slice;
-      const endNonce = index === workers.length - 1 ? SEQUENCE_NONCE_BASE + SEQUENCE_NONCE_COUNT : startNonce + slice;
+      const startNonce = index * slice;
+      const endNonce = index === workers.length - 1 ? LOCKTIME_NONCE_COUNT : startNonce + slice;
       worker.postMessage({
         message: template.message,
         nonceOffset: template.nonceOffset,
@@ -185,10 +185,10 @@ async function huntInline(
   deadline: number,
   startedAt: number,
 ): Promise<HuntTxidResult> {
-  const hasher = new MutableSha256d(template.message);
+  const hasher = new MutableSha256d(template.message, template.nonceOffset);
   const batchSize = options.batchSize ?? INLINE_BATCH_SIZE;
-  const end = SEQUENCE_NONCE_BASE + SEQUENCE_NONCE_COUNT;
-  let nonce = SEQUENCE_NONCE_BASE;
+  const end = LOCKTIME_NONCE_COUNT;
+  let nonce = 0;
   let attempts = 0;
   let lastReport = startedAt;
   const elapsed = () => now() - startedAt;

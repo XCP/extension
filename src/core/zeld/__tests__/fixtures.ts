@@ -20,11 +20,12 @@ export function opReturnScript(payloadLength = 40): Uint8Array {
 export interface UnsignedTxSpec {
   outputs: Array<{ script: Uint8Array; amount: bigint }>;
   inputs?: Array<{ txid: string; index: number; sequence?: number }>;
+  lockTime?: number;
 }
 
 /** Unsigned raw transaction hex in the composer's shape: empty scriptSigs, no witness. */
 export function unsignedRawTx(spec: UnsignedTxSpec): string {
-  const tx = new btc.Transaction({ allowUnknownOutputs: true, allowUnknownInputs: true });
+  const tx = new btc.Transaction({ allowUnknownOutputs: true, allowUnknownInputs: true, lockTime: spec.lockTime ?? 0 });
   for (const input of spec.inputs ?? [{ txid: PREV_TXID, index: 0 }]) {
     tx.addInput({ txid: hexToBytes(input.txid), index: input.index, sequence: input.sequence ?? 0xffffffff });
   }

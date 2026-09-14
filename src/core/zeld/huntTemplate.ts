@@ -2,16 +2,16 @@
  * Decide whether a composed transaction can hunt for a ZELD txid, and prepare the bytes it hunts
  * over.
  *
- * The nonce is input 0's nSequence. Two things make that safe to vary after composition and
- * before signing:
+ * The nonce is nLockTime, and every input's nSequence is set final so consensus never reads the
+ * locktime at all. Two things make that safe to vary after composition and before signing:
  *
  * 1. A txid is the hash of the transaction without witness data. For a Native SegWit or Taproot
  *    input the scriptSig stays empty after signing, so the txid the hunt computes on the unsigned
  *    bytes is the txid the signed transaction will have. A legacy input puts its signature in the
  *    scriptSig, and a nested SegWit input puts its redeem script there, so either would change
  *    the txid at signing time and waste the hunt. Those formats are refused here.
- * 2. Counterparty never reads nSequence (`counterparty-rs` records it and the Python parser
- *    ignores it), and the ZELD protocol reads only the txid and the outputs.
+ * 2. Counterparty never reads nLockTime or nSequence (`counterparty-rs` records both and the
+ *    Python parser ignores them), and the ZELD protocol reads only the txid and the outputs.
  *
  * The reward attaches to the first non-OP_RETURN output, so the hunt is also refused when that
  * output pays anyone but the source address: an enhanced send's OP_RETURN-then-change layout
@@ -23,14 +23,18 @@ import { AddressFormat } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { decodeRawTransaction, parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
 import { bytesToHex } from '@/core/counterparty/unpack/binary';
+import { FINAL_SEQUENCE } from '@/core/zeld/protocol';
 
 export interface HuntTemplate {
-  /** Non-witness serialization of the transaction, exactly what the txid hashes. */
+  /**
+   * Non-witness serialization of the transaction with every input's sequence set final: exactly
+   * what the txid of the hunted transaction hashes.
+   */
   message: Uint8Array;
-  /** Byte offset of input 0's nSequence inside `message`. */
+  /** Byte offset of nLockTime inside `message`: its last four bytes. */
   nonceOffset: number;
-  /** The sequence the composer gave input 0, restored if the hunt finds nothing. */
-  originalSequence: number;
+  /** The locktime the composer gave the transaction; the hunt replaces it. */
+  originalLockTime: number;
 }
 
 export type HuntAssessment =
@@ -173,14 +177,14 @@ export function assessZeldHunt({ rawTxHex, sourceAddress, addressFormat }: Asses
     };
   }
 
-  const nonceOffset = layout.sequenceOffsets[0]!;
-  return {
-    eligible: true,
-    template: { message, nonceOffset, originalSequence: readUint32LE(message, nonceOffset) },
-  };
+  const nonceOffset = message.length - 4;
+  const originalLockTime = readUint32LE(message, nonceOffset);
+  const view = new DataView(message.buffer, message.byteOffset, message.byteLength);
+  for (const offset of layout.sequenceOffsets) view.setUint32(offset, FINAL_SEQUENCE, true);
+  return { eligible: true, template: { message, nonceOffset, originalLockTime } };
 }
 
-/** The template's message with `nonce` written into input 0's sequence. A copy; the template is untouched. */
+/** The template's message with `nonce` written into nLockTime. A copy; the template is untouched. */
 export function messageWithNonce(template: HuntTemplate, nonce: number): Uint8Array {
   const bytes = new Uint8Array(template.message);
   new DataView(bytes.buffer).setUint32(template.nonceOffset, nonce >>> 0, true);
@@ -188,31 +192,34 @@ export function messageWithNonce(template: HuntTemplate, nonce: number): Uint8Ar
 }
 
 /**
- * The composer's raw transaction with input 0's sequence replaced. Works on the composer's own
- * serialization rather than re-encoding, so every other byte is provably the one that was
- * verified; `assertOnlySequenceChanged` then checks the claim from the parsed side.
+ * The composer's raw transaction with nLockTime replaced and every input's sequence set final.
+ * Works on the composer's own serialization rather than re-encoding, so every other byte is
+ * provably the one that was verified; `assertOnlyNonceChanged` then checks the claim from the
+ * parsed side.
  */
-export function rawTransactionWithSequence(rawTxHex: string, sequence: number): string {
+export function rawTransactionWithNonce(rawTxHex: string, lockTime: number): string {
   const bytes = new Uint8Array(decodeRawTransaction(rawTxHex));
   const layout = locateInputSequences(bytes);
-  const offset = layout.sequenceOffsets[0];
-  if (offset === undefined) throw new Error('The transaction has no inputs.');
-  new DataView(bytes.buffer).setUint32(offset, sequence >>> 0, true);
+  if (layout.sequenceOffsets.length === 0) throw new Error('The transaction has no inputs.');
+  const view = new DataView(bytes.buffer);
+  for (const offset of layout.sequenceOffsets) view.setUint32(offset, FINAL_SEQUENCE, true);
+  view.setUint32(bytes.length - 4, lockTime >>> 0, true);
   let hex = '';
   for (const byte of bytes) hex += byte.toString(16).padStart(2, '0');
   return hex;
 }
 
 /**
- * Prove a hunted transaction differs from the verified one in exactly one place: input 0's
- * sequence. Every output, every other input field, the version and the locktime are compared
- * from independently parsed structures, so a bug in the byte patching cannot pass unnoticed.
+ * Prove a hunted transaction differs from the verified one only in the nonce fields: nLockTime,
+ * and every input's sequence now final. Every output, every other input field and the version
+ * are compared from independently parsed structures, so a bug in the byte patching cannot pass
+ * unnoticed.
  */
-export function assertOnlySequenceChanged(originalHex: string, huntedHex: string): void {
+export function assertOnlyNonceChanged(originalHex: string, huntedHex: string): void {
   const original = parseConsensusTransaction(originalHex);
   const hunted = parseConsensusTransaction(huntedHex);
-  if (original.version !== hunted.version || original.lockTime !== hunted.lockTime) {
-    throw new Error('The hunted transaction changed its version or locktime.');
+  if (original.version !== hunted.version) {
+    throw new Error('The hunted transaction changed its version.');
   }
   if (original.inputsLength !== hunted.inputsLength || original.outputsLength !== hunted.outputsLength) {
     throw new Error('The hunted transaction changed its input or output count.');
@@ -228,9 +235,9 @@ export function assertOnlySequenceChanged(originalHex: string, huntedHex: string
       !sameBytes(before.txid, after.txid)
       || before.index !== after.index
       || !sameBytes(before.finalScriptSig, after.finalScriptSig)
-      || (index !== 0 && before.sequence !== after.sequence)
+      || after.sequence !== FINAL_SEQUENCE
     ) {
-      throw new Error(`The hunted transaction changed input ${index} beyond its sequence.`);
+      throw new Error(`The hunted transaction changed input ${index} beyond making its sequence final.`);
     }
   }
   for (let index = 0; index < original.outputsLength; index++) {

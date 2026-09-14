@@ -14,7 +14,7 @@ export interface ZeldHuntMetadata {
   seconds: number;
   elapsed_ms: number;
   attempts: number;
-  /** Present when found: the nonce written into input 0's sequence and the txid it produced. */
+  /** Present when found: the nonce written into nLockTime and the txid it produced. */
   nonce?: number;
   txid?: string;
   zero_count?: number;

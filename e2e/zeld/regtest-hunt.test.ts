@@ -98,13 +98,14 @@ describe('ZELD hunt on Counterparty regtest', () => {
     expect(await xcpBalance(minerAddress)).toBe(100000000);
     log('send parsed', { txid: signedSend.txid });
 
-    // The ZELD side of every hunted transaction: input 0 carries the nonce and the first spendable
-    // output, where the reward lands, is the hunter's own.
+    // The ZELD side of every hunted transaction: nLockTime carries the nonce behind final
+    // sequences, and the first spendable output, where the reward lands, is the hunter's own.
     for (const txid of [signedBroadcast.txid, signedSend.txid]) {
-      const decoded = await rpc<{ vin: Array<{ sequence: number }>; vout: Array<{ scriptPubKey: { type: string; hex: string } }> }>(
+      const decoded = await rpc<{ locktime: number; vin: Array<{ sequence: number }>; vout: Array<{ scriptPubKey: { type: string; hex: string } }> }>(
         'getrawtransaction', [txid, true],
       );
-      expect(decoded.vin[0]!.sequence).toBeGreaterThanOrEqual(0x8000_0000);
+      expect(decoded.vin.every(input => input.sequence === 0xffff_ffff)).toBe(true);
+      expect(decoded.locktime).toBeGreaterThan(0);
       const rewardOutput = decoded.vout.find(output => output.scriptPubKey.type !== 'nulldata');
       expect(rewardOutput?.scriptPubKey.hex).toBe(hunter.scriptHex);
     }

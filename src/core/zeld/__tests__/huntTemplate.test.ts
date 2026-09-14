@@ -1,14 +1,14 @@
-import { hexToBytes } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
 import {
-  assertOnlySequenceChanged,
+  assertOnlyNonceChanged,
   assessZeldHunt,
   locateInputSequences,
   messageWithNonce,
-  rawTransactionWithSequence,
+  rawTransactionWithNonce,
 } from '@/core/zeld/huntTemplate';
 import { MutableSha256d } from '@/core/zeld/sha256d';
 import {
@@ -69,9 +69,24 @@ describe('assessZeldHunt', () => {
     const assessment = assessZeldHunt({ rawTxHex, sourceAddress: SOURCE_ADDRESS, addressFormat: AddressFormat.P2WPKH });
     expect(assessment.eligible).toBe(true);
     if (!assessment.eligible) return;
-    expect(assessment.template.nonceOffset).toBe(42);
-    expect(assessment.template.originalSequence).toBe(0xffffffff);
-    expect(assessment.template.message).toEqual(hexToBytes(rawTxHex));
+    const bytes = hexToBytes(rawTxHex);
+    expect(assessment.template.nonceOffset).toBe(bytes.length - 4);
+    expect(assessment.template.originalLockTime).toBe(0);
+    expect(assessment.template.message).toEqual(bytes);
+  });
+
+  it('sets every input sequence final in the template, so the locktime is never read', () => {
+    const rawTxHex = unsignedRawTx({
+      inputs: [{ txid: PREV_TXID, index: 0, sequence: 0xfffffffd }, { txid: PREV_TXID, index: 1, sequence: 5 }],
+      outputs: [{ script: SOURCE_P2WPKH.script, amount: 1_000n }],
+      lockTime: 123,
+    });
+    const assessment = assessZeldHunt({ rawTxHex, sourceAddress: SOURCE_ADDRESS, addressFormat: AddressFormat.P2WPKH });
+    if (!assessment.eligible) throw new Error(assessment.reason);
+    const template = parseConsensusTransaction(bytesToHex(assessment.template.message));
+    expect(template.getInput(0).sequence).toBe(0xffffffff);
+    expect(template.getInput(1).sequence).toBe(0xffffffff);
+    expect(assessment.template.originalLockTime).toBe(123);
   });
 
   it.each([
@@ -144,33 +159,49 @@ describe('nonce application', () => {
     const nonce = 0x8123_4567;
     const hasher = new MutableSha256d(messageWithNonce(assessment.template, nonce));
     hasher.hashLeadingZeroNibbles();
-    const patched = rawTransactionWithSequence(rawTxHex, nonce);
+    const patched = rawTransactionWithNonce(rawTxHex, nonce);
     expect(parseRawTransactionLocally(patched)?.txid).toBe(hasher.txid());
-    expect(parseConsensusTransaction(patched).getInput(0).sequence).toBe(nonce);
+    expect(parseConsensusTransaction(patched).lockTime).toBe(nonce);
   });
 
-  it('leaves everything but input 0 sequence untouched', () => {
-    const rawTxHex = enhancedSendRawTx();
-    const patched = rawTransactionWithSequence(rawTxHex, 0x8000_0001);
-    expect(() => assertOnlySequenceChanged(rawTxHex, patched)).not.toThrow();
+  it('leaves everything but the locktime and the sequences untouched', () => {
+    const rawTxHex = unsignedRawTx({
+      inputs: [{ txid: PREV_TXID, index: 0, sequence: 0xfffffffd }],
+      outputs: [{ script: opReturnScript(), amount: 0n }, { script: SOURCE_P2WPKH.script, amount: 95_160n }],
+    });
+    const patched = rawTransactionWithNonce(rawTxHex, 0x8000_0001);
+    expect(() => assertOnlyNonceChanged(rawTxHex, patched)).not.toThrow();
     expect(patched.length).toBe(rawTxHex.length);
-    // Only the four sequence bytes at offset 42 differ.
+    // Only the sequence bytes at offset 42 and the last four bytes differ.
     const before = hexToBytes(rawTxHex);
     const after = hexToBytes(patched);
     const differing = [...before.keys()].filter(i => before[i] !== after[i]);
-    expect(differing.every(i => i >= 42 && i < 46)).toBe(true);
+    expect(differing.length).toBeGreaterThan(0);
+    expect(differing.every(i => (i >= 42 && i < 46) || i >= before.length - 4)).toBe(true);
+    expect(parseConsensusTransaction(patched).getInput(0).sequence).toBe(0xffffffff);
   });
 
   it('rejects a hunted transaction whose outputs moved', () => {
     const rawTxHex = enhancedSendRawTx();
     const tampered = unsignedRawTx({
-      inputs: [{ txid: PREV_TXID, index: 0, sequence: 0x8000_0001 }],
+      inputs: [{ txid: PREV_TXID, index: 0 }],
       outputs: [
         { script: opReturnScript(), amount: 0n },
         { script: otherScript, amount: 95_160n },
       ],
+      lockTime: 0x8000_0001,
     });
-    expect(() => assertOnlySequenceChanged(rawTxHex, tampered)).toThrow('changed output 1');
+    expect(() => assertOnlyNonceChanged(rawTxHex, tampered)).toThrow('changed output 1');
+  });
+
+  it('rejects a hunted transaction that left a sequence non-final', () => {
+    const rawTxHex = enhancedSendRawTx();
+    const tampered = unsignedRawTx({
+      inputs: [{ txid: PREV_TXID, index: 0, sequence: 0xfffffffd }],
+      outputs: [{ script: opReturnScript(), amount: 0n }, { script: SOURCE_P2WPKH.script, amount: 95_160n }],
+      lockTime: 7,
+    });
+    expect(() => assertOnlyNonceChanged(rawTxHex, tampered)).toThrow('changed input 0');
   });
 
   it('rejects a hunted transaction that changed another input', () => {
@@ -179,10 +210,10 @@ describe('nonce application', () => {
       outputs: [{ script: SOURCE_P2WPKH.script, amount: 1_000n }],
     });
     const tampered = unsignedRawTx({
-      inputs: [{ txid: PREV_TXID, index: 0 }, { txid: PREV_TXID, index: 1, sequence: 5 }],
+      inputs: [{ txid: PREV_TXID, index: 0 }, { txid: PREV_TXID, index: 2 }],
       outputs: [{ script: SOURCE_P2WPKH.script, amount: 1_000n }],
     });
-    expect(() => assertOnlySequenceChanged(rawTxHex, tampered)).toThrow('changed input 1');
+    expect(() => assertOnlyNonceChanged(rawTxHex, tampered)).toThrow('changed input 1');
   });
 
   it('does not treat the recipient as the reward output', () => {

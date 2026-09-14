@@ -17,7 +17,7 @@ function post(response: HuntWorkerResponse): void {
 self.addEventListener('message', (event: MessageEvent<HuntWorkerRequest>) => {
   try {
     const { message, nonceOffset, startNonce, endNonce, targetZeros, batchSize } = event.data;
-    const hasher = new MutableSha256d(message);
+    const hasher = new MutableSha256d(message, nonceOffset);
     let nonce = startNonce;
     let attempts = 0;
     while (nonce < endNonce) {

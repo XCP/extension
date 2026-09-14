@@ -18,7 +18,7 @@ export interface MineRangeResult {
  * call it in batches so they can report progress and honour a deadline between batches.
  *
  * Pass the same hasher back in for consecutive batches over the same message; constructing one
- * pads and copies the message.
+ * pads and copies the message and hashes every block before the nonce once.
  */
 export function mineRange(
   message: Uint8Array,
@@ -26,7 +26,7 @@ export function mineRange(
   startNonce: number,
   count: number,
   targetZeros: number,
-  hasher: MutableSha256d = new MutableSha256d(message),
+  hasher: MutableSha256d = new MutableSha256d(message, nonceOffset),
 ): MineRangeResult {
   const end = startNonce + count;
   if (startNonce < 0 || end > 0x1_0000_0000) {

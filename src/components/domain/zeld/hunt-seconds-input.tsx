@@ -70,8 +70,8 @@ export function HuntSecondsInput({ showHelpText = false }: HuntSecondsInputProps
       <Description className={`mt-2 text-sm text-gray-500 ${showHelpText ? "" : "hidden"}`}>
         Before signing, spend up to this long searching for a transaction ID that starts with
         {" "}{ZELD_MIN_ZERO_COUNT} zeros, which earns ZELD (zeldhash.com) on your change output.
-        The search changes only a sequence number, adds no bytes and no fee, and when it runs
-        out of time the transaction is sent as composed. Native SegWit and Taproot addresses
+        The search changes only the transaction&apos;s locktime field, adds no bytes and no fee,
+        and when it runs out of time the transaction is sent as composed. Native SegWit and Taproot addresses
         only, and only when the first output is your own.
       </Description>
     </Field>

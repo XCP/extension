@@ -495,7 +495,8 @@ export function ComposerProvider<T>({
       };
 
       // Hunt for a ZELD txid last, once every check above has passed, because it edits the
-      // transaction: input 0's sequence becomes the nonce. The hunt proves that is the only change
+      // transaction: nLockTime becomes the nonce, behind final sequences. The hunt proves that is
+      // the only change
       // and records its outcome on the result, so the review describes exactly what gets signed.
       // Skipped rather than failed when it cannot apply, so no transaction is ever blocked by it.
       if (zeldHuntSeconds > 0 && activeWallet) {

@@ -1,18 +1,18 @@
 /**
  * Attach a ZELD hunt to a composed, verified transaction.
  *
- * Runs after every compose-time check has passed, changes exactly one field (input 0's sequence),
- * proves that from the parsed bytes, and records what happened on the result as `zeld_hunt` for
- * the review screen. A hunt that finds nothing leaves the transaction untouched, so the user's
+ * Runs after every compose-time check has passed, changes only the nonce fields (nLockTime, and
+ * every input's sequence made final), proves that from the parsed bytes, and records what
+ * happened on the result as `zeld_hunt` for the review screen. A hunt that finds nothing leaves the transaction untouched, so the user's
  * transaction always proceeds; the setting buys a chance at ZELD, never a delay past its budget.
  */
 
 import type { AddressFormat } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { huntTxid } from '@/core/zeld/hunt';
-import { assertOnlySequenceChanged, assessZeldHunt, rawTransactionWithSequence } from '@/core/zeld/huntTemplate';
+import { assertOnlyNonceChanged, assessZeldHunt, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
 import { MAX_ZELD_HUNT_SECONDS, ZELD_MIN_ZERO_COUNT } from '@/core/zeld/protocol';
-import { psbtWithInputSequence } from '@/core/zeld/psbtSequence';
+import { psbtWithNonce } from '@/core/zeld/psbtNonce';
 import type { ZeldHuntMetadata, ZeldHuntProgress } from '@/core/zeld/types';
 
 export interface ComposeHuntContext {
@@ -58,7 +58,7 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
   const psbt = response.result.psbt;
   if (context.walletType === 'hardware') {
     try {
-      psbtWithInputSequence(psbt, 0, assessment.template.originalSequence);
+      psbtWithNonce(psbt, assessment.template.originalLockTime);
     } catch {
       return withMetadata(response, {
         ...base,
@@ -88,12 +88,12 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
     });
   }
 
-  const rawtransaction = rawTransactionWithSequence(rawTxHex, outcome.nonce);
-  assertOnlySequenceChanged(rawTxHex, rawtransaction);
+  const rawtransaction = rawTransactionWithNonce(rawTxHex, outcome.nonce);
+  assertOnlyNonceChanged(rawTxHex, rawtransaction);
 
   let huntedPsbt = psbt;
   try {
-    huntedPsbt = psbtWithInputSequence(psbt, 0, outcome.nonce);
+    huntedPsbt = psbtWithNonce(psbt, outcome.nonce);
   } catch (error) {
     // Software signing never reads the PSBT; hardware signing proved it updatable above.
     if (context.walletType === 'hardware') throw error;

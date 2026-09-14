@@ -46,6 +46,24 @@ describe('MutableSha256d', () => {
     expect(seen).toBeGreaterThan(0);
   });
 
+  it('reuses the state over the blocks before the nonce and still matches @noble/hashes', () => {
+    for (const length of [68, 131, 200, 260]) {
+      const message = pseudoRandomBytes(length, length);
+      const offset = length - 4;
+      const hasher = new MutableSha256d(message, offset);
+      for (const value of [0, 1, 0x8000_0000, 0xdead_beef, 0xffff_ffff]) {
+        hasher.setUint32LE(offset, value);
+        const expected = new Uint8Array(message);
+        new DataView(expected.buffer).setUint32(offset, value, true);
+        expect(hasher.hashLeadingZeroNibbles()).toBe(countLeadingZeroNibbles(referenceTxid(expected)));
+        expect(hasher.txid(), `length ${length} value ${value}`).toBe(referenceTxid(expected));
+      }
+      // A window inside the reused prefix would silently hash stale state, so it is refused.
+      if (offset >= 64) expect(() => hasher.setUint32LE(0, 1)).toThrow(RangeError);
+    }
+    expect(() => new MutableSha256d(pseudoRandomBytes(3, 10), 8)).toThrow(RangeError);
+  });
+
   it('rehashes after a four-byte little-endian window is overwritten', () => {
     const message = pseudoRandomBytes(7, 131);
     const hasher = new MutableSha256d(message);

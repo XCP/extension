@@ -8,8 +8,8 @@ import { assertTransactionMatchesReviewed, parseTransactionForIntegrity } from '
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { huntZeldForCompose } from '@/core/zeld/composeHunt';
 import type { HuntTxidResult } from '@/core/zeld/hunt';
-import { psbtWithInputSequence } from '@/core/zeld/psbtSequence';
-import { enhancedSendRawTx, psbtHexFor, SOURCE_ADDRESS, SOURCE_P2WPKH, unsignedRawTx } from './fixtures';
+import { psbtWithNonce } from '@/core/zeld/psbtNonce';
+import { enhancedSendRawTx, opReturnScript, PREV_TXID, psbtHexFor, SOURCE_ADDRESS, SOURCE_P2WPKH, unsignedRawTx } from './fixtures';
 
 function responseFor(rawtransaction: string, psbt = psbtHexFor(rawtransaction)): ApiResponse {
   return {
@@ -57,7 +57,7 @@ describe('huntZeldForCompose', () => {
     expect(hunt).not.toHaveBeenCalled();
   });
 
-  it('rewrites only input 0 sequence when a txid is found, in both raw and PSBT form', async () => {
+  it('rewrites only the nonce fields when a txid is found, in both raw and PSBT form', async () => {
     const rawTxHex = enhancedSendRawTx();
     const response = responseFor(rawTxHex);
     const result = await huntZeldForCompose(response, { ...context, targetZeros: 2 });
@@ -67,7 +67,9 @@ describe('huntZeldForCompose', () => {
     expect(hunted.zeld_hunt?.txid?.startsWith('00')).toBe(true);
     expect(hunted.rawtransaction).not.toBe(rawTxHex);
     expect(parseRawTransactionLocally(hunted.rawtransaction)?.txid).toBe(hunted.zeld_hunt?.txid);
-    expect(parseConsensusTransaction(hunted.rawtransaction).getInput(0).sequence).toBe(hunted.zeld_hunt?.nonce);
+    const huntedTx = parseConsensusTransaction(hunted.rawtransaction);
+    expect(huntedTx.lockTime).toBe(hunted.zeld_hunt?.nonce);
+    expect(huntedTx.getInput(0).sequence).toBe(0xffffffff);
     // The hardware path insists the PSBT describes the reviewed bytes; the hunted PSBT must too.
     expect(() => assertTransactionMatchesReviewed(
       parsePSBT(hunted.psbt),
@@ -152,20 +154,21 @@ describe('huntZeldForCompose', () => {
       status: 'found', nonce: 0x8abc_def0, txid: 'unchecked', zeroCount: 6, attempts: 7, elapsedMs: 8,
     }));
     const result = await huntZeldForCompose(responseFor(rawTxHex), { ...context, hunt });
-    expect(parseConsensusTransaction(result.result.rawtransaction).getInput(0).sequence).toBe(0x8abc_def0);
-    expect(parsePSBT(result.result.psbt).getInput(0).sequence).toBe(0x8abc_def0);
+    expect(parseConsensusTransaction(result.result.rawtransaction).lockTime).toBe(0x8abc_def0);
+    expect(parsePSBT(result.result.psbt).lockTime).toBe(0x8abc_def0);
   });
 });
 
-describe('psbtWithInputSequence', () => {
-  it('rewrites one input sequence and keeps the witness data', () => {
-    const psbt = psbtHexFor(enhancedSendRawTx());
-    const updated = parsePSBT(psbtWithInputSequence(psbt, 0, 0x8000_0005));
-    expect(updated.getInput(0).sequence).toBe(0x8000_0005);
+describe('psbtWithNonce', () => {
+  it('rewrites the locktime, makes every sequence final and keeps the witness data', () => {
+    const psbt = psbtHexFor(unsignedRawTx({
+      inputs: [{ txid: PREV_TXID, index: 0, sequence: 0xfffffffd }],
+      outputs: [{ script: opReturnScript(), amount: 0n }, { script: SOURCE_P2WPKH.script, amount: 95_160n }],
+    }));
+    const updated = parsePSBT(psbtWithNonce(psbt, 0x8000_0005));
+    expect(updated.lockTime).toBe(0x8000_0005);
+    expect(updated.getInput(0).sequence).toBe(0xffffffff);
     expect(updated.getInput(0).witnessUtxo?.amount).toBe(100_000n);
-  });
-
-  it('refuses an input index the PSBT does not have', () => {
-    expect(() => psbtWithInputSequence(psbtHexFor(enhancedSendRawTx()), 3, 1)).toThrow(RangeError);
+    expect(updated.outputsLength).toBe(2);
   });
 });

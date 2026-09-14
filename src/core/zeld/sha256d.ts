@@ -84,12 +84,25 @@ export class MutableSha256d {
   private readonly W = new Int32Array(64);
   private readonly state = new Int32Array(8);
   private readonly outer = new Int32Array(16);
+  /** Blocks before the nonce window, hashed once into `midstate` at construction. */
+  private readonly prefixBlocks: number;
+  private readonly midstate = new Int32Array(8);
   readonly messageLength: number;
 
-  constructor(message: Uint8Array) {
+  /**
+   * `nonceOffset` names the four bytes that will change between hashes. Every block wholly
+   * before it is hashed once here and reused for every hash, so a nonce at the end of the
+   * message (a transaction's nLockTime) costs one block plus the outer hash per attempt rather
+   * than the whole message. Without it, or with a nonce in the first block, nothing is reused.
+   */
+  constructor(message: Uint8Array, nonceOffset?: number) {
     const length = message.length;
     this.messageLength = length;
     this.blocks = Math.ceil((length + 9) / 64);
+    if (nonceOffset !== undefined && (nonceOffset < 0 || nonceOffset + 4 > length)) {
+      throw new RangeError('nonce window lies outside the message');
+    }
+    this.prefixBlocks = nonceOffset === undefined ? 0 : Math.floor(nonceOffset / 64);
     this.bytes = new Uint8Array(this.blocks * 64);
     this.bytes.set(message);
     this.bytes[length] = 0x80;
@@ -102,12 +115,16 @@ export class MutableSha256d {
     // The outer hash always covers exactly the 32-byte inner digest: one block, fixed padding.
     this.outer[8] = 0x80000000 | 0;
     this.outer[15] = 256;
+    this.midstate.set(IV);
+    for (let block = 0; block < this.prefixBlocks; block++) {
+      compress(this.midstate, this.words, block * 16, this.W);
+    }
   }
 
   /** Overwrite four message bytes with a little-endian integer, as a transaction stores nSequence. */
   setUint32LE(offset: number, value: number): void {
-    if (offset < 0 || offset + 4 > this.messageLength) {
-      throw new RangeError('nonce window lies outside the message');
+    if (offset < this.prefixBlocks * 64 || offset + 4 > this.messageLength) {
+      throw new RangeError('nonce window lies outside the message, or inside the reused prefix');
     }
     this.view.setUint32(offset, value >>> 0, true);
     const first = offset >> 2;
@@ -124,8 +141,10 @@ export class MutableSha256d {
    */
   hashLeadingZeroNibbles(): number {
     const state = this.state;
-    state.set(IV);
-    for (let block = 0; block < this.blocks; block++) compress(state, this.words, block * 16, this.W);
+    state.set(this.midstate);
+    for (let block = this.prefixBlocks; block < this.blocks; block++) {
+      compress(state, this.words, block * 16, this.W);
+    }
     const outer = this.outer;
     for (let i = 0; i < 8; i++) outer[i] = state[i]!;
     state.set(IV);
