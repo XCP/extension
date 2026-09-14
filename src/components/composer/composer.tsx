@@ -176,8 +176,7 @@ function ComposerInner<T>({
   if (state.isComposing || state.isSigning) {
     const hunt = state.zeldHuntProgress;
     const message = hunt
-      ? `Hunting for a ZELD txid… ${Math.floor(hunt.elapsedMs / 1000)}s of ${hunt.seconds}s `
-        + `(${(hunt.hashRate / 1_000_000).toFixed(1)} MH/s)`
+      ? `Hunting for ZELD… ${Math.floor(hunt.elapsedMs / 1000)}s / ${hunt.seconds}s`
       : state.isComposing ? "Composing transaction…" : "Signing and broadcasting…";
     return (
       <Spinner

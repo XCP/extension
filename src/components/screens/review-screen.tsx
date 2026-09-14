@@ -197,9 +197,7 @@ export function ReviewScreen({
           </div>
         )}
         
-        {(result.zeld_hunt || result.zeld_protection || result.zeld_send) && (
-          <ZeldField hunt={result.zeld_hunt} protection={result.zeld_protection} send={result.zeld_send} />
-        )}
+        <ZeldField hunt={result.zeld_hunt} protection={result.zeld_protection} send={result.zeld_send} />
 
         {/* Transaction Fee */}
         <div className="space-y-1">
