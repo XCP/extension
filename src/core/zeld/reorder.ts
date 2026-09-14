@@ -31,9 +31,10 @@ export interface ReorderResult {
 }
 
 /**
- * The transaction with its first change output (paying `sourceAddress`) moved to output 0.
- * Returns the input unchanged when there is no change, when change is already first, or when the
- * bytes cannot be parsed.
+ * The transaction with its change output moved to output 0. Counterparty appends change after
+ * every other output, so the change is the last output paying `sourceAddress`; an attach's named
+ * output pays the source too and sits before it. Returns the input unchanged when there is no
+ * change, when change is already first, or when the bytes cannot be parsed.
  */
 export interface ReorderOptions {
   /**
@@ -62,10 +63,7 @@ export function withChangeFirst(rawTxHex: string, sourceAddress: string, options
     if (!output.script) continue;
     const isData = output.script[0] === 0x6a;
     if (options.afterData && isData && changeIndex === -1 && target === index) target = index + 1;
-    if (!isData && bytesToHex(output.script).toLowerCase() === sourceScript) {
-      changeIndex = index;
-      break;
-    }
+    if (!isData && bytesToHex(output.script).toLowerCase() === sourceScript) changeIndex = index;
   }
   if (changeIndex === -1 || changeIndex <= target) return { rawtransaction: rawTxHex };
 
@@ -119,10 +117,7 @@ export function psbtWithChangeFirst(psbt: string, sourceAddress: string, options
     if (!output.script) continue;
     const isData = output.script[0] === 0x6a;
     if (options.afterData && isData && changeIndex === -1 && target === index) target = index + 1;
-    if (!isData && bytesToHex(output.script).toLowerCase() === sourceScript) {
-      changeIndex = index;
-      break;
-    }
+    if (!isData && bytesToHex(output.script).toLowerCase() === sourceScript) changeIndex = index;
   }
   if (changeIndex === -1 || changeIndex <= target) return psbt;
   const reordered = new Transaction({

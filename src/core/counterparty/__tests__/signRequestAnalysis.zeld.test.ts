@@ -13,6 +13,11 @@ vi.mock('@/core/counterparty/protocolContext', () => ({
 vi.mock('@/core/counterparty/unpack', () => ({
   verifyProviderTransaction: vi.fn(() => ({ localUnpack: undefined })),
 }));
+const settings = vi.hoisted(() => ({ zeldHuntSeconds: 20 }));
+vi.mock('@/core/settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/core/settings')>();
+  return { ...actual, getActiveSettings: () => ({ ...actual.DEFAULT_SETTINGS, ...settings }) };
+});
 const zeld = vi.hoisted(() => ({ utxos: [] as Array<{ txid: string; vout: number; balance: bigint }> }));
 vi.mock('@/core/zeld/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/zeld/api')>()),
@@ -44,14 +49,28 @@ function analyze(outputs: AnalyzedOutput[], inputs = [ZELD_INPUT, CLEAN_INPUT]) 
 const zeldWarning = (warnings: { title: string; severity?: string; message?: string }[]) => warnings.find((w) => w.title === 'ZELD Would Leave With This Transaction');
 
 describe('sign requests that would carry ZELD away', () => {
-  it('warns when a signed six-zero output is spent and a stranger is paid first', async () => {
+  it('refuses while hunting is on, when a signed six-zero output is spent and a stranger is paid first', async () => {
     const analysis = await analyze([
       { index: 0, value: 10_000, type: 'witness_v0_keyhash', address: STRANGER },
       { index: 1, value: 90_000, type: 'witness_v0_keyhash', address: SIGNER },
     ]);
     const warning = zeldWarning(analysis.safety.warnings);
-    expect(warning?.severity).toBe('warning');
+    expect(warning?.severity).toBe('block');
     expect(warning?.message).toContain('1 of the outputs this wallet is asked to spend holds ZELD');
+    expect(warning?.message).toContain('have the site compose again');
+    expect(analysis.safety.blocked).toBe(true);
+  });
+
+  it('only warns once hunting is off', async () => {
+    settings.zeldHuntSeconds = 0;
+    try {
+      const analysis = await analyze([
+        { index: 0, value: 10_000, type: 'witness_v0_keyhash', address: STRANGER },
+      ]);
+      expect(zeldWarning(analysis.safety.warnings)?.severity).toBe('warning');
+    } finally {
+      settings.zeldHuntSeconds = 20;
+    }
   });
 
   it('also warns on the indexer\'s word for an ordinary-looking outpoint', async () => {

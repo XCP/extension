@@ -5,7 +5,7 @@ import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse
 import { getActiveSettings } from '@/core/settings';
 import { OTHER_ADDRESS, opReturnScript, PREV_TXID, SOURCE_ADDRESS, SOURCE_P2WPKH, unsignedRawTx } from '@/core/zeld/__tests__/fixtures';
 import { fetchZeldOutpointBalance, fetchZeldUtxos } from '@/core/zeld/api';
-import { composeBurn, composeDispense, composeMove, composeSend } from '../compose';
+import { composeAttach, composeBurn, composeDetach, composeDispense, composeMove, composeSend } from '../compose';
 import { mockSettings } from './helpers/composeTestHelpers';
 
 vi.mock('@/core/api/client');
@@ -167,7 +167,7 @@ describe('ZELD guard on composed transactions', () => {
     outpointBalance.mockResolvedValue(7n);
     await expect(composeMove({
       sourceUtxo: `${PREV_TXID}:0`, destination: OTHER_ADDRESS, sat_per_vbyte: 2,
-    } as never)).rejects.toThrow('also holds ZELD');
+    } as never)).rejects.toThrow('Detach the assets first');
     expect(outpointBalance).toHaveBeenCalledWith(PREV_TXID, 0);
 
     outpointBalance.mockResolvedValue(0n);
@@ -178,6 +178,87 @@ describe('ZELD guard on composed transactions', () => {
     await expect(composeMove({
       sourceUtxo: `${CLEAN_TXID}:0`, destination: OTHER_ADDRESS, sat_per_vbyte: 2,
     } as never)).resolves.toBeDefined();
+  });
+
+  it('lets a detach through whatever the source output holds, since its change keeps the ZELD', async () => {
+    api.get.mockResolvedValue(response(enhancedSendSpending(ZELD_TXID)) as never);
+    outpointBalance.mockResolvedValue(7n);
+    const detach = () => composeDetach({ sourceUtxo: `${ZELD_TXID}:0`, sourceAddress: SOURCE_ADDRESS, sat_per_vbyte: 2 });
+    await expect(detach()).resolves.toBeDefined();
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(outpointBalance).not.toHaveBeenCalled();
+  });
+
+  it('gives a detach with no change a small output of its own when the detached output holds ZELD', async () => {
+    const detachWithoutChange = unsignedRawTx({ inputs: [{ txid: ZELD_TXID, index: 0 }], outputs: [{ script: opReturnScript(), amount: 0n }] });
+    const detachWithSmallOutput = unsignedRawTx({
+      inputs: [{ txid: ZELD_TXID, index: 0 }, { txid: CLEAN_TXID, index: 0 }],
+      outputs: [{ script: opReturnScript(), amount: 0n }, { script: SOURCE_P2WPKH.script, amount: 330n }, { script: SOURCE_P2WPKH.script, amount: 90_000n }],
+    });
+    api.get.mockResolvedValueOnce(response(detachWithoutChange) as never).mockResolvedValueOnce(response(detachWithSmallOutput) as never);
+    const composed = await composeDetach({ sourceUtxo: `${ZELD_TXID}:0`, sourceAddress: SOURCE_ADDRESS, sat_per_vbyte: 2 });
+    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(urlOf(1).searchParams.get('more_outputs')).toBe(`330:${SOURCE_ADDRESS}`);
+    expect(composed.result.rawtransaction).toBe(detachWithSmallOutput);
+    expect(composed.result.zeld_protection?.carried_forward).toEqual([`${ZELD_TXID}:0`]);
+
+    // A clean output detached the same way is left alone.
+    api.get.mockResolvedValueOnce(response(unsignedRawTx({ inputs: [{ txid: CLEAN_TXID, index: 0 }], outputs: [{ script: opReturnScript(), amount: 0n }] })) as never);
+    outpointBalance.mockResolvedValue(0n);
+    await composeDetach({ sourceUtxo: `${CLEAN_TXID}:0`, sourceAddress: SOURCE_ADDRESS, sat_per_vbyte: 2 });
+    expect(api.get).toHaveBeenCalledTimes(3);
+  });
+
+  // Counterparty's default attach: the new output first, then data, then change.
+  const defaultAttach = (txid: string) => unsignedRawTx({
+    inputs: [{ txid, index: 0 }],
+    outputs: [
+      { script: SOURCE_P2WPKH.script, amount: 546n },
+      { script: opReturnScript(20), amount: 0n },
+      { script: SOURCE_P2WPKH.script, amount: 90_000n },
+    ],
+  });
+  const attach = () => composeAttach({ sourceAddress: SOURCE_ADDRESS, asset: 'XCP', quantity: 1, sat_per_vbyte: 2 });
+
+  it('attaches to an output after the change, so the ZELD stays on the change', async () => {
+    // Counterparty's answer to the named layout: data, the requested 546-sat output, change.
+    const namedAttach = unsignedRawTx({
+      inputs: [{ txid: ZELD_TXID, index: 0 }],
+      outputs: [
+        { script: opReturnScript(20), amount: 0n },
+        { script: SOURCE_P2WPKH.script, amount: 546n },
+        { script: SOURCE_P2WPKH.script, amount: 90_000n },
+      ],
+    });
+    api.get.mockResolvedValueOnce(response(defaultAttach(ZELD_TXID)) as never).mockResolvedValueOnce(response(namedAttach) as never);
+    const composed = await attach();
+    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(urlOf(0).searchParams.has('destination_vout')).toBe(false);
+    expect(urlOf(0).searchParams.has('validate')).toBe(false);
+    const named = urlOf(1);
+    expect(named.searchParams.get('destination_vout')).toBe('2');
+    expect(named.searchParams.get('more_outputs')).toBe(`546:${SOURCE_ADDRESS}`);
+    expect(named.searchParams.get('validate')).toBe('false');
+    const parsed = parseRawTransactionLocally(composed.result.rawtransaction)!;
+    expect(parsed.outputs.map(o => o.value)).toEqual([0, 90_000, 546]);
+    expect(composed.result.zeld_protection?.carried_forward).toEqual([`${ZELD_TXID}:0`]);
+  });
+
+  it('keeps the validated default attach when there is no change to put first', async () => {
+    const exactAttach = unsignedRawTx({
+      inputs: [{ txid: CLEAN_TXID, index: 0 }],
+      outputs: [{ script: opReturnScript(20), amount: 0n }, { script: SOURCE_P2WPKH.script, amount: 546n }],
+    });
+    api.get.mockResolvedValueOnce(response(defaultAttach(CLEAN_TXID)) as never).mockResolvedValueOnce(response(exactAttach) as never);
+    const composed = await attach();
+    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(composed.result.rawtransaction).toBe(defaultAttach(CLEAN_TXID));
+  });
+
+  it('keeps the validated default attach when the named layout fails to compose', async () => {
+    api.get.mockResolvedValueOnce(response(defaultAttach(CLEAN_TXID)) as never).mockRejectedValueOnce(new Error('boom'));
+    const composed = await attach();
+    expect(composed.result.rawtransaction).toBe(defaultAttach(CLEAN_TXID));
   });
 
   it('puts change first on a BTC send, raw and PSBT alike, and records it', async () => {

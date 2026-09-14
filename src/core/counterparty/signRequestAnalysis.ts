@@ -48,6 +48,7 @@ import {
 } from '@/core/counterparty/transactionSafety';
 import { type ProviderVerificationResult, verifyProviderTransaction } from '@/core/counterparty/unpack';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
+import { getActiveSettings } from '@/core/settings';
 import { classifyZeldOutpoints } from '@/core/zeld/protection';
 
 /** An input being signed, identified by the outpoint it spends. */
@@ -249,7 +250,8 @@ export async function analyzeSignRequest(
 
   // ZELD rides on the first spendable output. A site's transaction that spends this wallet's
   // ZELD-bearing outputs and pays someone else first would hand them the ZELD. The composer's
-  // guard cannot recompose a site's bytes, so the approval screen says so instead.
+  // guard cannot recompose a site's bytes, so while the user hunts ZELD the request is refused
+  // with the fix, and once hunting is off it is only pointed out.
   const firstSpendable = outputs.find((output) => output.type !== 'op_return');
   const signerSet = new Set(signerAddresses.map(normalizeAddressForComparison));
   const paysSigner = !!firstSpendable?.address && signerSet.has(normalizeAddressForComparison(firstSpendable.address));
@@ -260,17 +262,21 @@ export async function analyzeSignRequest(
     const zeld = await classifyZeldOutpoints(signedInputs, signerAddresses[0]!);
     if (zeld.bearing.length > 0) {
       const count = zeld.bearing.length;
+      const hunting = (getActiveSettings().zeldHuntSeconds ?? 0) > 0;
       safety.warnings = [
         ...safety.warnings,
         {
-          severity: 'warning',
+          severity: hunting ? 'block' : 'warning',
           title: 'ZELD Would Leave With This Transaction',
           message:
             `${count} of the outputs this wallet is asked to spend ${count === 1 ? 'holds' : 'hold'} ZELD, `
             + 'and this transaction pays someone else first, so the ZELD would go to them. '
-            + 'To keep it, move your ZELD to a small output on the ZELD page before signing.',
+            + (hunting
+              ? 'Move your ZELD to a small output on the ZELD page, then have the site compose again.'
+              : 'To keep it, move your ZELD to a small output on the ZELD page before signing.'),
         },
       ];
+      if (hunting) safety.blocked = true;
     }
   }
 

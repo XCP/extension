@@ -6,7 +6,14 @@ import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
-import { assertUtxoCarriesNoZeld, guardZeldExposure, withComposedChangeFirst } from '@/core/zeld/composeGuard';
+import {
+  assertUtxoCarriesNoZeld,
+  attachLayoutHolds,
+  guardZeldExposure,
+  withComposedChangeFirst,
+  withDetachZeldKept,
+  zeldAttachParams,
+} from '@/core/zeld/composeGuard';
 import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from '@/core/zeld/types';
 
 /**
@@ -752,11 +759,7 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   try {
     // Routed through sendComposeRequest for the apiClient timeout (60s for /compose) and retry
     // logic, and for the POST fallback when the query outgrows a URL.
-    const composed = await sendComposeRequest(apiUrl, params.toString(), endpoint);
-    // A detach or move pays the destination first, so ZELD on the source output would go with
-    // the assets. There is no other output to steer it to, so the compose is refused instead.
-    await assertUtxoCarriesNoZeld(sourceUtxo, endpoint);
-    return composed;
+    return await sendComposeRequest(apiUrl, params.toString(), endpoint);
   } catch (error: unknown) {
     if (error instanceof CounterpartyApiError) throw error;
 
@@ -1334,12 +1337,34 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
     ...(destination_vout !== undefined ? { destination_vout: serializeRawInteger(destination_vout) } : {}),
     ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
-  return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  const composed = await composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  if (destination_vout !== undefined || utxo_value !== undefined) return composed;
+  // Unless the caller chose the output, attach to one after the change so ZELD stays on the
+  // change rather than on the asset's UTXO. Counterparty validated the attach just above; its API
+  // takes `destination_vout` as a string while its validator wants an integer, so the named
+  // layout only composes with validation off, and nothing but the output index differs. Change
+  // goes right after the data, as on an asset send. If the named compose fails or has no change
+  // to put first, the validated default stands.
+  try {
+    const named = await composeTransaction(
+      'attach',
+      { ...paramsObj, ...zeldAttachParams(sourceAddress), validate: 'false' },
+      sourceAddress,
+      sat_per_vbyte,
+      encoding,
+      { changeFirst: true, afterData: true },
+    );
+    if (attachLayoutHolds(named, sourceAddress)) return named;
+  } catch {
+    // The validated default compose is returned below.
+  }
+  return composed;
 }
 
 export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {
   const {
     sourceUtxo,
+    sourceAddress,
     destination,
     sat_per_vbyte,
     encoding,
@@ -1347,7 +1372,11 @@ export async function composeDetach(options: DetachOptions): Promise<ApiResponse
   const paramsObj = {
     ...(destination && { destination }),
   };
-  return composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  const composed = await composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  // ZELD on the detached output lands on the change; when there is none, on a small output asked
+  // for here.
+  return withDetachZeldKept(composed, sourceUtxo, sourceAddress, (extra) =>
+    composeUtxoTransaction('detach', { ...paramsObj, ...extra }, sourceUtxo, sat_per_vbyte, encoding));
 }
 
 export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
@@ -1360,5 +1389,8 @@ export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
   const paramsObj = {
     destination,
   };
-  return composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  const composed = await composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  // A move pays the destination first, so ZELD on the source output would go with the assets.
+  await assertUtxoCarriesNoZeld(sourceUtxo, 'movetoutxo');
+  return composed;
 }

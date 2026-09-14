@@ -8,34 +8,109 @@
  * - `guardZeldExposure` keeps a payment from carrying ZELD to its recipient, recomposing without
  *   the ZELD-bearing outputs when it must. It does not depend on the hunt setting: ZELD earned
  *   while hunting was on stays protected after it is turned off;
- * - `assertUtxoCarriesNoZeld` refuses a detach or move of an output that holds ZELD.
+ * - `assertUtxoCarriesNoZeld` refuses a move of an output that holds ZELD;
+ * - `withDetachZeldKept` gives a detach an output of the wallet's own when the fee ate the change;
+ * - `zeldAttachParams` and `attachLayoutHolds` keep an attach's ZELD on the change output.
  */
 
+import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { CounterpartyApiError } from '@/core/errors';
-import { fetchZeldOutpointBalance, isLikelyZeldTxid } from '@/core/zeld/api';
-import { assessZeldExposure } from '@/core/zeld/protection';
+import { fetchZeldOutpointBalance } from '@/core/zeld/api';
+import { scriptHexForAddress } from '@/core/zeld/huntTemplate';
+import { assessZeldExposure, firstSpendableOutputPays, isHuntedOutpoint } from '@/core/zeld/protection';
 import { psbtWithChangeFirst, type ReorderOptions, withChangeFirst } from '@/core/zeld/reorder';
+import { zeldRecipientDustSats } from '@/core/zeld/sendCompose';
 import type { ZeldProtectionMetadata } from '@/core/zeld/types';
 
-/** Refuse a UTXO-sourced compose whose source output carries ZELD; see `composeUtxoTransaction`. */
-export async function assertUtxoCarriesNoZeld(sourceUtxo: string, endpoint: string): Promise<void> {
+/** Whether `txid:vout` carries ZELD, by the hunt's txid shape or by the indexer's word. */
+export async function utxoCarriesZeld(sourceUtxo: string): Promise<boolean> {
   const [txid, vout] = sourceUtxo.split(':');
-  let carries = isLikelyZeldTxid(txid ?? '');
-  if (!carries && txid && vout !== undefined) {
-    try {
-      carries = (await fetchZeldOutpointBalance(txid, Number(vout))) > 0n;
-    } catch {
-      // Indexer down: the heuristic above is the only check, as everywhere else.
-    }
+  if (!txid || vout === undefined) return false;
+  if (await isHuntedOutpoint(txid, Number(vout))) return true;
+  try {
+    return (await fetchZeldOutpointBalance(txid, Number(vout))) > 0n;
+  } catch {
+    // Indexer down: the heuristic above is the only check, as everywhere else.
+    return false;
   }
-  if (carries) {
+}
+
+/**
+ * Refuse a move whose source output carries ZELD. A move pays the destination first, so the ZELD
+ * would go with the assets, and there is no other output to steer it to.
+ */
+export async function assertUtxoCarriesNoZeld(sourceUtxo: string, endpoint: string): Promise<void> {
+  if (await utxoCarriesZeld(sourceUtxo)) {
     throw new CounterpartyApiError(
-      'This output also holds ZELD, which would follow the assets to the destination. Send the '
-      + 'ZELD from the ZELD page first.',
+      'This output also holds ZELD, which would follow the assets to the destination. Detach the '
+      + 'assets first: the ZELD stays with your address, and attaching them again puts them on a '
+      + 'clean output.',
       endpoint,
     );
   }
+}
+
+/**
+ * A detach's only spendable output is the wallet's own change, so ZELD on the detached output
+ * lands there. When the output's own value covers the fee Counterparty makes no change at all,
+ * and ZELD on it would have nowhere to go; then the detach is composed again with a small output
+ * of the wallet's own for it to land on, funded by a fee input. A clean output is left as it was.
+ */
+export async function withDetachZeldKept(
+  composed: ApiResponse,
+  sourceUtxo: string,
+  sourceAddress: string,
+  recompose: (params: { more_outputs: string }) => Promise<ApiResponse>,
+): Promise<ApiResponse> {
+  if (firstSpendableOutputPays(composed.result?.rawtransaction ?? '', sourceAddress)) return composed;
+  if (!(await utxoCarriesZeld(sourceUtxo))) return composed;
+  const kept = await recompose({ more_outputs: `${zeldRecipientDustSats(sourceAddress)}:${sourceAddress}` });
+  if (!firstSpendableOutputPays(kept.result?.rawtransaction ?? '', sourceAddress)) {
+    throw new CounterpartyApiError(
+      'This output also holds ZELD, and the detach leaves no output of yours for it to land on.',
+      'detach',
+    );
+  }
+  return {
+    ...kept,
+    result: { ...kept.result, zeld_protection: { excluded: [], carried_forward: [sourceUtxo], api_unavailable: false } },
+  };
+}
+
+/** Counterparty's value for a new attach output (`config.DEFAULT_UTXO_VALUE`). */
+export const ATTACH_OUTPUT_SATS = 546;
+/** Output index the wallet asks Counterparty to attach to: data, then change, then this one. */
+export const ZELD_ATTACH_VOUT = 2;
+
+/**
+ * Compose parameters that keep an attach's ZELD off the attached output.
+ *
+ * Counterparty's default attach builds `attach output, data, change`, and the first spendable
+ * output is where ZELD lands: every ZELD the inputs carry in, plus any reward from a hunt, would
+ * sit on the asset's UTXO and leave with it on a later move. Naming the output instead gives the
+ * same three outputs as `data, change, attach output`, with the ZELD on the change. The data
+ * grows by the one character of the index.
+ */
+export function zeldAttachParams(sourceAddress: string): { destination_vout: string; more_outputs: string } {
+  return { destination_vout: String(ZELD_ATTACH_VOUT), more_outputs: `${ATTACH_OUTPUT_SATS}:${sourceAddress}` };
+}
+
+/**
+ * Whether a compose made with `zeldAttachParams` came out as intended: change is the first
+ * spendable output, and the attach output at `ZELD_ATTACH_VOUT` pays the source. A compose
+ * without change (an exact spend) has no third output and the caller falls back to Counterparty's
+ * default layout rather than attach to an output that does not exist.
+ */
+export function attachLayoutHolds(composed: ApiResponse, sourceAddress: string): boolean {
+  const rawtransaction = composed.result?.rawtransaction;
+  const expected = scriptHexForAddress(sourceAddress);
+  if (!rawtransaction || !expected) return false;
+  const parsed = parseRawTransactionLocally(rawtransaction);
+  const attachOutput = parsed?.outputs.find(output => output.index === ZELD_ATTACH_VOUT);
+  if (!attachOutput || attachOutput.type === 'op_return' || attachOutput.script?.toLowerCase() !== expected) return false;
+  const first = parsed?.outputs.find(output => output.type !== 'op_return');
+  return first?.index !== ZELD_ATTACH_VOUT && firstSpendableOutputPays(rawtransaction, sourceAddress);
 }
 
 /**

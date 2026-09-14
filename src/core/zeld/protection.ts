@@ -70,6 +70,20 @@ async function isRewardOutput(
   return first?.index === vout;
 }
 
+/**
+ * Whether `txid:vout` holds a hunt's reward by shape alone: a six-zero txid whose first spendable
+ * output this is. The other outputs of a hunted transaction are clean.
+ */
+export async function isHuntedOutpoint(
+  txid: string,
+  vout: number,
+  options: Pick<AssessZeldExposureOptions, 'fetchParent' | 'isZeldTxid'> = {},
+): Promise<boolean> {
+  const lower = txid.toLowerCase();
+  if (!(options.isZeldTxid ?? isLikelyZeldTxid)(lower)) return false;
+  return isRewardOutput(lower, vout, options.fetchParent ?? fetchPreviousRawTransaction);
+}
+
 export interface ZeldOutpointClassification {
   /** Outpoints, as `txid:vout`, that carry ZELD by the indexer's word or by the txid heuristic. */
   bearing: string[];
