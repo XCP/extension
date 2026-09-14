@@ -10,7 +10,6 @@ import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import type { AutoLockTimer } from "@/core/settings";
-import { isValidZeldApiBase } from "@/core/zeld/protocol";
 
 /**
  * Constants for navigation paths and auto-lock options.
@@ -43,31 +42,6 @@ export default function AdvancedSettingsPage(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
-  const [zeldApiInput, setZeldApiInput] = useState(settings.zeldApiBase ?? "");
-  const [zeldApiError, setZeldApiError] = useState<string | null>(null);
-  const [syncedZeldApi, setSyncedZeldApi] = useState(settings.zeldApiBase);
-  if (syncedZeldApi !== settings.zeldApiBase) {
-    setSyncedZeldApi(settings.zeldApiBase);
-    setZeldApiInput(settings.zeldApiBase ?? "");
-  }
-
-  const saveZeldApi = async () => {
-    const value = zeldApiInput.trim();
-    if (!isValidZeldApiBase(value)) {
-      setZeldApiError("Enter an https URL (http is allowed on localhost only).");
-      return;
-    }
-    setZeldApiError(null);
-    const normalized = value.replace(/\/+$/, "");
-    setZeldApiInput(normalized);
-    if (normalized === settings.zeldApiBase) return;
-    try {
-      await updateSettings({ zeldApiBase: normalized });
-    } catch (error) {
-      setZeldApiError(error instanceof Error ? error.message : "Could not save the ZELD API URL.");
-    }
-  };
-
   // Configure header
   useEffect(() => {
     setHeaderProps({
@@ -175,33 +149,6 @@ export default function AdvancedSettingsPage(): ReactElement {
           {shouldShowHelpText && (
             <Description className="mt-2 text-sm text-gray-500">
               The Counterparty API endpoint URL. Must be a mainnet API server running Counterparty Core 11.3.0 or newer.
-            </Description>
-          )}
-        </Field>
-
-        <Field>
-          <Label htmlFor="zeld-api-base" className="font-bold">ZELD API</Label>
-          <input
-            id="zeld-api-base"
-            type="url"
-            value={zeldApiInput}
-            onChange={(event) => setZeldApiInput(event.target.value)}
-            onBlur={() => { void saveZeldApi(); }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-            }}
-            aria-label="ZELD indexer API URL"
-            aria-invalid={zeldApiError ? true : undefined}
-            className="mt-2 w-full px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-          />
-          {zeldApiError && (
-            <p className="mt-1 text-sm text-red-600" role="alert">{zeldApiError}</p>
-          )}
-          {shouldShowHelpText && (
-            <Description className="mt-2 text-sm text-gray-500">
-              A ZeldHash indexer (zeldhash-api). Read for ZELD balances and rewards, and to keep
-              ordinary transactions from spending outputs that carry ZELD. Consulted only while
-              hunting is on.
             </Description>
           )}
         </Field>

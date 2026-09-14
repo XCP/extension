@@ -126,8 +126,6 @@ export interface AppSettings {
    * sent as composed when the budget runs out, so this bounds the delay, not the outcome.
    */
   zeldHuntSeconds: number;
-  /** ZeldHash indexer base URL, for ZELD balances, rewards and the spend guard. */
-  zeldApiBase: string;
 
   /** User has visited recover bitcoin page */
   hasVisitedRecoverBitcoin?: boolean;
@@ -165,7 +163,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // On by default: at the popup's worker count a six-zero hunt usually finishes in a few seconds,
   // and 20 seconds bounds the rare slow draw. Zero turns it off.
   zeldHuntSeconds: 20,
-  zeldApiBase: 'https://api.zeldhash.com',
   connectedWebsites: [],
   providerCapabilities: {},
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],

@@ -1,26 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/core/api/client';
-import { getActiveSettings } from '@/core/settings';
 import {
   clearZeldCaches,
   fetchZeldBalance,
   fetchZeldOutpointBalance,
   fetchZeldRewards,
   fetchZeldUtxos,
-  getZeldApiBase,
   isLikelyZeldTxid,
   parseZeldUtxos,
   zeldBaseUnitsToDisplay,
 } from '@/core/zeld/api';
 
 vi.mock('@/core/api/client', () => ({ apiClient: { get: vi.fn(), post: vi.fn() } }));
-vi.mock('@/core/settings', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/core/settings')>()),
-  getActiveSettings: vi.fn(),
-}));
 
 const get = vi.mocked(apiClient.get);
-const settings = vi.mocked(getActiveSettings);
 const ADDRESS = 'bc1qegs0t03e6xujm6euysgh76dg7zltw2ama9ymha';
 const TXID = '00000051c6465578353e60b976023decfa5c87fd75ea99917f1935ebcd3eff38';
 
@@ -28,13 +21,6 @@ describe('ZELD API client', () => {
   beforeEach(() => {
     get.mockReset();
     clearZeldCaches();
-    settings.mockReturnValue({ zeldApiBase: 'https://api.zeldhash.com/' } as never);
-  });
-
-  it('strips a trailing slash and falls back to the public indexer', () => {
-    expect(getZeldApiBase()).toBe('https://api.zeldhash.com');
-    settings.mockReturnValue({ zeldApiBase: '   ' } as never);
-    expect(getZeldApiBase()).toBe('https://api.zeldhash.com');
   });
 
   it('parses the live utxos shape and drops malformed or empty entries', () => {

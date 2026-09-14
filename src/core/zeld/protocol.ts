@@ -36,20 +36,6 @@ export function isValidZeldHuntSeconds(value: unknown): value is number {
     && value <= MAX_ZELD_HUNT_SECONDS;
 }
 
-/** An indexer URL the wallet will talk to: https anywhere, http only on the local machine. */
-export function isValidZeldApiBase(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
-  let url: URL;
-  try {
-    url = new URL(value.trim());
-  } catch {
-    return false;
-  }
-  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) return false;
-  return !url.username && !url.password && !url.hash && !url.search;
-}
-
 /** Leading hex zeros of a txid as displayed. */
 export function countLeadingZeroNibbles(txidHex: string): number {
   let count = 0;

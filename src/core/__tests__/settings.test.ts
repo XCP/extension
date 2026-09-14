@@ -179,7 +179,6 @@ describe('DEFAULT_SETTINGS', () => {
       'strictTransactionVerification',
       'transactionDryRun',
       'version',
-      'zeldApiBase',
       'zeldHuntSeconds',
     ]);
   });

@@ -66,7 +66,6 @@ describe('keychainCrypto', () => {
     { version: 1, wallets: [], settings: { zeldHuntSeconds: -1 } },
     { version: 1, wallets: [], settings: { zeldHuntSeconds: 1.5 } },
     { version: 1, wallets: [], settings: { zeldHuntSeconds: '5' } },
-    { version: 1, wallets: [], settings: { zeldApiBase: 5 } },
     { version: 1, wallets: [], settings: { providerCapabilities: { 'https://example.com': { pairedAddresses: 1 } } } },
   ])('rejects malformed keychain data without including decrypted values: %j', value => {
     expect(() => parseKeychain(value)).toThrow('Invalid keychain data');

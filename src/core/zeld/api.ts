@@ -9,9 +9,9 @@
 
 import { apiClient } from '@/core/api/client';
 import { asDisplayUnits, type DisplayUnits, fromSatoshis } from '@/core/numeric';
-import { getActiveSettings } from '@/core/settings';
 
-export const DEFAULT_ZELD_API_BASE = 'https://api.zeldhash.com';
+/** The public ZeldHash indexer. Not a setting: there is one, and it is read-only. */
+export const ZELD_API_BASE = 'https://api.zeldhash.com';
 
 /**
  * The balance list's key for ZELD. A lowercase prefix with a colon can never be a Counterparty
@@ -46,13 +46,6 @@ const utxoCache = new Map<string, { expires: number; promise: Promise<ZeldUtxo[]
 
 export function clearZeldCaches(): void {
   utxoCache.clear();
-}
-
-/** The configured indexer base without a trailing slash. */
-export function getZeldApiBase(): string {
-  const configured = getActiveSettings().zeldApiBase;
-  return (typeof configured === 'string' && configured.trim() ? configured.trim() : DEFAULT_ZELD_API_BASE)
-    .replace(/\/+$/, '');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -107,13 +100,12 @@ export function parseZeldRewards(payload: unknown): ZeldReward[] {
 
 /** Outpoints of `address` that carry ZELD, per the indexer. Cached briefly per address. */
 export function fetchZeldUtxos(address: string, signal?: AbortSignal): Promise<ZeldUtxo[]> {
-  const base = getZeldApiBase();
-  const key = `${base}|${address}`;
+  const key = address;
   const cached = utxoCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.promise;
   const promise = (async () => {
     const response = await apiClient.get<unknown>(
-      `${base}/addresses/${encodeURIComponent(address)}/utxos`,
+      `${ZELD_API_BASE}/addresses/${encodeURIComponent(address)}/utxos`,
       { retries: 0, signal },
     );
     return parseZeldUtxos(response.data);
@@ -131,7 +123,7 @@ export async function fetchZeldBalance(address: string, signal?: AbortSignal): P
 /** ZELD on one outpoint, or 0n when the indexer knows of none. */
 export async function fetchZeldOutpointBalance(txid: string, vout: number, signal?: AbortSignal): Promise<bigint> {
   const response = await apiClient.get<unknown>(
-    `${getZeldApiBase()}/utxos/${encodeURIComponent(`${txid}:${vout}`)}`,
+    `${ZELD_API_BASE}/utxos/${encodeURIComponent(`${txid}:${vout}`)}`,
     { retries: 0, signal },
   );
   const data = response.data;
@@ -142,7 +134,7 @@ export async function fetchZeldOutpointBalance(txid: string, vout: number, signa
 /** Rewards earned by `address`, newest block first. */
 export async function fetchZeldRewards(address: string, limit = 10, signal?: AbortSignal): Promise<ZeldReward[]> {
   const response = await apiClient.get<unknown>(
-    `${getZeldApiBase()}/addresses/${encodeURIComponent(address)}/rewards?limit=${limit}&offset=0&sort=desc`,
+    `${ZELD_API_BASE}/addresses/${encodeURIComponent(address)}/rewards?limit=${limit}&offset=0&sort=desc`,
     { retries: 0, signal },
   );
   return parseZeldRewards(response.data).sort((a, b) => b.block_index - a.block_index);
