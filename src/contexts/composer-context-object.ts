@@ -41,6 +41,8 @@ export interface ComposerContextType<T> {
   goBack: () => void;
   reset: () => void;
   clearError: () => void;
+  /** Settle the ZELD hunt for the rare txid it already holds rather than waiting out the budget. */
+  acceptZeldHunt: () => void;
 
   showHelpText: boolean;
   toggleHelpText: () => void;

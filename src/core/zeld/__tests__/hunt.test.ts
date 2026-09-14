@@ -4,7 +4,7 @@ import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse
 import { type HuntWorkerLike, huntTxid } from '@/core/zeld/hunt';
 import { assessZeldHunt, type HuntTemplate, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
 import type { HuntWorkerRequest, HuntWorkerResponse } from '@/core/zeld/huntWorkerProtocol';
-import { mineRange } from '@/core/zeld/mineRange';
+import { type MineRangeFound, mineRange } from '@/core/zeld/mineRange';
 import { LOCKTIME_NONCE_COUNT } from '@/core/zeld/protocol';
 import { enhancedSendRawTx, SOURCE_ADDRESS } from './fixtures';
 
@@ -23,8 +23,8 @@ describe('mineRange', () => {
     const t = template();
     // 1 in 256 per attempt; 20,000 attempts fail with probability e^-78.
     const result = mineRange(t.message, t.nonceOffset, 0, 20_000, 2);
-    expect(result.found).toBeDefined();
-    const found = result.found!;
+    expect(result.stopped).toBe(true);
+    const found = result.best!;
     expect(found.txid.startsWith('00')).toBe(true);
     expect(found.zeroCount).toBeGreaterThanOrEqual(2);
     expect(result.attempts).toBe(found.nonce + 1);
@@ -35,7 +35,24 @@ describe('mineRange', () => {
   it('counts every attempt when nothing qualifies', () => {
     const t = template();
     const result = mineRange(t.message, t.nonceOffset, 0, 100, 32);
-    expect(result).toEqual({ attempts: 100 });
+    expect(result).toEqual({ attempts: 100, stopped: false });
+  });
+
+  it('keeps the best qualifying txid while hunting on for a rarer one', () => {
+    const t = template();
+    // Two zeros turn up every 256 hashes on average; three every 4,096. Stopping at 32 zeros
+    // never happens, so the whole range is tried and the best of it comes back.
+    const result = mineRange(t.message, t.nonceOffset, 0, 30_000, 2, undefined, 32);
+    expect(result.stopped).toBe(false);
+    expect(result.attempts).toBe(30_000);
+    expect(result.best?.zeroCount).toBeGreaterThanOrEqual(3);
+    expect(result.best?.txid.startsWith('000')).toBe(true);
+
+    // The stop count ends the range at the first txid that reaches it.
+    const stopped = mineRange(t.message, t.nonceOffset, 0, 30_000, 2, undefined, 3);
+    expect(stopped.stopped).toBe(true);
+    expect(stopped.best?.zeroCount).toBeGreaterThanOrEqual(3);
+    expect(stopped.attempts).toBeLessThan(30_000);
   });
 
   it('refuses a range outside 32 bits', () => {
@@ -47,24 +64,26 @@ describe('mineRange', () => {
 /** A worker stand-in that runs the real mining loop synchronously on request. */
 class InlineWorker implements HuntWorkerLike {
   private listeners: Array<(event: { data: HuntWorkerResponse }) => void> = [];
+  private best: MineRangeFound | undefined;
   terminated = false;
   postMessage(request: HuntWorkerRequest): void {
     let nonce = request.startNonce;
     let attempts = 0;
     while (nonce < request.endNonce) {
       const count = Math.min(request.batchSize, request.endNonce - nonce);
-      const result = mineRange(request.message, request.nonceOffset, nonce, count, request.targetZeros);
+      const result = mineRange(request.message, request.nonceOffset, nonce, count, request.targetZeros, undefined, request.stopZeros);
       attempts += result.attempts;
       nonce += count;
-      if (result.found) {
-        this.emit({ type: 'found', ...result.found, attempts });
+      if (result.best && (!this.best || result.best.zeroCount > this.best.zeroCount)) this.best = result.best;
+      if (result.stopped && this.best) {
+        this.emit({ type: 'found', attempts, best: this.best });
         return;
       }
-      this.emit({ type: 'progress', attempts });
+      this.emit({ type: 'progress', attempts, ...(this.best ? { best: this.best } : {}) });
       // Stop long before the nonce space is exhausted; tests never need more than this.
       if (attempts >= 60_000) return;
     }
-    this.emit({ type: 'exhausted', attempts });
+    this.emit({ type: 'exhausted', attempts, ...(this.best ? { best: this.best } : {}) });
   }
   terminate(): void {
     this.terminated = true;
@@ -98,6 +117,62 @@ describe('huntTxid', () => {
     expect(result.nonce).toBeGreaterThanOrEqual(0);
     expect(workers).toHaveLength(3);
     expect(workers.every(worker => worker.terminated)).toBe(true);
+  });
+
+  it('settles for the best txid in hand at the deadline while hunting for a rarer one', async () => {
+    vi.useFakeTimers();
+    try {
+      const workers: InlineWorker[] = [];
+      const onProgress = vi.fn();
+      const pending = huntTxid(template(), {
+        seconds: 1,
+        targetZeros: 2,
+        stopZeros: 32,
+        workerCount: 2,
+        batchSize: 5_000,
+        createWorker: () => {
+          const worker = new InlineWorker();
+          workers.push(worker);
+          return worker;
+        },
+        onProgress,
+      });
+      await vi.advanceTimersByTimeAsync(1_100);
+      const result = await pending;
+      expect(result.status).toBe('found');
+      if (result.status !== 'found') return;
+      expect(result.zeroCount).toBeGreaterThanOrEqual(2);
+      expect(result.txid.startsWith('00')).toBe(true);
+      expect(result.elapsedMs).toBeGreaterThanOrEqual(1_000);
+      expect(workers.every(worker => worker.terminated)).toBe(true);
+      expect(onProgress.mock.lastCall?.[0]).toMatchObject({ bestZeroCount: result.zeroCount });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('settles early on request once a txid is in hand, and not before', async () => {
+    vi.useFakeTimers();
+    try {
+      const accept = new AbortController();
+      const pending = huntTxid(template(), {
+        seconds: 5,
+        targetZeros: 2,
+        stopZeros: 32,
+        workerCount: 1,
+        batchSize: 5_000,
+        createWorker: () => new InlineWorker(),
+        acceptEarly: accept.signal,
+      });
+      await vi.advanceTimersByTimeAsync(100);
+      accept.abort();
+      await vi.advanceTimersByTimeAsync(100);
+      const result = await pending;
+      expect(result.status).toBe('found');
+      expect(result.elapsedMs).toBeLessThan(1_000);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('gives up at the deadline when no worker finds anything', async () => {
@@ -180,6 +255,20 @@ describe('huntTxid', () => {
     controller.abort();
     expect((await pending).status).toBe('aborted');
     expect(silent.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it('hunts inline for a rarer txid and settles for the best at the deadline', async () => {
+    const result = await huntTxid(template(), {
+      seconds: 0.3,
+      targetZeros: 2,
+      stopZeros: 32,
+      createWorker: () => null,
+      batchSize: 2_000,
+    });
+    expect(result.status).toBe('found');
+    if (result.status !== 'found') return;
+    expect(result.zeroCount).toBeGreaterThanOrEqual(2);
+    expect(result.elapsedMs).toBeGreaterThanOrEqual(300);
   });
 
   it('hunts inline when no worker can be created', async () => {

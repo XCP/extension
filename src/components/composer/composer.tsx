@@ -82,6 +82,7 @@ function ComposerInner<T>({
     reset,
     showHelpText,
     toggleHelpText,
+    acceptZeldHunt,
   } = useComposer<T>();
 
   // Header configuration based on current step
@@ -175,14 +176,25 @@ function ComposerInner<T>({
   // Show spinner during async operations (composing or signing)
   if (state.isComposing || state.isSigning) {
     const hunt = state.zeldHuntProgress;
+    const clock = hunt ? `${Math.floor(hunt.elapsedMs / 1000)}s / ${hunt.seconds}s` : "";
     const message = hunt
-      ? `Hunting for ZELD… ${Math.floor(hunt.elapsedMs / 1000)}s / ${hunt.seconds}s`
+      ? hunt.bestZeroCount
+        ? `Rare txid found (${hunt.bestZeroCount} zeros); hunting for a rarer one… ${clock}`
+        : `Hunting for ZELD… ${clock}`
       : state.isComposing ? "Composing transaction…" : "Signing and broadcasting…";
     return (
-      <Spinner
-        message={message}
-        className="min-h-[300px]"
-      />
+      <div className="min-h-[300px] flex flex-col items-center justify-center">
+        <Spinner message={message} />
+        {hunt?.bestZeroCount ? (
+          <button
+            type="button"
+            onClick={acceptZeldHunt}
+            className="mt-4 rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 cursor-pointer"
+          >
+            Use it now
+          </button>
+        ) : null}
+      </div>
     );
   }
 

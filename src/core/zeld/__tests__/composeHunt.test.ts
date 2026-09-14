@@ -125,8 +125,15 @@ describe('huntZeldForCompose', () => {
   it('clamps the budget to the protocol cap and passes it to the hunt', async () => {
     const hunt = vi.fn(async (): Promise<HuntTxidResult> => ({ status: 'not_found', attempts: 0, elapsedMs: 60_000 }));
     const result = await huntZeldForCompose(responseFor(enhancedSendRawTx()), { ...context, seconds: 600, hunt });
-    expect(hunt).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ seconds: 60, targetZeros: 6 }));
+    expect(hunt).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ seconds: 60, targetZeros: 6, stopZeros: 7 }));
     expect(result.result.zeld_hunt?.seconds).toBe(60);
+  });
+
+  it('stops at the first find when a caller names its own target, and passes the accept signal', async () => {
+    const hunt = vi.fn(async (): Promise<HuntTxidResult> => ({ status: 'not_found', attempts: 0, elapsedMs: 1 }));
+    const accept = new AbortController();
+    await huntZeldForCompose(responseFor(enhancedSendRawTx()), { ...context, targetZeros: 4, acceptEarly: accept.signal, hunt });
+    expect(hunt).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ targetZeros: 4, stopZeros: 4, acceptEarly: accept.signal }));
   });
 
   it('skips before hunting when a hardware wallet PSBT cannot carry the nonce', async () => {

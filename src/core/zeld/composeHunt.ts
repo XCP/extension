@@ -11,7 +11,7 @@ import type { AddressFormat } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { huntTxid } from '@/core/zeld/hunt';
 import { assertOnlyNonceChanged, assessZeldHunt, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
-import { MAX_ZELD_HUNT_SECONDS, ZELD_MIN_ZERO_COUNT } from '@/core/zeld/protocol';
+import { MAX_ZELD_HUNT_SECONDS, ZELD_MIN_ZERO_COUNT, ZELD_STOP_ZERO_COUNT } from '@/core/zeld/protocol';
 import { psbtWithNonce } from '@/core/zeld/psbtNonce';
 import type { ZeldHuntMetadata, ZeldHuntProgress } from '@/core/zeld/types';
 
@@ -21,8 +21,17 @@ export interface ComposeHuntContext {
   walletType: 'mnemonic' | 'privateKey' | 'hardware';
   /** The configured budget; clamped to the protocol cap. Zero or less means no hunt. */
   seconds: number;
+  /** Leading zeros worth keeping; the protocol minimum unless a test says otherwise. */
   targetZeros?: number;
+  /**
+   * Leading zeros that end the hunt at once. Defaults to the protocol's stop count for a real
+   * hunt, and to `targetZeros` when a caller names one, so tests and regtest runs stop at their
+   * first find.
+   */
+  stopZeros?: number;
   signal?: AbortSignal;
+  /** Settles for the best qualifying txid in hand rather than waiting out the budget. */
+  acceptEarly?: AbortSignal;
   onProgress?: (progress: ZeldHuntProgress) => void;
   /** Test seam for the hunt itself. */
   hunt?: typeof huntTxid;
@@ -41,6 +50,7 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
   const seconds = Math.min(MAX_ZELD_HUNT_SECONDS, Math.floor(context.seconds));
   if (!(seconds > 0)) return response;
   const targetZeros = context.targetZeros ?? ZELD_MIN_ZERO_COUNT;
+  const stopZeros = context.stopZeros ?? (context.targetZeros === undefined ? ZELD_STOP_ZERO_COUNT : targetZeros);
   const base = { target_zeros: targetZeros, seconds };
 
   const rawTxHex = response.result.rawtransaction;
@@ -74,7 +84,9 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
   const outcome = await hunt(assessment.template, {
     seconds,
     targetZeros,
+    stopZeros,
     signal: context.signal,
+    acceptEarly: context.acceptEarly,
     onProgress: context.onProgress,
   });
 

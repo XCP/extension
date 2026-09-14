@@ -2,9 +2,11 @@
  * Run a time-boxed hunt for a txid with leading zeros across Web Workers.
  *
  * The nonce space (`LOCKTIME_NONCE_COUNT` values) is split into one contiguous slice per worker.
- * The first worker to find a qualifying txid ends the hunt; otherwise the deadline does, or the
- * caller's abort signal. Workers are always terminated on the way out, so a hunt never outlives
- * the compose that started it.
+ * A txid with `stopZeros` ends the hunt at once. A txid with `targetZeros` is kept as the best so
+ * far while the hunt goes on for a rarer one; the deadline, the caller's `acceptEarly` signal or
+ * every slice running out then settles for the best in hand. The caller's abort signal discards
+ * everything. Workers are always terminated on the way out, so a hunt never outlives the compose
+ * that started it.
  *
  * Without `Worker` (unit tests, an unusual runtime) the hunt runs on the calling thread in short
  * batches, yielding to the event loop between them.
@@ -12,7 +14,7 @@
 
 import type { HuntTemplate } from '@/core/zeld/huntTemplate';
 import type { HuntWorkerRequest, HuntWorkerResponse } from '@/core/zeld/huntWorkerProtocol';
-import { mineRange } from '@/core/zeld/mineRange';
+import { type MineRangeFound, mineRange } from '@/core/zeld/mineRange';
 import { LOCKTIME_NONCE_COUNT } from '@/core/zeld/protocol';
 import { MutableSha256d } from '@/core/zeld/sha256d';
 import type { ZeldHuntProgress } from '@/core/zeld/types';
@@ -33,8 +35,14 @@ export interface HuntWorkerLike {
 export interface HuntTxidOptions {
   /** Time budget. Fractional seconds are accepted for tests; the setting itself is whole seconds. */
   seconds: number;
+  /** Leading zeros a txid needs to be worth keeping. */
   targetZeros: number;
+  /** Leading zeros that end the hunt at once; defaults to `targetZeros`. */
+  stopZeros?: number;
+  /** Discards the hunt: the transaction goes on as composed. */
   signal?: AbortSignal;
+  /** Settles for the best txid in hand, if there is one; otherwise the hunt goes on. */
+  acceptEarly?: AbortSignal;
   onProgress?: (progress: ZeldHuntProgress) => void;
   /** Defaults to the hardware concurrency, capped at eight. */
   workerCount?: number;
@@ -65,11 +73,22 @@ function defaultWorkerCount(): number {
   return Math.max(1, Math.min(MAX_WORKERS, cores || 2));
 }
 
+function better(candidate: MineRangeFound | undefined, best: MineRangeFound | undefined): MineRangeFound | undefined {
+  if (!candidate) return best;
+  if (!best || candidate.zeroCount > best.zeroCount) return candidate;
+  return best;
+}
+
+function settled(best: MineRangeFound | undefined, attempts: number, elapsedMs: number): HuntTxidResult {
+  return best ? { status: 'found', ...best, attempts, elapsedMs } : { status: 'not_found', attempts, elapsedMs };
+}
+
 export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions): Promise<HuntTxidResult> {
   const now = options.now ?? (() => Date.now());
   const startedAt = now();
   const budgetMs = Math.max(0, options.seconds) * 1000;
   const deadline = startedAt + budgetMs;
+  const stopZeros = options.stopZeros ?? options.targetZeros;
   const createWorker = options.createWorker ?? createHuntWorker;
   const workerCount = Math.max(1, options.workerCount ?? defaultWorkerCount());
 
@@ -81,10 +100,11 @@ export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions)
     if (!worker) break;
     workers.push(worker);
   }
-  if (workers.length === 0) return huntInline(template, options, now, deadline, startedAt);
+  if (workers.length === 0) return huntInline(template, options, stopZeros, now, deadline, startedAt);
 
   const attemptsByWorker = Array.from({ length: workers.length }, () => 0);
   const totalAttempts = () => attemptsByWorker.reduce((sum, count) => sum + count, 0);
+  let best: MineRangeFound | undefined;
   const report = () => {
     const elapsedMs = now() - startedAt;
     const attempts = totalAttempts();
@@ -94,75 +114,70 @@ export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions)
       hashRate: elapsedMs > 0 ? (attempts * 1000) / elapsedMs : 0,
       seconds: options.seconds,
       targetZeros: options.targetZeros,
+      ...(best ? { bestZeroCount: best.zeroCount } : {}),
     });
   };
 
   return new Promise<HuntTxidResult>((resolve) => {
-    let settled = false;
+    let finished = false;
     let exhausted = 0;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const progressTimer = setInterval(report, PROGRESS_INTERVAL_MS);
 
     const finish = (result: HuntTxidResult) => {
-      if (settled) return;
-      settled = true;
+      if (finished) return;
+      finished = true;
       clearInterval(progressTimer);
       for (const timer of timers) clearTimeout(timer);
       options.signal?.removeEventListener('abort', onAbort);
+      options.acceptEarly?.removeEventListener('abort', onAccept);
       for (const worker of workers) worker.terminate();
       report();
       resolve(result);
     };
     const elapsed = () => now() - startedAt;
+    const settle = () => finish(settled(best, totalAttempts(), elapsed()));
     const onAbort = () => finish({ status: 'aborted', attempts: totalAttempts(), elapsedMs: elapsed() });
+    const onAccept = () => {
+      if (best) settle();
+    };
     options.signal?.addEventListener('abort', onAbort);
-    timers.push(setTimeout(
-      () => finish({ status: 'not_found', attempts: totalAttempts(), elapsedMs: elapsed() }),
-      budgetMs,
-    ));
+    options.acceptEarly?.addEventListener('abort', onAccept);
+    if (options.acceptEarly?.aborted) queueMicrotask(onAccept);
+    timers.push(setTimeout(settle, budgetMs));
 
+    const oneDown = () => {
+      exhausted++;
+      if (exhausted === workers.length) settle();
+    };
     const slice = Math.floor(LOCKTIME_NONCE_COUNT / workers.length);
     workers.forEach((worker, index) => {
       worker.addEventListener('message', ({ data }) => {
-        if (settled) return;
+        if (finished) return;
         switch (data.type) {
           case 'progress':
             attemptsByWorker[index] = data.attempts;
+            best = better(data.best, best);
             break;
           case 'found':
             attemptsByWorker[index] = data.attempts;
-            finish({
-              status: 'found',
-              nonce: data.nonce,
-              txid: data.txid,
-              zeroCount: data.zeroCount,
-              attempts: totalAttempts(),
-              elapsedMs: elapsed(),
-            });
+            best = better(data.best, best);
+            settle();
             break;
           case 'exhausted':
             attemptsByWorker[index] = data.attempts;
-            exhausted++;
-            if (exhausted === workers.length) {
-              finish({ status: 'not_found', attempts: totalAttempts(), elapsedMs: elapsed() });
-            }
+            best = better(data.best, best);
+            oneDown();
             break;
           case 'error':
-            // One worker failing leaves the others hunting; if every worker fails the deadline
-            // ends the hunt with nothing found, which is the honest outcome.
-            exhausted++;
-            if (exhausted === workers.length) {
-              finish({ status: 'not_found', attempts: totalAttempts(), elapsedMs: elapsed() });
-            }
+            // One worker failing leaves the others hunting; if every worker fails the hunt settles
+            // for whatever was found, which is the honest outcome.
+            oneDown();
             break;
         }
       });
       worker.addEventListener('error', () => {
-        if (settled) return;
-        exhausted++;
-        if (exhausted === workers.length) {
-          finish({ status: 'not_found', attempts: totalAttempts(), elapsedMs: elapsed() });
-        }
+        if (!finished) oneDown();
       });
       const startNonce = index * slice;
       const endNonce = index === workers.length - 1 ? LOCKTIME_NONCE_COUNT : startNonce + slice;
@@ -172,6 +187,7 @@ export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions)
         startNonce,
         endNonce,
         targetZeros: options.targetZeros,
+        stopZeros,
         batchSize: options.batchSize ?? DEFAULT_BATCH_SIZE,
       });
     });
@@ -181,6 +197,7 @@ export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions)
 async function huntInline(
   template: HuntTemplate,
   options: HuntTxidOptions,
+  stopZeros: number,
   now: () => number,
   deadline: number,
   startedAt: number,
@@ -190,18 +207,18 @@ async function huntInline(
   const end = LOCKTIME_NONCE_COUNT;
   let nonce = 0;
   let attempts = 0;
+  let best: MineRangeFound | undefined;
   let lastReport = startedAt;
   const elapsed = () => now() - startedAt;
   while (nonce < end) {
     if (options.signal?.aborted) return { status: 'aborted', attempts, elapsedMs: elapsed() };
-    if (now() >= deadline) break;
+    if (now() >= deadline || (best && options.acceptEarly?.aborted)) break;
     const count = Math.min(batchSize, end - nonce);
-    const result = mineRange(template.message, template.nonceOffset, nonce, count, options.targetZeros, hasher);
+    const result = mineRange(template.message, template.nonceOffset, nonce, count, options.targetZeros, hasher, stopZeros);
     attempts += result.attempts;
     nonce += count;
-    if (result.found) {
-      return { status: 'found', ...result.found, attempts, elapsedMs: elapsed() };
-    }
+    best = better(result.best, best);
+    if (result.stopped) break;
     if (now() - lastReport >= PROGRESS_INTERVAL_MS) {
       lastReport = now();
       const elapsedMs = elapsed();
@@ -211,9 +228,10 @@ async function huntInline(
         hashRate: elapsedMs > 0 ? (attempts * 1000) / elapsedMs : 0,
         seconds: options.seconds,
         targetZeros: options.targetZeros,
+        ...(best ? { bestZeroCount: best.zeroCount } : {}),
       });
     }
     await new Promise<void>(resolve => setTimeout(resolve, 0));
   }
-  return { status: 'not_found', attempts, elapsedMs: elapsed() };
+  return settled(best, attempts, elapsed());
 }

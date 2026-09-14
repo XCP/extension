@@ -133,6 +133,17 @@ export class MutableSha256d {
     if (last !== first) this.words[last] = this.view.getInt32(last * 4);
   }
 
+  /** Overwrite a run of message bytes, as a signature's `s` value lands inside a legacy scriptSig. */
+  setBytes(offset: number, bytes: Uint8Array): void {
+    if (offset < this.prefixBlocks * 64 || offset + bytes.length > this.messageLength) {
+      throw new RangeError('byte window lies outside the message, or inside the reused prefix');
+    }
+    this.bytes.set(bytes, offset);
+    const first = offset >> 2;
+    const last = (offset + bytes.length - 1) >> 2;
+    for (let word = first; word <= last; word++) this.words[word] = this.view.getInt32(word * 4);
+  }
+
   /**
    * Hash the current message and report how many leading hex zeros the resulting txid has.
    *

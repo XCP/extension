@@ -183,6 +183,8 @@ export function ComposerProvider<T>({
 
   // AbortController for cancelling pending operations on unmount/navigation
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Fired by the spinner's "Use it now": the hunt settles for the rare txid it already has.
+  const acceptZeldHuntRef = useRef<AbortController | null>(null);
 
   // Initialize state
   const [state, setState] = useState<ComposerState<T>>(freshComposerState);
@@ -500,16 +502,19 @@ export function ComposerProvider<T>({
       // and records its outcome on the result, so the review describes exactly what gets signed.
       // Skipped rather than failed when it cannot apply, so no transaction is ever blocked by it.
       if (zeldHuntSeconds > 0 && activeWallet) {
+        acceptZeldHuntRef.current = new AbortController();
         response = await huntZeldForCompose(response, {
           sourceAddress: activeAddress.address,
           addressFormat: activeWallet.addressFormat,
           walletType: activeWallet.type,
           seconds: zeldHuntSeconds,
           signal,
+          acceptEarly: acceptZeldHuntRef.current.signal,
           onProgress: (progress) => {
             if (!signal.aborted) setState(prev => ({ ...prev, zeldHuntProgress: progress }));
           },
         });
+        acceptZeldHuntRef.current = null;
       }
 
       // Final abort check before state update
@@ -764,6 +769,10 @@ export function ComposerProvider<T>({
     setState(prev => ({ ...prev, error: null }));
   }, []);
 
+  const acceptZeldHunt = useCallback(() => {
+    acceptZeldHuntRef.current?.abort();
+  }, []);
+
   const contextValue = useMemo(() => ({
     state,
     composeTransaction,
@@ -771,6 +780,7 @@ export function ComposerProvider<T>({
     goBack,
     reset,
     clearError,
+    acceptZeldHunt,
     showHelpText,
     toggleHelpText,
     feeRate: state.feeRate,
@@ -785,6 +795,7 @@ export function ComposerProvider<T>({
     goBack,
     reset,
     clearError,
+    acceptZeldHunt,
     showHelpText,
     toggleHelpText,
     setFeeRate,

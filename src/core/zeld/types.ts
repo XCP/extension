@@ -55,4 +55,6 @@ export interface ZeldHuntProgress {
   hashRate: number;
   seconds: number;
   targetZeros: number;
+  /** Leading zeros of the best qualifying txid in hand, while the hunt goes on for a rarer one. */
+  bestZeroCount?: number;
 }

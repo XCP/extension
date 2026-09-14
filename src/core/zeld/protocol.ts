@@ -14,6 +14,16 @@
 /** Mainnet minimum leading hex zeros for a txid to earn ZELD. */
 export const ZELD_MIN_ZERO_COUNT = 6;
 
+/**
+ * Once a qualifying txid is in hand the hunt keeps going for one with an extra zero, up to the
+ * budget. A six-zero txid earns the full reward only when no seven-zero txid lands in the same
+ * block, and that is common: over 219 recent rewarded blocks (`api.zeldhash.com/rewards`) the
+ * best txid had six zeros in 60%, seven in 29% and eight or more in 11%, so the average six-zero
+ * reward was 1,745 ZELD against 3,374 for seven. Eight over seven adds about a tenth for sixteen
+ * times the work, so seven ends the hunt.
+ */
+export const ZELD_STOP_ZERO_COUNT = 7;
+
 /** ZELD paid to the block's best txid, in base units (8 decimals). */
 export const ZELD_BASE_REWARD = 4_096n * 10n ** 8n;
 
