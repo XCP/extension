@@ -126,6 +126,12 @@ export default function ZeldPage(): ReactElement {
           : 'Nothing to send yet.',
         onClick: () => { void navigate('/zeld/send'); },
       },
+      ...(hasZeld ? [{
+        id: 'park',
+        title: 'Move ZELD to a small output',
+        description: 'Frees the rest of your BTC for payments that must pay someone else first.',
+        onClick: () => { void navigate('/zeld/park'); },
+      }] : []),
       {
         id: 'about',
         title: 'About ZeldHash',

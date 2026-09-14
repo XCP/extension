@@ -30,6 +30,8 @@ export interface ZeldProtectionMetadata {
   excluded: string[];
   carried_forward: string[];
   api_unavailable: boolean;
+  /** The wallet moved its change to output 0 so ZELD lands there rather than on the recipient. */
+  change_first?: boolean;
 }
 
 /** A locally composed ZELD send, for the review screen. Amounts are base units as strings. */
@@ -39,6 +41,11 @@ export interface ZeldSendMetadata {
   spent_outpoints: string[];
   change_vout: number;
   recipient_vout: number;
+  /**
+   * Parking: all ZELD moves to a small output of the wallet's own so the rest of the BTC is
+   * clean. `recipient_vout` is that small output.
+   */
+  park?: boolean;
 }
 
 export interface ZeldHuntProgress {

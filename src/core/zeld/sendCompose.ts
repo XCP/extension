@@ -41,6 +41,19 @@ export interface ZeldSendOptions {
   sat_per_vbyte: number;
 }
 
+export interface ZeldParkOptions {
+  sourceAddress: string;
+  sat_per_vbyte: number;
+}
+
+interface ZeldMoveOptions {
+  sourceAddress: string;
+  destination: string;
+  amountBaseUnits: string;
+  sat_per_vbyte: number;
+  park: boolean;
+}
+
 /** What the recipient's dust output must carry for its script type to be relayed. */
 export function zeldRecipientDustSats(destination: string): number {
   const lower = destination.toLowerCase();
@@ -65,9 +78,28 @@ function outpointKey(utxo: { txid: string; vout: number }): string {
   return `${utxo.txid.toLowerCase()}:${utxo.vout}`;
 }
 
-export async function composeZeldSend(options: ZeldSendOptions): Promise<ApiResponse> {
-  const { sourceAddress, destination, amountBaseUnits, sat_per_vbyte } = options;
-  if (!/^\d+$/.test(amountBaseUnits) || BigInt(amountBaseUnits) <= 0n) {
+export function composeZeldSend(options: ZeldSendOptions): Promise<ApiResponse> {
+  return composeZeldMove({ ...options, park: false });
+}
+
+/**
+ * Park: spend every ZELD-bearing output and put all the ZELD on one small output of the wallet's
+ * own, leaving the rest of the BTC as clean change. The escape hatch for an address whose whole
+ * balance sits on ZELD outputs when it needs to pay a positional recipient (a BTCPay, a burn).
+ *
+ *   0. dust to the source                ← all ZELD (and any reward from a hunt) lands here
+ *   1. change to the source (clean)
+ *   2. OP_RETURN ZELD + CBOR([carried, 0])
+ *
+ * Output 0 is still the wallet's own, so a wrong balance in the distribution changes nothing.
+ */
+export function composeZeldPark(options: ZeldParkOptions): Promise<ApiResponse> {
+  return composeZeldMove({ ...options, destination: options.sourceAddress, amountBaseUnits: 'all', park: true });
+}
+
+async function composeZeldMove(options: ZeldMoveOptions): Promise<ApiResponse> {
+  const { sourceAddress, destination, amountBaseUnits, sat_per_vbyte, park } = options;
+  if (!park && (!/^\d+$/.test(amountBaseUnits) || BigInt(amountBaseUnits) <= 0n)) {
     throw new Error('ZELD amount must be positive.');
   }
   if (!Number.isFinite(sat_per_vbyte) || sat_per_vbyte <= 0) throw new Error('Fee rate must be positive.');
@@ -75,14 +107,13 @@ export async function composeZeldSend(options: ZeldSendOptions): Promise<ApiResp
   const destinationScript = scriptHexForAddress(destination);
   if (!sourceScript) throw new Error('The source address could not be decoded.');
   if (!destinationScript) throw new Error('The recipient address could not be decoded.');
-  const amount = BigInt(amountBaseUnits);
-
   const settings = getActiveSettings();
   const [zeld, bitcoinUtxos, attachedBalances] = await Promise.all([
     fetchZeldBalance(sourceAddress),
     fetchUTXOs(sourceAddress),
     fetchTokenBalances(sourceAddress, { type: 'utxo', limit: 1000, verbose: false }),
   ]);
+  const amount = park ? zeld.baseUnits : BigInt(amountBaseUnits);
   if (amount > zeld.baseUnits) throw new Error('Insufficient ZELD balance.');
 
   // Spend every ZELD output the wallet can spend right now. Consolidating is free here, and it
@@ -103,7 +134,8 @@ export async function composeZeldSend(options: ZeldSendOptions): Promise<ApiResp
     else unspendable += utxo.balance;
   }
   const carried = spendable.reduce((sum, utxo) => sum + utxo.balance, 0n);
-  if (amount > carried) {
+  if (park && carried === 0n) throw new Error('No spendable ZELD to move.');
+  if (!park && amount > carried) {
     throw new Error(
       unspendable > 0n
         ? 'Some ZELD sits on outputs the wallet cannot spend yet (unconfirmed, just spent, or carrying a Counterparty attachment).'
@@ -113,8 +145,10 @@ export async function composeZeldSend(options: ZeldSendOptions): Promise<ApiResp
 
   const recipientSats = BigInt(zeldRecipientDustSats(destination));
   const changeDust = BigInt(zeldRecipientDustSats(sourceAddress));
-  const remainder = carried - amount;
-  const opReturn = zeldDistributionScript([remainder, amount]);
+  // Send: [change, recipient]. Park: [small own output, change]. Either way output 0 is the
+  // wallet's own, and the distribution lists every spendable output in order.
+  const remainder = park ? 0n : carried - amount;
+  const opReturn = zeldDistributionScript(park ? [carried, 0n] : [remainder, amount]);
 
   const inputs: UTXO[] = spendable.map(utxo => ({
     txid: utxo.txid,
@@ -167,18 +201,24 @@ export async function composeZeldSend(options: ZeldSendOptions): Promise<ApiResp
       witnessUtxo: { script: hexToBytes(sourceScript), amount: BigInt(input.value) },
     });
   }
-  tx.addOutput({ script: hexToBytes(sourceScript), amount: change });
-  tx.addOutput({ script: hexToBytes(destinationScript), amount: recipientSats });
+  if (park) {
+    tx.addOutput({ script: hexToBytes(sourceScript), amount: recipientSats });
+    tx.addOutput({ script: hexToBytes(sourceScript), amount: change });
+  } else {
+    tx.addOutput({ script: hexToBytes(sourceScript), amount: change });
+    tx.addOutput({ script: hexToBytes(destinationScript), amount: recipientSats });
+  }
   tx.addOutput({ script: opReturn, amount: 0n });
   const rawtransaction = bytesToHex(tx.toBytes(true, false));
   const psbt = bytesToHex(tx.toPSBT());
 
   const zeld_send: ZeldSendMetadata = {
-    amount_base_units: amount.toString(),
+    amount_base_units: (park ? carried : amount).toString(),
     remainder_base_units: remainder.toString(),
     spent_outpoints: spendable.map(outpointKey),
-    change_vout: 0,
-    recipient_vout: 1,
+    change_vout: park ? 1 : 0,
+    recipient_vout: park ? 0 : 1,
+    ...(park ? { park: true } : {}),
   };
 
   return {

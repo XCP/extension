@@ -6,8 +6,7 @@ import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
-import { fetchZeldOutpointBalance, isLikelyZeldTxid } from '@/core/zeld/api';
-import { assessZeldExposure } from '@/core/zeld/protection';
+import { assertUtxoCarriesNoZeld, guardZeldExposure, withComposedChangeFirst } from '@/core/zeld/composeGuard';
 import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from '@/core/zeld/types';
 
 /**
@@ -434,77 +433,6 @@ interface ComposeRequestOptions {
   excludeUtxos?: string[];
 }
 
-/** Refuse a UTXO-sourced compose whose source output carries ZELD; see `composeUtxoTransaction`. */
-async function assertUtxoCarriesNoZeld(sourceUtxo: string, endpoint: string): Promise<void> {
-  const [txid, vout] = sourceUtxo.split(':');
-  let carries = isLikelyZeldTxid(txid ?? '');
-  if (!carries && (getActiveSettings().zeldHuntSeconds ?? 0) > 0 && txid && vout !== undefined) {
-    try {
-      carries = (await fetchZeldOutpointBalance(txid, Number(vout))) > 0n;
-    } catch {
-      // Indexer down: the heuristic above is the only check, as everywhere else.
-    }
-  }
-  if (carries) {
-    throw new CounterpartyApiError(
-      'This output also holds ZELD, which would follow the assets to the destination. Send the '
-      + 'ZELD from the ZELD page first.',
-      endpoint,
-    );
-  }
-}
-
-/**
- * Recompose when the composed transaction would carry ZELD to someone else.
- *
- * ZELD rides on the first spendable output, so a transaction that pays a stranger first must not
- * spend a ZELD-bearing output. The guard runs after every compose because the shape is only
- * known then: an enhanced send keeps ZELD on its change and is left alone, a BTC send to the
- * same recipient is recomposed without those outputs. The indexer is consulted only when the
- * user has ZELD hunting on; the six-zero txid heuristic applies regardless.
- */
-async function guardZeldExposure(
-  composed: ApiResponse,
-  sourceAddress: string,
-  endpoint: string,
-  recompose: (excludeUtxos: string[]) => Promise<ApiResponse>,
-): Promise<ApiResponse> {
-  const useIndexer = (getActiveSettings().zeldHuntSeconds ?? 0) > 0;
-  const rawTransaction = composed.result?.rawtransaction ?? '';
-  const first = await assessZeldExposure(rawTransaction, sourceAddress, { useIndexer });
-  // Annotated only when a ZELD-bearing input was involved. An indexer outage on its own is not
-  // worth a line on every review; it matters when the heuristic found something the indexer
-  // could not confirm or deny, and then it is reported alongside.
-  const annotate = (response: ApiResponse, protection: ZeldProtectionMetadata): ApiResponse => (
-    protection.excluded.length === 0 && protection.carried_forward.length === 0
-      ? response
-      : { ...response, result: { ...response.result, zeld_protection: protection } }
-  );
-  if (first.exposed.length === 0) {
-    return annotate(composed, {
-      excluded: [],
-      carried_forward: first.carriedForward,
-      api_unavailable: first.apiUnavailable,
-    });
-  }
-
-  const recomposed = await recompose(first.exposed);
-  const second = await assessZeldExposure(recomposed.result?.rawtransaction ?? '', sourceAddress, { useIndexer });
-  if (second.exposed.length > 0) {
-    throw new CounterpartyApiError(
-      'This transaction would send your ZELD to the recipient, because it has to spend an output '
-      + 'that carries ZELD and pays the recipient first. Send the ZELD from the ZELD page first, '
-      + 'or add BTC to this address.',
-      endpoint,
-    );
-  }
-  return annotate(recomposed, {
-    excluded: first.exposed,
-    carried_forward: second.carriedForward,
-    api_unavailable: first.apiUnavailable || second.apiUnavailable,
-  });
-}
-
 /**
  * Execute a compose request with automatic UTXO fallback.
  *
@@ -648,12 +576,23 @@ async function sendComposeRequest(
 /**
  * Compose a transaction via the Counterparty API.
  */
+/** How a composed transaction may be rearranged before it is verified and reviewed. */
+export interface ComposeLayout {
+  /**
+   * Move the wallet's change to output 0. Only for shapes Counterparty reads without regard to
+   * which address output comes first (a plain BTC send, a dispense); see `core/zeld/reorder.ts`.
+   * With change first, ZELD on the inputs stays with the wallet and the transaction can hunt.
+   */
+  changeFirst?: boolean;
+}
+
 export async function composeTransaction<T extends Record<string, unknown>>(
   endpoint: string,
   paramsObj: T,
   sourceAddress: string,
   sat_per_vbyte: number,
-  encoding?: string
+  encoding?: string,
+  layout: ComposeLayout = {},
 ): Promise<ApiResponse> {
   const validatedParams = toStringParams(paramsObj);
   const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
@@ -697,12 +636,16 @@ export async function composeTransaction<T extends Record<string, unknown>>(
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
   const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
-  return guardZeldExposure(composed, sourceAddress, endpoint, (excludeUtxos) => executeWithUtxoFallback(
-    (options) => makeRequest({ ...options, excludeUtxos }),
-    inputsSet ? removeUtxosFromInputsSet(inputsSet, excludeUtxos) : undefined,
-    settings.allowUnconfirmedTxs,
-    endpoint,
-  ));
+  const arranged = layout.changeFirst ? withComposedChangeFirst(composed, sourceAddress) : composed;
+  return guardZeldExposure(arranged, sourceAddress, endpoint, async (excludeUtxos) => {
+    const recomposed = await executeWithUtxoFallback(
+      (options) => makeRequest({ ...options, excludeUtxos }),
+      inputsSet ? removeUtxosFromInputsSet(inputsSet, excludeUtxos) : undefined,
+      settings.allowUnconfirmedTxs,
+      endpoint,
+    );
+    return layout.changeFirst ? withComposedChangeFirst(recomposed, sourceAddress) : recomposed;
+  });
 }
 
 /**
@@ -981,7 +924,9 @@ export async function composeDispense(options: DispenseOptions): Promise<ApiResp
     ...(pubkeys && { pubkeys }),
     ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
-  return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  // A dispense credits whichever output pays the dispenser, so the buyer's change can come first
+  // and keep any ZELD the inputs carry (proved on regtest in e2e/zeld/regtest-dispense-order).
+  return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte, encoding, { changeFirst: true });
 }
 
 export async function composeDividend(options: DividendOptions): Promise<ApiResponse> {
@@ -1152,7 +1097,10 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     ...(more_outputs ? { more_outputs } : {}),
     ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
-  return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  // A plain BTC send carries no Counterparty message, so its outputs may sit in any order; change
+  // first keeps ZELD with the wallet. Asset sends put their data output first already.
+  const layout = asset === 'BTC' ? { changeFirst: true } : {};
+  return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding, layout);
 }
 
 /**

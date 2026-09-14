@@ -93,6 +93,7 @@ import PinnedAssetsPage from '@/pages/settings/pinned-assets';
 import SecuritySettingsPage from '@/pages/settings/security';
 import TransactionPage from '@/pages/transactions/[txHash]';
 import ZeldPage from '@/pages/zeld';
+import ZeldParkPage from '@/pages/zeld/park';
 import ZeldSendPage from '@/pages/zeld/send';
 import { analytics, sanitizePath } from '@/platform/fathom';
 
@@ -211,6 +212,7 @@ export default function App() {
 
             <Route path="/zeld" element={<ZeldPage />} />
             <Route path="/zeld/send" element={<ZeldSendPage />} />
+            <Route path="/zeld/park" element={<ZeldParkPage />} />
 
             <Route path="/compose/send/mpma" element={<ComposeMpmaPage />} />
             <Route path="/compose/send/:asset" element={<ComposeSendPage />} />

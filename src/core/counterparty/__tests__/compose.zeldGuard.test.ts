@@ -1,10 +1,11 @@
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
+import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { getActiveSettings } from '@/core/settings';
 import { OTHER_ADDRESS, opReturnScript, PREV_TXID, SOURCE_ADDRESS, SOURCE_P2WPKH, unsignedRawTx } from '@/core/zeld/__tests__/fixtures';
 import { fetchZeldOutpointBalance, fetchZeldUtxos } from '@/core/zeld/api';
-import { composeMove, composeSend } from '../compose';
+import { composeBurn, composeDispense, composeMove, composeSend } from '../compose';
 import { mockSettings } from './helpers/composeTestHelpers';
 
 vi.mock('@/core/api/client');
@@ -44,6 +45,10 @@ const btcSendSpending = (txid: string) => unsignedRawTx({
   inputs: [{ txid, index: 0 }],
   outputs: [{ script: otherScript, amount: 5_000n }, { script: SOURCE_P2WPKH.script, amount: 90_000n }],
 });
+// A burn is read positionally (the burn address must be the only destination), so the wallet
+// never reorders it: the shape that exercises the exclusion path.
+const burnSpending = btcSendSpending;
+const burn = () => composeBurn({ sourceAddress: SOURCE_ADDRESS, quantity: 5_000, sat_per_vbyte: 2 });
 const enhancedSendSpending = (txid: string) => unsignedRawTx({
   inputs: [{ txid, index: 0 }],
   outputs: [{ script: opReturnScript(), amount: 0n }, { script: SOURCE_P2WPKH.script, amount: 90_000n }],
@@ -61,38 +66,37 @@ const urlOf = (call: number) => new URL(api.get.mock.calls[call]![0] as string);
 
 describe('ZELD guard on composed transactions', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Reset rather than clear: a failed test must not leave queued one-shot responses behind.
+    api.get.mockReset();
+    zeldUtxos.mockReset();
+    outpointBalance.mockReset();
     settings.mockReturnValue({ ...mockSettings, zeldHuntSeconds: 20 } as never);
     zeldUtxos.mockResolvedValue([]);
   });
 
-  it('recomposes a BTC send that would carry ZELD to the recipient, excluding the ZELD output', async () => {
+  it('recomposes a burn that would carry ZELD to the burn address, excluding the ZELD output', async () => {
     api.get
-      .mockResolvedValueOnce(response(btcSendSpending(ZELD_TXID)) as never)
-      .mockResolvedValueOnce(response(btcSendSpending(CLEAN_TXID)) as never);
+      .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never)
+      .mockResolvedValueOnce(response(burnSpending(CLEAN_TXID)) as never);
 
-    const composed = await composeSend({
-      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, asset: 'BTC', quantity: 5_000, sat_per_vbyte: 2,
-    });
+    const composed = await burn();
 
     expect(api.get).toHaveBeenCalledTimes(2);
     expect(urlOf(0).searchParams.get('exclude_utxos')).toBeNull();
     expect(urlOf(1).searchParams.get('exclude_utxos')).toBe(`${ZELD_TXID}:0`);
     expect(urlOf(1).searchParams.get('inputs_set')).toBe(`${CLEAN_TXID}:0`);
-    expect(composed.result.rawtransaction).toBe(btcSendSpending(CLEAN_TXID));
+    expect(composed.result.rawtransaction).toBe(burnSpending(CLEAN_TXID));
     expect(composed.result.zeld_protection).toEqual({ excluded: [`${ZELD_TXID}:0`], carried_forward: [], api_unavailable: false });
   });
 
   it('uses the indexer to recognise ZELD on an ordinary-looking outpoint', async () => {
     zeldUtxos.mockResolvedValue([{ txid: CLEAN_TXID, vout: 0, balance: 5n }]);
     api.get
-      .mockResolvedValueOnce(response(btcSendSpending(CLEAN_TXID)) as never)
-      .mockResolvedValueOnce(response(btcSendSpending(ZELD_TXID)) as never)
-      .mockResolvedValueOnce(response(btcSendSpending(ZELD_TXID)) as never);
+      .mockResolvedValueOnce(response(burnSpending(CLEAN_TXID)) as never)
+      .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never)
+      .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never);
     // The recompose comes back spending the six-zero output instead, which is also ZELD: refuse.
-    await expect(composeSend({
-      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, asset: 'BTC', quantity: 5_000, sat_per_vbyte: 2,
-    })).rejects.toThrow('would send your ZELD');
+    await expect(burn()).rejects.toThrow('would send your ZELD');
     expect(zeldUtxos).toHaveBeenCalledWith(SOURCE_ADDRESS);
   });
 
@@ -105,32 +109,26 @@ describe('ZELD guard on composed transactions', () => {
     expect(composed.result.zeld_protection).toEqual({ excluded: [], carried_forward: [`${ZELD_TXID}:0`], api_unavailable: false });
   });
 
-  it('adds nothing to a transaction that touches no ZELD', async () => {
-    api.get.mockResolvedValueOnce(response(btcSendSpending(CLEAN_TXID)) as never);
-    const composed = await composeSend({
-      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, asset: 'BTC', quantity: 5_000, sat_per_vbyte: 2,
-    });
+  it('adds nothing to a positional transaction that touches no ZELD', async () => {
+    api.get.mockResolvedValueOnce(response(burnSpending(CLEAN_TXID)) as never);
+    const composed = await burn();
     expect(composed.result.zeld_protection).toBeUndefined();
   });
 
   it('applies the txid heuristic without the indexer when hunting is off', async () => {
     settings.mockReturnValue({ ...mockSettings, zeldHuntSeconds: 0 } as never);
     api.get
-      .mockResolvedValueOnce(response(btcSendSpending(ZELD_TXID)) as never)
-      .mockResolvedValueOnce(response(btcSendSpending(CLEAN_TXID)) as never);
-    const composed = await composeSend({
-      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, asset: 'BTC', quantity: 5_000, sat_per_vbyte: 2,
-    });
+      .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never)
+      .mockResolvedValueOnce(response(burnSpending(CLEAN_TXID)) as never);
+    const composed = await burn();
     expect(zeldUtxos).not.toHaveBeenCalled();
     expect(composed.result.zeld_protection?.excluded).toEqual([`${ZELD_TXID}:0`]);
   });
 
   it('does not decorate a clean transaction just because the indexer was unreachable', async () => {
     zeldUtxos.mockRejectedValue(new Error('down'));
-    api.get.mockResolvedValueOnce(response(btcSendSpending(CLEAN_TXID)) as never);
-    const composed = await composeSend({
-      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, asset: 'BTC', quantity: 5_000, sat_per_vbyte: 2,
-    });
+    api.get.mockResolvedValueOnce(response(burnSpending(CLEAN_TXID)) as never);
+    const composed = await burn();
     expect(composed.result.zeld_protection).toBeUndefined();
   });
 
@@ -150,5 +148,54 @@ describe('ZELD guard on composed transactions', () => {
     await expect(composeMove({
       sourceUtxo: `${CLEAN_TXID}:0`, destination: OTHER_ADDRESS, sat_per_vbyte: 2,
     } as never)).resolves.toBeDefined();
+  });
+
+  it('puts change first on a BTC send, raw and PSBT alike, and records it', async () => {
+    api.get.mockResolvedValueOnce(response(btcSendSpending(CLEAN_TXID)) as never);
+    const composed = await composeSend({
+      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, asset: 'BTC', quantity: 5_000, sat_per_vbyte: 2,
+    });
+    expect(api.get).toHaveBeenCalledTimes(1);
+    const parsed = parseRawTransactionLocally(composed.result.rawtransaction)!;
+    expect(parsed.outputs.map(o => o.value)).toEqual([90_000, 5_000]);
+    expect(composed.result.zeld_protection).toEqual({ excluded: [], carried_forward: [], api_unavailable: false, change_first: true });
+  });
+
+  it('with change first, a BTC send spending a ZELD output rolls it forward instead of excluding it', async () => {
+    api.get.mockResolvedValueOnce(response(btcSendSpending(ZELD_TXID)) as never);
+    const composed = await composeSend({
+      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, asset: 'BTC', quantity: 5_000, sat_per_vbyte: 2,
+    });
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(composed.result.zeld_protection).toEqual({
+      excluded: [], carried_forward: [`${ZELD_TXID}:0`], api_unavailable: false, change_first: true,
+    });
+    expect(parseRawTransactionLocally(composed.result.rawtransaction)!.outputs[0]?.value).toBe(90_000);
+  });
+
+  it('puts change first on a dispense, ahead of the dispenser output and the data', async () => {
+    const dispenseTx = unsignedRawTx({
+      inputs: [{ txid: ZELD_TXID, index: 0 }],
+      outputs: [
+        { script: otherScript, amount: 20_000n },
+        { script: opReturnScript(10), amount: 0n },
+        { script: SOURCE_P2WPKH.script, amount: 70_000n },
+      ],
+    });
+    api.get.mockResolvedValueOnce(response(dispenseTx) as never);
+    const composed = await composeDispense({ sourceAddress: SOURCE_ADDRESS, dispenser: OTHER_ADDRESS, quantity: 20_000, sat_per_vbyte: 2 });
+    const parsed = parseRawTransactionLocally(composed.result.rawtransaction)!;
+    expect(parsed.outputs.map(o => o.type)).toEqual(['address', 'address', 'op_return']);
+    expect(parsed.outputs[0]?.value).toBe(70_000);
+    expect(composed.result.zeld_protection?.carried_forward).toEqual([`${ZELD_TXID}:0`]);
+  });
+
+  it('does not reorder an asset send', async () => {
+    api.get.mockResolvedValueOnce(response(enhancedSendSpending(CLEAN_TXID)) as never);
+    const composed = await composeSend({
+      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, asset: 'XCP', quantity: 1, sat_per_vbyte: 2,
+    });
+    expect(composed.result.rawtransaction).toBe(enhancedSendSpending(CLEAN_TXID));
+    expect(composed.result.zeld_protection).toBeUndefined();
   });
 });
