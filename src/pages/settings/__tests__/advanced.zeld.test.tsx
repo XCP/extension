@@ -5,12 +5,12 @@ import '@testing-library/jest-dom/vitest';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import AdvancedSettingsPage from '../advanced';
 
-let zeldHuntSeconds = 0;
+let zeldApiBase = DEFAULT_SETTINGS.zeldApiBase;
 const mockUpdateSettings = vi.fn(async () => {});
 
 vi.mock('@/contexts/settings-context', () => ({
   useSettings: () => ({
-    settings: { ...DEFAULT_SETTINGS, zeldHuntSeconds },
+    settings: { ...DEFAULT_SETTINGS, zeldHuntSeconds: 20, zeldApiBase },
     isLoading: false,
     updateSettings: mockUpdateSettings,
   }),
@@ -27,53 +27,43 @@ const renderPage = () =>
     </MemoryRouter>
   );
 
-const input = () => screen.getByLabelText('Seconds to hunt for a ZELD txid before signing') as HTMLInputElement;
+const apiInput = () => screen.getByLabelText('ZELD indexer API URL') as HTMLInputElement;
 
-describe('AdvancedSettingsPage ZELD hunt time', () => {
+describe('AdvancedSettingsPage ZELD settings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    zeldHuntSeconds = 0;
+    zeldApiBase = DEFAULT_SETTINGS.zeldApiBase;
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it('shows the stored budget and the enforced cap', () => {
-    zeldHuntSeconds = 15;
+  it('hosts the shared hunt budget control', () => {
     renderPage();
-    expect(input().value).toBe('15');
-    expect(screen.getByText(/0 is off, 60 max/)).toBeInTheDocument();
+    expect((screen.getByLabelText('Seconds to hunt for a ZELD txid before signing') as HTMLInputElement).value).toBe('20');
   });
 
-  it('persists a valid whole number of seconds on blur', async () => {
+  it('shows the indexer URL and saves a normalised https URL', async () => {
     renderPage();
-    fireEvent.change(input(), { target: { value: '20' } });
-    fireEvent.blur(input());
-    await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ zeldHuntSeconds: 20 }));
+    expect(apiInput().value).toBe('https://api.zeldhash.com');
+    fireEvent.change(apiInput(), { target: { value: 'https://zeld.example.org/' } });
+    fireEvent.blur(apiInput());
+    await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ zeldApiBase: 'https://zeld.example.org' }));
   });
 
-  it('saves on Enter', async () => {
+  it.each(['http://zeld.example.org', 'ftp://x', 'https://user:pw@x.org', 'not a url'])('rejects %s', async (value) => {
     renderPage();
-    fireEvent.change(input(), { target: { value: '5' } });
-    fireEvent.keyDown(input(), { key: 'Enter' });
-    fireEvent.blur(input());
-    await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ zeldHuntSeconds: 5 }));
-  });
-
-  it.each(['61', '-1', '2.5', 'ten', ''])('rejects %j without saving', async (value) => {
-    renderPage();
-    fireEvent.change(input(), { target: { value } });
-    fireEvent.blur(input());
-    expect(await screen.findByRole('alert')).toHaveTextContent('whole number of seconds from 0 to 60');
+    fireEvent.change(apiInput(), { target: { value } });
+    fireEvent.blur(apiInput());
+    expect(await screen.findByRole('alert')).toHaveTextContent('https URL');
     expect(mockUpdateSettings).not.toHaveBeenCalled();
   });
 
-  it('does not write an unchanged value', async () => {
-    zeldHuntSeconds = 10;
+  it('allows http on localhost', async () => {
     renderPage();
-    fireEvent.blur(input());
-    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-    expect(mockUpdateSettings).not.toHaveBeenCalled();
+    fireEvent.change(apiInput(), { target: { value: 'http://localhost:3000' } });
+    fireEvent.blur(apiInput());
+    await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ zeldApiBase: 'http://localhost:3000' }));
   });
 });

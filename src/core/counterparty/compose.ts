@@ -6,7 +6,9 @@ import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
-import type { ZeldHuntMetadata } from '@/core/zeld/types';
+import { fetchZeldOutpointBalance, isLikelyZeldTxid } from '@/core/zeld/api';
+import { assessZeldExposure } from '@/core/zeld/protection';
+import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from '@/core/zeld/types';
 
 /**
  * A composed transaction spent a UTXO the request never offered.
@@ -144,6 +146,10 @@ export interface ComposeResult {
    * Present only when hunting is enabled; `rawtransaction` and `psbt` already reflect it.
    */
   zeld_hunt?: ZeldHuntMetadata;
+  /** Added by the wallet when a compose spent, or was steered away from, ZELD-bearing outputs. */
+  zeld_protection?: ZeldProtectionMetadata;
+  /** Added by the wallet's own ZELD send composer (`core/zeld/sendCompose.ts`). */
+  zeld_send?: ZeldSendMetadata;
   params: ComposeParams & {
     asset_dest_quant_list?: [string, string, string | number][];
     memos?: string[];
@@ -424,6 +430,79 @@ function wrapComposeError(error: unknown, endpoint: string): CounterpartyApiErro
 interface ComposeRequestOptions {
   inputsSet: string | undefined;
   allowUnconfirmed: boolean;
+  /** Outpoints the composer must not spend, whoever selects the inputs. */
+  excludeUtxos?: string[];
+}
+
+/** Refuse a UTXO-sourced compose whose source output carries ZELD; see `composeUtxoTransaction`. */
+async function assertUtxoCarriesNoZeld(sourceUtxo: string, endpoint: string): Promise<void> {
+  const [txid, vout] = sourceUtxo.split(':');
+  let carries = isLikelyZeldTxid(txid ?? '');
+  if (!carries && (getActiveSettings().zeldHuntSeconds ?? 0) > 0 && txid && vout !== undefined) {
+    try {
+      carries = (await fetchZeldOutpointBalance(txid, Number(vout))) > 0n;
+    } catch {
+      // Indexer down: the heuristic above is the only check, as everywhere else.
+    }
+  }
+  if (carries) {
+    throw new CounterpartyApiError(
+      'This output also holds ZELD, which would follow the assets to the destination. Send the '
+      + 'ZELD from the ZELD page first.',
+      endpoint,
+    );
+  }
+}
+
+/**
+ * Recompose when the composed transaction would carry ZELD to someone else.
+ *
+ * ZELD rides on the first spendable output, so a transaction that pays a stranger first must not
+ * spend a ZELD-bearing output. The guard runs after every compose because the shape is only
+ * known then: an enhanced send keeps ZELD on its change and is left alone, a BTC send to the
+ * same recipient is recomposed without those outputs. The indexer is consulted only when the
+ * user has ZELD hunting on; the six-zero txid heuristic applies regardless.
+ */
+async function guardZeldExposure(
+  composed: ApiResponse,
+  sourceAddress: string,
+  endpoint: string,
+  recompose: (excludeUtxos: string[]) => Promise<ApiResponse>,
+): Promise<ApiResponse> {
+  const useIndexer = (getActiveSettings().zeldHuntSeconds ?? 0) > 0;
+  const rawTransaction = composed.result?.rawtransaction ?? '';
+  const first = await assessZeldExposure(rawTransaction, sourceAddress, { useIndexer });
+  // Annotated only when a ZELD-bearing input was involved. An indexer outage on its own is not
+  // worth a line on every review; it matters when the heuristic found something the indexer
+  // could not confirm or deny, and then it is reported alongside.
+  const annotate = (response: ApiResponse, protection: ZeldProtectionMetadata): ApiResponse => (
+    protection.excluded.length === 0 && protection.carried_forward.length === 0
+      ? response
+      : { ...response, result: { ...response.result, zeld_protection: protection } }
+  );
+  if (first.exposed.length === 0) {
+    return annotate(composed, {
+      excluded: [],
+      carried_forward: first.carriedForward,
+      api_unavailable: first.apiUnavailable,
+    });
+  }
+
+  const recomposed = await recompose(first.exposed);
+  const second = await assessZeldExposure(recomposed.result?.rawtransaction ?? '', sourceAddress, { useIndexer });
+  if (second.exposed.length > 0) {
+    throw new CounterpartyApiError(
+      'This transaction would send your ZELD to the recipient, because it has to spend an output '
+      + 'that carries ZELD and pays the recipient first. Send the ZELD from the ZELD page first, '
+      + 'or add BTC to this address.',
+      endpoint,
+    );
+  }
+  return annotate(recomposed, {
+    excluded: first.exposed,
+    carried_forward: second.carriedForward,
+    api_unavailable: first.apiUnavailable || second.apiUnavailable,
+  });
 }
 
 /**
@@ -589,7 +668,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   // check it (`transactionSafety.ts`) instead of trusting whatever key the composer embedded.
   const multisigPubkey = getSourcePubkey(sourceAddress);
 
-  const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
+  const makeRequest = async ({ inputsSet, allowUnconfirmed, excludeUtxos }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
       ...validatedParams,
       sat_per_vbyte: validatedFee,
@@ -599,6 +678,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
+      ...(excludeUtxos && excludeUtxos.length > 0 ? { exclude_utxos: excludeUtxos.join(',') } : {}),
       ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
@@ -616,7 +696,13 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  return guardZeldExposure(composed, sourceAddress, endpoint, (excludeUtxos) => executeWithUtxoFallback(
+    (options) => makeRequest({ ...options, excludeUtxos }),
+    inputsSet ? removeUtxosFromInputsSet(inputsSet, excludeUtxos) : undefined,
+    settings.allowUnconfirmedTxs,
+    endpoint,
+  ));
 }
 
 /**
@@ -639,7 +725,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   // path's caller — produces on almost every send.
   const multisigPubkey = getSourcePubkey(sourceAddress);
 
-  const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
+  const makeRequest = async ({ inputsSet, allowUnconfirmed, excludeUtxos }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
       ...validatedParams,
       sat_per_vbyte: validatedFee,
@@ -649,6 +735,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
+      ...(excludeUtxos && excludeUtxos.length > 0 ? { exclude_utxos: excludeUtxos.join(',') } : {}),
       ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
@@ -679,7 +766,13 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  return guardZeldExposure(composed, sourceAddress, endpoint, (excludeUtxos) => executeWithUtxoFallback(
+    (options) => makeRequest({ ...options, excludeUtxos }),
+    inputsSet ? removeUtxosFromInputsSet(inputsSet, excludeUtxos) : undefined,
+    settings.allowUnconfirmedTxs,
+    endpoint,
+  ));
 }
 
 /**
@@ -714,7 +807,11 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   try {
     // Routed through sendComposeRequest for the apiClient timeout (60s for /compose) and retry
     // logic, and for the POST fallback when the query outgrows a URL.
-    return await sendComposeRequest(apiUrl, params.toString(), endpoint);
+    const composed = await sendComposeRequest(apiUrl, params.toString(), endpoint);
+    // A detach or move pays the destination first, so ZELD on the source output would go with
+    // the assets. There is no other output to steer it to, so the compose is refused instead.
+    await assertUtxoCarriesNoZeld(sourceUtxo, endpoint);
+    return composed;
   } catch (error: unknown) {
     if (error instanceof CounterpartyApiError) throw error;
 

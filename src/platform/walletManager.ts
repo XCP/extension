@@ -31,7 +31,7 @@ import {
 } from '@/core/wallet/addressDeriver';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
 import { detectUtxoAddress, isUtxoAddressPath, parseUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
-import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS } from '@/core/zeld/protocol';
+import { isValidZeldApiBase, isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS } from '@/core/zeld/protocol';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { whenSessionRecovered } from '@/platform/auth/sessionReady';
@@ -952,6 +952,9 @@ export class WalletManager {
     // are persisted rather than trusted from the page that edited it.
     if (updates.zeldHuntSeconds !== undefined && !isValidZeldHuntSeconds(updates.zeldHuntSeconds)) {
       throw new Error(`ZELD hunt time must be a whole number of seconds from 0 to ${MAX_ZELD_HUNT_SECONDS}`);
+    }
+    if (updates.zeldApiBase !== undefined && !isValidZeldApiBase(updates.zeldApiBase)) {
+      throw new Error('ZELD API must be an https URL, or http on localhost, with no credentials');
     }
 
     // Merge updates into settings

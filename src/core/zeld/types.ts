@@ -22,6 +22,25 @@ export interface ZeldHuntMetadata {
   reason?: string;
 }
 
+/**
+ * What the ZELD guard did to a composed transaction: which ZELD-bearing inputs it kept out so
+ * their ZELD would not leave with the payment, and whether the indexer answered.
+ */
+export interface ZeldProtectionMetadata {
+  excluded: string[];
+  carried_forward: string[];
+  api_unavailable: boolean;
+}
+
+/** A locally composed ZELD send, for the review screen. Amounts are base units as strings. */
+export interface ZeldSendMetadata {
+  amount_base_units: string;
+  remainder_base_units: string;
+  spent_outpoints: string[];
+  change_vout: number;
+  recipient_vout: number;
+}
+
 export interface ZeldHuntProgress {
   attempts: number;
   elapsedMs: number;

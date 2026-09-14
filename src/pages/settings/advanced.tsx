@@ -2,6 +2,7 @@ import { Description, Field, Label, RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { HuntSecondsInput } from "@/components/domain/zeld/hunt-seconds-input";
 import { FiHelpCircle } from "@/components/icons";
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
 import { ApiUrlInput } from "@/components/ui/inputs/api-url-input";
@@ -9,7 +10,7 @@ import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import type { AutoLockTimer } from "@/core/settings";
-import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS, ZELD_MIN_ZERO_COUNT } from "@/core/zeld/protocol";
+import { isValidZeldApiBase } from "@/core/zeld/protocol";
 
 /**
  * Constants for navigation paths and auto-lock options.
@@ -42,32 +43,28 @@ export default function AdvancedSettingsPage(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
-  const [zeldSecondsInput, setZeldSecondsInput] = useState(String(settings.zeldHuntSeconds ?? 0));
-  const [zeldSecondsError, setZeldSecondsError] = useState<string | null>(null);
-  // Follow the stored value when it changes elsewhere (another window), without an effect: adjust
-  // the draft during render, as React documents for state derived from a changed prop.
-  const [syncedZeldSeconds, setSyncedZeldSeconds] = useState(settings.zeldHuntSeconds);
-  if (syncedZeldSeconds !== settings.zeldHuntSeconds) {
-    setSyncedZeldSeconds(settings.zeldHuntSeconds);
-    setZeldSecondsInput(String(settings.zeldHuntSeconds ?? 0));
+  const [zeldApiInput, setZeldApiInput] = useState(settings.zeldApiBase ?? "");
+  const [zeldApiError, setZeldApiError] = useState<string | null>(null);
+  const [syncedZeldApi, setSyncedZeldApi] = useState(settings.zeldApiBase);
+  if (syncedZeldApi !== settings.zeldApiBase) {
+    setSyncedZeldApi(settings.zeldApiBase);
+    setZeldApiInput(settings.zeldApiBase ?? "");
   }
 
-  const saveZeldSeconds = async () => {
-    const trimmed = zeldSecondsInput.trim();
-    const parsed = /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
-    if (!isValidZeldHuntSeconds(parsed)) {
-      setZeldSecondsError(`Enter a whole number of seconds from 0 to ${MAX_ZELD_HUNT_SECONDS}.`);
+  const saveZeldApi = async () => {
+    const value = zeldApiInput.trim();
+    if (!isValidZeldApiBase(value)) {
+      setZeldApiError("Enter an https URL (http is allowed on localhost only).");
       return;
     }
-    setZeldSecondsError(null);
-    if (parsed === settings.zeldHuntSeconds) {
-      setZeldSecondsInput(String(parsed));
-      return;
-    }
+    setZeldApiError(null);
+    const normalized = value.replace(/\/+$/, "");
+    setZeldApiInput(normalized);
+    if (normalized === settings.zeldApiBase) return;
     try {
-      await updateSettings({ zeldHuntSeconds: parsed });
+      await updateSettings({ zeldApiBase: normalized });
     } catch (error) {
-      setZeldSecondsError(error instanceof Error ? error.message : "Could not save the hunt time.");
+      setZeldApiError(error instanceof Error ? error.message : "Could not save the ZELD API URL.");
     }
   };
 
@@ -160,36 +157,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           showHelpText={shouldShowHelpText}
         />
 
-        <Field>
-          <Label htmlFor="zeld-hunt-seconds" className="font-bold">Hunt for ZELD</Label>
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              id="zeld-hunt-seconds"
-              type="text"
-              inputMode="numeric"
-              value={zeldSecondsInput}
-              onChange={(event) => setZeldSecondsInput(event.target.value)}
-              onBlur={() => { void saveZeldSeconds(); }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-              }}
-              aria-label="Seconds to hunt for a ZELD txid before signing"
-              aria-invalid={zeldSecondsError ? true : undefined}
-              className="w-24 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-            />
-            <span className="text-sm text-gray-500">seconds (0 is off, {MAX_ZELD_HUNT_SECONDS} max)</span>
-          </div>
-          {zeldSecondsError && (
-            <p className="mt-1 text-sm text-red-600" role="alert">{zeldSecondsError}</p>
-          )}
-          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-            Before signing, spend up to this long searching for a transaction ID that starts with
-            {" "}{ZELD_MIN_ZERO_COUNT} zeros, which earns ZELD (zeldhash.com) on your change output.
-            The search changes only a sequence number, adds no bytes and no fee, and when it runs
-            out of time the transaction is sent as composed. Native SegWit and Taproot addresses
-            only, and only when the first output is your own.
-          </Description>
-        </Field>
+        <HuntSecondsInput showHelpText={shouldShowHelpText} />
       </SettingsSection>
 
       <SettingsSection id="adv-connection" title="Connection">
@@ -207,6 +175,33 @@ export default function AdvancedSettingsPage(): ReactElement {
           {shouldShowHelpText && (
             <Description className="mt-2 text-sm text-gray-500">
               The Counterparty API endpoint URL. Must be a mainnet API server running Counterparty Core 11.3.0 or newer.
+            </Description>
+          )}
+        </Field>
+
+        <Field>
+          <Label htmlFor="zeld-api-base" className="font-bold">ZELD API</Label>
+          <input
+            id="zeld-api-base"
+            type="url"
+            value={zeldApiInput}
+            onChange={(event) => setZeldApiInput(event.target.value)}
+            onBlur={() => { void saveZeldApi(); }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            aria-label="ZELD indexer API URL"
+            aria-invalid={zeldApiError ? true : undefined}
+            className="mt-2 w-full px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
+          />
+          {zeldApiError && (
+            <p className="mt-1 text-sm text-red-600" role="alert">{zeldApiError}</p>
+          )}
+          {shouldShowHelpText && (
+            <Description className="mt-2 text-sm text-gray-500">
+              A ZeldHash indexer (zeldhash-api). Read for ZELD balances and rewards, and to keep
+              ordinary transactions from spending outputs that carry ZELD. Consulted only while
+              hunting is on.
             </Description>
           )}
         </Field>

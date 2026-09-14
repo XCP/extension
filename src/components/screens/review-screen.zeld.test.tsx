@@ -51,7 +51,7 @@ describe('ReviewScreen ZELD hunt field', () => {
       txid: '000000ab' + 'c'.repeat(56),
       zero_count: 6,
     });
-    expect(screen.getByText('ZELD hunt:')).toBeInTheDocument();
+    expect(screen.getByText('ZELD:')).toBeInTheDocument();
     expect(screen.getByText(/Found a txid with 6 leading zeros in 3\.3s/)).toBeInTheDocument();
     expect(screen.getByText(/18\.4M hashes/)).toBeInTheDocument();
     expect(screen.getByText('000000')).toHaveClass('font-bold');
@@ -74,6 +74,6 @@ describe('ReviewScreen ZELD hunt field', () => {
       attempts: 0,
       reason: 'Only Native SegWit and Taproot addresses can hunt.',
     });
-    expect(screen.getByText(/Skipped\. Only Native SegWit and Taproot addresses can hunt\./)).toBeInTheDocument();
+    expect(screen.getByText(/Hunt skipped. Only Native SegWit and Taproot addresses can hunt\./)).toBeInTheDocument();
   });
 });

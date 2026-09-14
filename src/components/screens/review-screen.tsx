@@ -6,7 +6,8 @@ import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAddress, formatAmount } from "@/core/format";
 import { formatFeeRate, fromSatoshis } from "@/core/numeric";
-import type { ZeldHuntMetadata } from "@/core/zeld/types";
+import { zeldBaseUnitsToDisplay } from "@/core/zeld/api";
+import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 /**
@@ -24,6 +25,8 @@ interface TransactionResult {
   btc_fee: number;
   xcp_fee?: number;
   zeld_hunt?: ZeldHuntMetadata;
+  zeld_protection?: ZeldProtectionMetadata;
+  zeld_send?: ZeldSendMetadata;
   [key: string]: any;
 }
 
@@ -194,7 +197,9 @@ export function ReviewScreen({
           </div>
         )}
         
-        {result.zeld_hunt && <ZeldHuntField hunt={result.zeld_hunt} />}
+        {(result.zeld_hunt || result.zeld_protection || result.zeld_send) && (
+          <ZeldField hunt={result.zeld_hunt} protection={result.zeld_protection} send={result.zeld_send} />
+        )}
 
         {/* Transaction Fee */}
         <div className="space-y-1">
@@ -266,16 +271,50 @@ function formatAttempts(attempts: number): string {
 }
 
 /**
- * What the ZELD hunt did to this transaction. Found means the txid below is the one that will be
- * signed and broadcast; the leading zeros are what earns the reward once it confirms.
+ * Everything ZELD did to this transaction: what a send of it moves, which ZELD-bearing outputs
+ * the guard kept out or carried forward, and what the hunt found. Found means the txid below is
+ * the one that will be signed and broadcast; the leading zeros are what earns the reward.
  */
-function ZeldHuntField({ hunt }: { hunt: ZeldHuntMetadata }): ReactElement {
-  const seconds = (hunt.elapsed_ms / 1000).toFixed(1);
+function ZeldField({
+  hunt,
+  protection,
+  send,
+}: {
+  hunt?: ZeldHuntMetadata;
+  protection?: ZeldProtectionMetadata;
+  send?: ZeldSendMetadata;
+}): ReactElement {
+  const seconds = hunt ? (hunt.elapsed_ms / 1000).toFixed(1) : '';
   return (
     <div className="space-y-1">
-      <span className="block font-semibold text-gray-700">ZELD hunt:</span>
+      <span className="block font-semibold text-gray-700">ZELD:</span>
       <div className="bg-gray-50 p-2 rounded text-gray-900 space-y-1">
-        {hunt.status === 'found' && hunt.txid && (
+        {send && (
+          <div>
+            Sends {formatAmount({ value: zeldBaseUnitsToDisplay(BigInt(send.amount_base_units)), minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD
+            {' '}to the recipient's output; {formatAmount({ value: zeldBaseUnitsToDisplay(BigInt(send.remainder_base_units)), minimumFractionDigits: 8, maximumFractionDigits: 8 })}
+            {' '}stays on your change, which comes first so a wrong balance can only send less, never elsewhere.
+          </div>
+        )}
+        {protection && protection.excluded.length > 0 && (
+          <div>
+            Kept {protection.excluded.length} output{protection.excluded.length === 1 ? '' : 's'} holding ZELD out of
+            this transaction, because it pays someone else first and the ZELD would have gone with it.
+          </div>
+        )}
+        {protection && protection.carried_forward.length > 0 && !send && (
+          <div>
+            Spends {protection.carried_forward.length} output{protection.carried_forward.length === 1 ? '' : 's'} holding
+            ZELD; the ZELD moves to your change output.
+          </div>
+        )}
+        {protection?.api_unavailable && (
+          <div className="text-sm text-amber-700">
+            The ZELD indexer could not be reached, so only outputs on six-zero txids were recognised
+            as holding ZELD.
+          </div>
+        )}
+        {hunt?.status === 'found' && hunt.txid && (
           <>
             <div>
               Found a txid with {hunt.zero_count} leading zeros in {seconds}s
@@ -291,14 +330,14 @@ function ZeldHuntField({ hunt }: { hunt: ZeldHuntMetadata }): ReactElement {
             </div>
           </>
         )}
-        {hunt.status === 'not_found' && (
+        {hunt?.status === 'not_found' && (
           <div>
             No txid with {hunt.target_zeros} leading zeros within {hunt.seconds}s
             {' '}({formatAttempts(hunt.attempts)} hashes). Sending as composed.
           </div>
         )}
-        {hunt.status === 'skipped' && (
-          <div>Skipped. {hunt.reason}</div>
+        {hunt?.status === 'skipped' && (
+          <div>Hunt skipped. {hunt.reason}</div>
         )}
       </div>
     </div>

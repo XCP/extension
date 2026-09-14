@@ -176,6 +176,7 @@ export const createTestKeychain = (wallets: Wallet[] = []): Keychain => ({
     defaultOrderExpiration: 8064,
     strictTransactionVerification: true,
     zeldHuntSeconds: 0,
+    zeldApiBase: 'https://api.zeldhash.com',
   },
 });
 
