@@ -28,7 +28,7 @@ describe('AdvancedSettingsPage ZELD settings', () => {
         <AdvancedSettingsPage />
       </MemoryRouter>
     );
-    expect((screen.getByLabelText('Seconds to hunt for a ZELD txid before signing') as HTMLInputElement).value).toBe('20');
+    expect((screen.getByLabelText('Seconds to hunt for a ZELD transaction ID') as HTMLInputElement).value).toBe('20');
     // The indexer is not configurable; a URL field here would be a way to point the guard at a liar.
     expect(screen.queryByLabelText('ZELD indexer API URL')).not.toBeInTheDocument();
   });

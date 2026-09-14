@@ -43,9 +43,8 @@ export async function utxoCarriesZeld(sourceUtxo: string): Promise<boolean> {
 export async function assertUtxoCarriesNoZeld(sourceUtxo: string, endpoint: string): Promise<void> {
   if (await utxoCarriesZeld(sourceUtxo)) {
     throw new CounterpartyApiError(
-      'This output also holds ZELD, which would follow the assets to the destination. Detach the '
-      + 'assets first: the ZELD stays with your address, and attaching them again puts them on a '
-      + 'clean output.',
+      'This output also holds ZELD, which would go to the destination with the assets. Detach '
+      + 'first: the ZELD stays with you, and a new attach uses a clean output.',
       endpoint,
     );
   }
@@ -68,7 +67,8 @@ export async function withDetachZeldKept(
   const kept = await recompose({ more_outputs: `${zeldRecipientDustSats(sourceAddress)}:${sourceAddress}` });
   if (!firstSpendableOutputPays(kept.result?.rawtransaction ?? '', sourceAddress)) {
     throw new CounterpartyApiError(
-      'This output also holds ZELD, and the detach leaves no output of yours for it to land on.',
+      'This output also holds ZELD, and the detach leaves no output of yours for it to land on. '
+      + 'Add a little BTC to this address, then try again.',
       'detach',
     );
   }
@@ -152,8 +152,8 @@ export async function guardZeldExposure(
   // Nothing clean to fund from, or still exposed after recomposing: say what to do about it
   // rather than surfacing the composer's insufficient-funds error.
   const stuck = (cause?: unknown) => new CounterpartyApiError(
-    'This transaction has to pay the recipient first, and every output it could spend from here '
-    + 'carries ZELD, which would go with it. On the ZELD page, move your ZELD to a small output, '
+    'Every output this address could spend holds ZELD, and this transaction pays the recipient '
+    + 'first, so the ZELD would go with it. Move your ZELD to a small output on the ZELD page, '
     + 'then try again.',
     endpoint,
     cause instanceof Error ? { cause } : {},

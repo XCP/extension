@@ -101,7 +101,7 @@ describe('ownership transfer from an address whose balance is all hunted change'
     await expect(composeIssuance({
       sourceAddress: owner.address, asset, quantity: 0, divisible: false, lock: false, reset: false,
       transfer_destination: minerAddress, sat_per_vbyte: 2,
-    })).rejects.toThrow('move your ZELD to a small output');
+    })).rejects.toThrow('Move your ZELD to a small output');
     log('transfer refused as expected');
 
     // 2. Park: all ZELD onto a 330-sat output, the rest returned as clean change. Hunted too.

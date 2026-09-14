@@ -46,7 +46,7 @@ export function HuntSecondsInput({ showHelpText = false }: HuntSecondsInputProps
 
   return (
     <Field>
-      <Label htmlFor="zeld-hunt-seconds" className="font-bold">Hunt for ZELD</Label>
+      <Label htmlFor="zeld-hunt-seconds" className="font-bold">ZELD Hunt Time</Label>
       <div className="mt-2 flex items-center gap-2">
         <input
           id="zeld-hunt-seconds"
@@ -58,7 +58,7 @@ export function HuntSecondsInput({ showHelpText = false }: HuntSecondsInputProps
           onKeyDown={(event) => {
             if (event.key === "Enter") event.currentTarget.blur();
           }}
-          aria-label="Seconds to hunt for a ZELD txid before signing"
+          aria-label="Seconds to hunt for a ZELD transaction ID"
           aria-invalid={error ? true : undefined}
           className="w-24 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
         />
@@ -68,11 +68,9 @@ export function HuntSecondsInput({ showHelpText = false }: HuntSecondsInputProps
         <p className="mt-1 text-sm text-red-600" role="alert">{error}</p>
       )}
       <Description className={`mt-2 text-sm text-gray-500 ${showHelpText ? "" : "hidden"}`}>
-        Before signing, spend up to this long searching for a transaction ID that starts with
-        {" "}{ZELD_MIN_ZERO_COUNT} zeros, which earns ZELD (zeldhash.com) on your change output.
-        The search changes only the transaction&apos;s locktime field, adds no bytes and no fee,
-        and when it runs out of time the transaction is sent as composed. Native SegWit and Taproot addresses
-        only, and only when the first output is your own.
+        How long to search for a transaction ID starting with {ZELD_MIN_ZERO_COUNT} zeros, which
+        earns ZELD (zeldhash.com) on your change. No extra bytes or fee. If time runs out, the
+        transaction is sent as composed.
       </Description>
     </Field>
   );

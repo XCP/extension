@@ -42,7 +42,7 @@ function ZeldParkForm({
   return (
     <ComposerForm
       formAction={handleSubmit}
-      submitText="Review"
+      submitText="Continue"
       submitDisabled={total === 0n}
       showFeeRate
     >
@@ -56,14 +56,14 @@ function ZeldParkForm({
         </div>
       </div>
       <p className="text-sm text-gray-600">
-        Moves all your ZELD onto one small output of this address and returns the rest of the
-        Bitcoin as ordinary change. Do this when a payment that must pay someone else first, such
-        as a BTCPay or a burn, is refused because every output here carries ZELD.
+        Puts all your ZELD on one small output of this address and returns the rest of the BTC as
+        ordinary change. Use it when a payment that must pay someone else first, such as an
+        ownership transfer, is refused because every output here holds ZELD.
       </p>
       {showHelpText && (
         <p className="text-sm text-gray-500">
-          Ordinary sends and dispenser purchases never need this: the wallet places your change
-          first so the ZELD stays with you. This is one transaction at your chosen fee rate.
+          Ordinary sends and dispenser buys never need this: your change comes first, so the ZELD
+          stays with you.
         </p>
       )}
     </ComposerForm>
@@ -93,9 +93,9 @@ function ZeldParkReview({
       error={error}
       isSigning={isSigning}
       customFields={[
-        { label: 'ZELD moved', value: `${formatAmount({ value: amount, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD` },
-        { label: 'Small output', value: `${apiResponse.result.btc_out.toLocaleString()} sats, holding the ZELD` },
-        { label: 'Clean change', value: `${apiResponse.result.btc_change.toLocaleString()} sats` },
+        { label: 'ZELD Moved', value: `${formatAmount({ value: amount, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD` },
+        { label: 'Small Output', value: `${apiResponse.result.btc_out.toLocaleString()} sats, holding the ZELD` },
+        { label: 'Change', value: `${apiResponse.result.btc_change.toLocaleString()} sats` },
       ]}
     />
   );

@@ -23,6 +23,7 @@ import {
   zeldBaseUnitsToDisplay,
 } from '@/core/zeld/api';
 import { isHuntableAddressFormat } from '@/core/zeld/huntTemplate';
+import { huntsWhileSigning } from '@/core/zeld/signHunt';
 
 const EXPLORER_TX_URL = 'https://mempool.space/tx/';
 
@@ -114,28 +115,28 @@ export default function ZeldPage(): ReactElement {
     },
   };
   const huntingOn = (settings.zeldHuntSeconds ?? 0) > 0;
-  const canHunt = activeWallet ? isHuntableAddressFormat(activeWallet.addressFormat) : false;
+  const canHunt = activeWallet
+    ? isHuntableAddressFormat(activeWallet.addressFormat) || huntsWhileSigning(activeWallet.addressFormat, activeWallet.type)
+    : false;
   const hasZeld = (balance?.baseUnits ?? 0n) > 0n;
   const sections: ActionSection[] = [{
     items: [
       {
         id: 'send',
         title: 'Send ZELD',
-        description: hasZeld
-          ? 'Move ZELD to another address. The remainder stays on your change.'
-          : 'Nothing to send yet.',
+        description: hasZeld ? 'Send to another address. The rest stays with you.' : 'Nothing to send yet.',
         onClick: () => { void navigate('/zeld/send'); },
       },
       ...(hasZeld ? [{
         id: 'park',
-        title: 'Move ZELD to a small output',
-        description: 'Frees the rest of your BTC for payments that must pay someone else first.',
+        title: 'Move ZELD to a Small Output',
+        description: 'Frees your other BTC for payments that must pay someone else first.',
         onClick: () => { void navigate('/zeld/park'); },
       }] : []),
       {
         id: 'about',
         title: 'About ZeldHash',
-        description: 'How rare transaction IDs earn ZELD.',
+        description: 'How rare transaction IDs earn ZELD. Opens zeldhash.com.',
         onClick: () => window.open('https://zeldhash.com', '_blank', 'noopener,noreferrer'),
       },
     ],
@@ -152,31 +153,29 @@ export default function ZeldPage(): ReactElement {
         <HuntSecondsInput showHelpText={shouldShowHelpText} />
         {!canHunt && (
           <p role="status" className="text-xs text-amber-700">
-            This wallet's address type cannot hunt: signing a legacy or nested SegWit input changes
-            the txid. Native SegWit and Taproot wallets can.
+            A legacy hardware wallet cannot hunt: the device signs, and a legacy transaction ID
+            depends on its signature.
           </p>
         )}
         {canHunt && !huntingOn && (
-          <p className="text-xs text-gray-500">Hunting is off. Set a number of seconds to earn ZELD on eligible transactions.</p>
+          <p className="text-xs text-gray-500">Hunting is off. Enter a number of seconds to turn it on.</p>
         )}
       </div>
 
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
-        <h3 className="text-sm font-medium text-gray-900">Where it sits</h3>
+        <h3 className="text-sm font-medium text-gray-900">Outputs Holding ZELD</h3>
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Outputs holding ZELD</span>
+          <span className="text-gray-500">Outputs</span>
           <span className="text-gray-900">{balance?.utxos.length ?? 0}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Bitcoin on those outputs</span>
+          <span className="text-gray-500">BTC on them</span>
           <span className="text-gray-900">{reservedSats === null ? 'Unknown' : `${reservedSats.toLocaleString()} sats`}</span>
         </div>
         {shouldShowHelpText && (
           <p className="text-xs text-gray-500">
-            ZELD lives on ordinary Bitcoin outputs. When one is spent, the ZELD moves to the first
-            spendable output of that transaction. The wallet keeps such outputs out of any
-            transaction that pays someone else first, and lets them roll forward in transactions
-            whose first output is your own change.
+            ZELD rides on ordinary Bitcoin outputs and moves to the first spendable output when one
+            is spent. The wallet keeps these outputs out of any payment that pays someone else first.
           </p>
         )}
         {balance && balance.utxos.length > 0 && (
@@ -204,9 +203,9 @@ export default function ZeldPage(): ReactElement {
       </div>
 
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
-        <h3 className="text-sm font-medium text-gray-900">Recent rewards</h3>
+        <h3 className="text-sm font-medium text-gray-900">Recent Rewards</h3>
         {rewards.length === 0 ? (
-          <p className="text-xs text-gray-500">No rewards recorded for this address yet.</p>
+          <p className="text-xs text-gray-500">No rewards for this address yet.</p>
         ) : (
           <ul className="divide-y divide-gray-100 text-xs">
             {rewards.map((reward) => (

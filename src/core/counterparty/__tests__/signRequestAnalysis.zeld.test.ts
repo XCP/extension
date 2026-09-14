@@ -46,7 +46,7 @@ function analyze(outputs: AnalyzedOutput[], inputs = [ZELD_INPUT, CLEAN_INPUT]) 
   });
 }
 
-const zeldWarning = (warnings: { title: string; severity?: string; message?: string }[]) => warnings.find((w) => w.title === 'ZELD Would Leave With This Transaction');
+const zeldWarning = (warnings: { title: string; severity?: string; message?: string }[]) => warnings.find((w) => w.title.endsWith('ZELD Would Leave'));
 
 describe('sign requests that would carry ZELD away', () => {
   it('refuses while hunting is on, when a signed six-zero output is spent and a stranger is paid first', async () => {
@@ -56,8 +56,8 @@ describe('sign requests that would carry ZELD away', () => {
     ]);
     const warning = zeldWarning(analysis.safety.warnings);
     expect(warning?.severity).toBe('block');
-    expect(warning?.message).toContain('1 of the outputs this wallet is asked to spend holds ZELD');
-    expect(warning?.message).toContain('have the site compose again');
+    expect(warning?.message).toContain('1 of the outputs this site asks you to spend holds ZELD');
+    expect(warning?.message).toContain('have the site try again');
     expect(analysis.safety.blocked).toBe(true);
   });
 

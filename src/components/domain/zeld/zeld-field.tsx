@@ -29,10 +29,10 @@ export function zeldReviewLine({
     return `Kept ${count} output${count === 1 ? '' : 's'} holding ZELD out of this payment`;
   }
   if (hunt?.status === 'found' && hunt.zero_count !== undefined) {
-    return `Rare txid found: ${hunt.zero_count} zeros in ${(hunt.elapsed_ms / 1000).toFixed(1)}s`;
+    return `Found a ${hunt.zero_count}-zero txid in ${(hunt.elapsed_ms / 1000).toFixed(1)}s`;
   }
   if (hunt?.status === 'not_found') return `No rare txid in ${hunt.seconds}s; sending as usual`;
-  if (hunt?.status === 'skipped' && hunt.reason === HUNTS_WHILE_SIGNING) return `Hunts for ZELD while signing, up to ${hunt.seconds}s`;
+  if (hunt?.status === 'skipped' && hunt.reason === HUNTS_WHILE_SIGNING) return `Hunts while signing, up to ${hunt.seconds}s`;
   return null;
 }
 

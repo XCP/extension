@@ -173,8 +173,7 @@ export function assessZeldHunt({ rawTxHex, sourceAddress, addressFormat, publicK
   if (!isHuntableAddressFormat(addressFormat)) {
     return {
       eligible: false,
-      reason: 'Signing a legacy input puts the signature in the scriptSig and changes the txid, '
-        + 'so a legacy transaction hunts while it is signed rather than before.',
+      reason: 'A legacy transaction ID depends on its signature, so it hunts while signing.',
     };
   }
   let scriptSig: Uint8Array | null = null;
@@ -183,8 +182,7 @@ export function assessZeldHunt({ rawTxHex, sourceAddress, addressFormat, publicK
     if (!scriptSig) {
       return {
         eligible: false,
-        reason: 'A nested SegWit hunt needs the public key behind the address, and this wallet '
-          + 'did not record one that matches.',
+        reason: 'A nested SegWit hunt needs a matching public key, and this wallet has none recorded.',
       };
     }
   }
@@ -208,7 +206,7 @@ export function assessZeldHunt({ rawTxHex, sourceAddress, addressFormat, publicK
   if (layout.hasScriptSig) {
     return {
       eligible: false,
-      reason: 'An input already carries script bytes, so its txid is not settled until signing.',
+      reason: 'An input already carries script bytes, so its transaction ID is not settled until signing.',
     };
   }
   if (scriptSig) {
@@ -232,8 +230,7 @@ export function assessZeldHunt({ rawTxHex, sourceAddress, addressFormat, publicK
   if (rewardOutput.script?.toLowerCase() !== sourceScript) {
     return {
       eligible: false,
-      reason: 'ZELD lands on the first spendable output, and this transaction pays that output '
-        + 'to someone else.',
+      reason: 'ZELD lands on the first spendable output, and this one pays someone else.',
     };
   }
 

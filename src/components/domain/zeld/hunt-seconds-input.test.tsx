@@ -15,7 +15,7 @@ vi.mock('@/contexts/settings-context', () => ({
   }),
 }));
 
-const input = () => screen.getByLabelText('Seconds to hunt for a ZELD txid before signing') as HTMLInputElement;
+const input = () => screen.getByLabelText('Seconds to hunt for a ZELD transaction ID') as HTMLInputElement;
 
 describe('HuntSecondsInput', () => {
   beforeEach(() => {

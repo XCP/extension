@@ -107,7 +107,7 @@ describe('assessZeldHunt', () => {
     AddressFormat.FreewalletBIP39,
   ])('refuses the %s format before signing, since the signature changes its txid', (addressFormat) => {
     const assessment = assessZeldHunt({ rawTxHex: enhancedSendRawTx(), sourceAddress: SOURCE_ADDRESS, addressFormat });
-    expect(assessment).toEqual({ eligible: false, reason: expect.stringContaining('changes the txid') });
+    expect(assessment).toEqual({ eligible: false, reason: expect.stringContaining('hunts while signing') });
   });
 
   it('hunts a nested SegWit spend over the scriptSig the signer will produce', () => {

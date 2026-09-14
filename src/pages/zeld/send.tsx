@@ -74,7 +74,7 @@ function ZeldSendForm({
   return (
     <ComposerForm
       formAction={handleSubmit}
-      submitText="Review ZELD send"
+      submitText="Continue"
       submitDisabled={!amountValid || recipientSats === undefined}
       showFeeRate
     >
@@ -92,8 +92,8 @@ function ZeldSendForm({
         onChange={setDestination}
         showHelpText={showHelpText}
         helpText={recipientSats === undefined
-          ? 'The recipient receives ZELD on a small Bitcoin output.'
-          : `The recipient receives ZELD on a ${recipientSats}-sat Bitcoin output. Remaining Bitcoin returns to your wallet after the fee.`}
+          ? 'The ZELD arrives on a small Bitcoin output.'
+          : `The ZELD arrives on a ${recipientSats}-sat Bitcoin output; the rest of the BTC returns to you.`}
       />
       <Field>
         <Label className="text-sm font-medium text-gray-700">
@@ -119,8 +119,7 @@ function ZeldSendForm({
         </div>
         {showHelpText && (
           <Description className="mt-1 text-sm text-gray-500">
-            Up to eight decimal places. Unsent ZELD stays on your change output, which comes first
-            in the transaction so a wrong balance can only send less, never send it elsewhere.
+            Up to 8 decimal places. Unsent ZELD stays with you.
           </Description>
         )}
       </Field>
@@ -152,7 +151,7 @@ function ZeldSendReview({
       isSigning={isSigning}
       customFields={[
         { label: 'Amount', value: `${formatAmount({ value: amount, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD` },
-        { label: 'Recipient Bitcoin', value: `${apiResponse.result.btc_out.toLocaleString()} sats (${fromSatoshis(apiResponse.result.btc_out)} BTC)` },
+        { label: 'Recipient BTC', value: `${apiResponse.result.btc_out.toLocaleString()} sats (${fromSatoshis(apiResponse.result.btc_out)} BTC)` },
       ]}
     />
   );

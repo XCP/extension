@@ -101,7 +101,7 @@ describe('ZELD guard on composed transactions', () => {
       .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never)
       .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never);
     // The recompose comes back spending the six-zero output instead, which is also ZELD: refuse.
-    await expect(burn()).rejects.toThrow('move your ZELD to a small output');
+    await expect(burn()).rejects.toThrow('Move your ZELD to a small output');
     expect(zeldUtxos).toHaveBeenCalledWith(SOURCE_ADDRESS);
   });
 
@@ -134,7 +134,7 @@ describe('ZELD guard on composed transactions', () => {
     api.get
       .mockResolvedValueOnce(response(burnSpending(ZELD_TXID)) as never)
       .mockRejectedValueOnce(new Error('Insufficient BTC at address') as never);
-    await expect(burn()).rejects.toThrow('move your ZELD to a small output');
+    await expect(burn()).rejects.toThrow('Move your ZELD to a small output');
   });
 
   it('places change right after the data on an asset send with extra BTC outputs', async () => {
@@ -167,7 +167,7 @@ describe('ZELD guard on composed transactions', () => {
     outpointBalance.mockResolvedValue(7n);
     await expect(composeMove({
       sourceUtxo: `${PREV_TXID}:0`, destination: OTHER_ADDRESS, sat_per_vbyte: 2,
-    } as never)).rejects.toThrow('Detach the assets first');
+    } as never)).rejects.toThrow('Detach first');
     expect(outpointBalance).toHaveBeenCalledWith(PREV_TXID, 0);
 
     outpointBalance.mockResolvedValue(0n);

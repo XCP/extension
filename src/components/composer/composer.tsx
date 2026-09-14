@@ -179,7 +179,7 @@ function ComposerInner<T>({
     const clock = hunt ? `${Math.floor(hunt.elapsedMs / 1000)}s / ${hunt.seconds}s` : "";
     const message = hunt
       ? hunt.bestZeroCount
-        ? `Rare txid found (${hunt.bestZeroCount} zeros); hunting for a rarer one… ${clock}`
+        ? `Found a ${hunt.bestZeroCount}-zero txid; hunting for a rarer one… ${clock}`
         : `Hunting for ZELD… ${clock}`
       : state.isComposing ? "Composing transaction…" : "Signing and broadcasting…";
     return (

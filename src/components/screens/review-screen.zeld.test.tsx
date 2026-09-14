@@ -42,7 +42,7 @@ describe('ReviewScreen ZELD line', () => {
   it('is one short line when a rare txid was found', () => {
     renderWith({ zeld_hunt: found });
     expect(screen.getByText('ZELD:')).toBeInTheDocument();
-    expect(screen.getByText('Rare txid found: 6 zeros in 3.3s')).toBeInTheDocument();
+    expect(screen.getByText('Found a 6-zero txid in 3.3s')).toBeInTheDocument();
   });
 
   it('is one short line when time ran out', () => {

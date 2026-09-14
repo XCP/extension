@@ -267,13 +267,13 @@ export async function analyzeSignRequest(
         ...safety.warnings,
         {
           severity: hunting ? 'block' : 'warning',
-          title: 'ZELD Would Leave With This Transaction',
+          title: hunting ? 'Blocked: ZELD Would Leave' : 'ZELD Would Leave',
           message:
-            `${count} of the outputs this wallet is asked to spend ${count === 1 ? 'holds' : 'hold'} ZELD, `
-            + 'and this transaction pays someone else first, so the ZELD would go to them. '
+            `${count} of the outputs this site asks you to spend ${count === 1 ? 'holds' : 'hold'} ZELD, `
+            + 'and the transaction pays someone else first, so the ZELD would go to them. '
             + (hunting
-              ? 'Move your ZELD to a small output on the ZELD page, then have the site compose again.'
-              : 'To keep it, move your ZELD to a small output on the ZELD page before signing.'),
+              ? 'Move your ZELD to a small output on the ZELD page, then have the site try again.'
+              : 'To keep it, move your ZELD to a small output on the ZELD page first.'),
         },
       ];
       if (hunting) safety.blocked = true;

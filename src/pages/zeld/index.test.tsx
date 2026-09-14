@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
@@ -13,9 +13,10 @@ vi.mock('react-router', async (importOriginal) => ({
 }));
 
 let addressFormat: AddressFormat = AddressFormat.P2WPKH;
+let walletType: 'mnemonic' | 'hardware' = 'mnemonic';
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
-    activeWallet: { id: 'w', addressFormat },
+    activeWallet: { id: 'w', addressFormat, type: walletType },
     activeAddress: { address: 'bc1qtest123', name: 'Test' },
   }),
 }));
@@ -51,11 +52,11 @@ describe('ZeldPage', () => {
   it('shows the balance, where it sits, and recent rewards', async () => {
     render(<MemoryRouter><ZeldPage /></MemoryRouter>);
     expect(await screen.findByText('Balance: 4,096.00000000')).toBeInTheDocument();
-    expect(screen.getByText('Outputs holding ZELD').nextSibling).toHaveTextContent('1');
+    expect(screen.getByText('Outputs').nextSibling).toHaveTextContent('1');
     expect(screen.getByText('95,160 sats')).toBeInTheDocument();
     expect(screen.getByText(/block 965,470, 6 zeros/)).toBeInTheDocument();
     expect(screen.getByText('+4,096')).toBeInTheDocument();
-    expect((screen.getByLabelText('Seconds to hunt for a ZELD txid before signing') as HTMLInputElement).value).toBe('20');
+    expect((screen.getByLabelText('Seconds to hunt for a ZELD transaction ID') as HTMLInputElement).value).toBe('20');
   });
 
   it('routes Send ZELD to the send page', async () => {
@@ -64,10 +65,19 @@ describe('ZeldPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/zeld/send');
   });
 
-  it('explains why a legacy wallet cannot hunt', async () => {
+  it('explains why a legacy hardware wallet cannot hunt, and says nothing for a legacy software wallet', async () => {
     addressFormat = AddressFormat.P2PKH;
+    walletType = 'hardware';
+    try {
+      render(<MemoryRouter><ZeldPage /></MemoryRouter>);
+      expect(await screen.findByText(/cannot hunt/)).toBeInTheDocument();
+    } finally {
+      walletType = 'mnemonic';
+    }
+    cleanup();
     render(<MemoryRouter><ZeldPage /></MemoryRouter>);
-    expect(await screen.findByText(/cannot hunt/)).toBeInTheDocument();
+    await screen.findByText('Send ZELD');
+    expect(screen.queryByText(/cannot hunt/)).toBeNull();
   });
 
   it('says when the indexer is unreachable', async () => {
