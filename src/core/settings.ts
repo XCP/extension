@@ -120,6 +120,12 @@ export interface AppSettings {
   defaultPoolSlippage?: string;
   /** Block signing if local verification fails */
   strictTransactionVerification: boolean;
+  /**
+   * Seconds to spend hunting for a txid with six leading zeros (a ZELD reward) before signing
+   * a transaction, capped at MAX_ZELD_HUNT_SECONDS. Zero turns hunting off. The transaction is
+   * sent as composed when the budget runs out, so this bounds the delay, not the outcome.
+   */
+  zeldHuntSeconds: number;
 
   /** User has visited recover bitcoin page */
   hasVisitedRecoverBitcoin?: boolean;
@@ -154,6 +160,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultOrderExpiration: DEFAULT_ORDER_EXPIRATION,
   defaultPoolSlippage: POOL_SLIPPAGE_AUTO,
   strictTransactionVerification: true,
+  zeldHuntSeconds: 0,
   connectedWebsites: [],
   providerCapabilities: {},
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],

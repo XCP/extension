@@ -31,6 +31,7 @@ import {
 } from '@/core/wallet/addressDeriver';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
 import { detectUtxoAddress, isUtxoAddressPath, parseUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
+import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS } from '@/core/zeld/protocol';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { whenSessionRecovered } from '@/platform/auth/sessionReady';
@@ -945,6 +946,12 @@ export class WalletManager {
   private async updateSettingsInternal(updates: Partial<AppSettings>): Promise<void> {
     if (!this.keychain) {
       throw new Error('Cannot update settings: keychain not unlocked');
+    }
+
+    // The hunt budget is a hard bound on how long signing waits, so it is enforced where settings
+    // are persisted rather than trusted from the page that edited it.
+    if (updates.zeldHuntSeconds !== undefined && !isValidZeldHuntSeconds(updates.zeldHuntSeconds)) {
+      throw new Error(`ZELD hunt time must be a whole number of seconds from 0 to ${MAX_ZELD_HUNT_SECONDS}`);
     }
 
     // Merge updates into settings

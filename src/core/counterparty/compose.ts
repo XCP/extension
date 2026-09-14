@@ -6,6 +6,7 @@ import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
+import type { ZeldHuntMetadata } from '@/core/zeld/types';
 
 /**
  * A composed transaction spent a UTXO the request never offered.
@@ -138,6 +139,11 @@ export interface ComposeResult {
    */
   envelope_script?: string;
   signed_reveal_rawtransaction?: string;
+  /**
+   * Added by the wallet, never by the composer: what the ZELD hunt did to this transaction.
+   * Present only when hunting is enabled; `rawtransaction` and `psbt` already reflect it.
+   */
+  zeld_hunt?: ZeldHuntMetadata;
   params: ComposeParams & {
     asset_dest_quant_list?: [string, string, string | number][];
     memos?: string[];

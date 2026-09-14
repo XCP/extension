@@ -9,6 +9,7 @@ import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import type { AutoLockTimer } from "@/core/settings";
+import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS, ZELD_MIN_ZERO_COUNT } from "@/core/zeld/protocol";
 
 /**
  * Constants for navigation paths and auto-lock options.
@@ -41,7 +42,34 @@ export default function AdvancedSettingsPage(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
+  const [zeldSecondsInput, setZeldSecondsInput] = useState(String(settings.zeldHuntSeconds ?? 0));
+  const [zeldSecondsError, setZeldSecondsError] = useState<string | null>(null);
+  // Follow the stored value when it changes elsewhere (another window), without an effect: adjust
+  // the draft during render, as React documents for state derived from a changed prop.
+  const [syncedZeldSeconds, setSyncedZeldSeconds] = useState(settings.zeldHuntSeconds);
+  if (syncedZeldSeconds !== settings.zeldHuntSeconds) {
+    setSyncedZeldSeconds(settings.zeldHuntSeconds);
+    setZeldSecondsInput(String(settings.zeldHuntSeconds ?? 0));
+  }
 
+  const saveZeldSeconds = async () => {
+    const trimmed = zeldSecondsInput.trim();
+    const parsed = /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+    if (!isValidZeldHuntSeconds(parsed)) {
+      setZeldSecondsError(`Enter a whole number of seconds from 0 to ${MAX_ZELD_HUNT_SECONDS}.`);
+      return;
+    }
+    setZeldSecondsError(null);
+    if (parsed === settings.zeldHuntSeconds) {
+      setZeldSecondsInput(String(parsed));
+      return;
+    }
+    try {
+      await updateSettings({ zeldHuntSeconds: parsed });
+    } catch (error) {
+      setZeldSecondsError(error instanceof Error ? error.message : "Could not save the hunt time.");
+    }
+  };
 
   // Configure header
   useEffect(() => {
@@ -131,6 +159,37 @@ export default function AdvancedSettingsPage(): ReactElement {
           onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
           showHelpText={shouldShowHelpText}
         />
+
+        <Field>
+          <Label htmlFor="zeld-hunt-seconds" className="font-bold">Hunt for ZELD</Label>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              id="zeld-hunt-seconds"
+              type="text"
+              inputMode="numeric"
+              value={zeldSecondsInput}
+              onChange={(event) => setZeldSecondsInput(event.target.value)}
+              onBlur={() => { void saveZeldSeconds(); }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+              }}
+              aria-label="Seconds to hunt for a ZELD txid before signing"
+              aria-invalid={zeldSecondsError ? true : undefined}
+              className="w-24 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
+            />
+            <span className="text-sm text-gray-500">seconds (0 is off, {MAX_ZELD_HUNT_SECONDS} max)</span>
+          </div>
+          {zeldSecondsError && (
+            <p className="mt-1 text-sm text-red-600" role="alert">{zeldSecondsError}</p>
+          )}
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+            Before signing, spend up to this long searching for a transaction ID that starts with
+            {" "}{ZELD_MIN_ZERO_COUNT} zeros, which earns ZELD (zeldhash.com) on your change output.
+            The search changes only a sequence number, adds no bytes and no fee, and when it runs
+            out of time the transaction is sent as composed. Native SegWit and Taproot addresses
+            only, and only when the first output is your own.
+          </Description>
+        </Field>
       </SettingsSection>
 
       <SettingsSection id="adv-connection" title="Connection">

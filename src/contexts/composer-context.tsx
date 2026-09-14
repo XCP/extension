@@ -81,6 +81,7 @@ import { extractCounterpartyPayload } from "@/core/counterparty/unpack/opReturn"
 import { verifyTransaction } from "@/core/counterparty/unpack/verify";
 import { fromSatoshis } from '@/core/numeric';
 import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
+import { huntZeldForCompose } from "@/core/zeld/composeHunt";
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 
 
@@ -138,6 +139,7 @@ function freshComposerState<T>(): ComposerState<T> {
     isSigning: false,
     composedAt: null,
     feeRate: null,
+    zeldHuntProgress: null,
   };
 }
 
@@ -171,6 +173,8 @@ export function ComposerProvider<T>({
   const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress } = useWallet();
   const { settings } = useSettings();
   const { clearBalances } = useHeader();
+  // Read once per render so the compose callback depends on the number, not the settings object.
+  const zeldHuntSeconds = settings?.zeldHuntSeconds ?? 0;
 
   const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
   const previousWalletRef = useRef<string | undefined>(activeWallet?.id);
@@ -490,6 +494,23 @@ export function ComposerProvider<T>({
         },
       };
 
+      // Hunt for a ZELD txid last, once every check above has passed, because it edits the
+      // transaction: input 0's sequence becomes the nonce. The hunt proves that is the only change
+      // and records its outcome on the result, so the review describes exactly what gets signed.
+      // Skipped rather than failed when it cannot apply, so no transaction is ever blocked by it.
+      if (zeldHuntSeconds > 0 && activeWallet) {
+        response = await huntZeldForCompose(response, {
+          sourceAddress: activeAddress.address,
+          addressFormat: activeWallet.addressFormat,
+          walletType: activeWallet.type,
+          seconds: zeldHuntSeconds,
+          signal,
+          onProgress: (progress) => {
+            if (!signal.aborted) setState(prev => ({ ...prev, zeldHuntProgress: progress }));
+          },
+        });
+      }
+
       // Final abort check before state update
       if (signal.aborted) return;
 
@@ -507,6 +528,7 @@ export function ComposerProvider<T>({
         decodedMessage,
         isComposing: false,
         composedAt: Date.now(),
+        zeldHuntProgress: null,
       }));
     } catch (error) {
       // Silently ignore abort errors (user navigated away)
@@ -534,8 +556,8 @@ export function ComposerProvider<T>({
         isComposing: false,
       }));
     }
-  }, [activeAddress, composeApi, composeType, state.isComposing]);
-  
+  }, [activeAddress, activeWallet, composeApi, composeType, zeldHuntSeconds, state.isComposing]);
+
   // Core sign and broadcast logic - extracted to avoid duplication
   const performSignAndBroadcast = useCallback(async () => {
     if (!state.apiResponse || !activeAddress) {

@@ -8,6 +8,7 @@ import { createContext, use } from "react";
 import type { useSettings } from "@/contexts/settings-context";
 import type { useWallet } from "@/contexts/wallet-context";
 import type { ApiResponse } from "@/core/counterparty/compose";
+import type { ZeldHuntProgress } from "@/core/zeld/types";
 
 export interface DecodedMessage {
   messageType: string;
@@ -27,6 +28,8 @@ export interface ComposerState<T> {
   composedAt: number | null;
   /** sat/vB; null means a valid fee rate has not been selected yet. */
   feeRate: number | null;
+  /** Live figures while a ZELD hunt runs between composing and review; null otherwise. */
+  zeldHuntProgress: ZeldHuntProgress | null;
 }
 
 export interface ComposerContextType<T> {

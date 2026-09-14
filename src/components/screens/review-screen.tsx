@@ -6,6 +6,7 @@ import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAddress, formatAmount } from "@/core/format";
 import { formatFeeRate, fromSatoshis } from "@/core/numeric";
+import type { ZeldHuntMetadata } from "@/core/zeld/types";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 /**
@@ -22,6 +23,7 @@ interface TransactionResult {
   name?: string;
   btc_fee: number;
   xcp_fee?: number;
+  zeld_hunt?: ZeldHuntMetadata;
   [key: string]: any;
 }
 
@@ -192,6 +194,8 @@ export function ReviewScreen({
           </div>
         )}
         
+        {result.zeld_hunt && <ZeldHuntField hunt={result.zeld_hunt} />}
+
         {/* Transaction Fee */}
         <div className="space-y-1">
           <span className="block font-semibold text-gray-700">Fee:</span>
@@ -250,6 +254,52 @@ export function ReviewScreen({
         >
           {isSigning ? "Signing…" : "Sign & Broadcast"}
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function formatAttempts(attempts: number): string {
+  if (attempts >= 1_000_000) return `${(attempts / 1_000_000).toFixed(1)}M`;
+  if (attempts >= 1_000) return `${Math.round(attempts / 1_000)}K`;
+  return String(attempts);
+}
+
+/**
+ * What the ZELD hunt did to this transaction. Found means the txid below is the one that will be
+ * signed and broadcast; the leading zeros are what earns the reward once it confirms.
+ */
+function ZeldHuntField({ hunt }: { hunt: ZeldHuntMetadata }): ReactElement {
+  const seconds = (hunt.elapsed_ms / 1000).toFixed(1);
+  return (
+    <div className="space-y-1">
+      <span className="block font-semibold text-gray-700">ZELD hunt:</span>
+      <div className="bg-gray-50 p-2 rounded text-gray-900 space-y-1">
+        {hunt.status === 'found' && hunt.txid && (
+          <>
+            <div>
+              Found a txid with {hunt.zero_count} leading zeros in {seconds}s
+              {' '}({formatAttempts(hunt.attempts)} hashes).
+            </div>
+            <div className="font-mono text-xs break-all">
+              <span className="font-bold">{hunt.txid.slice(0, hunt.zero_count)}</span>
+              {hunt.txid.slice(hunt.zero_count)}
+            </div>
+            <div className="text-sm text-gray-500">
+              Earns ZELD on your change output when it confirms. A rarer txid in the same block
+              divides the reward by 16 per extra zero.
+            </div>
+          </>
+        )}
+        {hunt.status === 'not_found' && (
+          <div>
+            No txid with {hunt.target_zeros} leading zeros within {hunt.seconds}s
+            {' '}({formatAttempts(hunt.attempts)} hashes). Sending as composed.
+          </div>
+        )}
+        {hunt.status === 'skipped' && (
+          <div>Skipped. {hunt.reason}</div>
+        )}
       </div>
     </div>
   );
