@@ -19,6 +19,8 @@ import type { ZeldHuntMetadata, ZeldHuntProgress } from '@/core/zeld/types';
 export interface ComposeHuntContext {
   sourceAddress: string;
   addressFormat: AddressFormat;
+  /** The source's public key; a nested SegWit hunt needs it. */
+  publicKeyHex?: string;
   walletType: 'mnemonic' | 'privateKey' | 'hardware';
   /** The configured budget; clamped to the protocol cap. Zero or less means no hunt. */
   seconds: number;
@@ -65,6 +67,7 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
     rawTxHex,
     sourceAddress: context.sourceAddress,
     addressFormat: context.addressFormat,
+    publicKeyHex: context.publicKeyHex,
   });
   if (!assessment.eligible) {
     return withMetadata(response, { ...base, status: 'skipped', elapsed_ms: 0, attempts: 0, reason: assessment.reason });

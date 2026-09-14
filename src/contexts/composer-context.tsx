@@ -507,6 +507,7 @@ export function ComposerProvider<T>({
         response = await huntZeldForCompose(response, {
           sourceAddress: activeAddress.address,
           addressFormat: activeWallet.addressFormat,
+          publicKeyHex: activeAddress.pubKey,
           walletType: activeWallet.type,
           seconds: zeldHuntSeconds,
           signal,

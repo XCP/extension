@@ -4,6 +4,10 @@ import * as btc from '@scure/btc-signer';
 /** A compressed public key. Only its hash matters here, so any valid point will do. */
 export const PUBKEY = hexToBytes('0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798');
 export const SOURCE_P2WPKH = btc.p2wpkh(PUBKEY);
+/** The private key behind PUBKEY (the generator point), for tests that sign. */
+export const PRIVATE_KEY = hexToBytes('00'.repeat(31) + '01');
+/** The same key behind a nested SegWit address. */
+export const SOURCE_NESTED = btc.p2sh(SOURCE_P2WPKH);
 export const SOURCE_ADDRESS = SOURCE_P2WPKH.address!;
 export const OTHER_ADDRESS = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
 export const PREV_TXID = '1f81ad6116ac6045b5bc4941afc212456770ab389c05973c088f22063a2aff37';

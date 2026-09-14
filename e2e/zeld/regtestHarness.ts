@@ -32,23 +32,40 @@ const RUN_ID = process.env.ZELD_REGTEST_RUN ?? String(Date.now());
 
 export interface RegtestKey {
   privateKey: Uint8Array;
+  publicKeyHex: string;
   address: string;
   script: Uint8Array;
   scriptHex: string;
+  /** Set for a nested SegWit key: the P2WPKH script its P2SH wraps. */
+  redeemScript?: Uint8Array;
 }
 
 /** A throwaway P2WPKH key that only ever holds regtest coins. */
 export function keyFor(label: string): RegtestKey {
   const privateKey = sha256(utf8ToBytes(`xcp-wallet zeld regtest ${label} ${RUN_ID}`));
-  const payment = btc.p2wpkh(secp256k1.getPublicKey(privateKey, true), REGTEST);
-  return { privateKey, address: payment.address!, script: payment.script, scriptHex: Buffer.from(payment.script).toString('hex') };
+  const publicKey = secp256k1.getPublicKey(privateKey, true);
+  const payment = btc.p2wpkh(publicKey, REGTEST);
+  return { privateKey, publicKeyHex: Buffer.from(publicKey).toString('hex'), address: payment.address!, script: payment.script, scriptHex: Buffer.from(payment.script).toString('hex') };
 }
 
 /** A throwaway legacy P2PKH key, for the signing-time hunt. */
 export function legacyKeyFor(label: string): RegtestKey {
   const privateKey = sha256(utf8ToBytes(`xcp-wallet zeld regtest legacy ${label} ${RUN_ID}`));
-  const payment = btc.p2pkh(secp256k1.getPublicKey(privateKey, true), REGTEST);
-  return { privateKey, address: payment.address!, script: payment.script, scriptHex: Buffer.from(payment.script).toString('hex') };
+  const publicKey = secp256k1.getPublicKey(privateKey, true);
+  const payment = btc.p2pkh(publicKey, REGTEST);
+  return { privateKey, publicKeyHex: Buffer.from(publicKey).toString('hex'), address: payment.address!, script: payment.script, scriptHex: Buffer.from(payment.script).toString('hex') };
+}
+
+/** A throwaway nested SegWit (P2SH-P2WPKH) key. */
+export function nestedKeyFor(label: string): RegtestKey {
+  const privateKey = sha256(utf8ToBytes(`xcp-wallet zeld regtest nested ${label} ${RUN_ID}`));
+  const publicKey = secp256k1.getPublicKey(privateKey, true);
+  const inner = btc.p2wpkh(publicKey, REGTEST);
+  const payment = btc.p2sh(inner, REGTEST);
+  return {
+    privateKey, publicKeyHex: Buffer.from(publicKey).toString('hex'), address: payment.address!, script: payment.script,
+    scriptHex: Buffer.from(payment.script).toString('hex'), redeemScript: inner.script,
+  };
 }
 
 export async function rpc<T = unknown>(method: string, params: unknown[] = [], wallet: string | null = MINER_WALLET): Promise<T> {
@@ -143,6 +160,11 @@ export async function signAsWallet(response: ApiResponse, key: RegtestKey): Prom
     if (lockScript.startsWith('76a914')) {
       const prevTxid = Buffer.from(tx.getInput(index).txid!).toString('hex');
       tx.updateInput(index, { nonWitnessUtxo: hexToBytes(await rpc<string>('getrawtransaction', [prevTxid], null)) });
+    } else if (key.redeemScript) {
+      tx.updateInput(index, {
+        redeemScript: key.redeemScript,
+        witnessUtxo: { script: hexToBytes(lockScript), amount: BigInt(response.result.inputs_values[index]!) },
+      });
     } else {
       tx.updateInput(index, {
         witnessUtxo: { script: hexToBytes(lockScript), amount: BigInt(response.result.inputs_values[index]!) },
@@ -158,7 +180,8 @@ export async function signAsWallet(response: ApiResponse, key: RegtestKey): Prom
 export function huntAsWallet(response: ApiResponse, key: RegtestKey, targetZeros: number): Promise<ApiResponse> {
   return huntZeldForCompose(response, {
     sourceAddress: key.address,
-    addressFormat: AddressFormat.P2WPKH,
+    addressFormat: key.redeemScript ? AddressFormat.P2SH_P2WPKH : AddressFormat.P2WPKH,
+    publicKeyHex: key.publicKeyHex,
     walletType: 'mnemonic',
     seconds: 60,
     targetZeros,

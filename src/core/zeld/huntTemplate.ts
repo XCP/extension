@@ -7,9 +7,10 @@
  *
  * 1. A txid is the hash of the transaction without witness data. For a Native SegWit or Taproot
  *    input the scriptSig stays empty after signing, so the txid the hunt computes on the unsigned
- *    bytes is the txid the signed transaction will have. A legacy input puts its signature in the
- *    scriptSig, and a nested SegWit input puts its redeem script there, so either would change
- *    the txid at signing time and waste the hunt. Those formats are refused here.
+ *    bytes is the txid the signed transaction will have. A nested SegWit input's scriptSig is
+ *    exactly one push of its redeem script, which the public key determines, so the hunt fills
+ *    that in and hashes what the signer will produce. A legacy input puts its signature in the
+ *    scriptSig, so it cannot hunt before signing; `signHunt.ts` hunts while signing instead.
  * 2. Counterparty never reads nLockTime or nSequence (`counterparty-rs` records both and the
  *    Python parser ignores them), and the ZELD protocol reads only the txid and the outputs.
  *
@@ -18,7 +19,8 @@
  * qualifies, a BTC send whose first output is the recipient does not.
  */
 
-import { Address, NETWORK, OutScript, TEST_NETWORK } from '@scure/btc-signer';
+import { hexToBytes } from '@noble/hashes/utils.js';
+import { Address, NETWORK, OutScript, p2sh, p2wpkh, TEST_NETWORK } from '@scure/btc-signer';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { decodeRawTransaction, parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
@@ -46,11 +48,47 @@ const HUNTABLE_FORMATS: ReadonlySet<AddressFormat> = new Set([
   AddressFormat.P2TR,
   AddressFormat.CounterwalletSegwit,
   AddressFormat.FreewalletBIP39Segwit,
+  AddressFormat.P2SH_P2WPKH,
 ]);
 
-/** Formats whose signed txid equals their unsigned txid. */
+/** Formats whose signed txid is known before signing. */
 export function isHuntableAddressFormat(format: AddressFormat): boolean {
   return HUNTABLE_FORMATS.has(format);
+}
+
+/**
+ * The scriptSig a nested SegWit input carries once signed: one push of the P2WPKH redeem script
+ * the public key determines. Null when the key does not hash to the address.
+ */
+export function nestedSegwitScriptSig(publicKeyHex: string, sourceAddress: string): Uint8Array | null {
+  let redeemScript: Uint8Array;
+  let expectedScript: Uint8Array;
+  try {
+    const inner = p2wpkh(hexToBytes(publicKeyHex));
+    redeemScript = inner.script;
+    expectedScript = p2sh(inner).script;
+  } catch {
+    return null;
+  }
+  if (bytesToHex(expectedScript) !== scriptHexForAddress(sourceAddress)) return null;
+  return Uint8Array.of(redeemScript.length, ...redeemScript);
+}
+
+/** `message` with `scriptSig` spliced into every (empty) scriptSig slot. */
+function withScriptSigs(message: Uint8Array, layout: InputLayout, scriptSig: Uint8Array): Uint8Array {
+  const out = new Uint8Array(message.length + layout.scriptSigOffsets.length * scriptSig.length);
+  let from = 0;
+  let to = 0;
+  for (const at of layout.scriptSigOffsets) {
+    out.set(message.subarray(from, at), to);
+    to += at - from;
+    out[to] = scriptSig.length;
+    out.set(scriptSig, to + 1);
+    to += 1 + scriptSig.length;
+    from = at + 1;
+  }
+  out.set(message.subarray(from), to);
+  return out;
 }
 
 const REGTEST_NETWORK = { ...TEST_NETWORK, bech32: 'bcrt' };
@@ -126,16 +164,29 @@ export interface AssessZeldHuntInput {
   rawTxHex: string;
   sourceAddress: string;
   addressFormat: AddressFormat;
+  /** The source's public key, which a nested SegWit hunt needs for its redeem script. */
+  publicKeyHex?: string;
 }
 
 /** Whether, and over which bytes, this composed transaction can hunt. */
-export function assessZeldHunt({ rawTxHex, sourceAddress, addressFormat }: AssessZeldHuntInput): HuntAssessment {
+export function assessZeldHunt({ rawTxHex, sourceAddress, addressFormat, publicKeyHex }: AssessZeldHuntInput): HuntAssessment {
   if (!isHuntableAddressFormat(addressFormat)) {
     return {
       eligible: false,
-      reason: 'Only Native SegWit and Taproot addresses can hunt. Signing a legacy or nested '
-        + 'SegWit input changes the txid, so a hunt before signing would be wasted.',
+      reason: 'Signing a legacy input puts the signature in the scriptSig and changes the txid, '
+        + 'so a legacy transaction hunts while it is signed rather than before.',
     };
+  }
+  let scriptSig: Uint8Array | null = null;
+  if (addressFormat === AddressFormat.P2SH_P2WPKH) {
+    scriptSig = publicKeyHex ? nestedSegwitScriptSig(publicKeyHex, sourceAddress) : null;
+    if (!scriptSig) {
+      return {
+        eligible: false,
+        reason: 'A nested SegWit hunt needs the public key behind the address, and this wallet '
+          + 'did not record one that matches.',
+      };
+    }
   }
 
   let message: Uint8Array;
@@ -159,6 +210,11 @@ export function assessZeldHunt({ rawTxHex, sourceAddress, addressFormat }: Asses
       eligible: false,
       reason: 'An input already carries script bytes, so its txid is not settled until signing.',
     };
+  }
+  if (scriptSig) {
+    // What the signer will put in every scriptSig; the txid hashes it, so the hunt must too.
+    message = withScriptSigs(message, layout, scriptSig);
+    layout = locateInputSequences(message);
   }
 
   const parsed = parseRawTransactionLocally(rawTxHex);

@@ -16,7 +16,10 @@ import {
   OTHER_ADDRESS,
   opReturnScript,
   PREV_TXID,
+  PRIVATE_KEY,
+  PUBKEY,
   SOURCE_ADDRESS,
+  SOURCE_NESTED,
   SOURCE_P2WPKH,
   unsignedRawTx,
 } from './fixtures';
@@ -100,12 +103,48 @@ describe('assessZeldHunt', () => {
 
   it.each([
     AddressFormat.P2PKH,
-    AddressFormat.P2SH_P2WPKH,
     AddressFormat.Counterwallet,
     AddressFormat.FreewalletBIP39,
-  ])('refuses the %s format because signing changes its txid', (addressFormat) => {
+  ])('refuses the %s format before signing, since the signature changes its txid', (addressFormat) => {
     const assessment = assessZeldHunt({ rawTxHex: enhancedSendRawTx(), sourceAddress: SOURCE_ADDRESS, addressFormat });
     expect(assessment).toEqual({ eligible: false, reason: expect.stringContaining('changes the txid') });
+  });
+
+  it('hunts a nested SegWit spend over the scriptSig the signer will produce', () => {
+    const rawTxHex = unsignedRawTx({
+      inputs: [{ txid: PREV_TXID, index: 0, sequence: 0xfffffffd }, { txid: PREV_TXID, index: 1, sequence: 0xfffffffd }],
+      outputs: [{ script: opReturnScript(), amount: 0n }, { script: SOURCE_NESTED.script, amount: 90_000n }],
+    });
+    const assessment = assessZeldHunt({
+      rawTxHex, sourceAddress: SOURCE_NESTED.address!, addressFormat: AddressFormat.P2SH_P2WPKH, publicKeyHex: bytesToHex(PUBKEY),
+    });
+    if (!assessment.eligible) throw new Error(assessment.reason);
+    const nonce = 0x0102_0304;
+    const hasher = new MutableSha256d(messageWithNonce(assessment.template, nonce));
+    hasher.hashLeadingZeroNibbles();
+
+    // Sign the patched transaction the way the wallet does and compare txids.
+    const signed = parseConsensusTransaction(rawTransactionWithNonce(rawTxHex, nonce));
+    for (let index = 0; index < 2; index++) {
+      signed.updateInput(index, {
+        redeemScript: SOURCE_P2WPKH.script,
+        witnessUtxo: { script: SOURCE_NESTED.script, amount: 100_000n },
+      });
+    }
+    signed.sign(PRIVATE_KEY);
+    signed.finalize();
+    expect(signed.id).toBe(hasher.txid());
+    expect(signed.lockTime).toBe(nonce);
+  });
+
+  it('refuses a nested SegWit hunt without a public key, or with one that does not match', () => {
+    const rawTxHex = unsignedRawTx({ outputs: [{ script: opReturnScript(), amount: 0n }, { script: SOURCE_NESTED.script, amount: 90_000n }] });
+    const without = assessZeldHunt({ rawTxHex, sourceAddress: SOURCE_NESTED.address!, addressFormat: AddressFormat.P2SH_P2WPKH });
+    expect(without).toEqual({ eligible: false, reason: expect.stringContaining('public key') });
+    const wrong = assessZeldHunt({
+      rawTxHex, sourceAddress: SOURCE_NESTED.address!, addressFormat: AddressFormat.P2SH_P2WPKH, publicKeyHex: '02' + 'ab'.repeat(32),
+    });
+    expect(wrong).toEqual({ eligible: false, reason: expect.stringContaining('public key') });
   });
 
   it('refuses when the first spendable output pays someone else', () => {

@@ -1,4 +1,4 @@
-import { hexToBytes } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
@@ -9,7 +9,7 @@ import type { ApiResponse } from '@/core/counterparty/compose';
 import { huntZeldForCompose } from '@/core/zeld/composeHunt';
 import type { HuntTxidResult } from '@/core/zeld/hunt';
 import { psbtWithNonce } from '@/core/zeld/psbtNonce';
-import { enhancedSendRawTx, opReturnScript, PREV_TXID, psbtHexFor, SOURCE_ADDRESS, SOURCE_P2WPKH, unsignedRawTx } from './fixtures';
+import { enhancedSendRawTx, opReturnScript, PREV_TXID, PUBKEY, psbtHexFor, SOURCE_ADDRESS, SOURCE_NESTED, SOURCE_P2WPKH, unsignedRawTx } from './fixtures';
 
 function responseFor(rawtransaction: string, psbt = psbtHexFor(rawtransaction)): ApiResponse {
   return {
@@ -87,14 +87,25 @@ describe('huntZeldForCompose', () => {
     expect(result.result.zeld_hunt).toMatchObject({ status: 'skipped', reason: 'A legacy transaction hunts while it is signed.' });
   });
 
-  it('records a skipped hunt for nested SegWit, whose txid changes at signing', async () => {
+  it('records a skipped hunt for nested SegWit when no public key is known', async () => {
     const response = responseFor(enhancedSendRawTx());
     const hunt = vi.fn();
     const result = await huntZeldForCompose(response, { ...context, addressFormat: AddressFormat.P2SH_P2WPKH, hunt });
     expect(result.result.rawtransaction).toBe(response.result.rawtransaction);
     expect(result.result.zeld_hunt).toMatchObject({ status: 'skipped', seconds: 5, target_zeros: 6 });
-    expect(result.result.zeld_hunt?.reason).toContain('changes the txid');
+    expect(result.result.zeld_hunt?.reason).toContain('public key');
     expect(hunt).not.toHaveBeenCalled();
+  });
+
+  it('hunts a nested SegWit spend when the public key matches the address', async () => {
+    const rawTxHex = unsignedRawTx({ outputs: [{ script: opReturnScript(), amount: 0n }, { script: SOURCE_NESTED.script, amount: 95_160n }] });
+    const result = await huntZeldForCompose(responseFor(rawTxHex), {
+      ...context, sourceAddress: SOURCE_NESTED.address!, addressFormat: AddressFormat.P2SH_P2WPKH, publicKeyHex: bytesToHex(PUBKEY), targetZeros: 2,
+    });
+    expect(result.result.zeld_hunt?.status).toBe('found');
+    expect(result.result.zeld_hunt?.txid?.startsWith('00')).toBe(true);
+    // The reviewed bytes are unsigned; the found txid is the signed transaction's.
+    expect(parseRawTransactionLocally(result.result.rawtransaction)?.txid).not.toBe(result.result.zeld_hunt?.txid);
   });
 
   it('records a skipped hunt when the first output pays someone else', async () => {
