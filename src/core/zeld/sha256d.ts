@@ -180,9 +180,14 @@ export class MutableSha256d {
   /** The double SHA-256 digest of the message as last hashed, in digest (not txid) byte order. */
   digest(): Uint8Array {
     const out = new Uint8Array(32);
-    const view = new DataView(out.buffer);
-    for (let i = 0; i < 8; i++) view.setInt32(i * 4, this.state[i]!);
+    this.digestInto(out);
     return out;
+  }
+
+  /** `digest()` written into a caller's 32-byte buffer, for loops that must not allocate. */
+  digestInto(out: Uint8Array): void {
+    const view = new DataView(out.buffer, out.byteOffset, 32);
+    for (let i = 0; i < 8; i++) view.setInt32(i * 4, this.state[i]!);
   }
 
   /** The txid of the message as last hashed: the digest, byte-reversed, as lowercase hex. */

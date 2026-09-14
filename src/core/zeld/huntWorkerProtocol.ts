@@ -1,10 +1,10 @@
 /** Messages between the hunt coordinator and a hunt worker. Type-only; shared by both sides. */
 
+import type { HuntJob } from '@/core/zeld/mineJob';
 import type { MineRangeFound } from '@/core/zeld/mineRange';
 
 export interface HuntWorkerRequest {
-  message: Uint8Array;
-  nonceOffset: number;
+  job: HuntJob;
   /** First nonce to try, inclusive. */
   startNonce: number;
   /** Last nonce to try, exclusive. */

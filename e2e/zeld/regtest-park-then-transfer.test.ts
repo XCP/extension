@@ -92,7 +92,7 @@ describe('ownership transfer from an address whose balance is all hunted change'
       sourceAddress: owner.address, asset, quantity: 1000, divisible: false, lock: false, reset: false, sat_per_vbyte: 2,
     }), owner, 6);
     expect(issued.result.zeld_hunt?.status).toBe('found');
-    const signedIssue = signAsWallet(issued, owner);
+    const signedIssue = await signAsWallet(issued, owner);
     await broadcastAndMine(signedIssue.hex, minerAddress);
     expect((await parsedTransaction(signedIssue.txid)).unpacked_data?.message_type).toBe('issuance');
     log('asset issued on a six-zero txid', { asset, txid: signedIssue.txid });
@@ -107,7 +107,7 @@ describe('ownership transfer from an address whose balance is all hunted change'
     // 2. Park: all ZELD onto a 330-sat output, the rest returned as clean change. Hunted too.
     const park = await huntAsWallet(await composeZeldPark({ sourceAddress: owner.address, sat_per_vbyte: 2 }), owner, 6);
     expect(park.result.zeld_send?.park).toBe(true);
-    const signedPark = signAsWallet(park, owner);
+    const signedPark = await signAsWallet(park, owner);
     await broadcastAndMine(signedPark.hex, minerAddress);
     const parkTx = parseRawTransactionLocally(await rpc<string>('getrawtransaction', [signedPark.txid], null))!;
     expect(parkTx.outputs[0]?.value).toBe(330);
@@ -121,7 +121,7 @@ describe('ownership transfer from an address whose balance is all hunted change'
     expect(transfer.result.zeld_hunt?.status).toBe('skipped');
     const transferTx = parseRawTransactionLocally(transfer.result.rawtransaction)!;
     expect(transferTx.inputs.some(i => i.txid === signedPark.txid && i.vout === 0)).toBe(false);
-    const signedTransfer = signAsWallet(transfer, owner);
+    const signedTransfer = await signAsWallet(transfer, owner);
     await broadcastAndMine(signedTransfer.hex, minerAddress);
     const info = await counterparty<{ owner: string }>(`/assets/${asset}`);
     expect(info.owner).toBe(minerAddress);

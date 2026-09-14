@@ -80,10 +80,17 @@ describe('huntZeldForCompose', () => {
     expect(hunted.params).toEqual(response.result.params);
   });
 
-  it('records a skipped hunt for an address format whose txid changes at signing', async () => {
+  it('defers a legacy software wallet to the signing-time hunt', async () => {
+    const hunt = vi.fn();
+    const result = await huntZeldForCompose(responseFor(enhancedSendRawTx()), { ...context, addressFormat: AddressFormat.P2PKH, hunt });
+    expect(hunt).not.toHaveBeenCalled();
+    expect(result.result.zeld_hunt).toMatchObject({ status: 'skipped', reason: 'A legacy transaction hunts while it is signed.' });
+  });
+
+  it('records a skipped hunt for nested SegWit, whose txid changes at signing', async () => {
     const response = responseFor(enhancedSendRawTx());
     const hunt = vi.fn();
-    const result = await huntZeldForCompose(response, { ...context, addressFormat: AddressFormat.P2PKH, hunt });
+    const result = await huntZeldForCompose(response, { ...context, addressFormat: AddressFormat.P2SH_P2WPKH, hunt });
     expect(result.result.rawtransaction).toBe(response.result.rawtransaction);
     expect(result.result.zeld_hunt).toMatchObject({ status: 'skipped', seconds: 5, target_zeros: 6 });
     expect(result.result.zeld_hunt?.reason).toContain('changes the txid');

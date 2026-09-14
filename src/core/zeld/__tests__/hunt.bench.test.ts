@@ -31,7 +31,8 @@ describe('ZELD hunt benchmark', () => {
     if (!assessment.eligible) throw new Error(assessment.reason);
 
     let lastRate = 0;
-    const result = await huntTxid(assessment.template, {
+    const { message, nonceOffset } = assessment.template;
+    const result = await huntTxid({ kind: 'locktime', message, nonceOffset }, {
       seconds: 600,
       targetZeros,
       createWorker: () => null,

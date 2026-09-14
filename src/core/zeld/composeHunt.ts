@@ -13,6 +13,7 @@ import { huntTxid } from '@/core/zeld/hunt';
 import { assertOnlyNonceChanged, assessZeldHunt, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
 import { MAX_ZELD_HUNT_SECONDS, ZELD_MIN_ZERO_COUNT, ZELD_STOP_ZERO_COUNT } from '@/core/zeld/protocol';
 import { psbtWithNonce } from '@/core/zeld/psbtNonce';
+import { huntsWhileSigning } from '@/core/zeld/signHunt';
 import type { ZeldHuntMetadata, ZeldHuntProgress } from '@/core/zeld/types';
 
 export interface ComposeHuntContext {
@@ -37,6 +38,9 @@ export interface ComposeHuntContext {
   hunt?: typeof huntTxid;
 }
 
+/** The skip reason a legacy software wallet records at compose time; its hunt runs at signing. */
+export const HUNTS_WHILE_SIGNING = 'A legacy transaction hunts while it is signed.';
+
 function withMetadata(response: ApiResponse, zeld_hunt: ZeldHuntMetadata): ApiResponse {
   return { ...response, result: { ...response.result, zeld_hunt } };
 }
@@ -54,6 +58,9 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
   const base = { target_zeros: targetZeros, seconds };
 
   const rawTxHex = response.result.rawtransaction;
+  if (huntsWhileSigning(context.addressFormat, context.walletType)) {
+    return withMetadata(response, { ...base, status: 'skipped', elapsed_ms: 0, attempts: 0, reason: HUNTS_WHILE_SIGNING });
+  }
   const assessment = assessZeldHunt({
     rawTxHex,
     sourceAddress: context.sourceAddress,
@@ -81,7 +88,8 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
   }
 
   const hunt = context.hunt ?? huntTxid;
-  const outcome = await hunt(assessment.template, {
+  const { message, nonceOffset } = assessment.template;
+  const outcome = await hunt({ kind: 'locktime', message, nonceOffset }, {
     seconds,
     targetZeros,
     stopZeros,

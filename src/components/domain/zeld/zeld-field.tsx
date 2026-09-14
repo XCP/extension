@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { formatAmount } from "@/core/format";
 import { zeldBaseUnitsToDisplay } from "@/core/zeld/api";
+import { HUNTS_WHILE_SIGNING } from "@/core/zeld/composeHunt";
 import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
 
 function zeld(baseUnits: string): string {
@@ -31,6 +32,7 @@ export function zeldReviewLine({
     return `Rare txid found: ${hunt.zero_count} zeros in ${(hunt.elapsed_ms / 1000).toFixed(1)}s`;
   }
   if (hunt?.status === 'not_found') return `No rare txid in ${hunt.seconds}s; sending as usual`;
+  if (hunt?.status === 'skipped' && hunt.reason === HUNTS_WHILE_SIGNING) return `Hunts for ZELD while signing, up to ${hunt.seconds}s`;
   return null;
 }
 

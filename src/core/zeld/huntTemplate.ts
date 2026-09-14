@@ -82,7 +82,9 @@ function readVarint(bytes: Uint8Array, position: number): { value: number; size:
   throw new RangeError('unsupported varint');
 }
 
-interface InputLayout {
+export interface InputLayout {
+  /** Byte offset of every input's scriptSig length varint, in input order. */
+  scriptSigOffsets: number[];
   /** Byte offset of every input's nSequence, in input order. */
   sequenceOffsets: number[];
   /** Whether any input carries scriptSig bytes. */
@@ -99,10 +101,12 @@ export function locateInputSequences(bytes: Uint8Array): InputLayout {
   if (bytes[4] === 0x00 && bytes[5] === 0x01) position = 6;
   const count = readVarint(bytes, position);
   position += count.size;
+  const scriptSigOffsets: number[] = [];
   const sequenceOffsets: number[] = [];
   let hasScriptSig = false;
   for (let index = 0; index < count.value; index++) {
     position += 36;
+    scriptSigOffsets.push(position);
     const scriptLength = readVarint(bytes, position);
     position += scriptLength.size;
     if (scriptLength.value > 0) hasScriptSig = true;
@@ -111,7 +115,7 @@ export function locateInputSequences(bytes: Uint8Array): InputLayout {
     position += 4;
   }
   if (position > bytes.length) throw new RangeError('truncated transaction');
-  return { sequenceOffsets, hasScriptSig };
+  return { scriptSigOffsets, sequenceOffsets, hasScriptSig };
 }
 
 function readUint32LE(bytes: Uint8Array, offset: number): number {

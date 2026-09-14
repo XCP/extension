@@ -1,5 +1,6 @@
 /**
- * Run a time-boxed hunt for a txid with leading zeros across Web Workers.
+ * Run a time-boxed hunt for a txid with leading zeros across Web Workers, over whichever job
+ * `mineJob.ts` describes.
  *
  * The nonce space (`LOCKTIME_NONCE_COUNT` values) is split into one contiguous slice per worker.
  * A txid with `stopZeros` ends the hunt at once. A txid with `targetZeros` is kept as the best so
@@ -12,11 +13,10 @@
  * batches, yielding to the event loop between them.
  */
 
-import type { HuntTemplate } from '@/core/zeld/huntTemplate';
 import type { HuntWorkerRequest, HuntWorkerResponse } from '@/core/zeld/huntWorkerProtocol';
-import { type MineRangeFound, mineRange } from '@/core/zeld/mineRange';
+import { createMiner, type HuntJob } from '@/core/zeld/mineJob';
+import type { MineRangeFound } from '@/core/zeld/mineRange';
 import { LOCKTIME_NONCE_COUNT } from '@/core/zeld/protocol';
-import { MutableSha256d } from '@/core/zeld/sha256d';
 import type { ZeldHuntProgress } from '@/core/zeld/types';
 
 export type HuntTxidResult =
@@ -83,7 +83,7 @@ function settled(best: MineRangeFound | undefined, attempts: number, elapsedMs: 
   return best ? { status: 'found', ...best, attempts, elapsedMs } : { status: 'not_found', attempts, elapsedMs };
 }
 
-export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions): Promise<HuntTxidResult> {
+export async function huntTxid(job: HuntJob, options: HuntTxidOptions): Promise<HuntTxidResult> {
   const now = options.now ?? (() => Date.now());
   const startedAt = now();
   const budgetMs = Math.max(0, options.seconds) * 1000;
@@ -100,7 +100,7 @@ export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions)
     if (!worker) break;
     workers.push(worker);
   }
-  if (workers.length === 0) return huntInline(template, options, stopZeros, now, deadline, startedAt);
+  if (workers.length === 0) return huntInline(job, options, stopZeros, now, deadline, startedAt);
 
   const attemptsByWorker = Array.from({ length: workers.length }, () => 0);
   const totalAttempts = () => attemptsByWorker.reduce((sum, count) => sum + count, 0);
@@ -182,8 +182,7 @@ export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions)
       const startNonce = index * slice;
       const endNonce = index === workers.length - 1 ? LOCKTIME_NONCE_COUNT : startNonce + slice;
       worker.postMessage({
-        message: template.message,
-        nonceOffset: template.nonceOffset,
+        job,
         startNonce,
         endNonce,
         targetZeros: options.targetZeros,
@@ -195,14 +194,14 @@ export async function huntTxid(template: HuntTemplate, options: HuntTxidOptions)
 }
 
 async function huntInline(
-  template: HuntTemplate,
+  job: HuntJob,
   options: HuntTxidOptions,
   stopZeros: number,
   now: () => number,
   deadline: number,
   startedAt: number,
 ): Promise<HuntTxidResult> {
-  const hasher = new MutableSha256d(template.message, template.nonceOffset);
+  const miner = createMiner(job);
   const batchSize = options.batchSize ?? INLINE_BATCH_SIZE;
   const end = LOCKTIME_NONCE_COUNT;
   let nonce = 0;
@@ -214,7 +213,7 @@ async function huntInline(
     if (options.signal?.aborted) return { status: 'aborted', attempts, elapsedMs: elapsed() };
     if (now() >= deadline || (best && options.acceptEarly?.aborted)) break;
     const count = Math.min(batchSize, end - nonce);
-    const result = mineRange(template.message, template.nonceOffset, nonce, count, options.targetZeros, hasher, stopZeros);
+    const result = miner.mine(nonce, count, options.targetZeros, stopZeros);
     attempts += result.attempts;
     nonce += count;
     best = better(result.best, best);

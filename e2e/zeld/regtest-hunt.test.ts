@@ -61,7 +61,7 @@ describe('ZELD hunt on Counterparty regtest', () => {
     }), hunter, targetZeros);
     expect(broadcast.result.zeld_hunt?.status).toBe('found');
     expect(countLeadingZeroNibbles(broadcast.result.zeld_hunt!.txid!)).toBeGreaterThanOrEqual(targetZeros);
-    const signedBroadcast = signAsWallet(broadcast, hunter);
+    const signedBroadcast = await signAsWallet(broadcast, hunter);
     expect(signedBroadcast.txid).toBe(broadcast.result.zeld_hunt!.txid);
     log('broadcast hunted', broadcast.result.zeld_hunt);
     await broadcastAndMine(signedBroadcast.hex, minerAddress);
@@ -75,7 +75,7 @@ describe('ZELD hunt on Counterparty regtest', () => {
     // 2. Burn: the burn address is the first spendable output, so the hunt must refuse.
     const burn = await huntAsWallet(await compose(hunter.address, 'burn', { quantity: '100000000' }), hunter, targetZeros);
     expect(burn.result.zeld_hunt).toMatchObject({ status: 'skipped', reason: expect.stringContaining('someone else') });
-    const signedBurn = signAsWallet(burn, hunter);
+    const signedBurn = await signAsWallet(burn, hunter);
     await broadcastAndMine(signedBurn.hex, minerAddress);
     const parsedBurn = await parsedTransaction(signedBurn.txid);
     expect(parsedBurn.supported).toBe(true);
@@ -88,7 +88,7 @@ describe('ZELD hunt on Counterparty regtest', () => {
       destination: minerAddress, asset: 'XCP', quantity: '100000000', use_enhanced_send: 'true', encoding: 'opreturn',
     }), hunter, targetZeros);
     expect(send.result.zeld_hunt?.status).toBe('found');
-    const signedSend = signAsWallet(send, hunter);
+    const signedSend = await signAsWallet(send, hunter);
     expect(signedSend.txid).toBe(send.result.zeld_hunt!.txid);
     log('send hunted', send.result.zeld_hunt);
     await broadcastAndMine(signedSend.hex, minerAddress);

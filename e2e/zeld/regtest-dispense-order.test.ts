@@ -44,7 +44,7 @@ describe('dispense with change first on Counterparty regtest', () => {
 
     // Seller: XCP from a burn, then a dispenser giving 1 XCP per 10,000 sats with 5 XCP in escrow.
     await ensureXcp(seller, minerAddress);
-    const open = signAsWallet(await compose(seller.address, 'dispenser', {
+    const open = await signAsWallet(await compose(seller.address, 'dispenser', {
       asset: 'XCP', give_quantity: '100000000', escrow_quantity: '500000000', mainchainrate: '10000', status: '0',
     }), seller);
     await broadcastAndMine(open.hex, minerAddress);
@@ -70,7 +70,7 @@ describe('dispense with change first on Counterparty regtest', () => {
       targetZeros,
     );
     expect(hunted.result.zeld_hunt?.status).toBe('found');
-    const signed = signAsWallet(hunted, buyer);
+    const signed = await signAsWallet(hunted, buyer);
     expect(signed.txid).toBe(hunted.result.zeld_hunt!.txid);
     const txid = await broadcastAndMine(signed.hex, minerAddress);
     log('dispense hunted and mined', { txid });

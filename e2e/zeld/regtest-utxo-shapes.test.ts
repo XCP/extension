@@ -111,7 +111,7 @@ describe('attach, move and detach from hunted change', () => {
       sourceAddress: owner.address, asset, quantity: 1000, divisible: false, lock: false, reset: false, sat_per_vbyte: 2,
     }), owner, 6);
     expect(issued.result.zeld_hunt?.status).toBe('found');
-    const signedIssue = signAsWallet(issued, owner);
+    const signedIssue = await signAsWallet(issued, owner);
     await broadcastAndMine(signedIssue.hex, minerAddress);
     log('issued on a six-zero txid', { asset, txid: signedIssue.txid });
 
@@ -122,7 +122,7 @@ describe('attach, move and detach from hunted change', () => {
     const attachTx = parseRawTransactionLocally(attach.result.rawtransaction)!;
     expect(attachTx.outputs.map(o => o.type)).toEqual(['op_return', 'address', 'address']);
     expect(attachTx.outputs[2]?.value).toBe(546);
-    const signedAttach = signAsWallet(attach, owner);
+    const signedAttach = await signAsWallet(attach, owner);
     await broadcastAndMine(signedAttach.hex, minerAddress);
     const attachParsed = await parsedTransaction(signedAttach.txid);
     expect(attachParsed.unpacked_data?.message_type).toBe('attach');
@@ -133,7 +133,7 @@ describe('attach, move and detach from hunted change', () => {
     // 2. Move the attached output to the miner: it carries no ZELD, so nothing objects.
     const move = await huntAsWallet(await composeFromUtxo('movetoutxo', attachedUtxo, owner.address, { destination: minerAddress }), owner, 6);
     expect(move.result.zeld_hunt?.status).toBe('skipped');
-    const signedMove = signAsWallet(move, owner);
+    const signedMove = await signAsWallet(move, owner);
     await broadcastAndMine(signedMove.hex, minerAddress);
     expect((await balancesOf(asset)).some(b => b.utxo?.startsWith(signedMove.txid) && b.quantity === 10)).toBe(true);
     log('moved to the buyer', { txid: signedMove.txid });
@@ -141,13 +141,13 @@ describe('attach, move and detach from hunted change', () => {
     // 3. A second attach, then a detach of its clean output: the 546 sats cover the fee, so the
     //    detach has no change and nothing to hunt onto, and needs nothing more.
     const attach2 = await huntAsWallet(await composeAttach({ sourceAddress: owner.address, asset, quantity: 5, sat_per_vbyte: 2 }), owner, 6);
-    const signedAttach2 = signAsWallet(attach2, owner);
+    const signedAttach2 = await signAsWallet(attach2, owner);
     await broadcastAndMine(signedAttach2.hex, minerAddress);
     const detach = await huntAsWallet(await composeFromUtxo('detach', `${signedAttach2.txid}:2`, owner.address, {}), owner, 6);
     expect(detach.result.zeld_hunt?.status).toBe('skipped');
     expect(detach.result.zeld_protection).toBeUndefined();
     expect(parseRawTransactionLocally(detach.result.rawtransaction)!.outputs.map(o => o.type)).toEqual(['op_return']);
-    const signedDetach = signAsWallet(detach, owner);
+    const signedDetach = await signAsWallet(detach, owner);
     await broadcastAndMine(signedDetach.hex, minerAddress);
     expect((await parsedTransaction(signedDetach.txid)).unpacked_data?.message_type).toBe('detach');
     expect((await balancesOf(asset)).some(b => b.address === owner.address && b.utxo === null && b.quantity === 990)).toBe(true);
@@ -158,7 +158,7 @@ describe('attach, move and detach from hunted change', () => {
     //    the ZELD, which is also where the hunt lands.
     const legacyAttach = await huntAsWallet(await compose(owner.address, 'attach', { asset, quantity: '3' }), owner, 6);
     expect(legacyAttach.result.zeld_hunt?.status).toBe('found');
-    const signedLegacy = signAsWallet(legacyAttach, owner);
+    const signedLegacy = await signAsWallet(legacyAttach, owner);
     await broadcastAndMine(signedLegacy.hex, minerAddress);
     expect((await balancesOf(asset)).some(b => b.utxo === `${signedLegacy.txid}:0` && b.quantity === 3)).toBe(true);
     const kept = await huntAsWallet(await composeFromUtxo('detach', `${signedLegacy.txid}:0`, owner.address, {}), owner, 6);
@@ -166,7 +166,7 @@ describe('attach, move and detach from hunted change', () => {
     expect(kept.result.zeld_hunt?.status).toBe('found');
     const keptTx = parseRawTransactionLocally(kept.result.rawtransaction)!;
     expect(keptTx.outputs[1]?.value).toBe(330);
-    const signedKept = signAsWallet(kept, owner);
+    const signedKept = await signAsWallet(kept, owner);
     await broadcastAndMine(signedKept.hex, minerAddress);
     expect((await parsedTransaction(signedKept.txid)).unpacked_data?.message_type).toBe('detach');
     expect((await balancesOf(asset)).some(b => b.address === owner.address && b.utxo === null && b.quantity === 990)).toBe(true);

@@ -2,20 +2,22 @@ import { describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { type HuntWorkerLike, huntTxid } from '@/core/zeld/hunt';
-import { assessZeldHunt, type HuntTemplate, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
+import { assessZeldHunt, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
 import type { HuntWorkerRequest, HuntWorkerResponse } from '@/core/zeld/huntWorkerProtocol';
+import { createMiner, type HuntJob, type Miner } from '@/core/zeld/mineJob';
 import { type MineRangeFound, mineRange } from '@/core/zeld/mineRange';
 import { LOCKTIME_NONCE_COUNT } from '@/core/zeld/protocol';
 import { enhancedSendRawTx, SOURCE_ADDRESS } from './fixtures';
 
-function template(): HuntTemplate {
+function template(): HuntJob & { kind: 'locktime' } {
   const assessment = assessZeldHunt({
     rawTxHex: enhancedSendRawTx(),
     sourceAddress: SOURCE_ADDRESS,
     addressFormat: AddressFormat.P2WPKH,
   });
   if (!assessment.eligible) throw new Error(assessment.reason);
-  return assessment.template;
+  const { message, nonceOffset } = assessment.template;
+  return { kind: 'locktime', message, nonceOffset };
 }
 
 describe('mineRange', () => {
@@ -66,12 +68,14 @@ class InlineWorker implements HuntWorkerLike {
   private listeners: Array<(event: { data: HuntWorkerResponse }) => void> = [];
   private best: MineRangeFound | undefined;
   terminated = false;
+  private miner!: Miner;
   postMessage(request: HuntWorkerRequest): void {
+    this.miner = createMiner(request.job);
     let nonce = request.startNonce;
     let attempts = 0;
     while (nonce < request.endNonce) {
       const count = Math.min(request.batchSize, request.endNonce - nonce);
-      const result = mineRange(request.message, request.nonceOffset, nonce, count, request.targetZeros, undefined, request.stopZeros);
+      const result = this.miner.mine(nonce, count, request.targetZeros, request.stopZeros);
       attempts += result.attempts;
       nonce += count;
       if (result.best && (!this.best || result.best.zeroCount > this.best.zeroCount)) this.best = result.best;

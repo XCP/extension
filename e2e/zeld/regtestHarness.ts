@@ -44,6 +44,13 @@ export function keyFor(label: string): RegtestKey {
   return { privateKey, address: payment.address!, script: payment.script, scriptHex: Buffer.from(payment.script).toString('hex') };
 }
 
+/** A throwaway legacy P2PKH key, for the signing-time hunt. */
+export function legacyKeyFor(label: string): RegtestKey {
+  const privateKey = sha256(utf8ToBytes(`xcp-wallet zeld regtest legacy ${label} ${RUN_ID}`));
+  const payment = btc.p2pkh(secp256k1.getPublicKey(privateKey, true), REGTEST);
+  return { privateKey, address: payment.address!, script: payment.script, scriptHex: Buffer.from(payment.script).toString('hex') };
+}
+
 export async function rpc<T = unknown>(method: string, params: unknown[] = [], wallet: string | null = MINER_WALLET): Promise<T> {
   const response = await fetch(wallet ? `${BITCOIND}/wallet/${wallet}` : BITCOIND, {
     method: 'POST',
@@ -125,13 +132,22 @@ export async function compose(address: string, endpoint: string, params: Record<
   return { result };
 }
 
-/** Sign the way the wallet's software signer does: SIGHASH_ALL over API-provided witness UTXOs. */
-export function signAsWallet(response: ApiResponse, key: RegtestKey): { hex: string; txid: string } {
+/**
+ * Sign the way the wallet's software signer does: SIGHASH_ALL over API-provided witness UTXOs, or
+ * over the previous transaction for a legacy input, which the node supplies.
+ */
+export async function signAsWallet(response: ApiResponse, key: RegtestKey): Promise<{ hex: string; txid: string }> {
   const tx = btc.Transaction.fromRaw(hexToBytes(response.result.rawtransaction), { allowUnknownOutputs: true, allowUnknownInputs: true });
   for (let index = 0; index < tx.inputsLength; index++) {
-    tx.updateInput(index, {
-      witnessUtxo: { script: hexToBytes(response.result.lock_scripts[index]!), amount: BigInt(response.result.inputs_values[index]!) },
-    });
+    const lockScript = response.result.lock_scripts[index]!;
+    if (lockScript.startsWith('76a914')) {
+      const prevTxid = Buffer.from(tx.getInput(index).txid!).toString('hex');
+      tx.updateInput(index, { nonWitnessUtxo: hexToBytes(await rpc<string>('getrawtransaction', [prevTxid], null)) });
+    } else {
+      tx.updateInput(index, {
+        witnessUtxo: { script: hexToBytes(lockScript), amount: BigInt(response.result.inputs_values[index]!) },
+      });
+    }
   }
   tx.sign(key.privateKey);
   tx.finalize();
@@ -180,6 +196,6 @@ export async function xcpBalance(address: string): Promise<number> {
 /** Burn once for XCP; a second burn from the same address is refused by Counterparty. */
 export async function ensureXcp(key: RegtestKey, minerAddress: string): Promise<void> {
   if (await xcpBalance(key.address) > 0) return;
-  const burn = signAsWallet(await compose(key.address, 'burn', { quantity: '100000000' }), key);
+  const burn = await signAsWallet(await compose(key.address, 'burn', { quantity: '100000000' }), key);
   await broadcastAndMine(burn.hex, minerAddress);
 }

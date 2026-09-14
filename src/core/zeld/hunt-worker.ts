@@ -3,12 +3,13 @@
  *
  * The loop is synchronous, so the worker cannot hear a stop message; the coordinator ends a hunt
  * by terminating the worker. Progress is posted between batches with the best qualifying txid so
- * far, so the coordinator can settle for it at the deadline or on request.
+ * far, so the coordinator can settle for it at the deadline or on request. A legacy job carries
+ * key-equivalent constants; they live only in this worker's memory and die with it.
  */
 
 import type { HuntWorkerRequest, HuntWorkerResponse } from '@/core/zeld/huntWorkerProtocol';
-import { type MineRangeFound, mineRange } from '@/core/zeld/mineRange';
-import { MutableSha256d } from '@/core/zeld/sha256d';
+import { createMiner } from '@/core/zeld/mineJob';
+import type { MineRangeFound } from '@/core/zeld/mineRange';
 
 function post(response: HuntWorkerResponse): void {
   self.postMessage(response);
@@ -16,14 +17,14 @@ function post(response: HuntWorkerResponse): void {
 
 self.addEventListener('message', (event: MessageEvent<HuntWorkerRequest>) => {
   try {
-    const { message, nonceOffset, startNonce, endNonce, targetZeros, stopZeros, batchSize } = event.data;
-    const hasher = new MutableSha256d(message, nonceOffset);
+    const { job, startNonce, endNonce, targetZeros, stopZeros, batchSize } = event.data;
+    const miner = createMiner(job);
     let nonce = startNonce;
     let attempts = 0;
     let best: MineRangeFound | undefined;
     while (nonce < endNonce) {
       const count = Math.min(batchSize, endNonce - nonce);
-      const result = mineRange(message, nonceOffset, nonce, count, targetZeros, hasher, stopZeros);
+      const result = miner.mine(nonce, count, targetZeros, stopZeros);
       attempts += result.attempts;
       nonce += count;
       if (result.best && (!best || result.best.zeroCount > best.zeroCount)) best = result.best;
