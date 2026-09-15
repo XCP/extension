@@ -11,7 +11,10 @@ import {
   zeldBaseUnitsToDisplay,
 } from '@/core/zeld/api';
 
-vi.mock('@/core/api/client', () => ({ apiClient: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('@/core/api/client', async original => ({
+  ...(await original<typeof import('@/core/api/client')>()),
+  apiClient: { get: vi.fn(), post: vi.fn() },
+}));
 
 const get = vi.mocked(apiClient.get);
 const ADDRESS = 'bc1qegs0t03e6xujm6euysgh76dg7zltw2ama9ymha';
@@ -72,7 +75,20 @@ describe('ZELD API client', () => {
     const rewards = await fetchZeldRewards(ADDRESS, 5);
     expect(rewards.map(reward => reward.block_index)).toEqual([200, 100]);
     expect(rewards[0]?.reward).toBe(409_600_000_000n);
-    expect(get.mock.calls[0]?.[0]).toContain('/rewards?limit=5&offset=0&sort=desc');
+    expect(get.mock.calls[0]?.[0]).toBe(`https://api.zeldhash.com/addresses/${ADDRESS}/rewards?limit=5&offset=0`);
+  });
+
+  it('treats the indexer no-rewards response as an empty history', async () => {
+    get.mockRejectedValueOnce(Object.assign(new Error('Not Found'), { code: 'HTTP_ERROR', status: 404,
+      response: { status: 404, data: { error: 'No rewards found for address.' } } }));
+    expect(await fetchZeldRewards(ADDRESS)).toEqual([]);
+  });
+
+  it.each([404, 502])('preserves other HTTP %s errors instead of claiming an empty history', async status => {
+    const error = Object.assign(new Error('Unavailable'), { code: 'HTTP_ERROR', status,
+      response: { status, data: { error: 'Backend unavailable' } } });
+    get.mockRejectedValueOnce(error);
+    await expect(fetchZeldRewards(ADDRESS)).rejects.toBe(error);
   });
 
   it('formats base units with eight decimals', () => {

@@ -7,7 +7,7 @@
  * balance cannot lose ZELD (see `sendCompose.ts` and `protection.ts`).
  */
 
-import { apiClient } from '@/core/api/client';
+import { apiClient, isApiError } from '@/core/api/client';
 import { asDisplayUnits, type DisplayUnits, fromSatoshis } from '@/core/numeric';
 
 /** The public ZeldHash indexer. Not a setting: there is one, and it is read-only. */
@@ -133,11 +133,19 @@ export async function fetchZeldOutpointBalance(txid: string, vout: number, signa
 
 /** Rewards earned by `address`, newest block first. */
 export async function fetchZeldRewards(address: string, limit = 10, signal?: AbortSignal): Promise<ZeldReward[]> {
-  const response = await apiClient.get<unknown>(
-    `${ZELD_API_BASE}/addresses/${encodeURIComponent(address)}/rewards?limit=${limit}&offset=0&sort=desc`,
-    { retries: 0, signal },
-  );
-  return parseZeldRewards(response.data).sort((a, b) => b.block_index - a.block_index);
+  try {
+    // The indexer defaults to newest first. Its optional sort accepts only "zero_count".
+    const response = await apiClient.get<unknown>(
+      `${ZELD_API_BASE}/addresses/${encodeURIComponent(address)}/rewards?limit=${limit}&offset=0`,
+      { retries: 0, signal },
+    );
+    return parseZeldRewards(response.data).sort((a, b) => b.block_index - a.block_index);
+  } catch (error) {
+    // An address with no rewards has a specific 404 response, not an unavailable history.
+    if (isApiError(error) && error.status === 404 && isRecord(error.response?.data)
+      && error.response.data.error === 'No rewards found for address.') return [];
+    throw error;
+  }
 }
 
 /** ZELD base units as a display amount with eight decimals, the same scale as satoshis. */

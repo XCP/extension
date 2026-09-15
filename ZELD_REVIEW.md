@@ -135,6 +135,8 @@ The stack binds local-only non-default ports. Helpers refuse to fund any chain e
 
 The final layout and off → on → off → on persistence were checked in the built Chrome wallet. Advanced has no time input; the ZELD balance page shows the saved 15-second value. Both pages were captured for visual review. Component tests cover validation and toggling.
 
+The balance screenshot deliberately shows the unavailable state: `prove-zeld-wallet.mjs` blocks public HTTP requests and supplies only regtest Bitcoin transport responses. It is not evidence of a live ZELD outage. A subsequent live API check found and fixed an independent rewards-client bug: `sort=desc` is rejected with HTTP 400 (omit it for newest-first ordering), and the specific HTTP 404 `No rewards found for address.` means an empty history. The earlier mocked test incorrectly expected the unsupported parameter. The corrected production client successfully fetched a known address's balance/rewards and handled a no-rewards address; 11 targeted API/hook tests, TypeScript and lint passed. One separate address lookup returned an upstream Electrum HTTP 502 while other balance lookups returned 200, so individual upstream failures remain possible.
+
 ## Validation and remaining scope
 
 294 targeted unit/component tests passed across 28 files, including compressed/uncompressed signature combinations, cancellation during preparation, bounded preparation, numeric discipline and scriptSig tamper rejection. Seven regtest scenarios and built Chrome wallet proofs cover the integration. TypeScript, lint, Chrome build and Firefox build passed. Existing lint/bundle-size warnings remain.
