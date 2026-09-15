@@ -45,20 +45,58 @@ function compress(state: Int32Array, words: Int32Array, offset: number, W: Int32
   let f = state[5]!;
   let g = state[6]!;
   let h = state[7]!;
-  for (let i = 0; i < 64; i++) {
-    const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
-    const ch = (e & f) ^ (~e & g);
-    const t1 = (h + S1 + ch + K[i]! + W[i]!) | 0;
-    const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
-    const maj = (a & b) ^ (a & c) ^ (b & c);
-    const t2 = (S0 + maj) | 0;
-    h = g;
-    g = f;
-    f = e;
-    e = (d + t1) | 0;
-    d = c;
-    c = b;
-    b = a;
+  // Eight rounds rotate the variable names instead of copying eight state words per round.
+  // After each group the names are back in their original positions.
+  for (let i = 0; i < 64; i += 8) {
+    let t1: number;
+    let t2: number;
+    t1 = (h + (((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7)))
+      + ((e & f) ^ (~e & g)) + K[i]! + W[i]!) | 0;
+    t2 = (((((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10)))
+      + ((a & b) ^ (a & c) ^ (b & c)))) | 0;
+    d = (d + t1) | 0;
+    h = (t1 + t2) | 0;
+    t1 = (g + (((d >>> 6) | (d << 26)) ^ ((d >>> 11) | (d << 21)) ^ ((d >>> 25) | (d << 7)))
+      + ((d & e) ^ (~d & f)) + K[i + 1]! + W[i + 1]!) | 0;
+    t2 = (((((h >>> 2) | (h << 30)) ^ ((h >>> 13) | (h << 19)) ^ ((h >>> 22) | (h << 10)))
+      + ((h & a) ^ (h & b) ^ (a & b)))) | 0;
+    c = (c + t1) | 0;
+    g = (t1 + t2) | 0;
+    t1 = (f + (((c >>> 6) | (c << 26)) ^ ((c >>> 11) | (c << 21)) ^ ((c >>> 25) | (c << 7)))
+      + ((c & d) ^ (~c & e)) + K[i + 2]! + W[i + 2]!) | 0;
+    t2 = (((((g >>> 2) | (g << 30)) ^ ((g >>> 13) | (g << 19)) ^ ((g >>> 22) | (g << 10)))
+      + ((g & h) ^ (g & a) ^ (h & a)))) | 0;
+    b = (b + t1) | 0;
+    f = (t1 + t2) | 0;
+    t1 = (e + (((b >>> 6) | (b << 26)) ^ ((b >>> 11) | (b << 21)) ^ ((b >>> 25) | (b << 7)))
+      + ((b & c) ^ (~b & d)) + K[i + 3]! + W[i + 3]!) | 0;
+    t2 = (((((f >>> 2) | (f << 30)) ^ ((f >>> 13) | (f << 19)) ^ ((f >>> 22) | (f << 10)))
+      + ((f & g) ^ (f & h) ^ (g & h)))) | 0;
+    a = (a + t1) | 0;
+    e = (t1 + t2) | 0;
+    t1 = (d + (((a >>> 6) | (a << 26)) ^ ((a >>> 11) | (a << 21)) ^ ((a >>> 25) | (a << 7)))
+      + ((a & b) ^ (~a & c)) + K[i + 4]! + W[i + 4]!) | 0;
+    t2 = (((((e >>> 2) | (e << 30)) ^ ((e >>> 13) | (e << 19)) ^ ((e >>> 22) | (e << 10)))
+      + ((e & f) ^ (e & g) ^ (f & g)))) | 0;
+    h = (h + t1) | 0;
+    d = (t1 + t2) | 0;
+    t1 = (c + (((h >>> 6) | (h << 26)) ^ ((h >>> 11) | (h << 21)) ^ ((h >>> 25) | (h << 7)))
+      + ((h & a) ^ (~h & b)) + K[i + 5]! + W[i + 5]!) | 0;
+    t2 = (((((d >>> 2) | (d << 30)) ^ ((d >>> 13) | (d << 19)) ^ ((d >>> 22) | (d << 10)))
+      + ((d & e) ^ (d & f) ^ (e & f)))) | 0;
+    g = (g + t1) | 0;
+    c = (t1 + t2) | 0;
+    t1 = (b + (((g >>> 6) | (g << 26)) ^ ((g >>> 11) | (g << 21)) ^ ((g >>> 25) | (g << 7)))
+      + ((g & h) ^ (~g & a)) + K[i + 6]! + W[i + 6]!) | 0;
+    t2 = (((((c >>> 2) | (c << 30)) ^ ((c >>> 13) | (c << 19)) ^ ((c >>> 22) | (c << 10)))
+      + ((c & d) ^ (c & e) ^ (d & e)))) | 0;
+    f = (f + t1) | 0;
+    b = (t1 + t2) | 0;
+    t1 = (a + (((f >>> 6) | (f << 26)) ^ ((f >>> 11) | (f << 21)) ^ ((f >>> 25) | (f << 7)))
+      + ((f & g) ^ (~f & h)) + K[i + 7]! + W[i + 7]!) | 0;
+    t2 = (((((b >>> 2) | (b << 30)) ^ ((b >>> 13) | (b << 19)) ^ ((b >>> 22) | (b << 10)))
+      + ((b & c) ^ (b & d) ^ (c & d)))) | 0;
+    e = (e + t1) | 0;
     a = (t1 + t2) | 0;
   }
   state[0] = (state[0]! + a) | 0;
@@ -90,7 +128,7 @@ export class MutableSha256d {
   readonly messageLength: number;
 
   /**
-   * `nonceOffset` names the four bytes that will change between hashes. Every block wholly
+   * `nonceOffset` names the first mutable byte (normally a four-byte nonce). Every block wholly
    * before it is hashed once here and reused for every hash, so a nonce at the end of the
    * message (a transaction's nLockTime) costs one block plus the outer hash per attempt rather
    * than the whole message. Without it, or with a nonce in the first block, nothing is reused.

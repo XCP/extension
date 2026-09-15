@@ -164,7 +164,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // seconds and the hunt then goes on for a seven-zero one, which takes about half a minute on
   // average; 30 seconds finds one more often than not, and the spinner offers to stop early.
   // Zero turns it off.
-  zeldHuntSeconds: 30,
+  zeldHuntSeconds: 0,
   connectedWebsites: [],
   providerCapabilities: {},
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],

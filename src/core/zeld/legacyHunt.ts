@@ -20,9 +20,10 @@
  * audited library, signature by signature, before anything is broadcast.
  *
  * DER encodes r and s as minimal signed integers, so a value whose top byte is zero would be one
- * byte shorter and shift every later byte. k is drawn until r's top byte is non-zero, and an
+ * byte shorter and shift every later byte. k is drawn until r's top byte is non-zero and low-R, and an
  * attempt whose s has a zero top byte is skipped, so every candidate transaction has the same
- * length and the same fee.
+ * length and the same fee. A low-R nonce also avoids adding a DER padding byte per input,
+ * matching the ordinary wallet signer's low-R policy.
  */
 
 import { hmac } from '@noble/hashes/hmac.js';
@@ -72,13 +73,11 @@ function bytesToBigInt(bytes: Uint8Array): bigint {
 }
 
 /** 32 big-endian bytes to a bigint in four 64-bit reads. */
-function digestToBigInt(bytes: Uint8Array): bigint {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, 32);
+function digestToBigInt(view: DataView): bigint {
   return (view.getBigUint64(0) << 192n) | (view.getBigUint64(8) << 128n) | (view.getBigUint64(16) << 64n) | view.getBigUint64(24);
 }
 
-function bigIntTo32Bytes(value: bigint, out: Uint8Array): void {
-  const view = new DataView(out.buffer, out.byteOffset, 32);
+function bigIntTo32Bytes(value: bigint, view: DataView): void {
   view.setBigUint64(24, value & MASK64);
   view.setBigUint64(16, (value >> 64n) & MASK64);
   view.setBigUint64(8, (value >> 128n) & MASK64);
@@ -127,13 +126,13 @@ export function prepareLegacyHunt(
       k = bytesToBigInt(secp.utils.randomSecretKey());
       r = secp.etc.mod(secp.Point.BASE.multiply(k).x, N);
       rBytes = secp.etc.numberToBytesBE(r);
-    } while (r === 0n || rBytes[0] === 0);
+    } while (r === 0n || rBytes[0] === 0 || (rBytes[0]! & 0x80) !== 0);
     const a = secp.etc.invert(k, N);
     const b = secp.etc.mod(a * secp.etc.mod(r * d, N), N);
     constants.push({ r, a, b });
 
-    // DER: 30 len 02 rlen r 02 20 s, then the hash type; r gets a leading zero when its top bit is set.
-    const rDer = rBytes[0]! & 0x80 ? Uint8Array.of(0, ...rBytes) : rBytes;
+    // DER: 30 len 02 20 r 02 20 s, then the hash type. Low-R needs no leading padding byte.
+    const rDer = rBytes;
     const sigLength = 6 + rDer.length + 32 + 1;
     const scriptSig = new Uint8Array(1 + sigLength + 1 + pubkey.length);
     let cursor = 0;
@@ -188,14 +187,22 @@ export interface LegacyMinerState {
   sighashes: MutableSha256d[];
   s: Uint8Array;
   digest: Uint8Array;
+  sView: DataView;
+  digestView: DataView;
 }
 
 export function createLegacyMinerState(template: LegacyHuntTemplate): LegacyMinerState {
+  const s = new Uint8Array(32);
+  const digest = new Uint8Array(32);
   return {
-    txid: new MutableSha256d(template.signed),
+    // Version, outpoint and the first signature's r are fixed. Reuse every complete block
+    // before its s; all mutable signatures and locktime remain in the unhashed suffix.
+    txid: new MutableSha256d(template.signed, template.inputs[0]?.sOffset),
     sighashes: template.inputs.map(input => new MutableSha256d(input.preimage, input.preimageLockTimeOffset)),
-    s: new Uint8Array(32),
-    digest: new Uint8Array(32),
+    s,
+    digest,
+    sView: new DataView(s.buffer),
+    digestView: new DataView(digest.buffer),
   };
 }
 
@@ -213,7 +220,7 @@ export function mineLegacyRange(
 ): MineRangeResult {
   const end = startNonce + count;
   if (startNonce < 0 || end > 0x1_0000_0000) throw new RangeError('nonce range must fit in 32 bits');
-  const { txid, sighashes, s, digest } = state;
+  const { txid, sighashes, s, digest, sView, digestView } = state;
   let attempts = 0;
   let best: MineRangeFound | undefined;
   nonces: for (let nonce = startNonce; nonce < end; nonce++) {
@@ -223,9 +230,9 @@ export function mineLegacyRange(
       sighash.setUint32LE(input.preimageLockTimeOffset, nonce);
       sighash.hashLeadingZeroNibbles();
       sighash.digestInto(digest);
-      const value = signatureS(input, digestToBigInt(digest));
+      const value = signatureS(input, digestToBigInt(digestView));
       if (value === null) continue nonces;
-      bigIntTo32Bytes(value, s);
+      bigIntTo32Bytes(value, sView);
       txid.setBytes(input.sOffset, s);
     }
     txid.setUint32LE(template.lockTimeOffset, nonce);
@@ -250,7 +257,7 @@ export function legacySignedTransaction(template: LegacyHuntTemplate, nonce: num
     new DataView(preimage.buffer).setUint32(input.preimageLockTimeOffset, nonce >>> 0, true);
     const value = signatureS(input, bytesToBigInt(sha256(sha256(preimage))));
     if (value === null) return null;
-    bigIntTo32Bytes(value, s);
+    bigIntTo32Bytes(value, new DataView(s.buffer, s.byteOffset, 32));
     signed.set(s, input.sOffset);
   }
   new DataView(signed.buffer).setUint32(template.lockTimeOffset, nonce >>> 0, true);
@@ -263,15 +270,24 @@ export function legacySignedTransaction(template: LegacyHuntTemplate, nonce: num
  */
 export function verifyLegacySignatures(template: LegacyHuntTemplate, signed: Uint8Array, nonce: number): void {
   if (signed.length !== template.signed.length) throw new Error('The hunted transaction has the wrong length.');
+  const expected = template.signed.slice();
+  new DataView(expected.buffer).setUint32(template.lockTimeOffset, nonce >>> 0, true);
   for (const [index, input] of template.inputs.entries()) {
     const preimage = new Uint8Array(input.preimage);
     new DataView(preimage.buffer).setUint32(input.preimageLockTimeOffset, nonce >>> 0, true);
     const z = sha256(sha256(preimage));
-    const signature = new secp.Signature(input.r, bytesToBigInt(signed.subarray(input.sOffset, input.sOffset + 32)));
+    const r = signed.subarray(input.sOffset - 34, input.sOffset - 2);
+    const s = signed.subarray(input.sOffset, input.sOffset + 32);
+    if (!r[0] || r[0] >= 128 || !s[0] || s[0] >= 128) throw new Error('The hunted signature has non-canonical integers.');
+    expected.set(r, input.sOffset - 34);
+    expected.set(s, input.sOffset);
+    const signature = new secp.Signature(bytesToBigInt(r), bytesToBigInt(s));
     if (!secp.verify(signature.toBytes('compact'), z, template.pubkey, { lowS: true, prehash: false })) {
       throw new Error(`Input ${index} of the hunted transaction does not verify.`);
     }
   }
+  // Also bind the actual DER headers, sighash flags and public keys to the approved template.
+  if (signed.some((byte, index) => byte !== expected[index])) throw new Error('The hunted transaction changed outside its signatures or locktime.');
 }
 
 /** The signed transaction with every scriptSig emptied: the form the review verified, plus the nonce. */

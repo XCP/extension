@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { formatAmount } from "@/core/format";
 import { zeldBaseUnitsToDisplay } from "@/core/zeld/api";
-import { HUNTS_WHILE_SIGNING } from "@/core/zeld/composeHunt";
+import { HUNTS_WHILE_SIGNING } from "@/core/zeld/eligibility";
 import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
 
 function zeld(baseUnits: string): string {
@@ -31,7 +31,7 @@ export function zeldReviewLine({
   if (hunt?.status === 'found' && hunt.zero_count !== undefined) {
     return `Found a ${hunt.zero_count}-zero txid in ${(hunt.elapsed_ms / 1000).toFixed(1)}s`;
   }
-  if (hunt?.status === 'not_found') return `No rare txid in ${hunt.seconds}s; sending as usual`;
+  if (hunt?.status === 'not_found') return `No rare txid in ${Math.min(hunt.seconds, Math.ceil(hunt.elapsed_ms / 1000))}s; sending as usual`;
   if (hunt?.status === 'skipped' && hunt.reason === HUNTS_WHILE_SIGNING) return `Hunts while signing, up to ${hunt.seconds}s`;
   return null;
 }

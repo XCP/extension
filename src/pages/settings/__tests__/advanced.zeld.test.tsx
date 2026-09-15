@@ -22,13 +22,14 @@ describe('AdvancedSettingsPage ZELD settings', () => {
     cleanup();
   });
 
-  it('hosts the shared hunt budget control and nothing else about ZELD', () => {
+  it('shows the hunting toggle and leaves the wait-time control on the balance page', () => {
     render(
       <MemoryRouter>
         <AdvancedSettingsPage />
       </MemoryRouter>
     );
-    expect((screen.getByLabelText('Seconds to hunt for a ZELD transaction ID') as HTMLInputElement).value).toBe('20');
+    expect(screen.getByRole('switch', { name: 'Enable ZELD Hunting' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByLabelText('Seconds to hunt for a ZELD transaction ID')).not.toBeInTheDocument();
     // The indexer is not configurable; a URL field here would be a way to point the guard at a liar.
     expect(screen.queryByLabelText('ZELD indexer API URL')).not.toBeInTheDocument();
   });

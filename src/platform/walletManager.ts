@@ -49,6 +49,7 @@ import {
   getKeychainRecord,
   saveKeychainRecord,
 } from '@/platform/storage/walletStorage';
+import { huntInBackground } from '@/platform/zeldHunt';
 // Note: getTrezorAdapter is dynamically imported in createHardwareWalletWithDiscovery to avoid
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
@@ -1728,6 +1729,8 @@ export class WalletManager {
       lockScripts,
       getTrustedBroadcastPrevout,
       assertStillAuthorized,
+      options?.zeldHuntSeconds ?? 0,
+      huntInBackground,
     );
     assertStillAuthorized();
     return signedTxHex;

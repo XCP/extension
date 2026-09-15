@@ -3,17 +3,19 @@
  *
  * Runs after every compose-time check has passed, changes only the nonce fields (nLockTime, and
  * every input's sequence made final), proves that from the parsed bytes, and records what
- * happened on the result as `zeld_hunt` for the review screen. A hunt that finds nothing leaves the transaction untouched, so the user's
- * transaction always proceeds; the setting buys a chance at ZELD, never a delay past its budget.
+ * happened on the result as `zeld_hunt` for the review screen. A hunt that finds nothing leaves
+ * the transaction untouched; the budget bounds time spent searching, not the chance of a reward.
  */
 
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import type { AddressFormat } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
+import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from '@/core/zeld/eligibility';
 import { huntTxid } from '@/core/zeld/hunt';
-import { assertOnlyNonceChanged, assessZeldHunt, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
-import { MAX_ZELD_HUNT_SECONDS, ZELD_MIN_ZERO_COUNT, ZELD_STOP_ZERO_COUNT } from '@/core/zeld/protocol';
+import { assertOnlyNonceChanged, assessZeldHunt, messageWithNonce, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
+import { countLeadingZeroNibbles, MAX_ZELD_HUNT_SECONDS, ZELD_MIN_ZERO_COUNT, ZELD_STOP_ZERO_COUNT } from '@/core/zeld/protocol';
 import { psbtWithNonce } from '@/core/zeld/psbtNonce';
-import { huntsWhileSigning } from '@/core/zeld/signHunt';
 import type { ZeldHuntMetadata, ZeldHuntProgress } from '@/core/zeld/types';
 
 export interface ComposeHuntContext {
@@ -33,15 +35,12 @@ export interface ComposeHuntContext {
    */
   stopZeros?: number;
   signal?: AbortSignal;
-  /** Settles for the best qualifying txid in hand rather than waiting out the budget. */
+  /** Ends hunting early, retaining the best qualifying txid if one was found. */
   acceptEarly?: AbortSignal;
   onProgress?: (progress: ZeldHuntProgress) => void;
   /** Test seam for the hunt itself. */
   hunt?: typeof huntTxid;
 }
-
-/** The skip reason a legacy software wallet records at compose time; its hunt runs at signing. */
-export const HUNTS_WHILE_SIGNING = 'A legacy transaction hunts while it is signed.';
 
 function withMetadata(response: ApiResponse, zeld_hunt: ZeldHuntMetadata): ApiResponse {
   return { ...response, result: { ...response.result, zeld_hunt } };
@@ -60,6 +59,10 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
   const base = { target_zeros: targetZeros, seconds };
 
   const rawTxHex = response.result.rawtransaction;
+  if (response.result.signed_reveal_rawtransaction) {
+    return withMetadata(response, { ...base, status: 'skipped', elapsed_ms: 0, attempts: 0,
+      reason: 'A signed inscription reveal already spends this transaction ID.' });
+  }
   if (huntsWhileSigning(context.addressFormat, context.walletType)) {
     return withMetadata(response, { ...base, status: 'skipped', elapsed_ms: 0, attempts: 0, reason: HUNTS_WHILE_SIGNING });
   }
@@ -111,6 +114,13 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
     });
   }
 
+  // Independently verify the worker's custom SHA-256 result, including nested SegWit scriptSigs.
+  const txid = bytesToHex(sha256(sha256(messageWithNonce(assessment.template, outcome.nonce))).reverse());
+  const zeroCount = countLeadingZeroNibbles(txid);
+  if (!Number.isInteger(outcome.nonce) || outcome.nonce < 0 || outcome.nonce > 0xffff_ffff
+    || txid !== outcome.txid || zeroCount !== outcome.zeroCount || zeroCount < targetZeros) {
+    throw new Error('The hunted transaction does not match the claimed rare txid.');
+  }
   const rawtransaction = rawTransactionWithNonce(rawTxHex, outcome.nonce);
   assertOnlyNonceChanged(rawTxHex, rawtransaction);
 

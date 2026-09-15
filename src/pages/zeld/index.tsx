@@ -1,9 +1,9 @@
 import type { ReactElement } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import zeldIcon from '@/assets/zeld.svg';
 import { BalanceHeader } from '@/components/domain/balance/balance-header';
-import { HuntSecondsInput } from '@/components/domain/zeld/hunt-seconds-input';
+import { HuntSettings } from '@/components/domain/zeld/hunt-settings';
 import { FiInfo } from '@/components/icons';
 import type { ActionSection } from '@/components/ui/lists/action-list';
 import { ActionList } from '@/components/ui/lists/action-list';
@@ -11,19 +11,15 @@ import { Spinner } from '@/components/ui/spinner';
 import { useHeader } from '@/contexts/header-context';
 import { useSettings } from '@/contexts/settings-context';
 import { useWallet } from '@/contexts/wallet-context';
-import { fetchUTXOs } from '@/core/bitcoin/utxo';
 import type { TokenBalance } from '@/core/counterparty/api';
 import { formatAmount } from '@/core/format';
 import {
-  fetchZeldBalance,
-  fetchZeldRewards,
   ZELD_DISPLAY_NAME,
-  type ZeldAddressBalance,
-  type ZeldReward,
   zeldBaseUnitsToDisplay,
 } from '@/core/zeld/api';
+import { huntsWhileSigning } from '@/core/zeld/eligibility';
 import { isHuntableAddressFormat } from '@/core/zeld/huntTemplate';
-import { huntsWhileSigning } from '@/core/zeld/signHunt';
+import { useZeldBalance } from '@/hooks/useZeldBalance';
 
 const EXPLORER_TX_URL = 'https://mempool.space/tx/';
 
@@ -42,51 +38,9 @@ export default function ZeldPage(): ReactElement {
   const { activeAddress, activeWallet } = useWallet();
   const address = activeAddress?.address;
   const { settings } = useSettings();
-  const [balance, setBalance] = useState<ZeldAddressBalance | null>(null);
-  const [rewards, setRewards] = useState<ZeldReward[]>([]);
-  const [reservedSats, setReservedSats] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { balance, rewards, reservedSats, error, loading, retry } = useZeldBalance(address);
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
   const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
-
-  const load = useCallback(async () => {
-    if (!address) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [zeld, recent] = await Promise.all([
-        fetchZeldBalance(address),
-        fetchZeldRewards(address, 10).catch(() => []),
-      ]);
-      setBalance(zeld);
-      setRewards(recent);
-      // How much BTC sits on the ZELD-bearing outputs; a spend of ZELD moves it too.
-      try {
-        const utxos = await fetchUTXOs(address);
-        const byOutpoint = new Map(utxos.map(utxo => [`${utxo.txid}:${utxo.vout}`, utxo.value]));
-        setReservedSats(zeld.utxos.reduce((sum, utxo) => sum + (byOutpoint.get(`${utxo.txid}:${utxo.vout}`) ?? 0), 0));
-      } catch {
-        setReservedSats(null);
-      }
-    } catch (cause) {
-      console.error('Failed to load ZELD balance:', cause);
-      setError('The ZELD indexer could not be reached.');
-    } finally {
-      setLoading(false);
-    }
-  }, [address]);
-
-  useEffect(() => {
-    // Deferred a tick so the effect itself sets no state, as the balance list does.
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) void load();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [load]);
 
   useEffect(() => {
     setHeaderProps({
@@ -124,7 +78,8 @@ export default function ZeldPage(): ReactElement {
       {
         id: 'send',
         title: 'Send ZELD',
-        description: hasZeld ? 'Send to another address. The rest stays with you.' : 'Nothing to send yet.',
+        description: !balance ? 'Balance unavailable. Try again shortly.'
+          : hasZeld ? 'Send to another address. The rest stays with you.' : 'Nothing to send yet.',
         onClick: () => { void navigate('/zeld/send'); },
       },
       ...(hasZeld ? [{
@@ -145,12 +100,17 @@ export default function ZeldPage(): ReactElement {
   return (
     <section className="p-4 space-y-6" aria-labelledby="zeld-balance-title">
       <h2 id="zeld-balance-title" className="sr-only">ZELD balance</h2>
-      <BalanceHeader balance={token} className="mt-1 mb-5" iconSrc={zeldIcon} />
-      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+      {balance && <BalanceHeader balance={token} className="mt-1 mb-5" iconSrc={zeldIcon} />}
+      {error && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+          <p role="alert" className="text-sm text-amber-800">{error} Your balance is unavailable.</p>
+          <button type="button" onClick={retry} className="text-sm font-medium text-blue-700 underline cursor-pointer">Try again</button>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-4">
         <h3 className="text-sm font-medium text-gray-900">Hunting</h3>
-        <HuntSecondsInput showHelpText={shouldShowHelpText} />
+        <HuntSettings showHelpText={shouldShowHelpText} />
         {!canHunt && (
           <p role="status" className="text-xs text-amber-700">
             A legacy hardware wallet cannot hunt: the device signs, and a legacy transaction ID
@@ -158,7 +118,7 @@ export default function ZeldPage(): ReactElement {
           </p>
         )}
         {canHunt && !huntingOn && (
-          <p className="text-xs text-gray-500">Hunting is off. Enter a number of seconds to turn it on.</p>
+          <p className="text-xs text-gray-500">Hunting is off. Enable ZELD Hunting to try it on your next eligible transaction.</p>
         )}
       </div>
 
@@ -166,7 +126,7 @@ export default function ZeldPage(): ReactElement {
         <h3 className="text-sm font-medium text-gray-900">Outputs Holding ZELD</h3>
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Outputs</span>
-          <span className="text-gray-900">{balance?.utxos.length ?? 0}</span>
+          <span className="text-gray-900">{balance?.utxos.length ?? 'Unknown'}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">BTC on them</span>
@@ -204,7 +164,9 @@ export default function ZeldPage(): ReactElement {
 
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
         <h3 className="text-sm font-medium text-gray-900">Recent Rewards</h3>
-        {rewards.length === 0 ? (
+        {rewards === null ? (
+          <p className="text-xs text-gray-500">Reward history is unavailable. Try again later.</p>
+        ) : rewards.length === 0 ? (
           <p className="text-xs text-gray-500">No rewards for this address yet.</p>
         ) : (
           <ul className="divide-y divide-gray-100 text-xs">

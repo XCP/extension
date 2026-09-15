@@ -14,11 +14,18 @@ const VALID_BTC_ONLY_TX =
 const OWN_ADDRESS = decodeAddressFromScript('76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac')!;
 
 let zeldHuntSeconds = 0;
+let addressFormat: AddressFormat = AddressFormat.P2WPKH;
+const signTransaction = vi.fn();
+const broadcastTransaction = vi.fn();
+const getPrivateKey = vi.fn();
 
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
     activeAddress: { address: OWN_ADDRESS },
-    activeWallet: { id: 'test-wallet', addressFormat: AddressFormat.P2WPKH, type: 'mnemonic' },
+    activeWallet: { id: 'test-wallet', addressFormat, type: 'mnemonic' },
+    signTransaction,
+    broadcastTransaction,
+    getPrivateKey,
     authState: 'UNLOCKED',
     keychainLocked: false,
   }),
@@ -100,6 +107,10 @@ describe('ComposerContext ZELD hunt', () => {
   beforeEach(() => {
     huntZeldForCompose.mockReset();
     zeldHuntSeconds = 0;
+    addressFormat = AddressFormat.P2WPKH;
+    signTransaction.mockReset();
+    broadcastTransaction.mockReset();
+    getPrivateKey.mockReset();
   });
 
   it('does not hunt when the setting is off', async () => {
@@ -110,6 +121,28 @@ describe('ComposerContext ZELD hunt', () => {
     await waitFor(() => expect(result.current.state.step).toBe('review'));
     expect(huntZeldForCompose).not.toHaveBeenCalled();
     expect(result.current.state.zeldHuntProgress).toBeNull();
+  });
+
+  it('keeps legacy keys in the background and does not broadcast a signature arriving after unmount', async () => {
+    addressFormat = AddressFormat.P2PKH;
+    zeldHuntSeconds = 12;
+    huntZeldForCompose.mockImplementation(async (response: ApiResponse) => ({ ...response, result: {
+      ...response.result, zeld_hunt: { status: 'skipped', target_zeros: 6, seconds: 12,
+        elapsed_ms: 0, attempts: 0, reason: 'A legacy transaction hunts while it is signed.' },
+    } }));
+    let resolveSigning!: (signed: string) => void;
+    signTransaction.mockImplementation(() => new Promise(resolve => { resolveSigning = resolve; }));
+    const { result, unmount } = renderComposer(vi.fn().mockResolvedValue(composeResponse()));
+    await act(async () => { await result.current.composeTransaction(new FormData()); });
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.signAndBroadcast(); });
+    await waitFor(() => expect(signTransaction).toHaveBeenCalled());
+    expect(signTransaction.mock.calls[0]![2]).toMatchObject({ zeldHuntSeconds: 12 });
+    expect(getPrivateKey).not.toHaveBeenCalled();
+    unmount();
+    resolveSigning('signed transaction');
+    await pending;
+    expect(broadcastTransaction).not.toHaveBeenCalled();
   });
 
   it('hunts after verification with the wallet identity and budget, and reviews the hunted response', async () => {

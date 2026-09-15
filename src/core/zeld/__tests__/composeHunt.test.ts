@@ -49,6 +49,15 @@ const context = {
 };
 
 describe('huntZeldForCompose', () => {
+  it('preserves a commit txid when an already signed reveal depends on it', async () => {
+    const response = responseFor(enhancedSendRawTx());
+    response.result.signed_reveal_rawtransaction = 'already signed child';
+    const hunt = vi.fn();
+    const result = await huntZeldForCompose(response, { ...context, hunt });
+    expect(hunt).not.toHaveBeenCalled();
+    expect(result.result.rawtransaction).toBe(response.result.rawtransaction);
+    expect(result.result.zeld_hunt?.reason).toContain('reveal');
+  });
   it('does nothing when the budget is zero', async () => {
     const response = responseFor(enhancedSendRawTx());
     const hunt = vi.fn();
@@ -173,14 +182,13 @@ describe('huntZeldForCompose', () => {
     expect(result.result.psbt).toBe('not-a-psbt');
   });
 
-  it('applies the found nonce through the hunt seam without recomputing', async () => {
+  it('refuses an unverified worker result even when its nonce is in range', async () => {
     const rawTxHex = enhancedSendRawTx();
     const hunt = vi.fn(async (): Promise<HuntTxidResult> => ({
       status: 'found', nonce: 0x8abc_def0, txid: 'unchecked', zeroCount: 6, attempts: 7, elapsedMs: 8,
     }));
-    const result = await huntZeldForCompose(responseFor(rawTxHex), { ...context, hunt });
-    expect(parseConsensusTransaction(result.result.rawtransaction).lockTime).toBe(0x8abc_def0);
-    expect(parsePSBT(result.result.psbt).lockTime).toBe(0x8abc_def0);
+    await expect(huntZeldForCompose(responseFor(rawTxHex), { ...context, hunt }))
+      .rejects.toThrow('does not match the claimed rare txid');
   });
 });
 

@@ -102,6 +102,32 @@ class InlineWorker implements HuntWorkerLike {
 }
 
 describe('huntTxid', () => {
+  it('ends immediately on request even before finding a rare txid', async () => {
+    const accept = new AbortController();
+    const silent: HuntWorkerLike = { postMessage: () => {}, terminate: vi.fn(), addEventListener: () => {} };
+    const pending = huntTxid(template(), { seconds: 30, targetZeros: 6, workerCount: 1,
+      createWorker: () => silent, acceptEarly: accept.signal });
+    accept.abort();
+    expect(await pending).toMatchObject({ status: 'not_found', attempts: 0 });
+    expect(silent.terminate).toHaveBeenCalledOnce();
+  });
+
+  it('cleans up workers whose initial postMessage fails', async () => {
+    const broken: HuntWorkerLike = {
+      postMessage: () => { throw new Error('could not clone job'); }, terminate: vi.fn(), addEventListener: () => {},
+    };
+    expect(await huntTxid(template(), { seconds: 30, targetZeros: 6, workerCount: 1, createWorker: () => broken }))
+      .toMatchObject({ status: 'not_found', attempts: 0 });
+    expect(broken.terminate).toHaveBeenCalledOnce();
+  });
+
+  it('does not start workers for a zero time budget', async () => {
+    const createWorker = vi.fn();
+    expect(await huntTxid(template(), { seconds: 0, targetZeros: 6, createWorker }))
+      .toMatchObject({ status: 'not_found', attempts: 0 });
+    expect(createWorker).not.toHaveBeenCalled();
+  });
+
   it('returns the first worker result and terminates every worker', async () => {
     const workers: InlineWorker[] = [];
     const result = await huntTxid(template(), {
@@ -288,6 +314,7 @@ describe('huntTxid', () => {
     if (result.status !== 'found') return;
     expect(result.txid.startsWith('00')).toBe(true);
   });
+
 
   it('honours the deadline inline', async () => {
     let clock = 0;

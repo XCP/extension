@@ -82,7 +82,7 @@ import { verifyTransaction } from "@/core/counterparty/unpack/verify";
 import { fromSatoshis } from '@/core/numeric';
 import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
 import { huntZeldForCompose } from "@/core/zeld/composeHunt";
-import { huntsWhileSigning, huntZeldWhileSigning } from "@/core/zeld/signHunt";
+import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility";
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 
 
@@ -171,7 +171,7 @@ export function ComposerProvider<T>({
   initialTitle,
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress, getPrivateKey } = useWallet();
+  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress } = useWallet();
   const { settings } = useSettings();
   const { clearBalances } = useHeader();
   // Read once per render so the compose callback depends on the number, not the settings object.
@@ -211,6 +211,7 @@ export function ComposerProvider<T>({
       previousAddressRef.current &&
       activeAddress.address !== previousAddressRef.current
     ) {
+      abortControllerRef.current?.abort();
       setState(freshComposerState<T>());
     }
     previousAddressRef.current = activeAddress?.address;
@@ -226,6 +227,7 @@ export function ComposerProvider<T>({
                             (authState === "LOCKED" || previousAuthStateRef.current === "LOCKED");
 
     if (walletChanged || lockStateChanged) {
+      abortControllerRef.current?.abort();
       setState(freshComposerState<T>());
     }
 
@@ -598,43 +600,23 @@ export function ComposerProvider<T>({
       setHardwareOperationInProgress(true);
     }
 
-    let signedTxHex: string | null = null;
-    // A legacy transaction's txid depends on its signatures, so a legacy software wallet hunts
-    // for ZELD here, signing per attempt, rather than before the review. Nothing found means the
-    // ordinary signer below takes over; the reviewed bytes are what goes out either way.
-    if (zeldHuntSeconds > 0 && activeWallet && huntsWhileSigning(activeWallet.addressFormat, activeWallet.type)) {
-      const key = await getPrivateKey(activeWallet.id, activeAddress.path);
-      acceptZeldHuntRef.current = new AbortController();
-      try {
-        const hunted = await huntZeldWhileSigning({
-          rawTxHex,
-          sourceAddress: activeAddress.address,
-          lockScripts: lockScripts ?? [],
-          privateKeyHex: key.hex,
-          compressed: key.compressed,
-          seconds: zeldHuntSeconds,
-          signal: abortControllerRef.current?.signal,
-          acceptEarly: acceptZeldHuntRef.current.signal,
-          onProgress: (progress) => setState(prev => ({ ...prev, zeldHuntProgress: progress })),
-        });
-        if (hunted) signedTxHex = hunted.signedTxHex;
-      } finally {
-        acceptZeldHuntRef.current = null;
-        setState(prev => ({ ...prev, zeldHuntProgress: null }));
-      }
+    const signal = abortControllerRef.current?.signal;
+    signal?.throwIfAborted();
+    let signedTxHex: string;
+    try {
+      // Signing, including a legacy hunt, stays behind the background session guard.
+      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, {
+        psbtHex, inputValues, lockScripts,
+        ...(activeWallet && huntsWhileSigning(activeWallet.addressFormat, activeWallet.type)
+          && state.apiResponse.result.zeld_hunt?.reason === HUNTS_WHILE_SIGNING
+          ? { zeldHuntSeconds: state.apiResponse.result.zeld_hunt?.seconds ?? 0 }
+          : {}),
+      });
+    } finally {
+      if (isHardwareWallet) setHardwareOperationInProgress(false);
     }
-    if (signedTxHex === null) {
-      try {
-        // Sign transaction - PSBT and input data are passed for hardware wallet support
-        signedTxHex = await signTransaction(rawTxHex, activeAddress.address, { psbtHex, inputValues, lockScripts });
-      } finally {
-        // Re-enable idle timer after hardware signing completes (or fails)
-        if (isHardwareWallet) {
-          setHardwareOperationInProgress(false);
-        }
-      }
-    }
-
+    // Navigating away or changing identity while a hunt/signature is pending must not broadcast.
+    signal?.throwIfAborted();
     // Record transaction before broadcast to prevent double-broadcast
     // Use timestamp + random suffix to avoid any collision risk
     const placeholderTxid = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -692,7 +674,7 @@ export function ComposerProvider<T>({
       broadcast: broadcastResponse,
       ...(revealBroadcast ? { revealBroadcast } : {}),
     };
-  }, [state.apiResponse, activeAddress, activeWallet, signTransaction, broadcastTransaction, setHardwareOperationInProgress, getPrivateKey, zeldHuntSeconds]);
+  }, [state.apiResponse, activeAddress, activeWallet, signTransaction, broadcastTransaction, setHardwareOperationInProgress]);
 
   // Sign and broadcast transaction
   const signAndBroadcast = useCallback(async () => {

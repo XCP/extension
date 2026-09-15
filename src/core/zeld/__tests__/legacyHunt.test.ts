@@ -5,6 +5,7 @@ import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { assertOnlyNonceChanged } from '@/core/zeld/huntTemplate';
 import {
+  createLegacyMinerState,
   legacySignedTransaction,
   mineLegacyRange,
   prepareLegacyHunt,
@@ -12,6 +13,7 @@ import {
   verifyLegacySignatures,
 } from '@/core/zeld/legacyHunt';
 import { legacySighashPreimage } from '@/core/zeld/legacySighash';
+import { MutableSha256d } from '@/core/zeld/sha256d';
 import { opReturnScript, PREV_TXID } from './fixtures';
 
 // A fixed key so a failure reproduces; the hunt's own nonces are random regardless.
@@ -30,6 +32,22 @@ function spend(compressed: boolean, inputs = 1): { unsigned: Uint8Array; scriptC
 }
 
 describe('legacy hunt', () => {
+  it.each([true, false])('reuses only immutable txid blocks with compressed=%s', compressed => {
+    for (const inputs of [1, 3]) {
+      const { unsigned, scriptCodes } = spend(compressed, inputs);
+      const template = prepareLegacyHunt(unsigned, scriptCodes, PRIVATE_KEY, compressed);
+      const cached = createLegacyMinerState(template);
+      const uncached = { ...createLegacyMinerState(template), txid: new MutableSha256d(template.signed) };
+      for (const nonce of [0, 0x7fff_ff00, 0xffff_ff00]) {
+        expect(mineLegacyRange(template, nonce, 256, 0, 64, cached))
+          .toEqual(mineLegacyRange(template, nonce, 256, 0, 64, uncached));
+      }
+      for (const input of template.inputs) {
+        expect(input.r).toBeGreaterThanOrEqual(1n << 248n);
+        expect(input.r).toBeLessThan(1n << 255n);
+      }
+    }
+  });
   it.each([
     ['compressed', true],
     ['uncompressed', false],
