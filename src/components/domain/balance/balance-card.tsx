@@ -1,10 +1,12 @@
 import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
+import zeldIcon from "@/assets/zeld.svg";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import { BalanceMenu } from "@/components/domain/balance/balance-menu";
 import { PendingStatus } from "@/components/domain/balance/pending-status";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { formatAmount, formatAsset } from "@/core/format";
+import { ZELD_DISPLAY_NAME, ZELD_WALLET_ASSET } from "@/core/zeld/api";
 
 /**
  * Props interface for the BalanceCard component
@@ -54,11 +56,15 @@ export function BalanceCard({
   pendingStatus,
 }: BalanceCardProps): ReactElement {
   const navigate = useNavigate();
+  // ZELD is not a Counterparty asset: its own page, its own icon, and a name the CDN cannot serve.
+  const isZeld = token.asset === ZELD_WALLET_ASSET;
 
   // Handle card click - use custom handler or default to balance navigation
   const handleClick = () => {
     if (onClick) {
       onClick(token.asset);
+    } else if (isZeld) {
+      void navigate("/zeld");
     } else {
       navigate(`/assets/${encodeURIComponent(token.asset)}/balance`);
     }
@@ -77,13 +83,18 @@ export function BalanceCard({
         onClick={handleClick}
       >
         {/* Asset Icon */}
-        <AssetIcon asset={token.asset} size="lg" className="flex-shrink-0" />
+        <AssetIcon
+          asset={isZeld ? ZELD_DISPLAY_NAME : token.asset}
+          size="lg"
+          className="flex-shrink-0"
+          imageSrc={isZeld ? zeldIcon : undefined}
+        />
 
         {/* Asset Information */}
         <div className="ml-3 flex-grow">
           {/* Asset Name/Symbol */}
           <div className="font-medium text-sm text-gray-900">
-            {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
+            {isZeld ? ZELD_DISPLAY_NAME : formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
           </div>
 
           {/* Balance amount, with whatever the mempool is doing to it on the right. */}

@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
+import { ZeldField } from "@/components/domain/zeld/zeld-field";
 import { Button } from "@/components/ui/button";
 import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -6,6 +7,7 @@ import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAddress, formatAmount } from "@/core/format";
 import { formatFeeRate, fromSatoshis } from "@/core/numeric";
+import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 /**
@@ -22,6 +24,9 @@ interface TransactionResult {
   name?: string;
   btc_fee: number;
   xcp_fee?: number;
+  zeld_hunt?: ZeldHuntMetadata;
+  zeld_protection?: ZeldProtectionMetadata;
+  zeld_send?: ZeldSendMetadata;
   [key: string]: any;
 }
 
@@ -192,6 +197,8 @@ export function ReviewScreen({
           </div>
         )}
         
+        <ZeldField hunt={result.zeld_hunt} protection={result.zeld_protection} send={result.zeld_send} />
+
         {/* Transaction Fee */}
         <div className="space-y-1">
           <span className="block font-semibold text-gray-700">Fee:</span>

@@ -7,6 +7,7 @@ import { AddressFormat } from '@/core/bitcoin/address';
 import { decryptJsonWithKey, encryptJsonWithKey } from '@/core/encryption/encryption';
 import { type AppSettings, DEFAULT_SETTINGS, MAX_ORDER_EXPIRATION, VALID_AUTO_LOCK_TIMERS } from '@/core/settings';
 import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
+import { isValidZeldHuntSeconds } from '@/core/zeld/protocol';
 import type { Keychain, KeychainRecord, WalletRecord } from '@/types/wallet';
 
 /** Keychain blob schema version. */
@@ -40,6 +41,7 @@ function parseSettings(value: unknown): AppSettings {
       !['btc', 'sats', 'fiat'].includes(settings.priceUnit) ||
       !Number.isSafeInteger(settings.defaultOrderExpiration) || settings.defaultOrderExpiration < 0 ||
       settings.defaultOrderExpiration > MAX_ORDER_EXPIRATION ||
+      !isValidZeldHuntSeconds(settings.zeldHuntSeconds) ||
       !stringArray(settings.connectedWebsites) || !stringArray(settings.pinnedAssets)) return invalidKeychain();
   for (const key of ['lastActiveWalletId', 'lastActiveAddress', 'defaultPoolSlippage'] as const) {
     if (settings[key] !== undefined && typeof settings[key] !== 'string') return invalidKeychain();
