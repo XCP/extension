@@ -3,6 +3,8 @@ import { FaCheck, FaCheckCircle, FaClipboard } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
+import { t } from '@/i18n';
+
 /**
  * Broadcast response from API
  */
@@ -75,22 +77,22 @@ export function SuccessScreen({
 
         {/* Success Title */}
         <h2 className="text-xl font-bold text-green-800 mt-3">
-          Transaction Successful
+          {t('screens_success_screen_transaction_successful')}
         </h2>
 
         {/* Success Message */}
         <p className="mt-1 text-sm text-green-700">
-          Your transaction was broadcasted.
+          {t('screens_success_screen_your_transaction_was_broadcasted')}
         </p>
 
         {/* Transaction ID Display - Clickable to copy */}
         <div className="mt-4">
           <span className="block text-xs font-medium text-gray-600 mb-1">
-            Transaction ID
+            {t('screens_success_screen_transaction_id')}
           </span>
           <button type="button"
             onClick={() => copy(txid)}
-            aria-label="Click to copy transaction ID"
+            aria-label={t('screens_success_screen_click_to_copy_transaction_id')}
             className="block w-full text-left font-mono text-xs bg-white border border-gray-200 rounded-lg p-2 break-all text-gray-800 cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors select-all"
           >
             {txid}
@@ -103,17 +105,17 @@ export function SuccessScreen({
           color="blue"
           fullWidth
           className="mt-4"
-          aria-label={isCopied(txid) ? "Transaction ID copied" : "Copy transaction ID"}
+          aria-label={isCopied(txid) ? t('screens_success_screen_transaction_id_copied') : t('consolidate_success_copy_transaction_id')}
         >
           {isCopied(txid) ? (
             <>
               <FaCheck className="size-4 mr-2" aria-hidden="true" />
-              <span>Copied!</span>
+              <span>{t('common_copied')}</span>
             </>
           ) : (
             <>
               <FaClipboard className="size-4 mr-2" aria-hidden="true" />
-              <span>Copy Transaction ID</span>
+              <span>{t('screens_success_screen_copy_transaction_id')}</span>
             </>
           )}
         </Button>
@@ -126,9 +128,9 @@ export function SuccessScreen({
           target="_blank"
           rel="noopener noreferrer"
           className="mt-3 text-xs text-gray-500 hover:text-blue-600 hover:underline transition-colors"
-          aria-label="View transaction on mempool.space (opens in new tab)"
+          aria-label={t('screens_success_screen_view_transaction_on_mempool_space')}
         >
-          View on mempool.space →
+          {t('screens_success_screen_view_on_mempool_space')}
         </a>
       )}
     </div>

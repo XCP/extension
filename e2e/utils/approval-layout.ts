@@ -2,16 +2,22 @@ import path from 'node:path';
 import { expect, type Page } from '@playwright/test';
 
 /** Capture the initial decision separately from the taller, expanded evidence gallery. */
-export async function captureApprovalSizes(page: Page, directory: string, name: string) {
+export async function captureApprovalSizes(page: Page, directory: string, name: string, reviewLabel = 'Review') {
   const content = page.getByTestId('approval-content');
   const footer = page.getByTestId('approval-footer');
-  for (const width of [350, 380]) {
+  const sidepanel = new URL(page.url()).pathname === '/sidepanel.html';
+  for (const width of sidepanel ? [350, 380, 520] : [350, 380]) {
     await page.setViewportSize({ width, height: 600 });
-    await content.evaluate(element => { element.scrollTop = 0; });
+    await content.evaluate(async element => {
+      // Focus and a viewport change can scroll an outer shell as well as the decision area.
+      for (let parent: Element | null = element; parent; parent = parent.parentElement) parent.scrollTop = 0;
+      window.scrollTo(0, 0);
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    });
     expect(await content.evaluate(element => element.scrollWidth <= element.clientWidth),
       `${name}: approval overflows at ${width}px`).toBe(true);
     const notice = content.getByTestId('approval-notice');
-    if (/(caution|warning|blocked)/.test(name) || await page.getByRole('button', { name: /^Review$/ }).count()) {
+    if (/(caution|warning|blocked)/.test(name) || await page.getByRole('button', { name: reviewLabel, exact: true }).count()) {
       await expect(notice.first(), `${name}: the exception must be visible before approval`).toBeInViewport({ ratio: 1 });
     }
     if (name.startsWith('bundle-attach-and-list')) {

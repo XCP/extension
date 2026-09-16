@@ -3,6 +3,7 @@ import type { Dispenser } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { divide, roundDown, toNumber } from "@/core/numeric";
 
+import { t } from '@/i18n';
 /**
  * Extended dispenser option interface for selection
  */
@@ -98,7 +99,7 @@ export function DispenserCard({
         onChange={onSelect}
         className="form-radio text-blue-600 absolute right-5 top-5"
         disabled={disabled}
-        aria-label={`Select dispenser for ${option.dispenser.asset}`}
+        aria-label={t('dispenser_dispenser_card_select_dispenser_for', [String(option.dispenser.asset)])}
       />
 
       <div className="w-full">
@@ -134,16 +135,15 @@ export function DispenserCard({
         <div className="flex justify-between items-center mt-2">
           <div className="flex gap-2 text-xs text-gray-600">
             <span>
-              {formatAmount({
+              {t('dispenser_dispenser_card_per_dispense', [String(formatAmount({
                 value: option.dispenser.give_quantity_normalized,
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 8,
-              })}{" "}
-              Per Dispense
+              })), String(" ")])}
             </span>
-            <span>{remainingDispenses} Remaining</span>
+            <span>{t('dispenser_dispenser_card_remaining', [String(remainingDispenses)])}</span>
           </div>
-          <span className="text-xs text-green-600">Open</span>
+          <span className="text-xs text-green-600">{t('common_open')}</span>
         </div>
       </div>
     </label>

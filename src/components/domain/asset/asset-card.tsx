@@ -5,6 +5,8 @@ import { AssetMenu } from "@/components/domain/asset/asset-menu";
 import type { OwnedAsset } from "@/core/counterparty/api";
 import { formatAmount, formatAsset } from "@/core/format";
 
+import { t } from '@/i18n';
+
 /**
  * Props interface for the AssetCard component
  */
@@ -65,7 +67,7 @@ export function AssetCard({
         type="button"
         className="flex w-full items-center p-4 text-left rounded-lg cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         onClick={handleClick}
-        aria-label={`View ${asset.asset} details`}
+        aria-label={t('asset_asset_card_view_details', [String(asset.asset)])}
       >
         {/* Asset Icon */}
         <AssetIcon asset={asset.asset} size="lg" className="flex-shrink-0" />
@@ -79,11 +81,11 @@ export function AssetCard({
 
           {/* Asset Supply */}
           <div className="text-sm text-gray-500">
-            Supply: {formatAmount({
+            {t('asset_asset_card_supply', [String(formatAmount({
               value: asset.supply_normalized,
               minimumFractionDigits: 0,
               maximumFractionDigits: 8
-            })}
+            }))])}
           </div>
         </div>
       </button>

@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { DispenserOptions } from "@/core/counterparty/compose";
 import { composeDispenser } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { DispenserCloseForm } from "@/pages/compose/dispenser/close/form";
 import { ReviewDispenserClose } from "@/pages/compose/dispenser/close/review";
 
@@ -13,8 +14,8 @@ function ComposeDispenserClosePage() {
       <Composer<DispenserOptions>
         composeType="dispenser"
         composeApiMethod={composeDispenser}
-        initialTitle="Close"
-        FormComponent={(props) => <DispenserCloseForm {...props} initialAsset={asset} />}
+        initialTitle={t('common_close')}
+        renderForm={(props) => <DispenserCloseForm {...props} initialAsset={asset} />}
         ReviewComponent={ReviewDispenserClose}
       />
     </div>

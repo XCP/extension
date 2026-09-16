@@ -4,17 +4,17 @@
  * A third source of truth, independent of both decoders. Some message bodies name parts of their
  * own transaction — `attach` gives an output index, `utxo` (move) gives the outpoint it spends —
  * and those references are verifiable against the bytes already parsed locally, with no packer and
- * no API call. Where they disagree, the message cannot mean what it appears to: core resolves the
- * same references against the same transaction and would reject or credit elsewhere.
+ * no API call. A missing attach output is invalid in Core. The legacy UTXO source check below is
+ * stricter wallet policy: it requires the named UTXO to be among this transaction's inputs.
  *
  * This catches a class neither existing check can. The API comparison reads the same payload
  * through a second decoder and never looks at the transaction. The repack proof shows the decode
  * accounts for every payload byte, and would still pass for a payload that is internally perfect
  * but points at an output that does not exist.
  *
- * Findings block signing. A reference that does not resolve makes the transaction ineffective —
- * core rejects the message — but the Bitcoin transaction still confirms and still spends real
- * fees, and no honest composer produces one. There is nothing legitimate to acknowledge through.
+ * Findings keep signing blocked. An invalid Counterparty attachment does not invalidate its Bitcoin
+ * transaction: if signed and confirmed, it still pays fees. Do not claim every legacy UTXO source
+ * mismatch is invalid in Core; utxo.py checks source-address ownership, not input membership.
  */
 
 import type { AttachData, MoveData } from '@/core/counterparty/unpack/messages/attach';
@@ -25,10 +25,16 @@ export interface TransactionShape {
   outputs: Array<{ index: number }>;
 }
 
-export interface StructureFinding {
+interface StructureFindingText {
   title: string;
   message: string;
 }
+
+/** Exact local evidence; translation belongs to the approval UI, never this check. */
+export type StructureFinding = StructureFindingText & (
+  | { code: 'attach_missing_output'; data: { destinationVout: number; outputCount: number } }
+  | { code: 'utxo_source_not_spent'; data: { source: string } }
+);
 
 /**
  * @param messageType - the locally decoded type
@@ -54,11 +60,13 @@ export function checkMessageStructure(
       const exists = tx.outputs.some((o) => o.index === destinationVout);
       if (!exists) {
         findings.push({
+          code: 'attach_missing_output',
+          data: { destinationVout, outputCount: tx.outputs.length },
           title: 'Attaches to an output that does not exist',
           message:
             `This attaches assets to output #${destinationVout}, but the transaction has ` +
             `${tx.outputs.length} output${tx.outputs.length === 1 ? '' : 's'}. The attachment ` +
-            'cannot take effect as described.',
+            'cannot take effect as described. If signed and confirmed, the Bitcoin fee would still be paid.',
         });
       }
       break;
@@ -69,9 +77,9 @@ export function checkMessageStructure(
       const { source } = data as MoveData;
       if (!source) break;
 
-      // The source names the outpoint whose balances move. Core moves assets from that UTXO, so
-      // it has to be one this transaction actually spends — otherwise the message describes a
-      // movement out of a UTXO untouched by the bytes being signed.
+      // Preserve this wallet's signed-input policy. Legacy ID100 utxo.py verifies source-address
+      // ownership rather than requiring this input; implicit move.py uses the actual spent UTXOs.
+      // The observed mismatch is exact, but it is not a universal Core-invalidity claim.
       const [txid, voutText] = source.split(':');
       const vout = Number(voutText);
       const spent = tx.inputs.some(
@@ -79,10 +87,12 @@ export function checkMessageStructure(
       );
       if (!spent) {
         findings.push({
-          title: 'Moves a UTXO this transaction does not spend',
+          code: 'utxo_source_not_spent',
+          data: { source },
+          title: 'Source UTXO is not spent by this transaction',
           message:
-            `This moves assets from ${source}, which is not among the inputs being signed. ` +
-            'The move cannot take effect as described.',
+            `The message names ${source} as its source, but this transaction does not spend that UTXO. ` +
+            'Signing is blocked. If signed and confirmed, the Bitcoin fee would still be paid.',
         });
       }
       break;

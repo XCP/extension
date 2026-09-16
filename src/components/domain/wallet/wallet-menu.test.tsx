@@ -70,7 +70,7 @@ describe('WalletMenu', () => {
     fireEvent.click(menuButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Show Passphrase')).toBeInTheDocument();
+      expect(screen.getByText('Show Recovery Phrase')).toBeInTheDocument();
       expect(screen.getByText('Remove Mnemonic Wallet')).toBeInTheDocument();
     });
   });
@@ -101,7 +101,7 @@ describe('WalletMenu', () => {
     fireEvent.click(menuButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Show Passphrase')).toBeInTheDocument();
+      expect(screen.getByText('Show Recovery Phrase')).toBeInTheDocument();
       const removeButton = screen.getByText('Remove Mnemonic Wallet');
       expect(removeButton).toBeDisabled();
       expect(removeButton).toHaveAttribute('title', 'Cannot remove only wallet');
@@ -119,7 +119,7 @@ describe('WalletMenu', () => {
     fireEvent.click(menuButton);
 
     await waitFor(() => {
-      const showButton = screen.getByText('Show Passphrase');
+      const showButton = screen.getByText('Show Recovery Phrase');
       fireEvent.click(showButton);
     });
 
@@ -202,7 +202,7 @@ describe('WalletMenu', () => {
     mockOnClick.mockClear();
 
     await waitFor(() => {
-      const showButton = screen.getByText('Show Passphrase');
+      const showButton = screen.getByText('Show Recovery Phrase');
       fireEvent.click(showButton);
     });
 
@@ -221,7 +221,7 @@ describe('WalletMenu', () => {
     fireEvent.click(menuButton);
 
     await waitFor(() => {
-      const showButton = screen.getByText('Show Passphrase').closest('button');
+      const showButton = screen.getByText('Show Recovery Phrase').closest('button');
       expect(showButton).toBeInTheDocument();
       // Check if basic menu item styles are applied from Button component
       expect(showButton?.className).toContain('flex');

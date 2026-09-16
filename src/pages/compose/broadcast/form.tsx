@@ -11,6 +11,8 @@ import { isSegwitFormat } from '@/core/bitcoin/address';
 import { type BroadcastOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
 import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
 
+import { t } from '@/i18n';
+
 /** Maximum file size for inscriptions in KB; see the compose layer for where it comes from. */
 const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
@@ -58,7 +60,7 @@ export function BroadcastForm({
   const handleFileChange = (file: File | null) => {
     setFileError(null);
     if (file && file.size > MAX_INSCRIPTION_FILE_BYTES) {
-      setFileError(`File size must be less than ${INSCRIPTION_MAX_SIZE_KB}KB`);
+      setFileError(t('issuance_form_file_size_must_be_less', [String(INSCRIPTION_MAX_SIZE_KB)]));
       return;
     }
     setSelectedFile(file);
@@ -94,7 +96,7 @@ export function BroadcastForm({
               formData.set("mime_type", selectedFile.type || "application/octet-stream");
               formData.set("encoding", "taproot");
             } catch (_error) {
-              setFileError("Failed to process file");
+              setFileError(t('common_failed_to_process_file'));
               return;
             }
           } else {
@@ -114,7 +116,7 @@ export function BroadcastForm({
             />
           )
         }
-        submitText="Continue"
+        submitText={t('common_continue')}
         submitDisabled={(inscribeEnabled && !selectedFile) || (!inscribeEnabled && !textContent)}
         formClassName="space-y-4"
       >
@@ -126,13 +128,14 @@ export function BroadcastForm({
               error={fileError}
               disabled={false}
               maxSizeKB={INSCRIPTION_MAX_SIZE_KB}
-              helpText="Upload a file to inscribe as the broadcast message. The file content will be stored permanently on-chain. To broadcast text, upload a .txt file."
+              helpText={t('broadcast_form_upload_a_file_to_inscribe')}
               showHelpText={showHelpText}
             />
           ) : (
             <Field>
               <Label htmlFor="text" className="block text-sm font-medium text-gray-700">
-                Message <span className="text-red-500">*</span>
+                
+                {t('common_message')} <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 id="text"
@@ -147,7 +150,7 @@ export function BroadcastForm({
               />
               {showHelpText && (
                 <Description className="mt-2 text-sm text-gray-500">
-                  Enter the message you want to broadcast.
+                  {t('broadcast_form_enter_the_message_you_want')}
                 </Description>
               )}
             </Field>
@@ -155,8 +158,8 @@ export function BroadcastForm({
 
           {isSegwitAddress && (
             <SettingSwitch
-              label="Inscribe?"
-              description="Store message as a Taproot inscription (on-chain)"
+              label={t('common_inscribe')}
+              description={t('common_store_message_as_a_taproot')}
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
               showHelpText={showHelpText}
@@ -167,7 +170,7 @@ export function BroadcastForm({
           {showAdvancedOptions && (
             <>
               <TextField
-                label="Value"
+                label={t('common_value')}
                 id="value"
                 name="value"
                 type="text"
@@ -176,11 +179,11 @@ export function BroadcastForm({
                 defaultValue={initialFormData?.value || ""}
                 placeholder="0"
                 showHelpText={showHelpText}
-                description="Optional numeric value if publishing data."
+                description={t('broadcast_form_optional_numeric_value_if_publishing')}
               />
 
               <TextField
-                label="Fee Fraction"
+                label={t('common_fee_fraction')}
                 id="fee_fraction"
                 name="fee_fraction"
                 type="text"
@@ -189,7 +192,7 @@ export function BroadcastForm({
                 defaultValue={initialFormData?.fee_fraction || ""}
                 placeholder="0"
                 showHelpText={showHelpText}
-                description="Optional fee fraction for paid broadcasts (e.g., 0.05 for 5%)."
+                description={t('broadcast_form_optional_fee_fraction_for_paid')}
               />
             </>
           )}

@@ -7,9 +7,9 @@
  */
 
 import type { ProtocolField } from '@/core/counterparty/describe';
+import { t } from '@/i18n';
 import { ApprovalFacts } from './approval-facts';
 import { ApprovalIdentifier } from './approval-identifier';
-
 /** An mpma_send recipient: destinations travel in the payload, so this list is the only account of who is paid. */
 export interface CounterpartyDetailRecipient {
   asset: string;
@@ -28,12 +28,12 @@ export function CounterpartyDetailsCard({
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-4">
-      <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Counterparty</h3>
+      <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">{t('approval_counterparty_details_card_counterparty')}</h3>
       <ApprovalFacts fields={fields} />
       {recipients.length > 0 && (
         <div className={fields.length > 0 ? 'mt-3' : ''}>
           <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">
-            Recipients ({recipients.length})
+            {t('approval_counterparty_details_card_recipients', [String(recipients.length)])}
           </h4>
           <div className="space-y-2">
             {recipients.map((recipient, index) => (

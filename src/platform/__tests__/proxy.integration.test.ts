@@ -191,4 +191,57 @@ describe('Proxy Service Integration', () => {
     setupIntegration();
     await expect(getService().getReview()).rejects.toThrow('unsupported value');
   });
+
+  it('preserves a review diagnostic, original message and public RPC code through Chrome JSON messaging', async () => {
+    const { ProviderError } = await import('@/core/rpcErrors');
+    const { withProviderReviewCode, providerReviewCode } = await import('@/core/providerReviewErrors');
+    const failure = withProviderReviewCode(new ProviderError(4100, 'Original permission evidence'), 'paired_revoked');
+    vi.mocked(mockWalletService.getReview).mockRejectedValue(failure);
+    setupIntegration();
+    const received = await getService().getReview().catch(error => error);
+    expect(received).toBeInstanceOf(ProviderError);
+    expect(received.code).toBe(4100);
+    expect(received.message).toBe('Original permission evidence');
+    expect(providerReviewCode(received)).toBe('paired_revoked');
+    expect(mockWalletService.getReview).toHaveBeenCalledOnce();
+  });
+
+  it('does not turn arbitrary error metadata or English text into a local review diagnostic', async () => {
+    const { providerReviewCode } = await import('@/core/providerReviewErrors');
+    vi.mocked(mockWalletService.getReview).mockRejectedValue(Object.assign(new Error('Wallet is locked'), {
+      reviewCode: '__proto__', code: 4100,
+    }));
+    setupIntegration();
+    const received = await getService().getReview().catch(error => error);
+    expect(received.message).toBe('Wallet is locked');
+    expect(received.code).toBeUndefined();
+    expect(providerReviewCode(received)).toBeUndefined();
+    expect(mockWalletService.getReview).toHaveBeenCalledOnce();
+  });
+
+  it.each(['DEVICE_BUSY', 'SDK.Unknown-Code'])('preserves hardware code %s and raw evidence through Chrome JSON without replaying the command', async code => {
+    const { HardwareWalletError } = await import('@/core/hardware/types');
+    const { hardwareErrorMetadata } = await import('@/core/hardware/errorMetadata');
+    const failure = new HardwareWalletError('Exact device error / input 7 / 0x83', code, 'trezor', 'Existing English user message');
+    vi.mocked(mockWalletService.sendTransaction).mockRejectedValue(failure);
+    setupIntegration();
+    const received = await getService().sendTransaction('bc1qEXACT', 12345678).catch(error => error);
+    expect(received.message).toBe(failure.message);
+    expect(received.code).toBeUndefined();
+    expect(hardwareErrorMetadata(received)).toEqual({ vendor: 'trezor', code });
+    expect(received.userMessage).toBeUndefined();
+    expect(received.hardware).not.toHaveProperty('userMessage');
+    expect(mockWalletService.sendTransaction).toHaveBeenCalledExactlyOnceWith('bc1qEXACT', 12345678);
+  });
+
+  it('does not serialize hardware-like properties on an ordinary API error', async () => {
+    const { hardwareErrorMetadata } = await import('@/core/hardware/errorMetadata');
+    vi.mocked(mockWalletService.getReview).mockRejectedValue(Object.assign(new Error('API diagnostic with Trezor'), {
+      hardware: { vendor: 'trezor', code: 'DEVICE_BUSY' }, code: 'DEVICE_BUSY', vendor: 'trezor',
+    }));
+    setupIntegration();
+    const received = await getService().getReview().catch(error => error);
+    expect(received.message).toBe('API diagnostic with Trezor');
+    expect(hardwareErrorMetadata(received)).toBeUndefined();
+  });
 });

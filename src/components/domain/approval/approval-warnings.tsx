@@ -18,6 +18,79 @@ import type { AttachedAssetDestination } from '@/core/counterparty/attachedAsset
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
+import { formatAmount } from '@/core/format';
+
+import { t } from '@/i18n';
+
+/** Known local findings are translated here, after crossing the background/UI language boundary. */
+function safetyWarningText(warning: SecurityWarning): { title: string; description: string } {
+  switch (warning.code) {
+    case 'sweep':
+      return { title: t('safety_blocked_sweep_transaction'), description: t('safety_this_would_send_all_counterparty') };
+    case 'destroy':
+      return { title: t('safety_danger_supply_destruction'), description: t('safety_this_transaction_permanently_destroys_supply') };
+    case 'detach_all':
+      return { title: t('safety_moves_everything_on_the_utxo'), description: t('safety_detaching_transfers_every_asset_attached') };
+    case 'unknown_message_type':
+      return { title: t('safety_unknown_transaction_type'), description: t('safety_unrecognized_message_type', warning.data.messageType) };
+    case 'unrecognized_payload':
+      return { title: t('safety_unrecognized_transaction'), description: t('safety_this_transaction_could_not_be') };
+    case 'inscription_commit':
+      return {
+        title: t('safety_inscription_commit'),
+        description: t('safety_this_funds_an_inscription', [
+          (warning.data.totalSats / 100_000_000).toFixed(8), `${warning.data.address.slice(0, 12)}…`,
+        ]),
+      };
+    case 'misdirected_recovery_key':
+      return {
+        title: t('safety_data_outputs_not_recoverable_by'),
+        description: warning.data.count > 1
+          ? t('safety_data_outputs_embed_a_recovery_key', String(warning.data.count))
+          : t('safety_data_output_embeds_a_recovery_key', String(warning.data.count)),
+      };
+    case 'expected_btc_payment':
+    case 'external_btc_output': {
+      const btcAmount = (warning.data.totalSats / 100_000_000).toFixed(8);
+      const addressList = warning.data.addresses.map(address => `${address.slice(0, 12)}…`).join(', ');
+      if (warning.code === 'expected_btc_payment') {
+        return {
+          title: warning.data.plainBitcoinPayment ? t('safety_bitcoin_payment') : t('safety_btc_payment'),
+          description: warning.data.plainBitcoinPayment
+            ? t('safety_this_sends_btc_matching_the_declared', [btcAmount, addressList])
+            : t('safety_this_sends_btc_which_is_how', [btcAmount, addressList]),
+        };
+      }
+      return {
+        title: t('safety_btc_sent_to_external_address'),
+        description: warning.data.addresses.length === 1
+          ? t('safety_this_transaction_sends_btc_to_an_address', [btcAmount, addressList])
+          : t('safety_this_transaction_sends_btc_to_addresses', [btcAmount, String(warning.data.addresses.length), addressList]),
+      };
+    }
+    case 'counterparty_data_outputs': {
+      const subs = [String(warning.data.count), formatAmount({ value: warning.data.totalSats, maximumFractionDigits: 0 })];
+      return {
+        title: t('safety_counterparty_data_outputs'),
+        description: warning.data.count === 1
+          ? t('safety_output_carries_this_transactions_message', subs)
+          : t('safety_outputs_carry_this_transactions_message', subs),
+      };
+    }
+    case 'unattributable_outputs': {
+      const btcAmount = (warning.data.totalSats / 100_000_000).toFixed(8);
+      return {
+        title: t('safety_btc_sent_to_an_unrecognized_script'),
+        description: warning.data.count === 1
+          ? t('safety_this_transaction_sends_btc_to_an_output', btcAmount)
+          : t('safety_this_transaction_sends_btc_to_outputs', [btcAmount, String(warning.data.count)]),
+      };
+    }
+    default:
+      // Other analyzers and unstructured/API diagnostics keep their original evidence verbatim.
+      return { title: warning.title, description: warning.message };
+  }
+}
 
 export interface ApprovalWarningInput {
   /** Free text actually rendered in the action summary or protocol details. */
@@ -52,8 +125,7 @@ export function buildApprovalWarnings({
     key: `safety-${idx}`,
     severity: warning.severity === 'block' ? 'danger' : warning.severity,
     blocking: warning.severity === 'block',
-    title: warning.title,
-    description: warning.message,
+    ...safetyWarningText(warning),
   }));
 
   const renderedText = displayedText.filter((value) => value.length > 0).join('\n');
@@ -64,12 +136,12 @@ export function buildApprovalWarnings({
         key: `display-${risk.key}`,
         severity: 'warning',
         title: risk.key === 'deceptive-characters'
-          ? 'Transaction details contain hidden characters'
-          : 'Transaction details contain control characters',
+          ? t('approval_approval_warnings_transaction_details_contain_hidden_characters')
+          : t('approval_approval_warnings_transaction_details_contain_control_characters'),
         description: risk.key === 'deceptive-characters'
-          ? 'A memo, description, or asset label uses characters that can reorder or hide text. '
-            + 'Check the decoded amounts and destinations carefully.'
-          : 'A memo, description, or asset label includes characters that are not displayed.',
+          ? t('approval_approval_warnings_a_memo_description_or_asset')
+            + t('approval_approval_warnings_check_the_decoded_amounts_and')
+          : t('approval_approval_warnings_a_memo_description_or_asset_2'),
       });
     }
   }
@@ -82,7 +154,7 @@ export function buildApprovalWarnings({
       {signedInputsWithAssets.flatMap(entry =>
         entry.assets.map(asset => (
           <li key={`${entry.inputIndex}-${asset.asset}`}>
-            Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
+            {t('approval_approval_warnings_input', [String(entry.inputIndex), String(asset.quantity_normalized), String(asset.asset_longname ?? asset.asset)])}
           </li>
         ))
       )}
@@ -91,55 +163,73 @@ export function buildApprovalWarnings({
 
   if (attachedAssetDestination) {
     const dest = attachedAssetDestination;
+    // "#0, #2": the inputs carrying assets. One input and several read differently in every
+    // language, so each sentence exists in both forms rather than pluralising a suffix.
+    const inputList = dest.sourceInputs.map((i) => `#${i}`).join(', ');
+    const oneInput = dest.sourceInputs.length === 1;
     if (!dest.destinationCommitted) {
       warningItems.push({
         key: 'attached-destination',
         severity: 'danger',
-        title: 'Asset delivery is flexible',
-        description:
-          `The signature for attached input${dest.sourceInputs.length === 1 ? '' : 's'} ` +
-          `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} does not fix the asset destination. ` +
-          'Whoever completes this PSBT may choose an explicit detach address or a different first ' +
-          'output. Review the exact authorization below.',
+        title: t('approval_approval_warnings_asset_delivery_is_flexible'),
+        description: oneInput
+          ? t('approval_approval_warnings_the_signature_for_attached_input', [String(inputList)])
+          : t('approval_approval_warnings_the_signature_for_attached_inputs', [String(inputList)]),
         children: attachedAssetList,
       });
     } else {
+    const outputRef = `#${dest.destinationVout}${dest.destinationAddress ? ` (${dest.destinationAddress})` : ''}`;
     warningItems.push({
       key: 'attached-destination',
       severity: dest.leavesWallet ? 'danger' : 'info',
       title: dest.detaches
         ? dest.leavesWallet
-          ? 'Assets are detached to another address'
-          : 'Attached assets are detached to your address'
+          ? t('approval_approval_warnings_assets_are_detached_to_another')
+          : t('approval_approval_warnings_attached_assets_are_detached_to')
         : dest.leavesWallet
-          ? 'Attached assets leave your wallet'
-          : 'Attached assets move to your own output',
+          ? t('approval_approval_warnings_attached_assets_leave_your_wallet')
+          : t('approval_approval_warnings_attached_assets_move_to_your'),
       description: dest.detaches
         ? dest.mode === 'explicit-detach'
-          ? `Every asset attached to input${dest.sourceInputs.length === 1 ? '' : 's'} ` +
-            `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} is detached to ` +
-            `${dest.destinationAddress ?? 'the source address'}.`
-          : 'This transaction has no ordinary output, so every asset attached to the inputs you are ' +
-            'signing is credited back to your address.'
-        : `Every asset attached to input${dest.sourceInputs.length === 1 ? '' : 's'} ` +
-          `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} is credited to output ` +
-          `#${dest.destinationVout}${dest.destinationAddress ? ` (${dest.destinationAddress})` : ''}` +
-          `${dest.leavesWallet ? ', which is not an address you control.' : '.'}`,
+          ? dest.destinationAddress
+            ? oneInput
+              ? t('approval_approval_warnings_every_asset_attached_to_input', [String(inputList), String(dest.destinationAddress)])
+              : t('approval_approval_warnings_every_asset_attached_to_inputs', [String(inputList), String(dest.destinationAddress)])
+            : oneInput
+              ? t('approval_approval_warnings_every_asset_attached_to_input_2', [String(inputList)])
+              : t('approval_approval_warnings_every_asset_attached_to_inputs_2', [String(inputList)])
+          : t('approval_approval_warnings_this_transaction_has_no_ordinary')
+        : dest.leavesWallet
+          ? oneInput
+            ? t('approval_approval_warnings_every_asset_attached_to_input_3', [String(inputList), String(outputRef)])
+            : t('approval_approval_warnings_every_asset_attached_to_inputs_3', [String(inputList), String(outputRef)])
+          : oneInput
+            ? t('approval_approval_warnings_every_asset_attached_to_input_4', [String(inputList), String(outputRef)])
+            : t('approval_approval_warnings_every_asset_attached_to_inputs_4', [String(inputList), String(outputRef)]),
       children: attachedAssetList,
     });
     }
   }
 
-  // The message's own references to this transaction, where they do not resolve against it. A
-  // Core rejects such a transaction. Signing is blocked because the screen cannot describe what
-  // it claims to do; the finding must lead ahead of unrelated signable cautions.
+  // These local mismatches keep the existing wallet block. Missing attach outputs are invalid in
+  // Core; the legacy UTXO source check is stricter wallet policy, not a Core-invalidity claim.
   for (const [idx, finding] of structureFindings.entries()) {
+    const text = finding.code === 'attach_missing_output'
+      ? {
+          title: t('approval_structure_attach_missing_output_title'),
+          description: finding.data.outputCount === 1
+            ? t('approval_structure_attach_missing_output_one', [String(finding.data.destinationVout), String(finding.data.outputCount)])
+            : t('approval_structure_attach_missing_output_many', [String(finding.data.destinationVout), String(finding.data.outputCount)]),
+        }
+      : {
+          title: t('approval_structure_utxo_source_not_spent_title'),
+          description: t('approval_structure_utxo_source_not_spent_description', [finding.data.source]),
+        };
     warningItems.push({
       key: `structure-${idx}`,
       severity: 'warning',
       blocking: true,
-      title: finding.title,
-      description: finding.message,
+      ...text,
     });
   }
 
@@ -147,8 +237,8 @@ export function buildApprovalWarnings({
     warningItems.push({
       key: 'attached-assets',
       severity: 'warning',
-      title: 'Spends UTXOs holding Counterparty assets',
-      description: 'Inputs you are signing carry attached assets. Signing moves them, not just BTC.',
+      title: t('approval_approval_warnings_spends_utxos_holding_counterparty_assets'),
+      description: t('approval_approval_warnings_inputs_you_are_signing_carry'),
       children: attachedAssetList,
     });
   }
@@ -158,14 +248,14 @@ export function buildApprovalWarnings({
       key: 'unknown-status',
       severity: 'warning',
       blocking: true,
-      title: "Couldn't verify asset status",
+      title: t('approval_approval_warnings_couldn_t_verify_asset_status'),
       // The inputs are listed below and the severity already carries the "be careful" — a closing
       // "proceed only if you trust this" sentence adds words the reader cannot act on.
-      description: "The balance lookup failed, so attached assets can't be ruled out.",
+      description: t('approval_approval_warnings_the_balance_lookup_failed_so'),
       children: (
         <ul className="mt-2 space-y-1 text-xs font-medium">
           {signedInputsUnknownStatus.map(entry => (
-            <li key={entry.inputIndex}>Input #{entry.inputIndex}: status unknown</li>
+            <li key={entry.inputIndex}>{t('approval_approval_warnings_input_status_unknown', [String(entry.inputIndex)])}</li>
           ))}
         </ul>
       ),

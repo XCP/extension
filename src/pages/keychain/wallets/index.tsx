@@ -7,6 +7,7 @@ import { ErrorAlert } from '@/components/ui/error-alert';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { MAX_WALLETS } from '@/core/wallet/constants';
+import { t } from '@/i18n';
 import type { Wallet } from '@/types/wallet';
 
 /** Check if we're running in the sidepanel (vs popup) */
@@ -36,7 +37,7 @@ function WalletsPage() {
 
   const handleAddWallet = useCallback(() => {
     if (wallets.length >= MAX_WALLETS) {
-      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
     navigate(PATHS.ADD_WALLET);
@@ -45,12 +46,12 @@ function WalletsPage() {
   // Configure header with add wallet button
   useEffect(() => {
     setHeaderProps({
-      title: 'Keychain',
+      title: t('keychain_wallets_keychain'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FaPlus className="size-4" aria-hidden="true" />,
         onClick: handleAddWallet,
-        ariaLabel: 'Add Wallet',
+        ariaLabel: t('common_add_wallet'),
       },
     });
   }, [setHeaderProps, navigate, handleAddWallet]);
@@ -82,7 +83,7 @@ function WalletsPage() {
       navigate(PATHS.INDEX);
     } catch (err) {
       console.error('Error selecting wallet:', err);
-      setError('Failed to select wallet. Please try again.');
+      setError(t('keychain_wallets_failed_to_select_wallet_please'));
       setPendingWallet(null);
     }
   };
@@ -95,7 +96,7 @@ function WalletsPage() {
       <div className="flex-grow overflow-y-auto p-4">
         {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
         <h2 id="wallet-selection-title" className="sr-only text-2xl font-bold mb-2">
-          Select a Wallet
+          {t('keychain_wallets_select_a_wallet')}
         </h2>
         <WalletList
           wallets={wallets}
@@ -106,7 +107,7 @@ function WalletsPage() {
           selectedAddress={pendingWallet ? null : activeAddress}
           onSelectWallet={handleSelectWalletInternal}
           disableHardwareWallets={!canUseHardwareWallet}
-          hardwareWalletDisabledMessage="Open in sidepanel"
+          hardwareWalletDisabledMessage={t('keychain_wallets_open_in_sidepanel')}
         />
       </div>
       <div className="p-4">
@@ -115,10 +116,11 @@ function WalletsPage() {
           fullWidth
           onClick={handleAddWallet}
           disabled={wallets.length >= MAX_WALLETS}
-          aria-label="Add Wallet"
+          aria-label={t('common_add_wallet')}
         >
           <FaPlus className="size-4 mr-2" aria-hidden="true" />
-          Add Wallet
+          
+          {t('common_add_wallet')}
         </Button>
       </div>
     </section>

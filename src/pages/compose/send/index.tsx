@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { SendOrMPMAOptions } from "@/core/counterparty/compose";
 import { composeSendOrMPMA } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { SendForm } from "@/pages/compose/send/form";
 import { ReviewSend } from "@/pages/compose/send/review";
 
@@ -13,8 +14,8 @@ function ComposeSendPage() {
       <Composer<SendOrMPMAOptions>
         composeType="send"
         composeApiMethod={composeSendOrMPMA}
-        initialTitle="Send"
-        FormComponent={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
+        initialTitle={t('common_send')}
+        renderForm={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
         ReviewComponent={ReviewSend}
       />
     </div>

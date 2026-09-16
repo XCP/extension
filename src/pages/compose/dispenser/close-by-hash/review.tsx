@@ -2,6 +2,8 @@ import type { ReactElement } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import type { ApiResponse } from "@/core/counterparty/compose";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewDispenserCloseByHash component.
  */
@@ -29,8 +31,8 @@ export function ReviewDispenserCloseByHash({
   const params = result.params as { asset: string; open_address?: string };
   
   const customFields = [
-    { label: "Asset", value: params.asset },
-    ...(params.open_address ? [{ label: "Dispenser Hash", value: params.open_address }] : []),
+    { label: t('common_asset'), value: params.asset },
+    ...(params.open_address ? [{ label: t('close_by_hash_review_dispenser_hash'), value: params.open_address }] : []),
   ];
 
   return (

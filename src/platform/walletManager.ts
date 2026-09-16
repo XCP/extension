@@ -947,15 +947,30 @@ export class WalletManager {
       throw new Error('Cannot update settings: keychain not unlocked');
     }
 
-    // Merge updates into settings
-    this.keychain.settings = {
-      ...this.keychain.settings,
+    const keychain = this.keychain;
+    const previousSettings = keychain.settings;
+    const generation = this.vaultGeneration;
+    const nextSettings = {
+      ...previousSettings,
       ...updates,
     };
+    keychain.settings = nextSettings;
 
-    await this.mutationStep(this.persistKeychain());
+    try {
+      await this.mutationStep(this.persistKeychain());
+    } catch (error) {
+      // getSettings() is also the foreground's rollback source. A failed write must not leave
+      // the rejected node/security settings in that live view. Other mutations are serialized;
+      // a lock/session change, however, must never have its cleared state restored here.
+      if (this.keychain === keychain && this.vaultGeneration === generation
+        && keychain.settings === nextSettings) {
+        keychain.settings = previousSettings;
+      }
+      throw error;
+    }
 
     // Persist the new idle limit in session metadata too, so activity and worker recovery keep it.
+    // This follows the committed keychain write: a session-metadata failure must not roll it back.
     if (updates.autoLockTimer) {
       const timeoutMs = getAutoLockTimeoutMs(updates.autoLockTimer);
       await this.mutationStep(sessionManager.updateSessionTimeout(timeoutMs));

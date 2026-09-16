@@ -1,5 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewUtxoDetach component.
  */
@@ -27,8 +29,8 @@ export function ReviewUtxoDetach({
 
 
   const customFields = [
-    { label: "Source UTXO", value: result.params.sourceUtxo || result.params.utxo || "N/A" },
-    ...(result.params.destination ? [{ label: "Destination", value: result.params.destination }] : []),
+    { label: t('detach_review_source_utxo'), value: result.params.sourceUtxo || result.params.utxo || "N/A" },
+    ...(result.params.destination ? [{ label: t('common_destination'), value: result.params.destination }] : []),
   ];
 
   return (

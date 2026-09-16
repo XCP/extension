@@ -116,6 +116,7 @@ export interface SignRequestAnalysis {
   safety: SafetyAnalysis;
   attachedAssets: InputAttachedAssets[];
   mpmaRecipients: MpmaRecipient[];
+  /** Exact local evidence stays unchanged until the approval UI translates the stable code. */
   structureFindings: StructureFinding[];
   protocolContext: ProtocolContext;
   attachedAssetDestination: AttachedAssetDestination | null;

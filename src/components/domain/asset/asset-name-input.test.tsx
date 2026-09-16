@@ -245,8 +245,8 @@ describe('AssetNameInput', () => {
       mockFetchAssetDetails.mockResolvedValueOnce(null); // Subasset doesn't exist
 
       render(
-        <AssetNameInput 
-          value="YACHTDOCK.ts" 
+        <AssetNameInput
+          value="YACHTDOCK.ts"
           onChange={mockOnChange}
           onValidationChange={mockOnValidationChange}
           isSubasset={true}
@@ -275,8 +275,8 @@ describe('AssetNameInput', () => {
       });
 
       render(
-        <AssetNameInput 
-          value="YACHTDOCK.test" 
+        <AssetNameInput
+          value="YACHTDOCK.test"
           onChange={mockOnChange}
           onValidationChange={mockOnValidationChange}
           isSubasset={true}

@@ -1,6 +1,8 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { parseMoreOutputs } from "@/core/format";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewSweep component.
  */
@@ -28,13 +30,13 @@ export function ReviewSweep({
   const moreOutput = parseMoreOutputs(result.params.more_outputs);
 
   const customFields = [
-    { label: "Destination", value: result.params.destination },
+    { label: t('common_destination'), value: result.params.destination },
     ...(moreOutput
-      ? [{ label: "Additional BTC Output", value: `${moreOutput.btc} BTC to ${moreOutput.destination}` }]
+      ? [{ label: t('sweep_review_additional_btc_output'), value: t('sweep_review_btc_to', [String(moreOutput.btc), String(moreOutput.destination)]) }]
       : []),
-    ...(result.params.memo ? [{ label: "Memo", value: result.params.memo }] : []),
+    ...(result.params.memo ? [{ label: t('common_memo'), value: result.params.memo }] : []),
     ...(result.params.flag !== undefined
-      ? [{ label: "Flag", value: result.params.flag.toString() }]
+      ? [{ label: t('sweep_review_flag'), value: result.params.flag.toString() }]
       : []),
   ];
 

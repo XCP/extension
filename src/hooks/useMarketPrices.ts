@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { type FiatCurrency, getBtc24hStats, getBtcPrice } from '@/core/bitcoin/price';
 import { getXCPPrice } from '@/core/counterparty/price';
 
@@ -23,6 +23,7 @@ interface MarketPricesState extends MarketPrices {
  * XCP prices are fetched in USD and converted to target currency using BTC ratio
  */
 export const useMarketPrices = (currency: FiatCurrency = 'usd') => {
+  const requestVersion = useRef(0);
   const [state, setState] = useState<MarketPricesState>({
     btc: null,
     xcp: null,
@@ -31,8 +32,9 @@ export const useMarketPrices = (currency: FiatCurrency = 'usd') => {
     error: null,
   });
 
-  const fetchPrices = async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
+  const fetchPrices = useCallback(async () => {
+    const version = ++requestVersion.current;
+    setState({ btc: null, xcp: null, currency, loading: true, error: null });
 
     try {
       let btcPrice: number | null = null;
@@ -60,6 +62,7 @@ export const useMarketPrices = (currency: FiatCurrency = 'usd') => {
         }
       }
 
+      if (version !== requestVersion.current) return;
       setState({
         btc: btcPrice,
         xcp: xcpPrice,
@@ -68,22 +71,23 @@ export const useMarketPrices = (currency: FiatCurrency = 'usd') => {
         error: null,
       });
     } catch (_error) {
+      if (version !== requestVersion.current) return;
       setState(prev => ({
         ...prev,
         loading: false,
         error: 'Failed to fetch market prices',
       }));
     }
-  };
-
-  // Fetch prices on mount and when currency changes. fetchPrices is redefined every render and
-  // closes over nothing but currency, so listing it would re-fetch on every render.
-  useEffect(() => {
-    fetchPrices();
   }, [currency]);
 
+  // Quotes belong to one currency and one request; late answers cannot relabel an old price.
+  useEffect(() => {
+    void fetchPrices();
+    return () => { requestVersion.current += 1; };
+  }, [fetchPrices]);
+
   return {
-    ...state,
+    ...(state.currency === currency ? state : { btc: null, xcp: null, currency, loading: true, error: null }),
     refetch: fetchPrices,
   };
 };

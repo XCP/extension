@@ -5,6 +5,8 @@ import { BsThreeDots, FaCoins, FaExchangeAlt, FaLockOpen, FaPen } from '@/compon
 import { Button } from '@/components/ui/button';
 import { BaseMenu } from '@/components/ui/menus/base-menu';
 
+import { t } from '@/i18n';
+
 /**
  * Props for the AssetMenu component
  */
@@ -39,7 +41,7 @@ export function AssetMenu({ ownedAsset }: AssetMenuProps): ReactElement {
   return (
     <BaseMenu
       trigger={<BsThreeDots className="size-4" aria-hidden="true" />}
-      ariaLabel="Asset actions"
+      ariaLabel={t('asset_asset_menu_asset_actions')}
       className="w-56"
     >
       {!ownedAsset.locked && (
@@ -51,7 +53,8 @@ export function AssetMenu({ ownedAsset }: AssetMenuProps): ReactElement {
               onClick={() => handleAction('issuance/issue-supply')}
             >
               <FaCoins className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-              Issue Supply
+              
+              {t('common_issue_supply')}
             </Button>
           </MenuItem>
           
@@ -62,7 +65,8 @@ export function AssetMenu({ ownedAsset }: AssetMenuProps): ReactElement {
               onClick={() => handleAction('issuance/lock-supply')}
             >
               <FaLockOpen className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-              Lock Supply
+              
+              {t('common_lock_supply')}
             </Button>
           </MenuItem>
         </>
@@ -75,7 +79,8 @@ export function AssetMenu({ ownedAsset }: AssetMenuProps): ReactElement {
           onClick={() => handleAction('issuance/update-description')}
         >
           <FaPen className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Change Description
+          
+          {t('asset_asset_menu_change_description')}
         </Button>
       </MenuItem>
       
@@ -86,7 +91,8 @@ export function AssetMenu({ ownedAsset }: AssetMenuProps): ReactElement {
           onClick={() => handleAction('issuance/transfer-ownership')}
         >
           <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Transfer Ownership
+          
+          {t('common_transfer_ownership')}
         </Button>
       </MenuItem>
     </BaseMenu>

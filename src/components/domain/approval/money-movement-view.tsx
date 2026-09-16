@@ -3,6 +3,8 @@ import type { PsbtFlexibilityKind } from '@/components/domain/approval/psbt-flex
 import { formatAddress, formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
+import { t } from '@/i18n';
+
 const btc = (sats: number) =>
   formatAmount({ value: fromSatoshis(sats, true), minimumFractionDigits: 8, maximumFractionDigits: 8 });
 
@@ -52,12 +54,12 @@ export function MoneyMovementView({
             // draining the wallet. The direction is not knowable here, so it is not claimed; the
             // destinations below still show what can be read from the transaction.
             <>
-              <p className="text-xs text-gray-500 mb-1">Net effect</p>
-              <p className="text-2xl leading-tight font-semibold tabular-nums text-warning-600">Couldn&apos;t be determined</p>
+              <p className="text-xs text-gray-500 mb-1">{t('approval_money_movement_view_net_effect')}</p>
+              <p className="text-2xl leading-tight font-semibold tabular-nums text-warning-600">{t('approval_money_movement_view_couldn_t_be_determined')}</p>
             </>
           ) : (
             <>
-              <p className="text-xs text-gray-500 mb-1">{sending ? 'You send' : 'You receive'}</p>
+              <p className="text-xs text-gray-500 mb-1">{sending ? t('approval_money_movement_view_you_send') : t('asset_fairmint_summary_you_receive')}</p>
               <p className="text-2xl leading-tight font-semibold tabular-nums text-gray-900">
                 {btc(Math.abs(net))} <span className="text-base font-medium text-gray-500">BTC</span>
               </p>
@@ -72,31 +74,31 @@ export function MoneyMovementView({
               {dest.address
                 ? formatAddress(dest.address, true)
                 : dest.isData
-                  ? 'Protocol data (recoverable)'
-                  : 'Unknown address'}
+                  ? t('approval_money_movement_view_protocol_data_recoverable')
+                  : t('approval_money_movement_view_unknown_address')}
             </span>
             <span className="font-medium text-gray-900 tabular-nums">{btc(dest.value)} BTC</span>
           </div>
         ))}
         {atRisk > 0 && (
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <span className={deferCautions ? 'text-gray-500' : 'text-danger-600'}>Not guaranteed back</span>
+            <span className={deferCautions ? 'text-gray-500' : 'text-danger-600'}>{t('approval_money_movement_view_not_guaranteed_back')}</span>
             <span className={`${deferCautions ? 'text-gray-900' : 'text-danger-600'} font-medium tabular-nums`}>
               {btc(atRisk)} BTC
             </span>
           </div>
         )}
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span className="text-gray-500">Network fee</span>
+          <span className="text-gray-500">{t('common_network_fee')}</span>
           <span className={`font-medium tabular-nums ${hasHighFee && !deferCautions ? 'text-warning-600' : 'text-gray-900'}`}>
-            {unfunded ? 'Set by the other party' : incomplete ? 'Unavailable' : `${btc(fee)} BTC`}
+            {unfunded ? t('approval_money_movement_view_set_by_the_other_party') : incomplete ? t('approval_bitcoin_payment_card_unavailable') : `${btc(fee)} BTC`}
           </span>
         </div>
         {/* Outputs that come back to this wallet are not listed: change is routine, and every
             such output is still itemized under Transaction. Only the at-risk portion above is
             a decision fact. */}
         {hasHighFee && !deferCautions && (
-          <p className="text-warning-600 text-center">Unusually high — double-check before signing.</p>
+          <p className="text-warning-600 text-center">{t('approval_money_movement_view_unusually_high_double_check_before')}</p>
         )}
       </div>
       {(incomplete
@@ -104,21 +106,21 @@ export function MoneyMovementView({
         || (!deferCautions && (flexibility === 'outputs-flexible' || atRisk > 0))) && (
         <div className="mt-2 space-y-1 text-center text-xs">
           {incomplete && (
-            <p className="text-warning-600">Some amounts couldn't be determined — review the details.</p>
+            <p className="text-warning-600">{t('approval_money_movement_view_some_amounts_couldn_t_be')}</p>
           )}
           {atRisk > 0 && !deferCautions && (
             <p className="text-danger-600">
-              This can be sent elsewhere after you sign, so the total above counts it as leaving.
+              {t('approval_money_movement_view_this_can_be_sent_elsewhere')}
             </p>
           )}
           {flexibility === 'inputs-only' && atRisk === 0 && (
             <p className="text-gray-500">
-              Other inputs may be added; every current output is fixed by your signature.
+              {t('approval_money_movement_view_other_inputs_may_be_added')}
             </p>
           )}
           {flexibility === 'outputs-flexible' && atRisk === 0 && !deferCautions && (
             <p className="text-warning-600">
-              Other inputs or outputs may be added or changed after you sign.
+              {t('approval_money_movement_view_other_inputs_or_outputs_may')}
             </p>
           )}
         </div>

@@ -3,6 +3,7 @@ import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for fairmint transactions
  */
@@ -16,15 +17,15 @@ export function fairmint(tx: Transaction): Array<{ label: string; value: string 
 
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
-      label: "Type",
+      label: t('common_type'),
       value: "Fairmint",
     },
     {
-      label: "Asset",
+      label: t('common_asset'),
       value: params.asset,
     },
     {
-      label: "Quantity Minted",
+      label: t('messages_fairmint_quantity_minted'),
       value: `${formatAmount({
         value: quantity,
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -36,7 +37,7 @@ export function fairmint(tx: Transaction): Array<{ label: string; value: string 
   // Commission if applicable
   if (params.commission_normalized !== undefined && Number(params.commission_normalized) > 0) {
     fields.push({
-      label: "Commission Paid",
+      label: t('messages_fairmint_commission_paid'),
       value: `${formatAmount({
         value: Number(params.commission_normalized),
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -49,7 +50,7 @@ export function fairmint(tx: Transaction): Array<{ label: string; value: string 
   if (params.paid_quantity_normalized !== undefined && isGreaterThan(params.paid_quantity_normalized, 0)) {
     const paidQuantity = params.paid_quantity_normalized;
     fields.push({
-      label: "XCP Paid",
+      label: t('messages_fairmint_xcp_paid'),
       value: `${formatAmount({
         value: paidQuantity,
         minimumFractionDigits: 8,
@@ -60,20 +61,20 @@ export function fairmint(tx: Transaction): Array<{ label: string; value: string 
     // Calculate effective price
     const effectivePrice = paidQuantity / quantity;
     fields.push({
-      label: "Effective Price",
-      value: `${formatAmount({
+      label: t('common_effective_price'),
+      value: t('messages_fairmint_xcp_per', [String(formatAmount({
         value: effectivePrice,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
-      })} XCP per ${params.asset}`,
+      })), String(params.asset)]),
     });
   }
   
   // Fairminter status
   if (params.fairminter_status !== undefined) {
     fields.push({
-      label: "Fairminter Status",
-      value: params.fairminter_status === 0 ? "Still Open" : "Closed After This",
+      label: t('messages_fairmint_fairminter_status'),
+      value: params.fairminter_status === 0 ? t('messages_fairmint_still_open') : t('messages_fairmint_closed_after_this'),
     });
   }
   

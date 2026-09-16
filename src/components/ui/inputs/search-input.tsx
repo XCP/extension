@@ -4,6 +4,8 @@ import { FaSearch, FiX } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { normalizeAssetQuery } from "@/core/format";
 
+import { t } from '@/i18n';
+
 interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -26,14 +28,14 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
     value,
     onChange,
     onSearch,
-    placeholder = "Search…",
+    placeholder = t('inputs_search_input_search'),
     label,
     name = "search",
     disabled = false,
     isLoading = false,
     showClearButton = true,
     showHelpText = false,
-    description = "Start typing to search",
+    description = t('inputs_search_input_start_typing_to_search'),
     debounceMs = 300,
     required = false,
     className = "",
@@ -118,7 +120,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
                   variant="input"
                   onClick={handleClear}
                   disabled={disabled}
-                  aria-label="Clear search"
+                  aria-label={t('inputs_search_input_clear_search')}
                   className="px-2 py-1"
                 >
                   <FiX className="size-4" aria-hidden="true" />

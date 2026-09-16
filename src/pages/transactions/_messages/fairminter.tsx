@@ -8,6 +8,7 @@ import {
 import { formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for fairminter creation transactions
  */
@@ -19,15 +20,15 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
-      label: "Type",
-      value: "Fairminter Creation",
+      label: t('common_type'),
+      value: t('messages_fairminter_fairminter_creation'),
     },
     {
-      label: "Asset",
+      label: t('common_asset'),
       value: params.asset,
     },
     {
-      label: "Status",
+      label: t('common_status'),
       value: params.status === 0 ? "🟢 Open" : 
              params.status === 1 ? "🔴 Closed" : 
              params.status === 2 ? "⚠️ Pending" : "Unknown",
@@ -39,7 +40,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   const paymentModel = readFairminterPaymentModel(params);
 
   fields.push({
-    label: "Mint Model",
+    label: t('messages_fairminter_mint_model'),
     value: describeFairminterPaymentModel(paymentModel),
   });
 
@@ -47,7 +48,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   // so it is not part of the free-mint branch.
   if (params.max_mint_per_tx_normalized !== undefined) {
     fields.push({
-      label: "Max Mint per TX",
+      label: t('messages_fairminter_max_mint_per_tx'),
       value: formatAmount({
         value: Number(params.max_mint_per_tx_normalized),
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -60,7 +61,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     // Core derives price_normalized as price / quantity_by_price: it is per unit, not per lot.
     if (params.price_normalized !== undefined) {
       fields.push({
-        label: "Price per Unit",
+        label: t('messages_fairminter_price_per_unit'),
         value: `${formatAmount({
           value: params.price_normalized,
           minimumFractionDigits: 8,
@@ -72,7 +73,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     // Quantity per price (normalized)
     if (params.quantity_by_price_normalized !== undefined) {
       fields.push({
-        label: "Quantity per Price",
+        label: t('messages_fairminter_quantity_per_price'),
         value: formatAmount({
           value: params.quantity_by_price_normalized,
           minimumFractionDigits: isDivisible ? 8 : 0,
@@ -85,7 +86,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   // Caps (use API-provided normalized values)
   if (params.hard_cap_normalized !== undefined && Number(params.hard_cap_normalized) > 0) {
     fields.push({
-      label: "Hard Cap",
+      label: t('common_hard_cap'),
       value: formatAmount({
         value: Number(params.hard_cap_normalized),
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -96,7 +97,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
 
   if (params.max_mint_per_address_normalized !== undefined && Number(params.max_mint_per_address_normalized) > 0) {
     fields.push({
-      label: "Max Mint per Address",
+      label: t('messages_fairminter_max_mint_per_address'),
       value: formatAmount({
         value: Number(params.max_mint_per_address_normalized),
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -107,7 +108,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
 
   if (params.soft_cap_normalized !== undefined && Number(params.soft_cap_normalized) > 0) {
     fields.push({
-      label: "Soft Cap",
+      label: t('common_soft_cap'),
       value: formatAmount({
         value: Number(params.soft_cap_normalized),
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -119,7 +120,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   // Premint (use API-provided normalized value)
   if (params.premint_quantity_normalized !== undefined && isGreaterThan(params.premint_quantity_normalized, 0)) {
     fields.push({
-      label: "Premint",
+      label: t('messages_fairminter_premint'),
       value: formatAmount({
         value: params.premint_quantity_normalized,
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -131,7 +132,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   // Commission
   if (params.minted_asset_commission !== undefined && params.minted_asset_commission > 0) {
     fields.push({
-      label: "Commission",
+      label: t('common_commission'),
       value: `${(params.minted_asset_commission * 100).toFixed(2)}%`,
     });
   }
@@ -139,14 +140,14 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   // Blocks
   if (params.start_block !== undefined) {
     fields.push({
-      label: "Start Block",
+      label: t('common_start_block'),
       value: params.start_block.toString(),
     });
   }
   
   if (params.end_block !== undefined) {
     fields.push({
-      label: "End Block",
+      label: t('common_end_block'),
       value: params.end_block.toString(),
     });
   }
@@ -154,7 +155,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   // Description
   if (params.description) {
     fields.push({
-      label: "Description",
+      label: t('common_description'),
       value: (
         <div className="break-all">
           {params.description}
@@ -165,20 +166,20 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
 
   // Locks
   fields.push({
-    label: "Divisible",
-    value: isDivisible ? "Yes (8 decimals)" : "No (whole units)",
+    label: t('common_divisible'),
+    value: isDivisible ? t('messages_fairminter_yes_8_decimals') : t('messages_fairminter_no_whole_units'),
   });
   
   if (params.lock_description !== undefined) {
     fields.push({
-      label: "Description Locked",
+      label: t('common_description_locked'),
       value: params.lock_description ? "🔒 Yes" : "🔓 No",
     });
   }
   
   if (params.lock_quantity !== undefined) {
     fields.push({
-      label: "Quantity Locked",
+      label: t('messages_fairminter_quantity_locked'),
       value: params.lock_quantity ? "🔒 Yes" : "🔓 No",
     });
   }

@@ -15,6 +15,8 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useAssetLatestIssuance } from "@/hooks/useAssetLatestIssuance";
 
 
+import { t } from '@/i18n';
+
 /**
  * Constants for navigation paths.
  */
@@ -97,7 +99,7 @@ export default function AssetPage(): ReactElement {
       setDividendsAsset(requested);
     } catch (err) {
       if (currentAsset.current !== requested) return;
-      setDividendsError(err instanceof Error ? err.message : "Failed to load dividend history");
+      setDividendsError(err instanceof Error ? err.message : t('assets_asset_failed_to_load_dividend_history'));
     } finally {
       if (currentAsset.current === requested) setDividendsLoading(false);
     }
@@ -119,7 +121,7 @@ export default function AssetPage(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Asset",
+      title: t('common_asset'),
       onBack: () => navigate(PATHS.BACK),
     });
     return () => setHeaderProps(null);
@@ -185,8 +187,8 @@ export default function AssetPage(): ReactElement {
     if (canAct && !isLocked && !isFairMinting) {
       actions.push({
         id: "start-mint",
-        title: "Start Mint",
-        description: "Create a fairminter for this asset",
+        title: t('common_start_mint'),
+        description: t('assets_asset_create_a_fairminter_for_this'),
         onClick: () => navigate(`${PATHS.COMPOSE}/fairminter/${asset}`),
       });
     }
@@ -197,14 +199,14 @@ export default function AssetPage(): ReactElement {
       actions.push(
         {
           id: "issue-supply",
-          title: "Issue Supply",
-          description: "Issue additional tokens for this asset",
+          title: t('common_issue_supply'),
+          description: t('assets_asset_issue_additional_tokens_for_this'),
           onClick: () => navigate(`${PATHS.COMPOSE}/issuance/issue-supply/${asset}`),
         },
         {
           id: "lock-supply",
-          title: "Lock Supply",
-          description: "Permanently lock the token supply",
+          title: t('common_lock_supply'),
+          description: t('assets_asset_permanently_lock_the_token_supply'),
           onClick: () => navigate(`${PATHS.COMPOSE}/issuance/lock-supply/${asset}`),
         }
       );
@@ -223,8 +225,8 @@ export default function AssetPage(): ReactElement {
     if (canResetSupply) {
       actions.push({
         id: "reset-supply",
-        title: "Reset Supply",
-        description: "Destroy the supply and re-issue the asset",
+        title: t('common_reset_supply'),
+        description: t('assets_asset_destroy_the_supply_and_re'),
         onClick: () => navigate(`${PATHS.COMPOSE}/issuance/reset-supply/${asset}`),
       });
     }
@@ -234,8 +236,8 @@ export default function AssetPage(): ReactElement {
     if (canAct && !isSubasset) {
       actions.push({
         id: "issue-subasset",
-        title: "Issue Subasset",
-        description: "Create a new asset under this namespace",
+        title: t('assets_asset_issue_subasset'),
+        description: t('assets_asset_create_a_new_asset_under'),
         onClick: () => navigate(`${PATHS.COMPOSE}/issuance/${asset}`),
       });
     }
@@ -257,8 +259,8 @@ export default function AssetPage(): ReactElement {
     if (canAct && !isFairMinting && hasSupply) {
       actions.push({
         id: "pay-dividend",
-        title: "Pay Dividend",
-        description: "Distribute dividends to token holders",
+        title: t('assets_asset_pay_dividend'),
+        description: t('assets_asset_distribute_dividends_to_token_holders'),
         onClick: () => navigate(`${PATHS.COMPOSE}/dividend/${asset}`),
       });
     }
@@ -269,14 +271,14 @@ export default function AssetPage(): ReactElement {
       actions.push(
         {
           id: "lock-description",
-          title: "Lock Description",
-          description: "Permanently lock the asset description",
+          title: t('common_lock_description'),
+          description: t('assets_asset_permanently_lock_the_asset_description'),
           onClick: () => navigate(`${PATHS.COMPOSE}/issuance/lock-description/${asset}`),
         },
         {
           id: "update-description",
-          title: "Update Description",
-          description: "Update the asset description",
+          title: t('assets_asset_update_description'),
+          description: t('assets_asset_update_the_asset_description'),
           onClick: () => navigate(`${PATHS.COMPOSE}/issuance/update-description/${asset}`),
         }
       );
@@ -287,8 +289,8 @@ export default function AssetPage(): ReactElement {
     if (canReissue) {
       actions.push({
         id: "transfer-ownership",
-        title: "Transfer Ownership",
-        description: "Transfer asset ownership to another address",
+        title: t('common_transfer_ownership'),
+        description: t('assets_asset_transfer_asset_ownership_to_another'),
         onClick: () => navigate(`${PATHS.COMPOSE}/issuance/transfer-ownership/${asset}`),
       });
     }
@@ -333,12 +335,12 @@ export default function AssetPage(): ReactElement {
 
   // Show spinner only if no cached data and still loading
   if (isLoading && !headerAssetInfo) {
-    return <Spinner message="Loading asset details…" />;
+    return <Spinner message={t('common_loading_asset_details')} />;
   }
 
   // Only show error if there's an actual error and no data to display
   if (error && !headerAssetInfo) {
-    return <div className="p-4 text-center text-gray-600">Failed to load asset information</div>;
+    return <div className="p-4 text-center text-gray-600">{t('assets_asset_failed_to_load_asset_information')}</div>;
   }
 
   // If we don't have any data yet, return empty div to prevent flash
@@ -355,36 +357,36 @@ export default function AssetPage(): ReactElement {
       {/* Actions require full data for ownership checks */}
       <ActionList sections={getActionSections()} />
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
-        <h2 className="text-sm font-medium text-gray-900">Asset Details</h2>
+        <h2 className="text-sm font-medium text-gray-900">{t('common_asset_details')}</h2>
         <div className="space-y-2">
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Supply</span>
+            <span className="text-sm text-gray-500">{t('assets_asset_supply')}</span>
             <span className="text-sm text-gray-900">
               {assetDetails?.assetInfo?.supply_normalized || headerAssetInfo.supply_normalized || "0"}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Divisible</span>
+            <span className="text-sm text-gray-500">{t('common_divisible')}</span>
             <span className="text-sm text-gray-900">
               {assetDetails ? (assetDetails.isDivisible ? "Yes" : "No") : "—"}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Locked</span>
+            <span className="text-sm text-gray-500">{t('common_locked')}</span>
             <span className="text-sm text-gray-900">
               {headerAssetInfo.locked ? "Yes" : "No"}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Issuer</span>
+            <span className="text-sm text-gray-500">{t('assets_asset_issuer')}</span>
             <span className="text-sm text-gray-900 font-mono">
-              {headerAssetInfo.issuer ? formatAddress(headerAssetInfo.issuer) : (isLoading ? "Loading…" : "Unknown")}
+              {headerAssetInfo.issuer ? formatAddress(headerAssetInfo.issuer) : (isLoading ? t('common_loading') : "Unknown")}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Your Balance</span>
+            <span className="text-sm text-gray-500">{t('common_your_balance')}</span>
             <span className="text-sm text-gray-900">
-              {assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? (isLoading ? "Loading…" : "0")}
+              {assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? (isLoading ? t('common_loading') : "0")}
             </span>
           </div>
         </div>
@@ -400,7 +402,7 @@ export default function AssetPage(): ReactElement {
         >
           <div className="flex items-center gap-2">
             <FaHistory className="text-gray-500 size-4" aria-hidden="true" />
-            <h2 className="text-sm font-medium text-gray-900">Dividend History</h2>
+            <h2 className="text-sm font-medium text-gray-900">{t('assets_asset_dividend_history')}</h2>
           </div>
           {showDividends ? (
             <FiChevronDown className="text-gray-400 size-4" aria-hidden="true" />
@@ -413,7 +415,7 @@ export default function AssetPage(): ReactElement {
           <div id="dividend-history" className="border-t border-gray-100">
             {dividendsLoading && dividends.length === 0 ? (
               <div className="p-4">
-                <Spinner message="Loading dividend history…" />
+                <Spinner message={t('assets_asset_loading_dividend_history')} />
               </div>
             ) : dividendsError ? (
               <div className="p-4 text-center text-red-600 text-sm">
@@ -421,7 +423,7 @@ export default function AssetPage(): ReactElement {
               </div>
             ) : dividends.length === 0 ? (
               <div className="p-4 text-center text-gray-500 text-sm">
-                No dividends have been distributed for this asset
+                {t('assets_asset_no_dividends_have_been_distributed')}
               </div>
             ) : (
               <div className="p-4 space-y-3">
@@ -430,23 +432,23 @@ export default function AssetPage(): ReactElement {
                     key={dividend.tx_hash}
                     onClick={() => navigate(`/transaction/${dividend.tx_hash}`)}
                     className="block w-full text-left border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    aria-label={`View dividend transaction ${dividend.tx_hash}`}
+                    aria-label={t('assets_asset_view_dividend_transaction', [String(dividend.tx_hash)])}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
-                          {formatAmount({
+                          {t('assets_asset_per_unit', [String(formatAmount({
                             value: dividend.quantity_per_unit_normalized,
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 8,
-                          })} {dividend.dividend_asset} per unit
+                          })), String(dividend.dividend_asset)])}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                          Total distributed: {formatAmount({
+                          {t('assets_asset_total_distributed', [String(formatAmount({
                             value: dividend.total_distributed_normalized,
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 8,
-                          })} {dividend.dividend_asset}
+                          })), String(dividend.dividend_asset)])}
                         </div>
                       </div>
                       <div className="text-xs text-gray-500">
@@ -468,7 +470,7 @@ export default function AssetPage(): ReactElement {
                     disabled={dividendsLoading}
                     className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
-                    {dividendsLoading ? "Loading…" : "Load More"}
+                    {dividendsLoading ? t('common_loading') : t('assets_asset_load_more')}
                   </button>
                 )}
               </div>

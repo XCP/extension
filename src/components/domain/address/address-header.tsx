@@ -3,6 +3,8 @@ import logo from '@/assets/logo.png';
 import { useHeader } from '@/contexts/header-context';
 import { formatAddress } from '@/core/format';
 
+import { t } from '@/i18n';
+
 /**
  * Props for the AddressHeader component.
  */
@@ -50,7 +52,7 @@ export const AddressHeader = ({ address, walletName, className = '' }: AddressHe
 
   return (
     <div className={`flex items-center ${className}`}>
-      <img src={logo} alt="XCP Wallet" className="size-12 mr-4 rounded-full" />
+      <img src={logo} alt={t('common_xcp_wallet')} className="size-12 mr-4 rounded-full" />
       <div>
         {displayWalletName && <p className="text-sm text-gray-600">{displayWalletName}</p>}
         <h2 className="text-xl font-bold">{formattedAddress}</h2>

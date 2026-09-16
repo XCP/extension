@@ -183,6 +183,21 @@ function run(overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) 
 const blockedOnNotCounterparty = (warnings: { title: string }[]) =>
   warnings.some((w) => w.title === 'Blocked: Not a Counterparty Transaction');
 
+describe('local structure evidence', () => {
+  it.each([
+    { messageType: 'attach', data: { asset: 'XCP', quantity: 1n, destinationVout: 7 }, code: 'attach_missing_output', evidence: { destinationVout: 7, outputCount: 1 } },
+    { messageType: 'utxo', data: { source: `${'AB'.repeat(32)}:1234`, destination: SIGNER, asset: 'XCP', quantity: 1n }, code: 'utxo_source_not_spent', evidence: { source: `${'AB'.repeat(32)}:1234` } },
+  ])('passes $code from the local decoder to the approval unchanged', async ({ messageType, data, code, evidence }) => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({ localUnpack: { success: true, messageType, data } } as never);
+    vi.mocked(resolveProtocolContext).mockResolvedValue({ context: {} as ProtocolContext, warnings: [] });
+    vi.mocked(decodeCounterpartyMessage).mockResolvedValue(null);
+    const analysis = await run({ counterpartyDataHex: '00' });
+    expect(analysis.structureFindings).toHaveLength(1);
+    expect(analysis.structureFindings[0]).toMatchObject({ code, data: evidence });
+    expect(analysis.structureFindings[0]?.message).toContain('If signed and confirmed, the Bitcoin fee would still be paid.');
+  });
+});
+
 describe('the not-a-Counterparty-transaction gate', () => {
   beforeEach(() => {
     vi.mocked(verifyProviderTransaction).mockReturnValue({ localUnpack: undefined } as never);

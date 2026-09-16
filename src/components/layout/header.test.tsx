@@ -214,7 +214,7 @@ describe('Header', () => {
   });
 
   it('should apply correct section styles', () => {
-    const { container } = render(<Header title="Test" />);
+    const { container } = render(<Header title="Test" onBack={vi.fn()} />);
     
     const sections = container.querySelectorAll('.col-span-1, .col-span-2');
     expect(sections).toHaveLength(3);
@@ -239,16 +239,11 @@ describe('Header', () => {
   it('should render nothing in sections when no props provided', () => {
     const { container } = render(<Header />);
     
-    const sections = container.querySelectorAll('.col-span-1, .col-span-2');
-    
-    // Left section should be empty
-    expect(sections[0]!.children).toHaveLength(0);
-
-    // Center section should be empty
-    expect(sections[1]!.children).toHaveLength(0);
-
-    // Right section should be empty
-    expect(sections[2]!.children).toHaveLength(0);
+    const header = container.querySelector('header')!;
+    // With no controls, the centered title can use the full available width.
+    expect(header.children).toHaveLength(1);
+    expect(header.firstElementChild).toHaveClass('col-span-4');
+    expect(header.firstElementChild!.children).toHaveLength(0);
   });
 
   it('should apply header variant to buttons', () => {

@@ -5,6 +5,7 @@ import { FaTrash, FiX, HiDotsHorizontal, VscKey } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { BaseMenu } from '@/components/ui/menus/base-menu';
 import { useWallet } from '@/contexts/wallet-context';
+import { t } from '@/i18n';
 import type { Wallet } from '@/types/wallet';
 
 /**
@@ -53,7 +54,7 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
   return (
     <BaseMenu
       trigger={<HiDotsHorizontal className="size-4" aria-hidden="true" />}
-      ariaLabel="Wallet options"
+      ariaLabel={t('wallet_wallet_menu_wallet_options')}
     >
       {/* Show secret option - only for software wallets */}
       {!isHardware && (
@@ -64,7 +65,7 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
             onClick={handleShowSecret}
           >
             <VscKey className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-            {wallet.type === 'privateKey' ? 'Show Private Key' : 'Show Passphrase'}
+            {wallet.type === 'privateKey' ? t('common_show_private_key') : t('wallet_wallet_menu_show_passphrase')}
           </Button>
         </MenuItem>
       )}
@@ -78,7 +79,8 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
             onClick={handleDisconnectHardware}
           >
             <FiX className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-            Disconnect {wallet.name}
+            
+            {t('common_disconnect')} {wallet.name}
           </Button>
         ) : (
           <Button
@@ -86,11 +88,12 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
             fullWidth
             onClick={handleRemoveWallet}
             disabled={isOnlyWallet}
-            title={isOnlyWallet ? 'Cannot remove only wallet' : undefined}
+            title={isOnlyWallet ? t('wallet_wallet_menu_cannot_remove_only_wallet') : undefined}
             className={isOnlyWallet ? 'opacity-50 cursor-not-allowed' : ''}
           >
             <FaTrash className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-            Remove {wallet.name}
+            
+            {t('wallet_wallet_menu_remove')} {wallet.name}
           </Button>
         )}
       </MenuItem>

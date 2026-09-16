@@ -7,6 +7,8 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MAX_WALLETS } from "@/core/wallet/constants";
 
+import { t } from '@/i18n';
+
 /** Check if we're running in the sidepanel (vs popup) */
 const isSidepanel = () => document.body.dataset.context === 'sidepanel';
 
@@ -42,14 +44,14 @@ function AddWalletPage() {
       rightButton: {
         icon: <FiX className="size-4" aria-hidden="true" />,
         onClick: () => navigate(PATHS.CLOSE),
-        ariaLabel: "Close",
+        ariaLabel: t('common_close'),
       },
     });
   }, [setHeaderProps, navigate]);
 
   function handleCreateWallet() {
     if (wallets.length >= MAX_WALLETS) {
-      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
     navigate(PATHS.CREATE_WALLET);
@@ -57,7 +59,7 @@ function AddWalletPage() {
 
   function handleImportWallet() {
     if (wallets.length >= MAX_WALLETS) {
-      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
     navigate(PATHS.IMPORT_WALLET);
@@ -65,7 +67,7 @@ function AddWalletPage() {
 
   function handleImportPrivateKey() {
     if (wallets.length >= MAX_WALLETS) {
-      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
     navigate(PATHS.IMPORT_PRIVATE_KEY);
@@ -73,7 +75,7 @@ function AddWalletPage() {
 
   function handleImportTestAddress() {
     if (wallets.length >= MAX_WALLETS) {
-      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
     navigate(PATHS.IMPORT_TEST_ADDRESS);
@@ -81,7 +83,7 @@ function AddWalletPage() {
 
   function handleConnectHardware() {
     if (wallets.length >= MAX_WALLETS) {
-      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
     navigate(PATHS.CONNECT_HARDWARE);
@@ -103,7 +105,7 @@ function AddWalletPage() {
       <div className="flex-grow flex items-center justify-center p-4">
         <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6 text-center">
           <h2 id="add-wallet-title" className="text-2xl font-bold mb-6">
-            Add Wallet
+            {t('common_add_wallet')}
           </h2>
           {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
           <div className="space-y-4">
@@ -111,48 +113,53 @@ function AddWalletPage() {
               color="green"
               fullWidth
               onClick={handleCreateWallet}
-              aria-label="Create New Wallet"
+              aria-label={t('wallets_add_create_new_wallet')}
             >
               <FaPlus className="size-4 mr-2" aria-hidden="true" />
-              Create New Wallet
+              
+              {t('wallets_add_create_new_wallet')}
             </Button>
             <Button
               color="blue"
               fullWidth
               onClick={handleImportWallet}
-              aria-label="Import Wallet"
+              aria-label={t('common_import_wallet')}
             >
               <FiDownload className="size-4 mr-2" aria-hidden="true" />
-              Import Mnemonic
+              
+              {t('wallets_add_import_mnemonic')}
             </Button>
             <Button
               color="gray"
               fullWidth
               onClick={handleImportPrivateKey}
-              aria-label="Import Private Key"
+              aria-label={t('common_import_private_key')}
             >
               <VscKey className="size-4 mr-2" aria-hidden="true" />
-              Import Private Key
+              
+              {t('common_import_private_key')}
             </Button>
             {hardwareWallet ? (
               <Button
                 color="red"
                 fullWidth
                 onClick={handleDisconnectHardware}
-                aria-label="Disconnect Hardware Wallet"
+                aria-label={t('wallets_add_disconnect_hardware_wallet')}
               >
                 <FiX className="size-4 mr-2" aria-hidden="true" />
-                Disconnect {hardwareWallet.name}
+                
+                {t('common_disconnect')} {hardwareWallet.name}
               </Button>
             ) : canUseHardwareWallet && (
               <Button
                 color="black"
                 fullWidth
                 onClick={handleConnectHardware}
-                aria-label="Use Trezor Connect"
+                aria-label={t('wallets_add_use_trezor_connect')}
               >
                 <FiShield className="size-4 mr-2 text-[#00854D]" aria-hidden="true" />
-                Use Trezor Connect
+                
+                {t('wallets_add_use_trezor_connect')}
               </Button>
             )}
             {isDevelopment && (
@@ -160,10 +167,11 @@ function AddWalletPage() {
                 color="gray"
                 fullWidth
                 onClick={handleImportTestAddress}
-                aria-label="Import Address (Dev Only)"
+                aria-label={t('wallets_add_import_address_dev_only')}
               >
                 <FaEye className="size-4 mr-2" aria-hidden="true" />
-                Import Address (Dev)
+                
+                {t('wallets_add_import_address_dev')}
               </Button>
             )}
           </div>

@@ -1,6 +1,8 @@
 import { FaLock, FaLockOpen } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewIssuance component.
  */
@@ -37,17 +39,17 @@ export function ReviewIssuance({
   const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
 
   const customFields = [
-    { label: "Asset", value: result.params.asset },
+    { label: t('common_asset'), value: result.params.asset },
     {
-      label: "Issuance",
+      label: t('issuance_review_issuance'),
       value: quantityDisplay,
       rightElement: isLocked ? (
-        <FaLock className="size-3 text-gray-500" aria-label="Supply locked" />
+        <FaLock className="size-3 text-gray-500" aria-label={t('issuance_review_supply_locked')} />
       ) : (
-        <FaLockOpen className="size-3 text-gray-500" aria-label="Supply unlocked" />
+        <FaLockOpen className="size-3 text-gray-500" aria-label={t('issuance_review_supply_unlocked')} />
       ),
     },
-    ...(result.params.description ? [{ label: "Description", value: result.params.description }] : []),
+    ...(result.params.description ? [{ label: t('common_description'), value: result.params.description }] : []),
   ];
 
   return (

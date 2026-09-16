@@ -4,6 +4,8 @@ import type { TokenBalance } from '@/core/counterparty/api';
 import { formatAmount } from '@/core/format';
 import { toBigNumber } from '@/core/numeric';
 
+import { t } from '@/i18n';
+
 /**
  * Props for the BalanceHeader component.
  */
@@ -75,7 +77,7 @@ export const BalanceHeader = ({
       <div>
         <h2 className={`${textSizeClass} font-bold break-all`}>{displayName}</h2>
         <p className="text-sm text-gray-600">
-          Balance: {formattedBalance}
+          {t('swap_form_balance', [String(formattedBalance)])}
           {/* The only annotation left, and it says something the number cannot: money arriving,
               never part of the figure until confirmed. Plus sign so it cannot be misread as a
               deduction. Outgoing needs no note (the figure already IS spendable), and the
@@ -85,7 +87,7 @@ export const BalanceHeader = ({
               that later wants to gate on it). */}
           {hasIncoming && (
             <span className="text-xs italic text-gray-400">
-              {' '}(+{formatAmount({ value: pendingIncoming!, ...pendingDigits })} incoming)
+              {t('balance_balance_header_incoming', [String(' '), String(formatAmount({ value: pendingIncoming!, ...pendingDigits }))])}
             </span>
           )}
         </p>

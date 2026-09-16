@@ -14,6 +14,7 @@
 import { walletTest, expect, navigateTo } from '../fixtures';
 import { TEST_AMOUNTS, TEST_ADDRESSES } from '../test-data';
 import { index, compose } from '../selectors';
+import englishMessages from '../../public/_locales/en/messages.json' with { type: 'json' };
 
 // Helper to get the quantity/amount input
 const getAmountInput = (page: any) => compose.send.quantityInput(page);
@@ -173,7 +174,11 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       const errorAlert = getSendForm(page).getByRole('alert');
       await expect(errorAlert).toBeVisible({ timeout: 10000 });
       await expect(errorAlert).toContainText('Failed to calculate maximum amount. Please try again.');
-      await expect(page.getByRole('alert').filter({ hasText: 'API rate limited' })).toBeVisible();
+      const apiAlert = page.getByRole('alert').filter({
+        hasText: englishMessages.layout_api_status_banner_api_rate_limited_requests_may.message,
+      });
+      await expect(apiAlert).toBeVisible();
+      await expect(apiAlert).toContainText('(429)');
       await expect(page.getByRole('alert')).toHaveCount(2);
 
       // Input should remain empty since there's no balance

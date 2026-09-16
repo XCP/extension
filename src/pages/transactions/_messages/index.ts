@@ -45,6 +45,7 @@ export const messageHandlers: Record<string, MessageHandler> = {
   btcpay,
   // Add aliases for variations
   enhanced_send: send,
+  mpma_send: mpma,
   open_order: order,
   open_dispenser: dispenser,
 };

@@ -8,6 +8,8 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat } from '@/core/bitcoin/address';
 
+import { t } from '@/i18n';
+
 /**
  * Constants for navigation paths.
  */
@@ -34,7 +36,7 @@ export default function AddressDetailsPage(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "My Address",
+      title: t('addresses_details_my_address'),
       onBack: () => navigate(PATHS.BACK),
       rightButton:
         activeWallet?.type === "mnemonic"
@@ -42,13 +44,13 @@ export default function AddressDetailsPage(): ReactElement {
               icon: <FaList className="size-4" aria-hidden="true" />,
               onClick: () =>
                 navigate(PATHS.SELECT_ADDRESS, { state: { returnTo: "/addresses/details" } }),
-              ariaLabel: "Select Address",
+              ariaLabel: t('addresses_details_select_address'),
             }
           : undefined,
     });
   }, [setHeaderProps, navigate, activeWallet?.type]);
 
-  if (!activeAddress) return <div className="p-4">No address selected</div>;
+  if (!activeAddress) return <div className="p-4">{t('common_no_address_selected')}</div>;
 
   const addressTypeLabel = (() => {
     const format = activeWallet?.addressFormat;
@@ -75,7 +77,7 @@ export default function AddressDetailsPage(): ReactElement {
       <div id="view-address-title" className="text-center font-medium text-gray-600">
         {`${activeAddress?.name ?? ""} | ${addressTypeLabel || ""}`}
       </div>
-      <QRCode text={activeAddress?.address} ariaLabel="Address QR Code" />
+      <QRCode text={activeAddress?.address} ariaLabel={t('addresses_details_address_qr_code')} />
       <CopyAddress address={activeAddress?.address} />
     </section>
   );
@@ -122,7 +124,7 @@ function CopyAddress({ address }: CopyAddressProps): ReactElement {
           onClick={handleCopyAddress}
           // Distinct from the button below, which copies the same thing: two
           // controls sharing one accessible name is ambiguous to announce.
-          aria-label="Copy the address shown here"
+          aria-label={t('addresses_details_copy_the_address_shown_here')}
           className="block w-full font-mono text-sm bg-white border border-gray-200 rounded-lg p-4 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors duration-200"
         >
           {address}
@@ -133,17 +135,17 @@ function CopyAddress({ address }: CopyAddressProps): ReactElement {
         color="blue"
         fullWidth
         className="max-w-sm"
-        aria-label="Copy address"
+        aria-label={t('common_copy_address')}
       >
         {copiedToClipboard ? (
           <>
             <FaCheck className="size-4 mr-2" aria-hidden="true" />
-            <span>Copied!</span>
+            <span>{t('common_copied')}</span>
           </>
         ) : (
           <>
             <FaClipboard className="size-4 mr-2" aria-hidden="true" />
-            <span>Copy Address</span>
+            <span>{t('common_copy_address_2')}</span>
           </>
         )}
       </Button>
