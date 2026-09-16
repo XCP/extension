@@ -45,10 +45,10 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
     await expect(page.locator('text="Sell"').first()).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('does not show Attach action for XCP', async ({ page }) => {
+  walletTest('shows Attach action for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    await expect(page.locator('text="Attach"').first()).not.toBeVisible();
+    await expect(page.locator('text="Attach"').first()).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('shows Destroy action for XCP', async ({ page }) => {
@@ -71,6 +71,14 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
     // BTC balance page should show Dispense action
     const dispenseAction = page.locator('text="Dispense"').first();
     await expect(dispenseAction).toBeVisible({ timeout: 10000 });
+  });
+
+  // BTC is not a Counterparty asset, so there is no balance to attach to a UTXO — the same reason
+  // Destroy is absent here.
+  walletTest('does not show Attach action for BTC', async ({ page }) => {
+    await navigateToBalance(page, 'BTC');
+
+    await expect(page.locator('text="Attach"').first()).not.toBeVisible();
   });
 
   walletTest('handles invalid asset with error state', async ({ page }) => {

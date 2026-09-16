@@ -8,10 +8,13 @@ import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/core/bitcoin/address';
-import type { BroadcastOptions } from "@/core/counterparty/compose";
+import { type BroadcastOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
 import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
 
 import { t } from '@/i18n';
+
+/** Maximum file size for inscriptions in KB; see the compose layer for where it comes from. */
+const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
 /**
  * Props for the BroadcastForm component, aligned with Composer's formAction.
@@ -56,8 +59,8 @@ export function BroadcastForm({
   // Handlers
   const handleFileChange = (file: File | null) => {
     setFileError(null);
-    if (file && file.size > 400 * 1024) {
-      setFileError(t('common_file_size_must_be_less'));
+    if (file && file.size > MAX_INSCRIPTION_FILE_BYTES) {
+      setFileError(t('issuance_form_file_size_must_be_less', [String(INSCRIPTION_MAX_SIZE_KB)]));
       return;
     }
     setSelectedFile(file);
@@ -124,7 +127,7 @@ export function BroadcastForm({
               onFileChange={handleFileChange}
               error={fileError}
               disabled={false}
-              maxSizeKB={400}
+              maxSizeKB={INSCRIPTION_MAX_SIZE_KB}
               helpText={t('broadcast_form_upload_a_file_to_inscribe')}
               showHelpText={showHelpText}
             />

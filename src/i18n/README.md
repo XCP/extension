@@ -56,7 +56,9 @@ Historical order/MPMA displays retain the contextual corrections in PR405.
 The records under `review/` describe earlier terminology and contextual passes;
 their exact hashes and machine provenance remain historical evidence, not current
 native-speaker signoff. This simplification removes obsolete preference messages
-without revising the remaining translations. Native-speaker review is outstanding.
+without revising the remaining translations. Integrating main also removes three
+unused messages and uses the existing parameterized upload-size message with the
+current compose limit. Native-speaker review is outstanding.
 
 ## Validation
 

@@ -1337,9 +1337,6 @@
   "common_fee_required": {
     "message": "必要手数料"
   },
-  "common_file_size_must_be_less": {
-    "message": "ファイルサイズは 400KB 未満にしてください"
-  },
   "common_flip_price_ratio": {
     "message": "価格の比率を反転"
   },
@@ -3023,14 +3020,8 @@
   "marketplace_batch_create_listing_utxos": {
     "message": "$1 件の出品用 UTXO を作成"
   },
-  "marketplace_batch_every_attach_proves_its_source": {
-    "message": "各アタッチは、その送信元、クリーンな資金、新しい UTXO、マイナー手数料、ローカルの Counterparty メッセージを検証します。XCP 手数料は承認までブロックに依存したままです。"
-  },
   "marketplace_batch_every_fan_out_input_and": {
     "message": "すべてのファンアウトの入力と同一ウォレット宛ての出力は、このバッチが署名される前に検証済みです。この段階では Counterparty のアセットは移動しません。"
-  },
-  "marketplace_batch_every_listing_independently_guarantees_its": {
-    "message": "各出品は、それぞれ独立して出品者への支払いを保証します。柔軟な各署名は、アタッチされたアセットの UTXO が消費されるまで有効なままです。"
   },
   "marketplace_batch_funding_fees_and_delivery_destination": {
     "message": "資金、手数料、受け渡し先"

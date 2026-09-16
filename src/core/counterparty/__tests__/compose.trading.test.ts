@@ -337,6 +337,40 @@ describe('Compose Trading Operations', () => {
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
+    it('closes a dispenser that names only its asset and status', async () => {
+      // What the close screens actually submit: an asset and status 10, and nothing else. Core
+      // reads the three zeros as "leave them alone", and `packDispenser` defaults them the same
+      // way so byte equality still holds. Requiring them here refused every close outright.
+      const result = await composeDispenser({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        asset: testAssets.XCP,
+        status: '10',
+      } as unknown as Parameters<typeof composeDispenser>[0]);
+
+      expect(result.result).toEqual(createMockComposeResult());
+      assertComposeUrlCalled(mockedApiClient, 'dispenser', {
+        asset: testAssets.XCP,
+        give_quantity: '0',
+        escrow_quantity: '0',
+        mainchainrate: '0',
+        status: '10',
+      });
+    });
+
+    it('refuses to open a dispenser that names no quantities', async () => {
+      // The same defaults must not apply to an open: zeros there compose a dispenser that gives
+      // nothing away for nothing, which is not what any form meant to ask for.
+      await expect(
+        composeDispenser({
+          sourceAddress: mockAddress,
+          sat_per_vbyte: mockSatPerVbyte,
+          asset: testAssets.XCP,
+          status: '0',
+        } as unknown as Parameters<typeof composeDispenser>[0])
+      ).rejects.toThrow('A dispenser needs a give quantity.');
+    });
+
     it('should handle different mainchain rates', async () => {
       const rates = [100, 1000, 10000, 100000];
 

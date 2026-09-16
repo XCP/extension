@@ -1337,9 +1337,6 @@
   "common_fee_required": {
     "message": "所需费用"
   },
-  "common_file_size_must_be_less": {
-    "message": "文件大小必须小于 400KB"
-  },
   "common_flip_price_ratio": {
     "message": "翻转价格比率"
   },
@@ -3023,14 +3020,8 @@
   "marketplace_batch_create_listing_utxos": {
     "message": "创建 $1 个上架 UTXO"
   },
-  "marketplace_batch_every_attach_proves_its_source": {
-    "message": "每笔附加都验证其来源、干净的资金、新 UTXO、矿工费用和本地 Counterparty 消息。XCP 费用在确认前始终取决于区块。"
-  },
   "marketplace_batch_every_fan_out_input_and": {
     "message": "在本批次可以签名之前，每一个扇出输入和同钱包输出都已验证。此阶段不会移动任何 Counterparty 资产。"
-  },
-  "marketplace_batch_every_listing_independently_guarantees_its": {
-    "message": "每个上架都独立保证其卖家收款。每个灵活签名在其已附加资产的 UTXO 被花费之前始终有效。"
   },
   "marketplace_batch_funding_fees_and_delivery_destination": {
     "message": "资金、费用和交付地址"

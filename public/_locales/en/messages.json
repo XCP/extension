@@ -1783,10 +1783,6 @@
     "message": "Fee Required",
     "description": "pages/compose/order/review.tsx, pages/settings/order-settings.tsx, pages/transactions/_messages/order.tsx"
   },
-  "common_file_size_must_be_less": {
-    "message": "File size must be less than 400KB",
-    "description": "pages/compose/broadcast/form.tsx, pages/compose/issuance/update-description/form.tsx"
-  },
   "common_flip_price_ratio": {
     "message": "Flip price ratio",
     "description": "pages/compose/order/review.tsx, pages/compose/swap/review.tsx, pages/transactions/_messages/order.tsx"
@@ -4020,17 +4016,9 @@
     "message": "Create $1 listing UTXOs",
     "description": "Title of the fan-out batch approval screen. $1 is the number of listing UTXOs created (always 2 or more; the one-UTXO case has its own message)."
   },
-  "marketplace_batch_every_attach_proves_its_source": {
-    "message": "Every attach proves its source, clean funding, new UTXO, miner fee, and local Counterparty message. XCP fees remain block-dependent until confirmation.",
-    "description": "Notice under the batch approval screen for attaching or preparing assets: what the wallet checked on each transaction, and that the XCP protocol fee is only final once the block confirms."
-  },
   "marketplace_batch_every_fan_out_input_and": {
     "message": "Every fan-out input and same-wallet output was proved before this batch can sign. No Counterparty asset moves in this phase.",
     "description": "Notice under the fan-out batch approval screen: the wallet verified every input and output before allowing any signature, and this phase only splits BTC."
-  },
-  "marketplace_batch_every_listing_independently_guarantees_its": {
-    "message": "Every listing independently guarantees its seller payment. Each flexible signature remains valid until its attached asset outpoint is spent.",
-    "description": "Notice under the listing batch approval screen: each listing pays the seller on its own terms, and each signature stays usable by a buyer until the seller spends that asset's UTXO."
   },
   "marketplace_batch_funding_fees_and_delivery_destination": {
     "message": "Funding, fees, and delivery destination",

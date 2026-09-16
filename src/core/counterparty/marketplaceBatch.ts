@@ -265,7 +265,11 @@ export function analyzeMarketplaceBatch(
         value: formatXcpRaw(attaches.map(intent => intent.protocolFee.quotedAmountRaw)),
       },
     );
-    notice = t('marketplace_batch_every_attach_proves_its_source');
+    // No notice. Every clean attach is `caution` by design, which turns any notice here amber —
+    // and a recital of the checks that just passed reads as an alarm about a batch where nothing
+    // is wrong. The single-attach review says the same thing by carrying `notices: []`, and the
+    // quoted XCP fee is already a fact above.
+    notice = '';
   } else {
     const listings = intents as CreateListingIntentClaim[];
     const gross = exactSafeSum(listings.map(intent => intent.priceSats), 'listing prices');
@@ -303,7 +307,10 @@ export function analyzeMarketplaceBatch(
         value: t('marketplace_batch_spend_each_attached_asset_utxo'),
       },
     );
-    notice = t('marketplace_batch_every_listing_independently_guarantees_its');
+    // No notice, for the reason stated above the facts: the durable-signature boundary is the
+    // `Signature invalidation` row, and the per-listing guarantee is what the payout rows say.
+    // Restating both in an amber box warned about a batch that had verified completely.
+    notice = '';
   }
 
   return {
@@ -312,7 +319,9 @@ export function analyzeMarketplaceBatch(
     title,
     ...(summary ? { bundleSummary: summary } : {}),
     facts,
-    notices: blockers.length > 0 ? [] : [{ severity: status === 'caution' ? 'warning' : 'info', message: notice }],
+    notices: blockers.length > 0 || !notice
+      ? []
+      : [{ severity: status === 'caution' ? 'warning' : 'info', message: notice }],
     blockers,
   };
 }

@@ -448,6 +448,29 @@ describe('normalize.ts', () => {
 
       });
 
+      it('passes a dispense quantity through as the satoshis the form already computed', async () => {
+        // A dispense names no asset — the dispenser decides what comes back — so the form submits
+        // dispenses × satoshirate, which is a base-unit figure. Declaring it a display quantity
+        // demanded an `asset` field this form has never rendered, and every dispense failed with
+        // "An asset is required to interpret quantity." Scaling it instead would have paid 1e8×.
+        const formData = new FormData();
+        formData.set('dispenser', 'bc1qdispenseraddress');
+        formData.set('quantity', '174800'); // 20 dispenses at 8,740 sats
+
+        const result = await normalizeFormData(formData, 'dispense');
+
+        expect(result.normalizedData.quantity).toBe('174800');
+        expect(mockFetchAssetDetails).not.toHaveBeenCalled();
+      });
+
+      it('rejects a dispense quantity that is not whole satoshis', async () => {
+        const formData = new FormData();
+        formData.set('dispenser', 'bc1qdispenseraddress');
+        formData.set('quantity', '0.0001');
+
+        await expect(normalizeFormData(formData, 'dispense')).rejects.toThrow('amount_syntax');
+      });
+
       it('rejects unknown compose types', async () => {
         const formData = new FormData();
         formData.set('unknown_field', '1.5');
