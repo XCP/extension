@@ -1,7 +1,8 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchTransaction, type Transaction } from '@/core/counterparty/api';
-import { configureLocale, type MessageKey, t } from '@/i18n';
+import { type MessageKey, t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import TransactionPage from './[txHash]';
 
 const fixture = vi.hoisted(() => ({
@@ -29,11 +30,11 @@ function tx(type = 'order', confirmed = true): Transaction {
 beforeEach(() => {
   fixture.txHash = 'a'.repeat(64);
   vi.clearAllMocks();
-  configureLocale({ language: 'en', numberLocale: 'en-US' });
+  mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
 });
 afterEach(() => {
   cleanup();
-  configureLocale({ language: 'en', numberLocale: 'en-US' });
+  mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
 });
 
 describe('actual transaction page localization', () => {
@@ -55,7 +56,7 @@ describe('actual transaction page localization', () => {
     render(<TransactionPage />);
     const heading = await screen.findByRole('heading', { level: 2, name: t(key) });
     for (const language of LANGUAGES) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByRole('heading', { level: 2, name: t(key) })).toBe(heading);
       expect(screen.getByText(t('consolidate_history_confirmed'))).toBeInTheDocument();
       expect(fetchTransaction).toHaveBeenCalledExactlyOnceWith(transaction.tx_hash, { verbose: true });
@@ -69,7 +70,7 @@ describe('actual transaction page localization', () => {
     const heading = await screen.findByRole('heading', { level: 2, name: 'Future Protocol Type' });
     const raw = container.querySelector('pre')?.textContent;
     for (const language of LANGUAGES) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(heading).toHaveTextContent('Future Protocol Type');
       expect(container.querySelector('pre')?.textContent).toBe(raw);
     }
@@ -83,7 +84,7 @@ describe('actual transaction page localization', () => {
     const key = confirmed ? 'consolidate_history_confirmed' : 'transaction_unconfirmed';
     await screen.findByText(t(key));
     for (const language of LANGUAGES) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByText(t(key))).toBeInTheDocument();
       expect(screen.queryByText(t(confirmed ? 'transaction_unconfirmed' : 'consolidate_history_confirmed'))).not.toBeInTheDocument();
       expect(transaction.confirmed).toBe(confirmed);
@@ -112,7 +113,7 @@ describe('actual transaction page localization', () => {
     const rawText = container.querySelector('pre')?.textContent;
 
     for (const language of LANGUAGES) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByText('1 PEPECASH = 0.66666666 FAIRASSET')).toBeInTheDocument();
       expect(screen.getByText('2 FAIRASSET')).toBeInTheDocument();
       expect(screen.getByText('3.00000000 PEPECASH')).toBeInTheDocument();
@@ -144,7 +145,7 @@ describe('actual transaction page localization', () => {
     render(<TransactionPage />);
     await screen.findByText(t(key));
     for (const language of LANGUAGES) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByText(t(key))).toBeInTheDocument();
       expect(fetchTransaction).toHaveBeenCalledTimes(failure === 'missing_hash' ? 0 : 1);
     }
@@ -156,7 +157,7 @@ describe('actual transaction page localization', () => {
     render(<TransactionPage />);
     await screen.findByText(failure.message);
     for (const language of LANGUAGES) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByText(failure.message)).toBeInTheDocument();
       expect(fetchTransaction).toHaveBeenCalledTimes(1);
     }

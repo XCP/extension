@@ -5032,26 +5032,8 @@
   "withdraw_review_minimum_receive": {
     "message": "最低接收数量"
   },
-  "display_preferences_title": {
-    "message": "语言与显示"
-  },
-  "display_preferences_language": {
-    "message": "界面语言"
-  },
-  "display_preferences_numbers": {
-    "message": "数字格式"
-  },
-  "display_preferences_browser": {
-    "message": "浏览器语言"
-  },
-  "display_preferences_follow_language": {
-    "message": "跟随界面语言"
-  },
   "display_preferences_fiat": {
     "message": "价格币种"
-  },
-  "display_preferences_input_help": {
-    "message": "这些设置仅影响显示。输入数量时请使用数字 0–9 和英文小数点，不要使用千位分隔符。价格币种独立保存。"
   },
   "display_preferences_save_failed": {
     "message": "无法保存此设置，请重试。"

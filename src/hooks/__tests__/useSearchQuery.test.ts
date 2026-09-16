@@ -1,7 +1,7 @@
-import { act, renderHook } from "@testing-library/react";
+import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { asBaseUnits } from '@/core/numeric';
-import { configureLocale } from '@/i18n';
+import { mockBrowserLocale, renderHook } from '@/i18n/test-utils';
 import { useSearchQuery } from "../useSearchQuery";
 
 // Mock fetch
@@ -9,14 +9,14 @@ global.fetch = vi.fn();
 
 describe("useSearchQuery", () => {
   beforeEach(() => {
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
     vi.useFakeTimers();
     vi.clearAllMocks();
     vi.mocked(global.fetch).mockReset();
   });
 
   afterEach(() => {
-    configureLocale({});
+    mockBrowserLocale({});
     vi.useRealTimers();
   });
 
@@ -555,7 +555,7 @@ describe("useSearchQuery", () => {
       const english = result.current.error;
       expect(english).toBeTruthy();
       for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
-        act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+        act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
         expect(result.current.error).not.toBe(english);
         expect(result.current.error).toMatch(/[\u3000-\u9fff]/);
         if (kind === 'other') expect(result.current.error).toContain(detail);
@@ -566,7 +566,7 @@ describe("useSearchQuery", () => {
         expect(fetch).toHaveBeenCalledWith('https://api.xcp.io/v2/assets?query=PARENT.child', expect.anything());
       }
       act(() => result.current.setError('Caller diagnostic: ' + detail));
-      act(() => configureLocale({ language: 'en' }));
+      act(() => mockBrowserLocale({ language: 'en' }));
       expect(result.current.error).toBe('Caller diagnostic: ' + detail);
       act(() => result.current.setError(null));
       expect(result.current.error).toBeNull();

@@ -1,8 +1,8 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Transaction } from '@/core/counterparty/api';
-import { configureLocale, t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import { getMessageHandler } from './index';
 import { mpma } from './mpma';
 
@@ -21,12 +21,11 @@ const transfer = (asset: string, destination: string, quantity: unknown, divisib
   asset, destination, quantity, ...(divisible === undefined ? {} : { asset_info: { asset, divisible } }),
 });
 function Details({ tx }: { tx: Transaction }) {
-  useLocaleRevision();
   return <dl>{mpma(tx).map((field, index) => <div key={index}><dt>{field.label}</dt><dd>{field.value}</dd></div>)}</dl>;
 }
 const value = (tx: Transaction, label: string) => mpma(tx).find(field => field.label === label)?.value;
-beforeEach(() => { configureLocale({ language: 'en', numberLocale: 'en-US' }); });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); configureLocale({ language: 'en' }); });
+beforeEach(() => { mockBrowserLocale({ language: 'en', numberLocale: 'en-US' }); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); mockBrowserLocale({ language: 'en' }); });
 
 describe('complete MPMA history', () => {
   it('dispatches Core’s mpma_send message type and retains the legacy alias', () => {
@@ -116,7 +115,7 @@ describe('complete MPMA history', () => {
     const before = JSON.stringify(tx);
     render(<Details tx={tx} />);
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) {
-      act(() => { configureLocale({ language, numberLocale: 'de-DE' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'de-DE' }); });
       const summary = value(tx, t('common_type')) as string;
       expect(summary).not.toMatch(/\bassets?\b|\baddresses?\b/);
       expect(summary).toContain('2');

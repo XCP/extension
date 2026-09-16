@@ -10,8 +10,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import type { AddressFormat } from "@/core/bitcoin/address";
 import { getSigningCapabilities, signMessage } from "@/core/bitcoin/messageSigner";
-import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
+import { currentLocale, t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 /**
  * SignMessage component for signing messages with Bitcoin addresses.
@@ -19,7 +18,7 @@ import { analytics } from "@/platform/fathom";
  * dApp signing requests are handled by /requests/message/approve instead.
  */
 export default function SignMessagePage(): ReactElement {
-  const localeRevision = useLocaleRevision();
+  const locale = currentLocale();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeWallet, activeAddress, getPrivateKey } = useWallet();
@@ -54,7 +53,7 @@ export default function SignMessagePage(): ReactElement {
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, handleReset, message, signature, error, localeRevision]);
+  }, [setHeaderProps, navigate, handleReset, message, signature, error, locale]);
 
   // Get signing capabilities for current address
   const addressFormat = activeWallet?.addressFormat;

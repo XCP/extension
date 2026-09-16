@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { type ComposeVerificationDiagnostic, ComposeVerificationError } from '@/core/validation/compose-verification-error';
-import { configureLocale } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { transactionErrorMessage } from './transaction-error-message';
 
 const ADDRESS = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
@@ -8,11 +8,11 @@ const OTHER = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
 const RAW = 'Original verifier diagnostic; do not rewrite for non-UI callers.';
 const languages = ['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'];
 
-afterEach(() => configureLocale({}));
+afterEach(() => mockBrowserLocale({}));
 
 describe('structured compose diagnostics', () => {
   it.each(languages)('translates every local reason in %s while preserving the raw error', language => {
-    configureLocale({ language, numberLocale: 'de-DE' });
+    mockBrowserLocale({ language, numberLocale: 'de-DE' });
     const diagnostics: ComposeVerificationDiagnostic[] = [
       { code: 'fee_inputs_unavailable' },
       { code: 'fee_inputs_unreadable' },
@@ -41,7 +41,7 @@ describe('structured compose diagnostics', () => {
   });
 
   it.each(languages)('preserves exact amounts, rates, addresses and every output in %s', language => {
-    configureLocale({ language, numberLocale: 'de-DE' });
+    mockBrowserLocale({ language, numberLocale: 'de-DE' });
     const fee = transactionErrorMessage(new ComposeVerificationError(RAW, {
       code: 'fee_exceeds_selected_rate', data: { feeSats: 150_001, selectedRate: 0.125 },
     }));
@@ -68,7 +68,7 @@ describe('structured compose diagnostics', () => {
   });
 
   it('distinguishes one wrong recipient from multiple joined recipients, leaving original text intact', () => {
-    configureLocale({ language: 'en' });
+    mockBrowserLocale({ language: 'en' });
     const original = 'This transaction puts more than one output ahead of its data output';
     const error = new ComposeVerificationError(original, {
       code: 'output_recipient_position', data: { expected: ADDRESS, preceding: [{ address: OTHER, value: 546 }] },
@@ -83,7 +83,7 @@ describe('structured compose diagnostics', () => {
   });
 
   it('keeps unknown codes, absent codes and lookalike API text available verbatim', () => {
-    configureLocale({ language: 'ja' });
+    mockBrowserLocale({ language: 'ja' });
     const unknown = new ComposeVerificationError('future diagnostic: 9007199254740993 sats', {
       code: 'future_reason',
     } as unknown as ComposeVerificationDiagnostic);

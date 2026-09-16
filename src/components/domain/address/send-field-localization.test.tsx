@@ -1,8 +1,9 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DestinationInput } from '@/components/ui/inputs/destination-input';
 import { MemoInput } from '@/components/ui/inputs/memo-input';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import { DestinationsInput } from './destinations-input';
 
 const lookups = vi.hoisted(() => ({
@@ -21,11 +22,11 @@ vi.mock('@/hooks/useAssetOwnerLookup', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  configureLocale({ language: 'en', numberLocale: 'de-DE' });
+  mockBrowserLocale({ language: 'en', numberLocale: 'de-DE' });
 });
 afterEach(() => {
   cleanup();
-  configureLocale({ language: 'en', numberLocale: 'auto' });
+  mockBrowserLocale({ language: 'en', numberLocale: 'auto' });
 });
 
 describe('send field labels follow language without changing intent', () => {
@@ -52,7 +53,7 @@ describe('send field labels follow language without changing intent', () => {
     changed.mockClear(); validated.mockClear(); memoChanged.mockClear(); memoValidated.mockClear();
 
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
-      act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+      act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
       expect(screen.getByText(t(count > 1 ? 'common_destinations' : 'common_destination'))).toBeInTheDocument();
       expect(screen.getByText(t('common_memo'))).toBeInTheDocument();
       const currentFields = screen.getAllByRole('textbox');
@@ -77,7 +78,7 @@ describe('send field labels follow language without changing intent', () => {
     const fields = screen.getAllByRole('textbox');
     expect(lookups.single).toHaveBeenCalledTimes(2);
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
-      act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+      act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
       expect(screen.getByRole('textbox', { name: t('common_destination') })).toBe(fields[0]);
       expect(screen.getByRole('textbox', { name: 'Specific recipient' })).toBe(fields[1]);
       expect(fields[0]).toHaveValue('unfinished-address');

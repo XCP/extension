@@ -1,8 +1,8 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Transaction } from '@/core/counterparty/api';
-import { configureLocale, t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import { order } from './order';
 
 type Params = Record<string, unknown>;
@@ -25,17 +25,16 @@ function snapshot(params: Params = {}, updates: Transaction['events'] = []): Tra
   return transaction(terms, [event(1, 'OPEN_ORDER', { ...terms, tx_hash: txHash, ...params }), ...updates]);
 }
 function Details({ tx }: { tx: Transaction }) {
-  useLocaleRevision();
   // The transaction route preserves field identity by position during relocalization.
   return <dl>{order(tx).map((field, index) => <div key={index}><dt>{field.label}</dt><dd>{field.value}</dd></div>)}</dl>;
 }
 const expiration = (tx: Transaction) => order(tx).find(field => field.label === t('common_expiration'))?.value;
 
-beforeEach(() => { configureLocale({ language: 'en', numberLocale: 'en-US' }); });
+beforeEach(() => { mockBrowserLocale({ language: 'en', numberLocale: 'en-US' }); });
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
-  configureLocale({ language: 'en', numberLocale: 'auto' });
+  mockBrowserLocale({ language: 'en', numberLocale: 'auto' });
 });
 
 describe('historical order evidence', () => {
@@ -175,7 +174,7 @@ describe('exact order units and price', () => {
 
 describe('live historical presentation', () => {
   it.each(['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const)('translates known event status codes in %s while leaving an unknown diagnostic untouched', language => {
-    configureLocale({ language, numberLocale: 'en-US' });
+    mockBrowserLocale({ language, numberLocale: 'en-US' });
     const { rerender } = render(<Details tx={snapshot({ status: 'filled' })} />);
     for (const [value, key] of [
       ['filled', 'messages_order_status_filled'], ['cancelled', 'messages_order_status_cancelled'],
@@ -198,7 +197,7 @@ describe('live historical presentation', () => {
     expect(screen.getByText('1 PEPECASH = 66.66666666 RAREPEPE')).toBeTruthy();
     const open = { ja: '有効', 'zh-CN': '挂单中', 'zh-TW': '委託中', 'zh-HK': '掛單中' };
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) {
-      act(() => { configureLocale({ language, numberLocale: 'de-DE' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'de-DE' }); });
       expect(screen.getByText('🟢 ' + open[language])).toBeTruthy();
       expect(screen.getByText(t('messages_order_recorded_state'))).toBeTruthy();
       expect(screen.getByText(t('messages_order_snapshot_notice'))).toBeTruthy();

@@ -3,7 +3,6 @@ import { IoClose } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 interface ErrorAlertProps {
   /** The error message to display */
@@ -50,7 +49,6 @@ export const ErrorAlert = memo<ErrorAlertProps>(({
   title,
   className = ''
 }) => {
-  useLocaleRevision();
   const styles = SEVERITY_STYLES[severity];
   const defaultTitles = {
     error: t('error_alert_error'),

@@ -7,7 +7,7 @@ import { CURRENCY_INFO, type FiatCurrency } from '@/core/bitcoin/price';
 import { type BigNumber, fromSatoshis, toSatoshis } from '@/core/numeric';
 import { currentNumberLocale, t } from '@/i18n';
 
-/** Display follows interface language unless the user saved a number-format override. */
+/** Display follows the browser-selected interface catalog. */
 export function displayLocale(): string {
   return currentNumberLocale();
 }

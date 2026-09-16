@@ -1,8 +1,9 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import type { InputHTMLAttributes } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiValidation from '@/core/validation/api';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import { ApiUrlInput } from './api-url-input';
 
 const captured = vi.hoisted(() => ({ blur: null as Promise<unknown> | null }));
@@ -29,13 +30,13 @@ function renderInput(onValidationSuccess = vi.fn(async () => {})) {
 
 describe('ApiUrlInput localized validation', () => {
   beforeEach(() => {
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
     captured.blur = null;
   });
 
   afterEach(() => {
     cleanup();
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
     global.fetch = originalFetch;
     vi.restoreAllMocks();
   });
@@ -53,7 +54,7 @@ describe('ApiUrlInput localized validation', () => {
       ['zh-HK', 'API 返回錯誤：429'],
       ['en', 'API returned error: 429'],
     ] as const) {
-      act(() => { configureLocale({ language, numberLocale: 'de-DE' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'de-DE' }); });
       expect(screen.getByText(`❌ ${expected}`)).toBeInTheDocument();
       expect(input).toHaveAccessibleName(t('inputs_api_url_input_api_url'));
       expect(input).toHaveValue(URL_VALUE);
@@ -71,7 +72,7 @@ describe('ApiUrlInput localized validation', () => {
     const { input, onValidationSuccess } = renderInput();
     fireEvent.blur(input);
     await screen.findByText('❌ API must be Counterparty Core 11.3.0 or newer');
-    act(() => { configureLocale({ language: 'zh-CN', numberLocale: 'de-DE' }); });
+    act(() => { mockBrowserLocale({ language: 'zh-CN', numberLocale: 'de-DE' }); });
     expect(screen.getByText('❌ API 必须为 Counterparty Core 11.3.0 或更新版本')).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(onValidationSuccess).not.toHaveBeenCalled();
@@ -83,7 +84,7 @@ describe('ApiUrlInput localized validation', () => {
     fireEvent.change(input, { target: { value: 'not a URL' } });
     fireEvent.blur(input);
     await screen.findByText('❌ Invalid URL format');
-    act(() => { configureLocale({ language: 'ja' }); });
+    act(() => { mockBrowserLocale({ language: 'ja' }); });
     expect(screen.getByText('❌ URLの形式が正しくありません')).toBeInTheDocument();
     expect(input).toHaveValue('not a URL');
     expect(global.fetch).not.toHaveBeenCalled();
@@ -96,7 +97,7 @@ describe('ApiUrlInput localized validation', () => {
     const { input, onValidationSuccess } = renderInput();
     fireEvent.blur(input);
     await screen.findByText(`❌ ${error}`);
-    act(() => { configureLocale({ language: 'zh-TW' }); });
+    act(() => { mockBrowserLocale({ language: 'zh-TW' }); });
     expect(screen.getByText(`❌ ${error}`)).toBeInTheDocument();
     expect(validate).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
     expect(onValidationSuccess).not.toHaveBeenCalled();
@@ -108,7 +109,7 @@ describe('ApiUrlInput localized validation', () => {
     const { input, onValidationSuccess } = renderInput();
     fireEvent.blur(input);
     expect(input).toBeDisabled();
-    act(() => { configureLocale({ language: 'ja' }); });
+    act(() => { mockBrowserLocale({ language: 'ja' }); });
     expect(screen.getByText(t('inputs_api_url_input_validating_api_endpoint'))).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(onValidationSuccess).not.toHaveBeenCalled();
@@ -129,7 +130,7 @@ describe('ApiUrlInput localized validation', () => {
     await waitFor(() => { expect(input).toBeEnabled(); });
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByText(t('inputs_api_url_input_api_endpoint_validated_and_saved'))).not.toBeInTheDocument();
-    act(() => { configureLocale({ language: 'zh-CN' }); });
+    act(() => { mockBrowserLocale({ language: 'zh-CN' }); });
     expect(input).toHaveValue(URL_VALUE);
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(onValidationSuccess).toHaveBeenCalledExactlyOnceWith(URL_VALUE);

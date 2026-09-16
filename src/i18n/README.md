@@ -1,179 +1,78 @@
-# Localization release candidate
+# Browser-driven localization
 
-This branch preserves the catalogs and machine-review status from `localize-ja-zh`
-at `bdd4a894340fee971afd51d41a7c310bb176b70a` and now incorporates current main,
-including the API pacing and amount-safety changes from PR398 and PR399. New
-Japanese and Chinese preference/safety messages remain listed in
-`status/<locale>.json` as machine drafts. A bounded primary-source terminology
-review is recorded below; native-speaker review remains outstanding.
+The wallet uses Chrome's native extension catalog selection throughout onboarding,
+unlocking, popup, sidepanel, and transaction approvals. There is no saved interface
+language or number-format preference. `t()` reads `chrome.i18n.getMessage()` and
+falls back to the generated English catalog outside an extension runtime.
 
-The normal path is automatic: a new or existing keychain without an override
-uses Chrome's extension language selection, including onboarding and the locked
-screen. Users do not need to visit wallet settings to receive translations.
-This follows Chrome's UI/extension locale, not merely its preferred languages
-for websites. Settings also offers three independent choices inside the
-encrypted keychain:
+Each catalog's `appLocale` identifies the language actually selected. It controls
+the document's `lang` attribute and automatic number/date formatting, including
+English fallback when the browser language is unsupported. This follows the
+extension/UI locale, not merely preferred languages for websites. Browser language
+changes take effect according to the browser's reload/restart behavior. There are
+no live language subscriptions, manual catalog loader, or cross-window language
+synchronization. Legacy `language` and `numberLocale` fields in keychains from
+earlier development builds are ignored.
 
-- Interface language: browser-resolved catalog by default, or English, Japanese,
-  Simplified Chinese, Taiwan Traditional Chinese, or Hong Kong Traditional Chinese.
-- Number/date format: follows the resolved interface language by default, with a
-  separate saved override. This choice controls display only.
-- Fiat price currency: retains the existing saved currency and USD default.
+English, Japanese, Simplified Chinese, Taiwan Traditional Chinese and Hong Kong
+Traditional Chinese catalogs are included. Chrome documents `zh_CN` and `zh_TW`
+as supported Chinese locales. Packaged-browser tests also cover pinned Chromium's
+behavior where a Hong Kong preference loads `zh_HK` while `getUILanguage()` reports
+`zh-TW`. This is not a separate Hong Kong Chrome Web Store listing claim.
+See [Chrome i18n](https://developer.chrome.com/docs/extensions/reference/api/i18n)
+and [Chromium locale selection](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/extensions/common/extension_l10n_util.cc).
 
-As with other encrypted settings, these preferences apply after unlocking that
-keychain. The locked screen uses browser defaults. The extension's manifest name
-also follows the browser, independently of the unlocked interface override.
+## Prices and transaction inputs
 
-Inputs and compose serialization never consult these preferences. Amount drafts
-accept only canonical ASCII digits and a period when the field permits fractions;
-invalid drafts remain visible and block submission. Display strings must never be
-fed back into transaction inputs. The pinned SDK contract remains under
-`core/amount-contract`, unchanged by localization.
+Settings exposes only **Price currency** for display customization. It remains an
+independent encrypted keychain preference, defaulting to USD regardless of browser
+language. It is restored after unlocking, as before. Changing currency in another
+wallet surface must preserve the current page and any unsaved transaction draft.
 
-Language changes re-render the active route in place. Inline composer render
-callbacks return the real form element rather than becoming a new component type
-on every render. This preserves drafts, including invalid ones, when preferences
-change in another wallet surface. Navigating to a different composer pathname
-still resets its transaction state.
+Transaction inputs and compose serialization never consult display formatting.
+Amount drafts use ASCII digits and a period where fractions are allowed. Invalid
+drafts remain visible and block submission. Generated values and Max use canonical
+input formatting, not localized display strings. Exact quantities, each asset's
+divisibility and the pinned SDK amount contract are unchanged.
 
-`t()` supports Chrome's named placeholders as well as positional substitutions.
-Adjacent positional values such as `$1$2` are invalid Chrome catalog syntax:
-Chrome interprets `$1$` as a named variable. Those catalog entries use named
-placeholders with positional `content` instead. The catalog checker validates
-named references and compares expanded positional substitutions across locales.
+Current estimates include an approximation mark and ISO currency code. Missing,
+stale or mismatched quotes do not become estimates. BTC chart history requests the
+selected currency; XCP historical charts remain explicitly USD. Current XCP fiat
+estimates use the BTC/selected-fiat to BTC/USD ratio. Dispenser historical BTC
+amounts may show current fiat equivalents, not fiat prices recorded at trade time.
 
-Critical amount, fee, divisibility, output verification and provider-request
-diagnostics use stable codes translated at the UI boundary. Provider errors retain
-their original messages and numeric RPC codes; recognized presentation codes cross
-the background/UI boundary independently. Changing language re-renders an existing
-error without another compose, verification or signing call. Unknown API diagnostics
-retain their original text.
+## Messages and review
 
-Counterparty action summaries use structured translated headlines, separate full
-addresses and exact quantities. Unknown divisibility remains explicitly in base
-units; each pool/order leg uses its own asset metadata. Safety warnings carry typed
-facts from the background and translate in the foreground, including destruction,
-sweep, unreadable payloads and output risks. Severity and signing decisions do not
-depend on the selected language. This is bounded coverage, not a claim that every
-remote diagnostic or module-initialized label supports live language switching.
+English `public/_locales/en/messages.json` is the source of truth. Generated
+`MessageKey` types catch invalid keys. `node scripts/i18n.mjs check` checks complete
+catalogs, used keys, named/positional placeholders and generated English contents.
+Named placeholders preserve adjacent substitutions in Chrome's catalog syntax.
 
-Validation covers focused unit/integration tests, catalog integrity, TypeScript,
-lint, production build, and packaged Chromium tests for sequential invalid typing
-and cross-window preference changes. All 40 GitHub checks passed at `7c770e81`,
-including ten unit shards, twenty browser batches, CodeQL and hardware tests.
-See PR400 for the current revision's status; that result does not certify later
-changes. Browser regressions use fixtures and do not sign or broadcast live
-transactions.
+Known API, hardware, verification and provider failures retain structured facts
+and translate at the UI boundary. Unknown diagnostics preserve their raw text.
+Translation never changes RPC codes, retry decisions, authorization or signing.
+Historical order/MPMA displays retain the contextual corrections in PR405.
 
-`e2e/tests/browser-language.spec.ts` exercises actual browser catalog selection
-without setting a wallet language: fresh onboarding, setup buttons, default
-settings, locking, an incorrect password and unlocking. It starts a distinct
-browser profile for each language and asserts both `chrome.i18n` and the rendered
-language. Playwright's page `locale` emulation is not used as a substitute for
-Chrome's native catalog selection.
+The records under `review/` describe earlier terminology and contextual passes;
+their exact hashes and machine provenance remain historical evidence, not current
+native-speaker signoff. This simplification removes obsolete preference messages
+without revising the remaining translations. Native-speaker review is outstanding.
 
-The six native-browser journeys passed locally for English, Japanese, Simplified
-Chinese, Taiwan Traditional, Hong Kong Traditional and German-to-English fallback.
-Nineteen focused onboarding/create/import tests also passed. Setup and unlock
-buttons now translate their idle labels, and the onboarding legal sentence owns
-the word order around fixed Terms and Privacy links. Password drafts, private-key
-drafts, selected address formats and existing authentication behavior are preserved.
+## Validation
 
-Chrome documents `zh_CN` and `zh_TW` as supported Chinese locale names, but its
-runtime may try a preferred extension locale before the resolved browser UI
-locale. In the current packaged Chromium on Windows, a Hong Kong preference
-resolves `getUILanguage()` to `zh-TW` while loading our `zh_HK` messages. The test
-records that behavior for the pinned browser; it does not claim a separately
-supported Hong Kong Chrome Web Store listing. The manual HK override remains
-deterministic. `appLocale` comes from the selected message catalog, so document
-language and default number formatting describe the text actually displayed.
-References: [Chrome i18n](https://developer.chrome.com/docs/extensions/reference/api/i18n#locales)
-and [Chromium extension locale selection](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/extensions/common/extension_l10n_util.cc).
+`e2e/tests/browser-language.spec.ts` launches separate native browser profiles for
+English, Japanese, all three Chinese variants and unsupported-language fallback.
+It checks onboarding, one currency control, persistence, locking, invalid-password
+feedback and unlocking. It also seeds obsolete language preferences to verify they
+cannot override the browser. Page locale emulation is not a substitute for this test.
 
-## Fiat coverage and data limits
+The localization and approval galleries use the `browserLocale` wallet fixture,
+which launches Chromium with the native locale before setup. Each language runs
+in its own browser context. Galleries use authored read fixtures, not live signing
+or broadcasting.
 
-USD remains the default for every interface language. Saved CNY, EUR, GBP, JPY,
-CAD and AUD are independent overrides. Market tickers and dispenser price views
-use the selected current BTC quote; current XCP estimates convert XCP/USD using
-the BTC/selected-fiat to BTC/USD ratio. Missing quotes show no estimate. A pending
-or late response in another currency cannot be relabeled as the current choice.
-Current BTC statistics reuse a quote only within the existing ten-minute TTL;
-a failed refresh returns unavailable. Expired statistics are never combined
-with a fresh USD quote to infer FX. Direct USD spot reads also return unavailable
-when all providers fail, without reusing a prior quote.
-Current quote readers reject non-finite and non-positive prices before display
-or conversion.
-Send, dispenser and dispense review estimates explicitly include an approximation
-mark and ISO currency code; the verified crypto quantity stays primary. Provider
-approval cards and order/swap reviews generally show protocol asset units only.
-
-BTC chart history requests the selected currency from CoinGecko, keyed by range
-and currency. Non-USD data has no USD-only fallback; availability depends on that
-provider. The BTC/XCP ratio uses two USD quotes so the fiat choice cannot change
-its units. Changing the saved currency resets the BTC view before loading it.
-
-XCP historical charts and historical summary statistics remain explicitly USD,
-as supplied by the XCP history endpoint. This PR does not invent dated CNY FX or
-claim all history is converted. Market order/pool asset prices remain BTC/XCP or
-their actual quoted asset. Current fiat estimates are approximate market data,
-not inputs to compose or proof of future execution value.
-Dispenser history's Last and Avg fiat values are current fiat equivalents of
-the historical BTC amounts, not fiat prices recorded at the time of each trade.
-
-The primary amount, indivisible amount, fee and clipboard guidance uses concise
-copy without fixed heights or clipping. The packaged Chromium matrix exercises
-the popup in English, Japanese and all three explicit Chinese locales at a 360px
-browser viewport. The popup retains its fixed 350px content width when the browser
-is resized to 1100px; those captures do not certify wider sidepanel layouts.
-Longer protocol diagnostics retain their details and are not forced into two lines.
-
-PR398 and PR399 have merged, and current main has been integrated into this
-branch. PR400 targets main so the repository's complete PR checks can run.
-See the PR validation record and checks for the tested revision and results.
-
-## Bounded wording review (resumed)
-
-`review/critical-journeys-2026-09-07.json` lists the 181 exact keys read during
-an AI semantic wording review of Japanese and the three explicit Chinese
-catalogs. It records hashes, changed versus retained wording, primary references
-and outstanding gaps. This is not a native-speaker approval: every machine flag
-remains, and previously non-machine wording was protected. That manifest is a
-historical snapshot: its hashes, paused status and recorded gaps are unchanged.
-
-After the API and launchpad releases, the user resumed a bounded extension pass.
-`review/terminology-2026-09-08.md` records primary references and decisions for
-address types, Japanese price-impact terms and swap routing. Address labels,
-shared destination/memo headings and live preference-label updates are included.
-The September 8 approval review adds structured action and safety presentations;
-unknown external diagnostics remain unchanged. The optional
-`XCP_LAYOUT_LOCALES` matrix is review tooling, not evidence that all localized
-flows have passed. Do not treat either review note or a passing catalog checker
-as approval of every localized journey.
-
-`review/approval-localization-2026-09-08.md` and its JSON manifest record the
-subsequent 181 new messages and 28 reused safety messages, exact reviewed hashes,
-Counterparty Core evidence and retained machine provenance. The gallery can run
-actual popup or sidepanel entrypoints with `XCP_GALLERY_SURFACE`; widening a popup
-is not a substitute for the sidepanel test. Consult that record and PR400 for
-the completed scenarios and validation limits.
-
-The completed approval matrix covers Japanese and all three explicit Chinese
-locales in the popup and actual sidepanel. Seven scenarios run through both raw
-transaction and PSBT approval: send with memo, order, pool deposit, pool withdrawal,
-invalid attachment output, legacy source-UTXO mismatch, and destruction. The
-sidepanel captures 350/380/520px widths; verification retry and warning dialogs are
-included. Deterministic localization fixtures pin each asset's divisibility and
-exact payload. They are authored API-shaped responses, not evidence of live-node
-parity. The ordinary gallery retains its upstream checks and metadata-unavailable
-fallback coverage.
-
-Foreground Core requests now read settings received from the background, including
-the selected Counterparty node. Display changes do not trigger an extra quote,
-compose or signing call. Settings tests cover pending/failed saves, cross-window
-refreshes, locking and stale asynchronous replies. The fixed approval gallery also
-asserts that foreground order quotes use the configured node. Current-head checks
-and the packaged review artifact are recorded on PR400.
-
-Spanish, Korean, Brazilian Portuguese, French, Russian and Ukrainian catalogs are
-not included in this candidate. Matching Launchpad's remaining languages is a
-separate translation and layout pass; English fallback is not translated coverage.
+`src/i18n/test-utils.tsx` is imported only by unit tests. It mocks browser catalogs
+and rerenders test roots for retained-state coverage. Optional formatter mocks
+stress hypothetical comma-decimal locales; they are not application preferences
+and do not ship in the extension. Amount-safety tests also exercise explicit
+formatter locales directly.

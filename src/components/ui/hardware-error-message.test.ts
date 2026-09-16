@@ -5,16 +5,17 @@ import { hardwareErrorMetadata, parseHardwareErrorMetadata, withHardwareErrorMet
 import { HardwareWalletError } from '@/core/hardware/types';
 import { withProviderReviewCode } from '@/core/providerReviewErrors';
 import { ProviderError } from '@/core/rpcErrors';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { hardwareErrorMessage } from './hardware-error-message';
 
-afterEach(() => configureLocale({}));
+afterEach(() => mockBrowserLocale({}));
 
 describe('hardware error presentation', () => {
   it.each(['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'])('translates live local and transported diagnostics in %s without changing evidence', language => {
     const local = new HardwareWalletError('Device disconnected: exact device evidence', 'DEVICE_DISCONNECTED', 'trezor', 'Existing English hint');
     const received = withHardwareErrorMetadata(new Error(local.message), { code: local.code, vendor: local.vendor });
-    configureLocale({ language });
+    mockBrowserLocale({ language });
     for (const error of [local, received]) {
       expect(hardwareErrorMessage(error)).toBe(t('hardware_error_disconnected'));
       expect(transactionErrorMessage(error)).toBe(t('hardware_error_disconnected'));
@@ -28,7 +29,7 @@ describe('hardware error presentation', () => {
 
   it.each(['INVALID_PSBT', 'UNSUPPORTED_SIGHASH', 'SIGN_MESSAGE_FAILED', 'Failure_DataError'])('retains exact %s evidence rather than guessing a diagnosis', code => {
     const error = new HardwareWalletError('input 7 / P2TR / 0x83 / bc1pEXACT', code, 'trezor', 'Generic English hint');
-    configureLocale({ language: 'ja' });
+    mockBrowserLocale({ language: 'ja' });
     expect(hardwareErrorMessage(error)).toBeUndefined();
     expect(transactionErrorMessage(error)).toBeUndefined();
     expect(providerReviewErrorMessage(error)).toBe(error.message);
@@ -41,7 +42,7 @@ describe('hardware error presentation', () => {
 
   it('distinguishes the exact Taproot message-signing restriction from firmware age', () => {
     const error = new HardwareWalletError('original P2TR diagnostic', 'TAPROOT_SIGNING_NOT_SUPPORTED', 'trezor');
-    configureLocale({ language: 'ja' });
+    mockBrowserLocale({ language: 'ja' });
     const displayed = hardwareErrorMessage(error);
     expect(displayed).toBe(t('hardware_error_taproot_message', [t('address_type_native_segwit')]));
     expect(displayed).toContain('P2TR');

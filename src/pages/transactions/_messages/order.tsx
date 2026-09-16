@@ -5,7 +5,6 @@ import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount, formatAmountExact } from "@/core/format";
 import { divide, toBigNumber } from "@/core/numeric";
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 type Params = Record<string, unknown>;
 type Field = { label: string; value: string | ReactNode };
@@ -76,7 +75,6 @@ function quantity(params: Params, field: string, assetField: string): { display:
 function PriceDisplay({ giveAsset, getAsset, giveQuantity, getQuantity }: {
   giveAsset: string; getAsset: string; giveQuantity: string; getQuantity: string;
 }) {
-  useLocaleRevision();
   const [isFlipped, setIsFlipped] = useState(false);
   // Divide the original quantities in either direction, never the rounded displayed inverse.
   const ratio = isFlipped ? divide(giveQuantity, getQuantity) : divide(getQuantity, giveQuantity);

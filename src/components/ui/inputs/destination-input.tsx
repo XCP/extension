@@ -5,7 +5,6 @@ import { isValidBitcoinAddress } from "@/core/validation/bitcoin";
 import { useAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
 
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 interface DestinationInputProps {
   value: string;
@@ -40,7 +39,6 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
     },
     ref
   ) => {
-    useLocaleRevision();
     const onResolve = useCallback((assetName: string, ownerAddress: string) => {
       onChange(ownerAddress);
     }, [onChange]);

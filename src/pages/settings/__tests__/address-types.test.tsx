@@ -1,9 +1,8 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
-import { configureLocale } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import AddressTypesPage from '../address-types';
 
 const fixture = vi.hoisted(() => ({
@@ -20,7 +19,6 @@ vi.mock('@/contexts/wallet-context', () => ({ useWallet: () => ({
 vi.mock('@/contexts/header-context', () => ({ useHeader: () => ({ setHeaderProps: fixture.header }) }));
 
 function LivePage() {
-  useLocaleRevision();
   return <AddressTypesPage />;
 }
 const open = () => render(<MemoryRouter><LivePage /></MemoryRouter>);
@@ -28,9 +26,9 @@ const open = () => render(<MemoryRouter><LivePage /></MemoryRouter>);
 beforeEach(() => {
   vi.clearAllMocks();
   fixture.wallet.addressFormat = AddressFormat.P2WPKH;
-  configureLocale({ language: 'en', numberLocale: 'de-DE' });
+  mockBrowserLocale({ language: 'en', numberLocale: 'de-DE' });
 });
-afterEach(() => { cleanup(); configureLocale({ language: 'en', numberLocale: 'auto' }); });
+afterEach(() => { cleanup(); mockBrowserLocale({ language: 'en', numberLocale: 'auto' }); });
 
 describe('localized address-type settings', () => {
   it('updates language in place without changing the selected format or deriving new addresses', async () => {
@@ -45,7 +43,7 @@ describe('localized address-type settings', () => {
       ['zh-HK', '原生 SegWit', 'Nested SegWit', '傳統'],
       ['en', 'Native SegWit', 'Nested SegWit', 'Legacy'],
     ]) {
-      await act(async () => { configureLocale({ language, numberLocale: 'de-DE' }); });
+      await act(async () => { mockBrowserLocale({ language, numberLocale: 'de-DE' }); });
       expect(screen.getByText(`${native} (P2WPKH)`)).toBeInTheDocument();
       expect(screen.getByText(`${nested} (P2SH-P2WPKH)`)).toBeInTheDocument();
       expect(screen.getByText(`${legacy} (P2PKH)`)).toBeInTheDocument();
@@ -62,7 +60,7 @@ describe('localized address-type settings', () => {
     [AddressFormat.FreewalletBIP39, 'FreeWallet (P2PKH)', 'FreeWallet SegWit (P2WPKH)'],
   ])('preserves wallet identity and format choices for %s', async (format, legacy, segwit) => {
     fixture.wallet.addressFormat = format;
-    configureLocale({ language: 'ja', numberLocale: 'auto' });
+    mockBrowserLocale({ language: 'ja', numberLocale: 'auto' });
     open();
     await screen.findByText(legacy);
     expect(screen.getByText(segwit)).toBeInTheDocument();

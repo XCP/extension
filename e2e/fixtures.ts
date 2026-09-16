@@ -39,6 +39,7 @@ interface ExtensionFixtures {
 }
 
 interface WalletFixtures {
+  browserLocale: string;
   context: BrowserContext;
   page: Page;
   extensionId: string;
@@ -51,6 +52,7 @@ interface WalletFixtures {
 interface LaunchOptions {
   /** Use sidepanel.html instead of popup.html - required for hardware wallet tests */
   useSidepanel?: boolean;
+  browserLocale?: string;
 }
 
 async function launchExtension(testId: string, options?: LaunchOptions): Promise<{
@@ -73,7 +75,10 @@ async function launchExtension(testId: string, options?: LaunchOptions): Promise
 
   const context = await chromium.launchPersistentContext(contextPath, {
     headless: false,
+    locale: undefined,
+    env: { ...process.env, LANGUAGE: (options?.browserLocale ?? 'en').replaceAll('-', '_') },
     args: [
+      `--lang=${options?.browserLocale ?? 'en'}`,
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
@@ -416,17 +421,29 @@ export const test = base.extend<ExtensionFixtures>({
  * Wallet test - extension loaded with wallet ready
  */
 export const walletTest = base.extend<WalletFixtures>({
-  context: async ({}, use, testInfo) => {
+  browserLocale: ['en', { option: true }],
+  context: async ({ browserLocale }, use, testInfo) => {
     const testId = `w-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 45)}`;
-    const { context, contextPath } = await launchExtension(testId);
+    const { context, contextPath } = await launchExtension(testId, { browserLocale });
     await use(context);
     await cleanup(context, contextPath);
   },
 
-  page: async ({ context }, use) => {
+  page: async ({ context, browserLocale }, use) => {
     const page = context.pages().find(p => p.url().includes('chrome-extension://'));
     if (!page) throw new Error('Extension page not found');
-    await setupWallet(page);
+    if (browserLocale === 'en') await setupWallet(page);
+    else {
+      const catalog = JSON.parse(fs.readFileSync(path.resolve('public/_locales', browserLocale.replace('-', '_'), 'messages.json'), 'utf8'));
+      await page.getByRole('button', { name: catalog.keychain_onboarding_import_wallet.message, exact: true }).click();
+      for (const [index, word] of TEST_MNEMONIC.split(' ').entries()) {
+        await page.locator(`input[name="word-${index}"]`).fill(word);
+      }
+      await page.getByRole('checkbox').check();
+      await page.locator('input[name="password"]').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: catalog.common_continue.message, exact: true }).click();
+      await expect(page).toHaveURL(/#\/index$/);
+    }
     await use(page);
   },
 

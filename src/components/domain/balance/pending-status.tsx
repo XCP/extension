@@ -1,7 +1,6 @@
 import type { ReactElement } from "react";
 import type { PendingLabel } from '@/core/balances/pendingLabel';
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 // Functions defer translation until render. Core's labels and memoized maps remain locale-free.
 const PENDING_TEXT: Record<PendingLabel, () => string> = {
@@ -46,7 +45,6 @@ interface PendingStatusProps {
  * screen-reader user encounters it exactly where a sighted user does.
  */
 export function PendingStatus({ label, className = "" }: PendingStatusProps): ReactElement {
-  useLocaleRevision();
   const text = Object.hasOwn(PENDING_TEXT, label)
     ? PENDING_TEXT[label as PendingLabel]()
     : label;

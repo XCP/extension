@@ -36,7 +36,9 @@ async function capture(page: Page, info: TestInfo, name: string, width: number) 
   await info.attach(`${name}-${width}`, { path, contentType: 'image/png' });
 }
 
-walletTest('canonical slippage and BTC Max survive display preferences', async ({ context, page }, info) => {
+for (const locale of locales) walletTest.describe(locale, () => {
+walletTest.use({ browserLocale: locale });
+walletTest('canonical slippage and BTC Max survive currency changes', async ({ context, page }, info) => {
   walletTest.setTimeout(240_000);
   const composeRequests: URL[] = [];
   let quoteMode: 'ready' | 'loading' | 'limited' = 'ready';
@@ -81,10 +83,9 @@ walletTest('canonical slippage and BTC Max survive display preferences', async (
   const settings = await context.newPage();
   await settings.goto(page.url().split('#')[0] + '#/settings');
   const controls = settings.locator('section[aria-label] select');
-  await expect(controls).toHaveCount(3);
+  await expect(controls).toHaveCount(1);
   try {
-    for (const locale of (process.env.XCP_LAYOUT_LOCALES?.split(',') ?? ['en'])) {
-      await controls.nth(0).selectOption(locale);
+    {
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
       const beforeAddressSettings = await callGalleryService<{ address: string }>(page, 'getActiveAddress');
       await go(page, 'settings/address-types');
@@ -144,21 +145,19 @@ walletTest('canonical slippage and BTC Max survive display preferences', async (
         expect(composeRequests).toHaveLength(0);
       }
     }
-    // A pending quote and an actual 429 response use the real request/render path.
-    await controls.nth(0).selectOption('ja');
+    // A pending quote and an actual 429 response use the native browser catalog.
     await go(page, 'compose/swap/XCP/TOKEN');
     quoteMode = 'loading';
     await page.locator('input[name="amount_display"]').fill('2');
-    await expect(page.getByText(message('ja', 'swap_form_fetching_quote'), { exact: true })).toBeVisible();
-    await capture(page, info, 'ja-swap-loading', 360);
+    await expect(page.getByText(message(locale, 'swap_form_fetching_quote'), { exact: true })).toBeVisible();
+    await capture(page, info, `${locale}-swap-loading`, 360);
     await expect.poll(() => Boolean(releaseQuote)).toBe(true);
     quoteMode = 'limited'; releaseQuote!();
-    await expect(page.getByRole('alert').filter({ hasText: message('ja', 'layout_api_status_banner_api_rate_limited_requests_may') })).toBeVisible();
-    for (const width of [360, 1100]) await capture(page, info, 'ja-rate-limited', width);
+    await expect(page.getByRole('alert').filter({ hasText: message(locale, 'layout_api_status_banner_api_rate_limited_requests_may') })).toBeVisible();
+    for (const width of [360, 1100]) await capture(page, info, `${locale}-rate-limited`, width);
     quoteMode = 'ready';
 
-    // BTC Max stays canonical through a German number format and a USD-to-CNY change.
-    await controls.nth(1).selectOption('de-DE');
+    // BTC Max stays canonical through a USD-to-CNY change.
     await go(page, 'compose/send/BTC');
     const btc = page.locator('input[name="quantity"]');
     await expect(btc).toBeVisible();
@@ -166,8 +165,8 @@ walletTest('canonical slippage and BTC Max survive display preferences', async (
     const identity = await callGalleryService<{ address: string }>(page, 'getActiveAddress');
     const expectedRaw = 123456789 - (estimateVsize(1, 2, identity.address) + 30);
     for (const fiat of ['usd', 'cny']) {
-      await controls.nth(2).selectOption(fiat);
-      await page.getByRole('button', { name: message('ja', 'balance_amount_with_max_input_use_maximum_available_amount'), exact: true }).click();
+      await controls.first().selectOption(fiat);
+      await page.getByRole('button', { name: message(locale, 'balance_amount_with_max_input_use_maximum_available_amount'), exact: true }).click();
       await expect(btc).toHaveValue((expectedRaw / 100000000).toFixed(8));
       await page.locator('form').evaluate(form => (form as HTMLFormElement).requestSubmit());
       await expect.poll(() => composeRequests.length).toBe(fiat === 'usd' ? 1 : 2);
@@ -178,4 +177,6 @@ walletTest('canonical slippage and BTC Max survive display preferences', async (
     await settings.close();
     await api.dispose();
   }
+});
+
 });

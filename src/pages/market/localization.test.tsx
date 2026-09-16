@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { getBtc24hStats, getBtcPriceHistory } from '@/core/bitcoin/price';
 import { getXcpPriceHistory, getXcpStats } from '@/core/counterparty/price';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import BtcPricePage from './btc';
 import XcpPricePage from './xcp';
 
@@ -20,13 +21,13 @@ vi.mock('@/components/ui/charts/price-chart', () => ({ PriceChart: () => <div da
 
 beforeEach(() => {
   vi.clearAllMocks();
-  configureLocale({ language: 'en' });
+  mockBrowserLocale({ language: 'en' });
   vi.mocked(getBtc24hStats).mockResolvedValue(null);
   vi.mocked(getXcpStats).mockResolvedValue(null);
   vi.mocked(getBtcPriceHistory).mockRejectedValue(new Error('offline'));
   vi.mocked(getXcpPriceHistory).mockRejectedValue(new Error('offline'));
 });
-afterEach(() => configureLocale({}));
+afterEach(() => mockBrowserLocale({}));
 
 it.each(['BTC', 'XCP'] as const)('%s errors and selected range update in place without reloading prices', async asset => {
   const Page = asset === 'BTC' ? BtcPricePage : XcpPricePage;
@@ -37,7 +38,7 @@ it.each(['BTC', 'XCP'] as const)('%s errors and selected range update in place w
   if (asset === 'XCP') fireEvent.click(screen.getByRole('button', { name: 'All' }));
   const reads = vi.mocked(history).mock.calls.length;
   for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) {
-    act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+    act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
     await screen.findByText(t('common_unable_to_load_price'));
     expect(screen.getByText(t('common_unable_to_load_chart_data'))).toBeVisible();
     expect(screen.queryByText('Unable to load chart data')).not.toBeInTheDocument();

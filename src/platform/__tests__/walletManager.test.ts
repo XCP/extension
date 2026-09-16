@@ -194,18 +194,18 @@ describe('WalletManager', () => {
       const failed = expect(walletManager.updateSettings({
         counterpartyApiBase: rejectedNode, strictTransactionVerification: false,
       })).rejects.toBe(failure);
-      const next = walletManager.updateSettings({ language: 'ja' });
+      const next = walletManager.updateSettings({ fiat: 'jpy' });
       await vi.waitFor(() => expect(saveKeychainRecord).toHaveBeenCalledTimes(1));
       write.reject(failure);
       await failed;
       await next;
 
       expect(walletManager.getSettings()).toMatchObject({
-        counterpartyApiBase: originalNode, strictTransactionVerification: true, language: 'ja',
+        counterpartyApiBase: originalNode, strictTransactionVerification: true, fiat: 'jpy',
       });
       expect(saveKeychainRecord).toHaveBeenCalledTimes(2);
       expect(vi.mocked(encryptJsonWithKey).mock.calls[1]![0]).toMatchObject({ settings: {
-        counterpartyApiBase: originalNode, strictTransactionVerification: true, language: 'ja',
+        counterpartyApiBase: originalNode, strictTransactionVerification: true, fiat: 'jpy',
       } });
     });
 

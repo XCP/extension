@@ -6696,32 +6696,8 @@
     "message": "Minimum Receive",
     "description": "pages/compose/pool/withdraw/review.tsx"
   },
-  "display_preferences_title": {
-    "message": "Language and display",
-    "description": "Display preference control."
-  },
-  "display_preferences_language": {
-    "message": "Interface language",
-    "description": "Display preference control."
-  },
-  "display_preferences_numbers": {
-    "message": "Number format",
-    "description": "Display preference control."
-  },
-  "display_preferences_browser": {
-    "message": "Browser language",
-    "description": "Display preference control."
-  },
-  "display_preferences_follow_language": {
-    "message": "Follow interface language",
-    "description": "Display preference control."
-  },
   "display_preferences_fiat": {
     "message": "Price currency",
-    "description": "Display preference control."
-  },
-  "display_preferences_input_help": {
-    "message": "These choices affect display only. Enter amounts with digits 0–9 and a period, without grouping separators. Price currency is saved independently.",
     "description": "Display preference control."
   },
   "display_preferences_save_failed": {

@@ -8,7 +8,6 @@ import { fetchTokenBalances } from "@/core/counterparty/api";
 import { useInView } from "@/hooks/useInView";
 import { usePendingStatus } from "@/hooks/usePendingStatus";
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 const PAGE_SIZE = 20;
 
@@ -18,7 +17,6 @@ interface UtxoListProps {
 }
 
 export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): ReactElement => {
-  useLocaleRevision();
   const { activeWallet, activeAddress } = useWallet();
   const address = activeAddress?.address;
   const walletId = activeWallet?.id;

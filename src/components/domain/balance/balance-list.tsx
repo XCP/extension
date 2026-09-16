@@ -16,7 +16,6 @@ import { useInView } from "@/hooks/useInView";
 import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 
 
@@ -33,7 +32,6 @@ interface BalanceListProps {
 }
 
 export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}): ReactElement => {
-  useLocaleRevision();
   const { activeWallet, activeAddress } = useWallet();
   const { settings } = useSettings();
   const { cacheBalances } = useHeader();

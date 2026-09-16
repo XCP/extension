@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 const supported = ['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const;
 export type ApprovalGalleryLocale = typeof supported[number];
 
-/** Explicit gallery choice uses the actual persisted wallet preference, not page emulation. */
+/** Gallery choice configures the native browser locale in the wallet fixture. */
 export function approvalGalleryLocale(): ApprovalGalleryLocale {
   const value = process.env.XCP_GALLERY_LOCALE ?? 'en';
   const locale = supported.find(item => item === value);

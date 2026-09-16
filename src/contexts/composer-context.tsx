@@ -84,7 +84,6 @@ import { fromSatoshis } from '@/core/numeric';
 import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
 import { ComposeVerificationError } from '@/core/validation/compose-verification-error';
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 
 /**
@@ -175,7 +174,6 @@ export function ComposerProvider<T>({
   composeApi,
   initialTitle,
 }: ComposerProviderProps<T>): ReactElement {
-  useLocaleRevision();
   const navigate = useNavigate();
   const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress } = useWallet();
   const { settings } = useSettings();

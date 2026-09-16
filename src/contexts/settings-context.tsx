@@ -34,7 +34,6 @@ import {
 import { onMessage } from 'webext-bridge/popup';
 import { type AppSettings, DEFAULT_SETTINGS, setSettingsProvider } from "@/core/settings";
 import { withStateLock } from "@/core/wallet/stateLockManager";
-import { configureLocale } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 import { watchKeychainRecord } from "@/platform/storage/walletStorage";
 import { getWalletService } from "@/services/walletService";
@@ -82,10 +81,6 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       setSettingsProvider(() => DEFAULT_SETTINGS);
     };
   }, []);
-
-  useLayoutEffect(() => {
-    configureLocale({ language: settings.language, numberLocale: settings.numberLocale });
-  }, [settings.language, settings.numberLocale]);
 
   /**
    * @param showLoading - False when re-reading settings that changed elsewhere. Every surface

@@ -5,7 +5,6 @@ import { DEFAULT_SETTINGS } from '@/core/settings';
 import { type ApiValidationResult, validateCounterpartyApi } from '@/core/validation/api';
 
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 /** Local allowlisted facts only; unknown diagnostics retain the original response text. */
 function validationMessage(result: ApiValidationResult): string {
@@ -42,7 +41,6 @@ export const ApiUrlInput = ({
   className = '',
   showHelpText = true
 }: ApiUrlInputProps) => {
-  useLocaleRevision();
   const [localValue, setLocalValue] = useState(value);
   const [error, setError] = useState<ApiValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);

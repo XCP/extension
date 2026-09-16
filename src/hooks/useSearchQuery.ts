@@ -1,6 +1,5 @@
 import { type SetStateAction, useCallback, useEffect, useState } from "react";
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
 
 interface Asset {
@@ -133,7 +132,6 @@ async function searchAttempt(
 
 /** Asset search with immediate pending state, cancellation, and bounded retries. */
 export const useSearchQuery = (initialQuery: string = "", options?: UseSearchQueryOptions) => {
-  useLocaleRevision();
   const {
     apiEndpoint = "https://api.xcp.io/v2/assets",
     debounceMs = 500,

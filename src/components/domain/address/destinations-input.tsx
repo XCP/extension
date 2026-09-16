@@ -7,7 +7,6 @@ import { type Destination, getDestinationLimitState, isMPMASupported, MAX_DESTIN
 import { useMultiAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
 
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 interface DestinationsInputProps {
   destinations: Destination[];
@@ -37,7 +36,6 @@ export function DestinationsInput({
   disabled = false,
   showHelpText = false,
 }: DestinationsInputProps): ReactElement {
-  useLocaleRevision();
   const firstInputRef = useRef<HTMLInputElement>(null);
   const [validationErrors, setValidationErrors] = useState<{ [key: number]: boolean }>({});
   

@@ -19,7 +19,6 @@ import { AddressFormat, DEFAULT_ADDRESS_FORMAT } from "@/core/bitcoin/address";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { validatePrivateKeyFormat } from "@/core/validation/privateKey";
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
 
 const PATHS = {
@@ -28,7 +27,6 @@ const PATHS = {
 } as const;
 
 function ImportPrivateKeyPage() {
-  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { createPrivateKeyWallet, verifyPassword } = useWallet();

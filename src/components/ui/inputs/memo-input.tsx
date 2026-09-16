@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { validateMemo as validateMemoUtil } from "@/core/validation/memo";
 
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 interface MemoInputProps {
   value?: string;
@@ -33,7 +32,6 @@ export function MemoInput({
   name = "memo",
   maxBytes = 34,
 }: MemoInputProps): ReactElement {
-  useLocaleRevision();
   const [memo, setMemo] = useState(value);
   const [isValid, setIsValid] = useState(true);
 

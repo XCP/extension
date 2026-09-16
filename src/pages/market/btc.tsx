@@ -19,8 +19,7 @@ import {
 import { formatAmount } from "@/core/format";
 import { useFeeRates } from "@/hooks/useFeeRates";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
+import { currentLocale, t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 
 // Time range options (limited to 1h/24h due to CoinGecko API limitations)
@@ -38,7 +37,7 @@ export default function BtcPricePage(): ReactElement {
 }
 
 function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement {
-  const localeRevision = useLocaleRevision();
+  const locale = currentLocale();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { btc: btcUsd, xcp: xcpUsd } = useMarketPrices('usd');
@@ -135,7 +134,7 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, isRefreshing, handleRefresh, localeRevision]);
+  }, [setHeaderProps, navigate, isRefreshing, handleRefresh, locale]);
 
   // Format price with currency
   const formatPrice = (price: number) => {

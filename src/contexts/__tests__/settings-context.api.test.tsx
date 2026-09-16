@@ -73,8 +73,8 @@ describe('foreground Core requests use confirmed settings', () => {
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(1));
     expect(apiClient.get).toHaveBeenLastCalledWith(`${nodeA}${path}`, { params: { quantity: '100000000' } });
     const reads = service.getSettings.mock.calls.length;
-    await act(async () => result.current.updateSettings({ language: 'ja', numberLocale: 'de-DE', fiat: 'jpy' }));
-    expect(result.current.settings).toMatchObject({ language: 'ja', numberLocale: 'de-DE', fiat: 'jpy' });
+    await act(async () => result.current.updateSettings({ fiat: 'jpy' }));
+    expect(result.current.settings).toMatchObject({ fiat: 'jpy' });
     expect(apiClient.get).toHaveBeenCalledTimes(1);
     expect(service.getSettings).toHaveBeenCalledTimes(reads);
     expect(getActiveSettings().counterpartyApiBase).toBe(nodeA);
@@ -164,16 +164,16 @@ describe('foreground Core requests use confirmed settings', () => {
     await waitFor(() => expect(service.getSettings).toHaveBeenCalledTimes(2));
 
     await act(async () => lock());
-    stored = { ...stored, counterpartyApiBase: nodeB, language: 'ja' };
+    stored = { ...stored, counterpartyApiBase: nodeB, fiat: 'jpy' };
     await act(async () => result.current.refreshSettings());
-    expect(result.current.settings).toMatchObject({ counterpartyApiBase: nodeB, language: 'ja' });
+    expect(result.current.settings).toMatchObject({ counterpartyApiBase: nodeB, fiat: 'jpy' });
     await quoteAt(nodeB);
 
     await act(async () => {
-      oldRead.resolve({ ...stored, counterpartyApiBase: nodeA, language: 'en' });
+      oldRead.resolve({ ...stored, counterpartyApiBase: nodeA, fiat: 'usd' });
       await oldRead.promise;
     });
-    expect(result.current.settings).toMatchObject({ counterpartyApiBase: nodeB, language: 'ja' });
+    expect(result.current.settings).toMatchObject({ counterpartyApiBase: nodeB, fiat: 'jpy' });
     expect(result.current.isLoading).toBe(false);
     await quoteAt(nodeB);
   });

@@ -9,7 +9,6 @@ import {
   MAX_ORDER_EXPIRATION,
 } from '@/core/settings';
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 interface OrderSettingsProps {
   customExpiration?: number;
@@ -28,7 +27,6 @@ export function OrderSettings({
   isBuyingBTC = false,
   showHelpText = false
 }: OrderSettingsProps): ReactElement {
-  useLocaleRevision();
   const { settings, updateSettings } = useSettings();
 
   const getInitialExpiration = () => {

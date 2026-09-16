@@ -1,9 +1,11 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from '@/i18n/test-utils';
 import "@testing-library/jest-dom/vitest";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { BalanceList } from "./balance-list";
 
 // Mock dependencies
@@ -199,7 +201,7 @@ describe("BalanceList", () => {
   ];
 
   beforeEach(() => {
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
     vi.clearAllMocks();
     mockActiveWallet = { id: "wallet1", name: "Test Wallet" };
     mockActiveAddress = { address: "bc1qtest123", name: "Test Address" };
@@ -220,7 +222,7 @@ describe("BalanceList", () => {
 
   afterEach(() => {
     cleanup();
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
   });
 
   // The rule from live testing: an asset fully escrowed on an in-mempool order shows a spendable
@@ -771,7 +773,7 @@ describe("BalanceList", () => {
     const reads = [mockFetchBTCBalance, mockFetchTokenBalance, mockFetchTokenBalances, mockFetchMempoolLedgerEvents];
     const counts = reads.map(read => read.mock.calls.length);
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByRole('alert')).toHaveTextContent(t('balance_balance_list_load_more_failed'));
       expect(screen.getByText('BTC')).toBeInTheDocument();
       expect(screen.getByText('1.00000000')).toBeInTheDocument();
@@ -795,7 +797,7 @@ describe("BalanceList", () => {
     const reads = [mockFetchBTCBalance, mockFetchTokenBalance, mockFetchTokenBalances, mockFetchMempoolLedgerEvents];
     const counts = reads.map(read => read.mock.calls.length);
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByRole('alert')).toHaveTextContent(t('balance_balance_list_load_failed'));
       expect(reads.map(read => read.mock.calls.length)).toEqual(counts);
       expect(onRefreshed).toHaveBeenCalledOnce();

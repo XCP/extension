@@ -11,7 +11,6 @@ import { useSettings } from "@/contexts/settings-context";
 import type { AutoLockTimer } from "@/core/settings";
 
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 /**
  * Constants for navigation paths and auto-lock options.
@@ -34,7 +33,6 @@ const PATHS = {
  * ```
  */
 export default function AdvancedSettingsPage(): ReactElement {
-  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();

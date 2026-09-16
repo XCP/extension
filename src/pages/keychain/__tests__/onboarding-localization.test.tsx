@@ -1,7 +1,8 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import OnboardingPage from '../onboarding';
 import ImportPrivateKeyPage from '../setup/import-private-key';
 import UnlockPage from '../unlock';
@@ -28,11 +29,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   fixture.verify.mockResolvedValue(true);
   fixture.createPrivateKey.mockResolvedValue(undefined);
-  configureLocale({ language: 'en', numberLocale: 'de-DE' });
+  mockBrowserLocale({ language: 'en', numberLocale: 'de-DE' });
 });
 afterEach(() => {
   cleanup();
-  configureLocale({ language: 'en', numberLocale: 'auto' });
+  mockBrowserLocale({ language: 'en', numberLocale: 'auto' });
 });
 
 describe('onboarding and unlock localization', () => {
@@ -49,7 +50,7 @@ describe('onboarding and unlock localization', () => {
       'zh-HK': '繼續即表示你同意我們的服務條款及隱私政策。',
     };
     for (const language of languages) {
-      act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+      act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
       expect(sentence.textContent).toBe(expected[language]);
       expect(screen.getByRole('link', { name: t('common_terms_of_service') })).toBe(terms);
       expect(screen.getByRole('link', { name: t('common_privacy_policy') })).toBe(privacy);
@@ -77,7 +78,7 @@ describe('onboarding and unlock localization', () => {
     const password = '  KeepMyExactPassword123!  ';
     fireEvent.change(input, { target: { value: password } });
     for (const language of languages) {
-      act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+      act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
       expect(screen.getByRole('button', { name: t('keychain_unlock_unlock') })).toBe(button);
       expect(button).toHaveTextContent(t('keychain_unlock_unlock'));
       expect(button).toBeEnabled();
@@ -87,7 +88,7 @@ describe('onboarding and unlock localization', () => {
     }
     fireEvent.click(button);
     expect(fixture.unlock).toHaveBeenCalledExactlyOnceWith(password);
-    act(() => configureLocale({ language: 'ja', numberLocale: 'de-DE' }));
+    act(() => mockBrowserLocale({ language: 'ja', numberLocale: 'de-DE' }));
     expect(screen.getByRole('button', { name: t('keychain_unlock_unlocking') })).toBe(button);
     expect(button).toBeDisabled();
     expect(input).toHaveValue(password);
@@ -97,7 +98,7 @@ describe('onboarding and unlock localization', () => {
   });
 
   it('retains local password validation and the original rate-limit diagnostic', async () => {
-    configureLocale({ language: 'ja' });
+    mockBrowserLocale({ language: 'ja' });
     const rateLimit = 'Too many password attempts. Try again in 30 seconds.';
     fixture.unlock.mockRejectedValueOnce(new Error(rateLimit));
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -131,7 +132,7 @@ describe('onboarding and unlock localization', () => {
     fireEvent.change(password, { target: { value: 'ExactPassword123!' } });
     const button = screen.getByRole('button', { name: t('common_continue') });
     for (const language of languages) {
-      act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+      act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
       expect(picker).toHaveTextContent(t('setup_import_private_key_nested_segwit'));
       expect(picker).toHaveTextContent('3...');
       expect(container.querySelector('input[name="address-type"]')).toHaveValue(AddressFormat.P2SH_P2WPKH);

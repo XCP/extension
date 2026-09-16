@@ -114,6 +114,9 @@ const depthTest = walletTest.extend<{ network: NetworkFixture }>({
   network: [async ({ context }, use) => { await use(await installNetwork(context)); }, { auto: true }],
 });
 
+for (const language of LANGUAGES) depthTest.describe(language, () => {
+  depthTest.use({ browserLocale: language });
+
 depthTest('depth', async ({ page, network }, testInfo) => {
   depthTest.setTimeout(300_000);
   fs.mkdirSync(OUT, { recursive: true });
@@ -142,9 +145,9 @@ depthTest('depth', async ({ page, network }, testInfo) => {
     }
   };
   try {
-    for (const language of LANGUAGES) {
+    {
       const message = approvalCatalog(language);
-      await callGalleryService(page, 'updateSettings', [{ language, numberLocale: 'de-DE', fiat: 'usd', showHelpText: true }]);
+      await callGalleryService(page, 'updateSettings', [{ fiat: 'usd', showHelpText: true }]);
       await goto('/settings/advanced');
       await expect(page.locator('html')).toHaveAttribute('lang', language);
       const apiInput = page.getByRole('textbox', { name: message('settings_advanced_counterparty_api') });
@@ -166,7 +169,7 @@ depthTest('depth', async ({ page, network }, testInfo) => {
       await page.getByRole('button', { name: message('order_form_order_settings') }).click();
       const feeHelp = page.getByText(message('settings_order_settings_the_minimum_tx_fee_required'), { exact: true });
       await expect(feeHelp).toBeVisible();
-      await expect(page.getByText(message('settings_order_settings_blocks', ['8.064', message('settings_order_duration_months', ['1,9'])]), { exact: true })).toBeVisible();
+      await expect(page.getByText(message('settings_order_settings_blocks', ['8,064', message('settings_order_duration_months', ['1.9'])]), { exact: true })).toBeVisible();
       await expect(page.locator('#fee-required')).toHaveValue('0');
       await capture(language, 'order-fee', feeHelp);
 
@@ -207,22 +210,22 @@ depthTest('depth', async ({ page, network }, testInfo) => {
       const recordedState = page.getByText(message('messages_order_snapshot_notice'), { exact: true });
       await expect(recordedState).toBeVisible();
       await expect(page.getByText('🟢 ' + message('messages_order_status_open'), { exact: true })).toBeVisible();
-      await expect(page.getByText('1.000 RAREPEPE', { exact: true })).toBeVisible();
-      await expect(page.getByText('2,50000000 PEPECASH', { exact: true })).toBeVisible();
+      await expect(page.getByText('1,000 RAREPEPE', { exact: true })).toBeVisible();
+      await expect(page.getByText('2.50000000 PEPECASH', { exact: true })).toBeVisible();
       await expect(page.getByText('600 RAREPEPE', { exact: true })).toBeVisible();
-      await expect(page.getByText('1,50000000 PEPECASH', { exact: true })).toBeVisible();
-      await expect(page.getByText('40,0%', { exact: true })).toBeVisible();
-      await expect(page.getByText(message('messages_order_expires_after_block', ['960.099']), { exact: true })).toBeVisible();
+      await expect(page.getByText('1.50000000 PEPECASH', { exact: true })).toBeVisible();
+      await expect(page.getByText('40.0%', { exact: true })).toBeVisible();
+      await expect(page.getByText(message('messages_order_expires_after_block', ['960,099']), { exact: true })).toBeVisible();
       await capture(language, 'order-history', recordedState.locator('..'));
 
       await goto('/transactions/' + HISTORY_MPMA_HASH);
       await expect(page.getByRole('heading', { name: message('tx_action_multi_send'), exact: true })).toBeVisible();
       const mpmaSummary = message('messages_mpma_multi_send_to', [message('messages_mpma_assets', ['2']), message('messages_mpma_addresses', ['2'])]);
       await expect(page.getByText(mpmaSummary, { exact: true })).toBeVisible();
-      const firstTransfer = page.getByText('1,25000000 PEPECASH', { exact: true });
+      const firstTransfer = page.getByText('1.25000000 PEPECASH', { exact: true });
       await expect(firstTransfer).toBeVisible();
-      await expect(page.getByText('2,75000000 PEPECASH', { exact: true })).toBeVisible();
-      await expect(page.getByText('4,00000000', { exact: true })).toBeVisible();
+      await expect(page.getByText('2.75000000 PEPECASH', { exact: true })).toBeVisible();
+      await expect(page.getByText('4.00000000', { exact: true })).toBeVisible();
       await expect(page.getByText('2 RAREPEPE', { exact: true })).toBeVisible();
       await expect(page.getByText('10 RAREPEPE', { exact: true })).toBeVisible();
       await expect(page.getByText('12', { exact: true })).toBeVisible();
@@ -237,7 +240,9 @@ depthTest('depth', async ({ page, network }, testInfo) => {
     expect(network.blockedWrites.filter(request => /compose|broadcast|sign|send/i.test(request))).toEqual([]);
   } finally {
     const report = { fixtureOnly: true, catalogSource: 'source catalogs; packaged app must be freshly built', historicalFixtures: { order: HISTORY_ORDER_HASH, mpma: HISTORY_MPMA_HASH, recordedBlock: HISTORY_BLOCK }, results, pageErrors: errors, network };
-    fs.writeFileSync(path.join(OUT, 'verification.json'), JSON.stringify(report, null, 2));
+    fs.writeFileSync(path.join(OUT, `${language}-verification.json`), JSON.stringify(report, null, 2));
     await testInfo.attach('depth-verification', { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
   }
+});
+
 });

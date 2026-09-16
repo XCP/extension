@@ -1,11 +1,12 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { fetchInputValues } from '@/core/counterparty/transaction';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, renderHook } from '@/i18n/test-utils';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
 
@@ -696,14 +697,14 @@ describe('a compose whose message is missing entirely', () => {
 });
 
 describe('native verification diagnostics follow the active language without recomposing', () => {
-  afterEach(() => configureLocale({}));
+  afterEach(() => mockBrowserLocale({}));
 
   const response = (rawtransaction: string): ApiResponse => ({
     result: { rawtransaction, btc_fee: 4840, params: {}, name: 'move' },
   } as unknown as ApiResponse);
 
   it.each(['fee', 'output'] as const)('retains the failed %s check and exact draft through language changes', async failure => {
-    configureLocale({ language: 'en' });
+    mockBrowserLocale({ language: 'en' });
     // Fee lookup fails independently of the API's claim; alternatively, the actual transaction
     // pays a different P2PKH address even though the request names only our own address.
     const raw = failure === 'output'
@@ -730,7 +731,7 @@ describe('native verification diagnostics follow the active language without rec
     expect(english).toBeTruthy();
     const resolverCalls = vi.mocked(fetchInputValues).mock.calls.length;
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
-      act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+      act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
       const current = result.current.state.error;
       expect(current).toBeTruthy();
       if (language === 'en') expect(current).toBe(english);
@@ -748,13 +749,13 @@ describe('native verification diagnostics follow the active language without rec
     }
     act(() => result.current.clearError());
     expect(result.current.state.error).toBeNull();
-    act(() => configureLocale({ language: 'ja' }));
+    act(() => mockBrowserLocale({ language: 'ja' }));
     expect(result.current.state.error).toBeNull();
     expect(result.current.state.formData).toBe(draft);
   });
 
   it('preserves an unknown API diagnostic across language changes', async () => {
-    configureLocale({ language: 'en' });
+    mockBrowserLocale({ language: 'en' });
     const raw = 'fee_abnormally_high: upstream detail 123456789 sats';
     const composeApi = vi.fn().mockRejectedValue(new Error(raw));
     const { result } = renderHook(() => useComposer(), {
@@ -764,7 +765,7 @@ describe('native verification diagnostics follow the active language without rec
     });
     await act(async () => { await result.current.composeTransaction(new FormData()); });
     for (const language of ['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
-      act(() => configureLocale({ language }));
+      act(() => mockBrowserLocale({ language }));
       expect(result.current.state.error).toBe(raw);
       expect(result.current.state.step).toBe('form');
     }

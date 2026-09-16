@@ -1,7 +1,8 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEGACY_MAX_ORDER_EXPIRATION } from '@/core/settings';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import { OrderSettings } from '../order-settings';
 
 const mockUpdateSettings = vi.fn();
@@ -20,12 +21,12 @@ vi.mock('@/core/counterparty/capabilities', () => ({
 describe('OrderSettings — activation-window gating', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    configureLocale({ language: 'en' });
+    mockBrowserLocale({ language: 'en' });
   });
 
   afterEach(() => {
     cleanup();
-    configureLocale({});
+    mockBrowserLocale({});
   });
 
   it('coerces a "never" (0) default to the legacy max when the node lacks indefinite orders', async () => {
@@ -80,7 +81,7 @@ describe('OrderSettings — activation-window gating', () => {
     const fee = screen.getByRole('textbox', { name: t('settings_order_settings_fee_required_in_satoshis') });
     expect(selected).toHaveClass('bg-blue-500');
 
-    act(() => configureLocale({ language: 'ja' }));
+    act(() => mockBrowserLocale({ language: 'ja' }));
     expect(screen.getByRole('button', { name: t('settings_order_settings_1_day') })).toBe(selected);
     expect(selected).toHaveClass('bg-blue-500');
     expect(onExpirationChange).not.toHaveBeenCalled();
@@ -88,7 +89,7 @@ describe('OrderSettings — activation-window gating', () => {
 
     fireEvent.change(expiration, { target: { value: '00042' } });
     for (const language of ['zh-CN', 'zh-TW', 'zh-HK', 'en']) {
-      act(() => configureLocale({ language }));
+      act(() => mockBrowserLocale({ language }));
       expect(screen.getByRole('textbox', { name: t('settings_order_settings_custom_expiration_in_blocks') })).toBe(expiration);
       expect(expiration).toHaveValue('00042');
       expect(screen.getByRole('button', { name: t('settings_order_settings_1_day') })).toBe(selected);
@@ -120,7 +121,7 @@ describe('OrderSettings — activation-window gating', () => {
     mockGetStatus.mockResolvedValue({ supported: true });
     const onExpirationChange = vi.fn();
     const onFeeRequiredChange = vi.fn();
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
     render(<OrderSettings customExpiration={blocks} onExpirationChange={onExpirationChange}
       isBuyingBTC customFeeRequired={125} onFeeRequiredChange={onFeeRequiredChange} />);
     await screen.findByRole('button', { name: 'Never' });
@@ -130,7 +131,7 @@ describe('OrderSettings — activation-window gating', () => {
     const fee = screen.getByRole('textbox', { name: t('settings_order_settings_fee_required_in_satoshis') });
     fireEvent.change(expiration, { target: { value: '00042' } });
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
-      act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+      act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
       const count = rounded.replace('.', ',');
       const duration = t(key, [count]);
       expect(screen.getByText(t('settings_order_settings_blocks', [new Intl.NumberFormat('de-DE').format(blocks), duration]))).toBeVisible();
@@ -142,7 +143,7 @@ describe('OrderSettings — activation-window gating', () => {
       expect(mockGetStatus).toHaveBeenCalledExactlyOnceWith('indefiniteOrders');
     }
     // Number format can change independently while the Japanese unit remains selected.
-    act(() => configureLocale({ language: 'ja', numberLocale: 'en-US' }));
+    act(() => mockBrowserLocale({ language: 'ja', numberLocale: 'en-US' }));
     expect(screen.getByText(t('settings_order_settings_blocks', [new Intl.NumberFormat('en-US').format(blocks), t(key, [rounded])]))).toBeVisible();
     expect(expiration).toHaveValue('00042');
     expect(mockGetStatus).toHaveBeenCalledTimes(1);

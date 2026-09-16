@@ -1,9 +1,11 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from '@/i18n/test-utils';
 import '@testing-library/jest-dom/vitest';
 import type { UtxoBalance } from '@/core/counterparty/api';
 import { asDisplayUnits } from '@/core/numeric';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { UtxoList } from './utxo-list';
 
 const mockNavigate = vi.fn();
@@ -103,7 +105,7 @@ const fullPage = () => Array.from({ length: 20 }, (_, i) => ({
 
 describe('UtxoList', () => {
   beforeEach(() => {
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
     vi.clearAllMocks();
     mockActiveAddress.address = 'bc1qtest123';
     mockInView = false;
@@ -112,7 +114,7 @@ describe('UtxoList', () => {
 
   afterEach(() => {
     cleanup();
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
   });
 
   it('should show loading spinner initially', () => {
@@ -219,7 +221,7 @@ describe('UtxoList', () => {
       expect(screen.queryByText('No UTXO-attached balances')).not.toBeInTheDocument();
     });
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByRole('alert')).toHaveTextContent(t('utxo_utxo_list_load_failed'));
       expect(mockFetchTokenBalances).toHaveBeenCalledTimes(1);
     }
@@ -235,7 +237,7 @@ describe('UtxoList', () => {
     expect(screen.queryByText('No matching UTXOs')).not.toBeInTheDocument();
     expect(screen.getByTestId('spinner')).toHaveTextContent('Searching UTXO balances…');
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByTestId('spinner')).toHaveTextContent(t('utxo_utxo_list_searching_utxo_balances'));
       expect(screen.getByRole('textbox')).toHaveValue('RAREPEPE');
       expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2);
@@ -282,7 +284,7 @@ describe('UtxoList', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to load more UTXO balances.');
     expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2);
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByRole('alert')).toHaveTextContent(t('utxo_utxo_list_load_more_failed'));
       expect(screen.getAllByText('XCP')).toHaveLength(20);
       expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2);

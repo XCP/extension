@@ -7,7 +7,6 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
@@ -16,7 +15,6 @@ const PATHS = {
 } as const;
 
 function UnlockPage() {
-  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { unlockKeychain } = useWallet();

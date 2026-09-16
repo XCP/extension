@@ -9,7 +9,6 @@ import { fetchOwnedAssets, type OwnedAsset } from "@/core/counterparty/api";
 import { useInView } from "@/hooks/useInView";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 const PAGE_SIZE = 20;
 
@@ -21,7 +20,6 @@ interface AssetListProps {
 }
 
 export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): React.ReactElement => {
-  useLocaleRevision();
   const { activeAddress } = useWallet();
   const { cacheOwnedAssets } = useHeader();
   const address = activeAddress?.address;

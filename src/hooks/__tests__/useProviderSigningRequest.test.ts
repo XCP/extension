@@ -1,7 +1,8 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderReviewError } from '@/core/providerReviewErrors';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, renderHook } from '@/i18n/test-utils';
 import type { ProviderSigningReview } from '@/services/providerSigningService';
 import { useProviderSigningRequest } from '../useProviderSigningRequest';
 
@@ -25,7 +26,7 @@ function review(reviewKey = 'original', id = 'req-1'): ProviderSigningReview {
 
 describe('provider verification retry', () => {
   beforeEach(() => {
-    configureLocale({ language: 'en' });
+    mockBrowserLocale({ language: 'en' });
     vi.clearAllMocks();
     mocks.requestId = 'req-1';
     mocks.wallet = { activeAddress: { address: 'authorized-address' }, activeWallet: { id: 'authorized-wallet' }, isLoading: false };
@@ -34,7 +35,7 @@ describe('provider verification retry', () => {
     mocks.reject.mockResolvedValue(undefined);
   });
 
-  afterEach(() => configureLocale({}));
+  afterEach(() => mockBrowserLocale({}));
 
   it('retranslates a retained authorization failure without refetching or enabling signing', async () => {
     const failure = new ProviderReviewError('connection_revoked');
@@ -42,7 +43,7 @@ describe('provider verification retry', () => {
     const { result } = renderHook(() => useProviderSigningRequest('sign-message'));
     await waitFor(() => expect(result.current.error).toBe(failure.message));
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
-      act(() => configureLocale({ language }));
+      act(() => mockBrowserLocale({ language }));
       expect(result.current.error).toBe(t('provider_review_connection_revoked'));
       expect(result.current.review).toBeNull();
       await expect(result.current.handleApprove()).rejects.toThrow('No reviewed signing request');

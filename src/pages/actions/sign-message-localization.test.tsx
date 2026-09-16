@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { HardwareWalletError } from '@/core/hardware/types';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import SignMessagePage from './sign-message';
 
 const stable = vi.hoisted(() => ({
@@ -18,11 +19,11 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => stable
 
 beforeEach(() => {
   vi.clearAllMocks();
-  configureLocale({ language: 'en' });
+  mockBrowserLocale({ language: 'en' });
   stable.adapter.init.mockResolvedValue(undefined);
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
-afterEach(() => { configureLocale({}); vi.restoreAllMocks(); });
+afterEach(() => { mockBrowserLocale({}); vi.restoreAllMocks(); });
 
 it('retains exact message bytes and local device evidence when changing language after a failed signature', async () => {
   const failure = new HardwareWalletError('Original device evidence', 'DEVICE_DISCONNECTED', 'trezor');
@@ -34,7 +35,7 @@ it('retains exact message bytes and local device evidence when changing language
   fireEvent.click(screen.getByRole('button', { name: t('common_sign_message') }));
   await screen.findByText(t('hardware_error_disconnected'));
   for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
-    act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+    act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
     expect(screen.getByText(t('hardware_error_disconnected'))).toBeVisible();
     expect(input).toHaveValue(message);
     expect(screen.getByRole('textbox', { name: t('common_signature') })).toHaveValue('');

@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import { PriceChart } from './price-chart';
 
 const canvas = {
@@ -10,16 +11,16 @@ const canvas = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
-  configureLocale({ language: 'en' });
+  mockBrowserLocale({ language: 'en' });
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(canvas as unknown as CanvasRenderingContext2D);
 });
-afterEach(() => { configureLocale({}); vi.restoreAllMocks(); });
+afterEach(() => { mockBrowserLocale({}); vi.restoreAllMocks(); });
 
 it('redraws a memoized empty chart when the language changes without replacing its data', () => {
   const data: [] = [];
   render(<PriceChart data={data} />);
   expect(canvas.fillText).toHaveBeenLastCalledWith(t('charts_price_chart_no_data_available'), 150, 100);
-  act(() => configureLocale({ language: 'ja' }));
+  act(() => mockBrowserLocale({ language: 'ja' }));
   expect(canvas.fillText).toHaveBeenLastCalledWith(t('charts_price_chart_no_data_available'), 150, 100);
   expect(screen.getByRole('img')).toHaveAccessibleName(t('charts_price_chart_price_chart'));
 });
@@ -30,7 +31,7 @@ it('keeps the hovered point while updating its price and date formatting', () =>
   render(<PriceChart data={data} currencySymbol="USD " priceDecimals={2} timeFormat="date" />);
   fireEvent.mouseMove(screen.getByRole('img'), { clientX: 10 });
   expect(screen.getByText('USD 1,234.5')).toBeVisible();
-  act(() => configureLocale({ language: 'ja', numberLocale: 'de-DE' }));
+  act(() => mockBrowserLocale({ language: 'ja', numberLocale: 'de-DE' }));
   expect(screen.getByText('USD 1.234,5')).toBeVisible();
   expect(screen.getByText(new Date(timestamp).toLocaleDateString('de-DE', { year: 'numeric', month: 'short', day: 'numeric' }))).toBeVisible();
   expect(data[0]).toEqual({ timestamp, price: 1234.5 });

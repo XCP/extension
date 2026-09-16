@@ -10,11 +10,9 @@ import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-
-import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
+import { currentLocale, t } from '@/i18n';
 export default function ConnectHardware(): ReactElement {
-  const localeRevision = useLocaleRevision();
+  const locale = currentLocale();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { createHardwareWalletWithDiscovery, setHardwareOperationInProgress } = useWallet();
@@ -34,7 +32,7 @@ export default function ConnectHardware(): ReactElement {
         ariaLabel: t('common_help'),
       },
     });
-  }, [setHeaderProps, navigate, localeRevision]);
+  }, [setHeaderProps, navigate, locale]);
 
   async function handleConnect() {
     setFailure(null);

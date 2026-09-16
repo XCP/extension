@@ -3,13 +3,11 @@ import { useSearchParams } from 'react-router';
 import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { useWallet } from '@/contexts/wallet-context';
 import { ProviderReviewError } from '@/core/providerReviewErrors';
-import { useLocaleRevision } from '@/i18n/use-locale';
 import { getIdentityMismatchCode } from '@/platform/provider/requestIdentity';
 import { getProviderSigningService, type ProviderSigningReview } from '@/services/providerSigningService';
 
 /** The popup reads a background review and sends only its bound decision. */
 export function useProviderSigningRequest<K extends ProviderSigningReview['kind']>(kind: K) {
-  useLocaleRevision();
   const [searchParams] = useSearchParams();
   const requestId = searchParams.get('requestId');
   const { activeAddress, activeWallet, isLoading: walletLoading } = useWallet();

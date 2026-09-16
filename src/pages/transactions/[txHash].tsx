@@ -10,8 +10,7 @@ import { useHeader } from "@/contexts/header-context";
 import { fetchTransaction, type Transaction } from "@/core/counterparty/api";
 import { formatAmount, formatDate, formatTimeAgo } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
-import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
+import { currentLocale, t } from '@/i18n';
 import { getMessageHandler } from "@/pages/transactions/_messages";
 
 type TransactionLoadError = { code: 'missing_hash' | 'not_found' | 'fetch_failed' } | Error;
@@ -29,7 +28,7 @@ function loadErrorMessage(error: TransactionLoadError): string {
  * Uses modular message type handlers for different transaction types.
  */
 export default function TransactionPage(): ReactElement {
-  const localeRevision = useLocaleRevision();
+  const locale = currentLocale();
   const { txHash } = useParams<{ txHash: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -78,7 +77,7 @@ export default function TransactionPage(): ReactElement {
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, txHash, savedPage, localeRevision]);
+  }, [setHeaderProps, navigate, txHash, savedPage, locale]);
 
   if (isLoading) return <Spinner message={t('transactions_txhash_loading_transaction')} />;
   if (error) return <ErrorAlert message={loadErrorMessage(error)} onClose={() => setError(null)} />;

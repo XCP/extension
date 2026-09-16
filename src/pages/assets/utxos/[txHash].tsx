@@ -15,7 +15,6 @@ import { fromSatoshis } from "@/core/numeric";
 
 
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 /**
  * Constants for navigation paths.
@@ -38,7 +37,6 @@ const PATHS = {
  * ```
  */
 export default function UtxoPage(): ReactElement {
-  useLocaleRevision();
   const { txHash: txid } = useParams<{ txHash: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();

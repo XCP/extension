@@ -3,9 +3,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { PricePoint } from '@/core/bitcoin/price';
 import { displayLocale, formatAmount } from '@/core/format';
 import { type BigNumber, maximum, minimum, subtract, toBigNumber, toNumber } from "@/core/numeric";
-
-import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
+import { currentLocale, t } from '@/i18n';
 
 interface PriceChartProps {
   data: PricePoint[];
@@ -36,7 +34,7 @@ export const PriceChart = memo(({
   priceDecimals = 0,
   timeFormat = 'datetime',
 }: PriceChartProps): ReactElement => {
-  const localeRevision = useLocaleRevision();
+  const locale = currentLocale();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -150,7 +148,7 @@ export const PriceChart = memo(({
       ctx.stroke();
     }
 
-  }, [data, width, height, lineColor, loading, hoverIndex, getScaleFns, padding.bottom, padding.top, localeRevision]);
+  }, [data, width, height, lineColor, loading, hoverIndex, getScaleFns, padding.bottom, padding.top, locale]);
 
   // Handle mouse move to find closest data point
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {

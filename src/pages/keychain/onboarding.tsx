@@ -4,7 +4,6 @@ import { FaPlus, FiHelpCircle, FiUpload } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
@@ -14,7 +13,6 @@ const PATHS = {
 } as const;
 
 function OnboardingPage() {
-  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
 

@@ -11,11 +11,9 @@ import { useWallet } from "@/contexts/wallet-context";
 import { generateNewMnemonic } from "@/core/bitcoin/privateKey";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
 
 function CreateMnemonicPage() {
-  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { keychainExists, createMnemonicWallet, verifyPassword } = useWallet();

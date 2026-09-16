@@ -1,15 +1,15 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { configureLocale } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import { ApiStatusBanner } from './api-status-banner';
 
 const status = vi.hoisted(() => ({ value: { status: 'rate-limited', statusCode: 429, message: 'API rate limited. Requests may be slow.', dismiss: vi.fn() } }));
 vi.mock('@/contexts/api-status-context', () => ({ useApiStatus: () => status.value }));
-afterEach(() => { cleanup(); configureLocale({ language: 'en', numberLocale: 'auto' }); });
+afterEach(() => { cleanup(); mockBrowserLocale({ language: 'en', numberLocale: 'auto' }); });
 
 describe('API status localization boundary', () => {
   it('translates a known HTTP status while retaining its code', () => {
-    configureLocale({ language: 'ja' });
+    mockBrowserLocale({ language: 'ja' });
     status.value.message = 'API rate limited. Requests may be slow.';
     render(<ApiStatusBanner />);
     expect(screen.getByRole('alert')).toHaveTextContent('API のリクエスト上限に達しました。');
@@ -18,7 +18,7 @@ describe('API status localization boundary', () => {
   });
 
   it('keeps unfamiliar diagnostic details intact beneath the translated status', () => {
-    configureLocale({ language: 'zh-TW' });
+    mockBrowserLocale({ language: 'zh-TW' });
     status.value.message = 'upstream quota scope: expensive-index';
     render(<ApiStatusBanner />);
     expect(screen.getByRole('alert')).toHaveTextContent('API 請求過於頻繁。');

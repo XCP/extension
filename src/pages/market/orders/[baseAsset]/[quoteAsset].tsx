@@ -30,7 +30,6 @@ import { useInView } from "@/hooks/useInView";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 
 // Constants
 const FETCH_LIMIT = 20;
@@ -59,7 +58,6 @@ type OrderTab = "buy" | "sell" | "history";
 interface PairProps { baseAsset: string; quoteAsset: string }
 
 export default function AssetOrdersPage(): ReactElement {
-  useLocaleRevision();
   const { baseAsset, quoteAsset } = useParams<{ baseAsset: string; quoteAsset: string }>();
   if (!baseAsset || !quoteAsset) return <EmptyState message={t('baseasset_quoteasset_select_pair')} />;
   return <AssetOrdersPair key={JSON.stringify([baseAsset, quoteAsset])} baseAsset={baseAsset} quoteAsset={quoteAsset} />;

@@ -9,7 +9,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { checkMessageStructure } from '@/core/counterparty/messageStructure';
 import { analyzeTransactionSafety, type SecurityWarning } from '@/core/counterparty/transactionSafety';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import type { ApprovalWarningInput } from '../approval-warnings';
 import { buildApprovalWarnings } from '../approval-warnings';
 
@@ -21,7 +22,7 @@ const EMPTY: ApprovalWarningInput = {
   signedInputsUnknownStatus: [],
 };
 
-afterEach(() => configureLocale({ language: 'en' }));
+afterEach(() => mockBrowserLocale({ language: 'en' }));
 
 const structureFindings = [
   ...checkMessageStructure('utxo', { source: `${'AB'.repeat(32)}:1234` }, { inputs: [], outputs: [] }),
@@ -101,7 +102,7 @@ describe('buildApprovalWarnings', () => {
         ...[1, 2].flatMap(count => analyzeTransactionSafety('enhanced_send',
           Array.from({ length: count }, () => ({ value: 12345678, type: 'unknown' })), signer).warnings),
       ];
-      configureLocale({ language: 'en', numberLocale: 'en-US' });
+      mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
       const serialized: SecurityWarning[] = JSON.parse(JSON.stringify(analyze()));
       const snapshot = JSON.stringify(serialized);
       expect(serialized.find(w => w.code === 'destroy')?.title).toBe('Danger: Supply Destruction');
@@ -109,7 +110,7 @@ describe('buildApprovalWarnings', () => {
         totalSats: 12345678, addresses: [destination],
       });
 
-      configureLocale({ language, numberLocale: 'de-DE' });
+      mockBrowserLocale({ language, numberLocale: 'de-DE' });
       const items = buildApprovalWarnings({ ...EMPTY, safetyWarnings: serialized });
       const foreground = analyze();
       expect(items).toHaveLength(serialized.length);
@@ -132,7 +133,7 @@ describe('buildApprovalWarnings', () => {
   );
 
   it.each(['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const)('uses recovery-key counts in %s without translating unknown diagnostics', language => {
-    configureLocale({ language });
+    mockBrowserLocale({ language });
     const safetyWarnings: SecurityWarning[] = [1, 2].map(count => ({
       code: 'misdirected_recovery_key', data: { count }, severity: 'warning', title: 'English title', message: 'English body',
     }));
@@ -280,7 +281,7 @@ describe('buildApprovalWarnings', () => {
 
   it.each(['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'])('translates local structure findings in %s without changing evidence or the block', language => {
     const before = structuredClone(structureFindings);
-    configureLocale({ language, numberLocale: 'de-DE' });
+    mockBrowserLocale({ language, numberLocale: 'de-DE' });
     const [move, attach] = buildApprovalWarnings({ ...EMPTY, structureFindings });
     expect(move).toMatchObject({
       key: 'structure-0', severity: 'warning', blocking: true,

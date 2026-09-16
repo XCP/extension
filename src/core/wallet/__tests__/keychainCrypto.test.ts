@@ -30,13 +30,13 @@ describe('keychainCrypto', () => {
     expect(decrypted).toEqual(keychain);
   });
 
-  it('round-trips independently saved language, number format and fiat', async () => {
+  it('round-trips independently saved fiat currency', async () => {
     const salt = generateRandomBytes(16);
     const key = await deriveKey('display-preferences-test', salt, ITERATIONS);
     const keychain = sampleKeychain();
-    keychain.settings = { ...keychain.settings, language: 'ja', numberLocale: 'de-DE', fiat: 'usd' };
+    keychain.settings = { ...keychain.settings, fiat: 'usd' };
     const record = await encryptKeychainRecord(keychain, key, bufferToBase64(salt), ITERATIONS);
-    expect((await decryptKeychain(record, key)).settings).toMatchObject({ language: 'ja', numberLocale: 'de-DE', fiat: 'usd' });
+    expect((await decryptKeychain(record, key)).settings).toMatchObject({ fiat: 'usd' });
   });
 
   it('fails to decrypt with the wrong key', async () => {
@@ -63,8 +63,8 @@ describe('keychainCrypto', () => {
     expect(parsed.settings.autoLockTimer).toBe('15m');
     expect(parsed.settings.strictTransactionVerification).toBe(true);
     expect(parsed.settings.providerCapabilities).toEqual({});
-    expect(parsed.settings.language).toBe('auto');
-    expect(parsed.settings.numberLocale).toBe('auto');
+    expect(parsed.settings).not.toHaveProperty('language');
+    expect(parsed.settings).not.toHaveProperty('numberLocale');
     expect(parsed.settings.fiat).toBe('usd');
   });
 

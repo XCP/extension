@@ -17,7 +17,6 @@ import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { formatAddress } from "@/core/format";
 import { detectGiftCard, GIFT_CARD_PATH } from "@/core/wallet/rarePepeWallet";
 import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
 
 /** How long the phrase must hold still before it is worth spending lookups on. */
@@ -37,7 +36,6 @@ type GiftCardFinding =
   | { status: "unavailable"; mnemonic: string };
 
 function ImportMnemonicPage() {
-  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const {

@@ -59,8 +59,8 @@ for (const locale of cases) {
 
       const checkAutomaticSettings = async () => {
         const settings = await callGalleryService<{ language: string; numberLocale: string }>(page, 'getSettings');
-        expect(settings.language).toBe('auto');
-        expect(settings.numberLocale).toBe('auto');
+        expect(settings.language).toBeUndefined();
+        expect(settings.numberLocale).toBeUndefined();
       };
       const capture = async (name: string) => {
         const metrics = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
@@ -89,13 +89,20 @@ for (const locale of cases) {
       await expect(page).toHaveURL(/#\/index$/);
       await page.goto(`${base}#/settings`);
       const controls = page.locator('section[aria-label] select');
-      await expect(controls).toHaveCount(3);
-      await expect(controls.nth(0)).toHaveValue('auto');
-      await expect(controls.nth(1)).toHaveValue('auto');
-      await expect(controls.nth(2)).toHaveValue('usd');
+      await expect(controls).toHaveCount(1);
+      await expect(controls.first()).toHaveValue('usd');
+      await controls.first().selectOption('jpy');
+      await expect(controls.first()).toBeEnabled();
+      await page.reload();
+      await expect(controls.first()).toHaveValue('jpy');
+      await expect(page.locator('html')).toHaveAttribute('lang', locale.catalog);
       await checkAutomaticSettings();
       await capture('settings');
 
+      // Preferences saved by an older localization candidate must not override the browser.
+      await callGalleryService(page, 'updateSettings', [{ language: locale.catalog === 'ja' ? 'en' : 'ja', numberLocale: 'de-DE' }]);
+      await page.reload();
+      await expect(page.locator('html')).toHaveAttribute('lang', locale.catalog);
       await callGalleryService(page, 'lockKeychain');
       await page.goto(`${base}#/keychain/unlock`);
       await expect(page.locator('html')).toHaveAttribute('lang', locale.catalog);
@@ -110,7 +117,9 @@ for (const locale of cases) {
       await unlock.click();
       await expect(page).toHaveURL(/#\/index$/);
       await expect(page.locator('html')).toHaveAttribute('lang', locale.catalog);
-      await checkAutomaticSettings();
+      await page.goto(`${base}#/settings`);
+      await expect(controls).toHaveCount(1);
+      await expect(controls.first()).toHaveValue('jpy');
     } finally {
       await context.close();
     }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { applyDocumentLocale, configureLocale, currentLocale, currentNumberLocale, t } from '@/i18n';
+import { applyDocumentLocale, currentLocale, currentNumberLocale, t } from '@/i18n';
 import { EN } from '@/i18n/en.generated';
 
 /** A browser whose i18n answers with the given catalog, empty for anything else (Chrome's behaviour). */
@@ -14,7 +14,6 @@ function runtimeWith(catalog: Record<string, string>) {
 }
 
 afterEach(() => {
-  configureLocale({});
   vi.unstubAllGlobals();
   document.documentElement.lang = 'en';
 });
@@ -76,38 +75,13 @@ describe('the catalog', () => {
 });
 
 
-describe('independent saved display preferences', () => {
-  it('explicit language overrides the browser and updates the document', () => {
-    runtimeWith({ appLocale: 'zh-TW', common_cancel: 'browser text' });
-    configureLocale({ language: 'ja' });
-    expect(t('common_cancel')).toBe('キャンセル');
-    expect(currentLocale()).toBe('ja');
-    expect(currentNumberLocale()).toBe('ja');
-    expect(document.documentElement.lang).toBe('ja');
-    configureLocale({ language: 'en', numberLocale: 'de-DE' });
-    expect(t('common_cancel')).toBe('Cancel');
-    expect(currentNumberLocale()).toBe('de-DE');
-    configureLocale({ language: 'zh-TW', numberLocale: 'de-DE' });
-    expect(currentLocale()).toBe('zh-TW');
-    expect(currentNumberLocale()).toBe('de-DE');
-    configureLocale({ language: 'auto' });
-    expect(currentLocale()).toBe('zh-TW');
-    expect(currentNumberLocale()).toBe('zh-TW');
+describe('automatic formatting', () => {
+  it.each(['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'])('follows the resolved %s catalog', locale => {
+    runtimeWith({ appLocale: locale });
+    expect(currentNumberLocale()).toBe(locale);
   });
-
-  it('unrecognized preferences fall back to the resolved catalog, never an invalid Intl locale', () => {
-    runtimeWith({ appLocale: 'ja' });
-    configureLocale({ language: 'made-up', numberLocale: 'bad_tag' });
-    expect(currentNumberLocale()).toBe('ja');
-  });
-});
-
-
-describe('Chrome named placeholders', () => {
-  it('keeps adjacent substitutions exact in explicit and English catalogs', () => {
-    configureLocale({ language: 'en' });
-    expect(t('swap_form_impact', ['+', '1.5'])).toBe('Impact: +1.5%');
-    configureLocale({ language: 'ja' });
-    expect(t('swap_form_impact', ['+', '1.5'])).toContain('+1.5');
+  it('uses English formatting with an unsupported browser language', () => {
+    runtimeWith({});
+    expect(currentNumberLocale()).toBe('en');
   });
 });

@@ -1,9 +1,11 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from '@/i18n/test-utils';
 import "@testing-library/jest-dom/vitest";
 import type { OwnedAsset } from "@/core/counterparty/api";
 import { asDisplayUnits } from '@/core/numeric';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { AssetList } from "./asset-list";
 
 // Mock dependencies
@@ -121,7 +123,7 @@ describe("AssetList", () => {
   ];
 
   beforeEach(() => {
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
     vi.clearAllMocks();
     mockActiveAddress = { address: "bc1qtest123", name: "Test Address" };
     mockFetchOwnedAssets.mockReset();
@@ -135,7 +137,7 @@ describe("AssetList", () => {
 
   afterEach(() => {
     cleanup();
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
   });
 
   it("should render loading spinner initially", () => {
@@ -499,7 +501,7 @@ describe("AssetList", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load owned assets");
     expect(screen.queryByText("No Assets Owned")).not.toBeInTheDocument();
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByRole('alert')).toHaveTextContent(t('asset_asset_list_load_failed'));
       expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', t('common_search_assets'));
       expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(1);
@@ -538,7 +540,7 @@ describe("AssetList", () => {
     expect(screen.getByText("FIRST0")).toBeInTheDocument();
     expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(2);
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
-      act(() => { configureLocale({ language, numberLocale: 'en-US' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
       expect(screen.getByRole('alert')).toHaveTextContent(t('asset_asset_list_load_more_failed'));
       expect(screen.getByText('FIRST0')).toBeInTheDocument();
       expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(2);

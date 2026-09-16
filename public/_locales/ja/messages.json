@@ -5032,26 +5032,8 @@
   "withdraw_review_minimum_receive": {
     "message": "最低受取数量"
   },
-  "display_preferences_title": {
-    "message": "言語と表示"
-  },
-  "display_preferences_language": {
-    "message": "表示言語"
-  },
-  "display_preferences_numbers": {
-    "message": "数値の表示形式"
-  },
-  "display_preferences_browser": {
-    "message": "ブラウザーの言語"
-  },
-  "display_preferences_follow_language": {
-    "message": "表示言語に合わせる"
-  },
   "display_preferences_fiat": {
     "message": "価格の表示通貨"
-  },
-  "display_preferences_input_help": {
-    "message": "これらの設定は表示にのみ適用されます。数量は半角数字 0–9 と小数点で入力し、桁区切りは使用しないでください。価格の表示通貨は個別に保存されます。"
   },
   "display_preferences_save_failed": {
     "message": "設定を保存できませんでした。もう一度お試しください。"

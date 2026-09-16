@@ -438,6 +438,8 @@ async function collectWarnings(
   return ALL_WARNING_PATTERNS.filter((re) => shown.has(re));
 }
 
+walletTest.use({ browserLocale: LOCALE });
+
 walletTest('captures every provider approval screen', async ({ context, page, extensionId }) => {
   walletTest.setTimeout(300_000);
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -450,7 +452,6 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
   const identity = await authorizeGalleryOrigin(page, ORIGIN);
   const signerAddress = identity.address;
   await assertGalleryWorkerRouting(context, extensionId);
-  await callGalleryService(page, 'updateSettings', [{ language: LOCALE }]);
   await expect(page.locator('html')).toHaveAttribute('lang', LOCALE);
   const finalAction = (approval: import('@playwright/test').Page) => approval.getByRole('button', {
     name: new RegExp(`^(?:${['common_sign_transaction', 'approval_review', 'approval_blocked', 'common_awaiting_verification'].map(key => literalPattern(message(key)).source).join('|')})$`),

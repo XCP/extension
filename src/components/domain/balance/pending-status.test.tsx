@@ -1,8 +1,8 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchMempoolLedgerEvents } from '@/core/counterparty/api';
 import { usePendingStatus } from '@/hooks/usePendingStatus';
-import { configureLocale } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import { PendingStatus } from './pending-status';
 
 vi.mock('@/core/counterparty/api', () => ({
@@ -35,14 +35,14 @@ function Rows({ refreshNonce = 0, onMaps }: { refreshNonce?: number; onMaps: (ma
 
 describe('PendingStatus presentation', () => {
   beforeEach(() => {
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
     vi.clearAllMocks();
     vi.mocked(fetchMempoolLedgerEvents).mockResolvedValue({ result: ledgerEvents, result_count: ledgerEvents.length });
   });
 
   afterEach(() => {
     cleanup();
-    configureLocale({ language: 'en', numberLocale: 'en-US' });
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
   });
 
   it('changes mounted balance and UTXO labels without fetching again or replacing memoized facts', async () => {
@@ -61,7 +61,7 @@ describe('PendingStatus presentation', () => {
       ['zh-HK', '發送中', '轉移中', '待確認'],
       ['en', 'Sending', 'Moving', 'Pending'],
     ] as const) {
-      act(() => { configureLocale({ language, numberLocale: 'de-DE' }); });
+      act(() => { mockBrowserLocale({ language, numberLocale: 'de-DE' }); });
       expect(screen.getByTestId('XCP')).toHaveTextContent(sending);
       expect(screen.getByTestId(UTXO)).toHaveTextContent(moving);
       expect(screen.getByTestId('MIXED')).toHaveTextContent(pending);
@@ -81,7 +81,7 @@ describe('PendingStatus presentation', () => {
     'retains caller-provided display text %s',
     (label) => {
       const { container } = render(<PendingStatus label={label} />);
-      act(() => { configureLocale({ language: 'ja' }); });
+      act(() => { mockBrowserLocale({ language: 'ja' }); });
       expect(container.textContent).toBe(label);
       expect(fetchMempoolLedgerEvents).not.toHaveBeenCalled();
     },
@@ -93,7 +93,7 @@ describe('PendingStatus presentation', () => {
     const { container } = render(<Rows onMaps={onMaps} />);
     await waitFor(() => { expect(fetchMempoolLedgerEvents).toHaveBeenCalledTimes(1); });
     await act(async () => { await Promise.resolve(); });
-    act(() => { configureLocale({ language: 'zh-TW' }); });
+    act(() => { mockBrowserLocale({ language: 'zh-TW' }); });
     expect(container.textContent).toBe('');
     expect(fetchMempoolLedgerEvents).toHaveBeenCalledTimes(1);
   });

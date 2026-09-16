@@ -1,9 +1,9 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PoolQuote } from '@/core/counterparty/api';
 import type { OrderOptions } from '@/core/counterparty/compose';
-import { configureLocale, t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import { SwapForm } from '../form';
 
 const fixture = vi.hoisted(() => ({ quote: {} as PoolQuote, readQuote: vi.fn(), action: vi.fn() }));
@@ -40,7 +40,6 @@ vi.mock('@/components/ui/inputs/fee-rate-input', () => ({ FeeRateInput: () => nu
 
 // The real popup subscribes above its route, so preference changes re-render without remounting.
 function LocalizedSwap() {
-  useLocaleRevision();
   return <SwapForm
     formAction={fixture.action}
     initialFormData={{ give_asset: 'XCP', get_asset: 'TOKEN', give_quantity: '2' } as OrderOptions}
@@ -83,15 +82,15 @@ function hiddenValues(form: HTMLFormElement) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  configureLocale({ language: 'en', numberLocale: 'en-US' });
+  mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
   setQuote();
 });
-afterEach(() => { cleanup(); configureLocale({}); });
+afterEach(() => { cleanup(); mockBrowserLocale({}); });
 
 describe.each(locales)('$language quote routing', ({ language, expected }) => {
   it.each(routes.map((route, index) => ({ ...route, index })))('localizes $label', ({ index, ...route }) => {
     setQuote(route);
-    configureLocale({ language });
+    mockBrowserLocale({ language });
     render(<LocalizedSwap />);
     openDetails();
     expect(routeText()).toBe(expected[index]);
@@ -114,7 +113,7 @@ it('updates a memoized quote display in place without changing valid or invalid 
   expect(canonical).toMatchObject({ give_asset: 'XCP', get_asset: 'TOKEN', give_quantity: '2' });
 
   for (const locale of locales) {
-    act(() => configureLocale({ language: locale.language, numberLocale: 'en-US' }));
+    act(() => mockBrowserLocale({ language: locale.language, numberLocale: 'en-US' }));
     expect(routeText()).toBe(locale.expected[4]);
     expect(screen.getByRole('textbox', { name: 'Amount draft' })).toBe(amount);
     expect(amount).toHaveValue('2');
@@ -123,7 +122,7 @@ it('updates a memoized quote display in place without changing valid or invalid 
     expect(fixture.readQuote).toHaveBeenLastCalledWith(expect.objectContaining({ quantity: '2', enabled: true }));
   }
 
-  act(() => configureLocale({ language: 'ja', numberLocale: 'de-DE' }));
+  act(() => mockBrowserLocale({ language: 'ja', numberLocale: 'de-DE' }));
   expect(screen.getByText('1 XCP ≈ 1.234,5 TOKEN')).toBeInTheDocument();
   expect(screen.getByText(t('swap_form_pool_fee', ['0,50']))).toBeInTheDocument();
   expect(screen.getByText('0,00123456 XCP')).toBeInTheDocument();
@@ -131,7 +130,7 @@ it('updates a memoized quote display in place without changing valid or invalid 
   expect(hiddenValues(form)).toEqual(canonical);
 
   fireEvent.change(amount, { target: { value: '1,25' } });
-  act(() => configureLocale({ language: 'zh-CN', numberLocale: 'en-US' }));
+  act(() => mockBrowserLocale({ language: 'zh-CN', numberLocale: 'en-US' }));
   expect(screen.getByRole('textbox', { name: 'Amount draft' })).toBe(amount);
   expect(amount).toHaveValue('1,25');
   expect(hiddenValues(form)).toMatchObject({ give_quantity: '1,25', get_quantity: '' });
@@ -145,7 +144,7 @@ it('formats the route count with the independent number preference', () => {
   render(<LocalizedSwap />);
   openDetails();
   expect(routeText()).toBe('Pool + 1,234 orders');
-  act(() => configureLocale({ language: 'en', numberLocale: 'de-DE' }));
+  act(() => mockBrowserLocale({ language: 'en', numberLocale: 'de-DE' }));
   expect(routeText()).toBe('Pool + 1.234 orders');
 });
 
@@ -167,7 +166,7 @@ describe('quote outcomes use the current language without changing the proposed 
     const english = t(key, ['TOKEN', 'XCP']);
 
     for (const { language } of locales) {
-      act(() => configureLocale({ language, numberLocale: 'de-DE' }));
+      act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
       const message = t(key, ['TOKEN', 'XCP']);
       expect(screen.getByText(message)).toBeInTheDocument();
       if (language !== 'en') {
@@ -188,7 +187,7 @@ describe('quote outcomes use the current language without changing the proposed 
     }
 
     fireEvent.change(amount, { target: { value: '1,25' } });
-    act(() => configureLocale({ language: 'ja' }));
+    act(() => mockBrowserLocale({ language: 'ja' }));
     expect(amount).toHaveValue('1,25');
     expect(hiddenValues(form)).toMatchObject({ give_quantity: '1,25', get_quantity: '' });
     expect(screen.getByRole('button', { name: t('swap_form_review_swap') })).toBeDisabled();
@@ -203,7 +202,7 @@ describe('quote outcomes use the current language without changing the proposed 
     const form = screen.getByRole('textbox', { name: 'Amount draft' }).closest('form')!;
     const canonical = hiddenValues(form);
     for (const { language } of locales) {
-      act(() => configureLocale({ language }));
+      act(() => mockBrowserLocale({ language }));
       expect(screen.queryByText(t('swap_quote_outcome_partial'))).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: t('swap_form_review_swap') })).toBeEnabled();
       expect(hiddenValues(form)).toEqual(canonical);
@@ -215,7 +214,7 @@ describe('quote outcomes use the current language without changing the proposed 
     fixture.quote = Object.freeze({ estimated_output: 0, pool_exists: false, message }) as unknown as PoolQuote;
     render(<LocalizedSwap />);
     for (const { language } of locales) {
-      act(() => configureLocale({ language }));
+      act(() => mockBrowserLocale({ language }));
       expect(screen.getByText(message)).toBeInTheDocument();
       expect(screen.queryByText(t('swap_quote_outcome_no_liquidity'))).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: t('swap_form_review_swap') })).toBeDisabled();

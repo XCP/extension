@@ -1,7 +1,9 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from '@/i18n/test-utils';
 import '@testing-library/jest-dom/vitest';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { ManageDispenserCard } from './manage-dispenser-card';
 
 const mockNavigate = vi.fn();
@@ -22,11 +24,11 @@ const openDispenser: any = {
 describe('ManageDispenserCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    configureLocale({ language: 'en' });
+    mockBrowserLocale({ language: 'en' });
   });
   afterEach(() => {
     cleanup();
-    configureLocale({ language: 'en' });
+    mockBrowserLocale({ language: 'en' });
   });
 
   // A close already in the mempool means closing again fails and refilling escrows into a
@@ -40,11 +42,11 @@ describe('ManageDispenserCard', () => {
   });
 
   it('changes a mounted non-English closing label without restoring refill or close actions', () => {
-    configureLocale({ language: 'ja' });
+    mockBrowserLocale({ language: 'ja' });
     render(<ManageDispenserCard dispenser={openDispenser} isClosing />);
     expect(screen.getByText(t('dispenser_manage_dispenser_card_closing'))).toBeInTheDocument();
     for (const language of ['zh-CN', 'zh-TW', 'zh-HK', 'en']) {
-      act(() => { configureLocale({ language }); });
+      act(() => { mockBrowserLocale({ language }); });
       expect(screen.getByText(t('dispenser_manage_dispenser_card_closing'))).toBeInTheDocument();
       expect(screen.getAllByRole('button')).toHaveLength(1);
       expect(mockNavigate).not.toHaveBeenCalled();

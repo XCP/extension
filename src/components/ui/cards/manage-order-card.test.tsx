@@ -1,7 +1,9 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from '@/i18n/test-utils';
 import '@testing-library/jest-dom/vitest';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { ManageOrderCard } from './manage-order-card';
 
 const mockNavigate = vi.fn();
@@ -24,11 +26,11 @@ const openOrder: any = {
 describe('ManageOrderCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    configureLocale({ language: 'en' });
+    mockBrowserLocale({ language: 'en' });
   });
   afterEach(() => {
     cleanup();
-    configureLocale({ language: 'en' });
+    mockBrowserLocale({ language: 'en' });
   });
 
   // A cancel already in the mempool means a second cancel can only fail and burn its fee: the
@@ -41,11 +43,11 @@ describe('ManageOrderCard', () => {
   });
 
   it('changes a mounted non-English cancellation label without restoring the cancel action', () => {
-    configureLocale({ language: 'ja' });
+    mockBrowserLocale({ language: 'ja' });
     render(<ManageOrderCard order={openOrder} isCancelling />);
     expect(screen.getByText(t('cards_manage_order_card_cancelling'))).toBeInTheDocument();
     for (const language of ['zh-CN', 'zh-TW', 'zh-HK', 'en']) {
-      act(() => { configureLocale({ language }); });
+      act(() => { mockBrowserLocale({ language }); });
       expect(screen.getByText(t('cards_manage_order_card_cancelling'))).toBeInTheDocument();
       expect(screen.getAllByRole('button')).toHaveLength(1);
       expect(mockNavigate).not.toHaveBeenCalled();

@@ -14,8 +14,7 @@ import {
   type XcpStats,
 } from "@/core/counterparty/price";
 import { displayLocale, formatAmount } from "@/core/format";
-import { t } from '@/i18n';
-import { useLocaleRevision } from '@/i18n/use-locale';
+import { currentLocale, t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 
 // Time range options over the daily history from api.xcp.io
@@ -42,7 +41,7 @@ function filterHistory(history: PricePoint[], range: XcpTimeRange): PricePoint[]
  * Price data comes from the xcp.io explorer API (USD).
  */
 export default function XcpPricePage(): ReactElement {
-  const localeRevision = useLocaleRevision();
+  const locale = currentLocale();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
 
@@ -117,7 +116,7 @@ export default function XcpPricePage(): ReactElement {
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, isRefreshing, handleRefresh, localeRevision]);
+  }, [setHeaderProps, navigate, isRefreshing, handleRefresh, locale]);
 
   const handleBuyXcp = () => {
     analytics.track("buy_xcp");

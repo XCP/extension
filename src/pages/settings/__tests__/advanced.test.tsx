@@ -1,8 +1,9 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '@/core/settings';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import AdvancedSettingsPage from '../advanced';
 
 const mockUpdateSettings = vi.fn();
@@ -24,11 +25,11 @@ vi.mock('@/core/validation/api', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  configureLocale({ language: 'en' });
+  mockBrowserLocale({ language: 'en' });
 });
 afterEach(() => {
   cleanup();
-  configureLocale({});
+  mockBrowserLocale({});
 });
 
 it('updates auto-lock labels in place while preserving the selection and unsaved API URL', () => {
@@ -40,7 +41,7 @@ it('updates auto-lock labels in place while preserving the selection and unsaved
   fireEvent.change(apiUrl, { target: { value: draft } });
 
   for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
-    act(() => configureLocale({ language }));
+    act(() => mockBrowserLocale({ language }));
     expect(screen.getByRole('radio', { name: t('settings_advanced_15_minutes') })).toBe(selected);
     expect(selected).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: t('settings_advanced_1_minute') })).toBeInTheDocument();
@@ -52,7 +53,7 @@ it('updates auto-lock labels in place while preserving the selection and unsaved
     expect(mockValidateApi).not.toHaveBeenCalled();
   }
 
-  act(() => configureLocale({ language: 'ja' }));
+  act(() => mockBrowserLocale({ language: 'ja' }));
   fireEvent.click(screen.getByRole('radio', { name: t('settings_advanced_30_minutes') }));
   expect(mockUpdateSettings).toHaveBeenCalledExactlyOnceWith({ autoLockTimer: '30m' });
 });

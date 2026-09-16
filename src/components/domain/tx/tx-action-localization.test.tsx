@@ -1,9 +1,10 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ApprovalSummaryCard } from '@/components/domain/approval/approval-summary-card';
 import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import { describeMessage, protocolFields } from '@/core/counterparty/describe';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import { getTxActionInfo } from './tx-action-info';
 
 const address = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
@@ -20,12 +21,12 @@ const decoded = (messageType: string, data: Record<string, unknown>, messageData
 
 afterEach(() => {
   cleanup();
-  configureLocale({ language: 'en', numberLocale: 'auto' });
+  mockBrowserLocale({ language: 'en', numberLocale: 'auto' });
 });
 
 describe.each(locales)('localized Counterparty approval: %s', (language) => {
   it('keeps the complete structured destination separate from translated grammar and exact uint64 quantities', () => {
-    configureLocale({ language, numberLocale: 'en' });
+    mockBrowserLocale({ language, numberLocale: 'en' });
     const info = getTxActionInfo(decoded('enhanced_send', {
       asset: 'RAREPEPE', quantity: rawQuantity, destination: address,
     }, { asset: 0, asset_info: { divisible: true } }));
@@ -39,7 +40,7 @@ describe.each(locales)('localized Counterparty approval: %s', (language) => {
   });
 
   it('keeps each pool leg in its own known units and withholds ratios when a unit is unknown', () => {
-    configureLocale({ language, numberLocale: 'en' });
+    mockBrowserLocale({ language, numberLocale: 'en' });
     const data = { assetA: 'XCP', quantityA: 9999999999999999n, assetB: 'RAREPEPE', quantityB: rawQuantity, minLpQuantity: 123n };
     const info = getTxActionInfo(decoded('pooldeposit', data, {
       asset_a: 'XCP', asset_a_info: { divisible: true }, asset_b: 0, asset_b_info: { divisible: false },
@@ -54,7 +55,7 @@ describe.each(locales)('localized Counterparty approval: %s', (language) => {
   });
 
   it('translates only the memo label and supply consequences, preserving payload bytes and user text', () => {
-    configureLocale({ language, numberLocale: 'en' });
+    mockBrowserLocale({ language, numberLocale: 'en' });
     const info = getTxActionInfo(decoded('enhanced_send', {
       asset: 'XCP', quantity: 1n, destination: address,
       memoBytes: new Uint8Array([0, 255, 36, 49]), memoIsBinary: true, memo: 'untrusted replacement',
@@ -74,7 +75,7 @@ describe.each(locales)('localized Counterparty approval: %s', (language) => {
   });
 
   it('states the dividend rate without inventing a recipient total, and preserves unknown fee status', () => {
-    configureLocale({ language, numberLocale: 'en' });
+    mockBrowserLocale({ language, numberLocale: 'en' });
     const info = getTxActionInfo(decoded('dividend', { asset: 'BONPARTY', dividendAsset: 'XCP', quantityPerUnit: 1n }));
     expect(info?.presentation?.headline).toBe(t('tx_action_per_unit', ['0.00000001', 'XCP']));
     expect(info?.presentation?.subline).toBe(t('tx_action_all_holders', ['BONPARTY']));
@@ -85,7 +86,7 @@ describe.each(locales)('localized Counterparty approval: %s', (language) => {
   });
 
   it('uses address counts for MPMA without changing recipient records', () => {
-    configureLocale({ language, numberLocale: 'en' });
+    mockBrowserLocale({ language, numberLocale: 'en' });
     for (const count of [1, 23, 69]) {
       const sends = Array.from({ length: count }, () => ({ asset: 'XCP', quantity: 1n, destination: address }));
       const source = decoded('mpma_send', { sends });
@@ -99,9 +100,9 @@ describe.each(locales)('localized Counterparty approval: %s', (language) => {
 describe('presentation boundary', () => {
   it('relocalizes the same decoded action on rerender, without caching text in the decoded result', () => {
     const source = decoded('detach', { destination: address });
-    configureLocale({ language: 'en' });
+    mockBrowserLocale({ language: 'en' });
     const first = getTxActionInfo(source);
-    configureLocale({ language: 'ja' });
+    mockBrowserLocale({ language: 'ja' });
     const second = getTxActionInfo(source);
     expect(first?.presentation?.headline).toBe('Detach all assets from UTXO');
     expect(second?.presentation?.headline).toBe('UTXOからすべてのアセットを切り離す');
@@ -110,7 +111,7 @@ describe('presentation boundary', () => {
   });
 
   it('leaves core/history English by default and unknown API-only descriptions untouched', () => {
-    configureLocale({ language: 'ja' });
+    mockBrowserLocale({ language: 'ja' });
     const view = { asset: 'XCP', quantity: 1n, destination: address, format: () => '0.00000001' };
     expect(describeMessage('send', view)).toBe(`Send 0.00000001 XCP to ${address}`);
     expect(describeMessage('future_message', view)).toBeNull();

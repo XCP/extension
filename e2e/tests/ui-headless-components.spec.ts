@@ -4,7 +4,6 @@
  * Tests for proper HeadlessUI component behavior in settings.
  */
 
-import { readFileSync } from 'node:fs';
 import { walletTest, expect, navigateTo, getCurrentAddress } from '../fixtures';
 import { settings, selectAddress } from '../selectors';
 
@@ -83,42 +82,21 @@ walletTest.describe('Settings with Headless UI Components', () => {
     expect(isSelected).toBe('true');
   });
 
-  walletTest('currency selection persists independently of language and number format', async ({ page }) => {
-    const messages = Object.fromEntries(['en', 'ja'].map(locale => [locale,
-      JSON.parse(readFileSync(`public/_locales/${locale}/messages.json`, 'utf8')),
-    ]));
-    const control = (locale: 'en' | 'ja', preference: 'language' | 'numbers' | 'fiat') =>
-      page.getByRole('combobox', { name: messages[locale][`display_preferences_${preference}`].message, exact: true });
+  walletTest('currency selection persists without changing the browser language', async ({ page }) => {
     await navigateTo(page, 'settings');
-
-    await expect(control('en', 'fiat')).toBeVisible();
-    await control('en', 'language').selectOption('en');
-    await control('en', 'numbers').selectOption('de-DE');
-    await control('en', 'fiat').selectOption('eur');
-    await expect(control('en', 'fiat')).toHaveValue('eur');
-
-    // A language change keeps the separately chosen currency and number format.
-    await control('en', 'language').selectOption('ja');
-    await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
-    await expect(control('ja', 'fiat')).toHaveValue('eur');
-    await expect(control('ja', 'numbers')).toHaveValue('de-DE');
-
-    // Choose a currency through the translated accessible control, then reload the app.
-    await control('ja', 'fiat').selectOption('cny');
-    await expect(control('ja', 'fiat')).toHaveValue('cny');
-    await expect(control('ja', 'fiat')).toBeEnabled();
-    await expect(control('ja', 'language')).toHaveValue('ja');
-    await expect(control('ja', 'numbers')).toHaveValue('de-DE');
+    const currency = page.getByRole('combobox', { name: 'Price currency', exact: true });
+    await expect(page.getByRole('combobox')).toHaveCount(1);
+    await expect(currency).toHaveValue('usd');
+    await currency.selectOption('eur');
+    await expect(currency).toBeEnabled();
     await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
-    await expect(control('ja', 'language')).toHaveValue('ja');
-    await expect(control('ja', 'fiat')).toHaveValue('cny');
-    await expect(control('ja', 'numbers')).toHaveValue('de-DE');
-
-    await control('ja', 'language').selectOption('en');
+    await expect(currency).toHaveValue('eur');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-    await expect(control('en', 'fiat')).toHaveValue('cny');
-    await expect(control('en', 'numbers')).toHaveValue('de-DE');
+    await currency.selectOption('cny');
+    await expect(currency).toBeEnabled();
+    await page.reload();
+    await expect(currency).toHaveValue('cny');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   });
 
   walletTest('headless UI dropdown menus in settings', async ({ page }) => {

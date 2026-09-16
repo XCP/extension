@@ -1,12 +1,14 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import * as fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from '@/i18n/test-utils';
 import '@testing-library/jest-dom/vitest';
-import { configureLocale, t } from '@/i18n';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { ErrorAlert } from './error-alert';
 
-beforeEach(() => { configureLocale({ language: 'en' }); });
-afterEach(() => { cleanup(); configureLocale({ language: 'en' }); });
+beforeEach(() => { mockBrowserLocale({ language: 'en' }); });
+afterEach(() => { cleanup(); mockBrowserLocale({ language: 'en' }); });
 
 // Mock local icons
 vi.mock('@/components/icons', () => ({
@@ -22,7 +24,7 @@ describe('ErrorAlert', () => {
     const originalButton = screen.getByRole('button');
     originalButton.focus();
     for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) {
-      act(() => { configureLocale({ language }); });
+      act(() => { mockBrowserLocale({ language }); });
       const title = { error: t('error_alert_error'), warning: t('error_alert_warning'), info: t('error_alert_info') }[severity];
       expect(screen.getByText(title + ':')).toBeInTheDocument();
       expect(screen.getByText(message)).toBeInTheDocument();
@@ -39,7 +41,7 @@ describe('ErrorAlert', () => {
   it('retains a caller-provided title and raw message while localizing only the dismiss label', () => {
     const onClose = vi.fn();
     render(<ErrorAlert title="Custom API $1" message="Unchanged external diagnostic" onClose={onClose} />);
-    act(() => { configureLocale({ language: 'ja' }); });
+    act(() => { mockBrowserLocale({ language: 'ja' }); });
     expect(screen.getByText('Custom API $1:')).toBeInTheDocument();
     expect(screen.getByText('Unchanged external diagnostic')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: t('error_alert_dismiss_message', ['custom api $1']) }));
