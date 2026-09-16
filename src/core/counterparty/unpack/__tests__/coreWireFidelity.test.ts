@@ -100,6 +100,18 @@ describe('legacy issuance — ">QQ???" since block 753500', () => {
     expect(result.callDate).toBeUndefined();
   });
 
+  it.each([20, 21, 22, 23])('preserves the no-description marker for legacy message type %s', type => {
+    // issuance.py: invalid UTF-8 becomes empty, except c0 + "NULL", which means no update.
+    const subasset = type === 21 || type === 23 ? [1, 1] : [];
+    const header = [...issuance(0, 0, ''), ...subasset];
+    const decode = (description: number[]) => unpackIssuance(new Uint8Array([...header, ...description]), type);
+    expect(decode([0xc0, ...ascii('NULL')]).description).toBeUndefined();
+    expect(decode([]).description).toBe('');
+    expect(decode(ascii('NULL')).description).toBe('NULL');
+    expect(decode([0xff]).description).toBe('');
+    expect(decode([0xc0, ...ascii('NULLx')]).description).toBe('');
+  });
+
   it('reads a subasset name length at offset 19, after lock and reset', () => {
     // ">QQ???B" — the length byte follows reset. Reading it at 17 read the lock byte as a length.
     const name = [0x01, 0x02, 0x03];
