@@ -165,7 +165,7 @@ const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<
           quantity: data.quantity,
           memo: data.memo ?? '',
         },
-  sweep: (data) => (data.memoIsBinary ? null : {
+  sweep: (data) => (data.layout === 'legacy' || data.memoIsBinary ? null : {
     destination: data.destination,
     flags: data.flags,
     memo: data.memo ?? '',
@@ -218,6 +218,9 @@ const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<
     description: data.description,
   }),
   issuance: (data) => {
+    // Like enhanced sends and sweeps, legacy structs remain readable but are not emitted by
+    // the current composer. Rebuilding them as CBOR cannot preserve their original bytes.
+    if (data.layout === 'legacy') return null;
     // Core distinguishes an absent description (CBOR null) from an empty one (empty byte string),
     // and `composeIssuance` drops an empty description from the request — so the wallet can only
     // ever produce the null form. A message carrying empty bytes was composed by something else
@@ -450,6 +453,40 @@ describe('on-chain fairminter sample classification', () => {
   it('compares decoded quantities by value, not by reference', () => {
     expect(sameDecodedMessage({ hardCap: 10n }, { hardCap: 10n })).toBe(true);
     expect(sameDecodedMessage({ hardCap: 10n }, { hardCap: 11n })).toBe(false);
+  });
+});
+
+describe('on-chain legacy sample classification (nightly #413)', () => {
+  it.each([
+    ['sweep', '0480b99fa5da6bf1346ec895468711aa4a91ae9d104203'], // 3f95a852… at block 966907
+    ['issuance', '1600000005a5b059b70000000000000000000000c04e554c4c'], // 6b6eb50b… at block 966880
+    ['issuance', '1600004af13548efed0000000000000000000000c04e554c4c'], // ce3fb4a7… at block 966880
+  ])('reads but does not try to reproduce a legacy %s with the modern composer', (type, body) => {
+    const original = unpackCounterpartyMessage(COUNTERPARTY_PREFIX_HEX + body);
+    expect(original.success).toBe(true);
+    expect(original.messageType).toBe(type);
+    expect(original.data).toMatchObject({ layout: 'legacy' });
+    if (type === 'issuance') {
+      expect(original.data).toMatchObject({ quantity: 0n, divisible: false, isLock: false, isReset: false });
+      expect((original.data as Record<string, unknown>).description).toBeUndefined();
+    }
+    expect(PARAMS_FROM_DECODED[type]!(original.data as Record<string, any>)).toBeNull();
+  });
+
+  it.each([
+    ['sweep', { destination: '1BoatSLRHtKNngkdXEeobR76b53LETtpyT', flags: 3, memo: 'hello' }],
+    ['issuance', { asset: 'DANKKAST', quantity: 0, divisible: false, lock: false, reset: false }],
+  ])('still requires byte equality for a current %s', (type, params) => {
+    const original = packComposeMessage(type, params)!;
+    expect(original).not.toBeNull();
+    const decoded = unpackCounterpartyMessage(original.bytes);
+    expect(decoded.success).toBe(true);
+    expect(decoded.data).toMatchObject({ layout: 'cbor' });
+    const reconstructed = PARAMS_FROM_DECODED[type]!(decoded.data as Record<string, any>);
+    expect(reconstructed).not.toBeNull();
+    const rebuilt = packComposeMessage(type, reconstructed!, decoded.data as Record<string, unknown>)!;
+    expect(rebuilt).not.toBeNull();
+    expect(bytesToHex(rebuilt.bytes)).toBe(bytesToHex(original.bytes));
   });
 });
 
