@@ -12,11 +12,11 @@ import { describePayout, resolveDispensersAt } from '@/core/counterparty/dispens
 import { oracleDispenserWarning, oracleDispenseWarning } from '@/core/counterparty/oraclePolicy';
 
 vi.mock('@/core/counterparty/api', () => ({
-  fetchAddressDispensers: vi.fn(),
+  fetchAllAddressDispensers: vi.fn(),
 }));
 
-const { fetchAddressDispensers } = await import('@/core/counterparty/api');
-const mocked = vi.mocked(fetchAddressDispensers);
+const { fetchAllAddressDispensers } = await import('@/core/counterparty/api');
+const mocked = vi.mocked(fetchAllAddressDispensers);
 
 const dispenser = (overrides: Record<string, unknown> = {}) => ({
   tx_hash: 'a'.repeat(64),
@@ -89,6 +89,7 @@ describe('what a dispense pays out', () => {
     const payouts = await resolveDispensersAt('bc1qdispenser', 50_000);
 
     expect(payouts.map((p) => p.asset)).toEqual(['OPENEMPTY']);
+    expect(mocked).toHaveBeenCalledWith('bc1qdispenser', { status: 'open,closing' });
   });
 
   it('does not quote a price for an oracle dispenser', async () => {

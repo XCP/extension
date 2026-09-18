@@ -180,6 +180,22 @@ describe('usePaginatedFetch request boundaries', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it('retries only the failed page and preserves earlier rows', async () => {
+    const fetchFn = fetcher().mockResolvedValueOnce(page(['a', 'b'], 4))
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(page(['c', 'd'], 4));
+    const { result } = renderHook(() => usePaginatedFetch({ fetchFn, pageSize: 2 }));
+    await waitFor(() => expect(result.current.data).toHaveLength(2));
+    act(() => result.current.loadMore());
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    act(() => result.current.retry());
+    expect(result.current.data).toEqual([{ id: 'a' }, { id: 'b' }]);
+    await waitFor(() => expect(result.current.data).toHaveLength(4));
+    expect(fetchFn.mock.calls).toEqual([[0, 2], [2, 2], [2, 2]]);
+    expect(result.current.error).toBeNull();
+    expect(result.current.hasMore).toBe(false);
+  });
+
   it('retains loaded rows on error, stops automatic retries, and refresh explicitly retries', async () => {
     const failed = deferred<Page>();
     const refresh = deferred<Page>();

@@ -29,7 +29,7 @@ describe('DispenserList', () => {
         status: 0,
         give_remaining: asBaseUnits(500000000),
         give_remaining_normalized: asDisplayUnits('5.00000000'),
-        give_quantity: 100000000,
+        give_quantity: asBaseUnits(100000000),
         give_quantity_normalized: asDisplayUnits('1.00000000'),
         satoshirate: 10000,
         asset_info: {
@@ -52,7 +52,7 @@ describe('DispenserList', () => {
         status: 0,
         give_remaining: asBaseUnits(1000000000),
         give_remaining_normalized: asDisplayUnits('10.00000000'),
-        give_quantity: 200000000,
+        give_quantity: asBaseUnits(200000000),
         give_quantity_normalized: asDisplayUnits('2.00000000'),
         satoshirate: 20000,
         asset_info: {

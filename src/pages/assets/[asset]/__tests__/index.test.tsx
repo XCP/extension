@@ -80,7 +80,6 @@ function details(info: AssetInfo, availableBalance: string): { isLoading: false;
       pendingOutgoing: asDisplayUnits('0'),
       pendingIncoming: asDisplayUnits('0'),
       unknownPending: false,
-      utxoBalances: undefined,
     },
   };
 }
