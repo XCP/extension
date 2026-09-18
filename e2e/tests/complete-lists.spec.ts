@@ -24,7 +24,6 @@ walletTest('fairmint form browses beyond 100 listings in 20-row pages', async ({
   for (let count = 40; count < 141; count += 20) {
     await page.getByRole('listbox').evaluate(list => {
       list.scrollTop = list.scrollHeight;
-      list.dispatchEvent(new Event('scroll'));
     });
     await expect(page.getByRole('option')).toHaveCount(Math.min(count, 125));
   }

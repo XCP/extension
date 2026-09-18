@@ -970,6 +970,12 @@ describe('counterparty/api.ts', () => {
       expect(mockedApiClient.get).toHaveBeenCalledTimes(2);
     });
 
+    it('rejects partial overlap instead of approving an inventory with a missing dispenser', async () => {
+      mockedApiClient.get.mockResolvedValueOnce({ data: { result: rows.slice(0, 100), result_count: 101 } } as any)
+        .mockResolvedValueOnce({ data: { result: rows.slice(99, 101), result_count: 101 } } as any);
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('overlapping rows');
+    });
+
     it('rejects an empty page when the node says more dispensers exist', async () => {
       mockedApiClient.get.mockResolvedValueOnce({ data: { result: rows.slice(0, 100), result_count: 237 } } as any)
         .mockResolvedValueOnce({ data: { result: [], result_count: 237 } } as any);

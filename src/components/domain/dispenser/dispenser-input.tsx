@@ -2,6 +2,7 @@ import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ReactElement, useEffect, useMemo } from "react";
 import { DispenserList, type DispenserOption } from "@/components/ui/lists/dispenser-list";
 import type { DispenseOptions } from "@/core/counterparty/compose";
+import { fromSatoshis, toNumber } from "@/core/numeric";
 import { isValidBitcoinAddress } from "@/core/validation/bitcoin";
 import { useAddressDispensers } from "@/hooks/useAddressDispensers";
 import { useInView } from "@/hooks/useInView";
@@ -22,12 +23,6 @@ interface DispenserInputProps {
   onError?: (error: string | null) => void;
   onLoadingChange?: (isLoading: boolean) => void;
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const SATOSHIS_PER_BTC = 1e8;
 
 // ============================================================================
 // Main Component
@@ -71,11 +66,10 @@ export function DispenserInput({
     return {
       dispenser: {
         ...dispenser,
-        give_quantity: Number(dispenser.give_quantity),
-        satoshirate: Number(dispenser.satoshirate),
+        satoshirate: toNumber(dispenser.satoshirate),
       },
-      satoshirate: Number(dispenser.satoshirate),
-      btcAmount: Number(dispenser.satoshirate) / SATOSHIS_PER_BTC,
+      satoshirate: toNumber(dispenser.satoshirate),
+      btcAmount: fromSatoshis(dispenser.satoshirate, true),
       index,
     };
   }), [page.data]);
@@ -149,7 +143,7 @@ export function DispenserInput({
         {page.error ? (
           <div role="alert">
             <p>Unable to load more dispensers.</p>
-            <button type="button" onClick={page.refresh} className="text-blue-600 underline" disabled={disabled}>Retry</button>
+            <button type="button" onClick={page.retry} className="text-blue-600 underline" disabled={disabled}>Retry</button>
           </div>
         ) : page.isFetchingMore ? 'Loading more…' : page.hasMore && isValidAddress ? (
           <button type="button" onClick={page.loadMore} className="text-blue-600 underline" disabled={disabled || isLoading}>Load more dispensers</button>

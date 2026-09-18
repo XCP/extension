@@ -238,7 +238,7 @@ export function DispenserCloseForm({
         {page.error ? (
           <div role="alert">
             <p>Unable to load more dispensers.</p>
-            <button type="button" onClick={page.refresh} className="text-blue-600 underline" disabled={pending}>Retry</button>
+            <button type="button" onClick={page.retry} className="text-blue-600 underline" disabled={pending}>Retry</button>
           </div>
         ) : page.isFetchingMore ? 'Loading more…' : page.hasMore ? (
           <button type="button" onClick={page.loadMore} className="text-blue-600 underline" disabled={pending || isLoading}>Load more dispensers</button>

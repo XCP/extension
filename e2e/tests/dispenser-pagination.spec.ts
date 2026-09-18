@@ -28,7 +28,6 @@ walletTest('close selector and buyer discovery lazily load 20 at a time beyond 2
   for (let count = 40; count < 257; count += 20) {
     await page.getByRole('listbox').evaluate(list => {
       list.scrollTop = list.scrollHeight;
-      list.dispatchEvent(new Event('scroll'));
     });
     await expect(page.getByRole('option')).toHaveCount(Math.min(count, 237));
   }
@@ -67,4 +66,34 @@ walletTest('close selector preserves earlier options and reports a later-page fa
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
   await expect(page.locator('button[type="submit"]')).toBeDisabled();
+});
+
+walletTest('purchase retry keeps the selected dispenser from a later page', async ({ page, context }) => {
+  const offsets: number[] = [];
+  let failNextPage = true;
+  await context.route('**/cdn.xcp.io/**', route => route.abort());
+  await context.route('**/v2/addresses/*/dispensers?**', async route => {
+    const params = new URL(route.request().url()).searchParams;
+    const offset = Number(params.get('offset') ?? 0);
+    offsets.push(offset);
+    if (offset === 40 && failNextPage) {
+      failNextPage = false;
+      await route.fulfill({ status: 400, json: { error: 'Page unavailable' } });
+      return;
+    }
+    await route.fulfill({ json: { result: dispensers.slice(offset, offset + 20), result_count: dispensers.length } });
+  });
+  await page.goto(`${page.url().split('#')[0]}#/compose/dispenser/dispense`);
+  await page.getByLabel('Dispenser Address', { exact: false }).fill(address);
+  await expect(page.getByRole('radio')).toHaveCount(20);
+  await page.getByRole('button', { name: 'Load more dispensers' }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('radio')).toHaveCount(40);
+  const chosen = page.getByRole('radio', { name: 'Select dispenser for PAGETEST039', exact: true });
+  // Checking the last visible row scrolls the sentinel into view and requests page three.
+  await chosen.check();
+  await expect(page.getByRole('alert').filter({ hasText: 'Unable to load more' })).toBeVisible();
+  await page.getByRole('button', { name: 'Retry' }).click();
+  await expect(page.getByRole('radio')).toHaveCount(60);
+  await expect(chosen).toBeChecked();
+  expect(offsets).toEqual([0, 20, 40, 40]);
 });

@@ -63,6 +63,7 @@ interface UsePaginatedFetchReturn<T> {
   loadMore: () => void;
   reset: () => void;
   refresh: () => void;
+  retry: () => void;
 }
 
 /**
@@ -119,7 +120,7 @@ export function usePaginatedFetch<T>({
       if (!isCurrent()) return;
       session.error = error instanceof Error ? error : new Error(String(error));
       // Keep the rows already shown. Scroll observers cannot retry a failed page in a loop;
-      // refresh/reset explicitly clear the error before another request is allowed.
+      // retry/refresh explicitly clear the error before another request is allowed.
       setState((previous) => isCurrent() ? { ...previous, error: session.error } : previous);
     } finally {
       if (isCurrent()) {
@@ -159,6 +160,15 @@ export function usePaginatedFetch<T>({
   const loadMore = useCallback(() => {
     const session = currentSession();
     if (session) void requestPage(session);
+  }, [currentSession, requestPage]);
+
+  // Retry the failed page in place: restarting at zero would discard the current
+  // selection and make already-loaded pages disappear from an open selector.
+  const retry = useCallback(() => {
+    const session = currentSession();
+    if (!session || !session.error) return;
+    session.error = null;
+    void requestPage(session);
   }, [currentSession, requestPage]);
 
   const reset = useCallback(() => {
@@ -206,5 +216,6 @@ export function usePaginatedFetch<T>({
     loadMore,
     reset,
     refresh,
+    retry,
   };
 }

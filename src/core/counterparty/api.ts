@@ -1301,8 +1301,8 @@ export async function fetchAllAddressDispensers(
     }
     const previousSize = dispensers.size;
     for (const dispenser of page.result) dispensers.set(dispenser.tx_hash, dispenser);
-    if (dispensers.size === previousSize) {
-      throw new Error('Unable to load all dispensers: the API repeated a page.');
+    if (dispensers.size - previousSize !== page.result.length) {
+      throw new Error('Unable to load all dispensers: the API repeated a page or returned overlapping rows. Please retry.');
     }
     offset += page.result.length;
     // Advance by the returned size in case a node applies a smaller page limit. Counts may be

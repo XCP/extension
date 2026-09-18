@@ -90,8 +90,9 @@ export async function selectUtxosForTransaction(
     throw new Error('No UTXOs available for this address');
   }
 
-  const utxosWithAssets = await fetchUtxosWithBalances(candidateUtxos
-    .filter(utxo => (allowUnconfirmed || utxo.status.confirmed) && !isUtxoRecentlySpent(utxo.txid, utxo.vout))
+  const checkedCandidates = candidateUtxos.filter(utxo =>
+    (allowUnconfirmed || utxo.status.confirmed) && !isUtxoRecentlySpent(utxo.txid, utxo.vout));
+  const utxosWithAssets = await fetchUtxosWithBalances(checkedCandidates
     .map(utxo => `${utxo.txid}:${utxo.vout}`));
 
   // 3. Filter UTXOs
@@ -99,7 +100,9 @@ export async function selectUtxosForTransaction(
   let excludedValue = 0;
   const eligibleUtxos: UTXO[] = [];
 
-  for (const utxo of candidateUtxos) {
+  // A spent-cache entry can expire during the lookup. Never reintroduce a candidate
+  // skipped above: it was not checked for assets in this selection attempt.
+  for (const utxo of checkedCandidates) {
     // Skip unconfirmed if not allowed
     if (!allowUnconfirmed && !utxo.status.confirmed) {
       continue;

@@ -261,6 +261,23 @@ describe('selectUtxosForTransaction', () => {
     });
   });
 
+  it('does not reintroduce unchecked candidates when the spent cache expires during lookup', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    try {
+      recordSpentUtxos([{ txid: 'spent', vout: 0 }]);
+      mockedFetchUTXOs.mockResolvedValue([
+        createMockUtxo('clean', 0, 1000), createMockUtxo('spent', 0, 50000),
+      ]);
+      mockedFetchUtxosWithBalances.mockImplementationOnce(async outpoints => {
+        expect(outpoints).toEqual(['clean:0']);
+        now.mockReturnValue(62000);
+        return new Set();
+      });
+      const result = await selectUtxosForTransaction(mockAddress);
+      expect(result.inputsSet).toBe('clean:0');
+    } finally { now.mockRestore(); }
+  });
+
   it('should handle multiple assets attached to same UTXO', async () => {
     const mockUtxos = [
       createMockUtxo('tx1', 0, 50000),

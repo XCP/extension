@@ -54,4 +54,5 @@ it('shows later-page failure, retains earlier options, and supports retry', asyn
   fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' });
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  expect(fetchOpenFairminters).toHaveBeenLastCalledWith({ offset: 20, limit: 20 });
 });

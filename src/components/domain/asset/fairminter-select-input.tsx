@@ -261,7 +261,7 @@ export function FairminterSelectInput({
       {page.error ? (
         <div role="alert" className="mt-2 text-sm text-red-600">
           Unable to load {page.data.length ? 'more' : 'available'} fairminters.{' '}
-          <button type="button" className="underline" onClick={page.refresh}>Retry</button>
+          <button type="button" className="underline" onClick={page.retry}>Retry</button>
         </div>
       ) : page.isLoading || page.isFetchingMore ? (
         <p role="status" className="mt-2 text-sm text-gray-500">Loading fairminters…</p>
