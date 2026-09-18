@@ -76,7 +76,11 @@ export interface PendingDelta {
    * as a total would still be a wrong statement, so unknown stays unknown here too.
    */
   creditedNormalized: string | null;
-  /** Asset deltas only: positive net inflows per transaction, excluding self-payments. */
+  /**
+   * Asset deltas only: positive net inflows per transaction, excluding self-payments.
+   * Null also covers fairmint credits: Core's mempool height can bypass escrow and
+   * predict a payment to the issuer that confirmation will send to escrow instead.
+   */
   incomingNormalized?: string | null;
 }
 
@@ -147,7 +151,14 @@ export function pendingByAsset(
     }
     const movement = movements.get(asset) ?? { debit: '0', credit: '0' };
     const side = event.event === 'DEBIT' ? 'debit' : 'credit';
-    movement[side] = addNormalized(movement[side], params.quantity_normalized);
+    // Core parses mempool transactions at height 9,999,999. Fairmint compares that
+    // sentinel directly with its escrow deadline, so its predicted recipient can be
+    // wrong (including pool funding reported as an issuer payment). Do not advertise
+    // these credits as incoming until upstream provides reliable escrow-aware events.
+    // Keep the raw ledger totals and outgoing reservations; credits never fund Max.
+    const unreliableCredit = event.event === 'CREDIT' &&
+      ['fairmint', 'fairmint payment', 'fairmint commission'].includes(params.calling_function ?? '');
+    movement[side] = unreliableCredit ? null : addNormalized(movement[side], params.quantity_normalized);
     movements.set(asset, movement);
 
     const quantity = toBaseUnits(params.quantity);

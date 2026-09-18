@@ -132,7 +132,26 @@ describe('creditedNormalized', () => {
 });
 
 describe('incomingNormalized', () => {
-  it('excludes a 10 XCP self-fairmint but includes three independent 0.1 XCP payments', () => {
+  it('does not advertise the API’s false issuer credits for escrowed pool fairmints', () => {
+    const events = [
+      debit(1000000000, { quantity_normalized: '10', action: 'fairmint payment' }, 'self-mint'),
+      credit(1000000000, { quantity_normalized: '10', calling_function: 'fairmint payment' }, 'self-mint'),
+      debit(1000000000, { quantity_normalized: '10', action: 'fairmint payment' }, 'other-mint'),
+      ...['boxxy', 'meowcash', 'moar'].map(tx => credit(10000000,
+        { quantity_normalized: '0.1', calling_function: 'fairmint payment' }, tx)),
+    ];
+    const delta = pendingByAsset(events, MINE).get('XCP');
+    expect(delta?.incomingNormalized).toBeNull();
+    expect(delta?.creditedNormalized).toBe('10.3');
+    expect(delta?.debitedNormalized).toBe('20');
+  });
+
+  it.each(['fairmint', 'fairmint commission'])('does not advertise escrow-sensitive %s credits', reason => {
+    const events = [credit(100, { quantity_normalized: '1', calling_function: reason })];
+    expect(pendingByAsset(events, MINE).get('XCP')?.incomingNormalized).toBeNull();
+  });
+
+  it('excludes a 10 XCP self-payment but includes three independent 0.1 XCP payments', () => {
     const events = [
       debit(1000000000, { quantity_normalized: '10' }, 'self-fairmint'),
       credit(1000000000, { quantity_normalized: '10' }, 'self-fairmint'),

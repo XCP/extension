@@ -49,32 +49,39 @@ walletTest('UTXO move form reports every attached asset, including subsequent AP
   expect(cursors).toEqual([0, 100]);
 });
 
-walletTest('balance shows only new incoming XCP, excluding a self-fairmint payment', async ({ page, context }) => {
-  const assetInfo = { asset: 'XCP', asset_longname: null, divisible: true,
-    description: 'Counterparty', issuer: '', locked: true, supply: '260000000000000',
-    supply_normalized: '2600000' };
-  await context.route('**/v2/assets/XCP?**', route => route.fulfill({ json: { result: assetInfo } }));
-  await context.route('**/v2/addresses/*/balances/XCP?**', route => route.fulfill({ json: {
-    result: [{ asset: 'XCP', quantity: 3000000000, quantity_normalized: '30', asset_info: assetInfo }],
-    result_count: 1, next_cursor: null,
-  } }));
-  await context.route('**/v2/addresses/mempool?**', route => {
-    const params = new URL(route.request().url()).searchParams;
-    const address = params.get('addresses');
-    const movement = (event: string, tx: string, quantity: number, normalized: string) => ({
-      tx_hash: tx.repeat(64), event,
-      params: { address, asset: 'XCP', quantity, quantity_normalized: normalized,
-        action: 'fairmint payment', calling_function: 'fairmint payment' },
+for (const fairmint of [true, false]) {
+  walletTest(`balance ${fairmint ? 'hides unreliable pool fairmint credits' : 'nets self-payments and shows independent receipts'}`, async ({ page, context }) => {
+    const assetInfo = { asset: 'XCP', asset_longname: null, divisible: true,
+      description: 'Counterparty', issuer: '', locked: true, supply: '260000000000000',
+      supply_normalized: '2600000' };
+    await context.route('**/v2/assets/XCP?**', route => route.fulfill({ json: { result: assetInfo } }));
+    await context.route('**/v2/addresses/*/balances/XCP?**', route => route.fulfill({ json: {
+      result: [{ asset: 'XCP', quantity: 3000000000, quantity_normalized: '30', asset_info: assetInfo }],
+      result_count: 1, next_cursor: null,
+    } }));
+    await context.route('**/v2/addresses/mempool?**', route => {
+      const params = new URL(route.request().url()).searchParams;
+      const address = params.get('addresses');
+      const movement = (event: string, tx: string, quantity: number, normalized: string) => ({
+        tx_hash: tx.repeat(64), event,
+        params: { address, asset: 'XCP', quantity, quantity_normalized: normalized,
+          action: fairmint ? 'fairmint payment' : 'send', calling_function: fairmint ? 'fairmint payment' : 'send' },
+      });
+      return route.fulfill({ json: { result: [
+        movement('DEBIT', 'a', 1000000000, '10'), movement('CREDIT', 'a', 1000000000, '10'),
+        movement('DEBIT', 'b', 1000000000, '10'),
+        ...['c', 'd', 'e'].map(tx => movement('CREDIT', tx, 10000000, '0.1')),
+      ], next_cursor: null } });
     });
-    return route.fulfill({ json: { result: [
-      movement('DEBIT', 'a', 1000000000, '10'), movement('CREDIT', 'a', 1000000000, '10'),
-      movement('DEBIT', 'b', 1000000000, '10'),
-      ...['c', 'd', 'e'].map(tx => movement('CREDIT', tx, 10000000, '0.1')),
-    ], next_cursor: null } });
+    await page.goto(`${page.url().split('#')[0]}#/assets/XCP/balance`);
+    if (fairmint) {
+      await expect(page.getByText(/Balance: 10\.00000000/)).toBeVisible();
+      await expect(page.getByText(/incoming\)/)).toHaveCount(0);
+    } else {
+      await expect(page.getByText('(+0.3 incoming)', { exact: true })).toBeVisible();
+    }
+    // The existing spendable figure still reserves both 10 XCP pending payments.
+    await expect(page.getByText(/Balance: 10\.00000000/)).toBeVisible();
+    await expect(page.getByText('(+10.3 incoming)', { exact: true })).toHaveCount(0);
   });
-  await page.goto(`${page.url().split('#')[0]}#/assets/XCP/balance`);
-  await expect(page.getByText('(+0.3 incoming)', { exact: true })).toBeVisible();
-  // The existing spendable figure still reserves both 10 XCP pending payments.
-  await expect(page.getByText(/Balance: 10\.00000000/)).toBeVisible();
-  await expect(page.getByText('(+10.3 incoming)', { exact: true })).toHaveCount(0);
-});
+}
