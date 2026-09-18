@@ -355,30 +355,9 @@ describe('counterparty/api.ts', () => {
       await expect(fetchTokenBalance(mockAddress, 'XCP')).rejects.toThrow(CounterpartyApiError);
     });
 
-    it('should return zero balance for missing result', async () => {
-      mockedApiClient.get.mockResolvedValue({
-        data: { result: null },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
-
-      const balance = await fetchTokenBalance(mockAddress, 'XCP');
-
-      // Now returns zero balance instead of null for missing result
-      expect(balance).toEqual({
-        asset: 'XCP',
-        quantity: asBaseUnits(0),
-        quantity_normalized: asDisplayUnits('0'),
-        asset_info: {
-          asset_longname: null,
-          description: '',
-          issuer: '',
-          divisible: true,
-          locked: false,
-        },
-      });
+    it('rejects a missing result rather than reporting a false zero balance', async () => {
+      mockedApiClient.get.mockResolvedValue({ data: { result: null }, status: 200 } as any);
+      await expect(fetchTokenBalance(mockAddress, 'XCP')).rejects.toThrow('invalid list');
     });
 
     it('should handle invalid quantity_normalized values without producing NaN', async () => {
@@ -1057,6 +1036,8 @@ describe('counterparty/api.ts', () => {
             {
               event: 'DISPENSE',
               params: {
+            addresses: mockAddress,
+            event_name: 'DISPENSE',
                 tx_hash: 'matching-tx',
                 source: mockAddress,
                 destination: buyerAddress,
@@ -1066,6 +1047,8 @@ describe('counterparty/api.ts', () => {
             {
               event: 'DISPENSE',
               params: {
+            addresses: mockAddress,
+            event_name: 'DISPENSE',
                 tx_hash: 'other-tx',
                 source: 'bc1qotherdispenser',
                 destination: buyerAddress,
@@ -1090,9 +1073,11 @@ describe('counterparty/api.ts', () => {
         }),
       ]);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
-        `${mockApiBase}/v2/mempool/events/DISPENSE`,
+        `${mockApiBase}/v2/addresses/mempool`,
         {
           params: {
+            addresses: mockAddress,
+            event_name: 'DISPENSE',
             verbose: true,
             limit: 100,
           },

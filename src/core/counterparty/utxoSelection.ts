@@ -9,7 +9,7 @@
 
 import { getPendingChangeUtxos, isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs, formatInputsSet, type UTXO } from '@/core/bitcoin/utxo';
-import { fetchTokenBalances } from '@/core/counterparty/api';
+import { fetchUtxosWithBalances } from '@/core/counterparty/api';
 
 /**
  * Maximum number of UTXOs to include in inputs_set (API limit).
@@ -49,7 +49,7 @@ export interface SelectedUtxos {
  * Fetches fresh UTXO data from mempool.space.
  *
  * 1. Fetch UTXOs from mempool.space (fresh data)
- * 2. Fetch UTXOs with attached assets in single API call
+ * 2. Check candidate UTXOs for attached assets in bounded batches
  * 3. Filter out UTXOs with attached assets
  * 4. Sort by value (highest first)
  * 5. Limit to MAX_INPUTS_SET UTXOs
@@ -68,11 +68,7 @@ export async function selectUtxosForTransaction(
     maxUtxos = MAX_INPUTS_SET,
   } = options;
 
-  // 1. Fetch fresh UTXOs from mempool.space and UTXO balances from Counterparty in parallel
-  const [allUtxos, utxoBalances] = await Promise.all([
-    fetchUTXOs(address),
-    fetchTokenBalances(address, { type: 'utxo', limit: 1000, verbose: false }),
-  ]);
+  const allUtxos = await fetchUTXOs(address);
 
   // Our own just-broadcast change, registered at broadcast time (core/counterparty/pendingChange)
   // because mempool.space takes a beat to list it. Deduped against the fetch — once the indexer
@@ -94,13 +90,9 @@ export async function selectUtxosForTransaction(
     throw new Error('No UTXOs available for this address');
   }
 
-  // 2. Build set of UTXOs that have attached Counterparty assets
-  const utxosWithAssets = new Set<string>();
-  for (const balance of utxoBalances) {
-    if (balance.utxo) {
-      utxosWithAssets.add(balance.utxo);
-    }
-  }
+  const utxosWithAssets = await fetchUtxosWithBalances(candidateUtxos
+    .filter(utxo => (allowUnconfirmed || utxo.status.confirmed) && !isUtxoRecentlySpent(utxo.txid, utxo.vout))
+    .map(utxo => `${utxo.txid}:${utxo.vout}`));
 
   // 3. Filter UTXOs
   let excludedWithAssets = 0;

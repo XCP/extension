@@ -34,14 +34,18 @@ export function useUtxoSource(
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    setBalances([]);
+    setError(null);
+    setIsLoadingBalances(!!utxo);
     if (!utxo) return;
 
-    setIsLoadingBalances(true);
     fetchUtxoBalances(utxo)
       .then((response) => {
-        setBalances(response.result || []);
+        if (!cancelled) setBalances(response.result || []);
       })
       .catch((err) => {
+        if (cancelled) return;
         console.error("Failed to fetch UTXO balances:", err);
         // Without this the form silently shows "0 Balances", which reads as an
         // empty UTXO rather than as a lookup that failed.
@@ -49,8 +53,9 @@ export function useUtxoSource(
         setBalances([]);
       })
       .finally(() => {
-        setIsLoadingBalances(false);
+        if (!cancelled) setIsLoadingBalances(false);
       });
+    return () => { cancelled = true; };
   }, [utxo]);
 
   return {

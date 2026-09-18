@@ -37,7 +37,7 @@ interface Answer {
  * alone, a swap missed its price whenever a pending order confirmed first, and rested for a block
  * instead of filling: a network fee for nothing.
  *
- * Two reads, the second only when the first finds something. The mempool listing is one call; the
+ * Two complete reads, the second only when the first finds something. The mempool is paged; the
  * resting book is fetched only while there are pending orders to replay through it. A book that
  * fails to load counts as empty: the pool then absorbs every pending order, which overstates the
  * drop, and overstating is the safe direction for a tolerance. A mempool read that fails yields

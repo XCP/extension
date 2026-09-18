@@ -6,23 +6,26 @@ import {
   ComboboxOptions,
   Label,
 } from "@headlessui/react";
-import { type ReactElement, useEffect, useState } from "react";
+import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaCheck, FiChevronDown } from "@/components/icons";
 import { useSettings } from "@/contexts/settings-context";
 import type { FairminterDetails } from "@/core/counterparty/api";
-import { fetchAssetFairminter } from "@/core/counterparty/api";
+import { fetchAssetFairminter, fetchOpenFairminters } from "@/core/counterparty/api";
 import {
   describeFairminterLot,
   isFairminterMintableNow,
 } from "@/core/counterparty/fairminterModel";
 import { isGreaterThan } from "@/core/numeric";
 import { useBlockHeight } from "@/hooks/useBlockHeight";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
 /**
  * The list and the per-asset endpoint return the same row, so they share one type. Re-exported
  * under the name the mint screens already use.
  */
 export type Fairminter = FairminterDetails;
+
+const fairminterKey = (fairminter: Fairminter) => fairminter.tx_hash;
 
 interface FairminterSelectInputProps {
   selectedAsset: string;
@@ -51,70 +54,25 @@ export function FairminterSelectInput({
 }: FairminterSelectInputProps): ReactElement {
   const { settings } = useSettings();
   const [query, setQuery] = useState("");
-  const [fairminters, setFairminters] = useState<Fairminter[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Needed to tell a sale opening on the next block from one parked years out.
+  const [lookedUp, setLookedUp] = useState<Fairminter[]>([]);
+  const fetchFn = useCallback((offset: number, limit: number) =>
+    fetchOpenFairminters({ offset, limit }), [settings.counterpartyApiBase]);
+  const page = usePaginatedFetch({ fetchFn, pageSize: 20, maxItems: Infinity, getKey: fairminterKey });
+  const fairminters = useMemo(() => {
+    const byAsset = new Map(page.data.filter(f => !!f.asset).map(f => [f.asset, f]));
+    for (const row of lookedUp) if (!byAsset.has(row.asset)) byAsset.set(row.asset, row);
+    return [...byAsset.values()];
+  }, [page.data, lookedUp]);
   const { blockHeight } = useBlockHeight();
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  // Load the open fairminters once, at mount. The fetch calls onChange(selectedAsset, ...), so
-  // listing either would refetch the whole list on every selection change.
-  //
-  // `blockHeight` is deliberately not a dependency: refetching the list when a block arrives would
-  // reset a selection mid-form. A sale that becomes mintable one block later is picked up the next
-  // time this screen is opened.
+  // Restored selections can live on any page. Resolve them directly rather than draining
+  // the browsing list before the form can restore its review state.
+  const selected = fairminters.find(f => f.asset === selectedAsset);
   useEffect(() => {
-    const fetchFairminters = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        // Open only. The pending set is in practice parked placeholders with a start block years
-        // out, so listing it would be noise; a genuinely imminent sale is reached by typing its
-        // name, which triggers the lookup below.
-        const response = await fetch(
-          `${settings.counterpartyApiBase}/v2/fairminters?status=open&verbose=true`,
-        );
-
-        if (!response.ok) {
-          // Use generic error to prevent leaking HTTP status details
-          throw new Error("Failed to fetch fairminters");
-        }
-
-        const data = await response.json();
-
-        if (data.result && Array.isArray(data.result)) {
-          // Filter out fairminters with null asset
-          const validFairminters = data.result.filter(
-            (fairminter: Fairminter) => fairminter.asset !== null,
-          );
-          setFairminters(validFairminters);
-
-          // If we have an initially selected asset, notify parent with its fairminter data
-          // This handles the case when returning from review
-          if (selectedAsset) {
-            const matchingFairminter = validFairminters.find(
-              (f: any) => f.asset === selectedAsset,
-            );
-            if (matchingFairminter) {
-              // Use setTimeout to avoid state update during render
-              setTimeout(() => onChange(selectedAsset, matchingFairminter), 0);
-            }
-          }
-        } else {
-          setFairminters([]);
-        }
-      } catch (error) {
-        console.error("Error fetching fairminters:", error);
-        // Use generic error to prevent leaking internal details
-        setError("Failed to load available assets. Please try again.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchFairminters();
-  }, []);
+    if (selected) onChangeRef.current(selected.asset, selected);
+  }, [selected]);
 
   /**
    * A name the open list does not hold may still be mintable: a sale opening on the *next* block
@@ -125,7 +83,7 @@ export function FairminterSelectInput({
    * one would cost a miner fee and mint nothing.
    */
   useEffect(() => {
-    const name = query.trim().toUpperCase();
+    const name = (query || selectedAsset).trim().toUpperCase();
     if (!name || fairminters.some((f) => f.asset === name)) return;
     // Cheap shape check first: no point asking the node about a half-typed name.
     if (!/^[A-Z][A-Z0-9.]{2,}$/.test(name)) return;
@@ -135,7 +93,7 @@ export function FairminterSelectInput({
       try {
         const found = await fetchAssetFairminter(name);
         if (cancelled || !found || !isFairminterMintableNow(found, blockHeight)) return;
-        setFairminters((current) =>
+        setLookedUp((current) =>
           current.some((f) => f.asset === found.asset) ? current : [...current, found]
         );
       } catch {
@@ -147,7 +105,7 @@ export function FairminterSelectInput({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query, fairminters, blockHeight]);
+  }, [query, selectedAsset, fairminters, blockHeight]);
 
   // Filter fairminters based on query and currency type
   let filteredFairminters = fairminters;
@@ -176,6 +134,16 @@ export function FairminterSelectInput({
           fairminter.description.toLowerCase().includes(query.toLowerCase())),
     );
   }
+
+  // Do not strand the browser on a page containing only another currency, or show
+  // an empty search result while matching listings may remain on later pages.
+  useEffect(() => {
+    if (!page.data.length || filteredFairminters.length || !page.hasMore
+      || page.error || page.isLoading || page.isFetchingMore) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) page.loadMore(); });
+    return () => { cancelled = true; };
+  }, [filteredFairminters.length, page]);
 
   const handleAssetChange = (asset: string | null) => {
     if (asset) {
@@ -235,14 +203,14 @@ export function FairminterSelectInput({
               </ComboboxButton>
             </div>
 
-            {isLoading ? (
-              <div className="mt-2 text-sm text-gray-500">
-                Loading fairminters…
-              </div>
-            ) : error ? (
-              <div className="mt-2 text-sm text-red-500">{error}</div>
-            ) : filteredFairminters.length > 0 ? (
-              <ComboboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+            {(filteredFairminters.length > 0 || page.hasMore) && (
+              <ComboboxOptions
+                className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+                onScroll={event => {
+                  const list = event.currentTarget;
+                  if (list.scrollHeight - list.scrollTop - list.clientHeight < 40) page.loadMore();
+                }}
+              >
                 {filteredFairminters.map((fairminter) => (
                   <ComboboxOption
                     key={fairminter.tx_hash}
@@ -286,10 +254,24 @@ export function FairminterSelectInput({
                   </ComboboxOption>
                 ))}
               </ComboboxOptions>
-            ) : null}
+            )}
           </div>
         </div>
       </Combobox>
+      {page.error ? (
+        <div role="alert" className="mt-2 text-sm text-red-600">
+          Unable to load {page.data.length ? 'more' : 'available'} fairminters.{' '}
+          <button type="button" className="underline" onClick={page.refresh}>Retry</button>
+        </div>
+      ) : page.isLoading || page.isFetchingMore ? (
+        <p role="status" className="mt-2 text-sm text-gray-500">Loading fairminters…</p>
+      ) : page.hasMore ? (
+        <button type="button" className="mt-2 text-sm text-blue-600 underline" onClick={page.loadMore}>
+          Load more fairminters
+        </button>
+      ) : filteredFairminters.length === 0 ? (
+        <p className="mt-2 text-sm text-gray-500">No matching fairminters.</p>
+      ) : null}
       {showHelpText && (
         <p className="mt-2 text-sm text-gray-500">
           {description || "Select an open fairminter asset to mint"}
