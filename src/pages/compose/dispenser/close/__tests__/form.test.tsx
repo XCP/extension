@@ -85,7 +85,7 @@ function createMockDispenser(
 
 describe('DispenserCloseForm', () => {
   const mockFormAction = vi.fn();
-  const mockFetchAddressDispensers = vi.mocked(counterpartyApi.fetchAllAddressDispensers);
+  const mockFetchAddressDispensers = vi.mocked(counterpartyApi.fetchAddressDispensers);
 
   const renderForm = (initialAsset?: string) =>
     render(

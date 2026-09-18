@@ -10,7 +10,7 @@ const dispensers = Array.from({ length: 237 }, (_, i) => ({
   asset_info: { divisible: false, asset_longname: null }, oracle_address: null,
 }));
 
-walletTest('close selector and buyer discovery include dispensers beyond 200', async ({ page, context }) => {
+walletTest('close selector and buyer discovery lazily load 20 at a time beyond 200', async ({ page, context }) => {
   const offsets: number[] = [];
   await context.route('**/cdn.xcp.io/**', route => route.abort());
   await context.route('**/v2/addresses/*/dispensers?**', async route => {
@@ -23,30 +23,48 @@ walletTest('close selector and buyer discovery include dispensers beyond 200', a
   const popup = page.url().split('#')[0];
   await page.goto(`${popup}#/compose/dispenser/close`);
   await page.getByRole('button', { name: 'Select a dispenser' }).click();
-  await expect(page.getByRole('option')).toHaveCount(237);
+  await expect(page.getByRole('option')).toHaveCount(20);
+  expect(offsets).toEqual([0]);
+  for (let count = 40; count < 257; count += 20) {
+    await page.getByRole('listbox').evaluate(list => {
+      list.scrollTop = list.scrollHeight;
+      list.dispatchEvent(new Event('scroll'));
+    });
+    await expect(page.getByRole('option')).toHaveCount(Math.min(count, 237));
+  }
   await page.getByRole('option', { name: 'PAGETEST236', exact: true }).click();
   await expect(page.locator('input[name="asset"]')).toHaveValue('PAGETEST236');
-  expect(offsets).toEqual([0, 100, 200]);
+  expect(offsets).toEqual(Array.from({ length: 12 }, (_, i) => i * 20));
 
   // A different address gives discovery its own paginated HTTP reads rather than cached rows.
   offsets.length = 0;
   await page.goto(`${popup}#/compose/dispenser/dispense`);
   await page.getByLabel('Dispenser Address', { exact: false }).fill(address);
-  await expect(page.getByRole('radio')).toHaveCount(237);
+  await expect(page.getByRole('radio')).toHaveCount(20);
+  expect(offsets).toEqual([0]);
+  for (let count = 40; count < 257; count += 20) {
+    await page.getByRole('button', { name: 'Load more dispensers' }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole('radio')).toHaveCount(Math.min(count, 237));
+    await expect(page.getByRole('radio', { name: 'Select dispenser for PAGETEST000', exact: true })).toBeChecked();
+  }
   await page.getByRole('radio', { name: 'Select dispenser for PAGETEST236', exact: true }).check();
   await expect(page.getByRole('radio', { name: 'Select dispenser for PAGETEST236', exact: true })).toBeChecked();
-  expect(offsets).toEqual([0, 100, 200]);
+  expect(offsets).toEqual(Array.from({ length: 12 }, (_, i) => i * 20));
 });
 
-walletTest('close selector reports a later-page failure instead of a partial inventory', async ({ page, context }) => {
+walletTest('close selector preserves earlier options and reports a later-page failure', async ({ page, context }) => {
   await context.route('**/v2/addresses/*/dispensers?**', async route => {
     const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0);
     await route.fulfill(offset === 0
-      ? { json: { result: dispensers.slice(0, 100), result_count: dispensers.length } }
+      ? { json: { result: dispensers.slice(0, 20), result_count: dispensers.length } }
       : { status: 400, json: { error: 'Second page unavailable' } });
   });
   await page.goto(`${page.url().split('#')[0]}#/compose/dispenser/close`);
-  await expect(page.getByRole('alert')).toContainText('Unable to load all dispensers');
-  await expect(page.getByRole('button', { name: 'Select a dispenser' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Load more dispensers' }).click();
+  await expect(page.getByRole('alert')).toContainText('Unable to load more dispensers');
+  await page.getByRole('button', { name: 'Select a dispenser' }).click();
+  await expect(page.getByRole('option')).toHaveCount(20);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
   await expect(page.locator('button[type="submit"]')).toBeDisabled();
 });
