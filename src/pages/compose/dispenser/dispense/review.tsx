@@ -91,6 +91,7 @@ export function ReviewDispense({
       try {
         // Fetch dispenser info
         const response = await fetchAllAddressDispensers(dispenserAddress, {
+          status: 'open,closing',
           verbose: true
         });
         if (cancelled) return;
@@ -109,17 +110,18 @@ export function ReviewDispense({
           setAllTriggeredDispensers(sorted);
           setPayouts(calculateDispensePayouts(response.result, btcQuantity));
           
-          try {
-            const pending = await fetchMempoolDispenses(dispenserAddress);
+          // Competing purchases are optional context. A slow mempool lookup must not hold up
+          // the complete inventory and payout preview or keep the signing button disabled.
+          void fetchMempoolDispenses(dispenserAddress).then(pending => {
             if (cancelled) return;
             setMempoolDispenses(pending.map((tx) => ({
               source: tx.destination || tx.source,
               btc_amount: tx.btc_amount || 0,
               tx_hash: tx.tx_hash,
             })));
-          } catch (err) {
+          }).catch(err => {
             console.error("Failed to fetch mempool dispenses:", err);
-          }
+          });
         }
       } catch (err) {
         console.error("Failed to fetch dispenser info:", err);

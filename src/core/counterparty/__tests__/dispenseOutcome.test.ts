@@ -89,6 +89,7 @@ describe('what a dispense pays out', () => {
     const payouts = await resolveDispensersAt('bc1qdispenser', 50_000);
 
     expect(payouts.map((p) => p.asset)).toEqual(['OPENEMPTY']);
+    expect(mocked).toHaveBeenCalledWith('bc1qdispenser', { status: 'open,closing' });
   });
 
   it('does not quote a price for an oracle dispenser', async () => {

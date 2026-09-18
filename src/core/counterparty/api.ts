@@ -1215,7 +1215,9 @@ export async function fetchAddressPoolByLpAsset(
 // API - Dispensers
 // =============================================================================
 
-type AddressDispenserOptions = PaginationOptions & { status?: 'open' | 'closed' | 'closing' | 'open_empty_address' };
+type AddressDispenserOptions = PaginationOptions & {
+  status?: 'open' | 'closed' | 'closing' | 'open_empty_address' | 'open,closing';
+};
 
 /**
  * Fetch dispensers owned by an address.

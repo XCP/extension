@@ -31,9 +31,15 @@ describe('complete dispense purchase review', () => {
   it('waits for every API page and displays all 237 payouts in the real review screen', async () => {
     let release!: () => void;
     const pending = new Promise<void>(resolve => { release = resolve; });
+    let releaseMempool!: () => void;
+    const pendingMempool = new Promise<void>(resolve => { releaseMempool = resolve; });
     const offsets: number[] = [];
     vi.mocked(apiClient.get).mockImplementation(async (url, options) => {
-      if (!url.endsWith('/dispensers')) return { data: { result: [] } } as any;
+      if (!url.endsWith('/dispensers')) {
+        await pendingMempool;
+        return { data: { result: [] } } as any;
+      }
+      expect(options?.params?.status).toBe('open,closing');
       const offset = Number(options?.params?.offset ?? 0);
       offsets.push(offset);
       if (offset === 100) await pending;
@@ -52,6 +58,7 @@ describe('complete dispense purchase review', () => {
     for (const row of rows) expect(received).toHaveTextContent(`1 ${row.asset}`);
     // The provider approval uses this entry point; it must receive the same complete inventory.
     expect(await resolveDispensersAt('1dispenser', 1000)).toHaveLength(237);
+    await act(async () => { releaseMempool(); });
   });
 
   it('keeps signing disabled and explains a failed second page', async () => {

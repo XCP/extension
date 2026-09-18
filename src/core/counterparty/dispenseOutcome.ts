@@ -28,7 +28,7 @@ import {
   roundDown,
 } from '@/core/numeric';
 
-/** Open (0) and open-with-empty-address (11) — the statuses core dispenses from. */
+/** Open (0) and closing (11) — both can dispense until the close takes effect. */
 const DISPENSABLE_STATUSES = new Set([0, 11]);
 
 export interface DispensePayout {
@@ -60,9 +60,9 @@ export async function resolveDispensersAt(
   address: string,
   satoshis: number
 ): Promise<DispensePayout[]> {
-  let dispensers: NonNullable<Awaited<ReturnType<typeof fetchAllAddressDispensers>>['result']>;
+  let dispensers: DispenserDetails[];
   try {
-    const response = await fetchAllAddressDispensers(address);
+    const response = await fetchAllAddressDispensers(address, { status: 'open,closing' });
     dispensers = response.result ?? [];
   } catch {
     // A lookup failure is not evidence of anything; the caller says nothing rather than implying
