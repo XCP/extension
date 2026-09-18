@@ -131,6 +131,33 @@ describe('creditedNormalized', () => {
   });
 });
 
+describe('incomingNormalized', () => {
+  it('excludes a 10 XCP self-fairmint but includes three independent 0.1 XCP payments', () => {
+    const events = [
+      debit(1000000000, { quantity_normalized: '10' }, 'self-fairmint'),
+      credit(1000000000, { quantity_normalized: '10' }, 'self-fairmint'),
+      debit(1000000000, { quantity_normalized: '10' }, 'other-fairmint'),
+      ...['payment1', 'payment2', 'payment3'].map(tx => credit(10000000, { quantity_normalized: '0.1' }, tx)),
+    ];
+    const delta = pendingByAsset(events, MINE).get('XCP');
+    expect(delta?.creditedNormalized).toBe('10.3');
+    expect(delta?.incomingNormalized).toBe('0.3');
+    expect(delta?.debitedNormalized).toBe('20');
+  });
+
+  it('sums multiple movements within one transaction before computing its inflow', () => {
+    const events = [debit(100, { quantity_normalized: '1' }),
+      credit(150, { quantity_normalized: '1.5' }), credit(50, { quantity_normalized: '0.5' })];
+    expect(pendingByAsset(events, MINE).get('XCP')?.incomingNormalized).toBe('1');
+  });
+
+  it('does not show a partial incoming total when a matching debit is unreadable', () => {
+    const events = [credit(100, { quantity_normalized: '1' }), debit(100),
+      credit(50, { quantity_normalized: '0.5' }, 'separate')];
+    expect(pendingByAsset(events, MINE).get('XCP')?.incomingNormalized).toBeNull();
+  });
+});
+
 describe('pendingByUtxo ownership', () => {
   const utxoEvent = (overrides: Record<string, unknown>): MempoolLedgerEvent => ({
     tx_hash: 'tx1',

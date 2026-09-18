@@ -105,7 +105,7 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
     // and a wrong `true` is a factor-of-1e8 error in a number that gates spending.
     const pending = pendingDeltas.get(asset);
     const spendable = spendableBalance(balance.balance, pending?.debitedNormalized);
-    const incoming = pending?.creditedNormalized;
+    const incoming = pending?.incomingNormalized;
 
     return {
       isDivisible: balance.isDivisible,

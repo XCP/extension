@@ -76,6 +76,8 @@ export interface PendingDelta {
    * as a total would still be a wrong statement, so unknown stays unknown here too.
    */
   creditedNormalized: string | null;
+  /** Asset deltas only: positive net inflows per transaction, excluding self-payments. */
+  incomingNormalized?: string | null;
 }
 
 /**
@@ -128,6 +130,7 @@ export function pendingByAsset(
   address: string
 ): Map<string, PendingDelta> {
   const byAsset = new Map<string, PendingDelta>();
+  const byTransaction = new Map<string, Map<string, { debit: string | null; credit: string | null }>>();
 
   for (const event of events) {
     const params = event.params;
@@ -135,6 +138,17 @@ export function pendingByAsset(
 
     const asset = params.asset;
     if (!asset) continue;
+
+    if (event.event !== 'DEBIT' && event.event !== 'CREDIT') continue;
+    let movements = byTransaction.get(event.tx_hash);
+    if (!movements) {
+      movements = new Map();
+      byTransaction.set(event.tx_hash, movements);
+    }
+    const movement = movements.get(asset) ?? { debit: '0', credit: '0' };
+    const side = event.event === 'DEBIT' ? 'debit' : 'credit';
+    movement[side] = addNormalized(movement[side], params.quantity_normalized);
+    movements.set(asset, movement);
 
     const quantity = toBaseUnits(params.quantity);
     if (quantity === null) continue;
@@ -158,6 +172,26 @@ export function pendingByAsset(
     }
 
     if (!delta.txHashes.includes(event.tx_hash)) delta.txHashes.push(event.tx_hash);
+  }
+
+  // A fairmint paid to our own address debits and credits the same asset in one atomic
+  // transaction. That return is not new money coming in. Net within each transaction,
+  // never across unrelated transactions: outgoing payments do not hide separate receipts.
+  // Keep gross debits above for conservative spendable-balance checks.
+  for (const delta of byAsset.values()) delta.incomingNormalized = '0';
+  for (const movements of byTransaction.values()) {
+    for (const [asset, movement] of movements) {
+      const delta = byAsset.get(asset);
+      if (!delta || delta.incomingNormalized === null || movement.credit === '0') continue;
+      if (movement.credit === null || movement.debit === null) {
+        delta.incomingNormalized = null;
+        continue;
+      }
+      const net = toBigNumber(movement.credit).minus(movement.debit);
+      if (net.isGreaterThan(0)) {
+        delta.incomingNormalized = toBigNumber(delta.incomingNormalized ?? '0').plus(net).toString();
+      }
+    }
   }
 
   // A zero net with no reasons carries no information; a zero net *with* reasons does (something is
