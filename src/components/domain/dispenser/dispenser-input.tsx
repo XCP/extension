@@ -1,7 +1,7 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ReactElement, useEffect, useState } from "react";
 import { DispenserList, type DispenserOption } from "@/components/ui/lists/dispenser-list";
-import { fetchAddressDispensers } from "@/core/counterparty/api";
+import { fetchAllAddressDispensers } from "@/core/counterparty/api";
 import type { DispenseOptions } from "@/core/counterparty/compose";
 import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 import { isValidBitcoinAddress } from "@/core/validation/bitcoin";
@@ -61,6 +61,7 @@ export function DispenserInput({
 
   // Fetch dispenser details only when we have a valid address
   useEffect(() => {
+    let cancelled = false;
     // Clear state when address is invalid or empty
     if (!isValidAddress) {
       setDispenserOptions([]);
@@ -80,10 +81,11 @@ export function DispenserInput({
       setDispenserOptions([]);
 
       try {
-        const response = await fetchAddressDispensers(value, {
+        const response = await fetchAllAddressDispensers(value, {
           status: "open",
           verbose: true
         });
+        if (cancelled) return;
 
         const fixedRateDispensers = (response.result ?? []).filter(isFixedRateDispenser);
         if (fixedRateDispensers.length === 0) {
@@ -122,17 +124,21 @@ export function DispenserInput({
 
         setDispenserOptions(options);
       } catch (err) {
+        if (cancelled) return;
         console.error("Error fetching dispenser details:", err);
-        const errorMsg = "Error fetching dispenser details.";
+        const errorMsg = "Unable to load all dispensers. Re-enter the address to try again.";
         setError(errorMsg);
         if (onError) onError(errorMsg);
       } finally {
-        setIsLoading(false);
-        if (onLoadingChange) onLoadingChange(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          if (onLoadingChange) onLoadingChange(false);
+        }
       }
     };
 
     fetchDispensers();
+    return () => { cancelled = true; };
   }, [value, isValidAddress, onError, onLoadingChange]);
 
   // Auto-select dispenser when options change (prefer initialAsset if provided)

@@ -99,7 +99,7 @@ function createMockDispenser(overrides: Partial<counterpartyApi.DispenserDetails
 
 describe('DispenseForm', () => {
   const mockFormAction = vi.fn();
-  const mockFetchAddressDispensers = vi.mocked(counterpartyApi.fetchAddressDispensers);
+  const mockFetchAddressDispensers = vi.mocked(counterpartyApi.fetchAllAddressDispensers);
   const mockSelectUtxosForTransaction = vi.mocked(utxoSelection.selectUtxosForTransaction);
 
   // Helper function to render with provider
@@ -204,7 +204,7 @@ describe('DispenseForm', () => {
     // Wait a bit to ensure no fetch is triggered
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Should not call fetchAddressDispensers for invalid addresses
+    // Should not call fetchAllAddressDispensers for invalid addresses
     expect(mockFetchAddressDispensers).not.toHaveBeenCalled();
   });
 

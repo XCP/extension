@@ -12,6 +12,7 @@ import {
   fetchAddressDispensers,
   fetchAddressPoolByLpAsset,
   fetchAddressPools,
+  fetchAllAddressDispensers,
   fetchAssetDetails,
   fetchAssetFairminter,
   fetchDispenserByHash,
@@ -940,6 +941,60 @@ describe('counterparty/api.ts', () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchAddressDispensers(mockAddress)).rejects.toThrow(CounterpartyApiError);
+    });
+  });
+
+  describe('fetchAllAddressDispensers', () => {
+    const rows = Array.from({ length: 237 }, (_, i) => ({
+      tx_hash: i.toString(16).padStart(64, '0'), asset: `ASSET${i}`, status: 0,
+    }));
+
+    it('loads more than 200 dispensers and preserves filters on every page', async () => {
+      mockedApiClient.get.mockImplementation(async (_url, options) => {
+        const offset = Number(options?.params?.offset ?? 0);
+        return { data: { result: rows.slice(offset, offset + 100), result_count: rows.length } } as any;
+      });
+      const result = await fetchAllAddressDispensers(mockAddress, { status: 'open', verbose: true });
+      expect(result.result).toEqual(rows);
+      expect(mockedApiClient.get.mock.calls.map(([, options]) => options?.params)).toEqual([
+        { limit: 100, offset: 0, status: 'open', verbose: true },
+        { limit: 100, offset: 100, status: 'open', verbose: true },
+        { limit: 100, offset: 200, status: 'open', verbose: true },
+      ]);
+    });
+
+    it('continues when a node returns smaller pages and the count says more exist', async () => {
+      mockedApiClient.get.mockImplementation(async (_url, options) => {
+        const offset = Number(options?.params?.offset ?? 0);
+        return { data: { result: rows.slice(offset, Math.min(offset + 10, 23)), result_count: 23 } } as any;
+      });
+      expect((await fetchAllAddressDispensers(mockAddress)).result).toEqual(rows.slice(0, 23));
+    });
+
+    it('reads through the final page when the node omits a total count', async () => {
+      mockedApiClient.get.mockImplementation(async (_url, options) => {
+        const offset = Number(options?.params?.offset ?? 0);
+        return { data: { result: rows.slice(offset, offset + 100) } } as any;
+      });
+      expect((await fetchAllAddressDispensers(mockAddress)).result).toEqual(rows);
+    });
+
+    it('rejects a later-page failure instead of presenting a partial list', async () => {
+      mockedApiClient.get.mockResolvedValueOnce({ data: { result: rows.slice(0, 100), result_count: 237 } } as any)
+        .mockRejectedValueOnce(new Error('Second page unavailable'));
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('Second page unavailable');
+    });
+
+    it('rejects a node that ignores the offset instead of looping forever', async () => {
+      mockedApiClient.get.mockResolvedValue({ data: { result: rows.slice(0, 100), result_count: 237 } } as any);
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('repeated a page');
+      expect(mockedApiClient.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects an empty page when the node says more dispensers exist', async () => {
+      mockedApiClient.get.mockResolvedValueOnce({ data: { result: rows.slice(0, 100), result_count: 237 } } as any)
+        .mockResolvedValueOnce({ data: { result: [], result_count: 237 } } as any);
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('incomplete list');
     });
   });
 

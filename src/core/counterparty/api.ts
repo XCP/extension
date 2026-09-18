@@ -1215,6 +1215,8 @@ export async function fetchAddressPoolByLpAsset(
 // API - Dispensers
 // =============================================================================
 
+type AddressDispenserOptions = PaginationOptions & { status?: 'open' | 'closed' | 'closing' | 'open_empty_address' };
+
 /**
  * Fetch dispensers owned by an address.
  * @param address - Bitcoin address to query
@@ -1223,7 +1225,7 @@ export async function fetchAddressPoolByLpAsset(
  */
 export async function fetchAddressDispensers(
   address: string,
-  options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' | 'open_empty_address' } = {}
+  options: AddressDispenserOptions = {}
 ): Promise<PaginatedResponse<DispenserDetails>> {
   return cpApiGet<PaginatedResponse<DispenserDetails>>(`/v2/addresses/${encodePath(address)}/dispensers`, {
     verbose: options.verbose ?? true,
@@ -1231,6 +1233,39 @@ export async function fetchAddressDispensers(
     offset: options.offset ?? 0,
     ...(options.status && { status: options.status }),
   });
+}
+
+/**
+ * Complete address inventory for selectors and purchase previews. Market lists use the paged
+ * function above; a payment preview must include every dispenser the payment can trigger.
+ * Never return a partial inventory when a later page fails.
+ */
+export async function fetchAllAddressDispensers(
+  address: string,
+  options: Pick<AddressDispenserOptions, 'status' | 'verbose'> = {}
+): Promise<PaginatedResponse<DispenserDetails>> {
+  const limit = 100;
+  let offset = 0;
+  const dispensers = new Map<string, DispenserDetails>();
+  while (true) {
+    const page = await fetchAddressDispensers(address, { ...options, limit, offset });
+    if (page.result.length === 0) {
+      if (offset < page.result_count) throw new Error('Unable to load all dispensers: the API returned an incomplete list.');
+      break;
+    }
+    const previousSize = dispensers.size;
+    for (const dispenser of page.result) dispensers.set(dispenser.tx_hash, dispenser);
+    if (dispensers.size === previousSize) {
+      throw new Error('Unable to load all dispensers: the API repeated a page.');
+    }
+    offset += page.result.length;
+    // Advance by the returned size in case a node applies a smaller page limit. Counts may be
+    // absent on older nodes; in that case a short page marks the end.
+    if (typeof page.result_count === 'number') {
+      if (offset >= page.result_count) break;
+    } else if (page.result.length < limit) break;
+  }
+  return { result: [...dispensers.values()], result_count: dispensers.size };
 }
 
 /**

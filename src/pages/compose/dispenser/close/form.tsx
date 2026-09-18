@@ -15,7 +15,7 @@ import { AddressHeader } from "@/components/domain/address/address-header";
 import { FaCheck, FaCopy, FiChevronDown } from "@/components/icons";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { DispenserDetails } from "@/core/counterparty/api";
-import { fetchAddressDispensers } from "@/core/counterparty/api";
+import { fetchAllAddressDispensers } from "@/core/counterparty/api";
 import type { DispenserOptions } from "@/core/counterparty/compose";
 import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
@@ -48,6 +48,8 @@ export function DispenserCloseForm({
   const [selectedTxHash, setSelectedTxHash] = useState<string | null>(null);
   const [dispensers, setDispensers] = useState<DispenserDetails[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const address = activeAddress?.address;
 
   // Computed values
   const asset = initialAsset || initialFormData?.asset || "";
@@ -68,26 +70,32 @@ export function DispenserCloseForm({
 
   // Fetch dispensers when component mounts or address changes
   useEffect(() => {
+    let cancelled = false;
     async function loadDispensers() {
-      if (!activeAddress) return;
+      if (!address) return;
 
       setIsLoading(true);
+      setLoadError(null);
+      setDispensers([]);
+      setSelectedTxHash(null);
 
       try {
-        const response = await fetchAddressDispensers(activeAddress.address, {
+        const response = await fetchAllAddressDispensers(address, {
           status: "open",
           verbose: true,
         });
-        setDispensers(response.result.filter(isFixedRateDispenser));
+        if (!cancelled) setDispensers(response.result.filter(isFixedRateDispenser));
       } catch (err) {
         console.error("Failed to load dispensers:", err);
+        if (!cancelled) setLoadError("Unable to load all dispensers. Please reopen this page to try again.");
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
 
     loadDispensers();
-  }, [activeAddress]);
+    return () => { cancelled = true; };
+  }, [address]);
 
   // Arriving from a dispenser card narrows the list to one; select it so the
   // asset is submitted without the user re-picking what they already picked.
@@ -111,7 +119,7 @@ export function DispenserCloseForm({
   return (
     <ComposerForm
       formAction={formAction}
-      submitDisabled={!selectedDispenser}
+      submitDisabled={isLoading || !!loadError || !selectedDispenser}
       header={
         activeAddress && (
           <AddressHeader
@@ -124,6 +132,8 @@ export function DispenserCloseForm({
     >
       {isLoading ? (
         <div className="py-4 text-center">Loading dispensers…</div>
+      ) : loadError ? (
+        <div role="alert" className="py-4 text-center text-red-600">{loadError}</div>
       ) : (
         <Field>
           <Label className="block text-sm font-medium text-gray-700">

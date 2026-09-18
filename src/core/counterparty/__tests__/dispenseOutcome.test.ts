@@ -12,11 +12,11 @@ import { describePayout, resolveDispensersAt } from '@/core/counterparty/dispens
 import { oracleDispenserWarning, oracleDispenseWarning } from '@/core/counterparty/oraclePolicy';
 
 vi.mock('@/core/counterparty/api', () => ({
-  fetchAddressDispensers: vi.fn(),
+  fetchAllAddressDispensers: vi.fn(),
 }));
 
-const { fetchAddressDispensers } = await import('@/core/counterparty/api');
-const mocked = vi.mocked(fetchAddressDispensers);
+const { fetchAllAddressDispensers } = await import('@/core/counterparty/api');
+const mocked = vi.mocked(fetchAllAddressDispensers);
 
 const dispenser = (overrides: Record<string, unknown> = {}) => ({
   tx_hash: 'a'.repeat(64),

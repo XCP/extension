@@ -17,7 +17,7 @@
  * fixed-rate formula.
  */
 
-import { fetchAddressDispensers } from '@/core/counterparty/api';
+import { type DispenserDetails, fetchAllAddressDispensers } from '@/core/counterparty/api';
 import {
   divide,
   isGreaterThan,
@@ -60,9 +60,9 @@ export async function resolveDispensersAt(
   address: string,
   satoshis: number
 ): Promise<DispensePayout[]> {
-  let dispensers: NonNullable<Awaited<ReturnType<typeof fetchAddressDispensers>>['result']>;
+  let dispensers: NonNullable<Awaited<ReturnType<typeof fetchAllAddressDispensers>>['result']>;
   try {
-    const response = await fetchAddressDispensers(address, { limit: 50 });
+    const response = await fetchAllAddressDispensers(address);
     dispensers = response.result ?? [];
   } catch {
     // A lookup failure is not evidence of anything; the caller says nothing rather than implying
@@ -70,6 +70,11 @@ export async function resolveDispensersAt(
     return [];
   }
 
+  return calculateDispensePayouts(dispensers, satoshis);
+}
+
+/** Calculate from an already complete inventory so the review uses one consistent lookup. */
+export function calculateDispensePayouts(dispensers: DispenserDetails[], satoshis: number): DispensePayout[] {
   const open = dispensers.filter(
     (d) =>
       DISPENSABLE_STATUSES.has(d.status) &&
