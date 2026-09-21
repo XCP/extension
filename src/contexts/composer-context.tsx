@@ -81,6 +81,8 @@ import { extractCounterpartyPayload } from "@/core/counterparty/unpack/opReturn"
 import { verifyTransaction } from "@/core/counterparty/unpack/verify";
 import { fromSatoshis } from '@/core/numeric';
 import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
+import { huntZeldForCompose } from "@/core/zeld/composeHunt";
+import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility";
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 
 
@@ -138,6 +140,7 @@ function freshComposerState<T>(): ComposerState<T> {
     isSigning: false,
     composedAt: null,
     feeRate: null,
+    zeldHuntProgress: null,
   };
 }
 
@@ -171,6 +174,8 @@ export function ComposerProvider<T>({
   const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress } = useWallet();
   const { settings } = useSettings();
   const { clearBalances } = useHeader();
+  // Read once per render so the compose callback depends on the number, not the settings object.
+  const zeldHuntSeconds = settings?.zeldHuntSeconds ?? 0;
 
   const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
   const previousWalletRef = useRef<string | undefined>(activeWallet?.id);
@@ -179,6 +184,8 @@ export function ComposerProvider<T>({
 
   // AbortController for cancelling pending operations on unmount/navigation
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Fired by the spinner's "Use it now": the hunt settles for the rare txid it already has.
+  const acceptZeldHuntRef = useRef<AbortController | null>(null);
 
   // Initialize state
   const [state, setState] = useState<ComposerState<T>>(freshComposerState);
@@ -204,6 +211,7 @@ export function ComposerProvider<T>({
       previousAddressRef.current &&
       activeAddress.address !== previousAddressRef.current
     ) {
+      abortControllerRef.current?.abort();
       setState(freshComposerState<T>());
     }
     previousAddressRef.current = activeAddress?.address;
@@ -219,6 +227,7 @@ export function ComposerProvider<T>({
                             (authState === "LOCKED" || previousAuthStateRef.current === "LOCKED");
 
     if (walletChanged || lockStateChanged) {
+      abortControllerRef.current?.abort();
       setState(freshComposerState<T>());
     }
 
@@ -490,6 +499,28 @@ export function ComposerProvider<T>({
         },
       };
 
+      // Hunt for a ZELD txid last, once every check above has passed, because it edits the
+      // transaction: nLockTime becomes the nonce, behind final sequences. The hunt proves that is
+      // the only change
+      // and records its outcome on the result, so the review describes exactly what gets signed.
+      // Skipped rather than failed when it cannot apply, so no transaction is ever blocked by it.
+      if (zeldHuntSeconds > 0 && activeWallet) {
+        acceptZeldHuntRef.current = new AbortController();
+        response = await huntZeldForCompose(response, {
+          sourceAddress: activeAddress.address,
+          addressFormat: activeWallet.addressFormat,
+          publicKeyHex: activeAddress.pubKey,
+          walletType: activeWallet.type,
+          seconds: zeldHuntSeconds,
+          signal,
+          acceptEarly: acceptZeldHuntRef.current.signal,
+          onProgress: (progress) => {
+            if (!signal.aborted) setState(prev => ({ ...prev, zeldHuntProgress: progress }));
+          },
+        });
+        acceptZeldHuntRef.current = null;
+      }
+
       // Final abort check before state update
       if (signal.aborted) return;
 
@@ -507,6 +538,7 @@ export function ComposerProvider<T>({
         decodedMessage,
         isComposing: false,
         composedAt: Date.now(),
+        zeldHuntProgress: null,
       }));
     } catch (error) {
       // Silently ignore abort errors (user navigated away)
@@ -534,8 +566,8 @@ export function ComposerProvider<T>({
         isComposing: false,
       }));
     }
-  }, [activeAddress, composeApi, composeType, state.isComposing]);
-  
+  }, [activeAddress, activeWallet, composeApi, composeType, zeldHuntSeconds, state.isComposing]);
+
   // Core sign and broadcast logic - extracted to avoid duplication
   const performSignAndBroadcast = useCallback(async () => {
     if (!state.apiResponse || !activeAddress) {
@@ -568,17 +600,23 @@ export function ComposerProvider<T>({
       setHardwareOperationInProgress(true);
     }
 
+    const signal = abortControllerRef.current?.signal;
+    signal?.throwIfAborted();
     let signedTxHex: string;
     try {
-      // Sign transaction - PSBT and input data are passed for hardware wallet support
-      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, { psbtHex, inputValues, lockScripts });
+      // Signing, including a legacy hunt, stays behind the background session guard.
+      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, {
+        psbtHex, inputValues, lockScripts,
+        ...(activeWallet && huntsWhileSigning(activeWallet.addressFormat, activeWallet.type)
+          && state.apiResponse.result.zeld_hunt?.reason === HUNTS_WHILE_SIGNING
+          ? { zeldHuntSeconds: state.apiResponse.result.zeld_hunt?.seconds ?? 0 }
+          : {}),
+      });
     } finally {
-      // Re-enable idle timer after hardware signing completes (or fails)
-      if (isHardwareWallet) {
-        setHardwareOperationInProgress(false);
-      }
+      if (isHardwareWallet) setHardwareOperationInProgress(false);
     }
-
+    // Navigating away or changing identity while a hunt/signature is pending must not broadcast.
+    signal?.throwIfAborted();
     // Record transaction before broadcast to prevent double-broadcast
     // Use timestamp + random suffix to avoid any collision risk
     const placeholderTxid = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -741,6 +779,10 @@ export function ComposerProvider<T>({
     setState(prev => ({ ...prev, error: null }));
   }, []);
 
+  const acceptZeldHunt = useCallback(() => {
+    acceptZeldHuntRef.current?.abort();
+  }, []);
+
   const contextValue = useMemo(() => ({
     state,
     composeTransaction,
@@ -748,6 +790,7 @@ export function ComposerProvider<T>({
     goBack,
     reset,
     clearError,
+    acceptZeldHunt,
     showHelpText,
     toggleHelpText,
     feeRate: state.feeRate,
@@ -762,6 +805,7 @@ export function ComposerProvider<T>({
     goBack,
     reset,
     clearError,
+    acceptZeldHunt,
     showHelpText,
     toggleHelpText,
     setFeeRate,

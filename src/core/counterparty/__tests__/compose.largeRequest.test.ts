@@ -27,6 +27,12 @@ import {
 } from './helpers/composeTestHelpers';
 
 vi.mock('@/core/api/client');
+// The ZELD guard reads the indexer after a compose whose first output is not the wallet's own;
+// these fixtures use placeholder addresses, so answer it with nothing rather than count its call.
+vi.mock('@/core/zeld/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/zeld/api')>()),
+  fetchZeldUtxos: vi.fn(async () => []),
+}));
 vi.mock('@/core/counterparty/capabilities', () => ({
   requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
 }));

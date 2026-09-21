@@ -175,6 +175,7 @@ export const createTestKeychain = (wallets: Wallet[] = []): Keychain => ({
     counterpartyApiBase: 'https://api.counterparty.io:4000',
     defaultOrderExpiration: 8064,
     strictTransactionVerification: true,
+    zeldHuntSeconds: 0,
   },
 });
 

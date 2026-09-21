@@ -1,0 +1,21 @@
+services:
+  bitcoind:
+    image: bitcoin/bitcoin:30.0
+    command: [bitcoind, -chain=regtest, -rpcallowip=0.0.0.0/0, -rpcbind=0.0.0.0, -rpcuser=rpc, -rpcpassword=rpc,
+      -server=1, -txindex=1, -printtoconsole=1, -fallbackfee=0.0001,
+      -zmqpubrawtx=tcp://0.0.0.0:29332, -zmqpubhashtx=tcp://0.0.0.0:29332,
+      -zmqpubsequence=tcp://0.0.0.0:29332, -zmqpubrawblock=tcp://0.0.0.0:29333]
+    ports: ["127.0.0.1:28443:18443"]
+    healthcheck:
+      test: [CMD, bitcoin-cli, -regtest, -rpcuser=rpc, -rpcpassword=rpc, getblockchaininfo]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  counterparty:
+    image: counterparty/counterparty:v11.3.0
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+    command: [start, --regtest, --backend-connect=bitcoind, --backend-port=18443,
+      --backend-user=rpc, --backend-password=rpc, --rpc-host=0.0.0.0, --api-host=0.0.0.0, -vv]
+    ports: ["127.0.0.1:34000:24000"]

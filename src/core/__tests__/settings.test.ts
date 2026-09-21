@@ -179,6 +179,7 @@ describe('DEFAULT_SETTINGS', () => {
       'strictTransactionVerification',
       'transactionDryRun',
       'version',
+      'zeldHuntSeconds',
     ]);
   });
 });

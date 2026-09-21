@@ -6,6 +6,15 @@ import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
+import {
+  assertUtxoCarriesNoZeld,
+  attachLayoutHolds,
+  guardZeldExposure,
+  withComposedChangeFirst,
+  withDetachZeldKept,
+  zeldAttachParams,
+} from '@/core/zeld/composeGuard';
+import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from '@/core/zeld/types';
 
 /**
  * A composed transaction spent a UTXO the request never offered.
@@ -138,6 +147,15 @@ export interface ComposeResult {
    */
   envelope_script?: string;
   signed_reveal_rawtransaction?: string;
+  /**
+   * Added by the wallet, never by the composer: what the ZELD hunt did to this transaction.
+   * Present only when hunting is enabled; `rawtransaction` and `psbt` already reflect it.
+   */
+  zeld_hunt?: ZeldHuntMetadata;
+  /** Added by the wallet when a compose spent, or was steered away from, ZELD-bearing outputs. */
+  zeld_protection?: ZeldProtectionMetadata;
+  /** Added by the wallet's own ZELD send composer (`core/zeld/sendCompose.ts`). */
+  zeld_send?: ZeldSendMetadata;
   params: ComposeParams & {
     asset_dest_quant_list?: [string, string, string | number][];
     memos?: string[];
@@ -418,6 +436,8 @@ function wrapComposeError(error: unknown, endpoint: string): CounterpartyApiErro
 interface ComposeRequestOptions {
   inputsSet: string | undefined;
   allowUnconfirmed: boolean;
+  /** Outpoints the composer must not spend, whoever selects the inputs. */
+  excludeUtxos?: string[];
 }
 
 /**
@@ -563,12 +583,25 @@ async function sendComposeRequest(
 /**
  * Compose a transaction via the Counterparty API.
  */
+/** How a composed transaction may be rearranged before it is verified and reviewed. */
+export interface ComposeLayout {
+  /**
+   * Move the wallet's change to output 0. Only for shapes Counterparty reads without regard to
+   * which address output comes first (a plain BTC send, a dispense); see `core/zeld/reorder.ts`.
+   * With change first, ZELD on the inputs stays with the wallet and the transaction can hunt.
+   */
+  changeFirst?: boolean;
+  /** With `changeFirst`, place change just after the data output instead of at output 0. */
+  afterData?: boolean;
+}
+
 export async function composeTransaction<T extends Record<string, unknown>>(
   endpoint: string,
   paramsObj: T,
   sourceAddress: string,
   sat_per_vbyte: number,
-  encoding?: string
+  encoding?: string,
+  layout: ComposeLayout = {},
 ): Promise<ApiResponse> {
   const validatedParams = toStringParams(paramsObj);
   const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
@@ -583,7 +616,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   // check it (`transactionSafety.ts`) instead of trusting whatever key the composer embedded.
   const multisigPubkey = getSourcePubkey(sourceAddress);
 
-  const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
+  const makeRequest = async ({ inputsSet, allowUnconfirmed, excludeUtxos }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
       ...validatedParams,
       sat_per_vbyte: validatedFee,
@@ -593,6 +626,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
+      ...(excludeUtxos && excludeUtxos.length > 0 ? { exclude_utxos: excludeUtxos.join(',') } : {}),
       ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
@@ -610,7 +644,17 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const arranged = layout.changeFirst ? withComposedChangeFirst(composed, sourceAddress, layout) : composed;
+  return guardZeldExposure(arranged, sourceAddress, endpoint, async (excludeUtxos) => {
+    const recomposed = await executeWithUtxoFallback(
+      (options) => makeRequest({ ...options, excludeUtxos }),
+      inputsSet ? removeUtxosFromInputsSet(inputsSet, excludeUtxos) : undefined,
+      settings.allowUnconfirmedTxs,
+      endpoint,
+    );
+    return layout.changeFirst ? withComposedChangeFirst(recomposed, sourceAddress, layout) : recomposed;
+  });
 }
 
 /**
@@ -633,7 +677,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   // path's caller — produces on almost every send.
   const multisigPubkey = getSourcePubkey(sourceAddress);
 
-  const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
+  const makeRequest = async ({ inputsSet, allowUnconfirmed, excludeUtxos }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
       ...validatedParams,
       sat_per_vbyte: validatedFee,
@@ -643,6 +687,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
+      ...(excludeUtxos && excludeUtxos.length > 0 ? { exclude_utxos: excludeUtxos.join(',') } : {}),
       ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
@@ -673,7 +718,13 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  return guardZeldExposure(composed, sourceAddress, endpoint, (excludeUtxos) => executeWithUtxoFallback(
+    (options) => makeRequest({ ...options, excludeUtxos }),
+    inputsSet ? removeUtxosFromInputsSet(inputsSet, excludeUtxos) : undefined,
+    settings.allowUnconfirmedTxs,
+    endpoint,
+  ));
 }
 
 /**
@@ -878,7 +929,9 @@ export async function composeDispense(options: DispenseOptions): Promise<ApiResp
     ...(pubkeys && { pubkeys }),
     ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
-  return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  // A dispense credits whichever output pays the dispenser, so the buyer's change can come first
+  // and keep any ZELD the inputs carry (proved on regtest in e2e/zeld/regtest-dispense-order).
+  return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte, encoding, { changeFirst: true });
 }
 
 export async function composeDividend(options: DividendOptions): Promise<ApiResponse> {
@@ -1049,7 +1102,12 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     ...(more_outputs ? { more_outputs } : {}),
     ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
-  return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  // A plain BTC send carries no Counterparty message, so its outputs may sit in any order; change
+  // first keeps ZELD with the wallet. An asset send puts its data output first already, and its
+  // extra BTC outputs (`more_outputs`) have no positional meaning, so change goes right after
+  // the data.
+  const layout = asset === 'BTC' ? { changeFirst: true } : { changeFirst: true, afterData: true };
+  return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding, layout);
 }
 
 /**
@@ -1279,12 +1337,34 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
     ...(destination_vout !== undefined ? { destination_vout: serializeRawInteger(destination_vout) } : {}),
     ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
-  return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  const composed = await composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  if (destination_vout !== undefined || utxo_value !== undefined) return composed;
+  // Unless the caller chose the output, attach to one after the change so ZELD stays on the
+  // change rather than on the asset's UTXO. Counterparty validated the attach just above; its API
+  // takes `destination_vout` as a string while its validator wants an integer, so the named
+  // layout only composes with validation off, and nothing but the output index differs. Change
+  // goes right after the data, as on an asset send. If the named compose fails or has no change
+  // to put first, the validated default stands.
+  try {
+    const named = await composeTransaction(
+      'attach',
+      { ...paramsObj, ...zeldAttachParams(sourceAddress), validate: 'false' },
+      sourceAddress,
+      sat_per_vbyte,
+      encoding,
+      { changeFirst: true, afterData: true },
+    );
+    if (attachLayoutHolds(named, sourceAddress)) return named;
+  } catch {
+    // The validated default compose is returned below.
+  }
+  return composed;
 }
 
 export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {
   const {
     sourceUtxo,
+    sourceAddress,
     destination,
     sat_per_vbyte,
     encoding,
@@ -1292,7 +1372,11 @@ export async function composeDetach(options: DetachOptions): Promise<ApiResponse
   const paramsObj = {
     ...(destination && { destination }),
   };
-  return composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  const composed = await composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  // ZELD on the detached output lands on the change; when there is none, on a small output asked
+  // for here.
+  return withDetachZeldKept(composed, sourceUtxo, sourceAddress, (extra) =>
+    composeUtxoTransaction('detach', { ...paramsObj, ...extra }, sourceUtxo, sat_per_vbyte, encoding));
 }
 
 export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
@@ -1305,5 +1389,8 @@ export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
   const paramsObj = {
     destination,
   };
-  return composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  const composed = await composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  // A move pays the destination first, so ZELD on the source output would go with the assets.
+  await assertUtxoCarriesNoZeld(sourceUtxo, 'movetoutxo');
+  return composed;
 }
