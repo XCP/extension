@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { displayAccountName } from '@/components/domain/account-name';
 import { AssetList } from "@/components/domain/asset/asset-list";
 import { BalanceList } from "@/components/domain/balance/balance-list";
 import { UtxoList } from "@/components/domain/utxo/utxo-list";
@@ -20,7 +21,6 @@ import { useWallet } from "@/contexts/wallet-context";
 import { invalidateAddressBalances } from "@/core/balances/invalidate";
 import { fetchTokenBalances } from "@/core/counterparty/api";
 import { formatAddress } from "@/core/format";
-
 import { t } from '@/i18n';
 
 const COPY_FEEDBACK_DURATION = 2000;
@@ -82,7 +82,7 @@ export default function HomePage(): ReactElement {
     setHeaderProps({
       useLogoTitle: true,
       leftButton: {
-        label: activeWallet?.name || "Wallet",
+        label: activeWallet?.name ? displayAccountName(activeWallet.name) : t('app_select_wallet'),
         onClick: () => navigate(PATHS.SELECT_WALLET),
         ariaLabel: t('app_select_wallet'),
       },
@@ -165,7 +165,7 @@ export default function HomePage(): ReactElement {
           onClick={handleCopyAddress}
           aria-label={t('common_current_address')}
         >
-          <div className="text-sm mb-1 font-medium">{activeAddress.name}</div>
+          <div className="text-sm mb-1 font-medium">{displayAccountName(activeAddress.name)}</div>
           <div className="flex justify-center items-center">
             <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
             {copiedToClipboard ? (

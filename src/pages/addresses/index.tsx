@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { displayAccountName } from '@/components/domain/account-name';
 import { FaCog, FaPlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -92,7 +93,7 @@ export default function AddressesPage(): ReactElement {
           try {
             const found = await sweepUtxoAddresses(activeWallet.id, [index]);
             if (found.length > 0) {
-              setNotice(t('addresses_found_now_listed_below', [String(found[0]?.name)]));
+              setNotice(t('addresses_found_now_listed_below', [displayAccountName(found[0]?.name ?? "")]));
             }
           } catch (sweepError) {
             console.warn("UTXO address lookup failed after adding an address:", sweepError);
@@ -124,8 +125,8 @@ export default function AddressesPage(): ReactElement {
       const found = await addUtxoAddress(activeWallet.id, index);
       setNotice(
         found
-          ? t('addresses_found_now_listed_below', [String(found.name)])
-          : t('addresses_no_utxo_address_is_in', [String(address.name)])
+          ? t('addresses_found_now_listed_below', [displayAccountName(found.name)])
+          : t('addresses_no_utxo_address_is_in', [displayAccountName(address.name)])
       );
     } catch (err) {
       console.error("Failed to look up UTXO address:", err);

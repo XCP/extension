@@ -41,6 +41,8 @@ export function Header({
         onClick={config.onClick}
         variant="header"
         aria-label={ariaLabel}
+        title={label}
+        className={useLogoTitle ? 'min-w-0 max-w-full' : undefined}
         disabled={disabled}
       >
         {icon && (
@@ -48,15 +50,15 @@ export function Header({
             {icon}
           </span>
         )}
-        {label}
+        {useLogoTitle && label ? <span className="truncate">{label}</span> : label}
       </Button>
     );
-  }, []);
+  }, [useLogoTitle]);
 
   return (
-    <header className="grid min-h-16 shrink-0 grid-cols-4 items-center bg-white px-4 py-3 shadow-md">
+    <header className={`grid min-h-16 shrink-0 ${useLogoTitle && hasControls ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'grid-cols-4'} items-center bg-white px-4 py-3 shadow-md`}>
       {/* Left Section */}
-      {hasControls && <div className="col-span-1 flex justify-start">
+      {hasControls && <div className="col-span-1 min-w-0 flex justify-start">
         {onBack ? (
           <Button
             onClick={handleLeftClick}
@@ -76,7 +78,7 @@ export function Header({
       </div>}
 
       {/* Center Section */}
-      <div className={`${hasControls ? 'col-span-2' : 'col-span-4'} flex justify-center items-center min-w-0`}>
+      <div className={`${hasControls ? useLogoTitle ? 'col-span-1' : 'col-span-2' : 'col-span-4'} flex justify-center items-center min-w-0`}>
         {useLogoTitle ? (
           <img src={typeof logo === 'string' ? logo : (logo as any).src || logo} alt={t('layout_header_logo')} className="h-8" />
         ) : typeof title === 'string' ? (

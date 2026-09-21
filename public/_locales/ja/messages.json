@@ -6180,5 +6180,14 @@
   },
   "zeld_safety_warning_detail": {
     "message": "サイトが使用を要求した出力のうち $1 個が ZELD を保有しています。この取引では相手への出力が先になるため、ZELD も相手に移ります。手元に残すには、先に ZELD ページで ZELD を小額出力に移してください。"
+  },
+  "default_wallet_name": {
+    "message": "ウォレット $1"
+  },
+  "default_address_name": {
+    "message": "アドレス $1"
+  },
+  "default_utxo_address_name": {
+    "message": "UTXO アドレス $1"
   }
 }

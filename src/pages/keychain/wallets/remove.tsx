@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate, useParams } from "react-router";
+import { displayAccountName } from '@/components/domain/account-name';
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -8,7 +9,6 @@ import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
-
 import { t } from '@/i18n';
 
 const PATHS = {
@@ -103,8 +103,8 @@ function RemoveWalletPage() {
             disabled={pending}
             innerRef={passwordInputRef}
           />
-          <Button type="submit" disabled={pending} fullWidth color="red" aria-label={t('wallets_remove_remove', [String(walletName || "wallet")])}>
-            {pending ? t('wallets_remove_removing') : t('wallets_remove_remove', [String(walletName || "Wallet")])}
+          <Button type="submit" disabled={pending} fullWidth color="red" aria-label={walletName ? t('wallets_remove_remove', [displayAccountName(walletName)]) : t('wallets_remove_remove_wallet')}>
+            {pending ? t('wallets_remove_removing') : walletName ? t('wallets_remove_remove', [displayAccountName(walletName)]) : t('wallets_remove_remove_wallet')}
           </Button>
         </div>
       </form>

@@ -1,6 +1,7 @@
 import { MenuItem } from '@headlessui/react';
 import { type ReactElement, useCallback } from 'react';
 import { useNavigate } from 'react-router';
+import { displayAccountName } from '@/components/domain/account-name';
 import { FaTrash, FiX, HiDotsHorizontal, VscKey } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { BaseMenu } from '@/components/ui/menus/base-menu';
@@ -80,7 +81,7 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
           >
             <FiX className="mr-3 size-4 text-gray-600" aria-hidden="true" />
             
-            {t('common_disconnect')} {wallet.name}
+            {t('common_disconnect')} {displayAccountName(wallet.name)}
           </Button>
         ) : (
           <Button
@@ -93,7 +94,7 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
           >
             <FaTrash className="mr-3 size-4 text-gray-600" aria-hidden="true" />
             
-            {t('wallet_wallet_menu_remove')} {wallet.name}
+            {t('wallet_wallet_menu_remove')} {displayAccountName(wallet.name)}
           </Button>
         )}
       </MenuItem>

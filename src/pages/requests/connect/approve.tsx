@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { displayAccountName } from '@/components/domain/account-name';
 import { ApprovalIdentifier } from "@/components/domain/approval/approval-identifier";
 import { FaCheck, FiGlobe } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -237,7 +238,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
           <div className="flex items-center justify-between mb-6">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900 truncate">
-                {activeWallet.name}
+                {displayAccountName(activeWallet.name)}
               </p>
               <p className="text-xs text-gray-500 truncate">
                 {activeAddress.address}

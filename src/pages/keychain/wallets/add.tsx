@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { displayAccountName } from '@/components/domain/account-name';
 import { FaEye, FaPlus, FiDownload, FiShield, FiX, VscKey } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MAX_WALLETS } from "@/core/wallet/constants";
-
 import { t } from '@/i18n';
 
 /** Check if we're running in the sidepanel (vs popup) */
@@ -148,7 +148,7 @@ function AddWalletPage() {
               >
                 <FiX className="size-4 mr-2" aria-hidden="true" />
                 
-                {t('common_disconnect')} {hardwareWallet.name}
+                {t('common_disconnect')} {displayAccountName(hardwareWallet.name)}
               </Button>
             ) : canUseHardwareWallet && (
               <Button

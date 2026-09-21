@@ -60,3 +60,7 @@ provenance remains unchanged. The existing generated `Wallet 1` / `Address 1`
 names are a separate known gap: they are persisted names, not new strings from
 these main commits. This integration does not rename stored wallets or addresses.
 The previously discussed Rare Pepe gift-card detection and warning are unchanged.
+
+Follow-up: the [default-name display change](../README.md#default-wallet-and-address-names)
+resolves that name-display gap without altering storage. The counts and hashes in
+this integration review describe its original revision, before those three messages.

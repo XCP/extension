@@ -8227,5 +8227,17 @@
   "zeld_safety_warning_detail": {
     "message": "ZELD is held by $1 of the outputs this site asks you to spend. This transaction pays someone else first, so the ZELD would go to them. To keep it, move your ZELD to a small output on the ZELD page first.",
     "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "default_wallet_name": {
+    "message": "Wallet $1",
+    "description": "Display-only default account name. $1 is the original numeric suffix; stored names remain canonical English. Custom labels are preserved."
+  },
+  "default_address_name": {
+    "message": "Address $1",
+    "description": "Display-only default account name. $1 is the original numeric suffix; stored names remain canonical English. Custom labels are preserved."
+  },
+  "default_utxo_address_name": {
+    "message": "UTXO Address $1",
+    "description": "Display-only default account name. $1 is the original numeric suffix; stored names remain canonical English. Custom labels are preserved."
   }
 }

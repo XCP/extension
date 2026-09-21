@@ -2045,6 +2045,9 @@
     "zeld_safety_blocked",
     "zeld_safety_warning",
     "zeld_safety_blocked_detail",
-    "zeld_safety_warning_detail"
+    "zeld_safety_warning_detail",
+    "default_wallet_name",
+    "default_address_name",
+    "default_utxo_address_name"
   ]
 }

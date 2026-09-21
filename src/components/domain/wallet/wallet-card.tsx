@@ -1,5 +1,6 @@
 import { RadioGroup } from '@headlessui/react';
 import type { ReactElement } from 'react';
+import { displayAccountName } from '@/components/domain/account-name';
 import { WalletMenu } from '@/components/domain/wallet/wallet-menu';
 import { FiShield } from '@/components/icons';
 import { formatAddress } from '@/core/format';
@@ -78,7 +79,7 @@ export function WalletCard({
       {({ checked }) => (
         <div className="flex flex-col" aria-disabled={disabled}>
           <div className="flex justify-between items-center">
-            <div className="text-sm font-medium">{wallet.name}</div>
+            <div className="text-sm font-medium">{displayAccountName(wallet.name)}</div>
             <div className="absolute top-2 right-2 wallet-menu">
               <WalletMenu wallet={wallet} isOnlyWallet={isOnlyWallet} />
             </div>

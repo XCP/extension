@@ -6180,5 +6180,14 @@
   },
   "zeld_safety_warning_detail": {
     "message": "網站要求花費的輸出中有 $1 個持有 ZELD。此交易首先支付給他人，因此 ZELD 也會轉給對方。如要保留 ZELD，請先在 ZELD 頁面將其移到小額輸出。"
+  },
+  "default_wallet_name": {
+    "message": "錢包 $1"
+  },
+  "default_address_name": {
+    "message": "地址 $1"
+  },
+  "default_utxo_address_name": {
+    "message": "UTXO 地址 $1"
   }
 }

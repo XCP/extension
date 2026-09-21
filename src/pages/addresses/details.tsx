@@ -1,13 +1,13 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { displayAccountName } from '@/components/domain/account-name';
 import { FaCheck, FaClipboard, FaList } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { QRCode } from "@/components/ui/qr-code";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat } from '@/core/bitcoin/address';
-
 import { t } from '@/i18n';
 
 /**
@@ -75,7 +75,7 @@ export default function AddressDetailsPage(): ReactElement {
       aria-labelledby="view-address-title"
     >
       <div id="view-address-title" className="text-center font-medium text-gray-600">
-        {`${activeAddress?.name ?? ""} | ${addressTypeLabel || ""}`}
+        {`${displayAccountName(activeAddress?.name ?? "")} | ${addressTypeLabel || ""}`}
       </div>
       <QRCode text={activeAddress?.address} ariaLabel={t('addresses_details_address_qr_code')} />
       <CopyAddress address={activeAddress?.address} />

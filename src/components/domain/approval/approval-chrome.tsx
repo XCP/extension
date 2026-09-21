@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from 'react';
+import { displayAccountName } from '@/components/domain/account-name';
 import { FiClock, FiGlobe } from '@/components/icons';
 import { Button } from '@/components/ui/button';
-
 import { t } from '@/i18n';
 /** One scrolling decision area and one persistent action area for every approval. */
 export function ApprovalLayout({ walletName, address, origin, children, footer, attention }: {
@@ -118,7 +118,7 @@ export function ApprovalWalletHeader({ walletName, address }: { walletName: stri
   return (
     <div className="flex items-center justify-between">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-gray-900 truncate">{walletName}</p>
+        <p className="text-sm font-semibold text-gray-900 truncate">{displayAccountName(walletName)}</p>
         <p className="text-xs text-gray-500 truncate">{address}</p>
       </div>
       <div className="ml-3 flex-shrink-0">

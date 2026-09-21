@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { displayAccountName } from '@/components/domain/account-name';
 import { ManageDispenserCard } from "@/components/domain/dispenser/manage-dispenser-card";
 import { MarketDispenserCard } from "@/components/domain/dispenser/market-dispenser-card";
 import { PriceTicker } from "@/components/domain/price/price-ticker";
@@ -32,7 +33,6 @@ import { useInView } from "@/hooks/useInView";
 import { useMarketData } from "@/hooks/useMarketData";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { usePendingCancellations } from "@/hooks/usePendingStatus";
-
 import { t } from '@/i18n';
 
 // Constants
@@ -382,7 +382,7 @@ export default function MarketPage(): ReactElement {
                 onClick={handleCopyAddress}
                 aria-label={t('common_current_address')}
               >
-                <div className="text-sm mb-1 font-medium">{activeAddress.name}</div>
+                <div className="text-sm mb-1 font-medium">{displayAccountName(activeAddress.name)}</div>
                 <div className="flex justify-center items-center">
                   <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
                   {addressCopied ? (

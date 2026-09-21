@@ -64,8 +64,28 @@ outstanding.
 The [latest-main integration review](review/main-integration-2026-09-20.md) covers
 ZELD, complete-list pagination and BTC dispenser-payment text added through
 `da63b07c`. Its JSON companion records the 94 added messages, three removed keys
-and updated catalog hashes. It also records remaining coverage limits, including
-persisted default wallet/address names.
+and updated catalog hashes. Its recorded default-name gap is addressed by the
+display-only follow-up below; those hashes remain evidence of the earlier revision.
+
+### Default wallet and address names
+
+`displayAccountName` translates exact `Wallet n`, `Address n` and `UTXO Address n`
+labels at presentation sites, including headers, lists, menus, notices and approval
+or removal screens. Canonical names stay English in storage, domain objects and
+the header cache; derivation, selection and renumbering are unchanged. No migration
+is needed. The numeric suffix is preserved exactly. Other labels are returned
+verbatim, including extra whitespace or text. A custom name exactly matching a
+default pattern follows that pattern, consistent with existing wallet renumbering.
+
+The three display messages bring the catalogs to 2,050 entries. The follow-up has
+187 passing focused unit tests, including custom-name preservation and approval
+identity checks. `e2e/tests/default-name-localization.spec.ts` checks the localized
+dashboard, wallet/address lists, address details and removal confirmation against
+unchanged canonical service names in all four native browser locales.
+The logo header reserves space for a single-line default name; unusually long
+labels truncate and expose the full display text in a tooltip. The follow-up
+header/helper test run passes 49 tests, and the rebuilt four-language browser run
+also checks that default name labels fit without truncation.
 
 ## Validation
 
