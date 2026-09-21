@@ -6,6 +6,8 @@ import { HashInput } from "@/components/ui/inputs/hash-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { BTCPayOptions } from "@/core/counterparty/compose";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the BTCPayForm component, aligned with Composer's formAction.
  */
@@ -37,13 +39,13 @@ export function BTCPayForm({
           <HashInput
             value={orderMatchId}
             onChange={setOrderMatchId}
-            label="Order Match ID"
+            label={t('common_order_match_id')}
             name="order_match_id"
             hashType="match"
-            placeholder="Enter order match ID"
+            placeholder={t('btcpay_form_enter_order_match_id')}
             required={true}
             showHelpText={showHelpText}
-            description="The ID of the matched order. Found in your order history when a match occurs."
+            description={t('btcpay_form_the_id_of_the_matched')}
             showCopyButton={true}
           />
           <input type="hidden" name="order_match_id" value={orderMatchId} />

@@ -3,6 +3,8 @@ import { type ReactElement, useEffect, useState } from "react";
 import { FaCheck, FaCopy } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
+import { t } from '@/i18n';
+
 interface HashInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -28,10 +30,10 @@ const HASH_PATTERNS = {
 };
 
 const HASH_DESCRIPTIONS = {
-  transaction: "Enter a 64-character transaction hash",
-  offer: "Enter a 64-character offer hash",
-  match: "Enter an order match ID (hash_hash format)",
-  generic: "Enter a 64-character hexadecimal hash",
+  transaction: t('inputs_hash_input_enter_a_64_character_transaction'),
+  offer: t('inputs_hash_input_enter_a_64_character_offer'),
+  match: t('inputs_hash_input_enter_an_order_match_id'),
+  generic: t('inputs_hash_input_enter_a_64_character_hexadecimal'),
 };
 
 /**
@@ -45,7 +47,7 @@ export function HashInput({
   onChange,
   onValidationChange,
   hashType = "generic",
-  placeholder = "Enter hash…",
+  placeholder = t('inputs_hash_input_enter_hash'),
   label,
   name = "hash",
   disabled = false,
@@ -79,7 +81,7 @@ export function HashInput({
     // Check if empty but required (only show error if touched)
     if (!trimmed && required) {
       if (touched) {
-        setError("This field is required");
+        setError(t('common_this_field_is_required'));
         return false;
       } else {
         // Field is empty and required but not touched yet - don't show red border
@@ -94,9 +96,9 @@ export function HashInput({
     // Check pattern
     if (!pattern.test(cleaned)) {
       if (hashType === "match") {
-        setError("Invalid format. Expected: hash_hash (two 64-character hashes separated by underscore)");
+        setError(t('inputs_hash_input_invalid_format_expected_hash_hash'));
       } else {
-        setError(`Invalid ${hashType} hash. Must be 64 hexadecimal characters`);
+        setError(t('inputs_hash_input_invalid_hash_must_be_64', [String(hashType)]));
       }
       return false;
     }
@@ -183,7 +185,7 @@ export function HashInput({
             variant="input"
             onClick={handleCopy}
             disabled={disabled || !isValid}
-            aria-label={copied ? "Copied!" : "Copy hash"}
+            aria-label={copied ? t('common_copied') : t('inputs_hash_input_copy_hash')}
             className="absolute right-1 top-1 px-2 py-1"
           >
             {copied ? (

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for send transactions
  */
@@ -20,11 +21,11 @@ export function send(tx: Transaction): Array<{ label: string; value: string | Re
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
-      label: "Asset",
+      label: t('common_asset'),
       value: params.asset,
     },
     {
-      label: "Amount",
+      label: t('common_amount'),
       value: `${formatAmount({
         value: quantity,
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -36,7 +37,7 @@ export function send(tx: Transaction): Array<{ label: string; value: string | Re
   // Add memo if present
   if (params.memo) {
     fields.push({
-      label: "Memo",
+      label: t('common_memo'),
       value: (
         <div className="break-all">
           {params.memo}
@@ -48,7 +49,7 @@ export function send(tx: Transaction): Array<{ label: string; value: string | Re
   // Add memo type if specified
   if (params.memo_type) {
     fields.push({
-      label: "Memo Type",
+      label: t('messages_send_memo_type'),
       value: params.memo_type,
     });
   }
@@ -56,8 +57,8 @@ export function send(tx: Transaction): Array<{ label: string; value: string | Re
   // Show if it's an enhanced send
   if (params.enhanced_send || tx.unpacked_data?.message_type === 'enhanced_send') {
     fields.push({
-      label: "Type",
-      value: "Enhanced Send (with memo)",
+      label: t('common_type'),
+      value: t('messages_send_enhanced_send_with_memo'),
     });
   }
   

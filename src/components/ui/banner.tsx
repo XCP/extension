@@ -26,10 +26,10 @@ interface BannerProps {
  * Colors come from the Phase 0 semantic tokens (see popup/style.css).
  */
 const SEVERITY: Record<BannerSeverity, { container: string; icon: string; text: string; Icon: IconComponent }> = {
-  danger:  { container: 'bg-danger-50 border-danger-200',   icon: 'text-danger-600',  text: 'text-danger-800',  Icon: FiShieldOff },
-  warning: { container: 'bg-warning-50 border-warning-200', icon: 'text-warning-600', text: 'text-warning-800', Icon: FiAlertTriangle },
-  info:    { container: 'bg-info-50 border-info-200',       icon: 'text-info-600',    text: 'text-info-800',    Icon: FiInfo },
-  success: { container: 'bg-success-50 border-success-200', icon: 'text-success-600', text: 'text-success-800', Icon: FaCheckCircle },
+  danger:  { container: 'bg-danger-50 border-danger-200',   icon: 'text-danger-600',  text: "text-danger-800",  Icon: FiShieldOff },
+  warning: { container: 'bg-warning-50 border-warning-200', icon: 'text-warning-600', text: "text-warning-800", Icon: FiAlertTriangle },
+  info:    { container: 'bg-info-50 border-info-200',       icon: 'text-info-600',    text: "text-info-800",    Icon: FiInfo },
+  success: { container: 'bg-success-50 border-success-200', icon: 'text-success-600', text: "text-success-800", Icon: FaCheckCircle },
 };
 
 /**

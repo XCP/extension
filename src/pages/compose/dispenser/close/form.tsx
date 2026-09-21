@@ -18,6 +18,8 @@ import type { DispenserOptions } from "@/core/counterparty/compose";
 import { useAddressDispensers } from "@/hooks/useAddressDispensers";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the DispenserCloseForm component, aligned with Composer's formAction.
  */
@@ -68,7 +70,7 @@ export function DispenserCloseForm({
   const AssetIcon = ({ asset }: { asset: string }): ReactElement => (
     <img
       src={`https://cdn.xcp.io/img/icon/${asset}`}
-      alt={`${asset} icon`}
+      alt={t('close_form_icon', [String(asset)])}
       className="size-5 rounded-full"
       onError={(e) => {
         (e.target as HTMLImageElement).style.display = "none";
@@ -91,16 +93,17 @@ export function DispenserCloseForm({
       }
     >
       {isLoading ? (
-        <div className="py-4 text-center">Loading dispensers…</div>
+        <div className="py-4 text-center">{t('common_loading_dispensers')}</div>
       ) : (
         <Field>
           <Label className="block text-sm font-medium text-gray-700">
-            Dispenser <span className="text-red-500">*</span>
+            
+            {t('common_dispenser')} <span className="text-red-500">*</span>
           </Label>
           {relevantDispensers.length === 0 ? (
             <div className="relative w-full mt-1 cursor-not-allowed rounded-lg bg-gray-100 py-2.5 pl-3 pr-10 text-left border border-gray-300 text-gray-500 sm:text-sm">
               <span className="block truncate">
-                {page.error ? 'Dispenser list unavailable.' : `No open dispensers found for ${asset || "this address"}`}
+                {page.error ? t('dispenser_list_unavailable') : asset ? t('close_form_no_open_dispensers_found_for', [String(asset)]) : t('close_form_no_open_dispensers_found_for_2')}
               </span>
               <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                 <FiChevronDown
@@ -127,7 +130,7 @@ export function DispenserCloseForm({
                       >
                         {selectedDispenser
                           ? selectedDispenser.asset
-                          : "Select a dispenser"}
+                          : t('close_form_select_a_dispenser')}
                       </span>
                     </div>
                     <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
@@ -175,7 +178,7 @@ export function DispenserCloseForm({
                         )}
                       </ListboxOption>
                     ))}
-                    {page.isFetchingMore && <div role="presentation" className="py-2 text-center text-gray-500">Loading more…</div>}
+                    {page.isFetchingMore && <div role="presentation" className="py-2 text-center text-gray-500">{t('pagination_loading_more')}</div>}
                   </ListboxOptions>
                 </div>
               </Listbox>
@@ -190,20 +193,20 @@ export function DispenserCloseForm({
               {selectedDispenser && (
                 <div className="mt-3 text-sm p-3 bg-gray-50 rounded-md border border-gray-200 space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Remaining</span>
+                    <span className="text-gray-500">{t('close_form_remaining')}</span>
                     <span className="font-medium text-gray-900">
                       {selectedDispenser.give_remaining_normalized}{" "}
                       {selectedDispenser.asset}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Price</span>
+                    <span className="text-gray-500">{t('common_price')}</span>
                     <span className="font-medium text-gray-900">
                       {selectedDispenser.satoshirate_normalized} BTC
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500">TX Hash</span>
+                    <span className="text-gray-500">{t('common_tx_hash')}</span>
                     <button
                       type="button"
                       onClick={() => copy(selectedDispenser.tx_hash)}
@@ -227,7 +230,7 @@ export function DispenserCloseForm({
               )}
               {showHelpText && (
                 <Description className="mt-2 text-sm text-gray-500">
-                  Select the dispenser you want to close.
+                  {t('close_form_select_the_dispenser_you_want')}
                 </Description>
               )}
             </>
@@ -237,11 +240,11 @@ export function DispenserCloseForm({
       <div className="py-2 text-center text-sm">
         {page.error ? (
           <div role="alert">
-            <p>Unable to load more dispensers.</p>
-            <button type="button" onClick={page.retry} className="text-blue-600 underline" disabled={pending}>Retry</button>
+            <p>{t('dispenser_more_failed')}</p>
+            <button type="button" onClick={page.retry} className="text-blue-600 underline" disabled={pending}>{t('common_retry')}</button>
           </div>
-        ) : page.isFetchingMore ? 'Loading more…' : page.hasMore ? (
-          <button type="button" onClick={page.loadMore} className="text-blue-600 underline" disabled={pending || isLoading}>Load more dispensers</button>
+        ) : page.isFetchingMore ? t('pagination_loading_more') : page.hasMore ? (
+          <button type="button" onClick={page.loadMore} className="text-blue-600 underline" disabled={pending || isLoading}>{t('dispenser_load_more')}</button>
         ) : null}
       </div>
     </ComposerForm>

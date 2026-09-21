@@ -1,5 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 const yesNo = (value: boolean): string => (value ? "Yes" : "No");
 
 interface ReviewIssuanceResetSupplyProps {
@@ -45,15 +47,15 @@ export function ReviewIssuanceResetSupply({
       : (assetInfo?.description ?? "");
 
   const customFields = [
-    { label: "Asset", value: params.asset },
-    { label: "Supply Destroyed", value: currentSupply },
-    { label: "New Supply", value: String(newSupply) },
+    { label: t('common_asset'), value: params.asset },
+    { label: t('reset_supply_review_supply_destroyed'), value: currentSupply },
+    { label: t('common_new_supply'), value: String(newSupply) },
   ];
 
   // Divisibility is always shown, as an arrow only when the reset is changing it — a reset is the
   // one issuance that can, so a silent flip would be the easiest thing here to miss.
   customFields.push({
-    label: "Divisible",
+    label: t('common_divisible'),
     value:
       willBeDivisible === wasDivisible
         ? yesNo(willBeDivisible)
@@ -61,11 +63,11 @@ export function ReviewIssuanceResetSupply({
   });
 
   if (newDescription !== (assetInfo?.description ?? "")) {
-    customFields.push({ label: "New Description", value: newDescription });
+    customFields.push({ label: t('reset_supply_review_new_description'), value: newDescription });
   }
 
   if (params.lock === true) {
-    customFields.push({ label: "Lock Supply", value: "Yes — permanent" });
+    customFields.push({ label: t('common_lock_supply'), value: t('reset_supply_review_yes_permanent') });
   }
 
   return (

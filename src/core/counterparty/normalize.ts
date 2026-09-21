@@ -1,3 +1,4 @@
+import { TransactionInputError } from '@/core/validation/transaction-input-error';
 /**
  * Normalization utilities for transaction composition
  * Handles conversion of user-friendly values to API-compatible formats
@@ -211,7 +212,7 @@ export async function normalizeFormData(
 
   if ('sat_per_vbyte' in rawData) {
     const validation = validateFeeRate(String(rawData.sat_per_vbyte), { minRate: 0.1 });
-    if (!validation.isValid) throw new Error(validation.error);
+    if (!validation.isValid) throw new TransactionInputError('fee_invalid', validation.error ?? 'Invalid fee rate');
     normalizedData.sat_per_vbyte = serializeDecimal(String(rawData.sat_per_vbyte), { min: 0.1, max: 5000, maxDecimals: 8 });
   }
 
@@ -219,7 +220,7 @@ export async function normalizeFormData(
     if (asset === 'BTC' || asset === 'XCP') return true;
     if (composeType === 'fairminter' || (composeType === 'issuance' && toBoolean(rawData.reset))) {
       if (!['true', 'false', 'yes', 'no'].includes(String(rawData.divisible))) {
-        throw new Error('Choose whether the issued asset is divisible.');
+        throw new TransactionInputError('asset_divisibility_unknown', 'Choose whether the issued asset is divisible.');
       }
       return toBoolean(rawData.divisible);
     }
@@ -237,12 +238,12 @@ export async function normalizeFormData(
     const details = assetInfoCache.get(asset);
     if (details === null && composeType === 'issuance') {
       if (!['true', 'false', 'yes', 'no'].includes(String(rawData.divisible))) {
-        throw new Error('Choose whether the issued asset is divisible.');
+        throw new TransactionInputError('asset_divisibility_unknown', 'Choose whether the issued asset is divisible.');
       }
       return toBoolean(rawData.divisible);
     }
     if (!details) throw new Error(`Asset "${asset}" not found`);
-    if (typeof details.divisible !== 'boolean') throw new Error(`Asset "${asset}" divisibility is unknown`);
+    if (typeof details.divisible !== 'boolean') throw new TransactionInputError('asset_divisibility_unknown', `Asset "${asset}" divisibility is unknown`);
     return details.divisible;
   };
 
@@ -332,7 +333,7 @@ export function verifiedReviewParams(
       : composeType === 'fairminter' || (composeType === 'issuance' && (normalizedData.reset || !details))
         ? normalizedData.divisible
         : details?.divisible;
-    if (typeof divisible !== 'boolean') throw new Error(`Asset "${asset}" divisibility is unknown`);
+    if (typeof divisible !== 'boolean') throw new TransactionInputError('asset_divisibility_unknown', `Asset "${asset}" divisibility is unknown`);
     params[`${field}_normalized`] = rawToInput(normalizedData[field], divisible ? 8 : 0);
     params[`${assetField}_info`] = { ...details, divisible };
   }

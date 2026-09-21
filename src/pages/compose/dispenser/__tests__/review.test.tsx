@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { ReviewDispenser } from '../review';
 
+const quote = vi.hoisted(() => ({ btc: null as number | null }));
+
 // Capture the customFields handed to the shared review screen.
 vi.mock('@/components/screens/review-screen', () => ({
   ReviewScreen: ({ customFields }: any) => (
@@ -11,6 +13,7 @@ vi.mock('@/components/screens/review-screen', () => ({
         <div key={idx}>
           <span>{field.label}</span>
           {field.value && <span>{field.value}</span>}
+          {field.rightElement}
         </div>
       ))}
     </div>
@@ -18,16 +21,17 @@ vi.mock('@/components/screens/review-screen', () => ({
 }));
 
 vi.mock('@/hooks/useMarketPrices', () => ({
-  useMarketPrices: () => ({ btc: null }),
+  useMarketPrices: () => quote,
 }));
 
 vi.mock('@/contexts/settings-context', () => ({
-  useSettings: () => ({ settings: { fiat: 'USD' } }),
+  useSettings: () => ({ settings: { fiat: 'cny' } }),
 }));
 
 describe('ReviewDispenser', () => {
   afterEach(() => {
     cleanup();
+    quote.btc = null;
   });
 
   const baseParams = {
@@ -58,6 +62,15 @@ describe('ReviewDispenser', () => {
 
     expect(screen.getByText('5 PEPECASH')).toBeInTheDocument();
     expect(screen.getByText('1 PEPECASH')).toBeInTheDocument();
+  });
+
+  it('keeps exact token and BTC amounts primary and labels a CNY estimate correctly', () => {
+    quote.btc = 700000;
+    renderWith(baseParams, '');
+    expect(screen.getByText('1 PEPECASH')).toBeInTheDocument();
+    expect(screen.getByText('≈ 700.00 CNY')).toBeInTheDocument();
+    expect(screen.getByText('≈ 3,500.00 CNY')).toBeInTheDocument();
+    expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
   });
 
   it('prefers asset_longname when present', () => {

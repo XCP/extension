@@ -259,6 +259,34 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     }
   });
 
+  walletTest('currency changes preserve an invalid draft across wallet surfaces', async ({ page, context }) => {
+    const amount = send.amountInput(page);
+    await amount.pressSequentially('1e5');
+    const composeRequests: string[] = [];
+    context.on('request', request => {
+      if (/\/v2\/addresses\/.*\/compose\//.test(request.url())) composeRequests.push(request.url());
+    });
+    const settingsPage = await context.newPage();
+    try {
+      await settingsPage.goto(page.url().split('#')[0] + '#/settings');
+      const currency = settingsPage.getByRole('combobox', { name: 'Price currency', exact: true });
+      await expect(settingsPage.getByRole('combobox')).toHaveCount(1);
+      for (const fiat of ['eur', 'jpy', 'cny', 'usd']) {
+        await currency.selectOption(fiat);
+        await expect(currency).toBeEnabled();
+        await expect(amount).toHaveValue('1e5');
+        await expect(amount).toHaveAttribute('aria-invalid', 'true');
+        await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+      }
+      await settingsPage.reload();
+      await expect(currency).toHaveValue('usd');
+      await amount.evaluate(input => (input as HTMLInputElement).form?.requestSubmit());
+      expect(composeRequests).toEqual([]);
+      await amount.fill('1.5');
+      await expect(amount).not.toHaveAttribute('aria-invalid', 'true');
+    } finally { await settingsPage.close(); }
+  });
+
   walletTest('handles very small amount (below dust limit)', async ({ page }) => {
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);

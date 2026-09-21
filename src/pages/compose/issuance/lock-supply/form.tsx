@@ -11,6 +11,8 @@ import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the LockSupplyForm component, aligned with Composer's formAction.
  */
@@ -39,20 +41,19 @@ export function LockSupplyForm({
   const [isChecked, setIsChecked] = useState(false);
 
   if (assetLoading) {
-    return <Spinner message="Loading asset details…" />;
+    return <Spinner message={t('common_loading_asset_details')} />;
   }
 
   if (assetError || !assetInfo) {
     return (
       <div className="p-4 text-red-500">
-        Unable to load asset details. Please ensure the asset exists and you have the necessary
-        permissions.
+        {t('common_unable_to_load_asset_details')}
       </div>
     );
   }
   
   if (asset === "BTC") {
-    return <div className="p-4 text-red-500">Cannot lock supply of BTC</div>;
+    return <div className="p-4 text-red-500">{t('lock_supply_form_cannot_lock_supply_of_btc')}</div>;
   }
 
   // Check if supply is already locked
@@ -63,7 +64,7 @@ export function LockSupplyForm({
       <div className="p-4">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
           <p className="text-yellow-800">
-            The supply for this asset is already locked and cannot be changed.
+            {t('lock_supply_form_the_supply_for_this_asset')}
           </p>
         </div>
       </div>
@@ -92,17 +93,17 @@ export function LockSupplyForm({
           className="mt-1 mb-5"
         />
       }
-      submitText="Continue"
+      submitText={t('common_continue')}
       submitDisabled={!isChecked}
     >
       <Field>
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
           <p className="text-sm text-yellow-700">
-            Locking the supply is permanent. No more {asset} can ever be created.
+            {t('lock_supply_form_locking_the_supply_is_permanent', [String(asset)])}
           </p>
           {assetInfo?.supply && (
             <div className="mt-3 pt-3 border-t border-yellow-200">
-              <p className="text-xs text-yellow-600">Current supply:</p>
+              <p className="text-xs text-yellow-600">{t('lock_supply_form_current_supply')}</p>
               <p className="text-sm font-medium text-yellow-700 mt-1">
                 {assetInfo.supply_normalized || assetInfo.supply} {asset}
               </p>
@@ -111,12 +112,12 @@ export function LockSupplyForm({
         </div>
         
         <div className="mb-2">
-          <Label className="text-sm font-medium text-gray-700">Confirmation</Label>
+          <Label className="text-sm font-medium text-gray-700">{t('common_confirmation')}</Label>
         </div>
         
         <CheckboxInput
           name="confirm"
-          label="I understand this cannot be undone"
+          label={t('common_i_understand_this_cannot_be')}
           disabled={pending}
           checked={isChecked}
           onChange={handleCheckboxChange}

@@ -1,5 +1,6 @@
 import { RadioGroup } from '@headlessui/react';
 import { type ReactElement, useState } from 'react';
+import { displayAccountName } from '@/components/domain/account-name';
 import { FaCheck } from '@/components/icons';
 import { AddressMenu } from '@/components/ui/menus/address-menu';
 import { formatAddress } from '@/core/format';
@@ -93,7 +94,7 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
                   onRemoveUtxoAddress={onRemoveUtxoAddress}
                 />
               </div>
-              <div className="text-sm mb-1 font-medium">{address.name}</div>
+              <div className="text-sm mb-1 font-medium">{displayAccountName(address.name)}</div>
               <div className="flex justify-between items-center">
                 <div className="flex items-center">
                   <span className="font-mono text-sm">

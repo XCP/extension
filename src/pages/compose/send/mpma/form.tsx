@@ -11,6 +11,8 @@ import { parseCSV } from "@/core/validation/csv";
 import { validateFile } from "@/core/validation/file";
 import { isMpmaEncodable } from "@/core/validation/mpmaDestination";
 
+import { t } from '@/i18n';
+
 /** How many offending rows to name before summarising the rest. Enough to fix a file in
  *  one pass, few enough that the message stays readable in a popup. */
 const MAX_LISTED_ERRORS = 10;
@@ -64,7 +66,7 @@ export function MPMAForm({
       // validateBitcoinAddress below runs instead of the module's format-only test.
       const parsed = parseCSV(text, { validateAddresses: false });
       if (!parsed.success || !parsed.rows) {
-        throw new Error(parsed.errorLine ? `Line ${parsed.errorLine}: ${parsed.error}` : parsed.error ?? 'Invalid CSV');
+        throw new Error(parsed.errorLine ? t('mpma_form_line', [String(parsed.errorLine), String(parsed.error)]) : parsed.error ?? t('mpma_form_invalid_csv'));
       }
 
       const parsedRows: ParsedRow[] = [];
@@ -76,14 +78,15 @@ export function MPMAForm({
       if (unencodable.length > 0) {
         const listed = unencodable
           .slice(0, MAX_LISTED_ERRORS)
-          .map((row) => `Line ${row.lineNumber}: ${row.address}`)
+          .map((row) => t('mpma_form_line', [String(row.lineNumber), String(row.address)]))
           .join('\n');
         const rest = unencodable.length - MAX_LISTED_ERRORS;
+        const lead = unencodable.length === 1
+          ? t('mpma_form_one_destination_cannot_receive_an')
+          : t('mpma_form_destinations_cannot_receive_an_mpma', [String(unencodable.length)]);
         throw new Error(
-          `${unencodable.length} destination${unencodable.length === 1 ? '' : 's'} cannot receive ` +
-            `an MPMA send. Taproot (bc1p) and P2WSH addresses are not encodable in this message ` +
-            `type; send to them separately.\n${listed}` +
-            (rest > 0 ? `\n...and ${rest} more` : '')
+          `${lead}\n${listed}` +
+            (rest > 0 ? `\n${`...and ${rest} more`}` : '')
         );
       }
 
@@ -92,7 +95,7 @@ export function MPMAForm({
 
         const addressValidation = validateBitcoinAddress(address);
         if (!addressValidation.isValid) {
-          throw new Error(`Line ${lineNumber}: Invalid Bitcoin address: ${address}. ${addressValidation.error || ''}`);
+          throw new Error(t('mpma_form_line_invalid_bitcoin_address', [String(lineNumber), String(address), String(addressValidation.error || '')]));
         }
 
         // Check asset divisibility (cache results)
@@ -115,7 +118,7 @@ export function MPMAForm({
           const isHex = isHexMemo(memo);
           const memoToValidate = isHex ? stripHexPrefix(memo) : memo;
           if (!isValidMemoLength(memoToValidate, isHex)) {
-            throw new Error(`Line ${lineNumber}: Memo exceeds 34 bytes`);
+            throw new Error(t('mpma_form_line_memo_exceeds_34_bytes', [String(lineNumber)]));
           }
         }
 
@@ -130,13 +133,13 @@ export function MPMAForm({
       }
       
       if (parsedRows.length === 0) {
-        throw new Error("No valid data found in CSV");
+        throw new Error(t('mpma_form_no_valid_data_found_in'));
       }
       
       setCsvData(parsedRows);
       
     } catch (err) {
-      setValidationError(err instanceof Error ? err.message : 'Failed to parse CSV');
+      setValidationError(err instanceof Error ? err.message : t('mpma_form_failed_to_parse_csv'));
       setCsvData([]);
       setUploadedFileName("");
     } finally {
@@ -158,7 +161,7 @@ export function MPMAForm({
       detectMaliciousPatterns: false,
     });
     if (!fileCheck.isValid) {
-      setValidationError(fileCheck.error ?? 'Please select a CSV file');
+      setValidationError(fileCheck.error ?? t('mpma_form_please_select_a_csv_file'));
       return;
     }
     
@@ -170,7 +173,7 @@ export function MPMAForm({
       await processCSV(text);
     };
     reader.onerror = () => {
-      setValidationError('Failed to read file');
+      setValidationError(t('mpma_form_failed_to_read_file'));
       setUploadedFileName("");
     };
     reader.readAsText(file);
@@ -179,7 +182,7 @@ export function MPMAForm({
   const handleTextPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const text = e.clipboardData.getData('text');
     if (text) {
-      setUploadedFileName("Pasted data");
+      setUploadedFileName(t('mpma_form_pasted_data'));
       await processCSV(text);
     }
   };
@@ -218,7 +221,7 @@ export function MPMAForm({
     <ComposerForm
       formAction={handleFormAction}
       submitDisabled={isSubmitDisabled}
-      submitText={isProcessing ? "Validating…" : "Continue"}
+      submitText={isProcessing ? t('mpma_form_validating') : t('common_continue')}
     >
       {validationError && (
         <div className="mb-4">
@@ -230,7 +233,8 @@ export function MPMAForm({
       )}
           <div>
             <label htmlFor="csv-upload" className="text-sm font-medium text-gray-700">
-              Upload CSV File <span className="text-red-500">*</span>
+              
+              {t('mpma_form_upload_csv_file')} <span className="text-red-500">*</span>
             </label>
             
             <div className="mt-2 space-y-4">
@@ -261,7 +265,7 @@ export function MPMAForm({
                       className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       disabled={isProcessing}
                     >
-                      Choose different file
+                      {t('mpma_form_choose_different_file')}
                     </button>
                   </div>
                 ) : (
@@ -275,10 +279,11 @@ export function MPMAForm({
                       <svg className="size-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
-                      Upload CSV
+                      
+                      {t('mpma_form_upload_csv')}
                     </button>
                     <p className="text-xs text-gray-500 mt-2">
-                      Format: Address, Asset, Quantity, Memo
+                      {t('mpma_form_format_address_asset_quantity_memo')}
                     </p>
                   </>
                 )}
@@ -290,7 +295,7 @@ export function MPMAForm({
               <TextAreaInput
                 value=""
                 onChange={() => {}} // We only care about paste
-                placeholder="Paste CSV data here…"
+                placeholder={t('mpma_form_paste_csv_data_here')}
                 onPaste={handleTextPaste}
                 rows={4}
                 disabled={isProcessing}
@@ -299,7 +304,7 @@ export function MPMAForm({
             
             {showHelpText && (
               <p className="mt-2 text-sm text-gray-500">
-                Each line should contain: Address, Asset, Quantity, and Memo. (Memo is optional.)
+                {t('mpma_form_each_line_should_contain_address')}
               </p>
             )}
           </div>
@@ -307,7 +312,7 @@ export function MPMAForm({
           {/* Show parsed data preview */}
           {csvData.length > 0 && (
             <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Preview (First 5)</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">{t('mpma_form_preview_first_5')}</h4>
               <div className="space-y-1">
                 {csvData.slice(0, 5).map((row, idx) => (
                   <div key={idx} className="text-xs text-gray-600 font-mono">
@@ -316,7 +321,7 @@ export function MPMAForm({
                   </div>
                 ))}
                 {csvData.length > 5 && (
-                  <div className="text-xs text-gray-500">… and {csvData.length - 5} more</div>
+                  <div className="text-xs text-gray-500">{t('mpma_form_and_more', [String(csvData.length - 5)])}</div>
                 )}
               </div>
             </div>

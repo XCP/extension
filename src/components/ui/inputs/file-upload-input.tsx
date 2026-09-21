@@ -1,6 +1,8 @@
 import { Description, Field, Label } from '@headlessui/react';
 import { type ReactElement, useRef } from 'react';
 
+import { t } from '@/i18n';
+
 interface FileUploadInputProps {
   label: string;
   required?: boolean;
@@ -31,7 +33,7 @@ export function FileUploadInput({
   maxSizeKB = 400,
   helpText,
   showHelpText = false,
-  uploadButtonText = "Choose File",
+  uploadButtonText = t('inputs_file_upload_input_choose_file'),
   className = "",
 }: FileUploadInputProps): ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,7 +85,7 @@ export function FileUploadInput({
             </div>
             
             <p className="text-xs text-gray-500">
-              Size: {(selectedFile.size / 1024).toFixed(2)} KB
+              {t('inputs_file_upload_input_size_kb', [String((selectedFile.size / 1024).toFixed(2))])}
               {selectedFile.type && ` • ${selectedFile.type}`}
             </p>
             
@@ -93,7 +95,7 @@ export function FileUploadInput({
               className="text-xs text-red-600 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 rounded"
               disabled={disabled}
             >
-              Remove file
+              {t('inputs_file_upload_input_remove_file')}
             </button>
           </div>
         ) : (
@@ -112,7 +114,7 @@ export function FileUploadInput({
             
             {maxSizeKB && (
               <p className="text-xs text-gray-500 mt-2">
-                Max file size: {maxSizeKB}KB
+                {t('inputs_file_upload_input_max_file_size_kb', [String(maxSizeKB)])}
                 {accept && ` • ${accept}`}
               </p>
             )}
@@ -143,7 +145,7 @@ export function CSVUploadInput(props: Omit<FileUploadInputProps, 'accept' | 'upl
     <FileUploadInput
       {...props}
       accept=".csv"
-      uploadButtonText={props.uploadButtonText || "Upload CSV"}
+      uploadButtonText={props.uploadButtonText || t('mpma_form_upload_csv')}
     />
   );
 }
@@ -159,7 +161,7 @@ export function InscriptionUploadInput(props: Omit<FileUploadInputProps, 'label'
     <FileUploadInput
       {...props}
       label={props.label || "Inscription"}
-      uploadButtonText={props.uploadButtonText || "Choose File"}
+      uploadButtonText={props.uploadButtonText || t('inputs_file_upload_input_choose_file')}
     />
   );
 }

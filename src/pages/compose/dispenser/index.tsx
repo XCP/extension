@@ -4,6 +4,7 @@ import { Composer } from "@/components/composer/composer";
 import type { DispenserOptions } from "@/core/counterparty/compose";
 import { composeDispenser } from "@/core/counterparty/compose";
 import { toNumber } from "@/core/numeric";
+import { t } from '@/i18n';
 import { DispenserForm } from "@/pages/compose/dispenser/form";
 import { ReviewDispenser } from "@/pages/compose/dispenser/review";
 
@@ -31,10 +32,10 @@ function ComposeDispenserPage() {
       <Composer<DispenserOptions>
         composeType="dispenser"
         composeApiMethod={composeDispenser}
-        initialTitle={isRefill ? "Refill Dispenser" : "Dispenser"}
+        initialTitle={isRefill ? t('compose_dispenser_refill_dispenser') : "Dispenser"}
         initialFormData={initialFormData}
-        FormComponent={(props) => <DispenserForm {...props} asset={asset || ""} isRefill={isRefill} />}
-        ReviewComponent={(props) => <ReviewDispenser {...props} asset={asset || ""} />}
+        renderForm={(props) => <DispenserForm {...props} asset={asset || ""} isRefill={isRefill} />}
+        renderReview={(props) => <ReviewDispenser {...props} asset={asset || ""} />}
       />
     </div>
   );

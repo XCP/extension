@@ -3,6 +3,7 @@ import { Composer } from "@/components/composer/composer";
 import { useWallet } from "@/contexts/wallet-context";
 import type { SweepOptions } from "@/core/counterparty/compose";
 import { composeSweep } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { SweepForm } from "@/pages/compose/sweep/form";
 import { ReviewSweep } from "@/pages/compose/sweep/review";
 
@@ -16,7 +17,7 @@ function ComposeSweepPage() {
       <Composer<SweepOptions>
         composeType="sweep"
         composeApiMethod={composeSweep}
-        initialTitle="Sweep"
+        initialTitle={t('common_sweep')}
         FormComponent={SweepForm}
         ReviewComponent={ReviewSweep}
       />

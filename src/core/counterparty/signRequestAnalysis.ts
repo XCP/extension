@@ -121,6 +121,7 @@ export interface SignRequestAnalysis {
   safety: SafetyAnalysis;
   attachedAssets: InputAttachedAssets[];
   mpmaRecipients: MpmaRecipient[];
+  /** Exact local evidence stays unchanged until the approval UI translates the stable code. */
   structureFindings: StructureFinding[];
   protocolContext: ProtocolContext;
   attachedAssetDestination: AttachedAssetDestination | null;
@@ -269,6 +270,8 @@ export async function analyzeSignRequest(
         ...safety.warnings,
         {
           severity: hunting ? 'block' : 'warning',
+          code: 'zeld_would_leave',
+          data: { count },
           title: hunting ? 'Blocked: ZELD Would Leave' : 'ZELD Would Leave',
           message:
             `${count} of the outputs this site asks you to spend ${count === 1 ? 'holds' : 'hold'} ZELD, `

@@ -9,6 +9,7 @@
 import type { ReactElement } from 'react';
 import { FiShieldOff } from '@/components/icons';
 
+import { t } from '@/i18n';
 export interface VerificationStatusProps {
   /** Whether verification passed */
   passed?: boolean;
@@ -65,13 +66,12 @@ export function VerificationStatus({
         <FiShieldOff className={`size-5 mt-0.5 mr-2 flex-shrink-0 ${iconColor}`} aria-hidden="true" />
         <div className={`text-sm ${textColor}`}>
           <p className="font-medium">
-            {shouldBlock ? 'Verification Failed - Signing Blocked' : 'Verification Warning'}
+            {shouldBlock ? t('tx_verification_status_verification_failed_signing_blocked') : t('tx_verification_status_verification_warning')}
           </p>
           {warning && <p className="text-xs mt-1">{warning}</p>}
           {shouldBlock && (
             <p className="text-xs mt-2">
-              Retry the request or ask the site to rebuild it. Do not approve a replacement
-              transaction you cannot verify.
+              {t('tx_verification_status_retry_the_request_or_ask')}
             </p>
           )}
         </div>

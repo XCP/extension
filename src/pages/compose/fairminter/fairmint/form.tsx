@@ -22,6 +22,8 @@ import { asDisplayUnits, divide, isGreaterThan } from "@/core/numeric";
 import { validAmountDraft } from "@/core/validation/transaction-amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
+import { t } from '@/i18n';
+
 interface FairmintFormDataInternal {
   asset: string;
   /**
@@ -123,6 +125,8 @@ export function FairmintForm({
   
   // Asked through the shared rule rather than reading price_normalized here, so this screen and
   // its summary cannot disagree about whether a mint is free.
+  // Stands in for the per-transaction cap when the fairminter sets none.
+  const maxPerTxFallback = t('fairmint_form_the_maximum_allowed');
   const isFreeMint = selectedFairminter
     ? !isPaidFairminter(readFairminterPaymentModel(selectedFairminter))
     : false;
@@ -192,11 +196,11 @@ export function FairmintForm({
     setValidationError(null);
     
     if (!formData.asset) {
-      setValidationError("Please select a fairminter asset.");
+      setValidationError(t('fairmint_form_please_select_a_fairminter_asset'));
       return;
     }
     if (formData.asset === "BTC" || formData.asset === "XCP") {
-      setValidationError("BTC and XCP cannot be used for fairmint operations. Please select a different asset.");
+      setValidationError(t('fairmint_form_btc_and_xcp_cannot_be'));
       return;
     }
     
@@ -204,7 +208,7 @@ export function FairmintForm({
     // the lot size, so core's "quantity is not a multiple of lot_size" is unreachable from this
     // form rather than caught after the fact.
     if (!isFreeMint && !validAmountDraft(formData.lots, 0)) {
-      setValidationError("Enter how many lots to mint.");
+      setValidationError(t('fairmint_form_enter_how_many_lots_to'));
       return;
     }
 
@@ -224,13 +228,13 @@ export function FairmintForm({
         return;
       }
       if (isGreaterThan(formData.lots, available)) {
-        setValidationError(`You can mint at most ${available} lots right now.`);
+        setValidationError(t('fairmint_form_you_can_mint_at_most', [String(available)]));
         return;
       }
     }
 
     if (!feeRate || feeRate <= 0) {
-      setValidationError("Fee rate must be greater than zero.");
+      setValidationError(t('fairmint_form_fee_rate_must_be_greater'));
       return;
     }
 
@@ -302,10 +306,10 @@ export function FairmintForm({
           <FairminterSelectInput
             selectedAsset={formData.asset}
             onChange={handleFairminterChange}
-            label="Fairminter Asset"
+            label={t('fairmint_form_fairminter_asset')}
             required
             showHelpText={showHelpText}
-            description={currencyType === "BTC" ? "Select a free fairminter — these cost only the Bitcoin network fee" : currencyType === "XCP" ? "Select a fairminter that charges XCP" : "Select an available fairminter"}
+            description={currencyType === "BTC" ? t('fairmint_form_select_a_free_fairminter_these') : currencyType === "XCP" ? t('fairmint_form_select_a_fairminter_that_charges') : t('fairmint_form_select_an_available_fairminter')}
             currencyFilter={currencyType}
           />
 
@@ -321,9 +325,8 @@ export function FairmintForm({
           {formData.asset && isFreeMint && selectedFairminter && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm text-blue-800">
-                <strong>Free mint.</strong> The fairminter decides the amount — up to{" "}
-                {selectedFairminter.max_mint_per_tx_normalized || "the maximum allowed"}{" "}
-                {formData.asset} per transaction, and less if that would pass the hard cap.
+                <strong>{t('fairmint_form_free_mint')}</strong>{" "}
+                {t('fairmint_form_the_fairminter_decides_the_amount_2', [String(selectedFairminter.max_mint_per_tx_normalized || maxPerTxFallback), String(formData.asset)])}
               </p>
             </div>
           )}
@@ -345,9 +348,9 @@ export function FairmintForm({
                 showHelpText={showHelpText}
                 sourceAddress={activeAddress}
                 maxAmount={maxLots()}
-                label="Lots to Mint"
+                label={t('fairmint_form_lots_to_mint')}
                 name="lots"
-                description={`Each lot is ${selectedFairminter.quantity_by_price_normalized} ${formData.asset} for ${getFairminterLotCost(selectedFairminter)} XCP.`}
+                description={t('fairmint_form_each_lot_is_for_xcp', [String(selectedFairminter.quantity_by_price_normalized), String(formData.asset), String(getFairminterLotCost(selectedFairminter))])}
                 disableMaxButton={false}
                 onMaxClick={() => {
                   // Filling in "0" and clearing the error is how this used to answer an address

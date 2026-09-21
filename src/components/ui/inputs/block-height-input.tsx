@@ -3,6 +3,8 @@ import React, { type ChangeEvent, type ReactElement } from "react";
 import { Button } from "@/components/ui/button";
 import { useBlockHeight } from "@/hooks/useBlockHeight";
 
+import { t } from '@/i18n';
+
 interface BlockHeightInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -24,11 +26,11 @@ export function BlockHeightInput({
   onChange,
   setError,
   showHelpText = false,
-  label = "Block Height",
+  label = t('inputs_block_height_input_block_height'),
   name,
   description,
   disabled = false,
-  placeholder = "Enter block height",
+  placeholder = t('inputs_block_height_input_enter_block_height'),
 }: BlockHeightInputProps): ReactElement {
   // Use our custom hook with autoFetch set to false
   const { isLoading, error, refresh } = useBlockHeight({ autoFetch: false });
@@ -56,7 +58,7 @@ export function BlockHeightInput({
       // This should be handled by the hook, but just in case
       console.error("Failed to fetch current block height:", err);
       // Use generic error to prevent leaking internal details
-      setError?.("Failed to fetch current block height. Please try again.");
+      setError?.(t('inputs_block_height_input_failed_to_fetch_current_block'));
     }
   };
 
@@ -89,16 +91,16 @@ export function BlockHeightInput({
             variant="input"
             onClick={handleNowButtonClick}
             disabled={disabled || isLoading}
-            aria-label="Use current block height"
+            aria-label={t('inputs_block_height_input_use_current_block_height')}
             className="px-2 py-1 text-sm"
           >
-            Now
+            {t('inputs_block_height_input_now')}
           </Button>
         </div>
       </div>
       {showHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
-          {description || "Enter a block height or click 'Now' to use the current block height."}
+          {description || t('inputs_block_height_input_enter_a_block_height_or')}
         </Description>
       )}
     </Field>

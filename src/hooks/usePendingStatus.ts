@@ -6,7 +6,7 @@ import {
   pendingByUtxo,
   pendingCancellations,
 } from '@/core/balances/pending';
-import { pendingLabel } from '@/core/balances/pendingLabel';
+import { type PendingLabel, pendingLabel } from '@/core/balances/pendingLabel';
 import { fetchMempoolLedgerEvents, fetchMempoolStatusEvents } from '@/core/counterparty/api';
 import { useRefreshSignal } from '@/hooks/useRefreshSignal';
 
@@ -116,8 +116,8 @@ export function usePendingCancellations(
 }
 
 /** Each delta reduced to one display word, dropping the ones with nothing to say. */
-export function labelsFromDeltas(deltas: Map<string, PendingDelta>): Map<string, string> {
-  const labels = new Map<string, string>();
+export function labelsFromDeltas(deltas: Map<string, PendingDelta>): Map<string, PendingLabel> {
+  const labels = new Map<string, PendingLabel>();
   for (const [key, delta] of deltas) {
     const label = pendingLabel(delta.reasons);
     if (label) labels.set(key, label);
@@ -126,12 +126,13 @@ export function labelsFromDeltas(deltas: Map<string, PendingDelta>): Map<string,
 }
 
 /**
- * The same reading, reduced to one word per row for the balance and UTXO lists.
+ * The same reading, reduced to one stable fact per row for the balance and UTXO lists.
+ * Translate in the row, so a language change does not invalidate these maps or fetch again.
  */
 export function usePendingStatus(
   address: string | undefined,
   refreshNonce?: number
-): { byAsset: Map<string, string>; byUtxo: Map<string, string> } {
+): { byAsset: Map<string, PendingLabel>; byUtxo: Map<string, PendingLabel> } {
   const { byAsset, byUtxo } = usePendingDeltas(address, refreshNonce);
 
   return useMemo(

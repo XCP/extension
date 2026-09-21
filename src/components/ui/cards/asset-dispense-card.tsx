@@ -4,6 +4,8 @@ import type { Dispense } from "@/core/counterparty/api";
 import { formatAmount, formatTimeAgo } from "@/core/format";
 import { toBigNumber } from "@/core/numeric";
 
+import { t } from '@/i18n';
+
 const SATS_PER_BTC = 100_000_000;
 
 interface AssetDispenseCardProps {
@@ -66,7 +68,7 @@ export function AssetDispenseCard({
                     ? "text-green-600"
                     : "text-gray-400 hover:text-gray-600"
                 }`}
-                aria-label="Copy transaction hash"
+                aria-label={t('common_copy_transaction_hash')}
               >
                 TX
                 {isCopied ? (

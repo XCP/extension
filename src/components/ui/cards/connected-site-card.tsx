@@ -1,6 +1,8 @@
 import { type ReactElement, useState } from "react";
 import { FiGlobe, FiX } from "@/components/icons";
 
+import { t } from '@/i18n';
+
 /**
  * Props interface for the ConnectedSiteCard component
  */
@@ -70,7 +72,7 @@ export function ConnectedSiteCard({
   return (
     <article
       className={`bg-white border border-gray-200 rounded-lg p-4 ${className}`}
-      aria-label={ariaLabel || `Connected site: ${hostname}`}
+      aria-label={ariaLabel || t('cards_connected_site_card_connected_site', [String(hostname)])}
     >
       <div className="flex items-center justify-between">
         {/* Site Information */}
@@ -82,7 +84,7 @@ export function ConnectedSiteCard({
             ) : (
               <img
                 src={faviconUrl}
-                alt={`${hostname} favicon`}
+                alt={t('connect_approve_favicon', [String(hostname)])}
                 className="size-4 rounded-sm"
                 onError={() => setFaviconError(true)}
               />
@@ -105,7 +107,7 @@ export function ConnectedSiteCard({
           onClick={handleDisconnect}
           onKeyDown={handleDisconnectKeyDown}
           className="flex-shrink-0 p-2 hover:bg-red-50 rounded-lg transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
-          aria-label={`Disconnect ${hostname}`}
+          aria-label={t('cards_connected_site_card_disconnect', [String(hostname)])}
         >
           <FiX className="size-4 text-gray-400 group-hover:text-red-500 transition-colors" aria-hidden="true" />
         </button>

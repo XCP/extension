@@ -20,6 +20,7 @@ import {
 import { huntsWhileSigning } from '@/core/zeld/eligibility';
 import { isHuntableAddressFormat } from '@/core/zeld/huntTemplate';
 import { useZeldBalance } from '@/hooks/useZeldBalance';
+import { t } from '@/i18n';
 
 const EXPLORER_TX_URL = 'https://mempool.space/tx/';
 
@@ -49,13 +50,13 @@ export default function ZeldPage(): ReactElement {
       rightButton: {
         icon: <FiInfo className="size-4" aria-hidden="true" />,
         onClick: () => setIsHelpTextOverride((previous) => !previous),
-        ariaLabel: 'Toggle help text',
+        ariaLabel: t('common_toggle_help_text'),
       },
     });
     return () => setHeaderProps(null);
   }, [navigate, setHeaderProps]);
 
-  if (loading && !balance) return <Spinner message="Loading ZELD…" />;
+  if (loading && !balance) return <Spinner message={t('zeld_loading')} />;
 
   const token: TokenBalance = {
     asset: ZELD_DISPLAY_NAME,
@@ -77,21 +78,21 @@ export default function ZeldPage(): ReactElement {
     items: [
       {
         id: 'send',
-        title: 'Send ZELD',
-        description: !balance ? 'Balance unavailable. Try again shortly.'
-          : hasZeld ? 'Send to another address. The rest stays with you.' : 'Nothing to send yet.',
+        title: t('zeld_send'),
+        description: !balance ? t('zeld_balance_unavailable')
+          : hasZeld ? t('zeld_send_description') : t('zeld_nothing_to_send'),
         onClick: () => { void navigate('/zeld/send'); },
       },
       ...(hasZeld ? [{
         id: 'park',
-        title: 'Move ZELD to a Small Output',
-        description: 'Frees your other BTC for payments that must pay someone else first.',
+        title: t('zeld_park_title'),
+        description: t('zeld_park_description'),
         onClick: () => { void navigate('/zeld/park'); },
       }] : []),
       {
         id: 'about',
-        title: 'About ZeldHash',
-        description: 'How rare transaction IDs earn ZELD. Opens zeldhash.com.',
+        title: t('zeld_about'),
+        description: t('zeld_about_description'),
         onClick: () => window.open('https://zeldhash.com', '_blank', 'noopener,noreferrer'),
       },
     ],
@@ -99,43 +100,41 @@ export default function ZeldPage(): ReactElement {
 
   return (
     <section className="p-4 space-y-6" aria-labelledby="zeld-balance-title">
-      <h2 id="zeld-balance-title" className="sr-only">ZELD balance</h2>
+      <h2 id="zeld-balance-title" className="sr-only">{t('zeld_balance')}</h2>
       {balance && <BalanceHeader balance={token} className="mt-1 mb-5" iconSrc={zeldIcon} />}
       {error && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
-          <p role="alert" className="text-sm text-amber-800">{error} Your balance is unavailable.</p>
-          <button type="button" onClick={retry} className="text-sm font-medium text-blue-700 underline cursor-pointer">Try again</button>
+          <p role="alert" className="text-sm text-amber-800">{t('zeld_balance_error', [error])}</p>
+          <button type="button" onClick={retry} className="text-sm font-medium text-blue-700 underline cursor-pointer">{t('common_try_again')}</button>
         </div>
       )}
 
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-4">
-        <h3 className="text-sm font-medium text-gray-900">Hunting</h3>
+        <h3 className="text-sm font-medium text-gray-900">{t('zeld_hunting')}</h3>
         <HuntSettings showHelpText={shouldShowHelpText} />
         {!canHunt && (
           <p role="status" className="text-xs text-amber-700">
-            A legacy hardware wallet cannot hunt: the device signs, and a legacy transaction ID
-            depends on its signature.
+            {t('zeld_legacy_hardware')}
           </p>
         )}
         {canHunt && !huntingOn && (
-          <p className="text-xs text-gray-500">Hunting is off. Enable ZELD Hunting to try it on your next eligible transaction.</p>
+          <p className="text-xs text-gray-500">{t('zeld_hunting_off')}</p>
         )}
       </div>
 
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
-        <h3 className="text-sm font-medium text-gray-900">Outputs Holding ZELD</h3>
+        <h3 className="text-sm font-medium text-gray-900">{t('zeld_holding_outputs')}</h3>
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Outputs</span>
-          <span className="text-gray-900">{balance?.utxos.length ?? 'Unknown'}</span>
+          <span className="text-gray-500">{t('zeld_outputs')}</span>
+          <span className="text-gray-900">{balance?.utxos.length ?? t('zeld_unknown')}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">BTC on them</span>
-          <span className="text-gray-900">{reservedSats === null ? 'Unknown' : `${reservedSats.toLocaleString()} sats`}</span>
+          <span className="text-gray-500">{t('zeld_btc_on_outputs')}</span>
+          <span className="text-gray-900">{reservedSats === null ? t('zeld_unknown') : `${formatAmount({ value: reservedSats, maximumFractionDigits: 0 })} sats`}</span>
         </div>
         {shouldShowHelpText && (
           <p className="text-xs text-gray-500">
-            ZELD rides on ordinary Bitcoin outputs and moves to the first spendable output when one
-            is spent. The wallet keeps these outputs out of any payment that pays someone else first.
+            {t('zeld_output_help')}
           </p>
         )}
         {balance && balance.utxos.length > 0 && (
@@ -156,18 +155,18 @@ export default function ZeldPage(): ReactElement {
               </li>
             ))}
             {balance.utxos.length > 8 && (
-              <li className="py-1.5 text-gray-500">and {balance.utxos.length - 8} more</li>
+              <li className="py-1.5 text-gray-500">{t('zeld_more_outputs', [String(balance.utxos.length - 8)])}</li>
             )}
           </ul>
         )}
       </div>
 
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
-        <h3 className="text-sm font-medium text-gray-900">Recent Rewards</h3>
+        <h3 className="text-sm font-medium text-gray-900">{t('zeld_recent_rewards')}</h3>
         {rewards === null ? (
-          <p className="text-xs text-gray-500">Reward history is unavailable. Try again later.</p>
+          <p className="text-xs text-gray-500">{t('zeld_rewards_unavailable')}</p>
         ) : rewards.length === 0 ? (
-          <p className="text-xs text-gray-500">No rewards for this address yet.</p>
+          <p className="text-xs text-gray-500">{t('zeld_no_rewards')}</p>
         ) : (
           <ul className="divide-y divide-gray-100 text-xs">
             {rewards.map((reward) => (
@@ -182,7 +181,7 @@ export default function ZeldPage(): ReactElement {
                     <span className="font-bold">{reward.txid.slice(0, reward.zero_count)}</span>
                     {reward.txid.slice(reward.zero_count, 12)}…
                   </a>
-                  <span className="text-gray-500">block {reward.block_index.toLocaleString()}, {reward.zero_count} zeros</span>
+                  <span className="text-gray-500">{t('zeld_reward_block', [formatAmount({ value: reward.block_index, maximumFractionDigits: 0 }), String(reward.zero_count)])}</span>
                 </div>
                 <span className="text-gray-900 whitespace-nowrap">
                   +{formatAmount({ value: zeldBaseUnitsToDisplay(reward.reward), minimumFractionDigits: 0, maximumFractionDigits: 8 })}

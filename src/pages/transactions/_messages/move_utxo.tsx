@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for move_utxo transactions
  */
@@ -10,15 +11,15 @@ export function move_utxo(tx: Transaction): Array<{ label: string; value: string
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
-      label: "Type",
-      value: "UTXO Move",
+      label: t('common_type'),
+      value: t('messages_move_utxo_utxo_move'),
     },
   ];
   
   // Destination
   if (params.destination) {
     fields.push({
-      label: "Destination",
+      label: t('common_destination'),
       value: (
         <span className="text-xs break-all">
           {params.destination}
@@ -27,15 +28,15 @@ export function move_utxo(tx: Transaction): Array<{ label: string; value: string
     });
   } else {
     fields.push({
-      label: "Destination",
-      value: "Same as source (consolidation)",
+      label: t('common_destination'),
+      value: t('messages_move_utxo_same_as_source_consolidation'),
     });
   }
   
   // Show moved UTXOs if available
   if (params.utxos && params.utxos.length > 0) {
     fields.push({
-      label: "UTXOs Moved",
+      label: t('messages_move_utxo_utxos_moved'),
       value: `${params.utxos.length} UTXO${params.utxos.length > 1 ? 's' : ''}`,
     });
   }

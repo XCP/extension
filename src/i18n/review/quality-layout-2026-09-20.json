@@ -1,0 +1,959 @@
+{
+  "reviewType": "AI contextual and visual review; not native-speaker certification",
+  "date": "2026-09-20",
+  "baseCommit": "b855114fe6ba0b38cbbaeb3e0e66b96f4d14715f",
+  "coverage": {
+    "catalogs": {
+      "en": {
+        "file": "public/_locales/en/messages.json",
+        "sha256": "e5001f81b3620440d5ae1f381077b6a47eba2713d27ddf59806e55d760ce5931",
+        "messageCount": 1956,
+        "missing": 0,
+        "stale": 0,
+        "placeholderMismatches": 0
+      },
+      "ja": {
+        "file": "public/_locales/ja/messages.json",
+        "sha256": "cfd11f7d997b5a3f1485be8a7dba193e3dbe4db9f97c32bb329f2e6020bb1e95",
+        "messageCount": 1956,
+        "missing": 0,
+        "stale": 0,
+        "placeholderMismatches": 0
+      },
+      "zh": {
+        "file": "public/_locales/zh/messages.json",
+        "sha256": "e2171e237c6aeb4217e2585ccc5485155292d280129d291f45e1f73168ea7c0a",
+        "messageCount": 1956,
+        "missing": 0,
+        "stale": 0,
+        "placeholderMismatches": 0
+      },
+      "zh_CN": {
+        "file": "public/_locales/zh_CN/messages.json",
+        "sha256": "e2171e237c6aeb4217e2585ccc5485155292d280129d291f45e1f73168ea7c0a",
+        "messageCount": 1956,
+        "missing": 0,
+        "stale": 0,
+        "placeholderMismatches": 0
+      },
+      "zh_TW": {
+        "file": "public/_locales/zh_TW/messages.json",
+        "sha256": "7a714e94f558cffd63283a97ef3f2ce149d2ea2e9a3f03237d988fbd9fa302ce",
+        "messageCount": 1956,
+        "missing": 0,
+        "stale": 0,
+        "placeholderMismatches": 0
+      },
+      "zh_HK": {
+        "file": "public/_locales/zh_HK/messages.json",
+        "sha256": "735af6cc540181ffad825b73e4727f0cc3f90259e416b6bbde58b985b8a55adb",
+        "messageCount": 1956,
+        "missing": 0,
+        "stale": 0,
+        "placeholderMismatches": 0
+      }
+    },
+    "manualScope": "Broad contextual source review and representative rendered screenshots; not every key or every generated screenshot individually inspected.",
+    "languages": [
+      "ja",
+      "zh-CN",
+      "zh-TW",
+      "zh-HK"
+    ],
+    "surfaces": [
+      "popup 350x600",
+      "sidepanel 350x760",
+      "sidepanel 520x760"
+    ],
+    "qualitySceneCount": 96,
+    "qualityScreenshotCount": 109,
+    "limitations": [
+      "Native-speaker signoff outstanding",
+      "Physical hardware and every rare state not visually exercised",
+      "Unknown external diagnostics may remain English",
+      "Older wide-viewport popup captures are not wide-sidepanel evidence"
+    ]
+  },
+  "validation": {
+    "focusedUnitTests": {
+      "passed": 150,
+      "files": 10,
+      "log": "translation-reviewed-unit.log"
+    },
+    "finalPaymentUnitRetest": {
+      "passed": 20,
+      "log": "translation-reviewed-payment-unit.log"
+    },
+    "browserTests": {
+      "passed": 17,
+      "interrupted": 1,
+      "log": "translation-reviewed-browser.log",
+      "interruption": "Hong Kong quality test: page/context/browser closed during navigation; no translation or layout assertion failed. Rechecked all four quality cases in a fresh run."
+    },
+    "finalQualityRetest": {
+      "passed": 4,
+      "log": "translation-quality-reviewed.log",
+      "reason": "Final Chinese gift-card sentence polish and TypeScript-safe proof capture guards"
+    },
+    "approvalGallery": {
+      "passed": 4,
+      "screens": 24,
+      "log": "translation-approval-final.log",
+      "scenes": [
+        "send-with-memo",
+        "order",
+        "destroy"
+      ],
+      "forms": [
+        "raw transaction",
+        "PSBT"
+      ]
+    },
+    "typescript": "pass",
+    "lint": "pass within existing budgets",
+    "catalogChecks": "pass",
+    "chromeProductionBuild": "pass",
+    "artifacts": [
+      "test-results/translation-quality-reviewed",
+      "test-results/translation-reviewed",
+      "test-results/translation-review-depth-final",
+      "test-results/translation-approval-final"
+    ]
+  },
+  "changes": [
+    {
+      "locale": "en",
+      "key": "approval_bitcoin_payment_card_pays_less_than_requested",
+      "before": null,
+      "after": "Transaction pays $1 $2 less than requested."
+    },
+    {
+      "locale": "en",
+      "key": "approval_bitcoin_payment_card_pays_more_than_requested",
+      "before": null,
+      "after": "Transaction pays $1 $2 more than requested."
+    },
+    {
+      "locale": "en",
+      "key": "approval_bitcoin_payment_card_transaction_pays_than_requested",
+      "before": "Transaction pays $1 $2 $3 than requested.",
+      "after": null
+    },
+    {
+      "locale": "en",
+      "key": "approval_bitcoin_payment_no_external_output",
+      "before": null,
+      "after": "The PSBT has no external payment output."
+    },
+    {
+      "locale": "en",
+      "key": "approval_bitcoin_payment_output_address_unknown",
+      "before": null,
+      "after": "Output $1 has no Bitcoin address that the wallet can review."
+    },
+    {
+      "locale": "en",
+      "key": "approval_bitcoin_payment_output_has_data",
+      "before": null,
+      "after": "Output $1 contains data, which is not allowed in a plain Bitcoin payment."
+    },
+    {
+      "locale": "en",
+      "key": "approval_bitcoin_payment_outputs_mismatch",
+      "before": null,
+      "after": "External payment outputs do not exactly match the site's requested payments."
+    },
+    {
+      "locale": "en",
+      "key": "setup_import_mnemonic_an_address_no_wallet_built",
+      "before": "— an address no wallet built on this phrase would ever show you. Importing the card keeps that one address and stores no phrase.",
+      "after": null
+    },
+    {
+      "locale": "en",
+      "key": "setup_import_mnemonic_at",
+      "before": ", at",
+      "after": null
+    },
+    {
+      "locale": "en",
+      "key": "setup_import_mnemonic_gift_card_address",
+      "before": null,
+      "after": "The card's balance is at $1 (derivation path: $2). A wallet imported from this phrase will not show that address. Importing the card keeps only that address and does not store the phrase."
+    },
+    {
+      "locale": "en",
+      "key": "setup_import_mnemonic_its_balance_is_on",
+      "before": "Its balance is on",
+      "after": null
+    },
+    {
+      "locale": "ja",
+      "key": "approval_bitcoin_payment_card_pays_less_than_requested",
+      "before": null,
+      "after": "要求された金額より $1 $2 少なく支払います。"
+    },
+    {
+      "locale": "ja",
+      "key": "approval_bitcoin_payment_card_pays_more_than_requested",
+      "before": null,
+      "after": "要求された金額より $1 $2 多く支払います。"
+    },
+    {
+      "locale": "ja",
+      "key": "approval_bitcoin_payment_card_transaction_pays_than_requested",
+      "before": "トランザクションの支払額は要求より $1 $2 $3。",
+      "after": null
+    },
+    {
+      "locale": "ja",
+      "key": "approval_bitcoin_payment_no_external_output",
+      "before": null,
+      "after": "この PSBT には外部への支払い出力がありません。"
+    },
+    {
+      "locale": "ja",
+      "key": "approval_bitcoin_payment_output_address_unknown",
+      "before": null,
+      "after": "出力 $1 の Bitcoin アドレスを確認できません。"
+    },
+    {
+      "locale": "ja",
+      "key": "approval_bitcoin_payment_output_has_data",
+      "before": null,
+      "after": "出力 $1 にデータが含まれています。通常の Bitcoin 支払いでは使用できません。"
+    },
+    {
+      "locale": "ja",
+      "key": "approval_bitcoin_payment_outputs_mismatch",
+      "before": null,
+      "after": "外部への支払い出力が、サイトの要求した支払いと完全には一致しません。"
+    },
+    {
+      "locale": "ja",
+      "key": "setup_import_mnemonic_a_card_is_written_to",
+      "before": "カードは人に手渡すために書かれたものなので、これらの単語は渡してくれた相手にも知られているものとして扱ってください。ウォレットとしてインポートしないのはそのためです。このフレーズから導出されるすべてのアドレスは、相手も使えてしまいます。相手はカード自体からも引き続き送金できるため、残しておきたいものはご自身のアドレスへ移してください。",
+      "after": "このリカバリーフレーズは、カードを渡した人も知っているものとして扱ってください。このフレーズから作られるすべてのアドレスを相手も使えるため、ウォレットとしてはインポートしません。カードの資産も相手が引き続き送金できるので、保管したい資産はご自身のアドレスへ移してください。"
+    },
+    {
+      "locale": "ja",
+      "key": "setup_import_mnemonic_an_address_no_wallet_built",
+      "before": "。このフレーズで作られたウォレットには決して表示されないアドレスです。カードをインポートするとこのアドレスのみが保持され、フレーズは保存されません。",
+      "after": null
+    },
+    {
+      "locale": "ja",
+      "key": "setup_import_mnemonic_at",
+      "before": "、場所は",
+      "after": null
+    },
+    {
+      "locale": "ja",
+      "key": "setup_import_mnemonic_gift_card_address",
+      "before": null,
+      "after": "カードの残高は、導出パス $2 のアドレス $1 にあります。このフレーズをウォレットとしてインポートしても、そのアドレスは表示されません。カードとしてインポートすると、このアドレスのみを保持し、フレーズは保存しません。"
+    },
+    {
+      "locale": "ja",
+      "key": "setup_import_mnemonic_import_your_mnemonic",
+      "before": "ニーモニックをインポート",
+      "after": "リカバリーフレーズ"
+    },
+    {
+      "locale": "ja",
+      "key": "setup_import_mnemonic_its_balance_is_on",
+      "before": "残高があるのは",
+      "after": null
+    },
+    {
+      "locale": "ja",
+      "key": "tx_action_close_asset_dispenser",
+      "before": "$1のディスペンサーを閉じる",
+      "after": "$1の自販機を閉じる"
+    },
+    {
+      "locale": "ja",
+      "key": "tx_action_close_dispenser",
+      "before": "ディスペンサーを閉じる",
+      "after": "自販機を閉じる"
+    },
+    {
+      "locale": "ja",
+      "key": "tx_action_dispenser",
+      "before": "ディスペンサー",
+      "after": "自販機"
+    },
+    {
+      "locale": "ja",
+      "key": "tx_action_fund_dispenser",
+      "before": "ディスペンサーへの入金",
+      "after": "自販機への入金"
+    },
+    {
+      "locale": "ja",
+      "key": "tx_action_trigger_dispenser",
+      "before": "ディスペンサーの払い出しを実行",
+      "after": "自販機の払い出しを実行"
+    },
+    {
+      "locale": "zh",
+      "key": "approval_bitcoin_payment_card_pays_less_than_requested",
+      "before": null,
+      "after": "此交易比请求金额少支付 $1 $2。"
+    },
+    {
+      "locale": "zh",
+      "key": "approval_bitcoin_payment_card_pays_more_than_requested",
+      "before": null,
+      "after": "此交易比请求金额多支付 $1 $2。"
+    },
+    {
+      "locale": "zh",
+      "key": "approval_bitcoin_payment_card_transaction_pays_than_requested",
+      "before": "交易支付比请求$3 $1 $2。",
+      "after": null
+    },
+    {
+      "locale": "zh",
+      "key": "approval_bitcoin_payment_no_external_output",
+      "before": null,
+      "after": "此 PSBT 没有对外支付的输出。"
+    },
+    {
+      "locale": "zh",
+      "key": "approval_bitcoin_payment_output_address_unknown",
+      "before": null,
+      "after": "无法核查输出 $1 的比特币地址。"
+    },
+    {
+      "locale": "zh",
+      "key": "approval_bitcoin_payment_output_has_data",
+      "before": null,
+      "after": "输出 $1 包含数据，普通比特币付款不允许此类输出。"
+    },
+    {
+      "locale": "zh",
+      "key": "approval_bitcoin_payment_outputs_mismatch",
+      "before": null,
+      "after": "对外支付的输出与网站请求的付款不完全一致。"
+    },
+    {
+      "locale": "zh",
+      "key": "deposit_form_review_deposit",
+      "before": "确认存入",
+      "after": "查看存入详情"
+    },
+    {
+      "locale": "zh",
+      "key": "dispenser_dispenser_input_no_open_dispenser_found_at",
+      "before": "此地址没有开放的售货机。",
+      "after": "此地址没有营业中的售货机。"
+    },
+    {
+      "locale": "zh",
+      "key": "fairminter_review_sale_window",
+      "before": "销售窗口",
+      "after": "销售期间"
+    },
+    {
+      "locale": "zh",
+      "key": "marketplace_intent_asset_stays_attached_to_sat_utxo",
+      "before": "资产将保持附加在此地址下一个 $1 sats 的 UTXO 上",
+      "after": "资产将保持附加在此地址的 $1 sats UTXO 上"
+    },
+    {
+      "locale": "zh",
+      "key": "setup_import_mnemonic_a_card_is_written_to",
+      "before": "卡片本身就是为了交给他人而写的，所以请将这些单词视为交给你的人也知道。这就是它们不被作为钱包导入的原因：从这些单词派生出的每个地址，对方同样可以花费。对方也仍然可以从卡片本身花费，因此请把你想保留的一切转移到你自己的地址。",
+      "after": "请假设赠卡人也知道这组助记词。对方可以动用所有派生地址中的资金，因此不能将卡片作为钱包导入。对方仍可动用卡片中的资产，请将你要保留的资产转到自己的地址。"
+    },
+    {
+      "locale": "zh",
+      "key": "setup_import_mnemonic_an_address_no_wallet_built",
+      "before": "，这是基于此助记词构建的钱包永远不会显示的地址。导入卡片只保留这一个地址，不会存储助记词。",
+      "after": null
+    },
+    {
+      "locale": "zh",
+      "key": "setup_import_mnemonic_at",
+      "before": "，位于",
+      "after": null
+    },
+    {
+      "locale": "zh",
+      "key": "setup_import_mnemonic_gift_card_address",
+      "before": null,
+      "after": "卡片余额位于地址 $1（派生路径：$2）。将此助记词作为钱包导入时，不会显示该地址。导入卡片只保留这个地址，不会存储助记词。"
+    },
+    {
+      "locale": "zh",
+      "key": "setup_import_mnemonic_its_balance_is_on",
+      "before": "其余额位于",
+      "after": null
+    },
+    {
+      "locale": "zh",
+      "key": "swap_form_review_swap",
+      "before": "检查兑换",
+      "after": "查看兑换详情"
+    },
+    {
+      "locale": "zh",
+      "key": "tx_action_close_asset_dispenser",
+      "before": "关闭$1分发器",
+      "after": "关闭$1售货机"
+    },
+    {
+      "locale": "zh",
+      "key": "tx_action_close_dispenser",
+      "before": "关闭分发器",
+      "after": "关闭售货机"
+    },
+    {
+      "locale": "zh",
+      "key": "tx_action_dispenser",
+      "before": "分发器",
+      "after": "售货机"
+    },
+    {
+      "locale": "zh",
+      "key": "tx_action_fund_dispenser",
+      "before": "向分发器存入资产",
+      "after": "向售货机存入资产"
+    },
+    {
+      "locale": "zh",
+      "key": "tx_action_trigger_dispenser",
+      "before": "触发分发器发放",
+      "after": "触发售货机发放"
+    },
+    {
+      "locale": "zh",
+      "key": "withdraw_form_review_withdrawal",
+      "before": "确认取出",
+      "after": "查看取出详情"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "approval_bitcoin_payment_card_pays_less_than_requested",
+      "before": null,
+      "after": "此交易比请求金额少支付 $1 $2。"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "approval_bitcoin_payment_card_pays_more_than_requested",
+      "before": null,
+      "after": "此交易比请求金额多支付 $1 $2。"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "approval_bitcoin_payment_card_transaction_pays_than_requested",
+      "before": "交易支付比请求$3 $1 $2。",
+      "after": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "approval_bitcoin_payment_no_external_output",
+      "before": null,
+      "after": "此 PSBT 没有对外支付的输出。"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "approval_bitcoin_payment_output_address_unknown",
+      "before": null,
+      "after": "无法核查输出 $1 的比特币地址。"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "approval_bitcoin_payment_output_has_data",
+      "before": null,
+      "after": "输出 $1 包含数据，普通比特币付款不允许此类输出。"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "approval_bitcoin_payment_outputs_mismatch",
+      "before": null,
+      "after": "对外支付的输出与网站请求的付款不完全一致。"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "deposit_form_review_deposit",
+      "before": "确认存入",
+      "after": "查看存入详情"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "dispenser_dispenser_input_no_open_dispenser_found_at",
+      "before": "此地址没有开放的售货机。",
+      "after": "此地址没有营业中的售货机。"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "fairminter_review_sale_window",
+      "before": "销售窗口",
+      "after": "销售期间"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "marketplace_intent_asset_stays_attached_to_sat_utxo",
+      "before": "资产将保持附加在此地址下一个 $1 sats 的 UTXO 上",
+      "after": "资产将保持附加在此地址的 $1 sats UTXO 上"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "setup_import_mnemonic_a_card_is_written_to",
+      "before": "卡片本身就是为了交给他人而写的，所以请将这些单词视为交给你的人也知道。这就是它们不被作为钱包导入的原因：从这些单词派生出的每个地址，对方同样可以花费。对方也仍然可以从卡片本身花费，因此请把你想保留的一切转移到你自己的地址。",
+      "after": "请假设赠卡人也知道这组助记词。对方可以动用所有派生地址中的资金，因此不能将卡片作为钱包导入。对方仍可动用卡片中的资产，请将你要保留的资产转到自己的地址。"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "setup_import_mnemonic_an_address_no_wallet_built",
+      "before": "，这是基于此助记词构建的钱包永远不会显示的地址。导入卡片只保留这一个地址，不会存储助记词。",
+      "after": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "setup_import_mnemonic_at",
+      "before": "，位于",
+      "after": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "setup_import_mnemonic_gift_card_address",
+      "before": null,
+      "after": "卡片余额位于地址 $1（派生路径：$2）。将此助记词作为钱包导入时，不会显示该地址。导入卡片只保留这个地址，不会存储助记词。"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "setup_import_mnemonic_its_balance_is_on",
+      "before": "其余额位于",
+      "after": null
+    },
+    {
+      "locale": "zh_CN",
+      "key": "swap_form_review_swap",
+      "before": "检查兑换",
+      "after": "查看兑换详情"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "tx_action_close_asset_dispenser",
+      "before": "关闭$1分发器",
+      "after": "关闭$1售货机"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "tx_action_close_dispenser",
+      "before": "关闭分发器",
+      "after": "关闭售货机"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "tx_action_dispenser",
+      "before": "分发器",
+      "after": "售货机"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "tx_action_fund_dispenser",
+      "before": "向分发器存入资产",
+      "after": "向售货机存入资产"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "tx_action_trigger_dispenser",
+      "before": "触发分发器发放",
+      "after": "触发售货机发放"
+    },
+    {
+      "locale": "zh_CN",
+      "key": "withdraw_form_review_withdrawal",
+      "before": "确认取出",
+      "after": "查看取出详情"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "actions_find_and_consolidate_bare_multisig",
+      "before": "查詢併合並裸多籤 UTXO",
+      "after": "尋找並合併裸多重簽名 UTXO"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "approval_bitcoin_payment_card_pays_less_than_requested",
+      "before": null,
+      "after": "此交易比請求金額少支付 $1 $2。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "approval_bitcoin_payment_card_pays_more_than_requested",
+      "before": null,
+      "after": "此交易比請求金額多支付 $1 $2。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "approval_bitcoin_payment_card_transaction_pays_than_requested",
+      "before": "交易支付比請求$3 $1 $2。",
+      "after": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "approval_bitcoin_payment_no_external_output",
+      "before": null,
+      "after": "此 PSBT 沒有對外支付的輸出。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "approval_bitcoin_payment_output_address_unknown",
+      "before": null,
+      "after": "無法核查輸出 $1 的比特幣地址。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "approval_bitcoin_payment_output_has_data",
+      "before": null,
+      "after": "輸出 $1 包含資料，普通比特幣付款不允許此類輸出。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "approval_bitcoin_payment_outputs_mismatch",
+      "before": null,
+      "after": "對外支付的輸出與網站請求的付款不完全一致。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "approval_money_movement_view_this_can_be_sent_elsewhere",
+      "before": "簽名後此金額可能被髮往別處，因此上方合計將其計為支出。",
+      "after": "簽名後此金額可能被發往別處，因此上方合計將其計為支出。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "assets_you_can_only_pin_up",
+      "before": "最多隻能置頂 $1 個資產。",
+      "after": "最多只能置頂 $1 個資產。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "common_toggle_help_text",
+      "before": "切換幫助文本",
+      "after": "切換說明文字"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "connect_approve_request_signatures_from_either_address",
+      "before": "向任一地址請求籤名",
+      "after": "向任一地址請求簽名"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "deposit_form_review_deposit",
+      "before": "確認存入",
+      "after": "檢視存入詳情"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "dispenser_dispenser_input_no_open_dispenser_found_at",
+      "before": "此地址沒有開放的販賣機。",
+      "after": "此地址沒有營業中的販賣機。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "fairminter_review_sale_window",
+      "before": "銷售視窗",
+      "after": "銷售期間"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "marketplace_intent_asset_stays_attached_to_sat_utxo",
+      "before": "資產將保持附加在此地址下一個 $1 sats 的 UTXO 上",
+      "after": "資產將保持附加在此地址的 $1 sats UTXO 上"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "settings_advanced_show_hide_help_text",
+      "before": "顯示/隱藏幫助文本",
+      "after": "顯示／隱藏說明文字"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "settings_advanced_show_or_hide_help_text",
+      "before": "預設顯示或隱藏幫助文本。",
+      "after": "預設顯示或隱藏說明文字。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "settings_order_settings_custom_blocks",
+      "before": "自定義區塊數，$1-$2",
+      "after": "自訂區塊數，$1-$2"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "settings_order_settings_custom_expiration_in_blocks",
+      "before": "自定義有效期（區塊數）",
+      "after": "自訂有效期（區塊數）"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "settings_pinned_assets_you_can_only_pin_up",
+      "before": "最多隻能置頂 10 個資產。",
+      "after": "最多只能置頂 10 個資產。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "settings_security_use_a_strong_unique_password",
+      "before": "使用一個未在其他賬戶使用過的強密碼。建議使用密碼管理器。",
+      "after": "使用一個未在其他帳戶使用過的強密碼。建議使用密碼管理器。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "setup_import_mnemonic_a_card_is_written_to",
+      "before": "卡片本身就是為了交給他人而寫的，所以請將這些單詞視為交給你的人也知道。這就是它們不被作為錢包匯入的原因：從這些單詞派生出的每個地址，對方同樣可以花費。對方也仍然可以從卡片本身花費，因此請把你想保留的一切轉移到你自己的地址。",
+      "after": "請假設贈卡人也知道這組助記詞。對方可以動用所有派生地址中的資金，因此不能將卡片作為錢包匯入。對方仍可動用卡片中的資產，請將你要保留的資產轉到自己的地址。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "setup_import_mnemonic_an_address_no_wallet_built",
+      "before": "，這是基於此助記詞構建的錢包永遠不會顯示的地址。匯入卡片只保留這一個地址，不會儲存助記詞。",
+      "after": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "setup_import_mnemonic_at",
+      "before": "，位於",
+      "after": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "setup_import_mnemonic_gift_card_address",
+      "before": null,
+      "after": "卡片餘額位於地址 $1（派生路徑：$2）。將此助記詞作為錢包匯入時，不會顯示該地址。匯入卡片只保留這個地址，不會儲存助記詞。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "setup_import_mnemonic_its_balance_is_on",
+      "before": "其餘額位於",
+      "after": null
+    },
+    {
+      "locale": "zh_TW",
+      "key": "swap_form_review_swap",
+      "before": "檢閱兌換",
+      "after": "檢視兌換詳情"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "tx_action_close_asset_dispenser",
+      "before": "關閉$1分發器",
+      "after": "關閉$1販賣機"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "tx_action_close_dispenser",
+      "before": "關閉分發器",
+      "after": "關閉販賣機"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "tx_action_dispenser",
+      "before": "分發器",
+      "after": "販賣機"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "tx_action_fund_dispenser",
+      "before": "向分發器存入資產",
+      "after": "向販賣機存入資產"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "tx_action_trigger_dispenser",
+      "before": "觸發分發器發放",
+      "after": "觸發販賣機發放"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "wallets_connect_hardware_select_your_account_on_your",
+      "before": "在 Trezor 裝置上選擇你的賬戶",
+      "after": "在 Trezor 裝置上選擇你的帳戶"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "wallets_connect_hardware_select_your_account_when_prompted",
+      "before": "在提示時選擇你的賬戶",
+      "after": "在提示時選擇你的帳戶"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "wallets_connect_hardware_your_trezor_will_discover_your",
+      "before": "Trezor 將發現你的比特幣賬戶，並讓你選擇要使用的賬戶。",
+      "after": "Trezor 將發現你的比特幣帳戶，並讓你選擇要使用的帳戶。"
+    },
+    {
+      "locale": "zh_TW",
+      "key": "withdraw_form_review_withdrawal",
+      "before": "確認取出",
+      "after": "檢視取出詳情"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "actions_find_and_consolidate_bare_multisig",
+      "before": "查找併合並裸多籤 UTXO",
+      "after": "查找並合併裸多重簽名 UTXO"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "address_type_nested_segwit",
+      "before": "Nested SegWit",
+      "after": "嵌套 SegWit"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "approval_bitcoin_payment_card_pays_less_than_requested",
+      "before": null,
+      "after": "此交易比請求金額少支付 $1 $2。"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "approval_bitcoin_payment_card_pays_more_than_requested",
+      "before": null,
+      "after": "此交易比請求金額多支付 $1 $2。"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "approval_bitcoin_payment_card_transaction_pays_than_requested",
+      "before": "交易支付比請求$3 $1 $2。",
+      "after": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "approval_bitcoin_payment_no_external_output",
+      "before": null,
+      "after": "此 PSBT 沒有對外支付的輸出。"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "approval_bitcoin_payment_output_address_unknown",
+      "before": null,
+      "after": "無法核查輸出 $1 的比特幣地址。"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "approval_bitcoin_payment_output_has_data",
+      "before": null,
+      "after": "輸出 $1 包含數據，普通比特幣付款不允許此類輸出。"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "approval_bitcoin_payment_outputs_mismatch",
+      "before": null,
+      "after": "對外支付的輸出與網站請求的付款不完全一致。"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "approval_money_movement_view_this_can_be_sent_elsewhere",
+      "before": "簽名後此金額可能被髮往別處，因此上方合計將其計為支出。",
+      "after": "簽名後此金額可能被發往別處，因此上方合計將其計為支出。"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "connect_approve_request_signatures_from_either_address",
+      "before": "向任一地址請求籤名",
+      "after": "向任一地址請求簽名"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "deposit_form_review_deposit",
+      "before": "確認存入",
+      "after": "查看存入詳情"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "dispenser_dispenser_input_no_open_dispenser_found_at",
+      "before": "此地址沒有開放的售賣機。",
+      "after": "此地址沒有營業中的售賣機。"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "fairminter_review_sale_window",
+      "before": "銷售窗口",
+      "after": "銷售期間"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "marketplace_intent_asset_stays_attached_to_sat_utxo",
+      "before": "資產將保持附加在此地址下一個 $1 sats 的 UTXO 上",
+      "after": "資產將保持附加在此地址的 $1 sats UTXO 上"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "setup_import_mnemonic_a_card_is_written_to",
+      "before": "卡片本身就是為了交給他人而寫的，所以請將這些單詞視為交給你的人也知道。這就是它們不被作為錢包導入的原因：從這些單詞派生出的每個地址，對方同樣可以花費。對方也仍然可以從卡片本身花費，因此請把你想保留的一切轉移到你自己的地址。",
+      "after": "請假設贈卡人也知道這組助記詞。對方可以動用所有派生地址中的資金，因此不能將卡片作為錢包導入。對方仍可動用卡片中的資產，請將你要保留的資產轉到自己的地址。"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "setup_import_mnemonic_an_address_no_wallet_built",
+      "before": "，這是基於此助記詞構建的錢包永遠不會顯示的地址。導入卡片只保留這一個地址，不會存儲助記詞。",
+      "after": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "setup_import_mnemonic_at",
+      "before": "，位於",
+      "after": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "setup_import_mnemonic_gift_card_address",
+      "before": null,
+      "after": "卡片餘額位於地址 $1（派生路徑：$2）。將此助記詞作為錢包導入時，不會顯示該地址。導入卡片只保留這個地址，不會儲存助記詞。"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "setup_import_mnemonic_its_balance_is_on",
+      "before": "其餘額位於",
+      "after": null
+    },
+    {
+      "locale": "zh_HK",
+      "key": "swap_form_review_swap",
+      "before": "檢查兌換",
+      "after": "查看兌換詳情"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "tx_action_close_asset_dispenser",
+      "before": "關閉$1分發器",
+      "after": "關閉$1售賣機"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "tx_action_close_dispenser",
+      "before": "關閉分發器",
+      "after": "關閉售賣機"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "tx_action_dispenser",
+      "before": "分發器",
+      "after": "售賣機"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "tx_action_fund_dispenser",
+      "before": "向分發器存入資產",
+      "after": "向售賣機存入資產"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "tx_action_trigger_dispenser",
+      "before": "觸發分發器發放",
+      "after": "觸發售賣機發放"
+    },
+    {
+      "locale": "zh_HK",
+      "key": "withdraw_form_review_withdrawal",
+      "before": "確認取出",
+      "after": "查看取出詳情"
+    }
+  ]
+}

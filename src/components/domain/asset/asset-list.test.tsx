@@ -1,8 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from '@/i18n/test-utils';
 import "@testing-library/jest-dom/vitest";
 import type { OwnedAsset } from "@/core/counterparty/api";
 import { asDisplayUnits } from '@/core/numeric';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { AssetList } from "./asset-list";
 
 // Mock dependencies
@@ -120,6 +123,7 @@ describe("AssetList", () => {
   ];
 
   beforeEach(() => {
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
     vi.clearAllMocks();
     mockActiveAddress = { address: "bc1qtest123", name: "Test Address" };
     mockFetchOwnedAssets.mockReset();
@@ -129,6 +133,11 @@ describe("AssetList", () => {
     mockIsSearching = false;
     mockSearchError = null;
     mockInView = false;
+  });
+
+  afterEach(() => {
+    cleanup();
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
   });
 
   it("should render loading spinner initially", () => {
@@ -491,7 +500,14 @@ describe("AssetList", () => {
     render(<AssetList />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load owned assets");
     expect(screen.queryByText("No Assets Owned")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
+      expect(screen.getByRole('alert')).toHaveTextContent(t('asset_asset_list_load_failed'));
+      expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', t('common_search_assets'));
+      expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(1);
+      expect(mockSetSearchQuery).not.toHaveBeenCalled();
+    }
+    fireEvent.click(screen.getByRole("button", { name: t('common_retry') }));
     await screen.findByText("PEPECASH");
     expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(2);
   });
@@ -523,7 +539,13 @@ describe("AssetList", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load more assets");
     expect(screen.getByText("FIRST0")).toBeInTheDocument();
     expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(2);
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
+      expect(screen.getByRole('alert')).toHaveTextContent(t('asset_asset_list_load_more_failed'));
+      expect(screen.getByText('FIRST0')).toBeInTheDocument();
+      expect(mockFetchOwnedAssets).toHaveBeenCalledTimes(2);
+    }
+    fireEvent.click(screen.getByRole("button", { name: t('common_retry') }));
     await screen.findByText("PEPECASH");
     expect(mockFetchOwnedAssets).toHaveBeenNthCalledWith(3, "bc1qtest123", { limit: 20, offset: 20 });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

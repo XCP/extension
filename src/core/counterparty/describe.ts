@@ -20,6 +20,7 @@
 
 import { getFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
 import { isTextualMimeType } from '@/core/counterparty/inscriptionEnvelope';
+import { formatAmount } from '@/core/format';
 import {
   type DisplayUnits,
   divide,
@@ -179,8 +180,21 @@ const TYPE_LABELS: Record<string, string> = {
   fairmint: 'Fairmint',
 };
 
-export function labelFor(messageType: string): string {
-  return (
+/** Pure presentation injection: core/history callers keep English without a UI dependency. */
+export type DescriptionLocalizer = (source: string, substitutions?: readonly string[]) => string;
+
+export const englishDescription: DescriptionLocalizer = (source, substitutions) =>
+  substitutions === undefined ? source : source.replace(/\$(\d)/g, (_, index: string) => substitutions[Number(index) - 1] ?? '');
+
+/** Identifier placement is data, never inferred by parsing translated prose. */
+export interface MessageHeadline {
+  headline: string;
+  address?: string;
+  subline?: string;
+}
+
+export function labelFor(messageType: string, text: DescriptionLocalizer = englishDescription): string {
+  return text(
     TYPE_LABELS[messageType] ??
     messageType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
   );
@@ -195,51 +209,57 @@ export function labelFor(messageType: string): string {
  */
 export function describeMessage(
   messageType: string,
-  m: DescribableMessage
+  m: DescribableMessage,
+  text: DescriptionLocalizer = englishDescription,
+  onHeadline?: (headline: MessageHeadline) => void,
 ): string | null {
   const q = (quantity: unknown, asset?: string) => m.format(quantity, asset);
   const n = (asset?: string) => (m.name ? m.name(asset) : (asset ?? ''));
+  const present = (headline: string, subline?: string, address?: string, description?: string) => {
+    onHeadline?.({ headline, subline, address });
+    return description ?? (subline ? `${headline}\n${subline}` : headline);
+  };
 
   switch (messageType) {
     case 'enhanced_send':
     case 'send':
-      return m.destination
-        ? `Send ${q(m.quantity, m.asset)} ${n(m.asset)} to ${m.destination}`
-        : `Send ${q(m.quantity, m.asset)} ${n(m.asset)}`;
+      return present(text('Send $1 $2', [q(m.quantity, m.asset), n(m.asset)]), undefined, m.destination,
+        m.destination ? text('Send $1 $2 to $3', [q(m.quantity, m.asset), n(m.asset), m.destination]) : undefined);
 
     case 'mpma_send':
       // Recipients live in the payload rather than in outputs, so the count is the only thing a
       // one-line summary can honestly state; the recipients themselves are listed separately.
-      return `Send to ${m.recipientCount ?? 0} recipient${m.recipientCount === 1 ? '' : 's'}`;
+      return present(text(m.recipientCount === 1 ? 'Send to $1 recipient' : 'Send to $1 recipients',
+        [formatAmount({ value: m.recipientCount ?? 0, maximumFractionDigits: 0 })]));
 
     case 'order':
-      return `Give ${q(m.giveQuantity, m.giveAsset)} ${n(m.giveAsset)} for ${q(m.getQuantity, m.getAsset)} ${n(m.getAsset)}`;
+      return present(text('Give $1 $2 for $3 $4', [q(m.giveQuantity, m.giveAsset), n(m.giveAsset), q(m.getQuantity, m.getAsset), n(m.getAsset)]));
 
     case 'cancel':
       // Name the trade where the order resolved; otherwise say what is being done and leave the
       // hash to the detail list, which is where 64 characters belong.
-      return m.cancelledOrderSummary
-        ? `Cancel order: ${m.cancelledOrderSummary}`
-        : 'Cancel a DEX order';
+      return present(m.cancelledOrderSummary
+        ? text('Cancel order: $1', [m.cancelledOrderSummary])
+        : text('Cancel a DEX order'));
 
     case 'dispenser':
       // Closing refunds the escrow and shuts the dispenser down; opening commits assets to it.
       // Both messages carry the same fields, so describing them identically stated the opposite of
       // what half of them do.
       if (m.dispenserStatus === DISPENSER_STATUS_CLOSED) {
-        return `Close the ${n(m.asset)} dispenser`;
+        return present(text('Close the $1 dispenser', [n(m.asset)]));
       }
       // The escrow is the headline — it is what leaves the wallet — with the rate beneath it.
       // giveQuantity, not quantity: a dispenser's payout per trigger.
       return m.escrowQuantity != null
-        ? `${q(m.escrowQuantity, m.asset)} ${n(m.asset)}\n` +
-          `${q(m.giveQuantity, m.asset)} ${n(m.asset)} @ ${fromSatoshis(String(m.mainchainrate ?? 0), { removeTrailingZeros: false })} BTC`
-        : `${q(m.giveQuantity, m.asset)} ${n(m.asset)} per ${toGroupedString((m.mainchainrate ?? 0) as string | number, 0)} sats`;
+        ? present(`${q(m.escrowQuantity, m.asset)} ${n(m.asset)}`,
+          `${q(m.giveQuantity, m.asset)} ${n(m.asset)} @ ${fromSatoshis(String(m.mainchainrate ?? 0), { removeTrailingZeros: false })} BTC`)
+        : present(text('$1 $2 per $3 sats', [q(m.giveQuantity, m.asset), n(m.asset), toGroupedString((m.mainchainrate ?? 0) as string | number, 0)]));
 
     case 'dispense':
       // The payload is a marker byte; which dispenser is triggered is decided by the outputs,
       // which the approval screen shows directly.
-      return 'Trigger a dispenser';
+      return present(text('Trigger a dispenser'));
 
     case 'issuance':
     case 'subasset_issuance':
@@ -253,35 +273,35 @@ export function describeMessage(
           ? q(m.quantity, m.asset)
           : m.divisible
             ? fromSatoshis(String(m.quantity), { removeTrailingZeros: false })
-            : BigInt(String(m.quantity)).toLocaleString()
+            : formatAmount({ value: BigInt(String(m.quantity)).toString(), maximumFractionDigits: 0 })
         : null;
       // Two lines: the asset is the headline, the amount reads beneath it — a numeric asset
       // name and a quantity in one sentence are two long tokens fighting for the same line.
-      return issued !== null ? `${asset}\nIssue ${issued}` : `${asset}\nNo new supply`;
+      return present(asset, issued !== null ? text('Issue $1', [issued]) : text('No new supply'));
     }
 
     case 'dividend':
       // The rate is the headline; who it is paid across reads beneath it.
-      return `${q(m.quantityPerUnit, m.dividendAsset)} ${n(m.dividendAsset)} per unit\nAll ${n(m.asset)} holders`;
+      return present(text('$1 $2 per unit', [q(m.quantityPerUnit, m.dividendAsset), n(m.dividendAsset)]), text('All $1 holders', [n(m.asset)]));
 
     case 'btcpay':
       // Not "BTC Pay for Order Match": that is the label above it, and the eyebrow repeating the
       // headline is the pattern being removed everywhere else. Say what it does instead.
-      return 'Pay BTC to settle a matched order';
+      return present(text('Pay BTC to settle a matched order'));
 
     case 'sweep':
-      return `Sweep to ${m.destination ?? ''}`;
+      return present(text('Sweep'), undefined, m.destination, text('Sweep to $1', [m.destination ?? '']));
 
     case 'broadcast':
-      return m.text || 'an empty message';
+      return present(m.text || text('an empty message'));
 
     case 'fairminter':
-      return n(m.asset);
+      return present(n(m.asset));
 
     case 'fairmint':
       // The quantity is optional: a fairmint may take the fairminter's lot size. With no amount
       // to state, name the asset rather than formatting nothing as "?".
-      return m.quantity == null ? n(m.asset) : `${q(m.quantity, m.asset)} ${n(m.asset)}`;
+      return present(m.quantity == null ? n(m.asset) : `${q(m.quantity, m.asset)} ${n(m.asset)}`);
 
     case 'pooldeposit': {
       // General transaction descriptions retain the amounts. Approval summaries use the typed
@@ -292,7 +312,7 @@ export function describeMessage(
       const ratio = a !== undefined && b !== undefined
         && toBigNumber(a).isFinite() && toBigNumber(b).isFinite() && isGreaterThan(a, 0)
         ? `1 ${n(m.assetA)} = ${toGroupedString(divide(b, a))} ${n(m.assetB)}` : null;
-      return ratio ? `${legs}\n${ratio}` : legs;
+      return present(legs, ratio ?? undefined);
     }
 
     case 'poolwithdraw': {
@@ -300,34 +320,41 @@ export function describeMessage(
       // never needs the unknown-divisibility caveat. The pair beneath uses the same base/quote
       // order as the market pages, so one pool reads the same way everywhere.
       const pair = getTradingPair(m.assetA ?? '', m.assetB ?? '').map(n).join(' / ');
-      return m.quantity != null
-        ? `Destroy ${fromSatoshis(String(m.quantity), { removeTrailingZeros: false })} LP Tokens\n${pair}`
-        : `Withdraw liquidity\n${pair}`;
+      return present(m.quantity != null
+        ? text('Destroy $1 LP Tokens', [fromSatoshis(String(m.quantity), { removeTrailingZeros: false })])
+        : text('Withdraw liquidity'), pair);
     }
 
     case 'attach':
       // "to UTXO" says nothing an attach does not already imply; the created outpoint is named
       // in the detail list.
-      return `Attach ${q(m.quantity, m.asset)} ${n(m.asset)}`;
+      return present(text('Attach $1 $2', [q(m.quantity, m.asset), n(m.asset)]));
 
     case 'detach':
       // The payload carries one field — where everything on the UTXO goes.
-      return m.destination
-        ? `Detach all assets from UTXO to ${m.destination}`
-        : 'Detach all assets from UTXO';
+      return present(text('Detach all assets from UTXO'), undefined, m.destination,
+        m.destination ? text('Detach all assets from UTXO to $1', [m.destination]) : undefined);
 
     // Both the API and the local unpack call this type `utxo`; `utxo_move` is accepted because
     // older records and tests use it.
     case 'utxo':
     case 'utxo_move':
-      return `Move ${q(m.quantity, m.asset)} ${n(m.asset)} to ${m.destination ?? ''}`;
+      return present(text('Move $1 $2', [q(m.quantity, m.asset), n(m.asset)]), undefined, m.destination,
+        text('Move $1 $2 to $3', [q(m.quantity, m.asset), n(m.asset), m.destination ?? '']));
 
     case 'destroy':
-      return `Destroy ${q(m.quantity, m.asset)} ${n(m.asset)}`;
+      return present(text('Destroy $1 $2', [q(m.quantity, m.asset), n(m.asset)]));
 
     default:
       return null;
   }
+}
+
+/** The same switch supplies both the legacy description and the structured approval headline. */
+export function describeMessageDetails(messageType: string, m: DescribableMessage, text: DescriptionLocalizer = englishDescription) {
+  let presentation: MessageHeadline | undefined;
+  const description = describeMessage(messageType, m, text, (headline) => { presentation = headline; });
+  return description === null ? null : { description, presentation };
 }
 
 export type { DisplayUnits };
@@ -440,10 +467,10 @@ function dispensesAvailable(m: DescribableMessage): string | undefined {
 }
 
 /** What a sweep carries, from its flags - balances, ownership, or both. */
-function sweepContents(m: DescribableMessage): string | undefined {
-  if (m.sweepBalances && m.sweepOwnership) return 'All balances and asset ownership';
-  if (m.sweepOwnership) return 'Asset ownership only';
-  if (m.sweepBalances) return 'All balances';
+function sweepContents(m: DescribableMessage, text: DescriptionLocalizer): string | undefined {
+  if (m.sweepBalances && m.sweepOwnership) return text('All balances and asset ownership');
+  if (m.sweepOwnership) return text('Asset ownership only');
+  if (m.sweepBalances) return text('All balances');
   return undefined;
 }
 
@@ -467,17 +494,18 @@ function shareOfSupply(m: DescribableMessage, supply?: string): string | undefin
 export function protocolFields(
   messageType: string,
   m: DescribableMessage,
-  context: ProtocolContext = {}
+  context: ProtocolContext = {},
+  text: DescriptionLocalizer = englishDescription,
 ): ProtocolField[] {
   const q = (quantity: unknown, asset?: string) => m.format(quantity, asset);
   const n = (asset?: string) => (m.name ? m.name(asset) : (asset ?? ''));
   const fields: ProtocolField[] = [];
   const add = (label: string, value: unknown, kind: ProtocolField['kind'] = 'text') => {
     if (value === undefined || value === null || value === '') return;
-    fields.push({ label, value: String(value), kind });
+    fields.push({ label: text(label), value: String(value), kind });
   };
   const addMemo = (label = 'Memo') => add(
-    m.memoEncoding === 'hex' ? `${label} (hex)` : label,
+    m.memoEncoding === 'hex' ? text('$1 (hex)', [text(label)]) : label,
     m.memo,
     m.memoEncoding === 'hex' ? 'identifier' : 'paragraph',
   );
@@ -519,7 +547,8 @@ export function protocolFields(
       if (m.feeRequired != null && isGreaterThan(String(m.feeRequired), 0)) {
         add('BTC fee', amount(m.feeRequired, 'BTC', 'BTC'), 'amount');
       }
-      add('Expiry', m.expiration ? `${m.expiration.toLocaleString()} blocks` : undefined);
+      add('Expiry', m.expiration
+        ? text('$1 blocks', [formatAmount({ value: m.expiration, maximumFractionDigits: 0 })]) : undefined);
       break;
 
     case 'dispenser':
@@ -545,14 +574,14 @@ export function protocolFields(
       add('XCP price per lot', amount(m.price, 'XCP', 'XCP'), 'amount');
       add('Lot size', amount(m.quantityByPrice, m.asset), 'amount');
       const cap = (value: unknown) => value == null ? undefined
-        : isGreaterThan(String(value), 0) ? amount(value, m.asset) : 'No limit';
+        : isGreaterThan(String(value), 0) ? amount(value, m.asset) : text('No limit');
       add('Per transaction limit', cap(m.maxMintPerTx), 'amount');
       add('Per address limit', cap(m.maxMintPerAddress), 'amount');
       add('Hard cap', cap(m.hardCap), 'amount');
       if (m.softCap != null && isGreaterThan(String(m.softCap), 0)) {
         add('Soft cap', amount(m.softCap, m.asset), 'amount');
         add('Soft cap deadline', m.softCapDeadlineBlock
-          ? `Block ${m.softCapDeadlineBlock.toLocaleString()}` : undefined);
+          ? text('Block $1', [formatAmount({ value: m.softCapDeadlineBlock, maximumFractionDigits: 0 })]) : undefined);
       }
       if (m.premintQuantity != null && isGreaterThan(String(m.premintQuantity), 0)) {
         add('Premint', amount(m.premintQuantity, m.asset), 'amount');
@@ -566,20 +595,22 @@ export function protocolFields(
           price: String(m.price), burnPayment: m.burnPayment,
           poolQuantity: m.poolQuantity == null ? undefined : String(m.poolQuantity),
         });
-        add('XCP payment', {
+        add('XCP payment', text({
           free: 'None (free mint)', burned: 'Burned', pool: 'Seeds the liquidity pool', issuer: 'Paid to issuer',
-        }[payment]);
+        }[payment]));
       }
       add('Starts', m.startBlock === undefined ? undefined
-        : m.startBlock === 0 ? 'On confirmation' : `Block ${m.startBlock.toLocaleString()}`);
+        : m.startBlock === 0 ? text('On confirmation')
+        : text('Block $1', [formatAmount({ value: m.startBlock, maximumFractionDigits: 0 })]));
       add('Ends', m.endBlock === undefined ? undefined
-        : m.endBlock === 0 ? 'No end block' : `Block ${m.endBlock.toLocaleString()}`);
+        : m.endBlock === 0 ? text('No end block')
+        : text('Block $1', [formatAmount({ value: m.endBlock, maximumFractionDigits: 0 })]));
       if (m.mintedAssetCommissionInt != null) {
         add('Minted asset commission', `${toGroupedString(divide(String(m.mintedAssetCommissionInt), 1_000_000))}%`, 'amount');
       }
-      add('Divisible', m.divisible === undefined ? undefined : m.divisible ? 'Yes' : 'No');
-      add('Lock description', m.lockDescription === undefined ? undefined : m.lockDescription ? 'Yes' : 'No');
-      add('Lock quantity', m.lockQuantity === undefined ? undefined : m.lockQuantity ? 'Yes' : 'No');
+      add('Divisible', m.divisible === undefined ? undefined : text(m.divisible ? 'Yes' : 'No'));
+      add('Lock description', m.lockDescription === undefined ? undefined : text(m.lockDescription ? 'Yes' : 'No'));
+      add('Lock quantity', m.lockQuantity === undefined ? undefined : text(m.lockQuantity ? 'Yes' : 'No'));
       if (m.mimeType && !isTextualMimeType(m.mimeType)) {
         add('Description format', m.mimeType);
         add('Description content', m.text, 'identifier');
@@ -610,10 +641,10 @@ export function protocolFields(
     case 'lr_subasset':
       // Ordered by consequence: the switches that cannot be undone and the change of owner come
       // before a description that can run several lines and change nothing.
-      if (m.lock) add('Lock', 'Yes - supply can never be increased again', 'paragraph');
-      if (m.reset) add('Reset', 'Yes - existing supply is destroyed and replaced', 'paragraph');
+      if (m.lock) add('Lock', text('Yes - supply can never be increased again'), 'paragraph');
+      if (m.reset) add('Reset', text('Yes - existing supply is destroyed and replaced'), 'paragraph');
       add('New owner', m.destination, 'address');
-      if (m.divisible !== undefined) add('Divisible', m.divisible ? 'Yes' : 'No');
+      if (m.divisible !== undefined) add('Divisible', text(m.divisible ? 'Yes' : 'No'));
       add('Description', m.text, 'paragraph');
       break;
 
@@ -650,7 +681,7 @@ export function protocolFields(
     case 'sweep':
       // Headline: the destination. Not in it: what actually moves, which is the whole question -
       // a sweep can hand over asset ownership as well as balances.
-      add('Includes', sweepContents(m), 'paragraph');
+      add('Includes', sweepContents(m, text), 'paragraph');
       addMemo();
       break;
 
@@ -658,11 +689,11 @@ export function protocolFields(
       // The text is the headline. What is not visible there is what kind of broadcast this is: a
       // feed carrying a value and a fee, or content inscribed under a MIME type.
       const mime = m.mimeType && m.mimeType !== '' ? m.mimeType : 'text/plain';
-      add('Format', mime === 'text/plain' ? 'Plain text' : mime);
+      add('Format', mime === 'text/plain' ? text('Plain text') : mime);
       if (mime !== 'text/plain') {
-        add('Content', 'Inscribed - this broadcast carries data, not a message', 'paragraph');
+        add('Content', text('Inscribed - this broadcast carries data, not a message'), 'paragraph');
       }
-      if (m.value) add('Value', m.value.toLocaleString());
+      if (m.value) add('Value', formatAmount({ value: m.value }));
       if (m.feeFractionInt) {
         // Stored as an integer of 1e8; a feed's cut of what it settles.
         add('Fee fraction', `${(m.feeFractionInt / 1e6).toFixed(2)}%`);
@@ -677,8 +708,8 @@ export function protocolFields(
         add(
           'Time left',
           context.btcpayBlocksLeft > 0
-            ? `${context.btcpayBlocksLeft} block${context.btcpayBlocksLeft === 1 ? '' : 's'}`
-            : 'Expired - this payment will not settle the match',
+            ? text(context.btcpayBlocksLeft === 1 ? '$1 block' : '$1 blocks', [formatAmount({ value: context.btcpayBlocksLeft, maximumFractionDigits: 0 })])
+            : text('Expired - this payment will not settle the match'),
           context.btcpayBlocksLeft > 0 ? 'text' : 'paragraph'
         );
       }
@@ -713,10 +744,10 @@ export function protocolFields(
       add('Pool fee', context.poolFeeRate);
       // The withdrawal's slippage floors: it fails below these amounts back.
       if (m.minQuantityA != null && isGreaterThan(String(m.minQuantityA), 0)) {
-        add(`Min ${n(m.assetA)} back`, amount(m.minQuantityA, m.assetA, ''), 'amount');
+        add(text('Min $1 back', [n(m.assetA)]), amount(m.minQuantityA, m.assetA, ''), 'amount');
       }
       if (m.minQuantityB != null && isGreaterThan(String(m.minQuantityB), 0)) {
-        add(`Min ${n(m.assetB)} back`, amount(m.minQuantityB, m.assetB, ''), 'amount');
+        add(text('Min $1 back', [n(m.assetB)]), amount(m.minQuantityB, m.assetB, ''), 'amount');
       }
       break;
 

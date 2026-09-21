@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AddressFormat } from "@/core/bitcoin/address";
 import { getPrivateKeyFromMnemonic } from "@/core/bitcoin/privateKey";
 import { GIFT_CARD_PATH } from "@/core/wallet/rarePepeWallet";
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { analytics } from "@/platform/fathom";
 import ImportMnemonicPage from "../import-mnemonic";
 
@@ -79,6 +80,7 @@ function enterPassword() {
 describe("ImportMnemonicPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockBrowserLocale({ language: 'en' });
     window.location.hash = "";
     mockVerifyPassword.mockResolvedValue(true);
     mockCreateMnemonicWallet.mockResolvedValue({ id: "wallet-1" });
@@ -174,6 +176,23 @@ describe("ImportMnemonicPage", () => {
   describe("when the phrase is a gift card", () => {
     beforeEach(() => {
       mockDetectGiftCard.mockResolvedValue({ status: "found", value: GIFT_CARD_ADDRESS });
+    });
+
+    it.each(['ja', 'zh-CN', 'zh-TW', 'zh-HK'])('keeps gift-card identifiers in %s sentence order', async (language) => {
+      mockBrowserLocale({ language });
+      const { container } = render(<ImportMnemonicPage />);
+      CW_MNEMONIC.split(' ').forEach((word, index) => {
+        fireEvent.change(container.querySelector(`input[name="word-${index}"]`)!, { target: { value: word } });
+      });
+      const status = await screen.findByRole('status');
+      const address = status.querySelector(`[title="${GIFT_CARD_ADDRESS}"]`)!;
+      const sentence = address.parentElement!;
+      expect(sentence).toHaveTextContent(GIFT_CARD_PATH);
+      expect(sentence.textContent).not.toMatch(/\{address\}|\{path\}|\$[12]/);
+      const text = sentence.textContent!;
+      expect(text.indexOf(GIFT_CARD_PATH) < text.indexOf(address.textContent!)).toBe(language === 'ja');
+      expect(mockCreateMnemonicWallet).not.toHaveBeenCalled();
+      expect(mockCreatePrivateKeyWallet).not.toHaveBeenCalled();
     });
 
     it("says so before anything is imported, and does not offer to make a wallet of it", async () => {

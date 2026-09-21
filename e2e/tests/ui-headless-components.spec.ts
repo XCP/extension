@@ -82,37 +82,21 @@ walletTest.describe('Settings with Headless UI Components', () => {
     expect(isSelected).toBe('true');
   });
 
-  walletTest('currency selection using Headless UI components', async ({ page }) => {
+  walletTest('currency selection persists without changing the browser language', async ({ page }) => {
     await navigateTo(page, 'settings');
-
-    const generalOption = page.getByText('General');
-
-    // Navigate to General settings if visible
-    try {
-      await expect(generalOption).toBeVisible({ timeout: 2000 });
-      await generalOption.click();
-    } catch {
-      // May already be on general settings page
-    }
-
-    const currencyOption = page.locator('text=/Currency|Fiat/i').first();
-
-    // Skip if currency option not available
-    try {
-      await expect(currencyOption).toBeVisible({ timeout: 3000 });
-    } catch {
-      return; // Currency option not present
-    }
-
-    await currencyOption.click();
-
-    const currencyRadios = await page.locator('[role="radio"]').all();
-    expect(currencyRadios.length).toBeGreaterThan(1);
-
-    await currencyRadios[1].click();
-
-    const isSelected = await currencyRadios[1].getAttribute('aria-checked');
-    expect(isSelected).toBe('true');
+    const currency = page.getByRole('combobox', { name: 'Price currency', exact: true });
+    await expect(page.getByRole('combobox')).toHaveCount(1);
+    await expect(currency).toHaveValue('usd');
+    await currency.selectOption('eur');
+    await expect(currency).toBeEnabled();
+    await page.reload();
+    await expect(currency).toHaveValue('eur');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await currency.selectOption('cny');
+    await expect(currency).toBeEnabled();
+    await page.reload();
+    await expect(currency).toHaveValue('cny');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   });
 
   walletTest('headless UI dropdown menus in settings', async ({ page }) => {

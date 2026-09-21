@@ -1,8 +1,10 @@
 import { RadioGroup } from '@headlessui/react';
 import type { ReactElement } from 'react';
+import { displayAccountName } from '@/components/domain/account-name';
 import { WalletMenu } from '@/components/domain/wallet/wallet-menu';
 import { FiShield } from '@/components/icons';
 import { formatAddress } from '@/core/format';
+import { t } from '@/i18n';
 import type { Address, Wallet } from '@/types/wallet';
 
 interface WalletCardProps {
@@ -37,7 +39,7 @@ export function WalletCard({
       : displayAddress?.address ||
         (wallet.addresses.length > 0
           ? wallet.addresses[0]!.address
-          : wallet.previewAddress || 'No address');
+          : wallet.previewAddress || t('wallet_wallet_card_no_address'));
 
   const handleClick = (e: React.MouseEvent) => {
     if (disabled) return;
@@ -77,7 +79,7 @@ export function WalletCard({
       {({ checked }) => (
         <div className="flex flex-col" aria-disabled={disabled}>
           <div className="flex justify-between items-center">
-            <div className="text-sm font-medium">{wallet.name}</div>
+            <div className="text-sm font-medium">{displayAccountName(wallet.name)}</div>
             <div className="absolute top-2 right-2 wallet-menu">
               <WalletMenu wallet={wallet} isOnlyWallet={isOnlyWallet} />
             </div>
@@ -90,7 +92,7 @@ export function WalletCard({
               {wallet.type === 'hardware' && (
                 <FiShield className="w-3 h-3" aria-hidden="true" />
               )}
-              {wallet.type === 'mnemonic' ? 'Mnemonic' : wallet.type === 'hardware' ? 'Hardware' : 'Private Key'}
+              {wallet.type === 'mnemonic' ? 'Mnemonic' : wallet.type === 'hardware' ? 'Hardware' : t('common_private_key')}
             </span>
           </div>
         </div>

@@ -10,6 +10,8 @@ import { type ReactElement, useEffect, useState } from "react";
 import { FaCheck, FaSpinner, FiChevronDown } from "@/components/icons";
 import { useSettings } from "@/contexts/settings-context";
 
+import { t } from '@/i18n';
+
 interface Asset {
   asset: string;
   symbol: string;
@@ -54,7 +56,7 @@ export function AssetSelectInput({
             (asset: string) => ({
               asset,
               symbol: asset,
-              description: `${asset} Token`,
+              description: t('asset_asset_select_input_token', [String(asset)]),
               supply: 0,
             }),
           );
@@ -103,7 +105,7 @@ export function AssetSelectInput({
       const pinnedAssetsList = settings.pinnedAssets.map((asset: string) => ({
         asset,
         symbol: asset,
-        description: `${asset} Token`,
+        description: t('asset_asset_select_input_token', [String(asset)]),
         supply: 0,
       }));
       setAssets(pinnedAssetsList);
@@ -114,7 +116,7 @@ export function AssetSelectInput({
     return (
       <img
         src={`https://cdn.xcp.io/img/icon/${asset}`}
-        alt={`${asset} icon`}
+        alt={t('close_form_icon', [String(asset)])}
         className="size-5 rounded-full"
         onError={(e) => {
           (e.target as HTMLImageElement).style.display = "none";
@@ -217,7 +219,7 @@ export function AssetSelectInput({
       </Combobox>
       {showHelpText && (
         <p className="mt-2 text-sm text-gray-500">
-          {description || "Search and select an asset by name or symbol"}
+          {description || t('asset_asset_select_input_search_and_select_an_asset')}
         </p>
       )}
     </div>

@@ -10,6 +10,7 @@ import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
 import type { SignRequestAnalysis } from '@/core/counterparty/signRequestAnalysis';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { shouldBlockSigning } from '@/core/counterparty/unpack/providerVerify';
+import { formatAmount } from '@/core/format';
 
 export interface ProviderApprovalPolicy {
   blocked: boolean;
@@ -123,7 +124,7 @@ export function getPsbtBundleApprovalPolicy(
     if (hasHighPsbtFee(item.psbtDetails, fastestFee)) {
       itemPolicy.requiresAcknowledgement = true;
       itemWarnings.push({ severity: 'warning', title: 'Unusually high network fee',
-        message: `This transaction pays ${item.psbtDetails.fee.toLocaleString()} sats. Confirm that this fee is intentional.` });
+        message: `This transaction pays ${formatAmount({ value: item.psbtDetails.fee, maximumFractionDigits: 0 })} sats. Confirm that this fee is intentional.` });
     }
     if (itemPolicy.blocked && !itemWarnings.some(warning => warning.severity === 'block')) {
       itemWarnings.push({ severity: 'block', title: 'Transaction did not pass verification',

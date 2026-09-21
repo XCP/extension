@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HardwareWalletError } from '@/core/hardware/types';
 import { ProviderError } from '@/core/rpcErrors';
 import { markServicesReady } from '@/services/core/serviceReadiness';
 import { defineProxyService, disconnectAllPorts, isBackgroundScript } from '../proxy';
@@ -287,6 +288,32 @@ describe('defineProxyService', () => {
       expect(handleRequest).toHaveBeenCalledExactlyOnceWith('https://site.example', 'xcp_accounts', []);
       expect(disconnect).not.toHaveBeenCalled();
       expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ id: 2, success: false }));
+    });
+
+    it('keeps hardware metadata private to extension UI, preserving the public raw error', async () => {
+      const failure = new HardwareWalletError('Original SDK evidence', 'DEVICE_BUSY', 'trezor', 'English hint');
+      const handleRequest = vi.fn().mockRejectedValue(failure);
+      const name = `HardwarePrivacy_${++testServiceCounter}`;
+      const [registerProvider] = defineProxyService(name, () => ({ handleRequest }), {
+        methods: { handleRequest: 'command' }, contentScript: 'provider',
+      });
+      registerProvider();
+      const contentPort = createMockPort(`proxy:${name}`);
+      Object.assign(contentPort.sender, { url: 'https://site.example/path', origin: 'https://site.example', frameId: 0 });
+      const uiPort = createMockPort(`proxy:${name}`);
+      for (const port of [contentPort, uiPort]) {
+        onConnectListeners.forEach(fn => { fn(port); });
+        port._fireMessage({ id: 1, methodName: 'handleRequest', args: ['https://site.example', 'xcp_signMessage', []] });
+      }
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const contentError = contentPort.postMessage.mock.calls[0]?.[0].error;
+      const uiError = uiPort.postMessage.mock.calls[0]?.[0].error;
+      expect(contentError.message).toBe(failure.message);
+      expect(contentError.hardware).toBeUndefined();
+      expect(uiError.message).toBe(failure.message);
+      expect(uiError.hardware).toEqual({ vendor: 'trezor', code: 'DEVICE_BUSY' });
+      expect(uiError.hardware).not.toHaveProperty('userMessage');
+      expect(handleRequest).toHaveBeenCalledTimes(2);
     });
 
     it.each([

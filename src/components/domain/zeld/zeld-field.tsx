@@ -3,6 +3,7 @@ import { formatAmount } from "@/core/format";
 import { zeldBaseUnitsToDisplay } from "@/core/zeld/api";
 import { HUNTS_WHILE_SIGNING } from "@/core/zeld/eligibility";
 import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
+import { t } from '@/i18n';
 
 function zeld(baseUnits: string): string {
   return formatAmount({ value: zeldBaseUnitsToDisplay(BigInt(baseUnits)), minimumFractionDigits: 0, maximumFractionDigits: 8 });
@@ -22,17 +23,17 @@ export function zeldReviewLine({
   protection?: ZeldProtectionMetadata;
   send?: ZeldSendMetadata;
 }): string | null {
-  if (send?.park) return `Moving ${zeld(send.amount_base_units)} ZELD to a small output of your own`;
-  if (send) return `Sending ${zeld(send.amount_base_units)} ZELD; ${zeld(send.remainder_base_units)} stays with you`;
+  if (send?.park) return t('zeld_review_park', [zeld(send.amount_base_units)]);
+  if (send) return t('zeld_review_send', [zeld(send.amount_base_units), zeld(send.remainder_base_units)]);
   if (protection && protection.excluded.length > 0) {
     const count = protection.excluded.length;
-    return `Kept ${count} output${count === 1 ? '' : 's'} holding ZELD out of this payment`;
+    return count === 1 ? t('zeld_review_kept_one', [String(count)]) : t('zeld_review_kept_many', [String(count)]);
   }
   if (hunt?.status === 'found' && hunt.zero_count !== undefined) {
-    return `Found a ${hunt.zero_count}-zero txid in ${(hunt.elapsed_ms / 1000).toFixed(1)}s`;
+    return t('zeld_review_found', [String(hunt.zero_count), formatAmount({ value: hunt.elapsed_ms / 1000, minimumFractionDigits: 1, maximumFractionDigits: 1 })]);
   }
-  if (hunt?.status === 'not_found') return `No rare txid in ${Math.min(hunt.seconds, Math.ceil(hunt.elapsed_ms / 1000))}s; sending as usual`;
-  if (hunt?.status === 'skipped' && hunt.reason === HUNTS_WHILE_SIGNING) return `Hunts while signing, up to ${hunt.seconds}s`;
+  if (hunt?.status === 'not_found') return t('zeld_review_not_found', [String(Math.min(hunt.seconds, Math.ceil(hunt.elapsed_ms / 1000)))]);
+  if (hunt?.status === 'skipped' && hunt.reason === HUNTS_WHILE_SIGNING) return t('zeld_review_signing', [String(hunt.seconds)]);
   return null;
 }
 

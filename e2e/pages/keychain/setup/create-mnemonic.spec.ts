@@ -74,7 +74,7 @@ test.describe('Wallet Creation', () => {
 
     await navigateToWallets(extensionPage);
     await extensionPage.getByRole('button', { name: 'Wallet options' }).click();
-    await extensionPage.getByText('Show Passphrase', { exact: true }).click();
+    await extensionPage.getByText('Show Recovery Phrase', { exact: true }).click();
     await extensionPage.waitForURL(/keychain\/secrets\/show-passphrase/, { timeout: 5000 });
 
     await createWallet.passwordInput(extensionPage).fill(TEST_PASSWORD);

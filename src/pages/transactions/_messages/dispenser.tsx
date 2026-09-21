@@ -3,6 +3,7 @@ import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { divide, isGreaterThan, multiply, roundDown } from "@/core/numeric";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for dispenser transactions
  */
@@ -38,17 +39,17 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
-      label: "Asset",
+      label: t('common_asset'),
       value: params.asset,
     },
     {
-      label: "Status",
+      label: t('common_status'),
       value: params.status === 0 ? "🟢 Open" : 
              params.status === 10 ? "🔴 Closed" : 
              params.status === 11 ? "⚠️ Closing" : "Unknown",
     },
     {
-      label: "Give per Dispense",
+      label: t('messages_dispenser_give_per_dispense'),
       value: `${formatAmount({
         value: giveQuantity,
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -56,7 +57,7 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
       })} ${params.asset}`,
     },
     {
-      label: "Price per Dispense",
+      label: t('messages_dispenser_price_per_dispense'),
       value: `${formatAmount({
         value: btcPerDispense,
         minimumFractionDigits: 8,
@@ -64,7 +65,7 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
       })} BTC`,
     },
     {
-      label: "Total Escrow",
+      label: t('messages_dispenser_total_escrow'),
       value: `${formatAmount({
         value: escrowQuantity,
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -81,7 +82,7 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
       : null;
     
     fields.push({
-      label: "Remaining in Escrow",
+      label: t('messages_dispenser_remaining_in_escrow'),
       value: `${formatAmount({
         value: giveRemaining,
         minimumFractionDigits: isDivisible ? 8 : 0,
@@ -91,7 +92,7 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
     
     if (remainingDispenses !== null) {
       fields.push({
-        label: "Remaining Dispenses",
+        label: t('messages_dispenser_remaining_dispenses'),
         value: remainingDispenses.toFixed(),
       });
     }
@@ -100,14 +101,14 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
   // Add total calculations, when the transaction says enough to work them out.
   if (totalDispenses !== null) {
     fields.push({
-      label: "Max Dispenses",
+      label: t('messages_dispenser_max_dispenses'),
       value: roundDown(totalDispenses).toFixed(),
     });
   }
 
   if (totalBtcValue !== null) {
     fields.push({
-      label: "Total BTC Value",
+      label: t('messages_dispenser_total_btc_value'),
       value: `${formatAmount({
         value: totalBtcValue,
         minimumFractionDigits: 8,
@@ -119,7 +120,7 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
   // Add oracle address if present
   if (params.oracle_address) {
     fields.push({
-      label: "Oracle Address",
+      label: t('messages_dispenser_oracle_address'),
       value: params.oracle_address,
     });
   }

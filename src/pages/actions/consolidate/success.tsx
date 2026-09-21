@@ -6,6 +6,8 @@ import { useHeader } from "@/contexts/header-context";
 import { formatAddress } from "@/core/format";
 import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
 
+import { t } from '@/i18n';
+
 interface LocationState {
   results: ConsolidationResult[];
   totalBatches: number;
@@ -21,7 +23,7 @@ function ConsolidateSuccessPage() {
   
   useEffect(() => {
     setHeaderProps({
-      title: "Started Recovery",
+      title: t('consolidate_success_started_recovery'),
       // Back to the recovery tool homepage, replacing this results screen. The other half of the
       // navigation loop: pushing left the results underneath, so the recovery page's own back
       // (navigate(-1)) returned here and the two pages ping-ponged. Replaced, the stack reads
@@ -30,7 +32,7 @@ function ConsolidateSuccessPage() {
       rightButton: {
         icon: <FiX className="size-4" aria-hidden="true" />,
         onClick: () => navigate('/'),
-        ariaLabel: "Close and go home"
+        ariaLabel: t('consolidate_success_close_and_go_home')
       }
     });
     return () => setHeaderProps(null);
@@ -63,11 +65,16 @@ function ConsolidateSuccessPage() {
             <FaCheckCircle className="size-6 text-green-600 mt-1 flex-shrink-0" aria-hidden="true" />
             <div className="flex-1">
               <h2 className="text-lg font-semibold text-green-900">
-                Consolidation Successful!
+                {t('consolidate_success_consolidation_successful')}
               </h2>
               <p className="text-sm text-green-700 mt-1">
-                Successfully broadcast {successfulBatches.length} of {state.totalBatches} batch{state.totalBatches > 1 ? 'es' : ''}.
-                {failedBatches.length > 0 && ` ${failedBatches.length} batch${failedBatches.length > 1 ? 'es' : ''} failed — you can retry those later.`}
+                {state.totalBatches === 1
+                  ? t('consolidate_success_successfully_broadcast_the_batch')
+                  : t('consolidate_success_successfully_broadcast_of_batches', [String(successfulBatches.length), String(state.totalBatches)])}
+                {failedBatches.length > 0 && ' '}
+                {failedBatches.length === 1
+                  ? t('consolidate_success_one_batch_failed_you_can')
+                  : failedBatches.length > 1 && t('consolidate_success_batches_failed_you_can_retry', [String(failedBatches.length)])}
               </p>
             </div>
           </div>
@@ -78,11 +85,10 @@ function ConsolidateSuccessPage() {
             <FiX className="size-6 text-red-600 mt-1 flex-shrink-0" aria-hidden="true" />
             <div className="flex-1">
               <h2 className="text-lg font-semibold text-red-900">
-                No Batches Broadcast
+                {t('consolidate_success_no_batches_broadcast')}
               </h2>
               <p className="text-sm text-red-700 mt-1">
-                All {state.totalBatches} batch{state.totalBatches > 1 ? 'es' : ''} failed. Nothing was sent and no
-                Bitcoin was spent. See the errors below.
+                {t('consolidate_success_all_batch_failed_nothing_was', [String(state.totalBatches), String(state.totalBatches > 1 ? 'es' : '')])}
               </p>
             </div>
           </div>
@@ -91,28 +97,28 @@ function ConsolidateSuccessPage() {
       
       {/* Summary Stats */}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        <h2 className="font-semibold mb-3">Consolidation Summary</h2>
+        <h2 className="font-semibold mb-3">{t('consolidate_success_consolidation_summary')}</h2>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">Address:</span>
+            <span className="text-gray-600">{t('common_address')}</span>
             <span className="font-medium">{formatAddress(state.address, true)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Total Batches:</span>
+            <span className="text-gray-600">{t('common_total_batches')}</span>
             <span className="font-medium">{state.totalBatches}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Successful:</span>
+            <span className="text-gray-600">{t('consolidate_success_successful')}</span>
             <span className="font-medium text-green-600">{successfulBatches.length}</span>
           </div>
           {failedBatches.length > 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-600">Failed:</span>
+              <span className="text-gray-600">{t('consolidate_success_failed')}</span>
               <span className="font-medium text-red-600">{failedBatches.length}</span>
             </div>
           )}
           <div className="flex justify-between">
-            <span className="text-gray-600">UTXOs Consolidated:</span>
+            <span className="text-gray-600">{t('common_utxos_consolidated')}</span>
             <span className="font-medium">{totalUtxos}</span>
           </div>
         </div>
@@ -120,7 +126,7 @@ function ConsolidateSuccessPage() {
       
       {/* Transaction List */}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        <h2 className="font-semibold mb-3">Transaction IDs</h2>
+        <h2 className="font-semibold mb-3">{t('consolidate_success_transaction_ids')}</h2>
         <div className="space-y-2">
           {state.results.map((result) => (
             <div 
@@ -133,7 +139,7 @@ function ConsolidateSuccessPage() {
             >
               <div className="flex justify-between items-start mb-1">
                 <span className="text-sm font-medium">
-                  Batch {result.batchNumber} ({result.utxosConsolidated} UTXOs)
+                  {t('consolidate_success_batch_utxos', [String(result.batchNumber), String(result.utxosConsolidated)])}
                 </span>
                 <span className={`text-xs px-2 py-1 rounded ${
                   result.status === 'success' 
@@ -152,14 +158,14 @@ function ConsolidateSuccessPage() {
                   <button type="button"
                     onClick={() => copyToClipboard(result.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    aria-label="Copy transaction ID"
+                    aria-label={t('consolidate_success_copy_transaction_id')}
                   >
                     <FaCopy className="size-4 text-gray-600" aria-hidden="true" />
                   </button>
                   <button type="button"
                     onClick={() => openInExplorer(result.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    aria-label="View in explorer"
+                    aria-label={t('common_view_in_explorer')}
                   >
                     <FiExternalLink className="size-4 text-gray-600" aria-hidden="true" />
                   </button>
@@ -168,14 +174,13 @@ function ConsolidateSuccessPage() {
               
               {result.status === 'success' && result.reported === false && (
                 <div className="text-xs text-amber-700 mt-2">
-                  Broadcast, but the recovery service could not be notified. Your Bitcoin is safe and on
-                  its way; these UTXOs may briefly reappear as recoverable.
+                  {t('consolidate_success_broadcast_but_the_recovery_service')}
                 </div>
               )}
 
               {result.status === 'error' && result.error && (
                 <div className="text-xs text-red-600 mt-2">
-                  Error: {result.error}
+                  {t('consolidate_success_error', [String(result.error)])}
                 </div>
               )}
             </div>
@@ -189,8 +194,7 @@ function ConsolidateSuccessPage() {
       {successfulBatches.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-sm text-blue-900">
-            <strong>Note:</strong> Your transactions are now in the mempool and will be confirmed in the next blocks.
-            The consolidated Bitcoin will be available once the transactions are confirmed.
+            <strong>{t('common_note')}</strong>  {t('consolidate_success_your_transactions_are_now_in')}
           </p>
         </div>
       )}
@@ -202,14 +206,14 @@ function ConsolidateSuccessPage() {
           color="gray"
           fullWidth
         >
-          Back to Wallet
+          {t('common_back_to_wallet')}
         </Button>
         <Button
           onClick={() => navigate('/actions/consolidate/status')}
           color="blue"
           fullWidth
         >
-          View Status
+          {t('consolidate_success_view_status')}
         </Button>
       </div>
     </div>

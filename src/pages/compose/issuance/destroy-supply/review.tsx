@@ -1,5 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 interface ReviewDestroyProps {
   apiResponse: any;
   onSign: () => void;
@@ -23,10 +25,10 @@ export function ReviewDestroy({
 
   const customFields = [
     {
-      label: "Amount",
+      label: t('common_amount'),
       value: `${quantityDisplay} ${asset}`,
     },
-    ...(result.params.tag ? [{ label: "Memo", value: result.params.tag }] : []),
+    ...(result.params.tag ? [{ label: t('common_memo'), value: result.params.tag }] : []),
   ];
 
   return (

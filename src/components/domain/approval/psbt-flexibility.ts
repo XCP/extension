@@ -1,3 +1,5 @@
+import { t } from '@/i18n';
+
 export type PsbtFlexibilityKind = 'inputs-only' | 'outputs-flexible';
 
 export interface PsbtFlexibilityReview {
@@ -29,9 +31,8 @@ export function describePsbtFlexibility(
     return {
       kind: 'outputs-flexible',
       severity: 'danger',
-      title: 'Some of your funds can be redirected',
-      description:
-        'Part of the amount shown returning to your wallet can be sent somewhere else after you sign.',
+      title: t('approval_psbt_some_of_your_funds_can'),
+      description: t('approval_psbt_part_of_the_amount_shown'),
     };
   }
 
@@ -39,19 +40,15 @@ export function describePsbtFlexibility(
     return {
       kind: 'outputs-flexible',
       severity: 'warning',
-      title: 'Only paired outputs are fixed',
-      description:
-        'Each SINGLE|ANYONECANPAY signature fixes only the output with the same index. Other inputs ' +
-        'or outputs may be added or changed after you sign.',
+      title: t('approval_psbt_only_paired_outputs_are_fixed'),
+      description: t('approval_psbt_each_single_anyonecanpay_signature_fixes'),
     };
   }
 
   return {
     kind: 'inputs-only',
     severity: 'info',
-    title: 'Other funding inputs may be added',
-    description:
-      'Your ALL|ANYONECANPAY signature fixes every current output. It allows other funding inputs ' +
-      'to be added without changing those payments.',
+    title: t('approval_psbt_other_funding_inputs_may_be'),
+    description: t('approval_psbt_your_all_anyonecanpay_signature_fixes'),
   };
 }

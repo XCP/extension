@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for btcpay transactions
  */
@@ -14,11 +15,11 @@ export function btcpay(tx: Transaction): Array<{ label: string; value: string | 
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
-      label: "Type",
-      value: "BTC Payment (Order Settlement)",
+      label: t('common_type'),
+      value: t('messages_btcpay_btc_payment_order_settlement'),
     },
     {
-      label: "Order Match ID",
+      label: t('common_order_match_id'),
       value: (
         <span className="text-xs break-all font-mono">
           {params.order_match_id}
@@ -26,7 +27,7 @@ export function btcpay(tx: Transaction): Array<{ label: string; value: string | 
       ),
     },
     {
-      label: "BTC Amount",
+      label: t('messages_btcpay_btc_amount'),
       value: `${formatAmount({
         value: btcAmount,
         minimumFractionDigits: 8,
@@ -38,8 +39,8 @@ export function btcpay(tx: Transaction): Array<{ label: string; value: string | 
   // Status
   if (params.status) {
     fields.push({
-      label: "Status",
-      value: params.status === "valid" ? "✅ Valid Payment" : params.status,
+      label: t('common_status'),
+      value: params.status === "valid" ? t('messages_btcpay_valid_payment') : params.status,
     });
   }
   

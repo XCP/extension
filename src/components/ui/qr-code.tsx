@@ -2,6 +2,8 @@ import { memo, useEffect, useRef } from 'react';
 import logo from '@/assets/qr-code.png';
 import { generateQR } from '@/core/qr-code';
 
+import { t } from '@/i18n';
+
 interface QRCanvasProps {
   /**
    * The text/data to encode in the QR code
@@ -154,7 +156,7 @@ export const QRCanvas = memo(({
       className={className}
       style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
       role="img"
-      aria-label={`QR code for ${text}`}
+      aria-label={t('qr_code_for', [String(text)])}
       data-text={text}
       data-width={size.toString()}
       data-logo-src={logo?.src}

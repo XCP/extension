@@ -3,6 +3,7 @@ import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack/providerVerify';
 import { formatAddress, formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
+import { t } from '@/i18n';
 import { VerificationDetails } from './verification-details';
 
 interface ApprovalDetailInput {
@@ -40,17 +41,17 @@ export function ApprovalTransactionDetails({
   const attachedByInput = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));
 
   return (
-    <Collapsible compact variant="card" title="Transaction">
+    <Collapsible compact variant="card" title={t('common_transaction')}>
       {txid && (
         <div>
-          <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">TX Hash</h4>
+          <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">{t('common_tx_hash')}</h4>
           <div className="break-all rounded bg-gray-50 p-2 text-xs text-gray-600">{txid}</div>
         </div>
       )}
 
       <div>
         <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">
-          Inputs ({inputs.length})
+          {t('approval_approval_transaction_details_inputs', [String(inputs.length)])}
         </h4>
         <div className="space-y-2">
           {inputs.map((input) => {
@@ -89,7 +90,7 @@ export function ApprovalTransactionDetails({
                   </div>
                 ))}
                 {inputAssets?.lookupFailed && (
-                  <div className="mt-1 text-amber-600">Asset status unavailable</div>
+                  <div className="mt-1 text-amber-600">{t('approval_approval_transaction_details_asset_status_unavailable')}</div>
                 )}
               </div>
             );
@@ -99,7 +100,7 @@ export function ApprovalTransactionDetails({
 
       <div>
         <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">
-          Outputs ({outputs.length})
+          {t('approval_approval_transaction_details_outputs', [String(outputs.length)])}
         </h4>
         <div className="space-y-2">
           {outputs.map((output) => (
@@ -121,7 +122,7 @@ export function ApprovalTransactionDetails({
                 </span>
               </div>
               {output.type === 'op_return' && verification?.localUnpack?.success && (
-                <div className="mt-0.5 text-gray-500">Counterparty protocol</div>
+                <div className="mt-0.5 text-gray-500">{t('approval_approval_transaction_details_counterparty_protocol')}</div>
               )}
               {/* Destinations are shown in full: short address fragments are grindable. */}
               {output.address && (
@@ -130,7 +131,7 @@ export function ApprovalTransactionDetails({
                 </div>
               )}
               {attachVout === output.index && (
-                <div className="mt-1 text-purple-700">Assets attach to this output</div>
+                <div className="mt-1 text-purple-700">{t('approval_approval_transaction_details_assets_attach_to_this_output')}</div>
               )}
             </div>
           ))}

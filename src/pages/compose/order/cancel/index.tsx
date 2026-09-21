@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { CancelOptions } from "@/core/counterparty/compose";
 import { composeCancel } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { CancelForm } from "@/pages/compose/order/cancel/form";
 import { ReviewCancel } from "@/pages/compose/order/cancel/review";
 
@@ -13,8 +14,8 @@ function ComposeOrderCancelPage() {
       <Composer<CancelOptions>
         composeType="cancel"
         composeApiMethod={composeCancel}
-        initialTitle="Cancel"
-        FormComponent={(props) => <CancelForm {...props} initialHash={hash} />}
+        initialTitle={t('common_cancel')}
+        renderForm={(props) => <CancelForm {...props} initialHash={hash} />}
         ReviewComponent={ReviewCancel}
       />
     </div>

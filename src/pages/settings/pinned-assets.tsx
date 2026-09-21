@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
+import { t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 
 /**
@@ -42,12 +43,12 @@ export default function PinnedAssetsPage(): ReactElement {
   // Configure header with help button
   useEffect(() => {
     setHeaderProps({
-      title: "Pinned Assets",
+      title: t('common_pinned_assets'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(PATHS.HELP_URL, "_blank"),
-        ariaLabel: "Help",
+        ariaLabel: t('common_help'),
       },
     });
   }, [setHeaderProps, navigate]);
@@ -76,7 +77,7 @@ export default function PinnedAssetsPage(): ReactElement {
 
   const handleAddAsset = useCallback(async (asset: string) => {
     if (pinnedAssets.length >= 10) {
-      setError("You can only pin up to 10 assets.");
+      setError(t('settings_pinned_assets_you_can_only_pin_up'));
       return;
     }
     if (pinnedAssets.includes(asset)) return;
@@ -90,7 +91,7 @@ export default function PinnedAssetsPage(): ReactElement {
       // Don't clear search or reset UI state - maintain the search experience
     } catch (err) {
       console.error("Error adding asset:", err);
-      setError("Failed to pin asset.");
+      setError(t('settings_pinned_assets_failed_to_pin_asset'));
     }
   }, [pinnedAssets, setError, updateSettings]);
 
@@ -105,7 +106,7 @@ export default function PinnedAssetsPage(): ReactElement {
       // Don't clear search or reset UI state - maintain the search experience
     } catch (err) {
       console.error("Error removing asset:", err);
-      setError("Failed to unpin asset.");
+      setError(t('settings_pinned_assets_failed_to_unpin_asset'));
     }
   }, [pinnedAssets, setError, updateSettings]);
 
@@ -116,7 +117,7 @@ export default function PinnedAssetsPage(): ReactElement {
       await updateSettings({ pinnedAssets: items });
     } catch (err) {
       console.error("Error updating asset order:", err);
-      setError("Failed to reorder assets.");
+      setError(t('common_failed_to_reorder_assets'));
     }
   };
 
@@ -178,13 +179,13 @@ export default function PinnedAssetsPage(): ReactElement {
     if (searchQuery) {
       return (
         <div className="h-full flex flex-col">
-          <h2 className="text-lg font-semibold mb-2">Search Results</h2>
+          <h2 className="text-lg font-semibold mb-2">{t('common_search_results')}</h2>
           {isSearching ? (
-            <Spinner message="Searching assets…" />
+            <Spinner message={t('common_searching_assets')} />
           ) : error && searchResults.length === 0 ? (
-            <button type="button" onClick={retry} className="py-4 text-blue-600 underline cursor-pointer">Retry search</button>
+            <button type="button" onClick={retry} className="py-4 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
           ) : searchResults.length === 0 ? (
-            <div className="text-center py-4 text-gray-500">No results found</div>
+            <div className="text-center py-4 text-gray-500">{t('common_no_results_found')}</div>
           ) : (
             <div className="space-y-2">
               {searchResults.map((asset) => (
@@ -201,10 +202,10 @@ export default function PinnedAssetsPage(): ReactElement {
       <div className="h-full flex flex-col">
         {pinnedAssets.length > 0 ? (
           <>
-            <h2 className="text-lg font-semibold mb-2">Pinned</h2>
+            <h2 className="text-lg font-semibold mb-2">{t('settings_pinned_assets_pinned')}</h2>
             {showHelpText && (
               <p className="text-sm text-gray-500 mb-2">
-                Pin up to 10 assets to the top of your main screen. Use arrow buttons to reorder.
+                {t('settings_pinned_assets_pin_up_to_10_assets')}
               </p>
             )}
             <div className="space-y-2">
@@ -215,7 +216,7 @@ export default function PinnedAssetsPage(): ReactElement {
           </>
         ) : (
           <div className="text-center py-4 text-gray-500">
-            No pinned assets. Search for assets to pin them.
+            {t('settings_pinned_assets_no_pinned_assets_search_for')}
           </div>
         )}
       </div>
@@ -225,7 +226,7 @@ export default function PinnedAssetsPage(): ReactElement {
   return (
     <section className="flex flex-col h-full" aria-labelledby="pinned-assets-title">
       <h2 id="pinned-assets-title" className="sr-only">
-        Pinned Assets Settings
+        {t('settings_pinned_assets_pinned_assets_settings')}
       </h2>
       <div className="p-4">
         {error && (
@@ -238,7 +239,7 @@ export default function PinnedAssetsPage(): ReactElement {
           ref={searchInputRef}
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Search assets to pin…"
+          placeholder={t('settings_pinned_assets_search_assets_to_pin')}
           className="mb-4"
           showClearButton={true}
           isLoading={isSearching}

@@ -8,6 +8,8 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { BroadcastOptions } from "@/core/counterparty/compose";
 
+import { t } from '@/i18n';
+
 const ADDRESS_OPTION_REQUIRE_MEMO = 1;
 
 /**
@@ -61,21 +63,21 @@ export function AddressOptionsForm({
           />
         )
       }
-      submitText="Continue"
+      submitText={t('common_continue')}
       submitDisabled={!isChecked}
     >
       <Field>
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
           <p className="text-sm text-yellow-700">
-            The "Require Memo" option will make this address reject transactions without memos. This setting cannot be reversed.
+            {t('address_options_form_the_require_memo_option_will')}
           </p>
         </div>
         <div className="mb-2">
-          <Label className="text-sm font-medium text-gray-700">Options</Label>
+          <Label className="text-sm font-medium text-gray-700">{t('common_options')}</Label>
         </div>
         <CheckboxInput
           name="requireMemo"
-          label="Require Memo for Incoming Transactions"
+          label={t('address_options_form_require_memo_for_incoming_transactions')}
           disabled={pending}
           checked={isChecked}
           onChange={handleCheckboxChange}

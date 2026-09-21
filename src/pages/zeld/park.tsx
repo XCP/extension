@@ -10,6 +10,7 @@ import type { ApiResponse } from '@/core/counterparty/compose';
 import { formatAmount } from '@/core/format';
 import { fetchZeldBalance, ZELD_DISPLAY_NAME, type ZeldAddressBalance, zeldBaseUnitsToDisplay } from '@/core/zeld/api';
 import { composeZeldPark } from '@/core/zeld/sendCompose';
+import { t } from '@/i18n';
 
 interface ZeldParkFormData {
   asset: 'BTC';
@@ -42,28 +43,25 @@ function ZeldParkForm({
   return (
     <ComposerForm
       formAction={handleSubmit}
-      submitText="Continue"
+      submitText={t('common_continue')}
       submitDisabled={total === 0n}
       showFeeRate
     >
       <div className="rounded-lg bg-gray-50 p-3 text-sm flex items-center gap-3">
         <AssetIcon asset={ZELD_DISPLAY_NAME} size="md" imageSrc={zeldIcon} />
-        <div className="min-w-0 flex-1 flex justify-between gap-3">
-          <span className="text-gray-500">ZELD to move</span>
+        <div className="min-w-0 flex-1 flex flex-wrap justify-between gap-3">
+          <span className="text-gray-500">{t('zeld_to_move')}</span>
           <span className="font-medium text-gray-900">
             {formatAmount({ value: zeldBaseUnitsToDisplay(total), minimumFractionDigits: 8, maximumFractionDigits: 8 })}
           </span>
         </div>
       </div>
       <p className="text-sm text-gray-600">
-        Puts all your ZELD on one small output of this address and returns the rest of the BTC as
-        ordinary change. Use it when a payment that must pay someone else first, such as an
-        ownership transfer, is refused because every output here holds ZELD.
+        {t('zeld_park_help')}
       </p>
       {showHelpText && (
         <p className="text-sm text-gray-500">
-          Ordinary sends and dispenser buys never need this: your change comes first, so the ZELD
-          stays with you.
+          {t('zeld_park_optional_help')}
         </p>
       )}
     </ComposerForm>
@@ -93,9 +91,9 @@ function ZeldParkReview({
       error={error}
       isSigning={isSigning}
       customFields={[
-        { label: 'ZELD Moved', value: `${formatAmount({ value: amount, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD` },
-        { label: 'Small Output', value: `${apiResponse.result.btc_out.toLocaleString()} sats, holding the ZELD` },
-        { label: 'Change', value: `${apiResponse.result.btc_change.toLocaleString()} sats` },
+        { label: t('zeld_moved'), value: `${formatAmount({ value: amount, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD` },
+        { label: t('zeld_small_output'), value: t('zeld_sats_holding', [formatAmount({ value: apiResponse.result.btc_out, maximumFractionDigits: 0 })]) },
+        { label: t('marketplace_intent_change'), value: `${formatAmount({ value: apiResponse.result.btc_change, maximumFractionDigits: 0 })} sats` },
       ]}
     />
   );
@@ -111,7 +109,7 @@ export default function ZeldParkPage(): ReactElement {
       <Composer<ZeldParkFormData>
         composeType="send"
         composeApiMethod={compose as unknown as (data: ZeldParkFormData) => Promise<ApiResponse>}
-        initialTitle="Move ZELD"
+        initialTitle={t('zeld_move')}
         FormComponent={ZeldParkForm}
         ReviewComponent={ZeldParkReview}
       />

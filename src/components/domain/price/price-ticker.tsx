@@ -6,6 +6,8 @@ import {
 } from "@/core/bitcoin/price";
 import { formatAmount } from "@/core/format";
 
+import { t } from '@/i18n';
+
 interface PriceTickerProps {
   btc: number | null;
   xcp: number | null;
@@ -46,19 +48,19 @@ export function PriceTicker({
   };
 
   return (
-    <div className={`grid grid-cols-2 gap-3 ${className}`}>
+    <div className={`grid grid-cols-2 gap-3 ${className}`} data-currency={currency}>
       <div
         className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 ${onBtcClick ? "cursor-pointer hover:border-orange-300 hover:shadow-md transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500" : ""}`}
         onClick={onBtcClick}
         onKeyDown={handleBtcKeyDown}
         role={onBtcClick ? "button" : undefined}
         tabIndex={onBtcClick ? 0 : undefined}
-        aria-label={onBtcClick ? "Bitcoin price" : undefined}
+        aria-label={onBtcClick ? t('price_price_ticker_bitcoin_price') : undefined}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FaBitcoin className="text-orange-500" aria-hidden="true" />
-            <span className="font-medium text-gray-900 text-sm">BTC</span>
+            <span className="font-medium text-gray-900 text-sm">BTC <small className="font-normal text-gray-500">{currency.toUpperCase()}</small></span>
           </div>
           <div className="flex items-center">
             {btc ? (
@@ -78,7 +80,7 @@ export function PriceTicker({
         onKeyDown={handleXcpKeyDown}
         role={onXcpClick ? "button" : undefined}
         tabIndex={onXcpClick ? 0 : undefined}
-        aria-label={onXcpClick ? "XCP price" : undefined}
+        aria-label={onXcpClick ? t('price_price_ticker_xcp_price') : undefined}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -88,7 +90,7 @@ export function PriceTicker({
               className="size-4 rounded-full"
               aria-hidden="true"
             />
-            <span className="font-medium text-gray-900 text-sm">XCP</span>
+            <span className="font-medium text-gray-900 text-sm">XCP <small className="font-normal text-gray-500">{currency.toUpperCase()}</small></span>
           </div>
           <div className="flex items-center">
             {xcp ? (

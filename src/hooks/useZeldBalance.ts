@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';
 import { fetchZeldBalance, fetchZeldRewards, type ZeldAddressBalance, type ZeldReward } from '@/core/zeld/api';
+import { t } from '@/i18n';
 
 interface ZeldBalanceState {
   address?: string;
@@ -36,7 +37,7 @@ export function useZeldBalance(address: string | undefined) {
         rewards: rewards.status === 'fulfilled' ? rewards.value : null,
         reservedSats: zeld && byOutpoint
           ? zeld.utxos.reduce((sum, utxo) => sum + (byOutpoint.get(`${utxo.txid}:${utxo.vout}`) ?? 0), 0) : null,
-        error: zeld ? null : 'The ZELD indexer could not be reached.',
+        error: zeld ? null : t('zeld_indexer_unavailable'),
         loading: false,
       });
     };

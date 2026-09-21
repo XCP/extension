@@ -4,6 +4,8 @@ import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { fromSatoshis } from "@/core/numeric";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
+import { t } from '@/i18n';
+
 interface ReviewPoolWithdrawProps {
   apiResponse: any;
   onSign: () => void;
@@ -40,7 +42,7 @@ export function ReviewPoolWithdraw({
   ) => {
     if (normalized !== undefined) return normalized;
     if (raw === undefined) return "0";
-    if (divisible === undefined && isLoadingAsset) return "Loading...";
+    if (divisible === undefined && isLoadingAsset) return t('connect_approve_loading');
     return divisible ? fromSatoshis(raw, { removeTrailingZeros: true }) : raw.toString();
   };
   const minQuantityADisplay = formatMinimum(params.min_quantity_a_normalized, params.min_quantity_a, assetAInfo?.divisible, isLoadingAssetA);
@@ -50,16 +52,16 @@ export function ReviewPoolWithdraw({
 
   const customFields = [
     {
-      label: "Pool",
+      label: t('common_pool'),
       value: assetA && assetB ? getPoolDisplayPair(assetA, assetB) : params.lp_asset,
     },
     {
-      label: "Withdraw",
+      label: t('common_withdraw'),
       value: `${quantityDisplay} ${params.lp_asset ?? "LP"}`,
     },
     ...(params.min_quantity_a || params.min_quantity_b
       ? [{
-          label: "Minimum Receive",
+          label: t('withdraw_review_minimum_receive'),
           value: `${minQuantityADisplay} ${assetA ?? ""}\n${minQuantityBDisplay} ${assetB ?? ""}`,
         }]
       : []),

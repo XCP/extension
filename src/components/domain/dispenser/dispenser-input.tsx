@@ -7,6 +7,8 @@ import { isValidBitcoinAddress } from "@/core/validation/bitcoin";
 import { useAddressDispensers } from "@/hooks/useAddressDispensers";
 import { useInView } from "@/hooks/useInView";
 
+import { t } from '@/i18n';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -52,9 +54,9 @@ export function DispenserInput({
   const page = useAddressDispensers(isValidAddress ? value : undefined, initialFormData?.initialAsset,
     initialFormData?.dispenser === value ? selectedIndex : undefined);
   const isLoading = page.isLoading;
-  const error = page.error ? 'Unable to load dispensers. Try again.'
+  const error = page.error ? t('dispenser_load_failed')
     : isValidAddress && !isLoading && !page.hasMore && page.data.length === 0
-      ? 'No open dispenser found at this address.' : null;
+      ? t('dispenser_dispenser_input_no_open_dispenser_found_at') : null;
 
   useEffect(() => { onError?.(error); }, [error, onError]);
   useEffect(() => { onLoadingChange?.(isLoading); }, [isLoading, onLoadingChange]);
@@ -108,7 +110,7 @@ export function DispenserInput({
           htmlFor="dispenserAddress" 
           className="block text-sm font-medium text-gray-700"
         >
-          Dispenser Address {required && <span className="text-red-500">*</span>}
+          {t('messages_dispense_dispenser_address')} {required && <span className="text-red-500">*</span>}
         </Label>
         <Input
           id="dispenserAddress"
@@ -124,7 +126,7 @@ export function DispenserInput({
         />
         {showHelpText && (
           <Description className="mt-2 text-sm text-gray-500">
-            Enter the dispenser address to send BTC to.
+            {t('dispenser_dispenser_input_enter_the_dispenser_address_to')}
           </Description>
         )}
       </Field>
@@ -142,11 +144,11 @@ export function DispenserInput({
       <div ref={!isLoading && page.data.length > 0 ? loadMoreRef : undefined} className="py-2 text-center text-sm">
         {page.error ? (
           <div role="alert">
-            <p>Unable to load more dispensers.</p>
-            <button type="button" onClick={page.retry} className="text-blue-600 underline" disabled={disabled}>Retry</button>
+            <p>{t('dispenser_more_failed')}</p>
+            <button type="button" onClick={page.retry} className="text-blue-600 underline" disabled={disabled}>{t('common_retry')}</button>
           </div>
-        ) : page.isFetchingMore ? 'Loading more…' : page.hasMore && isValidAddress ? (
-          <button type="button" onClick={page.loadMore} className="text-blue-600 underline" disabled={disabled || isLoading}>Load more dispensers</button>
+        ) : page.isFetchingMore ? t('pagination_loading_more') : page.hasMore && isValidAddress ? (
+          <button type="button" onClick={page.loadMore} className="text-blue-600 underline" disabled={disabled || isLoading}>{t('dispenser_load_more')}</button>
         ) : null}
       </div>
 
