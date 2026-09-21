@@ -14,6 +14,7 @@ import {
   fetchAddressPools,
   fetchAllAddressDispensers,
   fetchAssetDetails,
+  fetchAssetDispensers,
   fetchAssetFairminter,
   fetchDispenserByHash,
   fetchMempoolDispenses,
@@ -845,6 +846,21 @@ describe('counterparty/api.ts', () => {
 
       await expect(fetchTransactions(mockAddress)).rejects.toThrow(CounterpartyApiError);
     });
+  });
+
+  it('requests server-side dispenser ordering and oracle filtering on every page', async () => {
+    mockedApiClient.get.mockResolvedValue({ data: { result: [], result_count: 0 } } as any);
+    for (const offset of [0, 20]) {
+      await fetchAssetDispensers('XCP', {
+        status: 'open', limit: 20, offset, sort: 'price:asc,tx_index:asc', excludeWithOracle: true,
+      });
+      expect(mockedApiClient.get).toHaveBeenLastCalledWith(
+        `${mockApiBase}/v2/assets/XCP/dispensers`,
+        expect.objectContaining({ params: expect.objectContaining({
+          status: 'open', limit: 20, offset, sort: 'price:asc,tx_index:asc', exclude_with_oracle: true,
+        }) }),
+      );
+    }
   });
 
   describe('fetchAddressDispensers', () => {
