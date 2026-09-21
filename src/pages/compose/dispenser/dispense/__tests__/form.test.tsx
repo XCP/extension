@@ -155,7 +155,7 @@ describe('DispenseForm', () => {
     await waitFor(() => {
       expect(mockFetchAddressDispensers).toHaveBeenCalledWith(
         '1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
-        { status: 'open', verbose: true }
+        { status: 'open', verbose: true, limit: 20, offset: 0 }
       );
     });
 
@@ -181,6 +181,19 @@ describe('DispenseForm', () => {
     await waitFor(() => expect(screen.getByText('PEPECASH')).toBeInTheDocument());
     expect(screen.queryByText('XCP')).not.toBeInTheDocument();
     expect(document.querySelector('input[name="satoshirate"]')).toHaveValue('5000');
+  });
+
+  it.each([
+    { initialAsset: 'ASSET43' },
+    { selectedDispenserIndex: 43 },
+  ])('finds a later-page selection from initial form data: %j', async initial => {
+    const rows = Array.from({ length: 70 }, (_, i) => createMockDispenser({ asset: `ASSET${i}`, tx_hash: `tx-${i}` }));
+    mockFetchAddressDispensers.mockImplementation(async (_address, { offset = 0, limit = 10 } = {}) => ({
+      result: rows.slice(offset, offset + limit), result_count: rows.length,
+    }));
+    renderWithProvider({ dispenser: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr', ...initial });
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Select dispenser for ASSET43' })).toBeChecked());
+    expect(mockFetchAddressDispensers).toHaveBeenCalledTimes(3);
   });
 
   it('offers no purchase when the address only has oracle dispensers', async () => {

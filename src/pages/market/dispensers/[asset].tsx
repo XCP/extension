@@ -57,7 +57,10 @@ function byPricePerUnit(a: DispenserDetails, b: DispenserDetails): number {
   if (priceA === null) return priceB === null ? 0 : 1;
   if (priceB === null) return -1;
   // comparedTo is null only if a value is NaN, which is a tie for ordering purposes.
-  return priceA.comparedTo(priceB) ?? 0;
+  const priceOrder = priceA.comparedTo(priceB) ?? 0;
+  // Older nodes ignore tx_index sorting. Preserve oldest-first among loaded rows;
+  // complete ordering across pages requires Core's tx_index sort support.
+  return priceOrder || (a.tx_index !== undefined && b.tx_index !== undefined ? a.tx_index - b.tx_index : 0);
 }
 
 /**
@@ -75,7 +78,9 @@ export default function AssetDispensersPage(): ReactElement {
     return { result: info ? [info] : [], result_count: info ? 1 : 0 };
   }, [asset]);
   const fetchDispensers = useCallback((offset: number, limit: number) =>
-    asset ? fetchAssetDispensers(asset, { limit, offset, status: "open" })
+    asset ? fetchAssetDispensers(asset, {
+      limit, offset, status: "open", sort: "price:asc,tx_index:asc", excludeWithOracle: true,
+    })
       : Promise.resolve({ result: [], result_count: 0 }), [asset]);
   const fetchDispenses = useCallback((offset: number, limit: number) =>
     asset ? fetchAssetDispenses(asset, { limit, offset })

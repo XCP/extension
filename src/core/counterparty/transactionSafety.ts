@@ -31,6 +31,7 @@ export type SecurityWarning = SecurityWarningText & (
   | { code: 'unknown_message_type'; data: { messageType: string } }
   | { code: 'inscription_commit'; data: { totalSats: number; address: string } }
   | { code: 'misdirected_recovery_key'; data: { count: number } }
+  | { code: 'zeld_would_leave'; data: { count: number } }
   | { code: 'expected_btc_payment'; data: { totalSats: number; addresses: string[]; plainBitcoinPayment: boolean } }
   | { code: 'external_btc_output'; data: { totalSats: number; addresses: string[] } }
   | { code: 'counterparty_data_outputs' | 'unattributable_outputs'; data: { totalSats: number; count: number } }

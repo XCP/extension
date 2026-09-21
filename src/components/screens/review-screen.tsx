@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
+import { ZeldField } from "@/components/domain/zeld/zeld-field";
 import { Button } from "@/components/ui/button";
 import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -6,6 +7,7 @@ import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAddress, formatAmount, formatFiatEstimate } from "@/core/format";
 import { formatFeeRate, fromSatoshis } from "@/core/numeric";
+import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 import { t } from '@/i18n';
@@ -24,6 +26,9 @@ interface TransactionResult {
   name?: string;
   btc_fee: number;
   xcp_fee?: number;
+  zeld_hunt?: ZeldHuntMetadata;
+  zeld_protection?: ZeldProtectionMetadata;
+  zeld_send?: ZeldSendMetadata;
   [key: string]: any;
 }
 
@@ -60,6 +65,8 @@ interface ReviewScreenProps {
   error: string | null;
   /** Whether the transaction is being signed */
   isSigning: boolean;
+  /** Disable signing while transaction-specific review details are unavailable. */
+  signDisabled?: boolean;
   /** Hide the back button (e.g., for provider requests with no form to go back to) */
   hideBackButton?: boolean;
 }
@@ -92,6 +99,7 @@ export function ReviewScreen({
   customFields = [],
   error,
   isSigning,
+  signDisabled = false,
   hideBackButton = false,
 }: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
@@ -194,6 +202,8 @@ export function ReviewScreen({
           </div>
         )}
         
+        <ZeldField hunt={result.zeld_hunt} protection={result.zeld_protection} send={result.zeld_send} />
+
         {/* Transaction Fee */}
         <div className="space-y-1">
           <span className="block font-semibold text-gray-700">{t('common_fee')}</span>
@@ -237,6 +247,7 @@ export function ReviewScreen({
           <Button
             onClick={onBack}
             color="gray"
+            className="shrink-0 whitespace-nowrap"
             disabled={isSigning}
             aria-label={t('screens_review_screen_go_back_to_edit_transaction')}
           >
@@ -247,7 +258,7 @@ export function ReviewScreen({
           onClick={onSign}
           color="blue"
           fullWidth
-          disabled={isSigning}
+          disabled={isSigning || signDisabled}
           aria-label={isSigning ? t('screens_review_screen_signing_transaction') : t('screens_review_screen_sign_and_broadcast_transaction')}
         >
           {isSigning ? t('common_signing') : t('screens_review_screen_sign_broadcast')}

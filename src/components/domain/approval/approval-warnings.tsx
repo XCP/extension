@@ -25,6 +25,13 @@ import { t } from '@/i18n';
 /** Known local findings are translated here, after crossing the background/UI language boundary. */
 function safetyWarningText(warning: SecurityWarning): { title: string; description: string } {
   switch (warning.code) {
+    case 'zeld_would_leave':
+      return {
+        title: warning.severity === 'block' ? t('zeld_safety_blocked') : t('zeld_safety_warning'),
+        description: warning.severity === 'block'
+          ? t('zeld_safety_blocked_detail', [String(warning.data.count)])
+          : t('zeld_safety_warning_detail', [String(warning.data.count)]),
+      };
     case 'sweep':
       return { title: t('safety_blocked_sweep_transaction'), description: t('safety_this_would_send_all_counterparty') };
     case 'destroy':

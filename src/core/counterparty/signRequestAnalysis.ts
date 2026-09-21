@@ -12,6 +12,7 @@
  * account of them (ADR-019).
  */
 
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import {
   type BitcoinPaymentIntentV1,
   type BitcoinPaymentProof,
@@ -47,6 +48,8 @@ import {
 } from '@/core/counterparty/transactionSafety';
 import { type ProviderVerificationResult, verifyProviderTransaction } from '@/core/counterparty/unpack';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
+import { getActiveSettings } from '@/core/settings';
+import { classifyZeldOutpoints } from '@/core/zeld/protection';
 
 /** An input being signed, identified by the outpoint it spends. */
 export interface AnalyzedInput {
@@ -245,6 +248,40 @@ export async function analyzeSignRequest(
   }
 
   const attachedAssets = await input.attachedAssets;
+
+  // ZELD rides on the first spendable output. A site's transaction that spends this wallet's
+  // ZELD-bearing outputs and pays someone else first would hand them the ZELD. The composer's
+  // guard cannot recompose a site's bytes, so while the user hunts ZELD the request is refused
+  // with the fix, and once hunting is off it is only pointed out.
+  const firstSpendable = outputs.find((output) => output.type !== 'op_return');
+  const signerSet = new Set(signerAddresses.map(normalizeAddressForComparison));
+  const paysSigner = !!firstSpendable?.address && signerSet.has(normalizeAddressForComparison(firstSpendable.address));
+  if (!paysSigner && signerAddresses.length > 0) {
+    const signedInputs = signedInputIndices
+      .map((index) => inputs[index])
+      .filter((entry): entry is AnalyzedInput => !!entry);
+    const zeld = await classifyZeldOutpoints(signedInputs, signerAddresses[0]!);
+    if (zeld.bearing.length > 0) {
+      const count = zeld.bearing.length;
+      const hunting = (getActiveSettings().zeldHuntSeconds ?? 0) > 0;
+      safety.warnings = [
+        ...safety.warnings,
+        {
+          severity: hunting ? 'block' : 'warning',
+          code: 'zeld_would_leave',
+          data: { count },
+          title: hunting ? 'Blocked: ZELD Would Leave' : 'ZELD Would Leave',
+          message:
+            `${count} of the outputs this site asks you to spend ${count === 1 ? 'holds' : 'hold'} ZELD, `
+            + 'and the transaction pays someone else first, so the ZELD would go to them. '
+            + (hunting
+              ? 'Move your ZELD to a small output on the ZELD page, then have the site try again.'
+              : 'To keep it, move your ZELD to a small output on the ZELD page first.'),
+        },
+      ];
+      if (hunting) safety.blocked = true;
+    }
+  }
 
   let bitcoinPaymentProof: BitcoinPaymentProof | undefined;
   let bitcoinPaymentBlockers: string[] | undefined;

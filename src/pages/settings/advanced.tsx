@@ -2,6 +2,7 @@ import { Description, Field, Label, RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { HuntSettings } from "@/components/domain/zeld/hunt-settings";
 import { FiHelpCircle } from "@/components/icons";
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
 import { ApiUrlInput } from "@/components/ui/inputs/api-url-input";
@@ -133,6 +134,8 @@ export default function AdvancedSettingsPage(): ReactElement {
           onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
           showHelpText={shouldShowHelpText}
         />
+
+        <HuntSettings showHelpText={shouldShowHelpText} showTimeInput={false} />
       </SettingsSection>
 
       <SettingsSection id="adv-connection" title={t('settings_advanced_connection')}>

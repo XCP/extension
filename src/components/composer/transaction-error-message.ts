@@ -1,3 +1,4 @@
+import { zeldErrorMessage } from '@/components/domain/zeld/error-message';
 import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { AmountValidationError } from '@/core/amount-contract/amounts';
 import { ComposeVerificationError } from '@/core/validation/compose-verification-error';
@@ -6,7 +7,7 @@ import { TransactionInputError } from '@/core/validation/transaction-input-error
 import { t } from '@/i18n';
 import { verificationErrorMessage } from './verification-error-message';
 
-/** Unknown API diagnostics retain their original text; only explicit codes are translated. */
+/** Translate explicit codes and known local ZELD diagnostics; preserve unknown API text. */
 export function transactionErrorMessage(error: unknown): string | undefined {
   const hardwareMessage = hardwareErrorMessage(error);
   if (hardwareMessage) return hardwareMessage;
@@ -26,7 +27,7 @@ export function transactionErrorMessage(error: unknown): string | undefined {
       case 'fee_invalid': return t('safety_fee_invalid');
     }
   }
-  return undefined;
+  return zeldErrorMessage(error);
 }
 
 export function feeErrorMessage(result: FeeValidationResult): string {

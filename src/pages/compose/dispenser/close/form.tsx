@@ -14,10 +14,8 @@ import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { FaCheck, FaCopy, FiChevronDown } from "@/components/icons";
 import { useComposer } from "@/contexts/composer-context-object";
-import type { DispenserDetails } from "@/core/counterparty/api";
-import { fetchAddressDispensers } from "@/core/counterparty/api";
 import type { DispenserOptions } from "@/core/counterparty/compose";
-import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
+import { useAddressDispensers } from "@/hooks/useAddressDispensers";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 import { t } from '@/i18n';
@@ -40,7 +38,7 @@ export function DispenserCloseForm({
   initialAsset,
 }: DispenserCloseFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, showHelpText, state } = useComposer();
+  const { activeAddress, activeWallet, showHelpText } = useComposer();
 
   // Form status
   const { pending } = useFormStatus();
@@ -48,11 +46,11 @@ export function DispenserCloseForm({
 
   // Form state
   const [selectedTxHash, setSelectedTxHash] = useState<string | null>(null);
-  const [dispensers, setDispensers] = useState<DispenserDetails[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  // Computed values
+  const address = activeAddress?.address;
   const asset = initialAsset || initialFormData?.asset || "";
+  const page = useAddressDispensers(address, asset);
+  const dispensers = page.data;
+  const isLoading = page.isLoading;
   const relevantDispensers = useMemo(
     () => (asset ? dispensers.filter((d) => d.asset === asset) : dispensers),
     [dispensers, asset],
@@ -60,36 +58,6 @@ export function DispenserCloseForm({
   const selectedDispenser = relevantDispensers.find(
     (d) => d.tx_hash === selectedTxHash,
   );
-
-  // Effects - composer error first
-  useEffect(() => {
-    if (state.error) {
-      // Error is shown through composer state
-    }
-  }, [state.error]);
-
-  // Fetch dispensers when component mounts or address changes
-  useEffect(() => {
-    async function loadDispensers() {
-      if (!activeAddress) return;
-
-      setIsLoading(true);
-
-      try {
-        const response = await fetchAddressDispensers(activeAddress.address, {
-          status: "open",
-          verbose: true,
-        });
-        setDispensers(response.result.filter(isFixedRateDispenser));
-      } catch (err) {
-        console.error("Failed to load dispensers:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadDispensers();
-  }, [activeAddress]);
 
   // Arriving from a dispenser card narrows the list to one; select it so the
   // asset is submitted without the user re-picking what they already picked.
@@ -113,7 +81,7 @@ export function DispenserCloseForm({
   return (
     <ComposerForm
       formAction={formAction}
-      submitDisabled={!selectedDispenser}
+      submitDisabled={isLoading || !selectedDispenser}
       header={
         activeAddress && (
           <AddressHeader
@@ -135,7 +103,7 @@ export function DispenserCloseForm({
           {relevantDispensers.length === 0 ? (
             <div className="relative w-full mt-1 cursor-not-allowed rounded-lg bg-gray-100 py-2.5 pl-3 pr-10 text-left border border-gray-300 text-gray-500 sm:text-sm">
               <span className="block truncate">
-                {asset ? t('close_form_no_open_dispensers_found_for', [String(asset)]) : t('close_form_no_open_dispensers_found_for_2')}
+                {page.error ? t('dispenser_list_unavailable') : asset ? t('close_form_no_open_dispensers_found_for', [String(asset)]) : t('close_form_no_open_dispensers_found_for_2')}
               </span>
               <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                 <FiChevronDown
@@ -172,7 +140,10 @@ export function DispenserCloseForm({
                       />
                     </span>
                   </ListboxButton>
-                  <ListboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                  <ListboxOptions onScroll={event => {
+                    const list = event.currentTarget;
+                    if (list.scrollHeight - list.scrollTop - list.clientHeight < 100) page.loadMore();
+                  }} className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                     {relevantDispensers.map((dispenser) => (
                       <ListboxOption
                         key={dispenser.tx_hash}
@@ -207,6 +178,7 @@ export function DispenserCloseForm({
                         )}
                       </ListboxOption>
                     ))}
+                    {page.isFetchingMore && <div role="presentation" className="py-2 text-center text-gray-500">{t('pagination_loading_more')}</div>}
                   </ListboxOptions>
                 </div>
               </Listbox>
@@ -265,6 +237,16 @@ export function DispenserCloseForm({
           )}
         </Field>
       )}
+      <div className="py-2 text-center text-sm">
+        {page.error ? (
+          <div role="alert">
+            <p>{t('dispenser_more_failed')}</p>
+            <button type="button" onClick={page.retry} className="text-blue-600 underline" disabled={pending}>{t('common_retry')}</button>
+          </div>
+        ) : page.isFetchingMore ? t('pagination_loading_more') : page.hasMore ? (
+          <button type="button" onClick={page.loadMore} className="text-blue-600 underline" disabled={pending || isLoading}>{t('dispenser_load_more')}</button>
+        ) : null}
+      </div>
     </ComposerForm>
   );
 }

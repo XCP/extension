@@ -443,7 +443,17 @@ export async function waitForReview(page: Page): Promise<void> {
     .or(page.locator('button:has-text("Sign"), button:has-text("Broadcast")'))
     .first();
 
-  await expect(reviewIndicator).toBeVisible({ timeout: 10000 });
+  // With ZELD hunting on by default, a compose of a real fixture transaction hunts for a rare
+  // txid before the review, for up to the hunt budget. Settle for the first find as soon as the
+  // spinner offers to, so the test measures the flow rather than the hunt.
+  const useItNow = page.locator('button:has-text("Use it now")');
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    if (await reviewIndicator.isVisible().catch(() => false)) return;
+    if (await useItNow.isVisible().catch(() => false)) await useItNow.click().catch(() => {});
+    await page.waitForTimeout(250);
+  }
+  await expect(reviewIndicator).toBeVisible({ timeout: 1000 });
 }
 
 /**

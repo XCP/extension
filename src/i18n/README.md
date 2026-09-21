@@ -61,6 +61,12 @@ Traditional Chinese characters, terminology and narrow-screen layouts. Its JSON
 companion records the exact catalog changes and hashes. Native-speaker review is
 outstanding.
 
+The [latest-main integration review](review/main-integration-2026-09-20.md) covers
+ZELD, complete-list pagination and BTC dispenser-payment text added through
+`da63b07c`. Its JSON companion records the 94 added messages, three removed keys
+and updated catalog hashes. It also records remaining coverage limits, including
+persisted default wallet/address names.
+
 ## Validation
 
 `e2e/tests/browser-language.spec.ts` launches separate native browser profiles for

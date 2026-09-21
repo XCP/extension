@@ -1067,14 +1067,6 @@
     "message": "You receive",
     "description": "components/domain/approval/money-movement-view.tsx, components/domain/asset/fairmint-summary.tsx"
   },
-  "asset_fairminter_select_input_failed_to_fetch_fairminters": {
-    "message": "Failed to fetch fairminters",
-    "description": "components/domain/asset/fairminter-select-input.tsx"
-  },
-  "asset_fairminter_select_input_failed_to_load_available_assets": {
-    "message": "Failed to load available assets. Please try again.",
-    "description": "components/domain/asset/fairminter-select-input.tsx"
-  },
   "asset_fairminter_select_input_loading_fairminters": {
     "message": "Loading fairminters…",
     "description": "components/domain/asset/fairminter-select-input.tsx"
@@ -3046,10 +3038,6 @@
   },
   "dispenser_dispenser_input_enter_the_dispenser_address_to": {
     "message": "Enter the dispenser address to send BTC to.",
-    "description": "components/domain/dispenser/dispenser-input.tsx"
-  },
-  "dispenser_dispenser_input_error_fetching_dispenser_details": {
-    "message": "Error fetching dispenser details.",
     "description": "components/domain/dispenser/dispenser-input.tsx"
   },
   "dispenser_dispenser_input_no_open_dispenser_found_at": {
@@ -7863,5 +7851,381 @@
   "approval_bitcoin_payment_output_address_unknown": {
     "message": "Output $1 has no Bitcoin address that the wallet can review.",
     "description": "Known plain-Bitcoin payment proof diagnostic, translated only for display. Where present, $1 is the unchanged output index."
+  },
+  "zeld_hunt_enable": {
+    "message": "Enable ZELD Hunting",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_description": {
+    "message": "Look for ZELD while making eligible transactions. No extra BTC fee. If no result is found, your transaction continues normally.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_invalid_seconds": {
+    "message": "Enter a whole number of seconds from 0 to $1.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_save_time_failed": {
+    "message": "Could not save the hunt time.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_save_setting_failed": {
+    "message": "Could not save the hunt setting.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_wait": {
+    "message": "Maximum wait per transaction",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_seconds_label": {
+    "message": "Seconds to hunt for a ZELD transaction ID",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_seconds_hint": {
+    "message": "seconds (0 is off, $1 max)",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_device_help": {
+    "message": "Uses your device's processing power for up to this many seconds. Finding ZELD is not guaranteed.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_title": {
+    "message": "ZELD hunt",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_searching_title": {
+    "message": "Hunting for ZELD",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_remaining": {
+    "message": "$1s left",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_found_searching": {
+    "message": "Found a $1-zero txid. Searching for a rarer one.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_searching": {
+    "message": "Searching for a rare transaction ID…",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_elapsed_label": {
+    "message": "Hunt time elapsed",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_elapsed": {
+    "message": "$1s of $2s",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_best_saved": {
+    "message": "Your best result is saved for this transaction.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_continue_help": {
+    "message": "You can continue at any time. A reward is not guaranteed.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_use_now": {
+    "message": "Use it now",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_continue_without": {
+    "message": "Continue without hunting",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_signing_hunt": {
+    "message": "Signing and broadcasting… ZELD hunting may take up to $1s.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_review_park": {
+    "message": "Moving $1 ZELD to a small output of your own",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_review_send": {
+    "message": "Sending $1 ZELD; $2 stays with you",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_review_kept_one": {
+    "message": "Kept $1 output holding ZELD out of this payment",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_review_kept_many": {
+    "message": "Kept $1 outputs holding ZELD out of this payment",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_review_found": {
+    "message": "Found a $1-zero txid in $2s",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_review_not_found": {
+    "message": "No rare txid in $1s; sending as usual",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_review_signing": {
+    "message": "Hunts while signing, up to $1s",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_loading": {
+    "message": "Loading ZELD…",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_send": {
+    "message": "Send ZELD",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_balance_unavailable": {
+    "message": "Balance unavailable. Try again shortly.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_send_description": {
+    "message": "Send to another address. The rest stays with you.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_nothing_to_send": {
+    "message": "Nothing to send yet.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_park_title": {
+    "message": "Move ZELD to a Small Output",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_park_description": {
+    "message": "Frees your other BTC for payments that must pay someone else first.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_about": {
+    "message": "About ZeldHash",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_about_description": {
+    "message": "How rare transaction IDs earn ZELD. Opens zeldhash.com.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_balance": {
+    "message": "ZELD balance",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_indexer_unavailable": {
+    "message": "The ZELD indexer could not be reached.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_balance_error": {
+    "message": "$1 Your balance is unavailable.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunting": {
+    "message": "Hunting",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_legacy_hardware": {
+    "message": "A legacy hardware wallet cannot hunt: the device signs, and a legacy transaction ID depends on its signature.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunting_off": {
+    "message": "Hunting is off. Enable ZELD Hunting to try it on your next eligible transaction.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_holding_outputs": {
+    "message": "Outputs Holding ZELD",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_outputs": {
+    "message": "Outputs",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_unknown": {
+    "message": "Unknown",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_btc_on_outputs": {
+    "message": "BTC on them",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_output_help": {
+    "message": "ZELD rides on ordinary Bitcoin outputs and moves to the first spendable output when one is spent. The wallet keeps these outputs out of any payment that pays someone else first.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_more_outputs": {
+    "message": "and $1 more",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_recent_rewards": {
+    "message": "Recent Rewards",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_rewards_unavailable": {
+    "message": "Reward history is unavailable. Try again later.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_no_rewards": {
+    "message": "No rewards for this address yet.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_reward_block": {
+    "message": "block $1, $2 zeros",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_to_move": {
+    "message": "ZELD to move",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_park_help": {
+    "message": "Puts all your ZELD on one small output of this address and returns the rest of the BTC as ordinary change. Use it when a payment that must pay someone else first, such as an ownership transfer, is refused because every output here holds ZELD.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_park_optional_help": {
+    "message": "Ordinary sends and dispenser buys never need this: your change comes first, so the ZELD stays with you.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_moved": {
+    "message": "ZELD Moved",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_small_output": {
+    "message": "Small Output",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_sats_holding": {
+    "message": "$1 sats, holding the ZELD",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_move": {
+    "message": "Move ZELD",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_available": {
+    "message": "Available",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_recipient_help": {
+    "message": "The ZELD arrives on a small Bitcoin output.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_recipient_sats_help": {
+    "message": "The ZELD arrives on a $1-sat Bitcoin output; the rest of the BTC returns to you.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_amount_help": {
+    "message": "Up to 8 decimal places. Unsent ZELD stays with you.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_recipient_btc": {
+    "message": "Recipient BTC",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "dispenser_list_unavailable": {
+    "message": "Dispenser list unavailable.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "dispenser_load_failed": {
+    "message": "Unable to load dispensers. Try again.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "dispenser_more_failed": {
+    "message": "Unable to load more dispensers.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "dispenser_load_more": {
+    "message": "Load more dispensers",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "pagination_loading_more": {
+    "message": "Loading more…",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "fairminter_more_failed": {
+    "message": "Unable to load more fairminters.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "fairminter_available_failed": {
+    "message": "Unable to load available fairminters.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "fairminter_load_more": {
+    "message": "Load more fairminters",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "fairminter_no_matches": {
+    "message": "No matching fairminters.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "dispense_inventory_failed": {
+    "message": "Unable to load all dispensers. Go back and try again before purchasing.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "dispense_inventory_loading": {
+    "message": "Loading all dispensers…",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "send_review_payment_type": {
+    "message": "Payment type",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "send_review_dispenser_payment": {
+    "message": "Dispenser payment",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_amount": {
+    "message": "ZELD amount must be positive.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_fee": {
+    "message": "Fee rate must be positive.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_source": {
+    "message": "The source address could not be decoded.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_recipient": {
+    "message": "The recipient address could not be decoded.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_balance": {
+    "message": "Insufficient ZELD balance.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_none_to_move": {
+    "message": "No spendable ZELD to move.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_unspendable": {
+    "message": "Some ZELD sits on outputs the wallet cannot spend yet (unconfirmed, just spent, or carrying a Counterparty attachment).",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_spendable_balance": {
+    "message": "Insufficient spendable ZELD.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_btc_balance": {
+    "message": "Insufficient BTC to pay the recipient output and the fee.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_detach_first": {
+    "message": "This output also holds ZELD, which would go to the destination with the assets. Detach first: the ZELD stays with you, and a new attach uses a clean output.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_detach_funding": {
+    "message": "This output also holds ZELD, and the detach leaves no output of yours for it to land on. Add a little BTC to this address, then try again.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_error_park_first": {
+    "message": "Every output this address could spend holds ZELD, and this transaction pays the recipient first, so the ZELD would go with it. Move your ZELD to a small output on the ZELD page, then try again.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_safety_blocked": {
+    "message": "Blocked: ZELD Would Leave",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_safety_warning": {
+    "message": "ZELD Would Leave",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_safety_blocked_detail": {
+    "message": "ZELD is held by $1 of the outputs this site asks you to spend. This transaction pays someone else first, so the ZELD would go to them. Move your ZELD to a small output on the ZELD page, then have the site try again.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_safety_warning_detail": {
+    "message": "ZELD is held by $1 of the outputs this site asks you to spend. This transaction pays someone else first, so the ZELD would go to them. To keep it, move your ZELD to a small output on the ZELD page first.",
+    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
   }
 }

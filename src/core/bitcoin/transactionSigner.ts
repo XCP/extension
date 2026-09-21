@@ -10,6 +10,8 @@ import { hybridSignTransaction } from '@/core/bitcoin/uncompressedSigner';
 import { fetchPreviousRawTransaction, fetchUTXOs, getUtxoByTxid } from '@/core/bitcoin/utxo';
 import { isBareMultisigDataOutput } from '@/core/counterparty/unpack/multisig';
 import { SigningError, UtxoError, ValidationError } from '@/core/errors';
+import type { huntTxid } from '@/core/zeld/hunt';
+import { huntZeldWhileSigning } from '@/core/zeld/signHunt';
 import type { Address, Wallet } from '@/types/wallet';
 
 /**
@@ -120,6 +122,8 @@ export async function signTransaction(
   lockScripts?: string[],
   resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout,
   assertStillAuthorized: () => void = () => {},
+  zeldHuntSeconds: number = 0,
+  zeldHunt?: typeof huntTxid,
 ): Promise<string> {
   if (!wallet) {
     throw new ValidationError('INVALID_TRANSACTION', 'Wallet not provided');
@@ -343,6 +347,21 @@ export async function signTransaction(
       // Prevout resolution above awaits the network; a lock or identity change during that
       // work must invalidate the key already held by this operation before it signs anything.
       assertStillAuthorized();
+      if (isLegacy && zeldHuntSeconds > 0) {
+        const hunted = await huntZeldWhileSigning({
+          rawTxHex: rawTransaction,
+          sourceAddress: targetAddress.address,
+          // These scripts came from resolved parent transactions, not compose API hints.
+          lockScripts: prevOutputScripts.map(bytesToHex),
+          privateKeyHex,
+          compressed,
+          seconds: zeldHuntSeconds,
+          assertStillAuthorized,
+          hunt: zeldHunt,
+        });
+        assertStillAuthorized();
+        if (hunted) return hunted.signedTxHex;
+      }
       if (!compressed && (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet || wallet.addressFormat === AddressFormat.FreewalletBIP39)) {
         // Uncompressed P2PKH - use hybrid signing approach
         const compressedPubkey = getPublicKey(privateKeyBytes, true);

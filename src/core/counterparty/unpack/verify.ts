@@ -89,6 +89,7 @@ import type { BroadcastData } from '@/core/counterparty/unpack/messages/broadcas
 import type { BTCPayData } from '@/core/counterparty/unpack/messages/btcpay';
 import type { CancelData } from '@/core/counterparty/unpack/messages/cancel';
 import type { DestroyData } from '@/core/counterparty/unpack/messages/destroy';
+import type { DispenseData } from '@/core/counterparty/unpack/messages/dispense';
 import type { DispenserData } from '@/core/counterparty/unpack/messages/dispenser';
 import type { DividendData } from '@/core/counterparty/unpack/messages/dividend';
 import type { EnhancedSendData } from '@/core/counterparty/unpack/messages/enhancedSend';
@@ -1028,6 +1029,21 @@ export function verifyTransaction(
   switch (composeType) {
     case 'send':
     case 'enhanced_send':
+      // Core's send1.compose_send_btc delegates to dispense.compose when the payee
+      // has a dispenser. Only its constant marker is compatible with a BTC send;
+      // the destination and satoshi amount remain pinned by the output policy.
+      if (actualParams.asset === 'BTC' && unpacked.messageTypeId === MessageTypeId.DISPENSE) {
+        if (actualParams.no_dispense === true || actualParams.no_dispense === 'true') {
+          result.errors.push('The transaction triggers a dispense, but this send disabled dispensing.');
+          return result;
+        }
+        const marker = (unpacked.data as DispenseData).data;
+        if (marker.length !== 1 || marker[0] !== 0) {
+          result.errors.push('The BTC send contains an invalid dispense marker.');
+          return result;
+        }
+        break;
+      }
       // A multi-destination send composes to an MPMA message; verify it as one.
       if (unpacked.messageTypeId === MessageTypeId.MPMA_SEND) {
         verifyMultiSend(unpacked.data as MPMAData, actualParams, result);

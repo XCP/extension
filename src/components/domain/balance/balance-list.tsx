@@ -12,6 +12,7 @@ import type { TokenBalance } from "@/core/counterparty/api";
 import { fetchTokenBalance, fetchTokenBalances } from "@/core/counterparty/api";
 import { normalizeAssetQuery } from "@/core/format";
 import { asDisplayUnits, fromSatoshis, isGreaterThan } from '@/core/numeric';
+import { fetchZeldBalance, ZELD_WALLET_ASSET, zeldBaseUnitsToDisplay } from '@/core/zeld/api';
 import { useInView } from "@/hooks/useInView";
 import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
@@ -38,7 +39,9 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   const address = activeAddress?.address;
   const walletId = activeWallet?.id;
   const pinnedAssetKey = (settings?.pinnedAssets ?? []).map(normalizeAssetQuery).join("\n");
+  const zeldEnabled = (settings?.zeldHuntSeconds ?? 0) > 0;
   const [allBalances, setAllBalances] = useState<TokenBalance[]>([]);
+  const [zeldBalance, setZeldBalance] = useState<TokenBalance | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
@@ -129,6 +132,26 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           },
         }));
         const nonBTCAssets = [...new Set(pinnedAssetKey.split("\n").filter((asset) => asset && asset !== "BTC"))];
+        // Always discover earned ZELD, even with hunting off, but never make ordinary balances,
+        // pagination or refresh completion wait for this independent indexer.
+        void fetchZeldBalance(session.address).then((zeld) => {
+          if (sessionRef.current !== session) return;
+          const balance: TokenBalance = {
+            asset: ZELD_WALLET_ASSET,
+            quantity_normalized: zeldBaseUnitsToDisplay(zeld.baseUnits),
+            asset_info: {
+              asset_longname: null,
+              description: "ZeldHash ZELD",
+              issuer: "",
+              divisible: true,
+              locked: false,
+            },
+          };
+          setZeldBalance(balance);
+          cacheBalances([balance]);
+        }).catch(() => {
+          // Leave the optional row absent; the ZELD page explains an unavailable balance.
+        });
         const results = await Promise.allSettled([
           btcPromise,
           ...nonBTCAssets.map((asset) => fetchTokenBalance(session.address, asset, { type: "address" })),
@@ -159,6 +182,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
     queueMicrotask(() => {
       if (cancelled) return;
       setAllBalances([]);
+      setZeldBalance(null);
       setHasMore(false);
       setInitialLoaded(false);
       setIsFetchingMore(false);
@@ -212,14 +236,18 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
     return () => { cancelled = true; };
   }, [inView, initialLoaded, hasMore, isFetchingMore, error, isSearchActive, loadMore]);
 
-  // BTC is always pinned, plus user's pinned assets
-  const pinnedAssets = ["BTC"].concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
+  // BTC is always pinned, then ZELD, then the user's pinned assets
+  const pinnedAssets = ["BTC", ZELD_WALLET_ASSET.toUpperCase()]
+    .concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
 
-  const pinnedBalances = allBalances.filter((balance) =>
+  const balancesWithZeld = [...allBalances];
+  if (zeldBalance) balancesWithZeld.splice(allBalances.findIndex(balance => balance.asset === "BTC") + 1, 0, zeldBalance);
+
+  const pinnedBalances = balancesWithZeld.filter((balance) =>
     pinnedAssets.includes(balance.asset.toUpperCase())
   );
 
-  const otherBalances = allBalances.filter((balance) =>
+  const otherBalances = balancesWithZeld.filter((balance) =>
     !pinnedAssets.includes(balance.asset.toUpperCase())
   );
 
@@ -235,6 +263,9 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         const assetUpper = balance.asset.toUpperCase();
         if (assetUpper === "BTC") return true;
         if (assetUpper === "XCP" && pinnedAssets.includes("XCP")) return true;
+        // ZELD shows at zero while hunting is on, since the row is where the hunt explains itself,
+        // and whenever there is a balance, so turning hunting off never hides ZELD already earned.
+        if (assetUpper === ZELD_WALLET_ASSET.toUpperCase() && zeldEnabled) return true;
         return shown.quantity_normalized !== undefined
           && isGreaterThan(shown.quantity_normalized, 0);
       });

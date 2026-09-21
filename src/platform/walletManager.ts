@@ -31,6 +31,7 @@ import {
 } from '@/core/wallet/addressDeriver';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
 import { detectUtxoAddress, isUtxoAddressPath, parseUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
+import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS } from '@/core/zeld/protocol';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { whenSessionRecovered } from '@/platform/auth/sessionReady';
@@ -48,6 +49,7 @@ import {
   getKeychainRecord,
   saveKeychainRecord,
 } from '@/platform/storage/walletStorage';
+import { huntInBackground } from '@/platform/zeldHunt';
 // Note: getTrezorAdapter is dynamically imported in createHardwareWalletWithDiscovery to avoid
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
@@ -947,6 +949,12 @@ export class WalletManager {
       throw new Error('Cannot update settings: keychain not unlocked');
     }
 
+    // The hunt budget is a hard bound on how long signing waits, so it is enforced where settings
+    // are persisted rather than trusted from the page that edited it.
+    if (updates.zeldHuntSeconds !== undefined && !isValidZeldHuntSeconds(updates.zeldHuntSeconds)) {
+      throw new Error(`ZELD hunt time must be a whole number of seconds from 0 to ${MAX_ZELD_HUNT_SECONDS}`);
+    }
+
     const keychain = this.keychain;
     const previousSettings = keychain.settings;
     const generation = this.vaultGeneration;
@@ -1736,6 +1744,8 @@ export class WalletManager {
       lockScripts,
       getTrustedBroadcastPrevout,
       assertStillAuthorized,
+      options?.zeldHuntSeconds ?? 0,
+      huntInBackground,
     );
     assertStillAuthorized();
     return signedTxHex;

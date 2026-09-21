@@ -107,6 +107,9 @@ describe('FairmintForm', () => {
   const mockFairmintersResponse = (fairminters: FairminterDetails[]) => {
     (global.fetch as any).mockResolvedValue({
       ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ result: fairminters, result_count: fairminters.length }),
       json: async () => ({ result: fairminters }),
     });
   };

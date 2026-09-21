@@ -12,7 +12,9 @@ import {
   fetchAddressDispensers,
   fetchAddressPoolByLpAsset,
   fetchAddressPools,
+  fetchAllAddressDispensers,
   fetchAssetDetails,
+  fetchAssetDispensers,
   fetchAssetFairminter,
   fetchDispenserByHash,
   fetchMempoolDispenses,
@@ -354,30 +356,9 @@ describe('counterparty/api.ts', () => {
       await expect(fetchTokenBalance(mockAddress, 'XCP')).rejects.toThrow(CounterpartyApiError);
     });
 
-    it('should return zero balance for missing result', async () => {
-      mockedApiClient.get.mockResolvedValue({
-        data: { result: null },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
-
-      const balance = await fetchTokenBalance(mockAddress, 'XCP');
-
-      // Now returns zero balance instead of null for missing result
-      expect(balance).toEqual({
-        asset: 'XCP',
-        quantity: asBaseUnits(0),
-        quantity_normalized: asDisplayUnits('0'),
-        asset_info: {
-          asset_longname: null,
-          description: '',
-          issuer: '',
-          divisible: true,
-          locked: false,
-        },
-      });
+    it('rejects a missing result rather than reporting a false zero balance', async () => {
+      mockedApiClient.get.mockResolvedValue({ data: { result: null }, status: 200 } as any);
+      await expect(fetchTokenBalance(mockAddress, 'XCP')).rejects.toThrow('invalid list');
     });
 
     it('should handle invalid quantity_normalized values without producing NaN', async () => {
@@ -867,6 +848,21 @@ describe('counterparty/api.ts', () => {
     });
   });
 
+  it('requests server-side dispenser ordering and oracle filtering on every page', async () => {
+    mockedApiClient.get.mockResolvedValue({ data: { result: [], result_count: 0 } } as any);
+    for (const offset of [0, 20]) {
+      await fetchAssetDispensers('XCP', {
+        status: 'open', limit: 20, offset, sort: 'price:asc,tx_index:asc', excludeWithOracle: true,
+      });
+      expect(mockedApiClient.get).toHaveBeenLastCalledWith(
+        `${mockApiBase}/v2/assets/XCP/dispensers`,
+        expect.objectContaining({ params: expect.objectContaining({
+          status: 'open', limit: 20, offset, sort: 'price:asc,tx_index:asc', exclude_with_oracle: true,
+        }) }),
+      );
+    }
+  });
+
   describe('fetchAddressDispensers', () => {
     it('should fetch dispensers successfully', async () => {
       const mockDispenser: Dispenser = {
@@ -943,6 +939,66 @@ describe('counterparty/api.ts', () => {
     });
   });
 
+  describe('fetchAllAddressDispensers', () => {
+    const rows = Array.from({ length: 237 }, (_, i) => ({
+      tx_hash: i.toString(16).padStart(64, '0'), asset: `ASSET${i}`, status: 0,
+    }));
+
+    it('loads more than 200 dispensers and preserves filters on every page', async () => {
+      mockedApiClient.get.mockImplementation(async (_url, options) => {
+        const offset = Number(options?.params?.offset ?? 0);
+        return { data: { result: rows.slice(offset, offset + 100), result_count: rows.length } } as any;
+      });
+      const result = await fetchAllAddressDispensers(mockAddress, { status: 'open', verbose: true });
+      expect(result.result).toEqual(rows);
+      expect(mockedApiClient.get.mock.calls.map(([, options]) => options?.params)).toEqual([
+        { limit: 100, offset: 0, status: 'open', verbose: true },
+        { limit: 100, offset: 100, status: 'open', verbose: true },
+        { limit: 100, offset: 200, status: 'open', verbose: true },
+      ]);
+    });
+
+    it('continues when a node returns smaller pages and the count says more exist', async () => {
+      mockedApiClient.get.mockImplementation(async (_url, options) => {
+        const offset = Number(options?.params?.offset ?? 0);
+        return { data: { result: rows.slice(offset, Math.min(offset + 10, 23)), result_count: 23 } } as any;
+      });
+      expect((await fetchAllAddressDispensers(mockAddress)).result).toEqual(rows.slice(0, 23));
+    });
+
+    it('reads through the final page when the node omits a total count', async () => {
+      mockedApiClient.get.mockImplementation(async (_url, options) => {
+        const offset = Number(options?.params?.offset ?? 0);
+        return { data: { result: rows.slice(offset, offset + 100) } } as any;
+      });
+      expect((await fetchAllAddressDispensers(mockAddress)).result).toEqual(rows);
+    });
+
+    it('rejects a later-page failure instead of presenting a partial list', async () => {
+      mockedApiClient.get.mockResolvedValueOnce({ data: { result: rows.slice(0, 100), result_count: 237 } } as any)
+        .mockRejectedValueOnce(new Error('Second page unavailable'));
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('Second page unavailable');
+    });
+
+    it('rejects a node that ignores the offset instead of looping forever', async () => {
+      mockedApiClient.get.mockResolvedValue({ data: { result: rows.slice(0, 100), result_count: 237 } } as any);
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('repeated a page');
+      expect(mockedApiClient.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects partial overlap instead of approving an inventory with a missing dispenser', async () => {
+      mockedApiClient.get.mockResolvedValueOnce({ data: { result: rows.slice(0, 100), result_count: 101 } } as any)
+        .mockResolvedValueOnce({ data: { result: rows.slice(99, 101), result_count: 101 } } as any);
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('overlapping rows');
+    });
+
+    it('rejects an empty page when the node says more dispensers exist', async () => {
+      mockedApiClient.get.mockResolvedValueOnce({ data: { result: rows.slice(0, 100), result_count: 237 } } as any)
+        .mockResolvedValueOnce({ data: { result: [], result_count: 237 } } as any);
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('incomplete list');
+    });
+  });
+
   describe('fetchDispenserByHash', () => {
     it('should fetch dispenser details successfully', async () => {
       const mockDispenser: Dispenser = {
@@ -1002,6 +1058,8 @@ describe('counterparty/api.ts', () => {
             {
               event: 'DISPENSE',
               params: {
+            addresses: mockAddress,
+            event_name: 'DISPENSE',
                 tx_hash: 'matching-tx',
                 source: mockAddress,
                 destination: buyerAddress,
@@ -1011,6 +1069,8 @@ describe('counterparty/api.ts', () => {
             {
               event: 'DISPENSE',
               params: {
+            addresses: mockAddress,
+            event_name: 'DISPENSE',
                 tx_hash: 'other-tx',
                 source: 'bc1qotherdispenser',
                 destination: buyerAddress,
@@ -1035,9 +1095,11 @@ describe('counterparty/api.ts', () => {
         }),
       ]);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
-        `${mockApiBase}/v2/mempool/events/DISPENSE`,
+        `${mockApiBase}/v2/addresses/mempool`,
         {
           params: {
+            addresses: mockAddress,
+            event_name: 'DISPENSE',
             verbose: true,
             limit: 100,
           },

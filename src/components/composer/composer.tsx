@@ -1,5 +1,6 @@
 import { type ReactElement, useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { HuntProgress } from "@/components/domain/zeld/hunt-progress";
 import { FiHelpCircle, FiRefreshCw, FiX } from "@/components/icons";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { Banner } from "@/components/ui/banner";
@@ -8,6 +9,7 @@ import { ComposerProvider } from "@/contexts/composer-context"
 import { useComposer } from "@/contexts/composer-context-object";
 import { useHeader } from "@/contexts/header-context";
 import type { ApiResponse } from "@/core/counterparty/compose";
+import { HUNTS_WHILE_SIGNING } from "@/core/zeld/eligibility";
 
 import { t } from '@/i18n';
 /**
@@ -88,6 +90,7 @@ function ComposerInner<T>({
     reset,
     showHelpText,
     toggleHelpText,
+    acceptZeldHunt,
   } = useComposer<T>();
 
   // Header configuration based on current step
@@ -180,11 +183,16 @@ function ComposerInner<T>({
   // Render based on current step
   // Show spinner during async operations (composing or signing)
   if (state.isComposing || state.isSigning) {
+    const hunt = state.zeldHuntProgress;
+    const metadata = state.apiResponse?.result.zeld_hunt;
+    const signingBudget = metadata?.reason === HUNTS_WHILE_SIGNING ? metadata.seconds : 0;
+    const message = state.isComposing ? t('composer_composer_composing_transaction')
+      : signingBudget ? t('zeld_signing_hunt', [String(signingBudget)])
+      : t('composer_composer_signing_and_broadcasting');
     return (
-      <Spinner
-        message={state.isComposing ? t('composer_composer_composing_transaction') : t('composer_composer_signing_and_broadcasting')}
-        className="min-h-[300px]"
-      />
+      <div className="min-h-[300px] p-4 flex flex-col items-center justify-center">
+        {hunt ? <HuntProgress progress={hunt} onContinue={acceptZeldHunt} /> : <Spinner message={message} />}
+      </div>
     );
   }
 

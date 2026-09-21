@@ -18,6 +18,8 @@ interface AssetIconProps {
   lazy?: boolean;
   /** Custom fallback color scheme */
   fallbackColor?: "gray" | "blue" | "green" | "purple";
+  /** Bundled or caller-provided image. Defaults to the Counterparty icon CDN. */
+  imageSrc?: string;
 }
 
 /**
@@ -68,6 +70,7 @@ export const AssetIcon = memo<AssetIconProps>(
     rounded = true,
     lazy = true,
     fallbackColor = "gray",
+    imageSrc,
   }) => {
     const [imageState, setImageState] = useState<
       "loading" | "loaded" | "error"
@@ -128,7 +131,7 @@ export const AssetIcon = memo<AssetIconProps>(
 
         {/* Actual image */}
         <img
-          src={`https://cdn.xcp.io/img/icon/${asset}`}
+          src={imageSrc ?? `https://cdn.xcp.io/img/icon/${asset}`}
           alt=""
           className={`absolute inset-0 object-cover transition-opacity duration-200 ${radiusClass} ${
             imageState === "loaded" ? "opacity-100" : "opacity-0"

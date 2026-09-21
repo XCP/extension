@@ -800,12 +800,6 @@
   "asset_fairmint_summary_you_receive": {
     "message": "你收到"
   },
-  "asset_fairminter_select_input_failed_to_fetch_fairminters": {
-    "message": "獲取公平鑄造合約失敗"
-  },
-  "asset_fairminter_select_input_failed_to_load_available_assets": {
-    "message": "載入可用資產失敗。請重試。"
-  },
   "asset_fairminter_select_input_loading_fairminters": {
     "message": "正在載入公平鑄造合約…"
   },
@@ -2293,9 +2287,6 @@
   },
   "dispenser_dispenser_input_enter_the_dispenser_address_to": {
     "message": "輸入要向其發送 BTC 的販賣機地址。"
-  },
-  "dispenser_dispenser_input_error_fetching_dispenser_details": {
-    "message": "獲取販賣機詳情出錯。"
   },
   "dispenser_dispenser_input_no_open_dispenser_found_at": {
     "message": "此地址沒有營業中的販賣機。"
@@ -5907,5 +5898,287 @@
   },
   "approval_bitcoin_payment_output_address_unknown": {
     "message": "無法核查輸出 $1 的比特幣地址。"
+  },
+  "zeld_hunt_enable": {
+    "message": "啟用 ZELD 搜尋"
+  },
+  "zeld_hunt_description": {
+    "message": "進行符合條件的交易時搜尋 ZELD。不額外收取 BTC 手續費。即使沒有找到結果，交易也會正常繼續。"
+  },
+  "zeld_hunt_invalid_seconds": {
+    "message": "請輸入 0 到 $1 之間的整數秒數。"
+  },
+  "zeld_hunt_save_time_failed": {
+    "message": "無法儲存搜尋時間。"
+  },
+  "zeld_hunt_save_setting_failed": {
+    "message": "無法儲存搜尋設定。"
+  },
+  "zeld_hunt_wait": {
+    "message": "每筆交易的最長等待時間"
+  },
+  "zeld_hunt_seconds_label": {
+    "message": "搜尋 ZELD 交易 ID 的秒數"
+  },
+  "zeld_hunt_seconds_hint": {
+    "message": "秒（0 為關閉，最多 $1）"
+  },
+  "zeld_hunt_device_help": {
+    "message": "使用裝置的運算能力，最長持續上述秒數。不保證能找到 ZELD。"
+  },
+  "zeld_hunt_title": {
+    "message": "ZELD 搜尋"
+  },
+  "zeld_hunt_searching_title": {
+    "message": "正在搜尋 ZELD"
+  },
+  "zeld_hunt_remaining": {
+    "message": "剩餘 $1 秒"
+  },
+  "zeld_hunt_found_searching": {
+    "message": "已找到以 $1 個零開頭的 txid。正在搜尋更稀有的結果。"
+  },
+  "zeld_hunt_searching": {
+    "message": "正在搜尋稀有交易 ID…"
+  },
+  "zeld_hunt_elapsed_label": {
+    "message": "已用搜尋時間"
+  },
+  "zeld_hunt_elapsed": {
+    "message": "已用 $1 秒，共 $2 秒"
+  },
+  "zeld_hunt_best_saved": {
+    "message": "已為此交易保留最佳結果。"
+  },
+  "zeld_hunt_continue_help": {
+    "message": "你可以隨時繼續。不保證獲得獎勵。"
+  },
+  "zeld_hunt_use_now": {
+    "message": "使用此結果"
+  },
+  "zeld_hunt_continue_without": {
+    "message": "停止搜尋並繼續"
+  },
+  "zeld_signing_hunt": {
+    "message": "正在簽名並廣播… ZELD 搜尋最多可能需要 $1 秒。"
+  },
+  "zeld_review_park": {
+    "message": "將 $1 ZELD 移到自己的一個小額輸出"
+  },
+  "zeld_review_send": {
+    "message": "傳送 $1 ZELD；保留 $2 ZELD"
+  },
+  "zeld_review_kept_one": {
+    "message": "已從此付款中排除 $1 個持有 ZELD 的輸出"
+  },
+  "zeld_review_kept_many": {
+    "message": "已從此付款中排除 $1 個持有 ZELD 的輸出"
+  },
+  "zeld_review_found": {
+    "message": "在 $2 秒內找到以 $1 個零開頭的 txid"
+  },
+  "zeld_review_not_found": {
+    "message": "在 $1 秒內未找到稀有 txid；正常傳送"
+  },
+  "zeld_review_signing": {
+    "message": "簽名時搜尋，最長 $1 秒"
+  },
+  "zeld_loading": {
+    "message": "正在載入 ZELD…"
+  },
+  "zeld_send": {
+    "message": "傳送 ZELD"
+  },
+  "zeld_balance_unavailable": {
+    "message": "餘額暫時無法取得。請稍後再試。"
+  },
+  "zeld_send_description": {
+    "message": "傳送到其他地址，其餘部分仍由你持有。"
+  },
+  "zeld_nothing_to_send": {
+    "message": "尚無可傳送的餘額。"
+  },
+  "zeld_park_title": {
+    "message": "將 ZELD 移到小額輸出"
+  },
+  "zeld_park_description": {
+    "message": "釋放其餘 BTC，用於必須將首個輸出支付給他人的交易。"
+  },
+  "zeld_about": {
+    "message": "關於 ZeldHash"
+  },
+  "zeld_about_description": {
+    "message": "了解稀有交易 ID 如何獲得 ZELD。開啟 zeldhash.com。"
+  },
+  "zeld_balance": {
+    "message": "ZELD 餘額"
+  },
+  "zeld_indexer_unavailable": {
+    "message": "無法連線至 ZELD 索引服務。"
+  },
+  "zeld_balance_error": {
+    "message": "$1 無法取得你的餘額。"
+  },
+  "zeld_hunting": {
+    "message": "搜尋"
+  },
+  "zeld_legacy_hardware": {
+    "message": "傳統地址格式的硬體錢包無法搜尋：簽名由裝置完成，而此類交易 ID 取決於簽名。"
+  },
+  "zeld_hunting_off": {
+    "message": "搜尋已關閉。啟用 ZELD 搜尋後，可在下一筆符合條件的交易中嘗試。"
+  },
+  "zeld_holding_outputs": {
+    "message": "持有 ZELD 的輸出"
+  },
+  "zeld_outputs": {
+    "message": "輸出"
+  },
+  "zeld_unknown": {
+    "message": "未知"
+  },
+  "zeld_btc_on_outputs": {
+    "message": "這些輸出中的 BTC"
+  },
+  "zeld_output_help": {
+    "message": "ZELD 附著在普通比特幣輸出上，花費該輸出時會移到首個可花費輸出。對於首個輸出支付給他人的交易，錢包會排除持有 ZELD 的輸出。"
+  },
+  "zeld_more_outputs": {
+    "message": "另有 $1 個"
+  },
+  "zeld_recent_rewards": {
+    "message": "近期獎勵"
+  },
+  "zeld_rewards_unavailable": {
+    "message": "獎勵紀錄暫時無法取得。請稍後再試。"
+  },
+  "zeld_no_rewards": {
+    "message": "此地址尚無獎勵。"
+  },
+  "zeld_reward_block": {
+    "message": "區塊 $1，開頭有 $2 個零"
+  },
+  "zeld_to_move": {
+    "message": "要移動的 ZELD"
+  },
+  "zeld_park_help": {
+    "message": "將全部 ZELD 集中到此地址的一個小額輸出，其餘 BTC 作為普通找零退回。如果所有輸出都持有 ZELD，導致所有權移轉等必須先支付給他人的交易遭拒，可使用此功能。"
+  },
+  "zeld_park_optional_help": {
+    "message": "一般傳送和販賣機購買不需要此操作：找零輸出在前，因此 ZELD 仍由你持有。"
+  },
+  "zeld_moved": {
+    "message": "移動的 ZELD"
+  },
+  "zeld_small_output": {
+    "message": "小額輸出"
+  },
+  "zeld_sats_holding": {
+    "message": "$1 sats，承載 ZELD"
+  },
+  "zeld_move": {
+    "message": "移動 ZELD"
+  },
+  "zeld_available": {
+    "message": "可用"
+  },
+  "zeld_recipient_help": {
+    "message": "ZELD 將透過一個小額比特幣輸出送達。"
+  },
+  "zeld_recipient_sats_help": {
+    "message": "ZELD 將透過一個 $1 sat 的比特幣輸出送達，其餘 BTC 退回給你。"
+  },
+  "zeld_amount_help": {
+    "message": "最多 8 位小數。未傳送的 ZELD 仍由你持有。"
+  },
+  "zeld_recipient_btc": {
+    "message": "收款方 BTC"
+  },
+  "dispenser_list_unavailable": {
+    "message": "販賣機清單暫時無法取得。"
+  },
+  "dispenser_load_failed": {
+    "message": "無法載入販賣機。請再試一次。"
+  },
+  "dispenser_more_failed": {
+    "message": "無法載入更多販賣機。"
+  },
+  "dispenser_load_more": {
+    "message": "載入更多販賣機"
+  },
+  "pagination_loading_more": {
+    "message": "正在載入更多…"
+  },
+  "fairminter_more_failed": {
+    "message": "無法載入更多公平鑄造。"
+  },
+  "fairminter_available_failed": {
+    "message": "無法載入可用的公平鑄造。"
+  },
+  "fairminter_load_more": {
+    "message": "載入更多公平鑄造"
+  },
+  "fairminter_no_matches": {
+    "message": "沒有符合條件的公平鑄造。"
+  },
+  "dispense_inventory_failed": {
+    "message": "無法載入所有販賣機。購買前請返回並再試一次。"
+  },
+  "dispense_inventory_loading": {
+    "message": "正在載入所有販賣機…"
+  },
+  "send_review_payment_type": {
+    "message": "付款類型"
+  },
+  "send_review_dispenser_payment": {
+    "message": "販賣機付款"
+  },
+  "zeld_error_amount": {
+    "message": "ZELD 數量必須大於 0。"
+  },
+  "zeld_error_fee": {
+    "message": "費率必須大於 0。"
+  },
+  "zeld_error_source": {
+    "message": "無法解析來源地址。"
+  },
+  "zeld_error_recipient": {
+    "message": "無法解析收款地址。"
+  },
+  "zeld_error_balance": {
+    "message": "ZELD 餘額不足。"
+  },
+  "zeld_error_none_to_move": {
+    "message": "沒有可移動的 ZELD。"
+  },
+  "zeld_error_unspendable": {
+    "message": "部分 ZELD 位於錢包暫時無法花費的輸出上（未確認、剛被花費，或附有 Counterparty 資產）。"
+  },
+  "zeld_error_spendable_balance": {
+    "message": "可花費的 ZELD 不足。"
+  },
+  "zeld_error_btc_balance": {
+    "message": "BTC 不足以支付收款方輸出和手續費。"
+  },
+  "zeld_error_detach_first": {
+    "message": "此輸出還持有 ZELD，會隨資產一起轉到目標地址。請先分離資產：ZELD 會保留在你這裡，重新附加時會使用不含 ZELD 的輸出。"
+  },
+  "zeld_error_detach_funding": {
+    "message": "此輸出還持有 ZELD，但分離後沒有屬於你的輸出可接收它。請向此地址補充少量 BTC 後再試。"
+  },
+  "zeld_error_park_first": {
+    "message": "此地址所有可花費的輸出都持有 ZELD，而此交易首先支付給收款方，因此 ZELD 也會轉給對方。請先在 ZELD 頁面將 ZELD 移到小額輸出，再試一次。"
+  },
+  "zeld_safety_blocked": {
+    "message": "已阻止：ZELD 將被轉出"
+  },
+  "zeld_safety_warning": {
+    "message": "ZELD 將被轉出"
+  },
+  "zeld_safety_blocked_detail": {
+    "message": "網站要求花費的輸出中有 $1 個持有 ZELD。此交易首先支付給他人，因此 ZELD 也會轉給對方。請先在 ZELD 頁面將 ZELD 移到小額輸出，再讓網站重試。"
+  },
+  "zeld_safety_warning_detail": {
+    "message": "網站要求花費的輸出中有 $1 個持有 ZELD。此交易首先支付給他人，因此 ZELD 也會轉給對方。如要保留 ZELD，請先在 ZELD 頁面將其移到小額輸出。"
   }
 }

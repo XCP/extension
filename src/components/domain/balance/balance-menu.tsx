@@ -3,7 +3,8 @@ import { type ReactElement, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { BsThreeDots, FaBitcoin, FaCoins, FaExchangeAlt, FaPaperPlane } from '@/components/icons';
 import { Button } from '@/components/ui/button';
-import { BaseMenu } from '@/components/ui/menus/base-menu';
+import { BaseMenu } from "@/components/ui/menus/base-menu";
+import { ZELD_WALLET_ASSET } from "@/core/zeld/api";
 
 import { t } from '@/i18n';
 
@@ -23,11 +24,12 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
   const navigate = useNavigate();
   const isBTC = asset === 'BTC';
   const isXCP = asset === 'XCP';
+  const isZeld = asset === ZELD_WALLET_ASSET;
   const encodedAsset = encodeURIComponent(asset);
 
   const handleSend = useCallback(() => {
-    navigate(`/compose/send/${encodedAsset}`);
-  }, [encodedAsset, navigate]);
+    navigate(isZeld ? '/zeld/send' : `/compose/send/${encodedAsset}`);
+  }, [encodedAsset, isZeld, navigate]);
 
   const handleSwap = useCallback(() => {
     navigate(`/compose/order/${encodedAsset}`);
@@ -54,7 +56,7 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
         </Button>
       </MenuItem>
 
-      {!isXCP && !isBTC && (
+      {!isXCP && !isBTC && !isZeld && (
         <MenuItem>
           <Button variant="menu-item" fullWidth onClick={handleSell}>
             <FaBitcoin className="mr-3 size-4 text-gray-600" aria-hidden="true" />
@@ -64,13 +66,14 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
         </MenuItem>
       )}
 
-      <MenuItem>
-        <Button variant="menu-item" fullWidth onClick={handleSwap}>
-          <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          
-          {t('common_swap')}
-        </Button>
-      </MenuItem>
+      {!isZeld && (
+        <MenuItem>
+          <Button variant="menu-item" fullWidth onClick={handleSwap}>
+            <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+            {t('common_swap')}
+          </Button>
+        </MenuItem>
+      )}
 
       {(isBTC || isXCP) && (
         <MenuItem>

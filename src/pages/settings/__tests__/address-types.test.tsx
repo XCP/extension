@@ -40,7 +40,7 @@ describe('localized address-type settings', () => {
       ['ja', 'ネイティブSegWit', 'ネスト型SegWit', 'レガシー'],
       ['zh-CN', '原生 SegWit', '嵌套 SegWit', '传统'],
       ['zh-TW', '原生 SegWit', '巢狀 SegWit', '傳統'],
-      ['zh-HK', '原生 SegWit', 'Nested SegWit', '傳統'],
+      ['zh-HK', '原生 SegWit', '嵌套 SegWit', '傳統'],
       ['en', 'Native SegWit', 'Nested SegWit', 'Legacy'],
     ]) {
       await act(async () => { mockBrowserLocale({ language, numberLocale: 'de-DE' }); });

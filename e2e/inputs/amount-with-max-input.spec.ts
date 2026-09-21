@@ -150,12 +150,14 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('clicking Max shows a form error alongside a global API alert', async ({ page }) => {
-      // The attachment lookup is rate limited while the BTC indexer reports an empty wallet.
+      // The candidate-output safety check is rate limited, so Max must fail closed.
       await page.route('https://mempool.space/api/v1/fees/precise', route => route.fulfill({
         json: { fastestFee: 1, halfHourFee: 1, hourFee: 1 },
       }));
-      await page.route('https://mempool.space/api/address/*/utxo', route => route.fulfill({ json: [] }));
-      await page.route(/\/v2\/addresses\/[^/]+\/balances(?:\?|$)/, route => route.fulfill({
+      await page.route('https://mempool.space/api/address/*/utxo', route => route.fulfill({
+        json: [{ txid: 'a'.repeat(64), vout: 0, value: 100000, status: { confirmed: true } }],
+      }));
+      await page.route('**/v2/utxos/withbalances?**', route => route.fulfill({
         status: 429, json: { error: 'Rate limited' },
       }));
       // Reset page caches so the test always exercises these responses.
@@ -181,7 +183,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       await expect(apiAlert).toContainText('(429)');
       await expect(page.getByRole('alert')).toHaveCount(2);
 
-      // Input should remain empty since there's no balance
+      // Input stays empty because the available BTC could not be checked for attached assets
       await expect(input).toHaveValue('');
     });
 

@@ -9,6 +9,7 @@ import { serializeRawInteger } from "@/core/amount-contract/amounts";
  */
 
 import { apiClient } from '@/core/api/client';
+import { collectPages } from '@/core/counterparty/pagination';
 import { type RateLimitRefusal, RequestGate } from '@/core/counterparty/requestGate';
 import { CounterpartyApiError } from '@/core/errors';
 import { asBaseUnits, asDisplayUnits, type BaseUnits, type DisplayUnits, toBigNumber } from '@/core/numeric';
@@ -193,6 +194,7 @@ export type ApiQuantity = BaseUnits;
 export interface PaginatedResponse<T> {
   result: T[];
   result_count: number;
+  next_cursor?: string | number | null;
 }
 
 export interface PaginationOptions {
@@ -460,6 +462,8 @@ export interface Dispenser {
 }
 
 export interface DispenserDetails extends Dispenser {
+  /** Opening transaction index; block_index can change after a refill or dispense. */
+  tx_index?: number;
   give_quantity: ApiQuantity;
   give_quantity_normalized: DisplayUnits;
   satoshirate: ApiQuantity;
@@ -665,12 +669,24 @@ async function cpApiGet<T = unknown>(
   }
 }
 
+/** Complete reads share the same pacing, lossless JSON, and cache as single pages. */
+function cpApiGetAll<T>(
+  path: string,
+  params: Record<string, string | number | boolean>,
+  options: { skipCache?: boolean; cursorOnly?: boolean } = {}
+): Promise<PaginatedResponse<T>> {
+  return collectPages<T>(
+    page => cpApiGet<PaginatedResponse<T>>(path, { ...params, ...page }, options),
+    { cursorOnly: options.cursorOnly }
+  );
+}
+
 // =============================================================================
 // API - Balances & Assets
 // =============================================================================
 
 /**
- * Fetch all token balances for an address.
+ * Fetch one page of token balances for an address.
  * @param address - Bitcoin address to query
  * @param options - Pagination, sorting, and type filter options
  * @returns Array of token balances with asset info
@@ -704,7 +720,7 @@ export async function fetchTokenBalance(
   asset: string,
   options: { type?: 'all' | 'utxo' | 'address'; verbose?: boolean } = {}
 ): Promise<TokenBalance> {
-  const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
+  const data = await cpApiGetAll<TokenBalance>(
     `/v2/addresses/${encodePath(address)}/balances/${encodePath(asset)}`,
     {
       verbose: options.verbose ?? true,
@@ -754,11 +770,11 @@ export async function fetchTokenUtxos(
   asset: string,
   options: { verbose?: boolean } = {}
 ): Promise<TokenBalance[]> {
-  const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
+  const data = await cpApiGetAll<TokenBalance>(
     `/v2/addresses/${encodePath(address)}/balances/${encodePath(asset)}`,
-    { verbose: options.verbose ?? true }
+    { verbose: options.verbose ?? true, type: 'utxo' }
   );
-  return (data.result ?? []).filter((b) => b.utxo !== null);
+  return (data.result ?? []).filter((b) => !!b.utxo);
 }
 
 /**
@@ -800,18 +816,41 @@ export async function fetchAssetDetails(
 /**
  * Fetch all token balances attached to a specific UTXO.
  * @param utxo - UTXO identifier (txid:vout)
- * @param options - Pagination and unconfirmed options
- * @returns Paginated UTXO balances
+ * @param options - Supply limit/offset for a single page; otherwise read every attached balance.
+ * @returns Complete UTXO balances by default, or the explicitly requested page
  */
 export async function fetchUtxoBalances(
   utxo: string,
   options: PaginationOptions = {}
 ): Promise<PaginatedResponse<UtxoBalance>> {
+  // Transaction summaries and move/detach forms need every attached asset. Explicit
+  // pagination remains available for callers that render a paged list.
+  if (options.limit === undefined && options.offset === undefined) {
+    return cpApiGetAll<UtxoBalance>(`/v2/utxos/${encodePath(utxo)}/balances`, { verbose: options.verbose ?? true });
+  }
   return cpApiGet<PaginatedResponse<UtxoBalance>>(`/v2/utxos/${encodePath(utxo)}/balances`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
   });
+}
+
+/** Check candidates, not an arbitrarily capped list of an address's asset balances. */
+export async function fetchUtxosWithBalances(utxos: string[]): Promise<Set<string>> {
+  const unique = [...new Set(utxos)];
+  const withBalances = new Set<string>();
+  // Core's membership query itself has a 100-row default. Keep each batch below that
+  // and the URL comfortably short, even when every candidate holds assets.
+  for (let offset = 0; offset < unique.length; offset += 20) {
+    const batch = unique.slice(offset, offset + 20);
+    const data = await cpApiGet<{ result: Record<string, boolean> }>('/v2/utxos/withbalances',
+      { utxos: batch.join(','), verbose: false }, { skipCache: true });
+    for (const utxo of batch) {
+      if (typeof data.result?.[utxo] !== 'boolean') throw new Error('Unable to verify assets on transaction inputs.');
+      if (data.result[utxo]) withBalances.add(utxo);
+    }
+  }
+  return withBalances;
 }
 
 /**
@@ -1024,6 +1063,13 @@ export interface FairminterDetails {
   soft_cap_deadline_block?: number;
 }
 
+/** One browsing page; callers decide when to request the next 20 listings. */
+export function fetchOpenFairminters(options: PaginationOptions = {}): Promise<PaginatedResponse<FairminterDetails>> {
+  return cpApiGet('/v2/fairminters', {
+    status: 'open', verbose: true, limit: options.limit ?? 20, offset: options.offset ?? 0,
+  });
+}
+
 /**
  * The fairminter behind an asset, whose price is what a fairmint of it costs.
  *
@@ -1065,9 +1111,9 @@ export async function fetchAddressFairmintTotal(
   asset: string
 ): Promise<string | null> {
   try {
-    const data = await cpApiGet<{ result: Array<{ earn_quantity_normalized?: DisplayUnits }> | null }>(
+    const data = await cpApiGetAll<{ earn_quantity_normalized?: DisplayUnits }>(
       `/v2/addresses/${encodePath(address)}/fairmints/${encodePath(asset)}`,
-      { verbose: true, limit: 500, offset: 0 }
+      { verbose: true }
     );
     if (!data.result) return null;
     return data.result
@@ -1215,6 +1261,10 @@ export async function fetchAddressPoolByLpAsset(
 // API - Dispensers
 // =============================================================================
 
+type AddressDispenserOptions = PaginationOptions & {
+  status?: 'open' | 'closed' | 'closing' | 'open_empty_address' | 'open,closing';
+};
+
 /**
  * Fetch dispensers owned by an address.
  * @param address - Bitcoin address to query
@@ -1223,7 +1273,7 @@ export async function fetchAddressPoolByLpAsset(
  */
 export async function fetchAddressDispensers(
   address: string,
-  options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' | 'open_empty_address' } = {}
+  options: AddressDispenserOptions = {}
 ): Promise<PaginatedResponse<DispenserDetails>> {
   return cpApiGet<PaginatedResponse<DispenserDetails>>(`/v2/addresses/${encodePath(address)}/dispensers`, {
     verbose: options.verbose ?? true,
@@ -1231,6 +1281,39 @@ export async function fetchAddressDispensers(
     offset: options.offset ?? 0,
     ...(options.status && { status: options.status }),
   });
+}
+
+/**
+ * Complete address inventory for selectors and purchase previews. Market lists use the paged
+ * function above; a payment preview must include every dispenser the payment can trigger.
+ * Never return a partial inventory when a later page fails.
+ */
+export async function fetchAllAddressDispensers(
+  address: string,
+  options: Pick<AddressDispenserOptions, 'status' | 'verbose'> = {}
+): Promise<PaginatedResponse<DispenserDetails>> {
+  const limit = 100;
+  let offset = 0;
+  const dispensers = new Map<string, DispenserDetails>();
+  while (true) {
+    const page = await fetchAddressDispensers(address, { ...options, limit, offset });
+    if (page.result.length === 0) {
+      if (offset < page.result_count) throw new Error('Unable to load all dispensers: the API returned an incomplete list.');
+      break;
+    }
+    const previousSize = dispensers.size;
+    for (const dispenser of page.result) dispensers.set(dispenser.tx_hash, dispenser);
+    if (dispensers.size - previousSize !== page.result.length) {
+      throw new Error('Unable to load all dispensers: the API repeated a page or returned overlapping rows. Please retry.');
+    }
+    offset += page.result.length;
+    // Advance by the returned size in case a node applies a smaller page limit. Counts may be
+    // absent on older nodes; in that case a short page marks the end.
+    if (typeof page.result_count === 'number') {
+      if (offset >= page.result_count) break;
+    } else if (page.result.length < limit) break;
+  }
+  return { result: [...dispensers.values()], result_count: dispensers.size };
 }
 
 /**
@@ -1282,14 +1365,13 @@ export async function fetchDispenserDispenses(
  */
 export async function fetchMempoolLedgerEvents(
   addresses: string[],
-  options: { limit?: number; verbose?: boolean } = {}
+  options: { verbose?: boolean } = {}
 ): Promise<PaginatedResponse<{ tx_hash: string; event: string; params?: Record<string, unknown> }>> {
-  return cpApiGet('/v2/addresses/mempool', {
+  return cpApiGetAll('/v2/addresses/mempool', {
     addresses: addresses.join(','),
     event_name: 'DEBIT,CREDIT',
     verbose: options.verbose ?? true,
-    limit: options.limit ?? 100,
-  });
+  }, { cursorOnly: true });
 }
 
 /**
@@ -1303,26 +1385,23 @@ export async function fetchMempoolLedgerEvents(
  * Unlike its sibling this skips the response cache: the moment that matters is right after the
  * user's own cancel broadcasts, and a cached "nothing pending" from 59 seconds ago would leave
  * the Cancel button live for exactly the duplicate this read exists to prevent. One caller, one
- * light call per Manage view — freshness is worth more than collapsing requests here. Raw params
+ * paged read per Manage view — freshness is worth more than collapsing requests here. Raw params
  * carry everything the fold reads, so no verbose enrichment either.
  */
 export async function fetchMempoolStatusEvents(
-  addresses: string[],
-  options: { limit?: number } = {}
+  addresses: string[]
 ): Promise<PaginatedResponse<{ tx_hash: string; event: string; params?: Record<string, unknown> }>> {
-  return cpApiGet('/v2/addresses/mempool', {
+  return cpApiGetAll('/v2/addresses/mempool', {
     addresses: addresses.join(','),
     event_name: 'CANCEL_ORDER,DISPENSER_UPDATE',
     verbose: false,
-    limit: options.limit ?? 100,
-  }, { skipCache: true });
+  }, { skipCache: true, cursorOnly: true });
 }
 
 export async function fetchMempoolDispenses(dispenserAddress: string): Promise<Dispense[]> {
-  const data = await cpApiGet<PaginatedResponse<{ params: Dispense }>>('/v2/mempool/events/DISPENSE', {
-    verbose: true,
-    limit: 100,
-  }, { skipCache: true });
+  const data = await cpApiGetAll<{ params: Dispense }>('/v2/addresses/mempool', {
+    addresses: dispenserAddress, event_name: 'DISPENSE', verbose: true,
+  }, { skipCache: true, cursorOnly: true });
   return (data.result ?? [])
     .map((event) => event.params)
     .filter((dispense) => dispense.source === dispenserAddress);
@@ -1385,13 +1464,15 @@ export async function fetchAllDispensers(
  */
 export async function fetchAssetDispensers(
   asset: string,
-  options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' } = {}
+  options: PaginationOptions & { status?: 'open' | 'closed' | 'closing'; sort?: string; excludeWithOracle?: boolean } = {}
 ): Promise<PaginatedResponse<DispenserDetails>> {
   return cpApiGet<PaginatedResponse<DispenserDetails>>(`/v2/assets/${encodePath(asset)}/dispensers`, {
     verbose: options.verbose ?? true,
     status: options.status ?? 'open',
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
+    ...(options.sort && { sort: options.sort }),
+    ...(options.excludeWithOracle !== undefined && { exclude_with_oracle: options.excludeWithOracle }),
   });
 }
 
@@ -1489,9 +1570,9 @@ export interface MempoolOpenOrder {
  * one that misses the order which just went in ahead of it.
  */
 export async function fetchMempoolOpenOrders(): Promise<MempoolOpenOrder[]> {
-  const data = await cpApiGet<PaginatedResponse<{ tx_hash: string; params: Omit<MempoolOpenOrder, 'tx_hash'> & { status?: string } }>>(
+  const data = await cpApiGetAll<{ tx_hash: string; params: Omit<MempoolOpenOrder, 'tx_hash'> & { status?: string } }>(
     '/v2/mempool/events/OPEN_ORDER',
-    { verbose: false, limit: 500 },
+    { verbose: false },
     { skipCache: true }
   );
   return (data.result ?? [])
@@ -1514,9 +1595,9 @@ export interface RawBookOrder {
  * the integer quantities consensus matches on, not display strings.
  */
 export async function fetchOpenBookOrders(giveAsset: string, getAsset: string): Promise<RawBookOrder[]> {
-  const data = await cpApiGet<PaginatedResponse<RawBookOrder>>(
+  const data = await cpApiGetAll<RawBookOrder>(
     `/v2/orders/${encodePath(giveAsset)}/${encodePath(getAsset)}`,
-    { verbose: false, status: 'open', limit: 1000 },
+    { verbose: false, status: 'open' },
     { skipCache: true }
   );
   return data.result ?? [];

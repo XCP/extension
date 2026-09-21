@@ -1,10 +1,11 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
-import { type ReactElement, useEffect, useState } from "react";
+import { type ReactElement, useEffect, useMemo } from "react";
 import { DispenserList, type DispenserOption } from "@/components/ui/lists/dispenser-list";
-import { fetchAddressDispensers } from "@/core/counterparty/api";
 import type { DispenseOptions } from "@/core/counterparty/compose";
-import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
+import { fromSatoshis, toNumber } from "@/core/numeric";
 import { isValidBitcoinAddress } from "@/core/validation/bitcoin";
+import { useAddressDispensers } from "@/hooks/useAddressDispensers";
+import { useInView } from "@/hooks/useInView";
 
 import { t } from '@/i18n';
 
@@ -24,12 +25,6 @@ interface DispenserInputProps {
   onError?: (error: string | null) => void;
   onLoadingChange?: (isLoading: boolean) => void;
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const SATOSHIS_PER_BTC = 1e8;
 
 // ============================================================================
 // Main Component
@@ -53,92 +48,37 @@ export function DispenserInput({
   onError,
   onLoadingChange,
 }: DispenserInputProps): ReactElement {
-  const [dispenserOptions, setDispenserOptions] = useState<DispenserOption[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Check if current value is a valid address
   const isValidAddress = value ? isValidBitcoinAddress(value) : false;
   const showInvalidBorder = value && !isValidAddress;
+  const { ref: loadMoreRef, inView } = useInView({ rootMargin: '200px' });
+  const page = useAddressDispensers(isValidAddress ? value : undefined, initialFormData?.initialAsset,
+    initialFormData?.dispenser === value ? selectedIndex : undefined);
+  const isLoading = page.isLoading;
+  const error = page.error ? t('dispenser_load_failed')
+    : isValidAddress && !isLoading && !page.hasMore && page.data.length === 0
+      ? t('dispenser_dispenser_input_no_open_dispenser_found_at') : null;
 
-  // Fetch dispenser details only when we have a valid address
-  useEffect(() => {
-    // Clear state when address is invalid or empty
-    if (!isValidAddress) {
-      setDispenserOptions([]);
-      setError(null);
-      if (onError) onError(null);
-      setIsLoading(false);
-      if (onLoadingChange) onLoadingChange(false);
-      return;
-    }
+  useEffect(() => { onError?.(error); }, [error, onError]);
+  useEffect(() => { onLoadingChange?.(isLoading); }, [isLoading, onLoadingChange]);
+  const loadMore = page.loadMore;
+  useEffect(() => { if (inView) loadMore(); }, [inView, loadMore]);
 
-    // Valid address - proceed with fetching
-    const fetchDispensers = async () => {
-      setIsLoading(true);
-      if (onLoadingChange) onLoadingChange(true);
-      setError(null);
-      if (onError) onError(null);
-      setDispenserOptions([]);
-
-      try {
-        const response = await fetchAddressDispensers(value, {
-          status: "open",
-          verbose: true
-        });
-
-        const fixedRateDispensers = (response.result ?? []).filter(isFixedRateDispenser);
-        if (fixedRateDispensers.length === 0) {
-          const errorMsg = t('dispenser_dispenser_input_no_open_dispenser_found_at');
-          setError(errorMsg);
-          if (onError) onError(errorMsg);
-          return;
-        }
-
-        // Process and normalize dispensers
-        const processedDispensers = (fixedRateDispensers as any[])
-          .map(dispenser => {
-            const isDivisible = dispenser.asset_info?.divisible ?? false;
-            const divisor = isDivisible ? SATOSHIS_PER_BTC : 1;
-            return {
-              ...dispenser,
-              give_remaining_normalized: (dispenser.give_remaining / divisor).toString(),
-              give_quantity_normalized: (dispenser.give_quantity / divisor).toString(),
-            };
-          })
-          .sort((a, b) => {
-            // Sort by price first, then by asset name
-            if (a.satoshirate !== b.satoshirate) {
-              return a.satoshirate - b.satoshirate;
-            }
-            return a.asset.localeCompare(b.asset);
-          });
-
-        // Create options
-        const options = processedDispensers.map((dispenser, index) => ({
-          dispenser,
-          satoshirate: dispenser.satoshirate,
-          btcAmount: dispenser.satoshirate / SATOSHIS_PER_BTC,
-          index
-        }));
-
-        setDispenserOptions(options);
-      } catch (err) {
-        console.error("Error fetching dispenser details:", err);
-        const errorMsg = t('dispenser_dispenser_input_error_fetching_dispenser_details');
-        setError(errorMsg);
-        if (onError) onError(errorMsg);
-      } finally {
-        setIsLoading(false);
-        if (onLoadingChange) onLoadingChange(false);
-      }
+  // Keep API order as pages append so a new page cannot change the selected index.
+  const dispenserOptions = useMemo(() => page.data.map((dispenser, index) => {
+    return {
+      dispenser: {
+        ...dispenser,
+        satoshirate: toNumber(dispenser.satoshirate),
+      },
+      satoshirate: toNumber(dispenser.satoshirate),
+      btcAmount: fromSatoshis(dispenser.satoshirate, true),
+      index,
     };
-
-    fetchDispensers();
-  }, [value, isValidAddress, onError, onLoadingChange]);
+  }), [page.data]);
 
   // Auto-select dispenser when options change (prefer initialAsset if provided)
   useEffect(() => {
+    if (isLoading) return;
     if (dispenserOptions.length > 0) {
       if (selectedIndex === null) {
         // Check if we have an initialAsset to pre-select
@@ -160,7 +100,7 @@ export function DispenserInput({
     } else if (dispenserOptions.length === 0) {
       onSelectionChange(null, null);
     }
-  }, [dispenserOptions, selectedIndex, onSelectionChange, initialFormData?.initialAsset]);
+  }, [dispenserOptions, selectedIndex, onSelectionChange, initialFormData?.initialAsset, isLoading]);
 
   return (
     <>
@@ -198,8 +138,19 @@ export function DispenserInput({
         onSelect={onSelectionChange}
         disabled={disabled}
         isLoading={isLoading}
-        error={error}
+        error={page.data.length === 0 ? error : null}
       />
+
+      <div ref={!isLoading && page.data.length > 0 ? loadMoreRef : undefined} className="py-2 text-center text-sm">
+        {page.error ? (
+          <div role="alert">
+            <p>{t('dispenser_more_failed')}</p>
+            <button type="button" onClick={page.retry} className="text-blue-600 underline" disabled={disabled}>{t('common_retry')}</button>
+          </div>
+        ) : page.isFetchingMore ? t('pagination_loading_more') : page.hasMore && isValidAddress ? (
+          <button type="button" onClick={page.loadMore} className="text-blue-600 underline" disabled={disabled || isLoading}>{t('dispenser_load_more')}</button>
+        ) : null}
+      </div>
 
       {/* Hidden inputs for form data */}
       {selectedIndex !== null && dispenserOptions[selectedIndex] && (

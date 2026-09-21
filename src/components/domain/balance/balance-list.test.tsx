@@ -58,6 +58,11 @@ vi.mock("@/core/counterparty/api", () => ({
   fetchMempoolLedgerEvents: (...args: any[]) => mockFetchMempoolLedgerEvents(...args),
 }));
 
+vi.mock("@/core/zeld/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/zeld/api")>()),
+  fetchZeldBalance: vi.fn(async () => ({ baseUnits: 0n, utxos: [] })),
+}));
+
 vi.mock("@/core/format", () => ({
   normalizeAssetQuery: (query: string) => query.includes('.') ? query.trim() : query.trim().toUpperCase(),
   formatAmount: vi.fn(

@@ -800,12 +800,6 @@
   "asset_fairmint_summary_you_receive": {
     "message": "受け取る額"
   },
-  "asset_fairminter_select_input_failed_to_fetch_fairminters": {
-    "message": "フェアミンターを取得できませんでした"
-  },
-  "asset_fairminter_select_input_failed_to_load_available_assets": {
-    "message": "利用可能なアセットを読み込めませんでした。もう一度お試しください。"
-  },
   "asset_fairminter_select_input_loading_fairminters": {
     "message": "フェアミンターを読み込み中…"
   },
@@ -2293,9 +2287,6 @@
   },
   "dispenser_dispenser_input_enter_the_dispenser_address_to": {
     "message": "BTC の送信先となる自販機のアドレスを入力してください。"
-  },
-  "dispenser_dispenser_input_error_fetching_dispenser_details": {
-    "message": "自販機の詳細を取得できませんでした。"
   },
   "dispenser_dispenser_input_no_open_dispenser_found_at": {
     "message": "このアドレスに稼働中の自販機は見つかりません。"
@@ -5907,5 +5898,287 @@
   },
   "approval_bitcoin_payment_output_address_unknown": {
     "message": "出力 $1 の Bitcoin アドレスを確認できません。"
+  },
+  "zeld_hunt_enable": {
+    "message": "ZELD 探索を有効にする"
+  },
+  "zeld_hunt_description": {
+    "message": "対応する取引の作成中に ZELD を探索します。追加の BTC 手数料はかかりません。見つからなくても取引は通常どおり続行されます。"
+  },
+  "zeld_hunt_invalid_seconds": {
+    "message": "0〜$1 の整数で秒数を入力してください。"
+  },
+  "zeld_hunt_save_time_failed": {
+    "message": "探索時間を保存できませんでした。"
+  },
+  "zeld_hunt_save_setting_failed": {
+    "message": "探索設定を保存できませんでした。"
+  },
+  "zeld_hunt_wait": {
+    "message": "取引ごとの最大待ち時間"
+  },
+  "zeld_hunt_seconds_label": {
+    "message": "ZELD のトランザクション ID を探索する秒数"
+  },
+  "zeld_hunt_seconds_hint": {
+    "message": "秒（0 で無効、最大 $1）"
+  },
+  "zeld_hunt_device_help": {
+    "message": "指定した秒数を上限に、端末の処理能力を使用します。ZELD が見つかるとは限りません。"
+  },
+  "zeld_hunt_title": {
+    "message": "ZELD 探索"
+  },
+  "zeld_hunt_searching_title": {
+    "message": "ZELD を探索中"
+  },
+  "zeld_hunt_remaining": {
+    "message": "残り $1 秒"
+  },
+  "zeld_hunt_found_searching": {
+    "message": "先頭に 0 が $1 個並ぶ txid が見つかりました。さらに希少なものを探索中です。"
+  },
+  "zeld_hunt_searching": {
+    "message": "希少なトランザクション ID を探索中…"
+  },
+  "zeld_hunt_elapsed_label": {
+    "message": "探索の経過時間"
+  },
+  "zeld_hunt_elapsed": {
+    "message": "$2 秒中 $1 秒経過"
+  },
+  "zeld_hunt_best_saved": {
+    "message": "この取引で得られた最良の結果を保持しています。"
+  },
+  "zeld_hunt_continue_help": {
+    "message": "いつでも続行できます。報酬は保証されません。"
+  },
+  "zeld_hunt_use_now": {
+    "message": "この結果を使う"
+  },
+  "zeld_hunt_continue_without": {
+    "message": "探索を終了して続行"
+  },
+  "zeld_signing_hunt": {
+    "message": "署名してブロードキャスト中… ZELD の探索に最大 $1 秒かかる場合があります。"
+  },
+  "zeld_review_park": {
+    "message": "$1 ZELD を自分の小額出力に移します"
+  },
+  "zeld_review_send": {
+    "message": "$1 ZELD を送信し、$2 ZELD は手元に残ります"
+  },
+  "zeld_review_kept_one": {
+    "message": "ZELD を保有する $1 個の出力をこの支払いから除外しました"
+  },
+  "zeld_review_kept_many": {
+    "message": "ZELD を保有する $1 個の出力をこの支払いから除外しました"
+  },
+  "zeld_review_found": {
+    "message": "$2 秒で、先頭に 0 が $1 個並ぶ txid が見つかりました"
+  },
+  "zeld_review_not_found": {
+    "message": "$1 秒以内に希少な txid は見つかりませんでした。通常どおり送信します"
+  },
+  "zeld_review_signing": {
+    "message": "署名中に最大 $1 秒間探索します"
+  },
+  "zeld_loading": {
+    "message": "ZELD を読み込み中…"
+  },
+  "zeld_send": {
+    "message": "ZELD を送信"
+  },
+  "zeld_balance_unavailable": {
+    "message": "残高を取得できません。しばらくしてから再試行してください。"
+  },
+  "zeld_send_description": {
+    "message": "別のアドレスに送信します。残りは手元に残ります。"
+  },
+  "zeld_nothing_to_send": {
+    "message": "送信できる残高はまだありません。"
+  },
+  "zeld_park_title": {
+    "message": "ZELD を小額出力に移す"
+  },
+  "zeld_park_description": {
+    "message": "最初の出力を相手に支払う必要がある取引で、残りの BTC を使えるようにします。"
+  },
+  "zeld_about": {
+    "message": "ZeldHash について"
+  },
+  "zeld_about_description": {
+    "message": "希少なトランザクション ID で ZELD を獲得する仕組み。zeldhash.com を開きます。"
+  },
+  "zeld_balance": {
+    "message": "ZELD 残高"
+  },
+  "zeld_indexer_unavailable": {
+    "message": "ZELD インデクサーに接続できませんでした。"
+  },
+  "zeld_balance_error": {
+    "message": "$1 残高を取得できません。"
+  },
+  "zeld_hunting": {
+    "message": "探索"
+  },
+  "zeld_legacy_hardware": {
+    "message": "レガシー形式のハードウェアウォレットでは探索できません。端末が署名し、その署名によってトランザクション ID が決まるためです。"
+  },
+  "zeld_hunting_off": {
+    "message": "探索は無効です。ZELD 探索を有効にすると、次の対応する取引で試せます。"
+  },
+  "zeld_holding_outputs": {
+    "message": "ZELD を保有する出力"
+  },
+  "zeld_outputs": {
+    "message": "出力数"
+  },
+  "zeld_unknown": {
+    "message": "不明"
+  },
+  "zeld_btc_on_outputs": {
+    "message": "これらの出力の BTC"
+  },
+  "zeld_output_help": {
+    "message": "ZELD は通常の Bitcoin 出力に付随し、その出力を使うと最初の使用可能な出力へ移ります。ウォレットは、最初の出力を他の人に支払う取引から、ZELD を保有する出力を除外します。"
+  },
+  "zeld_more_outputs": {
+    "message": "ほか $1 件"
+  },
+  "zeld_recent_rewards": {
+    "message": "最近の報酬"
+  },
+  "zeld_rewards_unavailable": {
+    "message": "報酬履歴を取得できません。後でもう一度お試しください。"
+  },
+  "zeld_no_rewards": {
+    "message": "このアドレスの報酬はまだありません。"
+  },
+  "zeld_reward_block": {
+    "message": "ブロック $1、先頭の 0 が $2 個"
+  },
+  "zeld_to_move": {
+    "message": "移動する ZELD"
+  },
+  "zeld_park_help": {
+    "message": "このアドレスのすべての ZELD を 1 つの小額出力にまとめ、残りの BTC は通常のお釣りとして戻します。すべての出力が ZELD を保有しているため、所有権の移転など最初の出力を相手に支払う取引が拒否される場合に使用します。"
+  },
+  "zeld_park_optional_help": {
+    "message": "通常の送信や自販機での購入では不要です。お釣りの出力が先になるため、ZELD は手元に残ります。"
+  },
+  "zeld_moved": {
+    "message": "移動する ZELD"
+  },
+  "zeld_small_output": {
+    "message": "小額出力"
+  },
+  "zeld_sats_holding": {
+    "message": "$1 sats（ZELD を保有）"
+  },
+  "zeld_move": {
+    "message": "ZELD を移す"
+  },
+  "zeld_available": {
+    "message": "利用可能"
+  },
+  "zeld_recipient_help": {
+    "message": "ZELD は小額の Bitcoin 出力で届きます。"
+  },
+  "zeld_recipient_sats_help": {
+    "message": "ZELD は $1 sat の Bitcoin 出力で届き、残りの BTC は手元に戻ります。"
+  },
+  "zeld_amount_help": {
+    "message": "小数点以下 8 桁まで入力できます。送信しない ZELD は手元に残ります。"
+  },
+  "zeld_recipient_btc": {
+    "message": "受取人への BTC"
+  },
+  "dispenser_list_unavailable": {
+    "message": "自販機の一覧を取得できません。"
+  },
+  "dispenser_load_failed": {
+    "message": "自販機を読み込めません。再試行してください。"
+  },
+  "dispenser_more_failed": {
+    "message": "追加の自販機を読み込めません。"
+  },
+  "dispenser_load_more": {
+    "message": "自販機をさらに読み込む"
+  },
+  "pagination_loading_more": {
+    "message": "さらに読み込み中…"
+  },
+  "fairminter_more_failed": {
+    "message": "追加のフェアミンターを読み込めません。"
+  },
+  "fairminter_available_failed": {
+    "message": "利用可能なフェアミンターを読み込めません。"
+  },
+  "fairminter_load_more": {
+    "message": "フェアミンターをさらに読み込む"
+  },
+  "fairminter_no_matches": {
+    "message": "一致するフェアミンターがありません。"
+  },
+  "dispense_inventory_failed": {
+    "message": "すべての自販機を読み込めません。購入する前に戻って再試行してください。"
+  },
+  "dispense_inventory_loading": {
+    "message": "すべての自販機を読み込み中…"
+  },
+  "send_review_payment_type": {
+    "message": "支払いの種類"
+  },
+  "send_review_dispenser_payment": {
+    "message": "自販機への支払い"
+  },
+  "zeld_error_amount": {
+    "message": "ZELD の数量は 0 より大きくしてください。"
+  },
+  "zeld_error_fee": {
+    "message": "手数料率は 0 より大きくしてください。"
+  },
+  "zeld_error_source": {
+    "message": "送信元アドレスを解読できませんでした。"
+  },
+  "zeld_error_recipient": {
+    "message": "受取人のアドレスを解読できませんでした。"
+  },
+  "zeld_error_balance": {
+    "message": "ZELD の残高が不足しています。"
+  },
+  "zeld_error_none_to_move": {
+    "message": "移動できる ZELD がありません。"
+  },
+  "zeld_error_unspendable": {
+    "message": "一部の ZELD は、ウォレットがまだ使えない出力にあります（未承認、使用直後、または Counterparty 資産が付随している出力）。"
+  },
+  "zeld_error_spendable_balance": {
+    "message": "使用可能な ZELD が不足しています。"
+  },
+  "zeld_error_btc_balance": {
+    "message": "受取人への出力と手数料を支払う BTC が不足しています。"
+  },
+  "zeld_error_detach_first": {
+    "message": "この出力は ZELD も保有しており、資産とともに送信先へ移ってしまいます。先に資産を切り離してください。ZELD は手元に残り、再度の付加では ZELD のない出力を使います。"
+  },
+  "zeld_error_detach_funding": {
+    "message": "この出力は ZELD も保有していますが、資産を切り離すと ZELD の移動先となる自分の出力が残りません。このアドレスに少額の BTC を追加してから再試行してください。"
+  },
+  "zeld_error_park_first": {
+    "message": "このアドレスで使用可能なすべての出力が ZELD を保有しています。この取引では受取人への出力が先になるため、ZELD も相手に移ってしまいます。ZELD ページで ZELD を小額出力に移してから再試行してください。"
+  },
+  "zeld_safety_blocked": {
+    "message": "ブロック：ZELD が外部へ移動します"
+  },
+  "zeld_safety_warning": {
+    "message": "ZELD が外部へ移動します"
+  },
+  "zeld_safety_blocked_detail": {
+    "message": "サイトが使用を要求した出力のうち $1 個が ZELD を保有しています。この取引では相手への出力が先になるため、ZELD も相手に移ります。ZELD ページで ZELD を小額出力に移してから、サイトで再試行してください。"
+  },
+  "zeld_safety_warning_detail": {
+    "message": "サイトが使用を要求した出力のうち $1 個が ZELD を保有しています。この取引では相手への出力が先になるため、ZELD も相手に移ります。手元に残すには、先に ZELD ページで ZELD を小額出力に移してください。"
   }
 }

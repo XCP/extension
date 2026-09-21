@@ -2,11 +2,11 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useSettings } from "@/contexts/settings-context";
-import { fetchAddressDispensers, fetchMempoolDispenses } from "@/core/counterparty/api";
+import { fetchAllAddressDispensers, fetchMempoolDispenses } from "@/core/counterparty/api";
 import {
+  calculateDispensePayouts,
   type DispensePayout,
   describePayout,
-  resolveDispensersAt,
 } from '@/core/counterparty/dispenseOutcome';
 import { formatAmount, formatFiatEstimate } from "@/core/format";
 import { divide, fromSatoshis, roundDown, toBigNumber } from "@/core/numeric";
@@ -68,6 +68,7 @@ export function ReviewDispense({
   const { settings } = useSettings();
   const { btc: btcPrice } = useMarketPrices(settings.fiat);
   const [isLoadingInfo, setIsLoadingInfo] = useState(true);
+  const [lookupError, setLookupError] = useState<string | null>(null);
   const [mempoolDispenses, setMempoolDispenses] = useState<MempoolDispense[]>([]);
   
   const dispenserAddress = result?.params?.dispenser;
@@ -77,51 +78,63 @@ export function ReviewDispense({
   
   // Fetch dispenser details and check mempool
   useEffect(() => {
+    let cancelled = false;
     const fetchInfo = async () => {
       if (!dispenserAddress) {
         setIsLoadingInfo(false);
         return;
       }
       
+      setIsLoadingInfo(true);
+      setLookupError(null);
+      setAllTriggeredDispensers([]);
+      setPayouts([]);
+      setMempoolDispenses([]);
       try {
         // Fetch dispenser info
-        const response = await fetchAddressDispensers(dispenserAddress, {
-          status: "open",
+        const response = await fetchAllAddressDispensers(dispenserAddress, {
+          status: 'open,closing',
           verbose: true
         });
+        if (cancelled) return;
 
         if (response.result && response.result.length > 0) {
           // Cast to VerboseDispenser type for verbose response
           const verboseDispensers = response.result as VerboseDispenser[];
           
           // Find ALL dispensers that will trigger based on BTC amount
-          const triggered = verboseDispensers.filter(d => (d.satoshirate || 0) <= btcQuantity);
+          const triggered = verboseDispensers.filter(d => (d.status === 0 || d.status === 11)
+            && (d.satoshirate || 0) <= btcQuantity);
           
           // Sort by asset name (alphabetically) as that's the order they process
           const sorted = [...triggered].sort((a, b) => a.asset.localeCompare(b.asset));
           
           setAllTriggeredDispensers(sorted);
-          setPayouts(await resolveDispensersAt(dispenserAddress, btcQuantity));
+          setPayouts(calculateDispensePayouts(response.result, btcQuantity));
           
-          try {
-            const pending = await fetchMempoolDispenses(dispenserAddress);
+          // Competing purchases are optional context. A slow mempool lookup must not hold up
+          // the complete inventory and payout preview or keep the signing button disabled.
+          void fetchMempoolDispenses(dispenserAddress).then(pending => {
+            if (cancelled) return;
             setMempoolDispenses(pending.map((tx) => ({
               source: tx.destination || tx.source,
               btc_amount: tx.btc_amount || 0,
               tx_hash: tx.tx_hash,
             })));
-          } catch (err) {
+          }).catch(err => {
             console.error("Failed to fetch mempool dispenses:", err);
-          }
+          });
         }
       } catch (err) {
         console.error("Failed to fetch dispenser info:", err);
+        if (!cancelled) setLookupError(t('dispense_inventory_failed'));
       } finally {
-        setIsLoadingInfo(false);
+        if (!cancelled) setIsLoadingInfo(false);
       }
     };
     
     fetchInfo();
+    return () => { cancelled = true; };
   }, [dispenserAddress, btcQuantity]);
   
   // Calculate BTC amount from the API response
@@ -134,6 +147,9 @@ export function ReviewDispense({
   const btcInFiat = btcPrice ? btcInBtc * btcPrice : null;
 
   const customFields = [];
+  if (isLoadingInfo) {
+    customFields.push({ label: t('common_dispensers'), value: t('dispense_inventory_loading') });
+  }
   
   // Add expected outcome if we have triggered dispensers
   if (!isLoadingInfo && allTriggeredDispensers.length > 0) {
@@ -231,8 +247,9 @@ export function ReviewDispense({
       onSign={onSign}
       onBack={onBack}
       customFields={customFields}
-      error={error}
+      error={error || lookupError}
       isSigning={isSigning}
+      signDisabled={isLoadingInfo || !!lookupError}
     />
   );
 }

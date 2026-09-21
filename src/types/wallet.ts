@@ -141,6 +141,8 @@ export interface KeychainRecord {
  * Used to pass additional data required for hardware wallet signing.
  */
 export interface SignTransactionOptions {
+  /** Explicit consent from a wallet compose review to vary nonce fields while signing. */
+  zeldHuntSeconds?: number;
   /** PSBT hex (required for hardware wallets) */
   psbtHex?: string;
   /** Input values in satoshis from API (avoids UTXO fetch for SegWit) */

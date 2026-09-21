@@ -148,3 +148,30 @@ describe('every compose flow verifies against its own parameter set', () => {
     });
   }
 });
+
+// Core compose/send returns exactly this marker when a BTC recipient has an open
+// dispenser, and no message when no_dispense=true (live compose checked 2026-09-20).
+describe('BTC sends composed as dispenser payments', () => {
+  const marker = PREFIX + '0d00';
+  const params = { asset: 'BTC', destination: ADDRESS, quantity: '5788' };
+
+  it.each([undefined, false, 'false'])('accepts the marker with no_dispense=%s', no_dispense => {
+    expect(verifyTransaction(marker, 'send', { ...params, no_dispense }).valid).toBe(true);
+  });
+
+  it.each([true, 'true'])('respects explicit no_dispense=%s', no_dispense => {
+    expect(verifyTransaction(marker, 'send', { ...params, no_dispense }).valid).toBe(false);
+  });
+
+  it('does not allow a token send to be replaced with a dispense', () => {
+    expect(verifyTransaction(marker, 'send', { ...params, asset: 'XCP' }).valid).toBe(false);
+  });
+
+  it.each(['', '01', '0000'])('rejects altered dispense payload %s', payload => {
+    expect(verifyTransaction(PREFIX + '0d' + payload, 'send', params).valid).toBe(false);
+  });
+
+  it('still rejects an unrelated message type for a BTC send', () => {
+    expect(verifyTransaction(PREFIX + '46' + 'aa'.repeat(32), 'send', params).valid).toBe(false);
+  });
+});
