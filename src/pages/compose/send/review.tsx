@@ -131,6 +131,8 @@ export function ReviewSend({
           </span>
         ) : undefined,
       },
+      ...(isBtc && decodedMessage?.messageType === 'dispense'
+        ? [{ label: "Payment type", value: "Dispenser payment" }] : []),
       ...(memo ? [{ label: "Memo", value: String(memo) }] : []),
       ...(result.params.more_outputs ? [(() => {
         const sats = String(result.params.more_outputs).split(':')[0] ?? '0';
