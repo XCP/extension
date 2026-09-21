@@ -460,6 +460,8 @@ export interface Dispenser {
 }
 
 export interface DispenserDetails extends Dispenser {
+  /** Opening transaction index; block_index can change after a refill or dispense. */
+  tx_index?: number;
   give_quantity: ApiQuantity;
   give_quantity_normalized: DisplayUnits;
   satoshirate: ApiQuantity;
@@ -1385,13 +1387,15 @@ export async function fetchAllDispensers(
  */
 export async function fetchAssetDispensers(
   asset: string,
-  options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' } = {}
+  options: PaginationOptions & { status?: 'open' | 'closed' | 'closing'; sort?: string; excludeWithOracle?: boolean } = {}
 ): Promise<PaginatedResponse<DispenserDetails>> {
   return cpApiGet<PaginatedResponse<DispenserDetails>>(`/v2/assets/${encodePath(asset)}/dispensers`, {
     verbose: options.verbose ?? true,
     status: options.status ?? 'open',
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
+    ...(options.sort && { sort: options.sort }),
+    ...(options.excludeWithOracle !== undefined && { exclude_with_oracle: options.excludeWithOracle }),
   });
 }
 

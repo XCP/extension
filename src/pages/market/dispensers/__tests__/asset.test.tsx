@@ -102,7 +102,7 @@ describe('Get XCP oracle filtering', () => {
     render(<AssetDispensersPage />);
     await waitFor(() => expect(screen.getAllByTestId('listing')).toHaveLength(1));
     expect(screen.getByTestId('listing')).toHaveTextContent('fixed: 8,880 sats');
-    expect(api.fetchAssetDispensers).toHaveBeenLastCalledWith('XCP', { limit: 20, offset: 20, status: 'open' });
+    expect(api.fetchAssetDispensers).toHaveBeenLastCalledWith('XCP', { limit: 20, offset: 20, status: 'open', sort: 'price:asc,tx_index:asc', excludeWithOracle: true });
   });
 });
 
@@ -132,7 +132,7 @@ describe('dispenser detail request boundaries', () => {
     const { rerender } = render(<AssetDispensersPage />);
     rerender(<AssetDispensersPage />);
     expect(api.fetchAssetDispensers).toHaveBeenCalledTimes(1);
-    expect(api.fetchAssetDispensers).toHaveBeenCalledWith('XCP', { offset: 0, limit: 20, status: 'open' });
+    expect(api.fetchAssetDispensers).toHaveBeenCalledWith('XCP', { offset: 0, limit: 20, status: 'open', sort: 'price:asc,tx_index:asc', excludeWithOracle: true });
     await complete(initial, response([dispenser('first')]));
     expect(screen.getByTestId('listing')).toHaveTextContent('first');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -152,7 +152,7 @@ describe('dispenser detail request boundaries', () => {
     await complete(oldInfo, { asset: 'XCP' } as api.AssetInfo);
     expect(screen.queryByText('stale: 8,880 sats')).not.toBeInTheDocument();
     expect(screen.queryByText('XCP metadata')).not.toBeInTheDocument();
-    expect(api.fetchAssetDispensers).toHaveBeenLastCalledWith('PEPEMEMECOIN', { offset: 0, limit: 20, status: 'open' });
+    expect(api.fetchAssetDispensers).toHaveBeenLastCalledWith('PEPEMEMECOIN', { offset: 0, limit: 20, status: 'open', sort: 'price:asc,tx_index:asc', excludeWithOracle: true });
   });
 
   it.each(['asset', 'refresh'] as const)('discards a late pagination response after %s changes', async (boundary) => {
@@ -199,7 +199,7 @@ describe('dispenser detail request boundaries', () => {
     rerender(<AssetDispensersPage />);
     expect(api.fetchAssetDispensers).toHaveBeenCalledTimes(phase === 'more' ? 2 : 1);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(api.fetchAssetDispensers).toHaveBeenLastCalledWith('XCP', { offset: 0, limit: 20, status: 'open' });
+    expect(api.fetchAssetDispensers).toHaveBeenLastCalledWith('XCP', { offset: 0, limit: 20, status: 'open', sort: 'price:asc,tx_index:asc', excludeWithOracle: true });
     await complete(retry, response([dispenser('recovered')]));
     expect(screen.getByTestId('listing')).toHaveTextContent('recovered');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -249,5 +249,37 @@ describe('dispenser detail request boundaries', () => {
     await complete(stale, historyPage(['stale-history'], 21));
     expect(screen.getAllByTestId('dispense')).toHaveLength(1);
     expect(screen.queryByText('stale-history')).not.toBeInTheDocument();
+  });
+});
+
+describe('dispenser price and opening order', () => {
+  it('orders by unit price, then opening transaction despite newer update heights', async () => {
+    const old = { ...dispenser('old'), tx_index: 1, block_index: 999999 };
+    const newer = { ...dispenser('new'), tx_index: 2, block_index: 800000,
+      give_quantity_normalized: asDisplayUnits('2'), satoshirate: asBaseUnits(17760) };
+    const cheapest = { ...dispenser('cheap'), tx_index: 3, satoshirate: asBaseUnits(100) };
+    // A node without tx_index sorting may deliver equal-price rows newest first.
+    vi.mocked(api.fetchAssetDispensers).mockResolvedValue(response([newer, old, cheapest]));
+    render(<AssetDispensersPage />);
+    await waitFor(() => expect(screen.getAllByTestId('listing')).toHaveLength(3));
+    expect(screen.getAllByTestId('listing').map(row => row.textContent?.split(':')[0]))
+      .toEqual(['cheap', 'old', 'new']);
+  });
+
+  it('keeps twenty-row pages and oldest-first ties as the next page arrives', async () => {
+    const rows = Array.from({ length: 23 }, (_, i) => ({ ...dispenser(`offer-${i}`), tx_index: i + 1 }));
+    vi.mocked(api.fetchAssetDispensers)
+      .mockResolvedValueOnce(response(rows.slice(0, 20), 23))
+      .mockResolvedValueOnce(response(rows.slice(20), 23));
+    const { rerender } = render(<AssetDispensersPage />);
+    await waitFor(() => expect(screen.getAllByTestId('listing')).toHaveLength(20));
+    mocks.inView = true;
+    rerender(<AssetDispensersPage />);
+    await waitFor(() => expect(screen.getAllByTestId('listing')).toHaveLength(23));
+    expect(screen.getAllByTestId('listing').map(row => row.textContent?.split(':')[0]))
+      .toEqual(rows.map(row => row.tx_hash));
+    expect(api.fetchAssetDispensers).toHaveBeenLastCalledWith('XCP', {
+      limit: 20, offset: 20, status: 'open', sort: 'price:asc,tx_index:asc', excludeWithOracle: true,
+    });
   });
 });
