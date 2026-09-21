@@ -225,6 +225,8 @@ export interface MarketplaceAnalysisInput {
   outputs: OutputLike[];
   signedInputs: Array<{ index: number; sighashType: number }>;
   signerAddresses: string[];
+  /** Background-derived wallet addresses, including paired recipients that need not sign. */
+  ownedAddresses?: string[];
   attachedAssets: InputAttachedAssets[];
   attachedAssetDestination: AttachedAssetDestination | null;
   hasCounterpartyPayload: boolean;
@@ -869,6 +871,9 @@ function analyzeAttachIntent(
   // A request can already be persisted when the extension updates. Those older
   // same-address v1 records bypass the wire parser, so retain its compatibility default here.
   const assetSource = intent.assetSource ?? utxoOwner;
+  if (!(input.ownedAddresses ?? signerAddresses).some(address => sameAddress(address, utxoOwner))) {
+    blockers.push('the new asset UTXO must belong to this wallet; use an asset transfer to send it to someone else');
+  }
 
   if (!intent.protocolFee.variableUntilConfirmed) {
     blockers.push('the attach XCP fee must be labeled variable until confirmation');
