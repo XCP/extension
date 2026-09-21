@@ -511,6 +511,7 @@ describe('attach-for-listing proof', () => {
       ],
       signedInputs: [{ index: 0, sighashType: 0x01 }],
       signerAddresses: [SELLER],
+      ownedAddresses: [SELLER, SELLER_TWO],
     });
 
     expect(review.status).toBe('caution');
@@ -636,6 +637,7 @@ describe('prepare-asset proof', () => {
       ],
       signedInputs: [{ index: 0, sighashType: 0x01 }],
       signerAddresses: [SELLER],
+      ownedAddresses: [SELLER, SELLER_TWO],
     });
 
     expect(review.status).toBe('caution');

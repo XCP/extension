@@ -33,6 +33,7 @@ export async function decodePsbtForApproval(
   signingPurpose: 'counterparty' | 'bitcoin-payment' = 'counterparty',
   bitcoinPaymentIntent?: BitcoinPaymentIntentV1,
   marketplaceIntent?: MarketplaceIntentClaimV1,
+  ownedAddresses?: string[],
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
   const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
@@ -74,6 +75,7 @@ export async function decodePsbtForApproval(
     signingPurpose,
     bitcoinPaymentIntent,
     marketplaceIntent,
+    ownedAddresses,
   });
 
   return { psbtDetails, txid, ...analysis };
