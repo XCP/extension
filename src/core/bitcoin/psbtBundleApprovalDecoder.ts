@@ -20,6 +20,7 @@ import type {
   MarketplaceApprovalReview,
   MarketplaceIntentClaimV1,
 } from '@/core/counterparty/marketplaceIntent';
+import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 
 export interface PsbtBundleApprovalInput {
@@ -32,15 +33,16 @@ export interface PsbtBundleApprovalInput {
   }>;
 }
 
-export interface DecodedPsbtBundleItem {
+export type DecodedPsbtBundleItem = DecodedPsbtInfo | {
   psbtDetails: ReturnType<typeof extractPsbtDetails>;
   txid?: string;
   marketplaceReview?: MarketplaceApprovalReview;
-}
+};
 
 export interface DecodedPsbtBundleInfo {
   items: DecodedPsbtBundleItem[];
   review: MarketplaceBundleReview;
+  policyWarnings?: SecurityWarning[];
 }
 
 const missingReview = (family: MarketplaceApprovalReview['family'], message: string) => ({
@@ -52,7 +54,7 @@ const missingReview = (family: MarketplaceApprovalReview['family'], message: str
   blockers: [message],
 });
 
-export async function decodePsbtBundleForApproval(stored: PsbtBundleApprovalInput): Promise<DecodedPsbtBundleInfo> {
+export async function decodePsbtBundleForApproval(stored: PsbtBundleApprovalInput, ownedAddresses?: string[]): Promise<DecodedPsbtBundleInfo> {
   if (stored.bundleKind === 'acceptance-cpfp') {
     if (stored.items.length !== 2) {
       throw new Error('Exact acceptance fee-bump bundle must contain two transactions');
@@ -75,6 +77,7 @@ export async function decodePsbtBundleForApproval(stored: PsbtBundleApprovalInpu
       'counterparty',
       undefined,
       parentIntent,
+      ownedAddresses,
     );
     const child = extractPsbtDetails(childItem!.psbtHex);
     const firstChildInputTxid = child.inputs[0]?.txid;
@@ -127,6 +130,7 @@ export async function decodePsbtBundleForApproval(stored: PsbtBundleApprovalInpu
       'counterparty',
       undefined,
       parsed.intents[index],
+      ownedAddresses,
     )));
   const itemReviews = decoded.map((item, index) =>
     item.marketplaceReview ?? missingReview(

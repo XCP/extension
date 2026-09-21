@@ -15,6 +15,11 @@ import { parseMarketplaceIntent } from '../marketplaceIntent';
 import type { ProtocolContext } from '../protocolContext';
 import { type AnalyzedOutput, analyzeSignRequest } from '../signRequestAnalysis';
 
+// ZELD-specific behavior has its own suite; this suite must not query the live indexer.
+vi.mock('@/core/zeld/protection', () => ({
+  classifyZeldOutpoints: async () => ({ bearing: [], unknown: [], clean: [] }),
+}));
+
 vi.mock('@/core/counterparty/transaction', () => ({
   decodeCounterpartyMessage: vi.fn(async () => null),
   resolveMpmaRecipients: vi.fn(async () => []),

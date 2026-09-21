@@ -8,6 +8,7 @@
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { publicKeyPointId } from '@/core/bitcoin/publicKeyIdentity';
+import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import {
   bareMultisigRecoveryPubkey,
@@ -27,6 +28,7 @@ interface SecurityWarningText {
 }
 
 export type SecurityWarning = SecurityWarningText & (
+  | StructureFinding
   | { code?: 'bitcoin_payment_gate' | 'counterparty_only_gate' | 'detach_all' | 'sweep' | 'destroy' | 'unrecognized_payload'; data?: never }
   | { code: 'unknown_message_type'; data: { messageType: string } }
   | { code: 'inscription_commit'; data: { totalSats: number; address: string } }

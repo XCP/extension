@@ -81,6 +81,8 @@ export interface SignRequestAnalysisInput {
   outputs: AnalyzedOutput[];
   /** Addresses this wallet would sign with. Empty when the caller has none to name. */
   signerAddresses: string[];
+  /** Trusted wallet ownership, never addresses asserted by a site. */
+  ownedAddresses?: string[];
   /**
    * Indices of the inputs this wallet is being asked to sign. Assets on inputs it does not sign
    * belong to someone else's side of the transaction.
@@ -384,6 +386,7 @@ export async function analyzeSignRequest(
       signerAddresses,
       attachedAssets,
       attachedAssetDestination,
+      ownedAddresses: input.ownedAddresses,
       hasCounterpartyPayload: Boolean(counterpartyDataHex),
       transactionId,
       localCounterpartyMessage: verification.localUnpack?.success
@@ -406,6 +409,11 @@ export async function analyzeSignRequest(
         ...safety.warnings,
       ];
       safety.blocked = true;
+    } else if (marketplaceReview.status === 'proved' && marketplaceReview.family === 'prepare_bulk_fanout') {
+      // A proved fan-out spends clean funding into exact same-wallet outputs.
+      // Only its absence of a Counterparty payload is exempt; every other block survives.
+      safety.warnings = safety.warnings.filter(warning => warning.code !== 'counterparty_only_gate');
+      safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
     } else if (
       (marketplaceReview.status === 'proved' || marketplaceReview.status === 'caution')
       && (

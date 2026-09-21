@@ -3,7 +3,7 @@
  * review, never bytes, signer parameters, or an alleged signing outcome.
  */
 import { getFeeRates } from '@/core/bitcoin/feeRate';
-import { getPsbtApprovalPolicy, getTransactionApprovalPolicy, type ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
+import { getPsbtApprovalPolicy, getPsbtBundleApprovalPolicy, getTransactionApprovalPolicy, type ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { type DecodedPsbtInfo, decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
@@ -70,7 +70,7 @@ export function createProviderSigningService(): ProviderSigningService {
     return request?.status === 'pending' ? effectiveRequest(request) : null;
   }
 
-  async function assertAuthorization(request: ProviderSigningRequest): Promise<void> {
+  async function assertAuthorization(request: ProviderSigningRequest): Promise<string[]> {
     const wallet = getWalletService();
     if (!await wallet.isKeychainUnlocked()) throw new ProviderReviewError('wallet_locked');
     const activeAddress = await wallet.getActiveAddress();
@@ -109,13 +109,15 @@ export function createProviderSigningService(): ProviderSigningService {
           }
         }
       }
+      return allowed;
     }
+    return [request.address];
   }
 
   async function getReview(requestId: string): Promise<ProviderSigningReview> {
     const request = await getRequest(requestId);
     if (!request) throw new ProviderReviewError('unavailable');
-    await assertAuthorization(request);
+    const ownedAddresses = await assertAuthorization(request);
     const strictMode = (await getWalletService().getSettings()).strictTransactionVerification !== false;
     const fastestFee = request.kind === 'sign-message' ? undefined
       : await getFeeRates().then(rates => rates.fastestFee).catch(() => undefined);
@@ -141,19 +143,16 @@ export function createProviderSigningService(): ProviderSigningService {
         const decodedInfo = await decodePsbtForApproval(request.psbtHex,
           signers.length ? signers : [request.address], Object.values(request.signInputs ?? {}).flat(),
           request.sighashTypes, request.inscription, request.signingPurpose,
-          request.bitcoinPaymentIntent, request.marketplaceIntent);
+          request.bitcoinPaymentIntent, request.marketplaceIntent, ownedAddresses);
         review = { kind: request.kind, request, decodedInfo, fastestFee,
           policy: getPsbtApprovalPolicy(request, decodedInfo, strictMode, fastestFee) };
         break;
       }
       case 'sign-psbts': {
-        const decodedInfo = await decodePsbtBundleForApproval(request);
-        // A linked phase has its own exact semantic proof (including the CPFP
-        // child's funding); its review card contains the whole authorization.
-        review = { kind: request.kind, request, decodedInfo, fastestFee, policy: {
-          ...ordinaryPolicy,
-          blocked: decodedInfo.review.status === 'blocked' || decodedInfo.review.status === 'retry',
-        } };
+        const decodedInfo = await decodePsbtBundleForApproval(request, ownedAddresses);
+        const { policy, warnings } = getPsbtBundleApprovalPolicy(request, decodedInfo, strictMode, fastestFee);
+        review = { kind: request.kind, request,
+          decodedInfo: { ...decodedInfo, policyWarnings: warnings }, fastestFee, policy };
         break;
       }
     }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ApprovalAttentionScreen } from "@/components/domain/approval/approval-attention";
 import {
   ApprovalFooter,
   ApprovalLayout,
@@ -25,6 +26,7 @@ export default function ApprovePsbtsPage() {
     request,
     requestId,
     decodedInfo,
+    approvalPolicy,
     isLoading,
     error: loadError,
     handleApprove,
@@ -37,6 +39,7 @@ export default function ApprovePsbtsPage() {
   const [isSigning, setIsSigning] = useState(false);
   const [signingError, setError] = useState<unknown>(null);
   const error = signingError ? providerReviewErrorMessage(signingError) : '';
+  const [attentionReview, setAttentionReview] = useState<typeof decodedInfo>(null);
 
   useEffect(() => {
     // "Accept Offer", not "Accept Offer + Fee Bump": the longer form truncates at popup width,
@@ -58,12 +61,12 @@ export default function ApprovePsbtsPage() {
     setHeaderProps({ title });
   }, [request?.bundleKind, setHeaderProps]);
 
-  const handleSign = async () => {
+  const handleSign = async (risksAcknowledged = false) => {
     if (!request) return;
     setIsSigning(true);
     setError("");
     try {
-      await handleApprove(false);
+      await handleApprove(risksAcknowledged);
       window.close();
     } catch (failure) {
       setError(failure instanceof Error ? failure : {});
@@ -85,7 +88,13 @@ export default function ApprovePsbtsPage() {
   if (loadError || !request || !decodedInfo) return <ApprovalUnavailable message={loadError} onRetry={requestId ? () => void handleRetry() : undefined} retrying={isRefreshing} />;
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
-  const blocked = decodedInfo.review.status === "blocked" || decodedInfo.review.status === "retry";
+  const blocked = !approvalPolicy || approvalPolicy.blocked
+    || decodedInfo.review.status === "blocked" || decodedInfo.review.status === "retry";
+  const policyItems: WarningItem[] = (decodedInfo.policyWarnings ?? []).map((warning, index) => ({
+    key: `policy-${index}`, severity: warning.severity === "block" ? "danger" : warning.severity,
+    title: warning.title, description: warning.message,
+  }));
+  const requiresAttention = !blocked && !isRefreshing && !refreshError && approvalPolicy?.requiresAcknowledgement;
   // A proved bulk-listing batch is a one-screen decision like the single listing: the review
   // facts carry the durable-signature boundary, and the footer names what signing authorizes —
   // including whether that is new listings or reprices of existing ones.
@@ -112,6 +121,7 @@ export default function ApprovePsbtsPage() {
   const noticeItems: WarningItem[] = [
     ...(error ? [{ key: "signing-error", severity: "danger" as const, title: error }] : []),
     ...(refreshError ? [{ key: "refresh-error", severity: "warning" as const, title: refreshError }] : []),
+    ...(blocked ? policyItems : []),
     ...(blocked ? decodedInfo.review.blockers.map((problem, index) => ({
       key: `bundle-blocker-${index}`,
       severity: decodedInfo.review.status === "retry" ? "warning" as const : "danger" as const,
@@ -140,7 +150,7 @@ export default function ApprovePsbtsPage() {
       footer={
         <ApprovalFooter
           onCancel={handleReject}
-          onSign={() => void handleSign()}
+          onSign={() => requiresAttention ? setAttentionReview(decodedInfo) : void handleSign()}
           busy={isSigning}
           blocked={blocked || isRefreshing || Boolean(refreshError)}
           blockedLabel={
@@ -152,8 +162,20 @@ export default function ApprovePsbtsPage() {
           signLabel={signLabel}
         />
       }
+      attention={attentionReview === decodedInfo && requiresAttention && (
+        <ApprovalAttentionScreen
+          title={t('common_review_before_signing')}
+          description={t('provider_review_acknowledge_risks')}
+          items={policyItems}
+          confirmLabel={t('common_confirm_and_sign')}
+          busy={isSigning}
+          isHardware={activeWallet.type === "hardware"}
+          onBack={() => setAttentionReview(null)}
+          onConfirm={() => void handleSign(true)}
+        />
+      )}
     >
-      <ApprovalNotice items={noticeItems} blocked={decodedInfo.review.status === "blocked"} />
+      <ApprovalNotice items={noticeItems} blocked={blocked} />
       {retry && (
         <Button color="gray" onClick={() => void handleRetry()} disabled={isRefreshing} fullWidth>
           {isRefreshing ? t('common_verifying') : t('common_retry_verification')}
