@@ -1,8 +1,10 @@
+import * as btc from '@scure/btc-signer';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
+import { arc4, hexToBytes } from '@/core/counterparty/unpack/binary';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
@@ -690,5 +692,54 @@ describe('a compose whose message is missing entirely', () => {
       expect(result.current.state.step).toBe('review');
     });
     expect(result.current.state.error).toBeNull();
+  });
+});
+
+describe('BTC send to a dispenser through the composer', () => {
+  const destination = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+  const txid = 'ab'.repeat(32);
+
+  function composeResponse(amount = 5788n, extraOutput = false, fee = 400n): ApiResponse {
+    const tx = new btc.Transaction({ allowUnknownOutputs: true });
+    tx.addInput({ txid, index: 0 });
+    tx.addOutput({ script: btc.OutScript.encode(btc.Address().decode(destination)), amount });
+    const data = arc4(hexToBytes(txid), hexToBytes('434e5452505254590d00'));
+    tx.addOutput({ script: btc.Script.encode(['RETURN', data]), amount: 0n });
+    if (extraOutput) tx.addOutput({ script: btc.OutScript.encode(btc.Address().decode(destination)), amount: 1000n });
+    tx.addOutput({ script: btc.OutScript.encode(btc.Address().decode(OWN_ADDRESS)),
+      amount: 100000n - amount - fee - (extraOutput ? 1000n : 0n) });
+    return { result: { rawtransaction: tx.hex, btc_fee: Number(fee),
+      // A lying echo must not mask a changed output amount.
+      params: { asset: 'BTC', destination, quantity: 5788 }, name: 'send',
+    } } as unknown as ApiResponse;
+  }
+
+  it.each([
+    { name: 'valid dispenser payment', amount: 5788n, extra: false, fee: 400n, allowed: true },
+    { name: 'changed payment amount', amount: 5789n, extra: false, fee: 400n, allowed: false },
+    { name: 'extra payment to the same destination', amount: 5788n, extra: true, fee: 400n, allowed: false },
+    { name: 'inflated fee', amount: 5788n, extra: false, fee: 90000n, allowed: false },
+  ])('$name', async ({ amount, extra, fee, allowed }) => {
+    const composeApi = vi.fn().mockResolvedValue(composeResponse(amount, extra, fee));
+    const { result } = renderHook(() => useComposer(), {
+      wrapper: ({ children }) => <MemoryRouter>
+        <ComposerProvider composeApi={composeApi} initialTitle="Send" composeType="send">{children}</ComposerProvider>
+      </MemoryRouter>,
+    });
+    const form = new FormData();
+    form.set('asset', 'BTC');
+    form.set('destination', destination);
+    form.set('quantity', '0.00005788');
+    form.set('sat_per_vbyte', '1.6');
+    await act(async () => { await result.current.composeTransaction(form); });
+    if (allowed) {
+      expect(result.current.state.error).toBeNull();
+      expect(result.current.state.step).toBe('review');
+      expect(result.current.state.decodedMessage?.messageType).toBe('dispense');
+      expect(result.current.state.apiResponse?.result.params.quantity_normalized).toBe('0.00005788');
+    } else {
+      expect(result.current.state.step).toBe('form');
+      expect(result.current.state.error).toBeTruthy();
+    }
   });
 });
