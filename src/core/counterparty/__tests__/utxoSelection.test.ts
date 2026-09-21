@@ -5,7 +5,6 @@ import {
   recordSpentUtxos,
 } from '@/core/bitcoin/spentUtxoCache';
 import * as bitcoinUtxo from '@/core/bitcoin/utxo';
-import { asDisplayUnits } from '@/core/numeric';
 import * as counterpartyApi from '../api';
 import { selectUtxosForTransaction } from '../utxoSelection';
 
@@ -14,7 +13,7 @@ vi.mock('@/core/bitcoin/utxo');
 vi.mock('../api');
 
 const mockedFetchUTXOs = vi.mocked(bitcoinUtxo.fetchUTXOs);
-const mockedFetchTokenBalances = vi.mocked(counterpartyApi.fetchTokenBalances);
+const mockedFetchUtxosWithBalances = vi.mocked(counterpartyApi.fetchUtxosWithBalances);
 const mockedFormatInputsSet = vi.mocked(bitcoinUtxo.formatInputsSet);
 
 // Test data
@@ -50,7 +49,7 @@ describe('selectUtxosForTransaction', () => {
     ];
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([]); // No UTXO balances
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set([])); // No UTXO balances
 
     const result = await selectUtxosForTransaction(mockAddress);
 
@@ -58,11 +57,7 @@ describe('selectUtxosForTransaction', () => {
     expect(result.totalValue).toBe(100000);
     expect(result.excludedWithAssets).toBe(0);
     expect(mockedFetchUTXOs).toHaveBeenCalledWith(mockAddress);
-    expect(mockedFetchTokenBalances).toHaveBeenCalledWith(mockAddress, {
-      type: 'utxo',
-      limit: 1000,
-      verbose: false,
-    });
+    expect(mockedFetchUtxosWithBalances).toHaveBeenCalledWith(['tx1:0', 'tx2:0', 'tx3:1']);
   });
 
   it('should filter out UTXOs with attached Counterparty assets', async () => {
@@ -73,9 +68,7 @@ describe('selectUtxosForTransaction', () => {
     ];
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([
-      { asset: 'MYASSET', quantity_normalized: asDisplayUnits('100'), utxo: 'tx2:0' },
-    ]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set(['tx2:0']));
 
     const result = await selectUtxosForTransaction(mockAddress);
 
@@ -94,7 +87,7 @@ describe('selectUtxosForTransaction', () => {
     ];
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
 
     const result = await selectUtxosForTransaction(mockAddress);
 
@@ -109,7 +102,7 @@ describe('selectUtxosForTransaction', () => {
     );
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
 
     const result = await selectUtxosForTransaction(mockAddress);
 
@@ -122,7 +115,7 @@ describe('selectUtxosForTransaction', () => {
     );
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
 
     const result = await selectUtxosForTransaction(mockAddress, { maxUtxos: 5 });
 
@@ -137,7 +130,7 @@ describe('selectUtxosForTransaction', () => {
     ];
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
 
     const result = await selectUtxosForTransaction(mockAddress);
 
@@ -152,7 +145,7 @@ describe('selectUtxosForTransaction', () => {
     ];
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
 
     const result = await selectUtxosForTransaction(mockAddress, {
       allowUnconfirmed: true,
@@ -175,9 +168,7 @@ describe('selectUtxosForTransaction', () => {
     ];
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([
-      { asset: 'MYASSET', quantity_normalized: asDisplayUnits('100'), utxo: 'tx1:0' },
-    ]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set(['tx1:0']));
 
     await expect(selectUtxosForTransaction(mockAddress)).rejects.toThrow(
       'Insufficient UTXOs: found 0, need at least 1'
@@ -190,7 +181,7 @@ describe('selectUtxosForTransaction', () => {
     ];
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
 
     await expect(
       selectUtxosForTransaction(mockAddress, { minUtxos: 2 })
@@ -204,7 +195,7 @@ describe('selectUtxosForTransaction', () => {
     ];
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
 
     const result = await selectUtxosForTransaction(mockAddress);
 
@@ -217,7 +208,7 @@ describe('selectUtxosForTransaction', () => {
   describe('pending change', () => {
     it('selects registered change when the fetch returns nothing', async () => {
       mockedFetchUTXOs.mockResolvedValue([]);
-      mockedFetchTokenBalances.mockResolvedValue([]);
+      mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
       recordPendingChange([{ txid: 'change1', vout: 1, address: mockAddress, value: 4000 }]);
 
       const result = await selectUtxosForTransaction(mockAddress, { allowUnconfirmed: true });
@@ -229,7 +220,7 @@ describe('selectUtxosForTransaction', () => {
 
     it('prefers the fetched copy once the indexer lists the same outpoint', async () => {
       mockedFetchUTXOs.mockResolvedValue([createMockUtxo('change1', 1, 4000, false)]);
-      mockedFetchTokenBalances.mockResolvedValue([]);
+      mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
       recordPendingChange([{ txid: 'change1', vout: 1, address: mockAddress, value: 4000 }]);
 
       const result = await selectUtxosForTransaction(mockAddress, { allowUnconfirmed: true });
@@ -240,7 +231,7 @@ describe('selectUtxosForTransaction', () => {
 
     it('holds registered change to the allowUnconfirmed gate like any other UTXO', async () => {
       mockedFetchUTXOs.mockResolvedValue([]);
-      mockedFetchTokenBalances.mockResolvedValue([]);
+      mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
       recordPendingChange([{ txid: 'change1', vout: 1, address: mockAddress, value: 4000 }]);
 
       await expect(selectUtxosForTransaction(mockAddress)).rejects.toThrow(
@@ -250,7 +241,7 @@ describe('selectUtxosForTransaction', () => {
 
     it('excludes registered change that a later broadcast already spent', async () => {
       mockedFetchUTXOs.mockResolvedValue([]);
-      mockedFetchTokenBalances.mockResolvedValue([]);
+      mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
       recordPendingChange([{ txid: 'change1', vout: 1, address: mockAddress, value: 4000 }]);
       recordSpentUtxos([{ txid: 'change1', vout: 1 }]);
 
@@ -261,13 +252,30 @@ describe('selectUtxosForTransaction', () => {
 
     it('does not offer change registered for a different address', async () => {
       mockedFetchUTXOs.mockResolvedValue([]);
-      mockedFetchTokenBalances.mockResolvedValue([]);
+      mockedFetchUtxosWithBalances.mockResolvedValue(new Set([]));
       recordPendingChange([{ txid: 'change1', vout: 1, address: 'bc1qelsewhere', value: 4000 }]);
 
       await expect(
         selectUtxosForTransaction(mockAddress, { allowUnconfirmed: true })
       ).rejects.toThrow('No UTXOs available for this address');
     });
+  });
+
+  it('does not reintroduce unchecked candidates when the spent cache expires during lookup', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    try {
+      recordSpentUtxos([{ txid: 'spent', vout: 0 }]);
+      mockedFetchUTXOs.mockResolvedValue([
+        createMockUtxo('clean', 0, 1000), createMockUtxo('spent', 0, 50000),
+      ]);
+      mockedFetchUtxosWithBalances.mockImplementationOnce(async outpoints => {
+        expect(outpoints).toEqual(['clean:0']);
+        now.mockReturnValue(62000);
+        return new Set();
+      });
+      const result = await selectUtxosForTransaction(mockAddress);
+      expect(result.inputsSet).toBe('clean:0');
+    } finally { now.mockRestore(); }
   });
 
   it('should handle multiple assets attached to same UTXO', async () => {
@@ -277,10 +285,7 @@ describe('selectUtxosForTransaction', () => {
     ];
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
-    mockedFetchTokenBalances.mockResolvedValue([
-      { asset: 'ASSET1', quantity_normalized: asDisplayUnits('100'), utxo: 'tx2:0' },
-      { asset: 'ASSET2', quantity_normalized: asDisplayUnits('50'), utxo: 'tx2:0' },
-    ]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set(['tx2:0', 'tx2:0']));
 
     const result = await selectUtxosForTransaction(mockAddress);
 

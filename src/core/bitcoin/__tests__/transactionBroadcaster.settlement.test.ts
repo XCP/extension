@@ -72,7 +72,7 @@ describe('broadcast acceptance settles actual spent outpoints before propagation
       txid: inputTxid, vout, value: vout === 3 ? 50_000 : 20_000,
       status: { confirmed: true, block_height: 1, block_hash: 'fixture', block_time: 0 },
     })));
-    vi.spyOn(counterpartyApi, 'fetchTokenBalances').mockResolvedValue([]);
+    vi.spyOn(counterpartyApi, 'fetchUtxosWithBalances').mockResolvedValue(new Set());
 
     let completed = false;
     const response = broadcastTransaction(rawTx).then(result => { completed = true; return result; });

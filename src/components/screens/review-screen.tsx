@@ -58,6 +58,8 @@ interface ReviewScreenProps {
   error: string | null;
   /** Whether the transaction is being signed */
   isSigning: boolean;
+  /** Disable signing while transaction-specific review details are unavailable. */
+  signDisabled?: boolean;
   /** Hide the back button (e.g., for provider requests with no form to go back to) */
   hideBackButton?: boolean;
 }
@@ -90,6 +92,7 @@ export function ReviewScreen({
   customFields = [],
   error,
   isSigning,
+  signDisabled = false,
   hideBackButton = false,
 }: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
@@ -245,7 +248,7 @@ export function ReviewScreen({
           onClick={onSign}
           color="blue"
           fullWidth
-          disabled={isSigning}
+          disabled={isSigning || signDisabled}
           aria-label={isSigning ? "Signing transaction…" : "Sign and broadcast transaction"}
         >
           {isSigning ? "Signing…" : "Sign & Broadcast"}

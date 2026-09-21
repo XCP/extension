@@ -42,8 +42,8 @@ describe('useAssetDetails', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock fetchTokenUtxos to return empty array by default
-    vi.mocked(fetchTokenUtxos).mockResolvedValue([]);
+    // An unused attached-output request must never delay ordinary asset details.
+    vi.mocked(fetchTokenUtxos).mockImplementation(() => new Promise(() => {}));
   });
 
   it('should fetch asset details on mount', async () => {
@@ -68,6 +68,7 @@ describe('useAssetDetails', () => {
       availableBalance: asDisplayUnits('10000000.00000000')
     }));
     expect(result.current.error).toBeNull();
+    expect(fetchTokenUtxos).not.toHaveBeenCalled();
   });
 
   it('should handle fetch error', async () => {
