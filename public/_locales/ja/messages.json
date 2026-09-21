@@ -566,9 +566,6 @@
   "approval_bitcoin_payment_card_transaction_pays": {
     "message": "トランザクションの支払額"
   },
-  "approval_bitcoin_payment_card_transaction_pays_than_requested": {
-    "message": "トランザクションの支払額は要求より $1 $2 $3。"
-  },
   "approval_bitcoin_payment_card_unavailable": {
     "message": "取得できません"
   },
@@ -4470,13 +4467,7 @@
     "message": "あなたのリカバリーフレーズ"
   },
   "setup_import_mnemonic_a_card_is_written_to": {
-    "message": "カードは人に手渡すために書かれたものなので、これらの単語は渡してくれた相手にも知られているものとして扱ってください。ウォレットとしてインポートしないのはそのためです。このフレーズから導出されるすべてのアドレスは、相手も使えてしまいます。相手はカード自体からも引き続き送金できるため、残しておきたいものはご自身のアドレスへ移してください。"
-  },
-  "setup_import_mnemonic_an_address_no_wallet_built": {
-    "message": "。このフレーズで作られたウォレットには決して表示されないアドレスです。カードをインポートするとこのアドレスのみが保持され、フレーズは保存されません。"
-  },
-  "setup_import_mnemonic_at": {
-    "message": "、場所は"
+    "message": "このリカバリーフレーズは、カードを渡した人も知っているものとして扱ってください。このフレーズから作られるすべてのアドレスを相手も使えるため、ウォレットとしてはインポートしません。カードの資産も相手が引き続き送金できるので、保管したい資産はご自身のアドレスへ移してください。"
   },
   "setup_import_mnemonic_couldn_t_check_whether_this": {
     "message": "このフレーズが Rare Pepe Wallet のギフトカードかどうかを確認できませんでした。いずれにしてもウォレットとしてのインポートは可能で、カードはオンラインに戻ってから後でインポートできます。"
@@ -4497,13 +4488,10 @@
     "message": "ギフトカードをインポート"
   },
   "setup_import_mnemonic_import_your_mnemonic": {
-    "message": "ニーモニックをインポート"
+    "message": "リカバリーフレーズ"
   },
   "setup_import_mnemonic_invalid_recovery_phrase_please_check": {
     "message": "リカバリーフレーズが無効です。各単語を注意深く確認してください。"
-  },
-  "setup_import_mnemonic_its_balance_is_on": {
-    "message": "残高があるのは"
   },
   "setup_import_mnemonic_please_confirm_you_have_backed": {
     "message": "リカバリーフレーズをバックアップしたことを確認してください。"
@@ -5282,7 +5270,7 @@
     "message": "キャンセル"
   },
   "tx_action_dispenser": {
-    "message": "ディスペンサー"
+    "message": "自販機"
   },
   "tx_action_dispense": {
     "message": "払い出し"
@@ -5327,10 +5315,10 @@
     "message": "フェアミンターの作成"
   },
   "tx_action_close_dispenser": {
-    "message": "ディスペンサーを閉じる"
+    "message": "自販機を閉じる"
   },
   "tx_action_fund_dispenser": {
-    "message": "ディスペンサーへの入金"
+    "message": "自販機への入金"
   },
   "tx_action_send_amount": {
     "message": "$1 $2を送金"
@@ -5357,13 +5345,13 @@
     "message": "$1 $2を$3 $4で売却"
   },
   "tx_action_close_asset_dispenser": {
-    "message": "$1のディスペンサーを閉じる"
+    "message": "$1の自販機を閉じる"
   },
   "tx_action_dispense_rate": {
     "message": "$3 satsにつき$1 $2"
   },
   "tx_action_trigger_dispenser": {
-    "message": "ディスペンサーの払い出しを実行"
+    "message": "自販機の払い出しを実行"
   },
   "tx_action_issue_amount": {
     "message": "$1を発行"
@@ -5898,5 +5886,26 @@
   },
   "baseasset_quoteasset_loading_matches": {
     "message": "約定履歴を読み込み中…"
+  },
+  "approval_bitcoin_payment_card_pays_more_than_requested": {
+    "message": "要求された金額より $1 $2 多く支払います。"
+  },
+  "approval_bitcoin_payment_card_pays_less_than_requested": {
+    "message": "要求された金額より $1 $2 少なく支払います。"
+  },
+  "setup_import_mnemonic_gift_card_address": {
+    "message": "カードの残高は、導出パス $2 のアドレス $1 にあります。このフレーズをウォレットとしてインポートしても、そのアドレスは表示されません。カードとしてインポートすると、このアドレスのみを保持し、フレーズは保存しません。"
+  },
+  "approval_bitcoin_payment_outputs_mismatch": {
+    "message": "外部への支払い出力が、サイトの要求した支払いと完全には一致しません。"
+  },
+  "approval_bitcoin_payment_no_external_output": {
+    "message": "この PSBT には外部への支払い出力がありません。"
+  },
+  "approval_bitcoin_payment_output_has_data": {
+    "message": "出力 $1 にデータが含まれています。通常の Bitcoin 支払いでは使用できません。"
+  },
+  "approval_bitcoin_payment_output_address_unknown": {
+    "message": "出力 $1 の Bitcoin アドレスを確認できません。"
   }
 }

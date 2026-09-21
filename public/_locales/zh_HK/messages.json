@@ -45,7 +45,7 @@
     "message": "建立售賣機"
   },
   "actions_find_and_consolidate_bare_multisig": {
-    "message": "查找併合並裸多籤 UTXO"
+    "message": "查找並合併裸多重簽名 UTXO"
   },
   "actions_multi_party_multi_asset_transaction": {
     "message": "多方多資產交易"
@@ -566,9 +566,6 @@
   "approval_bitcoin_payment_card_transaction_pays": {
     "message": "交易支付"
   },
-  "approval_bitcoin_payment_card_transaction_pays_than_requested": {
-    "message": "交易支付比請求$3 $1 $2。"
-  },
   "approval_bitcoin_payment_card_unavailable": {
     "message": "不可用"
   },
@@ -612,7 +609,7 @@
     "message": "部分金額無法確定，請查看詳情。"
   },
   "approval_money_movement_view_this_can_be_sent_elsewhere": {
-    "message": "簽名後此金額可能被髮往別處，因此上方合計將其計為支出。"
+    "message": "簽名後此金額可能被發往別處，因此上方合計將其計為支出。"
   },
   "approval_money_movement_view_unknown_address": {
     "message": "未知地址"
@@ -1863,7 +1860,7 @@
     "message": "請求消息簽名"
   },
   "connect_approve_request_signatures_from_either_address": {
-    "message": "向任一地址請求籤名"
+    "message": "向任一地址請求簽名"
   },
   "connect_approve_request_transaction_signatures": {
     "message": "請求交易簽名"
@@ -2194,7 +2191,7 @@
     "message": "按池比例所需數量：$1 $2"
   },
   "deposit_form_review_deposit": {
-    "message": "確認存入"
+    "message": "查看存入詳情"
   },
   "deposit_form_the_lp_asset_represents_your": {
     "message": "LP 資產代表你在流動性池中的份額。"
@@ -2301,7 +2298,7 @@
     "message": "獲取售賣機詳情出錯。"
   },
   "dispenser_dispenser_input_no_open_dispenser_found_at": {
-    "message": "此地址沒有開放的售賣機。"
+    "message": "此地址沒有營業中的售賣機。"
   },
   "dispenser_form_amount_per_dispense_is_fixed": {
     "message": "補貨時每次給付數量固定不變。"
@@ -2553,7 +2550,7 @@
     "message": "流動性池儲備"
   },
   "fairminter_review_sale_window": {
-    "message": "銷售窗口"
+    "message": "銷售期間"
   },
   "inputs_api_url_input_api_endpoint_validated_and_saved": {
     "message": "✓ API 端點已驗證並保存"
@@ -3153,7 +3150,7 @@
     "message": "資產來源"
   },
   "marketplace_intent_asset_stays_attached_to_sat_utxo": {
-    "message": "資產將保持附加在此地址下一個 $1 sats 的 UTXO 上"
+    "message": "資產將保持附加在此地址的 $1 sats UTXO 上"
   },
   "marketplace_intent_assets_detach_to_this_address": {
     "message": "資產將分離到此地址"
@@ -4470,13 +4467,7 @@
     "message": "你的助記詞"
   },
   "setup_import_mnemonic_a_card_is_written_to": {
-    "message": "卡片本身就是為了交給他人而寫的，所以請將這些單詞視為交給你的人也知道。這就是它們不被作為錢包導入的原因：從這些單詞派生出的每個地址，對方同樣可以花費。對方也仍然可以從卡片本身花費，因此請把你想保留的一切轉移到你自己的地址。"
-  },
-  "setup_import_mnemonic_an_address_no_wallet_built": {
-    "message": "，這是基於此助記詞構建的錢包永遠不會顯示的地址。導入卡片只保留這一個地址，不會存儲助記詞。"
-  },
-  "setup_import_mnemonic_at": {
-    "message": "，位於"
+    "message": "請假設贈卡人也知道這組助記詞。對方可以動用所有派生地址中的資金，因此不能將卡片作為錢包導入。對方仍可動用卡片中的資產，請將你要保留的資產轉到自己的地址。"
   },
   "setup_import_mnemonic_couldn_t_check_whether_this": {
     "message": "無法檢查此助記詞是否為 Rare Pepe Wallet 禮品卡。無論如何都可以將其作為錢包導入，恢復聯網後也可以再導入卡片。"
@@ -4501,9 +4492,6 @@
   },
   "setup_import_mnemonic_invalid_recovery_phrase_please_check": {
     "message": "助記詞無效。請仔細檢查每個單詞。"
-  },
-  "setup_import_mnemonic_its_balance_is_on": {
-    "message": "其餘額位於"
   },
   "setup_import_mnemonic_please_confirm_you_have_backed": {
     "message": "請確認你已備份助記詞。"
@@ -4667,7 +4655,7 @@
     "message": "流動性池費用 ($1%)"
   },
   "swap_form_review_swap": {
-    "message": "檢查兌換"
+    "message": "查看兌換詳情"
   },
   "swap_form_route": {
     "message": "路徑"
@@ -5018,7 +5006,7 @@
     "message": "用於贖回的 LP 數量"
   },
   "withdraw_form_review_withdrawal": {
-    "message": "確認取出"
+    "message": "查看取出詳情"
   },
   "withdraw_review_minimum_receive": {
     "message": "最低接收數量"
@@ -5108,7 +5096,7 @@
     "message": "原生 SegWit"
   },
   "address_type_nested_segwit": {
-    "message": "Nested SegWit"
+    "message": "嵌套 SegWit"
   },
   "common_destinations": {
     "message": "接收地址"
@@ -5282,7 +5270,7 @@
     "message": "取消"
   },
   "tx_action_dispenser": {
-    "message": "分發器"
+    "message": "售賣機"
   },
   "tx_action_dispense": {
     "message": "發放"
@@ -5327,10 +5315,10 @@
     "message": "建立公平鑄造"
   },
   "tx_action_close_dispenser": {
-    "message": "關閉分發器"
+    "message": "關閉售賣機"
   },
   "tx_action_fund_dispenser": {
-    "message": "向分發器存入資產"
+    "message": "向售賣機存入資產"
   },
   "tx_action_send_amount": {
     "message": "轉出$1 $2"
@@ -5357,13 +5345,13 @@
     "message": "賣出$1 $2，換取$3 $4"
   },
   "tx_action_close_asset_dispenser": {
-    "message": "關閉$1分發器"
+    "message": "關閉$1售賣機"
   },
   "tx_action_dispense_rate": {
     "message": "每$3 sats發放$1 $2"
   },
   "tx_action_trigger_dispenser": {
-    "message": "觸發分發器發放"
+    "message": "觸發售賣機發放"
   },
   "tx_action_issue_amount": {
     "message": "發行$1"
@@ -5898,5 +5886,26 @@
   },
   "baseasset_quoteasset_loading_matches": {
     "message": "正在載入成交紀錄…"
+  },
+  "approval_bitcoin_payment_card_pays_more_than_requested": {
+    "message": "此交易比請求金額多支付 $1 $2。"
+  },
+  "approval_bitcoin_payment_card_pays_less_than_requested": {
+    "message": "此交易比請求金額少支付 $1 $2。"
+  },
+  "setup_import_mnemonic_gift_card_address": {
+    "message": "卡片餘額位於地址 $1（派生路徑：$2）。將此助記詞作為錢包導入時，不會顯示該地址。導入卡片只保留這個地址，不會儲存助記詞。"
+  },
+  "approval_bitcoin_payment_outputs_mismatch": {
+    "message": "對外支付的輸出與網站請求的付款不完全一致。"
+  },
+  "approval_bitcoin_payment_no_external_output": {
+    "message": "此 PSBT 沒有對外支付的輸出。"
+  },
+  "approval_bitcoin_payment_output_has_data": {
+    "message": "輸出 $1 包含數據，普通比特幣付款不允許此類輸出。"
+  },
+  "approval_bitcoin_payment_output_address_unknown": {
+    "message": "無法核查輸出 $1 的比特幣地址。"
   }
 }

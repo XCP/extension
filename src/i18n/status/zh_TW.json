@@ -191,7 +191,6 @@
     "approval_bitcoin_payment_card_total_entering_wallet",
     "approval_bitcoin_payment_card_total_leaving_wallet",
     "approval_bitcoin_payment_card_transaction_pays",
-    "approval_bitcoin_payment_card_transaction_pays_than_requested",
     "approval_bitcoin_payment_card_unavailable",
     "approval_bitcoin_payment_card_wallet_total",
     "approval_bundle_review_card_payout_and_fee_details",
@@ -1508,8 +1507,6 @@
     "setup_create_mnemonic_watch_tutorial_how_to_create",
     "setup_create_mnemonic_your_recovery_phrase",
     "setup_import_mnemonic_a_card_is_written_to",
-    "setup_import_mnemonic_an_address_no_wallet_built",
-    "setup_import_mnemonic_at",
     "setup_import_mnemonic_couldn_t_check_whether_this",
     "setup_import_mnemonic_enter_word",
     "setup_import_mnemonic_failed_to_import_wallet",
@@ -1518,7 +1515,6 @@
     "setup_import_mnemonic_import_gift_card",
     "setup_import_mnemonic_import_your_mnemonic",
     "setup_import_mnemonic_invalid_recovery_phrase_please_check",
-    "setup_import_mnemonic_its_balance_is_on",
     "setup_import_mnemonic_please_confirm_you_have_backed",
     "setup_import_mnemonic_please_enter_your_12_word",
     "setup_import_mnemonic_recovery_phrase_input",
@@ -1951,6 +1947,13 @@
     "search_error_invalid_response",
     "search_error_detail",
     "baseasset_quoteasset_select_pair",
-    "baseasset_quoteasset_loading_matches"
+    "baseasset_quoteasset_loading_matches",
+    "approval_bitcoin_payment_card_pays_more_than_requested",
+    "approval_bitcoin_payment_card_pays_less_than_requested",
+    "setup_import_mnemonic_gift_card_address",
+    "approval_bitcoin_payment_outputs_mismatch",
+    "approval_bitcoin_payment_no_external_output",
+    "approval_bitcoin_payment_output_has_data",
+    "approval_bitcoin_payment_output_address_unknown"
   ]
 }

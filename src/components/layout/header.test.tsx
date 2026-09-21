@@ -207,8 +207,8 @@ describe('Header', () => {
     expect(header).toHaveClass('grid');
     expect(header).toHaveClass('grid-cols-4');
     expect(header).toHaveClass('items-center');
-    expect(header).toHaveClass('p-4');
-    expect(header).toHaveClass('h-16');
+    expect(header).toHaveClass('px-4', 'py-3');
+    expect(header).toHaveClass('min-h-16');
     expect(header).toHaveClass('bg-white');
     expect(header).toHaveClass('shadow-md');
   });

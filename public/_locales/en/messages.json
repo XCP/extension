@@ -755,10 +755,6 @@
     "message": "Transaction pays",
     "description": "components/domain/approval/bitcoin-payment-card.tsx"
   },
-  "approval_bitcoin_payment_card_transaction_pays_than_requested": {
-    "message": "Transaction pays $1 $2 $3 than requested.",
-    "description": "components/domain/approval/bitcoin-payment-card.tsx. $1 = toNumber(toBigNumber(difference).abs()).toLocaleString(); $2 = toNumber(toBigNumber(difference).abs()) === 1 ? 'sat' : 'sats'; $3 = difference > 0 ? 'more' : 'less'"
-  },
   "approval_bitcoin_payment_card_unavailable": {
     "message": "Unavailable",
     "description": "components/domain/approval/bitcoin-payment-card.tsx"
@@ -5952,14 +5948,6 @@
     "message": "A card is written to be handed over, so treat these words as known to whoever gave it to you. That is why they are not imported as a wallet: every address derived from them would be theirs to spend from as well. They can also still spend from the card itself, so move anything you want to keep to an address of your own.",
     "description": "pages/keychain/setup/import-mnemonic.tsx"
   },
-  "setup_import_mnemonic_an_address_no_wallet_built": {
-    "message": "— an address no wallet built on this phrase would ever show you. Importing the card keeps that one address and stores no phrase.",
-    "description": "pages/keychain/setup/import-mnemonic.tsx"
-  },
-  "setup_import_mnemonic_at": {
-    "message": ", at",
-    "description": "pages/keychain/setup/import-mnemonic.tsx"
-  },
   "setup_import_mnemonic_couldn_t_check_whether_this": {
     "message": "Couldn't check whether this phrase is a Rare Pepe Wallet gift card — importing it as a wallet works either way, and a card can be imported later once you're back online.",
     "description": "pages/keychain/setup/import-mnemonic.tsx"
@@ -5990,10 +5978,6 @@
   },
   "setup_import_mnemonic_invalid_recovery_phrase_please_check": {
     "message": "Invalid recovery phrase. Please check each word carefully.",
-    "description": "pages/keychain/setup/import-mnemonic.tsx"
-  },
-  "setup_import_mnemonic_its_balance_is_on": {
-    "message": "Its balance is on",
     "description": "pages/keychain/setup/import-mnemonic.tsx"
   },
   "setup_import_mnemonic_please_confirm_you_have_backed": {
@@ -7851,5 +7835,33 @@
   "baseasset_quoteasset_loading_matches": {
     "message": "Loading matches…",
     "description": "Loading the order-book matched-trade history tab."
+  },
+  "approval_bitcoin_payment_card_pays_more_than_requested": {
+    "message": "Transaction pays $1 $2 more than requested.",
+    "description": "Bitcoin payment mismatch warning. $1 is the absolute amount difference, $2 is sat or sats. The actual payment is larger than the website requested."
+  },
+  "approval_bitcoin_payment_card_pays_less_than_requested": {
+    "message": "Transaction pays $1 $2 less than requested.",
+    "description": "Bitcoin payment mismatch warning. $1 is the absolute amount difference, $2 is sat or sats. The actual payment is smaller than the website requested."
+  },
+  "setup_import_mnemonic_gift_card_address": {
+    "message": "The card's balance is at $1 (derivation path: $2). A wallet imported from this phrase will not show that address. Importing the card keeps only that address and does not store the phrase.",
+    "description": "Gift-card import explanation. $1 is a shortened address and $2 is its derivation path. They are rendered as separate monospace spans and may be reordered for grammar."
+  },
+  "approval_bitcoin_payment_outputs_mismatch": {
+    "message": "External payment outputs do not exactly match the site's requested payments.",
+    "description": "Known plain-Bitcoin payment proof diagnostic, translated only for display. Where present, $1 is the unchanged output index."
+  },
+  "approval_bitcoin_payment_no_external_output": {
+    "message": "The PSBT has no external payment output.",
+    "description": "Known plain-Bitcoin payment proof diagnostic, translated only for display. Where present, $1 is the unchanged output index."
+  },
+  "approval_bitcoin_payment_output_has_data": {
+    "message": "Output $1 contains data, which is not allowed in a plain Bitcoin payment.",
+    "description": "Known plain-Bitcoin payment proof diagnostic, translated only for display. Where present, $1 is the unchanged output index."
+  },
+  "approval_bitcoin_payment_output_address_unknown": {
+    "message": "Output $1 has no Bitcoin address that the wallet can review.",
+    "description": "Known plain-Bitcoin payment proof diagnostic, translated only for display. Where present, $1 is the unchanged output index."
   }
 }

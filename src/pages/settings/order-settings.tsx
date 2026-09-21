@@ -154,7 +154,7 @@ export function OrderSettings({
     <div className="bg-white rounded-lg shadow-lg p-4">
       <div className="space-y-4">
         <div>
-          <div className="flex justify-between items-center mb-3">
+          <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 mb-3">
             <label
               htmlFor="custom-expiration"
               className="text-sm font-semibold cursor-pointer"
@@ -214,7 +214,7 @@ export function OrderSettings({
         {/* Fee Required Section - Only show when buying BTC */}
         {isBuyingBTC && (
           <div>
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 mb-2">
               <label
                 htmlFor="fee-required"
                 className="text-sm font-semibold cursor-pointer"

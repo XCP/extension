@@ -8,6 +8,7 @@ import { KeychainLockedOnly } from '@/components/router/keychain-locked-only';
 import { KeychainOpenOrNew } from '@/components/router/keychain-open-or-new';
 import { NoKeychainOnly } from '@/components/router/no-keychain-only';
 import { useWallet } from '@/contexts/wallet-context';
+import { t } from '@/i18n';
 import ActionsPage from '@/pages/actions';
 // Actions
 import ConsolidatePage from '@/pages/actions/consolidate';
@@ -97,7 +98,7 @@ import { analytics, sanitizePath } from '@/platform/fathom';
 function FullscreenLoading() {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
-      <FaSpinner className="text-4xl text-primary-600 animate-spin" aria-label="Loading…" />
+      <FaSpinner className="text-4xl text-primary-600 animate-spin" aria-label={t('common_loading')} />
     </div>
   );
 }

@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { BitcoinPaymentCard } from './bitcoin-payment-card';
 
 const ADDRESS = 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq';
@@ -16,6 +17,47 @@ const intent: BitcoinPaymentIntentV1 = {
 };
 
 describe('BitcoinPaymentCard', () => {
+  beforeEach(() => { mockBrowserLocale({ language: 'en' }); });
+  it.each(['ja', 'zh-CN', 'zh-TW', 'zh-HK'])('translates known proof reasons while preserving unknown evidence in %s', async (language) => {
+    mockBrowserLocale({ language });
+    const errors = [
+      'the external payment outputs do not exactly match the site intent',
+      'the PSBT has no external payment output',
+      'output 3 carries data; plain Bitcoin payments may not',
+      'output 7 has no reviewable Bitcoin address',
+      'unrecognized diagnostic: output=9; vendor_code=ABC',
+    ];
+    const originalErrors = [...errors];
+    render(<BitcoinPaymentCard intent={intent} proof={{ proved: false, errors, outputs: [], totalSats: 0 }} />);
+    await userEvent.setup().click(screen.getByRole('button'));
+    const reasons = screen.getAllByRole('listitem');
+    expect(reasons).toHaveLength(5);
+    for (const [index, raw] of errors.slice(0, 4).entries()) expect(reasons[index]).not.toHaveTextContent(raw);
+    expect(reasons[2]).toHaveTextContent('3');
+    expect(reasons[3]).toHaveTextContent('7');
+    expect(reasons[4]).toHaveTextContent('unrecognized diagnostic: output=9; vendor_code=ABC');
+    expect(errors).toEqual(originalErrors);
+  });
+
+  it.each([
+    ['ja', 21_601, '要求された金額より 1 sat 多く支払います。'],
+    ['ja', 21_598, '要求された金額より 2 sats 少なく支払います。'],
+    ['zh-CN', 21_601, '此交易比请求金额多支付 1 sat。'],
+    ['zh-CN', 21_598, '此交易比请求金额少支付 2 sats。'],
+    ['zh-TW', 21_601, '此交易比請求金額多支付 1 sat。'],
+    ['zh-TW', 21_598, '此交易比請求金額少支付 2 sats。'],
+    ['zh-HK', 21_601, '此交易比請求金額多支付 1 sat。'],
+    ['zh-HK', 21_598, '此交易比請求金額少支付 2 sats。'],
+  ])('localizes the payment direction in %s for %s sats', (language, amountSats, warning) => {
+    mockBrowserLocale({ language: String(language) });
+    render(<BitcoinPaymentCard intent={intent} proof={{
+      proved: false, errors: [], totalSats: Number(amountSats),
+      outputs: [{ index: 0, address: ADDRESS, amountSats: Number(amountSats) }],
+    }} />);
+    expect(screen.getByTestId('approval-notice')).toHaveTextContent(String(warning));
+    expect(screen.getByTestId('approval-notice')).not.toHaveTextContent(/\b(more|less)\b/);
+  });
+
   it('shows a proved site-described payment with its full output terms', () => {
     render(<BitcoinPaymentCard intent={intent} proof={{
       proved: true,

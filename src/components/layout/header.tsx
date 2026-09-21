@@ -54,7 +54,7 @@ export function Header({
   }, []);
 
   return (
-    <header className="grid h-16 shrink-0 grid-cols-4 items-center bg-white p-4 shadow-md">
+    <header className="grid min-h-16 shrink-0 grid-cols-4 items-center bg-white px-4 py-3 shadow-md">
       {/* Left Section */}
       {hasControls && <div className="col-span-1 flex justify-start">
         {onBack ? (
@@ -80,7 +80,7 @@ export function Header({
         {useLogoTitle ? (
           <img src={typeof logo === 'string' ? logo : (logo as any).src || logo} alt={t('layout_header_logo')} className="h-8" />
         ) : typeof title === 'string' ? (
-          <h1 className="text-lg font-bold truncate">{title}</h1>
+          <h1 className="text-lg leading-snug font-bold text-center line-clamp-2 break-words" title={title}>{title}</h1>
         ) : (
           title
         )}

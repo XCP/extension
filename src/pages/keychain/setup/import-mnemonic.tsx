@@ -355,10 +355,13 @@ function ImportMnemonicPage() {
             <div className="bg-gray-100 rounded-lg p-4 space-y-2" role="status">
               <p className="text-sm font-medium">{t('setup_import_mnemonic_this_looks_like_a_rare')}</p>
               <p className="text-sm text-gray-700">
-                
-                {t('setup_import_mnemonic_its_balance_is_on')}{" "}
-                <span className="font-mono">{formatAddress(giftCard.address)}</span>{t('setup_import_mnemonic_at')}{" "}
-                <span className="font-mono">{GIFT_CARD_PATH}</span>  {t('setup_import_mnemonic_an_address_no_wallet_built')}
+                {t('setup_import_mnemonic_gift_card_address', ['{address}', '{path}'])
+                  .split(/(\{address\}|\{path\})/)
+                  .map((part, index) => part === '{address}' ? (
+                    <span key={index} className="font-mono" title={giftCard.address}>{formatAddress(giftCard.address)}</span>
+                  ) : part === '{path}' ? (
+                    <span key={index} className="font-mono">{GIFT_CARD_PATH}</span>
+                  ) : part)}
               </p>
               <p className="text-sm text-gray-700">
                 {t('setup_import_mnemonic_a_card_is_written_to')}

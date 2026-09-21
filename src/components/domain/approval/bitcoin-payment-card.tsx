@@ -9,6 +9,21 @@ const btc = (sats: number) => formatAmount({
   value: fromSatoshis(sats, true), minimumFractionDigits: 8, maximumFractionDigits: 8,
 });
 
+/** Translate only known proof diagnostics; keep unknown evidence verbatim. */
+function paymentReason(reason: string): string {
+  if (reason === 'the external payment outputs do not exactly match the site intent') {
+    return t('approval_bitcoin_payment_outputs_mismatch');
+  }
+  if (reason === 'the PSBT has no external payment output') {
+    return t('approval_bitcoin_payment_no_external_output');
+  }
+  const data = /^output (\d+) carries data; plain Bitcoin payments may not$/.exec(reason);
+  if (data?.[1]) return t('approval_bitcoin_payment_output_has_data', [data[1]]);
+  const address = /^output (\d+) has no reviewable Bitcoin address$/.exec(reason);
+  if (address?.[1]) return t('approval_bitcoin_payment_output_address_unknown', [address[1]]);
+  return reason;
+}
+
 function AmountRow({ label, sats }: { label: string; sats: number }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -27,6 +42,7 @@ export function BitcoinPaymentCard({ intent, proof, failure, movement, outputs }
   outputs?: DecodedOutput[];
 }) {
   const reasons = [...new Set([...(failure ?? []), ...(proof?.errors ?? [])])];
+  const displayReasons = reasons.map(paymentReason);
   const proved = proof?.proved === true && reasons.length === 0;
   const declared = intent.outputs[0];
   const actual = proof?.outputs[0];
@@ -38,11 +54,17 @@ export function BitcoinPaymentCard({ intent, proof, failure, movement, outputs }
   const difference = sameDestination && declared && actual ? toNumber(subtract(actual.amountSats, declared.amountSats)) : undefined;
   const changedDestination = intent.outputs.length === 1 && proof?.outputs.length === 1
     && declared?.address !== actual?.address;
+  const differenceAmount = difference === undefined ? [] : [
+    formatAmount({ value: toNumber(toBigNumber(difference).abs()), maximumFractionDigits: 0 }),
+    toNumber(toBigNumber(difference).abs()) === 1 ? 'sat' : 'sats',
+  ];
   const lead = difference !== undefined && difference !== 0
-    ? t('approval_bitcoin_payment_card_transaction_pays_than_requested', [formatAmount({ value: toNumber(toBigNumber(difference).abs()), maximumFractionDigits: 0 }), String(toNumber(toBigNumber(difference).abs()) === 1 ? 'sat' : 'sats'), String(difference > 0 ? 'more' : 'less')])
+    ? difference > 0
+      ? t('approval_bitcoin_payment_card_pays_more_than_requested', differenceAmount)
+      : t('approval_bitcoin_payment_card_pays_less_than_requested', differenceAmount)
     : changedDestination ? t('approval_bitcoin_payment_card_the_transaction_pays_a_different')
-    : !proof ? reasons[0] ?? t('approval_bitcoin_payment_card_payment_outputs_could_not_be')
-    : reasons[0] ?? t('approval_bitcoin_payment_card_the_transaction_does_not_match');
+    : !proof ? displayReasons[0] ?? t('approval_bitcoin_payment_card_payment_outputs_could_not_be')
+    : displayReasons[0] ?? t('approval_bitcoin_payment_card_the_transaction_does_not_match');
   const context = (
     <>
       {movement && (
@@ -130,7 +152,7 @@ export function BitcoinPaymentCard({ intent, proof, failure, movement, outputs }
           ))}
           {reasons.length > 0 && (
             <ul className="space-y-2 border-t border-danger-200 pt-3 text-sm leading-5">
-              {reasons.map(reason => <li key={reason}>{reason}</li>)}
+              {reasons.map((reason, index) => <li key={reason}>{displayReasons[index]}</li>)}
             </ul>
           )}
           {context}

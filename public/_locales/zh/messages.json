@@ -566,9 +566,6 @@
   "approval_bitcoin_payment_card_transaction_pays": {
     "message": "交易支付"
   },
-  "approval_bitcoin_payment_card_transaction_pays_than_requested": {
-    "message": "交易支付比请求$3 $1 $2。"
-  },
   "approval_bitcoin_payment_card_unavailable": {
     "message": "不可用"
   },
@@ -2194,7 +2191,7 @@
     "message": "按池比例所需数量：$1 $2"
   },
   "deposit_form_review_deposit": {
-    "message": "确认存入"
+    "message": "查看存入详情"
   },
   "deposit_form_the_lp_asset_represents_your": {
     "message": "LP 资产代表你在流动性池中的份额。"
@@ -2301,7 +2298,7 @@
     "message": "获取售货机详情出错。"
   },
   "dispenser_dispenser_input_no_open_dispenser_found_at": {
-    "message": "此地址没有开放的售货机。"
+    "message": "此地址没有营业中的售货机。"
   },
   "dispenser_form_amount_per_dispense_is_fixed": {
     "message": "补货时每次给付数量固定不变。"
@@ -2553,7 +2550,7 @@
     "message": "流动性池储备"
   },
   "fairminter_review_sale_window": {
-    "message": "销售窗口"
+    "message": "销售期间"
   },
   "inputs_api_url_input_api_endpoint_validated_and_saved": {
     "message": "✓ API 端点已验证并保存"
@@ -3153,7 +3150,7 @@
     "message": "资产来源"
   },
   "marketplace_intent_asset_stays_attached_to_sat_utxo": {
-    "message": "资产将保持附加在此地址下一个 $1 sats 的 UTXO 上"
+    "message": "资产将保持附加在此地址的 $1 sats UTXO 上"
   },
   "marketplace_intent_assets_detach_to_this_address": {
     "message": "资产将分离到此地址"
@@ -4470,13 +4467,7 @@
     "message": "你的助记词"
   },
   "setup_import_mnemonic_a_card_is_written_to": {
-    "message": "卡片本身就是为了交给他人而写的，所以请将这些单词视为交给你的人也知道。这就是它们不被作为钱包导入的原因：从这些单词派生出的每个地址，对方同样可以花费。对方也仍然可以从卡片本身花费，因此请把你想保留的一切转移到你自己的地址。"
-  },
-  "setup_import_mnemonic_an_address_no_wallet_built": {
-    "message": "，这是基于此助记词构建的钱包永远不会显示的地址。导入卡片只保留这一个地址，不会存储助记词。"
-  },
-  "setup_import_mnemonic_at": {
-    "message": "，位于"
+    "message": "请假设赠卡人也知道这组助记词。对方可以动用所有派生地址中的资金，因此不能将卡片作为钱包导入。对方仍可动用卡片中的资产，请将你要保留的资产转到自己的地址。"
   },
   "setup_import_mnemonic_couldn_t_check_whether_this": {
     "message": "无法检查此助记词是否为 Rare Pepe Wallet 礼品卡。无论如何都可以将其作为钱包导入，恢复联网后也可以再导入卡片。"
@@ -4501,9 +4492,6 @@
   },
   "setup_import_mnemonic_invalid_recovery_phrase_please_check": {
     "message": "助记词无效。请仔细检查每个单词。"
-  },
-  "setup_import_mnemonic_its_balance_is_on": {
-    "message": "其余额位于"
   },
   "setup_import_mnemonic_please_confirm_you_have_backed": {
     "message": "请确认你已备份助记词。"
@@ -4667,7 +4655,7 @@
     "message": "流动性池费用 ($1%)"
   },
   "swap_form_review_swap": {
-    "message": "检查兑换"
+    "message": "查看兑换详情"
   },
   "swap_form_route": {
     "message": "路径"
@@ -5018,7 +5006,7 @@
     "message": "用于赎回的 LP 数量"
   },
   "withdraw_form_review_withdrawal": {
-    "message": "确认取出"
+    "message": "查看取出详情"
   },
   "withdraw_review_minimum_receive": {
     "message": "最低接收数量"
@@ -5282,7 +5270,7 @@
     "message": "取消"
   },
   "tx_action_dispenser": {
-    "message": "分发器"
+    "message": "售货机"
   },
   "tx_action_dispense": {
     "message": "发放"
@@ -5327,10 +5315,10 @@
     "message": "创建公平铸造"
   },
   "tx_action_close_dispenser": {
-    "message": "关闭分发器"
+    "message": "关闭售货机"
   },
   "tx_action_fund_dispenser": {
-    "message": "向分发器存入资产"
+    "message": "向售货机存入资产"
   },
   "tx_action_send_amount": {
     "message": "转出$1 $2"
@@ -5357,13 +5345,13 @@
     "message": "卖出$1 $2，换取$3 $4"
   },
   "tx_action_close_asset_dispenser": {
-    "message": "关闭$1分发器"
+    "message": "关闭$1售货机"
   },
   "tx_action_dispense_rate": {
     "message": "每$3 sats发放$1 $2"
   },
   "tx_action_trigger_dispenser": {
-    "message": "触发分发器发放"
+    "message": "触发售货机发放"
   },
   "tx_action_issue_amount": {
     "message": "发行$1"
@@ -5898,5 +5886,26 @@
   },
   "baseasset_quoteasset_loading_matches": {
     "message": "正在加载成交记录…"
+  },
+  "approval_bitcoin_payment_card_pays_more_than_requested": {
+    "message": "此交易比请求金额多支付 $1 $2。"
+  },
+  "approval_bitcoin_payment_card_pays_less_than_requested": {
+    "message": "此交易比请求金额少支付 $1 $2。"
+  },
+  "setup_import_mnemonic_gift_card_address": {
+    "message": "卡片余额位于地址 $1（派生路径：$2）。将此助记词作为钱包导入时，不会显示该地址。导入卡片只保留这个地址，不会存储助记词。"
+  },
+  "approval_bitcoin_payment_outputs_mismatch": {
+    "message": "对外支付的输出与网站请求的付款不完全一致。"
+  },
+  "approval_bitcoin_payment_no_external_output": {
+    "message": "此 PSBT 没有对外支付的输出。"
+  },
+  "approval_bitcoin_payment_output_has_data": {
+    "message": "输出 $1 包含数据，普通比特币付款不允许此类输出。"
+  },
+  "approval_bitcoin_payment_output_address_unknown": {
+    "message": "无法核查输出 $1 的比特币地址。"
   }
 }

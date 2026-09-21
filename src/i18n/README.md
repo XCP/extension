@@ -55,10 +55,11 @@ Historical order/MPMA displays retain the contextual corrections in PR405.
 
 The records under `review/` describe earlier terminology and contextual passes;
 their exact hashes and machine provenance remain historical evidence, not current
-native-speaker signoff. This simplification removes obsolete preference messages
-without revising the remaining translations. Integrating main also removes three
-unused messages and uses the existing parameterized upload-size message with the
-current compose limit. Native-speaker review is outstanding.
+native-speaker signoff. The [September 20 wording and layout review](review/quality-layout-2026-09-20.md)
+records subsequent corrections to payment warnings, gift-card instructions,
+Traditional Chinese characters, terminology and narrow-screen layouts. Its JSON
+companion records the exact catalog changes and hashes. Native-speaker review is
+outstanding.
 
 ## Validation
 
@@ -72,6 +73,13 @@ The localization and approval galleries use the `browserLocale` wallet fixture,
 which launches Chromium with the native locale before setup. Each language runs
 in its own browser context. Galleries use authored read fixtures, not live signing
 or broadcasting.
+
+`e2e/tests/translation-quality.spec.ts` checks the fixed 350x600 popup and actual
+350px/520px sidepanel layouts in Japanese and all three Chinese variants. It scrolls
+the internal content container to capture long instructions and expanded approval
+details, checks control overflow, and verifies that blocked payment actions stay
+disabled. Older popup galleries with larger browser viewports still render a
+350px body; they are not evidence of a wide sidepanel layout.
 
 `src/i18n/test-utils.tsx` is imported only by unit tests. It mocks browser catalogs
 and rerenders test roots for retained-state coverage. Optional formatter mocks
