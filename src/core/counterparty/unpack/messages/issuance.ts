@@ -63,6 +63,8 @@ export interface IssuanceData {
   isReset?: boolean;
   /** Message type ID */
   messageTypeId: number;
+  /** The decoder accepts legacy structs; the wallet composes only CBOR. */
+  layout?: 'cbor' | 'legacy';
 }
 
 /**
@@ -143,6 +145,7 @@ function tryCborDecode(payload: Uint8Array, messageTypeId: number): IssuanceData
     isLock: lock,
     isReset: reset,
     messageTypeId,
+    layout: 'cbor',
   };
 
   if (isSubasset) {
@@ -215,6 +218,7 @@ export function unpackIssuance(payload: Uint8Array, messageTypeId: number): Issu
     quantity,
     divisible,
     messageTypeId,
+    layout: 'legacy',
   };
 
   // Check for subasset format (ID 21 or 23)
@@ -257,15 +261,19 @@ export function unpackIssuance(payload: Uint8Array, messageTypeId: number): Issu
     }
   }
 
-  // Read remaining bytes as description
+  // Core's legacy unpack maps invalid UTF-8 to empty text, except c0 + "NULL", which
+  // means no description update. Treating that sentinel as hex invents a description.
   if (reader.remaining > 0) {
     const descBytes = reader.readRemaining();
     try {
       result.description = new TextDecoder('utf-8', { fatal: true }).decode(descBytes);
     } catch {
-      // Not valid UTF-8, store as hex
-      result.description = Array.from(descBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      const nullMarker = [0xc0, 0x4e, 0x55, 0x4c, 0x4c];
+      const absent = descBytes.length === nullMarker.length && nullMarker.every((byte, index) => descBytes[index] === byte);
+      result.description = absent ? undefined : '';
     }
+  } else if (payload.length >= 19) {
+    result.description = '';
   }
 
   return result;
