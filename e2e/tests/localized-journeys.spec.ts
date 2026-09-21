@@ -11,6 +11,8 @@ const catalogs = Object.fromEntries(['en', ...locales].map(locale => [locale,
 const message = (locale: string, key: string) => catalogs[locale][key].message as string;
 const asset = (name: string) => ({ asset: name, divisible: name !== 'TOKEN', asset_longname: null, description: 'Layout fixture', supply: name === 'TOKEN' ? '1000' : '100000000000', supply_normalized: '1000', locked: false });
 const pool = { asset_a: 'XCP', asset_b: 'TOKEN', lp_asset: 'LPTOKEN', quantity: '1000000000', reserve_a: 10000000000, reserve_b: 100, reserve_a_normalized: '100', reserve_b_normalized: '100', lp_asset_info: asset('LPTOKEN') };
+const btcTxid = '11'.repeat(32);
+const btcOutpoint = `${btcTxid}:0`;
 
 async function go(page: Page, route: string) {
   await page.evaluate(path => { window.location.hash = '/' + path; }, route);
@@ -41,12 +43,22 @@ walletTest.use({ browserLocale: locale });
 walletTest('canonical slippage and BTC Max survive currency changes', async ({ context, page }, info) => {
   walletTest.setTimeout(240_000);
   const composeRequests: URL[] = [];
+  const checkedOutpoints: string[][] = [];
   let quoteMode: 'ready' | 'loading' | 'limited' = 'ready';
   let releaseQuote: (() => void) | undefined;
   const api = await createGalleryApi(context, page, 'localized-journeys');
   await api.route(/\/v2\//, async route => {
     const url = new URL(route.request().url());
     const path = url.pathname.split('/v2/')[1]!;
+    if (path === 'utxos/withbalances') {
+      // BTC Max now checks each candidate directly. An empty list cannot prove
+      // that this output has no attached assets: the API requires a boolean map.
+      const outpoints = url.searchParams.get('utxos')?.split(',');
+      expect(outpoints).toEqual([btcOutpoint]);
+      checkedOutpoints.push(outpoints!);
+      await route.fulfill({ json: { result: { [btcOutpoint]: false } } });
+      return;
+    }
     if (path.includes('/compose/')) {
       composeRequests.push(url);
       await route.fulfill({ status: 400, json: { error: 'Test stops before signing' } });
@@ -76,7 +88,7 @@ walletTest('canonical slippage and BTC Max survive currency changes', async ({ c
   });
   await context.route('**/api/v1/fees/**', route => route.fulfill({ json: { fastestFee: 1, halfHourFee: 0.5, hourFee: 0.2 } }));
   await context.route('**/api/address/**', route => route.fulfill({ json: route.request().url().endsWith('/utxo')
-    ? [{ txid: '11'.repeat(32), vout: 0, value: 123456789, status: { confirmed: true } }]
+    ? [{ txid: btcTxid, vout: 0, value: 123456789, status: { confirmed: true } }]
     : { chain_stats: { funded_txo_sum: 123456789, spent_txo_sum: 0 }, mempool_stats: { funded_txo_sum: 0, spent_txo_sum: 0 } } }));
   await callGalleryService(page, 'updateSettings', [{ showHelpText: true, defaultPoolSlippage: '1' }]);
   await page.reload();
@@ -166,8 +178,10 @@ walletTest('canonical slippage and BTC Max survive currency changes', async ({ c
     const expectedRaw = 123456789 - (estimateVsize(1, 2, identity.address) + 30);
     for (const fiat of ['usd', 'cny']) {
       await controls.first().selectOption(fiat);
+      const checksBeforeMax = checkedOutpoints.length;
       await page.getByRole('button', { name: message(locale, 'balance_amount_with_max_input_use_maximum_available_amount'), exact: true }).click();
       await expect(btc).toHaveValue((expectedRaw / 100000000).toFixed(8));
+      expect(checkedOutpoints.length).toBeGreaterThan(checksBeforeMax);
       await page.locator('form').evaluate(form => (form as HTMLFormElement).requestSubmit());
       await expect.poll(() => composeRequests.length).toBe(fiat === 'usd' ? 1 : 2);
       expect(composeRequests.at(-1)!.searchParams.get('quantity')).toBe(String(expectedRaw));
