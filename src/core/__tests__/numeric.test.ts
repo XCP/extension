@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   calculateMaxDividendPerUnit,
   divideSatoshis,
-  formatBigNumber,
   fromSatoshis,
   isEqualTo,
   isFiniteNumber,
@@ -14,7 +13,6 @@ import {
   isLessThanOrEqualToSatoshis,
   isLessThanSatoshis,
   isValidPositiveNumber,
-  normalizeAssetSupply,
   roundDownToMultiple,
   subtractSatoshis,
   toBigNumber,
@@ -78,43 +76,24 @@ describe('numeric utilities', () => {
     });
   });
 
-  describe('formatBigNumber', () => {
-    it('should format with default 8 decimal places', () => {
-      const num = new BigNumber('123.456789123456789');
-      const result = formatBigNumber(num);
-      expect(result).toBe('123.45678912');
-    });
-
-    it('should format with custom decimal places', () => {
-      const num = new BigNumber('123.456789');
-      const result = formatBigNumber(num, 2);
-      expect(result).toBe('123.45');
-    });
-
-    it('should handle zero', () => {
-      const num = new BigNumber('0');
-      const result = formatBigNumber(num, 8);
-      expect(result).toBe('0.00000000');
-    });
-
-    it('should handle very small numbers', () => {
-      const num = new BigNumber('0.00000001');
-      const result = formatBigNumber(num, 8);
-      expect(result).toBe('0.00000001');
-    });
-
-    it('should handle large numbers', () => {
-      const num = new BigNumber('1234567890.12345678');
-      const result = formatBigNumber(num, 8);
-      expect(result).toBe('1234567890.12345678');
-    });
-  });
-
   describe('isValidPositiveNumber', () => {
     it('should validate positive numbers', () => {
       expect(isValidPositiveNumber('123.456')).toBe(true);
       expect(isValidPositiveNumber('0.00000001')).toBe(true);
       expect(isValidPositiveNumber('999999999.99999999')).toBe(true);
+    });
+
+    // A value starting with =, @, + or - is a spreadsheet formula once exported to CSV, so the
+    // formula-injection guard rejects it before BigNumber sees it.
+    //
+    // Only '+' actually exercises that guard here: '=' and '@' are NaN to BigNumber and '-' is
+    // not positive, so those three are rejected either way and asserting them proves nothing
+    // about the guard. They are kept as the caller-visible contract, not as evidence.
+    it.each(['=', '@', '+', '-'])('rejects a value starting with %s', (prefix) => {
+      expect(isValidPositiveNumber(`${prefix}1234`)).toBe(false);
+      expect(isValidPositiveNumber(`${prefix}cmd|' /c calc'!A0`)).toBe(false);
+      // Leading whitespace is trimmed before the check, so it cannot be used to slip past it.
+      expect(isValidPositiveNumber(`  ${prefix}1234`)).toBe(false);
     });
 
     it('should reject zero by default', () => {
@@ -155,9 +134,9 @@ describe('numeric utilities', () => {
     });
 
     it('should handle edge cases', () => {
-      expect(isValidPositiveNumber('0.', { allowZero: true })).toBe(true);
+      expect(isValidPositiveNumber('0.', { allowZero: true })).toBe(false);
       expect(isValidPositiveNumber('.1')).toBe(true);
-      expect(isValidPositiveNumber('1.')).toBe(true);
+      expect(isValidPositiveNumber('1.')).toBe(false);
     });
   });
 
@@ -256,10 +235,42 @@ describe('numeric utilities', () => {
     });
   });
 
+  describe('isFiniteNumber', () => {
+    it('accepts finite numbers, as strings or numbers', () => {
+      expect(isFiniteNumber('1.25')).toBe(true);
+      expect(isFiniteNumber(1.25)).toBe(true);
+      expect(isFiniteNumber(0)).toBe(true);
+      expect(isFiniteNumber('-3')).toBe(true);
+      // Same comma and space tolerance as toBigNumber.
+      expect(isFiniteNumber('1,234.5')).toBe(true);
+    });
+
+    it('rejects the infinities', () => {
+      expect(isFiniteNumber('Infinity')).toBe(false);
+      expect(isFiniteNumber(Number.POSITIVE_INFINITY)).toBe(false);
+      expect(isFiniteNumber(Number.NEGATIVE_INFINITY)).toBe(false);
+    });
+
+    // Each of these used to return true. Routing through toBigNumber replaced anything
+    // unparseable with its default of 0, and 0 is finite — so the predicate reported junk as a
+    // number and only ever rejected Infinity.
+    it('rejects what is not a number at all', () => {
+      expect(isFiniteNumber(Number.NaN)).toBe(false);
+      expect(isFiniteNumber('NaN')).toBe(false);
+      expect(isFiniteNumber('abc')).toBe(false);
+      expect(isFiniteNumber('')).toBe(false);
+      expect(isFiniteNumber('   ')).toBe(false);
+      expect(isFiniteNumber(null)).toBe(false);
+      expect(isFiniteNumber(undefined)).toBe(false);
+    });
+
+    it('does not treat a lone decimal point as a number', () => {
+      expect(isFiniteNumber('.')).toBe(false);
+    });
+  });
+
   describe('generic comparisons', () => {
     it('compares mixed numeric inputs safely', () => {
-      expect(isFiniteNumber('1.25')).toBe(true);
-      expect(isFiniteNumber('Infinity')).toBe(false);
       expect(isEqualTo('100', 100)).toBe(true);
       expect(isLessThan('99.99999999', 100)).toBe(true);
       expect(isLessThanOrEqualTo('100', 100)).toBe(true);
@@ -472,7 +483,7 @@ describe('numeric utilities', () => {
       expect(isValidPositiveNumber(total.toString(), { maxDecimals: 8 })).toBe(true);
       
       // Format for display
-      const formatted = formatBigNumber(total, 2);
+      const formatted = total.toFixed(2, BigNumber.ROUND_DOWN);
       expect(formatted).toBe('123.45');
     });
 
@@ -490,22 +501,6 @@ describe('numeric utilities', () => {
       // Convert back to BTC
       const btcAfterFee = fromSatoshis(afterFee);
       expect(btcAfterFee).toBe('0.00000544');
-    });
-  });
-
-  describe('normalizeAssetSupply', () => {
-    it('should normalize divisible asset supply from satoshis', () => {
-      // 100000000 satoshis = 1.0 for divisible
-      expect(normalizeAssetSupply('100000000', true)).toBe(1);
-      expect(normalizeAssetSupply('50000000', true)).toBe(0.5);
-      expect(normalizeAssetSupply('1', true)).toBe(0.00000001);
-    });
-
-    it('should not normalize indivisible asset supply', () => {
-      // Indivisible assets are whole units
-      expect(normalizeAssetSupply('100', false)).toBe(100);
-      expect(normalizeAssetSupply('1', false)).toBe(1);
-      expect(normalizeAssetSupply('1000000', false)).toBe(1000000);
     });
   });
 
@@ -555,14 +550,25 @@ describe('numeric utilities', () => {
       expect(result.toString()).toBe('0.1');
     });
 
+    it('never quotes a per-unit figure that overpays the balance', () => {
+      // The invariant that matters, held against a supply past 2^53: whatever rounding does, the
+      // whole distribution has to stay inside the balance.
+      const balance = '99526925811111111';
+      const supply = '99526925811111111';
+
+      const perUnit = calculateMaxDividendPerUnit(balance, supply, false);
+
+      expect(perUnit.times(supply).isLessThanOrEqualTo(balance)).toBe(true);
+    });
+
     it('should ensure max * supply does not exceed balance', () => {
       const balance = '0.47519999';
       const supply = '100000000'; // 1.0 normalized for divisible
       const isDivisible = true;
 
       const maxPerUnit = calculateMaxDividendPerUnit(balance, supply, isDivisible);
-      const normalizedSupply = normalizeAssetSupply(supply, isDivisible);
-      const totalPayout = maxPerUnit.times(normalizedSupply);
+      // 1.0 normalized, so the payout is the per-unit figure itself.
+      const totalPayout = maxPerUnit.times(toBigNumber(supply).dividedBy(100_000_000));
 
       // Total payout should equal the balance (within precision)
       expect(totalPayout.toString()).toBe(balance);

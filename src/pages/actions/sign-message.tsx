@@ -10,6 +10,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import type { AddressFormat } from "@/core/bitcoin/address";
 import { getSigningCapabilities, signMessage } from "@/core/bitcoin/messageSigner";
 import { analytics } from "@/platform/fathom";
+import { getWalletService } from '@/services/walletService';
 
 /**
  * SignMessage component for signing messages with Bitcoin addresses.
@@ -83,17 +84,11 @@ export default function SignMessagePage(): ReactElement {
 
       // Check if this is a hardware wallet
       if (activeWallet.type === 'hardware') {
-        // Use TrezorAdapter for hardware wallet signing
-        const { getTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
-        const { DerivationPaths } = await import('@/core/hardware/types');
-        const trezor = getTrezorAdapter();
-        await trezor.init();
-
-        const hwResult = await trezor.signMessage({
-          path: DerivationPaths.stringToPath(activeAddress.path),
-          message: message,
+        // Connect 10 runs in the service worker, alongside transaction signing.
+        const hwResult = await getWalletService().signMessage(message, activeAddress.address, {
+          walletId: activeWallet.id,
+          address: activeAddress.address,
         });
-
         resultSignature = hwResult.signature;
       } else {
         // Software wallet - get private key and sign locally
@@ -192,7 +187,7 @@ export default function SignMessagePage(): ReactElement {
             {message.length} characters
           </span>
           {message && (
-            <button
+            <button type="button"
               onClick={() => handleCopy(message, 'message')}
               className={`text-xs transition-colors duration-200 cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded ${
                 copiedField === 'message'
@@ -230,7 +225,7 @@ export default function SignMessagePage(): ReactElement {
                 <FaCheckCircle className="size-3" aria-hidden="true" />
                 Signed
               </span>
-              <button
+              <button type="button"
                 onClick={() => handleCopy(signature, 'signature')}
                 className={`text-xs transition-colors duration-200 cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded ${
                   copiedField === 'signature'

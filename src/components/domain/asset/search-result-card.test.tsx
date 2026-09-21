@@ -75,22 +75,15 @@ describe("SearchResultCard", () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it("handles keyboard navigation with Enter key", () => {
+  // Keyboard activation is the platform's job now: a real <button> turns Enter
+  // and Space into a click. jsdom does not synthesise that, so asserting the
+  // element type is what actually pins the behaviour down.
+  it("is a real button, so the browser handles keyboard activation", () => {
     render(<SearchResultCard symbol="XCP" />);
 
     const card = screen.getByRole("button");
-    fireEvent.keyDown(card, { key: "Enter" });
-
-    expect(mockNavigate).toHaveBeenCalledWith("/assets/XCP");
-  });
-
-  it("handles keyboard navigation with Space key", () => {
-    render(<SearchResultCard symbol="XCP" />);
-
-    const card = screen.getByRole("button");
-    fireEvent.keyDown(card, { key: " " });
-
-    expect(mockNavigate).toHaveBeenCalledWith("/assets/XCP");
+    expect(card.tagName).toBe("BUTTON");
+    expect(card).toHaveAttribute("type", "button");
   });
 
   it("applies custom className", () => {
@@ -111,7 +104,6 @@ describe("SearchResultCard", () => {
     render(<SearchResultCard symbol="XCP" />);
 
     const card = screen.getByRole("button");
-    expect(card).toHaveAttribute("tabIndex", "0");
     expect(card).toHaveAttribute("aria-label", "View XCP");
   });
 

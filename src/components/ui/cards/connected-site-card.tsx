@@ -68,9 +68,8 @@ export function ConnectedSiteCard({
   };
 
   return (
-    <div
+    <article
       className={`bg-white border border-gray-200 rounded-lg p-4 ${className}`}
-      role="article"
       aria-label={ariaLabel || `Connected site: ${hostname}`}
     >
       <div className="flex items-center justify-between">
@@ -102,7 +101,7 @@ export function ConnectedSiteCard({
         </div>
         
         {/* Disconnect Button */}
-        <button
+        <button type="button"
           onClick={handleDisconnect}
           onKeyDown={handleDisconnectKeyDown}
           className="flex-shrink-0 p-2 hover:bg-red-50 rounded-lg transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
@@ -111,7 +110,7 @@ export function ConnectedSiteCard({
           <FiX className="size-4 text-gray-400 group-hover:text-red-500 transition-colors" aria-hidden="true" />
         </button>
       </div>
-    </div>
+    </article>
   );
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchAddressPoolByLpAsset, type PoolPosition } from "@/core/counterparty/api";
+import { normalizePoolPosition } from "@/core/counterparty/pool";
 
 interface LpAssetPoolState {
   data: PoolPosition | null;
@@ -24,7 +25,7 @@ export function useLpAssetPool(asset: string | undefined): LpAssetPoolState {
     fetchAddressPoolByLpAsset(activeAddress.address, asset, { limit: 100 })
       .then((response) => {
         if (cancelled) return;
-        setState({ data: response, isLoading: false, error: null });
+        setState({ data: response ? normalizePoolPosition(response) : null, isLoading: false, error: null });
       })
       .catch((err) => {
         if (!cancelled) {

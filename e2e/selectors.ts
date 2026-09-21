@@ -105,9 +105,11 @@ export const index = {
 export const viewAddress = {
   // QR code canvas - has aria-label="QR code for {address}"
   qrCode: (page: Page) => page.locator('canvas[aria-label^="QR code for"]'),
-  // Address display div (clickable) vs copy button - be specific about element type
-  addressDisplay: (page: Page) => page.locator('div[role="button"][aria-label="Copy address"]'),
-  copyButton: (page: Page) => page.locator('button[aria-label="Copy address"]'),
+  // Two controls copy the address: the address itself, and the button under it.
+  // Match on the accessible name, not the tag — the tag is an implementation
+  // detail that changes whenever a faked role becomes a real element.
+  addressDisplay: (page: Page) => page.getByRole('button', { name: 'Copy the address shown here' }),
+  copyButton: (page: Page) => page.getByRole('button', { name: 'Copy address', exact: true }),
 };
 
 // ============================================================================
@@ -403,7 +405,7 @@ export const selectAddress = {
   // Use aria-label for stability, filter to the visible full-width one
   addAddressButton: (page: Page) => page.locator('button[aria-label="Add Address"]').filter({ hasText: 'Add Address' }),
   // Header Add button (icon only, no text)
-  headerAddButton: (page: Page) => page.locator('header button[aria-label="Add Address"]'),
+  headerAddressTypeButton: (page: Page) => page.locator('header button[aria-label="Change Address Type"]'),
   chevronButton: (page: Page) => page.locator('[aria-label="Select another address"]'),
   addressLabel: (page: Page, num: number) => page.locator(`text=Address ${num}`),
   copyButton: (page: Page) => page.locator('[title*="Copy"], [aria-label*="Copy"]').first(),
@@ -448,6 +450,7 @@ export const market = {
   xcpRange30d: (page: Page) => page.getByRole('button', { name: '30D' }),
   xcpRangeAll: (page: Page) => page.getByRole('button', { name: 'All' }),
   dexRate: (page: Page) => page.getByText(/DEX Rate/i),
+  floorPrice: (page: Page) => page.getByText(/Floor Price/i),
   allTimeHigh: (page: Page) => page.getByText(/All-Time High/i),
 
   // Asset dispensers/orders pages - main heading
@@ -470,13 +473,13 @@ export const market = {
   loadingState: (page: Page) => page.getByText(/Loading/i).first(),
   retryButton: (page: Page) => page.getByRole('button', { name: /Retry|Try Again/i }),
   // Order/dispenser cards in list views
-  orderCards: (page: Page) => page.getByRole('listitem').or(page.locator('[role="button"]').filter({ hasText: /BTC|XCP/ })).first(),
+  orderCards: (page: Page) => page.getByRole('listitem').or(page.getByRole('button').filter({ hasText: /BTC|XCP/ })).first(),
 
   // Pools tab
   poolsTab: (page: Page) => page.getByRole('tab', { name: 'Pools' }),
   poolSearchInput: (page: Page) => page.getByPlaceholder(/Search pools/i),
   poolManageSearchInput: (page: Page) => page.getByPlaceholder(/Search your pools/i),
-  poolCard: (page: Page) => page.locator('[role="button"]').filter({ hasText: /\/ XCP|XCP \// }),
+  poolCard: (page: Page) => page.getByRole('button').filter({ hasText: /\/ XCP|XCP \// }),
   poolEmptyState: (page: Page) => page.getByText(/No pools found|No pools matching/i).first(),
   poolPositionsEmptyState: (page: Page) => page.getByText(/You don't have any LP positions|No pool positions matching/i).first(),
   enterPoolLink: (page: Page) => page.getByRole('button', { name: /Enter Pool/i }),
@@ -585,9 +588,10 @@ export const secrets = {
 
   // Show private key page
   showPrivateKeyTitle: (page: Page) => page.getByText(/Show.*Private.*Key|Export.*Key/i).first(),
-  // The key itself: matching on text picked up the heading, and the accessible name is shared with
-  // the copy button below it, so pin to the element that actually renders the key.
-  privateKeyDisplay: (page: Page) => page.locator('div[role="button"][aria-label="Copy Private Key"]'),
+  // The key itself: matching on text picked up the heading, and the accessible name used to be
+  // shared with the copy button below it. The two are named apart now, so match on the name.
+  privateKeyDisplay: (page: Page) =>
+    page.getByRole('button', { name: 'Copy the private key shown here' }),
   warningMessage: (page: Page) => page.getByText(/never share|keep.*secret|dangerous/i).first(),
 };
 

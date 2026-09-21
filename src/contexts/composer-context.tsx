@@ -35,6 +35,7 @@
  * </ComposerProvider>
  * ```
  */
+
 import {
   type ReactElement,
   type ReactNode,
@@ -55,21 +56,33 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { isApiError } from "@/core/api/client";
 import { checkTransactionFee } from "@/core/bitcoin/feeVerification";
+import { fetchOrderMatch } from "@/core/counterparty/api";
+import { btcPayPayment } from "@/core/counterparty/btcpayPayment";
 import type { ApiResponse } from "@/core/counterparty/compose";
 import {
   verifyInscriptionEnvelope,
   verifyRevealTransaction,
 } from "@/core/counterparty/inscriptionEnvelope";
-import { normalizeFormData } from "@/core/counterparty/normalize";
-import { checkOutputPolicy, type IntendedDestination } from "@/core/counterparty/outputPolicy";
+import { normalizeFormData, verifiedReviewParams } from "@/core/counterparty/normalize";
+import {
+  checkOutputPolicy,
+  type IntendedDestination,
+  pinnedDestinations,
+  pinnedQuantity,
+  withPinnedDestinations,
+} from "@/core/counterparty/outputPolicy";
 import { packComposeMessage } from "@/core/counterparty/pack/messages";
+import { getSourcePubkey } from "@/core/counterparty/sourcePubkey";
 import { fetchInputValues } from "@/core/counterparty/transaction";
 import { unpackCounterpartyMessage } from "@/core/counterparty/unpack";
 import { packAddress } from "@/core/counterparty/unpack/address";
 import { bytesToHex } from "@/core/counterparty/unpack/binary";
 import { extractCounterpartyPayload } from "@/core/counterparty/unpack/opReturn";
 import { verifyTransaction } from "@/core/counterparty/unpack/verify";
+import { fromSatoshis } from '@/core/numeric';
 import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
+import { huntZeldForCompose } from "@/core/zeld/composeHunt";
+import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility";
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 
 
@@ -78,14 +91,6 @@ import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fa
  * After this time, UTXOs may have been spent or fee rates may have changed significantly.
  */
 const STALE_TRANSACTION_MS = 5 * 60 * 1000;
-
-/**
- * Compose types whose payee is derived server-side and so cannot appear in the request. A BTCPay is
- * settled against an order match, and the address to pay comes from that match rather than from
- * anything the user typed — output accounting would have nothing to match it against. These skip
- * the output policy; every other type is accounted for.
- */
-const SERVER_DERIVED_DESTINATION_TYPES = new Set(['btcpay']);
 
 /**
  * Where a burn sends its BTC. These are protocol constants rather than anything the user types, so
@@ -135,6 +140,7 @@ function freshComposerState<T>(): ComposerState<T> {
     isSigning: false,
     composedAt: null,
     feeRate: null,
+    zeldHuntProgress: null,
   };
 }
 
@@ -168,6 +174,8 @@ export function ComposerProvider<T>({
   const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress } = useWallet();
   const { settings } = useSettings();
   const { clearBalances } = useHeader();
+  // Read once per render so the compose callback depends on the number, not the settings object.
+  const zeldHuntSeconds = settings?.zeldHuntSeconds ?? 0;
 
   const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
   const previousWalletRef = useRef<string | undefined>(activeWallet?.id);
@@ -176,6 +184,8 @@ export function ComposerProvider<T>({
 
   // AbortController for cancelling pending operations on unmount/navigation
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Fired by the spinner's "Use it now": the hunt settles for the rare txid it already has.
+  const acceptZeldHuntRef = useRef<AbortController | null>(null);
 
   // Initialize state
   const [state, setState] = useState<ComposerState<T>>(freshComposerState);
@@ -190,7 +200,7 @@ export function ComposerProvider<T>({
     setLocalShowHelpText(prev => prev === null ? !settings?.showHelpText : !prev);
   }, [settings?.showHelpText]);
 
-  const setFeeRate = useCallback((rate: number) => {
+  const setFeeRate = useCallback((rate: number | null) => {
     setState(prev => ({ ...prev, feeRate: rate }));
   }, []);
   
@@ -201,6 +211,7 @@ export function ComposerProvider<T>({
       previousAddressRef.current &&
       activeAddress.address !== previousAddressRef.current
     ) {
+      abortControllerRef.current?.abort();
       setState(freshComposerState<T>());
     }
     previousAddressRef.current = activeAddress?.address;
@@ -216,6 +227,7 @@ export function ComposerProvider<T>({
                             (authState === "LOCKED" || previousAuthStateRef.current === "LOCKED");
 
     if (walletChanged || lockStateChanged) {
+      abortControllerRef.current?.abort();
       setState(freshComposerState<T>());
     }
 
@@ -256,12 +268,10 @@ export function ComposerProvider<T>({
 
     try {
 
-      // Normalize data based on compose type (skip for broadcast which doesn't need normalization)
-      let dataForApi: any = { ...userData, sourceAddress: activeAddress.address };
-      if (composeType !== 'broadcast') {
-        const { normalizedData } = await normalizeFormData(formData, composeType);
-        dataForApi = { ...normalizedData, sourceAddress: activeAddress.address };
-      }
+      // Normalization validates drafts and fee rates before any request. A
+      // broadcast has no scaled quantities, but its fee still uses this gate.
+      const { normalizedData, assetInfoCache } = await normalizeFormData(formData, composeType);
+      const dataForApi: Record<string, any> = { ...normalizedData, sourceAddress: activeAddress.address };
 
       // Check if aborted before API call
       if (signal.aborted) return;
@@ -363,9 +373,18 @@ export function ComposerProvider<T>({
           // Differences too minor to block, shown on the review screen so the user can still see them.
           verificationWarnings = verification.warnings;
         }
+      } else if (!inscriptionCommitAddress && packComposeMessage(composeType, dataForApi)) {
+        // No payload, but this request's message can be built — so the transaction carries none of
+        // it and cannot do what was asked. Signing it would spend the fee to no effect. Types that
+        // legitimately carry no message (a BTC send, a burn) cannot be built and do not reach here,
+        // and an inscription's message lives in its envelope rather than an output.
+        throw new Error(
+          'Transaction verification failed: the composed transaction carries no Counterparty '
+          + 'message, so it would not do what you asked.'
+        );
       }
-      // Note: If no Counterparty payload was found, this might be a non-Counterparty
-      // transaction, which is allowed through (e.g., BTC-only transactions)
+      // A transaction with no payload and no message to expect is a plain BTC spend; its outputs
+      // and fee are still checked below.
 
       // Independently bound the fee for every transaction type (including
       // BTC-only sends with no OP_RETURN), so a drain-to-fee response or a
@@ -403,9 +422,35 @@ export function ComposerProvider<T>({
       // Account for every output: each must be the data output, an address the request names, or
       // change to one of our own addresses. Anything else rejects the transaction, so a response
       // that adds a recipient fails closed even though no field-level check covers it (ADR-019).
-      if (activeAddress && !SERVER_DERIVED_DESTINATION_TYPES.has(composeType)) {
+      if (activeAddress) {
         const intendedDestinations: IntendedDestination[] =
           addressesNamedIn(dataForApi).map(address => ({ address }));
+        // A BTCPay pays an address the request never names — it comes from the order match — so
+        // this used to skip output accounting altogether, and an added output went unexamined. The
+        // match decides both the payee and the amount (`messages/btcpay.py`), so the wallet reads
+        // the match itself and holds the transaction to what it says. Refusing when the match
+        // cannot be read is the point: the alternative is accepting the composer's word for where
+        // the money goes, which is the thing being guarded against.
+        if (composeType === 'btcpay') {
+          const matchId = typeof dataForApi.order_match_id === 'string'
+            ? dataForApi.order_match_id
+            : '';
+          const match = matchId ? await fetchOrderMatch(matchId) : null;
+          if (!match) {
+            throw new Error(
+              'Transaction verification failed: this order match could not be read, so the '
+              + 'payment it settles could not be checked.'
+            );
+          }
+          const payment = btcPayPayment(match);
+          if (!payment) {
+            throw new Error(
+              'Transaction verification failed: neither side of this order match is BTC, so it '
+              + 'is not settled by a BTCPay.'
+            );
+          }
+          intendedDestinations.push({ address: payment.address, value: payment.quantity });
+        }
         // The inscription commit output pays an address the request cannot name, but one that was
         // just derived from an envelope verified to carry this request's message — so it is
         // explained by proof rather than by exemption.
@@ -415,19 +460,65 @@ export function ComposerProvider<T>({
         if (composeType === 'burn') {
           // A burn carries no Counterparty message at all, so the outputs are the only thing that
           // can be checked — and pinning the amount here is the only verification a burn gets.
-          const quantity = Number(dataForApi.quantity);
-          const value = Number.isSafeInteger(quantity) && quantity > 0 ? quantity : undefined;
-          for (const address of BURN_ADDRESSES) intendedDestinations.push({ address, value });
+          for (const address of BURN_ADDRESSES) {
+            intendedDestinations.push({ address, value: pinnedQuantity(dataForApi.quantity) });
+          }
         }
+        // Naming an address is not the same as agreeing to an amount paid to it.
+        const accountedFor = withPinnedDestinations(
+          intendedDestinations,
+          pinnedDestinations(composeType, dataForApi, [activeAddress.address])
+        );
 
         const outputCheck = checkOutputPolicy({
           rawTransaction: response.result.rawtransaction,
           ownAddresses: [activeAddress.address],
-          intendedDestinations,
+          intendedDestinations: accountedFor,
+          // The same key the compose request sent as multisig_pubkey (both read the provider), so
+          // any data output embedding a different recovery key is a substituted response, not a
+          // choice this wallet made. Null when the wallet had no key to send, which turns the
+          // check off rather than inventing an expectation.
+          expectedRecoveryPubkey: getSourcePubkey(activeAddress.address) ?? undefined,
+          // An ownership transfer names its new owner nowhere in the message; the node reads it
+          // from the output ahead of the data output.
+          positionalDestination: composeType === 'issuance' && typeof dataForApi.transfer_destination === 'string'
+            && dataForApi.transfer_destination
+            ? dataForApi.transfer_destination
+            : undefined,
         });
         if (!outputCheck.ok) {
           throw new Error(outputCheck.error || 'Transaction pays outputs your request did not ask for');
         }
+      }
+
+      response = {
+        ...response,
+        result: {
+          ...response.result,
+          params: { ...response.result.params, ...verifiedReviewParams(composeType, dataForApi, assetInfoCache) },
+        },
+      };
+
+      // Hunt for a ZELD txid last, once every check above has passed, because it edits the
+      // transaction: nLockTime becomes the nonce, behind final sequences. The hunt proves that is
+      // the only change
+      // and records its outcome on the result, so the review describes exactly what gets signed.
+      // Skipped rather than failed when it cannot apply, so no transaction is ever blocked by it.
+      if (zeldHuntSeconds > 0 && activeWallet) {
+        acceptZeldHuntRef.current = new AbortController();
+        response = await huntZeldForCompose(response, {
+          sourceAddress: activeAddress.address,
+          addressFormat: activeWallet.addressFormat,
+          publicKeyHex: activeAddress.pubKey,
+          walletType: activeWallet.type,
+          seconds: zeldHuntSeconds,
+          signal,
+          acceptEarly: acceptZeldHuntRef.current.signal,
+          onProgress: (progress) => {
+            if (!signal.aborted) setState(prev => ({ ...prev, zeldHuntProgress: progress }));
+          },
+        });
+        acceptZeldHuntRef.current = null;
       }
 
       // Final abort check before state update
@@ -447,6 +538,7 @@ export function ComposerProvider<T>({
         decodedMessage,
         isComposing: false,
         composedAt: Date.now(),
+        zeldHuntProgress: null,
       }));
     } catch (error) {
       // Silently ignore abort errors (user navigated away)
@@ -474,8 +566,8 @@ export function ComposerProvider<T>({
         isComposing: false,
       }));
     }
-  }, [activeAddress, composeApi, composeType, state.isComposing]);
-  
+  }, [activeAddress, activeWallet, composeApi, composeType, zeldHuntSeconds, state.isComposing]);
+
   // Core sign and broadcast logic - extracted to avoid duplication
   const performSignAndBroadcast = useCallback(async () => {
     if (!state.apiResponse || !activeAddress) {
@@ -508,17 +600,23 @@ export function ComposerProvider<T>({
       setHardwareOperationInProgress(true);
     }
 
+    const signal = abortControllerRef.current?.signal;
+    signal?.throwIfAborted();
     let signedTxHex: string;
     try {
-      // Sign transaction - PSBT and input data are passed for hardware wallet support
-      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, { psbtHex, inputValues, lockScripts });
+      // Signing, including a legacy hunt, stays behind the background session guard.
+      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, {
+        psbtHex, inputValues, lockScripts,
+        ...(activeWallet && huntsWhileSigning(activeWallet.addressFormat, activeWallet.type)
+          && state.apiResponse.result.zeld_hunt?.reason === HUNTS_WHILE_SIGNING
+          ? { zeldHuntSeconds: state.apiResponse.result.zeld_hunt?.seconds ?? 0 }
+          : {}),
+      });
     } finally {
-      // Re-enable idle timer after hardware signing completes (or fails)
-      if (isHardwareWallet) {
-        setHardwareOperationInProgress(false);
-      }
+      if (isHardwareWallet) setHardwareOperationInProgress(false);
     }
-
+    // Navigating away or changing identity while a hunt/signature is pending must not broadcast.
+    signal?.throwIfAborted();
     // Record transaction before broadcast to prevent double-broadcast
     // Use timestamp + random suffix to avoid any collision risk
     const placeholderTxid = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -613,7 +711,7 @@ export function ComposerProvider<T>({
 
       // Track successful broadcast with fee bucket
       const btcFee = apiResponseWithBroadcast?.result?.btc_fee || 0;
-      const btcFeeAmount = btcFee / 100000000;
+      const btcFeeAmount = fromSatoshis(btcFee, { asNumber: true });
       analytics.track('broadcast', getBtcBucket(btcFeeAmount));
 
       // Only skip state update if aborted (user navigated away)
@@ -681,6 +779,10 @@ export function ComposerProvider<T>({
     setState(prev => ({ ...prev, error: null }));
   }, []);
 
+  const acceptZeldHunt = useCallback(() => {
+    acceptZeldHuntRef.current?.abort();
+  }, []);
+
   const contextValue = useMemo(() => ({
     state,
     composeTransaction,
@@ -688,6 +790,7 @@ export function ComposerProvider<T>({
     goBack,
     reset,
     clearError,
+    acceptZeldHunt,
     showHelpText,
     toggleHelpText,
     feeRate: state.feeRate,
@@ -702,6 +805,7 @@ export function ComposerProvider<T>({
     goBack,
     reset,
     clearError,
+    acceptZeldHunt,
     showHelpText,
     toggleHelpText,
     setFeeRate,

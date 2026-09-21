@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
   assertUnlockAllowed,
@@ -9,6 +9,39 @@ import {
 describe('unlockRateLimiter', () => {
   beforeEach(() => {
     fakeBrowser.reset();
+  });
+
+  describe('when session storage is unreadable', () => {
+    // The limiter used to answer "no recent attempts" for "could not read the attempts", so a
+    // storage fault switched the throttle off entirely rather than degrading it.
+    const breakStorage = () =>
+      vi.spyOn(fakeBrowser.storage.session, 'get').mockRejectedValue(new Error('storage unavailable'));
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('still throttles using what this worker has seen', async () => {
+      breakStorage();
+      for (let i = 0; i < 5; i++) await recordFailedUnlockAttempt();
+      await expect(assertUnlockAllowed()).rejects.toThrow(/Too many password attempts/);
+    });
+
+    it('does not block an unlock on its own', async () => {
+      // Cleared first because the mirror deliberately outlives a storage fault: attempts from the
+      // case above would otherwise still be counted, which is the intended behaviour in a session
+      // but not the state under test here.
+      await clearUnlockAttempts();
+      // The property that matters: an unreadable store must never lock anyone out. With no
+      // attempts recorded there is nothing to throttle, storage error or not.
+      breakStorage();
+      await expect(assertUnlockAllowed()).resolves.toBeUndefined();
+    });
+
+    it('still clears the window after a correct password', async () => {
+      breakStorage();
+      for (let i = 0; i < 5; i++) await recordFailedUnlockAttempt();
+      await clearUnlockAttempts();
+      await expect(assertUnlockAllowed()).resolves.toBeUndefined();
+    });
   });
 
   it('allows attempts under the limit', async () => {

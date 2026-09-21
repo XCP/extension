@@ -1,9 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/popup';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/address';
 import * as sessionManager from '@/platform/auth/sessionManager';
+import { saveKeychainRecord } from '@/platform/storage/walletStorage';
 import { walletManager } from '@/platform/walletManager';
+import type { Wallet } from '@/types/wallet';
 import { useWallet, WalletProvider } from '../wallet-context';
 
 // Mock webext-bridge first with comprehensive mocking
@@ -69,7 +72,10 @@ vi.mock('@/platform/auth/sessionManager', () => ({
 
 // Mock keychainExists from walletStorage - defaults to true (wallets exist)
 const mockKeychainExists = vi.fn().mockResolvedValue(true);
-vi.mock('@/platform/storage/walletStorage', () => ({
+// Spread the real module so the mock does not go stale as walletStorage gains exports; only the
+// keychain check is stubbed, and the watch is inert because nothing writes the record here.
+vi.mock('@/platform/storage/walletStorage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/platform/storage/walletStorage')>()),
   keychainExists: () => mockKeychainExists(),
 }));
 
@@ -78,9 +84,12 @@ const mockWalletService = {
   refreshWallets: vi.fn().mockResolvedValue(undefined),
   getWallets: vi.fn().mockResolvedValue([]),
   getActiveWallet: vi.fn().mockResolvedValue(null),
+  getActiveAddress: vi.fn().mockResolvedValue(undefined),
   getLastActiveAddress: vi.fn().mockResolvedValue(null),
-  setActiveWallet: vi.fn().mockResolvedValue(undefined),
+  getSettings: vi.fn().mockResolvedValue({ connectedWebsites: [] }),
+  selectWallet: vi.fn().mockResolvedValue(undefined),
   setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
+  emitProviderEvent: vi.fn().mockResolvedValue(undefined),
   isKeychainUnlocked: vi.fn().mockResolvedValue(false),
   unlockKeychain: vi.fn().mockResolvedValue(undefined),
   lockKeychain: vi.fn().mockResolvedValue(undefined),
@@ -155,10 +164,13 @@ describe('WalletContext', () => {
     mockWalletService.refreshWallets.mockResolvedValue(undefined);
     mockWalletService.getWallets.mockResolvedValue(mockWallets);
     mockWalletService.getActiveWallet.mockResolvedValue(mockWallets[0]);
+    mockWalletService.getActiveAddress.mockResolvedValue(undefined);
     mockWalletService.getLastActiveAddress.mockResolvedValue(null);
+    mockWalletService.getSettings.mockResolvedValue({ connectedWebsites: [] });
     mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
-    mockWalletService.setActiveWallet.mockResolvedValue(undefined);
+    mockWalletService.selectWallet.mockResolvedValue(undefined);
     mockWalletService.setLastActiveAddress.mockResolvedValue(undefined);
+    mockWalletService.emitProviderEvent.mockResolvedValue(undefined);
 
     // Setup default mocks for other dependencies
     vi.mocked(walletManager.refreshWallets).mockResolvedValue(mockWallets as any);
@@ -251,6 +263,33 @@ describe('WalletContext', () => {
 
       // WalletService method should have been called
       expect(mockWalletService.createMnemonicWallet).toHaveBeenCalled();
+    });
+
+    it('defaults a newly created mnemonic wallet to Native SegWit before crossing the service boundary', async () => {
+      const newWallet = {
+        id: 'wallet3',
+        name: 'New Wallet',
+        type: 'mnemonic' as const,
+        addressFormat: AddressFormat.P2WPKH,
+        addressCount: 1,
+        addresses: []
+      };
+      mockWalletService.createMnemonicWallet.mockResolvedValue(newWallet);
+
+      const { result } = renderHook(() => useWallet(), {
+        wrapper: WalletProvider
+      });
+
+      await act(async () => {
+        await result.current.createMnemonicWallet('test mnemonic', 'password123');
+      });
+
+      expect(mockWalletService.createMnemonicWallet).toHaveBeenCalledWith(
+        'test mnemonic',
+        'password123',
+        undefined,
+        AddressFormat.P2WPKH
+      );
     });
 
     it('should handle wallet creation failure', async () => {
@@ -438,13 +477,35 @@ describe('WalletContext', () => {
   });
 
   describe('Active Wallet/Address Management', () => {
-    it('should set active wallet', async () => {
-      // Set up mock to return the new active wallet after setActiveWallet is called
-      mockWalletService.setActiveWallet.mockImplementation(async (walletId: string) => {
-        const wallet = mockWallets.find(w => w.id === walletId);
-        if (wallet) {
-          mockWalletService.getActiveWallet.mockResolvedValue(wallet);
-        }
+    it('selects and loads the active wallet through one public operation', async () => {
+      const firstWallet: Wallet = {
+        ...mockWallets[0]!,
+        addressFormat: AddressFormat.P2WPKH,
+        addresses: [{
+          address: 'bc1qfirst',
+          path: "m/84'/0'/0'/0/0",
+          name: 'Address 1',
+          pubKey: '02first',
+        }],
+      };
+      const secondWallet: Wallet = {
+        ...mockWallets[1]!,
+        addressFormat: AddressFormat.P2PKH,
+        addresses: [{
+          address: '1second',
+          path: "m/44'/0'/0'/0/0",
+          name: 'Address 1',
+          pubKey: '02second',
+        }],
+      };
+      let selectedWallet = firstWallet;
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
+      mockWalletService.getWallets.mockResolvedValue([firstWallet, secondWallet]);
+      mockWalletService.getActiveWallet.mockImplementation(async () => selectedWallet);
+      mockWalletService.getActiveAddress.mockImplementation(async () => selectedWallet.addresses[0]);
+      mockWalletService.getLastActiveAddress.mockResolvedValue('bc1qfirst');
+      mockWalletService.selectWallet.mockImplementation(async (walletId: string) => {
+        selectedWallet = walletId === secondWallet.id ? secondWallet : firstWallet;
       });
 
       const { result } = renderHook(() => useWallet(), {
@@ -452,17 +513,138 @@ describe('WalletContext', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.wallets.length).toBeGreaterThan(0);
+        expect(result.current.activeWallet?.id).toBe(firstWallet.id);
       });
 
       await act(async () => {
-        await result.current.setActiveWallet(mockWallets[1] as any);
+        await result.current.selectWallet(secondWallet.id);
       });
 
-      // Wait for state to update
       await waitFor(() => {
-        expect(result.current.activeWallet?.id).toBe(mockWallets[1]!.id);
+        expect(result.current.activeWallet?.id).toBe(secondWallet.id);
       });
+      expect(mockWalletService.selectWallet).toHaveBeenCalledWith(secondWallet.id);
+    });
+
+    it('emits accountsChanged to each connected site when a wallet switch changes the address', async () => {
+      const firstWallet: Wallet = {
+        ...mockWallets[0]!,
+        addressFormat: AddressFormat.P2WPKH,
+        addresses: [{
+          address: 'bc1qfirst',
+          path: "m/84'/0'/0'/0/0",
+          name: 'Address 1',
+          pubKey: '02first',
+        }],
+      };
+      const secondWallet: Wallet = {
+        ...mockWallets[1]!,
+        addressFormat: AddressFormat.P2PKH,
+        addresses: [{
+          address: '1second',
+          path: "m/44'/0'/0'/0/0",
+          name: 'Address 1',
+          pubKey: '02second',
+        }],
+      };
+      mockWalletService.getWallets.mockResolvedValue([firstWallet, secondWallet]);
+      mockWalletService.getActiveWallet.mockResolvedValue(firstWallet);
+      mockWalletService.getActiveAddress.mockResolvedValue(firstWallet.addresses[0]);
+      mockWalletService.getLastActiveAddress.mockResolvedValue('bc1qfirst');
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
+      mockWalletService.getSettings.mockResolvedValue({
+        connectedWebsites: ['https://one.example', 'https://two.example'],
+      });
+      mockWalletService.selectWallet.mockImplementation(async () => {
+        mockWalletService.getActiveWallet.mockResolvedValue(secondWallet);
+        mockWalletService.getActiveAddress.mockResolvedValue(secondWallet.addresses[0]);
+      });
+
+      const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+      await waitFor(() => {
+        expect(result.current.activeAddress?.address).toBe('bc1qfirst');
+      });
+
+      await act(async () => {
+        await result.current.selectWallet(secondWallet.id);
+      });
+
+      expect(mockWalletService.emitProviderEvent).toHaveBeenNthCalledWith(
+        1,
+        'https://one.example',
+        'accountsChanged',
+        ['1second']
+      );
+      expect(mockWalletService.emitProviderEvent).toHaveBeenNthCalledWith(
+        2,
+        'https://two.example',
+        'accountsChanged',
+        ['1second']
+      );
+    });
+
+    it('preserves the selected index and emits accountsChanged after an address format change', async () => {
+      const legacyWallet: Wallet = {
+        ...mockWallets[0]!,
+        addressFormat: AddressFormat.P2PKH,
+        addressCount: 2,
+        addresses: [0, 1].map(index => ({
+          address: `legacy-${index}`,
+          path: `m/44'/0'/0'/0/${index}`,
+          name: `Address ${index + 1}`,
+          pubKey: `02legacy${index}`,
+        })),
+      };
+      const taprootWallet: Wallet = {
+        ...legacyWallet,
+        addressFormat: AddressFormat.P2TR,
+        addresses: [0, 1].map(index => ({
+          address: `taproot-${index}`,
+          path: `m/86'/0'/0'/0/${index}`,
+          name: `Address ${index + 1}`,
+          pubKey: `02taproot${index}`,
+        })),
+      };
+      let activeWallet: Wallet = legacyWallet;
+      let activeAddress = legacyWallet.addresses[1]!;
+      let lastActiveAddress = activeAddress.address;
+
+      mockWalletService.getWallets.mockImplementation(async () => [activeWallet]);
+      mockWalletService.getActiveWallet.mockImplementation(async () => activeWallet);
+      mockWalletService.getActiveAddress.mockImplementation(async () => activeAddress);
+      mockWalletService.getLastActiveAddress.mockImplementation(async () => lastActiveAddress);
+      mockWalletService.setLastActiveAddress.mockImplementation(async address => {
+        lastActiveAddress = address;
+      });
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
+      mockWalletService.getSettings.mockResolvedValue({
+        connectedWebsites: ['https://market.example'],
+      });
+      mockWalletService.updateWalletAddressFormat.mockImplementation(async () => {
+        activeWallet = taprootWallet;
+        activeAddress = taprootWallet.addresses[1]!;
+        lastActiveAddress = activeAddress.address;
+      });
+
+      const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+      await waitFor(() => {
+        expect(result.current.activeAddress?.address).toBe('legacy-1');
+      });
+
+      await act(async () => {
+        await result.current.updateWalletAddressFormat(
+          legacyWallet.id,
+          AddressFormat.P2TR
+        );
+      });
+
+      expect(result.current.activeWallet?.addressCount).toBe(2);
+      expect(result.current.activeAddress?.address).toBe('taproot-1');
+      expect(mockWalletService.emitProviderEvent).toHaveBeenCalledWith(
+        'https://market.example',
+        'accountsChanged',
+        ['taproot-1']
+      );
     });
 
     it('should set active address', async () => {
@@ -769,5 +951,100 @@ describe('WalletContext', () => {
       // But wallet3 should trigger an update
       mockWalletService.getWallets.mockResolvedValueOnce([wallet3]);
     });
+  });
+});
+describe('WalletContext — wallets changed in another surface', () => {
+  /**
+   * Wallets and their addresses live in the keychain record, so adding a wallet or deriving an
+   * address anywhere lands as a write to it. The popup and the side panel are separate documents
+   * and people run both, so the one merely open must not keep the list it read on mount.
+   */
+  const record = (data: string) => ({
+    version: 1 as const,
+    kdf: { iterations: 600000 },
+    salt: 'dGVzdC1zYWx0',
+    encryptedKeychain: data,
+  });
+
+  const wallet = {
+    id: 'wallet1',
+    name: 'Wallet 1',
+    encryptedMnemonic: 'encrypted1',
+    encryptedPrivateKey: null,
+    type: 'mnemonic' as const,
+    addressFormat: 'P2WPKH' as const,
+    addressCount: 1,
+    addresses: [{ name: 'Address 1', address: 'bc1qtest', path: "m/84'/0'/0'/0/0" }],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fakeBrowser.reset();
+    mockKeychainExists.mockResolvedValue(true);
+    mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
+    mockWalletService.getWallets.mockResolvedValue([wallet]);
+    mockWalletService.getActiveWallet.mockResolvedValue(wallet);
+    mockWalletService.getLastActiveAddress.mockResolvedValue(wallet.addresses[0]?.address);
+  });
+
+  /**
+   * Mount does not settle immediately: loadWithRetry waits 100ms, refreshes, and retries after a
+   * further 400ms when no wallets came back. A test that changes a mock before that has finished
+   * sees the retry pick the change up and passes whether or not anything is watching — so these
+   * wait for the refreshes to stop before touching anything.
+   */
+  const settle = async () => {
+    let previous = -1;
+    while (previous !== mockWalletService.getWallets.mock.calls.length) {
+      previous = mockWalletService.getWallets.mock.calls.length;
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      });
+    }
+  };
+
+  it('picks up a wallet added elsewhere', async () => {
+    const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+    await waitFor(() => expect(result.current.wallets).toHaveLength(1));
+    await settle();
+
+    const second = { ...wallet, id: 'wallet2', name: 'Second Wallet' };
+    mockWalletService.getWallets.mockResolvedValue([wallet, second]);
+
+    await act(async () => {
+      await saveKeychainRecord(record('wallet-added-elsewhere'));
+    });
+
+    await waitFor(() => expect(result.current.wallets).toHaveLength(2));
+  });
+
+  it('does not refresh while the keychain is locked', async () => {
+    mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
+    const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+    await waitFor(() => expect(result.current.authState).toBe('LOCKED'));
+    await settle();
+
+    const callsBefore = mockWalletService.getWallets.mock.calls.length;
+    await act(async () => {
+      await saveKeychainRecord(record('written-while-locked'));
+    });
+
+    // Nothing to re-read, and the lock path owns that transition.
+    expect(mockWalletService.getWallets.mock.calls.length).toBe(callsBefore);
+  });
+
+  it('stops watching when the provider unmounts', async () => {
+    const { result, unmount } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+    await waitFor(() => expect(result.current.wallets).toHaveLength(1));
+    await settle();
+
+    unmount();
+    const callsBefore = mockWalletService.getWallets.mock.calls.length;
+
+    await act(async () => {
+      await saveKeychainRecord(record('after-unmount'));
+    });
+
+    expect(mockWalletService.getWallets.mock.calls.length).toBe(callsBefore);
   });
 });

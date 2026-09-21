@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { DispenserCard, type DispenserOption } from "./dispenser-card";
 
 // Mock the format and numeric utils
@@ -9,15 +10,19 @@ vi.mock("@/core/format", () => ({
     maximumFractionDigits = 8,
     minimumFractionDigits = 0,
   }: {
-    value: number;
+    // A quantity arrives as a decimal string; the real formatter takes it as one.
+    value: string | number;
     maximumFractionDigits?: number;
     minimumFractionDigits?: number;
   }) => {
-    return value.toFixed(maximumFractionDigits);
+    return Number(value).toFixed(maximumFractionDigits);
   },
 }));
 
-vi.mock("@/core/numeric", () => ({
+vi.mock('@/core/numeric', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/numeric')>()),
+  asBaseUnits: (v: unknown) => v,
+  asDisplayUnits: (v: unknown) => v,
   divide: (a: string, b: string) =>
     parseFloat((parseFloat(a) / parseFloat(b)).toString()),
   roundDown: (value: number) => Math.floor(value),
@@ -31,10 +36,10 @@ describe("DispenserCard", () => {
       tx_hash: "abc123def456",
       source: "bc1qsource123",
       status: 0,
-      give_remaining: 500000000,
-      give_remaining_normalized: "5.00000000",
-      give_quantity: 100000000,
-      give_quantity_normalized: "1.00000000",
+      give_remaining: asBaseUnits(500000000),
+      give_remaining_normalized: asDisplayUnits("5.00000000"),
+      give_quantity: asBaseUnits(100000000),
+      give_quantity_normalized: asDisplayUnits("1.00000000"),
       satoshirate: 10000,
       asset_info: {
         asset_longname: "RARE.PEPE.COLLECTION",
@@ -216,8 +221,8 @@ describe("DispenserCard", () => {
       ...mockDispenser,
       dispenser: {
         ...mockDispenser.dispenser,
-        give_remaining_normalized: "10.00000000",
-        give_quantity_normalized: "2.00000000",
+        give_remaining_normalized: asDisplayUnits("10.00000000"),
+        give_quantity_normalized: asDisplayUnits("2.00000000"),
       },
     };
 

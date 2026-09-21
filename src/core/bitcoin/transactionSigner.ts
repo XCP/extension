@@ -1,11 +1,71 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { OutScript, p2tr, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { checkScript } from '@scure/btc-signer/payment.js';
 import { AddressFormat } from '@/core/bitcoin/address';
+import { parseConsensusTransaction, parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
+import { assertTransactionMatchesReviewed } from '@/core/bitcoin/transactionIntegrity';
+import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { hybridSignTransaction } from '@/core/bitcoin/uncompressedSigner';
 import { fetchPreviousRawTransaction, fetchUTXOs, getUtxoByTxid } from '@/core/bitcoin/utxo';
+import { isBareMultisigDataOutput } from '@/core/counterparty/unpack/multisig';
 import { SigningError, UtxoError, ValidationError } from '@/core/errors';
+import type { huntTxid } from '@/core/zeld/hunt';
+import { huntZeldWhileSigning } from '@/core/zeld/signHunt';
 import type { Address, Wallet } from '@/types/wallet';
+
+/**
+ * The output validation btc-signer performs when disableScriptCheck is off, applied per output,
+ * except for Counterparty's multisig encoding.
+ *
+ * btc-signer rejects every bare multisig output ("non-wrapped ms"), and allowUnknownOutputs does
+ * not cover it because bare multisig is a known script type. Counterparty's `multisig` encoding
+ * carries message data in exactly that shape, so the library option is off on the rebuilt
+ * transaction and the rule is re-applied here to every output that is not a recognized
+ * Counterparty data output. The recognizer is the one the review policy already trusts.
+ */
+function assertOutputScriptShape(index: number, script: Uint8Array | undefined): void {
+  if (!script || isBareMultisigDataOutput(bytesToHex(script))) return;
+  try {
+    checkScript(script);
+  } catch (err) {
+    throw new ValidationError(
+      'INVALID_TRANSACTION',
+      `Output ${index} is not a script this wallet signs: ${err instanceof Error ? err.message : 'unknown error'}`,
+    );
+  }
+}
+
+/**
+ * The input validation btc-signer performs when disableScriptCheck is off, applied per input.
+ *
+ * Inputs are always this wallet's own standard outputs, so the library's rules apply to them
+ * unchanged: a nested SegWit redeemScript must hash to the prevout, and Taproot key material must
+ * belong to a P2TR prevout that commits to it.
+ */
+function assertInputScriptShape(
+  index: number,
+  input: { redeemScript?: Uint8Array; witnessScript?: Uint8Array; tapInternalKey?: Uint8Array },
+  prevoutScript: Uint8Array | undefined,
+): void {
+  if (!prevoutScript) return;
+  try {
+    checkScript(prevoutScript, input.redeemScript, input.witnessScript);
+    const isTaprootPrevout = OutScript.decode(prevoutScript).type === 'tr';
+    if (input.tapInternalKey) {
+      if (!isTaprootPrevout) throw new Error('Taproot metadata without P2TR previous output');
+      const expected = p2tr(input.tapInternalKey).script;
+      if (bytesToHex(expected) !== bytesToHex(prevoutScript)) {
+        throw new Error('P2TR previous output does not commit to tapInternalKey');
+      }
+    }
+  } catch (err) {
+    throw new ValidationError(
+      'INVALID_TRANSACTION',
+      `Input ${index} does not match its previous output: ${err instanceof Error ? err.message : 'unknown error'}`,
+    );
+  }
+}
 
 /**
  * Transaction input data for signing.
@@ -30,68 +90,9 @@ interface TransactionInputData {
 }
 
 /**
- * Sequence used when the parsed transaction does not carry one. Shared by the rebuild and the
- * check below so the two cannot disagree about what "unset" means.
+ * Bitcoin's default sequence when an input does not explicitly supply one.
  */
-const DEFAULT_SEQUENCE = 0xfffffffd;
-
-/**
- * Require the transaction being signed to be structurally identical to the one that was reviewed.
- *
- * signTransaction does not sign the bytes it parsed — it builds a fresh Transaction and copies
- * fields across, because the signer needs per-input prevout data the raw bytes do not carry. Any
- * field missed in that copy is silently substituted by @scure's defaults, and the user ends up
- * signing something other than what they approved. That has happened twice: version and lockTime
- * were dropped (a timelocked transaction signed as immediately spendable), and sequence was
- * overwritten with 0xfffffffd (a final transaction signed as replaceable). Both were found in the
- * field rather than by the code.
- *
- * Everything a Bitcoin transaction serialises is compared here — version, lockTime, and per input
- * and output the fields that are not the signature itself — so a third omission fails loudly
- * instead of producing a signature over bytes nobody saw.
- */
-function assertRebuildMatchesReviewed(signed: Transaction, reviewed: Transaction): void {
-  const mismatch = (what: string, expected: unknown, actual: unknown): never => {
-    throw new SigningError(
-      `Refusing to sign: rebuilt transaction differs from the reviewed one (${what}: expected ${expected}, got ${actual})`,
-      { userMessage: 'The transaction changed while being prepared, so it was not signed.' }
-    );
-  };
-
-  if (signed.version !== reviewed.version) mismatch('version', reviewed.version, signed.version);
-  if (signed.lockTime !== reviewed.lockTime) mismatch('lockTime', reviewed.lockTime, signed.lockTime);
-  if (signed.inputsLength !== reviewed.inputsLength) {
-    mismatch('input count', reviewed.inputsLength, signed.inputsLength);
-  }
-  if (signed.outputsLength !== reviewed.outputsLength) {
-    mismatch('output count', reviewed.outputsLength, signed.outputsLength);
-  }
-
-  for (let i = 0; i < reviewed.inputsLength; i++) {
-    const a = reviewed.getInput(i);
-    const b = signed.getInput(i);
-    if (bytesToHex(a.txid!) !== bytesToHex(b.txid!)) {
-      mismatch(`input ${i} txid`, bytesToHex(a.txid!), bytesToHex(b.txid!));
-    }
-    if (a.index !== b.index) mismatch(`input ${i} index`, a.index, b.index);
-    // Compared through the same default the rebuild applies. @scure omits sequence when it is
-    // absent, and the rebuild fills 0xfffffffd there — reading the raw fields would call that a
-    // mismatch and refuse a transaction that is fine. The check that matters is that a sequence
-    // the composer *did* set survives, not that the field was spelled out.
-    const seqA = a.sequence ?? DEFAULT_SEQUENCE;
-    const seqB = b.sequence ?? DEFAULT_SEQUENCE;
-    if (seqA !== seqB) mismatch(`input ${i} sequence`, seqA, seqB);
-  }
-
-  for (let i = 0; i < reviewed.outputsLength; i++) {
-    const a = reviewed.getOutput(i);
-    const b = signed.getOutput(i);
-    if (a.amount !== b.amount) mismatch(`output ${i} amount`, a.amount, b.amount);
-    if (bytesToHex(a.script!) !== bytesToHex(b.script!)) {
-      mismatch(`output ${i} script`, bytesToHex(a.script!), bytesToHex(b.script!));
-    }
-  }
-}
+const DEFAULT_SEQUENCE = 0xffffffff;
 
 /**
  * Sign a Bitcoin transaction.
@@ -118,7 +119,11 @@ export async function signTransaction(
   privateKeyHex: string,
   compressed: boolean = true,
   inputValues?: number[],
-  lockScripts?: string[]
+  lockScripts?: string[],
+  resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout,
+  assertStillAuthorized: () => void = () => {},
+  zeldHuntSeconds: number = 0,
+  zeldHunt?: typeof huntTxid,
 ): Promise<string> {
   if (!wallet) {
     throw new ValidationError('INVALID_TRANSACTION', 'Wallet not provided');
@@ -141,18 +146,26 @@ export async function signTransaction(
     const hasApiData = inputValues && lockScripts &&
                        inputValues.length > 0 && lockScripts.length > 0;
 
-    // Fetch UTXOs only when needed (legacy always needs it, SegWit only without API data)
-    // When API data is provided, it's fresh from the compose call - no need to re-verify
-    const needsUtxoFetch = isLegacy || !hasApiData;
-    const utxos = needsUtxoFetch ? await fetchUTXOs(targetAddress.address) : [];
+    const parsedTx = parseTransactionForSigning(rawTransaction);
 
-    const rawTxBytes = hexToBytes(rawTransaction);
-    const parsedTx = Transaction.fromRaw(rawTxBytes, {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true
-    });
+    // A provider transaction can spend change from a transaction this extension broadcast only
+    // milliseconds earlier. Resolve those inputs from the trusted cross-context journal first;
+    // public indexers are merely the fallback for inputs we did not create ourselves.
+    const shouldResolvePrevouts = isLegacy || !hasApiData;
+    const trustedPrevouts = shouldResolvePrevouts
+      ? await Promise.all(Array.from({ length: parsedTx.inputsLength }, async (_, index) => {
+          const input = parsedTx.getInput(index);
+          if (!input?.txid || input.index === undefined) return null;
+          return resolveTrustedPrevout(
+            bytesToHex(input.txid),
+            input.index,
+            targetAddress.address
+          );
+        }))
+      : [];
+    const needsUtxoFetch = shouldResolvePrevouts
+      && trustedPrevouts.some((prevout) => prevout === null);
+    const utxos = needsUtxoFetch ? await fetchUTXOs(targetAddress.address) : [];
     // Carry the version and lock time across. Rebuilding without them silently rewrote the
     // transaction the user reviewed: @scure defaults to version 2 and lockTime 0, so a transaction
     // presented as "not valid until block N" was signed as immediately spendable, and the txid shown
@@ -163,8 +176,12 @@ export async function signTransaction(
       allowUnknownInputs: true,
       allowUnknownOutputs: true,
       allowLegacyWitnessUtxo: true,
+      // The library check is all-or-nothing per transaction and rejects Counterparty's bare
+      // multisig data outputs. It is off here and re-applied per input and per output by
+      // assertInputScriptShape and assertOutputScriptShape, which exempt only recognized
+      // Counterparty data outputs.
       disableScriptCheck: true,
-      allowUnknown: true
+      lowR: true,
     });
 
     // For legacy uncompressed key signing, we need previous output scripts
@@ -192,10 +209,12 @@ export async function signTransaction(
         throw new ValidationError('INVALID_TRANSACTION', `Invalid input at index ${i}: missing txid or index`);
       }
       const txidHex = bytesToHex(input.txid);
+      const trustedPrevout = trustedPrevouts[i] ?? null;
 
-      // Verify UTXO exists when we fetched UTXOs (legacy or no API data)
-      // Skip check when using API data - it's fresh from the compose call
-      if (needsUtxoFetch) {
+      // A locally journalled output was parsed from a transaction this extension successfully
+      // broadcast and was classified as safe wallet-owned change. Other inputs retain the
+      // existing live UTXO check.
+      if (shouldResolvePrevouts && !trustedPrevout) {
         const utxo = getUtxoByTxid(utxos, txidHex, input.index);
         if (!utxo) {
           throw new UtxoError('UTXO_NOT_FOUND', `UTXO not found for input ${i}: ${txidHex}:${input.index}`, {
@@ -224,14 +243,15 @@ export async function signTransaction(
 
       if (isLegacy) {
         // Legacy P2PKH needs full previous transaction for nonWitnessUtxo
-        const rawPrevTx = await fetchPreviousRawTransaction(txidHex);
+        const rawPrevTx = trustedPrevout?.rawTxHex
+          ?? await fetchPreviousRawTransaction(txidHex);
         if (!rawPrevTx) {
           throw new UtxoError('UTXO_NOT_FOUND', `Failed to fetch previous transaction: ${txidHex}`, {
             txid: txidHex,
             userMessage: 'Could not retrieve transaction data from the network. Please try again.',
           });
         }
-        const prevTx = Transaction.fromRaw(hexToBytes(rawPrevTx), { allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+        const prevTx = parseConsensusTransaction(rawPrevTx);
         const prevOutput = prevTx.getOutput(input.index);
         if (!prevOutput) {
           throw new UtxoError('UTXO_NOT_FOUND', `Output not found in previous transaction: ${txidHex}:${input.index}`, {
@@ -261,6 +281,17 @@ export async function signTransaction(
             inputData.redeemScript = redeemScript;
           }
         }
+      } else if (trustedPrevout) {
+        // SegWit prevout data comes directly from the parent bytes we already broadcast, so the
+        // signature does not wait for mempool.space or blockstream.info to index that parent.
+        inputData.witnessUtxo = {
+          script: hexToBytes(trustedPrevout.scriptPubKey),
+          amount: BigInt(trustedPrevout.value),
+        };
+        if (wallet.addressFormat === AddressFormat.P2SH_P2WPKH) {
+          const redeemScript = p2wpkh(pubkeyBytes).script;
+          if (redeemScript) inputData.redeemScript = redeemScript;
+        }
       } else {
         // SegWit without API data - fetch previous transaction (fallback)
         const rawPrevTx = await fetchPreviousRawTransaction(txidHex);
@@ -270,7 +301,7 @@ export async function signTransaction(
             userMessage: 'Could not retrieve transaction data from the network. Please try again.',
           });
         }
-        const prevTx = Transaction.fromRaw(hexToBytes(rawPrevTx), { allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+        const prevTx = parseConsensusTransaction(rawPrevTx);
         const prevOutput = prevTx.getOutput(input.index);
         if (!prevOutput) {
           throw new UtxoError('UTXO_NOT_FOUND', `Output not found in previous transaction: ${txidHex}:${input.index}`, {
@@ -294,11 +325,13 @@ export async function signTransaction(
         }
       }
 
+      assertInputScriptShape(i, inputData, inputData.witnessUtxo?.script ?? prevOutputScripts[i]);
       tx.addInput(inputData);
     }
 
     for (let i = 0; i < parsedTx.outputsLength; i++) {
       const output = parsedTx.getOutput(i);
+      assertOutputScriptShape(i, output.script);
       tx.addOutput({
         script: output.script,
         amount: output.amount,
@@ -307,10 +340,28 @@ export async function signTransaction(
 
     // Checked before signing, so a mismatch costs nothing and no signature over the wrong bytes
     // is ever produced.
-    assertRebuildMatchesReviewed(tx, parsedTx);
+    assertTransactionMatchesReviewed(tx, parsedTx);
 
     // Sign and finalize the transaction
     try {
+      // Prevout resolution above awaits the network; a lock or identity change during that
+      // work must invalidate the key already held by this operation before it signs anything.
+      assertStillAuthorized();
+      if (isLegacy && zeldHuntSeconds > 0) {
+        const hunted = await huntZeldWhileSigning({
+          rawTxHex: rawTransaction,
+          sourceAddress: targetAddress.address,
+          // These scripts came from resolved parent transactions, not compose API hints.
+          lockScripts: prevOutputScripts.map(bytesToHex),
+          privateKeyHex,
+          compressed,
+          seconds: zeldHuntSeconds,
+          assertStillAuthorized,
+          hunt: zeldHunt,
+        });
+        assertStillAuthorized();
+        if (hunted) return hunted.signedTxHex;
+      }
       if (!compressed && (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet || wallet.addressFormat === AddressFormat.FreewalletBIP39)) {
         // Uncompressed P2PKH - use hybrid signing approach
         const compressedPubkey = getPublicKey(privateKeyBytes, true);

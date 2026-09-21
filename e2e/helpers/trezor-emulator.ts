@@ -1,17 +1,94 @@
 /**
  * Trezor Emulator Helpers
  *
- * HTTP-based helpers for controlling the Trezor emulator in CI/testing.
- * These bypass the WebSocket-based trezor-user-env-link to avoid TypeScript issues.
+ * Helpers for controlling the Trezor emulator in CI/testing.
  *
- * The emulator HTTP API runs on port 9001 (or TREZOR_EMULATOR_HTTP_PORT).
+ * trezor-user-env exposes a WebSocket controller on port 9001. Port 9001 is not an HTTP API.
  * The bridge runs on port 21325 (or TREZOR_BRIDGE_URL).
  */
 
 // Configuration
-const EMULATOR_HTTP_PORT = process.env.TREZOR_EMULATOR_HTTP_PORT || '9001';
-const EMULATOR_HTTP_URL = `http://localhost:${EMULATOR_HTTP_PORT}`;
+const EMULATOR_CONTROLLER_URL = process.env.TREZOR_EMULATOR_CONTROLLER_URL
+  || process.env.TREZOR_EMULATOR_URL
+  || 'ws://127.0.0.1:9001';
 const BRIDGE_URL = process.env.TREZOR_BRIDGE_URL || 'http://localhost:21325';
+
+let controllerSocket: WebSocket | null = null;
+let controllerConnection: Promise<WebSocket> | null = null;
+let controllerMessageId = 0;
+const controllerRequests = new Map<number, {
+  resolve: () => void;
+  reject: (error: Error) => void;
+  timeout: ReturnType<typeof setTimeout>;
+}>();
+
+function rejectControllerRequests(error: Error): void {
+  for (const request of controllerRequests.values()) {
+    clearTimeout(request.timeout);
+    request.reject(error);
+  }
+  controllerRequests.clear();
+}
+
+async function getControllerSocket(): Promise<WebSocket> {
+  if (controllerSocket?.readyState === WebSocket.OPEN) return controllerSocket;
+  if (controllerConnection) return controllerConnection;
+
+  controllerConnection = new Promise<WebSocket>((resolve, reject) => {
+    const socket = new WebSocket(EMULATOR_CONTROLLER_URL);
+    let welcomed = false;
+
+    const failConnection = (message: string) => {
+      controllerSocket = null;
+      controllerConnection = null;
+      rejectControllerRequests(new Error(message));
+      if (!welcomed) reject(new Error(message));
+    };
+
+    socket.addEventListener('message', (event) => {
+      let response: { id?: number; type?: string; success?: boolean; error?: unknown };
+      try {
+        response = JSON.parse(String(event.data));
+      } catch {
+        return;
+      }
+
+      if (!welcomed && (response.type === 'client' || response.id === undefined)) {
+        welcomed = true;
+        controllerSocket = socket;
+        resolve(socket);
+      }
+
+      if (response.id === undefined) return;
+      const pending = controllerRequests.get(response.id);
+      if (!pending) return;
+      controllerRequests.delete(response.id);
+      clearTimeout(pending.timeout);
+      if (response.success === false) {
+        pending.reject(new Error(`Trezor emulator command failed: ${String(response.error)}`));
+      } else {
+        pending.resolve();
+      }
+    });
+    socket.addEventListener('error', () => failConnection('Trezor emulator controller failed'));
+    socket.addEventListener('close', () => failConnection('Trezor emulator controller closed'));
+  });
+
+  return controllerConnection;
+}
+
+async function sendControllerCommand(type: string): Promise<void> {
+  const socket = await getControllerSocket();
+  const id = controllerMessageId++;
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      controllerRequests.delete(id);
+      reject(new Error(`Timed out waiting for Trezor emulator command ${type}`));
+    }, 10_000);
+    controllerRequests.set(id, { resolve, reject, timeout });
+    socket.send(JSON.stringify({ type, id }));
+  });
+}
 
 // Expected addresses from the test mnemonic: "all all all all all all all all all all all all"
 export const EXPECTED_ADDRESSES = {
@@ -33,42 +110,35 @@ export const EXPECTED_ADDRESSES = {
 };
 
 /**
- * Press "Yes" on the emulator via HTTP API
+ * Press "Yes" on the emulator via the trezor-user-env controller.
  * Used to auto-confirm prompts during testing
  */
 export async function emulatorPressYes(): Promise<void> {
   try {
-    await fetch(`${EMULATOR_HTTP_URL}/emulator/decision?value=true`, {
-      method: 'POST',
-    });
+    await sendControllerCommand('emulator-press-yes');
   } catch {
     // Ignore errors - emulator might not need confirmation
   }
 }
 
 /**
- * Press "No" on the emulator via HTTP API
+ * Press "No" on the emulator via the WebSocket controller.
  */
 export async function emulatorPressNo(): Promise<void> {
   try {
-    await fetch(`${EMULATOR_HTTP_URL}/emulator/decision?value=false`, {
-      method: 'POST',
-    });
+    await sendControllerCommand('emulator-press-no');
   } catch {
     // Ignore errors
   }
 }
 
 /**
- * Check if the emulator HTTP API is available
+ * Check if the emulator controller is available.
  */
 export async function isEmulatorAvailable(): Promise<boolean> {
   try {
-    const response = await fetch(`${EMULATOR_HTTP_URL}/status`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(5000),
-    });
-    return response.ok;
+    await getControllerSocket();
+    return true;
   } catch {
     return false;
   }
@@ -79,10 +149,9 @@ export async function isEmulatorAvailable(): Promise<boolean> {
  */
 export async function isBridgeAvailable(): Promise<boolean> {
   try {
-    const response = await fetch(`${BRIDGE_URL}/`, {
+    const response = await fetch(`${BRIDGE_URL}/enumerate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
       signal: AbortSignal.timeout(5000),
     });
     return response.ok;

@@ -157,10 +157,12 @@ describe('Asset Name Validation Fuzz Tests - Testing Real Functions', () => {
         expect(regularResult).toBeDefined();
         expect(subassetResult).toBeDefined();
         
-        // Results might differ based on isSubasset flag
+        // A dot is not a legal character in a parent asset name - validateParentAsset
+        // accepts only /^[B-Z][A-Z]{3,11}$/ or A<digits> - so a dotted name is valid
+        // only under the subasset flag. The flag changing the answer is the point.
         if (name.includes('.')) {
-          // Should be more likely valid as subasset
-          expect(subassetResult.isValid || !subassetResult.isValid).toBe(true);
+          expect(regularResult.isValid).toBe(false);
+          expect(subassetResult.isValid).toBe(true);
         }
       });
     });
@@ -292,10 +294,12 @@ describe('Asset Name Validation Fuzz Tests - Testing Real Functions', () => {
             expect(subassetResult).toBeDefined();
             expect(parentResult).toBeDefined();
             
-            // If parent is invalid, subasset should also be invalid
-            if (!parentResult.isValid && parent !== '') {
-              // Note: The actual implementation might have different logic
-              expect(subassetResult.isValid || !subassetResult.isValid).toBe(true);
+            // Neither half contains a dot, so validateSubasset splits fullName at the
+            // separator and validates exactly this parent. An invalid parent therefore
+            // has to sink the subasset, carrying its reason with it.
+            if (!parentResult.isValid) {
+              expect(subassetResult.isValid).toBe(false);
+              expect(subassetResult.error).toBe(`Invalid parent asset: ${parentResult.error}`);
             }
           }
         ),

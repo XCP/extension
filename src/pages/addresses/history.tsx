@@ -88,12 +88,14 @@ export default function AddressHistoryPage(): ReactElement {
     }
   }, [searchParams, setSearchParams]);
 
-  // Fetch transactions when page or address changes
+  // Fetch transactions when page or address changes. loadTransactions is redefined every render,
+  // so it is omitted here and in the two effects below; its inputs are listed instead.
   useEffect(() => {
     loadTransactions();
   }, [currentPage, activeAddress]);
 
-  // Auto-refresh for unconfirmed transactions
+  // Auto-refresh for unconfirmed transactions. Listing loadTransactions would recreate the
+  // interval every render, so the 30s timer would never fire.
   useEffect(() => {
     // Check if there are any unconfirmed transactions
     const hasUnconfirmed = transactions.some(tx => tx.confirmed === false);
@@ -108,7 +110,7 @@ export default function AddressHistoryPage(): ReactElement {
     }
   }, [transactions]);
 
-  // Configure header
+  // Configure header. loadTransactions omitted (see above).
   useEffect(() => {
     setHeaderProps({
       title: "History",
@@ -166,7 +168,7 @@ export default function AddressHistoryPage(): ReactElement {
   if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="history-title">
+    <section className="flex flex-col h-full" aria-labelledby="history-title">
       <div className="flex-1 overflow-auto no-scrollbar p-4">
         {transactions.length > 0 ? (
           <div className="space-y-4">
@@ -197,6 +199,6 @@ export default function AddressHistoryPage(): ReactElement {
         )}
       </div>
       {transactions.length > 0 && totalPages > 1 && <div className="p-4">{renderPagination()}</div>}
-    </div>
+    </section>
   );
 }

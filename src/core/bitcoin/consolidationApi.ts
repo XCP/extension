@@ -1,4 +1,5 @@
 import { apiClient } from "@/core/api/client";
+import { fetchTransactionChainStatus } from '@/core/bitcoin/utxo';
 
 const API_BASE_URL = "https://api.xcp.io";
 const SATOSHIS_PER_BTC = 100_000_000;
@@ -241,6 +242,55 @@ class ConsolidationApiService {
     return response.data;
   }
 
+  /**
+   * The tracker is the bookkeeper, not the oracle. A row it still calls pending may have confirmed
+   * minutes ago — its own reconciliation lags the chain, and when it was down it could not lag less
+   * than the outage — so every pending row is checked against the chain before it is repeated to
+   * the user. The chain can only promote (pending to confirmed): an explorer failure returns null
+   * and the tracker's word stands, never the other way around.
+   */
+  private async reconcileWithChain(
+    rows: RecoveryAttemptsResponse["recoveries"],
+  ): Promise<RecoveryAttemptsResponse["recoveries"]> {
+    const pending = rows.filter((row) => row.status === "pending").slice(0, 10);
+    if (pending.length === 0) return rows;
+    const chainStatuses = await Promise.all(
+      pending.map(async (row) => [row.txid, await fetchTransactionChainStatus(row.txid)] as const),
+    );
+    const confirmedOnChain = new Map(
+      chainStatuses.filter(([, status]) => status?.confirmed).map(([txid, status]) => [txid, status!]),
+    );
+    if (confirmedOnChain.size === 0) return rows;
+    return rows.map((row) => {
+      const chain = confirmedOnChain.get(row.txid);
+      if (!chain) return row;
+      return {
+        ...row,
+        status: "confirmed" as const,
+        confirmations: Math.max(1, row.confirmations),
+        block_time: row.block_time ?? chain.block_time ?? null,
+      };
+    });
+  }
+
+  /**
+   * How many recoveries are genuinely still pending, with the chain consulted for each. Null when
+   * the tracker cannot be asked at all — unknown, which callers must not render as a number.
+   */
+  async chainVerifiedPendingCount(address: string): Promise<number | null> {
+    let rows: RecoveryAttemptsResponse["recoveries"];
+    try {
+      const attempts = await apiClient.get<RecoveryAttemptsResponse>(
+        `${API_BASE_URL}/addresses/${encodeURIComponent(address)}/recoveries`,
+      );
+      rows = attempts.data.recoveries;
+    } catch {
+      return null;
+    }
+    const reconciled = await this.reconcileWithChain(rows);
+    return reconciled.filter((row) => row.status === "pending").length;
+  }
+
   async getConsolidationStatus(
     address: string,
   ): Promise<ConsolidationStatusResponse> {
@@ -250,7 +300,7 @@ class ConsolidationApiService {
         `${API_BASE_URL}/addresses/${encodeURIComponent(address)}/recoveries`,
       ),
     ]);
-    const rows = attempts.data.recoveries;
+    const rows = await this.reconcileWithChain(attempts.data.recoveries);
     return {
       address,
       status: {

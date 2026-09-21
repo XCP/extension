@@ -1,12 +1,13 @@
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { FaPlus } from "@/components/icons";
+import { FaCog, FaPlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressList } from "@/components/ui/lists/address-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { isCounterwalletFormat } from "@/core/bitcoin/address";
 import { MAX_ADDRESSES_PER_WALLET } from "@/core/wallet/constants";
 import { analytics } from "@/platform/fathom";
 import type { Address } from "@/types/wallet";
@@ -38,9 +39,24 @@ export default function AddressesPage(): ReactElement {
   // Get return path from state, fallback to index
   const state = location.state as { returnTo?: string } | null;
   const returnTo = state?.returnTo || PATHS.INDEX;
-  const { activeWallet, activeAddress, setActiveAddress, addAddress, keychainLocked } = useWallet();
+  const {
+    activeWallet,
+    activeAddress,
+    setActiveAddress,
+    addAddress,
+    addUtxoAddress,
+    removeUtxoAddress,
+    sweepUtxoAddresses,
+    keychainLocked,
+  } = useWallet();
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
+
+  // Only a Counterwallet mnemonic can have one: the convention is Rare Pepe Wallet's, and no other
+  // format's holders can have used it.
+  const canHaveUtxoAddresses =
+    activeWallet?.type === "mnemonic" && isCounterwalletFormat(activeWallet.addressFormat);
 
   /**
    * Handles adding a new address to the active wallet.
@@ -61,15 +77,75 @@ export default function AddressesPage(): ReactElement {
         return;
       }
       setIsAddingAddress(true);
-      await addAddress(activeWallet.id);
+      const added = await addAddress(activeWallet.id);
       setError(null);
+
+      // Adding an address to a restored Counterwallet seed recovers one that may already have
+      // been used, so its change address may already hold assets. Checked here, where the address
+      // first appears, and never again — a later pass would re-ask about an empty one forever.
+      // Contained: the address is already added, so an opportunistic extra must not be able to
+      // report it as failed.
+      if (canHaveUtxoAddresses) {
+        const index = Number(added.path.split("/").at(-1));
+        if (Number.isSafeInteger(index) && index >= 0) {
+          try {
+            const found = await sweepUtxoAddresses(activeWallet.id, [index]);
+            if (found.length > 0) {
+              setNotice(`Found ${found[0]?.name}, now listed below.`);
+            }
+          } catch (sweepError) {
+            console.warn("UTXO address lookup failed after adding an address:", sweepError);
+          }
+        }
+      }
     } catch (err) {
       console.error("Failed to add address:", err);
       setError("Failed to add address. Please try again.");
     } finally {
       setIsAddingAddress(false);
     }
-  }, [activeWallet, keychainLocked, addAddress, navigate, isAddingAddress]);
+  }, [activeWallet, keychainLocked, addAddress, navigate, isAddingAddress, canHaveUtxoAddresses, sweepUtxoAddresses]);
+
+  /**
+   * Looks for the Rare Pepe Wallet UTXO address paired with one of this wallet's addresses.
+   */
+  const handleFindUtxoAddress = useCallback(async (address: Address) => {
+    if (!activeWallet?.id) return;
+    const index = Number(address.path.split("/").at(-1));
+    if (!Number.isSafeInteger(index) || index < 0) {
+      setError("Could not read the derivation index for this address.");
+      return;
+    }
+
+    setError(null);
+    setNotice(null);
+    try {
+      const found = await addUtxoAddress(activeWallet.id, index);
+      setNotice(
+        found
+          ? `Found ${found.name}, now listed below.`
+          : `No UTXO address is in use for ${address.name}.`
+      );
+    } catch (err) {
+      console.error("Failed to look up UTXO address:", err);
+      setError(err instanceof Error ? err.message : "Failed to look up UTXO address.");
+    }
+  }, [activeWallet?.id, addUtxoAddress]);
+
+  /**
+   * Stops listing a kept UTXO address. The funds are untouched; only the listing forgets it.
+   */
+  const handleRemoveUtxoAddress = useCallback(async (address: Address) => {
+    if (!activeWallet?.id) return;
+    setError(null);
+    setNotice(null);
+    try {
+      await removeUtxoAddress(activeWallet.id, address.path);
+    } catch (err) {
+      console.error("Failed to remove UTXO address:", err);
+      setError(err instanceof Error ? err.message : "Failed to remove UTXO address.");
+    }
+  }, [activeWallet?.id, removeUtxoAddress]);
 
   /**
    * Handles selecting an address and navigating back to the source page.
@@ -91,22 +167,25 @@ export default function AddressesPage(): ReactElement {
       title: "Addresses",
       onBack: () => navigate(returnTo, { replace: true }),
       rightButton:
-        activeWallet?.type === "mnemonic" && !isAddingAddress
+        activeWallet?.type === "mnemonic"
           ? {
-              icon: <FaPlus aria-hidden="true" />,
-              onClick: handleAddAddress,
-              ariaLabel: "Add Address",
+              icon: <FaCog aria-hidden="true" />,
+              onClick: () => navigate("/settings/address-types", { state: { returnTo: PATHS.SELECT } }),
+              ariaLabel: "Change Address Type",
             }
           : undefined,
     });
-  }, [setHeaderProps, navigate, returnTo, activeWallet?.type, handleAddAddress, isAddingAddress]);
+  }, [setHeaderProps, navigate, returnTo, activeWallet?.type]);
 
   if (!activeWallet) return <div className="p-4">No active wallet found</div>;
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="address-selection-title">
+    <section className="flex flex-col h-full" aria-labelledby="address-selection-title">
       <div className="flex-grow overflow-y-auto p-4">
         {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+        {notice && (
+          <ErrorAlert message={notice} severity="info" onClose={() => setNotice(null)} />
+        )}
         <h2 id="address-selection-title" className="sr-only">Select an Address</h2>
         <AddressList
           addresses={activeWallet.addresses}
@@ -114,6 +193,8 @@ export default function AddressesPage(): ReactElement {
           onSelectAddress={handleSelectAddress}
           walletId={activeWallet.id}
           isHardwareWallet={activeWallet.type === 'hardware'}
+          onFindUtxoAddress={canHaveUtxoAddresses ? handleFindUtxoAddress : undefined}
+          onRemoveUtxoAddress={canHaveUtxoAddresses ? handleRemoveUtxoAddress : undefined}
         />
       </div>
       <div className="p-4">
@@ -133,6 +214,6 @@ export default function AddressesPage(): ReactElement {
           {isAddingAddress ? "Adding…" : keychainLocked ? "Unlock to Add Address" : "Add Address"}
         </Button>
       </div>
-    </div>
+    </section>
   );
 }

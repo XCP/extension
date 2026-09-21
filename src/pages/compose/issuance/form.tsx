@@ -12,13 +12,23 @@ import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/core/bitcoin/address';
-import type { IssuanceOptions } from "@/core/counterparty/compose";
+import { type IssuanceOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
 import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
-import { toBigNumber } from "@/core/numeric";
+import { asDisplayUnits } from '@/core/numeric';
+import { maxSupplyForDivisibility } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
-/** Maximum file size for inscriptions in KB */
-const INSCRIPTION_MAX_SIZE_KB = 400;
+/**
+ * Maximum file size for inscriptions in KB.
+ *
+ * Read from the compose layer rather than stated here: the two disagreed, and the form won the
+ * argument in the worst way. It advertised 400KB while a compose carried the file in the request
+ * URL, where anything past ~15KB was refused by the node's front door — with no CORS headers, so
+ * the browser reported it as a failed fetch and the wallet said "Network error. Please check your
+ * internet connection." Compose now posts a body when the URL would overflow; this is what that
+ * body can actually hold.
+ */
+const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
 /**
  * Props for the IssuanceForm component, aligned with Composer's formAction.
@@ -66,20 +76,7 @@ export function IssuanceForm({
   const showAddress = !showAsset && activeAddress && !isInitializing;
   
   // Calculate maximum amount based on divisibility
-  const MAX_INT_STR = "9223372036854775807";
-  const getMaxAmount = () => {
-    if (isDivisible) {
-      // For divisible assets, the actual max quantity is MAX_INT,
-      // but we need to show it in decimal form (divide by 10^8)
-      const maxInt = toBigNumber(MAX_INT_STR);
-      const divisor = toBigNumber("100000000"); // 10^8
-      const maxDivisible = maxInt.dividedBy(divisor);
-      return maxDivisible.toFixed();
-    } else {
-      // For indivisible assets, max is MAX_INT
-      return MAX_INT_STR;
-    }
-  };
+  const getMaxAmount = () => maxSupplyForDivisibility(isDivisible);
 
   
   // Update asset name when initialParentAsset changes
@@ -99,7 +96,7 @@ export function IssuanceForm({
   // Handlers
   const handleFileChange = (file: File | null) => {
     setFileError(null);
-    if (file && file.size > INSCRIPTION_MAX_SIZE_KB * 1024) {
+    if (file && file.size > MAX_INSCRIPTION_FILE_BYTES) {
       setFileError(`File size must be less than ${INSCRIPTION_MAX_SIZE_KB}KB`);
       return;
     }
@@ -153,7 +150,7 @@ export function IssuanceForm({
                   divisible: parentAssetDetails.assetInfo.divisible ?? false,
                   locked: parentAssetDetails.assetInfo.locked ?? false,
                   supply: parentAssetDetails.assetInfo.supply,
-                  supply_normalized: parentAssetDetails.assetInfo.supply_normalized || '0'
+                  supply_normalized: asDisplayUnits(parentAssetDetails.assetInfo.supply_normalized || '0')
                 }}
                 className="mt-1 mb-5"
               />
@@ -206,27 +203,7 @@ export function IssuanceForm({
               name="divisible"
               label="Divisible"
               defaultChecked={isDivisible}
-              onChange={(checked) => {
-                setIsDivisible(checked);
-                // Adjust amount if changing divisibility
-                if (amount) {
-                  const currentAmount = toBigNumber(amount);
-                  const newMax = toBigNumber(getMaxAmount());
-                  
-                  // If current amount exceeds new max, set to new max
-                  if (currentAmount.isGreaterThan(newMax)) {
-                    setAmount(newMax.toFixed());
-                  }
-                  // If switching from indivisible to divisible and amount is large,
-                  // convert it (e.g., 100000000 becomes 1.00000000)
-                  else if (checked && currentAmount.isGreaterThan("92233720")) {
-                    // If the value is suspiciously large for a divisible asset,
-                    // assume it was meant as satoshis and convert
-                    const converted = currentAmount.dividedBy("100000000");
-                    setAmount(converted.toFixed(8));
-                  }
-                }
-              }}
+              onChange={setIsDivisible}
               disabled={pending}
             />
             <CheckboxInput

@@ -15,6 +15,11 @@ const Icon = ({ children, ...props }: IconProps & { children: ReactElement }): R
     height="1em"
     width="1em"
     xmlns="http://www.w3.org/2000/svg"
+    // Decorative by default: an icon repeats what its button or link already says, and a screen
+    // reader announcing it twice is noise. Icons that carry meaning alone are named by an
+    // aria-label on the control, and a caller can still override either through props.
+    aria-hidden="true"
+    focusable="false"
     {...props}
   >
     {children}
@@ -33,6 +38,9 @@ const FeatherIcon = ({ children, ...props }: IconProps & { children: ReactElemen
     height="1em"
     width="1em"
     xmlns="http://www.w3.org/2000/svg"
+    // Decorative by default, as above.
+    aria-hidden="true"
+    focusable="false"
     {...props}
   >
     {children}
@@ -151,6 +159,18 @@ export const FiRefreshCw = (props: IconProps): ReactElement => (
       <polyline points="23 4 23 10 17 10" />
       <polyline points="1 20 1 14 7 14" />
       <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </>
+  </FeatherIcon>
+);
+
+// Lucide (Feather's maintained successor, same stroke style): vertical swap arrows
+export const LuArrowDownUp = (props: IconProps): ReactElement => (
+  <FeatherIcon {...props}>
+    <>
+      <path d="m3 16 4 4 4-4" />
+      <path d="M7 20V4" />
+      <path d="m21 8-4-4-4 4" />
+      <path d="M17 4v16" />
     </>
   </FeatherIcon>
 );

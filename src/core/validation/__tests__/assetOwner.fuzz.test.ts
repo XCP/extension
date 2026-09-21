@@ -102,16 +102,16 @@ describe('Asset Owner Validation Fuzz Tests', () => {
     });
 
     it('should handle multiple dots correctly', () => {
-      // Only the last .xcp should matter for the suffix check
+      // Only the last .xcp should matter for the suffix check. The comment already said "these
+      // should return false"; the assertion checked only that a boolean came back, which is true of
+      // both answers. Asserting the answer is the whole point of a subname validator.
       const multiDot = [
         'PARENT.CHILD.xcp',  // Invalid - PARENT.CHILD is not a valid parent format
         'TEST..xcp',         // Invalid parent
       ];
 
       multiDot.forEach((name) => {
-        // These should return false due to invalid parent validation
-        const result = looksLikeAssetName(name);
-        expect(typeof result).toBe('boolean');
+        expect(looksLikeAssetName(name), name).toBe(false);
       });
     });
 

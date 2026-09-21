@@ -8,11 +8,13 @@ import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import {
   type AddressFormat,
-  getAddressFromMnemonic,
+  encodeAddress,
   getDerivationPathForAddressFormat,
   getSeedFromMnemonic,
 } from '@/core/bitcoin/address';
 import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/core/bitcoin/privateKey';
+import { derivePubkeyFromAccountKey } from '@/core/wallet/hardwarePubkey';
+import { parseUtxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import type { Address, HardwareWalletSecret, WalletRecord } from '@/types/wallet';
 
 export function getPairedAddressFormats(addressFormat: AddressFormat): {
@@ -58,22 +60,67 @@ export async function generateWalletIdFromPrivateKey(privateKeyHex: string, addr
   return bytesToHex(hash);
 }
 
-export function deriveMnemonicAddress(mnemonic: string, addressFormat: AddressFormat, index: number): Address {
+/**
+ * One address from an already-derived master key.
+ *
+ * Split out so the single and batch entry points below share one definition of what an address at
+ * an index *is*. Both previously spelled it out, and the encoding step differed: one called
+ * `getAddressFromMnemonic`, which derives the seed all over again to reach the same public key.
+ */
+function addressAtIndex(
+  root: HDKey,
+  addressFormat: AddressFormat,
+  index: number
+): Address {
   const path = `${getDerivationPathForAddressFormat(addressFormat)}/${index}`;
-  const address = getAddressFromMnemonic(mnemonic, path, addressFormat);
-  const seed = getSeedFromMnemonic(mnemonic, addressFormat);
-  const root = HDKey.fromMasterSeed(seed);
   const child = root.derive(path);
   if (!child.publicKey) {
     throw new Error('Unable to derive public key');
   }
-  const pubKeyHex = bytesToHex(child.publicKey);
   return {
     name: `Address ${index + 1}`,
     path,
-    address,
-    pubKey: pubKeyHex,
+    address: encodeAddress(child.publicKey, addressFormat),
+    pubKey: bytesToHex(child.publicKey),
   };
+}
+
+export function deriveMnemonicAddress(mnemonic: string, addressFormat: AddressFormat, index: number): Address {
+  const root = HDKey.fromMasterSeed(getSeedFromMnemonic(mnemonic, addressFormat));
+  return addressAtIndex(root, addressFormat, index);
+}
+
+/**
+ * Every address of a mnemonic wallet, deriving the seed once for the batch.
+ *
+ * The seed is the expensive part and it does not depend on the index: for BIP-39 it is
+ * PBKDF2-HMAC-SHA512 over 2048 rounds. Calling `deriveMnemonicAddress` in a loop paid for it
+ * twice per address — once inside `getAddressFromMnemonic` and once again for the public key — so
+ * a 20-address wallet ran 40 of them, about 460ms on a dev machine, synchronously on the thread
+ * that draws the UI. Selecting such a wallet froze the popup, and because the state lock queues,
+ * every impatient click during the freeze added another full pass.
+ *
+ * Hoisting the seed and the master key out of the loop takes the same wallet to about 43ms. The
+ * per-index derivation is untouched, so the addresses are the ones this wallet has always had —
+ * `addressDeriver.equivalence.test.ts` holds that to byte equality against the original routine.
+ */
+export function deriveMnemonicAddresses(
+  mnemonic: string,
+  addressFormat: AddressFormat,
+  count: number
+): Address[] {
+  if (count <= 0) return [];
+  return sequentialAddresses(hdRootFor(mnemonic, addressFormat), addressFormat, count);
+}
+
+/** The master key for a mnemonic under a format. The expensive step; derive it once per batch. */
+function hdRootFor(mnemonic: string, addressFormat: AddressFormat): HDKey {
+  return HDKey.fromMasterSeed(getSeedFromMnemonic(mnemonic, addressFormat));
+}
+
+/** The wallet's ordinary run of addresses, indexes 0 through count - 1. */
+function sequentialAddresses(root: HDKey, addressFormat: AddressFormat, count: number): Address[] {
+  return Array.from({ length: count }, (_, index) => addressAtIndex(root, addressFormat, index));
 }
 
 export function deriveAddressFromPrivateKey(privKeyData: string, addressFormat: AddressFormat): Address {
@@ -88,13 +135,68 @@ export function deriveAddressFromPrivateKey(privKeyData: string, addressFormat: 
   };
 }
 
+/**
+ * The extra addresses a record asks for, on top of its sequential run.
+ *
+ * Only paths this wallet knows how to name are honoured: a stored string that no longer parses is
+ * dropped rather than derived, since it comes off disk and reaches `HDKey.derive`.
+ */
+function deriveExtraAddresses(
+  root: HDKey,
+  addressFormat: AddressFormat,
+  extraPaths: string[]
+): Address[] {
+  const addresses: Address[] = [];
+  for (const path of extraPaths) {
+    const pairedIndex = parseUtxoAddressPath(path);
+    if (pairedIndex === null) continue;
+    const child = root.derive(path);
+    if (!child.publicKey) continue;
+    addresses.push({
+      // Numbered after the address it is paired with, not its own position in this list.
+      name: `UTXO Address ${pairedIndex + 1}`,
+      path,
+      address: encodeAddress(child.publicKey, addressFormat),
+      pubKey: bytesToHex(child.publicKey),
+    });
+  }
+  return addresses;
+}
+
+/**
+ * The address's own public key for a hardware wallet, not the account's.
+ *
+ * `HardwareWalletSecret.publicKey` is documented as "public key OR descriptor for the account",
+ * and Trezor discovery fills it with the account xpub. Stored verbatim, that reached compose as
+ * `multisig_pubkey` and core rejected it — "Invalid multisig pubkey: zpub6..." — failing every
+ * message too long for an OP_RETURN.
+ *
+ * So the stored value is used only when it really is a key, and otherwise the address's key is
+ * derived from the account key and the path, both of which are already here. An extended public
+ * key derives non-hardened children unaided, and the chain below an account is non-hardened, so
+ * this needs no device and no secret.
+ *
+ * Empty string when neither works. That is what this field held for every non-discovery hardware
+ * wallet before, and `getSourcePubkey` already reads empty as "no key" and lets core fall back to
+ * scanning the address's spend history.
+ */
+function hardwarePubKey(hardwareData: HardwareWalletSecret): string {
+  const stored = hardwareData.publicKey;
+  if (stored && /^0[23][0-9a-fA-F]{64}$/.test(stored)) return stored;
+  const accountKey = hardwareData.xpub ?? stored;
+  if (!accountKey || !hardwareData.derivationPath) return '';
+  return derivePubkeyFromAccountKey(accountKey, hardwareData.derivationPath) ?? '';
+}
+
 /** Derives addresses from a decrypted secret based on wallet type */
 export function deriveAddressesFromSecret(secret: string, record: WalletRecord): Address[] {
   if (record.type === 'mnemonic') {
-    const count = record.addressCount || 1;
-    return Array.from({ length: count }, (_, i) =>
-      deriveMnemonicAddress(secret, record.addressFormat, i)
-    );
+    // One master key for both runs. Deriving it again for the extras would pay the seed cost
+    // twice on every unlock — the exact expense `deriveMnemonicAddresses` exists to avoid.
+    const root = hdRootFor(secret, record.addressFormat);
+    const addresses = sequentialAddresses(root, record.addressFormat, record.addressCount || 1);
+    if (!record.extraPaths?.length) return addresses;
+    return [...addresses, ...deriveExtraAddresses(root, record.addressFormat, record.extraPaths)];
   }
 
   if (record.type === 'hardware') {
@@ -108,7 +210,7 @@ export function deriveAddressesFromSecret(secret: string, record: WalletRecord):
         name: 'Address 1',
         path: hardwareData.derivationPath,
         address: record.previewAddress,
-        pubKey: hardwareData.publicKey,
+        pubKey: hardwarePubKey(hardwareData),
       }];
     } catch {
       return [];

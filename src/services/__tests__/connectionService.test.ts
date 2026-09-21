@@ -4,8 +4,9 @@
  * Tests the dApp connection and permission management functionality
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import type { AppSettings } from '@/core/settings';
 
 // Mock webext-bridge to prevent browser API issues  
 vi.mock('webext-bridge/background', () => ({
@@ -38,22 +39,46 @@ vi.mock('@/services/walletService', () => ({
   getWalletService: vi.fn(() => ({
     isKeychainUnlocked: vi.fn().mockResolvedValue(true),
     getActiveAddress: vi.fn().mockResolvedValue({ address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' }),
+    getPairedAddresses: vi.fn().mockResolvedValue({
+      legacy: { address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', pubKey: '02', format: 'p2pkh', type: 'p2pkh' },
+      segwit: { address: 'bc1qsibling', pubKey: '02', format: 'p2wpkh', type: 'p2wpkh' },
+    }),
     // Connected-website access delegates to the walletManager mock so existing
     // getSettings/updateSettings drivers and assertions keep working.
     getSettings: () => walletManager.getSettings(),
     updateSettings: (updates: any) => walletManager.updateSettings(updates),
-    addConnectedWebsite: async (origin: string) => {
+    addConnectedWebsite: async (origin: string, identity?: { walletId: string; address: string }) => {
       const s = walletManager.getSettings();
-      if (!s.connectedWebsites.includes(origin)) {
-        await walletManager.updateSettings({ connectedWebsites: [...s.connectedWebsites, origin] });
-      }
+      const providerCapabilities = { ...s.providerCapabilities };
+      if (identity) providerCapabilities[origin] = { pairedAddresses: true, ...identity };
+      else delete providerCapabilities[origin];
+      await walletManager.updateSettings({
+        connectedWebsites: [...new Set([...s.connectedWebsites, origin])],
+        providerCapabilities,
+      });
     },
     removeConnectedWebsite: async (origin: string) => {
       const s = walletManager.getSettings();
-      await walletManager.updateSettings({ connectedWebsites: s.connectedWebsites.filter((x: string) => x !== origin) });
+      const providerCapabilities = { ...s.providerCapabilities };
+      delete providerCapabilities[origin];
+      await walletManager.updateSettings({
+        connectedWebsites: s.connectedWebsites.filter((x: string) => x !== origin),
+        providerCapabilities,
+      });
     },
     clearConnectedWebsites: async () => {
-      await walletManager.updateSettings({ connectedWebsites: [] });
+      await walletManager.updateSettings({ connectedWebsites: [], providerCapabilities: {} });
+    },
+    setPairedAddressPermission: async (origin: string, identity: { walletId: string; address: string } | null) => {
+      const s = walletManager.getSettings();
+      const providerCapabilities = { ...s.providerCapabilities };
+      if (identity) {
+        if (!s.connectedWebsites.includes(origin)) throw new Error('Site disconnected before paired address access was granted');
+        providerCapabilities[origin] = { pairedAddresses: true, ...identity };
+      } else {
+        delete providerCapabilities[origin];
+      }
+      await walletManager.updateSettings({ providerCapabilities });
     },
   })),
 }));
@@ -77,13 +102,6 @@ vi.mock('@/platform/provider/rateLimiter', () => ({
 }));
 
 // Mock security utilities
-vi.mock('@/platform/provider/csp', () => ({
-  analyzeCSP: vi.fn().mockResolvedValue({
-    hasCSP: true,
-    isSecure: true,
-    warnings: [],
-  }),
-}));
 
 // Mock fathom analytics provider
 vi.mock('@/platform/fathom', () => ({
@@ -115,6 +133,7 @@ const mockApprovalService = vi.hoisted(() => ({
   requestApproval: vi.fn().mockResolvedValue({ approved: true }),
   resolveApproval: vi.fn(),
   rejectApproval: vi.fn(),
+  registerCompletionHandler: vi.fn(),
 }));
 
 vi.mock('@/services/approvalService', () => ({
@@ -126,8 +145,9 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { ConnectionService } from '../connectionService';
 
 // Type the mocked functions
-const mockGetSettings = walletManager.getSettings as ReturnType<typeof vi.fn>;
-const mockUpdateSettings = walletManager.updateSettings as ReturnType<typeof vi.fn>;
+// A delayed value models the asynchronous wallet-service read used by ConnectionService.
+const mockGetSettings = walletManager.getSettings as Mock<() => Partial<AppSettings> | Promise<Partial<AppSettings>>>;
+const mockUpdateSettings = vi.mocked(walletManager.updateSettings);
 const mockEventEmitterService = eventEmitterService as any;
 
 // Get access to rate limiter mock
@@ -268,6 +288,30 @@ describe('ConnectionService', () => {
       expect(hasPermission).toBe(true);
     });
 
+    it('does not let a pending permission lookup recache an origin after revocation', async () => {
+      const origin = 'https://revoked.example';
+      let settings = { connectedWebsites: [origin] };
+      let releaseRead: (value: typeof settings) => void = () => {};
+      let enterRead = () => {};
+      const entered = new Promise<void>(resolve => { enterRead = resolve; });
+      const pendingRead = new Promise<typeof settings>(resolve => { releaseRead = resolve; });
+      mockGetSettings.mockImplementationOnce(() => { enterRead(); return pendingRead; });
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async updates => { settings = { ...settings, ...updates }; });
+
+      const lookup = connectionService.hasPermission(origin);
+      await entered;
+      const disconnect = connectionService.disconnect(origin);
+      // Let an unprotected disconnect complete while the older storage read is paused.
+      // The serialized implementation keeps that disconnect queued behind the lookup.
+      for (let turn = 0; turn < 6; turn++) await Promise.resolve();
+      releaseRead({ connectedWebsites: [origin] });
+      await Promise.all([lookup, disconnect]);
+
+      expect(settings.connectedWebsites).toEqual([]);
+      expect(await connectionService.hasPermission(origin)).toBe(false);
+    });
+
   });
 
   describe('connect', () => {
@@ -285,6 +329,7 @@ describe('ConnectionService', () => {
       // Should save to storage
       expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: ['https://newsite.com'],
+        providerCapabilities: {},
       });
     });
 
@@ -311,6 +356,7 @@ describe('ConnectionService', () => {
         })
       );
       expect(mockUpdateSettings).toHaveBeenCalledWith({
+        connectedWebsites: ['https://paired.com'],
         providerCapabilities: {
           'https://paired.com': {
             pairedAddresses: true,
@@ -339,7 +385,10 @@ describe('ConnectionService', () => {
         'wallet-123'
       );
 
-      expect(mockUpdateSettings).toHaveBeenCalledWith({ providerCapabilities: {} });
+      expect(mockUpdateSettings).toHaveBeenCalledWith({
+        connectedWebsites: ['https://reconnect.com'],
+        providerCapabilities: {},
+      });
     });
 
     it('should return existing connection if already connected', async () => {
@@ -400,6 +449,48 @@ describe('ConnectionService', () => {
       // Connection should succeed since there's no address validation
       expect(result).toEqual(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']);
     }, 10000); // Increase timeout
+  });
+
+  describe('paired grant covers the whole derivation pair', () => {
+    it('records the sibling with the grant and honours either half afterwards', async () => {
+      let settings: any = { connectedWebsites: ['https://paired.com'] };
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async (updates) => {
+        settings = { ...settings, ...updates };
+      });
+      mockApprovalService.requestApproval.mockResolvedValueOnce({
+        approved: true,
+        updatedParams: { pairedAddresses: true },
+      });
+      vi.spyOn(connectionService, 'hasPermission').mockResolvedValue(true);
+
+      await connectionService.requestPairedAddressPermission(
+        'https://paired.com',
+        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+        'wallet-123'
+      );
+
+      expect(settings.providerCapabilities['https://paired.com']).toEqual({
+        pairedAddresses: true,
+        walletId: 'wallet-123',
+        address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+        pairedAddress: 'bc1qsibling',
+      });
+      // The user switches the extension to the SegWit sibling: the grant still applies.
+      await expect(connectionService.hasPairedAddressPermission(
+        'https://paired.com', 'wallet-123', 'bc1qsibling'
+      )).resolves.toBe(true);
+      await expect(connectionService.hasPairedAddressPermission(
+        'https://paired.com', 'wallet-123', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'
+      )).resolves.toBe(true);
+      // Another index or wallet never inherits it.
+      await expect(connectionService.hasPairedAddressPermission(
+        'https://paired.com', 'wallet-123', 'bc1qelsewhere'
+      )).resolves.toBe(false);
+      await expect(connectionService.hasPairedAddressPermission(
+        'https://paired.com', 'wallet-999', 'bc1qsibling'
+      )).resolves.toBe(false);
+    });
   });
 
   describe('requestPairedAddressPermission', () => {
@@ -468,6 +559,7 @@ describe('ConnectionService', () => {
       // Should update storage with remaining sites
       expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: ['https://other.com'],
+        providerCapabilities: {},
       });
     });
 
@@ -477,6 +569,7 @@ describe('ConnectionService', () => {
       // Should update storage (removing non-existent site doesn't change empty array)
       expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: [],
+        providerCapabilities: {},
       });
     });
   });

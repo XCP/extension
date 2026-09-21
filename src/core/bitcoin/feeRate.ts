@@ -1,11 +1,30 @@
 import { CacheTTL, TTLCache } from '@/core/api/cache';
 import { apiClient } from '@/core/api/client';
 import { DataFetchError } from '@/core/errors';
+import { maximum, toBigNumber, toNumber } from '@/core/numeric';
 
 export interface FeeRates {
   fastestFee: number;
   halfHourFee: number;
   hourFee: number;
+}
+
+/** Presets are quoted to the two decimals the custom fee input accepts. */
+const QUOTED_DECIMALS = 2;
+/** And clamped to the same 0.1 sat/vB floor that input enforces. */
+const MIN_QUOTED_FEE_RATE = 0.1;
+
+/**
+ * Brings a source's rate to the precision the wallet quotes.
+ *
+ * Sources now report sub-sat/vB rates (mempool.space's precise endpoint answers 0.408 where the
+ * recommended one rounded to 1), which is the point of using them — but a preset still has to be a
+ * value the fee input itself would accept. Rounding is upward so a preset never sits below the
+ * estimate it came from.
+ */
+function quoteRate(rate: number): number {
+  const rounded = toBigNumber(rate).decimalPlaces(QUOTED_DECIMALS, 2); // ROUND_CEIL = 2
+  return toNumber(maximum(rounded, MIN_QUOTED_FEE_RATE));
 }
 
 /**
@@ -20,7 +39,10 @@ let inflightRequest: Promise<FeeRates> | null = null;
 /**
  * Fetch fee rates from mempool.space.
  *
- * Expected response shape:
+ * The precise endpoint rather than the recommended one: same fields, but unrounded, so a quiet
+ * mempool reads 0.41 sat/vB instead of the 1 sat/vB the rounded endpoint reports as its floor.
+ *
+ * Expected response shape (economyFee and minimumFee are also returned, and unused):
  * {
  *   fastestFee: number,
  *   halfHourFee: number,
@@ -28,21 +50,21 @@ let inflightRequest: Promise<FeeRates> | null = null;
  * }
  */
 export async function fetchFromMempoolSpace(): Promise<FeeRates> {
-  const response = await apiClient.get<Record<string, number>>('https://mempool.space/api/v1/fees/recommended', { retries: 0 });
+  const response = await apiClient.get<Record<string, number>>('https://mempool.space/api/v1/fees/precise', { retries: 0 });
   const data = response.data;
   if (
-    typeof data.fastestFee !== 'number' || isNaN(data.fastestFee) ||
-    typeof data.halfHourFee !== 'number' || isNaN(data.halfHourFee) ||
-    typeof data.hourFee !== 'number' || isNaN(data.hourFee)
+    typeof data.fastestFee !== 'number' || Number.isNaN(data.fastestFee) ||
+    typeof data.halfHourFee !== 'number' || Number.isNaN(data.halfHourFee) ||
+    typeof data.hourFee !== 'number' || Number.isNaN(data.hourFee)
   ) {
     throw new DataFetchError('Invalid response data format', 'mempool.space', {
-      endpoint: '/api/v1/fees/recommended',
+      endpoint: '/api/v1/fees/precise',
     });
   }
   return {
-    fastestFee: data.fastestFee,
-    halfHourFee: data.halfHourFee,
-    hourFee: data.hourFee,
+    fastestFee: quoteRate(data.fastestFee),
+    halfHourFee: quoteRate(data.halfHourFee),
+    hourFee: quoteRate(data.hourFee),
   };
 }
 
@@ -62,15 +84,19 @@ export async function fetchFromBlockstream(): Promise<FeeRates> {
   const halfHourFee = data["3"];
   const hourFee = data["6"];
   if (
-    typeof fastestFee !== 'number' || isNaN(fastestFee) ||
-    typeof halfHourFee !== 'number' || isNaN(halfHourFee) ||
-    typeof hourFee !== 'number' || isNaN(hourFee)
+    typeof fastestFee !== 'number' || Number.isNaN(fastestFee) ||
+    typeof halfHourFee !== 'number' || Number.isNaN(halfHourFee) ||
+    typeof hourFee !== 'number' || Number.isNaN(hourFee)
   ) {
     throw new DataFetchError('Invalid response data format', 'blockstream.info', {
       endpoint: '/api/fee-estimates',
     });
   }
-  return { fastestFee, halfHourFee, hourFee };
+  return {
+    fastestFee: quoteRate(fastestFee),
+    halfHourFee: quoteRate(halfHourFee),
+    hourFee: quoteRate(hourFee),
+  };
 }
 
 // Ordered list of fee rate fetchers.
@@ -89,9 +115,9 @@ async function fetchFeeRatesWithFallback(): Promise<FeeRates> {
       const rates = await fetcher();
       // Check that the returned rates are valid.
       if (
-        typeof rates.fastestFee === 'number' && !isNaN(rates.fastestFee) &&
-        typeof rates.halfHourFee === 'number' && !isNaN(rates.halfHourFee) &&
-        typeof rates.hourFee === 'number' && !isNaN(rates.hourFee)
+        typeof rates.fastestFee === 'number' && !Number.isNaN(rates.fastestFee) &&
+        typeof rates.halfHourFee === 'number' && !Number.isNaN(rates.halfHourFee) &&
+        typeof rates.hourFee === 'number' && !Number.isNaN(rates.hourFee)
       ) {
         return rates;
       }

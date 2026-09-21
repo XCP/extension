@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { DispenserOptions } from "@/core/counterparty/compose";
 import { composeDispenser } from "@/core/counterparty/compose";
+import { toNumber } from "@/core/numeric";
 import { DispenserForm } from "@/pages/compose/dispenser/form";
 import { ReviewDispenser } from "@/pages/compose/dispenser/review";
 
@@ -18,8 +19,8 @@ function ComposeDispenserPage() {
     if (!mainchainrate && !give_quantity) return undefined;
 
     return {
-      ...(mainchainrate && { mainchainrate: Number(mainchainrate) }),
-      ...(give_quantity && { give_quantity: Number(give_quantity) }),
+      ...(mainchainrate && { mainchainrate: toNumber(mainchainrate) }),
+      ...(give_quantity && { give_quantity: toNumber(give_quantity) }),
     } as DispenserOptions;
   }, [searchParams]);
 

@@ -1,6 +1,5 @@
-import { Radio, RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { AssetList } from "@/components/domain/asset/asset-list";
 import { BalanceList } from "@/components/domain/balance/balance-list";
@@ -13,11 +12,12 @@ import {
   FaLock,
   FaPaperPlane,
   FaQrcode,
-  TbPinned
+  FiRefreshCw
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { invalidateAddressBalances } from "@/core/balances/invalidate";
 import { fetchTokenBalances } from "@/core/counterparty/api";
 import { formatAddress } from "@/core/format";
 
@@ -29,7 +29,6 @@ const PATHS = {
   SEND_BTC: "/compose/send/BTC",
   ADDRESS_HISTORY: "/addresses/history",
   SELECT_ADDRESS: "/addresses",
-  PINNED_ASSETS: "/settings/pinned-assets",
   BUY_XCP: "/market/dispensers/XCP",
 } as const;
 
@@ -40,9 +39,42 @@ export default function HomePage(): ReactElement {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get("tab") as "Assets" | "Balances" | "UTXOs") || "Balances";
+  // A list mounts the first time its tab is looked at and stays mounted after. Hidden tabs cost
+  // no requests on arrival — three lists loading at once was a third of the burst that gets the
+  // public node's 429 — and switching back costs none either.
+  const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<string>>(() => new Set([activeTab]));
+  if (!visitedTabs.has(activeTab)) setVisitedTabs(new Set(visitedTabs).add(activeTab));
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const [hasUtxos, setHasUtxos] = useState(false);
   const [utxoCheckDone, setUtxoCheckDone] = useState(false);
+  /**
+   * A counter per tab, because all three lists stay mounted behind `display: none` and the refresh
+   * button sits in a header shared by all of them. One shared counter would reload whichever list
+   * you were *not* looking at as well, tripling the work; a single counter handed only to the
+   * active list would look like a change to the others every time you switched tabs.
+   *
+   * A counter rather than a boolean so pressing twice is two refreshes — a flag would swallow the
+   * second press while the first is in flight, which is exactly when people press again.
+   */
+  const [refreshNonces, setRefreshNonces] = useState({ Balances: 0, Assets: 0, UTXOs: 0 });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  /**
+   * Forget what is cached for this address, then ask the visible list for it again.
+   *
+   * Clearing is the whole job: two independent caches serve this screen, and a reload without
+   * dropping them repaints the same stale numbers within their TTL. See
+   * `core/balances/invalidate.ts`. The clear is address-wide rather than per-tab, so switching tabs
+   * after a refresh also shows fresh data — only the reload is scoped to what you can see.
+   */
+  const handleRefresh = (): void => {
+    if (!activeAddress?.address || isRefreshing) return;
+    invalidateAddressBalances(activeAddress.address);
+    setIsRefreshing(true);
+    setRefreshNonces((previous) => ({ ...previous, [activeTab]: previous[activeTab] + 1 }));
+  };
+
+  const stopRefreshing = useCallback(() => setIsRefreshing(false), []);
 
   useEffect(() => {
     setHeaderProps({
@@ -117,48 +149,41 @@ export default function HomePage(): ReactElement {
 
   const renderCurrentAddress = (): ReactElement => {
     if (!activeAddress) return <div className="p-4">No address selected</div>;
+    // Not a RadioGroup: there was one option, its onChange did nothing, and `checked` was always
+    // true — it existed so the ternary would pick the selected styling. Copying the address is a
+    // button, and saying so is what lets the keyboard reach it. The classes below are the branch
+    // that always won, so this renders identically.
     return (
-      <RadioGroup value={activeAddress} onChange={() => {}}>
-        <Radio value={activeAddress}>
-          {({ checked }) => (
-            <div
-              className={`relative w-full rounded p-4 cursor-pointer ${
-                checked ? "bg-blue-600 text-white shadow-md" : "bg-blue-200 hover:bg-blue-300 text-gray-800"
-              }`}
-              onClick={handleCopyAddress}
-              aria-label="Current address"
-            >
-              <div className="absolute top-1/2 right-4 -translate-y-1/2">
-                <div
-                  className="py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                  onClick={handleAddressSelection}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleAddressSelection(e as unknown as React.MouseEvent);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Select another address"
-                >
-                  <FaChevronRight className="size-4" aria-hidden="true" />
-                </div>
-              </div>
-              <div className="text-sm mb-1 font-medium text-center">{activeAddress.name}</div>
-              <div className="flex justify-center items-center">
-                <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
-                {copiedToClipboard ? (
-                  <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
-                ) : (
-                  <FaClipboard className="ml-2" aria-hidden="true" />
-                )}
-              </div>
-            </div>
-          )}
-        </Radio>
-      </RadioGroup>
+      // Copying and choosing another address are two buttons side by side, not one
+      // inside the other. Neither needs to guard the other's keypresses.
+      <div className="relative w-full rounded bg-blue-600 text-white shadow-md">
+        <button
+          type="button"
+          className="block w-full rounded p-4 cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          onClick={handleCopyAddress}
+          aria-label="Current address"
+        >
+          <div className="text-sm mb-1 font-medium">{activeAddress.name}</div>
+          <div className="flex justify-center items-center">
+            <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
+            {copiedToClipboard ? (
+              <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
+            ) : (
+              <FaClipboard className="ml-2" aria-hidden="true" />
+            )}
+          </div>
+        </button>
+        <div className="absolute top-1/2 right-4 -translate-y-1/2">
+          <button
+            type="button"
+            className="block py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            onClick={handleAddressSelection}
+            aria-label="Select another address"
+          >
+            <FaChevronRight className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
     );
   };
 
@@ -183,7 +208,7 @@ export default function HomePage(): ReactElement {
     return (
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
-          <button
+          <button type="button"
             className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
             style={{ textDecoration: activeTab === "Assets" ? "underline" : "none" }}
             onClick={() => setSearchParams({ tab: "Assets" })}
@@ -191,7 +216,7 @@ export default function HomePage(): ReactElement {
           >
             Assets
           </button>
-          <button
+          <button type="button"
             className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
             style={{ textDecoration: activeTab === "Balances" ? "underline" : "none" }}
             onClick={() => setSearchParams({ tab: "Balances" })}
@@ -200,7 +225,7 @@ export default function HomePage(): ReactElement {
             Balances
           </button>
           {hasUtxos && (
-            <button
+            <button type="button"
               className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
               style={{ textDecoration: activeTab === "UTXOs" ? "underline" : "none" }}
               onClick={() => setSearchParams({ tab: "UTXOs" })}
@@ -211,19 +236,26 @@ export default function HomePage(): ReactElement {
           )}
         </div>
         <div className="flex items-center space-x-2">
-          <button
+          <button type="button"
             onClick={() => navigate(PATHS.BUY_XCP)}
             className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             aria-label="Get XCP"
           >
             Get XCP
           </button>
-          <button
-            onClick={() => navigate(PATHS.PINNED_ASSETS)}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            aria-label="Manage Pinned Assets"
+          {/* Refresh rather than the pinned-assets shortcut, which moved to Settings. The thing
+              people do at this screen while waiting on a transaction is look again, and there was
+              nothing here to press. */}
+          <button type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-default"
+            aria-label="Refresh balances"
           >
-            <TbPinned className="size-5 text-gray-600" aria-hidden="true" />
+            <FiRefreshCw
+              className={`size-4 text-gray-600 ${isRefreshing ? "animate-spin" : ""}`}
+              aria-hidden="true"
+            />
           </button>
         </div>
       </div>
@@ -243,24 +275,28 @@ export default function HomePage(): ReactElement {
   );
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="index-title">
+    <section className="flex flex-col h-full" aria-labelledby="index-title">
       <h2 id="index-title" className="sr-only">Wallet Dashboard</h2>
       <div className="flex flex-col flex-grow min-h-0">
         <div className="p-4 pb-0 flex-shrink-0">
           {content}
         </div>
-        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Balances" ? "block" : "none" }}>
-          <BalanceList />
-        </div>
-        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Assets" ? "block" : "none" }}>
-          <AssetList />
-        </div>
-        {hasUtxos && (
+        {visitedTabs.has("Balances") && (
+          <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Balances" ? "block" : "none" }}>
+            <BalanceList refreshNonce={refreshNonces.Balances} onRefreshed={stopRefreshing} />
+          </div>
+        )}
+        {visitedTabs.has("Assets") && (
+          <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Assets" ? "block" : "none" }}>
+            <AssetList refreshNonce={refreshNonces.Assets} onRefreshed={stopRefreshing} />
+          </div>
+        )}
+        {hasUtxos && visitedTabs.has("UTXOs") && (
           <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "UTXOs" ? "block" : "none" }}>
-            <UtxoList />
+            <UtxoList refreshNonce={refreshNonces.UTXOs} onRefreshed={stopRefreshing} />
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

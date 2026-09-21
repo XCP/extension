@@ -14,7 +14,8 @@ export interface ApprovalRequest {
   method: string;
   params: any;
   timestamp: number;
-  type: 'connection' | 'transaction' | 'compose' | 'signature';
+  /** Only connections are approved this way; signing has its own flow in signFlow.ts. */
+  type: 'connection';
   metadata?: {
     domain?: string;
     title?: string;
@@ -31,7 +32,7 @@ export interface ApprovalRequestOptions {
   origin: string;
   method: string;
   params: any[];
-  type: 'connection' | 'signature' | 'compose' | 'transaction';
+  type: 'connection';
   metadata: {
     domain: string;
     title: string;

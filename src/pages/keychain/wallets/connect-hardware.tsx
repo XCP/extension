@@ -36,10 +36,6 @@ export default function ConnectHardware(): ReactElement {
     setHardwareOperationInProgress(true);
 
     try {
-      // Reset adapter before connecting to ensure clean state
-      const { resetTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
-      await resetTrezorAdapter();
-
       // Use account discovery - Trezor will show account selection UI
       await createHardwareWalletWithDiscovery("trezor");
 
@@ -69,7 +65,7 @@ export default function ConnectHardware(): ReactElement {
         <div className="text-center mt-6">
           <h2 className="text-lg font-semibold mb-2 text-gray-900">Connecting...</h2>
           <p className="text-sm text-gray-600">
-            Select your account on your Trezor device
+            Select your account in Trezor Suite
           </p>
         </div>
       </div>

@@ -123,12 +123,12 @@ function validateAddressPrefix(address: string, addressType: AddressType): boole
 }
 
 test.describe('Address Type Matrix - Create Wallet', () => {
-  test('new wallet defaults to Taproot (P2TR) address', async ({ extensionPage }) => {
+  test('new wallet defaults to Native SegWit (P2WPKH) address', async ({ extensionPage }) => {
     await createWallet(extensionPage);
 
     const address = await getCurrentDisplayedAddress(extensionPage);
 
-    expect(validateAddressPrefix(address, 'p2tr')).toBe(true);
+    expect(validateAddressPrefix(address, 'p2wpkh')).toBe(true);
   });
 });
 

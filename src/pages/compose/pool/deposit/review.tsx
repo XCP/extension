@@ -1,6 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
-import { getCanonicalPoolPair } from "@/core/counterparty/pool";
+import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { fromSatoshis } from "@/core/numeric";
 
 interface ReviewPoolDepositProps {
@@ -36,7 +36,7 @@ export function ReviewPoolDeposit({
   const customFields = [
     {
       label: "Pool",
-      value: getCanonicalPoolPair(assetA, assetB),
+      value: getPoolDisplayPair(assetA, assetB),
     },
     {
       label: "Deposit",

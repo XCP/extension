@@ -6,7 +6,8 @@ import { ActionList, type ActionSection } from './action-list';
 // Mock the ActionCard component
 vi.mock('@/components/ui/cards/action-card', () => ({
   ActionCard: ({ title, description, onClick, icon, showChevron, className, ariaLabel }: any) => (
-    <div
+    <button
+      type="button"
       data-testid={`action-card-${title}`}
       className={`action-card ${className || ''}`}
       onClick={onClick}
@@ -16,7 +17,7 @@ vi.mock('@/components/ui/cards/action-card', () => ({
       {description && <div className="description">{description}</div>}
       {icon && <div className="icon">{icon}</div>}
       {showChevron !== false && <div className="chevron">→</div>}
-    </div>
+    </button>
   )
 }));
 

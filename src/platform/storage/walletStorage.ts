@@ -58,6 +58,29 @@ export async function getKeychainRecord(): Promise<KeychainRecord | null> {
 }
 
 /**
+ * Refuses first-keychain creation unless storage can prove that no record exists.
+ *
+ * Unlike getKeychainRecord(), this deliberately distinguishes absence from a failed/corrupt read:
+ * creation is destructive if it overwrites an existing encrypted vault, so uncertainty must fail
+ * closed rather than look like onboarding.
+ */
+export async function assertNoKeychainRecord(): Promise<void> {
+  let record: unknown;
+  try {
+    record = await keychainRecordItem.getValue();
+  } catch (err) {
+    console.error('Failed to verify keychain absence:', err);
+    throw new Error('Could not verify whether a keychain already exists');
+  }
+
+  if (record === null || record === undefined) return;
+  if (!isValidKeychainRecord(record)) {
+    throw new Error('Stored keychain data is corrupted; refusing to overwrite it');
+  }
+  throw new Error('A keychain already exists. Unlock it before adding a wallet.');
+}
+
+/**
  * Saves the keychain record to storage.
  * Overwrites any existing keychain.
  */
@@ -68,6 +91,21 @@ export async function saveKeychainRecord(record: KeychainRecord): Promise<void> 
     console.error('Failed to save keychain record:', err);
     throw new Error('Failed to save keychain');
   }
+}
+
+/**
+ * Calls back whenever the stored keychain changes, from this surface or any other.
+ *
+ * Settings live inside the keychain record, so this fires for a settings change as well as a wallet
+ * one — and the record is encrypted, so the change itself says nothing about what moved. It is a
+ * signal to re-read, not a source of values. A popup and a side panel are separate documents that
+ * each hold their own copy of whatever they loaded on mount, and this is what tells the one that is
+ * merely open that the other changed something.
+ *
+ * @returns An unsubscribe function.
+ */
+export function watchKeychainRecord(onChange: () => void): () => void {
+  return keychainRecordItem.watch(() => onChange());
 }
 
 /**

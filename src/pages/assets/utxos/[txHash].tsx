@@ -57,7 +57,8 @@ export default function UtxoPage(): ReactElement {
     }
   };
 
-  // Configure header
+  // Configure header. handleCopyUtxo is redefined every render; listing it would call
+  // setHeaderProps on every render and re-trigger this effect.
   useEffect(() => {
     setHeaderProps({
       title: "UTXO Details",
@@ -138,7 +139,7 @@ export default function UtxoPage(): ReactElement {
   if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
 
   return (
-    <div className="p-4 space-y-6" role="main" aria-labelledby="utxo-title">
+    <section className="p-4 space-y-6" aria-labelledby="utxo-title">
       {activeAddress && (
         <AddressHeader
           address={activeAddress.address}
@@ -200,6 +201,6 @@ export default function UtxoPage(): ReactElement {
         )}
       </div>
       <ActionList sections={getActionSections()} />
-    </div>
+    </section>
   );
 }

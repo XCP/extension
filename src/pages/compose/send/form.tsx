@@ -11,6 +11,7 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { useWallet } from "@/contexts/wallet-context";
 import type { SendOptions } from "@/core/counterparty/compose";
 import { formatMoreOutputs } from "@/core/format";
+import { asDisplayUnits } from '@/core/numeric';
 import { validateAmount, validateQuantity } from "@/core/validation/amount";
 import type { Destination } from "@/core/validation/destinations";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -165,7 +166,7 @@ export function SendForm({
           <BalanceHeader
             balance={{
               asset: initialAsset || initialFormData?.asset || "BTC",
-              quantity_normalized: assetDetails.availableBalance,
+              quantity_normalized: asDisplayUnits(assetDetails.spendableBalance ?? assetDetails.availableBalance),
               asset_info: assetDetails.assetInfo ? {
                 asset_longname: assetDetails.assetInfo.asset_longname,
                 description: assetDetails.assetInfo.description || '',
@@ -176,6 +177,7 @@ export function SendForm({
               } : undefined,
             }}
             className="mt-1 mb-5"
+            pendingIncoming={assetDetails.pendingIncoming}
           />
         ) : null
       }
@@ -203,13 +205,13 @@ export function SendForm({
 
           <AmountWithMaxInput
             asset={initialAsset || initialFormData?.asset || "BTC"}
-            availableBalance={assetDetails?.availableBalance || "0"}
+            availableBalance={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             value={amount}
             onChange={handleAmountChange}
             feeRate={feeRate}
             setError={setValidationError}
             sourceAddress={activeAddress}
-            maxAmount={assetDetails?.availableBalance || "0"}
+            maxAmount={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             showHelpText={showHelpText}
             label="Amount"
             name="quantity"

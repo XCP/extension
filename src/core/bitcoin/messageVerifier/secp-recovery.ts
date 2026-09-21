@@ -38,25 +38,17 @@ export function recoverPublicKeyFromSignature(
     recoveredSig[0] = recoveryId;  // Raw recovery ID (0-3)
     recoveredSig.set(raw, 1);
 
-    // Use noble's recoverPublicKey with correct parameter order and options
-    const publicKeyBytes = secp256k1.recoverPublicKey(
+    // Ask noble for the exact SEC encoding carried by the BIP-137 header. Compressed and
+    // uncompressed encodings hash to different P2PKH addresses, so this is semantic rather than
+    // cosmetic.
+    return secp256k1.recoverPublicKey(
       recoveredSig,           // signature (65 bytes)
       messageHash,            // message hash (32 bytes)
-      { prehash: false }      // don't hash again - we already hashed
+      {
+        prehash: false,       // don't hash again - we already hashed
+        isCompressed: compressed,
+      }
     );
-
-    // Noble returns the public key bytes directly
-    // If we need uncompressed and got compressed (or vice versa), convert
-    if (compressed && publicKeyBytes.length === 65) {
-      // Convert uncompressed to compressed
-      return publicKeyBytes.slice(0, 33);
-    } else if (!compressed && publicKeyBytes.length === 33) {
-      // For uncompressed we'd need to reconstruct - for now just return what we have
-      // Most Bitcoin signatures use compressed anyway
-      return publicKeyBytes;
-    }
-
-    return publicKeyBytes;
   } catch (_error) {
     return null;
   }

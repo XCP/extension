@@ -105,6 +105,12 @@ const getActionSections = (
           onClick: () => navigate("/compose/order/cancel"),
         },
         {
+          id: "create-dispenser",
+          title: "Create Dispenser",
+          description: "Sell an asset at a fixed BTC price",
+          onClick: () => navigate("/compose/dispenser"),
+        },
+        {
           id: "close-dispenser",
           title: "Close Dispenser", 
           description: "Close an existing dispenser",
@@ -171,13 +177,13 @@ export default function ActionsPage(): ReactElement {
   }, [setHeaderProps, navigate, lockKeychain]);
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="actions-title">
+    <section className="flex flex-col h-full" aria-labelledby="actions-title">
       <h2 id="actions-title" className="sr-only">
         Wallet Actions
       </h2>
       <div className="flex-1 overflow-auto no-scrollbar p-4">
         <ActionList sections={actionSections} />
       </div>
-    </div>
+    </section>
   );
 }

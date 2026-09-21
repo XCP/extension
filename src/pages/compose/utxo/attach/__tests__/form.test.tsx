@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
 import { useSettings } from '@/contexts/settings-context';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { UtxoAttachForm } from '../form';
 
@@ -83,15 +84,10 @@ vi.mock('@/contexts/header-context', () => ({
   })
 }));
 
-vi.mock('@/contexts/loading-context', () => ({
-  useLoading: () => ({
-    setLoading: vi.fn(),
-    loading: false
-  })
-}));
-
 vi.mock('@/hooks/useAssetDetails', () => ({
-  useAssetDetails: () => ({
+  // vi.fn so individual tests can override it with a failed load.
+  useAssetDetails: vi.fn(() => ({
+    error: null,
     data: {
       assetInfo: {
         asset_longname: null,
@@ -99,11 +95,11 @@ vi.mock('@/hooks/useAssetDetails', () => ({
         issuer: 'bc1qissuer',
         divisible: true,
         locked: false,
-        supply: '1000000'
+        supply: asBaseUnits('1000000')
       },
-      availableBalance: '100'
+      availableBalance: asDisplayUnits('100')
     }
-  })
+  }))
 }));
 
 // Mock compose API for ComposerProvider
@@ -198,30 +194,50 @@ describe('UtxoAttachForm', () => {
     expect(continueButton).toBeDisabled();
   });
 
-  it('should keep continue button disabled for negative amount', async () => {
+  it('preserves a negative amount draft and blocks submission', async () => {
     const user = userEvent.setup();
+    render(<TestWrapper><UtxoAttachForm {...defaultProps} /></TestWrapper>);
+    const amountInput = screen.getByRole('textbox', { name: /Amount/i });
+    await user.type(amountInput, '-5');
+    expect(amountInput).toHaveValue('-5');
+    expect(amountInput).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled();
+  });
+
+  it('should show an error when the asset details fail to load', async () => {
+    const { useAssetDetails } = await import('@/hooks/useAssetDetails');
+    (useAssetDetails as any).mockReturnValueOnce({ error: new Error('API Error'), data: null });
+
     render(
       <TestWrapper>
         <UtxoAttachForm {...defaultProps} />
       </TestWrapper>
     );
 
-    const amountInput = screen.getByRole('textbox', { name: /Amount/i });
-    const continueButton = screen.getByRole('button', { name: /Continue/i });
-
-    await user.type(amountInput, '-5');
-    expect(continueButton).toBeDisabled();
+    // Otherwise a failed load renders as an asset that simply has no balance.
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Could not load details for this asset.');
+    });
   });
 
-  it('should display error message when composer context has error', () => {
-    // This test should verify that errors from the composer context are displayed
-    // For now, we'll skip this test since the forms handle errors through the composer context
-    // and it requires more complex mocking setup
-  });
+  it('should dismiss the asset details error when closed', async () => {
+    const user = userEvent.setup();
+    const { useAssetDetails } = await import('@/hooks/useAssetDetails');
+    (useAssetDetails as any).mockReturnValueOnce({ error: new Error('API Error'), data: null });
 
-  it('should have dismiss button for error message', async () => {
-    // This test should verify that error messages can be dismissed
-    // For now, we'll skip this test since it requires mocking the composer context error state
+    render(
+      <TestWrapper>
+        <UtxoAttachForm {...defaultProps} />
+      </TestWrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Dismiss error message' }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('should populate max amount when Max button is clicked', async () => {

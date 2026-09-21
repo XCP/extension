@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import type { KeychainRecord } from '@/types/wallet';
 import {
+  assertNoKeychainRecord,
   deleteKeychain,
   getKeychainRecord,
   keychainExists,
@@ -42,6 +43,18 @@ describe('walletStorage.ts', () => {
 
       const result = await getKeychainRecord();
       expect(result).toBeNull();
+    });
+  });
+
+  describe('assertNoKeychainRecord', () => {
+    it('allows creation only when storage proves the keychain is absent', async () => {
+      await expect(assertNoKeychainRecord()).resolves.toBeUndefined();
+    });
+
+    it('refuses to treat an existing keychain as first-run storage', async () => {
+      await saveKeychainRecord(createTestKeychainRecord());
+
+      await expect(assertNoKeychainRecord()).rejects.toThrow('already exists');
     });
   });
 

@@ -28,14 +28,23 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { asBaseUnits } from '@/core/numeric';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
 import { packComposeMessage } from '../messages';
+import { fetchOracle } from './oracleRequest';
 
 const API_URL = process.env.COUNTERPARTY_API_URL;
 /** A funded mainnet address is only needed to satisfy the endpoint's shape; nothing is broadcast. */
 const SOURCE = process.env.COUNTERPARTY_ORACLE_SOURCE
   ?? '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+/**
+ * Any real UTXO satisfies the `/v2/utxos/...` route's shape. A detach message carries only the
+ * destination, so which UTXO this is does not reach the bytes; `validate=false` keeps it from
+ * needing a balance.
+ */
+const DETACH_UTXO = process.env.COUNTERPARTY_ORACLE_UTXO
+  ?? '8691695cef015590229d0e9a9502865f64d9aa8e96dad2a4186542912daab774:1';
 
 interface OracleCase {
   label: string;
@@ -51,6 +60,8 @@ interface OracleCase {
    * numeric asset id core draws for a new subasset. Equality then proves every *other* byte.
    */
   observedFromResponse?: boolean;
+  /** Compose from this UTXO instead of an address, for the types core routes under `/v2/utxos`. */
+  sourceUtxo?: string;
 }
 
 const CASES: OracleCase[] = [
@@ -74,7 +85,7 @@ const CASES: OracleCase[] = [
     params: {
       asset: 'XCP',
       destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-      quantity: 100,
+      quantity: asBaseUnits(100),
       memo: 'thanks',
     },
     query: {
@@ -87,7 +98,7 @@ const CASES: OracleCase[] = [
   {
     label: 'indivisible issuance',
     composeType: 'issuance',
-    params: { asset: 'LANDMARKS', quantity: 21, divisible: false },
+    params: { asset: 'LANDMARKS', quantity: asBaseUnits(21), divisible: false },
     query: { asset: 'LANDMARKS', quantity: '21', divisible: 'false' },
   },
   {
@@ -104,7 +115,7 @@ const CASES: OracleCase[] = [
     label: 'issuance transferring ownership',
     composeType: 'issuance',
     params: {
-      asset: 'LANDMARKS', quantity: 0, divisible: false,
+      asset: 'LANDMARKS', quantity: asBaseUnits(0), divisible: false,
       transfer_destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
     },
     query: {
@@ -121,7 +132,7 @@ const CASES: OracleCase[] = [
   {
     label: 'destroy with a tag',
     composeType: 'destroy',
-    params: { asset: 'XCP', quantity: 1000, tag: 'burn' },
+    params: { asset: 'XCP', quantity: asBaseUnits(1000), tag: 'burn' },
     query: { asset: 'XCP', quantity: '1000', tag: 'burn' },
   },
   {
@@ -145,7 +156,7 @@ const CASES: OracleCase[] = [
   {
     label: 'initial subasset issuance',
     composeType: 'issuance',
-    params: { asset: 'PEPECASH.oracle-check', quantity: 1000, divisible: false, description: 'a subasset' },
+    params: { asset: 'PEPECASH.oracle-check', quantity: asBaseUnits(1000), divisible: false, description: 'a subasset' },
     query: { asset: 'PEPECASH.oracle-check', quantity: '1000', divisible: 'false', description: 'a subasset' },
     // Core names the subasset by drawing a random numeric asset per compose, so the id differs on
     // every call and can only come from the response.
@@ -237,6 +248,137 @@ const CASES: OracleCase[] = [
       expiration: '5000', fee_required: '0',
     },
   },
+  // Dispensers, whose trailing addresses core packs only for particular statuses. These cases are
+  // here because the type had no oracle coverage and shipped a divergence: the packer appended
+  // `open_address` whenever the request carried one, so closing a dispenser held on the signing
+  // address composed 21 bytes core never emits, and byte equality blocked the close.
+  // `dispenserGating.test.ts` pins the same expectations offline; this asks a live node.
+  {
+    label: 'dispenser close',
+    composeType: 'dispenser',
+    params: { asset: 'XCP', status: 10, sourceAddress: SOURCE },
+    query: {
+      asset: 'XCP', status: '10',
+      give_quantity: '0', escrow_quantity: '0', mainchainrate: '0',
+    },
+  },
+  {
+    label: 'dispenser close naming the signing address (core drops open_address)',
+    composeType: 'dispenser',
+    params: { asset: 'XCP', status: 10, open_address: SOURCE, sourceAddress: SOURCE },
+    query: {
+      asset: 'XCP', status: '10', open_address: SOURCE,
+      give_quantity: '0', escrow_quantity: '0', mainchainrate: '0',
+    },
+  },
+  {
+    label: 'dispenser close on another address (core keeps open_address)',
+    composeType: 'dispenser',
+    params: {
+      asset: 'XCP', status: 10,
+      open_address: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr', sourceAddress: SOURCE,
+    },
+    query: {
+      asset: 'XCP', status: '10', open_address: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
+      give_quantity: '0', escrow_quantity: '0', mainchainrate: '0',
+    },
+  },
+  {
+    label: 'dispenser open',
+    composeType: 'dispenser',
+    params: {
+      asset: 'XCP', give_quantity: 1, escrow_quantity: 10, mainchainrate: 100,
+      sourceAddress: SOURCE,
+    },
+    query: {
+      asset: 'XCP', status: '0',
+      give_quantity: '1', escrow_quantity: '10', mainchainrate: '100',
+    },
+  },
+  // The remaining types that compose against an arbitrary address. Each had no oracle coverage.
+  {
+    label: 'UTXO attach',
+    composeType: 'attach',
+    params: { asset: 'XCP', quantity: 100 },
+    query: { asset: 'XCP', quantity: '100' },
+  },
+  {
+    label: 'dispense',
+    composeType: 'dispense',
+    params: { dispenser: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr', quantity: 1000 },
+    query: { dispenser: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr', quantity: '1000' },
+  },
+  {
+    label: 'UTXO detach',
+    composeType: 'detach',
+    sourceUtxo: DETACH_UTXO,
+    params: { destination: SOURCE },
+    query: { destination: SOURCE },
+  },
+  {
+    label: 'fairmint',
+    composeType: 'fairmint',
+    params: { asset: 'PEPECASH', quantity: 1 },
+    query: { asset: 'PEPECASH', quantity: '1' },
+  },
+  {
+    label: 'fairminter',
+    composeType: 'fairminter',
+    params: { asset: 'PEPECASH', max_mint_per_tx: 1 },
+    query: { asset: 'PEPECASH', max_mint_per_tx: '1' },
+  },
+  {
+    label: 'subasset fairminter with an explicit parent',
+    composeType: 'fairminter',
+    params: {
+      asset: 'A95428956661682177', asset_parent: 'PEPECASH', max_mint_per_tx: 1,
+    },
+    query: {
+      asset: 'A95428956661682177', asset_parent: 'PEPECASH', max_mint_per_tx: '1',
+    },
+  },
+  {
+    label: 'pool withdraw',
+    composeType: 'poolwithdraw',
+    params: {
+      asset_a: 'XCP', asset_b: 'PEPECASH',
+      quantity: 100, min_quantity_a: 1, min_quantity_b: 2,
+    },
+    query: {
+      asset_a: 'XCP', asset_b: 'PEPECASH',
+      quantity: '100', min_quantity_a: '1', min_quantity_b: '2',
+    },
+  },
+  // The LP asset id is 0 for a pool that already exists, and a value the request cannot predict
+  // for one that does not — core draws a random numeric asset when the deposit names none. Both
+  // are here because packing 0 for the second case blocked every first deposit into a new pool.
+  {
+    label: 'pool deposit into an existing pool',
+    composeType: 'pooldeposit',
+    params: { asset_a: 'XCP', asset_b: 'PEPECASH', quantity_a: 100, quantity_b: 200 },
+    query: { asset_a: 'XCP', asset_b: 'PEPECASH', quantity_a: '100', quantity_b: '200' },
+  },
+  {
+    label: 'pool deposit naming its own LP asset',
+    composeType: 'pooldeposit',
+    params: {
+      asset_a: 'XCP', asset_b: 'RAREPEPE',
+      quantity_a: 100, quantity_b: 200, lp_asset: 'A95428956661682177',
+    },
+    query: {
+      asset_a: 'XCP', asset_b: 'RAREPEPE',
+      quantity_a: '100', quantity_b: '200', lp_asset: 'A95428956661682177',
+    },
+  },
+  {
+    // No LP asset named and no pool for the pair: core invents one, and the packer has to borrow
+    // the id it drew. Every other byte still has to match.
+    label: 'first pool deposit, LP asset drawn by core',
+    composeType: 'pooldeposit',
+    params: { asset_a: 'XCP', asset_b: 'RAREPEPE', quantity_a: 100, quantity_b: 200 },
+    query: { asset_a: 'XCP', asset_b: 'RAREPEPE', quantity_a: '100', quantity_b: '200' },
+    observedFromResponse: true,
+  },
 ];
 
 async function composeDataFromCore(testCase: OracleCase): Promise<string> {
@@ -246,8 +388,13 @@ async function composeDataFromCore(testCase: OracleCase): Promise<string> {
       query.append(key, entry);
     }
   }
-  const url = `${API_URL}/v2/addresses/${SOURCE}/compose/${testCase.composeType}?${query}`;
-  const response = await fetch(url);
+  // Detach and move spend a UTXO rather than an address balance, and core routes them under
+  // `/v2/utxos/...` accordingly — the wallet calls them the same way (`composeUtxoTransaction`).
+  const from = testCase.sourceUtxo
+    ? `utxos/${testCase.sourceUtxo}`
+    : `addresses/${SOURCE}`;
+  const url = `${API_URL}/v2/${from}/compose/${testCase.composeType}?${query}`;
+  const response = await fetchOracle(url);
   if (!response.ok) {
     throw new Error(`core returned ${response.status} for ${testCase.label}: ${await response.text()}`);
   }

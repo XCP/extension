@@ -1,6 +1,6 @@
 import { CacheTTL, cachedFetch, KeyedTTLCache } from '@/core/api/cache';
 import { apiClient } from '@/core/api/client';
-import { toSatoshis } from '@/core/numeric';
+import { toNumber, toSatoshis } from '@/core/numeric';
 
 // Balance can change with each block but short cache prevents API spam
 const balanceCache = new KeyedTTLCache<string, number>(CacheTTL.MEDIUM);
@@ -230,7 +230,9 @@ function parseBTCBalance(endpoint: string, data: unknown): number | null {
       if (!isSochainResponse(data)) {
         return null;
       }
-      return Number(toSatoshis(Number(data.data.confirmed_balance)));
+      // toSatoshis takes the decimal string directly; the inner Number() was rounding a BTC
+      // amount to a float before it was scaled.
+      return toNumber(toSatoshis(data.data.confirmed_balance));
     }
   } catch (err) {
     console.warn(`Error parsing response from ${endpoint}:`, err);

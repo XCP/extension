@@ -1,4 +1,4 @@
-import { type ReactElement, useCallback, useEffect, useState } from "react";
+import { type ReactElement, useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { SearchResultCard } from "@/components/domain/asset/search-result-card";
 import { BalanceCard } from "@/components/domain/balance/balance-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
@@ -6,32 +6,80 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+
+import { spendableBalance, tracksPendingLedgerDebits } from "@/core/balances/spendable";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { fetchTokenBalance, fetchTokenBalances } from "@/core/counterparty/api";
-import { fromSatoshis } from "@/core/numeric";
+import { normalizeAssetQuery } from "@/core/format";
+import { asDisplayUnits, fromSatoshis, isGreaterThan } from '@/core/numeric';
+import { fetchZeldBalance, ZELD_WALLET_ASSET, zeldBaseUnitsToDisplay } from '@/core/zeld/api';
 import { useInView } from "@/hooks/useInView";
+import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
 
 
-export const BalanceList = (): ReactElement => {
+interface BalanceListProps {
+  /**
+   * Changes to ask for a fresh load. A counter rather than a boolean so two presses are two
+   * refreshes; the caller clears the relevant caches first, or this reads them straight back.
+   */
+  refreshNonce?: number;
+  /** Called when a requested refresh has finished, successfully or not, so the caller can stop
+   * showing it as in flight. Fires on completion rather than on success: a refresh that failed is
+   * still over, and a spinner that never stops is a worse lie than a stale number. */
+  onRefreshed?: () => void;
+}
+
+export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}): ReactElement => {
   const { activeWallet, activeAddress } = useWallet();
   const { settings } = useSettings();
   const { cacheBalances } = useHeader();
+  const address = activeAddress?.address;
+  const walletId = activeWallet?.id;
+  const pinnedAssetKey = (settings?.pinnedAssets ?? []).map(normalizeAssetQuery).join("\n");
+  const zeldEnabled = (settings?.zeldHuntSeconds ?? 0) > 0;
   const [allBalances, setAllBalances] = useState<TokenBalance[]>([]);
-  const [offset, setOffset] = useState(0);
+  const [zeldBalance, setZeldBalance] = useState<TokenBalance | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(false);
-  const { searchQuery, setSearchQuery, searchResults, isSearching } = useSearchQuery();
+  const [isInitialLoading, setIsInitialLoading] = useState(Boolean(address && walletId));
+  const [error, setError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const sessionRef = useRef<{ address: string; offset: number; busy: boolean; loaded: boolean; hasMore: boolean } | null>(null);
+  const previousRefreshNonce = useRef(refreshNonce);
+  const notifyRefreshed = useEffectEvent((completedNonce: number | undefined) => {
+    if (completedNonce === refreshNonce) onRefreshed?.();
+  });
+  const { searchQuery, setSearchQuery, searchResults, isSearching, error: searchError, retry: retrySearch } = useSearchQuery();
+  const isSearchActive = searchQuery.trim().length > 0;
 
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
 
-  useEffect(() => {
-    setInitialLoaded(false);
-  }, [settings?.pinnedAssets]);
+  // Read alongside the balances and on the same refresh, so the amount and what is happening to it
+  // never come from two different moments.
+  const { byAsset: pendingDeltas } = usePendingDeltas(activeAddress?.address, refreshNonce);
+
+  /**
+   * The figure on the card is what is spendable, not what the ledger has confirmed.
+   *
+   * The alternative was showing the confirmed balance here and the spendable one in the forms, but
+   * two screens disagreeing about the same asset is worse than one number that differs from an
+   * explorer — and the italic status beside it is what explains the difference. Everywhere in this
+   * wallet, the number means the same thing: what you can spend right now.
+   */
+  const displayBalance = useCallback((balance: TokenBalance): TokenBalance => {
+    const pending = pendingDeltas.get(balance.asset);
+    if (!pending || !tracksPendingLedgerDebits(balance.asset)) return balance;
+
+    const { spendable } = spendableBalance(balance.quantity_normalized, pending.debitedNormalized);
+    if (spendable === balance.quantity_normalized) return balance;
+    return { ...balance, quantity_normalized: asDisplayUnits(spendable) };
+  }, [pendingDeltas]);
+
+  const pendingByAssetLabel = useMemo(() => labelsFromDeltas(pendingDeltas), [pendingDeltas]);
 
   const upsertBalance = useCallback((balance: TokenBalance) => {
     if (!balance?.asset || balance?.quantity_normalized === undefined) {
@@ -53,25 +101,27 @@ export const BalanceList = (): ReactElement => {
   }, [cacheBalances]);
 
   useEffect(() => {
-    if (!activeAddress || !activeWallet || initialLoaded) {
-      if (!activeAddress || !activeWallet) {
-        setAllBalances([]);
-        setOffset(0);
-        setHasMore(true);
+    const requestedRefresh = previousRefreshNonce.current !== refreshNonce;
+    previousRefreshNonce.current = refreshNonce;
+    let settled = false;
+    const settleRefresh = () => {
+      if (!settled && requestedRefresh) {
+        settled = true;
+        notifyRefreshed(refreshNonce);
       }
-      return;
-    }
-
-    let isCancelled = false;
+    };
+    // A new object owns this address/refresh's initial load and all subsequent pages.
+    const session = address && walletId ? { address, offset: 0, busy: true, loaded: false, hasMore: true } : null;
+    sessionRef.current = session;
+    let cancelled = false;
 
     const loadInitialBalances = async () => {
-      console.log('[BalanceList] Loading initial balances...');
+      if (!session) return;
       setIsInitialLoading(true);
       try {
-        const balanceSats = await fetchBTCBalance(activeAddress.address);
-        const btcBalance: TokenBalance = {
+        const btcPromise = fetchBTCBalance(session.address).then((balanceSats): TokenBalance => ({
           asset: "BTC",
-          quantity_normalized: fromSatoshis(balanceSats),
+          quantity_normalized: asDisplayUnits(fromSatoshis(balanceSats)),
           asset_info: {
             asset_longname: null,
             description: "Bitcoin",
@@ -80,115 +130,145 @@ export const BalanceList = (): ReactElement => {
             locked: true,
             supply: "21000000"
           },
-        };
-        if (!isCancelled) upsertBalance(btcBalance);
-
-        const pinnedAssets = settings?.pinnedAssets || [];
-        const nonBTCAssets = pinnedAssets.filter((asset) => asset.toUpperCase() !== "BTC");
-        const balancePromises = nonBTCAssets.map(async (asset) => {
-          try {
-            const balance = await fetchTokenBalance(activeAddress.address, asset, { type: 'address' });
-            return { asset, balance };
-          } catch (error) {
-            console.error(`Error fetching ${asset} balance:`, error);
-            return null;
-          }
+        }));
+        const nonBTCAssets = [...new Set(pinnedAssetKey.split("\n").filter((asset) => asset && asset !== "BTC"))];
+        // Always discover earned ZELD, even with hunting off, but never make ordinary balances,
+        // pagination or refresh completion wait for this independent indexer.
+        void fetchZeldBalance(session.address).then((zeld) => {
+          if (sessionRef.current !== session) return;
+          const balance: TokenBalance = {
+            asset: ZELD_WALLET_ASSET,
+            quantity_normalized: zeldBaseUnitsToDisplay(zeld.baseUnits),
+            asset_info: {
+              asset_longname: null,
+              description: "ZeldHash ZELD",
+              issuer: "",
+              divisible: true,
+              locked: false,
+            },
+          };
+          setZeldBalance(balance);
+          cacheBalances([balance]);
+        }).catch(() => {
+          // Leave the optional row absent; the ZELD page explains an unavailable balance.
         });
-        const results = await Promise.all(balancePromises);
-        results.forEach((result) => {
-          if (result && result.balance && !isCancelled) {
-            upsertBalance(result.balance);
-          }
-        });
+        const results = await Promise.allSettled([
+          btcPromise,
+          ...nonBTCAssets.map((asset) => fetchTokenBalance(session.address, asset, { type: "address" })),
+        ]);
+        if (sessionRef.current !== session) return;
+        const balances = results.flatMap((result) => result.status === "fulfilled" && result.value ? [result.value] : []);
+        setAllBalances(balances);
+        cacheBalances(balances);
+        const failure = results.find((result) => result.status === "rejected");
+        if (failure?.status === "rejected") throw failure.reason;
+        session.loaded = true;
+        setInitialLoaded(true);
+        setHasMore(true);
       } catch (error) {
-        console.error("Error in loadInitialBalances:", error);
-      } finally {
-        if (!isCancelled) {
-          console.log('[BalanceList] Initial load complete');
-          setIsInitialLoading(false);
-          setInitialLoaded(true);
-          setOffset(0);
-          setHasMore(true);
+        if (sessionRef.current === session) {
+          console.error("Error in loadInitialBalances:", error);
+          setError("Failed to load balances.");
         }
+      } finally {
+        if (sessionRef.current === session) {
+          session.busy = false;
+          setIsInitialLoading(false);
+        }
+        settleRefresh();
       }
     };
 
-    loadInitialBalances();
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setAllBalances([]);
+      setZeldBalance(null);
+      setHasMore(false);
+      setInitialLoaded(false);
+      setIsFetchingMore(false);
+      setError(null);
+      if (session) void loadInitialBalances();
+      else {
+        setIsInitialLoading(false);
+        settleRefresh();
+      }
+    });
 
-    return () => { isCancelled = true; };
-  }, [activeAddress, activeWallet, upsertBalance, initialLoaded, settings?.pinnedAssets]);
+    return () => {
+      cancelled = true;
+      if (sessionRef.current === session) sessionRef.current = null;
+      settleRefresh();
+    };
+  }, [address, walletId, cacheBalances, pinnedAssetKey, refreshNonce, retryNonce]);
 
   // Load more on scroll
-  useEffect(() => {
-    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !inView) {
-      return;
-    }
-
-    console.log('[BalanceList] Loading more from offset:', offset);
-
-    const loadMoreBalances = async () => {
-      setIsFetchingMore(true);
-      try {
-        const limit = 20; // Increased from 10 to 20
-        const fetchedBalances = await fetchTokenBalances(activeAddress.address, { type: 'address', limit, offset });
-        console.log('[BalanceList] Fetched', fetchedBalances.length, 'balances');
-
-        // If we get less than requested, or no balances at all, no more to load
-        if (fetchedBalances.length < limit) {
-          console.log('[BalanceList] No more balances to load (got', fetchedBalances.length, 'of', limit, ')');
-          setHasMore(false);
-        }
-
-        // Only process if we have balances
-        if (fetchedBalances.length > 0) {
-          console.log('[BalanceList] Processing fetched balances...');
-          fetchedBalances.forEach((balance) => {
-            upsertBalance(balance);
-          });
-
-          // Only increment offset if we processed some balances
-          setOffset((prev) => {
-            console.log('[BalanceList] Updating offset from', prev, 'to', prev + limit);
-            return prev + limit;
-          });
-        } else {
-          console.log('[BalanceList] No balances returned, stopping pagination');
-          setHasMore(false);
-        }
-      } catch (error) {
+  const loadMore = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session || session.busy || !session.loaded || !session.hasMore) return;
+    session.busy = true;
+    setIsFetchingMore(true);
+    setError(null);
+    try {
+      const limit = 20;
+      const fetchedBalances = await fetchTokenBalances(session.address, { type: 'address', limit, offset: session.offset });
+      if (sessionRef.current !== session) return;
+      fetchedBalances.forEach(upsertBalance);
+      session.offset += limit;
+      session.hasMore = fetchedBalances.length === limit;
+      setHasMore(session.hasMore);
+    } catch (error) {
+      if (sessionRef.current === session) {
         console.error("Error fetching more balances:", error);
-        setHasMore(false);
-      } finally {
+        setError("Failed to load more balances.");
+      }
+    } finally {
+      if (sessionRef.current === session) {
+        session.busy = false;
         setIsFetchingMore(false);
       }
-    };
+    }
+  }, [upsertBalance]);
 
-    loadMoreBalances();
-  }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance, isFetchingMore]);
+  useEffect(() => {
+    if (!inView || !initialLoaded || !hasMore || isFetchingMore || error || isSearchActive) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void loadMore(); });
+    return () => { cancelled = true; };
+  }, [inView, initialLoaded, hasMore, isFetchingMore, error, isSearchActive, loadMore]);
 
-  // BTC is always pinned, plus user's pinned assets
-  const pinnedAssets = ["BTC"].concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
+  // BTC is always pinned, then ZELD, then the user's pinned assets
+  const pinnedAssets = ["BTC", ZELD_WALLET_ASSET.toUpperCase()]
+    .concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
 
-  const pinnedBalances = allBalances.filter((balance) => {
-    const assetUpper = balance.asset.toUpperCase();
-    const isPinned = pinnedAssets.includes(assetUpper);
-    if (!isPinned) return false;
+  const balancesWithZeld = [...allBalances];
+  if (zeldBalance) balancesWithZeld.splice(allBalances.findIndex(balance => balance.asset === "BTC") + 1, 0, zeldBalance);
 
-    // BTC always shows even if 0
-    if (assetUpper === "BTC") return true;
+  const pinnedBalances = balancesWithZeld.filter((balance) =>
+    pinnedAssets.includes(balance.asset.toUpperCase())
+  );
 
-    // XCP shows even if 0 only when pinned
-    if (assetUpper === "XCP" && isPinned) return true;
-
-    // Other pinned assets only show if non-zero
-    return Number(balance.quantity_normalized) > 0;
-  });
-
-  const otherBalances = allBalances.filter((balance) =>
+  const otherBalances = balancesWithZeld.filter((balance) =>
     !pinnedAssets.includes(balance.asset.toUpperCase())
   );
 
-  if (isInitialLoading) return <Spinner message="Loading balances…" />;
+  // A spendable balance of zero is not worth a row: once the debit confirms, the ledger drops the
+  // row itself, so skipping it now just gets there early. The zero test runs on the figure the
+  // card would show — an asset fully escrowed on an in-mempool order reads 0 and is skipped even
+  // though the ledger still lists it. BTC always shows, and XCP shows at zero while pinned, so an
+  // empty wallet still has somewhere to say "0".
+  const visibleBalances = (balances: TokenBalance[]) =>
+    balances
+      .map((balance) => ({ balance, shown: displayBalance(balance) }))
+      .filter(({ balance, shown }) => {
+        const assetUpper = balance.asset.toUpperCase();
+        if (assetUpper === "BTC") return true;
+        if (assetUpper === "XCP" && pinnedAssets.includes("XCP")) return true;
+        // ZELD shows at zero while hunting is on, since the row is where the hunt explains itself,
+        // and whenever there is a balance, so turning hunting off never hides ZELD already earned.
+        if (assetUpper === ZELD_WALLET_ASSET.toUpperCase() && zeldEnabled) return true;
+        return shown.quantity_normalized !== undefined
+          && isGreaterThan(shown.quantity_normalized, 0);
+      });
 
   return (
     <div className="space-y-2">
@@ -201,24 +281,37 @@ export const BalanceList = (): ReactElement => {
         showClearButton={true}
         isLoading={isSearching}
       />
-      {searchQuery ? (
+      {isSearchActive ? (
         isSearching ? (
           <Spinner message="Searching balances…" />
+        ) : searchError ? (
+          <div role="alert" className="py-4 text-center text-sm text-red-600">
+            <p>{searchError}</p>
+            <button type="button" onClick={retrySearch} className="mt-2 text-blue-600 underline cursor-pointer">Retry</button>
+          </div>
         ) : searchResults.length === 0 ? (
           <div className="text-center py-4 text-gray-500">No results found</div>
         ) : (
           searchResults.map((asset) => <SearchResultCard key={asset.symbol} symbol={asset.symbol} navigationType="balance" />)
         )
+      ) : isInitialLoading ? (
+        <Spinner message="Loading balances…" />
       ) : (
         <>
-          {pinnedBalances.map((balance) => (
-            <BalanceCard token={balance} key={balance.asset} />
+          {error && (
+            <div role="alert" className="py-4 text-center text-sm text-red-600">
+              <p>{error}</p>
+              <button type="button" onClick={() => initialLoaded ? void loadMore() : setRetryNonce((n) => n + 1)} className="mt-2 text-blue-600 underline cursor-pointer">Retry</button>
+            </div>
+          )}
+          {visibleBalances(pinnedBalances).map(({ balance, shown }) => (
+            <BalanceCard token={shown} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
-          {otherBalances.map((balance) => (
-            <BalanceCard token={balance} key={balance.asset} />
+          {visibleBalances(otherBalances).map(({ balance, shown }) => (
+            <BalanceCard token={shown} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
           <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
-            {hasMore ? (
+            {hasMore && !error ? (
               isFetchingMore ? (
                 <Spinner className="py-4" />
               ) : (

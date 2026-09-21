@@ -40,9 +40,26 @@ describe('Fee Rate Utilities', () => {
       const feeRates = await fetchFromMempoolSpace();
       expect(feeRates).toEqual(mockFeeRates);
       expect(apiClient.get).toHaveBeenCalledWith(
-        'https://mempool.space/api/v1/fees/recommended',
+        'https://mempool.space/api/v1/fees/precise',
         { retries: 0 }
       );
+    });
+
+    it('should keep sub-sat/vB rates, quoted to two decimals', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse({
+        fastestFee: 1,
+        halfHourFee: 0.69,
+        hourFee: 0.408,
+        economyFee: 0.2,
+        minimumFee: 0.1
+      }));
+
+      const feeRates = await fetchFromMempoolSpace();
+      expect(feeRates).toEqual({
+        fastestFee: 1,
+        halfHourFee: 0.69,
+        hourFee: 0.41 // rounded up, never below the estimate it came from
+      });
     });
 
     it('should throw error when API response is not ok', async () => {
@@ -106,30 +123,26 @@ describe('Fee Rate Utilities', () => {
       await expect(fetchFromMempoolSpace()).rejects.toThrow('Network error');
     });
 
-    it('should handle zero fee rates', async () => {
-      const zeroFeeRates = {
+    it('should clamp zero fee rates to the minimum the fee input accepts', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse({
         fastestFee: 0,
         halfHourFee: 0,
         hourFee: 0
-      };
-
-      vi.mocked(apiClient.get).mockResolvedValue(okResponse(zeroFeeRates));
+      }));
 
       const feeRates = await fetchFromMempoolSpace();
-      expect(feeRates).toEqual(zeroFeeRates);
+      expect(feeRates).toEqual({ fastestFee: 0.1, halfHourFee: 0.1, hourFee: 0.1 });
     });
 
-    it('should handle negative fee rates', async () => {
-      const negativeFeeRates = {
+    it('should clamp negative fee rates to the minimum the fee input accepts', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse({
         fastestFee: -1,
         halfHourFee: -2,
         hourFee: -3
-      };
-
-      vi.mocked(apiClient.get).mockResolvedValue(okResponse(negativeFeeRates));
+      }));
 
       const feeRates = await fetchFromMempoolSpace();
-      expect(feeRates).toEqual(negativeFeeRates);
+      expect(feeRates).toEqual({ fastestFee: 0.1, halfHourFee: 0.1, hourFee: 0.1 });
     });
   });
 
@@ -245,6 +258,23 @@ describe('Fee Rate Utilities', () => {
       expect(feeRates).toEqual({
         fastestFee: 20.5,
         halfHourFee: 15.3,
+        hourFee: 10.1
+      });
+    });
+
+    it('should quote fractional fee rates to two decimals', async () => {
+      const blockstreamResponse = {
+        "2": 20.567,
+        "3": 15.301,
+        "6": 10.1
+      };
+
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(blockstreamResponse));
+
+      const feeRates = await fetchFromBlockstream();
+      expect(feeRates).toEqual({
+        fastestFee: 20.57,
+        halfHourFee: 15.31,
         hourFee: 10.1
       });
     });

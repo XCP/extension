@@ -31,7 +31,7 @@ export const Footer = (): ReactElement => {
   };
 
   return (
-    <div className="p-2 bg-white border-t border-gray-300">
+    <footer className="shrink-0 border-t border-gray-300 bg-white p-2" aria-label="Primary">
       <div className="grid grid-cols-4 gap-2">
         <Button
           variant="transparent"
@@ -82,6 +82,6 @@ export const Footer = (): ReactElement => {
           </div>
         </Button>
       </div>
-    </div>
+    </footer>
   );
 };

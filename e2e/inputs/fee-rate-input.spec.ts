@@ -205,10 +205,11 @@ walletTest.describe('FeeRateInput Component', () => {
 
   walletTest.describe('Form Integration', () => {
     walletTest('fee rate is included in form submission', async ({ page }) => {
-      // Fee rate should have a hidden input or visible input with name
-      const hiddenInput = page.locator('input[name="sat_per_vbyte"]');
-      const hasInput = await hiddenInput.count();
-      expect(hasInput).toBeGreaterThan(0);
+      // Fail closed: the sat_per_vbyte input only exists once fee rates resolve
+      // (hidden input for presets, visible custom input if the fetch errored),
+      // so wait for it to attach rather than counting immediately.
+      const feeInput = page.locator('input[name="sat_per_vbyte"]');
+      await expect(feeInput.first()).toBeAttached({ timeout: 15000 });
     });
 
     walletTest('selected fee rate value is positive', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAddress, formatAmount, formatAsset, formatDate } from '@/core/format';
+import { formatAddress, formatAmount, formatAsset, formatDate, normalizeAssetQuery } from '@/core/format';
 
 describe('format utilities', () => {
   describe('formatAmount', () => {
@@ -17,7 +17,7 @@ describe('format utilities', () => {
       });
       // Currency formatting can vary by locale, so check for key components
       expect(result).toContain('1,234.57');
-      expect(result).toMatch(/[\$]|USD/); // Should contain $ or USD
+      expect(result).toMatch(/[$]|USD/); // Should contain $ or USD
     });
 
     it('should format percentage amounts', () => {
@@ -350,5 +350,50 @@ describe('format utilities', () => {
       const longAsset = 'A'.repeat(50);
       expect(formatAsset(longAsset, { shorten: true })).toMatch(/\.\.\.$/);
     });
+  });
+});
+
+describe('formatAmount, given the string a quantity arrived as', () => {
+  // A Counterparty quantity is a 64-bit integer and its normalized form is a decimal string. The
+  // string is exact; converting it to a double first is not, and Intl formats either.
+
+  it('renders a supply that a double cannot hold', () => {
+    // PEPECASH's real supply. Through Number() the last digits change.
+    expect(formatAmount({ value: '995269258.11111111', maximumFractionDigits: 8 }))
+      .toBe('995,269,258.11111111');
+    expect(formatAmount({ value: Number('995269258.11111111'), maximumFractionDigits: 8 }))
+      .toBe('995,269,258.1111112');
+  });
+
+  it('renders a base-unit quantity above 2^53 exactly', () => {
+    expect(formatAmount({ value: '99526925811111111' })).toBe('99,526,925,811,111,111');
+  });
+
+  it('still formats numbers, so existing callers are unaffected', () => {
+    expect(formatAmount({ value: 1234.5678, maximumFractionDigits: 2 })).toBe('1,234.57');
+  });
+
+  it('reports a value it cannot read as N/A rather than NaN', () => {
+    expect(formatAmount({ value: 'not a number' })).toBe('N/A');
+    expect(formatAmount({ value: '' })).toBe('N/A');
+    expect(formatAmount({ value: null })).toBe('N/A');
+  });
+});
+
+describe('normalizeAssetQuery', () => {
+  it('uppercases a named-asset query, the charset convention', () => {
+    expect(normalizeAssetQuery('pepecash')).toBe('PEPECASH');
+    expect(normalizeAssetQuery('  xcp ')).toBe('XCP');
+  });
+
+  // A subasset longname is case-sensitive; uppercasing PARENT.child names a different asset,
+  // which is why a fully and correctly typed longname found nothing in the market search.
+  it('leaves a subasset query exactly as typed', () => {
+    expect(normalizeAssetQuery('PARENT.child')).toBe('PARENT.child');
+    expect(normalizeAssetQuery(' A95428956661682177.sub ')).toBe('A95428956661682177.sub');
+  });
+
+  it('the dot decides, even for a lowercase parent', () => {
+    expect(normalizeAssetQuery('parent.Child')).toBe('parent.Child');
   });
 });

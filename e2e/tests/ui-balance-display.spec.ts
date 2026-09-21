@@ -18,6 +18,49 @@ walletTest.describe('Balance Display', () => {
     await expect(index.btcBalanceRow(page)).toBeVisible();
   });
 
+  walletTest('balances and refresh do not wait for the ZELD indexer', async ({ page, context }) => {
+    let releaseZeld!: () => void;
+    const pendingZeld = new Promise<void>(resolve => { releaseZeld = resolve; });
+    let zeldRequests = 0;
+    await context.route(/^https?:/, async route => {
+      const url = new URL(route.request().url());
+      if (url.hostname === 'api.zeldhash.com') {
+        zeldRequests++;
+        await pendingZeld;
+        await route.fulfill({ json: [{ txid: '0'.repeat(64), vout: 0, balance: 409600000000 }] });
+      } else if (/\/api\/address\/[^/]+$/.test(url.pathname)) {
+        await route.fulfill({ json: {
+          chain_stats: { funded_txo_sum: 100000, spent_txo_sum: 0, tx_count: 1 },
+          mempool_stats: { funded_txo_sum: 0, spent_txo_sum: 0, tx_count: 0 },
+        } });
+      } else if (url.pathname.startsWith('/v2/')) {
+        await route.fulfill({ json: { result: [] } });
+      } else {
+        await route.abort();
+      }
+    });
+    try {
+      // Reload clears the popup's indexer cache and exercises the production initial load.
+      await page.reload();
+      await expect.poll(() => zeldRequests).toBeGreaterThan(0);
+      await expect(index.btcBalanceRow(page)).toBeVisible({ timeout: 3000 });
+      await expect(page.getByText('Loading balances…', { exact: true })).toHaveCount(0);
+      await expect(page.getByText('ZELD', { exact: true })).toHaveCount(0);
+
+      const refresh = page.getByRole('button', { name: 'Refresh balances', exact: true });
+      await refresh.click();
+      await expect.poll(() => zeldRequests).toBeGreaterThan(1);
+      await expect(refresh).toBeEnabled({ timeout: 3000 });
+      await expect(index.btcBalanceRow(page)).toBeVisible();
+
+      releaseZeld();
+      await expect(page.getByText('ZELD', { exact: true })).toBeVisible();
+      await expect(index.btcBalanceRow(page)).toBeVisible();
+    } finally {
+      releaseZeld();
+    }
+  });
+
   walletTest('Assets tab shows content', async ({ page }) => {
     await index.assetsTab(page).click();
     await expect(page.getByText(/Assets|Loading|No assets/i).first()).toBeVisible();

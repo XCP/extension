@@ -1,12 +1,71 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as bitcoinAddress from '@/core/bitcoin/address';
-import { AddressFormat, detectAddressFormat, detectAddressFormatFromPreviews, getPreviewAddresses } from '@/core/bitcoin/address';
+import { AddressFormat, detectAddressFormat, detectAddressFormatFromPreviews, getPreviewAddresses, probeAddressActivity } from '@/core/bitcoin/address';
 import { hasAddressActivity } from '@/core/bitcoin/balance';
 import { fetchTokenBalances } from '@/core/counterparty/api';
+import { asBaseUnits } from '@/core/numeric';
 
 // Mock the external dependencies
 vi.mock('@/core/counterparty/api');
 vi.mock('@/core/bitcoin/balance');
+
+describe('probeAddressActivity', () => {
+  const ADDRESS = '1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('reports activity from Counterparty balances without asking the chain', async () => {
+    vi.mocked(fetchTokenBalances).mockResolvedValue([{ asset: 'XCP' }] as never);
+
+    await expect(probeAddressActivity(ADDRESS)).resolves.toEqual({
+      active: true,
+      reachable: true,
+    });
+    expect(hasAddressActivity).not.toHaveBeenCalled();
+  });
+
+  it('falls through to Bitcoin history when there are no balances', async () => {
+    vi.mocked(fetchTokenBalances).mockResolvedValue([] as never);
+    vi.mocked(hasAddressActivity).mockResolvedValue(true);
+
+    await expect(probeAddressActivity(ADDRESS)).resolves.toEqual({
+      active: true,
+      reachable: true,
+    });
+  });
+
+  it('reports an answered but empty address as reachable', async () => {
+    vi.mocked(fetchTokenBalances).mockResolvedValue([] as never);
+    vi.mocked(hasAddressActivity).mockResolvedValue(false);
+
+    await expect(probeAddressActivity(ADDRESS)).resolves.toEqual({
+      active: false,
+      reachable: true,
+    });
+  });
+
+  it('does not pass off a total outage as an empty address', async () => {
+    vi.mocked(fetchTokenBalances).mockRejectedValue(new Error('network down'));
+    vi.mocked(hasAddressActivity).mockRejectedValue(new Error('network down'));
+
+    await expect(probeAddressActivity(ADDRESS)).resolves.toEqual({
+      active: false,
+      reachable: false,
+    });
+  });
+
+  it('counts one provider answering as reached, even if the other failed', async () => {
+    vi.mocked(fetchTokenBalances).mockRejectedValue(new Error('counterparty down'));
+    vi.mocked(hasAddressActivity).mockResolvedValue(false);
+
+    await expect(probeAddressActivity(ADDRESS)).resolves.toEqual({
+      active: false,
+      reachable: true,
+    });
+  });
+});
 
 describe('Address Type Detector', () => {
   const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -67,18 +126,18 @@ describe('Address Type Detector', () => {
       expect(result).toBe(AddressFormat.P2SH_P2WPKH);
     });
 
-    it('should default to P2TR (Taproot) when no activity found', async () => {
+    it('should default to Native SegWit when no activity is found', async () => {
       vi.mocked(fetchTokenBalances).mockResolvedValue([]);
       vi.mocked(hasAddressActivity).mockResolvedValue(false);
 
       const result = await detectAddressFormat(testMnemonic);
-      expect(result).toBe(AddressFormat.P2TR);
+      expect(result).toBe(AddressFormat.P2WPKH);
     });
 
     it('should detect based on Counterparty token activity', async () => {
       // P2PKH address has tokens
       vi.mocked(fetchTokenBalances)
-        .mockResolvedValueOnce([{ asset: 'XCP', quantity: '100' }] as any)
+        .mockResolvedValueOnce([{ asset: 'XCP', quantity: asBaseUnits('100') }] as any)
         .mockResolvedValue([]);
       vi.mocked(hasAddressActivity).mockResolvedValue(false);
 
@@ -89,7 +148,7 @@ describe('Address Type Detector', () => {
     it('should prioritize Counterparty activity over Bitcoin activity', async () => {
       // P2PKH has tokens (will be detected first)
       vi.mocked(fetchTokenBalances)
-        .mockResolvedValueOnce([{ asset: 'PEPE', quantity: '1000' }] as any)  // P2PKH has tokens
+        .mockResolvedValueOnce([{ asset: 'PEPE', quantity: asBaseUnits('1000') }] as any)  // P2PKH has tokens
         .mockResolvedValue([]);
       vi.mocked(hasAddressActivity).mockResolvedValue(false);
 
@@ -117,25 +176,24 @@ describe('Address Type Detector', () => {
       expect(result).toBe(AddressFormat.P2WPKH);
     });
 
-    it('should handle API failures gracefully', async () => {
+    it('should distinguish a total provider outage from an empty wallet', async () => {
       vi.mocked(fetchTokenBalances).mockRejectedValue(new Error('API failed'));
       vi.mocked(hasAddressActivity).mockRejectedValue(new Error('API failed'));
 
-      const result = await detectAddressFormat(testMnemonic);
-      expect(result).toBe(AddressFormat.P2TR);
+      await expect(detectAddressFormat(testMnemonic)).rejects.toThrow(/providers are unavailable/);
     });
 
-    it('should skip Taproot checking since it is the fallback', async () => {
+    it('should detect Taproot activity explicitly', async () => {
       vi.mocked(fetchTokenBalances).mockResolvedValue([]);
-      vi.mocked(hasAddressActivity).mockResolvedValue(false);
+      vi.mocked(hasAddressActivity)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
 
       const result = await detectAddressFormat(testMnemonic);
-
-      // Should default to Taproot when no activity is found
       expect(result).toBe(AddressFormat.P2TR);
-
-      // Verify hasAddressActivity was called for the non-Taproot formats
-      expect(hasAddressActivity).toHaveBeenCalledTimes(5);
+      expect(hasAddressActivity).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -173,7 +231,7 @@ describe('Address Type Detector', () => {
       expect(hasAddressActivity).toHaveBeenCalledWith('preview-p2wpkh');
     });
 
-    it('should default to P2TR when no activity found', async () => {
+    it('should default to Native SegWit when no activity is found', async () => {
       const previews = {
         [AddressFormat.P2PKH]: 'preview-p2pkh',
         [AddressFormat.P2WPKH]: 'preview-p2wpkh',
@@ -183,7 +241,7 @@ describe('Address Type Detector', () => {
       vi.mocked(hasAddressActivity).mockResolvedValue(false);
 
       const result = await detectAddressFormatFromPreviews(previews);
-      expect(result).toBe(AddressFormat.P2TR);
+      expect(result).toBe(AddressFormat.P2WPKH);
     });
   });
 

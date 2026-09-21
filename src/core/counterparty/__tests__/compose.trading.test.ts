@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 import { composeCancel, composeDispense, composeDispenser, composeOrder } from '../compose';
 import {
   assertComposeUrlCalled,
   createMockApiResponse,
+  createMockComposeResponse,
   createMockComposeResult,
   mockAddress,
   mockSatPerVbyte,
@@ -25,11 +27,14 @@ vi.mock('@/core/counterparty/capabilities', () => ({
   requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Mock UTXO selection to prevent real API calls to mempool.space
+// Mock UTXO selection to prevent real API calls to mempool.space.
+// The txid is spelled out rather than imported as `mockInputTxid`: this factory is hoisted
+// above the imports and cannot read them. It must stay in step with the composed transaction
+// in composeTestHelpers, or the input check has nothing to match and stops testing anything.
 vi.mock('@/core/counterparty/utxoSelection', () => ({
   selectUtxosForTransaction: vi.fn().mockResolvedValue({
-    utxos: [{ txid: 'mock-txid', vout: 0, value: 100000, status: { confirmed: true } }],
-    inputsSet: 'mock-txid:0',
+    utxos: [{ txid: 'aa'.repeat(32), vout: 0, value: 100000, status: { confirmed: true } }],
+    inputsSet: `${'aa'.repeat(32)}:0`,
     totalValue: 100000,
     excludedWithAssets: 0,
   }),
@@ -44,8 +49,8 @@ describe('Compose Trading Operations', () => {
     vi.clearAllMocks();
     mockedGetSettings.mockReturnValue(mockSettings as any);
     // Mock both get and post methods since different functions may use different HTTP methods
-    mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-    mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+    mockedApiClient.post.mockResolvedValue(createMockComposeResponse());
   });
 
   describe('composeOrder', () => {
@@ -53,7 +58,7 @@ describe('Compose Trading Operations', () => {
       give_asset: testAssets.XCP,
       give_quantity: testQuantities.MEDIUM,
       get_asset: testAssets.BTC,
-      get_quantity: 10000000, // 0.1 BTC
+      get_quantity: asBaseUnits(10000000), // 0.1 BTC
       expiration: 100,
       fee_required: 0,
     };
@@ -65,7 +70,7 @@ describe('Compose Trading Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'order', defaultParams);
     });
 
@@ -83,16 +88,16 @@ describe('Compose Trading Operations', () => {
         ...optionalParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
     it('should handle sell orders (give XCP, get BTC)', async () => {
       const sellParams = {
         give_asset: testAssets.XCP,
-        give_quantity: 100000000,
+        give_quantity: asBaseUnits(100000000),
         get_asset: testAssets.BTC,
-        get_quantity: 10000000,
+        get_quantity: asBaseUnits(10000000),
         expiration: 100,
         fee_required: 0,
       };
@@ -108,9 +113,9 @@ describe('Compose Trading Operations', () => {
     it('should handle buy orders (give BTC, get XCP)', async () => {
       const buyParams = {
         give_asset: testAssets.BTC,
-        give_quantity: 10000000,
+        give_quantity: asBaseUnits(10000000),
         get_asset: testAssets.XCP,
-        get_quantity: 100000000,
+        get_quantity: asBaseUnits(100000000),
         expiration: 100,
         fee_required: 0,
       };
@@ -126,9 +131,9 @@ describe('Compose Trading Operations', () => {
     it('should handle asset-to-asset trades', async () => {
       const assetTradeParams = {
         give_asset: testAssets.DIVISIBLE,
-        give_quantity: 50000000,
+        give_quantity: asBaseUnits(50000000),
         get_asset: testAssets.INDIVISIBLE,
-        get_quantity: 10,
+        get_quantity: asBaseUnits(10),
         expiration: 200,
         fee_required: 0,
       };
@@ -206,7 +211,7 @@ describe('Compose Trading Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'cancel', defaultParams);
     });
 
@@ -222,7 +227,7 @@ describe('Compose Trading Operations', () => {
         ...optionalParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
@@ -231,8 +236,8 @@ describe('Compose Trading Operations', () => {
 
       for (const offer_hash of hashes) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+        mockedApiClient.post.mockResolvedValue(createMockComposeResponse());
 
         const result = await composeCancel({
           sourceAddress: mockAddress,
@@ -240,7 +245,7 @@ describe('Compose Trading Operations', () => {
           offer_hash,
         });
 
-        expect(result).toEqual(createMockComposeResult());
+        expect(result.result).toEqual(createMockComposeResult());
         expect(mockedApiClient.get).toHaveBeenCalled();
       }
     });
@@ -265,8 +270,8 @@ describe('Compose Trading Operations', () => {
   describe('composeDispenser', () => {
     const defaultParams = {
       asset: testAssets.XCP,
-      give_quantity: 1000000,
-      escrow_quantity: 100000000,
+      give_quantity: asBaseUnits(1000000),
+      escrow_quantity: asBaseUnits(100000000),
       mainchainrate: 100,
       status: '0', // 0 = open, 10 = close
     };
@@ -278,7 +283,7 @@ describe('Compose Trading Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'dispenser', defaultParams);
     });
 
@@ -296,7 +301,7 @@ describe('Compose Trading Operations', () => {
         ...optionalParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
@@ -312,7 +317,7 @@ describe('Compose Trading Operations', () => {
         ...openParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
@@ -328,8 +333,42 @@ describe('Compose Trading Operations', () => {
         ...closeParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
+    });
+
+    it('closes a dispenser that names only its asset and status', async () => {
+      // What the close screens actually submit: an asset and status 10, and nothing else. Core
+      // reads the three zeros as "leave them alone", and `packDispenser` defaults them the same
+      // way so byte equality still holds. Requiring them here refused every close outright.
+      const result = await composeDispenser({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        asset: testAssets.XCP,
+        status: '10',
+      } as unknown as Parameters<typeof composeDispenser>[0]);
+
+      expect(result.result).toEqual(createMockComposeResult());
+      assertComposeUrlCalled(mockedApiClient, 'dispenser', {
+        asset: testAssets.XCP,
+        give_quantity: '0',
+        escrow_quantity: '0',
+        mainchainrate: '0',
+        status: '10',
+      });
+    });
+
+    it('refuses to open a dispenser that names no quantities', async () => {
+      // The same defaults must not apply to an open: zeros there compose a dispenser that gives
+      // nothing away for nothing, which is not what any form meant to ask for.
+      await expect(
+        composeDispenser({
+          sourceAddress: mockAddress,
+          sat_per_vbyte: mockSatPerVbyte,
+          asset: testAssets.XCP,
+          status: '0',
+        } as unknown as Parameters<typeof composeDispenser>[0])
+      ).rejects.toThrow('A dispenser needs a give quantity.');
     });
 
     it('should handle different mainchain rates', async () => {
@@ -337,8 +376,8 @@ describe('Compose Trading Operations', () => {
 
       for (const mainchainrate of rates) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+        mockedApiClient.post.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, mainchainrate };
         const result = await composeDispenser({
@@ -347,7 +386,7 @@ describe('Compose Trading Operations', () => {
           ...params,
         });
 
-        expect(result).toEqual(createMockComposeResult());
+        expect(result.result).toEqual(createMockComposeResult());
         expect(mockedApiClient.get).toHaveBeenCalled();
       }
     });
@@ -356,7 +395,7 @@ describe('Compose Trading Operations', () => {
   describe('composeDispense', () => {
     const defaultParams = {
       dispenser: 'bc1qdispenser123',
-      quantity: 1000000,
+      quantity: asBaseUnits(1000000),
     };
 
     it('should compose dispense transaction', async () => {
@@ -366,7 +405,7 @@ describe('Compose Trading Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'dispense', defaultParams);
     });
 
@@ -377,7 +416,7 @@ describe('Compose Trading Operations', () => {
           address: mockAddress,
           dispenser: defaultParams.dispenser,
           quantity: defaultParams.quantity,
-          quantity_normalized: '0.01000000',
+          quantity_normalized: asDisplayUnits('0.01000000'),
         } as any,
       });
       mockedApiClient.get.mockResolvedValue(createMockApiResponse({ result: upstream }));
@@ -406,7 +445,7 @@ describe('Compose Trading Operations', () => {
         ...optionalParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
@@ -415,8 +454,8 @@ describe('Compose Trading Operations', () => {
 
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+        mockedApiClient.post.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, quantity };
         const result = await composeDispense({
@@ -425,7 +464,7 @@ describe('Compose Trading Operations', () => {
           ...params,
         });
 
-        expect(result).toEqual(createMockComposeResult());
+        expect(result.result).toEqual(createMockComposeResult());
         expect(mockedApiClient.get).toHaveBeenCalled();
       }
     });
@@ -435,8 +474,8 @@ describe('Compose Trading Operations', () => {
 
       for (const dispenser of dispensers) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+        mockedApiClient.post.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, dispenser };
         const result = await composeDispense({
@@ -445,7 +484,7 @@ describe('Compose Trading Operations', () => {
           ...params,
         });
 
-        expect(result).toEqual(createMockComposeResult());
+        expect(result.result).toEqual(createMockComposeResult());
         expect(mockedApiClient.get).toHaveBeenCalled();
       }
     });

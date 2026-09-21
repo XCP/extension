@@ -54,7 +54,8 @@ export function MemoInput({
     onValidationChange?.(valid);
   };
 
-  // Sync with external value changes
+  // Sync with external value changes. `memo` is deliberately not a dep — listing it would re-run
+  // this on every keystroke and setMemo(value) would discard what the user just typed.
   useEffect(() => {
     if (value !== memo) {
       setMemo(value);
@@ -64,7 +65,8 @@ export function MemoInput({
     }
   }, [value]);
 
-  // Initial validation
+  // Initial validation, mount only. Later changes report through handleMemoChange and the sync
+  // effect above.
   useEffect(() => {
     const valid = checkMemoValidity(memo);
     setIsValid(valid);

@@ -1,4 +1,4 @@
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat, DEFAULT_ADDRESS_FORMAT } from '@/core/bitcoin/address';
 
 /**
  * Private key format validation interface
@@ -26,7 +26,7 @@ export function validatePrivateKeyFormat(privateKey: string): PrivateKeyValidati
   }
   
   // Check for formula injection attempts
-  if (/^[=@+\-]/.test(trimmed)) {
+  if (/^[-=@+]/.test(trimmed)) {
     return { isValid: false, error: 'Invalid private key format' };
   }
 
@@ -53,7 +53,7 @@ export function validatePrivateKeyFormat(privateKey: string): PrivateKeyValidati
     return {
       isValid: true,
       format: 'hex',
-      suggestedAddressFormat: AddressFormat.P2TR, // Default for hex
+      suggestedAddressFormat: DEFAULT_ADDRESS_FORMAT,
     };
   }
 
@@ -86,7 +86,7 @@ function validateWIFFormat(wif: string): PrivateKeyValidationResult {
     return {
       isValid: true,
       format: 'wif-compressed',
-      suggestedAddressFormat: AddressFormat.P2SH_P2WPKH, // Compressed keys can use SegWit
+      suggestedAddressFormat: DEFAULT_ADDRESS_FORMAT,
     };
   }
 

@@ -21,14 +21,14 @@ describe('MoneyMovementView', () => {
     expect(screen.getByText(/0\.00060000/)).toBeInTheDocument(); // headline net, distinct from the 0.00070000 row
   });
 
-  it('lists an external destination, change, and fee', () => {
+  it('lists an external destination and fee, and leaves routine change to the transaction section', () => {
     render(
       <MoneyMovementView
         movement={movement({ net: -95000, external: [{ address: 'bc1qexternaldestinationaddr', value: 90000 }], backToYou: 5000, fee: 5000 })}
       />
     );
     expect(screen.getByText(/^bc1q/)).toBeInTheDocument(); // the external destination (truncated)
-    expect(screen.getByText('To your wallet')).toBeInTheDocument();
+    expect(screen.queryByText('Returned to wallet')).not.toBeInTheDocument();
     expect(screen.getByText('Network fee')).toBeInTheDocument();
   });
 
@@ -41,6 +41,19 @@ describe('MoneyMovementView', () => {
     render(<MoneyMovementView movement={movement({ net: -1000, incomplete: true })} />);
     // Specific, because the headline now also says the net effect couldn't be determined.
     expect(screen.getByText(/some amounts couldn't be determined/i)).toBeInTheDocument();
+  });
+
+  it('does not turn a missing prevout into a zero network fee', () => {
+    render(<MoneyMovementView movement={movement({ fee: 0, incomplete: true })} />);
+    expect(screen.getByText('Network fee').parentElement).toHaveTextContent('Unavailable');
+    expect(screen.queryByText('0.00000000 BTC')).not.toBeInTheDocument();
+  });
+
+  it('still shows a verified zero fee, and keeps unfunded fee terms distinct', () => {
+    const { rerender } = render(<MoneyMovementView movement={movement({ fee: 0 })} showHeadline={false} />);
+    expect(screen.getByText('Network fee').parentElement).toHaveTextContent('0.00000000 BTC');
+    rerender(<MoneyMovementView movement={movement({ fee: 0, incomplete: true })} unfunded />);
+    expect(screen.getByText('Network fee').parentElement).toHaveTextContent('Set by the other party');
   });
 
   it('does not claim a direction when the totals are incomplete', () => {
@@ -64,8 +77,29 @@ describe('MoneyMovementView', () => {
     expect(screen.getByText('You send')).toBeInTheDocument();
   });
 
-  it('shows the flexible (ANYONECANPAY) caveat when set', () => {
-    render(<MoneyMovementView movement={movement({ net: 10000 })} flexible />);
-    expect(screen.getByText(/may be added after you sign/i)).toBeInTheDocument();
+  it('says ALL|ANYONECANPAY fixes every current output', () => {
+    render(<MoneyMovementView movement={movement({ net: 10000 })} flexibility="inputs-only" />);
+    expect(screen.getByText(/every current output is fixed/i)).toBeInTheDocument();
+    expect(screen.queryByText(/outputs may be added/i)).not.toBeInTheDocument();
+  });
+
+  it('distinguishes output-flexible signatures', () => {
+    render(<MoneyMovementView movement={movement({ net: 10000 })} flexibility="outputs-flexible" />);
+    expect(screen.getByText(/inputs or outputs may be added or changed/i)).toBeInTheDocument();
+  });
+
+  it('keeps quantified cautions neutral when a focused review step presents the warning', () => {
+    render(
+      <MoneyMovementView
+        movement={movement({ net: -50_000, atRisk: 50_000, fee: 1_000 })}
+        flexibility="outputs-flexible"
+        hasHighFee
+        deferCautions
+      />
+    );
+
+    expect(screen.getByText('Not guaranteed back')).toHaveClass('text-gray-500');
+    expect(screen.queryByText(/unusually high/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/may be added or changed/i)).not.toBeInTheDocument();
   });
 });

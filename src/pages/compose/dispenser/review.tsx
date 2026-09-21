@@ -2,7 +2,7 @@ import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAmount, formatAsset } from "@/core/format";
-import { fromSatoshis } from "@/core/numeric";
+import { divide, fromSatoshis, multiply, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 /**
@@ -55,25 +55,27 @@ export function ReviewDispenser({
   const giveQuantity = result.params.give_quantity_normalized;
 
   // Calculate BTC values for USD display
-  const mainchainrate = decoded?.mainchainrate !== undefined
-    ? Number(decoded.mainchainrate)
-    : result.params.mainchainrate;
-  const escrowForRatio = decoded?.escrowQuantity !== undefined
-    ? Number(decoded.escrowQuantity)
-    : Number(result.params.escrow_quantity);
-  const giveForRatio = decoded?.giveQuantity !== undefined
-    ? Number(decoded.giveQuantity)
-    : Number(result.params.give_quantity);
+  const mainchainrate = decoded?.mainchainrate ?? result.params.mainchainrate;
+  const escrowForRatio = toBigNumber(
+    decoded?.escrowQuantity ?? result.params.escrow_quantity
+  );
+  const giveForRatio = toBigNumber(
+    decoded?.giveQuantity ?? result.params.give_quantity
+  );
 
-  const perDispenseBtc = fromSatoshis(mainchainrate, true);
-  const bitcoinTotalBtc = (escrowForRatio / giveForRatio) * fromSatoshis(mainchainrate, true);
+  const perDispenseBtc = toBigNumber(fromSatoshis(mainchainrate));
+  // A dispenser giving nothing has no total to quote, rather than a total of zero.
+  const dispenseCount = giveForRatio.isGreaterThan(0)
+    ? divide(escrowForRatio, giveForRatio)
+    : null;
+  const bitcoinTotalBtc = dispenseCount === null ? null : multiply(dispenseCount, perDispenseBtc);
 
   // Format USD values
   const perDispenseUsd = btcPrice !== null
-    ? `$${formatAmount({ value: perDispenseBtc * btcPrice, minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    ? `$${formatAmount({ value: multiply(perDispenseBtc, btcPrice), minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : null;
-  const bitcoinTotalUsd = btcPrice !== null
-    ? `$${formatAmount({ value: bitcoinTotalBtc * btcPrice, minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const bitcoinTotalUsd = btcPrice !== null && bitcoinTotalBtc !== null
+    ? `$${formatAmount({ value: multiply(bitcoinTotalBtc, btcPrice), minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : null;
 
   const customFields = [

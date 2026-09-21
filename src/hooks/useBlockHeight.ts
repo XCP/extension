@@ -59,7 +59,8 @@ export function useBlockHeight(options: UseBlockHeightOptions = {}) {
     }
   }, [blockHeight]);
 
-  // Initial fetch on mount if autoFetch is true
+  // Initial fetch on mount if autoFetch is true. fetchBlockHeight is omitted deliberately: it
+  // depends on blockHeight, so listing it would poll forever.
   useEffect(() => {
     if (autoFetch) {
       fetchBlockHeight();

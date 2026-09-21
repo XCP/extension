@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AssetInfo, fetchTokenUtxos } from '@/core/counterparty/api';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { useAssetDetails } from '../useAssetDetails';
 import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
 
@@ -29,20 +30,20 @@ describe('useAssetDetails', () => {
     description: 'Rare Pepe Cash',
     divisible: true,
     locked: false,
-    supply: '10000000.00000000',
-    supply_normalized: '10000000.00000000'
+    supply: asBaseUnits('10000000.00000000'),
+    supply_normalized: asDisplayUnits('10000000.00000000')
   };
   
   const mockAssetDetails = {
     isDivisible: true,
     assetInfo: mockAssetInfo,
-    availableBalance: '10000000.00000000'
+    availableBalance: asDisplayUnits('10000000.00000000')
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock fetchTokenUtxos to return empty array by default
-    vi.mocked(fetchTokenUtxos).mockResolvedValue([]);
+    // An unused attached-output request must never delay ordinary asset details.
+    vi.mocked(fetchTokenUtxos).mockImplementation(() => new Promise(() => {}));
   });
 
   it('should fetch asset details on mount', async () => {
@@ -64,9 +65,10 @@ describe('useAssetDetails', () => {
     expect(fetchAssetDetailsAndBalance).toHaveBeenCalledWith('PEPECASH', 'bc1qtest123');
     expect(result.current.data).toEqual(expect.objectContaining({
       isDivisible: true,
-      availableBalance: '10000000.00000000'
+      availableBalance: asDisplayUnits('10000000.00000000')
     }));
     expect(result.current.error).toBeNull();
+    expect(fetchTokenUtxos).not.toHaveBeenCalled();
   });
 
   it('should handle fetch error', async () => {
@@ -105,12 +107,12 @@ describe('useAssetDetails', () => {
     const asset1 = { 
       isDivisible: true,
       assetInfo: { ...mockAssetInfo, asset: 'ASSET1' },
-      availableBalance: '100' 
+      availableBalance: asDisplayUnits('100') 
     };
     const asset2 = { 
       isDivisible: true,
       assetInfo: { ...mockAssetInfo, asset: 'ASSET2' },
-      availableBalance: '200' 
+      availableBalance: asDisplayUnits('200') 
     };
     
     // Set up mock to return different values for different calls
@@ -161,15 +163,15 @@ describe('useAssetDetails', () => {
 
     expect(result.current.data).toEqual(expect.objectContaining({
       isDivisible: true,
-      availableBalance: '1',
+      availableBalance: asDisplayUnits('1'),
       assetInfo: expect.objectContaining({
         asset: 'BTC',
         asset_longname: null,
         description: 'Bitcoin',
         divisible: true,
         locked: true,
-        supply: '2100000000000000',
-        supply_normalized: '21000000',
+        supply: asBaseUnits('2100000000000000'),
+        supply_normalized: asDisplayUnits('21000000'),
         issuer: '',
         fair_minting: false
       })
@@ -186,7 +188,7 @@ describe('useAssetDetails', () => {
     const assetWithLongname = {
       isDivisible: true,
       assetInfo: longnameAssetInfo,
-      availableBalance: '10000000.00000000'
+      availableBalance: asDisplayUnits('10000000.00000000')
     };
     vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue(assetWithLongname);
 
@@ -205,13 +207,13 @@ describe('useAssetDetails', () => {
       description: 'Rare Pepe Cash',
       divisible: false,
       locked: false,
-      supply: '1000',
-      supply_normalized: '1000'
+      supply: asBaseUnits('1000'),
+      supply_normalized: asDisplayUnits('1000')
     };
     const indivisibleAsset = {
       isDivisible: false,
       assetInfo: indivisibleAssetInfo,
-      availableBalance: '1000'
+      availableBalance: asDisplayUnits('1000')
     };
     vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue(indivisibleAsset);
 

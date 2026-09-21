@@ -1,3 +1,4 @@
+import { serializeRawInteger } from "@/core/amount-contract/amounts";
 /**
  * Counterparty API Client
  *
@@ -8,7 +9,10 @@
  */
 
 import { apiClient } from '@/core/api/client';
+import { collectPages } from '@/core/counterparty/pagination';
+import { type RateLimitRefusal, RequestGate } from '@/core/counterparty/requestGate';
 import { CounterpartyApiError } from '@/core/errors';
+import { asBaseUnits, asDisplayUnits, type BaseUnits, type DisplayUnits, toBigNumber } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 
 // =============================================================================
@@ -28,6 +32,27 @@ interface CacheEntry<T> {
 }
 
 const cache = new Map<string, CacheEntry<unknown>>();
+
+// =============================================================================
+// PACE
+// =============================================================================
+
+/**
+ * Every Counterparty read goes through one gate, so a screen that asks ten questions at once is
+ * answered a few at a time, and a node that says 429 is obeyed by everyone until its Retry-After
+ * passes. See `requestGate.ts` for why.
+ */
+const requestGate = new RequestGate();
+
+/** A 429 from the API client, with the wait the node asked for when it said. */
+function rateLimitRefusal(error: unknown): RateLimitRefusal | null {
+  if (!error || typeof error !== 'object') return null;
+  const { status, retryAfter } = error as { status?: unknown; retryAfter?: unknown };
+  if (status !== 429) return null;
+  return {
+    retryAfterMs: typeof retryAfter === 'number' && Number.isFinite(retryAfter) ? retryAfter * 1000 : undefined,
+  };
+}
 
 /**
  * Generate a cache key from URL and params.
@@ -81,11 +106,43 @@ function setInCache<T>(key: string, data: T): void {
 }
 
 /**
+ * The reads that have been sent and not yet answered, by cache key.
+ *
+ * The response cache above can only collapse a repeat once the first answer is
+ * back. It does nothing for the case that actually produces a 429 storm: a
+ * screen mounting and asking the same question several times in the same tick.
+ * Every one of those misses the empty cache and every one goes to the node.
+ *
+ * That is not hypothetical here. The refusals that started this work were
+ * seventy-odd 429s for a single URL — `/v2/addresses/mempool` for one address
+ * with one event filter — which is one question asked many times at once, not
+ * many questions. `fetchMempoolLedgerEvents` even documents the intent:
+ * "several parts of a screen ask this at once ... collapsing those into one
+ * call matters more than a few seconds of freshness." The cache could not
+ * deliver that. This does.
+ *
+ * The entry is dropped as soon as the request settles, so this shares work
+ * rather than storing it: a caller never receives an answer older than one it
+ * would have fetched itself, and a failure is never remembered. How long an
+ * answer stays good remains the response cache's business.
+ *
+ * `skipCache` callers join too, and should. Asking to skip the cache means
+ * "not a stored answer from up to a minute ago", not "open a second socket
+ * alongside the identical request already in the air".
+ */
+const inFlight = new Map<string, Promise<unknown>>();
+
+/**
  * Clear the API cache. Call after mutations (send, create order, etc.)
  * to ensure fresh data on next read.
  */
 export function clearApiCache(): void {
   cache.clear();
+  // A read already on its way was sent before the mutation, so its answer will
+  // not contain it. Dropping the entry does not cancel that request — its own
+  // caller still gets it — but it stops anyone who asks next from joining an
+  // answer that predates the thing they are refreshing to see.
+  inFlight.clear();
 }
 
 /**
@@ -95,6 +152,12 @@ export function clearApiCacheMatching(pattern: string): void {
   for (const key of cache.keys()) {
     if (key.includes(pattern)) {
       cache.delete(key);
+    }
+  }
+  // Same reasoning as clearApiCache, narrowed to the keys being invalidated.
+  for (const key of inFlight.keys()) {
+    if (key.includes(pattern)) {
+      inFlight.delete(key);
     }
   }
 }
@@ -118,9 +181,20 @@ export type DispenserStatusType = (typeof DispenserStatus)[keyof typeof Dispense
 // TYPES - Generic
 // =============================================================================
 
+/**
+ * An integer field the API may return above JavaScript's safe range.
+ *
+ * Counterparty quantities are unsigned 64-bit. Values above 2^53-1 arrive as strings so that no
+ * digits are lost in parsing (see core/api/losslessJson.ts); smaller ones stay numbers. Pass these
+ * to numeric.ts — toBigNumber and fromSatoshis accept either and are exact with both — rather than
+ * doing arithmetic on them directly, where a string would concatenate instead of add.
+ */
+export type ApiQuantity = BaseUnits;
+
 export interface PaginatedResponse<T> {
   result: T[];
   result_count: number;
+  next_cursor?: string | number | null;
 }
 
 export interface PaginationOptions {
@@ -143,7 +217,7 @@ export interface AssetInfo {
   locked: boolean;
   description_locked?: boolean;
   supply?: string | number;
-  supply_normalized: string;
+  supply_normalized: DisplayUnits;
   fair_minting?: boolean;
   first_issuance_block_index?: number;
   last_issuance_block_index?: number;
@@ -161,8 +235,8 @@ export interface TokenBalance {
     locked: boolean;
     supply?: number | string;
   };
-  quantity?: number;
-  quantity_normalized: string;
+  quantity?: ApiQuantity;
+  quantity_normalized: DisplayUnits;
   address?: string | null;
   utxo?: string | null;
   utxo_address?: string | null;
@@ -176,9 +250,44 @@ export interface UtxoBalance extends TokenBalance {
 export interface OwnedAsset {
   asset: string;
   asset_longname: string | null;
-  supply_normalized: string;
+  supply_normalized: DisplayUnits;
   description: string;
   locked: boolean;
+}
+
+/**
+ * One row of an asset's issuance history.
+ *
+ * The most recent valid row is the asset's live state as counterparty-core sees it:
+ * `issuance.validate` reads `fair_minting`, `description_locked`, `locked` and `issuer` off
+ * exactly this record (`last_issuance`), and core keeps it current by *appending* rows rather
+ * than mutating the asset — closing a fairminter, for instance, writes a fresh issuance with
+ * `fair_minting: false` and any `lock_quantity`/`lock_description` the sale asked for
+ * (`messages/fairminter.py`, `close_fairminter`).
+ */
+export interface AssetIssuance {
+  tx_hash: string;
+  block_index: number;
+  asset: string;
+  asset_longname: string | null;
+  quantity: ApiQuantity;
+  quantity_normalized: DisplayUnits;
+  divisible: boolean;
+  source: string;
+  /** The owner as of this issuance — a transfer records the destination here. */
+  issuer: string;
+  transfer: boolean;
+  description: string;
+  /** Supply frozen. Sticky: once any issuance sets it, the asset stays locked. */
+  locked: boolean;
+  /** Description frozen — core refuses any later issuance that carries a description. */
+  description_locked?: boolean;
+  /** A fairminter is open or pending on this asset; every reissuance is refused while set. */
+  fair_minting?: boolean;
+  reset: boolean;
+  status?: string;
+  asset_events?: string;
+  block_time?: number;
 }
 
 // =============================================================================
@@ -190,26 +299,12 @@ export interface Order {
   block_time: number;
   give_asset: string;
   get_asset: string;
-  give_quantity_normalized: string;
-  get_quantity_normalized: string;
-  give_remaining_normalized: string;
-  get_remaining_normalized: string;
-  status: string;
-  expire_index: number;
-  market_price_normalized?: string;
-}
-
-export interface OrderDetails extends Order {
-  source: string;
-  give_quantity: number;
-  get_quantity: number;
-  fee_required: number;
-  fee_provided: number;
-  fee_required_remaining: number;
-  fee_provided_remaining: number;
-  give_price: number;
-  get_price: number;
-  confirmed: boolean;
+  /**
+   * Present on verbose responses. A subasset's `give_asset`/`get_asset` is its numeric name
+   * (A123…); the PARENT.child the user knows lives in `asset_longname` here, and displays must
+   * prefer it — an order list showing A95428956661682177 names nothing anyone typed. The shapes
+   * are the ones OrderDetails always declared, hoisted so plain order lists get them too.
+   */
   give_asset_info?: {
     divisible: boolean;
     asset_longname: string | null;
@@ -224,12 +319,32 @@ export interface OrderDetails extends Order {
     divisible: boolean;
     locked: boolean;
   };
-  give_price_normalized?: string;
-  get_price_normalized?: string;
-  fee_provided_normalized?: string;
-  fee_required_normalized?: string;
-  fee_required_remaining_normalized?: string;
-  fee_provided_remaining_normalized?: string;
+  give_quantity_normalized: DisplayUnits;
+  get_quantity_normalized: DisplayUnits;
+  give_remaining_normalized: DisplayUnits;
+  get_remaining_normalized: DisplayUnits;
+  status: string;
+  expire_index: number;
+  market_price_normalized?: DisplayUnits;
+}
+
+export interface OrderDetails extends Order {
+  source: string;
+  give_quantity: ApiQuantity;
+  get_quantity: ApiQuantity;
+  fee_required: number;
+  fee_provided: number;
+  fee_required_remaining: number;
+  fee_provided_remaining: number;
+  give_price: number;
+  get_price: number;
+  confirmed: boolean;
+  give_price_normalized?: DisplayUnits;
+  get_price_normalized?: DisplayUnits;
+  fee_provided_normalized?: DisplayUnits;
+  fee_required_normalized?: DisplayUnits;
+  fee_required_remaining_normalized?: DisplayUnits;
+  fee_provided_remaining_normalized?: DisplayUnits;
 }
 
 export interface OrderMatch {
@@ -242,20 +357,20 @@ export interface OrderMatch {
   tx1_address: string;
   forward_asset: string;
   forward_quantity: number;
-  forward_quantity_normalized: string;
+  forward_quantity_normalized: DisplayUnits;
   backward_asset: string;
   backward_quantity: number;
-  backward_quantity_normalized: string;
+  backward_quantity_normalized: DisplayUnits;
   tx0_block_index: number;
   tx1_block_index: number;
   block_index: number;
   block_time: number;
   match_expire_index: number;
   fee_paid: number;
-  fee_paid_normalized: string;
+  fee_paid_normalized: DisplayUnits;
   status: string;
   confirmed?: boolean;
-  market_price_normalized?: string;
+  market_price_normalized?: DisplayUnits;
 }
 
 // =============================================================================
@@ -274,15 +389,15 @@ export interface Pool {
   reserve_b: number;
   lp_asset: string;
   status?: string;
-  reserve_a_normalized?: string;
-  reserve_b_normalized?: string;
+  reserve_a_normalized?: DisplayUnits;
+  reserve_b_normalized?: DisplayUnits;
   confirmed?: boolean;
   [key: string]: unknown;
 }
 
 export interface PoolPosition extends Pool {
-  quantity: number;
-  quantity_normalized?: string;
+  quantity: ApiQuantity;
+  quantity_normalized?: DisplayUnits;
 }
 
 export interface PoolQuote {
@@ -290,7 +405,7 @@ export interface PoolQuote {
   pool_output?: number;
   book_output?: number;
   book_orders_matched?: number;
-  give_remaining?: number;
+  give_remaining?: ApiQuantity;
   effective_price?: number;
   price_impact?: number;
   pool_exists?: boolean;
@@ -315,8 +430,8 @@ export interface PoolWithdrawQuote {
   pool_exists: boolean;
   asset_a?: string;
   asset_b?: string;
-  quantity?: number;
-  supply?: number;
+  quantity?: ApiQuantity;
+  supply?: ApiQuantity;
   quantity_a_estimate?: number;
   quantity_b_estimate?: number;
   reserve_a?: number;
@@ -333,9 +448,10 @@ export interface Dispenser {
   tx_hash: string;
   source: string;
   asset: string;
+  oracle_address?: string | null;
   status: number;
-  give_remaining: number;
-  give_remaining_normalized: string;
+  give_remaining: ApiQuantity;
+  give_remaining_normalized: DisplayUnits;
   asset_info?: {
     asset_longname: string | null;
     description: string;
@@ -346,16 +462,18 @@ export interface Dispenser {
 }
 
 export interface DispenserDetails extends Dispenser {
-  give_quantity: number;
-  give_quantity_normalized: string;
-  satoshirate: number;
-  satoshirate_normalized: string;
-  escrow_quantity: number;
-  escrow_quantity_normalized: string;
+  /** Opening transaction index; block_index can change after a refill or dispense. */
+  tx_index?: number;
+  give_quantity: ApiQuantity;
+  give_quantity_normalized: DisplayUnits;
+  satoshirate: ApiQuantity;
+  satoshirate_normalized: DisplayUnits;
+  escrow_quantity: ApiQuantity;
+  escrow_quantity_normalized: DisplayUnits;
   block_index: number;
   block_time: number;
   confirmed?: boolean;
-  price: number;
+  price: ApiQuantity;
   satoshi_price: number;
 }
 
@@ -368,10 +486,10 @@ export interface Dispense {
   destination: string;
   asset: string;
   dispense_quantity: number;
-  dispense_quantity_normalized: string;
+  dispense_quantity_normalized: DisplayUnits;
   dispenser_tx_hash: string;
   btc_amount: number;
-  btc_amount_normalized: string;
+  btc_amount_normalized: DisplayUnits;
   confirmed?: boolean;
 }
 
@@ -391,7 +509,7 @@ export interface Transaction {
   status?: string;
   transaction_type?: string;
   btc_amount?: number;
-  btc_amount_normalized?: string;
+  btc_amount_normalized?: DisplayUnits;
   fee?: number;
   data: Record<string, any>;
   supported: boolean;
@@ -423,12 +541,12 @@ export interface Dividend {
   source: string;
   asset: string;
   dividend_asset: string;
-  quantity_per_unit: number;
-  quantity_per_unit_normalized: string;
+  quantity_per_unit: ApiQuantity;
+  quantity_per_unit_normalized: DisplayUnits;
   total_distributed: number;
-  total_distributed_normalized: string;
+  total_distributed_normalized: DisplayUnits;
   fee_paid: number;
-  fee_paid_normalized: string;
+  fee_paid_normalized: DisplayUnits;
   status?: string;
   confirmed?: boolean;
 }
@@ -496,8 +614,16 @@ async function cpApiGet<T = unknown>(
     }
   }
 
-  try {
-    const response = await apiClient.get<T | { error: string }>(url, { params: filteredParams });
+  // Join a request for the same thing that is already on its way, rather than
+  // opening a second one beside it.
+  const running = inFlight.get(cacheKey) as Promise<T> | undefined;
+  if (running) return running;
+
+  const started = (async () => {
+    const response = await requestGate.run(
+      () => apiClient.get<T | { error: string }>(url, { params: filteredParams }),
+      rateLimitRefusal
+    );
 
     if (response.data && typeof response.data === 'object' && 'error' in response.data) {
       throw new CounterpartyApiError(
@@ -507,11 +633,10 @@ async function cpApiGet<T = unknown>(
       );
     }
 
-    // Cache successful response
-    setInCache(cacheKey, response.data as T);
-
     return response.data as T;
-  } catch (error: unknown) {
+  })().catch((error: unknown) => {
+    // Normalize inside the shared promise so joined callers receive the same
+    // error type and status (including the 404 used by new-asset issuance).
     if (error instanceof CounterpartyApiError) throw error;
 
     // Handle errors with response data
@@ -527,7 +652,33 @@ async function cpApiGet<T = unknown>(
     throw new CounterpartyApiError(message, path, {
       cause: error instanceof Error ? error : undefined,
     });
+  });
+
+  inFlight.set(cacheKey, started);
+
+  try {
+    const data = await started;
+    // Invalidation revokes ownership of this key. An older response may still
+    // reach its original caller, but cannot repopulate or overwrite the cache.
+    if (inFlight.get(cacheKey) === started) setInCache(cacheKey, data);
+    return data;
+  } finally {
+    // Only clear our own entry: a later caller may already have started the
+    // next request under the same key.
+    if (inFlight.get(cacheKey) === started) inFlight.delete(cacheKey);
   }
+}
+
+/** Complete reads share the same pacing, lossless JSON, and cache as single pages. */
+function cpApiGetAll<T>(
+  path: string,
+  params: Record<string, string | number | boolean>,
+  options: { skipCache?: boolean; cursorOnly?: boolean } = {}
+): Promise<PaginatedResponse<T>> {
+  return collectPages<T>(
+    page => cpApiGet<PaginatedResponse<T>>(path, { ...params, ...page }, options),
+    { cursorOnly: options.cursorOnly }
+  );
 }
 
 // =============================================================================
@@ -535,7 +686,7 @@ async function cpApiGet<T = unknown>(
 // =============================================================================
 
 /**
- * Fetch all token balances for an address.
+ * Fetch one page of token balances for an address.
  * @param address - Bitcoin address to query
  * @param options - Pagination, sorting, and type filter options
  * @returns Array of token balances with asset info
@@ -569,7 +720,7 @@ export async function fetchTokenBalance(
   asset: string,
   options: { type?: 'all' | 'utxo' | 'address'; verbose?: boolean } = {}
 ): Promise<TokenBalance> {
-  const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
+  const data = await cpApiGetAll<TokenBalance>(
     `/v2/addresses/${encodePath(address)}/balances/${encodePath(asset)}`,
     {
       verbose: options.verbose ?? true,
@@ -579,8 +730,8 @@ export async function fetchTokenBalance(
 
   const emptyBalance: TokenBalance = {
     asset,
-    quantity: 0,
-    quantity_normalized: '0',
+    quantity: asBaseUnits(0),
+    quantity_normalized: asDisplayUnits('0'),
     asset_info: { asset_longname: null, description: '', issuer: '', divisible: true, locked: false },
   };
 
@@ -591,11 +742,18 @@ export async function fetchTokenBalance(
 
   return {
     asset,
-    quantity: balances.reduce((sum, b) => sum + (b.quantity || 0), 0),
-    quantity_normalized: balances.reduce((sum, b) => {
-      const val = parseFloat(b.quantity_normalized);
-      return sum + (Number.isNaN(val) ? 0 : val);
-    }, 0).toString(),
+    // Summed as BigNumber and kept as a string: these are 64-bit asset quantities, and adding
+    // them as doubles loses digits for exactly the large balances where the total matters most.
+    quantity: asBaseUnits(
+      balances
+        .reduce((sum, b) => sum.plus(toBigNumber(b.quantity ?? 0)), toBigNumber(0))
+        .toFixed(0)
+    ),
+    quantity_normalized: asDisplayUnits(
+      balances
+        .reduce((sum, b) => sum.plus(toBigNumber(b.quantity_normalized)), toBigNumber(0))
+        .toString()
+    ),
     asset_info: balances[0]!.asset_info,
   };
 }
@@ -612,11 +770,30 @@ export async function fetchTokenUtxos(
   asset: string,
   options: { verbose?: boolean } = {}
 ): Promise<TokenBalance[]> {
-  const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
+  const data = await cpApiGetAll<TokenBalance>(
     `/v2/addresses/${encodePath(address)}/balances/${encodePath(asset)}`,
-    { verbose: options.verbose ?? true }
+    { verbose: options.verbose ?? true, type: 'utxo' }
   );
-  return (data.result ?? []).filter((b) => b.utxo !== null);
+  return (data.result ?? []).filter((b) => !!b.utxo);
+}
+
+/**
+ * The asset's most recent valid issuance — the record core validates against.
+ *
+ * `/v2/assets/{asset}` cannot answer this: its `assets_info` projection carries no `fair_minting`
+ * column at all, so that flag reads `undefined` for every asset including ones actively minting.
+ * The issuances endpoint already filters to `status: "valid"` and returns newest first, so one row
+ * is the whole answer.
+ *
+ * Returns null when the asset has no issuance history or the lookup fails — an unknown state, not
+ * a negative one.
+ */
+export async function fetchAssetLatestIssuance(asset: string): Promise<AssetIssuance | null> {
+  const data = await cpApiGet<PaginatedResponse<AssetIssuance>>(
+    `/v2/assets/${encodePath(asset)}/issuances`,
+    { verbose: true, limit: 1, offset: 0 }
+  );
+  return data.result?.[0] ?? null;
 }
 
 /**
@@ -639,18 +816,41 @@ export async function fetchAssetDetails(
 /**
  * Fetch all token balances attached to a specific UTXO.
  * @param utxo - UTXO identifier (txid:vout)
- * @param options - Pagination and unconfirmed options
- * @returns Paginated UTXO balances
+ * @param options - Supply limit/offset for a single page; otherwise read every attached balance.
+ * @returns Complete UTXO balances by default, or the explicitly requested page
  */
 export async function fetchUtxoBalances(
   utxo: string,
   options: PaginationOptions = {}
 ): Promise<PaginatedResponse<UtxoBalance>> {
+  // Transaction summaries and move/detach forms need every attached asset. Explicit
+  // pagination remains available for callers that render a paged list.
+  if (options.limit === undefined && options.offset === undefined) {
+    return cpApiGetAll<UtxoBalance>(`/v2/utxos/${encodePath(utxo)}/balances`, { verbose: options.verbose ?? true });
+  }
   return cpApiGet<PaginatedResponse<UtxoBalance>>(`/v2/utxos/${encodePath(utxo)}/balances`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
   });
+}
+
+/** Check candidates, not an arbitrarily capped list of an address's asset balances. */
+export async function fetchUtxosWithBalances(utxos: string[]): Promise<Set<string>> {
+  const unique = [...new Set(utxos)];
+  const withBalances = new Set<string>();
+  // Core's membership query itself has a 100-row default. Keep each batch below that
+  // and the URL comfortably short, even when every candidate holds assets.
+  for (let offset = 0; offset < unique.length; offset += 20) {
+    const batch = unique.slice(offset, offset + 20);
+    const data = await cpApiGet<{ result: Record<string, boolean> }>('/v2/utxos/withbalances',
+      { utxos: batch.join(','), verbose: false }, { skipCache: true });
+    for (const utxo of batch) {
+      if (typeof data.result?.[utxo] !== 'boolean') throw new Error('Unable to verify assets on transaction inputs.');
+      if (data.result[utxo]) withBalances.add(utxo);
+    }
+  }
+  return withBalances;
 }
 
 /**
@@ -785,6 +985,146 @@ export async function fetchAllOrderMatches(
 }
 
 /**
+ * Fetch a single order match by its id (`tx0Hash_tx1Hash`).
+ *
+ * Used by the approval screen for a BTCPay: the match carries `match_expire_index`, and a payment
+ * landing after it does nothing at all — the match is gone and the BTC is spent for no effect.
+ */
+export async function fetchOrderMatch(matchId: string): Promise<OrderMatch | null> {
+  const data = await cpApiGet<{ result: OrderMatch | null }>(
+    `/v2/order_matches/${encodePath(matchId)}`,
+    { verbose: true }
+  );
+  return data.result ?? null;
+}
+
+/**
+ * Count of distinct addresses holding an asset.
+ *
+ * Core bills a dividend at `0.0002 XCP × holder_count` (`messages/dividend.py`), so this is what
+ * decides the XCP half of what a dividend costs.
+ */
+export async function fetchAssetHolderCount(asset: string): Promise<number | null> {
+  const data = await cpApiGet<{ result_count?: number }>(
+    `/v2/assets/${encodePath(asset)}/holders`,
+    { verbose: true, limit: 1, offset: 0 }
+  );
+  return typeof data.result_count === 'number' ? data.result_count : null;
+}
+
+/**
+ * A fairminter as the API returns it, from either `/v2/fairminters` or
+ * `/v2/assets/<asset>/fairminters` with verbose=true.
+ *
+ * One type for both endpoints, because they return the same row and the screens that read them —
+ * the mint form, its summary and its review — must agree on what a mint costs. `price` and
+ * `quantity_by_price` are required because the cost cannot be stated without them; everything
+ * verbose adds is optional.
+ */
+export interface FairminterDetails {
+  tx_hash: string;
+  asset: string;
+  /** `pending` until `start_block`, then `open`, then `closed`. */
+  status: string;
+  /** The block the sale opens on. Core flips the status in `before_block`, ahead of that block's transactions. */
+  start_block?: number;
+  /** The address that opened the fairminter, and where the payment goes unless it is burned. */
+  source?: string;
+  description?: string;
+  divisible?: boolean;
+  /** XCP charged per lot, in base units. */
+  price: ApiQuantity;
+  /** XCP per whole unit; core derives it as price / quantity_by_price. */
+  price_normalized?: DisplayUnits;
+  /** Assets released per lot paid for, i.e. the lot size. */
+  quantity_by_price: ApiQuantity;
+  quantity_by_price_normalized?: DisplayUnits;
+  /** True burns the payment, false sends it to `source`. Not whether the mint is free. */
+  burn_payment?: boolean;
+  /**
+   * XCP set aside to seed a liquidity pool once the soft cap is reached. When this is set the
+   * payment goes to the pool, not to `source` — so it decides the destination ahead of
+   * `burn_payment`, and ahead of `source` being worth naming at all.
+   */
+  pool_quantity?: ApiQuantity;
+  /** Display-unit companion added by Counterparty Core 11.3 under `verbose=true`. */
+  pool_quantity_normalized?: DisplayUnits;
+  /** The LP asset the pool issues, e.g. `A690210627902342169`. */
+  lp_asset?: string;
+  max_mint_per_tx?: ApiQuantity;
+  max_mint_per_tx_normalized?: DisplayUnits;
+  max_mint_per_address?: ApiQuantity;
+  max_mint_per_address_normalized?: DisplayUnits;
+  hard_cap?: ApiQuantity;
+  hard_cap_normalized?: DisplayUnits;
+  /** While this is unmet, core escrows both the payment and the minted assets. */
+  soft_cap?: ApiQuantity;
+  soft_cap_normalized?: DisplayUnits;
+  soft_cap_deadline_block?: number;
+}
+
+/** One browsing page; callers decide when to request the next 20 listings. */
+export function fetchOpenFairminters(options: PaginationOptions = {}): Promise<PaginatedResponse<FairminterDetails>> {
+  return cpApiGet('/v2/fairminters', {
+    status: 'open', verbose: true, limit: options.limit ?? 20, offset: options.offset ?? 0,
+  });
+}
+
+/**
+ * The fairminter behind an asset, whose price is what a fairmint of it costs.
+ *
+ * Defaults to the live one. An asset accumulates fairminters over its life and the endpoint returns
+ * them unfiltered, so asking without a status can hand back a closed sale while the current one
+ * sits behind it. `pending` counts as live because a sale opening on the next block can already be
+ * minted from — see `isFairminterMintableNow`.
+ *
+ * At most one row comes back for the default: core writes `fair_minting` on the asset when a
+ * fairminter is created, whatever its start block, and refuses another while it is set
+ * (`messages/fairminter.py`, "Fair minter already opened"). So there is no open-versus-pending tie
+ * to break here.
+ */
+export async function fetchAssetFairminter(
+  asset: string,
+  options: PaginationOptions & { status?: string } = {}
+): Promise<FairminterDetails | null> {
+  const data = await cpApiGet<{ result: FairminterDetails[] | null }>(
+    `/v2/assets/${encodePath(asset)}/fairminters`,
+    {
+      verbose: options.verbose ?? true,
+      status: options.status ?? 'open,pending',
+      limit: options.limit ?? 5,
+      offset: options.offset ?? 0,
+    }
+  );
+  return data.result?.[0] ?? null;
+}
+
+/**
+ * How much of an asset an address has already fairminted, in display units.
+ *
+ * Core enforces `already_minted + quantity <= max_mint_per_address` against this same total, so
+ * the mint form needs it to stop offering a Max that will be rejected. Returns null when the
+ * lookup fails: an unknown total is not zero, and treating it as zero offers the full allowance.
+ */
+export async function fetchAddressFairmintTotal(
+  address: string,
+  asset: string
+): Promise<string | null> {
+  try {
+    const data = await cpApiGetAll<{ earn_quantity_normalized?: DisplayUnits }>(
+      `/v2/addresses/${encodePath(address)}/fairmints/${encodePath(asset)}`,
+      { verbose: true }
+    );
+    if (!data.result) return null;
+    return data.result
+      .reduce((total, fairmint) => total.plus(toBigNumber(fairmint.earn_quantity_normalized ?? 0)), toBigNumber(0))
+      .toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch all orders across all addresses.
  * @param options - Pagination and status filter options (defaults to 'open' status)
  * @returns Paginated list of orders with full details
@@ -851,7 +1191,7 @@ export async function fetchPoolQuote(
 ): Promise<PoolQuote> {
   const data = await cpApiGet<{ result: PoolQuote }>(
     `/v2/pools/${encodePath(asset1)}/${encodePath(asset2)}/quote`,
-    { quantity: quantity.toString() },
+    { quantity: serializeRawInteger(quantity, { min: 1n }) },
     { skipCache: true }
   );
   return data.result;
@@ -864,7 +1204,7 @@ export async function fetchPoolDepositQuote(
 ): Promise<PoolDepositQuote> {
   const data = await cpApiGet<{ result: PoolDepositQuote }>(
     `/v2/pools/${encodePath(asset1)}/${encodePath(asset2)}/quote/deposit`,
-    { quantity: quantity.toString() },
+    { quantity: serializeRawInteger(quantity, { min: 1n }) },
     { skipCache: true }
   );
   return data.result;
@@ -877,7 +1217,7 @@ export async function fetchPoolWithdrawQuote(
 ): Promise<PoolWithdrawQuote> {
   const data = await cpApiGet<{ result: PoolWithdrawQuote }>(
     `/v2/pools/${encodePath(asset1)}/${encodePath(asset2)}/quote/withdraw`,
-    { quantity: quantity.toString() },
+    { quantity: serializeRawInteger(quantity, { min: 1n }) },
     { skipCache: true }
   );
   return data.result;
@@ -921,6 +1261,10 @@ export async function fetchAddressPoolByLpAsset(
 // API - Dispensers
 // =============================================================================
 
+type AddressDispenserOptions = PaginationOptions & {
+  status?: 'open' | 'closed' | 'closing' | 'open_empty_address' | 'open,closing';
+};
+
 /**
  * Fetch dispensers owned by an address.
  * @param address - Bitcoin address to query
@@ -929,7 +1273,7 @@ export async function fetchAddressPoolByLpAsset(
  */
 export async function fetchAddressDispensers(
   address: string,
-  options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' | 'open_empty_address' } = {}
+  options: AddressDispenserOptions = {}
 ): Promise<PaginatedResponse<DispenserDetails>> {
   return cpApiGet<PaginatedResponse<DispenserDetails>>(`/v2/addresses/${encodePath(address)}/dispensers`, {
     verbose: options.verbose ?? true,
@@ -937,6 +1281,39 @@ export async function fetchAddressDispensers(
     offset: options.offset ?? 0,
     ...(options.status && { status: options.status }),
   });
+}
+
+/**
+ * Complete address inventory for selectors and purchase previews. Market lists use the paged
+ * function above; a payment preview must include every dispenser the payment can trigger.
+ * Never return a partial inventory when a later page fails.
+ */
+export async function fetchAllAddressDispensers(
+  address: string,
+  options: Pick<AddressDispenserOptions, 'status' | 'verbose'> = {}
+): Promise<PaginatedResponse<DispenserDetails>> {
+  const limit = 100;
+  let offset = 0;
+  const dispensers = new Map<string, DispenserDetails>();
+  while (true) {
+    const page = await fetchAddressDispensers(address, { ...options, limit, offset });
+    if (page.result.length === 0) {
+      if (offset < page.result_count) throw new Error('Unable to load all dispensers: the API returned an incomplete list.');
+      break;
+    }
+    const previousSize = dispensers.size;
+    for (const dispenser of page.result) dispensers.set(dispenser.tx_hash, dispenser);
+    if (dispensers.size - previousSize !== page.result.length) {
+      throw new Error('Unable to load all dispensers: the API repeated a page or returned overlapping rows. Please retry.');
+    }
+    offset += page.result.length;
+    // Advance by the returned size in case a node applies a smaller page limit. Counts may be
+    // absent on older nodes; in that case a short page marks the end.
+    if (typeof page.result_count === 'number') {
+      if (offset >= page.result_count) break;
+    } else if (page.result.length < limit) break;
+  }
+  return { result: [...dispensers.values()], result_count: dispensers.size };
 }
 
 /**
@@ -972,11 +1349,59 @@ export async function fetchDispenserDispenses(
   });
 }
 
+/**
+ * Ledger movements the node has parsed out of its own mempool for these addresses.
+ *
+ * The events are the same DEBIT/CREDIT core emits for confirmed transactions, so a caller can total
+ * what is in flight without re-deriving which message types debit what — see
+ * `core/balances/pending.ts`.
+ *
+ * Two things about this endpoint shape the caller. It matches addresses with a SQL `LIKE` against a
+ * joined column, so results are a superset and must be filtered on each event's own
+ * `params.address`. And it goes through the ordinary short-lived cache: several parts of a screen
+ * ask this at once — a pool form reads two assets, a list reads many — and collapsing those into
+ * one call matters more than a few seconds of freshness. The refresh button clears the cache for
+ * the address before reloading, so the moment freshness is promised is the moment it is delivered.
+ */
+export async function fetchMempoolLedgerEvents(
+  addresses: string[],
+  options: { verbose?: boolean } = {}
+): Promise<PaginatedResponse<{ tx_hash: string; event: string; params?: Record<string, unknown> }>> {
+  return cpApiGetAll('/v2/addresses/mempool', {
+    addresses: addresses.join(','),
+    event_name: 'DEBIT,CREDIT',
+    verbose: options.verbose ?? true,
+  }, { cursorOnly: true });
+}
+
+/**
+ * Cancel and close events the node has parsed out of its own mempool for these addresses.
+ *
+ * The companion to `fetchMempoolLedgerEvents`, asking a different question: not "what quantities
+ * are in flight" but "which orders and dispensers already have their ending pending". Same
+ * endpoint, same LIKE-superset address matching (filter on each event's own `params.source` —
+ * `core/balances/pending.ts` does).
+ *
+ * Unlike its sibling this skips the response cache: the moment that matters is right after the
+ * user's own cancel broadcasts, and a cached "nothing pending" from 59 seconds ago would leave
+ * the Cancel button live for exactly the duplicate this read exists to prevent. One caller, one
+ * paged read per Manage view — freshness is worth more than collapsing requests here. Raw params
+ * carry everything the fold reads, so no verbose enrichment either.
+ */
+export async function fetchMempoolStatusEvents(
+  addresses: string[]
+): Promise<PaginatedResponse<{ tx_hash: string; event: string; params?: Record<string, unknown> }>> {
+  return cpApiGetAll('/v2/addresses/mempool', {
+    addresses: addresses.join(','),
+    event_name: 'CANCEL_ORDER,DISPENSER_UPDATE',
+    verbose: false,
+  }, { skipCache: true, cursorOnly: true });
+}
+
 export async function fetchMempoolDispenses(dispenserAddress: string): Promise<Dispense[]> {
-  const data = await cpApiGet<PaginatedResponse<{ params: Dispense }>>('/v2/mempool/events/DISPENSE', {
-    verbose: true,
-    limit: 100,
-  }, { skipCache: true });
+  const data = await cpApiGetAll<{ params: Dispense }>('/v2/addresses/mempool', {
+    addresses: dispenserAddress, event_name: 'DISPENSE', verbose: true,
+  }, { skipCache: true, cursorOnly: true });
   return (data.result ?? [])
     .map((event) => event.params)
     .filter((dispense) => dispense.source === dispenserAddress);
@@ -1039,13 +1464,15 @@ export async function fetchAllDispensers(
  */
 export async function fetchAssetDispensers(
   asset: string,
-  options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' } = {}
+  options: PaginationOptions & { status?: 'open' | 'closed' | 'closing'; sort?: string; excludeWithOracle?: boolean } = {}
 ): Promise<PaginatedResponse<DispenserDetails>> {
   return cpApiGet<PaginatedResponse<DispenserDetails>>(`/v2/assets/${encodePath(asset)}/dispensers`, {
     verbose: options.verbose ?? true,
     status: options.status ?? 'open',
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
+    ...(options.sort && { sort: options.sort }),
+    ...(options.excludeWithOracle !== undefined && { exclude_with_oracle: options.excludeWithOracle }),
   });
 }
 
@@ -1123,4 +1550,55 @@ export async function fetchServerInfo(): Promise<ServerInfo> {
     throw new CounterpartyApiError('Invalid API response: missing result', '/v2/');
   }
   return data.result;
+}
+
+/** An order still in the node's mempool: the fields a quote replay needs. */
+export interface MempoolOpenOrder {
+  tx_hash: string;
+  source: string;
+  give_asset: string;
+  get_asset: string;
+  give_quantity: ApiQuantity;
+  get_quantity: ApiQuantity;
+}
+
+/**
+ * Orders broadcast but not yet confirmed, chain-wide.
+ *
+ * Read fresh every time: the point of asking is to price a trade against what
+ * lands in the next block, and a cached answer from a minute ago is exactly the
+ * one that misses the order which just went in ahead of it.
+ */
+export async function fetchMempoolOpenOrders(): Promise<MempoolOpenOrder[]> {
+  const data = await cpApiGetAll<{ tx_hash: string; params: Omit<MempoolOpenOrder, 'tx_hash'> & { status?: string } }>(
+    '/v2/mempool/events/OPEN_ORDER',
+    { verbose: false },
+    { skipCache: true }
+  );
+  return (data.result ?? [])
+    .filter((event) => event.params.status === undefined || event.params.status === 'open')
+    .map((event) => ({ tx_hash: event.tx_hash, ...event.params }));
+}
+
+/** A resting order in raw units, as the non-verbose pair endpoint returns it. */
+export interface RawBookOrder {
+  give_asset: string;
+  get_asset: string;
+  give_quantity: ApiQuantity;
+  get_quantity: ApiQuantity;
+  give_remaining: ApiQuantity;
+  get_remaining: ApiQuantity;
+}
+
+/**
+ * The open orders on a pair, raw. Non-verbose on purpose: a quote replay wants
+ * the integer quantities consensus matches on, not display strings.
+ */
+export async function fetchOpenBookOrders(giveAsset: string, getAsset: string): Promise<RawBookOrder[]> {
+  const data = await cpApiGetAll<RawBookOrder>(
+    `/v2/orders/${encodePath(giveAsset)}/${encodePath(getAsset)}`,
+    { verbose: false, status: 'open' },
+    { skipCache: true }
+  );
+  return data.result ?? [];
 }

@@ -8,6 +8,7 @@ import { createContext, use } from "react";
 import type { useSettings } from "@/contexts/settings-context";
 import type { useWallet } from "@/contexts/wallet-context";
 import type { ApiResponse } from "@/core/counterparty/compose";
+import type { ZeldHuntProgress } from "@/core/zeld/types";
 
 export interface DecodedMessage {
   messageType: string;
@@ -25,8 +26,10 @@ export interface ComposerState<T> {
   isComposing: boolean;
   isSigning: boolean;
   composedAt: number | null;
-  /** sat/vB; null means use the network default. */
+  /** sat/vB; null means a valid fee rate has not been selected yet. */
   feeRate: number | null;
+  /** Live figures while a ZELD hunt runs between composing and review; null otherwise. */
+  zeldHuntProgress: ZeldHuntProgress | null;
 }
 
 export interface ComposerContextType<T> {
@@ -38,11 +41,13 @@ export interface ComposerContextType<T> {
   goBack: () => void;
   reset: () => void;
   clearError: () => void;
+  /** Settle the ZELD hunt for the rare txid it already holds rather than waiting out the budget. */
+  acceptZeldHunt: () => void;
 
   showHelpText: boolean;
   toggleHelpText: () => void;
   feeRate: number | null;
-  setFeeRate: (rate: number) => void;
+  setFeeRate: (rate: number | null) => void;
 
   activeAddress: ReturnType<typeof useWallet>["activeAddress"];
   activeWallet: ReturnType<typeof useWallet>["activeWallet"];

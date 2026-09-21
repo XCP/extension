@@ -1,8 +1,29 @@
+import { parseAmountDraft, serializeDecimal, serializeRawInteger } from "@/core/amount-contract/amounts";
 import { apiClient } from '@/core/api/client';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
+import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
+import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
+import {
+  assertUtxoCarriesNoZeld,
+  attachLayoutHolds,
+  guardZeldExposure,
+  withComposedChangeFirst,
+  withDetachZeldKept,
+  zeldAttachParams,
+} from '@/core/zeld/composeGuard';
+import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from '@/core/zeld/types';
+
+/**
+ * A composed transaction spent a UTXO the request never offered.
+ *
+ * Its own type so the UTXO fallback below cannot mistake it for the composer rejecting a selection
+ * and retry — the last retry sends no `inputs_set` at all, which would answer a composer that
+ * ignored the set by letting it choose freely.
+ */
+class UnofferedInputsError extends CounterpartyApiError {}
 
 /**
  * Type guard to check if an error has a response with data
@@ -15,6 +36,20 @@ function isApiErrorWithResponse(error: unknown): error is {
   return typeof error === 'object' && error !== null;
 }
 
+const RAW_INTEGER_FIELDS = new Set(['quantity', 'give_quantity', 'get_quantity', 'escrow_quantity', 'mainchainrate', 'quantity_per_unit', 'lot_price', 'lot_size', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'premint_quantity', 'soft_cap', 'pool_quantity', 'quantity_a', 'quantity_b', 'min_lp_quantity', 'min_quantity_a', 'min_quantity_b', 'utxo_value', 'destination_vout', 'max_fee', 'fee_required', 'expiration', 'start_block', 'end_block', 'soft_cap_deadline_block', 'timestamp', 'flags', 'status']);
+
+function serializeFraction(value: string | number): string {
+  const canonical = serializeDecimal(value, { min: 0, max: 1, maxExclusive: true, maxDecimals: 8 });
+  const exact = parseAmountDraft(canonical, { decimals: 8 });
+  // Core broadcast.py and fairminter.py currently use int(float * 1e8).
+  // Reject a value that loses a unit there; changing the fraction to compensate
+  // would change the user's request, while byte equality alone would miss it.
+  if (exact.status !== 'valid' || BigInt(Math.trunc(Number(canonical) * 1e8)) !== exact.raw) {
+    throw new Error('Counterparty cannot encode this fee or commission fraction exactly. Choose another fraction.');
+  }
+  return canonical;
+}
+
 /**
  * Convert a params object to a string record for URLSearchParams.
  * All values are explicitly converted to strings.
@@ -23,7 +58,15 @@ function toStringParams(obj: Record<string, unknown>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (value !== undefined && value !== null) {
-      result[key] = String(value);
+      result[key] = RAW_INTEGER_FIELDS.has(key)
+        ? serializeRawInteger(value as string | number | bigint)
+        : key === 'quantities'
+          ? String(value).split(',').map(q => serializeRawInteger(q)).join(',')
+          : key === 'minted_asset_commission' || key === 'fee_fraction'
+            ? serializeFraction(value as string | number)
+            : key === 'value'
+              ? serializeDecimal(value as string | number)
+              : String(value);
     }
   }
   return result;
@@ -104,6 +147,15 @@ export interface ComposeResult {
    */
   envelope_script?: string;
   signed_reveal_rawtransaction?: string;
+  /**
+   * Added by the wallet, never by the composer: what the ZELD hunt did to this transaction.
+   * Present only when hunting is enabled; `rawtransaction` and `psbt` already reflect it.
+   */
+  zeld_hunt?: ZeldHuntMetadata;
+  /** Added by the wallet when a compose spent, or was steered away from, ZELD-bearing outputs. */
+  zeld_protection?: ZeldProtectionMetadata;
+  /** Added by the wallet's own ZELD send composer (`core/zeld/sendCompose.ts`). */
+  zeld_send?: ZeldSendMetadata;
   params: ComposeParams & {
     asset_dest_quant_list?: [string, string, string | number][];
     memos?: string[];
@@ -120,11 +172,7 @@ export interface BaseComposeOptions {
   sourceAddress: string;
   sat_per_vbyte: number;
   max_fee?: number;
-  encoding?: 'auto' | 'opreturn' | 'multisig' | 'pubkeyhash' | 'taproot';
-  change_address?: string;
-  more_outputs?: string;
-  use_all_inputs_set?: boolean;
-  multisig_pubkey?: string;
+  encoding?: 'auto' | 'opreturn' | 'multisig' | 'taproot';
 }
 
 // Transaction-specific options
@@ -220,16 +268,19 @@ export interface SendOptions extends BaseComposeOptions {
   memo?: string;
   memo_is_hex?: boolean;
   no_dispense?: boolean;
+  more_outputs?: string;
 }
 
 export interface SweepOptions extends BaseComposeOptions {
   destination: string;
   flags: number;
   memo?: string;
+  more_outputs?: string;
 }
 
 export interface FairminterOptions extends BaseComposeOptions {
   asset: string;
+  asset_parent?: string;
   lot_price?: number;
   lot_size?: string | number;
   max_mint_per_tx?: string | number;
@@ -385,6 +436,8 @@ function wrapComposeError(error: unknown, endpoint: string): CounterpartyApiErro
 interface ComposeRequestOptions {
   inputsSet: string | undefined;
   allowUnconfirmed: boolean;
+  /** Outpoints the composer must not spend, whoever selects the inputs. */
+  excludeUtxos?: string[];
 }
 
 /**
@@ -415,6 +468,10 @@ async function executeWithUtxoFallback(
   try {
     return await makeRequest({ inputsSet, allowUnconfirmed });
   } catch (error) {
+    // Not a composer complaining about the selection, so retrying with a different one — or with
+    // none — would only widen what it is allowed to spend.
+    if (error instanceof UnofferedInputsError) throw error;
+
     const errorMessage = getApiErrorMessage(error);
 
     // If it's a UTXO-related error, try fallbacks
@@ -445,6 +502,80 @@ async function executeWithUtxoFallback(
   }
 }
 
+/**
+ * The node's front door refuses a request line past 32,768 bytes, and its refusal carries no CORS
+ * headers. The browser therefore blocks the response and `fetch` rejects as a failed request, so
+ * the wallet reported "Network error. Please check your internet connection." for what was really
+ * an oversized URL — the message sent a user checking their router over a 150KB image. Measured
+ * against api.counterparty.io:4000: a 32,053-byte URL reached the application, 33,053 came back
+ * 503 from the proxy with no `server` header, and past ~65,000 it is a bare 431.
+ *
+ * The margin under 32,768 covers what `url.length` does not — the request line's method and
+ * version, and HTTP/2's encoded header block.
+ */
+const MAX_COMPOSE_URL_BYTES = 30_000;
+
+/**
+ * waitress refuses a form body past 512,000 bytes, answering 500 rather than a size error.
+ * Measured the same way: a 491,610-byte body composed, 512,090 did not.
+ */
+const MAX_COMPOSE_BODY_BYTES = 500_000;
+
+/**
+ * The largest file an inscription can carry, for the upload forms to refuse before the user waits
+ * on a compose that cannot finish. Derived from the transport rather than asserted next to it —
+ * the forms claimed 400KB while anything past ~15KB failed on the wire.
+ *
+ * Binary content travels hex-encoded (`encodeInscriptionContent`), so a file costs twice its size
+ * in the request, and the remaining parameters need a few hundred bytes more. Textual content is
+ * sent verbatim and percent-encoded instead, which can cost more than double for non-ASCII;
+ * `sendComposeRequest` measures the request that will actually be sent and is the check that
+ * cannot be fooled by encoding.
+ */
+export const MAX_INSCRIPTION_FILE_BYTES = 240 * 1024;
+
+/**
+ * Send a compose request, as a POST once the query outgrows what a URL may carry.
+ *
+ * GET stays the default and is what every ordinary compose still sends: it is cacheable, and it is
+ * legible in a network log. Only an inscription approaches the limit, because it carries its file
+ * in the query string. Core reads the same parameters from a form-encoded body — repeated keys
+ * included, so the MPMA array form survives the switch — and a body is not subject to the request
+ * line's limit. `application/x-www-form-urlencoded` is a CORS-safelisted content type, so the POST
+ * costs no preflight round trip.
+ */
+async function sendComposeRequest(
+  apiUrl: string,
+  query: string,
+  endpoint: string
+): Promise<ApiResponse> {
+  const url = `${apiUrl}?${query}`;
+  const fitsInUrl = url.length <= MAX_COMPOSE_URL_BYTES;
+
+  // Said here, where the size is known, rather than left to the node: past the body limit it
+  // answers 500 "Internal server error", which the error layer shows as a generic API failure.
+  if (!fitsInUrl && query.length > MAX_COMPOSE_BODY_BYTES) {
+    throw new CounterpartyApiError(
+      'This inscription is too large for the Counterparty API to compose. Use a smaller file.',
+      endpoint,
+      {}
+    );
+  }
+
+  const response = fitsInUrl
+    ? await apiClient.get<ApiResponse | { error: string }>(url, {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    : await apiClient.post<ApiResponse | { error: string }>(apiUrl, query, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+
+  if ('error' in response.data) {
+    throw new CounterpartyApiError(response.data.error, endpoint, {});
+  }
+  return response.data as ApiResponse;
+}
+
 // ============================================================================
 // Compose Functions
 // ============================================================================
@@ -452,42 +583,78 @@ async function executeWithUtxoFallback(
 /**
  * Compose a transaction via the Counterparty API.
  */
+/** How a composed transaction may be rearranged before it is verified and reviewed. */
+export interface ComposeLayout {
+  /**
+   * Move the wallet's change to output 0. Only for shapes Counterparty reads without regard to
+   * which address output comes first (a plain BTC send, a dispense); see `core/zeld/reorder.ts`.
+   * With change first, ZELD on the inputs stays with the wallet and the transaction can hunt.
+   */
+  changeFirst?: boolean;
+  /** With `changeFirst`, place change just after the data output instead of at output 0. */
+  afterData?: boolean;
+}
+
 export async function composeTransaction<T extends Record<string, unknown>>(
   endpoint: string,
   paramsObj: T,
   sourceAddress: string,
   sat_per_vbyte: number,
-  encoding?: string
+  encoding?: string,
+  layout: ComposeLayout = {},
 ): Promise<ApiResponse> {
+  const validatedParams = toStringParams(paramsObj);
+  const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   const settings = getActiveSettings();
+  // Sent on every compose, read by core only when the message overflows an OP_RETURN and falls
+  // back to bare multisig — where it becomes each data output's recovery key. Without it, core
+  // scans the address's spends for a key, and a never-spent address has revealed none: every
+  // long-data compose from a fresh wallet failed on "Pubkey not found". Harmless otherwise, and
+  // it also pins the recovery key to a value the wallet chose, which is what lets verification
+  // check it (`transactionSafety.ts`) instead of trusting whatever key the composer embedded.
+  const multisigPubkey = getSourcePubkey(sourceAddress);
 
-  const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
+  const makeRequest = async ({ inputsSet, allowUnconfirmed, excludeUtxos }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
-      ...paramsObj,
-      sat_per_vbyte: sat_per_vbyte.toString(),
+      ...validatedParams,
+      sat_per_vbyte: validatedFee,
       exclude_utxos_with_balances: 'true',
       allow_unconfirmed_inputs: allowUnconfirmed.toString(),
       disable_utxo_locks: 'true',
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
+      ...(excludeUtxos && excludeUtxos.length > 0 ? { exclude_utxos: excludeUtxos.join(',') } : {}),
+      ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
-    const response = await apiClient.get<ApiResponse | { error: string }>(
-      `${apiUrl}?${params.toString()}`,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-
-    if ('error' in response.data) {
-      throw new CounterpartyApiError(response.data.error, endpoint, {});
+    const composed = await sendComposeRequest(apiUrl, params.toString(), endpoint);
+    // Checked here, where the set actually sent is in scope: the fallbacks below send different
+    // ones, and the last sends none at all.
+    const inputCheck = checkInputPolicy({
+      rawTransaction: composed.result?.rawtransaction ?? '',
+      offeredInputs: inputsSet,
+    });
+    if (!inputCheck.ok) {
+      throw new UnofferedInputsError(inputCheck.error ?? 'Unoffered inputs', endpoint);
     }
-    return response.data as ApiResponse;
+    return composed;
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const arranged = layout.changeFirst ? withComposedChangeFirst(composed, sourceAddress, layout) : composed;
+  return guardZeldExposure(arranged, sourceAddress, endpoint, async (excludeUtxos) => {
+    const recomposed = await executeWithUtxoFallback(
+      (options) => makeRequest({ ...options, excludeUtxos }),
+      inputsSet ? removeUtxosFromInputsSet(inputsSet, excludeUtxos) : undefined,
+      settings.allowUnconfirmedTxs,
+      endpoint,
+    );
+    return layout.changeFirst ? withComposedChangeFirst(recomposed, sourceAddress, layout) : recomposed;
+  });
 }
 
 /**
@@ -501,45 +668,63 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   sat_per_vbyte: number,
   encoding?: string
 ): Promise<ApiResponse> {
+  const validatedParams = toStringParams(paramsObj);
+  const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   const settings = getActiveSettings();
+  // Same as composeTransaction: the recovery key for multisig-encoded data, which MPMA — this
+  // path's caller — produces on almost every send.
+  const multisigPubkey = getSourcePubkey(sourceAddress);
 
-  const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
+  const makeRequest = async ({ inputsSet, allowUnconfirmed, excludeUtxos }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
-      ...paramsObj,
-      sat_per_vbyte: sat_per_vbyte.toString(),
+      ...validatedParams,
+      sat_per_vbyte: validatedFee,
       exclude_utxos_with_balances: 'true',
       allow_unconfirmed_inputs: allowUnconfirmed.toString(),
       disable_utxo_locks: 'true',
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
+      ...(excludeUtxos && excludeUtxos.length > 0 ? { exclude_utxos: excludeUtxos.join(',') } : {}),
+      ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
     // Array params must be repeated plain keys: core's `query_params()` builds lists from
-    // repeated keys and treats a PHP-style `memos[]` as a different, ignored parameter.
-    let url = `${apiUrl}?${params.toString()}`;
+    // repeated keys and treats a PHP-style `memos[]` as a different, ignored parameter. A
+    // form-encoded body carries repeated keys the same way, which is what lets the POST fallback
+    // in `sendComposeRequest` serve this path too.
+    let query = params.toString();
     for (const [key, values] of Object.entries(arrayParams)) {
       if (Array.isArray(values)) {
         for (const value of values) {
-          url += `&${key}=${encodeURIComponent(String(value ?? ''))}`;
+          query += `&${key}=${encodeURIComponent(String(value ?? ''))}`;
         }
       }
     }
 
-    const response = await apiClient.get<ApiResponse | { error: string }>(url, {
-      headers: { 'Content-Type': 'application/json' },
+    const composed = await sendComposeRequest(apiUrl, query, endpoint);
+    // Checked here, where the set actually sent is in scope: the fallbacks below send different
+    // ones, and the last sends none at all.
+    const inputCheck = checkInputPolicy({
+      rawTransaction: composed.result?.rawtransaction ?? '',
+      offeredInputs: inputsSet,
     });
-
-    if ('error' in response.data) {
-      throw new CounterpartyApiError(response.data.error, endpoint, {});
+    if (!inputCheck.ok) {
+      throw new UnofferedInputsError(inputCheck.error ?? 'Unoffered inputs', endpoint);
     }
-    return response.data as ApiResponse;
+    return composed;
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  return guardZeldExposure(composed, sourceAddress, endpoint, (excludeUtxos) => executeWithUtxoFallback(
+    (options) => makeRequest({ ...options, excludeUtxos }),
+    inputsSet ? removeUtxosFromInputsSet(inputsSet, excludeUtxos) : undefined,
+    settings.allowUnconfirmedTxs,
+    endpoint,
+  ));
 }
 
 /**
@@ -553,6 +738,8 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   sat_per_vbyte: number,
   encoding?: string
 ): Promise<ApiResponse> {
+  const validatedParams = toStringParams(paramsObj);
+  const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
   const base = await getApiBase();
   const apiUrl = `${base}/v2/utxos/${sourceUtxo}/compose/${endpoint}`;
 
@@ -560,8 +747,8 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   const settings = getActiveSettings();
 
   const params = new URLSearchParams(toStringParams({
-    ...paramsObj,
-    sat_per_vbyte: sat_per_vbyte.toString(),
+    ...validatedParams,
+    sat_per_vbyte: validatedFee,
     exclude_utxos_with_balances: 'true',
     allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
     disable_utxo_locks: 'true',
@@ -569,20 +756,10 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
     ...(encoding && { encoding }),
   }));
 
-  const url = `${apiUrl}?${params.toString()}`;
-
   try {
-    // Use apiClient for automatic timeout (60s for /compose) and retry logic
-    const response = await apiClient.get<ApiResponse | { error: string }>(url, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    // Check if the API returned an error response
-    if ('error' in response.data) {
-      throw new CounterpartyApiError(response.data.error, endpoint, {});
-    }
-
-    return response.data as ApiResponse;
+    // Routed through sendComposeRequest for the apiClient timeout (60s for /compose) and retry
+    // logic, and for the POST fallback when the query outgrows a URL.
+    return await sendComposeRequest(apiUrl, params.toString(), endpoint);
   } catch (error: unknown) {
     if (error instanceof CounterpartyApiError) throw error;
 
@@ -626,7 +803,7 @@ export async function composeBroadcast(options: BroadcastOptions): Promise<ApiRe
     text, value, fee_fraction, timestamp,
     ...(inscription && { inscription }),
     ...(mime_type && { mime_type }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('broadcast', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -641,7 +818,7 @@ export async function composeBTCPay(options: BTCPayOptions): Promise<ApiResponse
   } = options;
   const paramsObj = {
     order_match_id,
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('btcpay', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -656,9 +833,9 @@ export async function composeBurn(options: BurnOptions): Promise<ApiResponse> {
     encoding,
   } = options;
   const paramsObj = {
-    quantity: quantity.toString(),
+    quantity: serializeRawInteger(quantity),
     overburn: overburn.toString(),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('burn', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -673,7 +850,7 @@ export async function composeCancel(options: CancelOptions): Promise<ApiResponse
   } = options;
   const paramsObj = {
     offer_hash: offer_hash.trim(),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('cancel', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -690,9 +867,9 @@ export async function composeDestroy(options: DestroyOptions): Promise<ApiRespon
   } = options;
   const paramsObj = {
     asset,
-    quantity: quantity.toString(),
+    quantity: serializeRawInteger(quantity),
     tag: tag || '',
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('destroy', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -711,16 +888,27 @@ export async function composeDispenser(options: DispenserOptions): Promise<ApiRe
     max_fee,
     encoding,
   } = options;
+  // A close (status != 0) names no quantities: the close forms submit only the asset and the
+  // status, so these three arrive undefined and core reads the zeros as "leave them alone" — the
+  // packer in `pack/messages.ts` defaults them the same way for the same reason. An open must
+  // still name all three; defaulting there would quietly compose a dispenser that gives nothing.
+  const statusCode = serializeRawInteger(status);
+  const dispenserQuantity = (value: string | number | undefined, field: string): string => {
+    if (value === undefined || value === '') {
+      if (statusCode === '0') throw new Error(`A dispenser needs a ${field}.`);
+      return '0';
+    }
+    return serializeRawInteger(value);
+  };
   const paramsObj = {
     asset,
-    // When closing a dispenser (status != 0), these values may be undefined - default to 0
-    give_quantity: (give_quantity ?? 0).toString(),
-    escrow_quantity: (escrow_quantity ?? 0).toString(),
-    mainchainrate: (mainchainrate ?? 0).toString(),
-    status: status.toString(),
+    give_quantity: dispenserQuantity(give_quantity, 'give quantity'),
+    escrow_quantity: dispenserQuantity(escrow_quantity, 'escrow quantity'),
+    mainchainrate: dispenserQuantity(mainchainrate, 'price per dispense'),
+    status: statusCode,
     ...(open_address && { open_address }),
     ...(oracle_address && { oracle_address }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('dispenser', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -737,11 +925,13 @@ export async function composeDispense(options: DispenseOptions): Promise<ApiResp
   } = options;
   const paramsObj = {
     dispenser,
-    quantity: quantity.toString(),
+    quantity: serializeRawInteger(quantity),
     ...(pubkeys && { pubkeys }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
-  return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  // A dispense credits whichever output pays the dispenser, so the buyer's change can come first
+  // and keep any ZELD the inputs carry (proved on regtest in e2e/zeld/regtest-dispense-order).
+  return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte, encoding, { changeFirst: true });
 }
 
 export async function composeDividend(options: DividendOptions): Promise<ApiResponse> {
@@ -757,8 +947,8 @@ export async function composeDividend(options: DividendOptions): Promise<ApiResp
   const paramsObj = {
     asset,
     dividend_asset,
-    quantity_per_unit: quantity_per_unit.toString(),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    quantity_per_unit: serializeRawInteger(quantity_per_unit),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('dividend', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -784,7 +974,7 @@ export async function composeIssuance(options: IssuanceOptions): Promise<ApiResp
   // Always include divisible to avoid API defaulting to true when we want false
   const paramsObj = {
     asset,
-    quantity: quantity.toString(),
+    quantity: serializeRawInteger(quantity),
     divisible: divisible ? 'true' : 'false',
     lock: lock ? 'true' : 'false',
     reset: reset ? 'true' : 'false',
@@ -793,7 +983,7 @@ export async function composeIssuance(options: IssuanceOptions): Promise<ApiResp
     ...(pubkeys && { pubkeys }),
     ...(inscription && { inscription }),
     ...(mime_type && { mime_type }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('issuance', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -838,18 +1028,18 @@ export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
     return composeTransactionWithArrays('mpma', {
       assets: assets.join(','),
       destinations: destinations.join(','),
-      quantities: quantities.join(','),
+      quantities: quantities.map(q => serializeRawInteger(q)).join(','),
       memos_are_hex: (hexFlags.values().next().value ?? false).toString(),
-      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+      ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
     }, { memos }, sourceAddress, sat_per_vbyte, encoding);
   }
 
   const paramsObj = {
     assets: assets.join(','),
     destinations: destinations.join(','),
-    quantities: quantities.join(','),
+    quantities: quantities.map(q => serializeRawInteger(q)).join(','),
     ...(memo && { memo, memo_is_hex: (memo_is_hex ?? false).toString() }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('mpma', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -878,12 +1068,12 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
 
   const paramsObj = {
     give_asset,
-    give_quantity: give_quantity.toString(),
+    give_quantity: serializeRawInteger(give_quantity),
     get_asset,
-    get_quantity: get_quantity.toString(),
-    expiration: expiration.toString(),
-    fee_required: fee_required.toString(),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    get_quantity: serializeRawInteger(get_quantity),
+    expiration: serializeRawInteger(expiration),
+    fee_required: serializeRawInteger(fee_required),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -905,14 +1095,19 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
   const paramsObj = {
     destination,
     asset,
-    quantity: quantity.toString(),
+    quantity: serializeRawInteger(quantity),
     ...(memo !== undefined ? { memo } : {}),
     ...(memo_is_hex !== undefined ? { memo_is_hex: memo_is_hex.toString() } : {}),
     ...(no_dispense !== undefined ? { no_dispense: no_dispense.toString() } : {}),
     ...(more_outputs ? { more_outputs } : {}),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
-  return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  // A plain BTC send carries no Counterparty message, so its outputs may sit in any order; change
+  // first keeps ZELD with the wallet. An asset send puts its data output first already, and its
+  // extra BTC outputs (`more_outputs`) have no positional meaning, so change goes right after
+  // the data.
+  const layout = asset === 'BTC' ? { changeFirst: true } : { changeFirst: true, afterData: true };
+  return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding, layout);
 }
 
 /**
@@ -941,7 +1136,7 @@ export async function composeSendOrMPMA(options: SendOrMPMAOptions): Promise<Api
       sourceAddress: options.sourceAddress,
       assets: destArray.map(() => options.asset),
       destinations: destArray,
-      quantities: destArray.map(() => options.quantity.toString()),
+      quantities: destArray.map(() => serializeRawInteger(options.quantity)),
       sat_per_vbyte: options.sat_per_vbyte,
       ...(options.memo && {
         memo: options.memo,
@@ -977,10 +1172,10 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
   } = options;
   const paramsObj = {
     destination,
-    flags: flags.toString(),
+    flags: serializeRawInteger(flags),
     memo,
     ...(more_outputs ? { more_outputs } : {}),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   const response = await composeTransaction('sweep', paramsObj, sourceAddress, sat_per_vbyte, encoding);
   if (more_outputs && response.result?.params) {
@@ -993,6 +1188,7 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
   const {
     sourceAddress,
     asset,
+    asset_parent,
     lot_price = 0,
     lot_size = 1,
     max_mint_per_tx = 0,
@@ -1021,28 +1217,29 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
   // Boolean values are normalized upstream - convert to API string format
   const paramsObj = {
     asset,
-    lot_price: lot_price.toString(),
-    lot_size: lot_size.toString(),
-    max_mint_per_tx: max_mint_per_tx.toString(),
-    max_mint_per_address: max_mint_per_address.toString(),
-    hard_cap: hard_cap.toString(),
-    premint_quantity: premint_quantity.toString(),
-    start_block: start_block.toString(),
-    end_block: end_block.toString(),
-    soft_cap: soft_cap.toString(),
-    soft_cap_deadline_block: soft_cap_deadline_block.toString(),
+    ...(asset_parent && { asset_parent }),
+    lot_price: serializeRawInteger(lot_price),
+    lot_size: serializeRawInteger(lot_size),
+    max_mint_per_tx: serializeRawInteger(max_mint_per_tx),
+    max_mint_per_address: serializeRawInteger(max_mint_per_address),
+    hard_cap: serializeRawInteger(hard_cap),
+    premint_quantity: serializeRawInteger(premint_quantity),
+    start_block: serializeRawInteger(start_block),
+    end_block: serializeRawInteger(end_block),
+    soft_cap: serializeRawInteger(soft_cap),
+    soft_cap_deadline_block: serializeRawInteger(soft_cap_deadline_block),
     minted_asset_commission: minted_asset_commission.toString(),
     burn_payment: burn_payment ? 'true' : 'false',
     lock_description: lock_description ? 'true' : 'false',
     lock_quantity: lock_quantity ? 'true' : 'false',
     divisible: divisible ? 'true' : 'false',
-    ...(pool_quantity > 0 && { pool_quantity: pool_quantity.toString() }),
+    pool_quantity: serializeRawInteger(pool_quantity),
     ...(lp_asset && { lp_asset }),
     ...(description && { description }),
     ...(pubkeys && { pubkeys }),
     ...(inscription && { inscription }),
     ...(mime_type && { mime_type }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('fairminter', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -1058,8 +1255,8 @@ export async function composeFairmint(options: FairmintOptions): Promise<ApiResp
   } = options;
   const paramsObj = {
     asset,
-    quantity: quantity.toString(),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    quantity: serializeRawInteger(quantity),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('fairmint', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -1082,11 +1279,11 @@ export async function composePoolDeposit(options: PoolDepositOptions): Promise<A
   const paramsObj = {
     asset_a,
     asset_b,
-    quantity_a: quantity_a.toString(),
-    quantity_b: quantity_b.toString(),
-    min_lp_quantity: min_lp_quantity.toString(),
+    quantity_a: serializeRawInteger(quantity_a),
+    quantity_b: serializeRawInteger(quantity_b),
+    min_lp_quantity: serializeRawInteger(min_lp_quantity),
     ...(lp_asset && { lp_asset }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   return composeTransaction('pooldeposit', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
@@ -1109,11 +1306,11 @@ export async function composePoolWithdraw(options: PoolWithdrawOptions): Promise
   const paramsObj = {
     ...(asset_a && { asset_a }),
     ...(asset_b && { asset_b }),
-    quantity: quantity.toString(),
-    min_quantity_a: min_quantity_a.toString(),
-    min_quantity_b: min_quantity_b.toString(),
+    quantity: serializeRawInteger(quantity),
+    min_quantity_a: serializeRawInteger(min_quantity_a),
+    min_quantity_b: serializeRawInteger(min_quantity_b),
     ...(lp_asset && { lp_asset }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
   const response = await composeTransaction('poolwithdraw', paramsObj, sourceAddress, sat_per_vbyte, encoding);
   if (lp_asset && response.result?.params) {
@@ -1135,17 +1332,39 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
   } = options;
   const paramsObj = {
     asset,
-    quantity: quantity.toString(),
-    ...(utxo_value !== undefined ? { utxo_value: utxo_value.toString() } : {}),
-    ...(destination_vout !== undefined ? { destination_vout: destination_vout.toString() } : {}),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    quantity: serializeRawInteger(quantity),
+    ...(utxo_value !== undefined ? { utxo_value: serializeRawInteger(utxo_value) } : {}),
+    ...(destination_vout !== undefined ? { destination_vout: serializeRawInteger(destination_vout) } : {}),
+    ...(max_fee !== undefined && { max_fee: serializeRawInteger(max_fee) }),
   };
-  return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  const composed = await composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  if (destination_vout !== undefined || utxo_value !== undefined) return composed;
+  // Unless the caller chose the output, attach to one after the change so ZELD stays on the
+  // change rather than on the asset's UTXO. Counterparty validated the attach just above; its API
+  // takes `destination_vout` as a string while its validator wants an integer, so the named
+  // layout only composes with validation off, and nothing but the output index differs. Change
+  // goes right after the data, as on an asset send. If the named compose fails or has no change
+  // to put first, the validated default stands.
+  try {
+    const named = await composeTransaction(
+      'attach',
+      { ...paramsObj, ...zeldAttachParams(sourceAddress), validate: 'false' },
+      sourceAddress,
+      sat_per_vbyte,
+      encoding,
+      { changeFirst: true, afterData: true },
+    );
+    if (attachLayoutHolds(named, sourceAddress)) return named;
+  } catch {
+    // The validated default compose is returned below.
+  }
+  return composed;
 }
 
 export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {
   const {
     sourceUtxo,
+    sourceAddress,
     destination,
     sat_per_vbyte,
     encoding,
@@ -1153,7 +1372,11 @@ export async function composeDetach(options: DetachOptions): Promise<ApiResponse
   const paramsObj = {
     ...(destination && { destination }),
   };
-  return composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  const composed = await composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  // ZELD on the detached output lands on the change; when there is none, on a small output asked
+  // for here.
+  return withDetachZeldKept(composed, sourceUtxo, sourceAddress, (extra) =>
+    composeUtxoTransaction('detach', { ...paramsObj, ...extra }, sourceUtxo, sat_per_vbyte, encoding));
 }
 
 export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
@@ -1166,5 +1389,8 @@ export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
   const paramsObj = {
     destination,
   };
-  return composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  const composed = await composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  // A move pays the destination first, so ZELD on the source output would go with the assets.
+  await assertUtxoCarriesNoZeld(sourceUtxo, 'movetoutxo');
+  return composed;
 }

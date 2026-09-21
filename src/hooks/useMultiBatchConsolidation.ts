@@ -7,6 +7,7 @@ import {
   type ConsolidationReport,
   consolidationApi,
 } from "@/core/bitcoin/consolidationApi";
+import { fromSatoshis } from '@/core/numeric';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 import { getWalletService } from "@/services/walletService";
 
@@ -152,11 +153,17 @@ export function useMultiBatchConsolidation() {
       }
 
       if (batchResults.some((result) => result.status === "success")) {
-        analytics.track("consolidate", getBtcBucket(totalOutputSats / 100000000));
+        analytics.track("consolidate", getBtcBucket(fromSatoshis(totalOutputSats, { asNumber: true })));
       }
 
-      // Report every batch, successful or not; the results screen breaks them down
+      // Report every batch, successful or not; the results screen breaks them down.
+      //
+      // Replace rather than push: the form this run was submitted from is consumed — its batch is
+      // spent (or failed) and "back" into it invites re-submitting the same UTXOs. Leaving it on
+      // the stack was also half of a navigation loop: results-back pushed a fresh recovery page,
+      // whose back popped to results, forever.
       navigate("/actions/consolidate/success", {
+        replace: true,
         state: {
           results: batchResults,
           totalBatches,

@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { FaChevronRight, FaHistory, FiChevronDown } from "@/components/icons";
@@ -10,7 +10,9 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { type Dividend, fetchDividendsByAsset, type PaginatedResponse } from "@/core/counterparty/api";
 import { formatAddress, formatAmount, formatTimeAgo } from "@/core/format";
+import { asDisplayUnits, isEqualTo, isGreaterThan } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useAssetLatestIssuance } from "@/hooks/useAssetLatestIssuance";
 
 
 /**
@@ -40,6 +42,9 @@ export default function AssetPage(): ReactElement {
   const { setHeaderProps, getCachedOwnedAsset } = useHeader();
   const { activeAddress } = useWallet();
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset || "");
+  // The asset summary carries no `fair_minting`; core reads it off the latest issuance, so we do
+  // too. The same row is what core's `issuance.validate` calls `last_issuance`.
+  const { data: latestIssuance, isLoading: isIssuanceLoading } = useAssetLatestIssuance(asset || "");
 
   // Get cached data for instant display
   const cachedAsset = useMemo(() => getCachedOwnedAsset(asset || ""), [getCachedOwnedAsset, asset]);
@@ -51,42 +56,64 @@ export default function AssetPage(): ReactElement {
   const [showDividends, setShowDividends] = useState(false);
   const [hasMoreDividends, setHasMoreDividends] = useState(true);
   const [dividendsOffset, setDividendsOffset] = useState(0);
+  /**
+   * Which asset the rows above describe, or null before any load has finished.
+   *
+   * Keyed rather than counted, because "this asset has no dividends" and "nothing loaded yet" are
+   * both an empty list, and `/assets/:asset` is one Route with one element — React reuses this
+   * component across a change of asset, so state written for one survives into the next.
+   */
+  const [dividendsAsset, setDividendsAsset] = useState<string | null>(null);
+
+  /**
+   * The asset a load was started for, read after the await. A slow response for the asset just
+   * navigated away from must not overwrite the rows of the one now on screen.
+   */
+  const currentAsset = useRef(asset);
+  currentAsset.current = asset;
 
   /**
    * Loads dividend history for the asset
    */
-  const loadDividends = async () => {
+  const loadDividends = async (offset: number) => {
     if (!asset || dividendsLoading) return;
-    
+    const requested = asset;
+
     setDividendsLoading(true);
     setDividendsError(null);
-    
+
     try {
-      const response: PaginatedResponse<Dividend> = await fetchDividendsByAsset(asset, {
+      const response: PaginatedResponse<Dividend> = await fetchDividendsByAsset(requested, {
         limit: 10,
-        offset: dividendsOffset,
+        offset,
       });
-      
-      if (dividendsOffset === 0) {
-        setDividends(response.result);
-      } else {
-        setDividends(prev => [...prev, ...response.result]);
-      }
-      
+      if (currentAsset.current !== requested) return;
+
+      setDividends(prev => (offset === 0 ? response.result : [...prev, ...response.result]));
       setHasMoreDividends(response.result.length === 10);
-      setDividendsOffset(prev => prev + response.result.length);
+      setDividendsOffset(offset + response.result.length);
+      // Last, and only on success: a failed load leaves the rows unclaimed so expanding again
+      // retries rather than showing an empty history as if it were the answer.
+      setDividendsAsset(requested);
     } catch (err) {
+      if (currentAsset.current !== requested) return;
       setDividendsError(err instanceof Error ? err.message : "Failed to load dividend history");
     } finally {
-      setDividendsLoading(false);
+      if (currentAsset.current === requested) setDividendsLoading(false);
     }
   };
 
-  // Load dividends when section is expanded
+  // Load dividends when the section is first expanded, and again when the asset underneath it
+  // changes. Latched on which asset the rows belong to rather than on the list being empty: an
+  // asset with genuinely no dividends is loaded and empty, and would otherwise refetch forever,
+  // while an asset switched to after a loaded one is empty of *its* dividends and would never
+  // fetch at all — it would show the previous asset's history instead.
   useEffect(() => {
-    if (showDividends && dividends.length === 0 && !dividendsLoading) {
-      loadDividends();
-    }
+    if (!showDividends || dividendsAsset === asset || dividendsLoading) return;
+    setDividends([]);
+    setDividendsOffset(0);
+    setHasMoreDividends(true);
+    loadDividends(0);
   }, [showDividends, asset]);
 
   // Configure header
@@ -99,34 +126,63 @@ export default function AssetPage(): ReactElement {
   }, [setHeaderProps, navigate]);
 
   /**
-   * Generates a list of available actions based on asset details and ownership.
-   * @returns {Action[]} The list of actionable options for the asset.
+   * The actions this address can actually take on this asset.
+   *
+   * Each entry is gated on the conditions counterparty-core validates, so the list only offers
+   * transactions the node would accept: an action core would reject is not shown at all rather
+   * than shown and refused at compose time. Every gate below cites the rule it mirrors, and the
+   * one gate that is ours rather than core's — Pay Dividend during a fairmint — says so.
+   *
+   * @returns {ActionSection[]} The list of actionable options for the asset.
    */
   const getActionSections = (): ActionSection[] => {
     if (!assetDetails?.assetInfo || !asset) return [];
+    // Both lookups start together, but the summary often answers first — from cache, even
+    // instantly. Reading a still-loading fairminter state as "not minting" drew the full list and
+    // then tore most of it back out a moment later, which is worse than a beat with no list: the
+    // Asset Details card jumps up the page, and anything the owner reached for is gone by the time
+    // they press it. An empty list is what this already renders while the summary loads, so
+    // waiting for the second answer only widens that window rather than adding a new state. A
+    // failed lookup settles as unknown, not loading, and still lets everything through.
+    if (isIssuanceLoading) return [];
 
+    const info = assetDetails.assetInfo;
     const actions = [];
-    const isOwner = assetDetails.assetInfo.issuer === activeAddress?.address;
-    const isLocked = assetDetails.assetInfo.locked;
-    const totalSupply = assetDetails.assetInfo.supply || "0";
-    const hasSupply = Number(totalSupply) > 0;
-    const issuerBalance = assetDetails.availableBalance || "0";
-    const canResetSupply = !isLocked && isOwner && (!hasSupply || issuerBalance === totalSupply);
-    const hasFairMinting = assetDetails.assetInfo.fair_minting;
 
-    // Add Start Mint (fairminter) option based on counterparty-core rules:
-    // 1. Asset cannot be BTC or XCP
-    // 2. Must be the owner (issuer) of the asset
-    // 3. Asset must not be locked
-    // 4. No fairminter already exists (fair_minting must be false)
-    const canStartFairminter = 
-      asset !== "BTC" && 
-      asset !== "XCP" && 
-      isOwner && 
-      !isLocked && 
-      !hasFairMinting;
+    // Ownership follows `owner`, not `issuer`. Core writes `assets_info.issuer` once, at first
+    // issuance, and never again; every ASSET_TRANSFER moves `owner` alone (`api/apiwatcher.py`).
+    // Core's own `issuance.validate` compares the source against the *latest* issuance's issuer,
+    // which a transfer rewrites to the destination — that is `owner`. Keying off `issuer` gave
+    // every action to the address that gave the asset away and none to the one now holding it.
+    const controller = info.owner ?? info.issuer;
+    const isOwner = Boolean(controller) && controller === activeAddress?.address;
 
-    if (canStartFairminter) {
+    // BTC has no issuance at all and XCP's supply came from burns; neither carries an owner, so
+    // `isOwner` is already false for both. Naming the case anyway keeps the dividend and
+    // fairminter bans below readable rather than incidental.
+    const isProtocolAsset = asset === "BTC" || asset === "XCP";
+    /** The precondition every action shares: you control it, and it is not a protocol asset. */
+    const canAct = isOwner && !isProtocolAsset;
+    const isLocked = info.locked;
+    const isDescriptionLocked = info.description_locked ?? false;
+    const isSubasset = Boolean(info.asset_longname);
+
+    const totalSupply = info.supply_normalized || "0";
+    const hasSupply = isGreaterThan(totalSupply, 0);
+    const ownerBalance = assetDetails.availableBalance || "0";
+
+    // Shared precondition for every action that reissues *this* asset. Core rejects all of them
+    // while a fairminter is live: `issuance.validate` → "cannot issue during fair minting". One
+    // action below is deliberately not covered by it — Issue Subasset creates a new asset with its
+    // own empty issuance history, so the parent's fairminter never enters the check. Pay Dividend
+    // is withheld too, but on our own judgement rather than core's; see there. An unestablished
+    // state reads as "not minting" and blocks nothing; see `useAssetLatestIssuance`.
+    const isFairMinting = latestIssuance?.fair_minting === true;
+    const canReissue = canAct && !isFairMinting;
+
+    // Start Mint — `fairminter.validate`: the asset must exist, be unlocked, be issued by the
+    // source, and have no fairminter already open.
+    if (canAct && !isLocked && !isFairMinting) {
       actions.push({
         id: "start-mint",
         title: "Start Mint",
@@ -135,7 +191,9 @@ export default function AssetPage(): ReactElement {
       });
     }
 
-    if (!isLocked) {
+    // A locked supply is exactly what these two change, so both go once `locked` is set —
+    // core: "locked asset and non‐zero quantity" for the first, and a second lock is a no-op.
+    if (canReissue && !isLocked) {
       actions.push(
         {
           id: "issue-supply",
@@ -152,7 +210,28 @@ export default function AssetPage(): ReactElement {
       );
     }
 
-    if (!assetDetails.assetInfo.asset_longname) {
+    // Reset rewrites supply and description together, so core blocks it on either lock
+    // ("cannot reset a locked asset" / "Cannot reset issuance with locked description") and
+    // requires the owner to be the sole holder of the whole supply. Display units on both sides:
+    // `info.supply` is base units, `availableBalance` is already divided by divisibility.
+    const canResetSupply =
+      canReissue &&
+      !isLocked &&
+      !isDescriptionLocked &&
+      (!hasSupply || isEqualTo(ownerBalance, totalSupply));
+
+    if (canResetSupply) {
+      actions.push({
+        id: "reset-supply",
+        title: "Reset Supply",
+        description: "Destroy the supply and re-issue the asset",
+        onClick: () => navigate(`${PATHS.COMPOSE}/issuance/reset-supply/${asset}`),
+      });
+    }
+
+    // Subassets cannot nest, and core checks only that the parent is owned by the source — a
+    // locked or fair-minting parent still accepts new children.
+    if (canAct && !isSubasset) {
       actions.push({
         id: "issue-subasset",
         title: "Issue Subasset",
@@ -161,7 +240,21 @@ export default function AssetPage(): ReactElement {
       });
     }
 
-    if (isOwner && hasSupply) {
+    // `dividend.validate`: "only issuer can pay dividends" — where core's "issuer" is the latest
+    // issuance's, i.e. the current owner (`ledger.issuances.get_asset_issuer`). Dividends on BTC
+    // or XCP are banned outright, and with no supply there are no holders, which core rejects as
+    // "zero dividend".
+    //
+    // The fairminter clause is ours, not core's — `dividend.validate` says nothing about fair
+    // minting, and the node would accept this. It is withheld because paying one mid-sale loses
+    // money quietly. Until a soft cap settles, every minted token is credited to
+    // `config.UNSPENDABLE` (`fairmint.parse`), and `supplies.holders` selects every address with a
+    // balance, so the burn address is paid as an ordinary holder and that share is destroyed — for
+    // a sale whose only other holder is the issuer, who `no_dividend_to_self` skips, that is the
+    // whole payout. `pool_quantity` and an unopened premint sit at the same address. Supply also
+    // moves every block a mint confirms, so the per-unit figure quoted here is stale by the time it
+    // signs and the transaction fails on funds. Offering nothing beats offering that.
+    if (canAct && !isFairMinting && hasSupply) {
       actions.push({
         id: "pay-dividend",
         title: "Pay Dividend",
@@ -170,35 +263,35 @@ export default function AssetPage(): ReactElement {
       });
     }
 
-    if (isOwner && canResetSupply) {
-      actions.push({
-        id: "reset-supply",
-        title: "Reset Supply",
-        description: "Reset asset description and other properties",
-        onClick: () => navigate(`${PATHS.COMPOSE}/issuance/reset-supply/${asset}`),
-      });
+    // Both write a description, which core refuses once `description_locked` is set: "Cannot
+    // update a locked description". A second lock would be refused for the same reason.
+    if (canReissue && !isDescriptionLocked) {
+      actions.push(
+        {
+          id: "lock-description",
+          title: "Lock Description",
+          description: "Permanently lock the asset description",
+          onClick: () => navigate(`${PATHS.COMPOSE}/issuance/lock-description/${asset}`),
+        },
+        {
+          id: "update-description",
+          title: "Update Description",
+          description: "Update the asset description",
+          onClick: () => navigate(`${PATHS.COMPOSE}/issuance/update-description/${asset}`),
+        }
+      );
     }
 
-    actions.push(
-      {
-        id: "lock-description",
-        title: "Lock Description", 
-        description: "Permanently lock the asset description",
-        onClick: () => navigate(`${PATHS.COMPOSE}/issuance/lock-description/${asset}`),
-      },
-      {
-        id: "update-description",
-        title: "Update Description",
-        description: "Update the asset description",
-        onClick: () => navigate(`${PATHS.COMPOSE}/issuance/update-description/${asset}`),
-      },
-      {
+    // A transfer carries no description and no quantity, so neither lock blocks it — only
+    // ownership and the fairminter do.
+    if (canReissue) {
+      actions.push({
         id: "transfer-ownership",
         title: "Transfer Ownership",
         description: "Transfer asset ownership to another address",
         onClick: () => navigate(`${PATHS.COMPOSE}/issuance/transfer-ownership/${asset}`),
-      }
-    );
+      });
+    }
 
     return [{ items: actions }];
   };
@@ -215,7 +308,7 @@ export default function AssetPage(): ReactElement {
         divisible: assetDetails.assetInfo.divisible ?? false,
         locked: assetDetails.assetInfo.locked ?? false,
         supply: assetDetails.assetInfo.supply,
-        supply_normalized: assetDetails.assetInfo.supply_normalized || '0'
+        supply_normalized: assetDetails.assetInfo.supply_normalized || asDisplayUnits('0')
       };
     }
     // Fall back to cached data for instant display (partial info)
@@ -227,8 +320,12 @@ export default function AssetPage(): ReactElement {
         issuer: undefined, // Not available in cache
         divisible: false, // Not available in cache, will update when loaded
         locked: cachedAsset.locked,
-        supply: cachedAsset.supply_normalized, // Use normalized since divisibility unknown
-        supply_normalized: cachedAsset.supply_normalized
+        // supply is base units and the cache holds only the normalized figure, so it is omitted
+        // rather than filled with a display value 1e8 away from what the field means. That
+        // substitution was previously masked by the hardcoded `divisible: false` above — nothing
+        // divided it — which made a wrong value look right only while a second wrong value held.
+        supply: undefined,
+        supply_normalized: asDisplayUnits(cachedAsset.supply_normalized)
       };
     }
     return null;
@@ -250,13 +347,11 @@ export default function AssetPage(): ReactElement {
   }
 
   return (
-    <div className="p-4 space-y-6" role="main" aria-labelledby="asset-title">
-      <div className="space-y-4">
-        <AssetHeader
-          className="mt-1 mb-5"
-          assetInfo={headerAssetInfo}
-        />
-      </div>
+    <section className="p-4 space-y-6" aria-labelledby="asset-title">
+      <AssetHeader
+        className="mt-1 mb-5"
+        assetInfo={headerAssetInfo}
+      />
       {/* Actions require full data for ownership checks */}
       <ActionList sections={getActionSections()} />
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
@@ -289,7 +384,7 @@ export default function AssetPage(): ReactElement {
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Your Balance</span>
             <span className="text-sm text-gray-900">
-              {assetDetails?.availableBalance || (isLoading ? "Loading…" : "0")}
+              {assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? (isLoading ? "Loading…" : "0")}
             </span>
           </div>
         </div>
@@ -297,7 +392,7 @@ export default function AssetPage(): ReactElement {
       
       {/* Dividend History Section - Collapsible */}
       <div className="bg-white rounded-lg shadow-sm">
-        <button
+        <button type="button"
           onClick={() => setShowDividends(!showDividends)}
           className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           aria-expanded={showDividends}
@@ -331,27 +426,24 @@ export default function AssetPage(): ReactElement {
             ) : (
               <div className="p-4 space-y-3">
                 {dividends.map((dividend) => (
-                  <div
+                  <button type="button"
                     key={dividend.tx_hash}
                     onClick={() => navigate(`/transaction/${dividend.tx_hash}`)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/transaction/${dividend.tx_hash}`); } }}
-                    className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    role="button"
-                    tabIndex={0}
+                    className="block w-full text-left border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     aria-label={`View dividend transaction ${dividend.tx_hash}`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {formatAmount({
-                            value: Number(dividend.quantity_per_unit_normalized),
+                            value: dividend.quantity_per_unit_normalized,
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 8,
                           })} {dividend.dividend_asset} per unit
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
                           Total distributed: {formatAmount({
-                            value: Number(dividend.total_distributed_normalized),
+                            value: dividend.total_distributed_normalized,
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 8,
                           })} {dividend.dividend_asset}
@@ -364,14 +456,14 @@ export default function AssetPage(): ReactElement {
                     <div className="text-xs text-gray-400 break-all">
                       TX: {dividend.tx_hash}
                     </div>
-                  </div>
+                  </button>
                 ))}
                 
                 {hasMoreDividends && (
-                  <button
+                  <button type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      loadDividends();
+                      loadDividends(dividendsOffset);
                     }}
                     disabled={dividendsLoading}
                     className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
@@ -384,6 +476,6 @@ export default function AssetPage(): ReactElement {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

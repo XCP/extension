@@ -8,14 +8,14 @@ import {
   ListboxOptions,
 } from "@headlessui/react";
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { FaCheck, FaCopy, FiChevronDown } from "@/components/icons";
 import { useComposer } from "@/contexts/composer-context-object";
-import { fetchAddressDispensers } from "@/core/counterparty/api";
 import type { DispenserOptions } from "@/core/counterparty/compose";
+import { useAddressDispensers } from "@/hooks/useAddressDispensers";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 /**
@@ -36,7 +36,7 @@ export function DispenserCloseForm({
   initialAsset,
 }: DispenserCloseFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, showHelpText, state } = useComposer();
+  const { activeAddress, activeWallet, showHelpText } = useComposer();
 
   // Form status
   const { pending } = useFormStatus();
@@ -44,47 +44,25 @@ export function DispenserCloseForm({
 
   // Form state
   const [selectedTxHash, setSelectedTxHash] = useState<string | null>(null);
-  const [dispensers, setDispensers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  // Computed values
+  const address = activeAddress?.address;
   const asset = initialAsset || initialFormData?.asset || "";
-  const relevantDispensers = asset
-    ? dispensers.filter((d) => d.asset === asset)
-    : dispensers;
+  const page = useAddressDispensers(address, asset);
+  const dispensers = page.data;
+  const isLoading = page.isLoading;
+  const relevantDispensers = useMemo(
+    () => (asset ? dispensers.filter((d) => d.asset === asset) : dispensers),
+    [dispensers, asset],
+  );
   const selectedDispenser = relevantDispensers.find(
     (d) => d.tx_hash === selectedTxHash,
   );
 
-  // Effects - composer error first
+  // Arriving from a dispenser card narrows the list to one; select it so the
+  // asset is submitted without the user re-picking what they already picked.
   useEffect(() => {
-    if (state.error) {
-      // Error is shown through composer state
-    }
-  }, [state.error]);
-
-  // Fetch dispensers when component mounts or address changes
-  useEffect(() => {
-    async function loadDispensers() {
-      if (!activeAddress) return;
-
-      setIsLoading(true);
-
-      try {
-        const response = await fetchAddressDispensers(activeAddress.address, {
-          status: "open",
-          verbose: true,
-        });
-        setDispensers(response.result);
-      } catch (err) {
-        console.error("Failed to load dispensers:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadDispensers();
-  }, [activeAddress]);
+    const only = relevantDispensers.length === 1 ? relevantDispensers[0] : null;
+    if (only) setSelectedTxHash(only.tx_hash);
+  }, [relevantDispensers]);
 
   // Handlers
   const AssetIcon = ({ asset }: { asset: string }): ReactElement => (
@@ -101,6 +79,7 @@ export function DispenserCloseForm({
   return (
     <ComposerForm
       formAction={formAction}
+      submitDisabled={isLoading || !selectedDispenser}
       header={
         activeAddress && (
           <AddressHeader
@@ -121,7 +100,7 @@ export function DispenserCloseForm({
           {relevantDispensers.length === 0 ? (
             <div className="relative w-full mt-1 cursor-not-allowed rounded-lg bg-gray-100 py-2.5 pl-3 pr-10 text-left border border-gray-300 text-gray-500 sm:text-sm">
               <span className="block truncate">
-                No open dispensers found for {asset || "this address"}
+                {page.error ? 'Dispenser list unavailable.' : `No open dispensers found for ${asset || "this address"}`}
               </span>
               <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                 <FiChevronDown
@@ -158,7 +137,10 @@ export function DispenserCloseForm({
                       />
                     </span>
                   </ListboxButton>
-                  <ListboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                  <ListboxOptions onScroll={event => {
+                    const list = event.currentTarget;
+                    if (list.scrollHeight - list.scrollTop - list.clientHeight < 100) page.loadMore();
+                  }} className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                     {relevantDispensers.map((dispenser) => (
                       <ListboxOption
                         key={dispenser.tx_hash}
@@ -193,10 +175,17 @@ export function DispenserCloseForm({
                         )}
                       </ListboxOption>
                     ))}
+                    {page.isFetchingMore && <div role="presentation" className="py-2 text-center text-gray-500">Loading more…</div>}
                   </ListboxOptions>
                 </div>
               </Listbox>
-              <input type="hidden" name="asset" value={asset} />
+              {/* The asset is what identifies the dispenser to close, so it has
+                  to come from the selection, not from the route. */}
+              <input
+                type="hidden"
+                name="asset"
+                value={selectedDispenser?.asset ?? ""}
+              />
               <input type="hidden" name="status" value="10" />
               {selectedDispenser && (
                 <div className="mt-3 text-sm p-3 bg-gray-50 rounded-md border border-gray-200 space-y-2">
@@ -245,6 +234,16 @@ export function DispenserCloseForm({
           )}
         </Field>
       )}
+      <div className="py-2 text-center text-sm">
+        {page.error ? (
+          <div role="alert">
+            <p>Unable to load more dispensers.</p>
+            <button type="button" onClick={page.retry} className="text-blue-600 underline" disabled={pending}>Retry</button>
+          </div>
+        ) : page.isFetchingMore ? 'Loading more…' : page.hasMore ? (
+          <button type="button" onClick={page.loadMore} className="text-blue-600 underline" disabled={pending || isLoading}>Load more dispensers</button>
+        ) : null}
+      </div>
     </ComposerForm>
   );
 }

@@ -59,9 +59,11 @@ export const AssetHeader = ({ assetInfo, showInfoPopover = false, className = ''
 
   // Convert supply from satoshi-like units to actual units for divisible assets
   // Using fromSatoshis for safe conversion
+  // Kept as a decimal string: a supply is the value most likely to outrun a double, and
+  // formatAmount renders the string exactly.
   const displaySupply = displayInfo.divisible
-    ? fromSatoshis(displayInfo.supply || 0, { asNumber: true })
-    : Number(displayInfo.supply || 0);
+    ? fromSatoshis(displayInfo.supply || 0)
+    : String(displayInfo.supply || 0);
 
   return (
     <div className={`flex items-center ${className}`}>

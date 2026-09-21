@@ -15,9 +15,11 @@
  */
 
 import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Transaction } from '@scure/btc-signer';
+import { bytesToHex } from '@noble/hashes/utils.js';
+import type { Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
+import { decodeRawTransaction, parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
+import { toSafeInteger } from '@/core/numeric';
 
 export interface LocalParsedInput {
   txid: string;
@@ -34,6 +36,8 @@ export interface LocalParsedOutput {
   /** `op_return` for data outputs, otherwise the address kind or `unknown`. */
   type: string;
   opReturnData?: string;
+  /** Raw scriptPubKey hex, kept so downstream checks can classify unattributable scripts. */
+  script?: string;
 }
 
 export interface LocalParsedTransaction {
@@ -80,13 +84,8 @@ export function parseRawTransactionLocally(rawTxHex: string): LocalParsedTransac
   let rawBytes: Uint8Array;
   let tx: Transaction;
   try {
-    rawBytes = hexToBytes(rawTxHex.replace(/^0x/, ''));
-    tx = Transaction.fromRaw(rawBytes, {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
-    });
+    rawBytes = decodeRawTransaction(rawTxHex);
+    tx = parseTransactionForSigning(rawBytes);
   } catch {
     return null;
   }
@@ -106,7 +105,7 @@ export function parseRawTransactionLocally(rawTxHex: string): LocalParsedTransac
   for (let index = 0; index < tx.outputsLength; index += 1) {
     const output = tx.getOutput(index);
     const script = output?.script;
-    const value = Number(output?.amount ?? 0n);
+    const value = toSafeInteger(output?.amount ?? 0n) ?? 0;
     if (!script) {
       outputs.push({ index, value, type: 'unknown' });
       continue;
@@ -125,6 +124,7 @@ export function parseRawTransactionLocally(rawTxHex: string): LocalParsedTransac
       // summary renders it as unknown and flags the total as incomplete.
       ...(address ? { address } : {}),
       type: address ? 'address' : 'unknown',
+      script: scriptHex,
     });
   }
 

@@ -9,11 +9,13 @@
  * - Connection security analysis
  */
 
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { generateRequestId } from '@/core/id';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
-import { analyzeCSP } from '@/platform/provider/csp';
+import { pairedGrantCovers } from '@/platform/provider/pairedGrant';
 import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
+import { createWriteLock } from '@/platform/storage/mutex';
 import { type ApprovalResult, getApprovalService } from '@/services/approvalService';
 import { BaseService } from '@/services/core/BaseService';
 import { eventEmitterService } from '@/services/eventEmitterService';
@@ -32,7 +34,6 @@ interface ConnectionServiceState {
   connectionCache: Map<string, ConnectionStatus>;
   lastSecurityCheck: Map<string, number>;
   pendingPermissionRequests: Set<string>;
-  pendingLookups: Map<string, Promise<boolean>>;
 }
 
 interface SerializedConnectionState {
@@ -44,11 +45,11 @@ interface SerializedConnectionState {
 }
 
 export class ConnectionService extends BaseService {
+  private readonly withConnectionWriteLock = createWriteLock();
   private state: ConnectionServiceState = {
     connectionCache: new Map(),
     lastSecurityCheck: new Map(),
     pendingPermissionRequests: new Set(),
-    pendingLookups: new Map(),
   };
 
   private static readonly STATE_VERSION = 1;
@@ -63,6 +64,10 @@ export class ConnectionService extends BaseService {
    * Check if an origin has permission to access wallet
    */
   async hasPermission(origin: string): Promise<boolean> {
+    return this.withConnectionWriteLock(() => this.hasPermissionInternal(origin));
+  }
+
+  private async hasPermissionInternal(origin: string): Promise<boolean> {
     // Check cache first (fast path)
     const cached = this.state.connectionCache.get(origin);
     const now = Date.now();
@@ -70,22 +75,9 @@ export class ConnectionService extends BaseService {
       return cached.isConnected;
     }
 
-    // Check if there's already a pending lookup for this origin
-    // This prevents redundant storage reads from concurrent callers
-    const pending = this.state.pendingLookups.get(origin);
-    if (pending) {
-      return pending;
-    }
-
-    // Start the lookup and track it
-    const lookupPromise = this.doPermissionLookup(origin);
-    this.state.pendingLookups.set(origin, lookupPromise);
-
-    try {
-      return await lookupPromise;
-    } finally {
-      this.state.pendingLookups.delete(origin);
-    }
+    // The connection queue serializes this read with grants and revocations, so an old
+    // storage result cannot repopulate the cache after a disconnect has completed.
+    return this.doPermissionLookup(origin);
   }
 
   /**
@@ -95,12 +87,19 @@ export class ConnectionService extends BaseService {
     const settings = await getWalletService().getSettings();
     const isConnected = settings.connectedWebsites.includes(origin);
 
-    // Update cache
-    this.state.connectionCache.set(origin, {
-      origin,
-      isConnected,
-      lastActive: Date.now(),
-    });
+    // Only a positive answer is cached. A negative one is indistinguishable from "the keychain was
+    // not loaded when I asked", and caching that for the full TTL locked an approved origin out for
+    // five minutes — including after the wallet had finished waking up. Re-reading settings is
+    // cheap; being wrong for five minutes is not.
+    if (isConnected) {
+      this.state.connectionCache.set(origin, {
+        origin,
+        isConnected: true,
+        lastActive: Date.now(),
+      });
+    } else {
+      this.state.connectionCache.delete(origin);
+    }
 
     return isConnected;
   }
@@ -169,11 +168,56 @@ export class ConnectionService extends BaseService {
     }
   }
 
+  /** True when the site's paired grant covers this wallet and either half of the granted pair. */
   async hasPairedAddressPermission(origin: string, walletId: string, address: string): Promise<boolean> {
     const capability = (await getWalletService().getSettings()).providerCapabilities?.[origin];
-    return capability?.pairedAddresses === true
-      && capability.walletId === walletId
-      && capability.address === address;
+    return pairedGrantCovers(capability, walletId, address);
+  }
+
+  /**
+   * Record a granted connection.
+   *
+   * Separate from the request that asked for it, because an approval restored after a restart has
+   * no caller left to return to but still grants exactly this.
+   */
+  private async grantConnection(grant: {
+    origin: string;
+    address: string;
+    walletId: string;
+    pairedAddresses: boolean;
+  }): Promise<void> {
+    return this.withConnectionWriteLock(() => this.grantConnectionInternal(grant));
+  }
+
+  private async grantConnectionInternal(grant: {
+    origin: string;
+    address: string;
+    walletId: string;
+    pairedAddresses: boolean;
+  }): Promise<void> {
+    const { origin, address, walletId, pairedAddresses } = grant;
+
+    await analytics.track('connection_established');
+    await getWalletService().addConnectedWebsite(origin, pairedAddresses
+      ? await this.pairedIdentity(walletId, address)
+      : undefined);
+
+    this.state.connectionCache.set(origin, {
+      origin,
+      isConnected: true,
+      connectedAddress: address,
+      connectedWallet: walletId,
+      connectionTime: Date.now(),
+      lastActive: Date.now(),
+    });
+
+    // Nothing else tells the page it was approved: disconnect emits accountsChanged, approval
+    // emitted nothing, so a site whose connect promise was lost had no way to learn it was granted.
+    eventEmitterService.emit('emit-provider-event', {
+      origin,
+      event: 'accountsChanged',
+      data: [address],
+    });
   }
 
   private async storePairedAddressPermission(
@@ -181,20 +225,33 @@ export class ConnectionService extends BaseService {
     walletId: string,
     address: string
   ): Promise<void> {
-    const walletService = getWalletService();
-    const settings = await walletService.getSettings();
-    const capabilities = { ...(settings.providerCapabilities ?? {}) };
-    capabilities[origin] = { pairedAddresses: true, walletId, address };
-    await walletService.updateSettings({ providerCapabilities: capabilities });
+    await getWalletService().setPairedAddressPermission(origin, await this.pairedIdentity(walletId, address));
+  }
+
+  /**
+   * The other half of the active derivation index, recorded with the grant so it keeps covering
+   * the pair after the user switches which half is active. Undefined when the wallet cannot derive
+   * a pair (non-mnemonic, locked, unpaired format); the grant then covers its one address only.
+   */
+  private async pairedIdentity(
+    walletId: string,
+    address: string,
+  ): Promise<{ walletId: string; address: string; pairedAddress?: string }> {
+    try {
+      const pair = await getWalletService().getPairedAddresses();
+      const wanted = normalizeAddressForComparison(address);
+      const halves = [pair.legacy.address, pair.segwit.address];
+      // Only an address that is itself one half of the pair has a sibling to record.
+      if (!halves.some(candidate => normalizeAddressForComparison(candidate) === wanted)) return { walletId, address };
+      const sibling = halves.find(candidate => normalizeAddressForComparison(candidate) !== wanted);
+      return sibling === undefined ? { walletId, address } : { walletId, address, pairedAddress: sibling };
+    } catch {
+      return { walletId, address };
+    }
   }
 
   private async clearPairedAddressPermission(origin: string): Promise<void> {
-    const walletService = getWalletService();
-    const settings = await walletService.getSettings();
-    if (!settings.providerCapabilities?.[origin]) return;
-    const capabilities = { ...settings.providerCapabilities };
-    delete capabilities[origin];
-    await walletService.updateSettings({ providerCapabilities: capabilities });
+    await getWalletService().setPairedAddressPermission(origin, null);
   }
 
   async requestPairedAddressPermission(
@@ -277,25 +334,11 @@ export class ConnectionService extends BaseService {
     const approval = await this.requestPermission(origin, address, walletId, pairedAddresses);
 
     if (approval.approved) {
-      // Track successful connection
-      await analytics.track('connection_established');
-
-      // Add to connected websites
-      await getWalletService().addConnectedWebsite(origin);
-      if (pairedAddresses && approval.updatedParams?.pairedAddresses === true) {
-        await this.storePairedAddressPermission(origin, walletId, address);
-      } else {
-        await this.clearPairedAddressPermission(origin);
-      }
-
-      // Update cache
-      this.state.connectionCache.set(origin, {
+      await this.grantConnection({
         origin,
-        isConnected: true,
-        connectedAddress: address,
-        connectedWallet: walletId,
-        connectionTime: Date.now(),
-        lastActive: Date.now(),
+        address,
+        walletId,
+        pairedAddresses: pairedAddresses && approval.updatedParams?.pairedAddresses === true,
       });
 
       console.debug('[ConnectionService] Connection established, getting accounts');
@@ -312,6 +355,10 @@ export class ConnectionService extends BaseService {
    * Disconnect a dApp from the wallet
    */
   async disconnect(origin: string): Promise<void> {
+    return this.withConnectionWriteLock(() => this.disconnectInternal(origin));
+  }
+
+  private async disconnectInternal(origin: string): Promise<void> {
     console.debug('[ConnectionService] Disconnecting dApp:', origin);
 
     // Remove from connected websites and all associated capabilities.
@@ -372,6 +419,10 @@ export class ConnectionService extends BaseService {
    * Disconnect all websites
    */
   async disconnectAll(): Promise<void> {
+    return this.withConnectionWriteLock(() => this.disconnectAllInternal());
+  }
+
+  private async disconnectAllInternal(): Promise<void> {
     const connectedSites = [...(await getWalletService().getSettings()).connectedWebsites];
 
     // Update settings
@@ -412,29 +463,6 @@ export class ConnectionService extends BaseService {
       return;
     }
 
-    // CSP analysis (warning only)
-    // Safely extract hostname for logging
-    let hostname = origin;
-    try { hostname = new URL(origin).hostname; } catch { /* use raw origin */ }
-
-    try {
-      const cspAnalysis = await analyzeCSP(origin);
-      if (!cspAnalysis.hasCSP || cspAnalysis.warnings.length > 0) {
-        console.warn('[ConnectionService] Site has CSP security issues', {
-          origin: hostname,
-          hasCSP: cspAnalysis.hasCSP,
-          isSecure: cspAnalysis.isSecure,
-          warningCount: cspAnalysis.warnings.length,
-          warnings: cspAnalysis.warnings.slice(0, 3),
-        });
-      }
-    } catch (error) {
-      console.warn('[ConnectionService] CSP analysis failed', {
-        origin: hostname,
-        error: (error as Error).message,
-      });
-    }
-
     // Update last check time
     this.state.lastSecurityCheck.set(origin, now);
   }
@@ -442,6 +470,24 @@ export class ConnectionService extends BaseService {
   // BaseService implementation methods
 
   protected async onInitialize(): Promise<void> {
+    // A connect approval can outlive the worker that asked for it, and the grant still means what
+    // it meant: the site reads it from accountsChanged or from its next request.
+    getApprovalService().registerCompletionHandler(async (request, result) => {
+      const { address, walletId, capabilities } = request.params?.[0] ?? {};
+      if (!address || !walletId) {
+        console.warn('[ConnectionService] Restored connect request is missing its account');
+        return;
+      }
+
+      await this.grantConnection({
+        origin: request.origin,
+        address,
+        walletId,
+        pairedAddresses:
+          capabilities?.pairedAddresses === true && result.updatedParams?.pairedAddresses === true,
+      });
+    });
+
     console.log('[ConnectionService] Initialized');
   }
 
@@ -449,7 +495,6 @@ export class ConnectionService extends BaseService {
     this.state.connectionCache.clear();
     this.state.lastSecurityCheck.clear();
     this.state.pendingPermissionRequests.clear();
-    this.state.pendingLookups.clear();
     console.log('[ConnectionService] Destroyed');
   }
 
@@ -519,5 +564,10 @@ import { defineProxyService } from '@/platform/proxy';
 
 export const [registerConnectionService, getConnectionService] = defineProxyService(
   'ConnectionService',
-  () => new ConnectionService()
+  () => new ConnectionService(),
+  { methods: {
+    hasPermission: 'read', hasPairedAddressPermission: 'read', getAccounts: 'read',
+    isConnected: 'read', getConnectedWebsites: 'read', getStats: 'read',
+    disconnect: 'command', disconnectAll: 'command',
+  } },
 );

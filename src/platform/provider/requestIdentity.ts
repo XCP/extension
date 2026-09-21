@@ -22,6 +22,10 @@ interface PsbtAuthorizationRequest extends AuthorizedRequest {
   signInputs?: Record<string, number[]>;
 }
 
+interface MessageAuthorizationRequest extends AuthorizedRequest {
+  signingAddress?: string;
+}
+
 interface ProviderPermissionReader {
   hasPermission(origin: string): Promise<boolean>;
   hasPairedAddressPermission(origin: string, walletId: string, address: string): Promise<boolean>;
@@ -42,6 +46,30 @@ export async function getConnectionRevokedError(
   if (!await permissions.hasPermission(request.origin)) {
     return 'This site is no longer connected. Reconnect it before signing.';
   }
+  return null;
+}
+
+/** Revalidate both the ordinary connection and the extra grant used when a
+ * message is signed by the active address's Legacy/SegWit sibling. */
+export async function getMessagePermissionError(
+  request: MessageAuthorizationRequest,
+  permissions: ProviderPermissionReader,
+): Promise<string | null> {
+  if (!await permissions.hasPermission(request.origin)) {
+    return 'This site is no longer connected. Reconnect it before signing.';
+  }
+
+  const signingAddress = request.signingAddress ?? request.address;
+  if (
+    normalizeAddressForComparison(signingAddress) !== normalizeAddressForComparison(request.address)
+    && (
+      !request.walletId
+      || !await permissions.hasPairedAddressPermission(request.origin, request.walletId, request.address)
+    )
+  ) {
+    return 'Paired address access was revoked. Reconnect the site before signing.';
+  }
+
   return null;
 }
 

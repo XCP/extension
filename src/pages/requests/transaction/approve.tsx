@@ -1,120 +1,63 @@
-import { useEffect, useState } from 'react';
-import {ApprovalExpired, ApprovalFooter,
-  ApprovalLoading, ApprovalNoWallet,ApprovalSiteBar, 
-  ApprovalWalletHeader, 
-} from '@/components/domain/approval/approval-chrome';
-import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
-import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
-import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-action-info';
-import { VerificationStatus } from '@/components/domain/tx/verification-status';
-import { FiArrowDown } from '@/components/icons';
-import { Collapsible } from '@/components/ui/collapsible';
-import { ErrorAlert } from '@/components/ui/error-alert';
-import { type WarningItem, WarningStack } from '@/components/ui/warning-stack';
-import { useHeader } from '@/contexts/header-context';
-import { useSettings } from '@/contexts/settings-context';
-import { useWallet } from '@/contexts/wallet-context';
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
-import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
-import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
-import { formatAddress, formatAmount, formatPriceRatio } from '@/core/format';
-import { fromSatoshis } from '@/core/numeric';
-import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
-import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
-import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
-import { getConnectionRevokedError, getIdentityMismatchError } from '@/platform/provider/requestIdentity';
-import { getConnectionService } from '@/services/connectionService';
-import { getWalletService } from '@/services/walletService';
+import { useEffect, useState } from "react";
+import {
+  ApprovalAttentionScreen,
+  highFeeAttentionItem,
+  partitionApprovalItems,
+  verificationAttentionItem,
+} from "@/components/domain/approval/approval-attention";
+import {
+  ApprovalFooter,
+  ApprovalLayout,
+  ApprovalLoading,
+  ApprovalNoWallet,
+  ApprovalRetry,
+  ApprovalUnavailable,
+} from "@/components/domain/approval/approval-chrome";
+import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
+import { ApprovalSummaryCard } from "@/components/domain/approval/approval-summary-card";
+import { ApprovalTransactionDetails } from "@/components/domain/approval/approval-transaction-details";
+import { buildApprovalWarnings } from "@/components/domain/approval/approval-warnings";
+import { CounterpartyDetailsCard } from "@/components/domain/approval/counterparty-details-card";
+import { computeMoneyMovement } from "@/components/domain/approval/money-movement";
+import { buildOrderAction, type OrderAction } from "@/components/domain/approval/order-card";
+import { attachDestinationVout, getTxActionInfo } from "@/components/domain/tx/tx-action-info";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import type { WarningItem } from "@/components/ui/warning-stack";
+import { useHeader } from "@/contexts/header-context";
+import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
+import { normalizeAddressForComparison } from "@/core/bitcoin/address";
+import { exceedsSaneFeeRate } from "@/core/bitcoin/feeVerification";
+import type { ProtocolField } from "@/core/counterparty/describe";
+import { classifySignedInputAssets } from "@/core/counterparty/inputAssets";
+import { shouldBlockSigning } from "@/core/counterparty/unpack/providerVerify";
+import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
+import type { DecodedTransactionInfo } from "@/hooks/useSignTransactionRequest";
+import { useSignTransactionRequest } from "@/hooks/useSignTransactionRequest";
 
 /**
  * Structured data for per-type visual renderers.
- * Currently only 'order' has a visual card; all other types fall back to flat text.
+ *
+ * `order` has a card of its own — see order-card.tsx, which both approval screens use so the same
+ * message does not render two different ways depending on which method the site called.
  */
 type TxActionData =
-  | {
-      type: 'order';
-      giveAmount: string;
-      giveAsset: string;
-      getAmount: string;
-      getAsset: string;
-      /** Normalized give quantity (for price ratio formatting) */
-      normalizedGive: number;
-      /** Normalized get quantity (for price ratio formatting) */
-      normalizedGet: number;
-      expiration: number;
-    }
-  | { type: 'fallback'; label: string; description: string }
+  | { type: "order"; order: OrderAction }
+  | { type: "fallback"; label: string; description: string; protocol: ProtocolField[] }
   | null;
 
-/**
- * Extract structured action data for visual rendering.
- * Returns typed discriminated union per message type.
- */
 function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
-  // --- Try API message first (for 'order') ---
-  if (decodedInfo.counterpartyMessage) {
-    const { messageType, messageData } = decodedInfo.counterpartyMessage;
+  const order = buildOrderAction(decodedInfo);
+  if (order) return { type: "order", order };
 
-    if (messageType === 'order') {
-      const giveAssetRaw = String(messageData.give_asset ?? '');
-      const getAssetRaw = String(messageData.get_asset ?? '');
-      const giveAmount = normalizeQuantity(messageData.give_quantity, giveAssetRaw, messageData, 'give_asset');
-      const getAmount = normalizeQuantity(messageData.get_quantity, getAssetRaw, messageData, 'get_asset');
-
-      // Prefer asset_longname (subasset display name) over numeric ID
-      const giveInfo = messageData.give_asset_info as { asset_longname?: string | null } | undefined;
-      const getInfo = messageData.get_asset_info as { asset_longname?: string | null } | undefined;
-      const giveAsset = giveInfo?.asset_longname || giveAssetRaw;
-      const getAsset = getInfo?.asset_longname || getAssetRaw;
-
-      const rawGive = Number(messageData.give_quantity);
-      const rawGet = Number(messageData.get_quantity);
-      const giveDivisor = isAssetDivisible(giveAssetRaw, messageData, 'give_asset') ? 1e8 : 1;
-      const getDivisor = isAssetDivisible(getAssetRaw, messageData, 'get_asset') ? 1e8 : 1;
-
-      return {
-        type: 'order',
-        giveAmount,
-        giveAsset,
-        getAmount,
-        getAsset,
-        normalizedGive: rawGive / giveDivisor,
-        normalizedGet: rawGet / getDivisor,
-        expiration: Number(messageData.expiration ?? 0),
-      };
-    }
-  }
-
-  // --- Try local unpack (for 'order') ---
-  const unpack = decodedInfo.verification?.localUnpack;
-  if (unpack?.success && unpack.messageType === 'order' && unpack.data) {
-    const data = unpack.data as {
-      giveAsset: string;
-      giveQuantity: bigint;
-      getAsset: string;
-      getQuantity: bigint;
-      expiration: number;
-    };
-
-    const giveAmount = normalizeQuantity(data.giveQuantity, data.giveAsset);
-    const getAmount = normalizeQuantity(data.getQuantity, data.getAsset);
-
-    return {
-      type: 'order',
-      giveAmount,
-      giveAsset: data.giveAsset,
-      getAmount,
-      getAsset: data.getAsset,
-      normalizedGive: Number(data.giveQuantity),
-      normalizedGet: Number(data.getQuantity),
-      expiration: data.expiration,
-    };
-  }
-
-  // --- Fallback: use existing flat text ---
-  const info = getTxActionInfo(decodedInfo);
+  const info = getTxActionInfo(decodedInfo, decodedInfo.protocolContext);
   if (info) {
-    return { type: 'fallback', label: info.label, description: info.description };
+    return {
+      type: "fallback",
+      label: info.label,
+      description: info.description,
+      protocol: info.protocol,
+    };
   }
   return null;
 }
@@ -125,17 +68,23 @@ export default function ApproveTransactionPage() {
   const { setHeaderProps } = useHeader();
   const {
     request,
+    requestId,
     decodedInfo,
+    approvalPolicy,
+    fastestFee,
     isLoading,
     error: loadError,
-    handleSuccess,
+    handleApprove,
     handleCancel,
-  } = useSignTransactionRequest(activeAddress?.address);
-  usePopupLifecycle(request?.id, 'sign-transaction');
+    handleRetry,
+    isRefreshing,
+    refreshError,
+  } = useSignTransactionRequest();
+  usePopupLifecycle(requestId, "sign-transaction");
 
   const [isSigning, setIsSigning] = useState(false);
-  const [error, setError] = useState<string>('');
-  const [priceFlipped, setPriceFlipped] = useState(false);
+  const [error, setError] = useState<string>("");
+  const [showAttention, setShowAttention] = useState(false);
 
   // Configure header
   useEffect(() => {
@@ -144,39 +93,17 @@ export default function ApproveTransactionPage() {
     });
   }, [setHeaderProps]);
 
+  useEffect(() => setShowAttention(false), [request?.id]);
+
   const handleSign = async () => {
-    if (!request || !decodedInfo || !activeAddress) return;
-
-    const identityError = getIdentityMismatchError(request, activeAddress.address, activeWallet?.id);
-    if (identityError) {
-      setError(identityError);
-      return;
-    }
-
-    // A request stays open for up to ten minutes, so the site's grant is rechecked here rather
-    // than trusted from when the request was created — revoking a site in Settings must take
-    // effect on an approval already on screen. The PSBT path has always done this.
-    const revokedError = await getConnectionRevokedError(request, getConnectionService());
-    if (revokedError) {
-      setError(revokedError);
-      return;
-    }
-
+    if (!request) return;
     setIsSigning(true);
-    setError('');
-
+    setError("");
     try {
-      const walletService = getWalletService();
-      const signedTxHex = await walletService.signTransaction(
-        request.rawTxHex,
-        request.address
-      );
-
-      await handleSuccess(signedTxHex);
+      await handleApprove(showAttention);
       window.close();
-    } catch (err) {
-      console.error('Failed to sign transaction:', err);
-      setError(err instanceof Error ? err.message : 'Failed to sign transaction');
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Failed to sign request");
       setIsSigning(false);
     }
   };
@@ -187,13 +114,13 @@ export default function ApproveTransactionPage() {
       await handleCancel();
       window.close();
     } catch (err) {
-      console.error('Failed to cancel:', err);
+      console.error("Failed to cancel:", err);
       setIsSigning(false);
     }
   };
 
   if (isLoading) return <ApprovalLoading />;
-  if (loadError || !request || !decodedInfo) return <ApprovalExpired message={loadError} />;
+  if (loadError || !request || !decodedInfo) return <ApprovalUnavailable message={loadError} onRetry={requestId ? () => void handleRetry() : undefined} retrying={isRefreshing} />;
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
   const txAction = getTxActionData(decodedInfo);
@@ -202,27 +129,48 @@ export default function ApproveTransactionPage() {
   // transaction was built elsewhere, so an expensive one can be legitimate and the wallet cannot
   // know the intent. The compose path blocks the same condition because it built the transaction
   // itself, and there an absurd fee means the response misbehaved.
-  const feeRateAbsurd = exceedsSaneFeeRate(decodedInfo.fee, decodedInfo.vsize);
+  const feeRateAbsurd = exceedsSaneFeeRate(decodedInfo.fee, decodedInfo.vsize, fastestFee);
   const hasHighFee = decodedInfo.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
   const verificationPassed = decodedInfo.verification?.passed;
-  const verificationComparedAgainstApi = decodedInfo.verification?.comparedAgainstApi ?? false;
+  const verificationRepackProved = decodedInfo.verification?.repackProved ?? false;
   const verificationWarning = decodedInfo.verification?.warning;
-  const verificationFailed = verificationPassed === false;
   const isStrictMode = settings?.strictTransactionVerification !== false;
+  const deferredVerificationFailure =
+    verificationPassed === false && !verificationRepackProved && !isStrictMode;
   const safetyBlocked = decodedInfo.safety?.blocked ?? false;
   const safetyWarnings = decodedInfo.safety?.warnings ?? [];
-  const shouldBlockSigning = safetyBlocked || (isStrictMode && verificationFailed);
+  // Shared with the PSBT approval screen so the two cannot drift.
+  const verificationBlocked = shouldBlockSigning({
+    safetyBlocked,
+    verificationPassed,
+    repackProved: verificationRepackProved,
+    strictMode: isStrictMode,
+  });
 
   // Attached-asset status per input. Inputs are dense, so array position is the index.
-  const attachedByInput = new Map(decodedInfo.attachedAssets.map(entry => [entry.inputIndex, entry]));
   // The wallet signs inputs it controls, i.e. those belonging to the active address.
   const signerInputIndices = decodedInfo.inputs
     .map((input, index) => ({ input, index }))
-    .filter(({ input }) => input.address &&
-      normalizeAddressForComparison(input.address) === normalizeAddressForComparison(activeAddress.address))
+    .filter(
+      ({ input }) =>
+        input.address &&
+        normalizeAddressForComparison(input.address) ===
+          normalizeAddressForComparison(activeAddress.address),
+    )
     .map(({ index }) => index);
   const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =
     classifySignedInputAssets(decodedInfo.attachedAssets, signerInputIndices);
+  const displayedText =
+    txAction?.type === "order"
+      ? [txAction.order.giveAsset, txAction.order.getAsset]
+      : txAction?.type === "fallback"
+        ? [txAction.description, ...txAction.protocol.map((field) => field.value)]
+        : [];
+  displayedText.push(
+    ...signedInputsWithAssets.flatMap((entry) =>
+      entry.assets.map((asset) => asset.asset_longname ?? asset.asset),
+    ),
+  );
 
   // Net effect of this transaction on your wallet — the anti-blind-signing summary.
   const movement = computeMoneyMovement({
@@ -234,227 +182,133 @@ export default function ApproveTransactionPage() {
     committedOutputs: null,
   });
 
-  const warningItems: WarningItem[] = safetyWarnings.map((warning, idx) => ({
-    key: `safety-${idx}`,
-    severity: warning.severity === 'block' ? 'danger' : warning.severity,
-    title: warning.title,
-    description: warning.message,
-  }));
-  if (signedInputsWithAssets.length > 0) {
-    warningItems.push({
-      key: 'attached-assets',
-      severity: 'warning',
-      title: 'Spends UTXOs holding Counterparty assets',
-      description: 'Inputs you are signing carry attached assets. Signing moves them, not just BTC.',
-      children: (
-        <ul className="mt-2 space-y-1 text-xs font-medium">
-          {signedInputsWithAssets.flatMap(entry =>
-            entry.assets.map(asset => (
-              <li key={`${entry.inputIndex}-${asset.asset}`}>
-                Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
-              </li>
-            ))
-          )}
-        </ul>
-      ),
-    });
-  }
-  if (signedInputsUnknownStatus.length > 0) {
-    warningItems.push({
-      key: 'unknown-status',
-      severity: 'warning',
-      title: "Couldn't verify asset status",
-      description: `The balance lookup failed for ${signedInputsUnknownStatus.length === 1 ? 'an input' : 'some inputs'} you are signing, so attached Counterparty assets can't be confirmed either way. Proceed only if you trust this transaction.`,
-      children: (
-        <ul className="mt-2 space-y-1 text-xs font-medium">
-          {signedInputsUnknownStatus.map(entry => (
-            <li key={entry.inputIndex}>Input #{entry.inputIndex}: status unknown</li>
-          ))}
-        </ul>
-      ),
-    });
-  }
+  const warningItems: WarningItem[] = buildApprovalWarnings({
+    displayedText,
+    safetyWarnings,
+    attachedAssetDestination: decodedInfo.attachedAssetDestination,
+    structureFindings: decodedInfo.structureFindings ?? [],
+    signedInputsWithAssets,
+    signedInputsUnknownStatus,
+  });
+
+  // An unavailable asset lookup is a retry state. It cannot be acknowledged away because the
+  // wallet does not know whether signing moves an attached asset. A structure finding blocks too:
+  // the message provably cannot do what it claims, so signing only spends fees on a broken
+  // transaction no honest composer produces.
+  const blockSigning =
+    approvalPolicy?.blocked ||
+    verificationBlocked ||
+    signedInputsUnknownStatus.length > 0 ||
+    (decodedInfo.structureFindings ?? []).length > 0;
+  const { attention } = partitionApprovalItems(warningItems);
+  const approvalAttentionItems: WarningItem[] = [
+    ...attention,
+    ...(deferredVerificationFailure ? [verificationAttentionItem(verificationWarning)] : []),
+    ...(hasHighFee ? [highFeeAttentionItem(decodedInfo.fee, decodedInfo.vsize)] : []),
+  ];
+  const retryAvailable = signedInputsUnknownStatus.length > 0
+    || decodedInfo.inputs.some(input => input.value === undefined || !input.address);
+  const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
+  const blockingItems: WarningItem[] = [
+    ...attention.filter(item => item.blocking),
+    ...(verificationPassed === false && !verificationRepackProved && isStrictMode ? [{
+      key: "verification-block", severity: "danger" as const,
+      title: "Transaction details did not verify", description: verificationWarning,
+    }] : []),
+    ...(decodedInfo.inputs.some(input => input.value === undefined || !input.address) ? [{
+      key: "unresolved-input", severity: "warning" as const,
+      title: "Input details could not be verified",
+      description: "The wallet cannot confirm the input value or owner. Retry verification before signing.",
+    }] : []),
+  ];
+
+  const attentionTitle =
+    decodedInfo.counterpartyMessage?.messageType === "destroy" && txAction?.type === "fallback"
+      ? txAction.description
+      : approvalAttentionItems.some((item) => item.severity === "danger")
+        ? "Review transaction risk"
+        : "Review before signing";
+  const confirmLabel =
+    decodedInfo.counterpartyMessage?.messageType === "destroy"
+      ? "Destroy supply"
+      : "Confirm and sign";
+  const handleApprovalAction = () => {
+    if (requiresAttention) {
+      setShowAttention(true);
+      return;
+    }
+    void handleSign();
+  };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-md mx-auto space-y-4">
-          <ApprovalWalletHeader walletName={activeWallet.name} address={activeAddress.address} />
-
-          <ApprovalSiteBar origin={request.origin} />
-
-          {error && <ErrorAlert message={error} />}
-
-          {/* Transaction action & fee */}
-          <div className="bg-white rounded-lg shadow-sm p-5">
-            {txAction?.type === 'order' ? (
-              /* Order — Uniswap-style swap card */
-              <div className="mb-3">
-                {/* Give box */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-1">You give</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {txAction.giveAmount}{' '}
-                    <span className="text-base font-normal text-gray-500">{txAction.giveAsset}</span>
-                  </p>
-                </div>
-
-                {/* Arrow + price between boxes */}
-                <div className="flex items-center justify-center gap-2 py-2">
-                  <div className="bg-white border border-gray-200 rounded-full p-1">
-                    <FiArrowDown className="size-3.5 text-gray-400" aria-hidden="true" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPriceFlipped(f => !f)}
-                    className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
-                    title="Click to flip price"
-                  >
-                    {formatPriceRatio(
-                      txAction.normalizedGive,
-                      txAction.normalizedGet,
-                      txAction.giveAsset,
-                      txAction.getAsset,
-                      priceFlipped,
-                    )}
-                  </button>
-                </div>
-
-                {/* Get box */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-1">You receive</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {txAction.getAmount}{' '}
-                    <span className="text-base font-normal text-gray-500">{txAction.getAsset}</span>
-                  </p>
-                </div>
-
-                {/* Expiration */}
-                <p className="text-xs text-gray-400 text-center mt-2">
-                  {txAction.expiration === 0
-                    ? 'Never expires'
-                    : `Expires in ${txAction.expiration.toLocaleString()} blocks`}
-                </p>
-              </div>
-            ) : txAction?.type === 'fallback' ? (
-              /* Counterparty action — flat label + description */
-              <div className="text-center mb-3">
-                <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
-                <p className="text-lg font-bold text-gray-900">{txAction.description}</p>
-              </div>
-            ) : null}
-            <MoneyMovementView movement={movement} hasHighFee={hasHighFee} showHeadline={!txAction} />
-            {decodedInfo.counterpartyMessage?.messageData?.fee != null &&
-              Number(decodedInfo.counterpartyMessage.messageData.fee) > 0 && (
-              <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
-                <span className="text-gray-500">Protocol Fee:</span>
-                <span className="text-sm font-medium text-purple-700">
-                  {formatAmount({
-                    value: fromSatoshis(Number(decodedInfo.counterpartyMessage.messageData.fee), true),
-                    minimumFractionDigits: 8,
-                    maximumFractionDigits: 8,
-                  })} XCP
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Transaction Details (expandable) */}
-          <Collapsible variant="card" title="Transaction Details">
-                  {/* TX Hash */}
-                  {decodedInfo.txid && (
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">TX Hash</h4>
-                      <div className="bg-gray-50 p-2 rounded text-xs text-gray-600 break-all">
-                        {decodedInfo.txid}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Inputs List */}
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Inputs ({decodedInfo.inputs.length})</h4>
-                    <div className="space-y-2">
-                      {decodedInfo.inputs.map((input, idx) => {
-                        const inputAssets = attachedByInput.get(idx);
-                        return (
-                        <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                          <span className="text-gray-600">#{idx}</span>
-                          {input.address && (
-                            <div className="text-gray-500 truncate" title={input.address}>
-                              {formatAddress(input.address, true)}
-                            </div>
-                          )}
-                          <div className="text-gray-400 truncate" title={input.txid}>
-                            {input.txid.slice(0, 8)}...:{input.vout}
-                          </div>
-                          {inputAssets?.assets.map((asset) => (
-                            <div key={asset.asset} className="mt-1 flex justify-between text-purple-700">
-                              <span className="truncate" title={asset.asset_longname ?? asset.asset}>
-                                {asset.asset_longname ?? asset.asset}
-                              </span>
-                              <span className="font-medium flex-shrink-0 ml-2">{asset.quantity_normalized}</span>
-                            </div>
-                          ))}
-                          {inputAssets?.lookupFailed && (
-                            <div className="mt-1 text-amber-600">Asset status unavailable</div>
-                          )}
-                        </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Outputs List */}
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Outputs ({decodedInfo.outputs.length})</h4>
-                    <div className="space-y-2">
-                      {decodedInfo.outputs.map((output, idx) => (
-                        <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                          <div className="flex justify-between">
-                            <span className={`${output.type === 'op_return' ? 'text-purple-600' : 'text-gray-600'}`}>
-                              {output.type === 'op_return' ? 'OP_RETURN' : output.type.toUpperCase()}
-                            </span>
-                            <span className="text-gray-900 font-medium">{formatAmount({ value: fromSatoshis(output.value, true), minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC</span>
-                          </div>
-                          {/* Shown in full and allowed to wrap. This is where the user checks
-                              where a site's transaction sends money, and 6 leading + 6 trailing
-                              characters is grindable for a lookalike - the prefix of a bech32
-                              address is fixed, so only a handful of characters are actually
-                              being compared. */}
-                          {output.address && (
-                            <div className="text-gray-500 break-all font-mono" title={output.address}>
-                              {formatAddress(output.address, false)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-          </Collapsible>
-
-          {/* Warnings, rendered in a fixed severity order (danger → success) */}
-          <WarningStack items={warningItems} />
-
-          {/* Verification Status (compact badge when passed) */}
-          <VerificationStatus
-            passed={verificationPassed}
-            comparedAgainstApi={verificationComparedAgainstApi}
-            warning={verificationWarning}
-            isStrict={isStrictMode}
+    <ApprovalLayout
+      walletName={activeWallet.name}
+      address={activeAddress.address}
+      origin={request.origin}
+      footer={
+        <ApprovalFooter
+          onCancel={handleReject}
+          onSign={handleApprovalAction}
+          busy={isSigning}
+          blocked={blockSigning || isRefreshing || Boolean(refreshError)}
+          blockedLabel={
+            retryAvailable || isRefreshing || refreshError ? "Awaiting verification" : "Blocked"
+          }
+          isHardware={activeWallet.type === "hardware"}
+          signLabel={requiresAttention ? "Review" : "Sign transaction"}
+        />
+      }
+      attention={
+        showAttention &&
+        requiresAttention && (
+          <ApprovalAttentionScreen
+            title={attentionTitle}
+            description="Confirm the exceptional transaction behavior below before the wallet adds your signature."
+            items={approvalAttentionItems}
+            confirmLabel={confirmLabel}
+            busy={isSigning}
+            isHardware={activeWallet.type === "hardware"}
+            onBack={() => setShowAttention(false)}
+            onConfirm={() => void handleSign()}
           />
+        )
+      }
+    >
+      {error && <ErrorAlert message={error} />}
+      <ApprovalNotice items={blockSigning ? blockingItems : approvalAttentionItems} blocked={Boolean(blockSigning)} />
 
-        </div>
-      </div>
-
-      <ApprovalFooter
-        onCancel={handleReject}
-        onSign={handleSign}
-        busy={isSigning}
-        blocked={shouldBlockSigning}
-        isHardware={activeWallet.type === 'hardware'}
+      <ApprovalSummaryCard
+        txAction={txAction?.type === "fallback" ? txAction : null}
+        order={txAction?.type === "order" ? txAction.order : null}
+        movement={movement}
+        hasHighFee={hasHighFee}
+        deferCautions={requiresAttention}
+        protocolFeeXcp={decodedInfo.counterpartyMessage?.messageData?.fee}
       />
-    </div>
+
+      <CounterpartyDetailsCard
+        fields={txAction && "protocol" in txAction ? txAction.protocol : []}
+        recipients={decodedInfo.mpmaRecipients}
+      />
+      {retryAvailable && (
+        <ApprovalRetry
+          onRetry={() => void handleRetry()}
+          retrying={isRefreshing}
+          error={refreshError}
+        />
+      )}
+
+
+
+
+      <ApprovalTransactionDetails
+        txid={decodedInfo.txid}
+        inputs={decodedInfo.inputs.map((input, index) => ({ ...input, index }))}
+        outputs={decodedInfo.outputs}
+        attachedAssets={decodedInfo.attachedAssets}
+        verification={decodedInfo.verification}
+        attachVout={attachDestinationVout(decodedInfo)}
+      />
+    </ApprovalLayout>
   );
 }

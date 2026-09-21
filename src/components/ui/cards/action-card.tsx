@@ -62,13 +62,6 @@ export function ActionCard({
     onClick();
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onClick();
-    }
-  };
-
   // Determine title color based on border class in className prop
   const getTitleColor = () => {
     if (className?.includes('border-green')) return 'text-green-600';
@@ -78,12 +71,9 @@ export function ActionCard({
   };
 
   return (
-    <div
+    <button type="button"
       onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      className={`relative w-full rounded transition duration-300 p-4 cursor-pointer bg-white hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${className}`}
-      role="button"
-      tabIndex={0}
+      className={`block text-left relative w-full rounded transition duration-300 p-4 cursor-pointer bg-white hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${className}`}
       aria-label={ariaLabel || title}
     >
       <div className="flex items-center">
@@ -120,7 +110,7 @@ export function ActionCard({
           </div>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 

@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
@@ -10,10 +11,11 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { OrderOptions } from "@/core/counterparty/compose";
-import { formatAmount } from "@/core/format";
-import { toBigNumber } from "@/core/numeric";
+import { formatForInput, isComposableAmount } from "@/core/format";
+import { asDisplayUnits, toBigNumber } from '@/core/numeric';
 import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { usePool } from "@/hooks/usePool";
 import { useTradingPair } from "@/hooks/useTradingPair";
 import { OrderSettings } from "@/pages/settings/order-settings";
 
@@ -57,6 +59,7 @@ export function OrderForm({
 }: OrderFormProps): ReactElement {
   // Context hooks
   const { activeAddress, activeWallet, settings, showHelpText, feeRate } = useComposer();
+  const navigate = useNavigate();
 
   const initialBaseAsset = giveAsset || (
     initialFormData?.type === "buy"
@@ -75,6 +78,13 @@ export function OrderForm({
   const { data: giveAssetDetails } = useAssetDetails(baseAsset);
   const { data: quoteAssetDetails } = useAssetDetails(quoteAsset);
   const { data: getAssetDetails } = useAssetDetails(baseAsset);
+
+  // A pool for this pair unlocks the Swap tab (BTC pairs never have pools)
+  const hasBtcInPair = baseAsset === "BTC" || quoteAsset === "BTC";
+  const { data: pairPool } = usePool(
+    !hasBtcInPair && baseAsset ? baseAsset : undefined,
+    !hasBtcInPair && baseAsset ? quoteAsset : undefined,
+  );
   
   // Local error state management for form-specific errors
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -99,8 +109,10 @@ export function OrderForm({
   // Trading state - restore from initialFormData if present
   const [isPairFlipped, setIsPairFlipped] = useState(initialFormData?.is_pair_flipped === "true");
 
-  // Sync URL params when they arrive after initial render (e.g., page.goto() in tests or direct URL entry)
-  // Only applies if no initialFormData (user wasn't editing a form)
+  // Sync URL params when they arrive after initial render (e.g., page.goto() in tests or direct URL
+  // entry). Only applies if no initialFormData (user wasn't editing a form).
+  // The form fields are read as "has the user set this yet?" guards and are deliberately not
+  // deps: listing them would re-run on the user's own edits and force each field back to the URL.
   useEffect(() => {
     if (initialFormData) return; // Don't override persisted form state
 
@@ -124,9 +136,17 @@ export function OrderForm({
   const isBuy = activeTab === "buy";
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
-  const isQuoteAssetDivisible = quoteAssetDetails?.isDivisible ?? true;
-  const availableBalance = giveAssetDetails?.availableBalance ?? "0";
-  const quoteAssetBalance = quoteAssetDetails?.availableBalance ?? "0";
+  const availableBalance = giveAssetDetails?.spendableBalance ?? giveAssetDetails?.availableBalance ?? "0";
+  const quoteAssetBalance = quoteAssetDetails?.spendableBalance ?? quoteAssetDetails?.availableBalance ?? "0";
+
+  const baseReady = giveAssetDetails?.assetInfo?.asset === baseAsset && typeof giveAssetDetails.assetInfo.divisible === "boolean";
+  const quoteReady = quoteAssetDetails?.assetInfo?.asset === quoteAsset && typeof quoteAssetDetails.assetInfo.divisible === "boolean";
+  const validPrice = isComposableAmount(price, 8) && toBigNumber(price).isGreaterThan(0);
+  const validAmount = isComposableAmount(amount, isGiveAssetDivisible ? 8 : 0) && toBigNumber(amount).isGreaterThan(0);
+  // Buying Max is derived: floor in the base asset's units, never in the quote asset's units.
+  const buyMaximum = validPrice && baseReady && quoteReady
+    ? formatForInput(toBigNumber(quoteAssetBalance).dividedBy(price).decimalPlaces(isGiveAssetDivisible ? 8 : 0, 1), isGiveAssetDivisible ? 8 : 0)
+    : "";
 
   // Trading pair data - for orders, swap direction depends on buy/sell
   const tradingPairGive = isBuy ? quoteAsset : baseAsset;
@@ -192,7 +212,7 @@ export function OrderForm({
         <BalanceHeader
           balance={{
             asset: baseAsset,
-            quantity_normalized: giveAssetDetails.availableBalance,
+            quantity_normalized: asDisplayUnits(giveAssetDetails.spendableBalance ?? giveAssetDetails.availableBalance),
             asset_info: giveAssetDetails.assetInfo ? {
               asset_longname: giveAssetDetails.assetInfo.asset_longname,
               description: giveAssetDetails.assetInfo.description || '',
@@ -203,6 +223,7 @@ export function OrderForm({
             } : undefined,
           }}
           className="mt-1 mb-5"
+            pendingIncoming={giveAssetDetails.pendingIncoming}
         />
       ) : activeAddress ? (
         <AddressHeader
@@ -233,6 +254,15 @@ export function OrderForm({
           >
             Sell
           </button>
+          {pairPool && (
+            <button
+              type="button"
+              className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
+              onClick={() => navigate(`/compose/swap/${encodeURIComponent(baseAsset)}/${encodeURIComponent(quoteAsset)}`)}
+            >
+              Swap
+            </button>
+          )}
         </div>
         <button
           type="button"
@@ -260,6 +290,7 @@ export function OrderForm({
       ) : (
         <ComposerForm
           formAction={(formData) => {
+            if (!validPrice || !validAmount || !baseReady || !quoteReady) return;
             // Store user-facing values for form persistence
             formData.set('amount', amount);
             formData.set('price', price);
@@ -279,8 +310,8 @@ export function OrderForm({
                 const giveQty = amountBN.multipliedBy(priceBN);
                 const getQty = amountBN;
                 
-                formData.set('give_quantity', giveQty.toString());
-                formData.set('get_quantity', getQty.toString());
+                formData.set('give_quantity', giveQty.toFixed());
+                formData.set('get_quantity', getQty.toFixed());
               } else {
                 // Selling: give base asset, get quote asset
                 // give_quantity = amount (in base asset)
@@ -288,8 +319,8 @@ export function OrderForm({
                 const giveQty = amountBN;
                 const getQty = amountBN.multipliedBy(priceBN);
                 
-                formData.set('give_quantity', giveQty.toString());
-                formData.set('get_quantity', getQty.toString());
+                formData.set('give_quantity', giveQty.toFixed());
+                formData.set('get_quantity', getQty.toFixed());
               }
             } else {
               // If amount or price is 0 or invalid, set quantities to 0
@@ -299,7 +330,7 @@ export function OrderForm({
             
             formAction(formData);
           }}
-          submitDisabled={!baseAsset}
+          submitDisabled={!baseAsset || !baseReady || !quoteReady || !validPrice || !validAmount}
         >
           {validationError && (
             <div className="mb-4">
@@ -338,12 +369,8 @@ export function OrderForm({
               setError={setValidationError}
               showHelpText={showHelpText}
               sourceAddress={activeAddress}
-              maxAmount={isBuy ? (toBigNumber(price).isGreaterThan(0) ? formatAmount({
-                value: toBigNumber(quoteAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
-                maximumFractionDigits: isQuoteAssetDivisible ? 8 : 0,
-                minimumFractionDigits: 0
-              }) : "") : availableBalance}
-              disableMaxButton={isBuy && !toBigNumber(price).isGreaterThan(0)}
+              maxAmount={isBuy ? buyMaximum : availableBalance}
+              disableMaxButton={!baseReady || !quoteReady || (isBuy && !validPrice)}
               label="Amount"
               name="amount"
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}

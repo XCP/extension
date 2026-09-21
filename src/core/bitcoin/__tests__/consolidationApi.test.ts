@@ -6,6 +6,11 @@ vi.mock("@/core/api/client", () => ({
   apiClient: { get: vi.fn(), post: vi.fn() },
 }));
 
+const mockChainStatus = vi.fn();
+vi.mock("@/core/bitcoin/utxo", () => ({
+  fetchTransactionChainStatus: (...args: unknown[]) => mockChainStatus(...args),
+}));
+
 const page = {
   address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
   summary: {
@@ -152,5 +157,74 @@ describe("ConsolidationApiService", () => {
     await expect(
       new ConsolidationApiService().fetchConsolidationBatch(page.address),
     ).rejects.toThrow("Recovery transaction data is still being indexed");
+  });
+});
+
+describe("chain truth over tracker word", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const pendingRow = {
+    txid: "e7".repeat(32),
+    status: "pending",
+    replacement_txid: null,
+    network_fee_sats: 160,
+    service_fee_sats: 0,
+    output_value_sats: 31_337,
+    block_height: null,
+    block_hash: null,
+    block_time: null,
+    confirmations: 0,
+    status_reason: "awaiting-chain-evidence",
+    chain_checked_at: null,
+    reported_at: 1_786_600_000,
+    updated_at: 1_786_600_000,
+    input_count: 39,
+  };
+
+  function statusResponses(rows: unknown[]) {
+    vi.mocked(apiClient.get).mockImplementation(async (url: string) => {
+      if (String(url).endsWith("/recoveries")) {
+        return { data: { address: page.address, recoveries: rows }, status: 200, statusText: "OK", headers: {} } as never;
+      }
+      return { data: page, status: 200, statusText: "OK", headers: {} } as never;
+    });
+  }
+
+  // The outage shape: the tracker's last word was "pending", the chain confirmed hours ago.
+  it("promotes a tracker-pending recovery the chain has confirmed", async () => {
+    statusResponses([pendingRow]);
+    mockChainStatus.mockResolvedValue({ confirmed: true, block_height: 962_000, block_time: 1_786_650_000 });
+
+    const status = await new ConsolidationApiService().getConsolidationStatus(page.address);
+
+    expect(status.recent_consolidations[0]).toMatchObject({ status: "confirmed" });
+    expect(status.status.pending_utxos).toBe(0);
+    expect(mockChainStatus).toHaveBeenCalledWith(pendingRow.txid);
+  });
+
+  // The chain may only promote. An unreachable explorer is unknown, not unconfirmed.
+  it("keeps the tracker's word when the explorer cannot answer", async () => {
+    statusResponses([pendingRow]);
+    mockChainStatus.mockResolvedValue(null);
+
+    const status = await new ConsolidationApiService().getConsolidationStatus(page.address);
+
+    expect(status.recent_consolidations[0]).toMatchObject({ status: "pending" });
+  });
+
+  it("counts only chain-unconfirmed recoveries as pending, and reports unknown as null", async () => {
+    statusResponses([
+      pendingRow,
+      { ...pendingRow, txid: "0c".repeat(32) },
+    ]);
+    mockChainStatus.mockImplementation(async (txid: string) =>
+      txid === pendingRow.txid ? { confirmed: true } : { confirmed: false },
+    );
+
+    const service = new ConsolidationApiService();
+    expect(await service.chainVerifiedPendingCount(page.address)).toBe(1);
+
+    vi.mocked(apiClient.get).mockRejectedValue(new Error("HTTP 500"));
+    expect(await service.chainVerifiedPendingCount(page.address)).toBeNull();
   });
 });

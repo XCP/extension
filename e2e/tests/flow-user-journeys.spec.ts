@@ -93,7 +93,7 @@ test.describe('User Journey: Wallet Management Lifecycle', () => {
     await navigateTo(extensionPage, 'settings');
     await expect(extensionPage).toHaveURL(/settings/);
 
-    const addressTypeOption = extensionPage.locator('div[role="button"][aria-label="Address Type"]').first();
+    const addressTypeOption = extensionPage.getByRole('button', { name: 'Address Type' }).first();
     await expect(addressTypeOption).toBeVisible({ timeout: 5000 });
     await addressTypeOption.click();
     await expect(extensionPage).toHaveURL(/address-type/, { timeout: 5000 });

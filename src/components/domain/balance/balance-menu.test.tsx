@@ -115,7 +115,7 @@ describe('BalanceMenu', () => {
     const mockOnClick = vi.fn();
 
     render(
-      <div onClick={mockOnClick}>
+      <div role="presentation" onClick={mockOnClick}>
         <MemoryRouter>
           <BalanceMenu asset="BTC" />
         </MemoryRouter>
@@ -134,7 +134,7 @@ describe('BalanceMenu', () => {
     const mockOnClick = vi.fn();
 
     render(
-      <div onClick={mockOnClick}>
+      <div role="presentation" onClick={mockOnClick}>
         <MemoryRouter>
           <BalanceMenu asset="BTC" />
         </MemoryRouter>

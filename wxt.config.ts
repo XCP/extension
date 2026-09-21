@@ -24,13 +24,9 @@ export default defineConfig({
         'sidePanel',
         'storage',
         'alarms',
-        'scripting', // Required for Trezor Connect to inject content scripts
       ],
-      host_permissions: [
-        '*://connect.trezor.io/9/*', // Required for Trezor Connect popup communication
-        'http://localhost:21325/*', // Trezor Bridge for emulator testing
-        'http://127.0.0.1:21325/*', // Trezor Bridge alternative address
-      ],
+      host_permissions: ['https://suite.trezor.io/*'],
+      externally_connectable: { matches: ['https://suite.trezor.io/*'] },
     };
 
     // Firefox-specific: Add data collection consent (required for Firefox 140+)
@@ -41,7 +37,8 @@ export default defineConfig({
         browser_specific_settings: {
           gecko: {
             id: 'wallet@xcpwallet.com',
-            strict_min_version: '109.0',
+            // storage.session, which holds the unlocked session key, was added in Firefox 115.
+            strict_min_version: '115.0',
             data_collection_permissions: {
               // technicalAndInteraction is opt-out by default in Firefox's UI
               // Users can toggle it during install or in about:addons
@@ -56,15 +53,12 @@ export default defineConfig({
   },
   vite: (configEnv) => ({
     plugins: [tailwindcss()],
-    // Strip all console.* calls from production bundles (esbuild built-in)
-    esbuild: configEnv.mode === 'production' ? { drop: ['console' as const] } : undefined,
-    define: {
-      // Enable Trezor test mode when TREZOR_TEST_MODE env var is set
-      // This is used in CI to allow the extension to connect to the emulator via BridgeTransport
-      // Note: Don't use JSON.stringify - we need actual boolean, not string "true"
-      __TREZOR_TEST_MODE__: process.env.TREZOR_TEST_MODE === 'true',
-    },
     build: {
+      // Vite 8 minifies with Oxc/Rolldown. Keep production diagnostics out of the distributed
+      // wallet bundle using its native equivalent of the former esbuild drop setting.
+      rolldownOptions: configEnv.mode === 'production'
+        ? { output: { minify: { compress: { dropConsole: true } } } }
+        : undefined,
       // Crypto libraries (@noble/*, @scure/*) are ~500KB minified - this is expected
       // for a Bitcoin wallet. The warning threshold is raised to avoid noise.
       chunkSizeWarningLimit: 1500,

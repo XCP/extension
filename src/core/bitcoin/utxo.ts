@@ -237,6 +237,25 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
 }
 
 /**
+ * Chain status for one transaction, straight from mempool.space, uncached.
+ *
+ * For callers asking "has this confirmed yet" — where a cached "no" is exactly the wrong answer,
+ * which rules out `fetchBitcoinTransaction`'s ten-minute cache. Null means the explorer could not
+ * answer; callers must treat that as unknown, never as unconfirmed.
+ */
+export async function fetchTransactionChainStatus(txid: string): Promise<MempoolTxStatus | null> {
+  try {
+    const response = await apiClient.get<MempoolTxStatus>(
+      `https://mempool.space/api/tx/${txid}/status`,
+      { retries: 0 }
+    );
+    return response.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetches detailed Bitcoin transaction information for a given txid.
  * Includes confirmation status and block time from mempool.space.
  * Results are cached for 10 minutes (transactions are immutable once confirmed).

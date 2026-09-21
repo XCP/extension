@@ -78,8 +78,6 @@ async function launchExtension(testId: string, options?: LaunchOptions): Promise
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process',
       `--disable-extensions-except=${extensionPath}`,
       `--load-extension=${extensionPath}`,
     ],
@@ -88,6 +86,9 @@ async function launchExtension(testId: string, options?: LaunchOptions): Promise
 
   // Block Fathom analytics in E2E tests to avoid polluting dashboards
   await context.route('**/cdn.usefathom.com/**', route => route.abort());
+  // The ZELD indexer is public and outside the mocks; answer for it so balances and guards never
+  // wait on the network. Every address holds no ZELD as far as these tests are concerned.
+  await context.route('**/api.zeldhash.com/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
 
   // Find extension ID - try multiple methods
   let extensionId: string | null = null;

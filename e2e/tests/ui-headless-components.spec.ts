@@ -251,7 +251,7 @@ walletTest.describe('Settings with Headless UI Components', () => {
       expect(['true', 'false']).toContain(hasAriaChecked);
     }
 
-    const visibleButtons = page.locator('button:visible');
+    const visibleButtons = page.locator('button').visible();
     const buttonCount = await visibleButtons.count();
     expect(buttonCount).toBeGreaterThan(0);
 

@@ -1,4 +1,12 @@
-export type CborValue = bigint | number | boolean | string | Uint8Array | CborValue[] | null;
+export type CborValue =
+  | bigint
+  | number
+  | boolean
+  | string
+  | Uint8Array
+  | CborValue[]
+  | Map<CborValue, CborValue>
+  | null;
 
 interface DecodedValue {
   value: CborValue;
@@ -70,6 +78,24 @@ function decodeValue(data: Uint8Array, offset: number, depth = 0): DecodedValue 
       itemOffset = decoded.offset;
     }
     return { value: values, offset: itemOffset };
+  }
+
+  // Maps never occur in Counterparty messages themselves (those are flat arrays), but ord
+  // inscription metadata may be a map carrying the message array under an "xcp" key — core's
+  // parser accepts that shape (`extract_data_from_witness`, gated by `ordinals_metadata_support`).
+  // Duplicate keys resolve last-write-wins, matching serde_cbor's BTreeMap for the primitive keys
+  // that can actually collide here.
+  if (majorType === 5) {
+    const entries = new Map<CborValue, CborValue>();
+    const itemCount = toSafeLength(length);
+    let itemOffset = valueOffset;
+    for (let index = 0; index < itemCount; index += 1) {
+      const key = decodeValue(data, itemOffset, depth + 1);
+      const value = decodeValue(data, key.offset, depth + 1);
+      entries.set(key.value, value.value);
+      itemOffset = value.offset;
+    }
+    return { value: entries, offset: itemOffset };
   }
 
   if (majorType === 7 && additionalInfo === 20) return { value: false, offset: offset + 1 };

@@ -2,6 +2,7 @@ import { act, render } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { HeaderProvider, useHeader } from '@/contexts/header-context';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 
 /**
  * The wiring lives in app-providers so header-context stays free of wallet-context (which imports
@@ -18,8 +19,8 @@ function ClearOnLock({ locked }: { locked: boolean }) {
 
 const BALANCE = {
   asset: 'XCP',
-  quantity: 100,
-  quantity_normalized: '1.00000000',
+  quantity: asBaseUnits(100),
+  quantity_normalized: asDisplayUnits('1.00000000'),
   asset_info: { asset_longname: null, description: '', issuer: '', divisible: true, locked: false },
 } as any;
 
@@ -68,7 +69,7 @@ describe('locking the keychain', () => {
       api!.cacheBalances([BALANCE]);
       api!.setAddressHeader('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', 'Wallet 1');
       api!.cacheOwnedAssets([{
-        asset: 'MYTOKEN', asset_longname: null, supply_normalized: '1', description: '', locked: false,
+        asset: 'MYTOKEN', asset_longname: null, supply_normalized: asDisplayUnits('1'), description: '', locked: false,
       }]);
     });
 

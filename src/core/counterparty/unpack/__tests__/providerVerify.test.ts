@@ -1,3 +1,4 @@
+import { asBaseUnits } from '@/core/numeric';
 /**
  * Tests for Provider Transaction Verification
  *
@@ -5,7 +6,9 @@
  * messages against API-decoded messages to detect tampering.
  */
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
 import {
   COUNTERPARTY_PREFIX_HEX,
   MessageTypeId,
@@ -91,7 +94,7 @@ describe('verifyProviderTransaction', () => {
       const apiMessage: ApiCounterpartyMessage = {
         messageType: 'enhanced_send',
         messageTypeId: MessageTypeId.ENHANCED_SEND,
-        messageData: { asset: 'XCP', quantity: 1000 },
+        messageData: { asset: 'XCP', quantity: asBaseUnits(1000) },
         description: 'send',
       };
 
@@ -100,10 +103,95 @@ describe('verifyProviderTransaction', () => {
       expect(result.comparedAgainstApi).toBe(true);
     });
 
+    it.each([Infinity, -Infinity, Number.NaN])(
+      'treats a non-finite API quantity (%s) as a mismatch instead of throwing',
+      (quantity) => {
+        const payload = bigintHex(XCP_ID) + bigintHex(1000n) + packedAddressHex(TEST_HASH);
+        const data = buildMessage(MessageTypeId.ENHANCED_SEND, payload);
+        const result = verifyProviderTransaction(data, {
+          messageType: 'enhanced_send',
+          messageTypeId: MessageTypeId.ENHANCED_SEND,
+          messageData: { asset: 'XCP', quantity },
+          description: 'send',
+        });
+
+        expect(result.passed).toBe(false);
+        expect(result.mismatches.join(' ')).toContain('Quantity');
+      }
+    );
+
     it('reports comparedAgainstApi=false when the payload is not Counterparty data', () => {
       const result = verifyProviderTransaction('deadbeef');
       expect(result.passed).toBeUndefined();
       expect(result.comparedAgainstApi).toBe(false);
+    });
+
+    it('does not claim a comparison for mpma_send, whose API payload has no sends to line up', () => {
+      // `/v2/transactions/unpack` renders mpma_send message_data as a bare array, so the keyed
+      // lookup for `sends` finds nothing. That used to return an empty mismatch list, which is
+      // indistinguishable from a clean pass — the screen showed "no tampering detected" for a
+      // message no field of which had been checked.
+      const { scenarios } = JSON.parse(
+        readFileSync('e2e/fixtures/approval-scenarios.json', 'utf8')
+      ) as { scenarios: Record<string, { rawTxHex: string }> };
+      const payload = extractCounterpartyPayload(scenarios['mpma-two-recipients']!.rawTxHex)!;
+
+      const result = verifyProviderTransaction(payload, {
+        messageType: 'mpma_send',
+        messageTypeId: 3,
+        messageData: {} as Record<string, unknown>,
+        description: 'Counterparty mpma_send transaction',
+      });
+
+      expect(result.passed).toBe(true);
+      expect(result.comparedAgainstApi).toBe(false);
+    });
+
+    it('does not block a multi-send just because the endpoint truncated its reply', () => {
+      // The live endpoint returns exactly one send however many the message carries — a two-send
+      // and a three-send MPMA both come back with the first alone. Reading that as a count
+      // mismatch blocked every legitimate multi-destination send.
+      const { scenarios } = JSON.parse(
+        readFileSync('e2e/fixtures/approval-scenarios.json', 'utf8')
+      ) as { scenarios: Record<string, { rawTxHex: string }> };
+      const payload = extractCounterpartyPayload(scenarios['mpma-two-recipients']!.rawTxHex)!;
+
+      const result = verifyProviderTransaction(payload, {
+        messageType: 'mpma_send',
+        messageTypeId: 3,
+        messageData: {
+          sends: [{ asset: 'XCP', destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', quantity: asBaseUnits(1000) }],
+        } as unknown as Record<string, unknown>,
+        description: 'Counterparty mpma_send transaction',
+      });
+
+      expect(result.passed).toBe(true);
+      expect(result.mismatches).toEqual([]);
+      expect(result.comparedAgainstApi).toBe(false);
+    });
+
+    it('still compares mpma_send field by field when the API supplies every send', () => {
+      const { scenarios } = JSON.parse(
+        readFileSync('e2e/fixtures/approval-scenarios.json', 'utf8')
+      ) as { scenarios: Record<string, { rawTxHex: string }> };
+      const payload = extractCounterpartyPayload(scenarios['mpma-two-recipients']!.rawTxHex)!;
+
+      const result = verifyProviderTransaction(payload, {
+        messageType: 'mpma_send',
+        messageTypeId: 3,
+        messageData: {
+          sends: [
+            { asset: 'XCP', destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', quantity: asBaseUnits(1000) },
+            // Quantity altered: a full-length reply is still checked, so this must be caught.
+            { asset: 'XCP', destination: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr', quantity: asBaseUnits(9999) },
+          ],
+        } as unknown as Record<string, unknown>,
+        description: 'Counterparty mpma_send transaction',
+      });
+
+      expect(result.comparedAgainstApi).toBe(true);
+      expect(result.passed).toBe(false);
+      expect(result.mismatches.join(' ')).toContain('quantity');
     });
   });
 
@@ -115,7 +203,7 @@ describe('verifyProviderTransaction', () => {
       const apiMessage: ApiCounterpartyMessage = {
         messageType: 'order', // wrong type
         messageTypeId: MessageTypeId.ENHANCED_SEND,
-        messageData: { asset: 'XCP', quantity: 1000 },
+        messageData: { asset: 'XCP', quantity: asBaseUnits(1000) },
         description: '',
       };
 
@@ -131,7 +219,7 @@ describe('verifyProviderTransaction', () => {
       const apiMessage: ApiCounterpartyMessage = {
         messageType: 'enhanced_send',
         messageTypeId: 99, // wrong ID
-        messageData: { asset: 'XCP', quantity: 1000 },
+        messageData: { asset: 'XCP', quantity: asBaseUnits(1000) },
         description: '',
       };
 
@@ -155,7 +243,7 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.ENHANCED_SEND,
         messageData: {
           asset: 'XCP',
-          quantity: 1000,
+          quantity: asBaseUnits(1000),
           destination: TEST_ADDR,
           ...overrides,
         },
@@ -181,7 +269,7 @@ describe('verifyProviderTransaction', () => {
 
     it('detects quantity mismatch', () => {
       const data = makeEnhancedSend(XCP_ID, 1000n, TEST_HASH);
-      const api = makeApiMessage({ quantity: 9999 });
+      const api = makeApiMessage({ quantity: asBaseUnits(9999) });
       const result = verifyProviderTransaction(data, api);
       expect(result.passed).toBe(false);
       expect(result.mismatches.some(m => m.includes('Quantity'))).toBe(true);
@@ -197,7 +285,7 @@ describe('verifyProviderTransaction', () => {
 
     it('handles quantity as string in API data', () => {
       const data = makeEnhancedSend(XCP_ID, 1000n, TEST_HASH);
-      const api = makeApiMessage({ quantity: '1000' });
+      const api = makeApiMessage({ quantity: asBaseUnits('1000') });
       const result = verifyProviderTransaction(data, api);
       expect(result.passed).toBe(true);
     });
@@ -241,9 +329,9 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.ORDER,
         messageData: {
           give_asset: 'XCP',
-          give_quantity: 50000,
+          give_quantity: asBaseUnits(50000),
           get_asset: 'BTC',
-          get_quantity: 100000,
+          get_quantity: asBaseUnits(100000),
           expiration: 100,
           ...overrides,
         },
@@ -269,7 +357,7 @@ describe('verifyProviderTransaction', () => {
 
     it('detects give_quantity mismatch', () => {
       const data = makeOrder(XCP_ID, 50000n, 0n, 100000n, 100);
-      const api = makeOrderApi({ give_quantity: 99999 });
+      const api = makeOrderApi({ give_quantity: asBaseUnits(99999) });
       const result = verifyProviderTransaction(data, api);
       expect(result.passed).toBe(false);
       expect(result.mismatches.some(m => m.includes('Give quantity'))).toBe(true);
@@ -285,7 +373,7 @@ describe('verifyProviderTransaction', () => {
 
     it('detects get_quantity mismatch', () => {
       const data = makeOrder(XCP_ID, 50000n, 0n, 100000n, 100);
-      const api = makeOrderApi({ get_quantity: 1 });
+      const api = makeOrderApi({ get_quantity: asBaseUnits(1) });
       const result = verifyProviderTransaction(data, api);
       expect(result.passed).toBe(false);
       expect(result.mismatches.some(m => m.includes('Get quantity'))).toBe(true);
@@ -390,7 +478,7 @@ describe('verifyProviderTransaction', () => {
       const api: ApiCounterpartyMessage = {
         messageType: 'destroy',
         messageTypeId: MessageTypeId.DESTROY,
-        messageData: { asset: 'XCP', quantity: 5000 },
+        messageData: { asset: 'XCP', quantity: asBaseUnits(5000) },
         description: '',
       };
       const result = verifyProviderTransaction(data, api);
@@ -402,7 +490,7 @@ describe('verifyProviderTransaction', () => {
       const api: ApiCounterpartyMessage = {
         messageType: 'destroy',
         messageTypeId: MessageTypeId.DESTROY,
-        messageData: { asset: 'PEPECASH', quantity: 5000 },
+        messageData: { asset: 'PEPECASH', quantity: asBaseUnits(5000) },
         description: '',
       };
       const result = verifyProviderTransaction(data, api);
@@ -415,7 +503,7 @@ describe('verifyProviderTransaction', () => {
       const api: ApiCounterpartyMessage = {
         messageType: 'destroy',
         messageTypeId: MessageTypeId.DESTROY,
-        messageData: { asset: 'XCP', quantity: 1 },
+        messageData: { asset: 'XCP', quantity: asBaseUnits(1) },
         description: '',
       };
       const result = verifyProviderTransaction(data, api);
@@ -538,8 +626,8 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.DISPENSER,
         messageData: {
           asset: 'XCP',
-          give_quantity: 100,
-          escrow_quantity: 1000,
+          give_quantity: asBaseUnits(100),
+          escrow_quantity: asBaseUnits(1000),
           mainchainrate: 50000,
         },
         description: '',
@@ -555,8 +643,8 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.DISPENSER,
         messageData: {
           asset: 'XCP',
-          give_quantity: 999,
-          escrow_quantity: 1000,
+          give_quantity: asBaseUnits(999),
+          escrow_quantity: asBaseUnits(1000),
           mainchainrate: 50000,
         },
         description: '',
@@ -573,8 +661,8 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.DISPENSER,
         messageData: {
           asset: 'XCP',
-          give_quantity: 100,
-          escrow_quantity: 5555,
+          give_quantity: asBaseUnits(100),
+          escrow_quantity: asBaseUnits(5555),
           mainchainrate: 50000,
         },
         description: '',
@@ -591,8 +679,8 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.DISPENSER,
         messageData: {
           asset: 'XCP',
-          give_quantity: 100,
-          escrow_quantity: 1000,
+          give_quantity: asBaseUnits(100),
+          escrow_quantity: asBaseUnits(1000),
           mainchainrate: 1,
         },
         description: '',
@@ -626,7 +714,7 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.ISSUANCE,
         messageData: {
           asset: 'XCP',
-          quantity: 100000,
+          quantity: asBaseUnits(100000),
           divisible: true,
         },
         description: '',
@@ -642,7 +730,7 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.ISSUANCE,
         messageData: {
           asset: 'XCP',
-          quantity: 999999,
+          quantity: asBaseUnits(999999),
           divisible: true,
         },
         description: '',
@@ -659,7 +747,7 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.ISSUANCE,
         messageData: {
           asset: 'XCP',
-          quantity: 100000,
+          quantity: asBaseUnits(100000),
           divisible: true,
         },
         description: '',
@@ -686,7 +774,7 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.DIVIDEND,
         messageData: {
           asset: 'XCP',
-          quantity_per_unit: 500,
+          quantity_per_unit: asBaseUnits(500),
           dividend_asset: 'BTC',
         },
         description: '',
@@ -702,7 +790,7 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.DIVIDEND,
         messageData: {
           asset: 'XCP',
-          quantity_per_unit: 999,
+          quantity_per_unit: asBaseUnits(999),
           dividend_asset: 'BTC',
         },
         description: '',
@@ -719,7 +807,7 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.DIVIDEND,
         messageData: {
           asset: 'XCP',
-          quantity_per_unit: 500,
+          quantity_per_unit: asBaseUnits(500),
           dividend_asset: 'XCP', // wrong, should be BTC
         },
         description: '',
@@ -821,7 +909,7 @@ describe('verifyProviderTransaction', () => {
       const api: ApiCounterpartyMessage = {
         messageType: 'fairmint',
         messageTypeId: MessageTypeId.FAIRMINT,
-        messageData: { asset: 'XCP', quantity: 1000 },
+        messageData: { asset: 'XCP', quantity: asBaseUnits(1000) },
         description: '',
       };
       const result = verifyProviderTransaction(data, api);
@@ -833,7 +921,7 @@ describe('verifyProviderTransaction', () => {
       const api: ApiCounterpartyMessage = {
         messageType: 'fairmint',
         messageTypeId: MessageTypeId.FAIRMINT,
-        messageData: { asset: 'XCP', quantity: 9999 },
+        messageData: { asset: 'XCP', quantity: asBaseUnits(9999) },
         description: '',
       };
       const result = verifyProviderTransaction(data, api);
@@ -857,7 +945,7 @@ describe('verifyProviderTransaction', () => {
       const api: ApiCounterpartyMessage = {
         messageType: 'send',
         messageTypeId: MessageTypeId.SEND,
-        messageData: { asset: 'XCP', quantity: 2000 },
+        messageData: { asset: 'XCP', quantity: asBaseUnits(2000) },
         description: '',
       };
       const result = verifyProviderTransaction(data, api);
@@ -872,7 +960,7 @@ describe('verifyProviderTransaction', () => {
       const api: ApiCounterpartyMessage = {
         messageType: 'send',
         messageTypeId: MessageTypeId.SEND,
-        messageData: { asset: 'PEPECASH', quantity: 2000 },
+        messageData: { asset: 'PEPECASH', quantity: asBaseUnits(2000) },
         description: '',
       };
       const result = verifyProviderTransaction(data, api);
@@ -891,7 +979,7 @@ describe('verifyProviderTransaction', () => {
         messageTypeId: MessageTypeId.ENHANCED_SEND,
         messageData: {
           asset: 'WRONG',
-          quantity: 9999,
+          quantity: asBaseUnits(9999),
           destination: TEST_ADDR2,
         },
         description: '',
@@ -916,6 +1004,36 @@ describe('verifyProviderTransaction', () => {
       };
       const result = verifyProviderTransaction(data, api);
       expect(result.passed).toBe(true);
+    });
+
+    it('reports dispense as not compared — its payload has no fields', () => {
+      const data = buildMessage(MessageTypeId.DISPENSE, '00');
+      const api: ApiCounterpartyMessage = {
+        messageType: 'dispense',
+        messageTypeId: MessageTypeId.DISPENSE,
+        messageData: {},
+        description: '',
+      };
+      const result = verifyProviderTransaction(data, api);
+      // Passing is fine; claiming it was cross-checked is not.
+      expect(result.passed).toBe(true);
+      expect(result.comparedAgainstApi).toBe(false);
+    });
+
+    it('catches a detach destination the API disagrees with', () => {
+      const destBytes = new TextEncoder().encode('mn6q3dS2EnDUx3bmyWc6D4szJNVGtaR7zc');
+      const destHex = Array.from(destBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      const data = buildMessage(MessageTypeId.UTXO_DETACH, destHex);
+      const api: ApiCounterpartyMessage = {
+        messageType: 'detach',
+        messageTypeId: MessageTypeId.UTXO_DETACH,
+        messageData: { destination: 'mzKp5S4TFqvcNwLcv2S3xUgnrqzhoTGusL' },
+        description: '',
+      };
+      const result = verifyProviderTransaction(data, api);
+      expect(result.passed).toBe(false);
+      expect(result.comparedAgainstApi).toBe(true);
+      expect(result.mismatches.join(' ')).toMatch(/Destination/i);
     });
 
     it('detach passes with matching type (minimal verification)', () => {

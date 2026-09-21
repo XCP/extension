@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { HeaderProvider, useHeader } from '../header-context';
 
 describe('HeaderContext', () => {
@@ -370,8 +371,8 @@ describe('HeaderContext', () => {
         divisible: true,
         locked: false,
         issuer: 'test',
-        supply: '1000000',
-        supply_normalized: '1000000',
+        supply: asBaseUnits('1000000'),
+        supply_normalized: asDisplayUnits('1000000'),
       };
 
       act(() => {
@@ -388,7 +389,7 @@ describe('HeaderContext', () => {
 
       const balance = {
         asset: 'XCP',
-        quantity_normalized: '100.5'
+        quantity_normalized: asDisplayUnits('100.5')
       };
 
       act(() => {
@@ -407,11 +408,11 @@ describe('HeaderContext', () => {
       act(() => {
         result.current.setBalanceHeader('XCP', {
           asset: 'XCP',
-          quantity_normalized: '100'
+          quantity_normalized: asDisplayUnits('100')
         });
         result.current.setBalanceHeader('TEST', {
           asset: 'TEST',
-          quantity_normalized: '50'
+          quantity_normalized: asDisplayUnits('50')
         });
       });
 

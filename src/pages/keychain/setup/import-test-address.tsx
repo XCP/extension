@@ -88,7 +88,6 @@ function ImportTestAddressPage() {
                     }
                   }}
                   disabled={isLoading}
-                  autoFocus
                 />
               </div>
               

@@ -40,7 +40,7 @@ export function EmptyState({
         )}
       </div>
       {linkAction && (
-        <button
+        <button type="button"
           onClick={linkAction.onClick}
           className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
         >

@@ -123,7 +123,7 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
   useEffect(() => {
 
     // Cleanup previous event listeners
-    eventsListenersRef.current.forEach(cleanup => cleanup());
+    eventsListenersRef.current.forEach(cleanup => { cleanup(); });
     eventsListenersRef.current = [];
 
     clearTimeout(timeoutRef.current);
@@ -154,7 +154,7 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
     // Cleanup function
     return () => {
       clearTimeout(timeoutRef.current);
-      eventsListenersRef.current.forEach(cleanup => cleanup());
+      eventsListenersRef.current.forEach(cleanup => { cleanup(); });
       eventsListenersRef.current = [];
     };
   }, [disabled, timeout, events, reset]);

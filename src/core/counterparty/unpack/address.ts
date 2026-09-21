@@ -333,6 +333,57 @@ export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet'
 }
 
 /**
+ * Unpack a 21-byte address the way core's `address.unpack_legacy` does — and only that way.
+ *
+ * The modern type tags (0x01 P2PKH, 0x02 P2SH, 0x03 witness) do not exist in this encoding. Here
+ * the leading byte is a base58 *version* byte, except in the 0x80-0x8F range which marks a segwit
+ * witness version. That difference is not cosmetic: `0x01 || hash160` is a modern P2PKH tag to
+ * {@link unpackAddress} and renders as an ordinary `1…` address, while core base58-encodes it
+ * under version 0x01 and credits somewhere else entirely.
+ *
+ * MPMA is the caller that matters. Core decodes its address lookup table with `unpack_legacy`
+ * unconditionally (utils/mpmaencoding.py `_decode_decode_lut`), never the taproot-aware `unpack`,
+ * so a table decoded with the modern rules can name a different recipient than the one being paid
+ * — and MPMA destinations travel in the payload rather than as outputs, so this string is the only
+ * account of them the approval screen has.
+ */
+export function unpackAddressLegacy(
+  packed: Uint8Array,
+  network: 'mainnet' | 'testnet' = 'mainnet'
+): string {
+  if (!packed || packed.length === 0) {
+    throw new AddressPackError('Empty packed address');
+  }
+  if (packed.length !== PACKED_ADDRESS_LENGTH) {
+    throw new AddressPackError(
+      `Invalid packed address length: ${packed.length} (expected ${PACKED_ADDRESS_LENGTH})`
+    );
+  }
+
+  const firstByte = packed[0]!;
+  const rest = packed.slice(1);
+
+  // Segwit marker: witness version is the offset from 0x80, program is the remaining 20 bytes.
+  if (firstByte >= VERSION.SEGWIT_MARKER && firstByte <= VERSION.SEGWIT_MARKER + 0x0F) {
+    return encodeBech32(
+      firstByte - VERSION.SEGWIT_MARKER,
+      rest,
+      network === 'mainnet' ? 'bc' : 'tb'
+    );
+  }
+
+  // Otherwise a base58 version byte. Core would encode any leading byte here; restricting to the
+  // four defined versions refuses a payload that reads as an address and is not one, rather than
+  // showing the user a plausible string for bytes core will credit elsewhere.
+  if (!BASE58_VERSIONS.has(firstByte)) {
+    throw new AddressPackError(
+      `Unrecognized legacy packed address version byte: 0x${firstByte.toString(16)}`
+    );
+  }
+  return encodeBase58Check(firstByte, rest);
+}
+
+/**
  * Check if a packed address represents a SegWit address, in either encoding.
  *
  * Recognizes the modern `0x03` witness prefix as well as the legacy `0x80 + witness version`

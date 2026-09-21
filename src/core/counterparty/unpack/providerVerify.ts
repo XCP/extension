@@ -8,7 +8,7 @@
 
 import { addressesEqual } from '@/core/counterparty/unpack/address';
 import { isCounterpartyData, type UnpackResult, unpackCounterpartyMessage } from '@/core/counterparty/unpack/index';
-import type { AttachData, } from '@/core/counterparty/unpack/messages/attach';
+import type { AttachData, DetachData } from '@/core/counterparty/unpack/messages/attach';
 import type { BroadcastData } from '@/core/counterparty/unpack/messages/broadcast';
 import type { BTCPayData } from '@/core/counterparty/unpack/messages/btcpay';
 import type { CancelData } from '@/core/counterparty/unpack/messages/cancel';
@@ -24,6 +24,7 @@ import type { OrderData } from '@/core/counterparty/unpack/messages/order';
 import type { PoolDepositData, PoolWithdrawData } from '@/core/counterparty/unpack/messages/pool';
 import type { SendData } from '@/core/counterparty/unpack/messages/send';
 import type { SweepData } from '@/core/counterparty/unpack/messages/sweep';
+import { proveByRepack } from '@/core/counterparty/unpack/repackVerify';
 
 /**
  * API-decoded Counterparty message (from decodeCounterpartyMessage)
@@ -50,6 +51,13 @@ export interface ProviderVerificationResult {
    * overstates it precisely when the least checking occurred, so the display distinguishes the two.
    */
   comparedAgainstApi: boolean;
+  /**
+   * Whether the decode was rebuilt into the exact payload being signed.
+   *
+   * A stronger and more relevant claim than the API comparison above, which reads the same bytes
+   * from a second decoder and so can only vouch for this project's unpacker. See repackVerify.ts.
+   */
+  repackProved: boolean;
   /** Warning message if verification failed or had issues */
   warning?: string;
   /** Detailed list of mismatches found */
@@ -58,13 +66,42 @@ export interface ProviderVerificationResult {
   localUnpack?: UnpackResult;
 }
 
+/** What an approval screen knows when it decides whether to let the user sign. */
+export interface SigningDecisionInput {
+  /** A safety rule refused this transaction outright (a sweep from a website, say). */
+  safetyBlocked: boolean;
+  /** `ProviderVerificationResult.passed` — undefined when verification was not attempted. */
+  verificationPassed: boolean | undefined;
+  /** `ProviderVerificationResult.repackProved`. */
+  repackProved: boolean;
+  /** The user's `strictTransactionVerification` setting, which defaults to on. */
+  strictMode: boolean;
+}
+
+/**
+ * Whether the approval screen must refuse to sign. Shared by both approval screens, which had
+ * drifted apart when written out separately.
+ *
+ * A safety block is absolute. A verification failure blocks only in strict mode, and only while the
+ * rebuild has not proved our reading of the payload complete — past that point a disagreement is the
+ * decode API's to explain, and ADR-019 treats that endpoint as untrusted and user-configurable, so
+ * letting it veto a signature would hand an untrusted party a way to block sound transactions.
+ */
+export function shouldBlockSigning(input: SigningDecisionInput): boolean {
+  if (input.safetyBlocked) return true;
+  const verificationFailed = input.verificationPassed === false && !input.repackProved;
+  return input.strictMode && verificationFailed;
+}
+
 /**
  * Normalize a value to bigint for comparison
  */
 function toBigInt(value: unknown): bigint | null {
   if (value === undefined || value === null) return null;
   if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') return BigInt(Math.floor(value));
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? BigInt(Math.floor(value)) : null;
+  }
   if (typeof value === 'string') {
     try {
       return BigInt(value);
@@ -89,8 +126,24 @@ function quantitiesEqual(a: unknown, b: unknown): boolean {
  * Compare two asset names (case-insensitive)
  */
 function assetsEqual(a: string | undefined, b: string | undefined): boolean {
-  if (!a || !b) return false;
-  return a.toUpperCase() === b.toUpperCase();
+  if (!a) return false;
+  if (b === undefined || b === null) return false;
+
+  // Core resolves an asset name through a ledger lookup, and `get_asset_name` returns 0 for an
+  // asset the node does not know (ledger/issuances.py). That is an absence of information, not a
+  // disagreement — 0 is not a valid asset name and cannot be what the bytes say. Treating it as a
+  // mismatch blocked signing on the state of a node's index rather than on the transaction: an
+  // order, destroy or dividend naming an asset the queried node had not indexed reported
+  // tampering. Same shape as the rounding-induced false block fixed earlier — an API limitation
+  // rendered as an accusation.
+  //
+  // Checked before the falsy guard and stringified, because the endpoint serializes the marker as
+  // the NUMBER 0: it is falsy, so a guard placed after `!b` never sees it, and this parameter is
+  // typed string but is not always one at runtime. Both facts found by the differential fuzzer.
+  if (String(b) === '0') return true;
+
+  if (!b) return false;
+  return a.toUpperCase() === String(b).toUpperCase();
 }
 
 /**
@@ -255,6 +308,27 @@ function verifyDestroy(
 /**
  * Verify a sweep message
  */
+/**
+ * Detach carries a single field — where the assets leave the UTXO to. A wrong
+ * destination sends them to an address the signer does not control, so this is
+ * exactly the comparison worth making, not one to skip.
+ */
+function verifyDetach(
+  local: DetachData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  const apiDest = getApiValue(api, 'destination', 'address') as string | undefined;
+  // "0" is the protocol's stand-in for "back to the sender", which the API
+  // renders as the resolved address — not a mismatch.
+  if (apiDest && local.destination !== '0' && !addressesEqual(local.destination, apiDest)) {
+    mismatches.push(`Destination: local="${local.destination}", API="${apiDest}"`);
+  }
+
+  return mismatches;
+}
+
 function verifySweep(
   local: SweepData,
   api: Record<string, unknown>
@@ -311,23 +385,36 @@ function verifyIssuance(
 /**
  * Verify an MPMA send message
  */
+/**
+ * Returns null when the API payload offers nothing to compare against, which is different from
+ * comparing and finding nothing wrong. Previously both cases returned an empty mismatch list, so
+ * an mpma_send that was never checked reported the same "no tampering detected" as one that
+ * passed every field.
+ */
 function verifyMPMA(
   local: MPMAData,
   api: Record<string, unknown>
-): string[] {
+): string[] | null {
   const mismatches: string[] = [];
 
-  // API may return sends as an array
-  const apiSends = getApiValue(api, 'sends', 'destinations') as Array<Record<string, unknown>> | undefined;
+  // `/v2/transactions/unpack` returns mpma_send message_data as a bare array of sends rather than
+  // an object, so the keyed lookup finds nothing; an array is still read here for API shapes that
+  // do wrap it.
+  const apiSends = (Array.isArray(api)
+    ? api
+    : getApiValue(api, 'sends', 'destinations')) as Array<Record<string, unknown>> | undefined;
 
-  if (!apiSends || !Array.isArray(apiSends)) {
-    // Can't verify individual sends without API data
-    return mismatches;
+  if (!apiSends || !Array.isArray(apiSends) || apiSends.length === 0) {
+    return null;
   }
 
+  // The endpoint returns exactly one send no matter how many the message carries — a two-send and
+  // a three-send MPMA both come back with the first send alone. Treating that as a count mismatch
+  // would block every legitimate multi-destination send, so a short list is reported as "nothing
+  // compared" rather than as tampering. The API can only ever add confidence here: the recipients
+  // on screen are read from the bytes, not from this response.
   if (local.sends.length !== apiSends.length) {
-    mismatches.push(`Send count: local=${local.sends.length}, API=${apiSends.length}`);
-    return mismatches;
+    return null;
   }
 
   // Verify each send
@@ -548,6 +635,13 @@ function verifyPoolDeposit(
     mismatches.push(`Min LP quantity: local=${local.minLpQuantity}, API=${apiMinLp}`);
   }
 
+  // The LP asset decides which token the deposit pays out, so leaving it uncompared meant the one
+  // field naming what you receive was the one field never checked.
+  const apiLpAsset = getApiValue(api, 'lp_asset', 'lpAsset') as string | undefined;
+  if (apiLpAsset && local.lpAsset && !assetsEqual(local.lpAsset, apiLpAsset)) {
+    mismatches.push(`LP asset: local="${local.lpAsset}", API="${apiLpAsset}"`);
+  }
+
   return mismatches;
 }
 
@@ -600,6 +694,7 @@ export function verifyProviderTransaction(
     return {
       passed: undefined,
       comparedAgainstApi: false,
+      repackProved: false,
       mismatches: [],
       warning: undefined,
     };
@@ -613,6 +708,7 @@ export function verifyProviderTransaction(
     return {
       passed: false,
       comparedAgainstApi: false,
+      repackProved: false,
       warning: localUnpack.error || 'Failed to unpack transaction locally',
       mismatches: ['Local unpack failed'],
       localUnpack,
@@ -625,6 +721,7 @@ export function verifyProviderTransaction(
     return {
       passed: true,
       comparedAgainstApi: false,
+      repackProved: false,
       mismatches: [],
       localUnpack,
     };
@@ -646,7 +743,14 @@ export function verifyProviderTransaction(
     );
   }
 
-  // Verify specific fields based on message type
+  // Verify specific fields based on message type.
+  //
+  // Whether any payload field was actually compared, as opposed to the type and
+  // type ID matching and the switch falling through. Reporting a pass as
+  // "compared against the API" when no comparator ran overstates the check
+  // precisely where the least of it happened, which is what this flag exists to
+  // prevent.
+  let payloadCompared = true;
   const apiData = apiMessage.messageData;
 
   switch (localUnpack.messageType) {
@@ -685,9 +789,15 @@ export function verifyProviderTransaction(
       mismatches.push(...verifyIssuance(localUnpack.data as IssuanceData, apiData));
       break;
 
-    case 'mpma_send':
-      mismatches.push(...verifyMPMA(localUnpack.data as MPMAData, apiData));
+    case 'mpma_send': {
+      const mpmaMismatches = verifyMPMA(localUnpack.data as MPMAData, apiData);
+      if (mpmaMismatches === null) {
+        payloadCompared = false;
+      } else {
+        mismatches.push(...mpmaMismatches);
+      }
       break;
+    }
 
     case 'btcpay':
       mismatches.push(...verifyBTCPay(localUnpack.data as BTCPayData, apiData));
@@ -722,24 +832,34 @@ export function verifyProviderTransaction(
       break;
 
     case 'detach':
-      // Detach payload is just a destination address — minimal verification
+      mismatches.push(...verifyDetach(localUnpack.data as DetachData, apiData));
       break;
 
     case 'dispense':
-      // Dispense has minimal payload - just a marker byte
-      // Verification is at the transaction level (destination/amount)
+      // A dispense payload is a marker byte: core's unpack returns only { data },
+      // so there is no field to compare. Which dispenser is triggered lives in
+      // the outputs, which the approval screen shows directly.
+      payloadCompared = false;
       break;
 
     default:
-      // Unknown message type - type match check is done above
+      // No comparator for this type in this build. The type and type ID above
+      // still matched, but no payload field was checked.
+      payloadCompared = false;
       break;
   }
 
   const passed = mismatches.length === 0;
 
+  // Independent of everything above: rebuild the decode into bytes and compare with the payload.
+  // Needs no network and cannot be swayed by any remote party, so it holds even when the API
+  // decode is missing entirely.
+  const repack = proveByRepack(localUnpack.messageType, localUnpack.data, opReturnData);
+
   return {
     passed,
-    comparedAgainstApi: true,
+    comparedAgainstApi: payloadCompared,
+    repackProved: repack.proved,
     warning: passed ? undefined : `Verification failed: ${mismatches.join('; ')}`,
     mismatches,
     localUnpack,

@@ -10,6 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { asBaseUnits } from '@/core/numeric';
 import { packComposeMessage } from '../pack/messages';
 import { unpackCounterpartyMessage } from '../unpack';
 import { bytesToHex } from '../unpack/binary';
@@ -26,7 +27,7 @@ const ASSET_ID = 751209043880280215n;
 /** Params as the issuance form submits them for that transaction. */
 const PARAMS = {
   asset: LONGNAME,
-  quantity: 1,
+  quantity: asBaseUnits(1),
   divisible: false,
   lock: true,
   reset: false,

@@ -1,19 +1,39 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { FairmintSummary } from "@/components/domain/asset/fairmint-summary";
 import { type Fairminter, FairminterSelectInput } from "@/components/domain/asset/fairminter-select-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
+import { fetchAddressFairmintTotal } from "@/core/counterparty/api";
 import type { FairmintOptions } from "@/core/counterparty/compose";
-import { formatAmount } from "@/core/format";
-import { divide, multiply, roundDownToMultiple, toBigNumber } from "@/core/numeric";
+import type { FairmintBound } from "@/core/counterparty/fairminterModel";
+import {
+  describeFairmintBound,
+  getFairminterLotCost,
+  getFairmintLots,
+  getQuantityForLots,
+  isPaidFairminter,
+  readFairminterPaymentModel,
+} from "@/core/counterparty/fairminterModel";
+import { asDisplayUnits, divide, isGreaterThan } from "@/core/numeric";
+import { validAmountDraft } from "@/core/validation/transaction-amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 interface FairmintFormDataInternal {
   asset: string;
-  quantity: string;
+  /**
+   * How many lots to mint, not how many tokens.
+   *
+   * A fairminter sells in lots — `quantity_by_price` tokens for `price` XCP — and core rejects any
+   * quantity that is not a whole number of them. Asking for tokens meant asking for a number that
+   * had to be a multiple of something the form only mentioned in help text, under a header showing
+   * an XCP balance. Asking for lots is the same shape as the dispense form's "Times to Dispense",
+   * and the quantity is derived on submit.
+   */
+  lots: string;
 }
 
 interface FairmintFormProps {
@@ -31,7 +51,7 @@ export function FairmintForm({
   const { activeAddress, showHelpText, feeRate } = useComposer();
   
   // Form status from React hook
-  const {} = useFormStatus();
+  useFormStatus();
   
   // Determine if we're minting with BTC or XCP based on the route
   const currencyType = asset === "BTC" ? "BTC" : asset === "XCP" ? "XCP" : "";
@@ -45,9 +65,14 @@ export function FairmintForm({
     
     return {
       asset: isSpecialAsset ? "" : initialAssetValue,
-      quantity: initialFormData?.quantity ? initialFormData.quantity.toString() : "",
+      // Restored from the composed quantity on the way back from review; the lot size is not
+      // known until the fairminter loads, so the effect below converts it.
+      lots: "",
     };
   });
+  const [restoredQuantity] = useState(() =>
+    initialFormData?.quantity ? initialFormData.quantity.toString() : ""
+  );
   const [selectedFairminter, setSelectedFairminter] = useState<Fairminter | undefined>(undefined);
   
   // Local validation error state (API errors handled by composer context)
@@ -68,7 +93,7 @@ export function FairmintForm({
   );
 
   // Data fetching hooks
-  const { error: assetError } = useAssetDetails(
+  const { data: mintedAssetDetails, error: assetError } = useAssetDetails(
     formData.asset || "", // Pass empty string if no asset selected
     {
       // These callbacks run in the useAssetDetails hook
@@ -87,50 +112,72 @@ export function FairmintForm({
   // Update currency balance when details are loaded
   useEffect(() => {
     if (currencyDetails) {
-      setCurrencyBalance(currencyDetails.availableBalance || "0");
+      // Spendable: max lots are derived from this figure, so XCP already committed in the
+      // mempool must not buy lots twice.
+      setCurrencyBalance(currencyDetails.spendableBalance ?? currencyDetails.availableBalance ?? "0");
     }
   }, [currencyDetails]);
   
   // Refs
   const inputRef = useRef<HTMLInputElement>(null);
   
-  // Computed values
-  const isFreeMint = selectedFairminter ? parseFloat(selectedFairminter.price_normalized) === 0 : false;
+  // Asked through the shared rule rather than reading price_normalized here, so this screen and
+  // its summary cannot disagree about whether a mint is free.
+  const isFreeMint = selectedFairminter
+    ? !isPaidFairminter(readFairminterPaymentModel(selectedFairminter))
+    : false;
 
   // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Calculate max mintable quantity based on balance and fairminter settings
-  const calculateMaxQuantity = useCallback(() => {
-    if (!selectedFairminter || isFreeMint) return "0";
-    
-    const price = toBigNumber(selectedFairminter.price_normalized);
-    const lotSize = toBigNumber(selectedFairminter.quantity_by_price_normalized);
-    const balance = toBigNumber(currencyBalance);
-    
-    if (price.isLessThanOrEqualTo(0) || balance.isLessThanOrEqualTo(0) || lotSize.isLessThanOrEqualTo(0)) return "0";
-    
-    // Calculate how many lots we can afford
-    const maxLots = divide(balance, price).integerValue();
-    let maxQuantity = multiply(maxLots, lotSize);
-    
-    // Check if there's a max_mint_per_tx limit
-    if (selectedFairminter.max_mint_per_tx_normalized) {
-      const maxPerTx = toBigNumber(selectedFairminter.max_mint_per_tx_normalized);
-      if (maxQuantity.isGreaterThan(maxPerTx)) {
-        // Ensure maxPerTx is also a multiple of lot size
-        maxQuantity = roundDownToMultiple(maxPerTx, lotSize);
-      }
+  // What this address has already minted of the asset, for the per-address allowance. Null while
+  // loading or if the lookup fails, which getFairmintLots treats as "unknown" rather than zero.
+  const [alreadyMinted, setAlreadyMinted] = useState<string | null>(null);
+  useEffect(() => {
+    const address = activeAddress?.address;
+    const hasAllowance = isGreaterThan(
+      selectedFairminter?.max_mint_per_address_normalized ?? 0,
+      0
+    );
+    if (!address || !selectedFairminter || !hasAllowance) {
+      setAlreadyMinted(null);
+      return;
     }
-    
-    return formatAmount({
-      value: maxQuantity.toNumber(),
-      maximumFractionDigits: selectedFairminter.divisible ? 8 : 0,
-      minimumFractionDigits: 0
+    let cancelled = false;
+    fetchAddressFairmintTotal(address, selectedFairminter.asset).then((total) => {
+      if (!cancelled) setAlreadyMinted(total);
     });
-  }, [selectedFairminter, isFreeMint, currencyBalance]);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAddress?.address, selectedFairminter]);
+
+  // Every bound core checks, expressed in lots, plus which one bound — see getFairmintLots.
+  const mintable = useCallback((): { lots: string; binding: FairmintBound } => {
+    if (!selectedFairminter || isFreeMint) return { lots: "0", binding: "unavailable" };
+    return getFairmintLots({
+      fairminter: selectedFairminter,
+      balance: currencyBalance,
+      // The minted asset's supply, for the hard-cap headroom.
+      assetSupply: mintedAssetDetails?.assetInfo?.supply_normalized,
+      alreadyMinted,
+    });
+  }, [selectedFairminter, isFreeMint, currencyBalance, mintedAssetDetails, alreadyMinted]);
+
+  const maxLots = useCallback(() => mintable().lots, [mintable]);
+
+  // Coming back from review, the composed quantity is converted back into lots once the
+  // fairminter (and so the lot size) is known.
+  useEffect(() => {
+    if (!restoredQuantity || !selectedFairminter?.quantity_by_price_normalized) return;
+    setFormData(prev =>
+      prev.lots
+        ? prev
+        : { ...prev, lots: divide(restoredQuantity, selectedFairminter.quantity_by_price_normalized ?? 1).toString() }
+    );
+  }, [restoredQuantity, selectedFairminter]);
 
   // Handlers
   const handleFairminterChange = useCallback((asset: string, fairminter?: Fairminter) => {
@@ -153,37 +200,44 @@ export function FairmintForm({
       return;
     }
     
-    // Only validate quantity for paid mints
+    // There is no lot-multiple check here any more. A lot count can only compose to a multiple of
+    // the lot size, so core's "quantity is not a multiple of lot_size" is unreachable from this
+    // form rather than caught after the fact.
+    if (!isFreeMint && !validAmountDraft(formData.lots, 0)) {
+      setValidationError("Enter how many lots to mint.");
+      return;
+    }
+
+    // Core refuses a paid mint that would push the supply past the hard cap — it rejects the whole
+    // transaction rather than minting the remainder, so the last mint of a sale has to be floored
+    // to what is left. `maxLots` already carries that bound along with the per-address, per-tx and
+    // balance ones, and the Max button respects it; a typed figure did not, and only found out at
+    // compose. Nothing was ever at risk — the rejection happens before signing — but the creator
+    // got core's wording instead of being told here.
+    //
+    // Free mints are exempt: since `partial_mint_to_reach_hard_cap` they are clamped to the
+    // remainder rather than refused, and they compose with quantity 0 anyway.
     if (!isFreeMint) {
-      if (!formData.quantity || Number(formData.quantity) <= 0) {
-        setValidationError("Please enter a valid quantity greater than zero.");
+      const { lots: available, binding } = mintable();
+      if (!isGreaterThan(available, 0)) {
+        setValidationError(describeFairmintBound(binding));
         return;
       }
-      
-      // Check if quantity is a multiple of quantity_by_price (lot size)
-      if (selectedFairminter) {
-        const lotSize = toBigNumber(selectedFairminter.quantity_by_price_normalized);
-        const enteredQuantity = toBigNumber(formData.quantity);
-        
-        if (lotSize.isGreaterThan(0)) {
-          // Check if entered quantity is a multiple of lot size
-          const remainder = enteredQuantity.modulo(lotSize);
-          
-          if (!remainder.isZero()) {
-            setValidationError(`Amount must be a multiple of ${selectedFairminter.quantity_by_price_normalized} (lot size)`);
-            return;
-          }
-        }
+      if (isGreaterThan(formData.lots, available)) {
+        setValidationError(`You can mint at most ${available} lots right now.`);
+        return;
       }
     }
-    
+
     if (!feeRate || feeRate <= 0) {
       setValidationError("Fee rate must be greater than zero.");
       return;
     }
 
-    // For free mints, quantity is 0; for paid mints, use the entered quantity
-    const quantityToSubmit = isFreeMint ? "0" : formData.quantity;
+    // Free mints take quantity 0 — the fairminter decides the amount.
+    const quantityToSubmit = isFreeMint
+      ? "0"
+      : getQuantityForLots(selectedFairminter ?? {}, formData.lots);
 
     // Create FormData object with the calculated values
     const formDataToSubmit = new FormData();
@@ -199,10 +253,10 @@ export function FairmintForm({
   };
 
   // Determine if submit should be disabled
-  const isSubmitDisabled = !formData.asset || 
-    (formData.asset === "BTC") || 
+  const isSubmitDisabled = !formData.asset ||
+    (formData.asset === "BTC") ||
     (formData.asset === "XCP") ||
-    (!isFreeMint && (!formData.quantity || Number(formData.quantity) <= 0));
+    (!isFreeMint && !validAmountDraft(formData.lots, 0));
 
   return (
     <ComposerForm
@@ -214,7 +268,7 @@ export function FairmintForm({
             <BalanceHeader 
               balance={{
                 asset: currencyType,
-                quantity_normalized: currencyDetails.availableBalance || "0",
+                quantity_normalized: asDisplayUnits(currencyDetails.spendableBalance ?? currencyDetails.availableBalance ?? "0"),
                 asset_info: currencyDetails.assetInfo ? {
                   asset_longname: currencyDetails.assetInfo.asset_longname,
                   description: currencyDetails.assetInfo.description || '',
@@ -224,8 +278,9 @@ export function FairmintForm({
                   supply: currencyDetails.assetInfo.supply,
                 } : undefined,
               }}
-              className="mt-1 mb-5" 
-            />
+              className="mt-1 mb-5"
+              pendingIncoming={currencyDetails.pendingIncoming}
+              />
           ) : null}
           
           {/* Display asset error message if any */}
@@ -250,48 +305,66 @@ export function FairmintForm({
             label="Fairminter Asset"
             required
             showHelpText={showHelpText}
-            description={`Select an available fairminter asset${currencyType ? ` that uses ${currencyType}` : ""}`}
+            description={currencyType === "BTC" ? "Select a free fairminter — these cost only the Bitcoin network fee" : currencyType === "XCP" ? "Select a fairminter that charges XCP" : "Select an available fairminter"}
             currencyFilter={currencyType}
           />
 
-          {/* Show info message for free mints */}
+          {/* What this mint costs and where the payment goes, stated whether or not help text is
+              on. Free mints have no amount field, so this is the only account of them. */}
+          {formData.asset && selectedFairminter && (
+            <FairmintSummary
+              fairminter={selectedFairminter}
+              quantity={validAmountDraft(formData.lots, 0) ? getQuantityForLots(selectedFairminter, formData.lots) : "0"}
+            />
+          )}
+
           {formData.asset && isFreeMint && selectedFairminter && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm text-blue-800">
-                <strong>Free Mint</strong> - You'll receive{" "}
-                {selectedFairminter.max_mint_per_tx_normalized || "the maximum allowed"} {formData.asset} tokens.
-                Only BTC transaction fees apply.
+                <strong>Free mint.</strong> The fairminter decides the amount — up to{" "}
+                {selectedFairminter.max_mint_per_tx_normalized || "the maximum allowed"}{" "}
+                {formData.asset} per transaction, and less if that would pass the hard cap.
               </p>
             </div>
           )}
 
-          {/* Show amount field only for paid mints */}
+          {/* Lots, not tokens — the same shape as the dispense form's "Times to Dispense", and
+              the reason the lot-multiple error is now unreachable. */}
           {formData.asset && !isFreeMint && selectedFairminter && (
-            <AmountWithMaxInput
-              asset={formData.asset}
-              availableBalance={currencyBalance}
-              value={formData.quantity}
-              onChange={(value) => {
-                setFormData({ ...formData, quantity: value });
-                setValidationError(null); // Clear errors when quantity changes
-              }}
-              feeRate={feeRate}
-              setError={(msg) => setValidationError(msg)}
-              showHelpText={showHelpText}
-              sourceAddress={activeAddress}
-              maxAmount={calculateMaxQuantity()}
-              label="Amount"
-              name="amount"
-              description={`Enter the amount to mint${selectedFairminter?.divisible ? " (up to 8 decimal places)" : " (whole numbers only)"}. ${selectedFairminter && parseFloat(selectedFairminter.quantity_by_price_normalized) > 1 ? `Amount must be a multiple of ${selectedFairminter.quantity_by_price_normalized} (lot size). ` : ""}${selectedFairminter ? `Price: ${selectedFairminter.price_normalized} ${currencyType || 'XCP'} per ${selectedFairminter.quantity_by_price_normalized} ${formData.asset}` : ""}`}
-              disableMaxButton={false}
-              onMaxClick={() => {
-                const maxQty = calculateMaxQuantity();
-                setFormData(prev => ({ ...prev, quantity: maxQty }));
-                setValidationError(null);
-              }}
-              hasError={!!validationError}
-              isDivisible={selectedFairminter?.divisible ?? true}
-            />
+            <>
+              <AmountWithMaxInput
+                asset="Lots"
+                availableBalance={currencyBalance}
+                value={formData.lots}
+                onChange={(value) => {
+                  setFormData({ ...formData, lots: value });
+                  setValidationError(null);
+                }}
+                feeRate={feeRate}
+                setError={(msg) => setValidationError(msg)}
+                showHelpText={showHelpText}
+                sourceAddress={activeAddress}
+                maxAmount={maxLots()}
+                label="Lots to Mint"
+                name="lots"
+                description={`Each lot is ${selectedFairminter.quantity_by_price_normalized} ${formData.asset} for ${getFairminterLotCost(selectedFairminter)} XCP.`}
+                disableMaxButton={false}
+                onMaxClick={() => {
+                  // Filling in "0" and clearing the error is how this used to answer an address
+                  // that had minted its allowance: the button appeared to do nothing at all.
+                  const { lots, binding } = mintable();
+                  if (!isGreaterThan(lots, 0)) {
+                    setValidationError(describeFairmintBound(binding));
+                    return;
+                  }
+                  setFormData(prev => ({ ...prev, lots }));
+                  setValidationError(null);
+                }}
+                hasError={!!validationError}
+                isDivisible={false}
+              />
+
+            </>
           )}
 
     </ComposerForm>

@@ -69,7 +69,7 @@ export function validateSecret(secret: string): void {
  * @throws Error if timeout is invalid
  */
 export function validateTimeout(timeout: number): void {
-  if (typeof timeout !== 'number' || isNaN(timeout)) {
+  if (typeof timeout !== 'number' || Number.isNaN(timeout)) {
     throw new Error('Timeout must be a valid number');
   }
   if (timeout < MIN_TIMEOUT_MS) {
@@ -156,7 +156,7 @@ function cleanupRateLimitMap(): void {
   });
   // Remove the oldest half
   const toRemove = Math.floor(entries.length / 2);
-  entries.slice(0, toRemove).forEach(([key]) => rateLimitMap.delete(key));
+  entries.slice(0, toRemove).forEach(([key]) => { rateLimitMap.delete(key); });
 }
 
 /**

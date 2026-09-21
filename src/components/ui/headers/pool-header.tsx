@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import type { Pool, PoolPosition } from "@/core/counterparty/api";
-import { getCanonicalPoolPair } from "@/core/counterparty/pool";
+import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { formatAmount } from "@/core/format";
 
 interface PoolHeaderProps {
@@ -10,11 +10,13 @@ interface PoolHeaderProps {
 }
 
 export function PoolHeader({ pool, className = "" }: PoolHeaderProps): ReactElement {
-  const pair = getCanonicalPoolPair(pool.asset_a, pool.asset_b);
-  const quantity = "quantity_normalized" in pool ? pool.quantity_normalized : undefined;
+  const pair = getPoolDisplayPair(pool.asset_a, pool.asset_b);
+  const quantity = "quantity_normalized" in pool
+    ? (pool.quantity_normalized as string | undefined)
+    : undefined;
   const balance = quantity
     ? formatAmount({
-        value: Number(quantity),
+        value: quantity,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
         useGrouping: true,
@@ -27,7 +29,7 @@ export function PoolHeader({ pool, className = "" }: PoolHeaderProps): ReactElem
       <div className="min-w-0">
         <h2 className="text-xl font-bold break-words">{pair}</h2>
         <p className="text-sm text-gray-600">
-          {balance ? `Balance: ${balance}` : `LP Asset: ${pool.lp_asset}`}
+          {balance ? `Balance: ${balance}` : `LP: ${pool.lp_asset}`}
         </p>
       </div>
     </div>

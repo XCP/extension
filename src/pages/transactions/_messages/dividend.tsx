@@ -10,7 +10,7 @@ export function dividend(tx: Transaction): Array<{ label: string; value: string 
   if (!params) return [];
 
   // Use API-provided normalized values (verbose=true always returns these)
-  const quantityPerUnit = Number(params.quantity_per_unit_normalized);
+  const quantityPerUnit = params.quantity_per_unit_normalized;
   const isDivisibleDividend = params.dividend_asset_info?.divisible ?? true;
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [

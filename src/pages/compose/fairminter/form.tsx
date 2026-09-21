@@ -24,6 +24,7 @@ import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/core/bitcoin/address';
 import type { FairminterOptions } from "@/core/counterparty/compose";
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 const FAIRMINTER_MODELS = {
@@ -34,11 +35,24 @@ const FAIRMINTER_MODELS = {
 
 type FairminterModel = typeof FAIRMINTER_MODELS[keyof typeof FAIRMINTER_MODELS];
 
+/** Each model decides where the payment goes and leaves the numbers to the creator. */
 const FAIRMINTER_MODEL_OPTIONS = [
   { value: FAIRMINTER_MODELS.MINER_FEE_ONLY, label: "BTC Fee Model (Miners)" },
   { value: FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER, label: "XCP Fee Model (To You)" },
   { value: FAIRMINTER_MODELS.XCP_FEE_BURNED, label: "XCP Fee Model (Burned)" },
 ];
+
+/**
+ * A boolean as it survives a round trip through the composer, which stores raw form values.
+ *
+ * `false` comes back as the string `'false'`, and `'false'` is truthy — so reading these fields
+ * directly inverts them on back-navigation.
+ */
+function toFormBoolean(value: unknown): boolean | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'boolean') return value;
+  return String(value) === 'true';
+}
 
 /**
  * Props for the FairminterForm component, aligned with Composer's formAction.
@@ -100,23 +114,25 @@ export function FairminterForm({
     }
   }, [isExistingAsset, assetInfo]);
 
-  // Mint method state
-  const initialMintMethod = initialFormData?.burn_payment === false
+  // Mint method state.
+  //
+  // The composer hands back raw form values, so booleans arrive as the strings 'true'/'false' —
+  // and 'false' is truthy, so reading `burn_payment` directly inverts the model on back-navigation.
+  const burnPayment = toFormBoolean(initialFormData?.burn_payment);
+  const initialMintMethod = burnPayment === false
     ? FAIRMINTER_MODELS.MINER_FEE_ONLY
-    : initialFormData?.burn_payment
+    : burnPayment
     ? FAIRMINTER_MODELS.XCP_FEE_BURNED
     : FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER;
   const [selectedMintMethod, setSelectedMintMethod] = useState<FairminterModel>(initialMintMethod);
-  
+
   // Helper function to get input step based on divisibility
   const getInputStep = () => isDivisible ? "0.00000001" : "1";
   const getInputPlaceholder = () => isDivisible ? "0.00000000" : "0";
 
-  // Shared onChange handler that enforces decimal rules based on divisibility
+  // Keep invalid drafts intact; normalization checks precision and divisibility.
   const handleQuantityChange = (setter: (val: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    if (!isDivisible && val.includes('.')) return;
-    if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
     setter(val);
   };
 
@@ -188,7 +204,7 @@ export function FairminterForm({
                 divisible: assetInfo.divisible ?? true,
                 locked: assetInfo.locked ?? false,
                 supply: assetInfo.supply,
-                supply_normalized: assetInfo.supply_normalized || '0'
+                supply_normalized: asDisplayUnits(assetInfo.supply_normalized || '0')
               }}
               className="mt-1 mb-5" 
             />
@@ -306,10 +322,14 @@ export function FairminterForm({
                 value={lotSize}
                 onChange={handleQuantityChange(setLotSize)}
                 step={getInputStep()}
-                placeholder={getInputPlaceholder()}
+                // Core's own default is 1 (`quantity_by_price=1` in messages/fairminter.py, which
+                // also rejects anything below it), and `composeFairminter` mirrors that. So blank
+                // is a real choice, not a missing answer — the placeholder has to say which one,
+                // because the shared "0" placeholder named a value core would refuse.
+                placeholder="1"
                 disabled={pending}
                 showHelpText={showHelpText}
-                description="Number of tokens received per mint transaction."
+                description="Number of tokens received per mint transaction. Defaults to 1."
               />
 
               <TextField
@@ -324,6 +344,8 @@ export function FairminterForm({
                 showHelpText={showHelpText}
                 description="XCP required for each mint transaction."
               />
+              {/* Hidden field to indicate lot_price is always in XCP for normalization */}
+              <input type="hidden" name="lot_price_asset" value="XCP" />
             </>
           )}
           
@@ -393,7 +415,7 @@ export function FairminterForm({
             defaultChecked={initialFormData?.lock_quantity || false}
             disabled={pending}
           />
-          
+
           <Collapsible title="Advanced Options">
                   <BlockHeightInput
                     name="start_block"

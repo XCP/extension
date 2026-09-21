@@ -2,11 +2,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UtxoBalance } from "@/core/counterparty/api";
+import { asDisplayUnits } from '@/core/numeric';
 import { UtxoCard } from "./utxo-card";
 
 vi.mock("@/components/domain/utxo/utxo-menu", () => ({
   UtxoMenu: ({ utxo }: { utxo: string }) => (
-    <button data-testid={`utxo-menu-${utxo}`}>Menu</button>
+    <button type="button" data-testid={`utxo-menu-${utxo}`}>Menu</button>
   ),
 }));
 
@@ -22,7 +23,8 @@ vi.mock("@/components/domain/asset/asset-icon", () => ({
 }));
 
 vi.mock("@/core/format", () => ({
-  formatAmount: ({ value }: { value: number }) => value.toFixed(8),
+  // Mirrors the real signature: a quantity arrives as a decimal string, not a number.
+  formatAmount: ({ value }: { value: string | number }) => Number(value).toFixed(8),
   formatAsset: (asset: string) => asset,
   formatTxid: (txid: string) => `${txid.slice(0, 8)}...${txid.slice(-6)}`,
 }));
@@ -50,7 +52,7 @@ describe("UtxoCard", () => {
       issuer: "bc1qissuer",
       locked: false,
     },
-    quantity_normalized: "100.50000000",
+    quantity_normalized: asDisplayUnits("100.50000000"),
     utxo: "abc123def456789012345678901234567890123456789012345678901234:0",
     utxo_address: "bc1qtest123",
   };
@@ -64,7 +66,7 @@ describe("UtxoCard", () => {
       issuer: "bc1qissuer",
       locked: false,
     },
-    quantity_normalized: "5",
+    quantity_normalized: asDisplayUnits("5"),
     utxo: "def456abc789012345678901234567890123456789012345678901234567:1",
     utxo_address: "bc1qtest123",
   };
@@ -132,19 +134,21 @@ describe("UtxoCard", () => {
     );
   });
 
-  it("navigates on Enter key press", () => {
+  // The card body is a real button now, so the browser supplies Enter and Space.
+  // jsdom does not synthesise that, so the element type is what pins it down —
+  // and being a button, rather than a wrapper around one, is the point: the menu
+  // is a button too, and one cannot contain the other.
+  it("exposes the card body as a button, separate from the menu", () => {
     render(
       <TestWrapper>
         <UtxoCard token={mockToken} />
       </TestWrapper>,
     );
 
-    const card = screen.getByText("XCP").closest('[role="button"]')!;
-    fireEvent.keyDown(card, { key: "Enter" });
-
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/assets/utxos/${mockToken.utxo}`,
-    );
+    const card = screen.getByText("XCP").closest("button")!;
+    expect(card.tagName).toBe("BUTTON");
+    expect(card).toHaveAttribute("type", "button");
+    expect(card.querySelector("button")).toBeNull();
   });
 
   it("handles indivisible tokens", () => {
@@ -165,8 +169,7 @@ describe("UtxoCard", () => {
       </TestWrapper>,
     );
 
-    const card = screen.getByText("XCP").closest('[role="button"]');
-    expect(card).toHaveAttribute("tabindex", "0");
+    const card = screen.getByText("XCP").closest("button");
     expect(card).toHaveClass("cursor-pointer");
   });
 });

@@ -4,6 +4,7 @@
  * Drop-in replacement for axios with compatible API
  */
 
+import { parseJsonLossless } from '@/core/api/losslessJson';
 import { emitApiStatus, getStatusTypeFromCode } from '@/core/api/status';
 
 /**
@@ -37,6 +38,8 @@ export interface ApiError extends Error {
     data: unknown;
     status: number;
   };
+  /** Seconds to wait from Retry-After delay-seconds or its HTTP-date deadline. */
+  retryAfter?: number;
 }
 
 /**
@@ -45,12 +48,13 @@ export interface ApiError extends Error {
 function createApiError(
   message: string,
   code: ApiError['code'],
-  options?: { status?: number; response?: { data: unknown; status: number } }
+  options?: { status?: number; response?: { data: unknown; status: number }; retryAfter?: number }
 ): ApiError {
   const error = new Error(message) as ApiError;
   error.code = code;
   error.status = options?.status;
   error.response = options?.response;
+  error.retryAfter = options?.retryAfter;
   return error;
 }
 
@@ -138,6 +142,21 @@ function buildUrl(url: string, params?: Record<string, string | number | boolean
   }
 }
 
+/** Retry-After permits integer delay-seconds or an HTTP-date, not a numeric prefix. */
+function parseRetryAfter(value: string | null, now: number): number | undefined {
+  if (value === null) return undefined;
+  const header = value.trim();
+  if (/^\d+$/.test(header)) {
+    const seconds = Number(header);
+    return Number.isFinite(seconds) ? seconds : undefined;
+  }
+  // All HTTP-date forms begin with a weekday. Avoid Date.parse accepting
+  // malformed numeric delays such as "1.5" as a calendar date.
+  if (!/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i.test(header)) return undefined;
+  const deadline = Date.parse(header);
+  return Number.isFinite(deadline) ? Math.max(0, (deadline - now) / 1000) : undefined;
+}
+
 /**
  * Create a timeout-aware fetch with AbortController
  */
@@ -163,16 +182,21 @@ async function fetchWithTimeout<T>(
       signal: combinedSignal,
     });
 
-    clearTimeout(timeoutId);
-
     // Parse response body based on content-type
     const contentType = response.headers.get('content-type');
     let data: T;
 
     if (contentType?.includes('application/json')) {
       try {
-        data = await response.json();
+        // Not response.json(): JSON.parse rounds any integer above 2^53-1 while parsing, so a
+        // 64-bit Counterparty quantity loses digits before application code sees it and no
+        // BigNumber discipline downstream can recover them. Oversized integers arrive as strings,
+        // which numeric.ts handles exactly. See losslessJson.ts.
+        const body = await response.text();
+        combinedSignal.throwIfAborted();
+        data = parseJsonLossless<T>(body);
       } catch {
+        combinedSignal.throwIfAborted();
         // Wrap JSON parse errors with generic message to avoid leaking response details
         throw createApiError('Failed to parse API response as JSON', 'NETWORK_ERROR');
       }
@@ -180,28 +204,29 @@ async function fetchWithTimeout<T>(
       // For non-JSON responses, return text as-is
       // Callers expecting JSON should check content-type or handle string responses
       const textData = await response.text();
+      combinedSignal.throwIfAborted();
       data = textData as T;
     }
 
     // Check for HTTP errors
     if (!response.ok) {
+      const retryAfter = parseRetryAfter(response.headers.get('Retry-After'), Date.now());
       // Emit API status for rate limiting or server errors
       const statusType = getStatusTypeFromCode(response.status);
       if (statusType) {
-        const retryAfter = response.headers.get('Retry-After');
         emitApiStatus({
           type: statusType,
           statusCode: response.status,
           message: response.status === 429
             ? 'API rate limited. Requests may be slow.'
             : `API error (${response.status}). Some features may be unavailable.`,
-          retryAfter: retryAfter ? parseInt(retryAfter, 10) : undefined,
+          retryAfter,
         });
       }
       throw createApiError(
         `Request failed with status ${response.status}`,
         'HTTP_ERROR',
-        { status: response.status, response: { data, status: response.status } }
+        { status: response.status, response: { data, status: response.status }, retryAfter }
       );
     }
 
@@ -212,10 +237,8 @@ async function fetchWithTimeout<T>(
       headers: response.headers,
     };
   } catch (error) {
-    clearTimeout(timeoutId);
-
     // Handle abort/cancellation
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    if (combinedSignal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
       // Check if it was from external signal (user cancellation) or timeout
       if (externalSignal?.aborted) {
         throw createApiError('Request cancelled', 'CANCELLED');
@@ -244,6 +267,9 @@ async function fetchWithTimeout<T>(
       error instanceof Error ? error.message : 'Unknown error occurred',
       'NETWORK_ERROR'
     );
+  } finally {
+    // The deadline covers receipt and parsing of the body, not just headers.
+    clearTimeout(timeoutId);
   }
 }
 

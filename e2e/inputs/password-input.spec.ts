@@ -226,7 +226,7 @@ walletTest.describe('PasswordInput Component', () => {
       const isInContainer = await passwordInput.evaluate((el: HTMLElement) => {
         // Check for form or structured container
         const form = el.closest('form');
-        const container = el.closest('.space-y-4, .space-y-6, [role="main"]');
+        const container = el.closest('.space-y-4, .space-y-6, main');
         return form !== null || container !== null;
       });
 

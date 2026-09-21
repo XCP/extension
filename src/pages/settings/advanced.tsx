@@ -2,6 +2,7 @@ import { Description, Field, Label, RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { HuntSettings } from "@/components/domain/zeld/hunt-settings";
 import { FiHelpCircle } from "@/components/icons";
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
 import { ApiUrlInput } from "@/components/ui/inputs/api-url-input";
@@ -41,8 +42,6 @@ export default function AdvancedSettingsPage(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
-
-
   // Configure header
   useEffect(() => {
     setHeaderProps({
@@ -61,7 +60,7 @@ export default function AdvancedSettingsPage(): ReactElement {
   const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
 
   return (
-    <div className="space-y-8 p-4 mb-2" role="main" aria-labelledby="advanced-settings-title">
+    <section className="space-y-8 p-4 mb-2" aria-labelledby="advanced-settings-title">
       <h2 id="advanced-settings-title" className="sr-only">
         Advanced Settings
       </h2>
@@ -89,6 +88,9 @@ export default function AdvancedSettingsPage(): ReactElement {
           </RadioGroup>
         </Field>
 
+      </SettingsSection>
+
+      <SettingsSection id="adv-transactions" title="Transactions">
         <SettingSwitch
           label="Strict TXs Verification"
           description="Block signing if local transaction verification fails. When off, a warning is shown but signing is allowed."
@@ -96,9 +98,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           onChange={(checked) => updateSettings({ strictTransactionVerification: checked })}
           showHelpText={shouldShowHelpText}
         />
-      </SettingsSection>
 
-      <SettingsSection id="adv-transactions" title="Transactions">
         <SettingSwitch
           label="Use Unconfirmed TXs"
           description="Enable this to chain transactions that haven't been confirmed yet."
@@ -130,6 +130,8 @@ export default function AdvancedSettingsPage(): ReactElement {
           onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
           showHelpText={shouldShowHelpText}
         />
+
+        <HuntSettings showHelpText={shouldShowHelpText} showTimeInput={false} />
       </SettingsSection>
 
       <SettingsSection id="adv-connection" title="Connection">
@@ -146,7 +148,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           />
           {shouldShowHelpText && (
             <Description className="mt-2 text-sm text-gray-500">
-              The Counterparty API endpoint URL. Must be a mainnet API server running Counterparty Core 11.2.0 or newer.
+              The Counterparty API endpoint URL. Must be a mainnet API server running Counterparty Core 11.3.0 or newer.
             </Description>
           )}
         </Field>
@@ -181,7 +183,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           />
         </SettingsSection>
       )}
-    </div>
+    </section>
   );
 }
 

@@ -2,14 +2,13 @@
  * Tests for BIP-322 Generic Signed Message Format
  */
 
+import { sha256 } from '@noble/hashes/sha2.js';
 import { hex } from '@scure/base';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   bip322MessageHash,
   createToSignTransaction,
   createToSpendTransaction,
-  formatTaprootSignature,
-  parseBIP322Signature,
   supportsBIP322,
   verifyBIP322Signature,
   verifySimpleBIP322,
@@ -81,14 +80,12 @@ describe('BIP-322 Implementation', () => {
     });
 
     it('should create a valid to_sign transaction', () => {
-      const toSpendTxId = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-      // Create a mock to_spend transaction bytes
       const message = 'Test message';
       const messageHash = bip322MessageHash(message);
       const scriptPubKey = new Uint8Array([0x00, 0x14, ...new Uint8Array(20)]); // P2WPKH
       const toSpendBytes = createToSpendTransaction(messageHash, scriptPubKey);
 
-      const tx = createToSignTransaction(toSpendTxId, toSpendBytes);
+      const tx = createToSignTransaction(toSpendBytes);
 
       // Check that we get raw bytes
       expect(tx).toBeInstanceOf(Uint8Array);
@@ -103,81 +100,15 @@ describe('BIP-322 Implementation', () => {
       // Has one input
       expect(tx[4]).toBe(1);
 
-      // Check that it contains the reversed txid bytes
-      const txidBytes = hex.decode(toSpendTxId);
-      let txidMatch = true;
-      for (let i = 0; i < 32; i++) {
-        if (tx[5 + i] !== txidBytes[31 - i]) txidMatch = false;
-      }
-      expect(txidMatch).toBe(true);
+      // The prevout hash is to_spend's double-SHA256 in its natural byte order. This used to assert
+      // the reverse of it — the *displayed* txid — which is the orientation that made the whole
+      // segwit path non-interoperable. The spec's own `to_sign_tx_hash` settles it; see the
+      // structural-intermediates block in `bip322-standardness.test.ts`.
+      expect(hex.encode(tx.slice(5, 37))).toBe(hex.encode(sha256(sha256(toSpendBytes))));
     });
   });
 
-  describe('parseBIP322Signature', () => {
-    it('should parse Taproot signatures', async () => {
-      const signature = 'tr:' + '0'.repeat(128);
-      const parsed = await parseBIP322Signature(signature);
 
-      expect(parsed).not.toBeNull();
-      expect(parsed?.type).toBe('taproot');
-      expect(parsed?.data.length).toBe(64);
-    });
-
-    it('should reject invalid Taproot signatures', async () => {
-      const signature = 'tr:invalid';
-      const parsed = await parseBIP322Signature(signature);
-
-      expect(parsed).toBeNull();
-    });
-
-    it('should parse legacy base64 signatures', async () => {
-      // Create a mock legacy signature (65 bytes)
-      const sigBytes = new Uint8Array(65);
-      sigBytes[0] = 31; // Compressed P2PKH flag
-      const base64 = (await import('@scure/base')).base64;
-      const signature = base64.encode(sigBytes);
-
-      const parsed = await parseBIP322Signature(signature);
-
-      expect(parsed).not.toBeNull();
-      expect(parsed?.type).toBe('legacy');
-      expect(parsed?.data.length).toBe(65);
-    });
-
-    it('should parse segwit base64 signatures', async () => {
-      // Create a mock segwit signature (65 bytes)
-      const sigBytes = new Uint8Array(65);
-      sigBytes[0] = 39; // P2WPKH flag
-      const base64 = (await import('@scure/base')).base64;
-      const signature = base64.encode(sigBytes);
-
-      const parsed = await parseBIP322Signature(signature);
-
-      expect(parsed).not.toBeNull();
-      expect(parsed?.type).toBe('segwit');
-      expect(parsed?.data.length).toBe(65);
-    });
-  });
-
-  describe('formatTaprootSignature', () => {
-    it('should format a Schnorr signature correctly', () => {
-      const signature = new Uint8Array(64);
-      signature.fill(0xAB);
-
-      const formatted = formatTaprootSignature(signature);
-
-      expect(formatted).toMatch(/^tr:[0-9a-f]{128}$/);
-      expect(formatted).toBe('tr:' + 'ab'.repeat(64));
-    });
-
-    it('should reject invalid signature lengths', () => {
-      const signature = new Uint8Array(32); // Wrong length
-
-      expect(() => formatTaprootSignature(signature)).toThrow(
-        'Invalid Schnorr signature length'
-      );
-    });
-  });
 
   describe('supportsBIP322', () => {
     it('should identify Taproot addresses as supporting BIP-322', () => {

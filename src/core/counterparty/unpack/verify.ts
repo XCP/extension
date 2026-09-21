@@ -89,6 +89,7 @@ import type { BroadcastData } from '@/core/counterparty/unpack/messages/broadcas
 import type { BTCPayData } from '@/core/counterparty/unpack/messages/btcpay';
 import type { CancelData } from '@/core/counterparty/unpack/messages/cancel';
 import type { DestroyData } from '@/core/counterparty/unpack/messages/destroy';
+import type { DispenseData } from '@/core/counterparty/unpack/messages/dispense';
 import type { DispenserData } from '@/core/counterparty/unpack/messages/dispenser';
 import type { DividendData } from '@/core/counterparty/unpack/messages/dividend';
 import type { EnhancedSendData } from '@/core/counterparty/unpack/messages/enhancedSend';
@@ -491,23 +492,24 @@ function verifyDispenser(
       'Wrong asset = dispensing wrong tokens');
   }
 
-  // Give quantity - critical
-  if (!valuesEqual(data.giveQuantity, params.give_quantity)) {
-    addMismatch(result, 'give_quantity', params.give_quantity, data.giveQuantity, 'critical',
-      'Wrong amount = giving wrong amount per dispense');
-  }
+  // Give quantity, escrow and rate - critical, but only the open flows supply them.
+  //
+  // Core constrains these for STATUS_OPEN and STATUS_OPEN_EMPTY_ADDRESS only (`dispenser.py`:
+  // give_quantity and mainchainrate must be positive, escrow >= give); a close leaves them
+  // unconstrained and the composer sends 0. Comparing the composed 0 against a request that never
+  // carried the field reported three CRITICAL mismatches — "expected undefined, got 0" — on every
+  // attempt to close a dispenser, which blocked the flow outright.
+  //
+  // verifyOptional keeps the check rather than dropping it: with the field absent the expectation
+  // becomes 0, so a response that closes a dispenser while carrying a non-zero escrow still fails.
+  verifyOptional(result, 'give_quantity', params.give_quantity, data.giveQuantity, 0, 'critical',
+    'Wrong amount = giving wrong amount per dispense');
 
-  // Escrow quantity - critical
-  if (!valuesEqual(data.escrowQuantity, params.escrow_quantity)) {
-    addMismatch(result, 'escrow_quantity', params.escrow_quantity, data.escrowQuantity, 'critical',
-      'Wrong amount = locking wrong total amount');
-  }
+  verifyOptional(result, 'escrow_quantity', params.escrow_quantity, data.escrowQuantity, 0, 'critical',
+    'Wrong amount = locking wrong total amount');
 
-  // Mainchainrate - critical
-  if (!valuesEqual(data.mainchainrate, params.mainchainrate)) {
-    addMismatch(result, 'mainchainrate', params.mainchainrate, data.mainchainrate, 'critical',
-      'Wrong rate = selling at wrong price');
-  }
+  verifyOptional(result, 'mainchainrate', params.mainchainrate, data.mainchainrate, 0, 'critical',
+    'Wrong rate = selling at wrong price');
 
   // Status - dangerous. Opening a dispenser omits status (the compose layer defaults it to 0);
   // the close flows submit it explicitly. Either way the composed status must match, so a response
@@ -838,6 +840,9 @@ function verifyFairminter(
       'Wrong asset = creating a mint for something you do not own');
   }
 
+  verifyOptional(result, 'asset_parent', params.asset_parent, data.assetParent, '', 'critical',
+    'Wrong parent = creating a mint under a different asset namespace');
+
   // What a buyer pays and what they get for it.
   verifyOptional(result, 'lot_price', params.lot_price, data.price, 0, 'critical',
     'Wrong price = minters pay an amount you did not set');
@@ -1024,6 +1029,21 @@ export function verifyTransaction(
   switch (composeType) {
     case 'send':
     case 'enhanced_send':
+      // Core's send1.compose_send_btc delegates to dispense.compose when the payee
+      // has a dispenser. Only its constant marker is compatible with a BTC send;
+      // the destination and satoshi amount remain pinned by the output policy.
+      if (actualParams.asset === 'BTC' && unpacked.messageTypeId === MessageTypeId.DISPENSE) {
+        if (actualParams.no_dispense === true || actualParams.no_dispense === 'true') {
+          result.errors.push('The transaction triggers a dispense, but this send disabled dispensing.');
+          return result;
+        }
+        const marker = (unpacked.data as DispenseData).data;
+        if (marker.length !== 1 || marker[0] !== 0) {
+          result.errors.push('The BTC send contains an invalid dispense marker.');
+          return result;
+        }
+        break;
+      }
       // A multi-destination send composes to an MPMA message; verify it as one.
       if (unpacked.messageTypeId === MessageTypeId.MPMA_SEND) {
         verifyMultiSend(unpacked.data as MPMAData, actualParams, result);

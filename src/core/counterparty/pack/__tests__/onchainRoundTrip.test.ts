@@ -23,8 +23,10 @@
 import { describe, expect, it } from 'vitest';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
+import type { MPMAData, MPMASend } from '../../unpack/messages/mpma';
 import { COUNTERPARTY_PREFIX_HEX } from '../../unpack/messageTypes';
 import { packComposeMessage } from '../messages';
+import { fetchOracle } from './oracleRequest';
 
 const API_URL = process.env.COUNTERPARTY_API_URL;
 /**
@@ -41,6 +43,105 @@ interface OnChainTransaction {
 }
 
 /**
+ * Core's composer uses cbor2's default float64 representation, but consensus accepts other valid
+ * CBOR representations too. Those messages are readable without being byte-reproducible by this
+ * wallet's compose path. Compare the decoded fields so the on-chain oracle can distinguish that
+ * harmless encoding variation from a packer that changed the message's meaning.
+ *
+ * Broadcast is also covered by `coreOracle`, which still requires the local packer to match
+ * core's own composer bytes exactly.
+ */
+function sameBroadcastFields(
+  original: Record<string, any>,
+  rebuilt: Record<string, any>
+): boolean {
+  return original.timestamp === rebuilt.timestamp
+    && original.value === rebuilt.value
+    && original.feeFractionInt === rebuilt.feeFractionInt
+    && original.text === rebuilt.text
+    && original.mimeType === rebuilt.mimeType;
+}
+
+/**
+ * MPMA asset groups are semantically unordered, but their byte order is not always recoverable
+ * from an on-chain decode. Core sorts groups by the names supplied to compose and only then
+ * resolves subasset longnames to numeric asset IDs. The payload contains those IDs, not the
+ * original longnames, so rebuilding from decoded data can sort the same groups differently.
+ *
+ * Preserve the order of sends within each asset group while ignoring only the unknowable order
+ * between groups. This keeps quantity, destination and memo changes visible to the oracle.
+ */
+/**
+ * A fairminter whose on-chain message carries CBOR items past the ones core reads.
+ *
+ * `fairminter.py` unpacks `fields[:17]`, then the pool pair and `mime_type`/`description` by
+ * position, and never looks past field 20 — so a composer may append anything after them and the
+ * protocol ignores it. LIKETHIS (block 965856) does exactly that: 23 items, where core reads 21
+ * and the trailing `image/webp` and its 7KB of artwork are inert. The node's own decode reports
+ * only the `text/plain` description URI, and this wallet's decoder applies core's identical
+ * `len(fields) >= 21` rule, so both read it the same way.
+ *
+ * Such a message is not reproducible from its decoded fields by anyone, this wallet included: the
+ * trailing bytes are not in the decode, and core's own compose never emits them. So it is accepted
+ * only when the rebuilt message is the original with trailing items removed and nothing else —
+ * every byte we emitted matches, and the parts core reads still decode identically. A packer that
+ * changed a field fails on the decode; one that dropped a field core reads fails on it too, which
+ * is why byte-prefixing alone is not enough to earn the exemption.
+ */
+function trailingItemsCoreIgnores(original: string, rebuilt: string): boolean {
+  const head = COUNTERPARTY_PREFIX_HEX.length + 2; // CNTRPRTY, then the one-byte message type id.
+  if (original.slice(0, head) !== rebuilt.slice(0, head)) return false;
+  const originalHead = Number.parseInt(original.slice(head, head + 2), 16);
+  const rebuiltHead = Number.parseInt(rebuilt.slice(head, head + 2), 16);
+  // CBOR major type 4 with an inline count, which is every fairminter array core composes.
+  const inlineArray = (head: number) => (head & 0xe0) === 0x80 && (head & 0x1f) < 24;
+  if (!inlineArray(originalHead) || !inlineArray(rebuiltHead)) return false;
+  if (originalHead <= rebuiltHead) return false;
+  return original.slice(head + 2).startsWith(rebuilt.slice(head + 2));
+}
+
+/** Decoded-message equality, with bigint quantities compared by value. */
+function sameDecodedMessage(original: unknown, rebuilt: unknown): boolean {
+  const stable = (value: unknown) =>
+    JSON.stringify(value, (_key, item) => (typeof item === 'bigint' ? item.toString() : item));
+  return stable(original) === stable(rebuilt);
+}
+
+function sameMpmaFields(
+  original: MPMAData,
+  rebuilt: MPMAData
+): boolean {
+  if (original.globalMemo !== rebuilt.globalMemo
+    || original.globalMemoIsHex !== rebuilt.globalMemoIsHex) return false;
+
+  const group = (data: MPMAData): Map<string, MPMASend[]> => {
+    const groups = new Map<string, MPMASend[]>();
+    for (const send of data.sends) {
+      const entries = groups.get(send.asset) ?? [];
+      entries.push(send);
+      groups.set(send.asset, entries);
+    }
+    return groups;
+  };
+
+  const originalGroups = group(original);
+  const rebuiltGroups = group(rebuilt);
+  if (originalGroups.size !== rebuiltGroups.size) return false;
+  for (const [asset, originalSends] of originalGroups) {
+    const rebuiltSends = rebuiltGroups.get(asset);
+    if (!rebuiltSends || originalSends.length !== rebuiltSends.length) return false;
+    if (originalSends.some((send, index) => {
+      const rebuiltSend = rebuiltSends[index]!;
+      return send.destination !== rebuiltSend.destination
+        || send.quantity !== rebuiltSend.quantity
+        || send.memo !== rebuiltSend.memo
+        || send.memoIsHex !== rebuiltSend.memoIsHex;
+    })) return false;
+  }
+  return true;
+}
+
+/**
  * Rebuild the compose params from what a message decodes to, per message type. The packers take a
  * request, and a decoded message is not shaped like one.
  *
@@ -49,19 +150,36 @@ interface OnChainTransaction {
  * rather than failed.
  */
 const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<string, unknown> | null> = {
-  enhanced_send: (data) => ({
-    asset: data.asset,
-    destination: data.destination,
-    quantity: data.quantity,
-    memo: data.memo ?? '',
-  }),
-  sweep: (data) => (data.memoIsBinary ? null : {
+  // Core composes CBOR wherever `taproot_support` is active and the `>QQ21s` struct otherwise, and
+  // its unpack accepts both — so clients predating the activation are still sending the struct
+  // form, and it is still on chain today. This wallet composes only the modern layout: it is a
+  // wallet, not an indexer, and reproducing every historical encoding is not its job. A struct
+  // send is therefore one it can read and deliberately cannot rebuild, which counts as declined
+  // rather than as a defect.
+  enhanced_send: (data) =>
+    data.layout === 'legacy'
+      ? null
+      : {
+          asset: data.asset,
+          destination: data.destination,
+          quantity: data.quantity,
+          memo: data.memo ?? '',
+        },
+  sweep: (data) => (data.layout === 'legacy' || data.memoIsBinary ? null : {
     destination: data.destination,
     flags: data.flags,
     memo: data.memo ?? '',
   }),
   destroy: (data) => ({ asset: data.asset, quantity: data.quantity, tag: data.tag ?? '' }),
   cancel: (data) => ({ offer_hash: data.offerHash }),
+  // btcpay is here rather than in the compose oracle because core cannot compose one on request:
+  // it needs a *pending* order match in the ledger, so a synthetic id is refused ("no such order
+  // match"). On-chain samples need no such arrangement.
+  btcpay: (data) => ({ order_match_id: data.orderMatchId }),
+  // The decoder reports core's literal "0" — its stand-in for "no destination, use the sender's
+  // address" — as an empty string, and `packDetach` writes that byte back. Passing it through
+  // unchanged is what makes the round trip test that pair rather than skip it.
+  detach: (data) => ({ destination: data.destination }),
   order: (data) => ({
     give_asset: data.giveAsset,
     give_quantity: data.giveQuantity,
@@ -100,6 +218,9 @@ const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<
     description: data.description,
   }),
   issuance: (data) => {
+    // Like enhanced sends and sweeps, legacy structs remain readable but are not emitted by
+    // the current composer. Rebuilding them as CBOR cannot preserve their original bytes.
+    if (data.layout === 'legacy') return null;
     // Core distinguishes an absent description (CBOR null) from an empty one (empty byte string),
     // and `composeIssuance` drops an empty description from the request — so the wallet can only
     // ever produce the null form. A message carrying empty bytes was composed by something else
@@ -174,11 +295,13 @@ const COMPOSE_TYPE_FOR: Record<string, string> = {
   fairminter: 'fairminter',
   broadcast: 'broadcast',
   mpma: 'mpma',
+  btcpay: 'btcpay',
+  detach: 'detach',
 };
 
 async function recentTransactions(type: string): Promise<OnChainTransaction[]> {
   const url = `${API_URL}/v2/transactions?type=${type}&limit=${SAMPLE_SIZE}&valid=true`;
-  const response = await fetch(url);
+  const response = await fetchOracle(url);
   if (!response.ok) throw new Error(`core returned ${response.status} listing ${type}`);
   const body = await response.json() as { result?: OnChainTransaction[] };
   return (body.result ?? []).filter((tx) => typeof tx.data === 'string' && tx.data.length > 0);
@@ -223,12 +346,57 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
         continue;
       }
 
-      compared += 1;
       const rebuilt = bytesToHex(packed.bytes).toLowerCase();
       const original = (COUNTERPARTY_PREFIX_HEX + transaction.data).toLowerCase();
       if (rebuilt !== original) {
+        const rebuiltMessage = unpackCounterpartyMessage(rebuilt);
+        if (
+          apiType === 'broadcast'
+          && rebuiltMessage.success
+          && rebuiltMessage.messageType === 'broadcast'
+          && rebuiltMessage.data
+          && sameBroadcastFields(
+            unpacked.data as Record<string, any>,
+            rebuiltMessage.data as Record<string, any>
+          )
+        ) {
+          // A third-party composer may choose float16/32 or another valid CBOR representation. The
+          // wallet intentionally emits core's default float64 form, so this sample is readable but
+          // not one its compose path claims it can reproduce byte-for-byte.
+          declined += 1;
+          continue;
+        }
+        if (
+          apiType === 'mpma'
+          && rebuiltMessage.success
+          && rebuiltMessage.messageType === 'mpma_send'
+          && rebuiltMessage.data
+          && sameMpmaFields(
+            unpacked.data as unknown as MPMAData,
+            rebuiltMessage.data as unknown as MPMAData
+          )
+        ) {
+          // A subasset's compose-time longname is not present on chain, so the original order of
+          // otherwise identical asset groups cannot be reconstructed from this sample.
+          declined += 1;
+          continue;
+        }
+        if (
+          apiType === 'fairminter'
+          && rebuiltMessage.success
+          && rebuiltMessage.messageType === 'fairminter'
+          && rebuiltMessage.data
+          && trailingItemsCoreIgnores(original, rebuilt)
+          && sameDecodedMessage(unpacked.data, rebuiltMessage.data)
+        ) {
+          // Inert bytes appended past the fields core reads. Nothing in the decode names them, so
+          // no compose path can reproduce them — see `trailingItemsCoreIgnores`.
+          declined += 1;
+          continue;
+        }
         failures.push(`${transaction.tx_hash} (block ${transaction.block_index})\n  on-chain: ${original}\n  rebuilt:  ${rebuilt}`);
       }
+      compared += 1;
     }
 
     expect(failures, `rebuilt bytes differ from chain:\n${failures.join('\n')}`).toEqual([]);
@@ -251,4 +419,143 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
       return;
     }
   }, 30_000);
+});
+
+describe('on-chain fairminter sample classification', () => {
+  // The real shape, shortened: CNTRPRTY, type 0x5a, then an array head and a body. Only the head
+  // and the trailing bytes matter to the rule under test.
+  const message = (head: string, tail = '') => `${COUNTERPARTY_PREFIX_HEX}5a${head}0102030405${tail}`;
+
+  it('accepts a rebuild that is the original minus trailing items', () => {
+    // LIKETHIS's shape: 23 items on chain, 21 rebuilt, every rebuilt byte matching.
+    expect(trailingItemsCoreIgnores(message('97', '6a696d6167652f77656270'), message('95'))).toBe(true);
+  });
+
+  it('refuses a rebuild that changed a byte core reads', () => {
+    expect(trailingItemsCoreIgnores(
+      `${COUNTERPARTY_PREFIX_HEX}5a970102030405ff`,
+      `${COUNTERPARTY_PREFIX_HEX}5a950102030499`
+    )).toBe(false);
+  });
+
+  it('refuses a rebuild with more items than the chain, or the same count', () => {
+    expect(trailingItemsCoreIgnores(message('95'), message('97'))).toBe(false);
+    expect(trailingItemsCoreIgnores(message('95'), message('95'))).toBe(false);
+  });
+
+  it('refuses a different message type wearing the same shape', () => {
+    expect(trailingItemsCoreIgnores(
+      `${COUNTERPARTY_PREFIX_HEX}5a970102030405ff`,
+      `${COUNTERPARTY_PREFIX_HEX}5b950102030405`
+    )).toBe(false);
+  });
+
+  it('compares decoded quantities by value, not by reference', () => {
+    expect(sameDecodedMessage({ hardCap: 10n }, { hardCap: 10n })).toBe(true);
+    expect(sameDecodedMessage({ hardCap: 10n }, { hardCap: 11n })).toBe(false);
+  });
+});
+
+describe('on-chain legacy sample classification (nightly #413)', () => {
+  it.each([
+    ['sweep', '0480b99fa5da6bf1346ec895468711aa4a91ae9d104203'], // 3f95a852… at block 966907
+    ['issuance', '1600000005a5b059b70000000000000000000000c04e554c4c'], // 6b6eb50b… at block 966880
+    ['issuance', '1600004af13548efed0000000000000000000000c04e554c4c'], // ce3fb4a7… at block 966880
+  ])('reads but does not try to reproduce a legacy %s with the modern composer', (type, body) => {
+    const original = unpackCounterpartyMessage(COUNTERPARTY_PREFIX_HEX + body);
+    expect(original.success).toBe(true);
+    expect(original.messageType).toBe(type);
+    expect(original.data).toMatchObject({ layout: 'legacy' });
+    if (type === 'issuance') {
+      expect(original.data).toMatchObject({ quantity: 0n, divisible: false, isLock: false, isReset: false });
+      expect((original.data as Record<string, unknown>).description).toBeUndefined();
+    }
+    expect(PARAMS_FROM_DECODED[type]!(original.data as Record<string, any>)).toBeNull();
+  });
+
+  it.each([
+    ['sweep', { destination: '1BoatSLRHtKNngkdXEeobR76b53LETtpyT', flags: 3, memo: 'hello' }],
+    ['issuance', { asset: 'DANKKAST', quantity: 0, divisible: false, lock: false, reset: false }],
+  ])('still requires byte equality for a current %s', (type, params) => {
+    const original = packComposeMessage(type, params)!;
+    expect(original).not.toBeNull();
+    const decoded = unpackCounterpartyMessage(original.bytes);
+    expect(decoded.success).toBe(true);
+    expect(decoded.data).toMatchObject({ layout: 'cbor' });
+    const reconstructed = PARAMS_FROM_DECODED[type]!(decoded.data as Record<string, any>);
+    expect(reconstructed).not.toBeNull();
+    const rebuilt = packComposeMessage(type, reconstructed!, decoded.data as Record<string, unknown>)!;
+    expect(rebuilt).not.toBeNull();
+    expect(bytesToHex(rebuilt.bytes)).toBe(bytesToHex(original.bytes));
+  });
+});
+
+describe('on-chain broadcast sample classification', () => {
+  it('declines an equivalent non-core float16 encoding', () => {
+    // CBOR [1, 0.0, 0, "text/html", h'6869']; cbor2/core emits the value as float64 instead.
+    const original = COUNTERPARTY_PREFIX_HEX + '1e8501f900000069746578742f68746d6c426869';
+    const unpacked = unpackCounterpartyMessage(original);
+    expect(unpacked.success).toBe(true);
+
+    const packed = packComposeMessage('broadcast', {
+      timestamp: 1,
+      value: '0',
+      fee_fraction: '0',
+      mime_type: 'text/html',
+      text: 'hi',
+    });
+    expect(packed).not.toBeNull();
+    const rebuilt = bytesToHex(packed!.bytes);
+    expect(rebuilt).not.toBe(original);
+
+    const rebuiltMessage = unpackCounterpartyMessage(rebuilt);
+    expect(rebuiltMessage.success).toBe(true);
+    expect(sameBroadcastFields(
+      unpacked.data as Record<string, any>,
+      rebuiltMessage.data as Record<string, any>
+    )).toBe(true);
+  });
+});
+
+describe('on-chain MPMA sample classification', () => {
+  it('accepts equivalent asset groups whose compose-time name ordering is unrecoverable', () => {
+    // The first asset was composed under a name that sorted before the numeric subasset longname.
+    // Only its resolved numeric ID remains on chain, causing the local rebuild to reorder the
+    // groups without changing any send.
+    const original = COUNTERPARTY_PREFIX_HEX
+      + '030001000ff99d4f207658048c773740ab0dc6792870280d403cc85c0d73a6a4800000000000000059171ecdda483164b00000000000000014047cf7027319cbc80000000000000004';
+    const unpacked = unpackCounterpartyMessage(original);
+    expect(unpacked.success).toBe(true);
+
+    const params = PARAMS_FROM_DECODED.mpma_send!(unpacked.data as Record<string, any>);
+    const packed = packComposeMessage('mpma', params!);
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).not.toBe(original);
+
+    const rebuilt = unpackCounterpartyMessage(packed!.bytes);
+    expect(rebuilt.success).toBe(true);
+    expect(sameMpmaFields(
+      unpacked.data as unknown as MPMAData,
+      rebuilt.data as unknown as MPMAData
+    )).toBe(true);
+  });
+
+  it('still rejects a changed send within an asset group', () => {
+    const original = {
+      sends: [
+        { asset: 'XCP', destination: '1first', quantity: 1n },
+        { asset: 'XCP', destination: '1second', quantity: 2n },
+      ],
+    };
+    const changedQuantity = {
+      sends: [
+        { asset: 'XCP', destination: '1first', quantity: 1n },
+        { asset: 'XCP', destination: '1second', quantity: 3n },
+      ],
+    };
+    const changedOrder = { sends: [...original.sends].reverse() };
+
+    expect(sameMpmaFields(original, changedQuantity)).toBe(false);
+    expect(sameMpmaFields(original, changedOrder)).toBe(false);
+  });
 });

@@ -1,17 +1,16 @@
 // Import onMessage directly from webext-bridge/background to prevent runtime.lastError
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
-import { classifyProviderError, createJsonRpcError, JSON_RPC_ERROR_CODES } from '@/core/rpcErrors';
-import { checkSessionRecovery, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
+import { checkSessionRecovery, expireSessionIfNeeded, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
+import { markSessionRecovery } from '@/platform/auth/sessionReady';
 import { broadcastToTabs } from '@/platform/browser';
-import { requestCleanup } from '@/platform/provider/requestCleanup';
-import { serviceKeepAlive } from '@/platform/storage/serviceStateStorage';
 import { registerApprovalService } from '@/services/approvalService';
-import { registerConnectionService } from '@/services/connectionService';
-import { MessageBus, } from '@/services/core/MessageBus';
+import { getConnectionService, registerConnectionService } from '@/services/connectionService';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
+import { getReadinessState, markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { getProviderService, registerProviderService } from '@/services/providerService';
+import { registerProviderSigningService } from '@/services/providerSigningService';
 import { getUpdateService } from '@/services/updateService';
 import { getWalletService, registerWalletService } from '@/services/walletService';
 
@@ -69,28 +68,6 @@ export default defineBackground(() => {
     // 5. Handle ping requests immediately (allowed from content scripts and extension pages)
     if (message?.action === 'ping' || message?.type === 'startup-health-check') {
       sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
-      return true;
-    }
-
-    // 6. Handle compose events from popup/sidepanel (cross-context event emission)
-    //    SECURITY: Only allow from extension pages, not content scripts
-    if (message?.type === 'COMPOSE_EVENT') {
-      // Verify sender is an extension page (popup, sidepanel, tab), not a content script
-      const isExtensionPage = sender.url?.startsWith(`chrome-extension://${chrome.runtime.id}/`) ||
-                              sender.url?.startsWith(`moz-extension://${chrome.runtime.id}/`);
-      if (!isExtensionPage) {
-        console.warn('[Background] Rejected COMPOSE_EVENT from non-extension page:', sender.url);
-        sendResponse({ success: false, error: { message: 'Unauthorized sender', code: 4100 } });
-        return true;
-      }
-
-      const { event, data } = message;
-      if (event) {
-        eventEmitterService.emit(event, data);
-        sendResponse({ success: true });
-      } else {
-        sendResponse({ success: false, error: { message: 'Event name required', code: -32602 } });
-      }
       return true;
     }
 
@@ -157,18 +134,6 @@ export default defineBackground(() => {
   // Initialize service registry
   const serviceRegistry = ServiceRegistry.getInstance();
 
-  // Track initialization state for health checks
-  let servicesReady = false;
-  let initError: Error | null = null;
-
-  // Helper to check if services are ready
-  function getServicesStatus(): { ready: boolean; error?: string } {
-    return {
-      ready: servicesReady,
-      error: initError?.message
-    };
-  }
-
   // Sequential initialization to ensure proper ordering
   async function initializeServices(): Promise<void> {
     try {
@@ -177,6 +142,7 @@ export default defineBackground(() => {
       registerProviderService();
       registerConnectionService();
       registerApprovalService();
+      registerProviderSigningService();
       console.log('[Background] Proxy services registered');
 
       // 2. Initialize event emitter via registry (for lifecycle management)
@@ -191,12 +157,10 @@ export default defineBackground(() => {
       getPopupMonitorService().initialize();
       console.log('[Background] PopupMonitorService initialized');
 
-      // 5. Start request cleanup (periodic cleanup of expired approval requests)
-      requestCleanup.startCleanup();
-      console.log('[Background] RequestCleanup started');
-
-      // 6. Check session recovery state (may lock wallets if session expired)
+      // 6. Check session recovery state (may lock wallets if session expired). Anything that
+      //    re-derives from the session master key waits on the outcome of this — see sessionReady.
       const recoveryState = await checkSessionRecovery();
+      markSessionRecovery(recoveryState);
       if (recoveryState === SessionRecoveryState.LOCKED) {
         const walletService = getWalletService();
         await walletService.lockKeychain();
@@ -210,13 +174,62 @@ export default defineBackground(() => {
         await rearmSessionExpiry();
       }
 
-      servicesReady = true;
+      // 7. Load the keychain before anything is served. The master key outlives the worker but the
+      //    decrypted keychain does not, and every answer about accounts, permissions or lock state
+      //    reads from it — so it is loaded once, here, rather than checked for on each call.
+      await getWalletService().ensureKeychainLoaded();
+
+      // 8. Open the barrier proxied calls have been waiting at — see serviceReadiness.
+      markServicesReady();
+
+      // 9. Tell tabs that were already open that the worker is back.
+      await announceReadinessToConnectedTabs();
+
       console.log('[Background] All services initialized successfully');
     } catch (error) {
-      initError = error instanceof Error ? error : new Error(String(error));
       console.error('[Background] Service initialization failed:', error);
-      // Still mark as ready to prevent deadlock, but log the error
-      servicesReady = true;
+      // An initialisation that failed cannot vouch for the session, so callers waiting on it are
+      // told locked rather than left hanging. The barrier then opens on that verdict: a call that
+      // fails is recoverable, a call that hangs is not.
+      markSessionRecovery(SessionRecoveryState.LOCKED);
+      markServicesReady(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /**
+   * Re-announce each connected origin's accounts once the worker has finished waking.
+   *
+   * A page that was open when the worker died holds a dead port and has no way to notice it came
+   * back. MetaMask sends a READY message to every tab for the same reason; sending the accounts
+   * instead means the page gets the answer it would have asked for, over the provider-event path
+   * that already works.
+   *
+   * Deliberately last: the accounts are only true once recovery has decided whether this session
+   * is still valid.
+   */
+  async function announceReadinessToConnectedTabs(): Promise<void> {
+    try {
+      const walletService = getWalletService();
+      if (!(await walletService.isKeychainUnlocked())) return;
+
+      // Asked of the service that owns the answer, not read off the settings it keeps it in.
+      const connections = await getConnectionService().getConnectedWebsites();
+      if (connections.length === 0) return;
+
+      const activeAddress = await walletService.getActiveAddress();
+      const accounts = activeAddress ? [activeAddress.address] : [];
+
+      for (const { origin } of connections) {
+        eventEmitterService.emit('emit-provider-event', {
+          origin,
+          event: 'accountsChanged',
+          data: accounts,
+        });
+      }
+      console.log('[Background] Re-announced accounts to', connections.length, 'origin(s)');
+    } catch (error) {
+      // A page that misses this falls back to asking, which now answers correctly anyway.
+      console.warn('[Background] Could not announce readiness:', error);
     }
   }
 
@@ -235,10 +248,10 @@ export default defineBackground(() => {
 
   webextBridgeOnMessage('startup-health-check', async () => {
     // Wait for services to be ready before reporting healthy
-    if (!servicesReady) {
+    if (!getReadinessState().ready) {
       await initPromise;
     }
-    const status = getServicesStatus();
+    const status = getReadinessState();
     return {
       status: status.ready ? 'ready' : 'initializing',
       timestamp: Date.now(),
@@ -249,138 +262,18 @@ export default defineBackground(() => {
 
   console.log('[Background] webext-bridge handlers registered');
   
-  // Set up MessageBus handlers for provider requests
-  // ISSUE 4 FIX: Add runtime validation before type assertion
-  MessageBus.onMessage('provider-request', async (data) => {
-    // Validate data structure before using
-    if (!data || typeof data !== 'object') {
-      console.error('[Background] Invalid provider-request data: expected object');
-      return {
-        success: false,
-        error: createJsonRpcError(JSON_RPC_ERROR_CODES.INVALID_REQUEST, 'Invalid message format')
-      };
-    }
-
-    const message = data as Record<string, unknown>;
-
-    // Validate origin is a string
-    if (typeof message.origin !== 'string') {
-      console.error('[Background] Invalid provider-request data: origin must be string');
-      return {
-        success: false,
-        error: createJsonRpcError(JSON_RPC_ERROR_CODES.INVALID_REQUEST, 'Invalid message format')
-      };
-    }
-
-    console.debug('Provider request received:', {
-      origin: message.origin,
-      method: (message.data as Record<string, unknown>)?.method,
-      hasParams: !!(message.data as Record<string, unknown>)?.params,
-      timestamp: message.timestamp
-    });
-
-    try {
-      const providerService = getProviderService();
-
-      // Extract request details with validation
-      const origin = message.origin as string;
-      const requestData = (message.data || {}) as Record<string, unknown>;
-      const method = requestData.method;
-      const params = Array.isArray(requestData.params) ? requestData.params : [];
-      const metadata = (typeof requestData.metadata === 'object' && requestData.metadata !== null)
-        ? requestData.metadata as Record<string, unknown>
-        : {};
-
-      if (!method || typeof method !== 'string') {
-        return {
-          success: false,
-          error: createJsonRpcError(
-            JSON_RPC_ERROR_CODES.INVALID_REQUEST,
-            'Method is required and must be a string'
-          )
-        };
-      }
-
-      // Handle the request through provider service
-      const result = await providerService.handleRequest(
-        origin,
-        method,
-        params,
-        metadata
-      );
-
-      return {
-        success: true,
-        result,
-        method // Include method for response handling
-      };
-    } catch (error: any) {
-      console.error('[Background] Provider request failed:', error);
-      const { code, message } = classifyProviderError(error);
-      return { success: false, error: createJsonRpcError(code, message) };
-    }
-  });
-
-  
-  // Handle provider event emission (for accountsChanged, disconnect, etc.)
-  // ISSUE 4 FIX: Add runtime validation before type assertion
-  MessageBus.onMessage('provider-event', async (data) => {
-    // Validate data structure before using
-    if (!data || typeof data !== 'object') {
-      console.error('[Background] Invalid provider-event data: expected object');
-      return { success: false, error: { message: 'Invalid message format', code: -32600 } };
-    }
-
-    const message = data as Record<string, unknown>;
-
-    // Validate required fields
-    if (typeof message.event !== 'string') {
-      console.error('[Background] Invalid provider-event data: event must be string');
-      return { success: false, error: { message: 'Invalid message format', code: -32600 } };
-    }
-
-    const origin = typeof message.origin === 'string' ? message.origin : undefined;
-    const event = message.event;
-    const eventData = message.data;
-
-    try {
-      if (origin) {
-        await emitProviderEventToOrigin(origin, event, eventData);
-      } else {
-        await broadcastProviderEvent(event, eventData);
-      }
-      return { success: true };
-    } catch (error: any) {
-      console.error('[Background] Failed to emit provider event:', error);
-      return { success: false, error: { message: 'Failed to emit event', code: -32603 } };
-    }
-  });
-
-  // Set up Chrome alarms for session management and keep-alive
-  const KEEP_ALIVE_ALARM_NAME = 'keep-alive';
+  // Session expiry is authoritative in persisted metadata; idle workers may suspend.
   const SESSION_EXPIRY_ALARM_NAME = 'session-expiry';
-  
-  // Create keep-alive alarm to prevent service worker termination
-  // This replaces the memory-leaking setTimeout approach
-  chrome.alarms.create(KEEP_ALIVE_ALARM_NAME, {
-    periodInMinutes: 0.4 // 24 seconds (less than Chrome's 30s timeout)
-  });
-  
+  chrome.alarms.clear('keep-alive').catch(error => console.warn('[Background] Could not clear legacy alarm:', error));
+
   // Consolidated alarm handler to avoid multiple listeners
   if (chrome?.alarms?.onAlarm) {
-    chrome.alarms.onAlarm.addListener(async (alarm) => {
-      switch (alarm.name) {
-        case SESSION_EXPIRY_ALARM_NAME:
-          console.log('[Background] Session expired via alarm');
-          const walletService = getWalletService();
-          await walletService.lockKeychain();
-          break;
-          
-        case KEEP_ALIVE_ALARM_NAME:
-          // Perform minimal activity to keep service worker alive
-          await serviceKeepAlive('background');
-          break;
-      }
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name !== SESSION_EXPIRY_ALARM_NAME) return;
+      // A delayed alarm for an earlier deadline must not lock a renewed session.
+      whenServicesReady().then(() => expireSessionIfNeeded()).catch(error => {
+        console.error('[Background] Session expiry check failed:', error);
+      });
     });
   }
 
@@ -423,34 +316,10 @@ export default defineBackground(() => {
     await broadcastToTabs(message, filter);
   }
 
-  // Register the provider event emitter with the event emitter service
-  // This makes it available to other services without using global variables
-  // ISSUE 2 FIX: Use async handler and await the calls to prevent unhandled rejections
-  // ISSUE 4 FIX: Validate eventArgs structure before using
-  eventEmitterService.on('emit-provider-event', async (...args: unknown[]) => {
-    try {
-      const [eventArgs] = args;
-
-      // Runtime validation of event args structure
-      if (!eventArgs || typeof eventArgs !== 'object') {
-        console.error('[Background] Invalid emit-provider-event args: expected object');
-        return;
-      }
-
-      const typedArgs = eventArgs as Record<string, unknown>;
-      if (typeof typedArgs.event !== 'string') {
-        console.error('[Background] Invalid emit-provider-event args: event must be string');
-        return;
-      }
-
-      if (typedArgs.origin !== undefined && typeof typedArgs.origin === 'string') {
-        await emitProviderEventToOrigin(typedArgs.origin, typedArgs.event, typedArgs.data);
-      } else {
-        await broadcastProviderEvent(typedArgs.event, typedArgs.data);
-      }
-    } catch (error) {
-      console.error('[Background] Failed to emit provider event:', error);
-    }
+  // Internal events have a typed contract; the emitter observes asynchronous delivery failures.
+  eventEmitterService.on('emit-provider-event', async ({ origin, event, data }) => {
+    if (origin !== undefined) await emitProviderEventToOrigin(origin, event, data);
+    else await broadcastProviderEvent(event, data);
   });
   
 
@@ -460,12 +329,16 @@ export default defineBackground(() => {
       console.log('[Background] Service worker suspending, cleaning up all services...');
       
       // Destroy all services via registry
-      serviceRegistry.destroyAll().catch(console.error);
+      serviceRegistry.destroyAll().catch((error) => {
+        console.error('[Background] Failed to destroy services:', error);
+      });
       
       // Also cleanup provider service (until it's migrated to BaseService)
       const providerService = getProviderService();
       if (providerService.destroy) {
-        providerService.destroy().catch(console.error);
+        providerService.destroy().catch((error) => {
+          console.error('[Background] Failed to destroy provider service:', error);
+        });
       }
 
       // Cleanup update service

@@ -1,8 +1,11 @@
+import * as btc from '@scure/btc-signer';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
+import { arc4, hexToBytes } from '@/core/counterparty/unpack/binary';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
 
@@ -77,7 +80,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -96,7 +99,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -139,7 +142,7 @@ describe('ComposerContext', () => {
             source: 'bc1qsource',
             destination: 'bc1qdest',
             asset: 'XCP',
-            quantity: 1000,
+            quantity: asBaseUnits(1000),
             memo: null,
             memo_is_hex: false,
             use_enhanced_send: false,
@@ -153,7 +156,7 @@ describe('ComposerContext', () => {
               locked: false,
               owner: 'bc1qowner',
             },
-            quantity_normalized: '0.00001000',
+            quantity_normalized: asDisplayUnits('0.00001000'),
           },
           name: 'send',
         },
@@ -164,7 +167,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -185,7 +188,7 @@ describe('ComposerContext', () => {
       // review screen renders `result.btc_fee`, so substituting it here is what makes them honest.
       expect(result.current.state.apiResponse).toEqual({
         ...apiResponse,
-        result: { ...apiResponse.result, btc_fee: 4840 },
+        result: { ...apiResponse.result, btc_fee: 4840, params: { ...apiResponse.result.params, amount: '100', address: 'bc1qtest', sourceAddress: OWN_ADDRESS, source: OWN_ADDRESS } },
       });
       expect(result.current.state.verificationWarnings.join(' ')).toContain('4840');
 
@@ -207,7 +210,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -235,7 +238,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -262,7 +265,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -286,7 +289,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -304,7 +307,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -346,7 +349,7 @@ describe('ComposerContext', () => {
             source: 'bc1qsource',
             destination: 'bc1qdest',
             asset: 'BTC',
-            quantity: 0,
+            quantity: asBaseUnits(0),
             memo: null,
             memo_is_hex: false,
             use_enhanced_send: false,
@@ -360,7 +363,7 @@ describe('ComposerContext', () => {
               locked: false,
               owner: '',
             },
-            quantity_normalized: '0',
+            quantity_normalized: asDisplayUnits('0'),
           },
           name: 'send',
         },
@@ -371,7 +374,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -400,7 +403,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -420,7 +423,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -461,7 +464,7 @@ describe('ComposerContext', () => {
             source: 'bc1qsource',
             destination: 'bc1qdest',
             asset: 'BTC',
-            quantity: 0,
+            quantity: asBaseUnits(0),
             memo: null,
             memo_is_hex: false,
             use_enhanced_send: false,
@@ -475,7 +478,7 @@ describe('ComposerContext', () => {
               locked: false,
               owner: '',
             },
-            quantity_normalized: '0',
+            quantity_normalized: asDisplayUnits('0'),
           },
           name: 'send',
         },
@@ -486,7 +489,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -546,7 +549,7 @@ describe('ComposerContext', () => {
             source: 'bc1qsource',
             destination: 'bc1qdest',
             asset: 'BTC',
-            quantity: 0,
+            quantity: asBaseUnits(0),
             memo: null,
             memo_is_hex: false,
             use_enhanced_send: false,
@@ -560,7 +563,7 @@ describe('ComposerContext', () => {
               locked: false,
               owner: '',
             },
-            quantity_normalized: '0',
+            quantity_normalized: asDisplayUnits('0'),
           },
           name: 'send',
         },
@@ -574,7 +577,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -595,5 +598,148 @@ describe('ComposerContext', () => {
         expect(result.current.state.step).toBe('review');
       });
     });
+  });
+});
+describe('a compose whose message is missing entirely', () => {
+  // A real address, so the message this request should produce can actually be built — that is the
+  // precondition for expecting the transaction to carry one.
+  const DESTINATION = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+
+  /** A parseable composed transaction with no OP_RETURN and nothing but change. */
+  const messagelessResponse = (params: Record<string, unknown>): ApiResponse => ({
+    result: {
+      rawtransaction: VALID_BTC_ONLY_TX,
+      btc_fee: 4840,
+      lock_scripts: [],
+      inputs_values: [100000],
+      params,
+      name: 'send',
+    },
+  } as unknown as ApiResponse);
+
+  function composeWith(composeType: string, response: ApiResponse) {
+    const mockComposeApi = vi.fn().mockResolvedValue(response);
+    return renderHook(() => useComposer(), {
+      wrapper: ({ children }) => (
+        <MemoryRouter>
+          <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType={composeType}>
+            {children}
+          </ComposerProvider>
+        </MemoryRouter>
+      ),
+    });
+  }
+
+  it('refuses an asset send that carries no Counterparty message', async () => {
+    // Every other check passes: there is no payload to disagree with, the only output is change,
+    // and the fee is sane. The transaction simply would not send anything.
+    const formData = new FormData();
+    formData.set('destination', DESTINATION);
+    formData.set('asset', 'XCP');
+    formData.set('quantity', '1000');
+
+    const { result } = composeWith('send', messagelessResponse({
+      destination: DESTINATION, asset: 'XCP', quantity: 1000,
+    }));
+
+    await act(async () => {
+      result.current.composeTransaction(formData);
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.isComposing).toBe(false);
+    });
+    expect(result.current.state.error).toContain('carries no Counterparty message');
+    expect(result.current.state.step).toBe('form');
+  });
+
+  it('still allows a BTC send, which has no message to carry', async () => {
+    // The guard must not fire where a missing payload is the correct shape.
+    const formData = new FormData();
+    formData.set('destination', DESTINATION);
+    formData.set('asset', 'BTC');
+    formData.set('quantity', '0.00095160');
+
+    const { result } = composeWith('send', messagelessResponse({
+      destination: DESTINATION, asset: 'BTC', quantity: 9, quantity_normalized: '999', asset_info: { divisible: false },
+    }));
+
+    await act(async () => {
+      result.current.composeTransaction(formData);
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.step).toBe('review');
+    });
+    expect(result.current.state.error).toBeNull();
+    expect(result.current.state.apiResponse?.result.params).toMatchObject({ quantity: '95160', quantity_normalized: '0.0009516', asset_info: { divisible: true } });
+  });
+
+  it('allows a current move-to-UTXO compose, whose protocol action is message-less', async () => {
+    // Core's move.py transfers attached balances to the first non-OP_RETURN output. It does not
+    // emit the historical type-100 UTXO message, so the absence of a payload is expected here.
+    const formData = new FormData();
+    formData.set('sourceUtxo', `${'a'.repeat(64)}:0`);
+    formData.set('destination', OWN_ADDRESS);
+
+    const { result } = composeWith('move', messagelessResponse({ destination: OWN_ADDRESS }));
+
+    await act(async () => {
+      result.current.composeTransaction(formData);
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.step).toBe('review');
+    });
+    expect(result.current.state.error).toBeNull();
+  });
+});
+
+describe('BTC send to a dispenser through the composer', () => {
+  const destination = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+  const txid = 'ab'.repeat(32);
+
+  function composeResponse(amount = 5788n, extraOutput = false, fee = 400n): ApiResponse {
+    const tx = new btc.Transaction({ allowUnknownOutputs: true });
+    tx.addInput({ txid, index: 0 });
+    tx.addOutput({ script: btc.OutScript.encode(btc.Address().decode(destination)), amount });
+    const data = arc4(hexToBytes(txid), hexToBytes('434e5452505254590d00'));
+    tx.addOutput({ script: btc.Script.encode(['RETURN', data]), amount: 0n });
+    if (extraOutput) tx.addOutput({ script: btc.OutScript.encode(btc.Address().decode(destination)), amount: 1000n });
+    tx.addOutput({ script: btc.OutScript.encode(btc.Address().decode(OWN_ADDRESS)),
+      amount: 100000n - amount - fee - (extraOutput ? 1000n : 0n) });
+    return { result: { rawtransaction: tx.hex, btc_fee: Number(fee),
+      // A lying echo must not mask a changed output amount.
+      params: { asset: 'BTC', destination, quantity: 5788 }, name: 'send',
+    } } as unknown as ApiResponse;
+  }
+
+  it.each([
+    { name: 'valid dispenser payment', amount: 5788n, extra: false, fee: 400n, allowed: true },
+    { name: 'changed payment amount', amount: 5789n, extra: false, fee: 400n, allowed: false },
+    { name: 'extra payment to the same destination', amount: 5788n, extra: true, fee: 400n, allowed: false },
+    { name: 'inflated fee', amount: 5788n, extra: false, fee: 90000n, allowed: false },
+  ])('$name', async ({ amount, extra, fee, allowed }) => {
+    const composeApi = vi.fn().mockResolvedValue(composeResponse(amount, extra, fee));
+    const { result } = renderHook(() => useComposer(), {
+      wrapper: ({ children }) => <MemoryRouter>
+        <ComposerProvider composeApi={composeApi} initialTitle="Send" composeType="send">{children}</ComposerProvider>
+      </MemoryRouter>,
+    });
+    const form = new FormData();
+    form.set('asset', 'BTC');
+    form.set('destination', destination);
+    form.set('quantity', '0.00005788');
+    form.set('sat_per_vbyte', '1.6');
+    await act(async () => { await result.current.composeTransaction(form); });
+    if (allowed) {
+      expect(result.current.state.error).toBeNull();
+      expect(result.current.state.step).toBe('review');
+      expect(result.current.state.decodedMessage?.messageType).toBe('dispense');
+      expect(result.current.state.apiResponse?.result.params.quantity_normalized).toBe('0.00005788');
+    } else {
+      expect(result.current.state.step).toBe('form');
+      expect(result.current.state.error).toBeTruthy();
+    }
   });
 });

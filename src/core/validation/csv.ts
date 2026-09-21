@@ -109,7 +109,7 @@ export function validateCSVQuantity(quantity: string): { valid: boolean; value?:
   
   const num = parseFloat(trimmed);
   
-  if (isNaN(num)) {
+  if (Number.isNaN(num)) {
     return { valid: false, error: 'Quantity must be a number' };
   }
   

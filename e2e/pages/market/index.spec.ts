@@ -231,7 +231,7 @@ walletTest.describe('Market Page', () => {
     await expect(page.getByRole('tab', { name: 'Dispensers' })).toBeVisible({ timeout: 10000 });
 
     // Get the scrollable container
-    const scrollContainer = page.locator('[role="main"]').first();
+    const scrollContainer = page.getByRole('main').first();
 
     // Try to scroll down
     await scrollContainer.evaluate((el) => {

@@ -7,9 +7,9 @@
  * This follows the same approach as Horizon Wallet.
  */
 
-import { isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
+import { getPendingChangeUtxos, isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs, formatInputsSet, type UTXO } from '@/core/bitcoin/utxo';
-import { fetchTokenBalances } from '@/core/counterparty/api';
+import { fetchUtxosWithBalances } from '@/core/counterparty/api';
 
 /**
  * Maximum number of UTXOs to include in inputs_set (API limit).
@@ -49,7 +49,7 @@ export interface SelectedUtxos {
  * Fetches fresh UTXO data from mempool.space.
  *
  * 1. Fetch UTXOs from mempool.space (fresh data)
- * 2. Fetch UTXOs with attached assets in single API call
+ * 2. Check candidate UTXOs for attached assets in bounded batches
  * 3. Filter out UTXOs with attached assets
  * 4. Sort by value (highest first)
  * 5. Limit to MAX_INPUTS_SET UTXOs
@@ -68,30 +68,41 @@ export async function selectUtxosForTransaction(
     maxUtxos = MAX_INPUTS_SET,
   } = options;
 
-  // 1. Fetch fresh UTXOs from mempool.space and UTXO balances from Counterparty in parallel
-  const [allUtxos, utxoBalances] = await Promise.all([
-    fetchUTXOs(address),
-    fetchTokenBalances(address, { type: 'utxo', limit: 1000, verbose: false }),
-  ]);
+  const allUtxos = await fetchUTXOs(address);
 
-  if (allUtxos.length === 0) {
+  // Our own just-broadcast change, registered at broadcast time (core/counterparty/pendingChange)
+  // because mempool.space takes a beat to list it. Deduped against the fetch — once the indexer
+  // catches up the same outpoint arrives with real status and the virtual copy is redundant.
+  // Virtual entries are unconfirmed by definition, so they answer to the same allowUnconfirmed
+  // gate as everything else below.
+  const fetched = new Set(allUtxos.map((utxo) => `${utxo.txid}:${utxo.vout}`));
+  const virtualChange: UTXO[] = getPendingChangeUtxos(address)
+    .filter(({ txid, vout }) => !fetched.has(`${txid}:${vout}`))
+    .map(({ txid, vout, value }) => ({
+      txid,
+      vout,
+      value,
+      status: { confirmed: false, block_height: 0, block_hash: '', block_time: 0 },
+    }));
+  const candidateUtxos = [...allUtxos, ...virtualChange];
+
+  if (candidateUtxos.length === 0) {
     throw new Error('No UTXOs available for this address');
   }
 
-  // 2. Build set of UTXOs that have attached Counterparty assets
-  const utxosWithAssets = new Set<string>();
-  for (const balance of utxoBalances) {
-    if (balance.utxo) {
-      utxosWithAssets.add(balance.utxo);
-    }
-  }
+  const checkedCandidates = candidateUtxos.filter(utxo =>
+    (allowUnconfirmed || utxo.status.confirmed) && !isUtxoRecentlySpent(utxo.txid, utxo.vout));
+  const utxosWithAssets = await fetchUtxosWithBalances(checkedCandidates
+    .map(utxo => `${utxo.txid}:${utxo.vout}`));
 
   // 3. Filter UTXOs
   let excludedWithAssets = 0;
   let excludedValue = 0;
   const eligibleUtxos: UTXO[] = [];
 
-  for (const utxo of allUtxos) {
+  // A spent-cache entry can expire during the lookup. Never reintroduce a candidate
+  // skipped above: it was not checked for assets in this selection attempt.
+  for (const utxo of checkedCandidates) {
     // Skip unconfirmed if not allowed
     if (!allowUnconfirmed && !utxo.status.confirmed) {
       continue;

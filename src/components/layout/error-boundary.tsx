@@ -70,7 +70,7 @@ export class ErrorBoundary extends Component<Props, State> {
               An unexpected error occurred. Please try again.
             </p>
 
-            <button
+            <button type="button"
               onClick={this.handleReset}
               className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >

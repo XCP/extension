@@ -12,6 +12,10 @@ interface AddressListProps {
   walletId: string;
   /** Whether this is a hardware wallet (hides private key option) */
   isHardwareWallet?: boolean;
+  /** Offered per address when this wallet could have paired Rare Pepe Wallet UTXO addresses */
+  onFindUtxoAddress?: (address: Address) => void;
+  /** Offered on a kept UTXO address, to stop listing it */
+  onRemoveUtxoAddress?: (address: Address) => void;
 }
 
 /**
@@ -20,7 +24,7 @@ interface AddressListProps {
  * @param props - The component props
  * @returns A ReactElement representing the address list
  */
-export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walletId, isHardwareWallet = false }: AddressListProps): ReactElement => {
+export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walletId, isHardwareWallet = false, onFindUtxoAddress, onRemoveUtxoAddress }: AddressListProps): ReactElement => {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   const handleCopyAddress = (address: string) => {
@@ -34,6 +38,18 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
     if (!(e.target as HTMLElement).closest('.address-menu')) {
       onSelectAddress(address);
     }
+  };
+
+  // The radio group ignores a keypress on the option that is already checked, so
+  // re-selecting the current address — how these screens confirm and move on — is
+  // otherwise unreachable from the keyboard. Handle it here, on the focusable
+  // element, and stop the group from acting on the same key twice.
+  const handleAddressKeyDown = (e: React.KeyboardEvent, address: Address) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    onSelectAddress(address);
   };
 
   return (
@@ -54,11 +70,12 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
           key={address.path}
           // Set each option's value to the unique address string
           value={address.address}
+          onClick={(e: React.MouseEvent) => handleAddressClick(e, address)}
+          onKeyDown={(e: React.KeyboardEvent) => handleAddressKeyDown(e, address)}
           className="focus-visible:outline-none"
         >
           {({ checked }) => (
             <div
-              onClick={(e) => handleAddressClick(e, address)}
               className={`
                 relative w-full rounded transition-colors duration-300 p-4 cursor-pointer
                 ${checked
@@ -72,6 +89,8 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
                   walletId={walletId}
                   onCopyAddress={handleCopyAddress}
                   isHardwareWallet={isHardwareWallet}
+                  onFindUtxoAddress={onFindUtxoAddress}
+                  onRemoveUtxoAddress={onRemoveUtxoAddress}
                 />
               </div>
               <div className="text-sm mb-1 font-medium">{address.name}</div>

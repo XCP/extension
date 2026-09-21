@@ -94,7 +94,11 @@ export function PriceTicker({
             {xcp ? (
               <span className="font-semibold text-gray-900 text-sm">
                 {currencySymbol}
-                {formatAmount({ value: xcp, maximumFractionDigits: decimals })}
+                {formatAmount({
+                  value: xcp,
+                  minimumFractionDigits: decimals,
+                  maximumFractionDigits: decimals,
+                })}
               </span>
             ) : (
               <span className="text-gray-400">—</span>

@@ -99,7 +99,7 @@ export function PinnableAssetCard({
         {/* Up/Down arrows */}
         {showArrows && (
           <div className="flex flex-col">
-            <button
+            <button type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -115,7 +115,7 @@ export function PinnableAssetCard({
             >
               <FiChevronUp className="size-3" aria-hidden="true" />
             </button>
-            <button
+            <button type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -135,7 +135,7 @@ export function PinnableAssetCard({
         )}
 
         {/* Pin/Unpin Button */}
-        <button
+        <button type="button"
           onClick={handlePinClick}
           className={`p-2 rounded-md transition-colors hover:scale-110 cursor-pointer ${
             isPinned

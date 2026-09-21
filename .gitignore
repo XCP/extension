@@ -52,3 +52,12 @@ MANUAL_TEST_PLAN.txt
 *.tsbuildinfo
 
 test-results.json
+test-results/
+
+# Env files. Nothing here needs one today, but anything that does would hold store
+# or API credentials, and there was previously no rule stopping one being committed.
+# Example files are kept so a template can still be checked in.
+.env
+.env.*
+!.env.example
+!.env.*.example

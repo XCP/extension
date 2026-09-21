@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
-import { getIdentityMismatchError, getPsbtPermissionError } from '../requestIdentity';
+import {
+  getConnectionRevokedError,
+  getIdentityMismatchError,
+  getMessagePermissionError,
+  getPsbtPermissionError,
+} from '../requestIdentity';
 
 const req = (over?: Partial<AuthorizedRequest>): AuthorizedRequest => ({
   id: 'r1',
@@ -68,5 +73,59 @@ describe('getPsbtPermissionError', () => {
       'bc1qauthorized',
       permissions(true, true)
     )).resolves.toBeNull();
+  });
+});
+
+describe('getMessagePermissionError', () => {
+  const permissions = (connected: boolean, paired: boolean) => ({
+    hasPermission: async () => connected,
+    hasPairedAddressPermission: async () => paired,
+  });
+
+  it('allows the request-bound active signer with ordinary permission', async () => {
+    await expect(getMessagePermissionError(
+      { ...req(), signingAddress: 'bc1qauthorized' },
+      permissions(true, false),
+    )).resolves.toBeNull();
+  });
+
+  it('allows the sibling signer while paired permission remains active', async () => {
+    await expect(getMessagePermissionError(
+      { ...req(), signingAddress: '1paired' },
+      permissions(true, true),
+    )).resolves.toBeNull();
+  });
+
+  it('refuses the sibling signer after paired permission is revoked', async () => {
+    await expect(getMessagePermissionError(
+      { ...req(), signingAddress: '1paired' },
+      permissions(true, false),
+    )).resolves.toMatch(/Paired address access was revoked/);
+  });
+});
+
+describe('getConnectionRevokedError', () => {
+  it('returns null while the site is still connected', async () => {
+    const permissions = { hasPermission: async () => true };
+    expect(await getConnectionRevokedError(req(), permissions)).toBeNull();
+  });
+
+  it('refuses once the site has been revoked mid-approval', async () => {
+    // The window a long-lived approval leaves open: the user revokes the site in
+    // Settings while the prompt is still on screen.
+    const permissions = { hasPermission: async () => false };
+    expect(await getConnectionRevokedError(req(), permissions)).toMatch(/no longer connected/i);
+  });
+
+  it('checks the request origin, not some other site', async () => {
+    const seen: string[] = [];
+    const permissions = {
+      hasPermission: async (origin: string) => {
+        seen.push(origin);
+        return true;
+      },
+    };
+    await getConnectionRevokedError(req({ origin: 'https://evil.test' }), permissions);
+    expect(seen).toEqual(['https://evil.test']);
   });
 });

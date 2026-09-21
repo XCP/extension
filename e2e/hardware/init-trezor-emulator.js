@@ -84,6 +84,7 @@ async function main() {
     console.log('\nStarting Trezor bridge...');
     const bridgeResult = await sendCommand(ws, {
       type: 'bridge-start',
+      version: 'node-bridge',
     });
     console.log(`<- ${bridgeResult.response}`);
 
@@ -110,7 +111,7 @@ async function main() {
     console.log('\n✓ Trezor emulator initialized successfully!');
     console.log(`  Mnemonic: ${TEST_MNEMONIC}`);
     console.log('  Bridge URL: http://localhost:21325');
-    console.log('  WebSocket: ws://localhost:21326');
+    console.log('  Controller: ws://localhost:9001');
 
     ws.close();
     process.exit(0);

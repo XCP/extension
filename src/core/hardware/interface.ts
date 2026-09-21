@@ -13,6 +13,7 @@ import type {
   HardwareMessageSignRequest,
   HardwareMessageSignResult,
   HardwarePsbtSignRequest,
+  HardwarePsbtSignResult,
   HardwareSignRequest,
   HardwareSignResult,
 } from '@/core/hardware/types';
@@ -95,22 +96,15 @@ export interface IHardwareWalletAdapter {
   signMessage(request: HardwareMessageSignRequest): Promise<HardwareMessageSignResult>;
 
   /**
-   * Sign a PSBT (Partially Signed Bitcoin Transaction) and return a fully signed raw transaction.
+   * Sign a PSBT with the hardware wallet.
    *
-   * **IMPORTANT: Return format clarification**
-   * Despite accepting a PSBT as input, this method returns a **fully signed raw transaction hex**,
-   * NOT a PSBT. This is because hardware wallets like Trezor sign transactions completely
-   * in one operation and return the finalized transaction ready for broadcast.
-   *
-   * The return property is named `signedTxHex` to reflect this. Callers should be aware:
-   * - The returned hex is a complete, broadcastable transaction
-   * - It is NOT suitable for further PSBT processing or multi-party signing
-   * - For standard PSBT workflows requiring incremental signing, use software wallets
+   * The device returns a raw transaction. An adapter may additionally reconstruct a signed PSBT
+   * after verifying that the device preserved the reviewed transaction and signature policy.
    *
    * @param request - PSBT signing request with input paths
-   * @returns Object with signedTxHex (fully signed raw transaction, ready for broadcast)
+   * @returns The device transaction and, when requested and supported, a verified signed PSBT
    */
-  signPsbt(request: HardwarePsbtSignRequest): Promise<{ signedTxHex: string }>;
+  signPsbt(request: HardwarePsbtSignRequest): Promise<HardwarePsbtSignResult>;
 
   /**
    * Attempt to reconnect after disconnection.

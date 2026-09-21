@@ -8,6 +8,7 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { IssuanceOptions } from "@/core/counterparty/compose";
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 /**
@@ -21,15 +22,19 @@ interface LockDescriptionFormProps {
 
 /**
  * Form for locking asset description using React 19 Actions.
- * This form creates an issuance transaction with description="LOCK" 
- * which permanently prevents future description changes.
+ *
+ * The transaction is an issuance whose description is the sentinel "LOCK_DESCRIPTION", which
+ * `issuance.parse` matches to set `description_locked` while leaving the stored description
+ * untouched. Note that "LOCK" is a *different* sentinel handled in the same branch: it sets
+ * `lock`, permanently freezing the supply. The two are one `elif` apart and neither is reversible,
+ * so this string is not a label — it is the instruction.
  */
 export function LockDescriptionForm({
   formAction,
   initialFormData,
   asset,
 }: LockDescriptionFormProps): ReactElement {
-  const {} = useComposer();
+  useComposer();
   const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);
   const { pending } = useFormStatus();
   const [isChecked, setIsChecked] = useState(false);
@@ -51,9 +56,12 @@ export function LockDescriptionForm({
     return <div className="p-4 text-red-500">Cannot lock description of BTC</div>;
   }
 
-  // Check if description is already locked
+  // The description being frozen here, shown so the user can see what they are freezing.
   const currentDescription = assetInfo?.description || "";
-  const isAlreadyLocked = currentDescription === "LOCK";
+  // Whether the description is locked is its own field. Comparing the description text to "LOCK"
+  // asked whether the sentinel had been stored as the description, which core never does: it
+  // rewrites the description back to the previous one and records the lock in a flag.
+  const isAlreadyLocked = assetInfo?.description_locked ?? false;
 
   if (isAlreadyLocked) {
     return (
@@ -84,7 +92,7 @@ export function LockDescriptionForm({
             divisible: assetInfo?.divisible ?? false,
             locked: assetInfo?.locked ?? false,
             supply: assetInfo?.supply,
-            supply_normalized: assetInfo?.supply_normalized || '0'
+            supply_normalized: asDisplayUnits(assetInfo?.supply_normalized || '0')
           }}
           className="mt-1 mb-5"
         />
@@ -95,7 +103,7 @@ export function LockDescriptionForm({
       <Field>
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
           <p className="text-sm text-yellow-700">
-            Locking the description is permanent and irreversible. Once locked, you will never be able to change the asset description again.
+            Locking the description is permanent. It can never be changed again.
           </p>
           {currentDescription && (
             <div className="mt-3 pt-3 border-t border-yellow-200">
@@ -111,7 +119,7 @@ export function LockDescriptionForm({
         
         <CheckboxInput
           name="confirm"
-          label={`I understand that locking the description for ${asset} is permanent and cannot be undone`}
+          label="I understand this cannot be undone"
           disabled={pending}
           checked={isChecked}
           onChange={handleCheckboxChange}
@@ -120,7 +128,7 @@ export function LockDescriptionForm({
         {/* Hidden fields for the issuance parameters */}
         <input type="hidden" name="asset" value={asset} />
         <input type="hidden" name="quantity" value="0" />
-        <input type="hidden" name="description" value="LOCK" />
+        <input type="hidden" name="description" value="LOCK_DESCRIPTION" />
         <input type="hidden" name="divisible" value={String(assetInfo?.divisible ?? false)} />
       </Field>
     </ComposerForm>

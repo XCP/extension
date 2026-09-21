@@ -10,6 +10,7 @@ import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { DispenserOptions } from "@/core/counterparty/compose";
+import { asDisplayUnits, toBigNumber } from '@/core/numeric';
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 
@@ -99,12 +100,14 @@ export const DispenserForm = memo(function DispenserForm({
     }
   }, [asset]);
 
-  // Update available balance when asset details load
+  // The escrow comes out of the same balance, so what can be escrowed is what is spendable. Falls
+  // back to the confirmed figure, which is what this offered before pending was tracked.
   useEffect(() => {
-    if (assetDetails?.availableBalance) {
-      setAvailableBalance(assetDetails.availableBalance);
+    const offerable = assetDetails?.spendableBalance ?? assetDetails?.availableBalance;
+    if (offerable) {
+      setAvailableBalance(offerable);
     }
-  }, [assetDetails?.availableBalance]);
+  }, [assetDetails?.spendableBalance, assetDetails?.availableBalance]);
 
 
   // Reset form fields when initialFormData changes to null
@@ -138,10 +141,10 @@ export const DispenserForm = memo(function DispenserForm({
       return;
     }
     
-    const cleanEscrow = parseFloat(escrowQuantity || "0");
-    const cleanGive = parseFloat(giveQuantity || "0");
-    
-    if (!isNaN(cleanEscrow) && !isNaN(cleanGive) && cleanEscrow < cleanGive) {
+    const cleanEscrow = toBigNumber(escrowQuantity || "0");
+    const cleanGive = toBigNumber(giveQuantity || "0");
+
+    if (!cleanEscrow.isNaN() && !cleanGive.isNaN() && cleanEscrow.isLessThan(cleanGive)) {
       setError({ message: "Escrow quantity must be greater than or equal to give quantity" });
       return;
     }
@@ -182,7 +185,7 @@ export const DispenserForm = memo(function DispenserForm({
           <BalanceHeader
             balance={{
               asset: selectedAsset,
-              quantity_normalized: availableBalance,
+              quantity_normalized: asDisplayUnits(assetDetails?.spendableBalance ?? availableBalance),
               asset_info: assetDetails.assetInfo ? {
                 asset_longname: assetDetails.assetInfo.asset_longname,
                 description: assetDetails.assetInfo.description || '',
@@ -200,6 +203,7 @@ export const DispenserForm = memo(function DispenserForm({
               },
             }}
             className="mt-1 mb-5"
+            pendingIncoming={assetDetails.pendingIncoming}
           />
         ) : activeAddress ? (
           <AddressHeader
@@ -261,8 +265,6 @@ export const DispenserForm = memo(function DispenserForm({
             value={giveQuantity}
             onChange={(e) => {
               const val = e.target.value;
-              if (!isDivisible && val.includes('.')) return;
-              if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
               setGiveQuantity(val);
             }}
             required

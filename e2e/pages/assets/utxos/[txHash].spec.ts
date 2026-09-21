@@ -1,8 +1,8 @@
 /**
- * View UTXO Page Tests (/assets/utxo/:utxo)
+ * View UTXO Page Tests (/assets/utxos/:txHash)
  *
  * Tests for viewing details of a specific UTXO and its attached assets.
- * Component: src/pages/assets/utxo/[txHash].tsx
+ * Component: src/pages/assets/utxos/[txHash].tsx
  *
  * The page shows:
  * - Loading state: "Loading UTXO details…"
@@ -10,56 +10,69 @@
  * - Success state: "Details" heading with UTXO info
  */
 
-import { walletTest, expect } from '@e2e/fixtures';
+import type { Page } from '@playwright/test';
+import { expect, walletTest } from '@e2e/fixtures';
 
-walletTest.describe('View UTXO Page (/assets/utxo/:utxo)', () => {
-  // Use a valid UTXO format (txid:vout) - API will likely return error for non-existent
-  const testUtxo = '0000000000000000000000000000000000000000000000000000000000000000:0';
+walletTest.describe('View UTXO Page (/assets/utxos/:txHash)', () => {
+  const testTxid = '0000000000000000000000000000000000000000000000000000000000000000';
+  const testUtxo = `${testTxid}:0`;
 
-  // Helper to navigate to UTXO page and wait for content
-  async function navigateToUtxo(page: any, utxo: string) {
-    await page.goto(page.url().replace(/\/index.*/, `/assets/utxo/${encodeURIComponent(utxo)}`));
-    await page.waitForLoadState('domcontentloaded');
-    // Wait for loading to complete - either UTXO Details heading or error alert appears
-    const detailsHeading = page.getByRole('heading', { name: 'UTXO Details' });
-    const errorAlert = page.locator('[role="alert"]');
-    await expect(detailsHeading.or(errorAlert).first()).toBeVisible({ timeout: 15000 });
+  async function installUtxoStubs(page: Page) {
+    await page.route(/\/v2\/utxos\/.*\/balances/, (route) =>
+      route.fulfill({ json: { result: [], result_count: 0, next_cursor: null } })
+    );
+    await page.route(/\/v2\/bitcoin\/transactions\//, (route) =>
+      route.fulfill({
+        json: {
+          result: {
+            tx_hash: testTxid,
+            block_index: 1,
+            block_time: 1_700_000_000,
+            confirmations: 1,
+            vout_list: [{ value_int: 10_000 }],
+          },
+        },
+      })
+    );
+    await page.route(`https://mempool.space/api/tx/${testTxid}/status`, (route) =>
+      route.fulfill({ json: { confirmed: true, block_time: 1_700_000_000 } })
+    );
   }
 
-  walletTest('page loads and shows Details or error', async ({ page }) => {
+  async function navigateToUtxo(page: Page, utxo: string) {
+    const path = `/assets/utxos/${encodeURIComponent(utxo)}`;
+    await page.evaluate((nextPath) => {
+      window.location.hash = nextPath;
+    }, path);
+    await expect.poll(() => page.evaluate(() => window.location.hash)).toBe(`#${path}`);
+  }
+
+  walletTest.beforeEach(async ({ page }) => {
+    await installUtxoStubs(page);
+  });
+
+  walletTest('page loads and shows details', async ({ page }) => {
     await navigateToUtxo(page, testUtxo);
 
-    // Component shows either Details heading (success) or ErrorAlert (API failure)
-    const detailsHeading = page.locator('text="Details"');
-    await expect(detailsHeading).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('heading', { name: 'Details', exact: true })).toBeVisible();
   });
 
   walletTest('displays Output field with UTXO identifier', async ({ page }) => {
     await navigateToUtxo(page, testUtxo);
 
-    // Should show the Output field with formatted UTXO
-    const outputLabel = page.locator('text="Output"');
-    await expect(outputLabel).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Output', { exact: true })).toBeVisible();
   });
 
   walletTest('shows Move and Detach action buttons', async ({ page }) => {
     await navigateToUtxo(page, testUtxo);
 
-    // Action buttons should be visible
-    const moveButton = page.locator('text="Move"');
-    const detachButton = page.locator('text="Detach"');
-
-    await expect(moveButton).toBeVisible({ timeout: 5000 });
-    await expect(detachButton).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('button', { name: /Move/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Detach/ })).toBeVisible();
   });
 
   walletTest('handles invalid UTXO format gracefully', async ({ page }) => {
-    // Navigate with invalid UTXO format (missing :vout)
-    await page.goto(page.url().replace(/\/index.*/, '/assets/utxo/invalid-utxo-format'));
-    await page.waitForLoadState('domcontentloaded');
+    await navigateToUtxo(page, 'invalid-utxo-format');
 
-    // Page should load and show the UTXO Details header (even for invalid UTXO)
-    const utxoHeading = page.getByRole('heading', { name: 'UTXO Details' });
-    await expect(utxoHeading).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('alert')).toContainText('Invalid UTXO identifier');
   });
 });

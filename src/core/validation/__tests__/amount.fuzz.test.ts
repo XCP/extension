@@ -233,7 +233,7 @@ describe('Amount Validation Fuzz Tests', () => {
     it('should reject non-numeric strings', () => {
       fc.assert(
         fc.property(
-          fc.string().filter(s => isNaN(Number(s)) || s.trim() === ''),
+          fc.string().filter(s => Number.isNaN(Number(s)) || s.trim() === ''),
           (str) => {
             const result = isValidNumber(str);
             expect(result).toBe(false);

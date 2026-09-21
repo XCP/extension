@@ -3,10 +3,13 @@
  * Handles conversion of user-friendly values to API-compatible formats
  */
 
+import { parseRawInteger, rawToInput, serializeDecimal } from "@/core/amount-contract/amounts";
 import type { AssetInfo } from "@/core/counterparty/api";
 import { fetchAssetDetails } from "@/core/counterparty/api";
 import { isHexMemo, stripHexPrefix } from "@/core/counterparty/memo";
-import { toBigNumber, toSatoshis } from "@/core/numeric";
+import { CounterpartyApiError } from "@/core/errors";
+import { validateFeeRate } from "@/core/validation/fee";
+import { exactQuantity } from "@/core/validation/transaction-amount";
 
 /**
  * Converts form string values to proper booleans.
@@ -34,12 +37,17 @@ type MemoConfig =
  * - `quantityFields`: Fields containing quantities that may need conversion
  * - `assetFields`: Maps quantity field → form field name to look up the asset
  *                  For hardcoded assets (e.g., BTC), use a hidden form field
+ * - `rawQuantityFields`: Fields the form already submits in protocol base units. They are checked
+ *                  as raw integers and never scaled, and they name no asset because there is no
+ *                  divisibility to apply. Declaring one here is not the same as leaving a field
+ *                  out of `quantityFields`: an omitted field is a gap, a declared one is a claim.
  * - `booleanFields`: Fields that should be converted from strings to booleans
  * - `memoConfig`: How to handle hex memo detection (set boolean or OR flag)
  */
-const NORMALIZATION_CONFIG: Record<string, {
+export const NORMALIZATION_CONFIG: Record<string, {
   quantityFields: string[];
   assetFields: Record<string, string>;
+  rawQuantityFields?: string[];
   booleanFields?: string[];
   memoConfig?: MemoConfig;
 }> = {
@@ -78,11 +86,23 @@ const NORMALIZATION_CONFIG: Record<string, {
     }
   },
   dispense: {
-    quantityFields: ['quantity'],
-    assetFields: { quantity: 'asset' }
+    // A dispense names no asset — which asset comes back is the dispenser's decision, not the
+    // payer's — so `quantity` here is the BTC paid to it, in satoshis. The form multiplies the
+    // number of dispenses by the dispenser's `satoshirate`, which is already a base-unit figure,
+    // and `composeDispense` hands it to core as a raw integer. Listing it as a display quantity
+    // asked for an `asset` field this form has never rendered, which failed every dispense with
+    // "An asset is required to interpret quantity."; scaling it by 1e8 had it been found would
+    // have paid a hundred million times the intended amount.
+    quantityFields: [],
+    assetFields: {},
+    rawQuantityFields: ['quantity']
   },
   broadcast: {
-    quantityFields: ['value'],
+    // A broadcast's `value` is a feed reading, not a quantity of anything: core packs it as a raw
+    // double (`packBroadcast`), so scaling it by 1e8 would corrupt it. Listing it here with no
+    // asset field left it skipped by the loop, which produced the right answer for the wrong
+    // reason — and read as if scaling were handled. It is not a quantity field.
+    quantityFields: [],
     assetFields: {}
   },
   burn: {
@@ -94,14 +114,27 @@ const NORMALIZATION_CONFIG: Record<string, {
     assetFields: { quantity: 'asset' }
   },
   fairminter: {
-    quantityFields: ['premint_quantity', 'lot_size', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'soft_cap'],
+    // lot_price is priced in XCP, not in the asset being minted, so it takes its divisibility
+    // from a hidden form field the way mainchainrate takes BTC above. Leaving it out of this list
+    // entirely — which it was — sent the user's figure through untouched: core reads `price` as
+    // XCP base units (messages/fairmint.py computes quantity / quantity_by_price * price against
+    // a base-unit balance), so "1" composed a price of 0.00000001 XCP and offered the whole
+    // supply for a hundred-millionth of what was intended. Byte-equality verification cannot
+    // catch this, because the packer packs the same wrong number the form produced.
+    // `pool_quantity` belongs here for the same reason `lot_price` does. It is denominated in the
+    // asset being minted — core checks `supply + premint_quantity + pool_quantity >= hard_cap`
+    // against base units in messages/fairminter.py — so leaving it out sends the form's figure
+    // through untouched and reserves a hundred-millionth of the intended pool.
+    quantityFields: ['premint_quantity', 'lot_size', 'lot_price', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'soft_cap', 'pool_quantity'],
     assetFields: {
       premint_quantity: 'asset',
       lot_size: 'asset',
+      lot_price: 'lot_price_asset',  // hidden form field with value 'XCP'
       max_mint_per_tx: 'asset',
       max_mint_per_address: 'asset',
       hard_cap: 'asset',
-      soft_cap: 'asset'
+      soft_cap: 'asset',
+      pool_quantity: 'asset'
     },
     booleanFields: ['burn_payment', 'lock_description', 'lock_quantity', 'divisible']
   },
@@ -111,6 +144,13 @@ const NORMALIZATION_CONFIG: Record<string, {
     memoConfig: { type: 'flag', flagsField: 'flags', flagValue: FLAG_BINARY_MEMO }
   },
   utxo: {
+    quantityFields: [],
+    assetFields: {}
+  },
+  move: {
+    // Moves every asset at a UTXO, so it names no quantity. Declared anyway: an absent key takes
+    // the early return in `normalizeFormData`, which passes the form through untouched, and that
+    // branch cannot tell "nothing to scale" from "nobody wired this up yet".
     quantityFields: [],
     assetFields: {}
   },
@@ -148,60 +188,6 @@ const NORMALIZATION_CONFIG: Record<string, {
 };
 
 /**
- * Detects the compose type from form data
- */
-export function getComposeType(formData: Record<string, any>): string | undefined {
-  // Map of Options type names to compose types
-  const typeMapping: Record<string, string> = {
-    'SendOptions': 'send',
-    'ExtendedSendOptions': 'send',
-    'OrderOptions': 'order',
-    'IssuanceOptions': 'issuance',
-    'DestroyOptions': 'destroy',
-    'DispenserOptions': 'dispenser',
-    'DispenseOptions': 'dispense',
-    'DividendOptions': 'dividend',
-    'BurnOptions': 'burn',
-    'BroadcastOptions': 'broadcast',
-    'SweepOptions': 'sweep',
-    'FairminterOptions': 'fairminter',
-    'FairmintOptions': 'fairmint',
-    'AttachOptions': 'attach',
-    'DetachOptions': 'detach',
-    'MoveOptions': 'move',
-    'BTCPayOptions': 'btcpay',
-    'CancelOptions': 'cancel',
-    'MPMAOptions': 'mpma',
-    'MPMAData': 'mpma',
-    'PoolDepositOptions': 'pooldeposit',
-    'PoolWithdrawOptions': 'poolwithdraw',
-  };
-  
-  // Try to detect based on presence of specific fields
-  if ('give_asset' in formData && 'get_asset' in formData) return 'order';
-  if ('dividend_asset' in formData) return 'dividend';
-  if ('escrow_quantity' in formData) return 'dispenser';
-  if ('flags' in formData && 'destination' in formData && !('quantity' in formData)) return 'sweep';
-  if ('utxos' in formData) return 'utxo';
-  if ('sends' in formData) return 'mpma';
-  if ('text' in formData) return 'broadcast';
-  if ('quantity' in formData && 'asset' in formData) return 'send';
-  if ('quantity' in formData && 'asset_name' in formData) return 'issuance';
-  if ('destination' in formData && 'asset' in formData) return 'attach';
-  if ('utxo_address' in formData) return 'movetoutxo';
-  if ('asset_a' in formData && 'asset_b' in formData && 'quantity_a' in formData && 'quantity_b' in formData) return 'pooldeposit';
-  if ('lp_asset' in formData && 'quantity' in formData && ('min_quantity_a' in formData || 'min_quantity_b' in formData)) return 'poolwithdraw';
-  
-  // Fallback: check if type is explicitly provided
-  const typeName = formData.__type || formData.type;
-  if (typeName && typeMapping[typeName]) {
-    return typeMapping[typeName];
-  }
-  
-  return undefined;
-}
-
-/**
  * Cache for asset info to avoid duplicate fetches
  */
 type AssetInfoCache = Map<string, AssetInfo | null>;
@@ -218,140 +204,77 @@ export async function normalizeFormData(
   assetInfoCache: AssetInfoCache;
 }> {
   const config = NORMALIZATION_CONFIG[composeType];
-  if (!config) {
-    // No normalization needed for this compose type
-    return {
-      normalizedData: Object.fromEntries(formData),
-      assetInfoCache: new Map()
-    };
-  }
-  
+  if (!config) throw new Error(`Unsupported compose type: ${composeType}`);
   const rawData = Object.fromEntries(formData);
   const normalizedData: Record<string, any> = { ...rawData };
   const assetInfoCache: AssetInfoCache = new Map();
 
-  // MPMA carries parallel CSV lists, which the per-field table above cannot describe: each
-  // quantity is normalized by its own asset's divisibility. Base units must be resolved here,
-  // before compose, because message verification rebuilds the message from this same data
-  // (`pack/messages.ts`) — display units would make every quantity wrong by a factor of 1e8.
-  if (composeType === 'mpma'
-      && typeof rawData.assets === 'string' && typeof rawData.quantities === 'string') {
-    const assets = rawData.assets.split(',');
-    const quantities = rawData.quantities.split(',');
-    if (assets.length === quantities.length) {
-      const normalizedQuantities: string[] = [];
-      for (let i = 0; i < assets.length; i += 1) {
-        const assetName = assets[i]!.trim();
-        const value = quantities[i]!.toString();
-        // Always divisible, no lookup needed. (BTC is not sendable by MPMA; compose rejects it
-        // with a better error than an asset-info lookup failure would produce here.)
-        if (assetName === 'BTC' || assetName === 'XCP') {
-          normalizedQuantities.push(toSatoshis(value));
-          continue;
-        }
-        let assetInfo = assetInfoCache.get(assetName);
-        if (assetInfo === undefined) {
-          try {
-            const details = await fetchAssetDetails(assetName);
-            if (!details) {
-              throw new Error(`Asset "${assetName}" not found`);
-            }
-            assetInfo = details;
-            assetInfoCache.set(assetName, assetInfo);
-          } catch (error) {
-            // Fail fast: guessing divisibility would compose a quantity wrong by 1e8.
-            const message = error instanceof Error
-              ? error.message
-              : `Failed to fetch asset info for ${assetName}`;
-            throw new Error(message);
-          }
-        }
-        normalizedQuantities.push(assetInfo?.divisible
-          ? toSatoshis(value)
-          : toBigNumber(value).integerValue().toString());
-      }
-      normalizedData.quantities = normalizedQuantities.join(',');
-    }
+  if ('sat_per_vbyte' in rawData) {
+    const validation = validateFeeRate(String(rawData.sat_per_vbyte), { minRate: 0.1 });
+    if (!validation.isValid) throw new Error(validation.error);
+    normalizedData.sat_per_vbyte = serializeDecimal(String(rawData.sat_per_vbyte), { min: 0.1, max: 5000, maxDecimals: 8 });
   }
 
-  // Process quantity fields
-  for (const quantityField of config.quantityFields) {
-    const value = rawData[quantityField];
-    if (value === undefined || value === null || value === '') {
-      continue;
-    }
-    
-    // Get asset name from form data (use hidden fields for hardcoded assets like BTC)
-    const assetField = config.assetFields[quantityField];
-    const assetName = rawData[assetField!]?.toString();
-    if (!assetName) {
-      continue;
-    }
-    
-    // Skip normalization for BTC (always divisible)
-    if (assetName === 'BTC') {
-      normalizedData[quantityField] = toSatoshis(value.toString());
-      continue;
-    }
-
-    // For issuance of NEW assets, use the divisible field from the form
-    if (composeType === 'issuance' && !assetInfoCache.has(assetName)) {
-      try {
-        const details = await fetchAssetDetails(assetName);
-        if (details) {
-          assetInfoCache.set(assetName, details);
-        }
-      } catch {
-        // Asset doesn't exist yet (new issuance) - use form's divisible field
-        const isDivisible = toBoolean(rawData['divisible']);
-        if (isDivisible) {
-          normalizedData[quantityField] = toSatoshis(value.toString());
-        } else {
-          normalizedData[quantityField] = toBigNumber(value.toString()).integerValue().toString();
-        }
-        continue;
+  const divisibility = async (asset: string): Promise<boolean> => {
+    if (asset === 'BTC' || asset === 'XCP') return true;
+    if (composeType === 'fairminter' || (composeType === 'issuance' && toBoolean(rawData.reset))) {
+      if (!['true', 'false', 'yes', 'no'].includes(String(rawData.divisible))) {
+        throw new Error('Choose whether the issued asset is divisible.');
       }
+      return toBoolean(rawData.divisible);
     }
-
-    // For fairminter, the form provides divisibility - use it directly
-    // This handles both new assets (which don't exist yet) and existing assets
-    if (composeType === 'fairminter') {
-      const isDivisible = toBoolean(rawData['divisible']);
-      if (isDivisible) {
-        normalizedData[quantityField] = toSatoshis(value.toString());
-      } else {
-        normalizedData[quantityField] = toBigNumber(value.toString()).integerValue().toString();
-      }
-      continue;
-    }
-
-    // Fetch asset info if not cached
-    let assetInfo = assetInfoCache.get(assetName);
-    if (assetInfo === undefined) {
+    if (!assetInfoCache.has(asset)) {
       try {
-        const details = await fetchAssetDetails(assetName);
-        if (!details) {
-          throw new Error(`Asset "${assetName}" not found`);
-        }
-        assetInfo = details;
-        assetInfoCache.set(assetName, assetInfo);
+        assetInfoCache.set(asset, await fetchAssetDetails(asset));
       } catch (error) {
-        // Fail fast - we need asset info to correctly normalize quantities
-        const message = error instanceof Error ? error.message : `Failed to fetch asset info for ${assetName}`;
-        throw new Error(message);
+        // A failed read is not evidence of a new asset. Only an actual 404
+        // or the documented null result may use the new-issuance choice.
+        if (composeType === 'issuance' && error instanceof CounterpartyApiError && error.statusCode === 404) {
+          assetInfoCache.set(asset, null);
+        } else throw error;
       }
     }
-
-    // Determine if asset is divisible
-    const isDivisible = assetInfo?.divisible ?? false;
-    
-    // Convert to satoshis if divisible, enforce integer if not
-    if (isDivisible) {
-      normalizedData[quantityField] = toSatoshis(value.toString());
-    } else {
-      // Non-divisible assets must be whole integers — truncate any decimals
-      normalizedData[quantityField] = toBigNumber(value.toString()).integerValue().toString();
+    const details = assetInfoCache.get(asset);
+    if (details === null && composeType === 'issuance') {
+      if (!['true', 'false', 'yes', 'no'].includes(String(rawData.divisible))) {
+        throw new Error('Choose whether the issued asset is divisible.');
+      }
+      return toBoolean(rawData.divisible);
     }
+    if (!details) throw new Error(`Asset "${asset}" not found`);
+    if (typeof details.divisible !== 'boolean') throw new Error(`Asset "${asset}" divisibility is unknown`);
+    return details.divisible;
+  };
+
+  if (composeType === 'mpma' && ('assets' in rawData || 'quantities' in rawData)) {
+    const assets = String(rawData.assets ?? '').split(',');
+    const quantities = String(rawData.quantities ?? '').split(',');
+    if (assets.length !== quantities.length) throw new Error('Each destination must have exactly one asset and quantity.');
+    const normalized: string[] = [];
+    for (let i = 0; i < assets.length; i++) {
+      if (!assets[i]) throw new Error('An asset is required for each quantity.');
+      normalized.push(exactQuantity(quantities[i]!, await divisibility(assets[i]!), `Quantity ${i + 1}`));
+    }
+    normalizedData.quantities = normalized.join(',');
+  }
+
+  const optionalFairminterQuantities = new Set(['premint_quantity', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'soft_cap', 'pool_quantity']);
+  for (const field of config.quantityFields) {
+    const value = rawData[field];
+    if (value === undefined) continue;
+    if (value === '' && composeType === 'fairminter' && optionalFairminterQuantities.has(field)) {
+      delete normalizedData[field]; // An omitted optional limit uses Core's default.
+      continue;
+    }
+    const asset = rawData[config.assetFields[field]!] as string | undefined;
+    if (!asset) throw new Error(`An asset is required to interpret ${field}.`);
+    normalizedData[field] = exactQuantity(String(value), await divisibility(asset), field);
+  }
+
+  // These form fields already use protocol base units, not display quantities. The shared names
+  // mean the same thing wherever they appear; `rawQuantityFields` covers the ones that do not.
+  for (const field of ['min_lp_quantity', 'min_quantity_a', 'min_quantity_b', 'fee_required', 'utxo_value', 'destination_vout', ...(config.rawQuantityFields ?? [])]) {
+    if (field in rawData) normalizedData[field] = parseRawInteger(String(rawData[field])).toString();
   }
 
   // Process boolean fields (convert string 'true'/'false' to actual booleans)
@@ -384,4 +307,46 @@ export async function normalizeFormData(
   }
 
   return { normalizedData, assetInfoCache };
+}
+
+/** Called only after the transaction has been checked against normalizedData.
+ * Review quantities are reconstructed from that checked intent and the separate
+ * asset read used for scaling, never the composer's echoed *_normalized values.
+ */
+export function verifiedReviewParams(
+  composeType: string,
+  normalizedData: Record<string, any>,
+  assetInfoCache: AssetInfoCache = new Map(),
+): Record<string, unknown> {
+  const params: Record<string, unknown> = { ...normalizedData };
+  if (normalizedData.sourceAddress) params.source = normalizedData.sourceAddress;
+  const config = NORMALIZATION_CONFIG[composeType];
+  if (!config) throw new Error(`Unsupported compose type: ${composeType}`);
+  for (const field of config.quantityFields) {
+    if (!(field in normalizedData)) continue;
+    const assetField = config.assetFields[field]!;
+    const asset = normalizedData[assetField] as string;
+    const details = assetInfoCache.get(asset);
+    const divisible = asset === 'BTC' || asset === 'XCP'
+      ? true
+      : composeType === 'fairminter' || (composeType === 'issuance' && (normalizedData.reset || !details))
+        ? normalizedData.divisible
+        : details?.divisible;
+    if (typeof divisible !== 'boolean') throw new Error(`Asset "${asset}" divisibility is unknown`);
+    params[`${field}_normalized`] = rawToInput(normalizedData[field], divisible ? 8 : 0);
+    params[`${assetField}_info`] = { ...details, divisible };
+  }
+  if (composeType === 'mpma' || (composeType === 'send' && normalizedData.destinations)) {
+    const destinations = String(normalizedData.destinations).split(',');
+    const assets = composeType === 'mpma' ? String(normalizedData.assets).split(',') : destinations.map(() => normalizedData.asset);
+    const quantities = composeType === 'mpma' ? String(normalizedData.quantities).split(',') : destinations.map(() => normalizedData.quantity);
+    if (assets.length !== destinations.length || quantities.length !== destinations.length) throw new Error('Mismatched MPMA review data.');
+    params.asset_dest_quant_list = assets.map((asset, index) => [asset, destinations[index], quantities[index]]);
+    params.verified_asset_info = Object.fromEntries(assets.map(asset => [asset, {
+      ...assetInfoCache.get(asset),
+      divisible: asset === 'BTC' || asset === 'XCP' ? true : assetInfoCache.get(asset)?.divisible,
+    }]));
+    if (typeof normalizedData.memos === 'string') params.memos = normalizedData.memos.split(',');
+  }
+  return params;
 }

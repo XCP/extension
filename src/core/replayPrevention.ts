@@ -525,34 +525,26 @@ export async function withReplayPrevention<T>(
     }
   }
   
-  try {
-    // Execute the handler
-    const result = await handler();
-    
-    // Store the nonce after successful execution (only if we generated it)
-    if (nonceWasGenerated && nonce !== undefined && address) {
-      store.setNonce(origin, address, nonce);
-    }
-    
-    // Record successful idempotency response if applicable
-    if (idempotencyKey) {
-      recordIdempotencyResponse(
-        idempotencyKey,
-        origin,
-        method,
-        result,
-        idempotencyTtlMinutes
-      );
-    }
-    
-    return result;
-    
-  } catch (error) {
-    // Track failed requests
-    // Analytics: request_failed
-    
-    throw error;
+  // Execute the handler
+  const result = await handler();
+
+  // Store the nonce after successful execution (only if we generated it)
+  if (nonceWasGenerated && nonce !== undefined && address) {
+    store.setNonce(origin, address, nonce);
   }
+
+  // Record successful idempotency response if applicable
+  if (idempotencyKey) {
+    recordIdempotencyResponse(
+      idempotencyKey,
+      origin,
+      method,
+      result,
+      idempotencyTtlMinutes
+    );
+  }
+
+  return result;
 }
 
 // Export the store for testing purposes

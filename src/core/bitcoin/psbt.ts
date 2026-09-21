@@ -7,9 +7,34 @@
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { Address, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { taprootTweakPrivKey } from '@scure/btc-signer/utils.js';
 import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { SigningError, ValidationError } from '@/core/errors';
+import { toSafeInteger } from '@/core/numeric';
+
+export const MAX_PSBT_BYTES = 2_000_000;
+export const MAX_PSBT_INPUTS = 1_000;
+export const MAX_PSBT_OUTPUTS = 1_000;
+const MAX_PSBT_BASE64_LENGTH = Math.ceil(MAX_PSBT_BYTES / 3) * 4 + 4;
+const MAX_TAPLEAVES_PER_INPUT = 128;
+const MAX_PSBT_SCRIPT_BYTES = 10_000;
+// BIP342 removes the legacy script-size cap. Bound Taproot leaf parsing by the
+// standard transaction weight ceiling; the total PSBT byte limit also applies.
+// This is a resource bound, not a check of the completed transaction's weight.
+const MAX_PSBT_TAPSCRIPT_BYTES = 400_000;
+
+function assertPsbtEncodedSize(length: number, encoding: 'hex' | 'base64'): void {
+  const tooLarge = encoding === 'hex'
+    ? length > MAX_PSBT_BYTES * 2
+    : length > MAX_PSBT_BASE64_LENGTH;
+  if (tooLarge) {
+    throw new ValidationError(
+      'INVALID_PSBT',
+      `PSBT exceeds the ${MAX_PSBT_BYTES}-byte parsing limit`,
+    );
+  }
+}
 
 /** Resolve the exact sighash the signer will use for one PSBT input. */
 export function resolvePsbtSighashType(
@@ -108,14 +133,17 @@ export function normalizePsbtToHex(psbt: string): string {
   // Check if it's already hex (starts with PSBT magic bytes in hex)
   // PSBT magic: 0x70736274 = "psbt" in ASCII
   if (psbt.startsWith('70736274')) {
+    assertPsbtEncodedSize(psbt.length, 'hex');
     return psbt;
   }
 
   // Check if it looks like base64 (PSBT magic in base64 is "cHNidP")
   if (psbt.startsWith('cHNidP')) {
     try {
+      assertPsbtEncodedSize(psbt.length, 'base64');
       // Decode base64 to bytes, then convert to hex
       const binary = atob(psbt);
+      assertPsbtEncodedSize(binary.length * 2, 'hex');
       let hex = '';
       for (let i = 0; i < binary.length; i++) {
         hex += binary.charCodeAt(i).toString(16).padStart(2, '0');
@@ -128,6 +156,7 @@ export function normalizePsbtToHex(psbt: string): string {
 
   // Try to determine format by checking if it's valid hex with PSBT magic
   if (/^[0-9a-fA-F]*$/.test(psbt) && psbt.length % 2 === 0) {
+    assertPsbtEncodedSize(psbt.length, 'hex');
     const lowercased = psbt.toLowerCase();
     // Must start with PSBT magic bytes
     if (lowercased.startsWith('70736274')) {
@@ -138,7 +167,9 @@ export function normalizePsbtToHex(psbt: string): string {
 
   // Last resort: try base64 decode
   try {
+    assertPsbtEncodedSize(psbt.length, 'base64');
     const binary = atob(psbt);
+    assertPsbtEncodedSize(binary.length * 2, 'hex');
     let hex = '';
     for (let i = 0; i < binary.length; i++) {
       hex += binary.charCodeAt(i).toString(16).padStart(2, '0');
@@ -174,15 +205,30 @@ export interface DecodedInput {
   index: number;
   txid: string;
   vout: number;
+  sequence?: number;
   address?: string;
   value?: number;          // in satoshis, if known from witnessUtxo
   sighashType?: number;    // sighash type from PSBT input (e.g. 0x83 for SINGLE|ANYONECANPAY)
+  /** Existing signature/finalization material, used to prove marketplace placeholder slots empty. */
+  hasSignatures?: boolean;
+  /**
+   * Tapleaf scripts this input would reveal, hex, leaf-version byte stripped. An inscription
+   * reveal carries its ord envelope — and therefore its Counterparty message — here rather than
+   * in any output, so approval-side decoding needs the leaves the signature will commit to.
+   */
+  tapLeafScripts?: string[];
 }
 
 /**
  * Basic PSBT details extracted via pure Bitcoin parsing
  */
 export interface PsbtDetails {
+  /** Unsigned transaction id computed locally from the PSBT transaction bytes. */
+  transactionId: string;
+  /** Bitcoin transaction version committed to by the PSBT. */
+  transactionVersion: number;
+  /** Bitcoin transaction locktime committed to by the PSBT. */
+  lockTime: number;
   /** Raw transaction hex (if extractable) */
   rawTxHex: string;
   inputs: DecodedInput[];
@@ -221,6 +267,32 @@ export interface SignPsbtParams {
   sighashTypes?: number[];
 }
 
+function assertPsbtComplexity(transaction: Transaction): void {
+  if (transaction.inputsLength > MAX_PSBT_INPUTS) {
+    throw new Error(`PSBT has too many inputs (${transaction.inputsLength}; maximum ${MAX_PSBT_INPUTS})`);
+  }
+  if (transaction.outputsLength > MAX_PSBT_OUTPUTS) {
+    throw new Error(`PSBT has too many outputs (${transaction.outputsLength}; maximum ${MAX_PSBT_OUTPUTS})`);
+  }
+  for (let index = 0; index < transaction.inputsLength; index += 1) {
+    const input = transaction.getInput(index);
+    if ((input.tapLeafScript?.length ?? 0) > MAX_TAPLEAVES_PER_INPUT) {
+      throw new Error(`PSBT input ${index} has too many Taproot leaves`);
+    }
+    const scripts = [
+      input.redeemScript,
+      input.witnessScript,
+    ];
+    if (scripts.some((script) => (script?.length ?? 0) > MAX_PSBT_SCRIPT_BYTES)) {
+      throw new Error(`PSBT input ${index} contains an oversized script`);
+    }
+    // PSBT tapLeafScript values append one leaf-version byte to the script.
+    if (input.tapLeafScript?.some(([, script]) => script.length > MAX_PSBT_TAPSCRIPT_BYTES + 1)) {
+      throw new Error(`PSBT input ${index} contains an oversized Taproot script`);
+    }
+  }
+}
+
 /**
  * Parse a PSBT string and return Transaction object.
  * Accepts both hex and base64 formats - normalizes internally.
@@ -233,12 +305,20 @@ export function parsePSBT(psbt: string): Transaction {
     // Normalize to hex (handles both hex and base64 input)
     const psbtHex = normalizePsbtToHex(psbt);
     const psbtBytes = hexToBytes(psbtHex);
-    return Transaction.fromPSBT(psbtBytes, {
+    const transaction = Transaction.fromPSBT(psbtBytes, {
       allowUnknownInputs: true,
       allowUnknownOutputs: true,
       allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
+      // BIP370 treats an absent transaction-modifiable field as immutable. Do not inherit the
+      // library's legacy compatibility mode when a website supplies a new PSBTv2.
+      allowMissingTxModifiable: false,
+      // A website controls these bytes. Keep redeem/witness wrapper and Taproot commitment
+      // validation enabled, and do not return opaque fingerprinting/exfiltration fields.
+      unknown: 'strip',
+      proprietary: 'strip',
     });
+    assertPsbtComplexity(transaction);
+    return transaction;
   } catch (err) {
     throw new ValidationError(
       'INVALID_TRANSACTION',
@@ -348,13 +428,26 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         totalInputValue += value;
       }
 
+      // The PSBT stores each leaf as script bytes with the leaf version appended.
+      const tapLeafScripts = input.tapLeafScript?.map(([, scriptWithVersion]) =>
+        bytesToHex(scriptWithVersion.subarray(0, -1))
+      );
+
       inputs.push({
         index: i,
         txid: txidHex,
         vout: input.index ?? 0,
+        sequence: input.sequence ?? 0xffffffff,
         address,
         value,
         sighashType: input.sighashType,
+        hasSignatures: Boolean(
+          input.tapKeySig
+          || input.partialSig?.length
+          || input.finalScriptSig?.length
+          || input.finalScriptWitness?.length
+        ),
+        ...(tapLeafScripts && tapLeafScripts.length > 0 ? { tapLeafScripts } : {}),
       });
     }
   }
@@ -369,7 +462,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
     if (!output) continue;
 
     const scriptHex = output.script ? bytesToHex(output.script) : '';
-    const value = output.amount ? Number(output.amount) : 0;
+    const value = output.amount ? (toSafeInteger(output.amount) ?? 0) : 0;
     const type = getScriptType(scriptHex);
 
     totalOutputValue += value;
@@ -404,6 +497,9 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
   const fee = totalInputValue > 0 && !unfunded ? totalInputValue - totalOutputValue : 0;
 
   return {
+    transactionId: tx.id,
+    transactionVersion: tx.version,
+    lockTime: tx.lockTime,
     rawTxHex,
     inputs,
     outputs,
@@ -413,6 +509,33 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
     unfunded,
     hasOpReturn,
   };
+}
+
+/**
+ * The address a tapleaf-bearing input is spendable by, when that can be read from the PSBT.
+ *
+ * An inscription reveal spends a P2TR commit whose *address* belongs to nobody — it is derived
+ * from the envelope — but whose single leaf ends in `<key> OP_CHECKSIG`. The address whose
+ * witness program is that key is the leaf's owner: the spending condition names it directly.
+ * Ownership validation uses this so a reveal counts as the signer's own input, without any
+ * blanket exemption — a declared leaf that is not really in the commit's tree yields a signature
+ * that finalizes into an unbroadcastable transaction, never someone else's coins.
+ *
+ * Only single-leaf inputs resolve: with several leaves the one that will be revealed is unknown,
+ * and no ownership claim can be made.
+ */
+export function tapLeafOwnerAddress(input: DecodedInput): string | undefined {
+  if (input.tapLeafScripts?.length !== 1) return undefined;
+  const script = input.tapLeafScripts[0]!;
+  // The leaf must end `20 <32-byte key> ac` — a push of the x-only key, then OP_CHECKSIG.
+  if (script.length < 68 || !script.endsWith('ac')) return undefined;
+  if (script.slice(-68, -66) !== '20') return undefined;
+  try {
+    const key = hexToBytes(script.slice(-66, -2));
+    return Address().encode({ type: 'tr', pubkey: key });
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -441,8 +564,12 @@ export function signPSBT(
     // Require the full prev tx for legacy inputs: a bare witnessUtxo lets a
     // dApp declare a false amount and drain the real UTXO to fees.
     allowLegacyWitnessUtxo: false,
-    disableScriptCheck: true,
+    unknown: 'strip',
+    proprietary: 'strip',
+    allowMissingTxModifiable: false,
+    lowR: true,
   });
+  assertPsbtComplexity(tx);
 
   const privateKeyBytes = hexToBytes(privateKeyHex);
   const pubkeyBytes = getPublicKey(privateKeyBytes, true);
@@ -498,6 +625,27 @@ export function signPSBT(
         }
       }
 
+      // A key-path taproot input can only be matched to a key via tapInternalKey, and dApp PSBTs
+      // routinely omit it (a site cannot know the internal key behind an address). When the
+      // prevout provably pays this signer's own taproot address, supplying the key is completion,
+      // not trust: the signer re-derives tweak(internalKey) and refuses to sign unless it equals
+      // the prevout's witness program, so a wrong or foreign input stays unsigned.
+      if (addressFormat === AddressFormat.P2TR) {
+        const input = tx.getInput(inputIdx);
+        const prevout = (input.index !== undefined ? input.nonWitnessUtxo?.outputs[input.index] : undefined)
+          ?? input.witnessUtxo;
+        const prevoutAddress = prevout?.script
+          ? decodeAddressFromScript(bytesToHex(prevout.script))
+          : undefined;
+        const ownAddress = encodeAddress(pubkeyBytes, addressFormat);
+        if (
+          input && !input.tapInternalKey && prevoutAddress
+          && normalizeAddressForComparison(prevoutAddress) === normalizeAddressForComparison(ownAddress)
+        ) {
+          tx.updateInput(inputIdx, { tapInternalKey: pubkeyBytes.slice(1, 33) });
+        }
+      }
+
       // Determine sighash: use the explicit sighashTypes param if provided,
       // then fall back to the sighash embedded in the PSBT input, then default to ALL
       const input = tx.getInput(inputIdx);
@@ -522,7 +670,25 @@ export function signPSBT(
         tx.signIdx(privateKeyBytes, inputIdx, [sighashType]);
         signedCount++;
       } catch (inputErr) {
-        if (!bestEffort) throw inputErr;
+        // A tapscript spend of this signer's own taproot address — an inscription reveal — names
+        // the address's *output* key in the leaf, and that key is the tweak of the private key
+        // held here. The signer only matches raw keys against leaf scripts, so retry with the
+        // tweaked key. This can only produce a signature verifying against the signer's own
+        // tweaked key; a leaf naming anyone else's key still finds no match and stays unsigned.
+        const input = tx.getInput(inputIdx);
+        if (addressFormat === AddressFormat.P2TR && input?.tapLeafScript?.length) {
+          const tweakedKey = taprootTweakPrivKey(privateKeyBytes);
+          try {
+            tx.signIdx(tweakedKey, inputIdx, [sighashType]);
+            signedCount++;
+          } catch (leafErr) {
+            if (!bestEffort) throw leafErr;
+          } finally {
+            tweakedKey.fill(0);
+          }
+        } else if (!bestEffort) {
+          throw inputErr;
+        }
         // Best-effort mode: skip inputs we can't sign (e.g., other party's UTXO)
       }
     }
@@ -562,8 +728,11 @@ export function finalizePSBT(psbt: string): string {
     allowUnknownInputs: true,
     allowUnknownOutputs: true,
     allowLegacyWitnessUtxo: true,
-    disableScriptCheck: true,
+    unknown: 'strip',
+    proprietary: 'strip',
+    allowMissingTxModifiable: false,
   });
+  assertPsbtComplexity(tx);
 
   tx.finalize();
   return tx.hex;
@@ -594,8 +763,11 @@ export function completePsbtWithInputValues(
     allowUnknownInputs: true,
     allowUnknownOutputs: true,
     allowLegacyWitnessUtxo: true,
-    disableScriptCheck: true,
+    unknown: 'strip',
+    proprietary: 'strip',
+    allowMissingTxModifiable: false,
   });
+  assertPsbtComplexity(tx);
 
   // Validate arrays match input count
   if (inputValues.length !== tx.inputsLength) {

@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
+import {
+  describeFairminterPaymentModel,
+  isPaidFairminter,
+  readFairminterPaymentModel,
+} from "@/core/counterparty/fairminterModel";
 import { formatAmount } from "@/core/format";
+import { isGreaterThan } from "@/core/numeric";
 
 /**
  * Renders detailed information for fairminter creation transactions
@@ -28,35 +34,35 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     },
   ];
 
-  // Mint model (use API-provided normalized values)
-  if (params.burn_payment === false) {
-    fields.push({
-      label: "Mint Model",
-      value: "BTC Fee Only (to miners)",
-    });
+  // Mint model. Derived from the price first: burn_payment says where a payment goes, not whether
+  // there is one, so reading it alone reported ordinary pay-the-issuer fairminters as free.
+  const paymentModel = readFairminterPaymentModel(params);
 
-    if (params.max_mint_per_tx_normalized !== undefined) {
-      fields.push({
-        label: "Max Mint per TX",
-        value: formatAmount({
-          value: Number(params.max_mint_per_tx_normalized),
-          minimumFractionDigits: isDivisible ? 8 : 0,
-          maximumFractionDigits: isDivisible ? 8 : 0,
-        }),
-      });
-    }
-  } else {
-    fields.push({
-      label: "Mint Model",
-      value: params.burn_payment ? "XCP Fee (burned)" : "XCP Fee (to issuer)",
-    });
+  fields.push({
+    label: "Mint Model",
+    value: describeFairminterPaymentModel(paymentModel),
+  });
 
-    // Price per mint (normalized)
+  // Bounds a paid mint as well as a free one — core rejects any quantity above it either way —
+  // so it is not part of the free-mint branch.
+  if (params.max_mint_per_tx_normalized !== undefined) {
+    fields.push({
+      label: "Max Mint per TX",
+      value: formatAmount({
+        value: Number(params.max_mint_per_tx_normalized),
+        minimumFractionDigits: isDivisible ? 8 : 0,
+        maximumFractionDigits: isDivisible ? 8 : 0,
+      }),
+    });
+  }
+
+  if (isPaidFairminter(paymentModel)) {
+    // Core derives price_normalized as price / quantity_by_price: it is per unit, not per lot.
     if (params.price_normalized !== undefined) {
       fields.push({
-        label: "Price per Mint",
+        label: "Price per Unit",
         value: `${formatAmount({
-          value: Number(params.price_normalized),
+          value: params.price_normalized,
           minimumFractionDigits: 8,
           maximumFractionDigits: 8,
         })} XCP`,
@@ -68,7 +74,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
       fields.push({
         label: "Quantity per Price",
         value: formatAmount({
-          value: Number(params.quantity_by_price_normalized),
+          value: params.quantity_by_price_normalized,
           minimumFractionDigits: isDivisible ? 8 : 0,
           maximumFractionDigits: isDivisible ? 8 : 0,
         }),
@@ -111,11 +117,11 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   }
 
   // Premint (use API-provided normalized value)
-  if (params.premint_quantity_normalized !== undefined && Number(params.premint_quantity_normalized) > 0) {
+  if (params.premint_quantity_normalized !== undefined && isGreaterThan(params.premint_quantity_normalized, 0)) {
     fields.push({
       label: "Premint",
       value: formatAmount({
-        value: Number(params.premint_quantity_normalized),
+        value: params.premint_quantity_normalized,
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
       }),

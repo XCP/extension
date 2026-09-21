@@ -9,6 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { asBaseUnits } from '@/core/numeric';
 import { packAddress } from '../unpack/address';
 import { arc4, bytesToHex, hexToBytes } from '../unpack/binary';
 import { isCounterpartyData, unpackCounterpartyMessage } from '../unpack/index';
@@ -314,9 +315,9 @@ describe('real compose API vector', () => {
     // produced it (give 1 XCP, get 0.0005 BTC, expiration 5000).
     const verification = verifyTransaction(REAL_DATA_HEX, 'order', {
       give_asset: 'XCP',
-      give_quantity: 100000000,
+      give_quantity: asBaseUnits(100000000),
       get_asset: 'BTC',
-      get_quantity: 50000,
+      get_quantity: asBaseUnits(50000),
       expiration: 5000,
     });
     expect(verification.errors).toHaveLength(0);
@@ -326,9 +327,9 @@ describe('real compose API vector', () => {
   it('verifyTransaction rejects the real order when the give amount is tampered', () => {
     const verification = verifyTransaction(REAL_DATA_HEX, 'order', {
       give_asset: 'XCP',
-      give_quantity: 999999999, // wrong
+      give_quantity: asBaseUnits(999999999), // wrong
       get_asset: 'BTC',
-      get_quantity: 50000,
+      get_quantity: asBaseUnits(50000),
       expiration: 5000,
     });
     expect(verification.valid).toBe(false);

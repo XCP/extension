@@ -190,6 +190,43 @@ describe('MPMAForm', () => {
     });
   });
 
+  // Destinations an MPMA cannot reach, caught at import rather than at compose. Core refuses any
+  // address whose packed form exceeds 22 bytes and names ONE of them, after composing -- so a
+  // file with thirty Taproot recipients took thirty round trips to clean up.
+  it('rejects a Taproot destination and says why', async () => {
+    renderWithProvider();
+
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
+    const csvData = [
+      'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1',
+      'bc1p3vl9hmdetkyde2qj2e2n9rw8zqrygsyclprfc3xnyku6sjczpsxqv068cg,XCP,2',
+    ].join('\n');
+
+    fireEvent.paste(textArea, { clipboardData: { getData: () => csvData } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/cannot receive an MPMA send/)).toBeInTheDocument();
+    });
+  });
+
+  it('names the offending line, not just the count', async () => {
+    // The whole reason for checking here: the user has to know WHICH row to remove.
+    renderWithProvider();
+
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
+    const csvData = [
+      'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1',
+      'bc1qz8y760738dcuv6g3jf6sa5tdcmzddneh2u220w,XCP,2',
+      'bc1p3vl9hmdetkyde2qj2e2n9rw8zqrygsyclprfc3xnyku6sjczpsxqv068cg,XCP,3',
+    ].join('\n');
+
+    fireEvent.paste(textArea, { clipboardData: { getData: () => csvData } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Line 3/)).toBeInTheDocument();
+    });
+  });
+
   // These are what routing the parse through parseCSV buys: the hand-rolled loop it replaced
   // accepted both without comment.
   it('rejects a row carrying a spreadsheet formula', async () => {
@@ -283,14 +320,16 @@ describe('MPMAForm', () => {
     renderWithProvider();
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here…');
-    // Generate valid addresses - these are example valid bech32 addresses
+    // All P2WPKH. This list used to include bc1qrp33g0q...fmv3, the BIP173 P2WSH vector -- a
+    // perfectly valid bech32 address that an MPMA send cannot reach, because its 32-byte witness
+    // program packs past the 22-byte ceiling. Import now rejects it, which is the point.
     const validAddresses = [
       'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
       'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
       'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
       'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu',
       'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-      'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3',
+      'bc1qz8y760738dcuv6g3jf6sa5tdcmzddneh2u220w',
       'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq'
     ];
     const rows = validAddresses.map((addr, i) => 

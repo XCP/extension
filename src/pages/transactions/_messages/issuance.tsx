@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { isGreaterThan } from "@/core/numeric";
 
 /**
  * Renders detailed information for issuance transactions
@@ -20,7 +21,9 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
 
   // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.divisible ?? true;
-  const quantity = Number(params.quantity_normalized);
+  const quantity = params.quantity_normalized;
+  // A normalized quantity is a decimal string; compare it as a number without narrowing it first.
+  const hasSupply = quantity !== undefined && isGreaterThan(quantity, 0);
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [];
   
@@ -28,15 +31,15 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
   let issuanceType = "Asset Issuance";
   if (params.transfer_destination) {
     issuanceType = "Ownership Transfer";
-  } else if (quantity === 0 && params.description === "") {
+  } else if (!hasSupply && params.description === "") {
     issuanceType = "Supply Reset";
-  } else if (quantity === 0 && params.lock) {
+  } else if (!hasSupply && params.lock) {
     issuanceType = "Supply Lock";
-  } else if (params.description && quantity === 0) {
+  } else if (params.description && !hasSupply) {
     issuanceType = "Description Update";
-  } else if (quantity > 0 && params.asset && params.asset.includes('.')) {
+  } else if (hasSupply && params.asset && params.asset.includes('.')) {
     issuanceType = "Subasset Creation";
-  } else if (quantity > 0) {
+  } else if (hasSupply) {
     issuanceType = "Supply Increase";
   }
   
@@ -51,7 +54,7 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
   });
   
   // Show quantity if not zero
-  if (quantity !== 0) {
+  if (hasSupply) {
     fields.push({
       label: "Quantity",
       value: formatAmount({

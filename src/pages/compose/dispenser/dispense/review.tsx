@@ -2,9 +2,14 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useSettings } from "@/contexts/settings-context";
-import { fetchAddressDispensers, fetchMempoolDispenses } from "@/core/counterparty/api";
+import { fetchAllAddressDispensers, fetchMempoolDispenses } from "@/core/counterparty/api";
+import {
+  calculateDispensePayouts,
+  type DispensePayout,
+  describePayout,
+} from '@/core/counterparty/dispenseOutcome';
 import { formatAmount } from "@/core/format";
-import { fromSatoshis } from "@/core/numeric";
+import { divide, fromSatoshis, roundDown, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 /**
@@ -61,58 +66,73 @@ export function ReviewDispense({
   const { settings } = useSettings();
   const { btc: btcPrice } = useMarketPrices(settings.fiat);
   const [isLoadingInfo, setIsLoadingInfo] = useState(true);
+  const [lookupError, setLookupError] = useState<string | null>(null);
   const [mempoolDispenses, setMempoolDispenses] = useState<MempoolDispense[]>([]);
   
   const dispenserAddress = result?.params?.dispenser;
   const btcQuantity = result?.params?.quantity || 0;
   const [allTriggeredDispensers, setAllTriggeredDispensers] = useState<VerboseDispenser[]>([]);
+  const [payouts, setPayouts] = useState<DispensePayout[]>([]);
   
   // Fetch dispenser details and check mempool
   useEffect(() => {
+    let cancelled = false;
     const fetchInfo = async () => {
       if (!dispenserAddress) {
         setIsLoadingInfo(false);
         return;
       }
       
+      setIsLoadingInfo(true);
+      setLookupError(null);
+      setAllTriggeredDispensers([]);
+      setPayouts([]);
+      setMempoolDispenses([]);
       try {
         // Fetch dispenser info
-        const response = await fetchAddressDispensers(dispenserAddress, {
-          status: "open",
+        const response = await fetchAllAddressDispensers(dispenserAddress, {
+          status: 'open,closing',
           verbose: true
         });
+        if (cancelled) return;
 
         if (response.result && response.result.length > 0) {
           // Cast to VerboseDispenser type for verbose response
           const verboseDispensers = response.result as VerboseDispenser[];
           
           // Find ALL dispensers that will trigger based on BTC amount
-          const triggered = verboseDispensers.filter(d => (d.satoshirate || 0) <= btcQuantity);
+          const triggered = verboseDispensers.filter(d => (d.status === 0 || d.status === 11)
+            && (d.satoshirate || 0) <= btcQuantity);
           
           // Sort by asset name (alphabetically) as that's the order they process
           const sorted = [...triggered].sort((a, b) => a.asset.localeCompare(b.asset));
           
           setAllTriggeredDispensers(sorted);
+          setPayouts(calculateDispensePayouts(response.result, btcQuantity));
           
-          try {
-            const pending = await fetchMempoolDispenses(dispenserAddress);
+          // Competing purchases are optional context. A slow mempool lookup must not hold up
+          // the complete inventory and payout preview or keep the signing button disabled.
+          void fetchMempoolDispenses(dispenserAddress).then(pending => {
+            if (cancelled) return;
             setMempoolDispenses(pending.map((tx) => ({
               source: tx.destination || tx.source,
               btc_amount: tx.btc_amount || 0,
               tx_hash: tx.tx_hash,
             })));
-          } catch (err) {
+          }).catch(err => {
             console.error("Failed to fetch mempool dispenses:", err);
-          }
+          });
         }
       } catch (err) {
         console.error("Failed to fetch dispenser info:", err);
+        if (!cancelled) setLookupError("Unable to load all dispensers. Go back and try again before purchasing.");
       } finally {
-        setIsLoadingInfo(false);
+        if (!cancelled) setIsLoadingInfo(false);
       }
     };
     
     fetchInfo();
+    return () => { cancelled = true; };
   }, [dispenserAddress, btcQuantity]);
   
   // Calculate BTC amount from the API response
@@ -125,27 +145,15 @@ export function ReviewDispense({
   const btcInFiat = btcPrice ? btcInBtc * btcPrice : null;
 
   const customFields = [];
+  if (isLoadingInfo) {
+    customFields.push({ label: 'Dispensers', value: 'Loading all dispensers…' });
+  }
   
   // Add expected outcome if we have triggered dispensers
   if (!isLoadingInfo && allTriggeredDispensers.length > 0) {
-    // Calculate what will be received from all dispensers
-    const receivedAssets = allTriggeredDispensers.map(dispenser => {
-      const isDivisible = dispenser.asset_info?.divisible ?? false;
-      const satoshirate = dispenser.satoshirate || 0;
-      const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
-      // For divisible assets, give_quantity is in satoshis; for indivisible, it's the raw count
-      const giveQuantity = isDivisible
-        ? fromSatoshis(dispenser.give_quantity || 0, true)
-        : (dispenser.give_quantity || 0);
-      const totalReceived = giveQuantity * numberOfDispenses;
-      const assetName = dispenser.asset_info?.asset_longname || dispenser.asset;
-
-      return `${formatAmount({
-        value: totalReceived,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: isDivisible ? 8 : 0
-      })} ${assetName}`;
-    });
+    // Payout arithmetic is shared with the provider approval screen; see dispenseOutcome.ts for
+    // why it must not be reimplemented here.
+    const receivedAssets = payouts.map(describePayout);
     
     // Format USD value for BTC payment
     const usdDisplay = btcInFiat !== null
@@ -172,8 +180,10 @@ export function ReviewDispense({
     } else {
       // Single dispenser
       const dispenser = allTriggeredDispensers[0]!;
-      const satoshirate = dispenser.satoshirate || 0;
-      const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
+      const satoshirate = toBigNumber(dispenser.satoshirate || 0);
+      const numberOfDispenses = satoshirate.isGreaterThan(0)
+        ? roundDown(divide(btcQuantity, satoshirate))
+        : toBigNumber(0);
 
       // Add dispenser TX hash first (after To:)
       if (dispenser.tx_hash) {
@@ -235,8 +245,9 @@ export function ReviewDispense({
       onSign={onSign}
       onBack={onBack}
       customFields={customFields}
-      error={error}
+      error={error || lookupError}
       isSigning={isSigning}
+      signDisabled={isLoadingInfo || !!lookupError}
     />
   );
 }

@@ -1,229 +1,118 @@
-/**
- * Popup Monitor Service
- *
- * Monitors popup lifecycle events and handles cleanup for pending requests
- * when the popup closes unexpectedly (user closes it, walks away, etc.)
- */
-
-import { getSignFlow, recordSignOutcome } from '@/platform/provider/signFlow';
-import { signMessageRequestStorage } from '@/platform/storage/signMessageRequestStorage';
-import { signPsbtRequestStorage } from '@/platform/storage/signPsbtRequestStorage';
-import { signTransactionRequestStorage } from '@/platform/storage/signTransactionRequestStorage';
+/** Request-scoped popup lifecycle tracking. Closing one window cannot cancel another request. */
+import { cancelPendingSignFlow, getSignFlow, getSignFlowEventPrefix, type SignFlowKind } from '@/platform/provider/signFlow';
+import { isExtensionPageSender } from '@/platform/proxy';
 import { eventEmitterService } from '@/services/eventEmitterService';
 
-type SignRequestKind = 'sign-message' | 'sign-psbt' | 'sign-transaction';
-
-/** Per-kind event prefix (for the cancel event) and request store. */
-const REQUEST_KINDS = {
-  'sign-message': { eventPrefix: 'sign-message', storage: signMessageRequestStorage },
-  'sign-psbt': { eventPrefix: 'sign-psbt', storage: signPsbtRequestStorage },
-  'sign-transaction': { eventPrefix: 'sign-tx', storage: signTransactionRequestStorage },
-} as const;
+const kinds = new Set<SignFlowKind>(['sign-message', 'sign-transaction', 'sign-psbt', 'sign-psbts']);
 
 class PopupMonitorService {
-  private popupPort: chrome.runtime.Port | null = null;
-  private activeRequests = new Map<string, { type: SignRequestKind, timestamp: number }>();
-  private cleanupTimer: NodeJS.Timeout | null = null;
+  // Preserve concurrent-port tracking: a delayed old disconnect cannot abandon
+  // the replacement document. Membership is per request, not global.
+  private popupPorts = new Map<chrome.runtime.Port, string | null>();
+  private activeRequests = new Map<string, { type: SignFlowKind; timestamp: number; ports: Set<chrome.runtime.Port> }>();
+  private abandonmentTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+  private connectListener: ((port: chrome.runtime.Port) => void) | null = null;
 
-  /**
-   * Initialize the popup monitor
-   */
   initialize(): void {
-    // Listen for popup connections
-    chrome.runtime.onConnect.addListener((port) => {
-      if (port.name === 'popup-lifecycle') {
-        this.handlePopupConnect(port);
-      }
-    });
-
-    // Monitor for window/tab removal (popup closed)
-    chrome.windows.onRemoved.addListener((windowId) => {
-      this.handlePopupClosed('window-removed');
-    });
-
-    // Start periodic cleanup
-    this.startPeriodicCleanup();
+    if (this.connectListener) return;
+    this.connectListener = port => {
+      if (port.name !== 'popup-lifecycle') return;
+      if (!isExtensionPageSender(port.sender)) { port.disconnect(); return; }
+      this.handlePopupConnect(port);
+    };
+    chrome.runtime.onConnect.addListener(this.connectListener);
+    this.cleanupTimer = setInterval(() => {
+      void this.expireRequests().catch(error => console.error('Failed to expire signing requests:', error));
+    }, 60_000);
   }
 
-  /**
-   * Handle popup connection
-   */
   private handlePopupConnect(port: chrome.runtime.Port): void {
-    console.log('[PopupMonitor] Popup connected');
-    this.popupPort = port;
-
-    // Listen for disconnect (popup closed)
+    this.popupPorts.set(port, null);
     port.onDisconnect.addListener(() => {
-      console.log('[PopupMonitor] Popup disconnected');
-      this.popupPort = null;
-      this.handlePopupClosed('disconnect');
+      const requestId = this.popupPorts.get(port);
+      this.popupPorts.delete(port);
+      if (!requestId) return;
+      this.activeRequests.get(requestId)?.ports.delete(port);
+      this.scheduleAbandonment(requestId);
     });
-
-    // Listen for messages from popup
-    port.onMessage.addListener((msg) => {
-      if (msg.type === 'request-active' && msg.requestId) {
-        // Track active request
-        this.activeRequests.set(msg.requestId, {
-          type: msg.requestType,
-          timestamp: Date.now()
-        });
-      } else if (msg.type === 'request-complete' && msg.requestId) {
-        // Remove completed request
-        this.activeRequests.delete(msg.requestId);
-      }
+    port.onMessage.addListener((message: unknown) => {
+      if (!message || typeof message !== 'object') return;
+      const msg = message as { type?: unknown; requestId?: unknown; requestType?: unknown };
+      if (msg.type !== 'request-active' || typeof msg.requestId !== 'string'
+        || msg.requestId.length > 4096 || !kinds.has(msg.requestType as SignFlowKind)) return;
+      // A document owns one approval. It cannot detach another document's request.
+      const previous = this.popupPorts.get(port);
+      if (previous && previous !== msg.requestId) return;
+      this.popupPorts.set(port, msg.requestId);
+      const record = this.activeRequests.get(msg.requestId) ?? {
+        type: msg.requestType as SignFlowKind, timestamp: Date.now(), ports: new Set<chrome.runtime.Port>(),
+      };
+      record.ports.add(port);
+      this.activeRequests.set(msg.requestId, record);
+      const timer = this.abandonmentTimers.get(msg.requestId);
+      if (timer) clearTimeout(timer);
+      this.abandonmentTimers.delete(msg.requestId);
     });
   }
 
-  /**
-   * Handle popup closed event
-   */
-  private async handlePopupClosed(reason: string): Promise<void> {
-    console.log(`[PopupMonitor] Popup closed: ${reason}`);
-
-    // Check for any active requests
-    if (this.activeRequests.size > 0) {
-      console.log(`[PopupMonitor] Found ${this.activeRequests.size} active requests`);
-
-      // Give a short grace period (user might reopen quickly)
-      setTimeout(() => {
-        this.cancelAbandonedRequests();
-      }, 5000); // 5 second grace period
-    }
+  private scheduleAbandonment(requestId: string): void {
+    if (this.activeRequests.get(requestId)?.ports.size || this.abandonmentTimers.has(requestId)) return;
+    this.abandonmentTimers.set(requestId, setTimeout(() => {
+      this.abandonmentTimers.delete(requestId);
+      if (this.activeRequests.get(requestId)?.ports.size) return;
+      void this.cancelRequest(requestId).catch(error => console.error('Failed to cancel abandoned approval:', error));
+    }, 5_000));
   }
 
-  /**
-   * Cancel requests that were abandoned when popup closed
-   */
-  private async cancelAbandonedRequests(): Promise<void> {
-    // If popup reopened, skip cancellation
-    if (this.popupPort) {
-      console.log('[PopupMonitor] Popup reopened, skipping cancellation');
-      return;
+  private async cancelRequest(requestId: string): Promise<void> {
+    const flow = await getSignFlow(requestId);
+    // Closing the UI while an approved hardware command runs is not a second
+    // decision. Execution still checks expiry and revocation before delivery.
+    if (flow?.status === 'pending' && await cancelPendingSignFlow(requestId)) {
+      eventEmitterService.emit(`${getSignFlowEventPrefix(flow.kind)}-cancel-${requestId}`, { reason: 'Popup closed' });
     }
+    this.markRequestComplete(requestId);
+  }
 
-    for (const [requestId, info] of this.activeRequests) {
-      // Only cancel if the user never reached a decision (flow still pending).
+  private async expireRequests(): Promise<void> {
+    for (const [requestId, record] of this.activeRequests) {
       const flow = await getSignFlow(requestId);
-      if (flow && flow.status !== 'pending') continue;
-
-      console.log(`[PopupMonitor] Cancelling abandoned request: ${requestId}`);
-      const { eventPrefix, storage } = REQUEST_KINDS[info.type];
-      // Persist the cancellation so a rejoin after a worker restart sees it too.
-      await recordSignOutcome(requestId, 'cancelled');
-      eventEmitterService.emit(`${eventPrefix}-cancel-${requestId}`, {
-        reason: 'Popup closed unexpectedly'
-      });
-      await storage.remove(requestId);
-    }
-
-    // Clear tracked requests
-    this.activeRequests.clear();
-  }
-
-  /**
-   * Start periodic cleanup of stale requests
-   */
-  private startPeriodicCleanup(): void {
-    // Clean up every 60 seconds
-    this.cleanupTimer = setInterval(async () => {
-      const now = Date.now();
-      const STALE_THRESHOLD = 2 * 60 * 1000; // 2 minutes
-
-      // Check tracked requests
-      for (const [requestId, info] of this.activeRequests) {
-        if (now - info.timestamp > STALE_THRESHOLD) {
-          console.log(`[PopupMonitor] Cleaning up stale request: ${requestId}`);
-
-          // Emit timeout event
-          if (info.type === 'sign-message') {
-            eventEmitterService.emit(`sign-message-cancel-${requestId}`, {
-              reason: 'Request timeout - popup inactive'
-            });
-          } else if (info.type === 'sign-psbt') {
-            eventEmitterService.emit(`sign-psbt-cancel-${requestId}`, {
-              reason: 'Request timeout - popup inactive'
-            });
-          }
-
-          this.activeRequests.delete(requestId);
-        }
-      }
-
-      // Also clean up orphaned storage requests
-      await this.cleanupOrphanedRequests();
-    }, 60000); // Every 60 seconds
-  }
-
-  /**
-   * Clean up orphaned requests in storage
-   */
-  private async cleanupOrphanedRequests(): Promise<void> {
-    const now = Date.now();
-    const MAX_AGE = 5 * 60 * 1000; // 5 minutes
-
-    // Clean up sign message requests
-    const signMessageRequests = await signMessageRequestStorage.getAll();
-    for (const request of signMessageRequests) {
-      if (now - request.timestamp > MAX_AGE) {
-        console.log(`[PopupMonitor] Removing orphaned sign message request: ${request.id}`);
-        await signMessageRequestStorage.remove(request.id);
-
-        eventEmitterService.emit(`sign-message-cancel-${request.id}`, {
-          reason: 'Request expired'
-        });
-      }
-    }
-
-    // Clean up sign PSBT requests
-    const signPsbtRequests = await signPsbtRequestStorage.getAll();
-    for (const request of signPsbtRequests) {
-      if (now - request.timestamp > MAX_AGE) {
-        console.log(`[PopupMonitor] Removing orphaned sign PSBT request: ${request.id}`);
-        await signPsbtRequestStorage.remove(request.id);
-
-        eventEmitterService.emit(`sign-psbt-cancel-${request.id}`, {
-          reason: 'Request expired'
-        });
+      // Storage is authoritative: a request registered after a restart retains
+      // its original deadline, and a live port never extends that deadline.
+      if (!flow) {
+        eventEmitterService.emit(`${getSignFlowEventPrefix(record.type)}-cancel-${requestId}`, { reason: 'Request expired' });
+        this.markRequestComplete(requestId);
       }
     }
   }
 
-  /**
-   * Register a request as active
-   */
-  registerActiveRequest(requestId: string, type: SignRequestKind): void {
-    this.activeRequests.set(requestId, {
-      type,
-      timestamp: Date.now()
-    });
+  registerActiveRequest(requestId: string, type: SignFlowKind): void {
+    if (!this.activeRequests.has(requestId)) {
+      this.activeRequests.set(requestId, { type, timestamp: Date.now(), ports: new Set() });
+    }
   }
 
-  /**
-   * Mark a request as complete
-   */
   markRequestComplete(requestId: string): void {
+    const timer = this.abandonmentTimers.get(requestId);
+    if (timer) clearTimeout(timer);
+    this.abandonmentTimers.delete(requestId);
     this.activeRequests.delete(requestId);
   }
 
-  /**
-   * Clean up service
-   */
   destroy(): void {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-      this.cleanupTimer = null;
-    }
+    if (this.cleanupTimer) clearInterval(this.cleanupTimer);
+    for (const timer of this.abandonmentTimers.values()) clearTimeout(timer);
+    if (this.connectListener) chrome.runtime.onConnect.removeListener(this.connectListener);
+    this.cleanupTimer = null;
+    this.connectListener = null;
+    this.abandonmentTimers.clear();
     this.activeRequests.clear();
-    this.popupPort = null;
+    this.popupPorts.clear();
   }
 }
 
-// Singleton instance
-let popupMonitorInstance: PopupMonitorService | null = null;
-
+let instance: PopupMonitorService | null = null;
 export function getPopupMonitorService(): PopupMonitorService {
-  if (!popupMonitorInstance) {
-    popupMonitorInstance = new PopupMonitorService();
-  }
-  return popupMonitorInstance;
+  return instance ??= new PopupMonitorService();
 }

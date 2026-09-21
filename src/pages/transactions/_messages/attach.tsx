@@ -11,7 +11,7 @@ export function attach(tx: Transaction): Array<{ label: string; value: string | 
   
   // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.asset_info?.divisible ?? true;
-  const quantity = Number(params.quantity_normalized);
+  const quantity = params.quantity_normalized;
 
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {

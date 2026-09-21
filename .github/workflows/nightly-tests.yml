@@ -14,14 +14,27 @@ jobs:
   full-test-suite:
     name: Full Test Suite
     runs-on: ubuntu-latest
+    # The official Playwright image ships Chromium and every system library it needs, so the
+    # browser-install and `install-deps` steps below are gone. `playwright install-deps` ran apt
+    # against the runner's Ubuntu mirror on every job and routinely stalled there, timing out
+    # 4-6 batches per run; the retry loop could not help, because the whole loop shared one
+    # `timeout-minutes` budget that a single stalled attempt exhausted.
+    #
+    # The tag MUST track the `@playwright/test` version in package.json. The image's browsers are
+    # built for that exact release, and Playwright refuses to launch a build it did not expect.
+    #
+    # The image runs as root, which Chromium normally refuses — the e2e fixtures already pass
+    # `--no-sandbox` and `--disable-dev-shm-usage`, so no user remapping is needed.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     timeout-minutes: 120  # Hard backstop so a stalled setup can't burn the 6h job cap
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -63,74 +76,134 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src --config vitest.fuzz.config.ts
-      
-      - name: Cache Playwright browsers
-        id: pw-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Install Playwright browsers
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 16
+      # Extension tests must launch Chromium headed so Manifest V3 service workers and extension
+      # pages are available. Give those windows a virtual display, as the PR E2E job does.
+      - name: Configure Xvfb
         run: |
-          # The browser download can stall on the CDN; cap each attempt and retry
-          # so a stall fails in minutes instead of hanging to the job timeout.
-          for attempt in 1 2 3; do
-            echo "Installing Playwright Chromium (attempt $attempt)..."
-            if timeout 300 npx playwright install chromium; then
-              exit 0
-            fi
-            echo "Attempt $attempt stalled or failed; retrying."
-            sleep 5
-          done
-          echo "Playwright browser install failed after 3 attempts" >&2
-          exit 1
-
-      - name: Install Playwright system dependencies
-        timeout-minutes: 5
-        run: npx playwright install-deps chromium
+          Xvfb -ac :99 -screen 0 1280x1024x16 &
+          sleep 2
       
+      # continue-on-error so the report and artifact steps below still run; the report step
+      # re-raises the failure, so a red E2E run still fails the job and files the issue.
       - name: Run all E2E tests
-        timeout-minutes: 60
+        id: e2e
+        # The full suite is intentionally serial because two headed extension profiles can race
+        # Chromium service-worker registration on one runner. It currently needs more than the old
+        # 30-minute Playwright global limit, so this stays below the job's 120-minute hard backstop.
+        timeout-minutes: 105
         run: npx playwright test --retries=3 --workers=1
+        env:
+          DISPLAY: ':99'
         continue-on-error: true
       
+      # The Playwright image does not ship jq, so the stats are read with node. A missing
+      # test-results.json means Playwright never got as far as running anything — a config or
+      # load error — and is treated as a failure rather than an empty report.
       - name: Generate test report
         if: always()
         run: |
-          echo "# Nightly Test Report" >> $GITHUB_STEP_SUMMARY
-          echo "Date: $(date)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -f "test-results.json" ]; then
-            echo "## Test Results" >> $GITHUB_STEP_SUMMARY
-            echo '```json' >> $GITHUB_STEP_SUMMARY
-            cat test-results.json | jq '.stats' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+          {
+            echo "# Nightly Test Report"
+            echo "Date: $(date)"
+            echo ""
+            if [ "${{ steps.e2e.outcome }}" = "skipped" ]; then
+              echo "## E2E Results"
+              echo "Skipped because an earlier test step failed."
+            elif [ -f "test-results.json" ]; then
+              echo "## E2E Results"
+              echo '```json'
+              node -e 'console.log(JSON.stringify(require("./test-results.json").stats, null, 2))'
+              echo '```'
+            else
+              echo "## E2E Results"
+              echo "No test-results.json was written: Playwright did not run."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.e2e.outcome }}" = "skipped" ]; then
+            exit 0
           fi
-      
+          if [ ! -f "test-results.json" ]; then
+            echo "::error::Playwright produced no test-results.json"
+            exit 1
+          fi
+          if [ "${{ steps.e2e.outcome }}" != "success" ]; then
+            echo "::error::E2E tests failed"
+            exit 1
+          fi
+
       - name: Upload test artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nightly-test-results-${{ github.run_number }}
           path: |
             test-results/
             playwright-report/
           retention-days: 30
-      
-      - name: Notify on failure
-        if: failure()
-        uses: actions/github-script@v7
+
+      - name: Close resolved nightly failure issues
+        if: success()
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
-            await github.rest.issues.create({
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner,
               repo,
-              title: `Nightly tests failed - ${new Date().toISOString().split('T')[0]}`,
-              body: `The nightly test run failed. Please check the [workflow run](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}) for details.`,
-              labels: ['automated', 'test-failure']
+              state: 'open',
+              labels: 'automated,test-failure',
+              per_page: 100,
             });
+            const nightlyIssues = issues.filter(
+              issue => !issue.pull_request && issue.title.startsWith('Nightly tests failed')
+            );
+            for (const issue of nightlyIssues) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: `Resolved by successful nightly run ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}.`,
+              });
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed',
+              });
+            }
+      
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: 'automated,test-failure',
+              per_page: 100,
+            });
+            const existing = issues.find(
+              issue => !issue.pull_request && issue.title.startsWith('Nightly tests failed')
+            );
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body: `Another nightly run failed: ${runUrl}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: `Nightly tests failed - ${new Date().toISOString().split('T')[0]}`,
+                body: `The nightly test run failed. Please check the [workflow run](${runUrl}) for details.`,
+                labels: ['automated', 'test-failure'],
+              });
+            }

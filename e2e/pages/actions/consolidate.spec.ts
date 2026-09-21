@@ -7,7 +7,7 @@
  * - /actions/consolidate/status
  */
 
-import { walletTest, expect, navigateTo } from '../../fixtures';
+import { expect, navigateTo, walletTest } from '../../fixtures';
 import { actions, compose } from '../../selectors';
 
 walletTest.describe('Consolidation Page (/actions/consolidate)', () => {
@@ -84,9 +84,8 @@ walletTest.describe('Consolidation Success Page (/actions/consolidate/success)',
   walletTest('consolidation success page redirects without state data', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate/success'));
 
-    // Page requires state to be passed via navigation - without it, should redirect to home
-    // Wait for the redirect to happen (React Router navigation is async)
-    await expect(page).toHaveURL(/index/, { timeout: 10000 });
+    // Without results state, ConsolidateSuccessPage returns to '/' (the wallet index).
+    await expect(page).toHaveURL(/#\/index$/, { timeout: 10000 });
   });
 
   walletTest('consolidation success page has correct route defined', async ({ page }) => {
@@ -304,7 +303,7 @@ walletTest.describe('Consolidation Accessibility', () => {
     await page.waitForLoadState('networkidle');
 
     // Should have some form of main content
-    const mainContent = page.locator('form, [role="main"], .p-4');
+    const mainContent = page.locator('form, main, .p-4');
     await expect(mainContent.first()).toBeVisible({ timeout: 10000 });
   });
 

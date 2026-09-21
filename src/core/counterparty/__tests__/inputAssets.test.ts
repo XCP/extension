@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchUtxoBalances } from '@/core/counterparty/api';
+import { asDisplayUnits } from '@/core/numeric';
 import {
   classifySignedInputAssets,
   fetchInputsAttachedAssets,
@@ -10,6 +11,7 @@ import {
 vi.mock('@/core/counterparty/api');
 
 const mockedFetch = vi.mocked(fetchUtxoBalances);
+const mockedTrustedPrevout = vi.fn();
 
 function page(result: unknown[]) {
   return { result, next_cursor: null, result_count: result.length } as never;
@@ -24,13 +26,14 @@ const input = (index: number, txid = `${index}`.repeat(64).slice(0, 64), vout = 
 describe('fetchInputsAttachedAssets', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedTrustedPrevout.mockResolvedValue(null);
   });
 
   it('returns only inputs that carry assets, keyed by input index', async () => {
     mockedFetch.mockImplementation(async (utxo: string) => {
       if (utxo.startsWith('aaaa')) {
         return page([
-          { asset: 'PEPECASH', quantity_normalized: '1000.00000000', asset_info: { asset_longname: null } },
+          { asset: 'PEPECASH', quantity_normalized: asDisplayUnits('1000.00000000'), asset_info: { asset_longname: null } },
         ]);
       }
       return page([]);
@@ -45,19 +48,32 @@ describe('fetchInputsAttachedAssets', () => {
     expect(assets[0]).toMatchObject({
       inputIndex: 0,
       utxo: `${'aaaa'.repeat(16)}:0`,
-      assets: [{ asset: 'PEPECASH', quantity_normalized: '1000.00000000', asset_longname: null }],
+      assets: [{ asset: 'PEPECASH', quantity_normalized: asDisplayUnits('1000.00000000'), asset_longname: null }],
     });
   });
 
   it('prefers the asset longname when present', async () => {
     mockedFetch.mockResolvedValue(
       page([
-        { asset: 'A95428956661682177', quantity_normalized: '1', asset_info: { asset_longname: 'MYPROJECT.RARE' } },
+        { asset: 'A95428956661682177', quantity_normalized: asDisplayUnits('1'), asset_info: { asset_longname: 'MYPROJECT.RARE' } },
       ])
     );
 
     const assets = await fetchInputsAttachedAssets([input(0)]);
     expect(assets[0]!.assets[0]!.asset_longname).toBe('MYPROJECT.RARE');
+  });
+
+  it('preserves the exact raw quantity for marketplace proofs', async () => {
+    mockedFetch.mockResolvedValue(
+      page([{
+        asset: 'RAREPEPE',
+        quantity: '100000000',
+        quantity_normalized: asDisplayUnits('1.00000000'),
+      }])
+    );
+
+    const assets = await fetchInputsAttachedAssets([input(0)]);
+    expect(assets[0]?.assets[0]?.quantity).toBe('100000000');
   });
 
   it('reports a failed lookup as unknown status, not as clean', async () => {
@@ -90,6 +106,13 @@ describe('fetchInputsAttachedAssets', () => {
     expect(mockedFetch).toHaveBeenCalledWith(`${'dead'.repeat(16)}:2`);
   });
 
+  it('treats trusted recent change as attachment-free without waiting for Core', async () => {
+    mockedTrustedPrevout.mockResolvedValue({} as never);
+
+    expect(await fetchInputsAttachedAssets([input(0)], undefined, mockedTrustedPrevout)).toEqual([]);
+    expect(mockedFetch).not.toHaveBeenCalled();
+  });
+
   it('caps the number of lookups', async () => {
     mockedFetch.mockResolvedValue(page([]));
 
@@ -119,7 +142,7 @@ describe('fetchInputsAttachedAssets', () => {
     const assetTxid = 'ab'.repeat(32);
     mockedFetch.mockImplementation(async (utxo: string) =>
       utxo.startsWith(assetTxid)
-        ? page([{ asset: 'RAREPEPE', quantity_normalized: '1.00000000', asset_info: { asset_longname: null } }])
+        ? page([{ asset: 'RAREPEPE', quantity_normalized: asDisplayUnits('1.00000000'), asset_info: { asset_longname: null } }])
         : page([])
     );
 
@@ -158,15 +181,15 @@ describe('fetchInputsAttachedAssets', () => {
   it('drops balance rows missing an asset or quantity', async () => {
     mockedFetch.mockResolvedValue(
       page([
-        { asset: 'XCP', quantity_normalized: '5.00000000' },
-        { asset: '', quantity_normalized: '1' },
-        { asset: 'GHOST', quantity_normalized: '' },
+        { asset: 'XCP', quantity_normalized: asDisplayUnits('5.00000000') },
+        { asset: '', quantity_normalized: asDisplayUnits('1') },
+        { asset: 'GHOST', quantity_normalized: asDisplayUnits('') },
       ])
     );
 
     const assets = await fetchInputsAttachedAssets([input(0)]);
     expect(assets[0]!.assets).toEqual([
-      { asset: 'XCP', quantity_normalized: '5.00000000', asset_longname: null },
+      { asset: 'XCP', quantity_normalized: asDisplayUnits('5.00000000'), asset_longname: null },
     ]);
   });
 });
@@ -175,7 +198,7 @@ describe('classifySignedInputAssets', () => {
   const withAsset = (inputIndex: number): InputAttachedAssets => ({
     inputIndex,
     utxo: `tx:${inputIndex}`,
-    assets: [{ asset: 'XCP', quantity_normalized: '1', asset_longname: null }],
+    assets: [{ asset: 'XCP', quantity_normalized: asDisplayUnits('1'), asset_longname: null }],
   });
   const failed = (inputIndex: number): InputAttachedAssets => ({
     inputIndex,

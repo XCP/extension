@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { divide, isGreaterThan, multiply, roundDown } from "@/core/numeric";
 
 /**
  * Renders detailed information for dispenser transactions
@@ -20,13 +21,20 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
   
   // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.asset_info?.divisible ?? true;
-  const giveQuantity = Number(params.give_quantity_normalized);
-  const escrowQuantity = Number(params.escrow_quantity_normalized);
-  const btcPerDispense = Number(params.satoshirate_normalized);
+  const giveQuantity = params.give_quantity_normalized;
+  const escrowQuantity = params.escrow_quantity_normalized;
+  const btcPerDispense = params.satoshirate_normalized;
   
-  // Calculate derived values
-  const totalDispenses = escrowQuantity / giveQuantity;
-  const totalBtcValue = totalDispenses * btcPerDispense;
+  // Derived from the normalized strings, so a large escrow does not lose digits on the way. A
+  // missing or zero give quantity has no answer here — substituting one would put a plausible
+  // number on the screen that nothing in the transaction says.
+  const canDerive = escrowQuantity !== undefined
+    && giveQuantity !== undefined
+    && isGreaterThan(giveQuantity, 0);
+  const totalDispenses = canDerive ? divide(escrowQuantity, giveQuantity) : null;
+  const totalBtcValue = totalDispenses !== null && btcPerDispense !== undefined
+    ? multiply(totalDispenses, btcPerDispense)
+    : null;
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
@@ -67,8 +75,10 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
 
   // Add remaining quantity if available
   if (params.give_remaining_normalized !== undefined) {
-    const giveRemaining = Number(params.give_remaining_normalized);
-    const remainingDispenses = Math.floor(giveRemaining / giveQuantity);
+    const giveRemaining = params.give_remaining_normalized;
+    const remainingDispenses = canDerive && giveRemaining !== undefined
+      ? roundDown(divide(giveRemaining, giveQuantity))
+      : null;
     
     fields.push({
       label: "Remaining in Escrow",
@@ -79,26 +89,32 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
       })} ${params.asset}`,
     });
     
+    if (remainingDispenses !== null) {
+      fields.push({
+        label: "Remaining Dispenses",
+        value: remainingDispenses.toFixed(),
+      });
+    }
+  }
+
+  // Add total calculations, when the transaction says enough to work them out.
+  if (totalDispenses !== null) {
     fields.push({
-      label: "Remaining Dispenses",
-      value: remainingDispenses.toString(),
+      label: "Max Dispenses",
+      value: roundDown(totalDispenses).toFixed(),
     });
   }
 
-  // Add total calculations
-  fields.push({
-    label: "Max Dispenses",
-    value: Math.floor(totalDispenses).toString(),
-  });
-  
-  fields.push({
-    label: "Total BTC Value",
-    value: `${formatAmount({
-      value: totalBtcValue,
-      minimumFractionDigits: 8,
-      maximumFractionDigits: 8,
-    })} BTC`,
-  });
+  if (totalBtcValue !== null) {
+    fields.push({
+      label: "Total BTC Value",
+      value: `${formatAmount({
+        value: totalBtcValue,
+        minimumFractionDigits: 8,
+        maximumFractionDigits: 8,
+      })} BTC`,
+    });
+  }
 
   // Add oracle address if present
   if (params.oracle_address) {

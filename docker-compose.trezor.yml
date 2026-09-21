@@ -14,27 +14,26 @@
 #   - No trezord (Trezor Bridge) running locally
 #
 # The emulator will be available at:
-#   - Emulator: ws://localhost:21325
+#   - Emulator controller: ws://localhost:9001
 #   - Bridge: http://localhost:21325
 
 version: '3.8'
 
 services:
   trezor-user-env:
-    image: ghcr.io/trezor/trezor-user-env:latest
+    image: ghcr.io/trezor/trezor-user-env@sha256:f1a45f0eb212f47f8facffb8489c9dcacb71236d39175dfc2cecf7f7e859b952
     container_name: trezor-emulator
     ports:
       - "9001:9001"   # Emulator control
-      - "21324:21324" # Emulator WebSocket
-      - "21325:21325" # Trezor Bridge
+      - "21325:21328" # Trezor node-bridge
     environment:
       # Run with temporary profile that resets on restart
       - TREZOR_EMULATOR_TEMPORARY_PROFILE=1
       # Disable animations for faster tests
       - TREZOR_EMULATOR_DISABLE_ANIMATIONS=1
-    # Health check to ensure emulator is ready
+    # Port 9001 is a WebSocket controller, so check its TCP listener rather than issuing HTTP.
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9001/status"]
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('127.0.0.1', 9001), 2).close()"]
       interval: 5s
       timeout: 3s
       retries: 10

@@ -8,6 +8,7 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { IssuanceOptions } from "@/core/counterparty/compose";
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 /**
@@ -28,7 +29,7 @@ export function LockSupplyForm({
   asset,
 }: LockSupplyFormProps): ReactElement {
   // Context hooks
-  const {} = useComposer();
+  useComposer();
   
   // Data fetching hooks
   const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);
@@ -86,7 +87,7 @@ export function LockSupplyForm({
             description: assetInfo?.description ?? "",
             issuer: assetInfo?.issuer ?? "",
             supply: assetInfo?.supply ?? "0",
-            supply_normalized: assetInfo?.supply_normalized || '0'
+            supply_normalized: asDisplayUnits(assetInfo?.supply_normalized || '0')
           }}
           className="mt-1 mb-5"
         />
@@ -97,7 +98,7 @@ export function LockSupplyForm({
       <Field>
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
           <p className="text-sm text-yellow-700">
-            Locking the token supply is an irreversible action. Once locked, you will not be able to create additional tokens.
+            Locking the supply is permanent. No more {asset} can ever be created.
           </p>
           {assetInfo?.supply && (
             <div className="mt-3 pt-3 border-t border-yellow-200">
@@ -115,7 +116,7 @@ export function LockSupplyForm({
         
         <CheckboxInput
           name="confirm"
-          label={`I understand that locking the supply of ${asset} is permanent and cannot be undone`}
+          label="I understand this cannot be undone"
           disabled={pending}
           checked={isChecked}
           onChange={handleCheckboxChange}

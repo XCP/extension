@@ -169,11 +169,11 @@ export class MessageBus {
         } else {
           // Exponential backoff: 50ms, 100ms, 200ms, 400ms...
           const delay = Math.min(50 * Math.pow(2, attempts), 1000);
-          setTimeout(checkReady, delay);
+          setTimeout(() => { checkReady().catch(() => resolve(false)); }, delay);
         }
       };
 
-      checkReady();
+      checkReady().catch(() => resolve(false));
     });
   }
   

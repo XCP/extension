@@ -3,7 +3,7 @@ import { type ReactElement, useEffect, useRef, useState } from "react";
 import { FiMinus, FiPlus } from "@/components/icons";
 import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/core/validation/assetOwner";
 import { validateBitcoinAddress } from "@/core/validation/bitcoin";
-import { type Destination, isMPMASupported, parseMultiLineDestinations, validateDestinations } from "@/core/validation/destinations";
+import { type Destination, getDestinationLimitState, isMPMASupported, MAX_DESTINATIONS, parseMultiLineDestinations, validateDestinations } from "@/core/validation/destinations";
 import { useMultiAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
 
 interface DestinationsInputProps {
@@ -78,7 +78,7 @@ export function DestinationsInput({
   };
 
   const addDestination = () => {
-    if (destinations.length >= 1000) {
+    if (getDestinationLimitState(destinations.length) === 'at-limit') {
       return; // Hard protocol limit
     }
     onChange([...destinations, { id: Date.now(), address: "" }]);
@@ -134,8 +134,8 @@ export function DestinationsInput({
       const updatedDestinations = [...destinations];
       updatedDestinations[currentIndex] = { ...updatedDestinations[currentIndex]!, address: resolvedLines[0]! };
       
-      // Add remaining addresses as new destinations (respect 1000 limit)
-      const remainingSlots = 1000 - updatedDestinations.length;
+      // Add remaining addresses as new destinations (respect the protocol limit)
+      const remainingSlots = MAX_DESTINATIONS - updatedDestinations.length;
       const linesToAdd = resolvedLines.slice(1, Math.min(resolvedLines.length, remainingSlots + 1));
       const newDestinations = linesToAdd.map(address => ({
         id: Date.now() + Math.random(),
@@ -146,7 +146,8 @@ export function DestinationsInput({
     }
   };
 
-  const showAddButton = isMPMASupported(asset) && enableMPMA && destinations.length < 1000;
+  const limitState = getDestinationLimitState(destinations.length);
+  const showAddButton = isMPMASupported(asset) && enableMPMA && limitState !== 'at-limit';
   const canRemove = destinations.length > 1;
 
   return (
@@ -217,21 +218,21 @@ export function DestinationsInput({
       
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
-          {destinations.length > 1 
-            ? `Enter the addresses to send to. Each destination will receive the same amount. Duplicate addresses are not allowed. (${destinations.length}/1000 destinations)`
+          {destinations.length > 1
+            ? `Enter the addresses to send to. Each destination will receive the same amount. Duplicate addresses are not allowed. (${destinations.length}/${MAX_DESTINATIONS} destinations)`
             : enableMPMA && asset !== "BTC"
-              ? "Enter the address to send to. Paste multiple addresses (one per line) to send to multiple destinations. (Max: 1000)"
+              ? `Enter the address to send to. Paste multiple addresses (one per line) to send to multiple destinations. (Max: ${MAX_DESTINATIONS})`
               : "Enter recipient's address."}
         </Description>
       )}
-      {destinations.length >= 900 && destinations.length < 1000 && (
+      {limitState === 'approaching' && (
         <p className="mt-1 text-sm text-orange-600">
-          Approaching destination limit: {destinations.length}/1000
+          Approaching destination limit: {destinations.length}/{MAX_DESTINATIONS}
         </p>
       )}
-      {destinations.length >= 1000 && (
+      {limitState === 'at-limit' && (
         <p className="mt-1 text-sm text-red-600">
-          Maximum destination limit reached: 1000
+          Maximum destination limit reached: {MAX_DESTINATIONS}
         </p>
       )}
     </Field>

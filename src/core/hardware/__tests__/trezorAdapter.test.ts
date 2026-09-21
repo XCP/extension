@@ -1,5 +1,9 @@
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { getPublicKey } from '@noble/secp256k1';
+import { p2tr, p2wpkh, Script, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
+import { finalizePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { HardwareWalletError } from '../types';
 
 // Create hoisted mocks using vi.hoisted()
@@ -37,12 +41,6 @@ vi.mock('@trezor/connect-webextension', () => ({
   },
 }));
 
-// Mock extractPsbtDetails for signPsbt tests
-const mockExtractPsbtDetails = vi.fn();
-vi.mock('@/core/bitcoin/psbt', () => ({
-  extractPsbtDetails: (...args: unknown[]) => mockExtractPsbtDetails(...args),
-}));
-
 // Import after mocking
 import { getTrezorAdapter, resetTrezorAdapter, TrezorAdapter } from '../trezorAdapter';
 
@@ -64,14 +62,18 @@ describe('TrezorAdapter', () => {
 
       await adapter.init();
 
-      expect(mockInit).toHaveBeenCalledWith({
+      expect(mockInit).toHaveBeenCalledWith(
+        expect.objectContaining({
         manifest: {
           appName: 'XCP Wallet',
           email: 'support@xcpwallet.com',
           appUrl: 'https://xcpwallet.com',
         },
+        coreMode: 'auto',
+        env: 'webextension',
         debug: expect.any(Boolean),
-      });
+        })
+      );
     });
 
     it('should set initialized flag after successful init', async () => {
@@ -112,6 +114,8 @@ describe('TrezorAdapter', () => {
           appUrl: 'https://xcpwallet.com',
         },
         debug: expect.any(Boolean),
+        coreMode: 'auto',
+        env: 'webextension',
       });
     });
   });
@@ -600,291 +604,182 @@ describe('TrezorAdapter', () => {
   });
 
   describe('signPsbt', () => {
-    const mockPsbtDetails = {
-      rawTxHex: '',
-      inputs: [
-        {
-          index: 0,
-          txid: 'def456789012345678901234567890123456789012345678901234567890abcd',
-          vout: 0,
-          value: 100000,
-        },
-      ],
-      outputs: [
-        {
-          index: 0,
-          value: 10000,
-          type: 'p2wpkh' as const,
-          // P2WPKH script: 0014 + 20-byte hash (40 hex chars) = 44 chars total
-          script: '0014751e76e8199196d454941c45d1b3a323f1433bd6',
-        },
-        {
-          index: 1,
-          value: 89000,
-          type: 'p2wpkh' as const,
-          script: '00142299626fa0236be4d0ba93cbbfccd0bc44ff5a63',
-        },
-      ],
-      totalInputValue: 100000,
-      totalOutputValue: 99000,
-      fee: 1000,
-      hasOpReturn: false,
+    const key = '01'.padStart(64, '0');
+    const own = p2wpkh(getPublicKey(hexToBytes(key)));
+    const recipient = p2wpkh(getPublicKey(hexToBytes('02'.padStart(64, '0'))));
+    const path = [84 | 0x80000000, 0x80000000, 0x80000000, 0, 0];
+    const inputPaths = new Map([[0, path]]);
+    const createTransaction = (options: { version?: number; lockTime?: number; sequence?: number; amount?: bigint; script?: Uint8Array; funded?: boolean } = {}) => {
+      const tx = new Transaction({
+        version: options.version ?? 1, lockTime: options.lockTime ?? 950_000,
+        allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true,
+      });
+      tx.addInput({
+        txid: '11'.repeat(32), index: 0, sequence: options.sequence ?? 0xffffffff,
+        ...(options.funded === false ? {} : { witnessUtxo: { script: own.script, amount: 100_000n } }),
+      });
+      tx.addOutput({ script: options.script ?? recipient.script, amount: options.amount ?? 99_000n });
+      return tx;
     };
+    const psbt = (tx: Transaction) => bytesToHex(tx.toPSBT());
+    const signed = (tx: Transaction) => finalizePSBT(signPSBT(psbt(tx), key, [0], AddressFormat.P2WPKH, [1]));
+    let reviewed: Transaction;
 
     beforeEach(async () => {
+      reviewed = createTransaction();
       mockInit.mockResolvedValue(undefined);
-      mockExtractPsbtDetails.mockReturnValue(mockPsbtDetails);
+      mockSignTransaction.mockImplementation(async () => ({ success: true, payload: { serializedTx: signed(reviewed) } }));
       await adapter.init();
     });
 
-    it('should throw if not initialized', async () => {
-      const uninitAdapter = new TrezorAdapter();
-      await expect(
-        uninitAdapter.signPsbt({
-          psbtHex: 'any_psbt_hex',
-          inputPaths: new Map(),
-        })
-      ).rejects.toThrow(HardwareWalletError);
+    it('preserves reviewed headers, sequence, amounts and scripts through the actual PSBT parser', async () => {
+      const result = await adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths });
+      expect(result.signedTxHex).toBe(signed(reviewed));
+      expect(mockSignTransaction).toHaveBeenCalledWith(expect.objectContaining({
+        version: 1, locktime: 950_000, coin: 'btc', push: false,
+        inputs: [expect.objectContaining({ prev_hash: '11'.repeat(32), prev_index: 0, sequence: 0xffffffff, amount: '100000', script_type: 'SPENDWITNESS' })],
+        outputs: [{ address: recipient.address, amount: '99000', script_type: 'PAYTOADDRESS' }],
+      }));
     });
 
-    it('should throw if input path is missing', async () => {
-      // Empty inputPaths map but PSBT has inputs
-      await expect(
-        adapter.signPsbt({
-          psbtHex: 'any_psbt_hex',
-          inputPaths: new Map(), // No paths provided
-        })
-      ).rejects.toThrow(HardwareWalletError);
+    it('returns a PSBT with independently verified device signatures', async () => {
+      const result = await adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths,
+        sighashTypes: [1], resultFormat: 'signed_psbt' });
+      expect(finalizePSBT(result.signedPsbtHex!)).toBe(signed(reviewed));
+      expect(result.signedTxHex).toBe(signed(reviewed));
     });
 
-    it('should sign PSBT successfully', async () => {
-      mockSignTransaction.mockResolvedValue({
-        success: true,
-        payload: {
-          serializedTx: '02000000...',
-          txid: 'psbt_tx_id...',
-        },
-      });
-
-      const inputPaths = new Map<number, number[]>();
-      inputPaths.set(0, [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
-
-      const result = await adapter.signPsbt({
-        psbtHex: 'any_psbt_hex',
-        inputPaths,
-      });
-
-      expect(result).toEqual({
-        signedTxHex: '02000000...',
-      });
-      expect(mockSignTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          coin: 'btc',
-          push: false,
-          inputs: expect.arrayContaining([
-            expect.objectContaining({
-              address_n: inputPaths.get(0),
-              script_type: 'SPENDWITNESS',
-            }),
-          ]),
-          outputs: expect.arrayContaining([
-            expect.objectContaining({
-              script_type: 'PAYTOADDRESS',
-            }),
-          ]),
-        })
-      );
+    it('applies an explicit ALL override to the returned PSBT signature metadata', async () => {
+      reviewed.updateInput(0, { sighashType: 0x83 });
+      const result = await adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths,
+        sighashTypes: [1], resultFormat: 'signed_psbt' });
+      const returned = Transaction.fromPSBT(hexToBytes(result.signedPsbtHex!));
+      expect(returned.getInput(0).sighashType).toBe(1);
+      expect(finalizePSBT(result.signedPsbtHex!)).toBe(result.signedTxHex);
     });
 
-    it('should use PAYTOADDRESS for SegWit PSBT address outputs', async () => {
-      const segwitPsbtDetails = {
-        ...mockPsbtDetails,
-        outputs: [
-          {
-            index: 0,
-            value: 90000,
-            type: 'p2wpkh' as const,
-            script: '00142299626fa0236be4d0ba93cbbfccd0bc44ff5a63',
-          },
-        ],
-      };
-      mockExtractPsbtDetails.mockReturnValue(segwitPsbtDetails);
-
-      mockSignTransaction.mockResolvedValue({
-        success: true,
-        payload: {
-          serializedTx: '02000000...',
-          txid: 'segwit_tx_id...',
-        },
-      });
-
-      const inputPaths = new Map<number, number[]>();
-      inputPaths.set(0, [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
-
-      await adapter.signPsbt({
-        psbtHex: 'any_psbt_hex',
-        inputPaths,
-      });
-
-      expect(mockSignTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          outputs: [
-            expect.objectContaining({
-              script_type: 'PAYTOADDRESS',
-            }),
-          ],
-        })
-      );
+    it('preserves a real presigned external input and reconstructs the exact completed transaction', async () => {
+      const acceptance = new Transaction({ version: 1, lockTime: 950_000 });
+      acceptance.addInput({ txid: '22'.repeat(32), index: 1, sequence: 0xfffffffc,
+        witnessUtxo: { script: recipient.script, amount: 20_000n } });
+      acceptance.addInput(reviewed.getInput(0));
+      acceptance.addOutput({ script: recipient.script, amount: 119_000n });
+      const buyerSigned = signPSBT(psbt(acceptance), '02'.padStart(64, '0'), [0], AddressFormat.P2WPKH, [1, 1]);
+      const completed = finalizePSBT(signPSBT(buyerSigned, key, [1], AddressFormat.P2WPKH, [1, 1]));
+      mockSignTransaction.mockResolvedValue({ success: true, payload: { serializedTx: completed } });
+      const result = await adapter.signPsbt({ psbtHex: buyerSigned, inputPaths: new Map([[1, path]]),
+        sighashTypes: [0x83, 1], resultFormat: 'signed_psbt' });
+      expect(finalizePSBT(result.signedPsbtHex!)).toBe(completed);
+      expect(mockSignTransaction).toHaveBeenCalledWith(expect.objectContaining({
+        version: 1, locktime: 950_000,
+        inputs: [expect.objectContaining({ prev_hash: '22'.repeat(32), prev_index: 1, amount: '20000',
+          script_type: 'EXTERNAL', script_pubkey: bytesToHex(recipient.script), sequence: 0xfffffffc,
+          witness: expect.any(String) }), expect.objectContaining({ address_n: path, script_type: 'SPENDWITNESS' })],
+      }));
     });
 
-    it('should throw on signing failure', async () => {
-      mockSignTransaction.mockResolvedValue({
-        success: false,
-        error: {
-          message: 'User rejected',
-          code: 'Failure_ActionCancelled',
-        },
-      });
-
-      const inputPaths = new Map<number, number[]>();
-      inputPaths.set(0, [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
-
-      await expect(
-        adapter.signPsbt({
-          psbtHex: 'any_psbt_hex',
-          inputPaths,
-        })
-      ).rejects.toThrow(HardwareWalletError);
+    it('rejects unsupported provider sighashes and derivation formats before prompting', async () => {
+      await expect(adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths,
+        sighashTypes: [0x83], resultFormat: 'signed_psbt' })).rejects.toMatchObject({ code: 'UNSUPPORTED_SIGHASH' });
+      await expect(adapter.signPsbt({ psbtHex: psbt(reviewed),
+        inputPaths: new Map([[0, [44 | 0x80000000, ...path.slice(1)]]]),
+        resultFormat: 'signed_psbt' })).rejects.toMatchObject({ code: 'UNSUPPORTED_PROVIDER_PSBT' });
+      expect(mockSignTransaction).not.toHaveBeenCalled();
     });
 
-    it('should handle OP_RETURN outputs in PSBT', async () => {
-      const psbtWithOpReturn = {
-        ...mockPsbtDetails,
-        outputs: [
-          {
-            index: 0,
-            value: 0,
-            type: 'op_return' as const,
-            script: '6a0f68656c6c6f20776f726c64',
-            opReturnData: '0f68656c6c6f20776f726c64',
-          },
-          {
-            index: 1,
-            value: 99000,
-            type: 'p2wpkh' as const,
-            script: '00142299626fa0236be4d0ba93cbbfccd0bc44ff5a63',
-          },
-        ],
-        hasOpReturn: true,
-      };
-      mockExtractPsbtDetails.mockReturnValue(psbtWithOpReturn);
-
-      mockSignTransaction.mockResolvedValue({
-        success: true,
-        payload: {
-          serializedTx: '02000000...',
-          txid: 'op_return_tx_id...',
-        },
-      });
-
-      const inputPaths = new Map<number, number[]>();
-      inputPaths.set(0, [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
-
-      await adapter.signPsbt({
-        psbtHex: 'any_psbt_hex',
-        inputPaths,
-      });
-
-      expect(mockSignTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          outputs: expect.arrayContaining([
-            expect.objectContaining({
-              script_type: 'PAYTOOPRETURN',
-              amount: '0',
-              op_return_data: '0f68656c6c6f20776f726c64',
-            }),
-          ]),
-        })
-      );
+    it('preserves DEFAULT sighash for the existing raw Taproot composer path', async () => {
+      const internalKey = getPublicKey(hexToBytes(key)).slice(1);
+      const taproot = p2tr(internalKey);
+      const tx = createTransaction();
+      tx.updateInput(0, { witnessUtxo: { script: taproot.script, amount: 100_000n },
+        tapInternalKey: internalKey, sighashType: 0 }, true);
+      const raw = finalizePSBT(signPSBT(psbt(tx), key, [0], AddressFormat.P2TR, [0]));
+      mockSignTransaction.mockResolvedValue({ success: true, payload: { serializedTx: raw } });
+      await expect(adapter.signPsbt({ psbtHex: psbt(tx),
+        inputPaths: new Map([[0, [86 | 0x80000000, ...path.slice(1)]]]) })).resolves.toEqual({ signedTxHex: raw });
+      expect(mockSignTransaction).toHaveBeenCalledWith(expect.objectContaining({
+        inputs: [expect.objectContaining({ script_type: 'SPENDTAPROOT' })],
+      }));
     });
 
-    it('should use SPENDADDRESS script type for legacy P2PKH path (purpose 44)', async () => {
-      // Legacy P2PKH uses purpose 44'
-      const legacyPsbtDetails = {
-        ...mockPsbtDetails,
-        outputs: [
-          {
-            index: 0,
-            value: 90000,
-            type: 'p2pkh' as const,
-            // P2PKH script: 76a914 + 20-byte-hash + 88ac
-            script: '76a914751e76e8199196d454941c45d1b3a323f1433bd688ac',
-          },
-        ],
-      };
-      mockExtractPsbtDetails.mockReturnValue(legacyPsbtDetails);
-
-      mockSignTransaction.mockResolvedValue({
-        success: true,
-        payload: {
-          serializedTx: '02000000...',
-          txid: 'legacy_tx_id...',
-        },
-      });
-
-      const inputPaths = new Map<number, number[]>();
-      // Legacy P2PKH path: m/44'/0'/0'/0/0
-      inputPaths.set(0, [44 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
-
-      await adapter.signPsbt({
-        psbtHex: 'any_psbt_hex',
-        inputPaths,
-      });
-
-      // Should use SPENDADDRESS for input (legacy P2PKH)
-      expect(mockSignTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          inputs: expect.arrayContaining([
-            expect.objectContaining({
-              script_type: 'SPENDADDRESS', // Legacy P2PKH input type
-            }),
-          ]),
-          outputs: expect.arrayContaining([
-            expect.objectContaining({
-              script_type: 'PAYTOADDRESS', // Legacy P2PKH output type
-            }),
-          ]),
-        })
-      );
+    it('requires initialization', async () => {
+      await expect(new TrezorAdapter().signPsbt({ psbtHex: psbt(reviewed), inputPaths })).rejects.toThrow(HardwareWalletError);
     });
 
-    it('should throw if input value is missing', async () => {
-      const psbtWithMissingValue = {
-        ...mockPsbtDetails,
-        inputs: [
-          {
-            index: 0,
-            txid: 'def456789012345678901234567890123456789012345678901234567890abcd',
-            vout: 0,
-            value: undefined, // Missing value!
-          },
-        ],
-      };
-      mockExtractPsbtDetails.mockReturnValue(psbtWithMissingValue);
+    it('refuses an input with no path or authenticated amount before requesting a signature', async () => {
+      await expect(adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths: new Map() })).rejects.toThrow(/derivation path/);
+      await expect(adapter.signPsbt({ psbtHex: psbt(createTransaction({ funded: false })), inputPaths })).rejects.toThrow(/missing value/);
+      expect(mockSignTransaction).not.toHaveBeenCalled();
+    });
 
-      const inputPaths = new Map<number, number[]>();
-      inputPaths.set(0, [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
+    it('uses the path purpose for the input script type', async () => {
+      await adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths: new Map([[0, [44 | 0x80000000, ...path.slice(1)]]]) });
+      expect(mockSignTransaction).toHaveBeenCalledWith(expect.objectContaining({
+        inputs: [expect.objectContaining({ script_type: 'SPENDADDRESS' })],
+      }));
+    });
 
-      await expect(
-        adapter.signPsbt({
-          psbtHex: 'any_psbt_hex',
-          inputPaths,
-        })
-      ).rejects.toThrow(/missing value/i);
+    it('preserves a canonical zero-value OP_RETURN output', async () => {
+      const data = new TextEncoder().encode('Counterparty message');
+      reviewed.addOutput({ script: Script.encode(['RETURN', data]), amount: 0n });
+      await adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths });
+      expect(mockSignTransaction).toHaveBeenCalledWith(expect.objectContaining({
+        outputs: expect.arrayContaining([{ script_type: 'PAYTOOPRETURN', amount: '0', op_return_data: bytesToHex(data) }]),
+      }));
+    });
+
+    it.each([
+      ['nonzero amount', '6a026162', 1n],
+      ['noncanonical push', '6a4c026162', 0n],
+      ['multiple pushes', '6a01610162', 0n],
+    ] as const)('refuses an OP_RETURN with %s before the device can sign rewritten bytes', async (_, hex, amount) => {
+      reviewed.addOutput({ script: hexToBytes(hex), amount });
+      await expect(adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths })).rejects.toThrow();
+      expect(mockSignTransaction).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['version', () => createTransaction({ version: 2 })],
+      ['locktime', () => createTransaction({ lockTime: 0 })],
+      ['sequence', () => createTransaction({ sequence: 0xfffffffd })],
+      ['output amount', () => createTransaction({ amount: 98_000n })],
+      ['output script', () => createTransaction({ script: own.script })],
+      ['outpoint', () => { const tx = createTransaction(); tx.updateInput(0, { index: 1 }); return tx; }],
+      ['output count', () => { const tx = createTransaction(); tx.addOutput({ script: own.script, amount: 1n }); return tx; }],
+    ] as const)('refuses a device response that changed the reviewed %s', async (_, changed) => {
+      mockSignTransaction.mockResolvedValue({ success: true, payload: { serializedTx: signed(changed()) } });
+      await expect(adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths })).rejects.toThrow(/differs from the reviewed/);
+    });
+
+    it('refuses malformed successful device responses', async () => {
+      mockSignTransaction.mockResolvedValue({ success: true, payload: { serializedTx: 'not-hex' } });
+      await expect(adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths })).rejects.toThrow();
+    });
+
+    it('reports device signing failures', async () => {
+      mockSignTransaction.mockResolvedValue({ success: false, error: { message: 'User rejected', code: 'Failure_ActionCancelled' } });
+      await expect(adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths })).rejects.toThrow(HardwareWalletError);
+    });
+
+    it.each(['Transport_Error', 'Failure_ActionCancelled'])('handles v10 signing failure %s without retrying the signature', async code => {
+      mockSignTransaction.mockResolvedValue({ success: false, error: { message: 'Signing interrupted', code } });
+      await expect(adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths,
+        resultFormat: 'signed_psbt' })).rejects.toMatchObject({ code });
+      expect(mockSignTransaction).toHaveBeenCalledTimes(1);
+      expect(mockDispose).toHaveBeenCalledTimes(code === 'Transport_Error' ? 1 : 0);
     });
   });
 
   describe('dispose', () => {
+    it('awaits SDK cleanup and clears local state even when cleanup rejects', async () => {
+      mockInit.mockResolvedValue(undefined);
+      await adapter.init();
+      mockDispose.mockRejectedValueOnce(new Error('SDK cleanup failed'));
+      await expect(adapter.dispose()).rejects.toThrow('SDK cleanup failed');
+      expect(adapter.isInitialized()).toBe(false);
+      expect(adapter.getConnectionStatus()).toBe('disconnected');
+    });
+
     it('should clean up resources', async () => {
       mockInit.mockResolvedValue(undefined);
       await adapter.init();
@@ -901,6 +796,7 @@ describe('TrezorAdapter', () => {
 
   describe('discoverAccount', () => {
     beforeEach(async () => {
+      mockGetAddress.mockResolvedValue({ success: true, payload: { address: 'bc1qzero', publicKey: '02...' } });
       mockInit.mockResolvedValue(undefined);
       await adapter.init();
     });
@@ -923,12 +819,12 @@ describe('TrezorAdapter', () => {
 
       expect(result).toEqual({
         path: "m/84'/0'/0'",
-        address: 'bc1qtest123456789',
+        address: 'bc1qzero',
         addressFormat: 'p2wpkh',
         accountIndex: 0,
         xpub: 'xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6FKNUjPqBvnsFGUr3CX7RWVLx7YJKS3MsqHp7GJ8rSv8DFGGq',
       });
-      expect(mockSelectAccount).toHaveBeenCalledTimes(1);
+      expect(mockSelectAccount).toHaveBeenCalledWith(expect.objectContaining({ addressSelection: 'fullAccount', selectionType: 'single' }));
       expect(mockGetPublicKey).not.toHaveBeenCalled();
     });
 
@@ -977,10 +873,10 @@ describe('TrezorAdapter', () => {
       await expect(adapter.discoverAccount(false)).rejects.toThrow(HardwareWalletError);
     });
 
-    it('should derive the address when the device returns none', async () => {
+    it('uses address zero even when the picker returns a later fresh address', async () => {
       mockSelectAccount.mockResolvedValue({
         success: true,
-        payload: [{ symbol: 'btc', path: "m/84'/0'/0'", xpub: 'xpub6CUGRUonZSQ4TWtT' }],
+        payload: [{ symbol: 'btc', path: "m/84'/0'/0'", address: 'bc1qlater', xpub: 'xpub6CUGRUonZSQ4TWtT' }],
       });
       mockGetAddress.mockResolvedValue({
         success: true,
@@ -1026,8 +922,7 @@ describe('TrezorAdapter', () => {
 
     it('should be safe to call multiple times', async () => {
       await resetTrezorAdapter();
-      await resetTrezorAdapter();
-      // Should not throw
+      await expect(resetTrezorAdapter()).resolves.not.toThrow();
     });
   });
 });

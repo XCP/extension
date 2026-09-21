@@ -9,8 +9,12 @@ import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/core/bitcoin/address';
-import type { IssuanceOptions } from "@/core/counterparty/compose";
+import { type IssuanceOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
+
+/** Maximum file size for inscriptions in KB; see the compose layer for where it comes from. */
+const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
 /**
  * Props for the UpdateDescriptionForm component, aligned with Composer's formAction.
@@ -44,8 +48,8 @@ export function UpdateDescriptionForm({
   // Handle file selection
   const handleFileChange = (file: File | null) => {
     setFileError(null);
-    if (file && file.size > 400 * 1024) {
-      setFileError("File size must be less than 400KB");
+    if (file && file.size > MAX_INSCRIPTION_FILE_BYTES) {
+      setFileError(`File size must be less than ${INSCRIPTION_MAX_SIZE_KB}KB`);
       setSelectedFile(null);
       return;
     }
@@ -57,7 +61,8 @@ export function UpdateDescriptionForm({
   };
 
 
-  // Focus description textarea on mount
+  // Focus description textarea on mount. Listing inscribeEnabled would steal focus back every
+  // time the user toggles inscribe.
   useEffect(() => {
     if (!inscribeEnabled) {
       descriptionRef.current?.focus();
@@ -91,7 +96,7 @@ export function UpdateDescriptionForm({
             divisible: assetInfo?.divisible ?? false,
             locked: assetInfo?.locked ?? false,
             supply: assetInfo?.supply,
-            supply_normalized: assetInfo?.supply_normalized || '0'
+            supply_normalized: asDisplayUnits(assetInfo?.supply_normalized || '0')
           }}
           className="mt-1 mb-5"
         />
@@ -121,6 +126,7 @@ export function UpdateDescriptionForm({
                 onFileChange={handleFileChange}
                 disabled={pending}
                 error={fileError}
+                maxSizeKB={INSCRIPTION_MAX_SIZE_KB}
                 showHelpText={showHelpText}
               />
               {selectedFile && (

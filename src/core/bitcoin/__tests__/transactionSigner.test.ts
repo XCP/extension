@@ -17,16 +17,16 @@ vi.mock('@/core/bitcoin/utxo', () => ({
 const mockFetchUTXOs = vi.mocked(fetchUTXOs);
 const mockGetUtxoByTxid = vi.mocked(getUtxoByTxid);
 const mockFetchPreviousRawTransaction = vi.mocked(fetchPreviousRawTransaction);
+const mockGetTrustedBroadcastPrevout = vi.fn();
 
 // Import necessary functions for test setup
 import { getPublicKey } from '@noble/secp256k1';
-import { p2tr, Transaction } from '@scure/btc-signer';
+import { OutScript, p2sh, p2tr, p2wpkh, Transaction } from '@scure/btc-signer';
 import { hash160 } from '@scure/btc-signer/utils.js';
 
 describe('Transaction Signer Utilities', () => {
   // Use a valid secp256k1 private key
   const mockPrivateKey = '0101010101010101010101010101010101010101010101010101010101010101';
-  const mockTxid = 'abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab';
   
   // Generate the correct public key hash for our private key
   const privateKeyBytes = hexToBytes(mockPrivateKey);
@@ -54,6 +54,24 @@ describe('Transaction Signer Utilities', () => {
     pubKey: mockPubKey
   };
 
+  // Mock previous transaction that creates the UTXO being spent
+  // This transaction has an output that matches our mockUtxo
+  const mockPreviousTransaction = '0100000001' + // version
+    '0000000000000000000000000000000000000000000000000000000000000000' + // input txid (coinbase)
+    'ffffffff' + // input vout
+    '00' + // scriptSig length
+    'ffffffff' + // sequence
+    '01' + // number of outputs
+    'a086010000000000' + // output value (100000 satoshis)
+    '19' + // script pubkey length
+    '76a914' + pubKeyHashHex + '88ac' + // P2PKH script (matches mockUtxo.scriptPubKey)
+    '00000000'; // locktime
+
+  // Keep the fixture cryptographically self-consistent. scure-btc-signer 2.4 validates that a
+  // legacy nonWitnessUtxo hashes to the outpoint it claims instead of trusting test/API metadata.
+  const mockTxid = Transaction.fromRaw(hexToBytes(mockPreviousTransaction)).id;
+  const mockTxidWire = bytesToHex(hexToBytes(mockTxid).reverse());
+
   const mockUtxo: UTXO = {
     txid: mockTxid,
     vout: 0,
@@ -69,7 +87,7 @@ describe('Transaction Signer Utilities', () => {
   // Simple raw transaction hex for testing - must have even length
   // This is a basic transaction with 1 input and 1 output
   const mockRawTransaction = '0100000001' + // version
-    mockTxid + // input txid
+    mockTxidWire + // input txid (wire byte order)
     '00000000' + // input vout (0)
     '00' + // scriptSig length (empty for unsigned)
     'ffffffff' + // sequence
@@ -78,22 +96,10 @@ describe('Transaction Signer Utilities', () => {
     '19' + // script pubkey length (25 bytes for P2PKH)
     '76a914' + '0'.repeat(40) + '88ac' + // P2PKH script
     '00000000'; // locktime
-  
-  // Mock previous transaction that creates the UTXO being spent
-  // This transaction has an output that matches our mockUtxo
-  const mockPreviousTransaction = '0100000001' + // version
-    '0000000000000000000000000000000000000000000000000000000000000000' + // input txid (coinbase)
-    'ffffffff' + // input vout
-    '00' + // scriptSig length
-    'ffffffff' + // sequence
-    '01' + // number of outputs
-    'a086010000000000' + // output value (100000 satoshis)
-    '19' + // script pubkey length
-    '76a914' + pubKeyHashHex + '88ac' + // P2PKH script (matches mockUtxo.scriptPubKey)
-    '00000000'; // locktime
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetTrustedBroadcastPrevout.mockResolvedValue(null);
     
     // Default mock setup for fetchUTXOs to return a valid UTXO
     mockFetchUTXOs.mockResolvedValue([mockUtxo]);
@@ -106,6 +112,22 @@ describe('Transaction Signer Utilities', () => {
   });
 
   describe('signTransaction', () => {
+    it('rechecks authorization after asynchronous prevout resolution and before signing', async () => {
+      let revoked = false;
+      mockFetchPreviousRawTransaction.mockImplementation(async () => {
+        revoked = true;
+        return mockPreviousTransaction;
+      });
+      const assertAuthorized = vi.fn(() => {
+        if (revoked) throw new Error('Signing authorization was revoked');
+      });
+      await expect(signTransaction(
+        mockRawTransaction, mockWallet, mockTargetAddress, mockPrivateKey, true,
+        undefined, undefined, mockGetTrustedBroadcastPrevout, assertAuthorized,
+      )).rejects.toThrow(/authorization was revoked/);
+      expect(assertAuthorized).toHaveBeenCalledOnce();
+    });
+
     it('should throw error when wallet is not provided', async () => {
       await expect(signTransaction(mockRawTransaction, null as any, mockTargetAddress, mockPrivateKey))
         .rejects.toThrow('Wallet not provided');
@@ -180,7 +202,7 @@ describe('Transaction Signer Utilities', () => {
     it('should throw error when output not found in previous transaction', async () => {
       // Create a transaction that references output index 999 which doesn't exist
       const txWithBadVout = '0100000001' + // version
-        mockTxid + // input txid
+        mockTxidWire + // input txid
         'e7030000' + // input vout (999 in little-endian)
         '00' + // scriptSig length
         'ffffffff' + // sequence
@@ -216,7 +238,7 @@ describe('Transaction Signer Utilities', () => {
     // against a transaction whose values are deliberately not the defaults.
     describe('preserves what the user reviewed', () => {
       // version 1, sequence 0xfffffffe, lockTime 800000 - none of them @scure's default.
-      const distinctiveTx = '01000000' + '01' + mockTxid + '00000000' + '00' + 'feffffff'
+      const distinctiveTx = '01000000' + '01' + mockTxidWire + '00000000' + '00' + 'feffffff'
         + '01' + 'a086010000000000' + '19' + '76a914' + '0'.repeat(40) + '88ac' + '00350c00';
 
       beforeEach(() => {
@@ -258,14 +280,73 @@ describe('Transaction Signer Utilities', () => {
       expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
+    it('signs SegWit pending change from the trusted broadcast journal without network lookups', async () => {
+      const p2wpkhWallet = { ...mockWallet, addressFormat: AddressFormat.P2WPKH };
+      const scriptPubKey = '0014' + pubKeyHashHex;
+      mockGetTrustedBroadcastPrevout.mockResolvedValue({
+        txid: mockTxid,
+        vout: 0,
+        address: mockTargetAddress.address,
+        value: 100000,
+        scriptPubKey,
+        rawTxHex: mockPreviousTransaction,
+      });
+
+      const result = await signTransaction(
+        mockRawTransaction,
+        p2wpkhWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        undefined,
+        undefined,
+        mockGetTrustedBroadcastPrevout
+      );
+
+      expect(result).toMatch(/^[0-9a-f]+$/i);
+      expect(mockFetchUTXOs).not.toHaveBeenCalled();
+      expect(mockFetchPreviousRawTransaction).not.toHaveBeenCalled();
+    });
+
+    it('uses the trusted parent bytes for a legacy pending-change input', async () => {
+      mockGetTrustedBroadcastPrevout.mockResolvedValue({
+        txid: mockTxid,
+        vout: 0,
+        address: mockTargetAddress.address,
+        value: 100000,
+        scriptPubKey: '76a914' + pubKeyHashHex + '88ac',
+        rawTxHex: mockPreviousTransaction,
+      });
+
+      const result = await signTransaction(
+        mockRawTransaction,
+        mockWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        undefined,
+        undefined,
+        mockGetTrustedBroadcastPrevout
+      );
+
+      expect(result).toMatch(/^[0-9a-f]+$/i);
+      expect(mockFetchUTXOs).not.toHaveBeenCalled();
+      expect(mockFetchPreviousRawTransaction).not.toHaveBeenCalled();
+    });
+
     it('should successfully sign P2SH_P2WPKH transaction', async () => {
       const p2shWallet = { ...mockWallet, addressFormat: AddressFormat.P2SH_P2WPKH };
-      
-      mockFetchUTXOs.mockResolvedValue([mockUtxo]);
-      mockGetUtxoByTxid.mockReturnValue(mockUtxo);
-      mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
+      const nestedScript = bytesToHex(p2sh(p2wpkh(publicKey)).script);
 
-      const result = await signTransaction(mockRawTransaction, p2shWallet, mockTargetAddress, mockPrivateKey);
+      const result = await signTransaction(
+        mockRawTransaction,
+        p2shWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        [100000],
+        [nestedScript],
+      );
 
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
@@ -507,7 +588,17 @@ describe('Transaction Signer Utilities', () => {
         mockGetUtxoByTxid.mockReturnValue(mockUtxo);
         mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
 
-        const result = await signTransaction(mockRawTransaction, wallet, mockTargetAddress, mockPrivateKey);
+        const result = addressFormat === AddressFormat.P2SH_P2WPKH
+          ? await signTransaction(
+              mockRawTransaction,
+              wallet,
+              mockTargetAddress,
+              mockPrivateKey,
+              true,
+              [100000],
+              [bytesToHex(p2sh(p2wpkh(publicKey)).script)],
+            )
+          : await signTransaction(mockRawTransaction, wallet, mockTargetAddress, mockPrivateKey);
         expect(typeof result).toBe('string');
         expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
 
@@ -656,6 +747,64 @@ describe('Transaction Signer Utilities', () => {
         inputValues,
         lockScripts
       )).rejects.toThrow(/doesn't match/);
+    });
+  });
+
+  describe('Counterparty bare multisig outputs', () => {
+    // Counterparty's multisig data encoding: a 1-of-3 bare multisig whose first key is the
+    // sender's and whose other two "keys" carry the payload. btc-signer's checkScript rejects
+    // this output shape ("non-wrapped ms"), which broke fairminter and other data-heavy
+    // composes after the check was re-enabled. allowUnknownOutputs does not cover it because
+    // bare multisig is a known script type.
+    // Counterparty nudges its payload keys onto the curve, so they decode as real pubkeys.
+    const payloadKey = (seed: string) => getPublicKey(hexToBytes(seed.repeat(32)), true);
+    const dataOutputScript = OutScript.encode({ type: 'ms', m: 1, pubkeys: [publicKey, payloadKey('03'), payloadKey('04')] });
+
+    const buildRawTx = () => {
+      const tx = new Transaction({ allowUnknownOutputs: true, disableScriptCheck: true });
+      tx.addInput({ txid: mockTxid, index: 0 });
+      tx.addOutput({ script: dataOutputScript, amount: 546n });
+      tx.addOutput({ script: hexToBytes('76a914' + pubKeyHashHex + '88ac'), amount: 90000n });
+      return bytesToHex(tx.unsignedTx);
+    };
+
+    it('signs a transaction that carries a bare multisig data output', async () => {
+      const signed = await signTransaction(buildRawTx(), mockWallet, mockTargetAddress, mockPrivateKey);
+
+      const parsed = Transaction.fromRaw(hexToBytes(signed), { allowUnknownOutputs: true, disableScriptCheck: true });
+      expect(parsed.outputsLength).toBe(2);
+      expect(bytesToHex(parsed.getOutput(0).script!)).toBe(bytesToHex(dataOutputScript));
+      expect(parsed.getOutput(0).amount).toBe(546n);
+      // The P2PKH input was finalized with a scriptSig, so signing itself went through.
+      expect(parsed.getInput(0).finalScriptSig?.length).toBeGreaterThan(0);
+    });
+
+    it('still rejects a bare multisig output that is not the Counterparty data encoding', async () => {
+      const tx = new Transaction({ allowUnknownOutputs: true, disableScriptCheck: true });
+      tx.addInput({ txid: mockTxid, index: 0 });
+      // 2-of-3 is a spendable multisig script, not the 1-of-3 data carrier core composes.
+      tx.addOutput({ script: OutScript.encode({ type: 'ms', m: 2, pubkeys: [publicKey, payloadKey('03'), payloadKey('04')] }), amount: 546n });
+
+      await expect(signTransaction(bytesToHex(tx.unsignedTx), mockWallet, mockTargetAddress, mockPrivateKey))
+        .rejects.toThrow(/Output 0 is not a script this wallet signs: checkScript: non-wrapped ms/);
+    });
+
+    it('still rejects a nested SegWit input whose redeemScript does not hash to the prevout', async () => {
+      const p2shWallet = { ...mockWallet, addressFormat: AddressFormat.P2SH_P2WPKH };
+      const otherKey = getPublicKey(hexToBytes('02'.repeat(32)), true);
+      const foreignNestedScript = bytesToHex(p2sh(p2wpkh(otherKey)).script);
+
+      await expect(signTransaction(
+        buildRawTx(), p2shWallet, mockTargetAddress, mockPrivateKey, true, [100000], [foreignNestedScript],
+      )).rejects.toThrow(/does not match its previous output/);
+    });
+
+    it('still rejects Taproot key material against a non-Taproot prevout', async () => {
+      const p2trWallet = { ...mockWallet, addressFormat: AddressFormat.P2TR };
+
+      await expect(signTransaction(
+        buildRawTx(), p2trWallet, mockTargetAddress, mockPrivateKey, true, [100000], ['0014' + pubKeyHashHex],
+      )).rejects.toThrow(/does not match its previous output/);
     });
   });
 });

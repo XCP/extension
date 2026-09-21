@@ -1,3 +1,5 @@
+import { bytesToHex } from '@noble/hashes/utils.js';
+import { isTextualMimeType } from '@/core/counterparty/inscriptionEnvelope';
 import { assetIdToName } from '@/core/counterparty/unpack/assetId';
 import { type CborValue, decodeCbor } from '@/core/counterparty/unpack/cbor';
 
@@ -42,6 +44,23 @@ function text(value: CborValue, field: string): string {
   throw new Error(`Invalid fairminter ${field}`);
 }
 
+/**
+ * A description that arrived as bytes, read the way core reads it (`helpers.bytes_to_content`):
+ * textual MIME types decode as UTF-8, everything else hexlifies. An image-carrying fairminter —
+ * an inscription — has PNG bytes here, and decoding those as strict UTF-8 threw, which failed the
+ * whole unpack for a message core parses fine.
+ */
+function content(value: CborValue, mimeType: string, field: string): string {
+  if (typeof value === 'string') return value;
+  if (value instanceof Uint8Array) {
+    if (isTextualMimeType(mimeType || 'text/plain')) {
+      return new TextDecoder('utf-8', { fatal: true }).decode(value);
+    }
+    return bytesToHex(value);
+  }
+  throw new Error(`Invalid fairminter ${field}`);
+}
+
 function block(value: CborValue, field: string): number {
   const parsed = integer(value, field);
   if (parsed > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error(`Invalid fairminter ${field}`);
@@ -50,15 +69,22 @@ function block(value: CborValue, field: string): number {
 
 export function unpackFairminter(payload: Uint8Array): FairminterData {
   const fields = decodeCbor(payload);
-  if (!Array.isArray(fields) || (fields.length !== 19 && fields.length !== 21)) {
-    throw new Error('Invalid fairminter field count');
+  // Core reads `fields[:17]` and defaults everything after it — mime_type and description are
+  // taken only `if len(fields) > 17` / `> 18`, and the pool pair only when there are 21 or more
+  // (fairminter.py). Requiring exactly 19 or 21 rejected payloads core accepts, which fails
+  // verification and blocks signing on a transaction the chain would honour.
+  if (!Array.isArray(fields) || fields.length < 17) {
+    throw new Error(`Invalid fairminter field count: ${Array.isArray(fields) ? fields.length : 0} (minimum 17)`);
   }
 
-  const hasPool = fields.length === 21;
+  const hasPool = fields.length >= 21;
   const poolQuantity = hasPool ? integer(fields[17]!, 'pool quantity') : 0n;
   const lpAssetId = hasPool ? integer(fields[18]!, 'LP asset') : 0n;
   const mimeTypeIndex = hasPool ? 19 : 17;
   const descriptionIndex = hasPool ? 20 : 18;
+  const mimeType = fields.length > mimeTypeIndex ? text(fields[mimeTypeIndex]!, 'MIME type') : '';
+  const description = fields.length > descriptionIndex
+    ? content(fields[descriptionIndex]!, mimeType, 'description') : '';
 
   return {
     asset: assetIdToName(integer(fields[0]!, 'asset')),
@@ -84,7 +110,7 @@ export function unpackFairminter(payload: Uint8Array): FairminterData {
     // value would make a fairminter that named that type indistinguishable from one that named
     // none, and any comparison against the request would then reject honest transactions. Callers
     // that need a default for display should apply it themselves.
-    mimeType: text(fields[mimeTypeIndex]!, 'MIME type'),
-    description: text(fields[descriptionIndex]!, 'description'),
+    mimeType,
+    description,
   };
 }

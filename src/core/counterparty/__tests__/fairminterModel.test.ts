@@ -1,0 +1,456 @@
+import { describe, expect, it } from "vitest";
+import {
+  describeFairmintBound,
+  describeFairminterLot,
+  describeFairminterPaymentModel,
+  getFairmintCost,
+  getFairminterLotCost,
+  getFairminterPaymentModel,
+  getFairmintLots,
+  getMaxFairmintLots,
+  getQuantityForLots,
+  isFairminterMintableNow,
+  isPaidFairminter,
+  readFairminterPaymentModel,
+} from "../fairminterModel";
+
+/**
+ * LAUNCHCOIN, as `/v2/assets/LAUNCHCOIN/fairminters` actually returns it. Fields not read by the
+ * payment model are trimmed; the ones that are read are verbatim.
+ *
+ * Kept whole rather than reduced to `{ pool_quantity: 1 }` because the bug was never in the rule —
+ * it was that three screens spelled out the rule's inputs by hand and each missed the same field.
+ * A fixture in the shape core sends is what makes the extraction the thing under test.
+ */
+const LAUNCHCOIN = {
+  source: "16aZDCvD6w1x25qYNWDrXLUswEXiUU9ttr",
+  asset: "LAUNCHCOIN",
+  price: 1000000,
+  price_normalized: "0.0000100000000000",
+  burn_payment: false,
+  pool_quantity: 3100000000000000,
+  pool_quantity_normalized: "31000000.00000000",
+  lp_asset: "A690210627902342169",
+  soft_cap: 6900000000000000,
+  quantity_by_price_normalized: "1000.00000000",
+} as const;
+
+describe("readFairminterPaymentModel", () => {
+  // The reported defect. This fairminter seeds a 31,000,000 XCP pool and has burn_payment false,
+  // so reading only price and burn_payment lands on "issuer" — and the screen then names
+  // `source` under "Paid to", an address that receives none of the payment.
+  it("reads a real pool fairminter as paying the pool, not the issuer", () => {
+    expect(readFairminterPaymentModel(LAUNCHCOIN)).toBe("pool");
+    expect(describeFairminterPaymentModel(readFairminterPaymentModel(LAUNCHCOIN)))
+      .toBe("XCP Fee (to liquidity pool)");
+  });
+
+  it("still reads an ordinary paid fairminter as paying the issuer", () => {
+    expect(
+      readFairminterPaymentModel({
+        ...LAUNCHCOIN,
+        pool_quantity: 0,
+        pool_quantity_normalized: "0.00000000",
+      })
+    ).toBe("issuer");
+    const {
+      pool_quantity: _rawPoolQuantity,
+      pool_quantity_normalized: _normalizedPoolQuantity,
+      ...noPoolField
+    } = LAUNCHCOIN;
+    expect(readFairminterPaymentModel(noPoolField)).toBe("issuer");
+  });
+
+  it("accepts either spelling of each quantity, since only zero-ness is read", () => {
+    // Core 11.3 verbose responses carry both, while decoded or non-verbose params may carry raw.
+    // The shared routing rule does not need to convert either representation.
+    expect(readFairminterPaymentModel({ price: "1", pool_quantity_normalized: "31000000" }))
+      .toBe("pool");
+    expect(readFairminterPaymentModel({ price_normalized: "0.00001", pool_quantity: 1 }))
+      .toBe("pool");
+  });
+
+  it("keeps a zero price free even when a pool is set", () => {
+    expect(readFairminterPaymentModel({ ...LAUNCHCOIN, price: 0, price_normalized: "0" }))
+      .toBe("free");
+  });
+});
+
+describe("getFairminterPaymentModel", () => {
+  it("calls a zero price free, whatever burn_payment says", () => {
+    expect(getFairminterPaymentModel({ price: 0, burnPayment: false })).toBe("free");
+    expect(getFairminterPaymentModel({ price: "0", burnPayment: true })).toBe("free");
+    expect(getFairminterPaymentModel({ price: "0.00000000" })).toBe("free");
+  });
+
+  // The regression this exists for. burn_payment says where a payment goes, not whether there is
+  // one, so a false value used to be read as "free" — and every pay-the-issuer fairminter created
+  // outside this extension reported itself as costing nothing but miner fees.
+  it("does not call a priced fairminter free just because burn_payment is false", () => {
+    expect(getFairminterPaymentModel({ price: "1.5", burnPayment: false })).toBe("issuer");
+    expect(getFairminterPaymentModel({ price: 100, burnPayment: false })).toBe("issuer");
+  });
+
+  it("reads a missing burn_payment as payment to the issuer", () => {
+    // Core's default branch: xcp_destination = fairminter["source"].
+    expect(getFairminterPaymentModel({ price: "1" })).toBe("issuer");
+    expect(getFairminterPaymentModel({ price: "1", burnPayment: null })).toBe("issuer");
+  });
+
+  it("reports a burn when burn_payment is set on a priced fairminter", () => {
+    expect(getFairminterPaymentModel({ price: "1", burnPayment: true })).toBe("burned");
+  });
+
+  it("puts a pool ahead of a burn, the way core orders the branches", () => {
+    // perform_fairmint_soft_cap_operations checks pool_quantity before burn_payment.
+    expect(getFairminterPaymentModel({ price: "1", burnPayment: true, poolQuantity: "500" }))
+      .toBe("pool");
+    expect(getFairminterPaymentModel({ price: "1", poolQuantity: 500 })).toBe("pool");
+  });
+
+  it("ignores a pool quantity of zero", () => {
+    expect(getFairminterPaymentModel({ price: "1", poolQuantity: 0 })).toBe("issuer");
+    expect(getFairminterPaymentModel({ price: "1", poolQuantity: "0" })).toBe("issuer");
+  });
+
+  // An absent price is not evidence of a free mint, so it must not produce one. Falling through to
+  // the destination questions is the honest answer: we still know where a payment would go.
+  it("does not invent a free mint from a missing price", () => {
+    expect(getFairminterPaymentModel({})).toBe("issuer");
+    expect(getFairminterPaymentModel({ price: undefined, burnPayment: true })).toBe("burned");
+    expect(getFairminterPaymentModel({ price: null })).toBe("issuer");
+    expect(getFairminterPaymentModel({ price: "" })).toBe("issuer");
+  });
+});
+
+/**
+ * Core decides this at the confirming block, not at broadcast: `parse_block` runs
+ * `fairminter.before_block` — which opens a fairminter once the height reaches its `start_block` —
+ * before parsing that block's transactions.
+ *
+ * So the safe window runs the opposite way to intuition. A pre-broadcast mint needs to be *slow*
+ * enough to land at or after the open; one confirming earlier is recorded as
+ * `invalid: fairminter is not open`, costing the miner fee and minting nothing. The earliest a
+ * broadcast can confirm is the next block, which makes one block the only window that cannot land
+ * early — a tolerance rather than a bound would be a fee-burning trap.
+ */
+describe("isFairminterMintableNow", () => {
+  const HEIGHT = 961734;
+
+  it("accepts an open fairminter whatever its start block says", () => {
+    expect(isFairminterMintableNow({ status: "open" }, HEIGHT)).toBe(true);
+    expect(isFairminterMintableNow({ status: "open", start_block: 999999 }, HEIGHT)).toBe(true);
+  });
+
+  it("accepts a sale opening on the next block", () => {
+    // The earliest this mint can confirm is HEIGHT + 1, which is the block it opens on.
+    expect(isFairminterMintableNow({ status: "pending", start_block: HEIGHT + 1 }, HEIGHT)).toBe(true);
+  });
+
+  it("refuses a sale two blocks out, which a fast mint would land ahead of", () => {
+    expect(isFairminterMintableNow({ status: "pending", start_block: HEIGHT + 2 }, HEIGHT)).toBe(false);
+  });
+
+  it("refuses the parked placeholders that make up the real pending set", () => {
+    // NUMBERSGAME and NIPSEYPEPE both sit at start_block 999999, about nine months out.
+    expect(isFairminterMintableNow({ status: "pending", start_block: 999999 }, HEIGHT)).toBe(false);
+    expect(isFairminterMintableNow({ status: "pending", start_block: 1401678 }, HEIGHT)).toBe(false);
+  });
+
+  it("refuses a closed fairminter", () => {
+    expect(isFairminterMintableNow({ status: "closed", start_block: 1 }, HEIGHT)).toBe(false);
+  });
+
+  it("refuses a pending fairminter when there is no height to measure against", () => {
+    // Without a height there is no window, and guessing would be guessing with a fee.
+    expect(isFairminterMintableNow({ status: "pending", start_block: HEIGHT + 1 }, null)).toBe(false);
+    expect(isFairminterMintableNow({ status: "pending", start_block: HEIGHT + 1 }, undefined)).toBe(false);
+  });
+
+  it("refuses a pending fairminter with no start block", () => {
+    expect(isFairminterMintableNow({ status: "pending" }, HEIGHT)).toBe(false);
+  });
+
+  it("accepts a pending fairminter whose start block has already passed", () => {
+    // The status flips in before_block, so a row read just before that can lag reality.
+    expect(isFairminterMintableNow({ status: "pending", start_block: HEIGHT }, HEIGHT)).toBe(true);
+  });
+});
+
+describe("describeFairminterPaymentModel", () => {
+  it("labels every model", () => {
+    expect(describeFairminterPaymentModel("free")).toBe("BTC Fee Only (to miners)");
+    expect(describeFairminterPaymentModel("burned")).toBe("XCP Fee (burned)");
+    expect(describeFairminterPaymentModel("pool")).toBe("XCP Fee (to liquidity pool)");
+    expect(describeFairminterPaymentModel("issuer")).toBe("XCP Fee (to issuer)");
+  });
+});
+
+describe("getFairminterLotCost", () => {
+  it("uses core's per-lot price when it is available", () => {
+    // price is base units: 100000000 = 1 XCP for the whole lot.
+    expect(getFairminterLotCost({ price: 100000000, quantity_by_price_normalized: "1000" }))
+      .toBe("1");
+  });
+
+  it("avoids the round trip through the per-unit price", () => {
+    // A lot of 3 at 1 XCP gives price_normalized 0.33333333, whose product with 3 is 0.99999999.
+    // Reading core's own per-lot figure keeps it exactly 1.
+    const fairminter = {
+      price: 100000000,
+      price_normalized: "0.33333333",
+      quantity_by_price_normalized: "3",
+    };
+    expect(getFairminterLotCost(fairminter)).toBe("1");
+    // Without the raw price there is nothing better to do, and the drift is visible.
+    expect(getFairminterLotCost({ ...fairminter, price: undefined })).toBe("0.99999999");
+  });
+});
+
+describe("getFairmintCost", () => {
+  it("charges per lot, not per token", () => {
+    const fairminter = { price: 100000000, quantity_by_price_normalized: "1000" };
+    expect(getFairmintCost(fairminter, "1000")).toBe("1");
+    expect(getFairmintCost(fairminter, "3000")).toBe("3");
+  });
+
+  it("is zero for a zero or empty quantity", () => {
+    const fairminter = { price: 100000000, quantity_by_price_normalized: "1000" };
+    expect(getFairmintCost(fairminter, 0)).toBe("0");
+    expect(getFairmintCost(fairminter, "")).toBe("0");
+  });
+
+  // Assuming a lot size of 1 would multiply the cost by the real lot size, so a signing screen
+  // would show a payment wrong by a factor. Absent is the only safe answer.
+  it("returns null rather than guessing a missing lot size", () => {
+    expect(getFairmintCost({ price: 100000000 }, "1000")).toBeNull();
+    expect(getFairmintCost({ price: 1, quantity_by_price_normalized: "0" }, "10")).toBeNull();
+    expect(getFairmintCost({ price: 1, quantity_by_price_normalized: null }, "10")).toBeNull();
+  });
+
+  it("matches the total a whole number of lots implies", () => {
+    // 250 XCP per lot of 5,000 tokens; 4 lots is 20,000 tokens for 1,000 XCP.
+    const fairminter = { price: 25000000000, quantity_by_price_normalized: "5000" };
+    expect(getFairminterLotCost(fairminter)).toBe("250");
+    expect(getFairmintCost(fairminter, "20000")).toBe("1000");
+  });
+});
+
+describe("getMaxFairmintLots", () => {
+  // 1 XCP per lot of 1,000 tokens.
+  const base = { price: 100000000, quantity_by_price_normalized: "1000" };
+
+  it("is what the balance affords, floored to whole lots", () => {
+    expect(getMaxFairmintLots({ fairminter: base, balance: "10" })).toBe("10");
+    expect(getMaxFairmintLots({ fairminter: base, balance: "10.9" })).toBe("10");
+    expect(getMaxFairmintLots({ fairminter: base, balance: "0" })).toBe("0");
+  });
+
+  it("caps at max_mint_per_tx", () => {
+    const fairminter = { ...base, max_mint_per_tx_normalized: "3000" };
+    expect(getMaxFairmintLots({ fairminter, balance: "100" })).toBe("3");
+  });
+
+  // Core rejects `asset_supply + quantity > hard_cap`, which the old Max never checked, so it
+  // could offer a quantity that was always going to fail.
+  it("caps at the headroom left under the hard cap", () => {
+    const fairminter = { ...base, hard_cap_normalized: "10000" };
+    expect(getMaxFairmintLots({ fairminter, balance: "100", assetSupply: "7000" })).toBe("3");
+    expect(getMaxFairmintLots({ fairminter, balance: "100", assetSupply: "10000" })).toBe("0");
+  });
+
+  it("caps at what this address has left of its allowance", () => {
+    const fairminter = { ...base, max_mint_per_address_normalized: "5000" };
+    expect(getMaxFairmintLots({ fairminter, balance: "100", alreadyMinted: "3000" })).toBe("2");
+    expect(getMaxFairmintLots({ fairminter, balance: "100", alreadyMinted: "5000" })).toBe("0");
+  });
+
+  it("takes the tightest bound when several apply", () => {
+    const fairminter = {
+      ...base,
+      max_mint_per_tx_normalized: "8000",
+      hard_cap_normalized: "20000",
+      max_mint_per_address_normalized: "6000",
+    };
+    expect(
+      getMaxFairmintLots({
+        fairminter,
+        balance: "100",
+        assetSupply: "16000",
+        alreadyMinted: "1000",
+      })
+    ).toBe("4"); // hard cap leaves 4,000; the others allow 8, 5 and 100
+  });
+
+  // An unknown supply is not a full cap. Skipping the bound lets compose reject it, which is the
+  // safe direction; guessing zero headroom would block a mint that is actually fine.
+  it("skips a bound whose input is missing rather than guessing", () => {
+    const fairminter = { ...base, hard_cap_normalized: "10000" };
+    expect(getMaxFairmintLots({ fairminter, balance: "3" })).toBe("3");
+  });
+
+  // Core 11.3 normalizes the two formerly exceptional fairminter quantities. This live-shaped
+  // fixture ensures the per-address cap is still enforced after removing the base-unit shim.
+  it("matches a Core 11.3 fairminter's normalized bounds", () => {
+    const launchcoin = {
+      price: 1000000,
+      quantity_by_price_normalized: "1000.00000000",
+      max_mint_per_tx_normalized: "1000000.00000000",
+      max_mint_per_address_normalized: "1000000.00000000",
+      hard_cap_normalized: "100000000.00000000",
+    };
+    // 27.26 XCP at 0.01/lot affords 2,726 lots; the per-tx cap allows 1,000.
+    expect(getMaxFairmintLots({ fairminter: launchcoin, balance: "27.26246519" })).toBe("1000");
+    // Having already minted 999,000, only one lot of the per-address allowance is left.
+    expect(
+      getMaxFairmintLots({
+        fairminter: launchcoin,
+        balance: "27.26246519",
+        alreadyMinted: "999000",
+      })
+    ).toBe("1");
+  });
+
+  it("is zero when there is no lot size or no price", () => {
+    expect(getMaxFairmintLots({ fairminter: { price: 100000000 }, balance: "10" })).toBe("0");
+    expect(
+      getMaxFairmintLots({ fairminter: { price: 0, quantity_by_price_normalized: "1" }, balance: "10" })
+    ).toBe("0");
+  });
+});
+
+describe("getQuantityForLots", () => {
+  it("multiplies lots by the lot size", () => {
+    expect(getQuantityForLots({ quantity_by_price_normalized: "1000" }, "3")).toBe("3000");
+  });
+
+  it("is zero for no lots or no lot size", () => {
+    expect(getQuantityForLots({ quantity_by_price_normalized: "1000" }, "0")).toBe("0");
+    expect(getQuantityForLots({}, "3")).toBe("0");
+  });
+
+  // The point of the whole shape: a lot count can only compose to a multiple of the lot size, so
+  // core's "quantity is not a multiple of lot_size" cannot be reached from this form.
+  it("always composes to a multiple of the lot size", () => {
+    for (const lots of ["1", "7", "13", "100"]) {
+      const quantity = getQuantityForLots({ quantity_by_price_normalized: "250" }, lots);
+      expect(Number(quantity) % 250).toBe(0);
+    }
+  });
+});
+
+describe("describeFairminterLot", () => {
+  it("quotes the cost of a lot rather than of one token", () => {
+    expect(describeFairminterLot({
+      price: 100000000,
+      quantity_by_price_normalized: "1000",
+      asset: "TESTASSET",
+    })).toBe("1 XCP per 1000 TESTASSET");
+  });
+
+  it("names a free mint", () => {
+    expect(describeFairminterLot({ price: 0, quantity_by_price_normalized: "1" }))
+      .toBe("Free mint (BTC fees only)");
+  });
+});
+
+describe("isPaidFairminter", () => {
+  it("is true for everything that charges XCP", () => {
+    expect(isPaidFairminter("free")).toBe(false);
+    expect(isPaidFairminter("burned")).toBe(true);
+    expect(isPaidFairminter("pool")).toBe(true);
+    expect(isPaidFairminter("issuer")).toBe(true);
+  });
+});
+
+/**
+ * A count of zero is the same number whichever bound produced it, and the Max button had nothing
+ * to say about it: it filled the field with "0" and cleared the error, so an address that had
+ * already minted its allowance clicked Max and watched nothing happen.
+ *
+ * Naming the bound is the whole fix, so each one is checked for the sentence it earns rather than
+ * for the zero it shares.
+ */
+describe("getFairmintLots names what limited the count", () => {
+  const base = { price: 100000000, quantity_by_price_normalized: "1000" };
+
+  it("reports the per-address allowance, which is what a repeat minter hits", () => {
+    const fairminter = { ...base, max_mint_per_address_normalized: "5000" };
+    const result = getFairmintLots({ fairminter, balance: "100", alreadyMinted: "5000" });
+
+    expect(result.lots).toBe("0");
+    expect(result.binding).toBe("per_address");
+    expect(describeFairmintBound(result.binding)).toContain("per address");
+  });
+
+  it("reports the hard cap when the sale itself is finished", () => {
+    const fairminter = { ...base, hard_cap_normalized: "10000" };
+    const result = getFairmintLots({ fairminter, balance: "100", assetSupply: "10000" });
+
+    expect(result.lots).toBe("0");
+    expect(result.binding).toBe("hard_cap");
+  });
+
+  it("reports the balance when the address simply cannot afford a lot", () => {
+    const result = getFairmintLots({ fairminter: base, balance: "0.5" });
+
+    expect(result.lots).toBe("0");
+    expect(result.binding).toBe("balance");
+  });
+
+  it("reports a missing price rather than blaming the balance", () => {
+    const result = getFairmintLots({ fairminter: { quantity_by_price_normalized: "1000" }, balance: "100" });
+
+    expect(result.lots).toBe("0");
+    expect(result.binding).toBe("unavailable");
+  });
+
+  // Distinguishing the causes only matters if the tightest one wins when several are non-zero.
+  it("names the bound that actually decided a non-zero count", () => {
+    const fairminter = {
+      ...base,
+      max_mint_per_tx_normalized: "8000",
+      hard_cap_normalized: "20000",
+      max_mint_per_address_normalized: "6000",
+    };
+    const result = getFairmintLots({
+      fairminter,
+      balance: "100",
+      assetSupply: "16000",
+      alreadyMinted: "1000",
+    });
+
+    expect(result.lots).toBe("4"); // hard cap leaves 4,000; the others allow 8, 5 and 100
+    expect(result.binding).toBe("hard_cap");
+  });
+
+  /**
+   * Both statements are true for an address that is broke and maxed out. Keeping the earlier bound
+   * on a tie means the sentence shown is never one that is false — which is the failure mode that
+   * matters here, since telling someone their balance is fine when it is not sends them to buy
+   * XCP they cannot use.
+   */
+  it("keeps the earlier bound on a tie, so the sentence is still true", () => {
+    const fairminter = { ...base, max_mint_per_address_normalized: "5000" };
+    const result = getFairmintLots({ fairminter, balance: "0", alreadyMinted: "5000" });
+
+    expect(result.lots).toBe("0");
+    expect(result.binding).toBe("balance");
+  });
+
+  it("gives every bound a distinct sentence", () => {
+    const bounds = ["balance", "per_tx", "hard_cap", "per_address", "unavailable"] as const;
+    const sentences = bounds.map(describeFairmintBound);
+
+    expect(new Set(sentences).size).toBe(bounds.length);
+    for (const sentence of sentences) expect(sentence.length).toBeGreaterThan(20);
+  });
+
+  it("still answers the plain count the same way", () => {
+    const fairminter = { ...base, max_mint_per_address_normalized: "5000" };
+    const args = { fairminter, balance: "100", alreadyMinted: "3000" };
+
+    expect(getMaxFairmintLots(args)).toBe(getFairmintLots(args).lots);
+    expect(getMaxFairmintLots(args)).toBe("2");
+  });
+});

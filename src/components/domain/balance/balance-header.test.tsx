@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { BalanceHeader } from './balance-header';
 
 // Mock dependencies
@@ -23,9 +24,10 @@ vi.mock('@/components/domain/asset/asset-icon', () => ({
 vi.mock('@/core/format', () => ({
   formatAmount: vi.fn(({ value, minimumFractionDigits, maximumFractionDigits, useGrouping }) => {
     if (minimumFractionDigits === 8) {
-      return value.toFixed(8);
+      return Number(value).toFixed(8);
     }
-    return value.toLocaleString();
+    // The real formatter groups a decimal string too; a bare string does not.
+    return Number(value).toLocaleString();
   })
 }));
 
@@ -38,13 +40,35 @@ describe('BalanceHeader', () => {
       issuer: 'bc1qxyz789',
       divisible: true,
       locked: true,
-      supply: '1000000000000'
+      supply: asBaseUnits('1000000000000')
     },
-    quantity_normalized: '500000000'
+    quantity_normalized: asDisplayUnits('500000000')
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('pending note', () => {
+    // The outgoing note is gone by decision: the balance IS the spendable figure everywhere, so
+    // "(-N pending)" clarified a number the wallet no longer shows. These pin what remains.
+    it('shows incoming with an explicit plus', () => {
+      render(<BalanceHeader balance={mockBalance} pendingIncoming="5" />);
+
+      expect(screen.getByText(/\+5 incoming/)).toBeInTheDocument();
+    });
+
+    it('shows nothing when nothing is incoming', () => {
+      render(<BalanceHeader balance={mockBalance} pendingIncoming="0" />);
+
+      expect(screen.queryByText(/incoming/)).not.toBeInTheDocument();
+    });
+
+    it('shows nothing at all by default', () => {
+      render(<BalanceHeader balance={mockBalance} />);
+
+      expect(screen.queryByText(/incoming|pending/)).not.toBeInTheDocument();
+    });
   });
 
   it('should render balance information', () => {
@@ -102,7 +126,7 @@ describe('BalanceHeader', () => {
         ...mockBalance.asset_info,
         divisible: false
       },
-      quantity_normalized: '1000'
+      quantity_normalized: asDisplayUnits('1000')
     };
     
     render(<BalanceHeader balance={indivisibleBalance} />);
@@ -113,7 +137,7 @@ describe('BalanceHeader', () => {
   it('should handle zero balance', () => {
     const zeroBalance = {
       ...mockBalance,
-      quantity_normalized: '0'
+      quantity_normalized: asDisplayUnits('0')
     };
     
     render(<BalanceHeader balance={zeroBalance} />);
@@ -124,7 +148,7 @@ describe('BalanceHeader', () => {
   it('should handle undefined quantity_normalized', () => {
     const noQuantityBalance = {
       ...mockBalance,
-      quantity_normalized: '0' // Changed from undefined to '0' since TokenBalance requires string
+      quantity_normalized: asDisplayUnits('0') // Changed from undefined to '0' since TokenBalance requires string
     };
     
     render(<BalanceHeader balance={noQuantityBalance} />);
@@ -132,19 +156,18 @@ describe('BalanceHeader', () => {
     expect(screen.getByText(/Balance: 0/)).toBeInTheDocument();
   });
 
-  it('should update cache when balance changes', () => {
+  it('should show the new balance when it changes', () => {
     const { rerender } = render(<BalanceHeader balance={mockBalance} />);
-    
-    expect(mockSetBalanceHeader).toHaveBeenCalledWith('PEPECASH', mockBalance);
-    
+
     const updatedBalance = {
       ...mockBalance,
-      quantity_normalized: '600000000'
+      quantity_normalized: asDisplayUnits('600000000')
     };
-    
+
     rerender(<BalanceHeader balance={updatedBalance} />);
-    
-    expect(mockSetBalanceHeader).toHaveBeenCalledWith('PEPECASH', updatedBalance);
+
+    // Displaying it is the whole job; caching it belongs to whoever fetched it.
+    expect(screen.getByText(/600000000\.00000000/)).toBeInTheDocument();
   });
 
   it('should apply correct CSS classes', () => {
@@ -240,7 +263,7 @@ describe('BalanceHeader', () => {
   it('should handle balance without asset_info', () => {
     const minimalBalance = {
       asset: 'BTC',
-      quantity_normalized: '100000000'
+      quantity_normalized: asDisplayUnits('100000000')
     };
     
     render(<BalanceHeader balance={minimalBalance} />);
@@ -261,7 +284,7 @@ describe('BalanceHeader', () => {
         divisible: true,
         locked: false
       },
-      quantity_normalized: '1000'
+      quantity_normalized: asDisplayUnits('1000')
     };
     
     render(<BalanceHeader balance={partialInfoBalance} />);
@@ -284,19 +307,18 @@ describe('BalanceHeader', () => {
         divisible: true,
         locked: true
       },
-      quantity_normalized: '2600000000000000'
+      quantity_normalized: asDisplayUnits('2600000000000000')
     };
     
     rerender(<BalanceHeader balance={differentBalance} />);
     
     expect(screen.getByTestId('asset-icon')).toHaveTextContent('XCP Icon (lg)');
-    expect(mockSetBalanceHeader).toHaveBeenCalledWith('XCP', differentBalance);
   });
 
   it('should handle numeric quantity_normalized', () => {
     const numericQuantityBalance = {
       ...mockBalance,
-      quantity_normalized: '123456.789'
+      quantity_normalized: asDisplayUnits('123456.789')
     };
     
     render(<BalanceHeader balance={numericQuantityBalance} />);
@@ -307,7 +329,7 @@ describe('BalanceHeader', () => {
   it('should handle empty strings gracefully', () => {
     const emptyStringBalance = {
       ...mockBalance,
-      quantity_normalized: ''
+      quantity_normalized: asDisplayUnits('')
     };
     
     render(<BalanceHeader balance={emptyStringBalance} />);
@@ -319,7 +341,7 @@ describe('BalanceHeader', () => {
   it('should use props data as source of truth', () => {
     const initialBalance = {
       ...mockBalance,
-      quantity_normalized: '100'
+      quantity_normalized: asDisplayUnits('100')
     };
     
     const { rerender } = render(<BalanceHeader balance={initialBalance} />);
@@ -328,7 +350,7 @@ describe('BalanceHeader', () => {
     
     const updatedBalance = {
       ...mockBalance,
-      quantity_normalized: '200'
+      quantity_normalized: asDisplayUnits('200')
     };
     
     rerender(<BalanceHeader balance={updatedBalance} />);
@@ -400,21 +422,30 @@ describe('BalanceHeader', () => {
     expect(icon).toHaveTextContent('Icon (lg)');
   });
 
-  it('should always call setBalanceHeader on mount and updates', () => {
+  /**
+   * This used to assert the opposite — that the write always fires — and that is the behaviour
+   * that broke the dispenser form.
+   *
+   * Callers build the `balance` prop inline, so the effect's dependency changed every render and
+   * this component wrote the shared cache every render, with a value the form was still catching up
+   * to. Since #291 `useAssetBalance` depends on that cache, so its own fetched value and this
+   * lagging copy overwrote each other in a loop: the balance visibly alternated between 0 and the
+   * real amount. The cache belongs to whoever fetched it.
+   */
+  it('does not write the shared balance cache', () => {
     const { rerender } = render(<BalanceHeader balance={mockBalance} />);
-    
-    expect(mockSetBalanceHeader).toHaveBeenCalledTimes(1);
-    expect(mockSetBalanceHeader).toHaveBeenCalledWith('PEPECASH', mockBalance);
-    
-    // Re-render with different balance
-    const updatedBalance = {
-      ...mockBalance,
-      quantity_normalized: '999999'
-    };
-    rerender(<BalanceHeader balance={updatedBalance} />);
-    
-    // Should be called again with updated balance
-    expect(mockSetBalanceHeader).toHaveBeenCalledTimes(2);
-    expect(mockSetBalanceHeader).toHaveBeenLastCalledWith('PEPECASH', updatedBalance);
+    expect(mockSetBalanceHeader).not.toHaveBeenCalled();
+
+    // Including across re-renders with a new object, which is how every caller passes it.
+    rerender(
+      <BalanceHeader balance={{ ...mockBalance, quantity_normalized: asDisplayUnits('999999') }} />
+    );
+    rerender(
+      <BalanceHeader balance={{ ...mockBalance, quantity_normalized: asDisplayUnits('999999') }} />
+    );
+
+    expect(mockSetBalanceHeader).not.toHaveBeenCalled();
+    // Still renders what it was handed — it is a display component, not a cache writer.
+    expect(screen.getByText(/999999\.00000000/)).toBeInTheDocument();
   });
 });

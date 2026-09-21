@@ -39,7 +39,7 @@ walletTest.describe('Address Preview Display', () => {
     await expect(addressTypeOption).toBeVisible({ timeout: 5000 });
 
     // The description shows the current address type - it's in a div, not p
-    const description = page.locator('[role="button"]').filter({ hasText: 'Address Type' }).locator('div.text-xs');
+    const description = page.getByRole('button', { name: 'Address Type' }).locator('div.text-xs');
     await expect(description).toBeVisible();
     const text = await description.textContent();
     expect(text).toMatch(/(Legacy|Native SegWit|Nested SegWit|Taproot|CounterWallet|P2PKH|P2WPKH|P2TR|P2SH)/i);

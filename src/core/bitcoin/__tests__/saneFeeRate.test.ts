@@ -37,6 +37,18 @@ describe('exceedsSaneFeeRate', () => {
     expect(exceedsSaneFeeRate(HIGH_FEE_RATE_WARNING * 200 + 200, 200)).toBe(true);
   });
 
+  it('uses a current network quote without warning about ordinary urgency', () => {
+    // At a 75 sat/vB fastest quote, the relative 750 sat/vB threshold replaces the 500 sat/vB
+    // fallback. A 600 sat/vB CPFP is expensive but not ten times the current urgent rate.
+    expect(exceedsSaneFeeRate(120_000, 200, 75)).toBe(false);
+    expect(exceedsSaneFeeRate(160_000, 200, 75)).toBe(true);
+  });
+
+  it('keeps a floor when the mempool is quiet', () => {
+    expect(exceedsSaneFeeRate(20_000, 200, 1)).toBe(false); // exactly 100 sat/vB
+    expect(exceedsSaneFeeRate(20_200, 200, 1)).toBe(true);
+  });
+
   it('says nothing when the fee or size is unknown', () => {
     // An unresolvable fee is not evidence of an absurd one; other checks cover that case.
     expect(exceedsSaneFeeRate(null, 200)).toBe(false);

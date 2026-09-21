@@ -117,7 +117,7 @@ export default function AssetsPage(): ReactElement {
   // Sync pinned assets from wallet
   useEffect(() => {
     if (settings) setPinnedAssets(settings.pinnedAssets || []);
-  }, [settings?.pinnedAssets]);
+  }, [settings, settings?.pinnedAssets]);
 
   /**
    * Handles search input changes and updates URL params.
@@ -245,9 +245,8 @@ export default function AssetsPage(): ReactElement {
   };
 
   return (
-    <div
+    <section
       className="h-full flex flex-col"
-      role="main"
       aria-labelledby="select-assets-title"
     >
       <div className="flex-shrink-0 p-4">
@@ -357,6 +356,6 @@ export default function AssetsPage(): ReactElement {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

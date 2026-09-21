@@ -3,12 +3,13 @@
  * Builds and signs recovery transactions from xcp.io recovery API batch data.
  */
 
-import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { Transaction } from '@scure/btc-signer';
+import { Address, OutScript, Transaction } from '@scure/btc-signer';
 import type { ConsolidationData, ConsolidationUTXO } from '@/core/bitcoin/consolidationApi';
 import { assertSignableBareMultisig, signAndFinalizeBareMultisig } from '@/core/bitcoin/multisigSigner';
+import { parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
+import { multiply, roundUp, toSafeInteger } from '@/core/numeric';
 
 // RBF-enabled sequence number
 const RBF_SEQUENCE = 0xfffffffd;
@@ -17,16 +18,20 @@ const DUST_LIMIT_SATS = 546n;
 
 // Empirical consolidation transaction sizes: ~115 bytes per bare multisig
 // input (36 outpoint + 1 scriptSig varint + ~74 scriptSig + 4 sequence),
-// 10 bytes base overhead, ~34 bytes per P2PKH output.
+// 10 bytes base overhead. Outputs are sized from their actual script.
 const BYTES_PER_INPUT = 115;
 const BASE_OVERHEAD = 10;
-const BYTES_PER_OUTPUT = 34;
 
-const PREV_TX_PARSE_OPTS = {
-  allowUnknownInputs: true,
-  allowUnknownOutputs: true,
-  disableScriptCheck: true,
-} as const;
+/**
+ * Exact serialized size of an output paying this address: 8-byte value, a
+ * 1-byte script length, then the script itself — 34 for P2PKH, 31 for
+ * P2WPKH, 43 for P2TR. The service fee address became Taproot when the
+ * recovery service moved to an xpub; sizing every output as P2PKH
+ * under-counted it by 9 bytes, which came straight off the feerate.
+ */
+function outputBytes(address: string): number {
+  return 9 + OutScript.encode(Address().decode(address)).length;
+}
 
 export interface ConsolidationResult {
   signedTxHex: string;
@@ -51,18 +56,27 @@ function verifyUtxoAgainstPrevTx(
 ): void {
   let prevTx = prevTxCache.get(utxo.txid);
   if (!prevTx) {
-    const prevTxBytes = hexToBytes(utxo.prev_tx_hex);
-    const computedTxid = bytesToHex(sha256(sha256(prevTxBytes)).reverse());
-    if (computedTxid !== utxo.txid.toLowerCase()) {
+    // Parse first and compare the parser's txid, rather than hashing the raw bytes. A txid is
+    // sha256d over the transaction WITHOUT witnesses; hashing the full serialization of a SegWit
+    // transaction computes the wtxid instead, so the old direct hash rejected every UTXO whose
+    // funding transaction spent a SegWit input — a false positive that blocked real recoveries
+    // ("Previous transaction data does not match its txid"). `Transaction.id` is
+    // sha256d(toBytes(true)): scriptSigs in, witnesses out, which is the definition.
+    //
+    // Equally binding: if the parser's re-serialization hashes to the claimed txid, collision
+    // resistance says the parser's view of the outputs IS that transaction's — which is the only
+    // thing the amount and script checks below rely on.
+    const parsed = parseConsensusTransaction(utxo.prev_tx_hex);
+    if (parsed.id !== utxo.txid.toLowerCase()) {
       throw new Error(
         `Previous transaction data does not match its txid for UTXO ${utxo.txid}:${utxo.vout}`
       );
     }
-    prevTx = Transaction.fromRaw(prevTxBytes, PREV_TX_PARSE_OPTS);
+    prevTx = parsed;
     prevTxCache.set(utxo.txid, prevTx);
   }
 
-  let prevOutput;
+  let prevOutput: ReturnType<typeof prevTx.getOutput> | undefined;
   try {
     prevOutput = prevTx.getOutput(utxo.vout);
   } catch {
@@ -109,7 +123,7 @@ export async function consolidateBareMultisigBatch(
   try {
     const ourPubkeys = [getPublicKey(privateKeyBytes, true), getPublicKey(privateKeyBytes, false)];
 
-    const tx = new Transaction();
+    const tx = new Transaction({ lowR: true });
     const scripts: Uint8Array[] = [];
     const prevTxCache = new Map<string, Transaction>();
     let totalInputSats = 0n;
@@ -135,12 +149,13 @@ export async function consolidateBareMultisigBatch(
     }
 
     const inputCountVarintSize = utxos.length >= 253 ? 3 : 1;
-    const estimateNetworkFee = (outputCount: number): bigint => BigInt(Math.ceil(
-      (utxos.length * BYTES_PER_INPUT + BASE_OVERHEAD + inputCountVarintSize + outputCount * BYTES_PER_OUTPUT)
-      * feeRateSatPerVByte
-    ));
+    const estimateNetworkFee = (outputAddresses: string[]): bigint => BigInt(roundUp(multiply(
+      utxos.length * BYTES_PER_INPUT + BASE_OVERHEAD + inputCountVarintSize
+        + outputAddresses.reduce((sum, address) => sum + outputBytes(address), 0),
+      feeRateSatPerVByte
+    )).toFixed());
 
-    let networkFeeSats = estimateNetworkFee(1);
+    let networkFeeSats = estimateNetworkFee([destination]);
     let serviceFeeSats = 0n;
     let serviceFeeAddress: string | undefined;
 
@@ -148,7 +163,7 @@ export async function consolidateBareMultisigBatch(
       if (!batchData.fee_config.fee_address) {
         throw new Error('Recovery fee configuration is unavailable. Please try again later.');
       }
-      const feeWithServiceOutput = estimateNetworkFee(2);
+      const feeWithServiceOutput = estimateNetworkFee([destination, batchData.fee_config.fee_address]);
       const afterNetworkFee = totalInputSats - feeWithServiceOutput;
       if (afterNetworkFee > BigInt(batchData.fee_config.exemption_threshold)) {
         const candidate = (afterNetworkFee * BigInt(batchData.fee_config.fee_percent)) / 100n;
@@ -181,13 +196,13 @@ export async function consolidateBareMultisigBatch(
     const signedTxHex = tx.hex;
     return {
       signedTxHex,
-      totalInput: Number(totalInputSats),
+      totalInput: toSafeInteger(totalInputSats) ?? 0,
       // The outputs were constructed with the estimated fee, so that is the
       // exact fee the transaction pays; the recovery API rejects reports
       // where the fees don't reconcile against the raw transaction.
-      networkFee: Number(networkFeeSats),
-      serviceFee: Number(serviceFeeSats),
-      outputAmount: Number(outputSats),
+      networkFee: toSafeInteger(networkFeeSats) ?? 0,
+      serviceFee: toSafeInteger(serviceFeeSats) ?? 0,
+      outputAmount: toSafeInteger(outputSats) ?? 0,
       txSize: signedTxHex.length / 2,
     };
   } finally {

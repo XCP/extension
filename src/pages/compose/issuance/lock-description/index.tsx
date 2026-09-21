@@ -7,7 +7,7 @@ import { ReviewLockDescription } from "@/pages/compose/issuance/lock-description
 
 /**
  * ComposeLockDescription handles the lock description flow for an asset.
- * This creates an issuance transaction with description="LOCK" to permanently
+ * This creates an issuance transaction with description="LOCK_DESCRIPTION" to permanently
  * prevent future description changes.
  */
 function ComposeLockDescriptionPage() {

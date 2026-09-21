@@ -1,9 +1,12 @@
 import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
+import zeldIcon from "@/assets/zeld.svg";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import { BalanceMenu } from "@/components/domain/balance/balance-menu";
+import { PendingStatus } from "@/components/domain/balance/pending-status";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { formatAmount, formatAsset } from "@/core/format";
+import { ZELD_DISPLAY_NAME, ZELD_WALLET_ASSET } from "@/core/zeld/api";
 
 /**
  * Props interface for the BalanceCard component
@@ -17,6 +20,11 @@ interface BalanceCardProps {
   showMenu?: boolean;
   /** Optional custom CSS classes */
   className?: string;
+  /**
+   * What the mempool is doing to this asset, e.g. "Sending". Shown bottom-right in italics beside
+   * the amount. The amount itself is the confirmed balance and is never adjusted to match.
+   */
+  pendingStatus?: string;
 }
 
 /**
@@ -44,14 +52,19 @@ export function BalanceCard({
   token,
   onClick,
   showMenu = true,
-  className = ""
+  className = "",
+  pendingStatus,
 }: BalanceCardProps): ReactElement {
   const navigate = useNavigate();
+  // ZELD is not a Counterparty asset: its own page, its own icon, and a name the CDN cannot serve.
+  const isZeld = token.asset === ZELD_WALLET_ASSET;
 
   // Handle card click - use custom handler or default to balance navigation
   const handleClick = () => {
     if (onClick) {
       onClick(token.asset);
+    } else if (isZeld) {
+      void navigate("/zeld");
     } else {
       navigate(`/assets/${encodeURIComponent(token.asset)}/balance`);
     }
@@ -60,41 +73,45 @@ export function BalanceCard({
   // Determine if the asset is divisible for proper decimal formatting
   const isDivisible = token.asset_info?.divisible ?? false;
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleClick();
-    }
-  };
-
   return (
-    <div
-      className={`relative flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
-    >
-      {/* Asset Icon */}
-      <AssetIcon asset={token.asset} size="lg" className="flex-shrink-0" />
+    // The card is a container, not a control: the menu is its own button, and a
+    // button cannot contain another one. Opening the balance is the button here.
+    <div className={`relative bg-white rounded-lg shadow-sm ${className}`}>
+      <button
+        type="button"
+        className="flex w-full items-center p-4 text-left rounded-lg cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        onClick={handleClick}
+      >
+        {/* Asset Icon */}
+        <AssetIcon
+          asset={isZeld ? ZELD_DISPLAY_NAME : token.asset}
+          size="lg"
+          className="flex-shrink-0"
+          imageSrc={isZeld ? zeldIcon : undefined}
+        />
 
-      {/* Asset Information */}
-      <div className="ml-3 flex-grow">
-        {/* Asset Name/Symbol */}
-        <div className="font-medium text-sm text-gray-900">
-          {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
+        {/* Asset Information */}
+        <div className="ml-3 flex-grow">
+          {/* Asset Name/Symbol */}
+          <div className="font-medium text-sm text-gray-900">
+            {isZeld ? ZELD_DISPLAY_NAME : formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
+          </div>
+
+          {/* Balance amount, with whatever the mempool is doing to it on the right. */}
+          <div className="flex justify-between items-baseline">
+            <span className="text-sm text-gray-500">
+              {formatAmount({
+                value: token.quantity_normalized,
+                minimumFractionDigits: isDivisible ? 8 : 0,
+                maximumFractionDigits: isDivisible ? 8 : 0,
+                useGrouping: true,
+              })}
+            </span>
+            {/* The floating menu button sits a row above this line, so no room is reserved. */}
+            {pendingStatus && <PendingStatus label={pendingStatus} className="ml-2" />}
+          </div>
         </div>
-        
-        {/* Balance Amount */}
-        <div className="text-sm text-gray-500">
-          {formatAmount({
-            value: Number(token.quantity_normalized),
-            minimumFractionDigits: isDivisible ? 8 : 0,
-            maximumFractionDigits: isDivisible ? 8 : 0,
-            useGrouping: true,
-          })}
-        </div>
-      </div>
+      </button>
 
       {/* Balance Menu (if enabled) */}
       {showMenu && (

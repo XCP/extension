@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-export type SignRequestKind = 'sign-transaction' | 'sign-psbt' | 'sign-message';
+export type SignRequestKind = 'sign-transaction' | 'sign-psbt' | 'sign-psbts' | 'sign-message';
 
 /**
  * Connects the 'popup-lifecycle' port so the background can promptly cancel this

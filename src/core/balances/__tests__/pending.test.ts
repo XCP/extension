@@ -1,0 +1,325 @@
+import { describe, expect, it } from 'vitest';
+import {
+  countUnreadable,
+  type MempoolLedgerEvent,
+  type MempoolStatusEvent,
+  pendingByAsset,
+  pendingByUtxo,
+  pendingCancellations,
+  summarize,
+} from '../pending';
+
+const MINE = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+const THEIRS = '1CounterpartyXXXXXXXXXXXXXXXUWLpVr';
+
+const debit = (
+  quantity: number | string,
+  overrides: Partial<MempoolLedgerEvent['params']> = {},
+  tx_hash = 'tx1'
+): MempoolLedgerEvent => ({
+  tx_hash,
+  event: 'DEBIT',
+  params: { address: MINE, asset: 'XCP', quantity, action: 'issuance fee', ...overrides },
+});
+
+const credit = (
+  quantity: number | string,
+  overrides: Partial<MempoolLedgerEvent['params']> = {},
+  tx_hash = 'tx1'
+): MempoolLedgerEvent => ({
+  tx_hash,
+  event: 'CREDIT',
+  params: { address: MINE, asset: 'XCP', quantity, calling_function: 'issuance', ...overrides },
+});
+
+describe('pendingByAsset', () => {
+  it('totals pending debits for an asset', () => {
+    const result = pendingByAsset([debit(100), debit(50, {}, 'tx2')], MINE);
+
+    expect(result.get('XCP')?.debited).toBe(150n);
+    expect(result.get('XCP')?.credited).toBe(0n);
+  });
+
+  it('keeps debits and credits apart rather than netting them', () => {
+    const result = pendingByAsset([debit(100), credit(30)], MINE);
+
+    expect(result.get('XCP')?.debited).toBe(100n);
+    expect(result.get('XCP')?.credited).toBe(30n);
+  });
+
+  // The endpoint matches addresses with SQL LIKE against a joined column, so its results are a
+  // superset. Without this filter a neighbour's debit would be subtracted from your balance.
+  it('ignores events belonging to another address', () => {
+    const result = pendingByAsset([debit(100), debit(999, { address: THEIRS })], MINE);
+
+    expect(result.get('XCP')?.debited).toBe(100n);
+  });
+
+  it('separates assets', () => {
+    const result = pendingByAsset([debit(100), debit(7, { asset: 'PEPECASH' })], MINE);
+
+    expect(result.get('XCP')?.debited).toBe(100n);
+    expect(result.get('PEPECASH')?.debited).toBe(7n);
+  });
+
+  // Counterparty quantities are unsigned 64-bit. Rounding one to a double is the exact failure this
+  // module exists to prevent, so a large value has to survive as an integer.
+  it('is exact for quantities beyond a double', () => {
+    const huge = '99526925811111111';
+    const result = pendingByAsset([debit(huge, { asset: 'PEPECASH' })], MINE);
+
+    expect(result.get('PEPECASH')?.debited).toBe(99526925811111111n);
+    expect(result.get('PEPECASH')?.debited.toString()).toBe(huge);
+  });
+
+  it('skips a quantity it cannot read exactly, rather than guessing', () => {
+    const result = pendingByAsset([debit(1.5), debit('not a number', {}, 'tx2')], MINE);
+    expect(result.size).toBe(0);
+  });
+
+  it('collects the reasons behind a figure', () => {
+    const result = pendingByAsset(
+      [debit(100, { action: 'issuance fee' }), debit(2, { action: 'fairmint payment' }, 'tx2')],
+      MINE
+    );
+
+    expect(result.get('XCP')?.reasons).toEqual(['issuance fee', 'fairmint payment']);
+  });
+
+  it('does not repeat a reason or a transaction', () => {
+    const result = pendingByAsset([debit(1), debit(2)], MINE);
+
+    expect(result.get('XCP')?.reasons).toEqual(['issuance fee']);
+    expect(result.get('XCP')?.txHashes).toEqual(['tx1']);
+  });
+
+  it('lists each contributing transaction for linking', () => {
+    const result = pendingByAsset([debit(1), debit(2, {}, 'tx2')], MINE);
+    expect(result.get('XCP')?.txHashes).toEqual(['tx1', 'tx2']);
+  });
+
+  it('ignores event types that are not ledger movements', () => {
+    const result = pendingByAsset(
+      [{ tx_hash: 'tx1', event: 'NEW_TRANSACTION', params: { address: MINE, asset: 'XCP', quantity: 5 } }],
+      MINE
+    );
+
+    expect(result.size).toBe(0);
+  });
+
+  it('returns nothing for an empty mempool', () => {
+    expect(pendingByAsset([], MINE).size).toBe(0);
+  });
+});
+
+describe('creditedNormalized', () => {
+  it('totals incoming display units', () => {
+    const events = [
+      credit(100, { quantity_normalized: '1' } as never),
+      credit(50, { quantity_normalized: '0.5' } as never, 'tx2'),
+    ];
+    expect(pendingByAsset(events, MINE).get('XCP')?.creditedNormalized).toBe('1.5');
+  });
+
+  // Same null-poisoning as the outgoing side: a total missing a term is unknown, not smaller.
+  it('goes unknown when any credit lacks a readable figure', () => {
+    const events = [
+      credit(100, { quantity_normalized: '1' } as never),
+      credit(50, {} as never, 'tx2'),
+    ];
+    expect(pendingByAsset(events, MINE).get('XCP')?.creditedNormalized).toBeNull();
+  });
+});
+
+describe('incomingNormalized', () => {
+  it('does not advertise the API’s false issuer credits for escrowed pool fairmints', () => {
+    const events = [
+      debit(1000000000, { quantity_normalized: '10', action: 'fairmint payment' }, 'self-mint'),
+      credit(1000000000, { quantity_normalized: '10', calling_function: 'fairmint payment' }, 'self-mint'),
+      debit(1000000000, { quantity_normalized: '10', action: 'fairmint payment' }, 'other-mint'),
+      ...['boxxy', 'meowcash', 'moar'].map(tx => credit(10000000,
+        { quantity_normalized: '0.1', calling_function: 'fairmint payment' }, tx)),
+    ];
+    const delta = pendingByAsset(events, MINE).get('XCP');
+    expect(delta?.incomingNormalized).toBeNull();
+    expect(delta?.creditedNormalized).toBe('10.3');
+    expect(delta?.debitedNormalized).toBe('20');
+  });
+
+  it.each(['fairmint', 'fairmint commission'])('does not advertise escrow-sensitive %s credits', reason => {
+    const events = [credit(100, { quantity_normalized: '1', calling_function: reason })];
+    expect(pendingByAsset(events, MINE).get('XCP')?.incomingNormalized).toBeNull();
+  });
+
+  it('excludes a 10 XCP self-payment but includes three independent 0.1 XCP payments', () => {
+    const events = [
+      debit(1000000000, { quantity_normalized: '10' }, 'self-fairmint'),
+      credit(1000000000, { quantity_normalized: '10' }, 'self-fairmint'),
+      debit(1000000000, { quantity_normalized: '10' }, 'other-fairmint'),
+      ...['payment1', 'payment2', 'payment3'].map(tx => credit(10000000, { quantity_normalized: '0.1' }, tx)),
+    ];
+    const delta = pendingByAsset(events, MINE).get('XCP');
+    expect(delta?.creditedNormalized).toBe('10.3');
+    expect(delta?.incomingNormalized).toBe('0.3');
+    expect(delta?.debitedNormalized).toBe('20');
+  });
+
+  it('sums multiple movements within one transaction before computing its inflow', () => {
+    const events = [debit(100, { quantity_normalized: '1' }),
+      credit(150, { quantity_normalized: '1.5' }), credit(50, { quantity_normalized: '0.5' })];
+    expect(pendingByAsset(events, MINE).get('XCP')?.incomingNormalized).toBe('1');
+  });
+
+  it('does not show a partial incoming total when a matching debit is unreadable', () => {
+    const events = [credit(100, { quantity_normalized: '1' }), debit(100),
+      credit(50, { quantity_normalized: '0.5' }, 'separate')];
+    expect(pendingByAsset(events, MINE).get('XCP')?.incomingNormalized).toBeNull();
+  });
+});
+
+describe('pendingByUtxo ownership', () => {
+  const utxoEvent = (overrides: Record<string, unknown>): MempoolLedgerEvent => ({
+    tx_hash: 'tx1',
+    event: 'DEBIT',
+    params: {
+      asset: 'XCP',
+      quantity: 5,
+      action: 'detach from utxo',
+      utxo: 'aabb:0',
+      ...overrides,
+    } as MempoolLedgerEvent['params'],
+  });
+
+  it('counts a movement on a UTXO this address owns', () => {
+    const result = pendingByUtxo([utxoEvent({ utxo_address: MINE })], MINE);
+    expect(result.get('aabb:0')?.debited).toBe(5n);
+  });
+
+  // The endpoint matches addresses with SQL LIKE, so strangers arrive in the result set.
+  it('ignores a movement on a stranger UTXO', () => {
+    const result = pendingByUtxo([utxoEvent({ utxo_address: THEIRS })], MINE);
+    expect(result.size).toBe(0);
+  });
+
+  // The regression: an event naming us in neither field used to pass the old exclude-on-mismatch
+  // guard whenever utxo_address was simply absent.
+  it('ignores an event that names this address in no field at all', () => {
+    const result = pendingByUtxo([utxoEvent({ address: THEIRS })], MINE);
+    expect(result.size).toBe(0);
+  });
+
+  it('accepts ownership via the address field when utxo_address is unset', () => {
+    const result = pendingByUtxo([utxoEvent({ address: MINE })], MINE);
+    expect(result.get('aabb:0')?.debited).toBe(5n);
+  });
+});
+
+describe('countUnreadable', () => {
+  // "Something is pending that I could not total" and "nothing is pending" are different claims,
+  // and only one of them is safe to render as a balance.
+  it('counts our own events that could not be folded in', () => {
+    expect(countUnreadable([debit(1.5), debit('x', {}, 'tx2'), debit(10, {}, 'tx3')], MINE)).toBe(2);
+  });
+
+  it('does not count unreadable events belonging to another address', () => {
+    expect(countUnreadable([debit(1.5, { address: THEIRS })], MINE)).toBe(0);
+  });
+
+  it('counts an event with no asset', () => {
+    expect(countUnreadable([debit(10, { asset: undefined })], MINE)).toBe(1);
+  });
+});
+
+describe('summarize', () => {
+  it('leaves the confirmed balance alone and reports spendable separately', () => {
+    const delta = pendingByAsset([debit(100)], MINE).get('XCP');
+    const summary = summarize(400n, delta);
+
+    expect(summary.confirmed).toBe(400n);
+    expect(summary.spendable).toBe(300n);
+    expect(summary.outgoing).toBe(100n);
+  });
+
+  it('reports nothing pending when the mempool is empty for that asset', () => {
+    const summary = summarize(400n, undefined);
+
+    expect(summary.confirmed).toBe(400n);
+    expect(summary.spendable).toBe(400n);
+    expect(summary.outgoing).toBe(0n);
+    expect(summary.inconsistent).toBe(false);
+  });
+
+  // Pending debits above the confirmed balance are impossible per the ledger, so seeing them means
+  // the two reads disagree — mid-reorg, or a stale balance. A negative "spendable" would be a
+  // confident lie; falling back to the confirmed figure and flagging it is not.
+  it('flags a disagreement instead of reporting a negative balance', () => {
+    const delta = pendingByAsset([debit(500)], MINE).get('XCP');
+    const summary = summarize(400n, delta);
+
+    expect(summary.inconsistent).toBe(true);
+    expect(summary.spendable).toBe(400n);
+  });
+
+  it('carries the reasons through for display', () => {
+    const delta = pendingByAsset([debit(100, { action: 'fairmint payment' })], MINE).get('XCP');
+    expect(summarize(400n, delta).reasons).toEqual(['fairmint payment']);
+  });
+
+  it('reports incoming separately, without adding it to spendable', () => {
+    const delta = pendingByAsset([credit(50)], MINE).get('XCP');
+    const summary = summarize(400n, delta);
+
+    expect(summary.incoming).toBe(50n);
+    // Unconfirmed money in is not money you can spend.
+    expect(summary.spendable).toBe(400n);
+  });
+});
+
+describe('pendingCancellations', () => {
+  const cancel = (overrides: Partial<MempoolStatusEvent['params']> = {}): MempoolStatusEvent => ({
+    tx_hash: 'canceltx',
+    event: 'CANCEL_ORDER',
+    params: { source: MINE, offer_hash: 'order1', status: 'valid', ...overrides },
+  });
+  const close = (overrides: Partial<MempoolStatusEvent['params']> = {}): MempoolStatusEvent => ({
+    tx_hash: 'closetx',
+    event: 'DISPENSER_UPDATE',
+    params: { source: MINE, tx_hash: 'dispenser1', status: 10, ...overrides },
+  });
+
+  it('claims an order whose valid cancel is in the mempool', () => {
+    expect(pendingCancellations([cancel()], MINE).orderHashes).toEqual(new Set(['order1']));
+  });
+
+  // A cancel core judged invalid changes nothing when it confirms, so the button stays live.
+  it('ignores a cancel core judged invalid', () => {
+    const result = pendingCancellations([cancel({ status: 'invalid: offer not open' })], MINE);
+    expect(result.orderHashes.size).toBe(0);
+  });
+
+  // The endpoint address-matches with a LIKE superset; only the event's own source counts.
+  it("ignores a neighbour's cancel", () => {
+    expect(pendingCancellations([cancel({ source: THEIRS })], MINE).orderHashes.size).toBe(0);
+  });
+
+  it('claims a dispenser whose close is in the mempool, keyed by its own hash', () => {
+    expect(pendingCancellations([close()], MINE).dispenserHashes).toEqual(new Set(['dispenser1']));
+    // Status 11 is a delayed close still counting down; the ending is no less in flight.
+    expect(
+      pendingCancellations([close({ status: 11 })], MINE).dispenserHashes
+    ).toEqual(new Set(['dispenser1']));
+  });
+
+  // Refills update the same table without a status; they are not an ending.
+  it('ignores dispenser updates that are not closes', () => {
+    const refill = close({ status: undefined });
+    expect(pendingCancellations([refill], MINE).dispenserHashes.size).toBe(0);
+    expect(pendingCancellations([close({ status: 0 })], MINE).dispenserHashes.size).toBe(0);
+  });
+
+  it('returns empty sets for no events', () => {
+    const result = pendingCancellations([], MINE);
+    expect(result.orderHashes.size).toBe(0);
+    expect(result.dispenserHashes.size).toBe(0);
+  });
+});

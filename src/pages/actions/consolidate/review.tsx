@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import type { ConsolidationData } from "@/core/bitcoin/consolidationApi";
 import { formatAddress, formatAmount } from "@/core/format";
+import { add, divide, fromSatoshis, multiply, roundDown, roundUp, toNumber, toSatoshis } from '@/core/numeric';
 import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
 
 interface ConsolidationReviewProps {
@@ -40,7 +41,11 @@ function calculateBatchFees(
   
   batches.forEach(batch => {
     // Use actual total from API
-    const inputSats = Math.floor(batch.summary.total_btc * 100000000 / batch.summary.batches_required);
+    // total_btc is a decimal BTC figure; multiplying it by 1e8 as a double is the classic way to
+    // land a satoshi off. toSatoshis does the scaling exactly.
+    const inputSats = toNumber(roundDown(
+      divide(toSatoshis(batch.summary.total_btc), batch.summary.batches_required)
+    ));
     totalInput += inputSats;
     
     // Measured against confirmed recoveries: a 420-input spend lands at ~48,200 bytes, so a 1-of-3
@@ -51,14 +56,16 @@ function calculateBatchFees(
     const numOutputs = batch.fee_config?.fee_percent > 0 ? 2 : 1;
     
     const estimatedSize = (batch.summary.batch_utxos * bytesPerInput) + baseOverhead + (numOutputs * bytesPerOutput);
-    const networkFee = Math.ceil(estimatedSize * feeRate);
+    const networkFee = toNumber(roundUp(multiply(estimatedSize, feeRate)));
     totalNetworkFee += networkFee;
     
     // Calculate service fee
     if (batch.fee_config && batch.fee_config.fee_percent > 0) {
       const afterNetworkFee = inputSats - networkFee;
       if (afterNetworkFee > batch.fee_config.exemption_threshold) {
-        totalServiceFee += Math.floor(afterNetworkFee * batch.fee_config.fee_percent / 100);
+        totalServiceFee += toNumber(roundDown(
+          divide(multiply(afterNetworkFee, batch.fee_config.fee_percent), 100)
+        ));
       }
     }
   });
@@ -222,7 +229,7 @@ export const ConsolidationReview = ({
             <span className="text-gray-700">Network Fee:</span>
             <span className="text-gray-900">
               ~{formatAmount({
-                value: fees.totalNetworkFee / 100000000,
+                value: fromSatoshis(fees.totalNetworkFee),
                 minimumFractionDigits: 8,
                 maximumFractionDigits: 8,
               })}{" "}
@@ -235,7 +242,7 @@ export const ConsolidationReview = ({
               <span className="text-gray-700">Service Fee ({feeConfig.fee_percent}%):</span>
               <span className="text-gray-900">
                 ~{formatAmount({
-                  value: fees.totalServiceFee / 100000000,
+                  value: fromSatoshis(fees.totalServiceFee),
                   minimumFractionDigits: 8,
                   maximumFractionDigits: 8,
                 })}{" "}
@@ -248,7 +255,7 @@ export const ConsolidationReview = ({
             <span className="text-gray-700">Total Fees:</span>
             <span className="text-yellow-900">
               ~{formatAmount({
-                value: (fees.totalNetworkFee + fees.totalServiceFee) / 100000000,
+                value: fromSatoshis(add(fees.totalNetworkFee, fees.totalServiceFee)),
                 minimumFractionDigits: 8,
                 maximumFractionDigits: 8,
               })}{" "}
@@ -268,7 +275,7 @@ export const ConsolidationReview = ({
           <span className="font-semibold text-gray-700">You Will Receive:</span>
           <div className="text-green-700 font-medium bg-green-50 p-2 rounded">
             ~{formatAmount({
-              value: fees.totalOutput / 100000000,
+              value: fromSatoshis(fees.totalOutput),
               minimumFractionDigits: 8,
               maximumFractionDigits: 8,
             })}{" "}

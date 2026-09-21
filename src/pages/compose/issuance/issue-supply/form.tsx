@@ -8,8 +8,9 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { IssuanceOptions } from "@/core/counterparty/compose";
-import { formatAmount } from "@/core/format";
-import { toBigNumber } from "@/core/numeric";
+import { formatForInput } from "@/core/format";
+import { asDisplayUnits, fromSatoshis, toBigNumber } from '@/core/numeric';
+import { MAX_SUPPLY } from "@/core/validation/amount";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 /**
@@ -50,24 +51,18 @@ export function IssueSupplyForm({
     const isDivisible = assetInfo.divisible ?? false;
     const currentSupply = toBigNumber(assetInfo.supply || "0");
     
-    // Max int is 2^63 - 1 = 9223372036854775807
-    const maxInt = toBigNumber("9223372036854775807");
-    const maxIssuable = maxInt.minus(currentSupply);
+    // Unlike a reset, an issuance adds to the supply, so the headroom is the ceiling less what
+    // already exists — core checks the sum ("total quantity overflow"), not the addend.
+    const maxIssuable = toBigNumber(MAX_SUPPLY).minus(currentSupply);
     
     if (maxIssuable.isLessThanOrEqualTo(0)) {
       return "0";
     }
     
     // Convert to normalized amount (divide by 10^8 if divisible)
-    const normalizedMax = isDivisible 
-      ? maxIssuable.dividedBy(100000000).toString()
-      : maxIssuable.toString();
+    const normalizedMax = isDivisible ? fromSatoshis(maxIssuable) : maxIssuable.toString();
     
-    return formatAmount({
-      value: Number(normalizedMax),
-      maximumFractionDigits: isDivisible ? 8 : 0,
-      minimumFractionDigits: 0
-    });
+    return formatForInput(normalizedMax, isDivisible ? 8 : 0);
   };
 
   const processedFormAction = async (formData: FormData) => {
@@ -124,7 +119,7 @@ export function IssueSupplyForm({
             description: assetInfo?.description ?? "",
             issuer: assetInfo?.issuer ?? "",
             supply: assetInfo?.supply ?? "0",
-            supply_normalized: assetInfo?.supply_normalized || '0'
+            supply_normalized: asDisplayUnits(assetInfo?.supply_normalized || '0')
           }}
           className="mt-1 mb-5"
         />

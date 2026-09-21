@@ -16,14 +16,16 @@ export function formatPrice(
   switch (unit) {
     case "sats":
       return `${formatAmount({ value: sats, maximumFractionDigits: 0 })} sats`;
-    case "btc":
+    case "btc": {
       const btc = sats / SATS_PER_BTC;
       return `${formatAmount({ value: btc, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC`;
-    case "fiat":
+    }
+    case "fiat": {
       if (!btcPrice) return "—";
       const fiatValue = (sats / SATS_PER_BTC) * btcPrice;
       const { symbol, decimals } = CURRENCY_INFO[currency];
       return `${symbol}${formatAmount({ value: fiatValue, maximumFractionDigits: decimals })}`;
+    }
   }
 }
 
@@ -41,10 +43,11 @@ export function getRawPrice(
       return formatAmount({ value: sats, maximumFractionDigits: 0 });
     case "btc":
       return formatAmount({ value: sats / SATS_PER_BTC, minimumFractionDigits: 8, maximumFractionDigits: 8 });
-    case "fiat":
+    case "fiat": {
       if (!btcPrice) return "";
       const decimals = CURRENCY_INFO[currency].decimals;
       return formatAmount({ value: (sats / SATS_PER_BTC) * btcPrice, maximumFractionDigits: decimals });
+    }
   }
 }
 

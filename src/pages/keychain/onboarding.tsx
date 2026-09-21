@@ -35,7 +35,7 @@ function OnboardingPage() {
   }
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="onboarding-title">
+    <section className="flex flex-col h-full" aria-labelledby="onboarding-title">
       <div className="flex-grow flex items-center justify-center p-4">
         <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6 text-center">
           <h1
@@ -88,7 +88,7 @@ function OnboardingPage() {
         </a>
         .
       </div>
-    </div>
+    </section>
   );
 }
 

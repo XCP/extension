@@ -1,10 +1,12 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
+import { useComposer } from '@/contexts/composer-context-object';
 import * as counterpartyApi from '@/core/counterparty/api';
 import * as utxoSelection from '@/core/counterparty/utxoSelection';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { DispenseForm } from '../form';
 
 // Mock the API modules
@@ -71,18 +73,18 @@ function createMockDispenser(overrides: Partial<counterpartyApi.DispenserDetails
     source: 'bc1qsource',
     tx_hash: 'abc123',
     status: 0,
-    give_remaining: 1000000,
-    give_remaining_normalized: '10',
-    give_quantity: 100000,
-    give_quantity_normalized: '1',
-    satoshirate: 5000,
-    satoshirate_normalized: '0.00005000',
-    escrow_quantity: 10000000,
-    escrow_quantity_normalized: '100',
+    give_remaining: asBaseUnits(1000000),
+    give_remaining_normalized: asDisplayUnits('10'),
+    give_quantity: asBaseUnits(100000),
+    give_quantity_normalized: asDisplayUnits('1'),
+    satoshirate: asBaseUnits(5000),
+    satoshirate_normalized: asDisplayUnits('0.00005000'),
+    escrow_quantity: asBaseUnits(10000000),
+    escrow_quantity_normalized: asDisplayUnits('100'),
     block_index: 800000,
     block_time: 1700000000,
     confirmed: true,
-    price: 5000,
+    price: asBaseUnits(5000),
     satoshi_price: 5000,
     asset_info: {
       asset_longname: null,
@@ -153,7 +155,7 @@ describe('DispenseForm', () => {
     await waitFor(() => {
       expect(mockFetchAddressDispensers).toHaveBeenCalledWith(
         '1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
-        { status: 'open', verbose: true }
+        { status: 'open', verbose: true, limit: 20, offset: 0 }
       );
     });
 
@@ -164,6 +166,46 @@ describe('DispenseForm', () => {
       expect(screen.getByText(/1 Per Dispense/)).toBeInTheDocument();
       expect(screen.getByText(/10 Remaining/)).toBeInTheDocument();
     });
+  });
+
+  it('hides oracle dispensers and selects the fixed-rate option', async () => {
+    mockFetchAddressDispensers.mockResolvedValue({
+      result: [
+        createMockDispenser({ asset: 'XCP', oracle_address: 'feed', satoshirate: asBaseUnits(888) }),
+        createMockDispenser({ tx_hash: 'fixed', oracle_address: null }),
+      ],
+      result_count: 2,
+    });
+    renderWithProvider();
+    await userEvent.type(screen.getByLabelText(/Dispenser Address/i), '1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
+    await waitFor(() => expect(screen.getByText('PEPECASH')).toBeInTheDocument());
+    expect(screen.queryByText('XCP')).not.toBeInTheDocument();
+    expect(document.querySelector('input[name="satoshirate"]')).toHaveValue('5000');
+  });
+
+  it.each([
+    { initialAsset: 'ASSET43' },
+    { selectedDispenserIndex: 43 },
+  ])('finds a later-page selection from initial form data: %j', async initial => {
+    const rows = Array.from({ length: 70 }, (_, i) => createMockDispenser({ asset: `ASSET${i}`, tx_hash: `tx-${i}` }));
+    mockFetchAddressDispensers.mockImplementation(async (_address, { offset = 0, limit = 10 } = {}) => ({
+      result: rows.slice(offset, offset + limit), result_count: rows.length,
+    }));
+    renderWithProvider({ dispenser: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr', ...initial });
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Select dispenser for ASSET43' })).toBeChecked());
+    expect(mockFetchAddressDispensers).toHaveBeenCalledTimes(3);
+  });
+
+  it('offers no purchase when the address only has oracle dispensers', async () => {
+    mockFetchAddressDispensers.mockResolvedValue({
+      result: [createMockDispenser({ asset: 'XCP', oracle_address: 'feed' })],
+      result_count: 1,
+    });
+    renderWithProvider();
+    await userEvent.type(screen.getByLabelText(/Dispenser Address/i), '1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
+    await waitFor(() => expect(screen.getAllByText(/No open dispenser found at this address/i).length).toBeGreaterThan(0));
+    expect(screen.queryByText('XCP')).not.toBeInTheDocument();
+    expect(document.querySelector('input[name="satoshirate"]')).toBeNull();
   });
 
   it('should not fetch dispensers for invalid addresses', async () => {
@@ -204,12 +246,12 @@ describe('DispenseForm', () => {
       createMockDispenser({
         asset: 'RAREPEPE',
         tx_hash: 'def456',
-        give_remaining: 500000,
-        give_remaining_normalized: '5',
-        give_quantity: 50000,
-        give_quantity_normalized: '0.5',
-        satoshirate: 10000,
-        satoshirate_normalized: '0.00010000',
+        give_remaining: asBaseUnits(500000),
+        give_remaining_normalized: asDisplayUnits('5'),
+        give_quantity: asBaseUnits(50000),
+        give_quantity_normalized: asDisplayUnits('0.5'),
+        satoshirate: asBaseUnits(10000),
+        satoshirate_normalized: asDisplayUnits('0.00010000'),
         asset_info: {
           asset_longname: null,
           description: 'Rare Pepe',
@@ -251,7 +293,7 @@ describe('DispenseForm', () => {
   }, 15000);
 
   it('should handle max dispenses calculation', async () => {
-    const mockDispensers = [createMockDispenser({ satoshirate: 1000, satoshirate_normalized: '0.00001000' })];
+    const mockDispensers = [createMockDispenser({ satoshirate: asBaseUnits(1000), satoshirate_normalized: asDisplayUnits('0.00001000') })];
 
     mockFetchAddressDispensers.mockResolvedValue({
       result: mockDispensers,
@@ -291,8 +333,8 @@ describe('DispenseForm', () => {
   it('should show insufficient balance error', async () => {
     const mockDispensers = [createMockDispenser({
       asset: 'EXPENSIVE',
-      satoshirate: 100000000, // 1 BTC per dispense (more than our 0.1 BTC balance)
-      satoshirate_normalized: '1.00000000',
+      satoshirate: asBaseUnits(100000000), // 1 BTC per dispense (more than our 0.1 BTC balance)
+      satoshirate_normalized: asDisplayUnits('1.00000000'),
       asset_info: {
         asset_longname: null,
         description: 'Expensive Asset',
@@ -338,13 +380,80 @@ describe('DispenseForm', () => {
     });
   });
 
+  // The shortfall message quotes a fee computed from the composer's fee rate, which is refreshed
+  // while the form is open. `maxDispenses` recomputes from the live rate on every render, so if
+  // the Max handler holds an older one the two disagree and the user is quoted a fee at a rate
+  // that is no longer in effect.
+  it('quotes the shortfall at the current fee rate, not the one in effect when Max was built', async () => {
+    const mockDispensers = [createMockDispenser({
+      asset: 'EXPENSIVE',
+      satoshirate: asBaseUnits(100000000), // 1 BTC per dispense, far above the balance below
+      satoshirate_normalized: asDisplayUnits('1.00000000'),
+    })];
+
+    mockFetchAddressDispensers.mockResolvedValue({
+      result: mockDispensers,
+      result_count: 1,
+    });
+
+    mockSelectUtxosForTransaction.mockResolvedValue({
+      utxos: [
+        { txid: 'abc123', vout: 0, value: 100000, status: { confirmed: true, block_height: 800000, block_hash: 'hash', block_time: 1234567890 } }
+      ],
+      inputsSet: 'abc123:0',
+      totalValue: 100000,
+      excludedWithAssets: 0,
+      excludedValue: 0,
+    });
+
+    let setFeeRate!: (rate: number) => void;
+    function FeeRateDriver() {
+      setFeeRate = useComposer().setFeeRate;
+      return null;
+    }
+
+    render(
+      <MemoryRouter>
+        <ComposerProvider composeApi={vi.fn()} initialTitle="Dispense" composeType="dispense">
+          <FeeRateDriver />
+          <DispenseForm formAction={mockFormAction} initialFormData={null} />
+        </ComposerProvider>
+      </MemoryRouter>
+    );
+
+    await userEvent.type(screen.getByLabelText(/Dispenser Address/i), '1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
+    await waitFor(() => expect(screen.getByText('EXPENSIVE')).toBeInTheDocument());
+
+    const quotedFee = () => {
+      const message = screen.getByText(/Insufficient BTC balance/i).textContent ?? '';
+      const match = message.match(/~(\d+) sats fee/);
+      if (!match) throw new Error(`No fee in shortfall message: ${message}`);
+      return Number(match[1]);
+    };
+
+    await act(async () => { setFeeRate(1); });
+    await userEvent.click(screen.getByText('Max'));
+    await waitFor(() => expect(screen.getByText(/Insufficient BTC balance/i)).toBeInTheDocument());
+    const feeAtRate1 = quotedFee();
+
+    // Fees spike; the form's fee rate is updated underneath the mounted component.
+    await act(async () => { setFeeRate(100); });
+    await userEvent.click(screen.getByText('Max'));
+
+    await waitFor(() => {
+      // 100× the rate over the same transaction means ~100× the fee. A handler holding the old
+      // rate keeps quoting feeAtRate1.
+      expect(quotedFee()).toBeGreaterThan(feeAtRate1 * 50);
+    });
+  });
+
   it('should handle empty dispenser', async () => {
     const mockDispensers = [createMockDispenser({
       asset: 'EMPTY',
-      give_remaining: 0,
-      give_remaining_normalized: '0',
-      satoshirate: 1000,
-      satoshirate_normalized: '0.00001000',
+      give_remaining: asBaseUnits(0),
+      give_remaining_normalized: asDisplayUnits('0'),
+      satoshirate: asBaseUnits(1000),
+      satoshirate_normalized: asDisplayUnits('0.00001000'),
       asset_info: {
         asset_longname: null,
         description: 'Empty Asset',

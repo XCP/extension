@@ -111,311 +111,170 @@ describe('Transaction Broadcaster Utilities', () => {
   });
 
   describe('broadcastTransaction with real endpoints', () => {
-    it('should broadcast successfully using counterparty endpoint', async () => {
-      mockApiClient.post.mockResolvedValue({
-        status: 200,
-        data: { result: mockTxid }
+    const accepted = (data: unknown) => ({ status: 200, data });
+    const apiRejection = (data: unknown, status = 503) =>
+      Object.assign(new Error(typeof data === 'string' ? data : 'HTTP error'), {
+        code: 'HTTP_ERROR',
+        status,
+        response: { data, status },
       });
+    const urlsCalled = () => mockApiClient.post.mock.calls.map((call: unknown[]) => String(call[0]));
 
-      const result = await broadcastTransaction(mockSignedTxHex);
-      
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-      expect(mockApiClient.post).toHaveBeenCalledWith(
-        expect.stringContaining('api.counterparty.io'),
-        null,
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-    });
-
-    it('should broadcast successfully using blockcypher endpoint', async () => {
+    it('accepts through the Counterparty node and then feeds both public relays', async () => {
       mockApiClient.post
-        .mockRejectedValueOnce(new Error('Counterparty failed'))
-        .mockResolvedValueOnce({
-          status: 201,
-          data: { 
-            tx: { 
-              hash: mockTxid,
-              fees: 2500
-            }
-          }
-        });
+        .mockResolvedValueOnce(accepted({ result: mockTxid }))
+        .mockResolvedValueOnce(accepted(mockTxid))
+        .mockResolvedValueOnce(accepted(mockTxid));
 
       const result = await broadcastTransaction(mockSignedTxHex);
-      
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-      expect(result.fees).toBe(2500);
-      expect(mockApiClient.post).toHaveBeenCalledWith(
-        'https://api.blockcypher.com/v1/btc/main/txs/push',
-        { tx: mockSignedTxHex },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-    });
 
-    it('should broadcast successfully using blockstream endpoint', async () => {
-      mockApiClient.post
-        .mockRejectedValueOnce(new Error('Counterparty failed'))
-        .mockRejectedValueOnce(new Error('Blockcypher failed'))
-        .mockResolvedValueOnce({
-          status: 200,
-          data: mockTxid
-        });
-
-      const result = await broadcastTransaction(mockSignedTxHex);
-      
       expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-      expect(mockApiClient.post).toHaveBeenCalledWith(
+      expect(urlsCalled()).toEqual([
+        expect.stringContaining('/v2/bitcoin/transactions?signedhex='),
         'https://blockstream.info/api/tx',
-        mockSignedTxHex,
-        { headers: { 'Content-Type': 'text/plain' } }
-      );
-    });
-
-    it('should broadcast successfully using mempool endpoint', async () => {
-      mockApiClient.post
-        .mockRejectedValueOnce(new Error('Counterparty failed'))
-        .mockRejectedValueOnce(new Error('Blockcypher failed'))
-        .mockRejectedValueOnce(new Error('Blockstream failed'))
-        .mockResolvedValueOnce({
-          status: 200,
-          data: ` ${mockTxid} ` // With whitespace to test trimming
-        });
-
-      const result = await broadcastTransaction(mockSignedTxHex);
-      
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-      expect(mockApiClient.post).toHaveBeenCalledWith(
         'https://mempool.space/api/tx',
-        mockSignedTxHex,
-        { headers: { 'Content-Type': 'text/plain' } }
-      );
+      ]);
     });
 
-    it('should throw error when all endpoints fail', async () => {
-      mockApiClient.post.mockRejectedValue(new Error('Network error'));
-
-      await expect(broadcastTransaction(mockSignedTxHex)).rejects.toThrow(
-        'Network error'
-      );
-    });
-
-    it('should handle HTTP error status codes', async () => {
+    it('sends each broadcast exactly once, with the broadcast timeout and no client-side retry', async () => {
       mockApiClient.post
-        .mockResolvedValueOnce({
-          status: 400,
-          data: { error: 'Bad request' }
-        })
-        .mockResolvedValueOnce({
-          status: 200,
-          data: { tx: { hash: mockTxid } }
-        });
-
-      const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-    });
-
-    it('should handle responses without valid txid', async () => {
-      mockApiClient.post
-        .mockResolvedValueOnce({
-          status: 200,
-          data: { result: null } // No valid txid
-        })
-        .mockResolvedValueOnce({
-          status: 200,
-          data: { tx: { hash: mockTxid } }
-        });
-
-      const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-    });
-
-    it('should handle empty response data', async () => {
-      mockApiClient.post
-        .mockResolvedValueOnce({
-          status: 200,
-          data: null
-        })
-        .mockResolvedValueOnce({
-          status: 200,
-          data: { tx: { hash: mockTxid } }  // blockcypher format
-        });
-
-      const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-    });
-
-    it('should properly encode URL parameters for counterparty', async () => {
-      const specialCharHex = 'abc+def/123=456';
-      mockApiClient.post.mockResolvedValue({
-        status: 200,
-        data: { result: mockTxid }
-      });
-
-      await broadcastTransaction(specialCharHex);
-      
-      const expectedUrl = expect.stringContaining('signedhex=abc%2Bdef%2F123%3D456');
-      expect(mockApiClient.post).toHaveBeenCalledWith(
-        expectedUrl,
-        null,
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-    });
-
-    it('should handle network timeout errors', async () => {
-      mockApiClient.post
-        .mockRejectedValueOnce({ code: 'ECONNABORTED', message: 'timeout' })
-        .mockResolvedValueOnce({
-          status: 200,
-          data: { tx: { hash: mockTxid } }  // blockcypher format
-        });
-
-      const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-    });
-
-    it('should handle malformed JSON responses', async () => {
-      mockApiClient.post
-        .mockRejectedValueOnce(new Error('JSON parse error'))
-        .mockResolvedValueOnce({
-          status: 200,
-          data: { tx: { hash: mockTxid } }
-        });
-
-      const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-    });
-
-    it('should handle response format differences correctly', async () => {
-      // Test counterparty format
-      mockApiClient.post.mockResolvedValueOnce({
-        status: 200,
-        data: { result: mockTxid }
-      });
-
-      let result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-      expect(result.fees).toBeUndefined();
-
-      // Reset and test blockcypher format
-      vi.clearAllMocks();
-      mockApiClient.post
-        .mockRejectedValueOnce(new Error('First failed'))
-        .mockResolvedValueOnce({
-          status: 200,
-          data: { 
-            tx: { 
-              hash: mockTxid,
-              fees: 1500
-            }
-          }
-        });
-
-      result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-      expect(result.fees).toBe(1500);
-    });
-
-    it('should handle custom counterparty API base URL', async () => {
-      // Clear the default mock and set a new one before the test
-      mockGetSettings.mockClear();
-      mockGetSettings.mockReturnValue({
-        ...DEFAULT_SETTINGS,
-        counterpartyApiBase: 'https://custom.api.com', // Custom API for this test
-      });
-
-      mockApiClient.post.mockResolvedValue({
-        status: 200,
-        data: { result: mockTxid }
-      });
+        .mockResolvedValueOnce(accepted({ result: mockTxid }))
+        .mockResolvedValue(accepted(mockTxid));
 
       await broadcastTransaction(mockSignedTxHex);
-      
-      expect(mockApiClient.post).toHaveBeenCalledWith(
-        expect.stringContaining('custom.api.com'),
+
+      expect(mockApiClient.post).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('api.counterparty.io'),
         null,
-        { headers: { 'Content-Type': 'application/json' } }
+        { headers: { 'Content-Type': 'application/json' }, timeout: 45000, retries: 0 },
+      );
+      expect(mockApiClient.post).toHaveBeenNthCalledWith(
+        2,
+        'https://blockstream.info/api/tx',
+        mockSignedTxHex,
+        { headers: { 'Content-Type': 'text/plain' }, timeout: 10000, retries: 0 },
       );
     });
 
-    it('should handle very long transaction hex', async () => {
-      const longHex = 'a'.repeat(10000);
-      mockApiClient.post.mockResolvedValue({
-        status: 200,
-        data: { result: mockTxid }
-      });
+    it('treats a node that already holds the transaction as a successful broadcast', async () => {
+      // The Counterparty node accepted a first send whose response was lost; Core wraps the
+      // node's answer to the repeat as a retryable 503.
+      mockApiClient.post
+        .mockRejectedValueOnce(apiRejection({ error: 'Error broadcasting transaction: txn-already-in-mempool' }))
+        .mockResolvedValue(accepted(mockTxid));
 
-      const result = await broadcastTransaction(longHex);
-      // Unparseable hex: no local txid computable, so fall back to the endpoint's.
-      expect(result.txid).toBe(mockTxid);
+      const result = await broadcastTransaction(mockSignedTxHex);
+
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
+      expect(urlsCalled()).toHaveLength(3);
     });
 
-    it('should handle successful response with status code edge cases', async () => {
-      // Test status 201 (Created)
-      mockApiClient.post.mockResolvedValueOnce({
-        status: 201,
-        data: { result: mockTxid }
-      });
+    it('recognises a relay that already saw the transaction in a block', async () => {
+      mockApiClient.post
+        .mockRejectedValueOnce(new Error('Counterparty failed'))
+        .mockRejectedValueOnce(apiRejection(
+          'sendrawtransaction RPC error: {"code":-27,"message":"Transaction already in block chain"}',
+          400,
+        ))
+        .mockResolvedValue(accepted(mockTxid));
 
       const result = await broadcastTransaction(mockSignedTxHex);
       expect(result.txid).toBe(computeTxid(mockSignedTxHex));
-
-      // Test status 202 (Accepted)
-      vi.clearAllMocks();
-      // Re-setup the settings mock after clearing
-      mockGetSettings.mockReturnValue(DEFAULT_SETTINGS);
-      // Test blockstream format for 202
-      mockApiClient.post
-        .mockRejectedValueOnce(new Error('First failed'))  // counterparty fails
-        .mockRejectedValueOnce(new Error('Second failed'))  // blockcypher fails
-        .mockResolvedValueOnce({
-          status: 202,
-          data: mockTxid  // blockstream returns plain string
-        });
-
-      const result2 = await broadcastTransaction(mockSignedTxHex);
-      expect(result2.txid).toBe(computeTxid(mockSignedTxHex));
-    });
-  });
-
-  describe('error handling', () => {
-    it('should preserve last error message when all endpoints fail', async () => {
-      const specificError = 'Transaction already exists';
-      mockApiClient.post
-        .mockRejectedValueOnce(new Error('First error'))
-        .mockRejectedValueOnce(new Error('Second error'))
-        .mockRejectedValueOnce(new Error('Third error'))
-        .mockRejectedValueOnce(new Error(specificError));
-
-      await expect(broadcastTransaction(mockSignedTxHex)).rejects.toThrow(specificError);
     });
 
-    it('should handle unknown endpoint format gracefully', async () => {
-      // This test simulates an internal error in formatResponse
-      mockApiClient.post.mockResolvedValue({
-        status: 200,
-        data: { result: mockTxid }
-      });
-
-      // Mock a scenario where formatResponse would throw
-      const originalConsoleError = console.error;
-      console.error = vi.fn();
+    it('falls through to a public relay when the Counterparty node is down, and still feeds the other', async () => {
+      mockApiClient.post
+        .mockRejectedValueOnce(new Error('Counterparty failed'))
+        .mockResolvedValueOnce(accepted(mockTxid))
+        .mockResolvedValueOnce(accepted(mockTxid));
 
       const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
 
-      console.error = originalConsoleError;
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
+      expect(urlsCalled()).toEqual([
+        expect.stringContaining('api.counterparty.io'),
+        'https://blockstream.info/api/tx',
+        'https://mempool.space/api/tx',
+      ]);
     });
 
-    it('should handle axios request config errors', async () => {
-      mockApiClient.post.mockRejectedValue({
-        config: {},
-        request: {},
-        response: {
-          status: 500,
-          data: 'Internal server error'
-        }
+    it('does not let a failing relay fan-out change a successful outcome', async () => {
+      mockApiClient.post
+        .mockResolvedValueOnce(accepted({ result: mockTxid }))
+        .mockRejectedValueOnce(new Error('blockstream down'))
+        .mockRejectedValueOnce(apiRejection('Transaction rate limit', 429));
+
+      await expect(broadcastTransaction(mockSignedTxHex)).resolves.toEqual({
+        txid: computeTxid(mockSignedTxHex),
       });
+    });
+
+    it('never pushes to BlockCypher', async () => {
+      mockApiClient.post.mockRejectedValue(new Error('Network error'));
 
       await expect(broadcastTransaction(mockSignedTxHex)).rejects.toThrow();
+      expect(urlsCalled().some((url: string) => url.includes('blockcypher'))).toBe(false);
+    });
+
+    it('throws the first endpoint rejection when every endpoint refuses', async () => {
+      mockApiClient.post
+        .mockRejectedValueOnce(apiRejection({ error: 'Error broadcasting transaction: min relay fee not met' }))
+        .mockRejectedValueOnce(apiRejection('min relay fee not met', 400))
+        .mockRejectedValueOnce(apiRejection('min relay fee not met', 400));
+
+      await expect(broadcastTransaction(mockSignedTxHex)).rejects.toThrow(
+        'Error broadcasting transaction: min relay fee not met',
+      );
+    });
+
+    it('throws a plain network error when no endpoint answered at all', async () => {
+      mockApiClient.post.mockRejectedValue(new Error('Network error'));
+
+      await expect(broadcastTransaction(mockSignedTxHex)).rejects.toThrow('Network error');
+      expect(mockApiClient.post).toHaveBeenCalledTimes(3);
+    });
+
+    it('treats a non-2xx response as a refusal and moves on', async () => {
+      mockApiClient.post
+        .mockResolvedValueOnce({ status: 400, data: { error: 'Bad request' } })
+        .mockResolvedValue(accepted(mockTxid));
+
+      const result = await broadcastTransaction(mockSignedTxHex);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
+    });
+
+    it('treats an acceptance without a txid echo as a refusal', async () => {
+      mockApiClient.post
+        .mockResolvedValueOnce(accepted({ result: null }))
+        .mockResolvedValueOnce(accepted(''))
+        .mockResolvedValueOnce(accepted(mockTxid));
+
+      const result = await broadcastTransaction(mockSignedTxHex);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
+      expect(urlsCalled()).toHaveLength(3);
+    });
+
+    it('properly encodes the hex into the Counterparty URL', async () => {
+      const hexWithSpecialChars = mockSignedTxHex + '&test=value';
+      mockApiClient.post.mockResolvedValue(accepted({ result: mockTxid }));
+
+      await broadcastTransaction(hexWithSpecialChars);
+
+      expect(mockApiClient.post).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(encodeURIComponent(hexWithSpecialChars)),
+        null,
+        expect.any(Object),
+      );
+    });
+
+    it('reports the locally computed txid rather than the endpoint echo', async () => {
+      mockApiClient.post.mockResolvedValue(accepted({ result: 'not-the-real-id' }));
+
+      const result = await broadcastTransaction(mockSignedTxHex);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
+      expect(result.txid).not.toBe('not-the-real-id');
     });
   });
 });

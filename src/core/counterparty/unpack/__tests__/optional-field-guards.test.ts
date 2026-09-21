@@ -12,6 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { asBaseUnits } from '@/core/numeric';
 import { packAddress } from '../address';
 import { hexToBytes } from '../binary';
 import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
@@ -50,8 +51,8 @@ function dispenserMessage(
 /** What the dispenser form submits: no status, no open address, no oracle. */
 const OPEN_DISPENSER_REQUEST = {
   asset: 'XCP',
-  give_quantity: 1000,
-  escrow_quantity: 10000,
+  give_quantity: asBaseUnits(1000),
+  escrow_quantity: asBaseUnits(10000),
   mainchainrate: 500,
 };
 
@@ -106,8 +107,8 @@ describe('dispenser fields the request leaves out', () => {
     // compares normally rather than against the omitted-field default.
     const result = verifyTransaction(dispenserMessage({ status: 10 }), 'dispenser', {
       ...OPEN_DISPENSER_REQUEST,
-      give_quantity: 0,
-      escrow_quantity: 0,
+      give_quantity: asBaseUnits(0),
+      escrow_quantity: asBaseUnits(0),
       mainchainrate: 0,
       status: '10',
     });

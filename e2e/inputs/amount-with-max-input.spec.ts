@@ -13,10 +13,11 @@
 
 import { walletTest, expect, navigateTo } from '../fixtures';
 import { TEST_AMOUNTS, TEST_ADDRESSES } from '../test-data';
-import { index, compose, common } from '../selectors';
+import { index, compose } from '../selectors';
 
 // Helper to get the quantity/amount input
 const getAmountInput = (page: any) => compose.send.quantityInput(page);
+const getSendForm = (page: any) => page.locator('form').filter({ has: getAmountInput(page) });
 
 walletTest.describe('AmountWithMaxInput Component', () => {
   walletTest.beforeEach(async ({ page }) => {
@@ -120,36 +121,16 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       await expect(input).toHaveValue(TEST_AMOUNTS.zero);
     });
 
-    walletTest('handles negative amount', async ({ page }) => {
+    walletTest('preserves invalid negative and non-numeric drafts without composing', async ({ page }) => {
       const input = getAmountInput(page);
-      await input.fill(TEST_AMOUNTS.negative);
-      await input.blur();
-
-      // Component accepts negative input - form should not allow submission
-      const value = await input.inputValue();
-
-      // Verify the input accepted the value (component handles validation via form, not input mask)
-      expect(value).toContain('-');
-
-      // Submit button should be disabled for invalid input
-      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
-      await expect(submitBtn).toBeDisabled({ timeout: 5000 });
-    });
-
-    walletTest('handles non-numeric input', async ({ page }) => {
-      const input = getAmountInput(page);
-      await input.fill(TEST_AMOUNTS.invalid);
-      await input.blur();
-
-      // Component accepts non-numeric input - form should not allow submission
-      const value = await input.inputValue();
-
-      // Verify the input accepted the value
-      expect(value).toBe(TEST_AMOUNTS.invalid);
-
-      // Submit button should be disabled for invalid input
-      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
-      await expect(submitBtn).toBeDisabled({ timeout: 5000 });
+      for (const draft of [TEST_AMOUNTS.negative, TEST_AMOUNTS.invalid, '0,5']) {
+        await input.fill('');
+        await input.pressSequentially(draft);
+        await input.blur();
+        await expect(input).toHaveValue(draft);
+        await expect(input).toHaveAttribute('aria-invalid', 'true');
+        await expect(page.locator('button[type="submit"]:has-text("Continue")')).toBeDisabled();
+      }
     });
   });
 
@@ -167,8 +148,20 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       expect(ariaLabel?.toLowerCase()).toContain('max');
     });
 
-    walletTest('clicking Max shows no balance error when wallet is empty', async ({ page }) => {
-      // walletTest fixture wallet has no BTC balance (Available: 0.00000000)
+    walletTest('clicking Max shows a form error alongside a global API alert', async ({ page }) => {
+      // The candidate-output safety check is rate limited, so Max must fail closed.
+      await page.route('https://mempool.space/api/v1/fees/precise', route => route.fulfill({
+        json: { fastestFee: 1, halfHourFee: 1, hourFee: 1 },
+      }));
+      await page.route('https://mempool.space/api/address/*/utxo', route => route.fulfill({
+        json: [{ txid: 'a'.repeat(64), vout: 0, value: 100000, status: { confirmed: true } }],
+      }));
+      await page.route('**/v2/utxos/withbalances?**', route => route.fulfill({
+        status: 429, json: { error: 'Rate limited' },
+      }));
+      // Reset page caches so the test always exercises these responses.
+      await page.reload();
+      await expect(getSendForm(page).locator('input[name="sat_per_vbyte"]').first()).toHaveValue('1');
       await fillDestination(page);
 
       const input = getAmountInput(page);
@@ -177,29 +170,15 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // Clear any existing value
       await input.clear();
 
-      // Click Max - should show error (either "No available balance." if API succeeded
-      // with empty array, or "Failed to fetch UTXOs." if network request failed,
-      // or generic "Failed to calculate maximum amount" if other error occurred)
       await maxButton.click();
 
-      // Wait for the error to appear
-      const errorAlert = common.errorAlert(page);
+      const errorAlert = getSendForm(page).getByRole('alert');
       await expect(errorAlert).toBeVisible({ timeout: 10000 });
+      await expect(errorAlert).toContainText('Failed to calculate maximum amount. Please try again.');
+      await expect(page.getByRole('alert').filter({ hasText: 'API rate limited' })).toBeVisible();
+      await expect(page.getByRole('alert')).toHaveCount(2);
 
-      // Accept any error message - the important thing is that an error is shown
-      // and the input remains empty (no invalid max amount populated)
-      const errorText = await errorAlert.textContent();
-      const hasExpectedError =
-        errorText?.includes('No available balance') ||
-        errorText?.includes('Failed to fetch UTXOs') ||
-        errorText?.includes('Failed to calculate maximum amount');
-      // Log the actual error for debugging if it fails
-      if (!hasExpectedError) {
-        console.log('Unexpected error text:', errorText);
-      }
-      expect(hasExpectedError).toBe(true);
-
-      // Input should remain empty since there's no balance
+      // Input stays empty because the available BTC could not be checked for attached assets
       await expect(input).toHaveValue('');
     });
 
@@ -237,7 +216,8 @@ walletTest.describe('AmountWithMaxInput Component', () => {
         await submitBtn.click();
 
         // Wait for validation error to appear
-        const errorMessage = page.locator('[role="alert"], .text-red-600, p.text-red-500, div.text-red-500');
+        // Composer submission errors sit beside the form within its card.
+        const errorMessage = getSendForm(page).locator('..').locator('[role="alert"], .text-red-600, p.text-red-500, div.text-red-500');
         await expect(errorMessage.first()).toBeVisible({ timeout: 5000 });
       } else {
         // Button disabled due to validation - this is expected behavior

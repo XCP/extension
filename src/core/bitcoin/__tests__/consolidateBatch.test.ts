@@ -22,6 +22,7 @@ import {
   legacySighashAll,
   offCurveFakeKey,
   parseWireTx,
+  toSegwitSerialization,
   txidOf,
   type WireOutput,
 } from './helpers/bareMultisigFixtures';
@@ -30,6 +31,9 @@ import {
 const TEST_PRIVATE_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 const TEST_ADDRESS = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
 const FEE_ADDRESS = '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2';
+// BIP86 test vector: first receive address of the "abandon … about" account 0.
+const TAPROOT_FEE_ADDRESS = 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr';
+const TAPROOT_FEE_SCRIPT_HEX = '5120a60869f0dbcf1dc659c9cecbaf8050135ea9e8cdc487053f1dc6880949dc684c';
 
 const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
 const compressedPubkey = getPublicKey(privateKeyBytes, true);
@@ -157,6 +161,50 @@ describe('consolidateBareMultisigBatch', () => {
       ).rejects.toThrow(/Script mismatch for UTXO/);
     });
 
+    // Regression: the cross-check hashed prev_tx_hex directly, which for a SegWit funding
+    // transaction computes the wtxid rather than the txid — so every recovery whose dust was
+    // funded by a SegWit spend failed as "Previous transaction data does not match its txid".
+    // The fixture builder only ever produced legacy serializations, where the two hashes agree,
+    // which is how the confusion stayed green. Reported live: a 12-UTXO batch on a P2PKH address
+    // rejected on its first UTXO because the funding tx spent a P2WPKH input.
+    it('should accept a SegWit previous transaction whose stripped hash is the txid', async () => {
+      const legacyBytes = buildPrevTx([{ amount: 100_000n, script: historicalScript }], 77);
+      const utxo: ConsolidationUTXO = {
+        txid: txidOf(legacyBytes), // the real txid: sha256d over the stripped form
+        vout: 0,
+        amount: 100_000,
+        prev_tx_hex: bytesToHex(toSegwitSerialization(legacyBytes)),
+        script: bytesToHex(historicalScript),
+        position: 0,
+        script_type: 'bare_multisig',
+      };
+      const batchData = createBatchData({ utxos: [utxo] });
+
+      const result = await consolidateBareMultisigBatch(
+        TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10
+      );
+      expect(result.totalInput).toBe(100_000);
+      expect(parseWireTx(hexToBytes(result.signedTxHex)).inputs).toHaveLength(1);
+    });
+
+    it('should still reject a SegWit previous transaction with the wrong txid', async () => {
+      const legacyBytes = buildPrevTx([{ amount: 100_000n, script: historicalScript }], 78);
+      const utxo: ConsolidationUTXO = {
+        txid: '11'.repeat(32),
+        vout: 0,
+        amount: 100_000,
+        prev_tx_hex: bytesToHex(toSegwitSerialization(legacyBytes)),
+        script: bytesToHex(historicalScript),
+        position: 0,
+        script_type: 'bare_multisig',
+      };
+      const batchData = createBatchData({ utxos: [utxo] });
+
+      await expect(
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
+      ).rejects.toThrow(/does not match its txid/);
+    });
+
     it('should reject prev_tx_hex that does not hash to the txid', async () => {
       const batchData = createBatchData();
       const tampered = hexToBytes(batchData.utxos[0]!.prev_tx_hex);
@@ -266,6 +314,29 @@ describe('consolidateBareMultisigBatch', () => {
       expect(wire.outputs).toHaveLength(2);
       expect(wire.outputs[0]!.amount).toBe(BigInt(result.outputAmount));
       expect(bytesToHex(wire.outputs[1]!.script)).toBe(p2pkhScriptHex(FEE_ADDRESS));
+      expect(wire.outputs[1]!.amount).toBe(BigInt(result.serviceFee));
+    });
+
+    it('should size a Taproot service fee output at its real 43 bytes', async () => {
+      const batchData = createBatchData({
+        utxoCount: 5,
+        amountPerUtxo: 200_000,
+        feePercent: 5,
+        exemptionThreshold: 100_000,
+        feeAddress: TAPROOT_FEE_ADDRESS,
+      });
+
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10);
+
+      // P2PKH destination (34) plus P2TR fee output (43):
+      // (5 * 115 + 10 + 1 + 34 + 43) * 10 = 6630 network fee.
+      expect(result.networkFee).toBe(6630);
+      expect(result.serviceFee).toBe(49_668);
+      expect(result.outputAmount).toBe(1_000_000 - 6630 - 49_668);
+
+      const wire = parseWireTx(hexToBytes(result.signedTxHex));
+      expect(wire.outputs).toHaveLength(2);
+      expect(bytesToHex(wire.outputs[1]!.script)).toBe(TAPROOT_FEE_SCRIPT_HEX);
       expect(wire.outputs[1]!.amount).toBe(BigInt(result.serviceFee));
     });
 

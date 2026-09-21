@@ -8,14 +8,17 @@
  * and classified, so the block applies regardless of encoding.
  */
 
-import { describe, expect, it } from 'vitest';
+import { getPublicKey } from '@noble/secp256k1';
+import { afterEach, describe, expect, it } from 'vitest';
+import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
+import { setSourcePubkeyProvider } from '../../sourcePubkey';
 import { analyzeTransactionSafety } from '../../transactionSafety';
 import { packAddress } from '../address';
 import { arc4, bytesToHex, hexToBytes } from '../binary';
 import { unpackCounterpartyMessage } from '../index';
 import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
-import { extractMultisigPayload } from '../multisig';
-import { extractPayloadFromOutputs } from '../opReturn';
+import { bareMultisigRecoveryPubkey, isBareMultisigDataOutput } from '../multisig';
+import { extractCounterpartyPayload, extractPayloadFromOutputs } from '../opReturn';
 import { verifyTransaction } from '../verify';
 
 const FIRST_INPUT_TXID = 'a'.repeat(64);
@@ -24,6 +27,11 @@ const SWEEP_DESTINATION = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
 const DATA_BYTES_PER_OUTPUT = 62;
 /** Payload bytes per output: the 62 carried bytes minus the length byte and the prefix. */
 const CHUNK_SIZE = DATA_BYTES_PER_OUTPUT - 1 - 8;
+
+// Live mainnet compose response for a description-only issuance of CUBINAKAMOTO.15. The source
+// uses an uncompressed public key, so Core emits 137-byte data scripts with a 65-byte third key.
+const UNCOMPRESSED_ISSUANCE_RAW = '02000000014f6d9766e3fd264be529010a41cc4dc3c16eca0d5951d7ee89dd9c9bae6a760b0000000000ffffffff03e803000000000000895121021a398525a97059dd8421bde390e827f3ea541a0ccce4a4c1a2670734105982e721036354980e97242517e0cdae37fdcb2dcda14ef18b271ee40c07e2fa0ebd87d0794104fc476ca68d25d4a1a6e2b7909b8c10458bcdc6862028f30aeb55d6c1189a6515e02434fe65aaeeb259a364c958e9a073d4cfba1298bbfb8bd4f57d92fa43fe0253aee8030000000000008951210303398525a97059dd844456bed75398efa5d5da909d401661a875151e0e74ca6c2102450b80549103527281bbcb1993ae59e2957da9c0787cb57869db997af4d6fdbf4104fc476ca68d25d4a1a6e2b7909b8c10458bcdc6862028f30aeb55d6c1189a6515e02434fe65aaeeb259a364c958e9a073d4cfba1298bbfb8bd4f57d92fa43fe0253aee02e0000000000001976a9147dcd4447c9ec509bcf77ae9ed18e1c9be8271a7588ac00000000';
+const UNCOMPRESSED_ISSUANCE_DATA = '434e54525052545916871b2089ee4508eff9a900f4f4f460583f68747470733a2f2f617277656176652e6e65742f3433584b5f6251746e39637449512d736c4667325159476e3935515046546a4a2d426a5938556537756755';
 
 /** Encode one message chunk as a bare-multisig output script, as core's composer does. */
 function multisigOutputScript(chunk: Uint8Array, txid: string): string {
@@ -64,10 +72,76 @@ function sweepMessage(flags = 3): Uint8Array {
   return new Uint8Array([0x04, ...packAddress(SWEEP_DESTINATION), flags]);
 }
 
-describe('extractMultisigPayload', () => {
+/** An ARC4-obfuscated OP_RETURN data output carrying `payload`, as core's composer writes one. */
+function opReturnScript(payload: Uint8Array, txid: string): string {
+  const prefix = hexToBytes(COUNTERPARTY_PREFIX_HEX);
+  const obfuscated = arc4(hexToBytes(txid), new Uint8Array([...prefix, ...payload]));
+  return bytesToHex(new Uint8Array([0x6a, obfuscated.length, ...obfuscated]));
+}
+
+describe('a message split across encodings is read whole', () => {
+  // A node appends each data output's payload in output order, whatever its encoding.
+
+  it('takes the message type from a multisig chunk placed ahead of the OP_RETURN', () => {
+    // An honest-looking enhanced send in the OP_RETURN, with a sweep in front supplying the type
+    // byte the node acts on.
+    const sweep = sweepMessage();
+    const enhancedSend = new Uint8Array([0x02, 0xcc, 0xdd]);
+    const scripts = [
+      ...multisigScriptsFor(sweep, FIRST_INPUT_TXID),
+      opReturnScript(enhancedSend, FIRST_INPUT_TXID),
+    ];
+
+    const payload = extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID);
+
+    expect(payload).toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(sweep) + bytesToHex(enhancedSend));
+    expect(unpackCounterpartyMessage(payload!).messageType).toBe('sweep');
+  });
+
+  it('appends a second Counterparty OP_RETURN to the first', () => {
+    // Both decrypt to the prefix, so a node takes both.
+    const first = new Uint8Array([0x02, 0x11, 0x22]);
+    const second = new Uint8Array([0x33, 0x44]);
+
+    const payload = extractPayloadFromOutputs(
+      [opReturnScript(first, FIRST_INPUT_TXID), opReturnScript(second, FIRST_INPUT_TXID)],
+      FIRST_INPUT_TXID
+    );
+
+    expect(payload).toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(first) + bytesToHex(second));
+  });
+
+  it('still reads an ordinary single-OP_RETURN message unchanged', () => {
+    const message = new Uint8Array([0x02, 0xcc, 0xdd]);
+    const scripts = [
+      opReturnScript(message, FIRST_INPUT_TXID),
+      '76a914' + '11'.repeat(20) + '88ac',
+    ];
+
+    expect(extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID))
+      .toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(message));
+  });
+});
+
+describe('extractPayloadFromOutputs, over multisig data outputs', () => {
+  it('recovers a real issuance whose recovery pubkey is uncompressed', () => {
+    const payload = extractCounterpartyPayload(UNCOMPRESSED_ISSUANCE_RAW);
+
+    expect(payload).toBe(UNCOMPRESSED_ISSUANCE_DATA);
+    const unpacked = unpackCounterpartyMessage(payload!);
+    expect(unpacked.success).toBe(true);
+    expect(unpacked.messageType).toBe('issuance');
+    expect(unpacked.data).toMatchObject({
+      asset: 'A2344667061293152681',
+      quantity: 0n,
+      divisible: false,
+      description: 'https://arweave.net/43XK_bQtn9ctIQ-slFg2QYGn95QPFTjJ-BjY8Ue7ugU',
+    });
+  });
+
   it('recovers a single-output payload', () => {
     const message = sweepMessage();
-    const payload = extractMultisigPayload(
+    const payload = extractPayloadFromOutputs(
       multisigScriptsFor(message, FIRST_INPUT_TXID),
       FIRST_INPUT_TXID
     );
@@ -81,7 +155,7 @@ describe('extractMultisigPayload', () => {
     const scripts = multisigScriptsFor(message, FIRST_INPUT_TXID);
     expect(scripts.length).toBeGreaterThan(1);
 
-    const payload = extractMultisigPayload(scripts, FIRST_INPUT_TXID);
+    const payload = extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID);
     expect(payload).toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(message));
   });
 
@@ -93,32 +167,51 @@ describe('extractMultisigPayload', () => {
       '0014' + '22'.repeat(20),
     ];
 
-    expect(extractMultisigPayload(scripts, FIRST_INPUT_TXID))
+    expect(extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID))
       .toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(message));
   });
 
-  it('a plaintext CNTRPRTY OP_RETURN decoy does not shadow a multisig sweep', () => {
-    // The attack: a benign plaintext CNTRPRTY OP_RETURN (which the node ignores, since it
-    // ARC4-decrypts every OP_RETURN) paired with a real sweep spread across multisig outputs. If
-    // extraction honored the plaintext decoy, the wallet would bless it while the network ran the
-    // sweep. extractPayloadFromOutputs must decrypt-or-skip the OP_RETURN and surface the sweep.
-    const sweep = sweepMessage();
+  it('a plaintext CNTRPRTY OP_RETURN is never read as a message', () => {
+    // A node ARC4-decrypts every OP_RETURN, so plaintext prefix bytes are not a message it ignores
+    // — they are data it cannot read, which fails the whole transaction. Honoring the plaintext
+    // form here would bless a message nothing will execute.
     const decoyOpReturn = '6a0d' + COUNTERPARTY_PREFIX_HEX + '0212345678'; // plaintext CNTRPRTY bytes
-    const scripts = [decoyOpReturn, ...multisigScriptsFor(sweep, FIRST_INPUT_TXID)];
 
-    const payload = extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID);
-    expect(payload).toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(sweep));
-    expect(unpackCounterpartyMessage(payload!).messageType).toBe('sweep');
+    expect(extractPayloadFromOutputs([decoyOpReturn], FIRST_INPUT_TXID)).toBeNull();
+  });
+
+  it('reads nothing from a transaction whose OP_RETURN fails, whatever else it carries', () => {
+    // The sweep in the multisig outputs would never run: `parse_vout` returns `Err` for the
+    // unreadable OP_RETURN, which raises `DecodeError` for the transaction as a whole. Surfacing
+    // the sweep would describe something the network does not do.
+    const scripts = [
+      '6a0d' + COUNTERPARTY_PREFIX_HEX + '0212345678',
+      ...multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID),
+    ];
+
+    expect(extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID)).toBeNull();
+  });
+
+  it('ignores a bare taproot reveal marker rather than failing on it', () => {
+    // The one plaintext OP_RETURN a node does accept: exactly the prefix, marking a reveal whose
+    // message lives in the witness.
+    const scripts = [
+      '6a08' + COUNTERPARTY_PREFIX_HEX,
+      ...multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID),
+    ];
+
+    expect(extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID))
+      .toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(sweepMessage()));
   });
 
   it('returns null for a transaction with no data outputs', () => {
     const scripts = ['76a914' + '11'.repeat(20) + '88ac', '0014' + '22'.repeat(20)];
-    expect(extractMultisigPayload(scripts, FIRST_INPUT_TXID)).toBeNull();
+    expect(extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID)).toBeNull();
   });
 
   it('returns null when the key does not match', () => {
     const scripts = multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID);
-    expect(extractMultisigPayload(scripts, 'b'.repeat(64))).toBeNull();
+    expect(extractPayloadFromOutputs(scripts, 'b'.repeat(64))).toBeNull();
   });
 
   it('reads the whole payload when a payment output is placed between data outputs', () => {
@@ -128,14 +221,14 @@ describe('extractMultisigPayload', () => {
     const [first, ...rest] = multisigScriptsFor(message, FIRST_INPUT_TXID);
     const interleaved = [first!, '76a914' + '11'.repeat(20) + '88ac', ...rest];
 
-    expect(extractMultisigPayload(interleaved, FIRST_INPUT_TXID))
+    expect(extractPayloadFromOutputs(interleaved, FIRST_INPUT_TXID))
       .toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(message));
   });
 });
 
 describe('a sweep is classified in either encoding', () => {
   it('unpacks a multisig-encoded sweep to the sweep message type', () => {
-    const payload = extractMultisigPayload(
+    const payload = extractPayloadFromOutputs(
       multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID),
       FIRST_INPUT_TXID
     );
@@ -147,7 +240,7 @@ describe('a sweep is classified in either encoding', () => {
   });
 
   it('blocks signing once the message type is resolved', () => {
-    const payload = extractMultisigPayload(
+    const payload = extractPayloadFromOutputs(
       multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID),
       FIRST_INPUT_TXID
     );
@@ -194,7 +287,7 @@ describe('a message type with no unpacker is not a successful decode', () => {
   });
 
   it('still reports success for a type it can decode', () => {
-    const payload = extractMultisigPayload(
+    const payload = extractPayloadFromOutputs(
       multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID),
       FIRST_INPUT_TXID
     );
@@ -254,5 +347,93 @@ describe('unclassified transactions fail toward unknown', () => {
 
     expect(safety.warnings).toEqual([]);
     expect(safety.blocked).toBe(false);
+  });
+});
+
+describe('the recovery key rides in the third slot', () => {
+  const signerPrivateKey = hexToBytes('01'.padStart(64, '0'));
+  const strangerPrivateKey = hexToBytes('02'.padStart(64, '0'));
+  const signerPubkey = bytesToHex(getPublicKey(signerPrivateKey, true));
+  const uncompressedSignerPubkey = bytesToHex(getPublicKey(signerPrivateKey, false));
+  const strangerPubkey = bytesToHex(getPublicKey(strangerPrivateKey, true));
+  const signerAddress = encodeAddress(hexToBytes(signerPubkey), AddressFormat.P2PKH);
+
+  /** A data script embedding `recovery` where core puts the source pubkey. */
+  const scriptWithRecoveryKey = (recovery: string): string =>
+    bytesToHex(new Uint8Array([
+      0x51,
+      0x21, ...new Uint8Array(33).fill(0x02),
+      0x21, ...new Uint8Array(33).fill(0x04),
+      hexToBytes(recovery).length, ...hexToBytes(recovery),
+      0x53,
+      0xae,
+    ]));
+
+  afterEach(() => setSourcePubkeyProvider(null));
+
+  it('reads the third slot back out of a data script', () => {
+    expect(bareMultisigRecoveryPubkey(scriptWithRecoveryKey(signerPubkey))).toBe(signerPubkey);
+  });
+
+  it('accepts and returns an uncompressed recovery key', () => {
+    const script = scriptWithRecoveryKey(uncompressedSignerPubkey);
+    expect(isBareMultisigDataOutput(script)).toBe(true);
+    expect(bareMultisigRecoveryPubkey(script)).toBe(uncompressedSignerPubkey);
+  });
+
+  it.each([
+    ['an OP_RETURN', '6a04deadbeef'],
+    ['a P2PKH script', '76a914' + '11'.repeat(20) + '88ac'],
+    ['a truncated multisig', ('51' + '21' + '02'.repeat(33) + '53ae')],
+  ])('claims nothing about %s', (_label, scriptHex) => {
+    expect(bareMultisigRecoveryPubkey(scriptHex)).toBeNull();
+  });
+
+  // The gap the old comment on isCounterpartyDataScript documented: compose accepts a
+  // multisig_pubkey override, so a hostile composer can point every data output's dust at a key
+  // that is not the signer's. Checkable exactly when the wallet holds the signer's key.
+  it('warns when a data output embeds a recovery key that is not the signers own', () => {
+    setSourcePubkeyProvider((address) => (address === signerAddress ? signerPubkey : null));
+
+    const safety = analyzeTransactionSafety('send', [
+      { value: 546, type: 'multisig', script: scriptWithRecoveryKey(strangerPubkey) },
+    ], signerAddress);
+
+    expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(true);
+  });
+
+  it('stays quiet when the recovery key is the signers own', () => {
+    setSourcePubkeyProvider(() => signerPubkey);
+
+    const safety = analyzeTransactionSafety('send', [
+      { value: 546, type: 'multisig', script: scriptWithRecoveryKey(signerPubkey) },
+    ], signerAddress);
+
+    expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(false);
+  });
+
+  it('recognizes compressed and uncompressed encodings of the same recovery key', () => {
+    const privateKey = hexToBytes('01'.repeat(32));
+    const compressed = bytesToHex(getPublicKey(privateKey, true));
+    const uncompressed = bytesToHex(getPublicKey(privateKey, false));
+    const uncompressedAddress = encodeAddress(hexToBytes(uncompressed), AddressFormat.P2PKH);
+    setSourcePubkeyProvider(() => uncompressed);
+
+    const safety = analyzeTransactionSafety('send', [
+      { value: 546, type: 'multisig', script: scriptWithRecoveryKey(compressed) },
+    ], uncompressedAddress);
+
+    expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(false);
+  });
+
+  // With no key to compare against there is nothing to claim. Silence is the pre-existing
+  // behaviour, and a warning built on a guess would cry wolf on every PSBT whose signers this
+  // wallet does not hold.
+  it('stays quiet when the wallet holds no key for any signer', () => {
+    const safety = analyzeTransactionSafety('send', [
+      { value: 546, type: 'multisig', script: scriptWithRecoveryKey(strangerPubkey) },
+    ], 'bc1qsigner');
+
+    expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(false);
   });
 });

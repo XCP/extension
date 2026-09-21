@@ -204,6 +204,23 @@ describe('Content Script', () => {
       );
     });
 
+    it.each([null, [], { id: {} }, { id: 'x'.repeat(257) }])('ignores malformed page envelopes', async payload => {
+      await messageListener({ source: window, origin: mockWindow.location.origin,
+        data: payload && { target: 'xcp-wallet-content', type: 'XCP_WALLET_REQUEST', ...payload } });
+      expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
+      expect(mockWindow.postMessage).not.toHaveBeenCalled();
+    });
+
+    it.each([null, { method: 123 }, { method: 'xcp_accounts', params: {} }])('rejects malformed method arguments before RPC', async data => {
+      await messageListener({ source: window, origin: mockWindow.location.origin, data: {
+        target: 'xcp-wallet-content', type: 'XCP_WALLET_REQUEST', id: 1, data,
+      } });
+      expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
+      expect(mockWindow.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+        id: 1, error: expect.objectContaining({ message: expect.stringContaining('Invalid request') }),
+      }), mockWindow.location.origin);
+    });
+
     it('should handle providerService returning null', async () => {
       // Mock providerService.handleRequest to return null (simulating no response scenario)
       mockProviderService.handleRequest.mockResolvedValue(null);

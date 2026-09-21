@@ -57,7 +57,7 @@ describe('RareBtcAssets marketplace PSBTs', () => {
     // The buyer supplies the funding inputs, so no fee is knowable from this PSBT alone.
     expect(details.unfunded).toBe(true);
     expect(details.fee).toBe(0);
-    // Giving up a 546 sat carrier to be paid 250,000.
+    // Giving up a 546 sat asset UTXO to be paid 250,000.
     expect(movement.net).toBe(249_454);
     // The priced output is the one the signature commits to, so nothing is redirectable.
     expect(movement.atRisk).toBe(0);

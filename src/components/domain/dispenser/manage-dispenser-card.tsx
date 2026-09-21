@@ -1,11 +1,18 @@
-import type { KeyboardEvent, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
+import { PendingStatus } from "@/components/domain/balance/pending-status";
 import type { DispenserDetails } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { fromSatoshis } from "@/core/numeric";
 
 interface ManageDispenserCardProps {
   dispenser: DispenserDetails;
+  /**
+   * True when a close of this dispenser is already in the mempool. Refill and Close stand down —
+   * closing twice fails, and refilling a dispenser that is about to close escrows into it anyway.
+   */
+  isClosing?: boolean;
   className?: string;
 }
 
@@ -15,6 +22,7 @@ interface ManageDispenserCardProps {
  */
 export function ManageDispenserCard({
   dispenser,
+  isClosing = false,
   className = "",
 }: ManageDispenserCardProps): ReactElement {
   const navigate = useNavigate();
@@ -30,7 +38,7 @@ export function ManageDispenserCard({
     e.stopPropagation();
     // Navigate to create dispenser with same params for refill
     // Convert satoshirate to BTC (divide by 100,000,000)
-    const btcPrice = (dispenser.satoshirate / 100_000_000).toFixed(8);
+    const btcPrice = fromSatoshis(dispenser.satoshirate);
     const params = new URLSearchParams({
       refill: "true",
       mainchainrate: btcPrice,
@@ -43,46 +51,47 @@ export function ManageDispenserCard({
     navigate(`/market/dispensers/${dispenser.asset}`);
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handleClick();
-    }
-  };
-
   return (
+    // Opening the dispenser is a button, not the whole card: Refill and Close sit
+    // inside, and a card-level key handler swallowed Enter before they could act.
     <div
-      className={`bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
+      className={`bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow ${className}`}
     >
       <div className="flex items-center gap-3">
-        <AssetIcon asset={dispenser.asset} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="font-medium text-gray-900 text-sm truncate">
-            {assetName}
+        <button
+          type="button"
+          onClick={handleClick}
+          className="flex flex-1 min-w-0 items-center gap-3 text-left cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <AssetIcon asset={dispenser.asset} size="md" />
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 text-sm truncate">
+              {assetName}
+            </div>
+            <div className="text-xs text-gray-500">
+              {formatAmount({ value: dispenser.give_remaining_normalized, maximumFractionDigits: 2 })} remaining
+            </div>
           </div>
-          <div className="text-xs text-gray-500">
-            {formatAmount({ value: Number(dispenser.give_remaining_normalized), maximumFractionDigits: 2 })} remaining
-          </div>
-        </div>
+        </button>
         {isOpen ? (
+          isClosing ? (
+            <PendingStatus label="Closing" className="px-3 py-1.5" />
+          ) : (
           <div className="flex gap-2">
-            <button
+            <button type="button"
               onClick={handleRefill}
               className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
               Refill
             </button>
-            <button
+            <button type="button"
               onClick={handleClose}
               className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
             >
               Close
             </button>
           </div>
+          )
         ) : (
           <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
             Closed

@@ -9,6 +9,11 @@ import { isHexMemo, isValidMemoLength, stripHexPrefix } from "@/core/counterpart
 import { validateBitcoinAddress } from "@/core/validation/bitcoin";
 import { parseCSV } from "@/core/validation/csv";
 import { validateFile } from "@/core/validation/file";
+import { isMpmaEncodable } from "@/core/validation/mpmaDestination";
+
+/** How many offending rows to name before summarising the rest. Enough to fix a file in
+ *  one pass, few enough that the message stays readable in a popup. */
+const MAX_LISTED_ERRORS = 10;
 
 /** Bounds the CSV read; parseCSV caps rows at 10000, which is well under this. */
 const MAX_CSV_SIZE_KB = 2048;
@@ -64,6 +69,23 @@ export function MPMAForm({
 
       const parsedRows: ParsedRow[] = [];
       const assetCache: { [key: string]: boolean } = {};
+
+      // Every unencodable destination at once. Core rejects them one at a time and only after
+      // composing, so a file with thirty Taproot recipients took thirty round trips to clean up.
+      const unencodable = parsed.rows.filter((row) => !isMpmaEncodable(row.address));
+      if (unencodable.length > 0) {
+        const listed = unencodable
+          .slice(0, MAX_LISTED_ERRORS)
+          .map((row) => `Line ${row.lineNumber}: ${row.address}`)
+          .join('\n');
+        const rest = unencodable.length - MAX_LISTED_ERRORS;
+        throw new Error(
+          `${unencodable.length} destination${unencodable.length === 1 ? '' : 's'} cannot receive ` +
+            `an MPMA send. Taproot (bc1p) and P2WSH addresses are not encodable in this message ` +
+            `type; send to them separately.\n${listed}` +
+            (rest > 0 ? `\n...and ${rest} more` : '')
+        );
+      }
 
       for (const row of parsed.rows) {
         const { address, asset, quantity, memo, lineNumber } = row;

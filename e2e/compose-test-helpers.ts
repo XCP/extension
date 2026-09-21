@@ -6,6 +6,7 @@
  */
 
 import { Page, expect } from '@playwright/test';
+import { FIXTURE_INPUT_VALUE, buildFixtureTransaction } from './compose-fixture-tx';
 import { TEST_ADDRESSES } from './test-data';
 
 /**
@@ -62,6 +63,22 @@ export async function enableValidationBypass(page: Page): Promise<void> {
       name: 'send',
     },
   };
+
+  // The composer bounds the fee using the transaction's own inputs, which means resolving what
+  // each input is worth from a block explorer. Answer for the fixture's outpoint instead of
+  // letting the lookup reach the network — an unresolved input is a hard failure, by design.
+  await context.route(/https:\/\/(mempool\.space|blockstream\.info)\/api\/tx\/[0-9a-f]{64}$/i, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        vout: Array.from({ length: 10 }, () => ({
+          value: FIXTURE_INPUT_VALUE,
+          scriptpubkey_address: mockComposeResponse.result.params.source,
+        })),
+      }),
+    });
+  });
 
   // Single unified route handler for all Counterparty API requests
   await context.route('**/api.counterparty.io**', async (route) => {
@@ -230,11 +247,21 @@ export async function enableValidationBypass(page: Page): Promise<void> {
         };
       }
 
+      // The composer rebuilds the message this request should have produced and requires the
+      // transaction to carry exactly it, so the fixture has to be composed for real rather than
+      // stubbed. Types that pack no message keep the placeholder — the composer expects no message
+      // from them either. See compose-fixture-tx.ts.
+      const fixture = buildFixtureTransaction(composeType, url);
+      if (fixture) {
+        console.log(`[E2E Mock] Built a real ${composeType} transaction carrying its message`);
+      }
+
       // Build dynamic response with params from request
       const dynamicResponse = {
         ...mockComposeResponse,
         result: {
           ...mockComposeResponse.result,
+          ...fixture,
           params: responseParams,
           name: composeType,
         },
@@ -416,7 +443,17 @@ export async function waitForReview(page: Page): Promise<void> {
     .or(page.locator('button:has-text("Sign"), button:has-text("Broadcast")'))
     .first();
 
-  await expect(reviewIndicator).toBeVisible({ timeout: 10000 });
+  // With ZELD hunting on by default, a compose of a real fixture transaction hunts for a rare
+  // txid before the review, for up to the hunt budget. Settle for the first find as soon as the
+  // spinner offers to, so the test measures the flow rather than the hunt.
+  const useItNow = page.locator('button:has-text("Use it now")');
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    if (await reviewIndicator.isVisible().catch(() => false)) return;
+    if (await useItNow.isVisible().catch(() => false)) await useItNow.click().catch(() => {});
+    await page.waitForTimeout(250);
+  }
+  await expect(reviewIndicator).toBeVisible({ timeout: 1000 });
 }
 
 /**

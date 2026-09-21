@@ -182,6 +182,29 @@ export function offCurveFakeKey(prefix: 0x02 | 0x03): Uint8Array {
 }
 
 /**
+ * Re-serialize a legacy (single-input) transaction in SegWit form: marker and
+ * flag after the version, a witness stack before the locktime. The txid is
+ * unchanged — it is defined over the stripped serialization — but sha256d of
+ * these bytes yields the wtxid instead, which is precisely the property the
+ * prev-tx cross-check regression needs a fixture for. Every funding
+ * transaction the legacy builder produces hashes the same either way, which
+ * is how a wtxid/txid confusion stayed green here.
+ */
+export function toSegwitSerialization(legacyTxBytes: Uint8Array): Uint8Array {
+  const version = legacyTxBytes.slice(0, 4);
+  const body = legacyTxBytes.slice(4, legacyTxBytes.length - 4);
+  const locktime = legacyTxBytes.slice(legacyTxBytes.length - 4);
+  // One input (buildPrevTx's shape): witness stack of two arbitrary items,
+  // like the real spend that surfaced the bug (a P2WPKH [signature, pubkey]).
+  const witness = concatBytes(
+    varint(2),
+    varint(3), Uint8Array.of(1, 2, 3),
+    varint(2), Uint8Array.of(4, 5),
+  );
+  return concatBytes(version, Uint8Array.of(0x00, 0x01), body, witness, locktime);
+}
+
+/**
  * Build a previous transaction paying the given outputs, with a fake outpoint
  * varied by `seed` so otherwise-identical fixtures get distinct txids.
  */

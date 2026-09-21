@@ -3,6 +3,7 @@ import { apiClient } from '@/core/api/client';
 import * as bitcoinBalance from '@/core/bitcoin/balance';
 import { CounterpartyApiError } from '@/core/errors';
 import * as formatUtils from '@/core/format';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 import {
   type AssetInfo,
@@ -11,7 +12,10 @@ import {
   fetchAddressDispensers,
   fetchAddressPoolByLpAsset,
   fetchAddressPools,
+  fetchAllAddressDispensers,
   fetchAssetDetails,
+  fetchAssetDispensers,
+  fetchAssetFairminter,
   fetchDispenserByHash,
   fetchMempoolDispenses,
   fetchOrder,
@@ -64,8 +68,8 @@ const mockSettings = { counterpartyApiBase: mockApiBase };
 
 const mockTokenBalance: TokenBalance = {
   asset: 'XCP',
-  quantity: 100000000,
-  quantity_normalized: '1.00000000',
+  quantity: asBaseUnits(100000000),
+  quantity_normalized: asDisplayUnits('1.00000000'),
   asset_info: {
     asset_longname: null,
     description: 'The Counterparty protocol token',
@@ -84,7 +88,7 @@ const mockAssetInfo: AssetInfo = {
   divisible: true,
   locked: false,
   supply: 2649755.0,
-  supply_normalized: '2649755.00000000',
+  supply_normalized: asDisplayUnits('2649755.00000000'),
 };
 
 const mockOrder: Order = {
@@ -92,10 +96,10 @@ const mockOrder: Order = {
   block_time: 1640995200,
   give_asset: 'XCP',
   get_asset: 'BTC',
-  give_quantity_normalized: '100.00000000',
-  get_quantity_normalized: '0.01000000',
-  give_remaining_normalized: '50.00000000',
-  get_remaining_normalized: '0.00500000',
+  give_quantity_normalized: asDisplayUnits('100.00000000'),
+  get_quantity_normalized: asDisplayUnits('0.01000000'),
+  give_remaining_normalized: asDisplayUnits('50.00000000'),
+  get_remaining_normalized: asDisplayUnits('0.00500000'),
   status: 'open',
   expire_index: 700000,
 };
@@ -108,11 +112,11 @@ const mockTransaction: Transaction = {
   destination: 'bc1qdest456address',
   type: 'send',
   status: 'valid',
-  data: { asset: 'XCP', quantity: 100000000 },
+  data: { asset: 'XCP', quantity: asBaseUnits(100000000) },
   supported: true,
   unpacked_data: {
     message_type: 'send',
-    message_data: { asset: 'XCP', quantity: 100000000 },
+    message_data: { asset: 'XCP', quantity: asBaseUnits(100000000) },
   },
 };
 
@@ -250,9 +254,9 @@ describe('counterparty/api.ts', () => {
 
       expect(balance).toEqual({
         asset: 'XCP',
-        quantity: 100000000,
+        quantity: asBaseUnits('100000000'),
         asset_info: mockTokenBalance.asset_info,
-        quantity_normalized: '1',
+        quantity_normalized: asDisplayUnits('1'),
       });
     });
 
@@ -270,8 +274,8 @@ describe('counterparty/api.ts', () => {
 
       expect(balance).toEqual({
         asset: 'NONEXISTENT',
-        quantity: 0,
-        quantity_normalized: '0',
+        quantity: asBaseUnits(0),
+        quantity_normalized: asDisplayUnits('0'),
         asset_info: {
           asset_longname: null,
           description: '',
@@ -285,8 +289,8 @@ describe('counterparty/api.ts', () => {
     it('should filter out UTXOs when type is address', async () => {
       const mockBalanceWithoutUtxo = {
         ...mockTokenBalance,
-        quantity: 25000000,
-        quantity_normalized: '0.25000000',
+        quantity: asBaseUnits(25000000),
+        quantity_normalized: asDisplayUnits('0.25000000'),
       };
       const mockData = {
         result: [mockBalanceWithoutUtxo]
@@ -303,13 +307,13 @@ describe('counterparty/api.ts', () => {
         type: 'address'
       });
 
-      expect(balance?.quantity).toBe(25000000);
-      expect(balance?.quantity_normalized).toBe('0.25');
+      expect(balance.quantity).toBe('25000000');
+      expect(balance.quantity_normalized).toBe('0.25');
     });
 
     it('should aggregate multiple balances', async () => {
-      const balance1 = { ...mockTokenBalance, quantity: 50000000, quantity_normalized: '0.5' };
-      const balance2 = { ...mockTokenBalance, quantity: 25000000, quantity_normalized: '0.25' };
+      const balance1 = { ...mockTokenBalance, quantity: asBaseUnits(50000000), quantity_normalized: asDisplayUnits('0.5') };
+      const balance2 = { ...mockTokenBalance, quantity: asBaseUnits(25000000), quantity_normalized: asDisplayUnits('0.25') };
       const mockData = { result: [balance1, balance2] };
       mockedApiClient.get.mockResolvedValue({
         data: mockData,
@@ -321,8 +325,29 @@ describe('counterparty/api.ts', () => {
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
-      expect(balance?.quantity).toBe(75000000);
-      expect(balance?.quantity_normalized).toBe('0.75');
+      expect(balance.quantity).toBe('75000000');
+      expect(balance.quantity_normalized).toBe('0.75');
+    });
+
+    it('aggregates large balances without losing digits', () => {
+      // The aggregate is a decimal string rather than a number because these are 64-bit asset
+      // quantities: summing them as doubles drops digits for exactly the large holdings where the
+      // total matters most. 99526925811111111 is the real PEPECASH supply.
+      return (async () => {
+        const balance1 = { ...mockTokenBalance, quantity: asBaseUnits('99526925811111111'), quantity_normalized: asDisplayUnits('995269258.11111111') };
+        const balance2 = { ...mockTokenBalance, quantity: asBaseUnits('1'), quantity_normalized: asDisplayUnits('0.00000001') };
+        mockedApiClient.get.mockResolvedValue({
+          data: { result: [balance1, balance2] },
+          status: 200, statusText: 'OK', headers: {}, config: {},
+        } as any);
+
+        const balance = await fetchTokenBalance(mockAddress, 'XCP');
+
+        expect(balance.quantity).toBe('99526925811111112');
+        // The same total via a double loses its last two digits. Written as a string because a
+        // numeric literal for the true value would itself be rounded by the JS parser.
+        expect(String(Number(balance.quantity))).toBe('99526925811111100');
+      })();
     });
 
     it('should throw CounterpartyApiError on network error', async () => {
@@ -331,37 +356,16 @@ describe('counterparty/api.ts', () => {
       await expect(fetchTokenBalance(mockAddress, 'XCP')).rejects.toThrow(CounterpartyApiError);
     });
 
-    it('should return zero balance for missing result', async () => {
-      mockedApiClient.get.mockResolvedValue({
-        data: { result: null },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
-
-      const balance = await fetchTokenBalance(mockAddress, 'XCP');
-
-      // Now returns zero balance instead of null for missing result
-      expect(balance).toEqual({
-        asset: 'XCP',
-        quantity: 0,
-        quantity_normalized: '0',
-        asset_info: {
-          asset_longname: null,
-          description: '',
-          issuer: '',
-          divisible: true,
-          locked: false,
-        },
-      });
+    it('rejects a missing result rather than reporting a false zero balance', async () => {
+      mockedApiClient.get.mockResolvedValue({ data: { result: null }, status: 200 } as any);
+      await expect(fetchTokenBalance(mockAddress, 'XCP')).rejects.toThrow('invalid list');
     });
 
     it('should handle invalid quantity_normalized values without producing NaN', async () => {
       // Test with various invalid quantity_normalized values
       const invalidBalances = [
-        { ...mockTokenBalance, quantity: 100, quantity_normalized: '' },
-        { ...mockTokenBalance, quantity: 200, quantity_normalized: 'invalid' },
+        { ...mockTokenBalance, quantity: asBaseUnits(100), quantity_normalized: asDisplayUnits('') },
+        { ...mockTokenBalance, quantity: asBaseUnits(200), quantity_normalized: asDisplayUnits('invalid') },
       ];
       const mockData = { result: invalidBalances };
       mockedApiClient.get.mockResolvedValue({
@@ -375,8 +379,8 @@ describe('counterparty/api.ts', () => {
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
       // Should return '0' instead of 'NaN' for invalid values
-      expect(balance?.quantity_normalized).toBe('0');
-      expect(balance?.quantity_normalized).not.toBe('NaN');
+      expect(balance.quantity_normalized).toBe('0');
+      expect(balance.quantity_normalized).not.toBe('NaN');
     });
   });
 
@@ -422,6 +426,53 @@ describe('counterparty/api.ts', () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchTokenUtxos(mockAddress, 'XCP')).rejects.toThrow(CounterpartyApiError);
+    });
+  });
+
+  describe('fetchAssetFairminter', () => {
+    const respond = (rows: unknown[]) => {
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: rows }, status: 200, statusText: 'OK', headers: {}, config: {},
+      } as any);
+    };
+
+    /**
+     * The endpoint returns every fairminter an asset has ever had, so asking without a status can
+     * hand back a closed sale while the live one sits behind it. `pending` is live too: a sale
+     * opening on the next block can already be minted from.
+     */
+    it('asks the node for the live fairminter rather than filtering rows here', async () => {
+      respond([{ tx_hash: 'h', asset: 'LAUNCHCOIN', status: 'open' }]);
+
+      await fetchAssetFairminter('LAUNCHCOIN');
+
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        `${mockApiBase}/v2/assets/LAUNCHCOIN/fairminters`,
+        expect.objectContaining({
+          params: expect.objectContaining({ status: 'open,pending' }),
+        })
+      );
+    });
+
+    it('returns the row the node selected', async () => {
+      respond([{ tx_hash: 'h', asset: 'LAUNCHCOIN', status: 'pending' }]);
+      expect((await fetchAssetFairminter('LAUNCHCOIN'))?.status).toBe('pending');
+    });
+
+    it('returns null when the asset has no live fairminter', async () => {
+      respond([]);
+      expect(await fetchAssetFairminter('NOPE')).toBeNull();
+    });
+
+    it('lets a caller ask for another status', async () => {
+      respond([{ tx_hash: 'h', asset: 'LAUNCHCOIN', status: 'closed' }]);
+
+      await fetchAssetFairminter('LAUNCHCOIN', { status: 'closed' });
+
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ params: expect.objectContaining({ status: 'closed' }) })
+      );
     });
   });
 
@@ -472,7 +523,7 @@ describe('counterparty/api.ts', () => {
     it('should fetch UTXO balances successfully', async () => {
       const mockUtxoBalance = {
         asset: 'XCP',
-        quantity_normalized: '1.00000000',
+        quantity_normalized: asDisplayUnits('1.00000000'),
         utxo: 'abc123:0',
         utxo_address: mockAddress,
       };
@@ -608,8 +659,8 @@ describe('counterparty/api.ts', () => {
       const mockOrderDetails: OrderDetails = {
         ...mockOrder,
         source: mockAddress,
-        give_quantity: 100000000,
-        get_quantity: 1000000,
+        give_quantity: asBaseUnits(100000000),
+        get_quantity: asBaseUnits(1000000),
         fee_required: 0,
         fee_provided: 1000,
         fee_required_remaining: 0,
@@ -797,6 +848,21 @@ describe('counterparty/api.ts', () => {
     });
   });
 
+  it('requests server-side dispenser ordering and oracle filtering on every page', async () => {
+    mockedApiClient.get.mockResolvedValue({ data: { result: [], result_count: 0 } } as any);
+    for (const offset of [0, 20]) {
+      await fetchAssetDispensers('XCP', {
+        status: 'open', limit: 20, offset, sort: 'price:asc,tx_index:asc', excludeWithOracle: true,
+      });
+      expect(mockedApiClient.get).toHaveBeenLastCalledWith(
+        `${mockApiBase}/v2/assets/XCP/dispensers`,
+        expect.objectContaining({ params: expect.objectContaining({
+          status: 'open', limit: 20, offset, sort: 'price:asc,tx_index:asc', exclude_with_oracle: true,
+        }) }),
+      );
+    }
+  });
+
   describe('fetchAddressDispensers', () => {
     it('should fetch dispensers successfully', async () => {
       const mockDispenser: Dispenser = {
@@ -804,8 +870,8 @@ describe('counterparty/api.ts', () => {
         source: mockAddress,
         asset: 'XCP',
         status: 0,
-        give_remaining: 1000000,
-        give_remaining_normalized: '10.00000000',
+        give_remaining: asBaseUnits(1000000),
+        give_remaining_normalized: asDisplayUnits('10.00000000'),
         asset_info: {
           asset_longname: null,
           description: 'Test asset',
@@ -873,6 +939,66 @@ describe('counterparty/api.ts', () => {
     });
   });
 
+  describe('fetchAllAddressDispensers', () => {
+    const rows = Array.from({ length: 237 }, (_, i) => ({
+      tx_hash: i.toString(16).padStart(64, '0'), asset: `ASSET${i}`, status: 0,
+    }));
+
+    it('loads more than 200 dispensers and preserves filters on every page', async () => {
+      mockedApiClient.get.mockImplementation(async (_url, options) => {
+        const offset = Number(options?.params?.offset ?? 0);
+        return { data: { result: rows.slice(offset, offset + 100), result_count: rows.length } } as any;
+      });
+      const result = await fetchAllAddressDispensers(mockAddress, { status: 'open', verbose: true });
+      expect(result.result).toEqual(rows);
+      expect(mockedApiClient.get.mock.calls.map(([, options]) => options?.params)).toEqual([
+        { limit: 100, offset: 0, status: 'open', verbose: true },
+        { limit: 100, offset: 100, status: 'open', verbose: true },
+        { limit: 100, offset: 200, status: 'open', verbose: true },
+      ]);
+    });
+
+    it('continues when a node returns smaller pages and the count says more exist', async () => {
+      mockedApiClient.get.mockImplementation(async (_url, options) => {
+        const offset = Number(options?.params?.offset ?? 0);
+        return { data: { result: rows.slice(offset, Math.min(offset + 10, 23)), result_count: 23 } } as any;
+      });
+      expect((await fetchAllAddressDispensers(mockAddress)).result).toEqual(rows.slice(0, 23));
+    });
+
+    it('reads through the final page when the node omits a total count', async () => {
+      mockedApiClient.get.mockImplementation(async (_url, options) => {
+        const offset = Number(options?.params?.offset ?? 0);
+        return { data: { result: rows.slice(offset, offset + 100) } } as any;
+      });
+      expect((await fetchAllAddressDispensers(mockAddress)).result).toEqual(rows);
+    });
+
+    it('rejects a later-page failure instead of presenting a partial list', async () => {
+      mockedApiClient.get.mockResolvedValueOnce({ data: { result: rows.slice(0, 100), result_count: 237 } } as any)
+        .mockRejectedValueOnce(new Error('Second page unavailable'));
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('Second page unavailable');
+    });
+
+    it('rejects a node that ignores the offset instead of looping forever', async () => {
+      mockedApiClient.get.mockResolvedValue({ data: { result: rows.slice(0, 100), result_count: 237 } } as any);
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('repeated a page');
+      expect(mockedApiClient.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects partial overlap instead of approving an inventory with a missing dispenser', async () => {
+      mockedApiClient.get.mockResolvedValueOnce({ data: { result: rows.slice(0, 100), result_count: 101 } } as any)
+        .mockResolvedValueOnce({ data: { result: rows.slice(99, 101), result_count: 101 } } as any);
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('overlapping rows');
+    });
+
+    it('rejects an empty page when the node says more dispensers exist', async () => {
+      mockedApiClient.get.mockResolvedValueOnce({ data: { result: rows.slice(0, 100), result_count: 237 } } as any)
+        .mockResolvedValueOnce({ data: { result: [], result_count: 237 } } as any);
+      await expect(fetchAllAddressDispensers(mockAddress)).rejects.toThrow('incomplete list');
+    });
+  });
+
   describe('fetchDispenserByHash', () => {
     it('should fetch dispenser details successfully', async () => {
       const mockDispenser: Dispenser = {
@@ -880,8 +1006,8 @@ describe('counterparty/api.ts', () => {
         source: mockAddress,
         asset: 'XCP',
         status: 0,
-        give_remaining: 1000000,
-        give_remaining_normalized: '10.00000000',
+        give_remaining: asBaseUnits(1000000),
+        give_remaining_normalized: asDisplayUnits('10.00000000'),
       };
       mockedApiClient.get.mockResolvedValue({
         data: { result: mockDispenser },
@@ -932,6 +1058,8 @@ describe('counterparty/api.ts', () => {
             {
               event: 'DISPENSE',
               params: {
+            addresses: mockAddress,
+            event_name: 'DISPENSE',
                 tx_hash: 'matching-tx',
                 source: mockAddress,
                 destination: buyerAddress,
@@ -941,6 +1069,8 @@ describe('counterparty/api.ts', () => {
             {
               event: 'DISPENSE',
               params: {
+            addresses: mockAddress,
+            event_name: 'DISPENSE',
                 tx_hash: 'other-tx',
                 source: 'bc1qotherdispenser',
                 destination: buyerAddress,
@@ -965,9 +1095,11 @@ describe('counterparty/api.ts', () => {
         }),
       ]);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
-        `${mockApiBase}/v2/mempool/events/DISPENSE`,
+        `${mockApiBase}/v2/addresses/mempool`,
         {
           params: {
+            addresses: mockAddress,
+            event_name: 'DISPENSE',
             verbose: true,
             limit: 100,
           },
@@ -981,7 +1113,7 @@ describe('counterparty/api.ts', () => {
       const mockOwnedAsset: OwnedAsset = {
         asset: 'MYTOKEN',
         asset_longname: null,
-        supply_normalized: '1000000.00000000',
+        supply_normalized: asDisplayUnits('1000000.00000000'),
         description: 'My custom token',
         locked: false,
       };
@@ -1278,17 +1410,17 @@ describe('counterparty/api.ts', () => {
       expect(mockedApiClient.get).toHaveBeenNthCalledWith(
         1,
         `${mockApiBase}/v2/pools/XCP/POOLTEST/quote`,
-        expect.objectContaining({ params: { quantity: '100000000' } })
+        expect.objectContaining({ params: { quantity: asBaseUnits('100000000') } })
       );
       expect(mockedApiClient.get).toHaveBeenNthCalledWith(
         2,
         `${mockApiBase}/v2/pools/XCP/POOLTEST/quote/deposit`,
-        expect.objectContaining({ params: { quantity: '100000000' } })
+        expect.objectContaining({ params: { quantity: asBaseUnits('100000000') } })
       );
       expect(mockedApiClient.get).toHaveBeenNthCalledWith(
         3,
         `${mockApiBase}/v2/pools/XCP/POOLTEST/quote/withdraw`,
-        expect.objectContaining({ params: { quantity: '1000' } })
+        expect.objectContaining({ params: { quantity: asBaseUnits('1000') } })
       );
     });
 

@@ -228,7 +228,7 @@ describe('StateLockManager', () => {
       }
 
       // Release all locks
-      releases.forEach(release => release());
+      releases.forEach(release => { release(); });
 
       // All resources should be unlocked and cleaned up
       for (let i = 0; i < resourceCount; i++) {

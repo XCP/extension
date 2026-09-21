@@ -11,12 +11,8 @@ import { estimateVsize } from "@/core/bitcoin/feeEstimation";
 import type { DispenseOptions } from "@/core/counterparty/compose";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
 import { formatAmount } from "@/core/format";
-import { 
-  divide,fromSatoshis, 
-  isLessThanOrEqualToZero,
-  roundDown,
-  subtract,
-  toNumber} from "@/core/numeric";
+import { divide, fromSatoshis, isGreaterThan, isLessThanOrEqualToZero, multiply, roundDown, roundUp, subtract, toNumber } from "@/core/numeric";
+import { validAmountDraft } from "@/core/validation/transaction-amount";
 
 // ============================================================================
 // Types & Interfaces
@@ -152,7 +148,7 @@ export function DispenseForm({
   initialFormData
 }: DispenseFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, showHelpText, state, feeRate } = useComposer();
+  const { activeAddress, activeWallet, showHelpText, feeRate } = useComposer();
   const { pending } = useFormStatus();
   
   // State management
@@ -173,7 +169,7 @@ export function DispenseForm({
   const [numberOfDispenses, setNumberOfDispenses] = useState(() => {
     if (initialFormData?.quantity) {
       const formData = initialFormData as any;
-      if (formData.satoshirate && Number(formData.satoshirate) > 0) {
+      if (formData.satoshirate && isGreaterThan(formData.satoshirate, 0)) {
         return toNumber(
           roundDown(divide(initialFormData.quantity, formData.satoshirate))
         ).toString();
@@ -193,12 +189,12 @@ export function DispenseForm({
   const maxDispenses = (() => {
     if (!selectedDispenser || !activeAddress?.address || spendableBtc.isLoading) return 0;
     if (spendableBtc.utxoCount === 0) return 0;
+    if (feeRate === null) return 0;
 
     // Calculate fee based on actual UTXO count and address type
-    const effectiveFeeRate = feeRate ?? 0.1;
     // Dispense transaction has 1 output to dispenser
     const estimatedVbytes = estimateVsize(spendableBtc.utxoCount, 1, activeAddress.address);
-    const estimatedFee = Math.ceil(estimatedVbytes * effectiveFeeRate);
+    const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, feeRate)));
 
     const affordableDispenses = calculateMaximumDispenses(
       selectedDispenser.satoshirate,
@@ -213,12 +209,8 @@ export function DispenseForm({
     return Math.min(affordableDispenses, remainingDispenses);
   })();
 
-  // Set composer error
-  useEffect(() => {
-    if (state.error) {
-      setValidationError(state.error);
-    }
-  }, [state.error]);
+  // A compose error is not copied into local state: `ComposerForm` already renders `state.error`
+  // above these fields, and mirroring it here showed the same message twice.
 
   // Focus input on mount
   useEffect(() => {
@@ -237,7 +229,7 @@ export function DispenseForm({
       selectedDispenserIndex !== null
     ) {
       const formData = initialFormData as any;
-      if (formData.satoshirate && Number(formData.satoshirate) > 0) {
+      if (formData.satoshirate && isGreaterThan(formData.satoshirate, 0)) {
         const calculatedDispenses = toNumber(
           roundDown(divide(initialFormData.quantity, formData.satoshirate))
         ).toString();
@@ -255,12 +247,11 @@ export function DispenseForm({
       selectedDispenserIndex !== previousIndexRef.current &&
       selectedDispenser
     ) {
-      const currentNumber = parseInt(numberOfDispenses) || 1;
+      const hasValidCount = validAmountDraft(numberOfDispenses, 0);
       
       // Check against new max
-      if (currentNumber > maxDispenses && maxDispenses > 0) {
-        setNumberOfDispenses(maxDispenses.toString());
-        setValidationError(null);
+      if (hasValidCount && isGreaterThan(numberOfDispenses, maxDispenses) && maxDispenses > 0) {
+        setValidationError(`This dispenser allows at most ${maxDispenses} dispenses. Edit the amount or use Max.`);
       }
       
       // Check if dispenser is empty
@@ -291,6 +282,11 @@ export function DispenseForm({
       return;
     }
 
+    if (feeRate === null) {
+      setValidationError("Fee rates are still loading. Please wait.");
+      return;
+    }
+
     if (maxDispenses === 0) {
       const remainingDispenses = calculateRemainingDispenses(
         selectedDispenser.dispenser
@@ -306,9 +302,8 @@ export function DispenseForm({
         setValidationError(message);
       } else {
         // Calculate fee for error message
-        const effectiveFeeRate = feeRate ?? 0.1;
         const estimatedVbytes = estimateVsize(spendableBtc.utxoCount || 1, 1, activeAddress?.address || "");
-        const estimatedFee = Math.ceil(estimatedVbytes * effectiveFeeRate);
+        const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, feeRate)));
         const requiredSatoshis = selectedDispenser.satoshirate + estimatedFee;
         const requiredBTC = requiredSatoshis / SATOSHIS_PER_BTC;
         setValidationError(`Insufficient BTC balance. You need at least ${formatAmount({
@@ -322,7 +317,9 @@ export function DispenseForm({
 
     setNumberOfDispenses(maxDispenses.toString());
     setValidationError(null);
-  }, [selectedDispenser, maxDispenses, spendableBtc]);
+    // feeRate and the address feed the shortfall figure above, and feeRate refreshes while the
+    // form is open.
+  }, [selectedDispenser, maxDispenses, spendableBtc, feeRate, activeAddress?.address]);
 
   // Handle dispenser selection change
   const handleDispenserSelectionChange = useCallback((index: number | null, option: DispenserOption | null) => {
@@ -397,14 +394,17 @@ export function DispenseForm({
                 isDivisible={false}
               />
 
-              {/* Hidden input to convert numberOfDispenses to quantity for the API */}
+              {/* Hidden input to convert numberOfDispenses to quantity for the API. Satoshis
+                  already — the dispenser's satoshirate is a base-unit figure — so `normalizeFormData`
+                  checks it as a raw integer rather than scaling it. Rendered with toFixed(0) so a
+                  large product reaches the field as digits and not as exponent notation. */}
               <input
                 type="hidden"
                 name="quantity"
                 value={
                   selectedDispenser
-                    ? Number(numberOfDispenses) * selectedDispenser.satoshirate
-                    : 0
+                    ? multiply(numberOfDispenses, selectedDispenser.satoshirate).toFixed(0)
+                    : "0"
                 }
               />
             </>

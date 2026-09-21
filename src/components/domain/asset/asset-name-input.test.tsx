@@ -233,6 +233,65 @@ describe('AssetNameInput', () => {
       expect(screen.getByText("You don't own the parent asset")).toBeInTheDocument();
     });
 
+    it('should allow subassets once the parent has been transferred to the user', async () => {
+      // `issuer` never changes after first issuance; a transfer moves only `owner`.
+      mockFetchAssetDetails.mockResolvedValueOnce({
+        asset: 'YACHTDOCK',
+        issuer: 'bc1qoriginalissuer',
+        owner: 'bc1qtest123',
+        locked: false
+      });
+
+      mockFetchAssetDetails.mockResolvedValueOnce(null); // Subasset doesn't exist
+
+      render(
+        <AssetNameInput 
+          value="YACHTDOCK.ts" 
+          onChange={mockOnChange}
+          onValidationChange={mockOnValidationChange}
+          isSubasset={true}
+          showHelpText={true}
+        />
+      );
+
+      await waitFor(() => {
+        expect(mockFetchAssetDetails).toHaveBeenCalledWith('YACHTDOCK.ts');
+      });
+
+      await waitFor(() => {
+        expect(mockOnValidationChange).toHaveBeenCalledWith(true);
+      });
+
+      expect(mockOnValidationChange).not.toHaveBeenCalledWith(false, "You don't own the parent asset");
+      expect(screen.getByText('Asset name is available')).toBeInTheDocument();
+    });
+
+    it('should reject subassets once the user has transferred the parent away', async () => {
+      mockFetchAssetDetails.mockResolvedValueOnce({
+        asset: 'YACHTDOCK',
+        issuer: 'bc1qtest123', // User created it...
+        owner: 'bc1qotheruser456', // ...but no longer controls it
+        locked: false
+      });
+
+      render(
+        <AssetNameInput 
+          value="YACHTDOCK.test" 
+          onChange={mockOnChange}
+          onValidationChange={mockOnValidationChange}
+          isSubasset={true}
+          showHelpText={true}
+        />
+      );
+
+      await waitFor(() => {
+        expect(mockOnValidationChange).toHaveBeenCalledWith(false, "You don't own the parent asset");
+      });
+
+      expect(mockFetchAssetDetails).not.toHaveBeenCalledWith('YACHTDOCK.test');
+      expect(screen.getByText("You don't own the parent asset")).toBeInTheDocument();
+    });
+
     it('should reject subassets for non-existent parent assets', async () => {
       mockFetchAssetDetails.mockResolvedValueOnce(null); // Parent doesn't exist
 
@@ -405,9 +464,5 @@ describe('AssetNameInput', () => {
       expect(mockOnChange).toHaveBeenCalledWith('YACHTDOCK.');
     });
 
-    it('should show loading spinner while checking availability', async () => {
-      // Skip this test - the spinner appears very briefly and is hard to test reliably
-      // The functionality is covered by other tests that check the async behavior
-    });
   });
 });

@@ -7,7 +7,7 @@
  * Prerequisites:
  *   - trezor-user-env container running with emulator
  *   - Bridge accessible on localhost:21325
- *   - Emulator HTTP API accessible on localhost:9001
+ *   - Emulator WebSocket controller accessible on localhost:9001
  *   - Emulator initialized with test seed "all all all..."
  */
 import { test, expect } from '@playwright/test';

@@ -6,6 +6,7 @@ import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { AttachOptions } from "@/core/counterparty/compose";
+import { asDisplayUnits, isGreaterThan } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 /**
@@ -30,7 +31,7 @@ export function UtxoAttachForm({
   
   // Data fetching hooks
   const asset = initialAsset || initialFormData?.asset || "";
-  const { data: assetDetails } = useAssetDetails(asset);
+  const { data: assetDetails, error: assetError } = useAssetDetails(asset);
   
   // Local error state management
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -49,6 +50,14 @@ export function UtxoAttachForm({
     quantityInput?.focus();
   }, []);
 
+  // Surface a failed asset load instead of rendering the form as if the asset
+  // simply had no balance. Seeded into local state so it stays dismissible.
+  useEffect(() => {
+    if (assetError) {
+      setValidationError('Could not load details for this asset.');
+    }
+  }, [assetError]);
+
   return (
     <ComposerForm
       formAction={formAction}
@@ -65,13 +74,14 @@ export function UtxoAttachForm({
                 locked: assetDetails.assetInfo?.locked ?? false,
                 supply: assetDetails.assetInfo?.supply
               },
-              quantity_normalized: assetDetails.availableBalance
+              quantity_normalized: asDisplayUnits(assetDetails.spendableBalance ?? assetDetails.availableBalance)
             }}
             className="mt-1 mb-5"
+            pendingIncoming={assetDetails.pendingIncoming}
           />
         )
       }
-      submitDisabled={!quantity || quantity === "0" || parseFloat(quantity) <= 0}
+      submitDisabled={!quantity || quantity === "0" || !isGreaterThan(quantity, 0)}
     >
       {validationError && (
         <div className="mb-4">
@@ -89,13 +99,13 @@ export function UtxoAttachForm({
           />
           <AmountWithMaxInput
             asset={initialAsset || initialFormData?.asset || "XCP"}
-            availableBalance={assetDetails?.availableBalance || "0"}
+            availableBalance={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             value={quantity}
             onChange={setQuantity}
             feeRate={feeRate}
             setError={() => {}} // No-op since Composer handles errors
             sourceAddress={activeAddress}
-            maxAmount={assetDetails?.availableBalance || "0"}
+            maxAmount={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             showHelpText={showHelpText}
             label="Amount"
             name="quantity"

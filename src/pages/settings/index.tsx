@@ -7,8 +7,7 @@ import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/core/bitcoin/address';
-import packageJson from "../../../package.json";
+import { getAddressFormatLabel } from '@/core/bitcoin/address';
 
 
 /**
@@ -28,7 +27,9 @@ const EXTERNAL_LINKS = {
   PRIVACY: "https://www.xcp.io/privacy",
   WEBSITE: "https://www.xcp.io/?ref=wallet",
 } as const;
-const VERSION = packageJson.version;
+// From the manifest, not `import packageJson`: importing the file inlines the whole of it —
+// scripts, devDependencies — into the shipped bundle. The manifest version is the same string.
+const VERSION = chrome.runtime.getManifest().version;
 
 /**
  * Settings component provides a main settings menu with navigation options.
@@ -70,26 +71,7 @@ export default function SettingsPage(): ReactElement {
    */
   const getAddressTypeDescription = (): string => {
     if (!activeWallet) return "";
-    switch (activeWallet.addressFormat) {
-      case AddressFormat.P2PKH:
-        return "Legacy (P2PKH)";
-      case AddressFormat.P2SH_P2WPKH:
-        return "Nested SegWit (P2SH-P2WPKH)";
-      case AddressFormat.P2WPKH:
-        return "Native SegWit (P2WPKH)";
-      case AddressFormat.P2TR:
-        return "Taproot (P2TR)";
-      case AddressFormat.Counterwallet:
-        return "CounterWallet (P2PKH)";
-      case AddressFormat.CounterwalletSegwit:
-        return "CounterWallet SegWit (P2WPKH)";
-      case AddressFormat.FreewalletBIP39:
-        return "FreeWallet (P2PKH)";
-      case AddressFormat.FreewalletBIP39Segwit:
-        return "FreeWallet SegWit (P2WPKH)";
-      default:
-        return "";
-    }
+    return getAddressFormatLabel(activeWallet.addressFormat);
   };
 
   const settingSections: ActionSection[] = [
@@ -133,7 +115,7 @@ export default function SettingsPage(): ReactElement {
   ];
 
   return (
-    <div className="flex flex-col h-full" role="main">
+    <div className="flex flex-col h-full">
       <div className="flex-1 overflow-auto no-scrollbar">
         <div className="p-4">
           <ActionList sections={settingSections} />

@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import type { Dispenser } from "@/core/counterparty/api";
+import type { ApiQuantity, Dispenser } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { divide, roundDown, toNumber } from "@/core/numeric";
 
@@ -8,7 +8,7 @@ import { divide, roundDown, toNumber } from "@/core/numeric";
  */
 export interface DispenserOption {
   dispenser: Dispenser & {
-    give_quantity: number;
+    give_quantity: ApiQuantity;
     give_quantity_normalized: string;
     satoshirate: number;
   };
@@ -135,7 +135,7 @@ export function DispenserCard({
           <div className="flex gap-2 text-xs text-gray-600">
             <span>
               {formatAmount({
-                value: Number(option.dispenser.give_quantity_normalized),
+                value: option.dispenser.give_quantity_normalized,
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 8,
               })}{" "}

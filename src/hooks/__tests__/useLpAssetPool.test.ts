@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchAddressPoolByLpAsset } from '@/core/counterparty/api';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { useLpAssetPool } from '../useLpAssetPool';
 
 const mocks = vi.hoisted(() => ({
@@ -25,8 +26,8 @@ const poolA = {
   reserve_a: 100000000,
   reserve_b: 200000000,
   lp_asset: 'A11111111111111111',
-  quantity: 100000000,
-  quantity_normalized: '1',
+  quantity: asBaseUnits(100000000),
+  quantity_normalized: asDisplayUnits('1'),
 };
 
 const poolB = {
@@ -35,8 +36,8 @@ const poolB = {
   reserve_a: 300000000,
   reserve_b: 400000000,
   lp_asset: 'A22222222222222222',
-  quantity: 200000000,
-  quantity_normalized: '2',
+  quantity: asBaseUnits(200000000),
+  quantity_normalized: asDisplayUnits('2'),
 };
 
 function deferred<T>() {

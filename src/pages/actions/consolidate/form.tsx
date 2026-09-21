@@ -3,7 +3,6 @@ import { AddressHeader } from "@/components/domain/address/address-header";
 import { Button } from "@/components/ui/button";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import {
   type ConsolidationData,
@@ -21,7 +20,7 @@ export interface ConsolidationFormData {
 }
 
 const DEFAULT_FORM_DATA: ConsolidationFormData = {
-  feeRateSatPerVByte: 1,
+  feeRateSatPerVByte: 0,
   destinationAddress: "",
   consolidationData: null,
   allBatches: [],
@@ -30,17 +29,38 @@ const DEFAULT_FORM_DATA: ConsolidationFormData = {
 
 interface ConsolidationFormProps {
   onSubmit: (data: ConsolidationFormData) => void;
+  showHelpText?: boolean;
 }
 
-export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
+export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const [formData, setFormData] =
     useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { settings } = useSettings();
-  const shouldShowHelpText = settings?.showHelpText;
+  // The tracker's pending count, re-checked against the chain before it is asserted to the user.
+  // Null while unchecked or uncheckable, in which case the tracker's own number is all there is.
+  const [verifiedPending, setVerifiedPending] = useState<number | null>(null);
+
+  const trackerPending =
+    formData.consolidationData?.mempool_status.pending_consolidations ?? 0;
+  useEffect(() => {
+    if (trackerPending === 0 || !activeAddress?.address) {
+      setVerifiedPending(null);
+      return;
+    }
+    let cancelled = false;
+    consolidationApi.chainVerifiedPendingCount(activeAddress.address).then((count) => {
+      if (!cancelled) setVerifiedPending(count);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [trackerPending, activeAddress?.address]);
+  // The chain outranks the bookkeeper: a recovery the chain has confirmed is not pending no
+  // matter what a lagging or freshly recovered tracker still says.
+  const pendingRecoveries = verifiedPending ?? trackerPending;
 
   // Fetch recovery data for the active address.
   useEffect(() => {
@@ -94,8 +114,8 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
     fetchData();
   }, [activeAddress, formData.includeProtectedStamps, isInitialLoad]);
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
+  const handleFeeRateChange = (value: number | null) => {
+    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value ?? 0 }));
   };
 
   const handleDestinationChange = (value: string) => {
@@ -116,6 +136,10 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
 
   const handleSubmitInternal = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (formData.feeRateSatPerVByte <= 0) {
+      setError("Enter a valid fee rate before continuing.");
+      return;
+    }
     if (
       !formData.consolidationData ||
       formData.consolidationData.stamp_protection.included !==
@@ -133,7 +157,7 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
         <AddressHeader
           address={activeAddress.address}
           walletName={activeWallet?.name}
-          className="mb-6"
+          className="mt-1 mb-5"
         />
       )}
       <form
@@ -146,27 +170,14 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           </div>
         )}
 
-        {/* Mempool warning */}
-        {!isLoading &&
-          formData.consolidationData?.mempool_status &&
-          formData.consolidationData.mempool_status.pending_consolidations >
-            0 && (
-            <div className="p-3 bg-amber-100 text-amber-700 rounded-md">
-              <strong>Warning:</strong> You have{" "}
-              {formData.consolidationData.mempool_status.pending_consolidations}{" "}
-              pending recovery transaction
-              {formData.consolidationData.mempool_status
-                .pending_consolidations > 1
-                ? "s"
-                : ""}
-              . Please wait for{" "}
-              {formData.consolidationData.mempool_status
-                .pending_consolidations > 1
-                ? "them"
-                : "it"}{" "}
-              to confirm before starting new ones.
-            </div>
-          )}
+        {/* Mempool warning — only for recoveries the chain itself has not yet confirmed. */}
+        {!isLoading && pendingRecoveries > 0 && (
+          <div className="p-3 bg-amber-100 text-amber-700 rounded-md">
+            <strong>Warning:</strong> You have {pendingRecoveries} pending recovery transaction
+            {pendingRecoveries > 1 ? "s" : ""}. Please wait for{" "}
+            {pendingRecoveries > 1 ? "them" : "it"} to confirm before starting new ones.
+          </div>
+        )}
 
         {/* Always show the data section to prevent layout shift */}
         <div className="space-y-2">
@@ -266,13 +277,13 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           label="Destination Address (Optional)"
           placeholder="Leave empty to consolidate to source address"
           required={false}
-          showHelpText={shouldShowHelpText}
+          showHelpText={showHelpText}
           helpText="If left empty, UTXOs will be consolidated to your source address."
         />
 
         <FeeRateInput
           onFeeRateChange={handleFeeRateChange}
-          showHelpText={shouldShowHelpText}
+          showHelpText={showHelpText}
         />
 
         <Button

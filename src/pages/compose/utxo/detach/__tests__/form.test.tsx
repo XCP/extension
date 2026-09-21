@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
 import { useSettings } from '@/contexts/settings-context';
+import type { DisplayUnits } from '@/core/numeric';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { UtxoDetachForm } from '../form';
 
@@ -53,38 +54,13 @@ vi.mock('@/contexts/header-context', () => ({
   })
 }));
 
-vi.mock('@/contexts/loading-context', () => ({
-  useLoading: () => ({
-    setLoading: vi.fn(),
-    loading: false
-  })
-}));
-
 // Mock API call
 vi.mock('@/core/counterparty/api', () => ({
   fetchUtxoBalances: vi.fn().mockResolvedValue({
     result: [
-      { asset: 'TESTTOKEN', quantity_normalized: '100' }
+      { asset: 'TESTTOKEN', quantity_normalized: '100' as DisplayUnits }
     ]
   })
-}));
-
-// Mock address validation and fee rates
-vi.mock('@/core/bitcoin', () => ({
-  isValidBitcoinAddress: vi.fn((address) => {
-    // Allow test addresses
-    return address.startsWith('bc1q') || address.startsWith('1') || address.startsWith('3');
-  })
-}));
-
-// Mock validation utilities to prevent async issues
-vi.mock('@/core/validation', () => ({
-  isValidBitcoinAddress: vi.fn((address) => {
-    // Allow test addresses - same logic as the bitcoin mock
-    return address.startsWith('bc1q') || address.startsWith('1') || address.startsWith('3');
-  }),
-  lookupAssetOwner: vi.fn().mockResolvedValue({ isValid: false, ownerAddress: null, error: null }),
-  shouldTriggerAssetLookup: vi.fn().mockReturnValue(false)
 }));
 
 // Mock the asset owner lookup hook to prevent async issues
@@ -262,24 +238,50 @@ describe('UtxoDetachForm', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/assets/utxos/def456abc123:1');
   });
 
-  it('should display error message when composer context has error', () => {
-    // This test should verify that errors from the composer context are displayed
-    // For now, we'll skip this test since the forms handle errors through the composer context
-    // and it requires more complex mocking setup
+  it('should show an error when the UTXO balance lookup fails', async () => {
+    const { fetchUtxoBalances } = await import('@/core/counterparty/api');
+    (fetchUtxoBalances as any).mockRejectedValueOnce(new Error('API Error'));
+
+    render(
+      <TestWrapper>
+        <UtxoDetachForm {...defaultProps} />
+      </TestWrapper>
+    );
+
+    // Without the alert the form just reads "0 Balances", which looks like an
+    // empty UTXO rather than a lookup that failed.
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Could not load balances for this UTXO.');
+    });
   });
 
-  it('should have dismiss button for error message', async () => {
-    // This test should verify that error messages can be dismissed
-    // For now, we'll skip this test since it requires mocking the composer context error state
+  it('should dismiss the balance lookup error when closed', async () => {
+    const user = userEvent.setup();
+    const { fetchUtxoBalances } = await import('@/core/counterparty/api');
+    (fetchUtxoBalances as any).mockRejectedValueOnce(new Error('API Error'));
+
+    render(
+      <TestWrapper>
+        <UtxoDetachForm {...defaultProps} />
+      </TestWrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Dismiss error message' }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('should handle multiple balances correctly', async () => {
     const { fetchUtxoBalances } = await import('@/core/counterparty/api');
     (fetchUtxoBalances as any).mockResolvedValueOnce({
       result: [
-        { asset: 'TESTTOKEN', quantity_normalized: '100' },
-        { asset: 'XCP', quantity_normalized: '50' },
-        { asset: 'RAREPEPE', quantity_normalized: '1' }
+        { asset: 'TESTTOKEN', quantity_normalized: '100' as DisplayUnits },
+        { asset: 'XCP', quantity_normalized: '50' as DisplayUnits },
+        { asset: 'RAREPEPE', quantity_normalized: '1' as DisplayUnits }
       ]
     });
 
@@ -348,7 +350,7 @@ describe('UtxoDetachForm', () => {
 
     const destinationInput = screen.getByLabelText(/Destination \(Optional\)/i);
     
-    await user.type(destinationInput, 'bc1qdestination123');
+    await user.type(destinationInput, '1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
 
     const form = screen.getByRole('button', { name: /Continue/i }).closest('form');
     fireEvent.submit(form!);
@@ -356,6 +358,22 @@ describe('UtxoDetachForm', () => {
     await waitFor(() => {
       expect(formAction).toHaveBeenCalled();
     });
+  });
+
+  it('rejects a direct submit while the optional destination is nonempty and invalid', async () => {
+    const user = userEvent.setup();
+    const formAction = vi.fn();
+    render(
+      <TestWrapper>
+        <UtxoDetachForm {...defaultProps} formAction={formAction} />
+      </TestWrapper>
+    );
+
+    await user.type(screen.getByLabelText(/Destination \(Optional\)/i), 'bc1qdestination123');
+    const button = screen.getByRole('button', { name: /Continue/i });
+    expect(button).toBeDisabled();
+    fireEvent.submit(button.closest('form')!);
+    expect(formAction).not.toHaveBeenCalled();
   });
 
   it('should show help text when enabled', () => {

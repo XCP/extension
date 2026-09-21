@@ -1,9 +1,10 @@
 import { MenuItem } from '@headlessui/react';
 import { type ReactElement, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { FaCopy, GiBroom, HiDotsHorizontal, VscKey } from '@/components/icons';
+import { FaCopy, FaSearch, FiMinus, GiBroom, HiDotsHorizontal, VscKey } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { BaseMenu } from '@/components/ui/menus/base-menu';
+import { isUtxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import type { Address } from '@/types/wallet';
 
 /**
@@ -18,6 +19,15 @@ interface AddressMenuProps {
   onCopyAddress: (address: string) => void;
   /** Whether this address belongs to a hardware wallet */
   isHardwareWallet?: boolean;
+  /**
+   * Offered when this wallet could have a Rare Pepe Wallet UTXO address paired with this one.
+   *
+   * The lookup costs an API call and almost always comes back empty, so it is asked for rather
+   * than run for everyone — the people who attached assets to UTXOs know they did.
+   */
+  onFindUtxoAddress?: (address: Address) => void;
+  /** Offered on a kept UTXO address, to stop listing it. */
+  onRemoveUtxoAddress?: (address: Address) => void;
 }
 
 /**
@@ -34,6 +44,8 @@ export function AddressMenu({
   walletId,
   onCopyAddress,
   isHardwareWallet = false,
+  onFindUtxoAddress,
+  onRemoveUtxoAddress,
 }: AddressMenuProps): ReactElement {
   const navigate = useNavigate();
 
@@ -76,6 +88,32 @@ export function AddressMenu({
         </Button>
       </MenuItem>
       
+      {isUtxoAddressPath(address.path)
+        ? onRemoveUtxoAddress && (
+            <MenuItem>
+              <Button
+                variant="menu-item"
+                fullWidth
+                onClick={() => onRemoveUtxoAddress(address)}
+              >
+                <FiMinus className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+                Remove UTXO Address
+              </Button>
+            </MenuItem>
+          )
+        : onFindUtxoAddress && (
+            <MenuItem>
+              <Button
+                variant="menu-item"
+                fullWidth
+                onClick={() => onFindUtxoAddress(address)}
+              >
+                <FaSearch className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+                Find UTXO Address
+              </Button>
+            </MenuItem>
+          )}
+
       {/* Hide private key option for hardware wallets - keys never leave device */}
       {!isHardwareWallet && (
         <MenuItem>

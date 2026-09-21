@@ -3,6 +3,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { AssetInfo } from "@/core/counterparty/api";
+import { asDisplayUnits, fromSatoshis } from '@/core/numeric';
 import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
 
 interface BalanceState {
@@ -20,7 +21,7 @@ const BTC_ASSET_INFO: AssetInfo = {
   divisible: true,
   locked: true,
   supply: '21000000',
-  supply_normalized: '21000000',
+  supply_normalized: asDisplayUnits('21000000'),
   issuer: '',
   fair_minting: false,
 };
@@ -141,7 +142,10 @@ export function useAssetBalance(asset: string) {
 
         if (asset === 'BTC') {
           const balanceSats = await fetchBTCBalance(activeAddress!.address);
-          balance = (balanceSats / 1e8).toString();
+          // removeTrailingZeros keeps the previous `(sats / 1e8).toString()` shape exactly:
+          // "1" rather than "1.00000000". Routing through the numeric layer is the point here,
+          // not changing what callers see.
+          balance = fromSatoshis(balanceSats, { removeTrailingZeros: true });
           assetInfo = BTC_ASSET_INFO;
           isDivisible = true;
         } else {
@@ -159,7 +163,7 @@ export function useAssetBalance(asset: string) {
         // Update cache in HeaderContext
         setBalanceHeaderRef.current(asset, {
           asset,
-          quantity_normalized: balance,
+          quantity_normalized: asDisplayUnits(balance),
           asset_info: assetInfo ? {
             asset_longname: assetInfo.asset_longname,
             description: assetInfo.description ?? "",
@@ -199,10 +203,14 @@ export function useAssetBalance(asset: string) {
         abortControllerRef.current = null;
       }
     };
+    // The header cache is shared, so another component can refresh this asset; re-running copies
+    // the newer value out of the cache without re-fetching.
   }, [
     asset,
     activeAddress?.address,
     activeWallet?.id,
+    cachedBalance?.quantity_normalized,
+    cachedBalance?.asset_info?.divisible,
   ]);
 
   return state;

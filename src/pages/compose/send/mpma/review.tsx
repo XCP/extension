@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { normalizeQuantity } from "@/components/domain/tx/tx-action-info";
 import { ReviewScreen } from "@/components/screens/review-screen";
 
 interface ReviewMPMAProps {
@@ -18,15 +19,21 @@ export function ReviewMPMA({
 }: ReviewMPMAProps): ReactElement {
   const { result } = apiResponse;
 
-  // Render the API's normalized quantities (the signed values) rather than
-  // re-deriving divisibility client-side, which can diverge from what is signed.
-  const transactions = (result.params.asset_dest_quant_list_normalized || []).map(
-    (item: any[], index: number) => {
+  // `asset_dest_quant_list_normalized` does not exist: compose returns only
+  // `asset_dest_quant_list`, in base units, and inject_normalized_quantities adds no entry for it.
+  // Reading the absent field meant this screen rendered "No sends" for every multi-recipient send
+  // — the review step showed neither recipients nor amounts. Its tests passed because the fixture
+  // invented the field.
+  //
+  // ComposerContext replaces this list with checked intent and supplies independently read
+  // divisibility for each asset. One echoed asset_info cannot describe a mixed-asset send.
+  const transactions = (result.params.asset_dest_quant_list || []).map(
+    (item: [string, string, string | number], index: number) => {
       const [asset, destination, quantity] = item;
       return {
         asset,
         destination,
-        quantity,
+        quantity: normalizeQuantity(quantity, asset, { asset_info: result.params.verified_asset_info?.[asset] }, 'asset'),
         memo: result.params.memos?.[index],
       };
     }

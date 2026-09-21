@@ -21,7 +21,9 @@ import { COUNTERPARTY_PREFIX_HEX, MessageTypeId } from '@/core/counterparty/unpa
 /** The message types this module can construct. */
 export type PackableComposeType =
   | 'send' | 'issuance' | 'sweep' | 'destroy' | 'cancel' | 'order'
-  | 'dividend' | 'fairmint' | 'fairminter' | 'dispense' | 'broadcast' | 'mpma';
+  | 'dividend' | 'fairmint' | 'fairminter' | 'dispense' | 'broadcast' | 'mpma'
+  | 'attach' | 'detach' | 'utxo' | 'move' | 'btcpay' | 'dispenser'
+  | 'pooldeposit' | 'poolwithdraw';
 
 /**
  * Not every message is CBOR. The taproot_support upgrade moved enhanced send, issuance, sweep,
@@ -214,7 +216,7 @@ const SUBASSET_DIGITS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012
  *
  * Returns null for a character outside the charset, which core refuses to compose.
  */
-function compactSubassetLongname(longname: string): Uint8Array | null {
+export function compactSubassetLongname(longname: string): Uint8Array | null {
   let integer = 0n;
   for (const char of longname) {
     const digit = SUBASSET_DIGITS.indexOf(char) + 1;
@@ -287,6 +289,15 @@ function packSubasset(
   if (!compacted) return null;
 
   const description = typeof params.description === 'string' ? params.description : '';
+  // Core distinguishes an absent description (CBOR null) from an empty one, so only a non-empty
+  // description is encoded — and it goes through `encodeMessageContent` for the same reason the
+  // standard issuance body does: an inscribed subasset carries binary content as hex, and UTF-8
+  // encoding that hex would put twice the bytes on the wire under a length core never wrote.
+  let descriptionBytes: Uint8Array | null = null;
+  if (description.length > 0) {
+    descriptionBytes = encodeMessageContent(description, mimeType);
+    if (!descriptionBytes) return null;
+  }
 
   const body: CborEncodable = [
     assetId,
@@ -297,7 +308,7 @@ function packSubasset(
     BigInt(compacted.length),
     compacted,
     mimeType,
-    description.length > 0 ? new TextEncoder().encode(description) : null,
+    descriptionBytes,
   ];
   return withPrefix(MessageTypeId.LR_SUBASSET, encodeCbor(body));
 }
@@ -432,12 +443,15 @@ function packFairmint(params: Params): PackedMessage | null {
  *
  * The form's names differ from the wire's — `lot_price` is `price`, `lot_size` is
  * `quantity_by_price` — and the defaults must match `composeFairminter`, where lot size is 1 and
- * divisible is true. Subassets are declined: their parent id comes from a ledger lookup of the
- * existing asset's longname.
+ * divisible is true. A new subasset is expressible when the request supplies its numeric child
+ * asset and `asset_parent`, matching the current API surface; a dotted longname still requires a
+ * ledger lookup and is declined.
  */
 function packFairminter(params: Params): PackedMessage | null {
   const asset = requireString(params, 'asset');
   if (!asset || asset.includes('.')) return null;
+  const assetParent = requireString(params, 'asset_parent');
+  if (assetParent?.includes('.')) return null;
 
   const num = (key: string, fallback: bigint): bigint | null => {
     const value = params[key];
@@ -481,9 +495,11 @@ function packFairminter(params: Params): PackedMessage | null {
   const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
 
   let assetId: bigint;
+  let assetParentId = 0n;
   let lpAssetId = 0n;
   try {
     assetId = assetNameToId(asset);
+    if (assetParent) assetParentId = assetNameToId(assetParent);
     if (lpAsset) lpAssetId = assetNameToId(lpAsset);
   } catch {
     return null;
@@ -491,7 +507,7 @@ function packFairminter(params: Params): PackedMessage | null {
 
   const fields: CborEncodable[] = [
     assetId,
-    0n, // asset_parent_id — zero for a non-subasset, which is all this packs
+    assetParentId,
     price!, quantityByPrice!, maxMintPerTx!, maxMintPerAddress!,
     hardCap!, premintQuantity!, startBlock!, endBlock!, softCap!, softCapDeadlineBlock!,
     BigInt(commissionInt),
@@ -501,7 +517,13 @@ function packFairminter(params: Params): PackedMessage | null {
     bool('divisible', true),
   ];
   if (poolQuantity! > 0n) fields.push(poolQuantity!, lpAssetId);
-  fields.push(mimeType, new TextEncoder().encode(description));
+  // Binary content — an inscribed image, say — reaches the request as hex, and core writes the
+  // decoded bytes (`helpers.content_to_bytes`). Encoding the hex text instead put double the
+  // bytes on the wire under a length core never wrote, so byte equality failed and the compose
+  // was refused: an inscribed fairminter could not be created at all.
+  const descriptionBytes = encodeMessageContent(description, mimeType);
+  if (!descriptionBytes) return null;
+  fields.push(mimeType, descriptionBytes);
 
   return withPrefix(MessageTypeId.FAIRMINTER, encodeCbor(fields));
 }
@@ -705,7 +727,7 @@ function packMpma(sends: MpmaSend[], globalMemo: string | null, globalMemoIsHex:
   const lutBytes = new Uint8Array(2 + lut.length * 21);
   lutBytes[0] = lut.length >> 8;
   lutBytes[1] = lut.length & 0xff;
-  lut.forEach((packed, index) => lutBytes.set(packed, 2 + index * 21));
+  lut.forEach((packed, index) => { lutBytes.set(packed, 2 + index * 21); });
 
   const body = new Uint8Array([...lutBytes, ...writer.toBytes()]);
   return withPrefix(MessageTypeId.MPMA_SEND, body);
@@ -801,6 +823,219 @@ function packSendAsMpma(params: Params): PackedMessage | null {
  *
  * A null return means "cannot verify by equality" — never "verified".
  */
+
+/**
+ * Pipe-delimited body, the form core uses for the UTXO family.
+ *
+ * `"|".join(str(v) for v in [...])` in core, UTF-8 encoded, with a value that is None written as
+ * the empty string. No length prefixes — the field count is fixed per type and core tuple-unpacks
+ * it, so an extra or missing field voids the message.
+ */
+function packPipeDelimited(messageTypeId: number, fields: Array<string | number | bigint>): PackedMessage {
+  const body = new TextEncoder().encode(fields.map((f) => String(f)).join('|'));
+  return withPrefix(messageTypeId, body);
+}
+
+/** attach: `asset|quantity|destination_vout` (attach.py). An absent vout is the empty string. */
+function packAttach(params: Params): PackedMessage | null {
+  const asset = requireString(params, 'asset');
+  const quantity = requireQuantity(params, 'quantity');
+  if (!asset || quantity === null) return null;
+
+  const vout = params.destination_vout;
+  const voutText = vout === undefined || vout === null || vout === '' ? '' : String(vout);
+  return packPipeDelimited(MessageTypeId.UTXO_ATTACH, [asset, quantity, voutText]);
+}
+
+/**
+ * detach: the destination address alone, or the single byte "0" when none is given.
+ *
+ * Core writes b"0" rather than an empty body specifically to avoid a protocol change in
+ * `messagetype.unpack()` (detach.py), so the empty case is that literal, not an empty string.
+ */
+function packDetach(params: Params): PackedMessage | null {
+  const destination = typeof params.destination === 'string' ? params.destination : '';
+  return withPrefix(
+    MessageTypeId.UTXO_DETACH,
+    new TextEncoder().encode(destination === '' ? '0' : destination)
+  );
+}
+
+/** Historical type-100 UTXO message: `source|destination|asset|quantity` (utxo.py). */
+function packUtxoMove(params: Params): PackedMessage | null {
+  const source = requireString(params, 'source');
+  const asset = requireString(params, 'asset');
+  const quantity = requireQuantity(params, 'quantity');
+  if (!source || !asset || quantity === null) return null;
+
+  const destination = typeof params.destination === 'string' ? params.destination : '';
+  return packPipeDelimited(MessageTypeId.UTXO, [source, destination, asset, quantity]);
+}
+
+/** btcpay: `">32s32s"` — the two transaction hashes of the order match (btcpay.py). */
+function packBtcPay(params: Params): PackedMessage | null {
+  const id = requireString(params, 'order_match_id');
+  if (!id) return null;
+
+  // Core splits the id on "_" into two 32-byte hashes.
+  const [tx0, tx1] = id.split('_');
+  if (!tx0 || !tx1) return null;
+  if (!/^[0-9a-fA-F]{64}$/.test(tx0) || !/^[0-9a-fA-F]{64}$/.test(tx1)) return null;
+  const a = hexToBytes(tx0.toLowerCase());
+  const b = hexToBytes(tx1.toLowerCase());
+
+  return withPrefix(MessageTypeId.BTC_PAY, new Uint8Array([...a, ...b]));
+}
+
+/**
+ * Dispenser statuses, as core names them (`dispenser.py`). Which trailing addresses a message
+ * carries depends entirely on these.
+ */
+const DISPENSER_STATUS = { OPEN: 0n, OPEN_EMPTY_ADDRESS: 1n, CLOSED: 10n } as const;
+
+/**
+ * dispenser: `">QQQQB"` — asset_id, give_quantity, escrow_quantity, mainchainrate, status —
+ * optionally followed by a 21-byte action address and a 21-byte oracle address (dispenser.py).
+ */
+function packDispenser(params: Params): PackedMessage | null {
+  const asset = requireString(params, 'asset');
+  if (!asset) return null;
+
+  // Defaults mirror `composeDispenser`, which is what actually reaches the API: an open omits
+  // `status` and a close omits the three quantities, and it sends 0 for each. Requiring them here
+  // meant no dispenser request could be packed at all, so byte equality — the strongest check —
+  // silently never ran for this type and every dispenser fell back to field comparison.
+  const give = requireQuantity(params, 'give_quantity') ?? 0n;
+  const escrow = requireQuantity(params, 'escrow_quantity') ?? 0n;
+  const rate = requireQuantity(params, 'mainchainrate') ?? 0n;
+  const status = requireQuantity(params, 'status') ?? 0n;
+  if (status > 255n) return null;
+
+  let assetId: bigint;
+  try {
+    assetId = assetNameToId(asset);
+  } catch {
+    return null;
+  }
+
+  const body: number[] = [
+    ...uint(assetId, 8),
+    ...uint(give, 8),
+    ...uint(escrow, 8),
+    ...uint(rate, 8),
+    Number(status),
+  ];
+
+  // Trailing addresses, packed legacy-style as core does for this message — but only for the
+  // statuses that carry them. Core appends `open_address` when opening on an empty address, or
+  // when closing a dispenser held on a *different* address than the one signing; it appends
+  // `oracle_address` only while opening (`dispenser.py`). Appending whichever address the request
+  // happened to carry produced bytes core never composes, and byte equality is fail-closed, so it
+  // blocked the transaction outright — a close naming its own address was refused on those 21
+  // extra bytes.
+  const source = requireString(params, 'sourceAddress') ?? '';
+  const openAddress = requireString(params, 'open_address') ?? '';
+  const oracleAddress = requireString(params, 'oracle_address') ?? '';
+
+  const trailing: string[] = [];
+  if (openAddress !== ''
+    && (status === DISPENSER_STATUS.OPEN_EMPTY_ADDRESS
+      || (status === DISPENSER_STATUS.CLOSED && openAddress !== source))) {
+    trailing.push(openAddress);
+  }
+  if (oracleAddress !== ''
+    && (status === DISPENSER_STATUS.OPEN || status === DISPENSER_STATUS.OPEN_EMPTY_ADDRESS)) {
+    trailing.push(oracleAddress);
+  }
+
+  for (const address of trailing) {
+    const packed = packAddressLegacy(address);
+    if (!packed) return null;
+    body.push(...packed);
+  }
+
+  return withPrefix(MessageTypeId.DISPENSER, new Uint8Array(body));
+}
+
+/** pooldeposit: `">QQQQQQ"` — asset ids, quantities, min LP quantity, LP asset id. */
+function packPoolDeposit(params: Params, observed: Observed): PackedMessage | null {
+  const assetA = requireString(params, 'asset_a');
+  const assetB = requireString(params, 'asset_b');
+  const qtyA = requireQuantity(params, 'quantity_a');
+  const qtyB = requireQuantity(params, 'quantity_b');
+  const minLp = requireQuantity(params, 'min_lp_quantity') ?? 0n;
+  if (!assetA || !assetB || qtyA === null || qtyB === null) return null;
+
+  // The LP asset id core packs is not a function of the request alone.
+  //
+  //     if existing_pool is None and lp_asset is None:
+  //         lp_asset = assetnames.generate_random_asset(f"{sorted_a}:{sorted_b}")
+  //     ...
+  //     lp_asset_id = generate_asset_id(lp_asset) if existing_pool is None and lp_asset else 0
+  //
+  // So it is 0 for a deposit into an existing pool, the named asset's id when the request names
+  // one, and a *random* draw for the first deposit into a new pool that names none — which the
+  // wallet's own form allows, since the LP name is optional there. Packing 0 for that case made
+  // byte equality reject every first deposit; the LP field is only offered on a new pool, so
+  // leaving it blank was the ordinary path.
+  //
+  // Borrowing the id is safe for the same reason a new subasset's id is: core requires an LP asset
+  // to be numeric and unused (`pooldeposit.py` — "lp_asset ... is already in use", "must be a
+  // numeric asset"), so a substituted id is rejected by consensus and the deposit never executes.
+  // A named LP asset is the user's own choice and is packed from the request, where a substitution
+  // still fails equality.
+  const lpAsset = requireString(params, 'lp_asset');
+  const drawn = observed?.lpAssetId;
+  // Absent from the request: 0 unless the composed message drew one, and only a draw from the
+  // numeric-asset range is one core could have generated. Anything else — an existing named
+  // asset's id, say — is declined rather than blessed by borrowing it.
+  const borrowedLpId = typeof drawn !== 'bigint' || drawn === 0n
+    ? 0n
+    : drawn > 26n ** 12n && drawn < 1n << 64n ? drawn : null;
+  if (lpAsset === null && borrowedLpId === null) return null;
+
+  let ids: [bigint, bigint, bigint];
+  try {
+    ids = [
+      assetNameToId(assetA),
+      assetNameToId(assetB),
+      lpAsset === null ? borrowedLpId! : assetNameToId(lpAsset),
+    ];
+  } catch {
+    return null;
+  }
+
+  return withPrefix(MessageTypeId.POOL_DEPOSIT, new Uint8Array([
+    ...uint(ids[0], 8), ...uint(ids[1], 8),
+    ...uint(qtyA, 8), ...uint(qtyB, 8),
+    ...uint(minLp, 8), ...uint(ids[2], 8),
+  ]));
+}
+
+/** poolwithdraw: `">QQQQQ"` — asset ids, LP quantity burned, and the two minimums. */
+function packPoolWithdraw(params: Params): PackedMessage | null {
+  const assetA = requireString(params, 'asset_a');
+  const assetB = requireString(params, 'asset_b');
+  const quantity = requireQuantity(params, 'quantity');
+  const minA = requireQuantity(params, 'min_quantity_a') ?? 0n;
+  const minB = requireQuantity(params, 'min_quantity_b') ?? 0n;
+  if (!assetA || !assetB || quantity === null) return null;
+
+  let idA: bigint;
+  let idB: bigint;
+  try {
+    idA = assetNameToId(assetA);
+    idB = assetNameToId(assetB);
+  } catch {
+    return null;
+  }
+
+  return withPrefix(MessageTypeId.POOL_WITHDRAW, new Uint8Array([
+    ...uint(idA, 8), ...uint(idB, 8),
+    ...uint(quantity, 8), ...uint(minA, 8), ...uint(minB, 8),
+  ]));
+}
+
 export function packComposeMessage(
   composeType: string,
   params: Params,
@@ -835,6 +1070,26 @@ export function packComposeMessage(
       return packDispense();
     case 'broadcast':
       return packBroadcast(params, observed);
+    case 'attach':
+      return packAttach(params);
+    case 'detach':
+      return packDetach(params);
+    case 'utxo':
+      return packUtxoMove(params);
+    case 'move':
+      // The current `/compose/movetoutxo` route uses `move.py`: it carries no protocol message.
+      // Counterparty instead moves every balance on the spent UTXO to the first non-OP_RETURN
+      // output. Returning the historical type-100 message here made the compose screen demand
+      // bytes Core correctly does not emit, so every current move was rejected before review.
+      return null;
+    case 'btcpay':
+      return packBtcPay(params);
+    case 'dispenser':
+      return packDispenser(params);
+    case 'pooldeposit':
+      return packPoolDeposit(params, observed);
+    case 'poolwithdraw':
+      return packPoolWithdraw(params);
     default:
       return null;
   }

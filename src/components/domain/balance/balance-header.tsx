@@ -1,8 +1,8 @@
-import { type ReactElement, useEffect } from 'react';
+import type { ReactElement } from 'react';
 import { AssetIcon } from '@/components/domain/asset/asset-icon';
-import { useHeader } from '@/contexts/header-context';
 import type { TokenBalance } from '@/core/counterparty/api';
 import { formatAmount } from '@/core/format';
+import { toBigNumber } from '@/core/numeric';
 
 /**
  * Props for the BalanceHeader component.
@@ -12,6 +12,13 @@ interface BalanceHeaderProps {
   balance: TokenBalance;
   /** Optional CSS classes */
   className?: string;
+  /**
+   * Display units arriving from unconfirmed transactions. Never part of the balance figure —
+   * unconfirmed money in is not money you can spend — so it renders with an explicit plus.
+   */
+  pendingIncoming?: string;
+  /** Bundled icon for a balance outside the Counterparty icon CDN. */
+  iconSrc?: string;
 }
 
 /**
@@ -31,18 +38,30 @@ interface BalanceHeaderProps {
  * />
  * ```
  */
-export const BalanceHeader = ({ balance, className = '' }: BalanceHeaderProps): ReactElement => {
-  const { setBalanceHeader } = useHeader();
-
-  // Update cache with the current balance data
-  useEffect(() => {
-    setBalanceHeader(balance.asset, balance);
-  }, [balance, setBalanceHeader]);
-
+/**
+ * Displays a balance. It must not write the shared balance cache.
+ *
+ * It used to, unguarded, from a `balance` prop every caller builds inline — so it wrote on every
+ * render, with a value the caller was still catching up to. `useAssetBalance` owns that cache and
+ * (since #291) depends on it, so the two overwrote each other and the dispenser form's balance
+ * alternated between 0 and the real amount at render speed.
+ */
+export const BalanceHeader = ({
+  balance,
+  className = '',
+  pendingIncoming,
+  iconSrc,
+}: BalanceHeaderProps): ReactElement => {
+  const hasIncoming = !!pendingIncoming && toBigNumber(pendingIncoming).isGreaterThan(0);
+  const pendingDigits = {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: balance.asset_info?.divisible ? 8 : 0,
+    useGrouping: true,
+  };
   // Format the balance based on divisibility
   const formattedBalance = balance.quantity_normalized
     ? formatAmount({
-        value: Number(balance.quantity_normalized),
+        value: balance.quantity_normalized,
         minimumFractionDigits: balance.asset_info?.divisible ? 8 : 0,
         maximumFractionDigits: balance.asset_info?.divisible ? 8 : 0,
         useGrouping: true,
@@ -55,10 +74,24 @@ export const BalanceHeader = ({ balance, className = '' }: BalanceHeaderProps): 
 
   return (
     <div className={`flex items-center ${className}`}>
-      <AssetIcon asset={balance.asset} size="lg" className="mr-4" />
+      <AssetIcon asset={balance.asset} size="lg" className="mr-4" imageSrc={iconSrc} />
       <div>
         <h2 className={`${textSizeClass} font-bold break-all`}>{displayName}</h2>
-        <p className="text-sm text-gray-600">Balance: {formattedBalance}</p>
+        <p className="text-sm text-gray-600">
+          Balance: {formattedBalance}
+          {/* The only annotation left, and it says something the number cannot: money arriving,
+              never part of the figure until confirmed. Plus sign so it cannot be misread as a
+              deduction. Outgoing needs no note (the figure already IS spendable), and the
+              unreadable-pending state renders nothing either — it occurs only on malformed node
+              responses, the shown figure is still the true confirmed balance, and a note nobody
+              can act on or explain is noise (the flag still exists on AssetDetails for anything
+              that later wants to gate on it). */}
+          {hasIncoming && (
+            <span className="text-xs italic text-gray-400">
+              {' '}(+{formatAmount({ value: pendingIncoming!, ...pendingDigits })} incoming)
+            </span>
+          )}
+        </p>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchTokenUtxos } from '@/core/counterparty/api';
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetUtxos } from '../useAssetUtxos';
 
 // Mock the blockchain utilities
@@ -18,12 +19,12 @@ describe('useAssetUtxos', () => {
     {
       asset: 'XCP',
       utxo: 'txid1:0',
-      quantity_normalized: '100.50000000'
+      quantity_normalized: asDisplayUnits('100.50000000')
     },
     {
       asset: 'XCP',
       utxo: 'txid2:1',
-      quantity_normalized: '250.25000000'
+      quantity_normalized: asDisplayUnits('250.25000000')
     }
   ];
 

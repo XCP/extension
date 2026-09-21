@@ -1,6 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
-import { getCanonicalPoolPair } from "@/core/counterparty/pool";
+import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { fromSatoshis } from "@/core/numeric";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
@@ -51,7 +51,7 @@ export function ReviewPoolWithdraw({
   const customFields = [
     {
       label: "Pool",
-      value: assetA && assetB ? getCanonicalPoolPair(assetA, assetB) : params.lp_asset,
+      value: assetA && assetB ? getPoolDisplayPair(assetA, assetB) : params.lp_asset,
     },
     {
       label: "Withdraw",

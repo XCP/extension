@@ -18,7 +18,7 @@ export function TabButton({
   className = "",
 }: TabButtonProps): ReactElement {
   return (
-    <button
+    <button type="button"
       role="tab"
       aria-selected={isActive}
       onClick={onClick}

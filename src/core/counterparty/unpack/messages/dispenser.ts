@@ -104,18 +104,33 @@ export function unpackDispenser(payload: Uint8Array): DispenserData {
     statusName: getStatusName(status),
   };
 
-  // Optional action_address (21 bytes): read for OPEN_EMPTY_ADDRESS, or CLOSED
-  // when a full address follows. Never for OPEN/CLOSING. (Core additionally gates
-  // the CLOSED case on a protocol fork, which needs a block height unavailable here.)
-  if (
-    reader.remaining >= PACKED_ADDRESS_LENGTH &&
-    (status === DispenserStatus.OPEN_EMPTY_ADDRESS || status === DispenserStatus.CLOSED)
-  ) {
+  // action_address: core reads it whenever the status calls for one, without first checking that
+  // 21 bytes are there — a short slice raises and the whole message becomes
+  // "invalid: could not unpack". `dispenser_origin_permission_extended` is long active and
+  // protocol activations are permanent, so the CLOSED case is simply on.
+  //
+  // Gating these reads on `remaining >= 21` instead, as this did, silently dropped trailing bytes
+  // core rejects: a dispenser with a few stray bytes rendered as clean here and is void on chain.
+  const expectsActionAddress =
+    status === DispenserStatus.OPEN_EMPTY_ADDRESS ||
+    (status === DispenserStatus.CLOSED && reader.remaining > 0);
+
+  if (expectsActionAddress) {
+    if (reader.remaining < PACKED_ADDRESS_LENGTH) {
+      throw new Error(
+        `Dispenser action address truncated: ${reader.remaining} bytes, expected ${PACKED_ADDRESS_LENGTH}`
+      );
+    }
     result.openAddress = unpackAddress(reader.readBytes(PACKED_ADDRESS_LENGTH));
   }
 
-  // Optional oracle_address (21 bytes) — any remaining full address.
-  if (reader.remaining >= PACKED_ADDRESS_LENGTH) {
+  // oracle_address: any remaining bytes must be a whole address, for the same reason.
+  if (reader.remaining > 0) {
+    if (reader.remaining < PACKED_ADDRESS_LENGTH) {
+      throw new Error(
+        `Dispenser oracle address truncated: ${reader.remaining} bytes, expected ${PACKED_ADDRESS_LENGTH}`
+      );
+    }
     result.oracleAddress = unpackAddress(reader.readBytes(PACKED_ADDRESS_LENGTH));
   }
 

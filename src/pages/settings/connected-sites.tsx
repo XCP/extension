@@ -1,12 +1,12 @@
 import type { ReactElement } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { FiGlobe, FiHelpCircle, FiRefreshCw } from "@/components/icons";
 import { ConnectedSiteCard } from "@/components/ui/cards/connected-site-card";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
+import { useSettings } from "@/contexts/settings-context";
 import { getProviderService } from "@/services/providerService";
-import { getWalletService } from "@/services/walletService";
 
 /**
  * Constants for navigation paths.
@@ -34,28 +34,17 @@ interface ConnectedSite {
 export default function ConnectedSitesPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const [connectedSites, setConnectedSites] = useState<ConnectedSite[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Read from settings rather than fetching separately: the connected sites are part of them, and
+  // the provider keeps them current when one connects or disconnects in another window.
+  const { settings, isLoading } = useSettings();
 
-  const loadConnections = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const walletService = getWalletService();
-      const settings = await walletService.getSettings();
-      
-      // Convert origins to ConnectedSite objects
-      const sites: ConnectedSite[] = settings.connectedWebsites.map(origin => ({
-        origin,
-        hostname: new URL(origin).hostname
-      }));
-
-      setConnectedSites(sites);
-    } catch (error) {
-      console.error('Failed to load connections:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const connectedSites = useMemo<ConnectedSite[]>(
+    () => settings.connectedWebsites.map(origin => ({
+      origin,
+      hostname: new URL(origin).hostname,
+    })),
+    [settings.connectedWebsites]
+  );
 
   /**
    * Disconnects a site.
@@ -63,13 +52,11 @@ export default function ConnectedSitesPage(): ReactElement {
   const handleDisconnectSite = async (origin: string) => {
     try {
       const providerService = getProviderService();
+      // Disconnecting rewrites the settings, and the list follows from those — so there is nothing
+      // to update here. A failure leaves the site listed, which is the truth.
       await providerService.disconnect(origin);
-
-      // Only update UI after successful disconnect
-      setConnectedSites(prev => prev.filter(site => site.origin !== origin));
     } catch (error) {
       console.error('Failed to disconnect site:', error);
-      // Don't reload - just log the error
     }
   };
 
@@ -89,9 +76,6 @@ export default function ConnectedSitesPage(): ReactElement {
       );
 
       await Promise.all(disconnectPromises);
-
-      // Only update UI after all disconnects complete
-      setConnectedSites([]);
     } catch (error) {
       console.error('Failed to disconnect all sites:', error);
     }
@@ -115,17 +99,13 @@ export default function ConnectedSitesPage(): ReactElement {
     });
   }, [setHeaderProps, navigate, connectedSites.length, handleDisconnectAll]);
 
-  // Load connections on mount
-  useEffect(() => {
-    loadConnections();
-  }, [loadConnections]);
 
   if (isLoading) {
     return <Spinner message="Loading connected sites…" />;
   }
 
   return (
-    <div className={connectedSites.length === 0 ? 'h-full flex items-center justify-center' : 'p-4 space-y-4'} role="main" aria-labelledby="connected-sites-title">
+    <section className={connectedSites.length === 0 ? 'h-full flex items-center justify-center' : 'p-4 space-y-4'} aria-labelledby="connected-sites-title">
       <h2 id="connected-sites-title" className="sr-only">
         Connected Sites
       </h2>
@@ -150,6 +130,6 @@ export default function ConnectedSitesPage(): ReactElement {
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

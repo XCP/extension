@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { FiRefreshCw } from "@/components/icons";
 import { PriceChart } from "@/components/ui/charts/price-chart";
@@ -124,14 +124,40 @@ export default function XcpPricePage(): ReactElement {
   const formatPrice = (price: number) =>
     `$${formatAmount({ value: price, minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const chartData = historyData ? filterHistory(historyData.history, range) : [];
+  // Daily history stays historical; only today's endpoint follows the live,
+  // mempool-adjusted dispenser ask used by the ticker headline.
+  const liveHistory = useMemo(() => {
+    const history = historyData?.history ?? [];
+    if (!stats) return history;
+
+    const today = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const livePoint = { timestamp: today, price: stats.price };
+    const lastPoint = history[history.length - 1];
+
+    return lastPoint?.timestamp === today
+      ? [...history.slice(0, -1), livePoint]
+      : [...history, livePoint];
+  }, [historyData?.history, stats]);
+  const chartData = useMemo(
+    () => filterHistory(liveHistory, range),
+    [liveHistory, range],
+  );
+  const ath = useMemo(() => {
+    if (!stats || (historyData?.ath && historyData.ath.usd >= stats.price)) {
+      return historyData?.ath ?? null;
+    }
+    return {
+      usd: stats.price,
+      day: new Date().toISOString().slice(0, 10),
+    };
+  }, [historyData?.ath, stats]);
 
   if (loading) {
     return <Spinner message="Loading XCP price…" />;
   }
 
   return (
-    <div className="flex flex-col h-full" role="main">
+    <div className="flex flex-col h-full">
       <div className="flex-1 overflow-auto no-scrollbar p-4">
         {/* Price Stats Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
@@ -152,7 +178,7 @@ export default function XcpPricePage(): ReactElement {
               {statsError ? (
                 <div className="text-sm text-red-600">
                   <span className="block">{statsError}</span>
-                  <button
+                  <button type="button"
                     onClick={loadStats}
                     className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
@@ -179,7 +205,7 @@ export default function XcpPricePage(): ReactElement {
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-1">
             {TIME_RANGES.map((t) => (
-              <button
+              <button type="button"
                 key={t.id}
                 onClick={() => setRange(t.id)}
                 className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
@@ -192,7 +218,7 @@ export default function XcpPricePage(): ReactElement {
               </button>
             ))}
           </div>
-          <button
+          <button type="button"
             onClick={handleBuyXcp}
             className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
           >
@@ -208,7 +234,7 @@ export default function XcpPricePage(): ReactElement {
               style={{ height: CHART_HEIGHT }}
             >
               <span className="text-sm text-red-600 mb-2">{chartError}</span>
-              <button
+              <button type="button"
                 onClick={loadHistory}
                 className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
@@ -219,7 +245,7 @@ export default function XcpPricePage(): ReactElement {
             <PriceChart
               data={chartData}
               height={CHART_HEIGHT}
-              lineColor="#e11d48"
+              lineColor="#0ea5e9"
               className="w-full"
               currencySymbol="$"
               priceDecimals={2}
@@ -229,23 +255,34 @@ export default function XcpPricePage(): ReactElement {
         </div>
 
         {/* Market Stats */}
-        {historyData && (historyData.satsPerXcp || historyData.ath) && (
+        {(stats?.satsPerXcp || historyData?.satsPerXcp || ath) && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mt-4">
-            {historyData.satsPerXcp && (
-              <div className={`flex items-center justify-between ${historyData.ath ? "pb-2 border-b border-gray-100" : ""}`}>
+            {stats?.satsPerXcp ? (
+              <div className={`flex items-center justify-between ${ath ? "pb-2 border-b border-gray-100" : ""}`}>
+                <span className="text-sm text-gray-600">Floor Price</span>
+                <button type="button"
+                  onClick={handleBuyXcp}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                  aria-label="View open XCP dispensers"
+                >
+                  1 XCP = {formatAmount({ value: stats.satsPerXcp, maximumFractionDigits: 0 })} sats
+                </button>
+              </div>
+            ) : historyData?.satsPerXcp ? (
+              <div className={`flex items-center justify-between ${ath ? "pb-2 border-b border-gray-100" : ""}`}>
                 <span className="text-sm text-gray-600">DEX Rate</span>
                 <span className="text-sm font-medium text-gray-900">
                   1 XCP = {formatAmount({ value: historyData.satsPerXcp, maximumFractionDigits: 0 })} sats
                 </span>
               </div>
-            )}
-            {historyData.ath && (
-              <div className={`flex items-center justify-between ${historyData.satsPerXcp ? "pt-2" : ""}`}>
+            ) : null}
+            {ath && (
+              <div className={`flex items-center justify-between ${(stats?.satsPerXcp || historyData?.satsPerXcp) ? "pt-2" : ""}`}>
                 <span className="text-sm text-gray-600">All-Time High</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {formatPrice(historyData.ath.usd)}
+                  {formatPrice(ath.usd)}
                   <span className="text-gray-400 font-normal">
-                    {" "}· {new Date(`${historyData.ath.day}T00:00:00Z`).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                    {" "}· {new Date(`${ath.day}T00:00:00Z`).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
                   </span>
                 </span>
               </div>

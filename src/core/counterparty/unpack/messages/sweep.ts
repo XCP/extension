@@ -50,10 +50,12 @@ export interface SweepData {
   memo?: string;
   /** Raw memo bytes */
   memoBytes?: Uint8Array;
+  /** The decoder accepts legacy structs; the wallet composes only CBOR. */
+  layout?: 'cbor' | 'legacy';
 }
 
 /** Build the flag-derived fields shared by both decode paths. */
-function sweepFromParts(destination: string, flags: number, memoBytes?: Uint8Array): SweepData {
+function sweepFromParts(destination: string, flags: number, layout: 'cbor' | 'legacy', memoBytes?: Uint8Array): SweepData {
   const memoIsBinary = (flags & SweepFlags.BINARY_MEMO) !== 0;
 
   const result: SweepData = {
@@ -62,6 +64,7 @@ function sweepFromParts(destination: string, flags: number, memoBytes?: Uint8Arr
     sweepBalances: (flags & SweepFlags.BALANCES) !== 0,
     sweepOwnership: (flags & SweepFlags.OWNERSHIP) !== 0,
     memoIsBinary,
+    layout,
   };
 
   if (memoBytes && memoBytes.length > 0) {
@@ -91,7 +94,7 @@ function tryCborDecode(payload: Uint8Array): SweepData | null {
   if (!(addressValue instanceof Uint8Array) || typeof flagsValue !== 'bigint') return null;
 
   const memoBytes = memoValue instanceof Uint8Array ? memoValue : undefined;
-  return sweepFromParts(unpackAddress(addressValue), Number(flagsValue), memoBytes);
+  return sweepFromParts(unpackAddress(addressValue), Number(flagsValue), 'cbor', memoBytes);
 }
 
 /**
@@ -123,5 +126,5 @@ export function unpackSweep(payload: Uint8Array): SweepData {
   const flags = reader.readUint8();
   const memoBytes = memoLength > 0 ? reader.readBytes(memoLength) : undefined;
 
-  return sweepFromParts(unpackAddress(packedAddress), flags, memoBytes);
+  return sweepFromParts(unpackAddress(packedAddress), flags, 'legacy', memoBytes);
 }

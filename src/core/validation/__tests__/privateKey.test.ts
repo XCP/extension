@@ -18,7 +18,7 @@ describe('Private Key Validation Security Tests', () => {
       
       expect(result.isValid).toBe(true);
       expect(result.format).toBe('hex');
-      expect(result.suggestedAddressFormat).toBe(AddressFormat.P2TR);
+      expect(result.suggestedAddressFormat).toBe(AddressFormat.P2WPKH);
     });
 
     it('should accept valid WIF private keys', () => {
@@ -28,7 +28,7 @@ describe('Private Key Validation Security Tests', () => {
       
       expect(result1.isValid).toBe(true);
       expect(result1.format).toBe('wif-compressed');
-      expect(result1.suggestedAddressFormat).toBe(AddressFormat.P2SH_P2WPKH);
+      expect(result1.suggestedAddressFormat).toBe(AddressFormat.P2WPKH);
 
       // Valid WIF uncompressed (starts with 5)
       const validWIFUncompressed = '5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ';

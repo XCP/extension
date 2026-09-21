@@ -50,9 +50,15 @@ export const LEGACY_MAX_ORDER_EXPIRATION = 8064;
 export const MAX_ORDER_EXPIRATION = 2 ** 16 - 1;
 export const DEFAULT_ORDER_EXPIRATION = LEGACY_MAX_ORDER_EXPIRATION;
 
-/** Default pool slippage tolerance, as a percent string. 1% sits one notch above
- *  fast-chain DEX defaults to absorb pool drift over Counterparty's ~10-min blocks. */
+/** Slippage tolerance sits one notch above fast-chain DEX defaults to absorb pool drift over
+ *  Counterparty's ~10-min blocks. 1% is what Auto falls back to with no quote to read, and what
+ *  deposit and withdraw use: they are exposed to the pool moving under them just as a swap is —
+ *  another deposit, withdrawal or trade confirming first changes what comes back — but neither
+ *  quotes a price impact, so there is no per-transaction number to size the tolerance from. */
 export const DEFAULT_POOL_SLIPPAGE = '1';
+
+/** The slippage setting's non-numeric value: derive the tolerance per-quote. See getAutoSlippage. */
+export const POOL_SLIPPAGE_AUTO = 'auto';
 
 /**
  * Application settings - stored encrypted inside the keychain.
@@ -89,6 +95,8 @@ export interface AppSettings {
     pairedAddresses?: boolean;
     walletId?: string;
     address?: string;
+    /** The Legacy/SegWit sibling of `address`; the grant covers both halves of the pair. */
+    pairedAddress?: string;
   }>;
 
   /** Allow unconfirmed transaction inputs */
@@ -105,10 +113,19 @@ export interface AppSettings {
   counterpartyApiBase: string;
   /** Default order expiration in blocks */
   defaultOrderExpiration: number;
-  /** Default pool slippage tolerance, percent (e.g. "2.5"); falls back to DEFAULT_POOL_SLIPPAGE */
+  /**
+   * Default pool slippage tolerance: a percent (e.g. "2.5"), or POOL_SLIPPAGE_AUTO to let a swap
+   * derive it from that quote's price impact. Falls back to DEFAULT_POOL_SLIPPAGE.
+   */
   defaultPoolSlippage?: string;
   /** Block signing if local verification fails */
   strictTransactionVerification: boolean;
+  /**
+   * Seconds to spend hunting for a txid with six leading zeros (a ZELD reward) before signing
+   * a transaction, capped at MAX_ZELD_HUNT_SECONDS. Zero turns hunting off. The transaction is
+   * sent as composed when the budget runs out, so this bounds the delay, not the outcome.
+   */
+  zeldHuntSeconds: number;
 
   /** User has visited recover bitcoin page */
   hasVisitedRecoverBitcoin?: boolean;
@@ -141,8 +158,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   transactionDryRun: false,
   counterpartyApiBase: 'https://api.counterparty.io:4000',
   defaultOrderExpiration: DEFAULT_ORDER_EXPIRATION,
-  defaultPoolSlippage: DEFAULT_POOL_SLIPPAGE,
+  defaultPoolSlippage: POOL_SLIPPAGE_AUTO,
   strictTransactionVerification: true,
+  // On by default. At the popup's worker count a six-zero txid usually turns up in a few
+  // seconds and the hunt then goes on for a seven-zero one, which takes about half a minute on
+  // average; 30 seconds finds one more often than not, and the spinner offers to stop early.
+  // Zero turns it off.
+  zeldHuntSeconds: 0,
   connectedWebsites: [],
   providerCapabilities: {},
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],

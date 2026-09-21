@@ -17,8 +17,10 @@
  * reasoned about. See ADR-019.
  */
 
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Transaction } from '@scure/btc-signer';
+import { bytesToHex } from '@noble/hashes/utils.js';
+import type { Transaction } from '@scure/btc-signer';
+import { decodeRawTransaction, parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
+import { divide, maximum, multiply, roundDown, roundUp, toFiniteNumber, toSafeInteger } from "@/core/numeric";
 
 /**
  * A fee rate above this (sat/vByte) is treated as never legitimate, and *blocks* on the compose
@@ -41,6 +43,10 @@ export const MAX_SANE_FEE_RATE = 5000;
  * reasons the wallet cannot see (see `transaction/approve.tsx`).
  */
 export const HIGH_FEE_RATE_WARNING = 500;
+/** Never warn below this rate merely because the current mempool is unusually quiet. */
+export const HIGH_FEE_RATE_WARNING_FLOOR = 100;
+/** A site-selected rate this many times the fastest current quote deserves a second look. */
+export const NETWORK_FEE_RATE_WARNING_MULTIPLIER = 10;
 /** When the user chose a fee rate, reject fees beyond this multiple of it. */
 export const USER_FEE_RATE_TOLERANCE = 10;
 /** Absolute floor so tiny transactions aren't rejected by rate rounding. */
@@ -58,10 +64,22 @@ const MIN_BOUND_SATS = 10_000;
  * @param fee - Miner fee in sats, or null when it could not be established.
  * @param vsize - Transaction virtual size in vbytes.
  */
-export function exceedsSaneFeeRate(fee: number | null | undefined, vsize: number | undefined): boolean {
+export function exceedsSaneFeeRate(
+  fee: number | null | undefined,
+  vsize: number | undefined,
+  fastestFeeRate?: number | null,
+): boolean {
   if (fee == null || !Number.isFinite(fee) || fee <= 0) return false;
   if (!vsize || !Number.isFinite(vsize) || vsize <= 0) return false;
-  return fee / vsize > HIGH_FEE_RATE_WARNING;
+  const relativeThreshold = fastestFeeRate != null
+    && Number.isFinite(fastestFeeRate)
+    && fastestFeeRate > 0
+    ? Math.max(
+        HIGH_FEE_RATE_WARNING_FLOOR,
+        fastestFeeRate * NETWORK_FEE_RATE_WARNING_MULTIPLIER,
+      )
+    : HIGH_FEE_RATE_WARNING;
+  return fee / vsize > relativeThreshold;
 }
 
 export interface FeeCheckInput {
@@ -142,13 +160,8 @@ export async function checkTransactionFee(
   let tx: Transaction;
   let rawBytes: Uint8Array;
   try {
-    rawBytes = hexToBytes(rawTransaction);
-    tx = Transaction.fromRaw(rawBytes, {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
-    });
+    rawBytes = decodeRawTransaction(rawTransaction);
+    tx = parseTransactionForSigning(rawBytes);
   } catch {
     // An unparseable transaction can't be signed either (the signer uses the
     // same parser), so it is not a drain risk — skip the fee check rather than
@@ -176,23 +189,33 @@ export async function checkTransactionFee(
   if (fee < 0n) {
     return { ok: false, error: 'Transaction outputs exceed inputs — refusing to sign.' };
   }
-  const computedFee = Number(fee);
+  // A fee is satoshis, so it fits a number exactly — but only while it really does.
+  const computedFee = toSafeInteger(fee);
+  if (computedFee === undefined) {
+    return { ok: false, error: 'Transaction fee is out of range — refusing to sign.' };
+  }
 
   const vsize = Math.max(1, estimateVsize(tx, rawBytes.length));
-  const impliedRate = computedFee / vsize;
+  const impliedRate = divide(computedFee, vsize);
 
-  if (impliedRate > MAX_SANE_FEE_RATE) {
+  if (impliedRate.isGreaterThan(MAX_SANE_FEE_RATE)) {
     return {
       ok: false,
-      error: `Transaction fee (${computedFee} sats, ~${Math.round(impliedRate)} sat/vB) is abnormally high and was blocked.`,
+      error: `Transaction fee (${computedFee} sats, ~${roundDown(impliedRate).toFixed()} sat/vB) is abnormally high and was blocked.`,
       computedFee,
     };
   }
 
-  const rate = typeof userFeeRate === 'string' ? Number(userFeeRate) : userFeeRate;
-  if (rate && Number.isFinite(rate) && rate > 0) {
-    const bound = Math.max(MIN_BOUND_SATS, Math.ceil(rate * vsize * USER_FEE_RATE_TOLERANCE));
-    if (computedFee > bound) {
+  // The rate arrives as a form string; a value that is not a number leaves the bound unapplied
+  // rather than silently becoming zero.
+  const rate = toFiniteNumber(userFeeRate);
+  if (rate !== undefined && rate > 0) {
+    // Named rather than nested three deep: what the fee would be at the user's rate, times the
+    // slack the bound allows.
+    const feeAtUserRate = multiply(rate, vsize);
+    const allowed = roundUp(multiply(feeAtUserRate, USER_FEE_RATE_TOLERANCE));
+    const bound = maximum(MIN_BOUND_SATS, allowed);
+    if (bound.isLessThan(computedFee)) {
       return {
         ok: false,
         error: `Transaction fee (${computedFee} sats) far exceeds your selected rate of ${rate} sat/vB.`,

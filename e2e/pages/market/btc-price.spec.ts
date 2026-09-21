@@ -41,7 +41,7 @@ async function stubBtcApis(page: Page, overrides: { statsStatus?: number; chartS
   await page.route('**/api/v3/coins/bitcoin/market_chart**', (route) =>
     route.fulfill(json(overrides.chartStatus ? { error: 'unavailable' } : CHART, overrides.chartStatus ?? 200)),
   );
-  await page.route('**/v1/fees/recommended', (route) => route.fulfill(json(FEES)));
+  await page.route('**/v1/fees/precise', (route) => route.fulfill(json(FEES)));
   await page.route('**/v2/price/ticker*', (route) => route.fulfill(json(XCP_TICKER)));
   // The stats fetcher falls back to other providers; fail them so a stubbed outage stays an outage.
   await page.route('**/api.coincap.io/**', (route) => route.fulfill(json({ error: 'unavailable' }, 503)));

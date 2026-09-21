@@ -1,5 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/core/format";
+import { toBigNumber } from "@/core/numeric";
 
 interface ReviewIssuanceIssueSupplyProps {
   apiResponse: any;
@@ -24,7 +25,8 @@ export function ReviewIssuanceIssueSupply({
 
   // Calculate new total supply from normalized values
   const newTotalSupply = formatAmount({
-    value: Number(currentSupply) + Number(issuedQuantity),
+    // Both are supplies, and a supply is what overflows a double first.
+    value: toBigNumber(currentSupply).plus(toBigNumber(issuedQuantity)),
     minimumFractionDigits: 0,
   });
 

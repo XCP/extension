@@ -10,8 +10,10 @@
  * Uses walletTest fixture which provides a browser context with the extension loaded.
  */
 
-import { walletTest, expect } from '../fixtures';
 import * as http from 'http';
+import { verifySimpleBIP322 } from '../../src/core/bitcoin/bip322';
+import { expect, walletTest } from '../fixtures';
+import { captureApprovalSizes } from '../utils/approval-layout';
 
 // Helper to create test HTML server
 function createTestServer(): Promise<{ server: http.Server; url: string }> {
@@ -162,69 +164,61 @@ walletTest.describe('Message Signing', () => {
     await testPage.close();
   });
 
-  walletTest('xcp_requestAccounts triggers popup or returns error', async ({ context }) => {
+  walletTest('connects and signs only after reviewing the background request', async ({ context, page }) => {
+    // Request the page fixture: it creates the wallet, while context alone only loads the extension.
+    await expect(page).toHaveURL(/#\/index/);
     const testPage = await context.newPage();
     await testPage.goto(serverUrl);
+    await expect.poll(() => testPage.evaluate(() => 'xcpwallet' in window)).toBe(true);
 
-    const providerFound = await waitForProvider(testPage);
-    expect(providerFound).toBe(true);
+    const connectionPopup = context.waitForEvent('page');
+    const connectionResult = testPage.evaluate(async () => {
+      const provider = (window as unknown as { xcpwallet: { request(args: { method: string }): Promise<{
+        accounts: string[]; proof: { message: string; signature: string; address: string };
+      }> } }).xcpwallet;
+      try { return { connection: await provider.request({ method: 'xcp_requestAccounts' }) }; }
+      catch (error) { return { error: error instanceof Error ? error.message : String(error) }; }
+    }).catch(error => ({ error: error instanceof Error ? error.message : String(error), connection: undefined }));
+    const connectPage = await connectionPopup;
+    await expect(connectPage).toHaveURL(/requests\/connect\/approve/);
+    await expect(connectPage.getByRole('button', { name: 'Connect', exact: true })).toBeEnabled();
+    await captureApprovalSizes(connectPage, 'test-results/approval-gallery', 'connect-proved');
+    await connectPage.getByRole('button', { name: 'Connect', exact: true }).click();
+    const connected = await connectionResult;
+    expect(connected.error).toBeUndefined();
+    expect(connected.connection?.accounts).toHaveLength(1);
+    const address = connected.connection!.accounts[0]!;
+    const proof = connected.connection!.proof;
+    expect(proof.address).toBe(address);
+    expect(await verifySimpleBIP322(proof.message, proof.signature, address)).toBe(true);
 
-    // Listen for popup
-    let popupPage: any = null;
-    const popupPromise = new Promise<void>((resolve) => {
-      context.on('page', (page) => {
-        popupPage = page;
-        resolve();
-      });
-    });
+    const message = 'Approve this exact XCP Wallet regression message.\n\n  Keep these spaces.\tAnd this tab.';
+    const signingPopup = context.waitForEvent('page');
+    const signingResult = testPage.evaluate(async ({ message, address }) => {
+      const provider = (window as unknown as { xcpwallet: { request(args: { method: string; params: string[] }): Promise<string> } }).xcpwallet;
+      try { return { signature: await provider.request({ method: 'xcp_signMessage', params: [message, address] }) }; }
+      catch (error) { return { error: error instanceof Error ? error.message : String(error) }; }
+    }, { message, address }).catch(error => ({ error: error instanceof Error ? error.message : String(error), signature: undefined }));
+    const signPage = await signingPopup;
+    await expect(signPage).toHaveURL(/requests\/message\/approve/);
+    await expect(signPage.getByText(message, { exact: true })).toBeVisible();
+    expect(await signPage.getByText(message, { exact: true }).textContent()).toBe(message);
+    await captureApprovalSizes(signPage, 'test-results/approval-gallery', 'message-proved');
+    await signPage.getByRole('button', { name: 'Sign message', exact: true }).click();
+    const signed = await signingResult;
+    expect(signed.error).toBeUndefined();
+    expect(typeof signed.signature).toBe('string');
+    expect(await verifySimpleBIP322(message, signed.signature!, address)).toBe(true);
+    expect(await verifySimpleBIP322(`${message} altered`, signed.signature!, address)).toBe(false);
 
-    const connectionPromise = testPage.evaluate(async () => {
-      const provider = (window as any).xcpwallet;
-      if (!provider) return { error: 'No provider' };
-
-      try {
-        const accounts = await Promise.race([
-          provider.request({ method: 'xcp_requestAccounts' }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('request timeout')), 30000)),
-        ]);
-        return { accounts };
-      } catch (error: any) {
-        return { error: error.message };
-      }
-    });
-
-    // Wait for either popup or response
-    const raceResult = await Promise.race([
-      popupPromise.then(() => 'popup'),
-      connectionPromise.then(() => 'response'),
-      new Promise(resolve => setTimeout(() => resolve('timeout'), 10000))
-    ]);
-
-    if (raceResult === 'popup') {
-      // Popup opened - could be approval page or main popup (for wallet setup/unlock)
-      expect(popupPage).not.toBeNull();
-      if (popupPage) {
-        // Either approval page or main popup is valid
-        const url = popupPage.url();
-        const isValidPopup = url.includes('/requests/connect/approve') ||
-                            url.includes('popup.html');
-        expect(isValidPopup).toBe(true);
-        await popupPage.close();
-      }
-      // Wait for the error response
-      const connectionResult = await connectionPromise;
-      expect(connectionResult).toHaveProperty('error');
-    } else if (raceResult === 'response') {
-      // Got direct response - should be an error
-      const connectionResult = await connectionPromise;
-      expect(connectionResult).toHaveProperty('error');
-    } else {
-      throw new Error('Test timed out waiting for popup or response');
-    }
-
+    // Rejoining a completed request returns the original result without a second signer.
+    const recovered = await testPage.evaluate(async ({ message, address }) => {
+      const provider = (window as unknown as { xcpwallet: { request(args: { method: string; params: string[] }): Promise<string> } }).xcpwallet;
+      return provider.request({ method: 'xcp_signMessage', params: [message, address] });
+    }, { message, address });
+    expect(recovered).toBe(signed.signature);
     await testPage.close();
   });
-
   walletTest('should validate message parameters - null message', async ({ context }) => {
     const testPage = await context.newPage();
     await testPage.goto(serverUrl);

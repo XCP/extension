@@ -49,9 +49,11 @@ walletTest.describe('Approve Message Page (/requests/message/approve)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/requests/message/approve'));
     await page.waitForLoadState('networkidle');
 
-    // Without a requestId, shows "No request ID provided"
-    const explanation = page.locator('text=/No request ID provided|signing request is no longer available/i');
+    // A missing URL request ID has its own explanation and must never expose signing controls.
+    const explanation = page.getByText('No signing request ID provided', { exact: true });
     await expect(explanation).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Request Expired', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign message', exact: true })).toHaveCount(0);
   });
 
   walletTest('shows clock icon in expired state', async ({ page }) => {

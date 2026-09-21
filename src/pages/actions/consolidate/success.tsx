@@ -22,7 +22,11 @@ function ConsolidateSuccessPage() {
   useEffect(() => {
     setHeaderProps({
       title: "Started Recovery",
-      onBack: () => navigate('/actions/consolidate'), // Back to recovery tool homepage
+      // Back to the recovery tool homepage, replacing this results screen. The other half of the
+      // navigation loop: pushing left the results underneath, so the recovery page's own back
+      // (navigate(-1)) returned here and the two pages ping-ponged. Replaced, the stack reads
+      // [..., actions, consolidate] and a second back leaves the tool, as back should.
+      onBack: () => navigate('/actions/consolidate', { replace: true }),
       rightButton: {
         icon: <FiX className="size-4" aria-hidden="true" />,
         onClick: () => navigate('/'),
@@ -145,14 +149,14 @@ function ConsolidateSuccessPage() {
                   <span className="text-xs text-gray-600 font-mono break-all flex-1">
                     {result.txid}
                   </span>
-                  <button
+                  <button type="button"
                     onClick={() => copyToClipboard(result.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     aria-label="Copy transaction ID"
                   >
                     <FaCopy className="size-4 text-gray-600" aria-hidden="true" />
                   </button>
-                  <button
+                  <button type="button"
                     onClick={() => openInExplorer(result.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     aria-label="View in explorer"
@@ -179,14 +183,18 @@ function ConsolidateSuccessPage() {
         </div>
       </div>
       
-      {/* Info Message */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-900">
-          <strong>Note:</strong> Your transactions are now in the mempool and will be confirmed in the next blocks. 
-          The consolidated Bitcoin will be available once the transactions are confirmed.
-        </p>
-      </div>
-      
+      {/* Only when something was actually broadcast. This note used to render unconditionally,
+          so a run whose summary said "0 successful, nothing was sent" ended with a box saying
+          the transactions were in the mempool — two statements on one screen, one of them false. */}
+      {successfulBatches.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-900">
+            <strong>Note:</strong> Your transactions are now in the mempool and will be confirmed in the next blocks.
+            The consolidated Bitcoin will be available once the transactions are confirmed.
+          </p>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex space-x-3">
         <Button

@@ -120,7 +120,7 @@ vi.mock('@/components/screens/success-screen', () => ({
   SuccessScreen: ({ apiResponse, onReset }: any) => (
     <div data-testid="success-screen">
       <div>Success! TX: {apiResponse?.result?.tx_hash}</div>
-      <button onClick={onReset}>Reset</button>
+      <button type="button" onClick={onReset}>Reset</button>
     </div>
   )
 }));
@@ -182,10 +182,10 @@ describe('Composer', () => {
   const MockReviewComponent = ({ apiResponse, onSign, onBack }: any): ReactElement => (
     <div data-testid="review-component">
       <div>Transaction: {apiResponse?.result?.rawtransaction}</div>
-      <button onClick={onSign}>
+      <button type="button" onClick={onSign}>
         Sign
       </button>
-      <button onClick={onBack}>Back</button>
+      <button type="button" onClick={onBack}>Back</button>
     </div>
   );
 

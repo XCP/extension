@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
+import { ZeldField } from "@/components/domain/zeld/zeld-field";
 import { Button } from "@/components/ui/button";
 import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -6,6 +7,7 @@ import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAddress, formatAmount } from "@/core/format";
 import { formatFeeRate, fromSatoshis } from "@/core/numeric";
+import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 /**
@@ -22,6 +24,9 @@ interface TransactionResult {
   name?: string;
   btc_fee: number;
   xcp_fee?: number;
+  zeld_hunt?: ZeldHuntMetadata;
+  zeld_protection?: ZeldProtectionMetadata;
+  zeld_send?: ZeldSendMetadata;
   [key: string]: any;
 }
 
@@ -58,6 +63,8 @@ interface ReviewScreenProps {
   error: string | null;
   /** Whether the transaction is being signed */
   isSigning: boolean;
+  /** Disable signing while transaction-specific review details are unavailable. */
+  signDisabled?: boolean;
   /** Hide the back button (e.g., for provider requests with no form to go back to) */
   hideBackButton?: boolean;
 }
@@ -90,6 +97,7 @@ export function ReviewScreen({
   customFields = [],
   error,
   isSigning,
+  signDisabled = false,
   hideBackButton = false,
 }: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
@@ -134,7 +142,7 @@ export function ReviewScreen({
       <div className="space-y-4">
         {/* Source Address */}
         <div className="space-y-1">
-          <label className="font-semibold text-gray-700">From:</label>
+          <span className="block font-semibold text-gray-700">From:</span>
           <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
             {formatAddress(sourceAddress, true)}
           </div>
@@ -143,7 +151,7 @@ export function ReviewScreen({
         {/* Destination Address (if present) - show full address */}
         {destinationAddress && (
           <div className="space-y-1">
-            <label className="font-semibold text-gray-700">To:</label>
+            <span className="block font-semibold text-gray-700">To:</span>
             <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
               {formatAddress(destinationAddress, false)}
             </div>
@@ -153,7 +161,7 @@ export function ReviewScreen({
         {/* Custom Fields */}
         {customFields.map((field, idx) => (
           <div key={`field-${idx}-${field.label}`} className="space-y-1">
-            <label className="font-semibold text-gray-700">{field.label}:</label>
+            <span className="block font-semibold text-gray-700">{field.label}:</span>
             <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
               {typeof field.value === 'string' && field.value.includes('\n') ? (
                 <div className="whitespace-pre-line">{field.value}</div>
@@ -171,7 +179,7 @@ export function ReviewScreen({
 
         {xcpFee !== null && (
           <div className="space-y-1">
-            <label className="font-semibold text-gray-700">XCP Fee:</label>
+            <span className="block font-semibold text-gray-700">XCP Fee:</span>
             <div className="bg-gray-50 p-2 rounded text-gray-900">
               <div className="flex justify-between items-center">
                 <span>
@@ -192,9 +200,11 @@ export function ReviewScreen({
           </div>
         )}
         
+        <ZeldField hunt={result.zeld_hunt} protection={result.zeld_protection} send={result.zeld_send} />
+
         {/* Transaction Fee */}
         <div className="space-y-1">
-          <label className="font-semibold text-gray-700">Fee:</label>
+          <span className="block font-semibold text-gray-700">Fee:</span>
           <div className="bg-gray-50 p-2 rounded text-gray-900">
             <div className="flex justify-between items-center">
               <div>
@@ -245,7 +255,7 @@ export function ReviewScreen({
           onClick={onSign}
           color="blue"
           fullWidth
-          disabled={isSigning}
+          disabled={isSigning || signDisabled}
           aria-label={isSigning ? "Signing transaction…" : "Sign and broadcast transaction"}
         >
           {isSigning ? "Signing…" : "Sign & Broadcast"}

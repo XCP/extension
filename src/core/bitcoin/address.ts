@@ -38,9 +38,42 @@ export const AddressFormat = {
  */
 export type AddressFormat = typeof AddressFormat[keyof typeof AddressFormat];
 
-/** Normalize only Bech32 addresses; Base58 addresses remain case-sensitive. */
+/** One product default shared by every new-wallet and ambiguous-import entry point. */
+export const DEFAULT_ADDRESS_FORMAT: AddressFormat = AddressFormat.P2WPKH;
+
+/** Normalize only Bech32/Bech32m addresses; Base58 addresses remain case-sensitive. */
 export function normalizeAddressForComparison(address: string): string {
-  return address.toLowerCase().startsWith('bc1') ? address.toLowerCase() : address;
+  const lower = address.toLowerCase();
+  return lower.startsWith('bc1') || lower.startsWith('tb1') || lower.startsWith('bcrt1')
+    ? lower
+    : address;
+}
+
+/**
+ * Human-readable label for an address format, shown wherever the UI names a
+ * wallet's address type (settings, address list).
+ */
+export function getAddressFormatLabel(format: AddressFormat): string {
+  switch (format) {
+    case AddressFormat.P2PKH:
+      return 'Legacy (P2PKH)';
+    case AddressFormat.P2WPKH:
+      return 'Native SegWit (P2WPKH)';
+    case AddressFormat.P2SH_P2WPKH:
+      return 'Nested SegWit (P2SH-P2WPKH)';
+    case AddressFormat.P2TR:
+      return 'Taproot (P2TR)';
+    case AddressFormat.Counterwallet:
+      return 'CounterWallet (P2PKH)';
+    case AddressFormat.CounterwalletSegwit:
+      return 'CounterWallet SegWit (P2WPKH)';
+    case AddressFormat.FreewalletBIP39:
+      return 'FreeWallet (P2PKH)';
+    case AddressFormat.FreewalletBIP39Segwit:
+      return 'FreeWallet SegWit (P2WPKH)';
+    default:
+      return format;
+  }
 }
 
 /**
@@ -88,7 +121,7 @@ const base58check = createBase58check(sha256);
 
 /**
  * Decode a Bitcoin address from a scriptPubKey hex string.
- * Supports P2PKH, P2WPKH, P2SH, and P2TR scripts.
+ * Supports P2PKH, P2WPKH, P2SH, P2WSH, and P2TR scripts.
  *
  * @param scriptHex - The scriptPubKey in hex format
  * @returns The decoded Bitcoin address, or null if unsupported script type
@@ -112,6 +145,17 @@ export function decodeAddressFromScript(scriptHex: string): string | null {
       const hashHex = scriptHex.slice(4);
       const pubKeyHash = hexToUint8Array(hashHex);
       const words = bech32.toWords(pubKeyHash);
+      return bech32.encode('bc', [0, ...words]);
+    }
+
+    // P2WSH: OP_0 <32 bytes>
+    // Format: 0020{32-byte-hash}
+    // Without this the only source for a P2WSH row was the decode API, which is
+    // why its addresses used to overwrite locally derived ones.
+    if (scriptHex.startsWith('0020') && scriptHex.length === 68) {
+      const hashHex = scriptHex.slice(4);
+      const scriptHash = hexToUint8Array(hashHex);
+      const words = bech32.toWords(scriptHash);
       return bech32.encode('bc', [0, ...words]);
     }
 
@@ -291,16 +335,25 @@ export function getAddressFromMnemonic(
 // Address Type Detection functions (previously in addressTypeDetector.ts)
 
 /**
- * Check if an address has any transaction history using existing API utilities
- * Returns true if any provider confirms transactions or token balances
+ * Probe an address for Counterparty balances or Bitcoin history.
+ *
+ * Reports whether either provider actually answered, separately from what it said. Format
+ * detection only needs the verdict and falls back to a default when everything is quiet, but a
+ * caller deciding "this address is funded, import it" has to tell an empty address apart from an
+ * API it could not reach — otherwise an outage silently becomes a negative answer.
  */
-async function checkAddressActivity(address: string): Promise<boolean> {
+export async function probeAddressActivity(
+  address: string
+): Promise<{ active: boolean; reachable: boolean }> {
+  let reachable = false;
+
   // First check Counterparty API for token balances - most specific indicator
   try {
     const balances = await fetchTokenBalances(address, { limit: 1 });
+    reachable = true;
     if (balances && balances.length > 0) {
       console.log(`Address ${address} has Counterparty token activity`);
-      return true;
+      return { active: true, reachable };
     }
   } catch (error) {
     console.warn('Counterparty balance check failed:', error);
@@ -309,33 +362,36 @@ async function checkAddressActivity(address: string): Promise<boolean> {
   // Check Bitcoin transaction history using our balance module helper
   try {
     const hasActivity = await hasAddressActivity(address);
+    reachable = true;
     if (hasActivity) {
       console.log(`Address ${address} has Bitcoin transaction history`);
-      return true;
+      return { active: true, reachable };
     }
   } catch (error) {
     console.warn('Bitcoin activity check failed:', error);
   }
 
   // No activity found
-  return false;
+  return { active: false, reachable };
 }
 
 /**
  * Detect the most likely address format for a mnemonic by checking blockchain activity
  * @param mnemonic The mnemonic phrase to check
  * @param cachedPreviews Optional cached address previews to avoid re-derivation
- * @returns The detected address format, or P2TR as default
+ * @returns The detected address format, or the wallet-wide Native SegWit default
  */
 export async function detectAddressFormat(
   mnemonic: string,
   cachedPreviews?: Partial<Record<AddressFormat, string>>
 ): Promise<AddressFormat> {
-  // Check these formats for activity (skip Taproot since it's the fallback)
+  // Probe every supported derivation. Taproot must be checked explicitly rather than selected by
+  // accident whenever every earlier address is empty or an API is unavailable.
   const addressFormatsToCheck: AddressFormat[] = [
     AddressFormat.P2PKH,              // Legacy (most common)
     AddressFormat.P2WPKH,             // Native SegWit (bc1)
     AddressFormat.P2SH_P2WPKH,        // Nested SegWit (3)
+    AddressFormat.P2TR,               // Taproot (bc1p)
     AddressFormat.Counterwallet,      // Counterwallet P2PKH
     AddressFormat.CounterwalletSegwit,// Counterwallet SegWit
     AddressFormat.FreewalletBIP39,    // FreeWallet BIP39 P2PKH
@@ -361,11 +417,14 @@ export async function detectAddressFormat(
     }
   }
 
-  // Check each address for activity in order of priority
+  // Check each address for activity in order of priority. Keep provider availability separate
+  // from an authoritative "empty" response so callers can surface an outage if they choose.
+  let anyProviderReachable = false;
   for (const [format, address] of formatAddressMap.entries()) {
     try {
-      const hasActivity = await checkAddressActivity(address);
-      if (hasActivity) {
+      const result = await probeAddressActivity(address);
+      anyProviderReachable ||= result.reachable;
+      if (result.active) {
         console.log(`Detected address format: ${format}`);
         return format;
       }
@@ -374,9 +433,12 @@ export async function detectAddressFormat(
     }
   }
 
-  // Default to P2TR (Taproot) for best efficiency
-  console.log('No activity detected or API failed, defaulting to P2TR');
-  return AddressFormat.P2TR;
+  if (formatAddressMap.size > 0 && !anyProviderReachable) {
+    throw new Error('Could not detect address format because activity providers are unavailable');
+  }
+
+  console.log('No address activity detected, defaulting to Native SegWit');
+  return DEFAULT_ADDRESS_FORMAT;
 }
 
 /**
@@ -419,11 +481,12 @@ export function getPreviewAddresses(mnemonic: string): Partial<Record<AddressFor
 export async function detectAddressFormatFromPreviews(
   previews: Partial<Record<AddressFormat, string>>
 ): Promise<AddressFormat> {
-  // Check these formats for activity (skip Taproot since it's the fallback)
+  // Check every format represented by the previews, including Taproot.
   const addressFormatsToCheck: AddressFormat[] = [
     AddressFormat.P2PKH,              // Legacy (most common)
     AddressFormat.P2WPKH,             // Native SegWit (bc1)
     AddressFormat.P2SH_P2WPKH,        // Nested SegWit (3)
+    AddressFormat.P2TR,               // Taproot (bc1p)
     AddressFormat.Counterwallet,      // Counterwallet P2PKH
     AddressFormat.CounterwalletSegwit,// Counterwallet SegWit
     AddressFormat.FreewalletBIP39,    // FreeWallet BIP39 P2PKH
@@ -431,13 +494,17 @@ export async function detectAddressFormatFromPreviews(
   ];
 
   // Check each preview address for activity
+  let anyProviderReachable = false;
+  let previewCount = 0;
   for (const format of addressFormatsToCheck) {
     const address = previews[format];
     if (!address) continue;
+    previewCount++;
 
     try {
-      const hasActivity = await checkAddressActivity(address);
-      if (hasActivity) {
+      const result = await probeAddressActivity(address);
+      anyProviderReachable ||= result.reachable;
+      if (result.active) {
         console.log(`Detected format ${format} from cached preview`);
         return format;
       }
@@ -446,6 +513,9 @@ export async function detectAddressFormatFromPreviews(
     }
   }
 
-  // Default to P2TR (Taproot) for best efficiency
-  return AddressFormat.P2TR;
+  if (previewCount > 0 && !anyProviderReachable) {
+    throw new Error('Could not detect address format because activity providers are unavailable');
+  }
+
+  return DEFAULT_ADDRESS_FORMAT;
 }

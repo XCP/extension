@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '@/core/rpcErrors';
+import { markServicesReady } from '@/services/core/serviceReadiness';
 import { defineProxyService, disconnectAllPorts, isBackgroundScript } from '../proxy';
 
 // ---------------------------------------------------------------------------
@@ -15,7 +16,7 @@ function createMockPort(name: string) {
 
   return {
     name,
-    sender: { id: 'test-extension-id' },
+    sender: { id: 'test-extension-id', url: 'chrome-extension://test-extension-id/popup.html' },
     postMessage: vi.fn(),
     disconnect: vi.fn(),
     onMessage: {
@@ -27,16 +28,18 @@ function createMockPort(name: string) {
       removeListener: vi.fn(),
     },
     // Test helpers
-    _fireMessage: (msg: any) => messageListeners.forEach(fn => fn(msg)),
-    _fireDisconnect: () => disconnectListeners.forEach(fn => fn()),
+    _fireMessage: (msg: any) => messageListeners.forEach(fn => { fn(msg); }),
+    _fireDisconnect: () => disconnectListeners.forEach(fn => { fn(); }),
   };
 }
 
 let onConnectListeners: ((port: any) => void)[] = [];
 
 const mockChrome = {
+  extension: { getBackgroundPage: vi.fn<() => object | undefined>() },
   runtime: {
     id: 'test-extension-id',
+    getURL: (path: string) => `chrome-extension://test-extension-id/${path}`,
     onConnect: {
       addListener: vi.fn((fn: any) => onConnectListeners.push(fn)),
       removeListener: vi.fn(),
@@ -62,7 +65,11 @@ let testServiceCounter = 0;
 describe('isBackgroundScript', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockChrome.extension.getBackgroundPage.mockReset();
     mockChrome.runtime.id = 'test-extension-id';
+    // These exercise dispatch, not startup: the barrier holds every call until the background says
+    // it has finished initialising, so a test standing in for that background must say so.
+    markServicesReady();
   });
 
   it('should return false when chrome is undefined', () => {
@@ -86,6 +93,25 @@ describe('isBackgroundScript', () => {
     Object.defineProperty(global, 'window', { value: {}, writable: true });
     expect(isBackgroundScript()).toBe(false);
   });
+
+  it('recognizes the actual Firefox MV2 background document', () => {
+    const backgroundWindow = {};
+    Object.defineProperty(global, 'window', { value: backgroundWindow, writable: true });
+    mockChrome.extension.getBackgroundPage.mockReturnValue(backgroundWindow);
+    expect(isBackgroundScript()).toBe(true);
+  });
+
+  it('does not treat an extension popup with access to the background page as the background', () => {
+    Object.defineProperty(global, 'window', { value: {}, writable: true });
+    mockChrome.extension.getBackgroundPage.mockReturnValue({});
+    expect(isBackgroundScript()).toBe(false);
+  });
+
+  it('fails closed when a content context cannot access the background page', () => {
+    Object.defineProperty(global, 'window', { value: {}, writable: true });
+    mockChrome.extension.getBackgroundPage.mockImplementation(() => { throw new Error('API unavailable'); });
+    expect(isBackgroundScript()).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -99,6 +125,7 @@ describe('defineProxyService', () => {
     getAsync: () => Promise<string>;
     throwError: () => void;
     throwCoded: () => void;
+    handleRequest: (origin: string, method: string, params: unknown[]) => void;
   }
 
   let testServiceInstance: TestService;
@@ -108,6 +135,7 @@ describe('defineProxyService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockChrome.extension.getBackgroundPage.mockReset();
     onConnectListeners = [];
     mockChrome.runtime.lastError = null;
     currentServiceName = `TestService_${++testServiceCounter}`;
@@ -118,11 +146,13 @@ describe('defineProxyService', () => {
       getAsync: vi.fn(() => Promise.resolve('async-result')),
       throwError: vi.fn(() => { throw new Error('Test error'); }),
       throwCoded: vi.fn(() => { throw new ProviderError(4001, 'rejected'); }),
+      handleRequest: vi.fn(),
     };
 
     [register, getService] = defineProxyService(
       currentServiceName,
-      () => testServiceInstance
+      () => testServiceInstance,
+      { methods: { getValue: 'read', getAsync: 'read', setValue: 'command', throwError: 'command', throwCoded: 'command', handleRequest: 'command' } },
     );
   });
 
@@ -147,6 +177,15 @@ describe('defineProxyService', () => {
       expect(mockChrome.runtime.onConnect.addListener).toHaveBeenCalledWith(expect.any(Function));
     });
 
+    it('registers and directly retrieves the service in a Firefox MV2 background document', () => {
+      const backgroundWindow = {};
+      Object.defineProperty(global, 'window', { value: backgroundWindow, writable: true });
+      mockChrome.extension.getBackgroundPage.mockReturnValue(backgroundWindow);
+      expect(register()).toBe(testServiceInstance);
+      expect(getService()).toBe(testServiceInstance);
+      expect(mockChrome.runtime.onConnect.addListener).toHaveBeenCalledWith(expect.any(Function));
+    });
+
     it('should return actual service instance when getting service', () => {
       register();
       expect(getService()).toBe(testServiceInstance);
@@ -160,20 +199,22 @@ describe('defineProxyService', () => {
       register();
 
       const port = createMockPort(`proxy:${currentServiceName}`);
-      onConnectListeners.forEach(fn => fn(port));
+      onConnectListeners.forEach(fn => { fn(port); });
 
       port._fireMessage({ id: 1, methodName: 'getValue', args: [] });
       await new Promise(r => setTimeout(r, 0));
 
       expect(testServiceInstance.getValue).toHaveBeenCalled();
-      expect(port.postMessage).toHaveBeenCalledWith({ id: 1, success: true, result: 42 });
+      expect(port.postMessage).toHaveBeenCalledWith({
+        id: 1, success: true, result: ['value', 42], resultEncoding: 'xcp-json-v1',
+      });
     });
 
     it('should handle method errors', async () => {
       register();
 
       const port = createMockPort(`proxy:${currentServiceName}`);
-      onConnectListeners.forEach(fn => fn(port));
+      onConnectListeners.forEach(fn => { fn(port); });
 
       port._fireMessage({ id: 1, methodName: 'throwError', args: [] });
       await new Promise(r => setTimeout(r, 0));
@@ -187,7 +228,7 @@ describe('defineProxyService', () => {
       register();
 
       const port = createMockPort(`proxy:${currentServiceName}`);
-      onConnectListeners.forEach(fn => fn(port));
+      onConnectListeners.forEach(fn => { fn(port); });
 
       port._fireMessage({ id: 1, methodName: 'throwCoded', args: [] });
       await new Promise(r => setTimeout(r, 0));
@@ -201,7 +242,7 @@ describe('defineProxyService', () => {
       register();
 
       const port = createMockPort(`proxy:${currentServiceName}`);
-      onConnectListeners.forEach(fn => fn(port));
+      onConnectListeners.forEach(fn => { fn(port); });
 
       port._fireMessage({ id: 1, methodName: 'nonExistent', args: [] });
       await new Promise(r => setTimeout(r, 0));
@@ -215,9 +256,67 @@ describe('defineProxyService', () => {
       register();
 
       const port = createMockPort('proxy:OtherService');
-      onConnectListeners.forEach(fn => fn(port));
+      onConnectListeners.forEach(fn => { fn(port); });
 
       expect(port.onMessage.addListener).not.toHaveBeenCalled();
+    });
+
+    it('refuses a content script access to internal wallet RPC even with our extension ID', () => {
+      register();
+      const port = createMockPort(`proxy:${currentServiceName}`);
+      Object.assign(port.sender, { url: 'https://site.example/', origin: 'https://site.example', frameId: 0 });
+      onConnectListeners.forEach(fn => { fn(port); });
+      expect(port.disconnect).toHaveBeenCalledOnce();
+      expect(port.onMessage.addListener).not.toHaveBeenCalled();
+    });
+
+    it('derives the provider origin from the top-level sender and strips claimed metadata', async () => {
+      const handleRequest = vi.fn().mockResolvedValue([]);
+      const disconnect = vi.fn();
+      const name = `Origin_${++testServiceCounter}`;
+      const [registerProvider] = defineProxyService(name, () => ({ handleRequest, disconnect }), {
+        methods: { handleRequest: 'command', disconnect: 'command' }, contentScript: 'provider',
+      });
+      registerProvider();
+      const port = createMockPort(`proxy:${name}`);
+      Object.assign(port.sender, { url: 'https://site.example/path', origin: 'https://site.example', frameId: 0 });
+      onConnectListeners.forEach(fn => { fn(port); });
+      port._fireMessage({ id: 1, methodName: 'handleRequest', args: ['https://victim.example', 'xcp_accounts', [], { origin: 'spoofed' }] });
+      port._fireMessage({ id: 2, methodName: 'disconnect', args: ['https://victim.example'] });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(handleRequest).toHaveBeenCalledExactlyOnceWith('https://site.example', 'xcp_accounts', []);
+      expect(disconnect).not.toHaveBeenCalled();
+      expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ id: 2, success: false }));
+    });
+
+    it.each([
+      { url: 'https://site.example', origin: 'https://site.example', frameId: 1 },
+      { url: 'https://site.example', origin: 'null', frameId: 0 },
+      { url: 'http://site.example', origin: 'http://site.example', frameId: 0 },
+      { url: 'https://site.example', origin: 'https://other.example', frameId: 0 },
+    ])('refuses an ineligible provider sender: %j', (sender) => {
+      const name = `RejectedOrigin_${++testServiceCounter}`;
+      const [registerProvider] = defineProxyService(name, () => ({ handleRequest: vi.fn() }), {
+        methods: { handleRequest: 'command' }, contentScript: 'provider',
+      });
+      registerProvider();
+      const port = createMockPort(`proxy:${name}`);
+      Object.assign(port.sender, sender);
+      onConnectListeners.forEach(fn => { fn(port); });
+      expect(port.disconnect).toHaveBeenCalledOnce();
+    });
+
+    it('rejects malformed requests and inherited methods without invoking service code', async () => {
+      register();
+      const port = createMockPort(`proxy:${currentServiceName}`);
+      onConnectListeners.forEach(fn => { fn(port); });
+      port._fireMessage(null);
+      port._fireMessage({ id: 1, methodName: 'setValue', args: 'not-an-array' });
+      port._fireMessage({ id: 2, methodName: 'toString', args: [] });
+      port._fireMessage({ id: 3, methodName: 'setValue', args: ['x'.repeat(1024 * 1024 + 4096)] });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(testServiceInstance.setValue).not.toHaveBeenCalled();
+      for (const id of [1, 2, 3]) expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ id, success: false }));
     });
   });
 
@@ -361,6 +460,25 @@ describe('defineProxyService', () => {
       expect(mockChrome.runtime.connect).toHaveBeenCalledTimes(2);
     });
 
+    it('does not repeat a committed wallet mutation when its response is lost', async () => {
+      let committedOperations = 0;
+      clientPort.postMessage.mockImplementation(() => {
+        committedOperations++;
+        queueMicrotask(() => clientPort._fireDisconnect());
+      });
+      await expect(getService().setValue(123)).rejects.toMatchObject({ code: 4900 });
+      expect(committedOperations).toBe(1);
+      expect(mockChrome.runtime.connect).toHaveBeenCalledOnce();
+    });
+
+    it('does not treat the service as a promise or expose undeclared methods', () => {
+      const service = getService();
+      expect(Reflect.get(service, 'then')).toBeUndefined();
+      expect(Reflect.get(service, 'constructor')).toBeUndefined();
+      expect(Reflect.get(service, 'toString')).toBeUndefined();
+      expect(mockChrome.runtime.connect).not.toHaveBeenCalled();
+    });
+
     it('should reuse existing port for multiple calls', async () => {
       const service = getService();
 
@@ -390,7 +508,7 @@ describe('disconnectAllPorts', () => {
 
     const [, getService] = defineProxyService(`DiscTest_${++testServiceCounter}`, () => ({
       ping: () => 1,
-    }));
+    }), { methods: { ping: 'read' } });
 
     const service = getService();
     service.ping(); // triggers port creation

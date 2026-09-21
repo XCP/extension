@@ -9,8 +9,8 @@
  */
 
 import type { Page } from '@playwright/test';
-import { walletTest, expect } from '../../fixtures';
-import { market, common } from '../../selectors';
+import { expect, walletTest } from '../../fixtures';
+import { common, market } from '../../selectors';
 
 const TICKER = {
   result: {
@@ -34,8 +34,11 @@ const PRICE_HISTORY = {
   },
 };
 
-/** Serve the two explorer endpoints the page reads. Registered most-specific-last so it wins. */
-async function stubPriceApi(page: Page, overrides: { tickerStatus?: number } = {}) {
+/** Serve the endpoints the page reads. Registered most-specific-last so it wins. */
+async function stubPriceApi(
+  page: Page,
+  overrides: { tickerStatus?: number; ticker?: object } = {},
+) {
   await page.route('**/v2/price', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PRICE_HISTORY) }),
   );
@@ -43,7 +46,7 @@ async function stubPriceApi(page: Page, overrides: { tickerStatus?: number } = {
     route.fulfill({
       status: overrides.tickerStatus ?? 200,
       contentType: 'application/json',
-      body: JSON.stringify(overrides.tickerStatus ? { error: 'unavailable' } : TICKER),
+      body: JSON.stringify(overrides.tickerStatus ? { error: 'unavailable' } : (overrides.ticker ?? TICKER)),
     }),
   );
 }
@@ -63,7 +66,7 @@ walletTest.describe('XCP Price Page (/market/xcp)', () => {
     await expect(page.getByText(/Counterparty \(USD\)/i)).toBeVisible();
   });
 
-  walletTest('reports the DEX rate and all-time high', async ({ page }) => {
+  walletTest('falls back to the historical DEX rate when the ticker has no sats quote', async ({ page }) => {
     await stubPriceApi(page);
     await gotoXcpPrice(page);
 
@@ -72,6 +75,22 @@ walletTest.describe('XCP Price Page (/market/xcp)', () => {
     await expect(page.getByText(/2,200 sats/)).toBeVisible();
     await expect(market.allTimeHigh(page)).toBeVisible();
     await expect(page.getByText(/\$88\.93/)).toBeVisible();
+  });
+
+  walletTest('reports the live mempool-adjusted floor from the ticker', async ({ page }) => {
+    await stubPriceApi(page, {
+      ticker: {
+        ...TICKER,
+        result: {
+          ...TICKER.result,
+          xcp: { ...TICKER.result.xcp, sats: 2400, quote: 'confirmed_unit_dispenser_ask' },
+        },
+      },
+    });
+    await gotoXcpPrice(page);
+
+    await expect(market.floorPrice(page)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/2,400 sats/)).toBeVisible();
   });
 
   walletTest('draws the price chart', async ({ page }) => {
@@ -129,11 +148,20 @@ walletTest.describe('XCP Price Page (/market/xcp)', () => {
 
 walletTest.describe('XCP ticker routing', () => {
   walletTest('the XCP ticker opens the price page, not the dispenser list', async ({ page }) => {
-    await stubPriceApi(page);
+    await stubPriceApi(page, {
+      ticker: {
+        ...TICKER,
+        result: {
+          ...TICKER.result,
+          xcp: { ...TICKER.result.xcp, usd: 8.9 },
+        },
+      },
+    });
     await page.goto(page.url().replace(/\/index.*/, '/market'));
 
     const ticker = market.xcpTickerCard(page);
     await expect(ticker).toBeVisible({ timeout: 15000 });
+    await expect(ticker.getByText('$8.90')).toBeVisible();
     await ticker.click();
 
     await expect(page).toHaveURL(/market\/xcp/, { timeout: 10000 });

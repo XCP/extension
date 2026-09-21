@@ -2,11 +2,14 @@ import { useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatPriceRatio } from "@/core/format";
+import { isGreaterThan } from "@/core/numeric";
 import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 
 const formatExpiration = (expiration: unknown) => {
   const blocks = Number(expiration ?? DEFAULT_ORDER_EXPIRATION);
-  return blocks === 0 ? "Never expires" : `${blocks.toLocaleString()} blocks`;
+  return blocks === 0
+    ? "Never expires"
+    : `${blocks.toLocaleString()} block${blocks === 1 ? "" : "s"}`;
 };
 
 /**
@@ -79,7 +82,7 @@ export function ReviewOrder({
       ),
     },
     { label: "Expiration", value: formatExpiration(result.params.expiration) },
-    ...(result.params.fee_required && Number(result.params.fee_required) > 0
+    ...(result.params.fee_required && isGreaterThan(result.params.fee_required, 0)
       ? [{ label: "Fee Required", value: `${result.params.fee_required} satoshis` }]
       : []),
   ];

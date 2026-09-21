@@ -86,7 +86,10 @@ describe('ActionCard', () => {
     expect(mockOnClick).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onClick when Enter key is pressed', () => {
+  // Keyboard activation is the platform's job now: a real <button> turns Enter
+  // and Space into a click, and ignores every other key. jsdom does not
+  // synthesise that, so asserting the element type is what pins it down.
+  it('is a real button, so the browser handles keyboard activation', () => {
     render(
       <ActionCard
         title="Test Action"
@@ -95,34 +98,8 @@ describe('ActionCard', () => {
     );
 
     const button = screen.getByRole('button');
-    fireEvent.keyDown(button, { key: 'Enter' });
-    expect(mockOnClick).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls onClick when Space key is pressed', () => {
-    render(
-      <ActionCard
-        title="Test Action"
-        onClick={mockOnClick}
-      />
-    );
-
-    const button = screen.getByRole('button');
-    fireEvent.keyDown(button, { key: ' ' });
-    expect(mockOnClick).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not call onClick for other keys', () => {
-    render(
-      <ActionCard
-        title="Test Action"
-        onClick={mockOnClick}
-      />
-    );
-
-    const button = screen.getByRole('button');
-    fireEvent.keyDown(button, { key: 'Tab' });
-    expect(mockOnClick).not.toHaveBeenCalled();
+    expect(button.tagName).toBe('BUTTON');
+    expect(button).toHaveAttribute('type', 'button');
   });
 
   it('applies custom className', () => {
@@ -170,8 +147,7 @@ describe('ActionCard', () => {
     );
 
     const button = screen.getByRole('button');
-    expect(button).toHaveAttribute('tabIndex', '0');
-    expect(button).toHaveAttribute('role', 'button');
+    expect(button).toHaveAttribute('aria-label', 'Test Action');
   });
 
   it('has hover and focus styles', () => {

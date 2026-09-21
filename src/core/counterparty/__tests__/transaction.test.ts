@@ -1,3 +1,4 @@
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 /**
  * Tests for Counterparty Transaction Decoding Utilities
  *
@@ -14,6 +15,7 @@ import {
   decodeCounterpartyMessage,
   decodeRawTransaction,
   describeCounterpartyMessage,
+  fetchInputPrevouts,
   fetchInputValues,
   hasCounterpartyPrefix,
   type UnpackedCounterpartyData,
@@ -37,11 +39,13 @@ vi.mock('../api', () => ({
 
 const mockedApiClient = vi.mocked(apiClient, true);
 const mockedGetSettings = vi.mocked(getActiveSettings);
+const mockedGetTrustedBroadcastPrevout = vi.fn();
 
 const mockApiBase = 'https://api.counterparty.io';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedGetTrustedBroadcastPrevout.mockResolvedValue(null);
   mockedGetSettings.mockReturnValue({
     counterpartyApiBase: mockApiBase,
   } as any);
@@ -75,19 +79,41 @@ describe('hasCounterpartyPrefix', () => {
 
 describe('describeCounterpartyMessage', () => {
   it('describes enhanced_send', () => {
+    // `/v2/transactions/unpack` names this field `address`, not `destination`.
+    // The fixture used to disagree with production, so this test passed while
+    // the approval headline rendered "to undefined".
     const desc = describeCounterpartyMessage('enhanced_send', {
-      quantity: 100000000,
+      quantity: asBaseUnits(100000000),
       asset: 'XCP',
-      destination: 'bc1qtest',
+      address: 'bc1qtest',
     });
     expect(desc).toContain('Send');
     expect(desc).toContain('XCP');
     expect(desc).toContain('bc1qtest');
+    expect(desc).not.toContain('undefined');
+  });
+
+  it('describes a send that supplies destination instead of address', () => {
+    const desc = describeCounterpartyMessage('send', {
+      quantity: asBaseUnits(100000000),
+      asset: 'XCP',
+      destination: 'bc1qlegacy',
+    });
+    expect(desc).toContain('bc1qlegacy');
+    expect(desc).not.toContain('undefined');
+  });
+
+  it('never renders undefined when neither recipient key is present', () => {
+    const desc = describeCounterpartyMessage('enhanced_send', {
+      quantity: asBaseUnits(100000000),
+      asset: 'XCP',
+    });
+    expect(desc).not.toContain('undefined');
   });
 
   it('describes send (legacy)', () => {
     const desc = describeCounterpartyMessage('send', {
-      quantity: 50000,
+      quantity: asBaseUnits(50000),
       asset: 'PEPECASH',
       destination: '1Abc',
     });
@@ -97,43 +123,78 @@ describe('describeCounterpartyMessage', () => {
 
   it('describes order with give/get assets', () => {
     const desc = describeCounterpartyMessage('order', {
-      give_quantity: 100000000,
+      give_quantity: asBaseUnits(100000000),
       give_asset: 'XCP',
-      get_quantity: 50000,
+      get_quantity: asBaseUnits(50000),
       get_asset: 'BTC',
     });
-    expect(desc).toContain('DEX Order');
+    // No "DEX Order" prefix: the type is already the label above the headline, and repeating it
+    // there cost a line that could state the trade instead.
+    expect(desc).not.toMatch(/^DEX Order/);
     expect(desc).toContain('XCP');
     expect(desc).toContain('BTC');
   });
 
+  it('describes dispense without inventing a dispenser field', () => {
+    // core's dispense.unpack returns only { data } — the marker byte. Reading a
+    // `dispenser` key rendered "Dispense from undefined" on every dispense.
+    const desc = describeCounterpartyMessage('dispense', { data: '0d' });
+    expect(desc).not.toContain('undefined');
+    expect(desc.toLowerCase()).toContain('dispenser');
+  });
+
   it('describes dispenser', () => {
     const desc = describeCounterpartyMessage('dispenser', {
-      give_quantity: 1000,
+      give_quantity: asBaseUnits(1000),
       asset: 'PEPECASH',
       mainchainrate: 10000,
     });
-    expect(desc).toContain('Dispenser');
+    expect(desc).not.toMatch(/^Dispenser/);
     expect(desc).toContain('PEPECASH');
+    // give_quantity, not quantity: reading the wrong field rendered every dispenser as "? XCP".
+    expect(desc).toContain('1,000');
+    expect(desc).not.toContain('?');
+  });
+
+  it('distinguishes closing a dispenser from opening one', () => {
+    // core messages/dispenser.py: status 10 is a close, which refunds the escrow and shuts the
+    // dispenser down. It carries the same fields as an open, so describing them alike stated the
+    // opposite of what half of these messages do.
+    const open = describeCounterpartyMessage('dispenser', {
+      give_quantity: asBaseUnits(1000),
+      asset: 'PEPECASH',
+      mainchainrate: 10000,
+      status: 0,
+    });
+    const close = describeCounterpartyMessage('dispenser', {
+      give_quantity: asBaseUnits(0),
+      asset: 'PEPECASH',
+      mainchainrate: 0,
+      status: 10,
+    });
+
+    expect(close).toContain('Close');
+    expect(close).toContain('PEPECASH');
+    expect(close).not.toBe(open);
   });
 
   it('describes issuance', () => {
     const desc = describeCounterpartyMessage('issuance', {
       asset: 'MYTOKEN',
-      quantity: 1000000,
+      quantity: asBaseUnits(1000000),
     });
-    expect(desc).toContain('Issue Asset');
+    expect(desc).not.toMatch(/^Issue Asset/);
     expect(desc).toContain('MYTOKEN');
   });
 
   it('describes dividend', () => {
     const desc = describeCounterpartyMessage('dividend', {
-      quantity_per_unit: 100,
+      quantity_per_unit: asBaseUnits(100),
       dividend_asset: 'XCP',
       asset: 'PEPECASH',
     });
-    expect(desc).toContain('Dividend');
-    expect(desc).toContain('XCP');
+    expect(desc).not.toMatch(/^Dividend/);
+    expect(desc).toContain('XCP per unit');
     expect(desc).toContain('PEPECASH');
   });
 
@@ -141,13 +202,17 @@ describe('describeCounterpartyMessage', () => {
     const desc = describeCounterpartyMessage('cancel', {
       offer_hash: 'abc123',
     });
-    expect(desc).toContain('Cancel');
-    expect(desc).toContain('abc123');
+    // With no resolved order, the headline says what is being done. The hash is 64 characters
+    // nobody can check by eye, so it belongs in the detail list rather than the one prominent line.
+    expect(desc).toBe('Cancel a DEX order');
+    expect(desc).not.toContain('abc123');
   });
 
   it('describes btcpay', () => {
     const desc = describeCounterpartyMessage('btcpay', {});
-    expect(desc).toContain('BTC Pay');
+    // The label above the headline already says "BTC Payment"; the headline says what it does.
+    expect(desc).not.toMatch(/^BTC Pay/);
+    expect(desc).toContain('matched order');
   });
 
   it('describes sweep', () => {
@@ -162,7 +227,7 @@ describe('describeCounterpartyMessage', () => {
     const desc = describeCounterpartyMessage('broadcast', {
       text: 'Hello World',
     });
-    expect(desc).toContain('Broadcast');
+    expect(desc).not.toMatch(/^Broadcast/);
     expect(desc).toContain('Hello World');
   });
 
@@ -170,7 +235,7 @@ describe('describeCounterpartyMessage', () => {
     const desc = describeCounterpartyMessage('fairminter', {
       asset: 'FAIRTOKEN',
     });
-    expect(desc).toContain('Fairminter');
+    expect(desc).not.toMatch(/^Fairminter/);
     expect(desc).toContain('FAIRTOKEN');
   });
 
@@ -178,35 +243,38 @@ describe('describeCounterpartyMessage', () => {
     const desc = describeCounterpartyMessage('fairmint', {
       asset: 'FAIRTOKEN',
     });
-    expect(desc).toContain('Mint');
+    // No quantity in the message: name the asset rather than formatting nothing as "?".
+    expect(desc).not.toContain('?');
     expect(desc).toContain('FAIRTOKEN');
   });
 
-  it('describes pooldeposit', () => {
+  it('describes pooldeposit as its two legs', () => {
     const desc = describeCounterpartyMessage('pooldeposit', {
       asset_a: 'XCP',
       asset_b: 'POOLTEST',
       quantity_a: 100000000,
       quantity_b: 500000000,
+      asset_a_info: { divisible: true },
+      asset_b_info: { divisible: true },
     });
-    expect(desc).toContain('Deposit liquidity');
-    expect(desc).toContain('XCP');
-    expect(desc).toContain('POOLTEST');
+    expect(desc).toContain('1.00000000 XCP / 5.00000000 POOLTEST');
+    // The implied price reads on the second line.
+    expect(desc).toContain('1 XCP = 5 POOLTEST');
   });
 
-  it('describes poolwithdraw', () => {
+  it('describes poolwithdraw as the LP burn over the pool pair', () => {
     const desc = describeCounterpartyMessage('poolwithdraw', {
       asset_a: 'XCP',
       asset_b: 'POOLTEST',
-      quantity: 1000000,
+      quantity: asBaseUnits(1000000),
     });
-    expect(desc).toContain('Withdraw liquidity');
-    expect(desc).toContain('XCP/POOLTEST');
+    expect(desc).toContain('Destroy 0.01000000 LP Tokens');
+    expect(desc).toContain('POOLTEST / XCP');
   });
 
   it('describes attach', () => {
     const desc = describeCounterpartyMessage('attach', {
-      quantity: 500,
+      quantity: asBaseUnits(500),
       asset: 'PEPECASH',
     });
     expect(desc).toContain('Attach');
@@ -220,18 +288,26 @@ describe('describeCounterpartyMessage', () => {
 
   it('describes destroy', () => {
     const desc = describeCounterpartyMessage('destroy', {
-      quantity: 100,
+      quantity: asBaseUnits(100),
       asset: 'XCP',
     });
     expect(desc).toContain('Destroy');
     expect(desc).toContain('XCP');
   });
 
-  it('describes utxo_move', () => {
-    const desc = describeCounterpartyMessage('utxo_move', {
+  it('describes a utxo move under the type name actually used', () => {
+    // The API and the local unpack both call this type 'utxo'. The case matched 'utxo_move',
+    // which neither produces, so every move rendered "Counterparty utxo transaction" — and this
+    // test asserted the dead string, which is why CI stayed green.
+    const desc = describeCounterpartyMessage('utxo', {
       destination: 'bc1qdest',
+      asset: 'XCP',
+      quantity: asBaseUnits(100000000),
+      asset_info: { divisible: true },
     });
-    expect(desc).toContain('Move UTXO');
+    expect(desc).toContain('Move');
+    expect(desc).toContain('1.00000000');
+    expect(desc).toContain('XCP');
     expect(desc).toContain('bc1qdest');
   });
 
@@ -243,8 +319,8 @@ describe('describeCounterpartyMessage', () => {
 
   it('uses _normalized quantity when available', () => {
     const desc = describeCounterpartyMessage('enhanced_send', {
-      quantity: 100000000,
-      quantity_normalized: '1.00000000',
+      quantity: asBaseUnits(100000000),
+      quantity_normalized: asDisplayUnits('1.00000000'),
       asset: 'XCP',
       destination: 'bc1q',
     });
@@ -253,7 +329,7 @@ describe('describeCounterpartyMessage', () => {
 
   it('normalizes quantity using asset_info divisibility', () => {
     const desc = describeCounterpartyMessage('enhanced_send', {
-      quantity: 100000000,
+      quantity: asBaseUnits(100000000),
       asset: 'XCP',
       asset_info: { divisible: true },
       destination: 'bc1q',
@@ -264,7 +340,8 @@ describe('describeCounterpartyMessage', () => {
 
   it('handles broadcast with no text', () => {
     const desc = describeCounterpartyMessage('broadcast', {});
-    expect(desc).toContain('Broadcast');
+    // The text is the headline, so an empty broadcast says so rather than being prefixed.
+    expect(desc).not.toMatch(/^Broadcast/);
     expect(desc).toContain('message');
   });
 });
@@ -356,6 +433,55 @@ describe('decodeRawTransaction', () => {
 });
 
 // ── fetchInputValues ────────────────────────────────────────────────
+
+describe('fetchInputPrevouts', () => {
+  it('prefers a trusted just-broadcast prevout without calling a public indexer', async () => {
+    mockedGetTrustedBroadcastPrevout.mockResolvedValueOnce({
+      txid: 'tx1',
+      vout: 0,
+      value: 50000,
+      address: 'bc1qowner',
+      scriptPubKey: '0014' + '11'.repeat(20),
+      rawTxHex: '00',
+    });
+
+    const result = await fetchInputPrevouts(
+      [{ txid: 'tx1', vout: 0 }],
+      mockedGetTrustedBroadcastPrevout
+    );
+
+    expect(result.get('tx1:0')).toEqual({ value: 50000, address: 'bc1qowner' });
+    expect(mockedApiClient.get).not.toHaveBeenCalled();
+  });
+
+  it('returns the owning address alongside the value', async () => {
+    mockedApiClient.get.mockResolvedValue({
+      status: 200,
+      data: {
+        vout: [
+          { value: 50000, scriptpubkey_address: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX' },
+        ],
+      },
+    } as any);
+
+    const result = await fetchInputPrevouts([{ txid: 'tx1', vout: 0 }]);
+    // Without the address, every movement summary reports "couldn't be determined".
+    expect(result.get('tx1:0')).toEqual({
+      value: 50000,
+      address: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX',
+    });
+  });
+
+  it('omits the address when the source could not attribute the script', async () => {
+    mockedApiClient.get.mockResolvedValue({
+      status: 200,
+      data: { vout: [{ value: 1234 }] },
+    } as any);
+
+    const result = await fetchInputPrevouts([{ txid: 'tx1', vout: 0 }]);
+    expect(result.get('tx1:0')).toEqual({ value: 1234 });
+  });
+});
 
 describe('fetchInputValues', () => {
   it('returns map of txid:vout to satoshi values', async () => {
@@ -455,7 +581,7 @@ describe('decodeCounterpartyMessage', () => {
     message_type_id: 2,
     message_data: {
       asset: 'XCP',
-      quantity: 100000000,
+      quantity: asBaseUnits(100000000),
       destination: 'bc1qtest',
     },
   };
@@ -518,9 +644,9 @@ describe('decodeCounterpartyMessage', () => {
           message_type_id: 10,
           message_data: {
             give_asset: 'XCP',
-            give_quantity: 100000000,
+            give_quantity: asBaseUnits(100000000),
             get_asset: 'BTC',
-            get_quantity: 50000,
+            get_quantity: asBaseUnits(50000),
           },
         },
       },

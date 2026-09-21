@@ -1,9 +1,17 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SearchInput } from "./search-input";
 
 describe("SearchInput", () => {
+  it("preserves case-sensitive subasset names", () => {
+    const onChange = vi.fn();
+    render(<SearchInput value="" onChange={onChange} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "PARENT.child" } });
+    expect(onChange).toHaveBeenLastCalledWith("PARENT.child");
+    expect(screen.getByRole("textbox")).toHaveValue("PARENT.child");
+  });
+
   it("should render search input with icon", () => {
     render(
       <SearchInput 

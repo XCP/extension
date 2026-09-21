@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { eventEmitterService } from '../eventEmitterService';
+import { EventEmitterService } from '../eventEmitterService';
+
+// Arbitrary names exercise the reusable emitter without widening production wallet contracts.
+const eventEmitterService = new EventEmitterService<Record<string, unknown>>();
 
 describe('EventEmitterService', () => {
   beforeEach(() => {
@@ -57,6 +60,22 @@ describe('EventEmitterService', () => {
 
       expect(errorCallback).toHaveBeenCalled();
       expect(goodCallback).toHaveBeenCalled();
+    });
+
+    it('observes asynchronous listener rejections without delaying other listeners', async () => {
+      const failure = new Error('Asynchronous listener failed');
+      const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const goodCallback = vi.fn();
+      eventEmitterService.on('test-event', async () => { throw failure; });
+      eventEmitterService.on('test-event', goodCallback);
+
+      eventEmitterService.emit('test-event', 'data');
+      expect(goodCallback).toHaveBeenCalledWith('data');
+      await Promise.resolve();
+      expect(report).toHaveBeenCalledWith(
+        '[EventEmitter] Error in event listener for test-event:', failure,
+      );
+      report.mockRestore();
     });
   });
 
@@ -151,6 +170,23 @@ describe('EventEmitterService', () => {
       eventEmitterService.emitProviderEvent(null, 'globalEvent', 'data');
 
       expect(callback).toHaveBeenCalledWith('data');
+    });
+
+    it('observes rejections from both origin-specific and wildcard listeners', async () => {
+      const failure = new Error('Provider forwarding failed');
+      const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+      eventEmitterService.on('accountsChanged', async () => { throw failure; }, 'https://example.com');
+      eventEmitterService.on('accountsChanged', async () => { throw failure; });
+
+      eventEmitterService.emitProviderEvent('https://example.com', 'accountsChanged', []);
+      await Promise.resolve();
+      expect(report).toHaveBeenCalledWith(
+        '[EventEmitter] Error in event listener for https://example.com:accountsChanged:', failure,
+      );
+      expect(report).toHaveBeenCalledWith(
+        '[EventEmitter] Error in event listener for accountsChanged:', failure,
+      );
+      report.mockRestore();
     });
   });
 

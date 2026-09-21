@@ -230,13 +230,15 @@ describe('BaseService', () => {
       mockSessionStorage.set.mockResolvedValue(undefined);
     });
 
-    it('should create keep-alive alarm', async () => {
+    it('persists state without repeatedly waking an idle worker', async () => {
       await testService.initialize();
       
       expect(chrome.alarms.create).toHaveBeenCalledWith(
-        'TestService-keepalive',
-        { periodInMinutes: 0.4 }
+        'TestService-persist',
+        { periodInMinutes: 5 }
       );
+      expect(chrome.alarms.create).toHaveBeenCalledTimes(1);
+      expect(chrome.alarms.clear).toHaveBeenCalledWith('TestService-keepalive');
     });
 
     it('should handle alarm events', async () => {
@@ -252,15 +254,14 @@ describe('BaseService', () => {
 
       // Simulate alarm event for this service
       const alarm = {
-        name: 'TestService-keepalive',
+        name: 'TestService-persist',
         scheduledTime: Date.now(),
         periodInMinutes: 0.4,
         persistAcrossSessions: false,
       };
+      const writesBefore = mockSessionStorage.set.mock.calls.length;
       alarmListener(alarm);
-
-      // Should trigger keep-alive activity (accessing storage)
-      expect(mockLocalStorage.get).toHaveBeenCalled();
+      await vi.waitFor(() => expect(mockSessionStorage.set.mock.calls.length).toBeGreaterThan(writesBefore));
     });
 
     it('should ignore alarm events for other services', async () => {

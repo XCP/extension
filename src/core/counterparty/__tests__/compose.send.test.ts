@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
+import { asBaseUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 import { composeMove, composeSend, composeSendOrMPMA, composeSweep } from '../compose';
 import {
   assertComposeUrlCalled,
-  createMockApiResponse,
+  createMockComposeResponse,
   createMockComposeResult,
   mockAddress,
   mockDestAddress,
@@ -22,11 +23,14 @@ vi.mock('@/core/settings', async (importOriginal) => {
   return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
 });
 
-// Mock UTXO selection to prevent real API calls to mempool.space
+// Mock UTXO selection to prevent real API calls to mempool.space.
+// The txid is spelled out rather than imported as `mockInputTxid`: this factory is hoisted
+// above the imports and cannot read them. It must stay in step with the composed transaction
+// in composeTestHelpers, or the input check has nothing to match and stops testing anything.
 vi.mock('@/core/counterparty/utxoSelection', () => ({
   selectUtxosForTransaction: vi.fn().mockResolvedValue({
-    utxos: [{ txid: 'mock-txid', vout: 0, value: 100000, status: { confirmed: true } }],
-    inputsSet: 'mock-txid:0',
+    utxos: [{ txid: 'aa'.repeat(32), vout: 0, value: 100000, status: { confirmed: true } }],
+    inputsSet: `${'aa'.repeat(32)}:0`,
     totalValue: 100000,
     excludedWithAssets: 0,
   }),
@@ -39,7 +43,7 @@ describe('Compose Send Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetSettings.mockReturnValue(mockSettings as any);
-    mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
   });
 
   describe('composeSend', () => {
@@ -56,7 +60,7 @@ describe('Compose Send Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'send', defaultParams);
     });
 
@@ -113,7 +117,7 @@ describe('Compose Send Operations', () => {
       const btcParams = {
         destination: mockDestAddress,
         asset: testAssets.BTC,
-        quantity: 100000000, // 1 BTC in satoshis
+        quantity: asBaseUnits(100000000), // 1 BTC in satoshis
       };
 
       await composeSend({
@@ -272,7 +276,7 @@ describe('Compose Send Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'sweep', defaultParams);
     });
 
@@ -314,7 +318,7 @@ describe('Compose Send Operations', () => {
       
       for (const flags of flagValues) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
         
         const params = { ...defaultParams, flags };
         await composeSweep({
@@ -355,7 +359,7 @@ describe('Compose Send Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       
       // For UTXO-based transactions, check the URL format
       const actualUrl = mockedApiClient.get.mock.calls[0]![0];
@@ -389,7 +393,7 @@ describe('Compose Send Operations', () => {
 
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
         
         const params = { ...defaultParams, sourceUtxo };
         await composeMove({

@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { PricePoint } from '@/core/bitcoin/price';
+import { type BigNumber, maximum, minimum, subtract, toBigNumber, toNumber } from "@/core/numeric";
 
 interface PriceChartProps {
   data: PricePoint[];
@@ -44,9 +45,11 @@ export const PriceChart = memo(({
     if (data.length < 2) return null;
 
     const prices = data.map(p => p.price);
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
-    const priceRange = maxPrice - minPrice || 1;
+    // Axis bounds, so these stay numbers; they go through the layer for the same reason
+    // everything else does — one way to do arithmetic, not two.
+    const minPrice = toNumber(prices.reduce<BigNumber>((low, p) => minimum(low, p), toBigNumber(prices[0] ?? 0)));
+    const maxPrice = toNumber(prices.reduce<BigNumber>((high, p) => maximum(high, p), toBigNumber(prices[0] ?? 0)));
+    const priceRange = toNumber(subtract(maxPrice, minPrice)) || 1;
 
     return {
       minPrice,

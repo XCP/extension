@@ -1,11 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { DispenserList, type DispenserOption } from './dispenser-list';
 
 // Mock the DispenserCard component
 vi.mock('@/components/domain/dispenser/dispenser-card', () => ({
   DispenserCard: ({ option, isSelected, onSelect, disabled }: any) => (
-    <div
+    <button
+      type="button"
       data-testid={`dispenser-card-${option.index}`}
       className={`dispenser-card ${isSelected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
       onClick={onSelect}
@@ -13,7 +15,7 @@ vi.mock('@/components/domain/dispenser/dispenser-card', () => ({
       <div className="asset">{option.dispenser.asset}</div>
       <div className="btc-amount">{option.btcAmount} BTC</div>
       <div className="selected-state">{isSelected ? 'Selected' : 'Not Selected'}</div>
-    </div>
+    </button>
   )
 }));
 
@@ -25,10 +27,10 @@ describe('DispenserList', () => {
         tx_hash: 'abc123',
         source: 'bc1qsource1',
         status: 0,
-        give_remaining: 500000000,
-        give_remaining_normalized: '5.00000000',
-        give_quantity: 100000000,
-        give_quantity_normalized: '1.00000000',
+        give_remaining: asBaseUnits(500000000),
+        give_remaining_normalized: asDisplayUnits('5.00000000'),
+        give_quantity: asBaseUnits(100000000),
+        give_quantity_normalized: asDisplayUnits('1.00000000'),
         satoshirate: 10000,
         asset_info: {
           asset_longname: 'RARE.PEPE.COLLECTION',
@@ -48,10 +50,10 @@ describe('DispenserList', () => {
         tx_hash: 'def456',
         source: 'bc1qsource2',
         status: 0,
-        give_remaining: 1000000000,
-        give_remaining_normalized: '10.00000000',
-        give_quantity: 200000000,
-        give_quantity_normalized: '2.00000000',
+        give_remaining: asBaseUnits(1000000000),
+        give_remaining_normalized: asDisplayUnits('10.00000000'),
+        give_quantity: asBaseUnits(200000000),
+        give_quantity_normalized: asDisplayUnits('2.00000000'),
         satoshirate: 20000,
         asset_info: {
           asset_longname: null,

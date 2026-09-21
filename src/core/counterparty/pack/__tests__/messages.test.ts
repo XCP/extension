@@ -11,6 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { asBaseUnits } from '@/core/numeric';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { packAddress } from '../../unpack/address';
 import { assetNameToId } from '../../unpack/assetId';
@@ -47,7 +48,7 @@ describe('packing produces the bytes core composes', () => {
 
     const packed = packComposeMessage('issuance', {
       asset: 'LANDMARKS',
-      quantity: 21,
+      quantity: asBaseUnits(21),
       divisible: false,
     });
 
@@ -104,7 +105,7 @@ describe('packing matches bytes generated with cbor2 5.9.0, the version core pin
   it('reproduces an initial subasset issuance, flags as ints and the longname compacted', () => {
     const packed = packComposeMessage(
       'issuance',
-      { asset: 'JPJA.HELLOKITTY', quantity: 1000, divisible: false, description: 'a subasset' },
+      { asset: 'JPJA.HELLOKITTY', quantity: asBaseUnits(1000), divisible: false, description: 'a subasset' },
       { messageTypeId: 23, assetId: 95428956661682177n }
     );
 
@@ -133,7 +134,7 @@ describe('packing matches bytes generated with cbor2 5.9.0, the version core pin
     const packed = packComposeMessage(
       'issuance',
       {
-        asset: 'LANDMARKS', quantity: 0, divisible: false,
+        asset: 'LANDMARKS', quantity: asBaseUnits(0), divisible: false,
         transfer_destination: TAPROOT_DESTINATION,
       }
     );
@@ -231,7 +232,7 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
     const packed = packComposeMessage('send', {
       asset: 'XCP',
       destinations: `${P2PKH_A},${P2WPKH}`,
-      quantity: 1,
+      quantity: asBaseUnits(1),
       memo: 'thanks',
     });
 
@@ -307,13 +308,30 @@ describe('inscription composes pack the same message, only carried differently',
 });
 
 describe('borrowing only what the request cannot determine', () => {
+  it('packs the explicit parent of a subasset fairminter', () => {
+    const packed = packComposeMessage('fairminter', {
+      asset: 'A95428956661682177',
+      asset_parent: 'PEPECASH',
+      max_mint_per_tx: 1,
+    });
+
+    expect(packed).not.toBeNull();
+    const decoded = unpackCounterpartyMessage(packed!.bytes);
+    expect(decoded.success).toBe(true);
+    expect(decoded.data).toMatchObject({
+      asset: 'A95428956661682177',
+      assetParent: 'PEPECASH',
+      maxMintPerTx: 1n,
+    });
+  });
+
   it('packs a reissuance by taking divisibility from the composed message', () => {
     // update-description and transfer-ownership omit `divisible` because the asset already fixes
     // it. Borrowing that one field keeps the rest of the message byte-verified instead of falling
     // back to field comparison for the whole transaction.
     const packed = packComposeMessage(
       'issuance',
-      { asset: 'LANDMARKS', quantity: 0, description: 'updated text' },
+      { asset: 'LANDMARKS', quantity: asBaseUnits(0), description: 'updated text' },
       { divisible: true }
     );
 
@@ -359,7 +377,7 @@ describe('borrowing only what the request cannot determine', () => {
     for (const assetId of [26n ** 12n, 1n << 64n, 1n]) {
       expect(packComposeMessage(
         'issuance',
-        { asset: 'JPJA.HELLOKITTY', quantity: 1000, divisible: false },
+        { asset: 'JPJA.HELLOKITTY', quantity: asBaseUnits(1000), divisible: false },
         { messageTypeId: 23, assetId }
       )).toBeNull();
     }
@@ -370,7 +388,7 @@ describe('borrowing only what the request cannot determine', () => {
     // rewrote the description has to produce different bytes.
     const packed = packComposeMessage(
       'issuance',
-      { asset: 'LANDMARKS', quantity: 0, description: 'what the user wrote' },
+      { asset: 'LANDMARKS', quantity: asBaseUnits(0), description: 'what the user wrote' },
       { divisible: true, description: 'what the API substituted' }
     );
 
@@ -386,16 +404,17 @@ describe('refusing to pack is not the same as agreeing', () => {
   // Each of these must return null so the caller reports "cannot verify by equality" rather than
   // treating an unpackable request as verified.
   it.each([
-    ['an unsupported compose type', 'attach', { asset: 'XCP', quantity: 1 }],
-    ['a multi-destination send', 'send', { asset: 'XCP', destination: 'bc1qa,bc1qb', quantity: 1 }],
+    // attach used to sit here; it is packable now. bet is not, and core still parses it.
+    ['an unsupported compose type', 'bet', { feed_address: 'bc1qa', bet_type: 2, wager_quantity: asBaseUnits(1) }],
+    ['a multi-destination send', 'send', { asset: 'XCP', destination: 'bc1qa,bc1qb', quantity: asBaseUnits(1) }],
     ['a hex memo, which core encodes differently', 'send', {
-      asset: 'XCP', destination: TAPROOT_DESTINATION, quantity: 1, memo: 'ff00', memo_is_hex: true,
+      asset: 'XCP', destination: TAPROOT_DESTINATION, quantity: asBaseUnits(1), memo: 'ff00', memo_is_hex: true,
     }],
     ['a BTC "send", which is not a Counterparty message', 'send', {
-      asset: 'BTC', destination: TAPROOT_DESTINATION, quantity: 1,
+      asset: 'BTC', destination: TAPROOT_DESTINATION, quantity: asBaseUnits(1),
     }],
     ['a subasset issuance with no composed message to borrow the asset id from', 'issuance', {
-      asset: 'PARENT.child', quantity: 1, divisible: false,
+      asset: 'PARENT.child', quantity: asBaseUnits(1), divisible: false,
     }],
     ['a broadcast with no timestamp and no composed message to borrow one from', 'broadcast', {
       text: 'hello', value: 0, fee_fraction: 0,
@@ -458,10 +477,15 @@ describe('refusing to pack is not the same as agreeing', () => {
       quantities: '1,2',
     }],
     ['a reissuance with no observed message to borrow divisibility from', 'issuance', {
-      asset: 'LANDMARKS', quantity: 0, description: 'new text',
+      asset: 'LANDMARKS', quantity: asBaseUnits(0), description: 'new text',
     }],
     ['a quantity that is not whole base units', 'send', {
-      asset: 'XCP', destination: TAPROOT_DESTINATION, quantity: '1.5',
+      asset: 'XCP', destination: TAPROOT_DESTINATION, quantity: asBaseUnits('1.5'),
+    }],
+    // Current Core's `/compose/movetoutxo` action is message-less (`move.py`); type 100 belongs to
+    // the historical `utxo.py` message and must not be expected from this compose route.
+    ['a current move-to-UTXO compose', 'move', {
+      source: `${'a'.repeat(64)}:0`, destination: TAPROOT_DESTINATION, asset: 'XCP', quantity: 1,
     }],
   ])('returns null for %s', (_label, composeType, params) => {
     expect(packComposeMessage(composeType, params as Record<string, unknown>)).toBeNull();
@@ -474,7 +498,7 @@ describe('refusing to pack is not the same as agreeing', () => {
     // beyond any local check, and declining never changed that.
     const packed = packComposeMessage(
       'issuance',
-      { asset: 'JPJA.HELLOKITTY', quantity: 1000, divisible: false, lock: true },
+      { asset: 'JPJA.HELLOKITTY', quantity: asBaseUnits(1000), divisible: false, lock: true },
       { messageTypeId: 23, assetId: 95428956661682177n }
     );
 
@@ -492,7 +516,7 @@ describe('subasset reissuance borrows the ledger-resolved asset id', () => {
     // standard layout; the id is borrowed, and every field the user authored is byte-compared.
     const packed = packComposeMessage(
       'issuance',
-      { asset: 'PARENT.child', quantity: 0, description: 'updated text' },
+      { asset: 'PARENT.child', quantity: asBaseUnits(0), description: 'updated text' },
       { messageTypeId: 22, assetId: 95428956661682177n, divisible: true }
     );
 
@@ -507,7 +531,7 @@ describe('subasset reissuance borrows the ledger-resolved asset id', () => {
   it('still compares the description against what the user wrote', () => {
     const packed = packComposeMessage(
       'issuance',
-      { asset: 'PARENT.child', quantity: 0, description: 'what the user wrote' },
+      { asset: 'PARENT.child', quantity: asBaseUnits(0), description: 'what the user wrote' },
       { messageTypeId: 22, assetId: 95428956661682177n, divisible: true, description: 'substituted' }
     );
 
@@ -553,5 +577,39 @@ describe('CBOR encoding matches cbor2 canonical choices', () => {
     // Both sides were written against core independently; disagreement here means one drifted.
     const roundTrip = hexToBytes(bytesToHex(encodeCbor([1n, 50_000n, new Uint8Array([1, 2, 3]), ''])));
     expect(roundTrip.length).toBeGreaterThan(0);
+  });
+});
+
+describe('the compose types that carry no message', () => {
+  /**
+   * The composer refuses a transaction that carries no payload when this function can build one
+   * (`composer-context.tsx`), so whether it returns null decides whether a legitimate compose is
+   * blocked. These are the types whose transactions correctly have no Counterparty message at all.
+   */
+  const BECH32 = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+  const P2PKH = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+
+  it('a BTC send builds no message', () => {
+    // packEnhancedSend stops at asset id 0 — BTC is not a Counterparty send.
+    expect(packComposeMessage('send', { asset: 'BTC', destination: BECH32, quantity: '50000' }))
+      .toBeNull();
+  });
+
+  it('a BTC send to several destinations builds no message either', () => {
+    // This one goes through the MPMA packer rather than packEnhancedSend, so it needs its own case.
+    expect(packComposeMessage('send', {
+      asset: 'BTC',
+      destinations: `${BECH32},${P2PKH}`,
+      quantity: '50000',
+    })).toBeNull();
+  });
+
+  it('a burn builds no message', () => {
+    expect(packComposeMessage('burn', { quantity: '50000' })).toBeNull();
+  });
+
+  it('an asset send does build one, so the guard has something to compare', () => {
+    expect(packComposeMessage('send', { asset: 'XCP', destination: BECH32, quantity: '50000' }))
+      .not.toBeNull();
   });
 });

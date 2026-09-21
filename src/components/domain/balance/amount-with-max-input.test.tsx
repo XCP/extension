@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { asDisplayUnits } from '@/core/numeric';
 import { AmountWithMaxInput } from './amount-with-max-input';
 
 // Mock the validation utilities
@@ -12,14 +13,18 @@ vi.mock('@/core/counterparty/utxoSelection', () => ({
   selectUtxosForTransaction: vi.fn()
 }));
 
-vi.mock('@/core/numeric', () => ({
-  fromSatoshis: vi.fn((sats) => (parseInt(sats) / 100000000).toFixed(8)),
+vi.mock('@/core/numeric', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/numeric')>()),
+  // Brands are compile-time only; at runtime they are identity.
+  asBaseUnits: (v: unknown) => v,
+  asDisplayUnits: (v: unknown) => v,
+  fromSatoshis: vi.fn((sats) => (parseInt(sats, 10) / 100000000).toFixed(8)),
 }));
 
 describe('AmountWithMaxInput', () => {
   const defaultProps = {
     asset: 'XCP',
-    availableBalance: '100.00000000',
+    availableBalance: asDisplayUnits('100.00000000'),
     value: '',
     onChange: vi.fn(),
     feeRate: 1,
@@ -295,7 +300,7 @@ describe('AmountWithMaxInput', () => {
     });
   });
 
-  it('should fallback to 0.1 feeRate when feeRate is null', async () => {
+  it('should not calculate a BTC maximum before the fee rate loads', async () => {
     const { selectUtxosForTransaction } = await import('@/core/counterparty/utxoSelection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [createMockUtxo('tx1', 0, 1000000)],
@@ -305,25 +310,22 @@ describe('AmountWithMaxInput', () => {
     });
 
     const onChange = vi.fn();
+    const setError = vi.fn();
     render(<AmountWithMaxInput
       {...defaultProps}
       asset="BTC"
       availableBalance="0.01000000"
       onChange={onChange}
+      setError={setError}
       feeRate={null}
     />);
 
     const maxButton = screen.getByLabelText('Use maximum available amount');
     fireEvent.click(maxButton);
 
-    await waitFor(() => {
-      expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (1 * 68) + (2 * 31) = 140.5 -> 141 (1 destination + 1 change = 2 outputs)
-      // + OP_RETURN overhead (30 vbytes) = 171 vbytes
-      // fee = 171 * 0.1 = 17.1 -> 18 sats (ceil)
-      // max = 1,000,000 - 18 = 999,982 sats = 0.00999982 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00999982');
-    });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(selectUtxosForTransaction).not.toHaveBeenCalled();
+    expect(setError).toHaveBeenCalledWith('Enter a valid fee rate before using Max.');
   });
 
   it('should show error when no spendable UTXOs available', async () => {
@@ -511,8 +513,7 @@ describe('AmountWithMaxInput', () => {
     const maxButton = screen.getByLabelText('Use maximum available amount');
     fireEvent.click(maxButton);
 
-    // When maxAmount is empty/NaN, it falls through without calling onChange
-    // This is the existing behavior - test passes if no error is thrown
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it('should preserve input value prop', () => {

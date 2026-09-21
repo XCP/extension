@@ -191,7 +191,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/keychain/s
     await navigateToImportPrivateKey(page);
 
     // Click dropdown to open options
-    const dropdown = page.locator('[role="listbox"] button, button:has-text("Legacy")').first();
+    const dropdown = page.getByRole('button', { name: /Native SegWit/ }).first();
     await expect(dropdown).toBeVisible({ timeout: 5000 });
     await dropdown.click();
 
@@ -204,16 +204,16 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/keychain/s
   walletTest('selecting address type updates displayed selection', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
-    // Default is Legacy
-    const dropdown = page.locator('[role="listbox"] button, button:has-text("Legacy")').first();
+    // New imports share the wallet-wide Native SegWit default.
+    const dropdown = page.getByRole('button', { name: /Native SegWit/ }).first();
     await expect(dropdown).toBeVisible({ timeout: 5000 });
     await dropdown.click();
 
-    // Select Native SegWit
-    await page.locator('[role="option"]:has-text("Native SegWit")').click();
+    // Select Legacy
+    await page.getByRole('option', { name: /Legacy/ }).click();
 
-    // Dropdown button should now show Native SegWit
-    await expect(page.locator('button:has-text("Native SegWit")')).toBeVisible({ timeout: 3000 });
+    // Dropdown button should now show Legacy
+    await expect(page.getByRole('button', { name: /Legacy/ })).toBeVisible({ timeout: 3000 });
   });
 
   walletTest('YouTube tutorial button visible before confirmation', async ({ page }) => {

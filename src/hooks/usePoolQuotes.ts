@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
+import { parseAmountDraft } from "@/core/amount-contract/amounts";
 import {
   fetchPoolDepositQuote,
+  fetchPoolQuote,
   fetchPoolWithdrawQuote,
   type PoolDepositQuote,
+  type PoolQuote,
   type PoolWithdrawQuote,
 } from "@/core/counterparty/api";
-import { roundDown, toSatoshis } from "@/core/numeric";
 
 interface PoolQuoteState<T> {
   data: T | null;
+  requestKey?: string;
   isLoading: boolean;
   error: string | null;
 }
@@ -26,6 +29,9 @@ export function usePoolDepositQuote({
   isAssetADivisible: boolean;
   enabled: boolean;
 }): PoolQuoteState<PoolDepositQuote> {
+  const parsed = parseAmountDraft(quantityA, { decimals: isAssetADivisible ? 8 : 0, minRaw: 1n });
+  const raw = parsed.status === "valid" ? parsed.raw.toString() : null;
+  const requestKey = JSON.stringify([assetA, assetB, raw, enabled]);
   const [state, setState] = useState<PoolQuoteState<PoolDepositQuote>>({
     data: null,
     isLoading: false,
@@ -33,7 +39,7 @@ export function usePoolDepositQuote({
   });
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || raw === null) {
       setState({ data: null, isLoading: false, error: null });
       return;
     }
@@ -45,10 +51,10 @@ export function usePoolDepositQuote({
       fetchPoolDepositQuote(
         assetA,
         assetB,
-        isAssetADivisible ? toSatoshis(quantityA) : roundDown(quantityA).toString()
+        raw
       )
         .then((data) => {
-          if (!cancelled) setState({ data, isLoading: false, error: null });
+          if (!cancelled) setState({ data, isLoading: false, error: null, requestKey });
         })
         .catch((err) => {
           if (!cancelled) {
@@ -65,9 +71,78 @@ export function usePoolDepositQuote({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [assetA, assetB, enabled, isAssetADivisible, quantityA]);
+  }, [assetA, assetB, enabled, raw, requestKey]);
 
-  return state;
+  // Never expose a previous draft's quote, even during the render before effect cleanup.
+  if (!enabled || raw === null) return { data: null, isLoading: false, error: null };
+  return state.requestKey === requestKey ? state : { data: null, isLoading: state.isLoading, error: state.error };
+}
+
+/**
+ * Debounced swap quote: how much of getAsset you would receive right now for
+ * selling `quantity` of giveAsset, routed across the AMM pool and the resting
+ * order book (core's /v2/pools/<give>/<get>/quote endpoint).
+ */
+export function usePoolSwapQuote({
+  giveAsset,
+  getAsset,
+  quantity,
+  isGiveDivisible,
+  enabled,
+}: {
+  giveAsset: string;
+  getAsset: string;
+  quantity: string;
+  isGiveDivisible: boolean;
+  enabled: boolean;
+}): PoolQuoteState<PoolQuote> {
+  const parsed = parseAmountDraft(quantity, { decimals: isGiveDivisible ? 8 : 0, minRaw: 1n });
+  const raw = parsed.status === "valid" ? parsed.raw.toString() : null;
+  const requestKey = JSON.stringify([giveAsset, getAsset, raw, enabled]);
+  const [state, setState] = useState<PoolQuoteState<PoolQuote>>({
+    data: null,
+    isLoading: false,
+    error: null,
+  });
+
+  useEffect(() => {
+    if (!enabled || raw === null) {
+      setState({ data: null, isLoading: false, error: null });
+      return;
+    }
+
+    let cancelled = false;
+    setState({ data: null, isLoading: true, error: null });
+
+    const timer = setTimeout(() => {
+      fetchPoolQuote(
+        giveAsset,
+        getAsset,
+        raw
+      )
+        .then((data) => {
+          if (!cancelled) setState({ data, isLoading: false, error: null, requestKey });
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setState({
+              data: null,
+              isLoading: false,
+              error: err instanceof Error ? err.message : "Unable to load swap quote.",
+            });
+          }
+        });
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [giveAsset, getAsset, raw, enabled, requestKey]);
+
+  // Never expose a previous draft's quote, even during the render before effect cleanup.
+  if (!enabled || raw === null) return { data: null, isLoading: false, error: null };
+  return state.requestKey === requestKey ? state : { data: null, isLoading: state.isLoading, error: state.error };
 }
 
 export function usePoolWithdrawQuote({
@@ -81,6 +156,9 @@ export function usePoolWithdrawQuote({
   quantity: string;
   enabled: boolean;
 }): PoolQuoteState<PoolWithdrawQuote> {
+  const parsed = parseAmountDraft(quantity, { decimals: 8, minRaw: 1n });
+  const raw = parsed.status === "valid" ? parsed.raw.toString() : null;
+  const requestKey = JSON.stringify([assetA, assetB, raw, enabled]);
   const [state, setState] = useState<PoolQuoteState<PoolWithdrawQuote>>({
     data: null,
     isLoading: false,
@@ -88,7 +166,7 @@ export function usePoolWithdrawQuote({
   });
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || raw === null) {
       setState({ data: null, isLoading: false, error: null });
       return;
     }
@@ -97,9 +175,9 @@ export function usePoolWithdrawQuote({
     setState({ data: null, isLoading: true, error: null });
 
     const timer = setTimeout(() => {
-      fetchPoolWithdrawQuote(assetA, assetB, toSatoshis(quantity))
+      fetchPoolWithdrawQuote(assetA, assetB, raw)
         .then((data) => {
-          if (!cancelled) setState({ data, isLoading: false, error: null });
+          if (!cancelled) setState({ data, isLoading: false, error: null, requestKey });
         })
         .catch((err) => {
           if (!cancelled) {
@@ -116,7 +194,9 @@ export function usePoolWithdrawQuote({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [assetA, assetB, enabled, quantity]);
+  }, [assetA, assetB, enabled, raw, requestKey]);
 
-  return state;
+  // Never expose a previous draft's quote, even during the render before effect cleanup.
+  if (!enabled || raw === null) return { data: null, isLoading: false, error: null };
+  return state.requestKey === requestKey ? state : { data: null, isLoading: state.isLoading, error: state.error };
 }

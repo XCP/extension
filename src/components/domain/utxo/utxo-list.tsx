@@ -1,4 +1,4 @@
-import { type ReactElement, useEffect, useMemo, useState } from "react";
+import { type ReactElement, useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { UtxoCard } from "@/components/domain/utxo/utxo-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
 import { Spinner } from "@/components/ui/spinner";
@@ -6,155 +6,159 @@ import { useWallet } from "@/contexts/wallet-context";
 import type { UtxoBalance } from "@/core/counterparty/api";
 import { fetchTokenBalances } from "@/core/counterparty/api";
 import { useInView } from "@/hooks/useInView";
+import { usePendingStatus } from "@/hooks/usePendingStatus";
 
 const PAGE_SIZE = 20;
 
-export const UtxoList = (): ReactElement => {
+interface UtxoListProps {
+  refreshNonce?: number;
+  onRefreshed?: () => void;
+}
+
+export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): ReactElement => {
   const { activeWallet, activeAddress } = useWallet();
+  const address = activeAddress?.address;
+  const walletId = activeWallet?.id;
   const [balances, setBalances] = useState<UtxoBalance[]>([]);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(Boolean(address && walletId));
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const sessionRef = useRef<{ address: string; offset: number; busy: boolean; loaded: boolean; hasMore: boolean } | null>(null);
+  const previousRefreshNonce = useRef(refreshNonce);
+  const notifyRefreshed = useEffectEvent((completedNonce: number | undefined) => {
+    if (completedNonce === refreshNonce) onRefreshed?.();
+  });
 
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
+  const { byUtxo: pendingByUtxoLabel } = usePendingStatus(address, refreshNonce);
 
-  // Initial load (and reset) when address changes
   useEffect(() => {
-    if (!activeAddress || !activeWallet) {
-      setBalances([]);
-      setIsInitialLoading(false);
-      return;
-    }
-
-    let isCancelled = false;
-
-    setBalances([]);
-    setOffset(0);
-    setHasMore(true);
-    setIsInitialLoading(true);
-    setSearchQuery("");
-
+    const requestedRefresh = previousRefreshNonce.current !== refreshNonce;
+    previousRefreshNonce.current = refreshNonce;
+    let settled = false;
+    const settleRefresh = () => {
+      if (!settled && requestedRefresh) {
+        settled = true;
+        notifyRefreshed(refreshNonce);
+      }
+    };
+    const session = address && walletId
+      ? { address, offset: 0, busy: true, loaded: false, hasMore: true } : null;
+    sessionRef.current = session;
+    let cancelled = false;
     const loadInitial = async () => {
+      if (!session) return;
+      setIsInitialLoading(true);
       try {
-        const fetched = await fetchTokenBalances(activeAddress.address, {
-          type: 'utxo',
-          limit: PAGE_SIZE,
-          offset: 0,
-        });
-
-        if (isCancelled) return;
-
-        if (fetched.length < PAGE_SIZE) {
-          setHasMore(false);
-        }
-
-        if (fetched.length > 0) {
-          setBalances(fetched as UtxoBalance[]);
-          setOffset(PAGE_SIZE);
-        } else {
-          setHasMore(false);
-        }
-      } catch (error) {
-        console.error("Error fetching UTXO balances:", error);
-        if (!isCancelled) setHasMore(false);
+        const fetched = await fetchTokenBalances(session.address, { type: 'utxo', limit: PAGE_SIZE, offset: 0 });
+        if (sessionRef.current !== session) return;
+        setBalances(fetched as UtxoBalance[]);
+        session.offset = PAGE_SIZE;
+        session.loaded = true;
+        session.hasMore = fetched.length === PAGE_SIZE;
+        setHasMore(session.hasMore);
+        setInitialLoaded(true);
+      } catch {
+        if (sessionRef.current === session) setError("Failed to load UTXO balances.");
       } finally {
-        if (!isCancelled) setIsInitialLoading(false);
+        if (sessionRef.current === session) {
+          session.busy = false;
+          setIsInitialLoading(false);
+        }
+        settleRefresh();
       }
     };
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setBalances([]);
+      setHasMore(false);
+      setInitialLoaded(false);
+      setIsFetchingMore(false);
+      setError(null);
+      if (session) void loadInitial();
+      else {
+        setIsInitialLoading(false);
+        settleRefresh();
+      }
+    });
+    return () => {
+      cancelled = true;
+      if (sessionRef.current === session) sessionRef.current = null;
+      settleRefresh();
+    };
+  }, [address, walletId, refreshNonce, retryNonce]);
 
-    loadInitial();
-
-    return () => { isCancelled = true; };
-  }, [activeAddress, activeWallet]);
-
-  // Load more on scroll
-  useEffect(() => {
-    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !inView || isInitialLoading) {
-      return;
+  const loadMore = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session || session.busy || !session.loaded || !session.hasMore) return;
+    session.busy = true;
+    setIsFetchingMore(true);
+    setError(null);
+    try {
+      const fetched = await fetchTokenBalances(session.address, { type: 'utxo', limit: PAGE_SIZE, offset: session.offset });
+      if (sessionRef.current !== session) return;
+      setBalances(previous => {
+        const keys = new Set(previous.map(row => `${row.utxo}:${row.asset}`));
+        return [...previous, ...(fetched as UtxoBalance[]).filter(row => !keys.has(`${row.utxo}:${row.asset}`))];
+      });
+      session.offset += PAGE_SIZE;
+      session.hasMore = fetched.length === PAGE_SIZE;
+      setHasMore(session.hasMore);
+    } catch {
+      if (sessionRef.current === session) setError("Failed to load more UTXO balances.");
+    } finally {
+      if (sessionRef.current === session) {
+        session.busy = false;
+        setIsFetchingMore(false);
+      }
     }
+  }, []);
 
-    let isCancelled = false;
+  const isSearching = !!searchQuery.trim();
+  useEffect(() => {
+    if ((!inView && !isSearching) || !initialLoaded || !hasMore || isFetchingMore || error) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void loadMore(); });
+    return () => { cancelled = true; };
+  }, [inView, isSearching, initialLoaded, hasMore, isFetchingMore, error, loadMore]);
 
-    const loadMore = async () => {
-      setIsFetchingMore(true);
-      try {
-        const fetched = await fetchTokenBalances(activeAddress.address, {
-          type: 'utxo',
-          limit: PAGE_SIZE,
-          offset,
-        });
-
-        if (isCancelled) return;
-
-        if (fetched.length < PAGE_SIZE) {
-          setHasMore(false);
-        }
-
-        if (fetched.length > 0) {
-          setBalances((prev) => [...prev, ...fetched as UtxoBalance[]]);
-          setOffset((prev) => prev + PAGE_SIZE);
-        } else {
-          setHasMore(false);
-        }
-      } catch (error) {
-        console.error("Error fetching UTXO balances:", error);
-        if (!isCancelled) setHasMore(false);
-      } finally {
-        if (!isCancelled) setIsFetchingMore(false);
-      }
-    };
-
-    loadMore();
-
-    return () => { isCancelled = true; };
-  }, [activeAddress, activeWallet, hasMore, offset, isFetchingMore, inView, isInitialLoading]);
-
-  // Client-side filter on loaded balances
   const filteredBalances = useMemo(() => {
-    if (!searchQuery) return balances;
-    const query = searchQuery.toLowerCase();
-    return balances.filter((token) =>
-      token.asset.toLowerCase().includes(query) ||
-      (token.asset_info?.asset_longname?.toLowerCase().includes(query)) ||
-      token.utxo.toLowerCase().includes(query)
-    );
+    const query = searchQuery.trim().toLowerCase();
+    return balances.filter(token => !query || token.asset.toLowerCase().includes(query)
+      || token.asset_info?.asset_longname?.toLowerCase().includes(query)
+      || token.utxo.toLowerCase().includes(query));
   }, [balances, searchQuery]);
-
-  if (isInitialLoading) return <Spinner message="Loading UTXO balances…" />;
-
-  if (balances.length === 0) {
-    return <div className="text-center py-4 text-gray-500">No UTXO-attached balances</div>;
-  }
 
   return (
     <div className="space-y-2">
-      <SearchInput
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder="Search utxos…"
-        name="utxo-search"
-        className="mt-0.5 mb-3"
-        showClearButton={true}
-      />
-      {filteredBalances.length === 0 ? (
-        <div className="text-center py-4 text-gray-500">No matching UTXOs</div>
-      ) : (
-        filteredBalances.map((token) => (
-          <UtxoCard token={token} key={token.utxo} />
-        ))
-      )}
-      {!searchQuery && (
-        <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
-          {hasMore ? (
-            isFetchingMore ? (
-              <Spinner className="py-4" />
-            ) : (
-              <div className="text-sm text-gray-500">Scroll to load more…</div>
-            )
-          ) : null}
-        </div>
+      <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search utxos…"
+        name="utxo-search" className="mt-0.5 mb-3" showClearButton />
+      {isInitialLoading ? <Spinner message="Loading UTXO balances…" /> : (
+        <>
+          {filteredBalances.map(token => (
+            <UtxoCard token={token} key={`${token.utxo}:${token.asset}`} pendingStatus={pendingByUtxoLabel.get(token.utxo)} />
+          ))}
+          {error ? (
+            <div role="alert" className="py-4 text-center text-sm text-red-600">
+              <p>{error}</p>
+              <button type="button" onClick={() => initialLoaded ? void loadMore() : setRetryNonce(n => n + 1)}
+                className="mt-2 text-blue-600 underline cursor-pointer">Retry</button>
+            </div>
+          ) : !filteredBalances.length && !hasMore && (
+            <div className="text-center py-4 text-gray-500">
+              {isSearching ? "No matching UTXOs" : "No UTXO-attached balances"}
+            </div>
+          )}
+          <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
+            {hasMore && !error && (isFetchingMore || isSearching
+              ? <Spinner message={isSearching ? "Searching UTXO balances…" : undefined} />
+              : <div className="text-sm text-gray-500">Scroll to load more…</div>)}
+          </div>
+        </>
       )}
     </div>
   );

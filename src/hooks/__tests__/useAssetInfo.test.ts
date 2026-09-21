@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from '../useAssetInfo';
 import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
 
@@ -21,8 +22,8 @@ describe('useAssetInfo', () => {
     description: 'Bitcoin',
     divisible: true,
     locked: true,
-    supply: '2100000000000000',
-    supply_normalized: '21000000',
+    supply: asBaseUnits('2100000000000000'),
+    supply_normalized: asDisplayUnits('21000000'),
     issuer: '',
     fair_minting: false,
   };
@@ -33,8 +34,8 @@ describe('useAssetInfo', () => {
     description: 'Counterparty',
     divisible: true,
     locked: false,
-    supply: '2648755.95200000',
-    supply_normalized: '2648755.95200000',
+    supply: asBaseUnits('2648755.95200000'),
+    supply_normalized: asDisplayUnits('2648755.95200000'),
     issuer: 'bc1qissuer123',
     fair_minting: false,
   };
@@ -60,7 +61,7 @@ describe('useAssetInfo', () => {
 
   it('should fetch Counterparty asset info successfully', async () => {
     vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue({
-      availableBalance: '1000.50000000',
+      availableBalance: asDisplayUnits('1000.50000000'),
       isDivisible: true,
       assetInfo: mockXCPAssetInfo
     });
@@ -130,10 +131,10 @@ describe('useAssetInfo', () => {
 
     vi.mocked(fetchAssetDetailsAndBalance).mockImplementation(async (asset: string) => {
       if (asset === 'ASSET1') {
-        return { availableBalance: '100', isDivisible: true, assetInfo: asset1Info };
+        return { availableBalance: asDisplayUnits('100'), isDivisible: true, assetInfo: asset1Info };
       }
       if (asset === 'ASSET2') {
-        return { availableBalance: '200', isDivisible: true, assetInfo: asset2Info };
+        return { availableBalance: asDisplayUnits('200'), isDivisible: true, assetInfo: asset2Info };
       }
       throw new Error(`Unexpected asset: ${asset}`);
     });
@@ -184,7 +185,7 @@ describe('useAssetInfo', () => {
     };
 
     vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue({
-      availableBalance: '100.00000000',
+      availableBalance: asDisplayUnits('100.00000000'),
       isDivisible: true,
       assetInfo: longnameAssetInfo
     });
@@ -206,7 +207,7 @@ describe('useAssetInfo', () => {
     };
 
     vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue({
-      availableBalance: '5',
+      availableBalance: asDisplayUnits('5'),
       isDivisible: false,
       assetInfo: indivisibleAssetInfo
     });

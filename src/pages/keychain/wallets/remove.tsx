@@ -18,7 +18,7 @@ function RemoveWalletPage() {
   const { walletId } = useParams<{ walletId: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, setActiveWallet, activeWallet, removeWallet, verifyPassword } = useWallet();
+  const { wallets, removeWallet, verifyPassword } = useWallet();
   const { pending } = useFormStatus();
 
   const [walletName, setWalletName] = useState("");
@@ -72,10 +72,6 @@ function RemoveWalletPage() {
     }
 
     try {
-      const remainingWallets = wallets.filter((w) => w.id !== walletId);
-      if (activeWallet?.id === walletId) {
-        await setActiveWallet(remainingWallets.length > 0 ? remainingWallets[0]! : null);
-      }
       await removeWallet(walletId);
       navigate(PATHS.SUCCESS, { replace: true });
     } catch (err) {
@@ -85,7 +81,7 @@ function RemoveWalletPage() {
   }
 
   return (
-    <div className="flex flex-col h-full p-4" role="main" aria-labelledby="remove-wallet-title">
+    <section className="flex flex-col h-full p-4" aria-labelledby="remove-wallet-title">
       <h2 id="remove-wallet-title" className="sr-only text-2xl font-bold mb-2">Remove Wallet</h2>
       {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow" aria-describedby="remove-wallet-warning">
@@ -108,7 +104,7 @@ function RemoveWalletPage() {
           </Button>
         </div>
       </form>
-    </div>
+    </section>
   );
 }
 

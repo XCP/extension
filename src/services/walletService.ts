@@ -25,18 +25,20 @@ interface WalletService {
   refreshWallets: () => Promise<void>;
   getSettings: () => Promise<import('@/core/settings').AppSettings>;
   updateSettings: (updates: Partial<import('@/core/settings').AppSettings>) => Promise<void>;
-  addConnectedWebsite: (origin: string) => Promise<void>;
+  addConnectedWebsite: (origin: string, pairedIdentity?: { walletId: string; address: string; pairedAddress?: string }) => Promise<void>;
   removeConnectedWebsite: (origin: string) => Promise<void>;
   clearConnectedWebsites: () => Promise<void>;
+  setPairedAddressPermission: (origin: string, identity: { walletId: string; address: string; pairedAddress?: string } | null) => Promise<void>;
   getWallets: () => Promise<Wallet[]>;
   getActiveWallet: () => Promise<Wallet | undefined>;
   getActiveAddress: () => Promise<Address | undefined>;
-  setActiveWallet: (walletId: string) => Promise<void>;
   unlockKeychain: (password: string) => Promise<void>;
   selectWallet: (walletId: string) => Promise<void>;
   isKeychainUnlocked: () => Promise<boolean>;
+  /** Load the keychain from the session master key, if a valid session has one. */
+  ensureKeychainLoaded: () => Promise<void>;
   lockKeychain: () => Promise<void>;
-  emitProviderEvent: (origin: string, event: string, data: any) => Promise<void>;
+  emitProviderEvent: (origin: string, event: 'accountsChanged', data: string[]) => Promise<void>;
   createMnemonicWallet: (
     mnemonic: string,
     password: string,
@@ -56,6 +58,12 @@ interface WalletService {
     usePassphrase?: boolean
   ) => Promise<Wallet>;
   addAddress: (walletId: string) => Promise<Address>;
+  /** Look for a funded Rare Pepe Wallet UTXO address paired with an address index, and keep it. */
+  addUtxoAddress: (walletId: string, index: number) => Promise<Address | null>;
+  /** Stop listing a kept UTXO address. */
+  removeUtxoAddress: (walletId: string, path: string) => Promise<void>;
+  /** Best-effort lookup for UTXO addresses, run where an address first enters the wallet. */
+  sweepUtxoAddresses: (walletId: string, indexes?: number[]) => Promise<Address[]>;
   verifyPassword: (password: string) => Promise<boolean>;
   resetKeychain: (password: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -67,10 +75,10 @@ interface WalletService {
   getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
   getPairedAddresses: () => Promise<PairedAddresses>;
   isAddressInAnyWallet: (address: string) => Promise<boolean>;
-  signTransaction: (rawTxHex: string, sourceAddress: string, options?: SignTransactionOptions) => Promise<string>;
+  signTransaction: (rawTxHex: string, sourceAddress: string, options?: SignTransactionOptions, expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
-  signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
-  signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[]) => Promise<string>;
+  signMessage: (message: string, address: string, expectedIdentity?: { walletId: string; address: string }) => Promise<{ signature: string; address: string }>;
+  signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
   getLastActiveAddress: () => Promise<string | undefined>;
   setLastActiveAddress: (address: string) => Promise<void>;
   setLastActiveTime: () => Promise<void>;
@@ -107,26 +115,10 @@ function createWalletService(): WalletService {
     updateSettings: async (updates) => {
       await walletManager.updateSettings(updates);
     },
-    addConnectedWebsite: async (origin) => {
-      const settings = walletManager.getSettings();
-      if (!settings.connectedWebsites.includes(origin)) {
-        await walletManager.updateSettings({
-          connectedWebsites: [...settings.connectedWebsites, origin],
-        });
-      }
-    },
-    removeConnectedWebsite: async (origin) => {
-      const settings = walletManager.getSettings();
-      const providerCapabilities = { ...(settings.providerCapabilities ?? {}) };
-      delete providerCapabilities[origin];
-      await walletManager.updateSettings({
-        connectedWebsites: settings.connectedWebsites.filter((site) => site !== origin),
-        providerCapabilities,
-      });
-    },
-    clearConnectedWebsites: async () => {
-      await walletManager.updateSettings({ connectedWebsites: [], providerCapabilities: {} });
-    },
+    addConnectedWebsite: async (origin, pairedIdentity) => walletManager.addConnectedWebsite(origin, pairedIdentity),
+    removeConnectedWebsite: async (origin) => walletManager.removeConnectedWebsite(origin),
+    clearConnectedWebsites: async () => walletManager.clearConnectedWebsites(),
+    setPairedAddressPermission: async (origin, identity) => walletManager.setPairedAddressPermission(origin, identity),
     getWallets: async () => walletManager.getWallets(),
     getActiveWallet: async () => walletManager.getActiveWallet(),
     getActiveAddress: async () => {
@@ -145,10 +137,6 @@ function createWalletService(): WalletService {
       const address = activeWallet.addresses.find(addr => addr.address === lastActiveAddress);
       return address || activeWallet.addresses[0];
     },
-    setActiveWallet: async (walletId) => {
-      await walletManager.setActiveWallet(walletId);
-      // Don't emit here - address switching is handled in wallet-context
-    },
     unlockKeychain: async (password) => {
       await walletManager.unlockKeychain(password);
       // Emit wallet-unlocked event for any pending connection requests
@@ -162,6 +150,9 @@ function createWalletService(): WalletService {
     },
     isKeychainUnlocked: async () => {
       return walletManager.isKeychainUnlocked();
+    },
+    ensureKeychainLoaded: async () => {
+      await walletManager.ensureKeychainLoaded();
     },
     lockKeychain: async () => {
       await walletManager.lockKeychain();
@@ -199,6 +190,9 @@ function createWalletService(): WalletService {
       return walletManager.createHardwareWalletWithDiscovery(deviceType, name, usePassphrase);
     },
     addAddress: async (walletId) => walletManager.addAddress(walletId),
+    addUtxoAddress: async (walletId, index) => walletManager.addUtxoAddress(walletId, index),
+    removeUtxoAddress: async (walletId, path) => walletManager.removeUtxoAddress(walletId, path),
+    sweepUtxoAddresses: async (walletId, indexes) => walletManager.sweepUtxoAddresses(walletId, indexes),
     verifyPassword: async (password) => walletManager.verifyPassword(password),
     resetKeychain: async (password) => {
       await walletManager.resetKeychain(password);
@@ -228,17 +222,17 @@ function createWalletService(): WalletService {
     isAddressInAnyWallet: async (address) => {
       return walletManager.isAddressInAnyWallet(address);
     },
-    signTransaction: async (rawTxHex, sourceAddress, options) => {
-      return walletManager.signTransaction(rawTxHex, sourceAddress, options);
+    signTransaction: async (rawTxHex, sourceAddress, options, expectedIdentity) => {
+      return walletManager.signTransaction(rawTxHex, sourceAddress, options, expectedIdentity);
     },
     broadcastTransaction: async (signedTxHex) => {
       return walletManager.broadcastTransaction(signedTxHex);
     },
-    signMessage: async (message, address) => {
-      return walletManager.signMessage(message, address);
+    signMessage: async (message, address, expectedIdentity) => {
+      return walletManager.signMessage(message, address, expectedIdentity);
     },
-    signPsbt: async (psbtHex, signInputs, sighashTypes) => {
-      return walletManager.signPsbt(psbtHex, signInputs, sighashTypes);
+    signPsbt: async (psbtHex, signInputs, sighashTypes, expectedIdentity) => {
+      return walletManager.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity);
     },
     getLastActiveAddress: async () => {
       const settings = walletManager.getSettings();
@@ -251,6 +245,10 @@ function createWalletService(): WalletService {
     },
     setLastActiveTime: async () => await walletManager.setLastActiveTime(),
     emitProviderEvent: async (origin, event, data) => {
+      if (typeof origin !== 'string' || event !== 'accountsChanged' ||
+          !Array.isArray(data) || !data.every(address => typeof address === 'string')) {
+        throw new Error('Invalid provider event');
+      }
       // Emit provider event through the event emitter service
       eventEmitterService.emit('emit-provider-event', {
         origin,
@@ -287,7 +285,24 @@ function createWalletService(): WalletService {
 // Create the proxy service
 const [registerWalletService, getWalletServiceRaw] = defineProxyService(
   'WalletService',
-  createWalletService
+  createWalletService,
+  { methods: {
+    refreshWallets: 'command', getSettings: 'read', updateSettings: 'command',
+    addConnectedWebsite: 'command', removeConnectedWebsite: 'command', clearConnectedWebsites: 'command',
+    setPairedAddressPermission: 'command',
+    getWallets: 'read', getActiveWallet: 'read', getActiveAddress: 'read',
+    unlockKeychain: 'command', selectWallet: 'command', isKeychainUnlocked: 'read',
+    ensureKeychainLoaded: 'command', lockKeychain: 'command', emitProviderEvent: 'command',
+    createMnemonicWallet: 'command', createPrivateKeyWallet: 'command', importTestAddress: 'command',
+    createHardwareWalletWithDiscovery: 'command', addAddress: 'command', addUtxoAddress: 'command',
+    removeUtxoAddress: 'command', sweepUtxoAddresses: 'command', verifyPassword: 'command',
+    resetKeychain: 'command', updatePassword: 'command', updateWalletAddressFormat: 'command',
+    updateWalletPinnedAssets: 'command', getUnencryptedMnemonic: 'command', getPrivateKey: 'command',
+    removeWallet: 'command', getPreviewAddressForFormat: 'read', getPairedAddresses: 'read',
+    isAddressInAnyWallet: 'read', signTransaction: 'command', broadcastTransaction: 'command',
+    signMessage: 'command', signPsbt: 'command', getLastActiveAddress: 'read',
+    setLastActiveAddress: 'command', setLastActiveTime: 'command', consolidateBareMultisig: 'command',
+  } },
 );
 
 // Get the wallet service directly from the proxy

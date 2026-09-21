@@ -91,8 +91,11 @@ export function unpackAttach(payload: Uint8Array): AttachData {
     const text = new TextDecoder('utf-8').decode(payload);
     const parts = text.split('|');
 
-    if (parts.length < 2) {
-      throw new Error(`Invalid attach format: expected at least 2 fields, got ${parts.length}`);
+    // Exactly three. Core tuple-unpacks `(asset, quantity, destination_vout) = data_content`,
+    // so any other count raises there and voids the message; accepting extras showed a clean
+    // attach for a payload the chain will not honour.
+    if (parts.length !== 3) {
+      throw new Error(`Invalid attach format: expected 3 fields, got ${parts.length}`);
     }
 
     const [asset, quantityStr, destinationVoutStr] = parts;

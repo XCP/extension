@@ -8,7 +8,7 @@
  * - Rendering (input, label, Min button)
  * - Valid price entry (decimals, positive numbers)
  * - Suggested price button
- * - Input sanitization (non-numeric characters)
+ * - Invalid draft preservation and submission rejection
  * - Pair flip functionality (where available)
  *
  * PriceWithSuggestInput is used in:
@@ -91,36 +91,25 @@ walletTest.describe('PriceWithSuggestInput Component', () => {
     });
   });
 
-  walletTest.describe('Input Sanitization', () => {
-    walletTest('strips non-numeric characters', async ({ page }) => {
-      const input = getPriceInput(page);
-      // Type text with letters
-      await input.fill('abc123');
-
-      // Only numbers should remain
-      const value = await input.inputValue();
-      expect(value).not.toContain('a');
-      expect(value).not.toContain('b');
-      expect(value).not.toContain('c');
-    });
-
-    walletTest('allows only one decimal point', async ({ page }) => {
-      const input = getPriceInput(page);
-      await input.fill('1.2.3');
-
-      // Should only have one decimal
-      const value = await input.inputValue();
-      const decimalCount = (value.match(/\./g) || []).length;
-      expect(decimalCount).toBeLessThanOrEqual(1);
-    });
-
-    walletTest('strips special characters', async ({ page }) => {
-      const input = getPriceInput(page);
-      await input.fill('$100.50');
-
-      const value = await input.inputValue();
-      expect(value).not.toContain('$');
-    });
+  walletTest.describe('Invalid Drafts', () => {
+    for (const draft of ['abc123', '1.2.3', '$100.50', '-5', '1e5', '0,5', '0.000000001']) {
+      walletTest(`preserves and rejects ${draft}`, async ({ page, context }) => {
+        const input = getPriceInput(page);
+        const composeRequests: string[] = [];
+        context.on('request', request => {
+          if (/\/v2\/addresses\/.*\/compose\//.test(request.url())) composeRequests.push(request.url());
+        });
+        await input.fill('');
+        await input.pressSequentially(draft);
+        await input.blur();
+        await expect(input).toHaveValue(draft);
+        await expect(input).toHaveAttribute('aria-invalid', 'true');
+        expect(await input.evaluate((element: HTMLInputElement) => element.checkValidity())).toBe(false);
+        await input.evaluate((element: HTMLInputElement) => element.form?.requestSubmit());
+        expect(composeRequests).toEqual([]);
+        await expect(page).toHaveURL(/compose\/dispenser\/XCP/);
+      });
+    }
   });
 
   walletTest.describe('Min Button (Suggested Price)', () => {

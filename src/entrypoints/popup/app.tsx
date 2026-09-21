@@ -48,6 +48,7 @@ import ComposePoolWithdrawPage from '@/pages/compose/pool/withdraw';
 // Compose
 import ComposeSendPage from '@/pages/compose/send';
 import ComposeMpmaPage from '@/pages/compose/send/mpma';
+import ComposeSwapPage from '@/pages/compose/swap';
 import ComposeSweepPage from '@/pages/compose/sweep';
 import ComposeUtxoAttachPage from '@/pages/compose/utxo/attach';
 import ComposeUtxoDetachPage from '@/pages/compose/utxo/detach';
@@ -81,6 +82,7 @@ import PoolPositionPage from '@/pages/pools/[lpAsset]';
 import ApproveConnectionPage from '@/pages/requests/connect/approve';
 import ApproveMessagePage from '@/pages/requests/message/approve';
 import ApprovePsbtPage from '@/pages/requests/psbt/approve';
+import ApprovePsbtsPage from '@/pages/requests/psbts/approve';
 import ApproveTransactionPage from '@/pages/requests/transaction/approve';
 import SettingsPage from '@/pages/settings';
 // Settings
@@ -90,6 +92,9 @@ import ConnectedSitesPage from '@/pages/settings/connected-sites';
 import PinnedAssetsPage from '@/pages/settings/pinned-assets';
 import SecuritySettingsPage from '@/pages/settings/security';
 import TransactionPage from '@/pages/transactions/[txHash]';
+import ZeldPage from '@/pages/zeld';
+import ZeldParkPage from '@/pages/zeld/park';
+import ZeldSendPage from '@/pages/zeld/send';
 import { analytics, sanitizePath } from '@/platform/fathom';
 
 function FullscreenLoading() {
@@ -152,6 +157,7 @@ export default function App() {
           <Route path="/requests/connect/approve" element={<ApproveConnectionPage />} />
           <Route path="/requests/transaction/approve" element={<ApproveTransactionPage />} />
           <Route path="/requests/psbt/approve" element={<ApprovePsbtPage />} />
+          <Route path="/requests/psbts/approve" element={<ApprovePsbtsPage />} />
           <Route path="/requests/message/approve" element={<ApproveMessagePage />} />
         </Route>
 
@@ -204,12 +210,17 @@ export default function App() {
 
             <Route path="/transactions/:txHash" element={<TransactionPage />} />
 
+            <Route path="/zeld" element={<ZeldPage />} />
+            <Route path="/zeld/send" element={<ZeldSendPage />} />
+            <Route path="/zeld/park" element={<ZeldParkPage />} />
+
             <Route path="/compose/send/mpma" element={<ComposeMpmaPage />} />
             <Route path="/compose/send/:asset" element={<ComposeSendPage />} />
             <Route path="/compose/sweep/:address?" element={<ComposeSweepPage />} />
             <Route path="/compose/order/btcpay" element={<ComposeOrderBtcPayPage />} />
             <Route path="/compose/order/cancel/:hash?" element={<ComposeOrderCancelPage />} />
             <Route path="/compose/order/:asset?" element={<ComposeOrderPage />} />
+            <Route path="/compose/swap/:giveAsset?/:getAsset?" element={<ComposeSwapPage />} />
             <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssueSupplyPage />} />
             <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeLockSupplyPage />} />
             <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeResetSupplyPage />} />

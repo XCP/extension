@@ -44,7 +44,7 @@ export function AssetInfoPopover({
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
-      <button
+      <button type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
         aria-label="View asset details"
@@ -59,7 +59,7 @@ export function AssetInfoPopover({
             <span className="text-xs font-medium text-gray-700">
               Asset Details
             </span>
-            <button
+            <button type="button"
               onClick={() => setIsOpen(false)}
               className="p-0.5 text-gray-400 hover:text-gray-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
               aria-label="Close"

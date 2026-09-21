@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
   clearAllUnlockedSecrets,
   clearUnlockedSecret,
+  getKeychainMasterKey,
   getLastActiveTime,
   getUnlockedSecret,
+  initializeSession,
   MAX_SESSION_DURATION_MS,
   setLastActiveTime,
   storeUnlockedSecret,
@@ -42,6 +45,7 @@ describe('sessionManager', () => {
     
     // Clear all secrets before each test
     await clearAllUnlockedSecrets();
+    await initializeSession(5 * 60 * 1000);
     vi.clearAllMocks();
   });
 
@@ -223,9 +227,20 @@ describe('sessionManager', () => {
 
       storeUnlockedSecret(walletId, firstSecret);
       await clearAllUnlockedSecrets();
+      await initializeSession(5 * 60 * 1000);
       storeUnlockedSecret(walletId, secondSecret);
 
       expect(await getUnlockedSecret(walletId)).toBe(secondSecret);
+    });
+
+    it('attempts cached-key removal even when metadata removal fails', async () => {
+      const cachedKeyRemove = vi.spyOn(fakeBrowser.storage.session, 'remove');
+      vi.mocked(global.chrome.storage.session.remove).mockImplementation(async (key) => {
+        if (String(key) === 'sessionMetadata') throw new Error('metadata cleanup failed');
+      });
+
+      await expect(clearAllUnlockedSecrets()).rejects.toThrow('Failed to clear session metadata');
+      expect(cachedKeyRemove).toHaveBeenCalledWith('keychainMasterKey');
     });
   });
 
@@ -289,7 +304,7 @@ describe('sessionManager', () => {
       const secrets = ['secret1', 'secret2', 'secret3'];
       
       // Simulate concurrent writes
-      secrets.forEach(secret => storeUnlockedSecret(walletId, secret));
+      secrets.forEach(secret => { storeUnlockedSecret(walletId, secret); });
       
       // Should have the last value
       expect(await getUnlockedSecret(walletId)).toBe('secret3');
@@ -532,6 +547,7 @@ describe('sessionManager', () => {
       
       // Clear all secrets first
       await clearAllUnlockedSecrets();
+      await initializeSession(5 * 60 * 1000);
       
       const { checkSessionRecovery, SessionRecoveryState } = await import('../sessionManager');
       const state = await checkSessionRecovery();
@@ -614,6 +630,45 @@ describe('sessionManager', () => {
   });
 
   describe('session expired handler', () => {
+    it('enforces lazy expiry before returning the cached master key', async () => {
+      const { registerSessionExpiredHandler } = await import('../sessionManager');
+      const handler = vi.fn().mockResolvedValue(undefined);
+      registerSessionExpiredHandler(handler);
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - MAX_SESSION_DURATION_MS - 1000,
+          timeout: 5 * 60 * 1000,
+          lastActiveTime: Date.now(),
+        },
+        keychainMasterKey: 'cached-key-must-not-be-used',
+      });
+      await fakeBrowser.storage.session.set({
+        keychainMasterKey: 'cached-key-must-not-be-used',
+      });
+
+      try {
+        await expect(getKeychainMasterKey()).resolves.toBeNull();
+        expect(handler).toHaveBeenCalledTimes(1);
+      } finally {
+        registerSessionExpiredHandler(null);
+      }
+    });
+
+    it('does not emit an expiry lock when no session and no cached key exist', async () => {
+      const { registerSessionExpiredHandler } = await import('../sessionManager');
+      const handler = vi.fn().mockResolvedValue(undefined);
+      registerSessionExpiredHandler(handler);
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({});
+      await fakeBrowser.storage.session.remove('keychainMasterKey');
+
+      try {
+        await expect(getKeychainMasterKey()).resolves.toBeNull();
+        expect(handler).not.toHaveBeenCalled();
+      } finally {
+        registerSessionExpiredHandler(null);
+      }
+    });
+
     it('should invoke the registered handler on lazy expiry detection', async () => {
       const { registerSessionExpiredHandler } = await import('../sessionManager');
       const handler = vi.fn().mockResolvedValue(undefined);

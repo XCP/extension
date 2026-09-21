@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 /**
  * Provider Integration E2E Tests
  *
@@ -229,15 +230,13 @@ async function launchExtension(testId: string): Promise<{
   const isCI = process.env.CI === 'true';
   const timeout = isCI ? 60000 : 30000;
 
-  const context = await chromium.launchPersistentContext(`test-results/provider-${testId}`, {
+  const context = await chromium.launchPersistentContext(`test-results/provider-${testId}-${randomUUID()}`, {
     headless: false,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process',
       `--disable-extensions-except=${extensionPath}`,
       `--load-extension=${extensionPath}`,
     ],
@@ -372,7 +371,7 @@ test.describe('Provider Integration - Full Flow', () => {
     }
   });
 
-  test('approve-connection page renders correctly with valid params', async ({ dappServer }) => {
+  test('approve-connection page rejects an unregistered request ID', async ({ dappServer }) => {
     const { context, page: extensionPage, extensionId } = await launchExtension('approve-page');
 
     try {
@@ -388,10 +387,11 @@ test.describe('Provider Integration - Full Flow', () => {
       await extensionPage.waitForLoadState('networkidle');
       await extensionPage.waitForLoadState('networkidle');
 
-      // Should show the approval UI
-      await expect(extensionPage.locator('button:has-text("Connect")')).toBeVisible({ timeout: 5000 });
-      await expect(extensionPage.locator('button:has-text("Cancel")')).toBeVisible({ timeout: 3000 });
-      await expect(extensionPage.locator('text=/localhost/i').first()).toBeVisible({ timeout: 3000 });
+      // Query parameters cannot create a background-authorized request or establish its site.
+      await expect(extensionPage.getByText('This connection request is no longer available.', { exact: true })).toBeVisible();
+      await expect(extensionPage.getByRole('button', { name: 'Unavailable', exact: true })).toBeDisabled();
+      await expect(extensionPage.getByRole('button', { name: 'Connect', exact: true })).toHaveCount(0);
+      await expect(extensionPage.getByText('http://localhost:3000', { exact: true })).toHaveCount(0);
     } finally {
       await context.close();
     }
@@ -539,9 +539,7 @@ test.describe('Provider Integration - Wallet States', () => {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
-        `--disable-extensions-except=${extensionPath}`,
+            `--disable-extensions-except=${extensionPath}`,
         `--load-extension=${extensionPath}`,
       ],
       timeout: 30000,

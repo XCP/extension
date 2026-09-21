@@ -1,7 +1,7 @@
 import type { KeyboardEvent, ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import type { Order, OrderDetails } from "@/core/counterparty/api";
-import { formatAmount } from "@/core/format";
+import { formatAmount, formatAsset } from "@/core/format";
 import { getOrderBaseAmount, getOrderPricePerUnit, getTradingPair, isBuyOrder } from "@/core/tradingPair";
 
 interface MarketOrderCardProps {
@@ -25,7 +25,12 @@ export function MarketOrderCard({
 
   // Handle both Order and OrderDetails types - only OrderDetails has asset_info
   const orderDetails = order as OrderDetails;
-  const baseDisplay = (isBuy ? orderDetails.get_asset_info?.asset_longname : orderDetails.give_asset_info?.asset_longname) || baseAsset;
+  // Same rule as ManageOrderCard: prefer each side's longname. The old inline pick covered only
+  // the base side, so a subasset quote still rendered numeric.
+  const infoFor = (asset: string) =>
+    asset === orderDetails.give_asset ? orderDetails.give_asset_info : orderDetails.get_asset_info;
+  const baseDisplay = formatAsset(baseAsset, { assetInfo: infoFor(baseAsset) });
+  const quoteDisplay = formatAsset(quoteAsset, { assetInfo: infoFor(quoteAsset) });
 
   // Calculate price and remaining amount using trading pair utilities
   const price = getOrderPricePerUnit(order, baseAsset);
@@ -55,7 +60,7 @@ export function MarketOrderCard({
               <span className={isBuy ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                 {isBuy ? "Buy" : "Sell"}
               </span>
-              {" @ "}{formatAmount({ value: price, maximumFractionDigits: 8 })} {quoteAsset}
+              {" @ "}{formatAmount({ value: price, maximumFractionDigits: 8 })} {quoteDisplay}
             </span>
             <span>{formatAmount({ value: remainingAmount, maximumFractionDigits: 2 })} remaining</span>
           </div>

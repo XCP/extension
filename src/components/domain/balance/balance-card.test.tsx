@@ -2,12 +2,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TokenBalance } from "@/core/counterparty/api";
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { BalanceCard } from "./balance-card";
 
 // Mock the BalanceMenu component
 vi.mock("@/components/domain/balance/balance-menu", () => ({
   BalanceMenu: ({ asset }: { asset: string }) => (
-    <button data-testid={`balance-menu-${asset}`}>Menu</button>
+    <button type="button" data-testid={`balance-menu-${asset}`}>Menu</button>
   ),
 }));
 
@@ -25,7 +26,8 @@ vi.mock("@/components/domain/asset/asset-icon", () => ({
 
 // Mock the format utils
 vi.mock("@/core/format", () => ({
-  formatAmount: ({ value }: { value: number }) => value.toFixed(8),
+  // Mirrors the real signature: a quantity arrives as a decimal string, not a number.
+  formatAmount: ({ value }: { value: string | number }) => Number(value).toFixed(8),
   formatAsset: (
     asset: string,
     options?: { assetInfo?: any; shorten?: boolean },
@@ -60,9 +62,9 @@ describe("BalanceCard", () => {
       divisible: true,
       issuer: "bc1qissuer",
       locked: false,
-      supply: "1000000",
+      supply: asBaseUnits("1000000"),
     },
-    quantity_normalized: "100.50000000",
+    quantity_normalized: asDisplayUnits("100.50000000"),
   };
 
   const mockIndivisibleToken: TokenBalance = {
@@ -73,9 +75,9 @@ describe("BalanceCard", () => {
       divisible: false,
       issuer: "bc1qissuer",
       locked: false,
-      supply: "1000",
+      supply: asBaseUnits("1000"),
     },
-    quantity_normalized: "5",
+    quantity_normalized: asDisplayUnits("5"),
   };
 
   beforeEach(() => {
@@ -177,7 +179,7 @@ describe("BalanceCard", () => {
   it("handles token without asset_info gracefully", () => {
     const tokenWithoutInfo: TokenBalance = {
       asset: "UNKNOWN",
-      quantity_normalized: "1.00000000",
+      quantity_normalized: asDisplayUnits("1.00000000"),
     };
 
     render(

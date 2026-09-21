@@ -19,15 +19,19 @@ import {
   fetchAssetDispensers,
   fetchAssetDispenses,
 } from "@/core/counterparty/api";
+import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 import { formatAmount } from "@/core/format";
+import { type BigNumber, divide, multiply, roundDown, toBigNumber, toNumber } from "@/core/numeric";
 import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/priceFormat";
 import type { PriceUnit } from "@/core/settings";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useInView } from "@/hooks/useInView";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
 // Constants
 const FETCH_LIMIT = 20;
+const dispenserKey = (row: DispenserDetails) => row.tx_hash;
 const SATS_PER_BTC = 100_000_000;
 const DEBOUNCE_MS = 1000;
 const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
@@ -37,10 +41,24 @@ const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
  * satoshirate = total sats per dispense
  * give_quantity_normalized = units given per dispense
  */
-function getSatsPerUnit(dispenser: DispenserDetails): number {
-  const unitsPerDispense = Number(dispenser.give_quantity_normalized);
-  if (unitsPerDispense <= 0) return Infinity;
-  return dispenser.satoshirate / unitsPerDispense;
+function getSatsPerUnit(dispenser: DispenserDetails): BigNumber | null {
+  const unitsPerDispense = toBigNumber(dispenser.give_quantity_normalized);
+  // A dispenser giving nothing has no price per unit. Naming one would invent it.
+  if (!unitsPerDispense.isGreaterThan(0)) return null;
+  return divide(dispenser.satoshirate, unitsPerDispense);
+}
+
+/** Cheapest first. A dispenser with no price per unit has no place in the order, so it sorts last. */
+function byPricePerUnit(a: DispenserDetails, b: DispenserDetails): number {
+  const priceA = getSatsPerUnit(a);
+  const priceB = getSatsPerUnit(b);
+  if (priceA === null) return priceB === null ? 0 : 1;
+  if (priceB === null) return -1;
+  // comparedTo is null only if a value is NaN, which is a tie for ordering purposes.
+  const priceOrder = priceA.comparedTo(priceB) ?? 0;
+  // Older nodes ignore tx_index sorting. Preserve oldest-first among loaded rows;
+  // complete ordering across pages requires Core's tx_index sort support.
+  return priceOrder || (a.tx_index !== undefined && b.tx_index !== undefined ? a.tx_index - b.tx_index : 0);
 }
 
 /**
@@ -53,22 +71,35 @@ export default function AssetDispensersPage(): ReactElement {
   const { settings, updateSettings } = useSettings();
   const { btc: btcPrice } = useMarketPrices(settings.fiat);
 
-  // Data state
-  const [assetInfo, setAssetInfo] = useState<AssetInfo | null>(null);
-  const [dispensers, setDispensers] = useState<DispenserDetails[]>([]);
-  const [dispenses, setDispenses] = useState<Dispense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Pagination state for dispensers
-  const [dispenserOffset, setDispenserOffset] = useState(0);
-  const [hasMoreDispensers, setHasMoreDispensers] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-
-  // Pagination state for dispenses
-  const [dispenseOffset, setDispenseOffset] = useState(0);
-  const [hasMoreDispenses, setHasMoreDispenses] = useState(true);
-  const [isFetchingMoreDispenses, setIsFetchingMoreDispenses] = useState(false);
+  const fetchInfo = useCallback(async () => {
+    const info = asset ? await fetchAssetDetails(asset) : null;
+    return { result: info ? [info] : [], result_count: info ? 1 : 0 };
+  }, [asset]);
+  const fetchDispensers = useCallback((offset: number, limit: number) =>
+    asset ? fetchAssetDispensers(asset, {
+      limit, offset, status: "open", sort: "price:asc,tx_index:asc", excludeWithOracle: true,
+    })
+      : Promise.resolve({ result: [], result_count: 0 }), [asset]);
+  const fetchDispenses = useCallback((offset: number, limit: number) =>
+    asset ? fetchAssetDispenses(asset, { limit, offset })
+      : Promise.resolve({ result: [], result_count: 0 }), [asset]);
+  const infoPage = usePaginatedFetch<AssetInfo>({
+    fetchFn: fetchInfo, pageSize: 1, maxItems: 1, enabled: !!asset,
+  });
+  const dispenserPage = usePaginatedFetch<DispenserDetails>({
+    fetchFn: fetchDispensers, getKey: dispenserKey, pageSize: FETCH_LIMIT, maxItems: Infinity, enabled: !!asset,
+  });
+  const dispensePage = usePaginatedFetch<Dispense>({
+    fetchFn: fetchDispenses, pageSize: FETCH_LIMIT, maxItems: Infinity, enabled: !!asset,
+  });
+  const assetInfo = infoPage.data[0] ?? null;
+  const dispensers = useMemo(
+    () => dispenserPage.data.filter(isFixedRateDispenser).sort(byPricePerUnit),
+    [dispenserPage.data],
+  );
+  const dispenses = dispensePage.data;
+  const loading = infoPage.isLoading || dispenserPage.isLoading || dispensePage.isLoading;
+  const isRefreshing = loading;
 
   // UI state - initialize from settings
   const [tab, setTab] = useState<"open" | "history">("open");
@@ -95,7 +126,11 @@ export default function AssetDispensersPage(): ReactElement {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
-      updateSettings({ priceUnit: nextUnit }).catch(console.error);
+      // A call, not a bare `console.error` reference: the production build drops console calls
+      // (wxt.config dropConsole) but cannot strip a reference, so the reference shipped.
+      updateSettings({ priceUnit: nextUnit }).catch((error) => {
+        console.error('Failed to save price unit:', error);
+      });
     }, DEBOUNCE_MS);
   }, [priceUnit, btcPrice, updateSettings]);
 
@@ -108,53 +143,14 @@ export default function AssetDispensersPage(): ReactElement {
     };
   }, []);
 
-  // Load data function (used for initial load and refresh)
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (!asset) return;
-
-    if (isRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setDispensers([]);
-    setDispenses([]);
-    setDispenserOffset(0);
-    setDispenseOffset(0);
-    setHasMoreDispensers(true);
-    setHasMoreDispenses(true);
-
-    try {
-      const [infoRes, dispensersRes, dispensesRes] = await Promise.all([
-        fetchAssetDetails(asset),
-        fetchAssetDispensers(asset, { limit: FETCH_LIMIT, status: "open" }),
-        fetchAssetDispenses(asset, { limit: FETCH_LIMIT }),
-      ]);
-
-      if (infoRes) setAssetInfo(infoRes);
-
-      // Sort by price (lowest first) for better UX
-      const sortedDispensers = [...dispensersRes.result].sort(
-        (a, b) => getSatsPerUnit(a) - getSatsPerUnit(b)
-      );
-      setDispensers(sortedDispensers);
-      setDispenserOffset(FETCH_LIMIT);
-      if (dispensersRes.result.length < FETCH_LIMIT) {
-        setHasMoreDispensers(false);
-      }
-
-      setDispenses(dispensesRes.result);
-      setDispenseOffset(FETCH_LIMIT);
-      if (dispensesRes.result.length < FETCH_LIMIT) {
-        setHasMoreDispenses(false);
-      }
-    } catch (err) {
-      console.error('Failed to load dispensers:', { asset }, err);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [asset]);
+  const { refresh: refreshInfo } = infoPage;
+  const { refresh: refreshDispensers } = dispenserPage;
+  const { refresh: refreshDispenses } = dispensePage;
+  const loadData = useCallback(() => {
+    refreshInfo();
+    refreshDispensers();
+    refreshDispenses();
+  }, [refreshInfo, refreshDispensers, refreshDispenses]);
 
   // Refresh handler with cooldown to prevent spam
   const handleRefresh = useCallback(() => {
@@ -163,7 +159,7 @@ export default function AssetDispensersPage(): ReactElement {
       return; // Still in cooldown
     }
     lastRefreshRef.current = now;
-    loadData(true);
+    loadData();
   }, [loadData]);
 
   // Configure header with refresh button
@@ -181,90 +177,15 @@ export default function AssetDispensersPage(): ReactElement {
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate, isRefreshing, handleRefresh]);
 
-  // Load initial data
+  const activePage = tab === "open" ? dispenserPage : dispensePage;
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Load more dispensers on scroll (when on "open" tab)
-  useEffect(() => {
-    if (!asset || !inView || isFetchingMore || !hasMoreDispensers || tab !== "open") {
-      return;
+    // An oracle-only page cannot establish that no fixed-rate listing exists.
+    const needsVisibleListing = tab === "open" && dispensers.length === 0;
+    if (!loading && !infoPage.error && (inView || needsVisibleListing)
+      && activePage.hasMore && !activePage.error) {
+      activePage.loadMore();
     }
-
-    const loadMore = async () => {
-      setIsFetchingMore(true);
-      try {
-        const res = await fetchAssetDispensers(asset, {
-          limit: FETCH_LIMIT,
-          offset: dispenserOffset,
-          status: "open",
-        });
-
-        if (res.result.length < FETCH_LIMIT) {
-          setHasMoreDispensers(false);
-        }
-
-        if (res.result.length > 0) {
-          setDispensers((prev) => {
-            // Append, dedupe, and re-sort by price
-            const merged = [...prev, ...res.result];
-            const deduped = merged.filter(
-              (d, i, arr) => arr.findIndex((x) => x.tx_hash === d.tx_hash) === i
-            );
-            return deduped.sort((a, b) => getSatsPerUnit(a) - getSatsPerUnit(b));
-          });
-          setDispenserOffset((prev) => prev + FETCH_LIMIT);
-        }
-      } catch (err) {
-        console.error("Failed to load more dispensers:", err);
-        setHasMoreDispensers(false);
-      } finally {
-        setIsFetchingMore(false);
-      }
-    };
-
-    loadMore();
-  }, [asset, inView, isFetchingMore, hasMoreDispensers, dispenserOffset, tab]);
-
-  // Load more dispenses on scroll (when on "history" tab)
-  useEffect(() => {
-    if (!asset || !inView || isFetchingMoreDispenses || !hasMoreDispenses || tab !== "history") {
-      return;
-    }
-
-    const loadMore = async () => {
-      setIsFetchingMoreDispenses(true);
-      try {
-        const res = await fetchAssetDispenses(asset, {
-          limit: FETCH_LIMIT,
-          offset: dispenseOffset,
-        });
-
-        if (res.result.length < FETCH_LIMIT) {
-          setHasMoreDispenses(false);
-        }
-
-        if (res.result.length > 0) {
-          setDispenses((prev) => {
-            const merged = [...prev, ...res.result];
-            // Dedupe by tx_hash
-            return merged.filter(
-              (d, i, arr) => arr.findIndex((x) => x.tx_hash === d.tx_hash) === i
-            );
-          });
-          setDispenseOffset((prev) => prev + FETCH_LIMIT);
-        }
-      } catch (err) {
-        console.error("Failed to load more dispenses:", err);
-        setHasMoreDispenses(false);
-      } finally {
-        setIsFetchingMoreDispenses(false);
-      }
-    };
-
-    loadMore();
-  }, [asset, inView, isFetchingMoreDispenses, hasMoreDispenses, dispenseOffset, tab]);
+  }, [loading, infoPage.error, inView, tab, dispensers.length, activePage]);
 
   // Calculate stats for open dispensers (updates as more load)
   const dispenserStats = useMemo(() => {
@@ -272,32 +193,38 @@ export default function AssetDispensersPage(): ReactElement {
 
     // Total asset remaining across all dispensers
     const totalAsset = dispensers.reduce(
-      (sum, d) => sum + Number(d.give_remaining_normalized), 0
+      (sum, d) => sum.plus(toBigNumber(d.give_remaining_normalized)), toBigNumber(0)
     );
 
     // Total BTC required to buy all remaining assets (sum of satoshirate * remaining dispenses)
     const totalBtcSats = dispensers.reduce((sum, d) => {
-      const remainingDispenses = Math.floor(
-        Number(d.give_remaining_normalized) / Number(d.give_quantity_normalized)
-      );
-      return sum + d.satoshirate * remainingDispenses;
-    }, 0);
-    const totalBtc = totalBtcSats / SATS_PER_BTC;
+      const perDispense = toBigNumber(d.give_quantity_normalized);
+      if (!perDispense.isGreaterThan(0)) return sum;
+      const remainingDispenses = roundDown(divide(d.give_remaining_normalized, perDispense));
+      return sum.plus(multiply(d.satoshirate, remainingDispenses));
+    }, toBigNumber(0));
+    const totalBtc = divide(totalBtcSats, SATS_PER_BTC);
 
-    // Floor price per unit in sats (find minimum)
-    const floorPrice = Math.min(...dispensers.map(d => getSatsPerUnit(d)));
+    // Floor price per unit in sats. Dispensers with no price per unit are not a floor of zero.
+    const perUnitPrices = dispensers
+      .map(getSatsPerUnit)
+      .filter((price): price is BigNumber => price !== null);
+    const floorPrice = perUnitPrices.length > 0
+      ? perUnitPrices.reduce((lowest, price) => (price.isLessThan(lowest) ? price : lowest))
+      : null;
 
     // Weighted average price per unit by remaining quantity
-    const weightedSum = dispensers.reduce(
-      (sum, d) => sum + getSatsPerUnit(d) * Number(d.give_remaining_normalized), 0
-    );
-    const weightedAvg = totalAsset > 0 ? weightedSum / totalAsset : 0;
+    const weightedSum = dispensers.reduce((sum, d) => {
+      const price = getSatsPerUnit(d);
+      return price === null ? sum : sum.plus(multiply(price, d.give_remaining_normalized));
+    }, toBigNumber(0));
+    const weightedAvg = totalAsset.isGreaterThan(0) ? divide(weightedSum, totalAsset) : null;
 
     return {
       totalAsset,
       totalBtc,
-      floorPrice: Math.round(floorPrice),
-      weightedAvg: Math.round(weightedAvg),
+      floorPrice: floorPrice === null ? null : toNumber(roundDown(floorPrice)),
+      weightedAvg: weightedAvg === null ? null : Number(weightedAvg.toFixed(0)),
     };
   }, [dispensers]);
 
@@ -307,22 +234,26 @@ export default function AssetDispensersPage(): ReactElement {
 
     // Last dispense price (first in array = most recent)
     const lastDispense = dispenses[0]!;
-    const lastQuantity = Number(lastDispense.dispense_quantity_normalized);
-    const lastPricePerUnit = lastQuantity > 0 ? lastDispense.btc_amount / lastQuantity : 0;
+    const lastQuantity = toBigNumber(lastDispense.dispense_quantity_normalized);
+    const lastPricePerUnit = lastQuantity.isGreaterThan(0)
+      ? divide(lastDispense.btc_amount, lastQuantity)
+      : null;
 
     // Average price per unit across all loaded dispenses (weighted by quantity)
     const totalAsset = dispenses.reduce(
-      (sum, d) => sum + Number(d.dispense_quantity_normalized), 0
+      (sum, d) => sum.plus(toBigNumber(d.dispense_quantity_normalized)), toBigNumber(0)
     );
     const totalBtcSats = dispenses.reduce(
-      (sum, d) => sum + d.btc_amount, 0
+      (sum, d) => sum.plus(toBigNumber(d.btc_amount)), toBigNumber(0)
     );
-    const totalBtc = totalBtcSats / SATS_PER_BTC;
-    const avgPricePerUnit = totalAsset > 0 ? totalBtcSats / totalAsset : 0;
+    const totalBtc = divide(totalBtcSats, SATS_PER_BTC);
+    const avgPricePerUnit = totalAsset.isGreaterThan(0)
+      ? divide(totalBtcSats, totalAsset)
+      : null;
 
     return {
-      lastPrice: Math.round(lastPricePerUnit),
-      avgPrice: Math.round(avgPricePerUnit),
+      lastPrice: lastPricePerUnit === null ? null : toNumber(roundDown(lastPricePerUnit)),
+      avgPrice: avgPricePerUnit === null ? null : toNumber(roundDown(avgPricePerUnit)),
       totalAsset,
       totalBtc,
     };
@@ -336,24 +267,34 @@ export default function AssetDispensersPage(): ReactElement {
     return <Spinner message={`Loading ${asset} dispensers…`} />;
   }
 
-  const hasMore = tab === "open" ? hasMoreDispensers : tab === "history" ? hasMoreDispenses : false;
-  const isFetching = tab === "open" ? isFetchingMore : tab === "history" ? isFetchingMoreDispenses : false;
+  const hasMore = activePage.hasMore;
+  const isFetching = activePage.isFetchingMore;
+  const pageError = infoPage.error ?? activePage.error;
+
+  /** A dispenser giving nothing has no price to show, rather than a price of zero. */
+  const pricePerUnitLabel = (dispenser: DispenserDetails): string => {
+    const price = getSatsPerUnit(dispenser);
+    return price === null
+      ? "N/A"
+      : formatPrice(toNumber(roundDown(price)), priceUnit, btcPrice, settings.fiat);
+  };
 
   return (
-    <div className="flex flex-col h-full" role="main">
+    <div className="flex flex-col h-full">
       <div className="flex flex-col flex-grow min-h-0">
         {/* Fixed Header */}
         <div className="p-4 pb-0 flex-shrink-0">
           {/* Asset Header */}
           {assetInfo && (
-            <AssetHeader assetInfo={assetInfo} showInfoPopover className="mb-4" />
+            <AssetHeader assetInfo={assetInfo} showInfoPopover className="mt-1 mb-5" />
           )}
 
           {/* Stats Card - contextual based on tab */}
           <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
             <div className="flex items-center gap-2">
               <div className="flex-1 grid grid-cols-2 gap-4 text-xs">
-                {tab === "open" && dispenserStats && (
+                {tab === "open" && dispenserStats && dispenserStats.floorPrice !== null
+                  && dispenserStats.weightedAvg !== null && (
                   <>
                     <CopyableStat
                       label="Floor"
@@ -383,7 +324,8 @@ export default function AssetDispensersPage(): ReactElement {
                     </div>
                   </>
                 )}
-                {tab === "history" && dispenseStats && (
+                {tab === "history" && dispenseStats && dispenseStats.lastPrice !== null
+                  && dispenseStats.avgPrice !== null && (
                   <>
                     <CopyableStat
                       label="Last"
@@ -414,7 +356,7 @@ export default function AssetDispensersPage(): ReactElement {
                   </>
                 )}
               </div>
-              <button
+              <button type="button"
                 onClick={togglePriceUnit}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                 aria-label={`Switch price display to ${getNextPriceUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
@@ -434,7 +376,7 @@ export default function AssetDispensersPage(): ReactElement {
                 History
               </TabButton>
             </div>
-            <button
+            <button type="button"
               onClick={() => navigate(`/market?tab=dispensers&mode=manage&search=${asset}`)}
               className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded cursor-pointer"
             >
@@ -452,14 +394,14 @@ export default function AssetDispensersPage(): ReactElement {
                   <AssetDispenserCard
                     key={d.tx_hash}
                     dispenser={d}
-                    formattedPrice={formatPrice(getSatsPerUnit(d), priceUnit, btcPrice, settings.fiat)}
+                    formattedPrice={pricePerUnitLabel(d)}
                     onClick={() => handleDispenserClick(d)}
                     onCopyAddress={copy}
                     isCopied={isCopied(d.source)}
                   />
                 ))}
               </div>
-            ) : (
+            ) : !pageError && !hasMore && (
               <EmptyState
                 message={`No open ${asset} dispensers found`}
                 linkAction={{
@@ -473,29 +415,46 @@ export default function AssetDispensersPage(): ReactElement {
           {tab === "history" && (
             dispenses.length > 0 ? (
               <div className="space-y-2">
-                {dispenses.map((d) => {
-                  const quantity = Number(d.dispense_quantity_normalized);
-                  const pricePerUnit = quantity > 0 ? Math.round(d.btc_amount / quantity) : 0;
+                {dispenses.map((d, index) => {
+                  const quantity = toBigNumber(d.dispense_quantity_normalized);
+                  // A dispense of nothing has no price per unit; zero would read as free.
+                  const pricePerUnit = quantity.isGreaterThan(0)
+                    ? divide(d.btc_amount, quantity)
+                    : null;
                   return (
                     <AssetDispenseCard
-                      key={d.tx_hash}
+                      key={`${d.tx_hash}:${index}`}
                       dispense={d}
                       asset={asset || ""}
-                      formattedPricePerUnit={formatPrice(pricePerUnit, priceUnit, btcPrice, settings.fiat)}
+                      formattedPricePerUnit={pricePerUnit === null
+                        ? "N/A"
+                        : formatPrice(toNumber(roundDown(pricePerUnit)), priceUnit, btcPrice, settings.fiat)}
                       onCopyTx={copy}
                       isCopied={isCopied(d.tx_hash)}
                     />
                   );
                 })}
               </div>
-            ) : (
+            ) : !pageError && (
               <EmptyState message={`No recent ${asset} dispenses`} />
             )
           )}
 
+          {pageError && (
+            <div role="alert" className="py-3 text-center text-sm text-gray-600">
+              <p>{pageError.message}</p>
+              <button type="button"
+                onClick={infoPage.error ? loadData : activePage.refresh}
+                className="mt-2 rounded px-3 py-1 text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Load more sentinel */}
           <div ref={loadMoreRef} className="py-2">
-            {hasMore ? (
+            {hasMore && !pageError ? (
               isFetching ? (
                 <div className="flex justify-center">
                   <Spinner className="py-4" />

@@ -30,7 +30,7 @@ export function ReviewUtxoAttach({
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <p className="text-red-700">Unable to review transaction. Please go back and try again.</p>
         </div>
-        <button
+        <button type="button"
           onClick={onBack}
           className="mt-4 w-full bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >

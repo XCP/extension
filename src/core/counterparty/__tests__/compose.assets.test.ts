@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
+import { asBaseUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 import {
   composeBurn, 
@@ -9,7 +10,7 @@ import {
 } from '../compose';
 import {
   assertComposeUrlCalled,
-  createMockApiResponse,
+  createMockComposeResponse,
   createMockComposeResult,
   mockAddress,
   mockSatPerVbyte,
@@ -25,11 +26,14 @@ vi.mock('@/core/settings', async (importOriginal) => {
   return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
 });
 
-// Mock UTXO selection to prevent real API calls to mempool.space
+// Mock UTXO selection to prevent real API calls to mempool.space.
+// The txid is spelled out rather than imported as `mockInputTxid`: this factory is hoisted
+// above the imports and cannot read them. It must stay in step with the composed transaction
+// in composeTestHelpers, or the input check has nothing to match and stops testing anything.
 vi.mock('@/core/counterparty/utxoSelection', () => ({
   selectUtxosForTransaction: vi.fn().mockResolvedValue({
-    utxos: [{ txid: 'mock-txid', vout: 0, value: 100000, status: { confirmed: true } }],
-    inputsSet: 'mock-txid:0',
+    utxos: [{ txid: 'aa'.repeat(32), vout: 0, value: 100000, status: { confirmed: true } }],
+    inputsSet: `${'aa'.repeat(32)}:0`,
     totalValue: 100000,
     excludedWithAssets: 0,
   }),
@@ -42,13 +46,13 @@ describe('Compose Asset Management Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetSettings.mockReturnValue(mockSettings as any);
-    mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
   });
 
   describe('composeIssuance', () => {
     const defaultParams = {
       asset: 'NEWASSET',
-      quantity: 1000000000,
+      quantity: asBaseUnits(1000000000),
       divisible: true,
       lock: false,
       reset: false,
@@ -62,7 +66,7 @@ describe('Compose Asset Management Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'issuance', defaultParams);
     });
 
@@ -93,7 +97,7 @@ describe('Compose Asset Management Operations', () => {
     it('should handle subasset issuance', async () => {
       const subassetParams = {
         asset: 'PARENTASSET.SUBASSET',
-        quantity: 100000,
+        quantity: asBaseUnits(100000),
         divisible: true,
         lock: false,
         reset: false,
@@ -111,7 +115,7 @@ describe('Compose Asset Management Operations', () => {
     it('should handle numeric asset issuance', async () => {
       const numericParams = {
         asset: testAssets.NUMERIC,
-        quantity: 1000000000,
+        quantity: asBaseUnits(1000000000),
         divisible: true,
         lock: false,
         reset: false,
@@ -129,7 +133,7 @@ describe('Compose Asset Management Operations', () => {
     it('should handle locking an asset', async () => {
       const lockParams = {
         ...defaultParams,
-        quantity: 0, // No new issuance
+        quantity: asBaseUnits(0), // No new issuance
         lock: true,
       };
       
@@ -153,7 +157,7 @@ describe('Compose Asset Management Operations', () => {
     it('should handle transfer of ownership', async () => {
       const transferParams = {
         asset: 'EXISTINGASSET',
-        quantity: 0,
+        quantity: asBaseUnits(0),
         divisible: true,
         lock: false,
         reset: false,
@@ -191,7 +195,7 @@ describe('Compose Asset Management Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'destroy', defaultParams);
     });
 
@@ -218,7 +222,7 @@ describe('Compose Asset Management Operations', () => {
 
       for (const asset of assets) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, asset };
         await composeDestroy({
@@ -238,7 +242,7 @@ describe('Compose Asset Management Operations', () => {
 
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, quantity };
         await composeDestroy({
@@ -258,7 +262,7 @@ describe('Compose Asset Management Operations', () => {
     const defaultParams = {
       asset: 'SHARETOKEN',
       dividend_asset: testAssets.XCP,
-      quantity_per_unit: 1000,
+      quantity_per_unit: asBaseUnits(1000),
     };
 
     it('should compose dividend transaction', async () => {
@@ -268,7 +272,7 @@ describe('Compose Asset Management Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'dividend', defaultParams);
     });
 
@@ -285,14 +289,19 @@ describe('Compose Asset Management Operations', () => {
       });
 
       const actualCall = mockedApiClient.get.mock.calls[0]!;
-      const _actualUrl = actualCall[0];
+      const actualUrl = actualCall[0];
+      // `skip_validation` is declared on the options type but never forwarded (compose.ts only
+      // names it in the interface), so passing it changes nothing about the request. Asserted as
+      // absent rather than left unasserted, which is how this test came to check nothing at all.
+      expect(actualUrl).not.toContain('skip_validation');
+      expect(actualUrl).toContain('compose/dividend');
     });
 
     it('should handle BTC dividends', async () => {
       const btcDividendParams = {
         asset: 'SHARETOKEN',
         dividend_asset: testAssets.BTC,
-        quantity_per_unit: 100, // 100 satoshis per unit
+        quantity_per_unit: asBaseUnits(100), // 100 satoshis per unit
       };
 
       await composeDividend({
@@ -308,7 +317,7 @@ describe('Compose Asset Management Operations', () => {
 
       for (const quantity_per_unit of rates) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, quantity_per_unit };
         await composeDividend({
@@ -326,7 +335,7 @@ describe('Compose Asset Management Operations', () => {
 
   describe('composeBurn', () => {
     const defaultParams = {
-      quantity: 10000000, // 0.1 BTC
+      quantity: asBaseUnits(10000000), // 0.1 BTC
     };
 
     it('should compose burn transaction', async () => {
@@ -336,7 +345,7 @@ describe('Compose Asset Management Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'burn', defaultParams);
     });
 
@@ -353,7 +362,10 @@ describe('Compose Asset Management Operations', () => {
       });
 
       const actualCall = mockedApiClient.get.mock.calls[0]!;
-      const _actualUrl = actualCall[0];
+      const actualUrl = actualCall[0];
+      // See the dividend case above: `skip_validation` never reaches the wire.
+      expect(actualUrl).not.toContain('skip_validation');
+      expect(actualUrl).toContain('compose/burn');
     });
 
     it('should handle different burn amounts', async () => {
@@ -361,7 +373,7 @@ describe('Compose Asset Management Operations', () => {
 
       for (const quantity of amounts) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         await composeBurn({
           sourceAddress: mockAddress,
@@ -376,7 +388,7 @@ describe('Compose Asset Management Operations', () => {
     });
 
     it('should handle minimum burn amount error', async () => {
-      const smallAmount = { quantity: 100 }; // Too small
+      const smallAmount = { quantity: asBaseUnits(100) }; // Too small
 
       mockedApiClient.get.mockRejectedValueOnce(new Error('Burn amount below minimum'));
 

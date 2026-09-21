@@ -24,7 +24,7 @@
  *    - Final 0 bit signals end
  */
 
-import { PACKED_ADDRESS_LENGTH, unpackAddress } from '@/core/counterparty/unpack/address';
+import { PACKED_ADDRESS_LENGTH, unpackAddressLegacy } from '@/core/counterparty/unpack/address';
 import { assetIdToName } from '@/core/counterparty/unpack/assetId';
 
 /**
@@ -153,7 +153,12 @@ function decodeLUT(
     const packedAddr = data.slice(pos, pos + bytesPerAddress);
     // Detect network from first address byte
     const network = packedAddr[0] === 0x6f || packedAddr[0] === 0xc4 ? 'testnet' : 'mainnet';
-    addresses.push(unpackAddress(packedAddr, network));
+    // Legacy rules only: core decodes this table with `address.unpack_legacy` unconditionally
+    // (utils/mpmaencoding.py `_decode_decode_lut`), never the taproot-aware `unpack`. Under the
+    // modern rules a leading 0x01 is a P2PKH type tag and renders an ordinary `1…` address, while
+    // core reads it as a base58 version byte and credits a different one — and an MPMA's
+    // recipients are carried in the payload, so this string is all the approval screen has.
+    addresses.push(unpackAddressLegacy(packedAddr, network));
     pos += bytesPerAddress;
   }
 

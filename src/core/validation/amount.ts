@@ -3,12 +3,18 @@
  * Handles validation for Bitcoin amounts, token quantities, and numeric inputs
  */
 
-import { BigNumber, toBigNumber } from '@/core/numeric';
+import { type DecimalPlaces, parseAmountDraft } from '@/core/amount-contract/amounts';
+import { BigNumber, fromSatoshis, toBigNumber } from '@/core/numeric';
 
 // Constants
 export const DUST_LIMIT = 546; // satoshis
 export const MAX_SATOSHIS = 2100000000000000; // 21 million BTC in satoshis
 export const SATOSHIS_PER_BTC = 100000000;
+/**
+ * The largest supply an asset can hold, in base units: SQLite3's signed 64-bit ceiling, which
+ * `issuance.validate` checks every quantity against ("total quantity overflow").
+ */
+export const MAX_SUPPLY = '9223372036854775807';
 
 export interface AmountValidationResult {
   isValid: boolean;
@@ -51,7 +57,7 @@ export function validateAmount(
   }
 
   // Convert to string for processing
-  const amountStr = String(amount).trim();
+  const amountStr = String(amount);
 
   // Check for special values first
   if (amountStr === 'NaN' || amountStr === 'Infinity' || amountStr === '-Infinity') {
@@ -59,7 +65,7 @@ export function validateAmount(
   }
 
   // Check for invalid characters (no scientific notation allowed)
-  if (!/^-?\d*\.?\d*$/.test(amountStr) || amountStr === '' || amountStr === '-' || amountStr === '.') {
+  if (!/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(amountStr) || amountStr === '' || amountStr === '-' || amountStr === '.') {
     return { isValid: false, error: 'Invalid amount format' };
   }
 
@@ -86,6 +92,12 @@ export function validateAmount(
   if (decimalPlaces !== null && decimalPlaces > decimals) {
     return { isValid: false, error: `Maximum ${decimals} decimal places allowed` };
   }
+
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 8) {
+    return { isValid: false, error: 'Unsupported amount precision' };
+  }
+  const parsed = parseAmountDraft(amountStr, { decimals: decimals as DecimalPlaces });
+  if (parsed.status !== 'valid') return { isValid: false, error: parsed.status === 'invalid' && parsed.code === 'amount_range' ? 'Amount exceeds maximum supported supply' : `Maximum ${decimals} decimal places allowed` };
 
   // Convert to satoshis for Bitcoin amounts
   const satoshis = value.multipliedBy(SATOSHIS_PER_BTC).integerValue(BigNumber.ROUND_DOWN);
@@ -127,7 +139,7 @@ export function validateQuantity(
   const {
     divisible = true,
     allowZero = false,
-    maxSupply = '9223372036854775807', // Max int64
+    maxSupply = MAX_SUPPLY,
     minQuantity = '0'
   } = options;
 
@@ -137,7 +149,7 @@ export function validateQuantity(
   }
 
   // Convert to string for processing
-  const quantityStr = String(quantity).trim();
+  const quantityStr = String(quantity);
 
   // Check for special values first
   if (quantityStr === 'NaN' || quantityStr === 'Infinity' || quantityStr === '-Infinity') {
@@ -145,7 +157,7 @@ export function validateQuantity(
   }
 
   // Check for invalid characters (no scientific notation allowed)
-  if (!/^-?\d*\.?\d*$/.test(quantityStr) || quantityStr === '' || quantityStr === '-' || quantityStr === '.') {
+  if (!/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(quantityStr) || quantityStr === '' || quantityStr === '-' || quantityStr === '.') {
     return { isValid: false, error: 'Invalid quantity format' };
   }
 
@@ -186,6 +198,13 @@ export function validateQuantity(
     return { isValid: false, error: `Quantity is below minimum (${minQuantity})` };
   }
 
+  const exact = parseAmountDraft(quantityStr, { decimals: divisible ? 8 : 0 });
+  if (exact.status !== 'valid') {
+    return { isValid: false, error: exact.status === 'invalid' && exact.code === 'amount_range'
+      ? 'Quantity exceeds maximum Counterparty supply'
+      : 'Use whole digits and an optional decimal point with the asset precision' };
+  }
+
   // Check maximum supply
   const maxQty = toBigNumber(maxSupply);
   if (value.isGreaterThan(maxQty)) {
@@ -213,7 +232,7 @@ export function isValidNumber(value: string): boolean {
   
   // Try to parse
   const num = Number(trimmed);
-  return !isNaN(num) && isFinite(num);
+  return !Number.isNaN(num) && Number.isFinite(num);
 }
 
 /**
@@ -259,6 +278,20 @@ export function validateBalance(
   return { isValid: true };
 }
 
+
+/**
+ * The largest issuable supply, in the display units an amount input works in.
+ *
+ * `MAX_SUPPLY` is a base-unit ceiling, so a divisible asset can only reach it with eight decimal
+ * places of headroom — offering the raw figure as a divisible maximum would offer 1e8 times what
+ * core accepts.
+ *
+ * @param divisible - Whether the asset being issued is divisible
+ * @returns The maximum, in display units
+ */
+export function maxSupplyForDivisibility(divisible: boolean): string {
+  return divisible ? fromSatoshis(MAX_SUPPLY) : MAX_SUPPLY;
+}
 
 /**
  * Converts BTC to satoshis

@@ -67,17 +67,48 @@ export function areDestinationsComplete(destinations: Destination[]): boolean {
 }
 
 /**
+ * Hard protocol limit on the number of MPMA destinations in one transaction.
+ */
+export const MAX_DESTINATIONS = 1000;
+
+/**
+ * Count at which the UI starts warning that the limit is close.
+ */
+export const DESTINATION_WARNING_THRESHOLD = 900;
+
+/**
+ * Where a destination count sits relative to the protocol limit.
+ * 'approaching' only warns; 'at-limit' blocks adding more destinations.
+ */
+export type DestinationLimitState = 'ok' | 'approaching' | 'at-limit';
+
+/**
+ * Classify a destination count against the protocol limit.
+ */
+export function getDestinationLimitState(count: number): DestinationLimitState {
+  if (count >= MAX_DESTINATIONS) {
+    return 'at-limit';
+  }
+
+  if (count >= DESTINATION_WARNING_THRESHOLD) {
+    return 'approaching';
+  }
+
+  return 'ok';
+}
+
+/**
  * Validate destination count limits
  */
 export function validateDestinationCount(count: number): { isValid: boolean; error?: string } {
   if (count < 1) {
     return { isValid: false, error: 'At least one destination is required' };
   }
-  
-  if (count > 1000) {
-    return { isValid: false, error: 'Maximum 1000 destinations allowed' };
+
+  if (count > MAX_DESTINATIONS) {
+    return { isValid: false, error: `Maximum ${MAX_DESTINATIONS} destinations allowed` };
   }
-  
+
   return { isValid: true };
 }
 

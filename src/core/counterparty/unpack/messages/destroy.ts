@@ -5,7 +5,7 @@
  * Format: ">QQ" (16 bytes) + optional tag
  *   - asset_id (Q): 8 bytes - Asset to destroy
  *   - quantity (Q): 8 bytes - Quantity to destroy
- *   - tag: 0-34 bytes - Optional tag/reason
+ *   - tag: the remaining bytes - Optional tag/reason (compose caps this at 34; unpack does not)
  */
 
 import { assetIdToName } from '@/core/counterparty/unpack/assetId';
@@ -13,8 +13,6 @@ import { BinaryReader } from '@/core/counterparty/unpack/binary';
 
 /** Minimum length of destroy message (without tag) */
 const DESTROY_MIN_LENGTH = 16;
-/** Maximum tag length */
-const MAX_TAG_LENGTH = 34;
 
 /**
  * Unpacked destroy data
@@ -44,10 +42,10 @@ export function unpackDestroy(payload: Uint8Array): DestroyData {
     throw new Error(`Invalid destroy payload length: ${payload.length} (minimum ${DESTROY_MIN_LENGTH})`);
   }
 
+  // No cap on unpack. Core reads `tag = message[16:]` with no length check (destroy.py); the
+  // 34-byte limit is a compose-side rule, and enforcing it here rejected a destroy the chain
+  // accepts — blocking a valid transaction rather than catching a malformed one.
   const tagLength = payload.length - DESTROY_MIN_LENGTH;
-  if (tagLength > MAX_TAG_LENGTH) {
-    throw new Error(`Tag too long: ${tagLength} bytes (maximum ${MAX_TAG_LENGTH})`);
-  }
 
   const reader = new BinaryReader(payload);
 

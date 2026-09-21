@@ -2,12 +2,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OwnedAsset } from "@/core/counterparty/api";
+import { asDisplayUnits } from '@/core/numeric';
 import { AssetCard } from "./asset-card";
 
 // Mock the AssetMenu component
 vi.mock("@/components/domain/asset/asset-menu", () => ({
   AssetMenu: ({ ownedAsset }: { ownedAsset: OwnedAsset }) => (
-    <button data-testid={`asset-menu-${ownedAsset.asset}`}>Menu</button>
+    <button type="button" data-testid={`asset-menu-${ownedAsset.asset}`}>Menu</button>
   ),
 }));
 
@@ -39,7 +40,8 @@ vi.mock("@/components/domain/asset/asset-icon", () => ({
 
 // Mock the format utils
 vi.mock("@/core/format", () => ({
-  formatAmount: ({ value }: { value: number }) => value.toFixed(8),
+  // Mirrors the real signature: a quantity arrives as a decimal string, not a number.
+  formatAmount: ({ value }: { value: string | number }) => Number(value).toFixed(8),
   formatAsset: (
     asset: string,
     options?: { assetInfo?: any; shorten?: boolean },
@@ -75,7 +77,7 @@ describe("AssetCard", () => {
     asset_longname: "RARE.PEPE.COLLECTION",
     description: "Rare Pepe Collection",
     locked: false,
-    supply_normalized: "1000.00000000",
+    supply_normalized: asDisplayUnits("1000.00000000"),
   };
 
   const mockDivisibleAsset: OwnedAsset = {
@@ -83,7 +85,7 @@ describe("AssetCard", () => {
     asset_longname: null,
     description: "My Custom Token",
     locked: true,
-    supply_normalized: "10000.00000000",
+    supply_normalized: asDisplayUnits("10000.00000000"),
   };
 
   beforeEach(() => {
