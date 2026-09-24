@@ -4,7 +4,9 @@ import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import {
   type AttachForListingIntentClaim,
+  type AuthorizeExactOfferIntentClaim,
   type CreateListingIntentClaim,
+  formatExpiry,
   type MarketplaceApprovalReview,
   type PrepareAssetIntentClaim,
   type PrepareBulkFanoutIntentClaim,
@@ -18,20 +20,78 @@ export type MarketplaceBatchIntent =
   | PrepareBulkFanoutIntentClaim
   | PrepareAssetIntentClaim
   | AttachForListingIntentClaim
-  | CreateListingIntentClaim;
+  | CreateListingIntentClaim
+  | AuthorizeExactOfferIntentClaim;
 
 export type MarketplaceBatchKind =
   | 'attach-and-list'
   | 'bulk-fanout'
   | 'prepare-assets'
   | 'bulk-attach'
-  | 'bulk-listing';
+  | 'bulk-listing'
+  | 'authorize-offers';
 
 const sameAddress = (left: string, right: string): boolean =>
   normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
 
 const batchIdentity = (intent: MarketplaceBatchIntent): string =>
-  intent.action === 'prepare_asset' ? intent.utxoOwner : intent.seller;
+  intent.action === 'prepare_asset'
+    ? intent.utxoOwner
+    : intent.action === 'authorize_exact_offer' ? intent.bidder : intent.seller;
+
+const outpointKey = (outpoint: { txid: string; vout: number }): string =>
+  `${outpoint.txid}:${outpoint.vout}`;
+
+const sameDelivery = (
+  left: AuthorizeExactOfferIntentClaim['delivery'],
+  right: AuthorizeExactOfferIntentClaim['delivery'],
+): boolean =>
+  left.mode === right.mode
+  && sameAddress(left.address, right.address)
+  && (left.mode === 'detached' || (right.mode === 'attached' && left.utxoValueSats === right.utxoValueSats));
+
+/**
+ * Several exact targets backed by one bidder funding outpoint. Every item spends the same input 0,
+ * so the signatures are mutually exclusive by construction: the first one a seller completes
+ * spends the funding UTXO and invalidates every sibling. Each item still proves on its own bytes
+ * (only input 0, ALL, never 0x83); this admits only the shared economic terms the review
+ * summarizes once, and refuses a batch whose items could not all be that same offer.
+ */
+function parseAuthorizeOffers(offers: AuthorizeExactOfferIntentClaim[]): AuthorizeExactOfferIntentClaim[] {
+  const first = offers[0]!;
+  const funding = outpointKey(first.bitcoinInvalidation.outpoint);
+  for (const offer of offers) {
+    if (!sameAddress(offer.bidder, first.bidder)) {
+      throw new Error('exact-offer authorizations must share one bidder');
+    }
+    if (outpointKey(offer.bitcoinInvalidation.outpoint) !== funding) {
+      throw new Error('exact-offer authorizations must share one funding outpoint');
+    }
+    if (!sameDelivery(offer.delivery, first.delivery)) {
+      throw new Error('exact-offer authorizations must share one delivery');
+    }
+    if (offer.priceSats !== first.priceSats || offer.platformFeeSats !== first.platformFeeSats) {
+      throw new Error('exact-offer authorizations must share one price and platform fee');
+    }
+  }
+  if (new Set(offers.map(offer => offer.authorizationId)).size !== offers.length) {
+    throw new Error('exact-offer batch contains a duplicate authorization id');
+  }
+  if (new Set(offers.map(offer => offer.operationId)).size !== offers.length) {
+    throw new Error('marketplace batch contains a duplicate operation id');
+  }
+  const targets = offers.map(offer => outpointKey(offer.assets[0].sourceOutpoint));
+  if (new Set(targets).size !== targets.length) {
+    throw new Error('exact-offer batch contains a duplicate target outpoint');
+  }
+  if (targets.includes(funding)) {
+    throw new Error('exact-offer target cannot be its own funding outpoint');
+  }
+  if (new Set(offers.map(offer => offer.expectedTxid)).size !== offers.length) {
+    throw new Error('exact-offer batch contains a duplicate transaction');
+  }
+  return offers;
+}
 
 /** Parse an untrusted request array and admit only bounded homogeneous signing phases. */
 export function parseMarketplaceBatchIntents(values: unknown[]): {
@@ -68,6 +128,12 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
   const action = parsed[0]!.action;
   if (!parsed.every(intent => intent.action === action)) {
     throw new Error('marketplace batch requests must use one semantic action');
+  }
+  if (action === 'authorize_exact_offer') {
+    return {
+      kind: 'authorize-offers',
+      intents: parseAuthorizeOffers(parsed as AuthorizeExactOfferIntentClaim[]),
+    };
   }
   if (!['prepare_bulk_fanout', 'prepare_asset', 'attach_for_listing', 'create_listing'].includes(action)) {
     throw new Error('marketplace action is not supported in a multi-PSBT phase');
@@ -172,7 +238,9 @@ export function analyzeMarketplaceBatch(
     { kind: 'text' as const, label: t('marketplace_batch_transactions'), value: count(intents.length) },
     { kind: 'address' as const, label: t('marketplace_batch_seller_wallet'), value: seller },
   ];
-  const facts: MarketplaceApprovalReview['facts'] = kind === 'attach-and-list' ? [] : [...identityFacts];
+  const facts: MarketplaceApprovalReview['facts'] = kind === 'attach-and-list' || kind === 'authorize-offers'
+    ? []
+    : [...identityFacts];
   let title: string;
   let notice: string;
   let summary: MarketplaceBundleReview['bundleSummary'];
@@ -238,6 +306,71 @@ export function analyzeMarketplaceBatch(
       },
     );
     notice = t('marketplace_batch_the_attach_transaction_is_broadcast');
+  } else if (kind === 'authorize-offers') {
+    // The parser admitted only items sharing bidder, funding outpoint, delivery, price, and fee,
+    // and each item proved those against its own bytes, so the first item speaks for all of them.
+    const offers = intents as AuthorizeExactOfferIntentClaim[];
+    const first = offers[0]!;
+    const buyerCost = exactSafeSum([first.priceSats, first.platformFeeSats], 'offer cost');
+    const deliveryUtxoSats = first.delivery.mode === 'attached' ? first.delivery.utxoValueSats : 0;
+    const funding = first.bitcoinInvalidation.outpoint;
+    const expiries = offers.map(offer => offer.marketplaceExpiresAt);
+    const latestExpiry = Math.max(...expiries);
+    title = offers.length === 1
+      ? t('marketplace_batch_authorize_1_exact_offer')
+      : t('marketplace_batch_authorize_exact_offers', count(offers.length));
+    facts.push(
+      {
+        kind: 'amount', label: t('marketplace_intent_you_pay_if_accepted'),
+        value: sats(buyerCost), emphasis: 'primary',
+      },
+      { kind: 'amount' as const, label: t('marketplace_intent_offer_price'), value: sats(first.priceSats) },
+      ...(first.platformFeeSats > 0 ? [{
+        kind: 'amount' as const, label: t('marketplace_intent_platform_fee'),
+        value: sats(first.platformFeeSats), description: t('marketplace_intent_paid_by_the_buyer'),
+      }] : []),
+      ...(deliveryUtxoSats > 0 ? [{
+        kind: 'amount' as const, label: t('marketplace_intent_sats_kept_with_your_asset'),
+        value: sats(deliveryUtxoSats),
+        description: t('marketplace_intent_still_yours_separate_from_the_offer_cost'),
+      }] : []),
+      {
+        kind: 'paragraph' as const, label: t('marketplace_batch_settlement'),
+        value: t('marketplace_batch_at_most_one_offer_can_be_accepted'),
+      },
+      { kind: 'text' as const, label: t('marketplace_batch_transactions'), value: count(offers.length) },
+      // Each target under its ledger-proved quantity (the item proof's summary), never raw units.
+      ...offers.map((offer, index) => ({
+        kind: 'outpoint' as const,
+        label: reviews[index]?.summary?.description ?? offer.assets[0].asset,
+        value: `${offer.assets[0].sourceOutpoint.txid}:${offer.assets[0].sourceOutpoint.vout}`,
+      })),
+      {
+        kind: 'address' as const, label: t('marketplace_intent_delivery'), value: first.delivery.address,
+        description: first.delivery.mode === 'attached'
+          ? t('marketplace_intent_asset_stays_attached_to_sat_utxo', count(deliveryUtxoSats))
+          : t('marketplace_intent_asset_detaches_to_this_address'),
+      },
+      {
+        kind: 'outpoint' as const, label: t('marketplace_intent_funding_utxo'),
+        value: `${funding.txid}:${funding.vout}`,
+      },
+      {
+        // Expiries may differ per target; name the latest rather than imply one shared deadline.
+        kind: 'text' as const,
+        label: expiries.every(expiry => expiry === latestExpiry)
+          ? t('marketplace_intent_marketplace_expiry')
+          : t('marketplace_batch_latest_marketplace_expiry'),
+        value: formatExpiry(latestExpiry),
+      },
+      {
+        kind: 'paragraph' as const, label: t('marketplace_intent_cancellation'),
+        value: t('marketplace_intent_withdraw_by_spending_your_funding_utxo'),
+      },
+    );
+    // No notice, as for listings: each item is `caution` by design (a durable buyer signature),
+    // and the settlement and cancellation facts above are what that caution says.
+    notice = '';
   } else if (kind === 'bulk-fanout') {
     const fanouts = intents as PrepareBulkFanoutIntentClaim[];
     const slots = exactSafeSum(fanouts.map(intent => intent.slotCount), 'slot count');

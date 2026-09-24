@@ -667,6 +667,20 @@ describe('Attach', () => {
     expect(result.quantity).toBe(50000000n);
     expect(result.destinationVout).toBe(2);
   });
+
+  // Core's int() refuses these, so the message is void on chain. Decoding them as numbers would
+  // show a clean attach for a transaction that attaches nothing, or attaches somewhere else.
+  it.each([
+    ['hex quantity', 'XCP|0x1|'],
+    ['binary quantity', 'XCP|0b1|'],
+    ['empty quantity', 'XCP||'],
+    ['signed quantity', 'XCP|-1|'],
+    ['trailing garbage in the vout', 'XCP|1|0abc'],
+    ['hex vout', 'XCP|1|0x1'],
+    ['fractional vout', 'XCP|1|1.5'],
+  ])('should refuse an attach with a %s', (_label, text) => {
+    expect(() => unpackAttach(new TextEncoder().encode(text))).toThrow(/Invalid attach/);
+  });
 });
 
 describe('Pool Deposit', () => {

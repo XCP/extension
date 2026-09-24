@@ -6208,6 +6208,30 @@
   "psbt_approve_fund_offer": {
     "message": "为出价准备资金"
   },
+  "marketplace_batch_authorize_1_exact_offer": {
+    "message": "授权 1 个指定出价"
+  },
+  "marketplace_batch_authorize_exact_offers": {
+    "message": "授权 $1 个指定出价"
+  },
+  "marketplace_batch_settlement": {
+    "message": "结算"
+  },
+  "marketplace_batch_at_most_one_offer_can_be_accepted": {
+    "message": "最多只能接受一个。所有出价都花费同一个资金 UTXO。"
+  },
+  "psbts_approve_authorize_offers": {
+    "message": "授权出价"
+  },
+  "psbts_approve_authorize_1_offer": {
+    "message": "授权 1 个出价"
+  },
+  "psbts_approve_authorize_offers_2": {
+    "message": "授权 $1 个出价"
+  },
+  "marketplace_batch_latest_marketplace_expiry": {
+    "message": "最晚市场到期时间"
+  },
   "address_type_shortcut_change_address_type": {
     "message": "更改地址类型（当前：$1）"
   }

@@ -57,7 +57,9 @@ export default function ApprovePsbtsPage() {
                 ? t('psbts_approve_attach_collectibles')
                 : request?.bundleKind === "bulk-listing"
                   ? t('psbts_approve_authorize_listings')
-                  : t('psbts_approve_review_transaction_batch');
+                  : request?.bundleKind === "authorize-offers"
+                    ? t('psbts_approve_authorize_offers')
+                    : t('psbts_approve_review_transaction_batch');
     setHeaderProps({ title });
   }, [request?.bundleKind, setHeaderProps]);
 
@@ -120,7 +122,11 @@ export default function ApprovePsbtsPage() {
           ? t('common_accept_offer_2')
           : request.bundleKind === "bulk-fanout"
             ? t('psbts_approve_prepare_funds_2')
-            : t('psbts_approve_sign_transactions');
+            : request.bundleKind === "authorize-offers"
+              ? request.items.length === 1
+                ? t('psbts_approve_authorize_1_offer')
+                : t('psbts_approve_authorize_offers_2', [String(request.items.length)])
+              : t('psbts_approve_sign_transactions');
   const retry = decodedInfo.review.status === "retry" || Boolean(refreshError);
   const noticeItems: WarningItem[] = [
     ...(error ? [{ key: "signing-error", severity: "danger" as const, title: error }] : []),

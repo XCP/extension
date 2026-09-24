@@ -78,6 +78,17 @@ describe('dependent attach and listing signing', () => {
     expect(resolvedListing.getInput(1)!.nonWitnessUtxo).toBeDefined();
   });
 
+  it('refuses to sign when the claimed attach outpoint is not the reviewed attach transaction', async () => {
+    const fixture = legacyAttachAndDependentListing();
+    let signed = 0;
+    await expect(signAttachAndListingForDelivery(
+      [{ psbtHex: fixture.attachPsbt }, { psbtHex: fixture.listingPsbt }],
+      { txid: 'ff'.repeat(32), vout: 0 },
+      async item => { signed += 1; return item.psbtHex; },
+    )).rejects.toThrow(/reviewed attach transaction/);
+    expect(signed).toBe(0);
+  });
+
   it('refuses to rebind a different source outpoint', () => {
     const fixture = legacyAttachAndDependentListing();
     expect(() => rebindDependentListingPsbt(

@@ -8264,6 +8264,38 @@
     "message": "Fund offer",
     "description": "pages/requests/psbt/approve.tsx"
   },
+  "marketplace_batch_authorize_1_exact_offer": {
+    "message": "Authorize 1 exact offer",
+    "description": "Title of the batch approval screen where the bidder signs an exact offer on one specific collectible."
+  },
+  "marketplace_batch_authorize_exact_offers": {
+    "message": "Authorize $1 exact offers",
+    "description": "Title of the batch approval screen where the bidder signs exact offers on several specific collectibles backed by one funding UTXO. $1 is the number of offers (2 or more)."
+  },
+  "marketplace_batch_settlement": {
+    "message": "Settlement",
+    "description": "Row label on the exact-offer batch approval screen, above the statement that at most one of the offers can be accepted."
+  },
+  "marketplace_batch_at_most_one_offer_can_be_accepted": {
+    "message": "At most one can be accepted. Every offer spends the same funding UTXO.",
+    "description": "Value beside \"Settlement\" on the exact-offer batch approval screen: all the signed offers share one funding UTXO, so the first one a seller accepts invalidates the rest."
+  },
+  "psbts_approve_authorize_offers": {
+    "message": "Authorize Offers",
+    "description": "pages/requests/psbts/approve.tsx. Header title of the batch screen where the bidder signs exact offers."
+  },
+  "psbts_approve_authorize_1_offer": {
+    "message": "Authorize 1 offer",
+    "description": "pages/requests/psbts/approve.tsx. Sign button for a batch holding one exact offer."
+  },
+  "psbts_approve_authorize_offers_2": {
+    "message": "Authorize $1 offers",
+    "description": "pages/requests/psbts/approve.tsx. Sign button for a batch of exact offers. $1 = request.items.length"
+  },
+  "marketplace_batch_latest_marketplace_expiry": {
+    "message": "Latest marketplace expiry",
+    "description": "Row label on the exact-offer batch approval screen when the offers expire at different times; its value is the latest of those marketplace expiry times."
+  },
   "address_type_shortcut_change_address_type": {
     "message": "Change address type (current: $1)",
     "description": "Tooltip and accessible name of the home-header icon button that opens a popover for switching the active wallet's address type (components/domain/address/address-type-shortcut.tsx). $1 = the current address type's label, e.g. Native SegWit (P2WPKH)"

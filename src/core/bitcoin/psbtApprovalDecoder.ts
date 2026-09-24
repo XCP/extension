@@ -7,6 +7,7 @@ import {
   resolvePsbtSighashType,
 } from '@/core/bitcoin/psbt';
 import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
+import { type LinkedInputEvidence, withLinkedInputAssets } from '@/core/counterparty/marketplaceAttachLink';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
 import {
   type InscriptionCommitContext,
@@ -34,9 +35,23 @@ export async function decodePsbtForApproval(
   bitcoinPaymentIntent?: BitcoinPaymentIntentV1,
   marketplaceIntent?: MarketplaceIntentClaimV1,
   ownedAddresses?: string[],
+  options: {
+    /**
+     * Evidence for one input proved by another item of the same atomic bundle, used where the
+     * ledger cannot yet know that input (see marketplaceAttachLink.ts). Only the bundle decoder
+     * supplies it, and only after proving the input is exactly the linked output.
+     */
+    linkedInput?: LinkedInputEvidence;
+  } = {},
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
-  const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
+  const ledgerAssets = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
+  const { linkedInput } = options;
+  const attachedAssetsPromise = linkedInput
+    ? ledgerAssets.then(ledger => withLinkedInputAssets(
+        ledger, linkedInput.entry, linkedInput.attachTxid, linkedInput.attachIsUnbroadcast,
+      ))
+    : ledgerAssets;
   const txid = psbtDetails.transactionId;
   let counterpartyDataHex: string | undefined;
 

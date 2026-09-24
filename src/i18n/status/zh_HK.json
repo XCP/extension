@@ -2055,6 +2055,14 @@
     "marketplace_intent_paid_only_if_a_seller_accepts",
     "marketplace_intent_notice_fund_offers",
     "psbt_approve_fund_offer",
+    "marketplace_batch_authorize_1_exact_offer",
+    "marketplace_batch_authorize_exact_offers",
+    "marketplace_batch_settlement",
+    "marketplace_batch_at_most_one_offer_can_be_accepted",
+    "psbts_approve_authorize_offers",
+    "psbts_approve_authorize_1_offer",
+    "psbts_approve_authorize_offers_2",
+    "marketplace_batch_latest_marketplace_expiry",
     "address_type_shortcut_change_address_type"
   ]
 }
