@@ -6209,6 +6209,6 @@
     "message": "為出價準備資金"
   },
   "address_type_shortcut_change_address_type": {
-    "message": "變更地址型別"
+    "message": "變更地址型別（目前：$1）"
   }
 }

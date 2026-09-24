@@ -8265,7 +8265,7 @@
     "description": "pages/requests/psbt/approve.tsx"
   },
   "address_type_shortcut_change_address_type": {
-    "message": "Change address type",
-    "description": "Tooltip and accessible name of the home-header icon button that opens a popover for switching the active wallet's address type (components/domain/address/address-type-shortcut.tsx)."
+    "message": "Change address type (current: $1)",
+    "description": "Tooltip and accessible name of the home-header icon button that opens a popover for switching the active wallet's address type (components/domain/address/address-type-shortcut.tsx). $1 = the current address type's label, e.g. Native SegWit (P2WPKH)"
   }
 }

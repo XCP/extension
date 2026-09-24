@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { displayAccountName } from '@/components/domain/account-name';
+import { localizedAddressFormatLabel } from '@/components/domain/address/address-format-label';
 import { AddressTypeShortcut } from '@/components/domain/address/address-type-shortcut';
 import { AssetList } from "@/components/domain/asset/asset-list";
 import { BalanceList } from "@/components/domain/balance/balance-list";
@@ -170,7 +171,14 @@ export default function HomePage(): ReactElement {
           onClick={handleCopyAddress}
           aria-label={t('common_current_address')}
         >
-          <div className="text-sm mb-1 font-medium">{displayAccountName(activeAddress.name)}</div>
+          <div className="text-sm mb-1 font-medium">
+            <span>{displayAccountName(activeAddress.name)}</span>
+            {activeWallet && (
+              <span className="ml-1 text-xs font-normal text-blue-100">
+                · {localizedAddressFormatLabel(activeWallet.addressFormat)}
+              </span>
+            )}
+          </div>
           <div className="flex justify-center items-center">
             <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
             {copiedToClipboard ? (
