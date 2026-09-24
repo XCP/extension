@@ -653,6 +653,84 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       await context.close();
     }
   });
+
+  test('answers after the service worker is actually stopped', async ({ dappServer }) => {
+    const { context, extensionId } = await launchExtension('sw-stopped');
+
+    try {
+      const dappPage = await context.newPage();
+      await dappPage.goto(dappServer.url);
+      expect(await waitForProvider(dappPage)).toBe(true);
+      const chainId = () => dappPage.evaluate(async () => {
+        try {
+          return await (window as any).xcpwallet.request({ method: 'xcp_chainId' });
+        } catch (e: any) {
+          return { error: e.message, code: e.code };
+        }
+      });
+      expect(await chainId()).toBe('0x0');
+
+      // Stop the worker for real; the page's cached port dies with it.
+      const cdp = await context.newCDPSession(dappPage);
+      const { targetInfos } = await cdp.send('Target.getTargets');
+      const worker = targetInfos.find(t => t.type === 'service_worker' && t.url.includes(extensionId));
+      expect(worker).toBeTruthy();
+      await cdp.send('Target.closeTarget', { targetId: worker!.targetId });
+
+      expect(await chainId()).toBe('0x0');
+      await dappPage.close();
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('fails fast with a reload-required 4900 once the extension is reloaded under the page', async ({ dappServer }) => {
+    const { context, extensionId } = await launchExtension('context-invalidated');
+
+    try {
+      const dappPage = await context.newPage();
+      await dappPage.goto(dappServer.url);
+      expect(await waitForProvider(dappPage)).toBe(true);
+      await dappPage.evaluate(() => {
+        (window as any).bridgeEvents = [];
+        (window as any).xcpwallet.on('disconnect', (error: any) => {
+          (window as any).bridgeEvents.push({ code: error?.code, data: error?.data });
+        });
+      });
+
+      // Reloading orphans this page's content script, as an extension update does.
+      const worker = context.serviceWorkers().find(w => w.url().includes(extensionId));
+      expect(worker).toBeTruthy();
+      await worker!.evaluate(() => { setTimeout(() => chrome.runtime.reload(), 50); }).catch(() => {});
+      await expect.poll(() => dappPage.evaluate(async () => {
+        try {
+          await (window as any).xcpwallet.request({ method: 'xcp_accounts' });
+          return null;
+        } catch (e: any) {
+          return e.code;
+        }
+      })).toBe(4900);
+
+      // Interactive methods too: answered at once, not left waiting for an approval that cannot come.
+      const result = await dappPage.evaluate(async () => {
+        const started = Date.now();
+        try {
+          await (window as any).xcpwallet.request({ method: 'xcp_requestAccounts' });
+          return { resolved: true, ms: Date.now() - started };
+        } catch (e: any) {
+          return { code: e.code, data: e.data, message: e.message, ms: Date.now() - started };
+        }
+      });
+      expect(result).toMatchObject({ code: 4900, data: { reloadRequired: true } });
+      expect(result.message).toMatch(/Reload this page/);
+      expect(result.ms).toBeLessThan(1000);
+      expect(await dappPage.evaluate(() => (window as any).bridgeEvents)).toEqual([
+        { code: 4900, data: { reloadRequired: true } },
+      ]);
+    } finally {
+      await context.close();
+    }
+  });
 });
 
 test.describe('Provider Resilience - Error Handling', () => {
