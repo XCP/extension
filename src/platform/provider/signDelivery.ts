@@ -28,11 +28,17 @@ export type SignDeliveryGuard = () => void;
  * immediately before exposing the result. It checks the current background-owned
  * grant and identity even if a queued mutation runs during the final await or
  * the caller's continuation. Refusal leaves completed results intact.
+ *
+ * @param pairedContinuity - whether this result may still be delivered after a switch to the
+ *   request address's paired Legacy/SegWit sibling (while the origin's current paired grant covers
+ *   both halves). The caller states it: signing flows pass `supportsPairedContinuity(kind)`,
+ *   connection proofs pass false. It is never inferred from the request's shape.
  */
 export async function assertSignDeliveryAuthorized(
   request: AuthorizedRequest,
   pairedAddresses: boolean,
   sessionGeneration: number,
+  pairedContinuity: boolean,
 ): Promise<SignDeliveryGuard> {
   const wallet = getWalletService();
   const permissions = getConnectionService();
@@ -43,9 +49,13 @@ export async function assertSignDeliveryAuthorized(
   if (pairedAddresses && !await permissions.hasPairedAddressPermission(
     request.origin, request.walletId, request.address,
   )) throw withProviderReviewCode(new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Paired address access was revoked'), 'paired_revoked');
+  // A completed signing flow may be delivered after a switch to the paired sibling, but only
+  // while the origin's current paired grant covers both halves. Connection proofs never may.
+  const grant = () => pairedContinuity
+    ? walletManager.getSettings().providerCapabilities?.[request.origin] : undefined;
   const activeAddress = await wallet.getActiveAddress();
   const activeWallet = await wallet.getActiveWallet();
-  const mismatch = getIdentityMismatchCode(request, activeAddress?.address, activeWallet?.id);
+  const mismatch = getIdentityMismatchCode(request, activeAddress?.address, activeWallet?.id, grant());
   if (mismatch) throw new ProviderReviewError(mismatch);
   const assertCurrentAuthorization = () => {
     // These are immediate in-memory reads from the background owner, not RPCs.
@@ -63,7 +73,8 @@ export async function assertSignDeliveryAuthorized(
     const currentWallet = walletManager.getActiveWallet();
     const currentAddress = currentWallet?.addresses.find(address => address.address === settings.lastActiveAddress)
       ?? currentWallet?.addresses[0];
-    const currentMismatch = getIdentityMismatchCode(request, currentAddress?.address, currentWallet?.id);
+    const currentMismatch = getIdentityMismatchCode(request, currentAddress?.address, currentWallet?.id,
+      pairedContinuity ? capability : undefined);
     if (currentMismatch) throw new ProviderReviewError(currentMismatch);
     if (Date.now() >= request.timestamp + SIGN_FLOW_TTL_MS) throw new ProviderReviewError('expired_delivery');
   };

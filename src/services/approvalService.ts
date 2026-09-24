@@ -12,7 +12,7 @@
  */
 
 import { analytics } from '@/platform/fathom';
-import { openPopupWindow, type PopupWindow } from '@/platform/popup';
+import { openPopupWindow, type PopupWindow, reusePopupWindow } from '@/platform/popup';
 import {
   beginApprovalFlow,
   findPendingApproval,
@@ -44,6 +44,17 @@ export type CompletionHandler = (
   result: ApprovalResult
 ) => Promise<void>;
 
+/** Where the approval screen opens. Not part of the stored request. */
+export interface ApprovalPlacement {
+  /**
+   * An extension window already open for this same request — the unlock window a locked connect
+   * opened — to continue in, rather than opening a second window. Ignored if it has closed.
+   */
+  reuseWindowId?: number;
+  /** Called once the approval screen has actually been placed in `reuseWindowId`. */
+  onReused?: () => void;
+}
+
 export class ApprovalService extends BaseService {
   private pendingApproval: PendingApproval | null = null;
   private completeOrphaned: CompletionHandler | null = null;
@@ -66,7 +77,8 @@ export class ApprovalService extends BaseService {
    */
   async requestApproval<T = boolean>(
     options: ApprovalRequestOptions,
-    timeout: number = ApprovalService.REQUEST_TIMEOUT
+    timeout: number = ApprovalService.REQUEST_TIMEOUT,
+    placement: ApprovalPlacement = {}
   ): Promise<T> {
     const { id, origin, method, type, params, metadata } = options;
 
@@ -103,7 +115,7 @@ export class ApprovalService extends BaseService {
     }, timeout);
 
     // Open approval popup
-    await this.openApprovalPopup(type, id, origin);
+    await this.openApprovalPopup(type, id, origin, placement);
 
     // Update badge
     this.updateBadge();
@@ -248,7 +260,8 @@ export class ApprovalService extends BaseService {
   private async openApprovalPopup(
     type: ApprovalRequest['type'],
     requestId: string,
-    origin: string
+    origin: string,
+    placement: ApprovalPlacement = {}
   ): Promise<void> {
     // Close existing popup if any
     await this.closePopup();
@@ -259,9 +272,28 @@ export class ApprovalService extends BaseService {
       requestId,
       origin,
     });
+    const path = `#${route}?${params.toString()}`;
+
+    // Continue in the window the request is already using when it is still open.
+    if (placement.reuseWindowId !== undefined) {
+      // Listen before navigating. The window may be closed at any moment; a close landing between
+      // the navigation and a listener attached afterwards would leave the request pending until it
+      // timed out. reusePopupWindow then checks the window still exists, after the listener is on.
+      this.setupWindowCloseListener(placement.reuseWindowId);
+      const reused = await reusePopupWindow(placement.reuseWindowId, path);
+      if (reused) {
+        this.popup = reused;
+        this.state.currentWindow = reused.id;
+        placement.onReused?.();
+        return;
+      }
+      this.removeWindowCloseListener();
+      // Closed while we were navigating it: the listener has already cancelled this request.
+      if (this.pendingApproval?.id !== requestId) return;
+    }
 
     // Open centered popup window
-    this.popup = await openPopupWindow(`#${route}?${params.toString()}`);
+    this.popup = await openPopupWindow(path);
     this.state.currentWindow = this.popup.id;
 
     // Listen for window close to auto-reject

@@ -12,9 +12,10 @@ export function Header({
   title,
   leftButton,
   rightButton,
+  rightAccessory,
   onBack,
 }: HeaderProps): ReactElement {
-  const hasControls = Boolean(onBack || leftButton || rightButton);
+  const hasControls = Boolean(onBack || leftButton || rightButton || rightAccessory);
 
   /**
    * Handles the click event for the left/back button.
@@ -89,7 +90,8 @@ export function Header({
       </div>
 
       {/* Right Section */}
-      {hasControls && <div className="col-span-1 flex justify-end">
+      {hasControls && <div className="col-span-1 flex items-center justify-end gap-1">
+        {rightAccessory}
         {renderButton(rightButton)}
       </div>}
     </header>

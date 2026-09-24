@@ -6231,5 +6231,8 @@
   },
   "marketplace_batch_latest_marketplace_expiry": {
     "message": "最晚市場到期時間"
+  },
+  "address_type_shortcut_change_address_type": {
+    "message": "變更地址型別（目前：$1）"
   }
 }

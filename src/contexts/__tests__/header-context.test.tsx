@@ -159,6 +159,23 @@ describe('HeaderContext', () => {
       expect(result.current.headerProps.rightButton).toEqual(rightButton);
     });
 
+    it('should set and clear a right accessory by reference', () => {
+      const { result } = renderHook(() => useHeader(), {
+        wrapper: HeaderProvider
+      });
+      const first = 'first accessory';
+      const second = 'second accessory';
+
+      act(() => { result.current.setHeaderProps({ rightAccessory: first }); });
+      expect(result.current.headerProps.rightAccessory).toBe(first);
+
+      act(() => { result.current.setHeaderProps({ rightAccessory: second }); });
+      expect(result.current.headerProps.rightAccessory).toBe(second);
+
+      act(() => { result.current.setHeaderProps({ title: 'Other page' }); });
+      expect(result.current.headerProps.rightAccessory).toBeUndefined();
+    });
+
     it('should handle button with label', () => {
       const { result } = renderHook(() => useHeader(), {
         wrapper: HeaderProvider

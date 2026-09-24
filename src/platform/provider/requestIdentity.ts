@@ -1,23 +1,48 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { PROVIDER_REVIEW_MESSAGES, type ProviderReviewCode } from '@/core/providerReviewErrors';
+import { type PairedGrant, pairedGrantCovers } from '@/platform/provider/pairedGrant';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 
 /**
  * Returns a diagnostic code if the active signing identity no longer matches the
  * one authorized when the request was created, or null if it still matches.
  * Used by the approve screens to refuse signing after a wallet/address switch.
+ *
+ * Switching to the same-index Legacy/SegWit sibling is not a different identity for a site whose
+ * paired grant covers both halves: the user approved that pair together at connect time, so a
+ * pending request continues. Pass `pairedGrant` only for a request whose signers the wallet can
+ * resolve across the pair, and only with the origin's current grant. This keeps the request open;
+ * it authorizes no signer — each signer is still checked against the grant at execution.
  */
 export function getIdentityMismatchCode(
   request: AuthorizedRequest,
   activeAddress: string | undefined,
   activeWalletId: string | undefined,
+  pairedGrant?: PairedGrant,
 ): ProviderReviewCode | null {
-  const addressChanged = request.address !== activeAddress;
   const walletChanged = Boolean(request.walletId) && request.walletId !== activeWalletId;
-  if (addressChanged || walletChanged) {
-    return 'identity_changed';
-  }
-  return null;
+  if (walletChanged) return 'identity_changed';
+  if (request.address === activeAddress) return null;
+  return isGrantedPairedSibling(request, activeAddress, pairedGrant) ? null : 'identity_changed';
+}
+
+/** True when the active address is the request address's sibling under the origin's paired grant. */
+export function isGrantedPairedSibling(
+  request: AuthorizedRequest,
+  activeAddress: string | undefined,
+  pairedGrant: PairedGrant | undefined,
+): boolean {
+  // A grant names one wallet and one derivation index: covering two different addresses means
+  // they are that index's two halves. A grant recorded before the sibling was stored covers one.
+  if (!request.walletId || !activeAddress || !pairedGrant) return false;
+  return normalizeAddressForComparison(request.address) !== normalizeAddressForComparison(activeAddress)
+    && pairedGrantCovers(pairedGrant, request.walletId, request.address)
+    && pairedGrantCovers(pairedGrant, request.walletId, activeAddress);
+}
+
+/** Raw transactions are signed only by the wallet's own addresses, never across the pair. */
+export function supportsPairedContinuity(kind: string): boolean {
+  return kind === 'sign-message' || kind === 'sign-psbt' || kind === 'sign-psbts';
 }
 interface PsbtAuthorizationRequest extends AuthorizedRequest {
   signInputs?: Record<string, number[]>;

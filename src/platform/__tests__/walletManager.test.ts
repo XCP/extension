@@ -602,6 +602,34 @@ describe('WalletManager', () => {
       );
     });
 
+    it('derives the preview at the requested address index', async () => {
+      const wallet = createTestWallet();
+      walletManager['wallets'] = [wallet];
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue('test mnemonic phrase');
+      mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('bc1pindex3');
+      mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/86'/0'/0'");
+
+      await expect(
+        walletManager.getPreviewAddressForFormat(wallet.id, AddressFormat.P2TR, 3)
+      ).resolves.toBe('bc1pindex3');
+      expect(mocks.bitcoin.getAddressFromMnemonic).toHaveBeenCalledWith(
+        'test mnemonic phrase',
+        "m/86'/0'/0'/3",
+        AddressFormat.P2TR
+      );
+    });
+
+    it.each([-1, 1.5, Number.NaN])('refuses the preview address index %s', async (index) => {
+      const wallet = createTestWallet();
+      walletManager['wallets'] = [wallet];
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue('test mnemonic phrase');
+
+      await expect(
+        walletManager.getPreviewAddressForFormat(wallet.id, AddressFormat.P2WPKH, index)
+      ).rejects.toThrow('Invalid preview address index');
+      expect(mocks.bitcoin.getAddressFromMnemonic).not.toHaveBeenCalled();
+    });
+
     it('uses the stored hex field for a private-key wallet preview', async () => {
       const wallet = createPrivateKeyWallet();
       walletManager['wallets'] = [wallet];
