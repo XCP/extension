@@ -4,6 +4,7 @@ import {
   highFeeAttentionItem,
   partitionApprovalItems,
   verificationAttentionItem,
+  withPolicyAcknowledgement,
 } from "@/components/domain/approval/approval-attention";
 import {
   ApprovalFooter,
@@ -198,11 +199,12 @@ export default function ApproveTransactionPage() {
     signedInputsUnknownStatus.length > 0 ||
     (decodedInfo.structureFindings ?? []).length > 0;
   const { attention } = partitionApprovalItems(warningItems);
-  const approvalAttentionItems: WarningItem[] = [
+  // Whatever this screen shows, it takes the review step whenever the execution policy asks for one.
+  const approvalAttentionItems: WarningItem[] = withPolicyAcknowledgement([
     ...attention,
     ...(deferredVerificationFailure ? [verificationAttentionItem(verificationWarning)] : []),
     ...(hasHighFee ? [highFeeAttentionItem(decodedInfo.fee, decodedInfo.vsize)] : []),
-  ];
+  ], approvalPolicy?.requiresAcknowledgement);
   const retryAvailable = signedInputsUnknownStatus.length > 0
     || decodedInfo.inputs.some(input => input.value === undefined || !input.address);
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;

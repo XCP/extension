@@ -7,6 +7,7 @@ import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import type { DecodedTransactionInfo } from '@/core/bitcoin/transactionApprovalDecoder';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
+import { marketplaceReviewRequiresAcknowledgement } from '@/core/counterparty/marketplaceReviewPolicy';
 import type { SignRequestAnalysis } from '@/core/counterparty/signRequestAnalysis';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { shouldBlockSigning } from '@/core/counterparty/unpack/providerVerify';
@@ -36,8 +37,7 @@ function policy(
     ? !destination.destinationCommitted || destination.leavesWallet
     : assets.withAssets.length > 0);
   const marketplace = analysis.marketplaceReview;
-  const marketplaceWarning = marketplace?.status === 'caution'
-    && marketplace.family !== 'attach_for_listing' && marketplace.family !== 'prepare_asset';
+  const marketplaceWarning = marketplaceReviewRequiresAcknowledgement(marketplace);
   const verificationException = analysis.verification.passed === false
     && analysis.verification.repackProved !== true && !strictMode;
   return {

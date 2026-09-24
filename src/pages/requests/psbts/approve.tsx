@@ -88,6 +88,10 @@ export default function ApprovePsbtsPage() {
   if (loadError || !request || !decodedInfo) return <ApprovalUnavailable message={loadError} onRetry={requestId ? () => void handleRetry() : undefined} retrying={isRefreshing} />;
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
+  // The header names who signs: the request's own signer, not the active address, which after a
+  // switch to the paired Legacy/SegWit sibling is not the key the background signs these items with.
+  const signers = [...new Set(request.items.flatMap((item) => Object.keys(item.signInputs)))];
+  const headerAddress = signers.length === 1 ? signers[0]! : request.address;
   const blocked = !approvalPolicy || approvalPolicy.blocked
     || decodedInfo.review.status === "blocked" || decodedInfo.review.status === "retry";
   const policyItems: WarningItem[] = (decodedInfo.policyWarnings ?? []).map((warning, index) => ({
@@ -145,7 +149,7 @@ export default function ApprovePsbtsPage() {
   return (
     <ApprovalLayout
       walletName={activeWallet.name}
-      address={activeAddress.address}
+      address={headerAddress}
       origin={request.origin}
       footer={
         <ApprovalFooter

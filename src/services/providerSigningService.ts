@@ -12,8 +12,10 @@ import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/cor
 import { ProviderReviewError } from '@/core/providerReviewErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
+import type { SigningIdentity } from '@/platform/auth/signingIdentity';
+import type { PairedGrant } from '@/platform/provider/pairedGrant';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
-import { getConnectionRevokedCode, getIdentityMismatchCode, getMessagePermissionCode, getPsbtPermissionCode } from '@/platform/provider/requestIdentity';
+import { getConnectionRevokedCode, getIdentityMismatchCode, getMessagePermissionCode, getPsbtPermissionCode, supportsPairedContinuity } from '@/platform/provider/requestIdentity';
 import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/platform/provider/signDelivery';
 import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignMessageRequest, type SignPsbtRequest, type SignPsbtsRequest, type SignTransactionRequest } from '@/platform/provider/signFlow';
 import { signAttachAndListingForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
@@ -26,6 +28,13 @@ interface ReviewBase {
   reviewKey: string;
   policy: ProviderApprovalPolicy;
   fastestFee?: number;
+  /**
+   * The origin's paired grant when this request may continue after a switch to the active
+   * address's Legacy/SegWit sibling. Lets the screen keep the review open; execution re-reads
+   * the current grant and authorizes every signer against it. Included in reviewKey, so a grant
+   * change invalidates an open review (review_changed) on purpose.
+   */
+  pairedGrant?: PairedGrant;
 }
 export type ProviderSigningReview = ReviewBase & (
   | { kind: 'sign-message'; request: SignMessageRequest }
@@ -70,22 +79,38 @@ export function createProviderSigningService(): ProviderSigningService {
     return request?.status === 'pending' ? effectiveRequest(request) : null;
   }
 
-  async function assertAuthorization(request: ProviderSigningRequest): Promise<string[]> {
+  /** The origin's current paired grant, when this kind of request may continue across the pair. */
+  async function continuityGrant(request: ProviderSigningRequest): Promise<PairedGrant | undefined> {
+    if (!supportsPairedContinuity(request.kind)) return undefined;
+    return (await getWalletService().getSettings()).providerCapabilities?.[request.origin];
+  }
+
+  async function assertAuthorization(request: ProviderSigningRequest): Promise<{
+    ownedAddresses: string[];
+    identity: SigningIdentity;
+  }> {
     const wallet = getWalletService();
     if (!await wallet.isKeychainUnlocked()) throw new ProviderReviewError('wallet_locked');
     const activeAddress = await wallet.getActiveAddress();
     const activeWallet = await wallet.getActiveWallet();
-    const identityError = getIdentityMismatchCode(request, activeAddress?.address, activeWallet?.id);
-    if (identityError) throw new ProviderReviewError(identityError);
+    const identityError = getIdentityMismatchCode(request, activeAddress?.address, activeWallet?.id,
+      await continuityGrant(request));
+    if (identityError || !activeAddress) throw new ProviderReviewError(identityError ?? 'identity_changed');
+    // Signers are judged against the address active now. After a switch to the paired sibling,
+    // the request's own address is itself a paired signer and needs the paired grant.
+    const current = activeAddress.address;
     const permissions = getConnectionService();
     const permissionError = request.kind === 'sign-message'
-      ? await getMessagePermissionCode(request, permissions)
+      ? await getMessagePermissionCode({ ...request, address: current,
+        signingAddress: request.signingAddress ?? request.address }, permissions)
       : request.kind === 'sign-transaction'
         ? await getConnectionRevokedCode(request, permissions)
         : await getPsbtPermissionCode({ ...request, signInputs: request.kind === 'sign-psbts'
           ? Object.fromEntries(request.items.flatMap(item => Object.entries(item.signInputs)))
-          : request.signInputs }, request.address, permissions);
+          : request.signInputs }, current, permissions);
     if (permissionError) throw new ProviderReviewError(permissionError);
+    // The wallet binds signing to the identity active now, which the checks above just authorized.
+    const identity = { walletId: request.walletId, address: current };
 
     // Repeat structural ownership validation using background wallet data. The
     // request is immutable, but grants and the selected identity are not.
@@ -109,15 +134,15 @@ export function createProviderSigningService(): ProviderSigningService {
           }
         }
       }
-      return allowed;
+      return { ownedAddresses: allowed, identity };
     }
-    return [request.address];
+    return { ownedAddresses: [request.address], identity };
   }
 
   async function getReview(requestId: string): Promise<ProviderSigningReview> {
     const request = await getRequest(requestId);
     if (!request) throw new ProviderReviewError('unavailable');
-    const ownedAddresses = await assertAuthorization(request);
+    const { ownedAddresses } = await assertAuthorization(request);
     const strictMode = (await getWalletService().getSettings()).strictTransactionVerification !== false;
     const fastestFee = request.kind === 'sign-message' ? undefined
       : await getFeeRates().then(rates => rates.fastestFee).catch(() => undefined);
@@ -156,6 +181,12 @@ export function createProviderSigningService(): ProviderSigningService {
         break;
       }
     }
+    const pairedGrant = await continuityGrant(request);
+    // Part of the facts fingerprinted into reviewKey below, intentionally: a grant that changes
+    // while the screen is open (upgraded, narrowed, or re-recorded with the sibling) is a changed
+    // review, so a decision made against the old grant fails with review_changed and the screen
+    // reloads rather than signing under authority the user did not see.
+    if (pairedGrant) review.pairedGrant = pairedGrant;
     if (!await getRequest(requestId)) throw new ProviderReviewError('expired_during_review');
     // The precise quote can change without changing any consequence. Include
     // the fee policy decision, rather than that volatile quote, in the digest.
@@ -178,9 +209,8 @@ export function createProviderSigningService(): ProviderSigningService {
     }
     const request = effectiveRequest(await claimSignFlow(requestId));
     try {
-      await assertAuthorization(request);
+      const { identity } = await assertAuthorization(request);
       const wallet = getWalletService();
-      const identity = { walletId: request.walletId, address: request.address };
       let result: SignFlowResult;
       switch (request.kind) {
         case 'sign-message': {
@@ -218,7 +248,8 @@ export function createProviderSigningService(): ProviderSigningService {
       await recordSignOutcome(requestId, 'completed', result);
       const completed = await getSignFlow(requestId);
       if (completed?.status !== 'completed') throw new ProviderReviewError('expired_completion');
-      const assertDelivery = await assertSignDeliveryAuthorized(completed, needsPairedAddressGrant(request), sessionGeneration);
+      const assertDelivery = await assertSignDeliveryAuthorized(completed, needsPairedAddressGrant(request),
+        sessionGeneration, supportsPairedContinuity(request.kind));
       assertDelivery();
       eventEmitterService.emit(`${getSignFlowEventPrefix(request.kind)}-complete-${requestId}`, completed.result);
     } catch (error) {
