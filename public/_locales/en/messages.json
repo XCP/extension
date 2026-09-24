@@ -651,6 +651,10 @@
     "message": "Input #$1: status unknown",
     "description": "components/domain/approval/approval-warnings.tsx. $1 = entry.inputIndex"
   },
+  "approval_approval_warnings_input_pending_parent": {
+    "message": "Input #$1: created by unconfirmed transaction $2, which may attach assets to it",
+    "description": "components/domain/approval/approval-warnings.tsx, list item under \"Couldn't verify asset status\". $1 = input index; $2 = the full transaction id of the unconfirmed parent transaction."
+  },
   "approval_approval_warnings_inputs_you_are_signing_carry": {
     "message": "Inputs you are signing carry attached assets. Signing moves them, not just BTC.",
     "description": "components/domain/approval/approval-warnings.tsx"
@@ -662,6 +666,10 @@
   "approval_approval_warnings_the_balance_lookup_failed_so": {
     "message": "The balance lookup failed, so attached assets can't be ruled out.",
     "description": "components/domain/approval/approval-warnings.tsx"
+  },
+  "approval_approval_warnings_pending_parent_retry": {
+    "message": "An unconfirmed transaction may attach Counterparty assets to these inputs, and the ledger can't show them until it confirms. Retry after it confirms.",
+    "description": "components/domain/approval/approval-warnings.tsx, body under \"Couldn't verify asset status\" when every unknown input spends an output of an unconfirmed transaction that may attach assets to it."
   },
   "approval_approval_warnings_the_signature_for_attached_input": {
     "message": "The signature for attached input $1 does not fix the asset destination. Whoever completes this PSBT may choose an explicit detach address or a different first output. Review the exact authorization below.",
@@ -5280,6 +5288,14 @@
     "message": "Blocked: Sweep Transaction",
     "description": "Approval screen warning title (core/counterparty/transactionSafety.ts), shown when a site asks the wallet to sign a sweep. Signing is blocked outright."
   },
+  "safety_blocked_durable_sell_authorization": {
+    "message": "Blocked: Durable Sell Authorization",
+    "description": "Approval screen block title (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx): a SIGHASH_SINGLE/NONE signature over an input carrying attached Counterparty assets, outside a proved marketplace listing."
+  },
+  "safety_durable_sell_authorization_detail": {
+    "message": "Input $1 holds Counterparty assets, or the wallet could not verify that it doesn't, and this signature leaves the transaction's outputs open (SIGHASH_SINGLE or NONE). That is a lasting authorization to sell those assets: whoever holds the signature can complete the sale at any time until the UTXO is spent, and choose where the assets go. Only a verified marketplace listing may ask for it.",
+    "description": "Approval screen block body under \"Blocked: Durable Sell Authorization\". $1 = the affected input numbers, e.g. \"#1\" or \"#0, #2\". SIGHASH_SINGLE and NONE are protocol names and stay untranslated."
+  },
   "safety_btc_payment": {
     "message": "BTC Payment",
     "description": "Approval screen information title (core/counterparty/transactionSafety.ts), shown when the message type itself pays BTC to another address (a dispense or a BTCPay)."
@@ -5334,15 +5350,15 @@
   },
   "safety_this_funds_an_inscription": {
     "message": "This funds an inscription: $1 BTC goes to $2, an address derived from the inscription itself and spendable only by your key. The follow-up reveal transaction publishes the content. Review its destination and fees separately.",
-    "description": "Approval screen information body (core/counterparty/transactionSafety.ts) under \"Inscription Commit\". $1 = BTC amount, 8 decimals; $2 = the commit address truncated to 12 characters followed by an ellipsis."
+    "description": "Approval screen information body (core/counterparty/transactionSafety.ts) under \"Inscription Commit\". $1 = BTC amount, 8 decimals; $2 = the commit address, in full."
   },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "This sends $1 BTC to $2, matching the payment outputs the site declared. Check the address is the one you mean.",
-    "description": "Approval screen information body (core/counterparty/transactionSafety.ts) under \"Bitcoin Payment\". $1 = BTC amount, 8 decimals; $2 = comma-separated recipient addresses, each truncated to 12 characters followed by an ellipsis."
+    "description": "Approval screen information body (core/counterparty/transactionSafety.ts) under \"Bitcoin Payment\". $1 = BTC amount, 8 decimals; $2 = comma-separated recipient addresses, each the full address, never truncated (a same-prefix look-alike must stay distinguishable)."
   },
   "safety_this_sends_btc_which_is_how": {
     "message": "This sends $1 BTC to $2, which is how this type of transaction pays. Check the address is the one you mean.",
-    "description": "Approval screen information body (core/counterparty/transactionSafety.ts) under \"BTC Payment\". $1 = BTC amount, 8 decimals; $2 = comma-separated recipient addresses, each truncated to 12 characters followed by an ellipsis."
+    "description": "Approval screen information body (core/counterparty/transactionSafety.ts) under \"BTC Payment\". $1 = BTC amount, 8 decimals; $2 = comma-separated recipient addresses, each the full address, never truncated (a same-prefix look-alike must stay distinguishable)."
   },
   "safety_this_transaction_could_not_be": {
     "message": "This transaction could not be identified as a known Counterparty action. It may carry protocol data in a form this screen cannot read. Review it carefully before signing.",
@@ -5354,11 +5370,11 @@
   },
   "safety_this_transaction_sends_btc_to_addresses": {
     "message": "This transaction sends $1 BTC to $2 addresses that are not yours: $3. Normal Counterparty transactions only send BTC back to your own address as change.",
-    "description": "Approval screen warning body (core/counterparty/transactionSafety.ts) under \"BTC Sent to External Address\", for two or more addresses. $1 = BTC amount, 8 decimals; $2 = how many addresses; $3 = the comma-separated addresses, each truncated to 12 characters followed by an ellipsis."
+    "description": "Approval screen warning body (core/counterparty/transactionSafety.ts) under \"BTC Sent to External Address\", for two or more addresses. $1 = BTC amount, 8 decimals; $2 = how many addresses; $3 = the comma-separated addresses, each the full address, never truncated (a same-prefix look-alike must stay distinguishable)."
   },
   "safety_this_transaction_sends_btc_to_an_address": {
     "message": "This transaction sends $1 BTC to an address that is not yours: $2. Normal Counterparty transactions only send BTC back to your own address as change.",
-    "description": "Approval screen warning body (core/counterparty/transactionSafety.ts) under \"BTC Sent to External Address\", for exactly one address. $1 = BTC amount, 8 decimals; $2 = the address, truncated to 12 characters followed by an ellipsis."
+    "description": "Approval screen warning body (core/counterparty/transactionSafety.ts) under \"BTC Sent to External Address\", for exactly one address. $1 = BTC amount, 8 decimals; $2 = the full address, never truncated (a same-prefix look-alike must stay distinguishable)."
   },
   "safety_this_transaction_sends_btc_to_an_output": {
     "message": "This transaction sends $1 BTC to an output whose destination could not be determined, so it cannot be shown as an address or confirmed to be yours. Do not sign unless you know what this script does.",

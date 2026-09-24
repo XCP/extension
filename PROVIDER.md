@@ -149,6 +149,22 @@ outright when it is not one. Plain Bitcoin website payments use the narrower
   showing a figure it cannot stand behind. Fixed-rate dispensers are unaffected.
 - **Undecodable payloads.** A Counterparty payload the wallet cannot decode is surfaced as an
   unrecognized transaction and blocked, not rendered as an ordinary transfer.
+- **Durable sell authorizations.** A `SINGLE|ANYONECANPAY` signature (or any other sighash that
+  leaves outputs uncommitted) over an input that carries attached assets — or whose asset status
+  cannot be verified — lets whoever holds it complete a sale of those assets at any time until the
+  UTXO is spent, with the assets delivered wherever they choose. It is refused, acknowledged or not,
+  unless a proved `create_listing` intent covers that exact input. `ALL|ANYONECANPAY` commits every
+  output, so it stays with the attached-asset destination warning instead.
+- **Assets the ledger cannot show yet.** The asset lookup asks the Counterparty ledger, which only
+  reflects parsed blocks. An empty answer for a signed input is accepted only when the transaction
+  that created the outpoint could not have attached anything to it: it carries no attach (or legacy
+  move) naming that output, and — if the outpoint is its first non-`OP_RETURN` output, where Core
+  moves attached balances — nothing it spends carries or may carry attached assets (checked up the
+  unconfirmed chain, bounded). Otherwise the wallet waits for that transaction to confirm and be
+  parsed, then reads the ledger again; until then signing asks for a retry. An unknown outpoint, or
+  a node that cannot say how far it has parsed, is never treated as asset-free. Spending the change
+  of an unconfirmed attach, or any output of an unconfirmed plain-Bitcoin fan-out or offer funding,
+  is unaffected. The wallet's own recent broadcasts are trusted as before.
 
 A refusal is shown to the user with its reason; the method returns a rejection to the caller.
 
@@ -271,8 +287,10 @@ Attached-asset review likewise presents one outcome, not several warnings for
 the same movement. When the destination is resolved, the destination and exact
 asset list share one row: movement to the wallet's own output or a detach back
 to its own address is information, while delivery outside the wallet or a
-signature that leaves delivery flexible is danger. A failed asset lookup
-remains a warning because an unknown UTXO is never treated as asset-free.
+signature that leaves delivery flexible is danger (and, outside a proved listing, blocked as a
+durable sell authorization). A failed asset lookup blocks with a retry because an unknown UTXO is
+never treated as asset-free; when the reason is an unconfirmed transaction that may attach assets
+to the input, the screen names that transaction and asks to retry after it confirms.
 
 When local transaction verification blocks approval, the popup recommends
 retrying or asking the site to rebuild the request. It does not instruct the
@@ -438,7 +456,10 @@ An extra output, substituted address or amount, unreadable output script, OP_RET
 lookup, or attached asset hard-blocks signing. The approval always appears and shows the full
 destination and amount. The `description`, `reference`, and requesting origin can change wording,
 but can never make an unsafe PSBT signable. A proved payment is shown once in that exact-output
-card; the generic analyzer's truncated payment notice is omitted rather than duplicating it.
+card; the generic analyzer's duplicate payment notice is omitted rather than repeating it.
+
+Every external-destination notice names each address in full. A same-prefix look-alike (easy to
+generate for the first dozen characters) must read differently from the real destination.
 
 The existing permissioned paired-address capability also applies to this method. A payment that
 spends both the same-index Legacy P2PKH and SegWit P2WPKH addresses must name both addresses and

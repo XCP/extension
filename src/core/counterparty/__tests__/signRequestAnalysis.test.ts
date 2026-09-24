@@ -583,6 +583,47 @@ describe('the marketplace intent proof', () => {
     });
   });
 
+  // The phishing shape: the same durable sell authorization, requested through the generic
+  // screen with no listing claim to prove, used to need only an acknowledgement.
+  it('blocks the listing signature when no marketplace listing proof backs it', async () => {
+    const analysis = await listing({ marketplaceIntent: undefined });
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]).toMatchObject({
+      code: 'durable_sell_authorization',
+      severity: 'block',
+      data: { inputs: [1] },
+      title: 'Blocked: Durable Sell Authorization',
+    });
+    expect(analysis.safety.warnings[0]?.message).toContain('Only a verified marketplace listing may ask for it');
+  });
+
+  it('blocks it over an input whose asset status is unknown', async () => {
+    const analysis = await listing({
+      marketplaceIntent: undefined,
+      attachedAssets: Promise.resolve([{
+        inputIndex: 1, utxo: `${LISTING_TXID}:4`, assets: [], lookupFailed: true, pendingParentTxid: LISTING_TXID,
+      }]),
+    });
+
+    expect(analysis.safety.warnings.map(warning => warning.code)).toContain('durable_sell_authorization');
+    expect(analysis.safety.blocked).toBe(true);
+  });
+
+  it('keeps the specific mismatch first and still names the durable authorization', async () => {
+    const analysis = await listing({
+      outputs: [
+        { index: 0, value: 546, type: 'witness_v0_keyhash', address: SIGNER },
+        { index: 1, value: 250_545, type: 'witness_v0_keyhash', address: SIGNER },
+      ],
+    });
+
+    expect(analysis.safety.warnings.slice(0, 2).map(warning => warning.title)).toEqual([
+      'Blocked: Marketplace Intent Mismatch',
+      'Blocked: Durable Sell Authorization',
+    ]);
+  });
+
   it('hard-blocks a site claim whose seller payment differs from the PSBT', async () => {
     const analysis = await listing({
       outputs: [

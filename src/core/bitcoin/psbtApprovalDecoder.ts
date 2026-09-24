@@ -6,6 +6,7 @@ import {
   type PsbtDetails,
   resolvePsbtSighashType,
 } from '@/core/bitcoin/psbt';
+import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import { type LinkedInputEvidence, withLinkedInputAssets } from '@/core/counterparty/marketplaceAttachLink';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
@@ -42,11 +43,13 @@ export async function decodePsbtForApproval(
      * supplies it, and only after proving the input is exactly the linked output.
      */
     linkedInput?: LinkedInputEvidence;
+    /** Resolves prevouts the wallet itself broadcast (its trusted journal). */
+    resolveTrustedPrevout?: TrustedPrevoutResolver;
   } = {},
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
-  const ledgerAssets = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
-  const { linkedInput } = options;
+  const { linkedInput, resolveTrustedPrevout = noTrustedPrevout } = options;
+  const ledgerAssets = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices, resolveTrustedPrevout);
   const attachedAssetsPromise = linkedInput
     ? ledgerAssets.then(ledger => withLinkedInputAssets(
         ledger, linkedInput.entry, linkedInput.attachTxid, linkedInput.attachIsUnbroadcast,

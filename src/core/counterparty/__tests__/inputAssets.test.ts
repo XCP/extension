@@ -9,6 +9,12 @@ import {
 } from '../inputAssets';
 
 vi.mock('@/core/counterparty/api');
+// What an empty ledger answer means is `pendingAttachments.test.ts`'s subject. Here it is a switch.
+const { resolveEmpty } = vi.hoisted(() => ({ resolveEmpty: vi.fn() }));
+vi.mock('@/core/counterparty/pendingAttachments', async (original) => ({
+  ...(await original<typeof import('@/core/counterparty/pendingAttachments')>()),
+  resolveEmptyLedgerOutpoint: resolveEmpty,
+}));
 
 const mockedFetch = vi.mocked(fetchUtxoBalances);
 const mockedTrustedPrevout = vi.fn();
@@ -27,6 +33,52 @@ describe('fetchInputsAttachedAssets', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedTrustedPrevout.mockResolvedValue(null);
+    resolveEmpty.mockResolvedValue({ kind: 'clean' });
+  });
+
+  it('reports a signed input an unconfirmed transaction may attach to as pending, never clean', async () => {
+    mockedFetch.mockResolvedValue(page([]));
+    resolveEmpty.mockResolvedValue({ kind: 'pending', parentTxid: 'cc'.repeat(32) });
+
+    expect(await fetchInputsAttachedAssets([input(0)], [0])).toEqual([{
+      inputIndex: 0, utxo: `${input(0).txid}:0`, assets: [], lookupFailed: true, pendingParentTxid: 'cc'.repeat(32),
+    }]);
+  });
+
+  it('reports a signed input whose creating transaction cannot be read as unknown', async () => {
+    mockedFetch.mockResolvedValue(page([]));
+    resolveEmpty.mockResolvedValue({ kind: 'unknown' });
+
+    expect(await fetchInputsAttachedAssets([input(0)], [0])).toEqual([
+      { inputIndex: 0, utxo: `${input(0).txid}:0`, assets: [], lookupFailed: true },
+    ]);
+  });
+
+  it('reports assets the ledger showed only on its fresh re-read', async () => {
+    mockedFetch.mockResolvedValue(page([]));
+    resolveEmpty.mockResolvedValue({ kind: 'assets', balances: [
+      { asset: 'RAREPEPE', quantity: '1', quantity_normalized: asDisplayUnits('1'), asset_info: { asset_longname: null } },
+    ] });
+
+    const [entry] = await fetchInputsAttachedAssets([input(0)], [0]);
+    expect(entry?.assets).toEqual([{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: asDisplayUnits('1'), asset_longname: null }]);
+  });
+
+  it("leaves an unsigned input's empty answer alone: its assets are not the signer's to lose", async () => {
+    mockedFetch.mockResolvedValue(page([]));
+    resolveEmpty.mockResolvedValue({ kind: 'pending', parentTxid: 'cc'.repeat(32) });
+
+    expect(await fetchInputsAttachedAssets([input(0), input(1)], [1])).toEqual([
+      expect.objectContaining({ inputIndex: 1, pendingParentTxid: 'cc'.repeat(32) }),
+    ]);
+    expect(resolveEmpty).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats every input of a request without signed indices as signed', async () => {
+    mockedFetch.mockResolvedValue(page([]));
+    resolveEmpty.mockResolvedValue({ kind: 'unknown' });
+
+    expect(await fetchInputsAttachedAssets([input(0), input(1)])).toHaveLength(2);
   });
 
   it('returns only inputs that carry assets, keyed by input index', async () => {
@@ -103,7 +155,7 @@ describe('fetchInputsAttachedAssets', () => {
   it('builds the UTXO string as txid:vout in display order', async () => {
     mockedFetch.mockResolvedValue(page([]));
     await fetchInputsAttachedAssets([input(3, 'dead'.repeat(16), 2)]);
-    expect(mockedFetch).toHaveBeenCalledWith(`${'dead'.repeat(16)}:2`);
+    expect(mockedFetch).toHaveBeenCalledWith(`${'dead'.repeat(16)}:2`, { fresh: false });
   });
 
   it('treats trusted recent change as attachment-free without waiting for Core', async () => {
