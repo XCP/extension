@@ -206,6 +206,11 @@ async function stubUtxoBalances(
       },
     });
   });
+  // Fabricated funding parents are "confirmed long ago": the attach-and-list proof requires every
+  // attach input's parent to be confirmed at or below Counterparty's parsed height.
+  await api.route(/mempool\.space\/api\/tx\/[0-9a-f]{64}\/status$/, async (route: Route) => {
+    await route.fulfill({ json: { confirmed: true, block_height: 1 } });
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
