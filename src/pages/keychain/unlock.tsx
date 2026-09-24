@@ -7,6 +7,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { t } from '@/i18n';
+import { awaitsContinuation } from "@/platform/popup";
 import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
@@ -57,12 +58,16 @@ function UnlockPage() {
     }
 
     setIsUnlocking(true);
+    let continuing = false;
 
     try {
       await unlockKeychain(password);
       if (passwordInputRef.current) passwordInputRef.current.value = "";
       setPasswordReady(false);
-      navigate(PATHS.SUCCESS);
+      // A request is continuing in this window: the background loads its screen here as a new
+      // document. Going home first would flash the home page, so stay busy until then.
+      continuing = awaitsContinuation();
+      if (!continuing) navigate(PATHS.SUCCESS);
     } catch (err) {
       console.error("Error unlocking wallet:", err);
       // Surface rate-limit errors: showing "Invalid password" would mislead
@@ -74,7 +79,7 @@ function UnlockPage() {
           : t('keychain_unlock_invalid_password_please_try_again')
       );
     } finally {
-      setIsUnlocking(false);
+      if (!continuing) setIsUnlocking(false);
     }
   }
 

@@ -29,7 +29,7 @@ import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import { analytics } from '@/platform/fathom';
-import { openExtensionPopup } from '@/platform/popup';
+import { continuationUnlockPath, openExtensionPopup, reusePopupWindow } from '@/platform/popup';
 import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/platform/provider/signDelivery';
@@ -550,8 +550,9 @@ export function createProviderService(): ProviderService {
             });
 
             // Open the regular popup - it shows the unlock screen. After unlock the connection
-            // approval continues in this same window rather than opening a second one.
-            const unlockWindow = await openExtensionPopup();
+            // approval continues in this same window rather than opening a second one; the marked
+            // path tells the unlock screen to wait for that instead of going home.
+            const unlockWindow = await openExtensionPopup(continuationUnlockPath(requestId));
 
             // Wait for unlock and then continue with connection
             return new Promise((resolve, reject) => {
@@ -577,11 +578,18 @@ export function createProviderService(): ProviderService {
                 }
 
                 // Continue with connection flow, in the window the user just unlocked
+                let continued = false;
                 try {
-                  resolve(await completeConnection(origin, pairedAddresses, undefined,
-                    { reuseWindowId: unlockWindow.id }));
+                  resolve(await completeConnection(origin, pairedAddresses, undefined, {
+                    reuseWindowId: unlockWindow.id,
+                    onReused: () => { continued = true; },
+                  }));
                 } catch (error) {
                   reject(error);
+                } finally {
+                  // No approval took the window (already connected, or the flow failed first):
+                  // release the waiting unlock screen to the home page.
+                  if (!continued) void reusePopupWindow(unlockWindow.id, '#/index');
                 }
               };
 

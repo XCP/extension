@@ -51,6 +51,8 @@ export interface ApprovalPlacement {
    * opened — to continue in, rather than opening a second window. Ignored if it has closed.
    */
   reuseWindowId?: number;
+  /** Called once the approval screen has actually been placed in `reuseWindowId`. */
+  onReused?: () => void;
 }
 
 export class ApprovalService extends BaseService {
@@ -113,7 +115,7 @@ export class ApprovalService extends BaseService {
     }, timeout);
 
     // Open approval popup
-    await this.openApprovalPopup(type, id, origin, placement.reuseWindowId);
+    await this.openApprovalPopup(type, id, origin, placement);
 
     // Update badge
     this.updateBadge();
@@ -259,7 +261,7 @@ export class ApprovalService extends BaseService {
     type: ApprovalRequest['type'],
     requestId: string,
     origin: string,
-    reuseWindowId?: number
+    placement: ApprovalPlacement = {}
   ): Promise<void> {
     // Close existing popup if any
     await this.closePopup();
@@ -270,11 +272,28 @@ export class ApprovalService extends BaseService {
       requestId,
       origin,
     });
-
-    // Continue in the window the request is already using, else open a centered popup window
     const path = `#${route}?${params.toString()}`;
-    const reused = reuseWindowId === undefined ? null : await reusePopupWindow(reuseWindowId, path);
-    this.popup = reused ?? await openPopupWindow(path);
+
+    // Continue in the window the request is already using when it is still open.
+    if (placement.reuseWindowId !== undefined) {
+      // Listen before navigating. The window may be closed at any moment; a close landing between
+      // the navigation and a listener attached afterwards would leave the request pending until it
+      // timed out. reusePopupWindow then checks the window still exists, after the listener is on.
+      this.setupWindowCloseListener(placement.reuseWindowId);
+      const reused = await reusePopupWindow(placement.reuseWindowId, path);
+      if (reused) {
+        this.popup = reused;
+        this.state.currentWindow = reused.id;
+        placement.onReused?.();
+        return;
+      }
+      this.removeWindowCloseListener();
+      // Closed while we were navigating it: the listener has already cancelled this request.
+      if (this.pendingApproval?.id !== requestId) return;
+    }
+
+    // Open centered popup window
+    this.popup = await openPopupWindow(path);
     this.state.currentWindow = this.popup.id;
 
     // Listen for window close to auto-reject

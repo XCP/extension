@@ -172,6 +172,31 @@ describe('ApprovalService', () => {
       await expect(approval).rejects.toThrow('User closed the window');
     });
 
+    it('reports the reuse to the caller', async () => {
+      vi.mocked(reusePopupWindow).mockResolvedValueOnce({ id: 77, close: vi.fn() });
+      const onReused = vi.fn();
+      const approval = approvalService.requestApproval(connectOptions, undefined, { reuseWindowId: 77, onReused });
+      approval.catch(() => {});
+      await vi.waitFor(() => expect(onReused).toHaveBeenCalledTimes(1));
+      approvalService.rejectApproval('unlocked-connect', 'test cleanup');
+    });
+
+    it('cancels at once when the window closes while it is being navigated', async () => {
+      // The close listener is already attached when the navigation starts, so a close landing in
+      // between still rejects rather than leaving the request to time out.
+      vi.mocked(reusePopupWindow).mockImplementationOnce(async (windowId) => {
+        const listener = vi.mocked(chrome.windows.onRemoved.addListener).mock.calls.at(-1)![0];
+        listener(windowId);
+        return null;
+      });
+      const onReused = vi.fn();
+      const approval = approvalService.requestApproval(connectOptions, undefined, { reuseWindowId: 77, onReused });
+      await expect(approval).rejects.toThrow('User closed the window');
+      // Nothing is reopened for a request the user closed.
+      expect(openPopupWindow).not.toHaveBeenCalled();
+      expect(onReused).not.toHaveBeenCalled();
+    });
+
     it('opens a new window when the window to continue in is gone', async () => {
       vi.mocked(reusePopupWindow).mockResolvedValueOnce(null);
       const approval = approvalService.requestApproval(connectOptions, undefined, { reuseWindowId: 77 });

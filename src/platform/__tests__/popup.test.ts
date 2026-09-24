@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { reusePopupWindow } from '@/platform/popup';
+import { awaitsContinuation, continuationUnlockPath, reusePopupWindow } from '@/platform/popup';
 
 const BASE = 'chrome-extension://test/popup.html';
 
@@ -19,15 +19,31 @@ describe('reusePopupWindow', () => {
     } as unknown as typeof chrome; // Only the APIs this helper touches.
   });
 
-  it('points the existing window at the new route and focuses it', async () => {
+  it('points the existing window at the new route in a new document and focuses it', async () => {
     tabs.query.mockResolvedValue([{ id: 5, url: `${BASE}#/keychain/unlock` }]);
     const popup = await reusePopupWindow(77, '#/requests/connect/approve?requestId=r');
     expect(tabs.query).toHaveBeenCalledWith({ windowId: 77 });
-    expect(tabs.update).toHaveBeenCalledWith(5, { url: `${BASE}#/requests/connect/approve?requestId=r`, active: true });
+    expect(tabs.update).toHaveBeenCalledTimes(1);
+    const [tabId, update] = tabs.update.mock.calls[0]!;
+    expect(tabId).toBe(5);
+    expect(update.active).toBe(true);
+    // A hash-only change would keep the old document (and its pending navigations) alive.
+    const url = new URL(update.url);
+    expect(update.url.startsWith(`${BASE}?reuse=`)).toBe(true);
+    expect(url.searchParams.get('reuse')).toMatch(/^[0-9a-f-]{36}$/);
+    expect(url.hash).toBe('#/requests/connect/approve?requestId=r');
     expect(windows.update).toHaveBeenCalledWith(77, { focused: true });
     expect(popup?.id).toBe(77);
     await popup?.close();
     expect(windows.remove).toHaveBeenCalledWith(77);
+  });
+
+  it('never repeats the document URL, even for the same route', async () => {
+    tabs.query.mockResolvedValue([{ id: 5 }]);
+    await reusePopupWindow(77, '#/x');
+    await reusePopupWindow(77, '#/x');
+    const [first, second] = tabs.update.mock.calls.map(([, update]) => new URL(update.url).search);
+    expect(first).not.toBe(second);
   });
 
   it('still reuses the window when the browser withholds tab URLs', async () => {
@@ -47,5 +63,15 @@ describe('reusePopupWindow', () => {
     tabs.query.mockReset().mockResolvedValue([]);
     expect(await reusePopupWindow(77, '#/x')).toBeNull();
     expect(tabs.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('continuation unlock windows', () => {
+  it('marks only the unlock window a request continues in', () => {
+    const path = continuationUnlockPath('origin-unlock-1');
+    expect(path.startsWith('?')).toBe(true);
+    expect(awaitsContinuation(path)).toBe(true);
+    expect(awaitsContinuation('')).toBe(false);
+    expect(awaitsContinuation('?reuse=abc')).toBe(false);
   });
 });

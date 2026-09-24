@@ -351,6 +351,10 @@ describe('ProviderService', () => {
           addListener: vi.fn(),
           removeListener: vi.fn()
         }
+      },
+      tabs: {
+        query: vi.fn().mockResolvedValue([{ id: 5 }]),
+        update: vi.fn().mockResolvedValue({}),
       }
     } as any;
     // Reset all mocks
@@ -687,15 +691,39 @@ describe('ProviderService', () => {
           return pending;
         };
 
+        it('opens the unlock window marked to wait for the request to continue in it', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          vi.mocked(connection.hasPermission).mockResolvedValueOnce(false).mockResolvedValue(true);
+          await unlockThenConnect(false);
+          const { url } = vi.mocked(chrome.windows.create).mock.calls[0]![0]!;
+          expect(new URL(url as string).searchParams.has('continues')).toBe(true);
+        });
+
         it('continues into the connect approval in the window the user unlocked', async () => {
           const connection = vi.mocked(connectionService.getConnectionService)();
           vi.mocked(connection.hasPermission).mockResolvedValueOnce(false).mockResolvedValue(true);
+          vi.mocked(connection.connect).mockImplementation(async (...args) => {
+            args[4]?.onReused?.();
+            return [activeAddress];
+          });
           const result = await unlockThenConnect(false) as any;
           expect(connection.connect).toHaveBeenCalledWith(origin, activeAddress, 'wallet1', false,
-            { reuseWindowId: 77 });
+            expect.objectContaining({ reuseWindowId: 77 }));
           // The unlock window is the only window this request opened.
           expect(chrome.windows.create).toHaveBeenCalledTimes(1);
           expect(result.accounts).toEqual([activeAddress]);
+          // The approval took the window, so nothing sends it home afterwards.
+          expect(chrome.tabs.update).not.toHaveBeenCalled();
+        });
+
+        it('sends the waiting unlock window home when no approval was needed', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          vi.mocked(connection.hasPermission).mockResolvedValue(true);
+          await unlockThenConnect(false);
+          expect(connection.connect).not.toHaveBeenCalled();
+          await vi.waitFor(() => expect(chrome.tabs.update).toHaveBeenCalledTimes(1));
+          const [, update] = vi.mocked(chrome.tabs.update).mock.calls[0]! as unknown as [number, { url: string }];
+          expect(new URL(update.url).hash).toBe('#/index');
         });
 
         it('continues a paired-address upgrade in the same unlocked window', async () => {
@@ -703,7 +731,7 @@ describe('ProviderService', () => {
           vi.mocked(connection.hasPairedAddressPermission).mockResolvedValue(true);
           await unlockThenConnect(true);
           expect(connection.requestPairedAddressPermission).toHaveBeenCalledWith(
-            origin, activeAddress, 'wallet1', { reuseWindowId: 77 });
+            origin, activeAddress, 'wallet1', expect.objectContaining({ reuseWindowId: 77 }));
           expect(connection.connect).not.toHaveBeenCalled();
         });
       });
