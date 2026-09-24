@@ -16,6 +16,8 @@ const SURFACES = [
 const GIFT_PHRASE = 'like just love know never want time out there make look eye';
 const GIFT_ADDRESS = '1Ari9oC1zTWyWFK5fnfhxvTMKx5eeWCH2p';
 const ORIGIN = 'https://translation-review.example';
+/** Raw parents the stubbed node serves: the wallet checks that an input's parent hashes to its txid. */
+const PARENTS = new Map<string, string>();
 
 const qualityTest = walletTest.extend<{ network: void }>({
   network: [async ({ context }, use) => {
@@ -24,6 +26,10 @@ const qualityTest = walletTest.extend<{ network: void }>({
       const url = new URL(request.url());
       if (request.method() !== 'GET' || /\/(compose|broadcast)(\/|$)/.test(url.pathname)) return route.abort();
       if (url.pathname.includes('/v2/')) {
+        const parentTxid = url.pathname.match(/\/v2\/bitcoin\/transactions\/([0-9a-f]{64})$/)?.[1];
+        if (parentTxid && PARENTS.has(parentTxid)) return route.fulfill({ json: { result: {
+          hex: PARENTS.get(parentTxid), confirmations: 1000,
+        } } });
         if (/\/v2\/?$/.test(url.pathname)) return route.fulfill({ json: { result: {
           server_ready: true, network: 'mainnet', version: '11.3.0', backend_height: 970000, counterparty_height: 970000,
         } } });
@@ -83,8 +89,13 @@ for (const language of LANGUAGES) qualityTest.describe(language, () => {
     await callGalleryService(page, 'updateSettings', [{ showHelpText: true }]);
     const identity = await authorizeGalleryOrigin(page, ORIGIN);
     const recipient = Address().encode({ type: 'wpkh', hash: new Uint8Array(20).fill(17) });
+    // A real parent for the payment's input, served by the stubbed node.
+    const parent = new Transaction({ version: 2, allowUnknownInputs: true });
+    parent.addInput({ txid: '30'.repeat(32), index: 0 });
+    parent.addOutputAddress(identity.address, 100000n);
+    PARENTS.set(parent.id, Buffer.from(parent.toBytes(true, false)).toString('hex'));
     const payment = new Transaction({ version: 2 });
-    payment.addInput({ txid: '31'.repeat(32), index: 0, witnessUtxo: {
+    payment.addInput({ txid: parent.id, index: 0, witnessUtxo: {
       script: OutScript.encode(Address().decode(identity.address)), amount: 100000n,
     } });
     payment.addOutputAddress(recipient, 21600n);
