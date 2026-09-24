@@ -445,6 +445,63 @@ their absolute input indices in `signInputs`, with a `SIGHASH_ALL` entry for eac
 addresses are then recognized as wallet-owned when classifying change. This does not relax the
 per-origin paired-address permission, exact-output proof, or attached-asset checks.
 
+#### `xcp_signPsbts`
+
+Sign 1..8 linked marketplace PSBTs in one approval. Every request carries a
+`counterparty-marketplace` intent; the wallet admits only the bundle kinds below, proves every item
+against its own bytes first, and returns **all signatures or none** (a later signer failure
+discards earlier signatures before anything is returned).
+
+```js
+const result = await xcpwallet.request({
+  method: 'xcp_signPsbts',
+  params: [{
+    requests: [
+      { hex, signInputs: { [address]: [0] }, sighashTypes: [0x01, 0x01], intent },
+      // ...
+    ]
+  }]
+});
+// { hexes: ['<signed PSBT hex>', ...] } — same order as `requests`
+```
+
+| Kind | Items | What is proved beyond each item |
+|---|---|---|
+| `attach-and-list` | `[attach_for_listing, create_listing]` | The listing spends exactly the attach's new asset output (see below). |
+| `authorize-offers` | 1..8 `authorize_exact_offer` | One bidder, funding outpoint, delivery, price, and fee; distinct targets. |
+| `acceptance-cpfp` | `[accept_exact_offer, bump_acceptance_fee]` | The child spends exactly the proved parent's seller output 1. |
+| `bulk-listing`, `bulk-attach`, `prepare-assets`, `bulk-fanout` | 1..8 of one action | One seller identity; distinct targets. |
+
+**Advertised bundles.** `xcp_getAddresses` reports the linked kinds this wallet can prove at
+`signing.psbtBatch.marketplaceBundles` (currently `["attach-and-list", "authorize-offers"]` for a
+software wallet and `[]` for a hardware wallet, whose batch contract accepts only `SIGHASH_ALL`
+with every external input pre-signed). Send a linked bundle only when its kind is listed; an older
+wallet proves each item alone and blocks the listing below.
+
+**`attach-and-list`.** The listing's asset input is the attach's output, which is not broadcast
+yet, so no Counterparty ledger can report its balance. The wallet uses the attach instead, read from
+its own bytes and never from the intent: the outpoint is the attach PSBT's unsigned txid and the
+asset output index (the first non-OP_RETURN output, which an explicit `destination_vout` must equal);
+the asset and raw quantity are those of the locally decoded attach message; the owner and value are
+that output's script and amount. This evidence stands in for the ledger lookup on listing input 1
+only when the attach item itself did not fail its proof, and only when listing input 1 is exactly
+that outpoint with that owner and value; any difference blocks the bundle. If the ledger does
+report assets on that outpoint, its answer is kept and checked like any other listing. A
+`create_listing` outside this pair still requires the ledger. For a Legacy asset source the attach
+txid changes when it is signed; the wallet signs the attach first, confirms its unsigned bytes did
+not change, and moves listing input 1 to the final txid (same vout) before signing the listing, so
+the listing signature covers exactly the proved attach output.
+
+**`authorize-offers`.** Several exact targets backed by one buyer funding UTXO, as returned by the
+marketplace's batch preflight. Each item is proved exactly as a single `authorize_exact_offer`
+(only input 0, `SIGHASH_ALL`, never `SINGLE|ANYONECANPAY`; fixed outputs, fee, and delivery; the
+target's attached asset from the ledger). The bundle additionally requires the same bidder,
+`bitcoinInvalidation.outpoint`, delivery, `priceSats`, and `platformFeeSats` on every item, and
+distinct `authorizationId`, `operationId`, target outpoint, and `expectedTxid`, none of which may be
+the funding outpoint. Because every signature spends the same input 0, at most one can ever settle;
+the review states this once, with every target. The acknowledgement policy is the single
+authorization's, applied per item.
+
 ### Broadcasting
 
 #### `xcp_broadcastTransaction`
@@ -483,8 +540,13 @@ it returns the corresponding P2PKH and P2WPKH addresses and public keys.
 
 ```js
 const addresses = await xcpwallet.request({ method: 'xcp_getAddresses' });
-// { active: {...}, legacy: {...}, segwit: {...} }
+// { active: {...}, signing: {...}, legacy: {...}, segwit: {...} }
 ```
+
+`signing` reports what the active wallet can sign through the provider, so a site can avoid
+opening an approval that cannot succeed: `psbt` and `psbtBatch` each give the accepted sighash
+bytes, input scope, and external-input rule, and `psbtBatch` adds `maxRequests` and
+`marketplaceBundles` (the linked `xcp_signPsbts` kinds it can prove; see above).
 
 #### `xcp_chainId`
 

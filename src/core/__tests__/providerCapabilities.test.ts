@@ -21,6 +21,7 @@ describe('providerPsbtSigningCapabilities', () => {
           inputScope: 'selected',
           externalInputs: 'any',
           maxRequests: 8,
+          marketplaceBundles: ['attach-and-list', 'authorize-offers'],
         },
       });
   });
@@ -40,6 +41,7 @@ describe('providerPsbtSigningCapabilities', () => {
           inputScope: 'selected',
           externalInputs: 'presigned',
           maxRequests: 8,
+          marketplaceBundles: [],
         },
       });
   });
@@ -61,6 +63,7 @@ describe('providerPsbtSigningCapabilities', () => {
             inputScope: 'selected',
             externalInputs: 'presigned',
             maxRequests: 0,
+            marketplaceBundles: [],
           },
         });
     },

@@ -202,8 +202,8 @@ function isValidSignFlow(value: unknown): value is SignFlowEntry {
   };
   if (entry.kind === 'sign-psbt') return validPsbt(entry)
     && (entry.signingPurpose === undefined || entry.signingPurpose === 'counterparty' || entry.signingPurpose === 'bitcoin-payment');
-  return ['acceptance-cpfp', 'attach-and-list', 'bulk-fanout', 'prepare-assets', 'bulk-attach', 'bulk-listing']
-    .includes(entry.bundleKind as string) && Array.isArray(entry.items) && entry.items.length > 0
+  return ['acceptance-cpfp', 'attach-and-list', 'bulk-fanout', 'prepare-assets', 'bulk-attach', 'bulk-listing',
+    'authorize-offers'].includes(entry.bundleKind as string) && Array.isArray(entry.items) && entry.items.length > 0
     && entry.items.length <= 8 && entry.items.every(item => validPsbt(item)
       && item.signInputs && Object.keys(item.signInputs).length > 0 && Array.isArray(item.sighashTypes)
       && item.marketplaceIntent && typeof item.marketplaceIntent.action === 'string');

@@ -755,6 +755,7 @@ describe('ProviderService', () => {
               inputScope: 'selected',
               externalInputs: 'any',
               maxRequests: 8,
+              marketplaceBundles: ['attach-and-list', 'authorize-offers'],
             },
           },
         });
@@ -793,6 +794,7 @@ describe('ProviderService', () => {
             inputScope: 'selected',
             externalInputs: 'presigned',
             maxRequests: 8,
+            marketplaceBundles: [],
           },
         });
         expect(result).not.toHaveProperty('walletType');

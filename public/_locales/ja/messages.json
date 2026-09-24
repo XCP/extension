@@ -6207,5 +6207,26 @@
   },
   "psbt_approve_fund_offer": {
     "message": "オファーに資金を用意"
+  },
+  "marketplace_batch_authorize_1_exact_offer": {
+    "message": "1 件の指定オファーを承認"
+  },
+  "marketplace_batch_authorize_exact_offers": {
+    "message": "$1 件の指定オファーを承認"
+  },
+  "marketplace_batch_settlement": {
+    "message": "決済"
+  },
+  "marketplace_batch_at_most_one_offer_can_be_accepted": {
+    "message": "承諾されるのは最大 1 件です。すべてのオファーが同じ資金 UTXO を使います。"
+  },
+  "psbts_approve_authorize_offers": {
+    "message": "オファーを承認"
+  },
+  "psbts_approve_authorize_1_offer": {
+    "message": "1 件のオファーを承認"
+  },
+  "psbts_approve_authorize_offers_2": {
+    "message": "$1 件のオファーを承認"
   }
 }
