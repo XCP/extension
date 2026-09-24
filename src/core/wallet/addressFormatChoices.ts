@@ -41,3 +41,22 @@ export function isAddressFormatLocked(wallet: Pick<Wallet, 'type'>): boolean {
 export function canSwitchAddressFormat(wallet: Pick<Wallet, 'type'>): boolean {
   return wallet.type === 'mnemonic' && !isAddressFormatLocked(wallet);
 }
+
+/**
+ * The derivation index a format switch keeps: the active address's index, clamped to the indices
+ * the wallet exposes, or 0 when the active address is not one of the wallet's.
+ *
+ * `WalletManager.updateWalletAddressFormat` lands on this index, and the address-type previews
+ * derive at it, so each option shows the address a switch would actually select.
+ */
+export function addressIndexKeptBySwitch(
+  wallet: Pick<Wallet, 'addresses' | 'addressCount'>,
+  activeAddress: string | null | undefined
+): number {
+  const address = wallet.addresses.find((candidate) => candidate.address === activeAddress)
+    ?? wallet.addresses[0];
+  if (!address) return 0;
+  const index = Number(address.path.split('/').at(-1));
+  if (!Number.isSafeInteger(index) || index < 0) return 0;
+  return Math.min(index, Math.max(wallet.addressCount - 1, 0));
+}

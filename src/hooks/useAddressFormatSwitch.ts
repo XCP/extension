@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWallet } from '@/contexts/wallet-context';
 import type { AddressFormat } from '@/core/bitcoin/address';
-import { selectableAddressFormats } from '@/core/wallet/addressFormatChoices';
+import { addressIndexKeptBySwitch, selectableAddressFormats } from '@/core/wallet/addressFormatChoices';
 import { t } from '@/i18n';
 
 interface AddressFormatSwitch {
   /** Formats the active wallet may be offered, from the shared eligibility policy. */
   formats: AddressFormat[];
-  /** First-address preview per format; empty string when no preview could be derived. */
+  /**
+   * Per format, the address a switch would land on, derived at the index the switch keeps
+   * (`addressIndexKeptBySwitch`), so the current format's preview is the address in use. Empty
+   * string when no preview could be derived.
+   */
   previews: Partial<Record<AddressFormat, string>>;
   /** True until the previews for `formats` have been loaded. */
   isLoadingPreviews: boolean;
@@ -30,30 +34,36 @@ interface AddressFormatSwitch {
  * failure handling. Surfaces decide only how to present it.
  */
 export function useAddressFormatSwitch(): AddressFormatSwitch {
-  const { activeWallet, updateWalletAddressFormat, getPreviewAddressForFormat } = useWallet();
+  const { activeWallet, activeAddress, updateWalletAddressFormat, getPreviewAddressForFormat } = useWallet();
   const walletFormat = activeWallet?.addressFormat ?? null;
   const formats = useMemo(
     () => (walletFormat ? selectableAddressFormats(walletFormat) : []),
     [walletFormat]
   );
+  const addressIndex = activeWallet ? addressIndexKeptBySwitch(activeWallet, activeAddress?.address) : 0;
   const [previews, setPreviews] = useState<Partial<Record<AddressFormat, string>>>({});
   const [isLoadingPreviews, setIsLoadingPreviews] = useState(true);
   const [selectedFormat, setSelectedFormat] = useState<AddressFormat | null>(walletFormat);
   const [error, setError] = useState<string | null>(null);
   const isChanging = useRef(false);
 
+  // Previews depend only on which wallet, which formats are offered and which index — not on the
+  // wallet object, which is replaced on unrelated refreshes, nor on the current format within the
+  // family, so a switch or a refresh does not re-derive them or flash the loading state.
+  const walletId = activeWallet?.id ?? null;
+  const formatsKey = formats.join(',');
   useEffect(() => {
     let cancelled = false;
     const loadPreviews = async () => {
-      if (!activeWallet) {
+      if (!walletId) {
         setIsLoadingPreviews(false);
         return;
       }
       setIsLoadingPreviews(true);
       const loaded: Partial<Record<AddressFormat, string>> = {};
-      for (const format of formats) {
+      for (const format of formatsKey.split(',') as AddressFormat[]) {
         try {
-          loaded[format] = await getPreviewAddressForFormat(activeWallet.id, format);
+          loaded[format] = await getPreviewAddressForFormat(walletId, format, addressIndex);
         } catch (err) {
           // No preview available for this format; the option is still offered without one.
           console.debug(`No preview available for ${format}:`, err);
@@ -66,7 +76,7 @@ export function useAddressFormatSwitch(): AddressFormatSwitch {
     };
     void loadPreviews();
     return () => { cancelled = true; };
-  }, [activeWallet, formats, getPreviewAddressForFormat]);
+  }, [walletId, formatsKey, addressIndex, getPreviewAddressForFormat]);
 
   // Follow the wallet when its format changes underneath us (a save here, or another surface).
   const [followedFormat, setFollowedFormat] = useState(walletFormat);

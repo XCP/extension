@@ -9,19 +9,28 @@ import { AddressTypeShortcut } from './address-type-shortcut';
 
 type WalletType = 'mnemonic' | 'privateKey' | 'hardware';
 
-const fixture = vi.hoisted(() => ({
-  wallet: { id: 'wallet', type: 'mnemonic' as WalletType, addressFormat: 'p2wpkh' as string } as
-    | { id: string; type: WalletType; addressFormat: string }
-    | null,
-  keychainLocked: false,
-  onlyOneFormat: false,
-  preview: vi.fn(async (_wallet: string, format: string) => `address-for-${format}-end`),
-  update: vi.fn(async (_wallet: string, _format: string) => {}),
-}));
+const fixture = vi.hoisted(() => {
+  type Wallet = {
+    id: string;
+    type: 'mnemonic' | 'privateKey' | 'hardware';
+    addressFormat: string;
+    addressCount: number;
+    addresses: { name: string; address: string; path: string; pubKey: string }[];
+  };
+  return {
+    wallet: null as Wallet | null,
+    activeAddress: 'active-0',
+    keychainLocked: false,
+    onlyOneFormat: false,
+    preview: vi.fn(async (_wallet: string, format: string, index?: number) => `address-for-${format}-at-${index}`),
+    update: vi.fn(async (_wallet: string, _format: string) => {}),
+  };
+});
 
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
     activeWallet: fixture.wallet,
+    activeAddress: fixture.wallet?.addresses.find((address) => address.address === fixture.activeAddress) ?? null,
     keychainLocked: fixture.keychainLocked,
     getPreviewAddressForFormat: fixture.preview,
     updateWalletAddressFormat: fixture.update,
@@ -37,12 +46,23 @@ vi.mock('@/core/wallet/addressFormatChoices', async (importOriginal) => {
   };
 });
 
-const previewFor = (format: string) => `address-for-${format}-end`;
+const previewFor = (format: string, index = 0) => `address-for-${format}-at-${index}`;
 const BUTTON_NAME = 'Change address type';
 const shortcutButton = () => screen.queryByRole('button', { name: BUTTON_NAME });
 
 function setWallet(type: WalletType, addressFormat: string) {
-  fixture.wallet = { id: 'wallet', type, addressFormat };
+  fixture.wallet = {
+    id: 'wallet',
+    type,
+    addressFormat,
+    addressCount: 3,
+    addresses: [0, 1, 2].map((index) => ({
+      name: `Address ${index + 1}`,
+      address: `active-${index}`,
+      path: `m/84'/0'/0'/0/${index}`,
+      pubKey: `02${index}`,
+    })),
+  };
 }
 
 async function openShortcut() {
@@ -55,6 +75,7 @@ async function openShortcut() {
 beforeEach(() => {
   vi.clearAllMocks();
   setWallet('mnemonic', AddressFormat.P2WPKH);
+  fixture.activeAddress = 'active-0';
   fixture.keychainLocked = false;
   fixture.onlyOneFormat = false;
   fixture.update.mockImplementation(async () => {});
