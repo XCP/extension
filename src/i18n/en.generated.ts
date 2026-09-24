@@ -74,6 +74,7 @@ export const EN = {
   "address_type_legacy": "Legacy",
   "address_type_native_segwit": "Native SegWit",
   "address_type_nested_segwit": "Nested SegWit",
+  "address_type_shortcut_change_address_type": "Change address type",
   "addresses": "Addresses",
   "addresses_add_address": "Add Address",
   "addresses_adding": "Adding…",

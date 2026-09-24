@@ -1509,7 +1509,7 @@
   },
   "common_address_type": {
     "message": "Address Type",
-    "description": "pages/keychain/setup/import-private-key.tsx, pages/settings/address-types.tsx, pages/settings/index.tsx"
+    "description": "components/domain/address/address-type-shortcut.tsx, pages/keychain/setup/import-private-key.tsx, pages/settings/address-types.tsx, pages/settings/index.tsx"
   },
   "common_advanced": {
     "message": "Advanced",
@@ -8263,5 +8263,9 @@
   "psbt_approve_fund_offer": {
     "message": "Fund offer",
     "description": "pages/requests/psbt/approve.tsx"
+  },
+  "address_type_shortcut_change_address_type": {
+    "message": "Change address type",
+    "description": "Tooltip and accessible name of the home-header icon button that opens a popover for switching the active wallet's address type (components/domain/address/address-type-shortcut.tsx)."
   }
 }

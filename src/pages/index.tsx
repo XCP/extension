@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { displayAccountName } from '@/components/domain/account-name';
+import { AddressTypeShortcut } from '@/components/domain/address/address-type-shortcut';
 import { AssetList } from "@/components/domain/asset/asset-list";
 import { BalanceList } from "@/components/domain/balance/balance-list";
 import { UtxoList } from "@/components/domain/utxo/utxo-list";
@@ -33,6 +34,9 @@ const PATHS = {
   SELECT_ADDRESS: "/addresses",
   BUY_XCP: "/market/dispensers/XCP",
 } as const;
+// One element for the page's lifetime: the header compares accessories by reference, and the
+// shortcut reads the wallet itself, so it never needs rebuilding.
+const ADDRESS_TYPE_SHORTCUT = <AddressTypeShortcut />;
 
 export default function HomePage(): ReactElement {
   const { activeWallet, activeAddress, lockKeychain, isLoading } = useWallet();
@@ -86,6 +90,7 @@ export default function HomePage(): ReactElement {
         onClick: () => navigate(PATHS.SELECT_WALLET),
         ariaLabel: t('app_select_wallet'),
       },
+      rightAccessory: ADDRESS_TYPE_SHORTCUT,
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
         onClick: async () => {
