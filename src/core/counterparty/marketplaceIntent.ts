@@ -173,6 +173,36 @@ export interface PrepareBulkFanoutIntentClaim {
   operationExpiresAt: number;
 }
 
+/** What an offer is for. Display context only: the funding transaction commits to no target;
+ * the separate exact-offer authorization binds each concrete outpoint. */
+export type FundOffersTargetClaim =
+  | { scope: 'asset'; asset: string }
+  | { scope: 'collection'; collection: string; policy?: string };
+
+/** A clean-BTC self-send that sets aside `slotCount` exact offer-backing outputs. Each slot is
+ * worth price + platform fee (+ the attached-delivery UTXO), all paid back to the bidder. */
+export interface FundOffersIntentClaim {
+  standard: typeof MARKETPLACE_INTENT_STANDARD;
+  version: typeof MARKETPLACE_INTENT_VERSION;
+  action: 'fund_offers';
+  operationId: string;
+  protocolVersion: 'exact_offer_v1';
+  assets: [];
+  bidder: string;
+  target: FundOffersTargetClaim;
+  priceSats: number;
+  platformFeeSats: number;
+  delivery: { mode: 'detached' } | { mode: 'attached'; utxoValueSats: number };
+  fundingInputs: Array<MarketplaceOutpointClaim & { valueSats: number }>;
+  fundingValueSats: number;
+  slotCount: number;
+  slotValueSats: number;
+  networkFeeSats: number;
+  changeSats: number;
+  expectedTxid: string;
+  marketplaceExpiresAt: number;
+}
+
 export type MarketplaceIntentClaimV1 =
   | AttachForListingIntentClaim
   | PrepareAssetIntentClaim
@@ -180,7 +210,8 @@ export type MarketplaceIntentClaimV1 =
   | BuyListingsIntentClaim
   | AuthorizeExactOfferIntentClaim
   | AcceptExactOfferIntentClaim
-  | PrepareBulkFanoutIntentClaim;
+  | PrepareBulkFanoutIntentClaim
+  | FundOffersIntentClaim;
 
 export interface MarketplaceApprovalReview {
   /** Optional concise action summary, separate from the full transaction description. */
@@ -198,6 +229,7 @@ export interface MarketplaceApprovalReview {
     | 'accept_exact_offer'
     | 'accept_exact_offer_with_cpfp'
     | 'prepare_bulk_fanout'
+    | 'fund_offers'
     | 'marketplace_batch';
   title: string;
   facts: ProtocolField[];
@@ -372,6 +404,7 @@ export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1
   if (value.action === 'attach_for_listing') return parseAttachForListingIntent(value);
   if (value.action === 'prepare_asset') return parsePrepareAssetIntent(value);
   if (value.action === 'prepare_bulk_fanout') return parsePrepareBulkFanoutIntent(value);
+  if (value.action === 'fund_offers') return parseFundOffersIntent(value);
   if (value.action === 'buy_listings') return parseBuyListingsIntent(value);
   if (value.action === 'authorize_exact_offer' || value.action === 'accept_exact_offer') {
     return parseExactOfferIntent(value, value.action);
@@ -457,6 +490,93 @@ const parsePrepareBulkFanoutIntent = (
     changeSats: nonNegativeSafeInteger(value.changeSats, 'changeSats'),
     expectedTxid,
     operationExpiresAt: safeInteger(value.operationExpiresAt, 'operationExpiresAt', {
+      positive: true,
+    })!,
+  };
+};
+
+const MAX_FUND_OFFER_SLOTS = 20;
+const MAX_FUND_OFFER_INPUTS = 50;
+
+const fundOffersTarget = (value: unknown): FundOffersTargetClaim => {
+  if (!isRecord(value)) throw new Error('target must be an object');
+  if (value.scope === 'asset') {
+    return { scope: 'asset', asset: boundedString(value.asset, 'target.asset', 250) };
+  }
+  if (value.scope === 'collection') {
+    return {
+      scope: 'collection',
+      collection: boundedString(value.collection, 'target.collection', 120),
+      ...(value.policy === undefined ? {} : { policy: boundedString(value.policy, 'target.policy', 200) }),
+    };
+  }
+  throw new Error('target.scope must be asset or collection');
+};
+
+const parseFundOffersIntent = (value: Record<string, unknown>): FundOffersIntentClaim => {
+  if (value.protocolVersion !== 'exact_offer_v1') {
+    throw new Error('fund_offers intent has the wrong protocolVersion');
+  }
+  if (!Array.isArray(value.assets) || value.assets.length !== 0) {
+    throw new Error('fund_offers must not claim attached assets');
+  }
+  const expectedTxid = boundedString(value.expectedTxid, 'expectedTxid', 64).toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(expectedTxid)) {
+    throw new Error('expectedTxid must be 32-byte hex');
+  }
+  const slotCount = safeInteger(value.slotCount, 'slotCount', { positive: true });
+  if (slotCount === null || slotCount > MAX_FUND_OFFER_SLOTS) {
+    throw new Error(`slotCount must be 1..${MAX_FUND_OFFER_SLOTS}`);
+  }
+  if (
+    !Array.isArray(value.fundingInputs)
+    || value.fundingInputs.length < 1
+    || value.fundingInputs.length > MAX_FUND_OFFER_INPUTS
+  ) {
+    throw new Error(`fundingInputs must list 1..${MAX_FUND_OFFER_INPUTS} outpoints`);
+  }
+  const fundingInputs = value.fundingInputs.map((candidate, index) => {
+    const label = `fundingInputs[${index}]`;
+    if (!isRecord(candidate)) throw new Error(`${label} must be an object`);
+    return {
+      ...outpoint(candidate, label),
+      valueSats: safeInteger(candidate.valueSats, `${label}.valueSats`, { positive: true })!,
+    };
+  });
+  if (!isRecord(value.delivery)) throw new Error('delivery must be an object');
+  let delivery: FundOffersIntentClaim['delivery'];
+  if (value.delivery.mode === 'detached') {
+    delivery = { mode: 'detached' };
+  } else if (value.delivery.mode === 'attached') {
+    delivery = {
+      mode: 'attached',
+      utxoValueSats: safeInteger(value.delivery.utxoValueSats, 'delivery.utxoValueSats', {
+        positive: true,
+      })!,
+    };
+  } else {
+    throw new Error('delivery.mode must be detached or attached');
+  }
+  return {
+    standard: MARKETPLACE_INTENT_STANDARD,
+    version: MARKETPLACE_INTENT_VERSION,
+    action: 'fund_offers',
+    operationId: boundedString(value.operationId, 'operationId'),
+    protocolVersion: 'exact_offer_v1',
+    assets: [],
+    bidder: boundedString(value.bidder, 'bidder', 128),
+    target: fundOffersTarget(value.target),
+    priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true })!,
+    platformFeeSats: nonNegativeSafeInteger(value.platformFeeSats, 'platformFeeSats'),
+    delivery,
+    fundingInputs,
+    fundingValueSats: safeInteger(value.fundingValueSats, 'fundingValueSats', { positive: true })!,
+    slotCount,
+    slotValueSats: safeInteger(value.slotValueSats, 'slotValueSats', { positive: true })!,
+    networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
+    changeSats: nonNegativeSafeInteger(value.changeSats, 'changeSats'),
+    expectedTxid,
+    marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
       positive: true,
     })!,
   };
@@ -1866,6 +1986,178 @@ function analyzePrepareBulkFanoutIntent(
   };
 }
 
+const fundOffersTargetLabel = (target: FundOffersTargetClaim): string =>
+  target.scope === 'asset'
+    ? target.asset
+    : target.policy ? `${target.collection} (${target.policy})` : target.collection;
+
+/**
+ * Prove a clean-BTC self-send that backs exact offers: every signed input is the bidder's own
+ * asset-free coin, and every output — each exact offer slot and the change — pays the bidder back.
+ * Nothing leaves the wallet here; a seller can only take a slot through the separate
+ * `authorize_exact_offer` signature that fixes the asset, payment, and delivery.
+ */
+function analyzeFundOffersIntent(
+  input: MarketplaceAnalysisInput,
+  intent: FundOffersIntentClaim,
+): MarketplaceApprovalReview {
+  const {
+    inputs,
+    outputs,
+    signedInputs,
+    signerAddresses,
+    attachedAssets,
+    hasCounterpartyPayload,
+    transactionId,
+  } = input;
+  const blockers: string[] = [];
+  const retry: string[] = [];
+
+  if (!transactionId) {
+    retry.push('the wallet could not establish the offer funding transaction id');
+  } else if (transactionId.toLowerCase() !== intent.expectedTxid) {
+    blockers.push('the offer funding transaction id differs from the claim');
+  }
+  if (hasCounterpartyPayload) {
+    blockers.push('offer funding must not carry a Counterparty payload');
+  }
+
+  const attachedUtxoSats = intent.delivery.mode === 'attached' ? intent.delivery.utxoValueSats : 0;
+  const expectedSlot = safeSum([intent.priceSats, intent.platformFeeSats, attachedUtxoSats]);
+  if (expectedSlot === null || expectedSlot !== intent.slotValueSats) {
+    blockers.push('each offer slot must equal the offer price plus the platform fee and any delivery UTXO');
+  }
+
+  if (inputs.length !== intent.fundingInputs.length) {
+    blockers.push(`expected ${intent.fundingInputs.length} offer funding inputs, got ${inputs.length}`);
+  }
+  if (signerAddresses.length !== 1 || !sameAddress(signerAddresses[0], intent.bidder)) {
+    blockers.push('the requested offer funding signer is not exactly the claimed bidder');
+  }
+  const signedIndices = new Set(signedInputs.map(entry => entry.index));
+  if (
+    signedInputs.length !== inputs.length
+    || inputs.some(transactionInput => !signedIndices.has(transactionInput.index))
+    || signedInputs.some(entry => entry.sighashType !== 0x01)
+  ) {
+    blockers.push('the wallet must sign every offer funding input with ALL (0x01)');
+  }
+
+  for (let inputIndex = 0; inputIndex < inputs.length; inputIndex += 1) {
+    const fundingInput = inputs[inputIndex]!;
+    const claim = intent.fundingInputs[inputIndex];
+    if (!claim || !sameOutpoint(fundingInput, claim)) {
+      blockers.push(`offer funding input ${inputIndex} differs from the claimed outpoint`);
+    }
+    if (!sameAddress(fundingInput.address, intent.bidder)) {
+      blockers.push(`offer funding input ${inputIndex} is not controlled by the claimed bidder`);
+    }
+    if (fundingInput.value === undefined) {
+      retry.push(`offer funding input ${inputIndex} has no authenticated value`);
+    } else if (claim && fundingInput.value !== claim.valueSats) {
+      blockers.push(`offer funding input ${inputIndex} value differs from the claim`);
+    }
+    if (fundingInput.hasSignatures !== false) {
+      blockers.push(`offer funding input ${inputIndex} must be proven unsigned before approval`);
+    }
+    // Absence of an entry means the lookup ran and found nothing attached.
+    const assets = attachedAssets.find(entry => entry.inputIndex === fundingInput.index);
+    if (assets?.lookupFailed) {
+      retry.push(`the attached-asset lookup for offer funding input ${inputIndex} failed`);
+    } else if (assets && assets.assets.length > 0) {
+      blockers.push(`offer funding input ${inputIndex} already carries Counterparty assets`);
+    }
+  }
+
+  const claimedInputTotal = safeSum(intent.fundingInputs.map(claim => claim.valueSats));
+  if (claimedInputTotal === null || claimedInputTotal !== intent.fundingValueSats) {
+    blockers.push('the claimed funding value does not equal the claimed inputs');
+  }
+
+  const expectedOutputCount = intent.slotCount + (intent.changeSats > 0 ? 1 : 0);
+  if (outputs.length !== expectedOutputCount) {
+    blockers.push(`expected ${expectedOutputCount} offer funding outputs, got ${outputs.length}`);
+  }
+  for (let outputIndex = 0; outputIndex < outputs.length; outputIndex += 1) {
+    const output = outputs[outputIndex]!;
+    const expectedValue = outputIndex < intent.slotCount ? intent.slotValueSats : intent.changeSats;
+    if (output.type === 'op_return' || !sameAddress(output.address, intent.bidder)) {
+      blockers.push(`offer funding output ${outputIndex} does not return to the bidder`);
+    }
+    if (output.value !== expectedValue) {
+      blockers.push(`offer funding output ${outputIndex} value differs from the plan`);
+    }
+  }
+
+  const slotTotal = safeSum(Array.from({ length: intent.slotCount }, () => intent.slotValueSats));
+  const outputTotal = slotTotal === null ? null : safeSum([slotTotal, intent.changeSats]);
+  const claimedFee = outputTotal === null ? null : intent.fundingValueSats - outputTotal;
+  if (claimedFee === null || claimedFee < 0 || claimedFee !== intent.networkFeeSats) {
+    blockers.push('the claimed offer funding fee does not equal funding minus outputs');
+  }
+  const actualInputTotal = inputs.every(transactionInput => transactionInput.value !== undefined)
+    ? safeSum(inputs.map(transactionInput => transactionInput.value!))
+    : undefined;
+  if (actualInputTotal !== undefined) {
+    const actualOutputTotal = safeSum(outputs.map(output => output.value));
+    const actualFee = actualInputTotal === null || actualOutputTotal === null
+      ? null
+      : actualInputTotal - actualOutputTotal;
+    if (actualFee === null || actualFee < 0 || actualFee !== intent.networkFeeSats) {
+      blockers.push('the actual offer funding fee differs from the claim');
+    }
+  }
+
+  const target = fundOffersTargetLabel(intent.target);
+  const allProblems = [...retry, ...blockers];
+  return {
+    status: blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved',
+    family: 'fund_offers',
+    title: intent.slotCount === 1
+      ? t('marketplace_intent_title_fund_offer', target)
+      : t('marketplace_intent_title_fund_offers', [grouped(intent.slotCount), target]),
+    facts: [
+      {
+        kind: 'amount' as const, label: t('marketplace_intent_offer_price'),
+        value: satsValue(intent.priceSats),
+      },
+      {
+        kind: 'amount' as const, label: t('marketplace_intent_set_aside'),
+        value: `${grouped(intent.slotCount)} × ${satsValue(intent.slotValueSats)}`,
+      },
+      {
+        kind: 'amount' as const, label: t('marketplace_intent_platform_fee'),
+        value: satsValue(intent.platformFeeSats),
+        description: t('marketplace_intent_paid_only_if_a_seller_accepts'),
+      },
+      ...(attachedUtxoSats > 0 ? [{
+        kind: 'amount' as const, label: t('marketplace_intent_sats_kept_with_your_asset'),
+        value: satsValue(attachedUtxoSats),
+      }] : []),
+      {
+        kind: 'amount' as const, label: t('marketplace_intent_network_fee'),
+        value: satsValue(intent.networkFeeSats),
+      },
+      { kind: 'amount' as const, label: t('marketplace_intent_change'), value: satsValue(intent.changeSats) },
+      {
+        kind: 'text' as const, label: t('marketplace_intent_marketplace_expiry'),
+        value: formatExpiry(intent.marketplaceExpiresAt),
+      },
+      {
+        kind: 'paragraph' as const, label: t('marketplace_intent_cancellation'),
+        value: t('marketplace_intent_withdraw_by_spending_your_funding_utxo'),
+      },
+    ],
+    notices: allProblems.length > 0
+      ? []
+      : [{
+          severity: 'info',
+          message: t('marketplace_intent_notice_fund_offers'),
+        }],
+    blockers: allProblems,
+  };
+}
+
 export function analyzeMarketplaceIntent(input: MarketplaceAnalysisInput): MarketplaceApprovalReview {
   switch (input.intent.action) {
     case 'attach_for_listing':
@@ -1880,5 +2172,7 @@ export function analyzeMarketplaceIntent(input: MarketplaceAnalysisInput): Marke
       return analyzeExactOfferIntent(input, input.intent);
     case 'prepare_bulk_fanout':
       return analyzePrepareBulkFanoutIntent(input, input.intent);
+    case 'fund_offers':
+      return analyzeFundOffersIntent(input, input.intent);
   }
 }

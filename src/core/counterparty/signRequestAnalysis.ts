@@ -409,8 +409,11 @@ export async function analyzeSignRequest(
         ...safety.warnings,
       ];
       safety.blocked = true;
-    } else if (marketplaceReview.status === 'proved' && marketplaceReview.family === 'prepare_bulk_fanout') {
-      // A proved fan-out spends clean funding into exact same-wallet outputs.
+    } else if (
+      marketplaceReview.status === 'proved'
+      && (marketplaceReview.family === 'prepare_bulk_fanout' || marketplaceReview.family === 'fund_offers')
+    ) {
+      // A proved fan-out or offer funding spends clean funding into exact same-wallet outputs.
       // Only its absence of a Counterparty payload is exempt; every other block survives.
       safety.warnings = safety.warnings.filter(warning => warning.code !== 'counterparty_only_gate');
       safety.blocked = safety.warnings.some(warning => warning.severity === 'block');

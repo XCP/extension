@@ -235,6 +235,41 @@ it('still signs a proved same-wallet fan-out without Counterparty data', async (
   await signs(result);
 });
 
+function offerFunding(): PsbtBundleApprovalInput['items'][number] {
+  const prev = funding(wallet.script, 50_000n, 8);
+  const tx = new Transaction({version: 2, lockTime: 0});
+  tx.addInput({txid: prev.id, index: 0, nonWitnessUtxo: prev.toBytes(true, false), sighashType: 1});
+  for (const amount of [9_000n, 9_000n, 31_500n]) tx.addOutput({script: wallet.script, amount});
+  const item = {psbtHex: bytesToHex(tx.toPSBT()), signInputs: {[wallet.address]: [0]}, sighashTypes: [1]};
+  return {...item, marketplaceIntent: parseMarketplaceIntent({
+    standard: 'counterparty-marketplace', version: 1, action: 'fund_offers',
+    operationId: `offer-funding:${tx.id}`, protocolVersion: 'exact_offer_v1', assets: [],
+    bidder: wallet.address, target: {scope: 'asset', asset: 'RAREPEPE'},
+    priceSats: 8_000, platformFeeSats: 1_000, delivery: {mode: 'detached'},
+    fundingInputs: [{txid: prev.id, vout: 0, valueSats: 50_000}], fundingValueSats: 50_000,
+    slotCount: 2, slotValueSats: 9_000, networkFeeSats: 500, changeSats: 31_500,
+    expectedTxid: tx.id, marketplaceExpiresAt: 2000000000,
+  })};
+}
+
+it('signs a proved single offer funding without Counterparty data', async () => {
+  const result = await review([offerFunding()], false);
+  expect(result.policy).toMatchObject({blocked: false, requiresAcknowledgement: false});
+  await signs(result);
+});
+
+it('keeps the Counterparty-only gate for the same self-send without an offer intent', async () => {
+  const {marketplaceIntent: _intent, ...plain} = offerFunding();
+  const id = crypto.randomUUID();
+  await beginSignFlow({id, walletId: 'audit', address: state.address, origin: 'https://audit.invalid',
+    timestamp: Date.now(), requestKey: id, kind: 'sign-psbt', ...plain,
+  } as Parameters<typeof beginSignFlow>[0]);
+  const result = await createProviderSigningService().getReview(id);
+  expect(result.policy.blocked).toBe(true);
+  await expect(signs(result, true)).rejects.toThrow();
+  expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+});
+
 it('refuses a batch when the asset indexer cannot check its funding inputs', async () => {
   state.lookupFailed = true;
   const result = await review([preparation()], true);

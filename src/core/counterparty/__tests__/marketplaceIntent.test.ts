@@ -6,6 +6,7 @@ import {
   analyzeMarketplaceIntent,
   type BuyListingsIntentClaim,
   type CreateListingIntentClaim,
+  type FundOffersIntentClaim,
   marketplaceTransactionHeaderProblem,
   type PrepareAssetIntentClaim,
   type PrepareBulkFanoutIntentClaim,
@@ -24,6 +25,9 @@ const EXACT_TXID = '18'.repeat(32);
 const BID_TXID = '19'.repeat(32);
 const FANOUT_TXID = '20'.repeat(32);
 const FANOUT_FUNDING_TXID = '21'.repeat(32);
+const FUND_OFFERS_TXID = '22'.repeat(32);
+const FUND_OFFERS_INPUT_TXID = '23'.repeat(32);
+const FUND_OFFERS_INPUT_TWO_TXID = '24'.repeat(32);
 
 const intent: CreateListingIntentClaim = {
   standard: 'counterparty-marketplace',
@@ -395,7 +399,77 @@ const fanoutBase = () => ({
   transactionId: FANOUT_TXID,
 });
 
+// Two editions at 8,000 sats, detached: each slot is price + the 1,000-sat platform minimum.
+const fundOffersIntent: FundOffersIntentClaim = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'fund_offers',
+  operationId: `offer-funding:${FUND_OFFERS_TXID}`,
+  protocolVersion: 'exact_offer_v1',
+  assets: [],
+  bidder: BUYER,
+  target: { scope: 'collection', collection: 'rare-pepe', policy: 'series 1' },
+  priceSats: 8_000,
+  platformFeeSats: 1_000,
+  delivery: { mode: 'detached' },
+  fundingInputs: [
+    { txid: FUND_OFFERS_INPUT_TXID, vout: 0, valueSats: 15_000 },
+    { txid: FUND_OFFERS_INPUT_TWO_TXID, vout: 3, valueSats: 5_000 },
+  ],
+  fundingValueSats: 20_000,
+  slotCount: 2,
+  slotValueSats: 9_000,
+  networkFeeSats: 400,
+  changeSats: 1_600,
+  expectedTxid: FUND_OFFERS_TXID,
+  marketplaceExpiresAt: 2_000_000_000,
+};
+
+const fundOffersBase = () => ({
+  intent: fundOffersIntent,
+  inputs: [
+    { index: 0, txid: FUND_OFFERS_INPUT_TXID, vout: 0, address: BUYER, value: 15_000, hasSignatures: false },
+    { index: 1, txid: FUND_OFFERS_INPUT_TWO_TXID, vout: 3, address: BUYER, value: 5_000, hasSignatures: false },
+  ],
+  outputs: [
+    { index: 0, type: 'p2wpkh', address: BUYER, value: 9_000 },
+    { index: 1, type: 'p2wpkh', address: BUYER, value: 9_000 },
+    { index: 2, type: 'p2wpkh', address: BUYER, value: 1_600 },
+  ],
+  signedInputs: [{ index: 0, sighashType: 0x01 }, { index: 1, sighashType: 0x01 }],
+  signerAddresses: [BUYER],
+  attachedAssets: [
+    { inputIndex: 0, utxo: `${FUND_OFFERS_INPUT_TXID}:0`, assets: [] },
+    { inputIndex: 1, utxo: `${FUND_OFFERS_INPUT_TWO_TXID}:3`, assets: [] },
+  ],
+  attachedAssetDestination: null,
+  hasCounterpartyPayload: false,
+  transactionId: FUND_OFFERS_TXID,
+});
+
 describe('marketplace intent wire parser', () => {
+  it('copies a bounded offer-funding claim', () => {
+    expect(parseMarketplaceIntent(fundOffersIntent)).toEqual(fundOffersIntent);
+    const attached = {
+      ...fundOffersIntent,
+      target: { scope: 'asset', asset: 'RAREPEPE' },
+      delivery: { mode: 'attached', utxoValueSats: 330 },
+      slotValueSats: 9_330,
+    };
+    expect(parseMarketplaceIntent(attached)).toEqual(attached);
+  });
+
+  it.each([
+    ['unknown target scope', { target: { scope: 'wallet', asset: 'X' } }],
+    ['too many slots', { slotCount: 21 }],
+    ['no funding inputs', { fundingInputs: [] }],
+    ['claimed assets', { assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }] }],
+    ['other protocol', { protocolVersion: 'direct_v1' }],
+    ['unknown delivery', { delivery: { mode: 'teleport' } }],
+  ])('refuses an offer-funding claim with %s', (_label, override) => {
+    expect(() => parseMarketplaceIntent({ ...fundOffersIntent, ...override })).toThrow();
+  });
+
   it('copies a bounded create-listing claim', () => {
     expect(parseMarketplaceIntent(intent)).toEqual(intent);
   });
@@ -1266,6 +1340,110 @@ describe('bulk fan-out funding proof', () => {
         lookupFailed: true,
       }],
     });
+    expect(review.status).toBe('retry');
+  });
+});
+
+describe('offer funding proof', () => {
+  it('proves every set-aside output and the change return to the bidder', () => {
+    const review = analyzeMarketplaceIntent(fundOffersBase());
+
+    expect(review).toMatchObject({ status: 'proved', family: 'fund_offers', blockers: [] });
+    expect(review.title).toBe('Fund 2 offers on rare-pepe (series 1)');
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Set aside', value: '2 × 9,000 sats' });
+    expect(review.facts).toContainEqual(expect.objectContaining({
+      label: 'Platform fee', value: '1,000 sats', description: 'Paid only if a seller accepts',
+    }));
+    expect(review.notices[0]?.message).toMatch(/stays in this wallet/i);
+  });
+
+  it('proves a one-edition attached-delivery funding without change', () => {
+    const review = analyzeMarketplaceIntent({
+      ...fundOffersBase(),
+      intent: {
+        ...fundOffersIntent,
+        target: { scope: 'asset', asset: 'RAREPEPE' },
+        delivery: { mode: 'attached', utxoValueSats: 330 },
+        fundingInputs: [fundOffersIntent.fundingInputs[0]!],
+        fundingValueSats: 15_000,
+        slotCount: 1,
+        slotValueSats: 9_330,
+        networkFeeSats: 5_670,
+        changeSats: 0,
+      },
+      inputs: [fundOffersBase().inputs[0]!],
+      outputs: [{ index: 0, type: 'p2wpkh', address: BUYER, value: 9_330 }],
+      signedInputs: [{ index: 0, sighashType: 0x01 }],
+      attachedAssets: [fundOffersBase().attachedAssets[0]!],
+    });
+    expect(review).toMatchObject({ status: 'proved', title: 'Fund an offer on RAREPEPE' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Sats kept with your asset', value: '330 sats' });
+  });
+
+  it.each([
+    ['transaction id', { transactionId: '99'.repeat(32) }],
+    ['funding outpoint', {
+      inputs: [{ ...fundOffersBase().inputs[0]!, vout: 1 }, fundOffersBase().inputs[1]!],
+    }],
+    ['funding value', {
+      inputs: [{ ...fundOffersBase().inputs[0]!, value: 14_999 }, fundOffersBase().inputs[1]!],
+    }],
+    ['foreign input', {
+      inputs: [fundOffersBase().inputs[0]!, { ...fundOffersBase().inputs[1]!, address: SELLER }],
+    }],
+    ['extra input', {
+      inputs: [...fundOffersBase().inputs, { index: 2, txid: TXID, vout: 0, address: BUYER, value: 1, hasSignatures: false }],
+    }],
+    ['external output', {
+      outputs: fundOffersBase().outputs.map(output => output.index === 1 ? { ...output, address: SELLER } : output),
+    }],
+    ['slot value', {
+      outputs: fundOffersBase().outputs.map(output => output.index === 0 ? { ...output, value: 8_999 } : output),
+    }],
+    ['extra output', {
+      outputs: [...fundOffersBase().outputs, { index: 3, type: 'p2wpkh', address: BUYER, value: 1 }],
+    }],
+    ['data output', {
+      outputs: fundOffersBase().outputs.map(output => output.index === 2 ? { ...output, type: 'op_return' } : output),
+    }],
+    ['slot economics', { intent: { ...fundOffersIntent, platformFeeSats: 999 } }],
+    ['fee claim', { intent: { ...fundOffersIntent, networkFeeSats: 401 } }],
+    ['unsigned input', { signedInputs: [{ index: 0, sighashType: 0x01 }] }],
+    ['signature scope', { signedInputs: [{ index: 0, sighashType: 0x01 }, { index: 1, sighashType: 0x81 }] }],
+    ['signer', { signerAddresses: [SELLER] }],
+    ['payload', { hasCounterpartyPayload: true }],
+    ['existing signature', {
+      inputs: [fundOffersBase().inputs[0]!, { ...fundOffersBase().inputs[1]!, hasSignatures: true }],
+    }],
+    ['attached asset', {
+      attachedAssets: [
+        fundOffersBase().attachedAssets[0]!,
+        {
+          inputIndex: 1,
+          utxo: `${FUND_OFFERS_INPUT_TWO_TXID}:3`,
+          assets: [{ asset: 'XCP', quantity: '1', quantity_normalized: '0.00000001' }],
+        },
+      ],
+    }],
+  ])('blocks a mutation of %s', (_label, override) => {
+    const review = analyzeMarketplaceIntent({ ...fundOffersBase(), ...override });
+    expect(review.status).toBe('blocked');
+    expect(review.blockers.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['asset lookup', {
+      attachedAssets: [
+        fundOffersBase().attachedAssets[0]!,
+        { inputIndex: 1, utxo: `${FUND_OFFERS_INPUT_TWO_TXID}:3`, assets: [], lookupFailed: true },
+      ],
+    }],
+    ['authenticated value', {
+      inputs: [fundOffersBase().inputs[0]!, { ...fundOffersBase().inputs[1]!, value: undefined }],
+    }],
+    ['transaction id', { transactionId: undefined }],
+  ])('requires retry when %s cannot be proved', (_label, override) => {
+    const review = analyzeMarketplaceIntent({ ...fundOffersBase(), ...override });
     expect(review.status).toBe('retry');
   });
 });
