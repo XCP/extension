@@ -149,8 +149,8 @@ export function providerPsbtSigningCapabilities(
       inputScope: 'selected',
       externalInputs: 'presigned',
       maxRequests: supported ? 8 : 0,
-      // The Trezor batch contract requires every external input pre-signed and accepts only
-      // SIGHASH_ALL, which neither linked bundle can satisfy.
+      // Every hardware wallet's batch contract requires external inputs to be pre-signed and
+      // accepts only SIGHASH_ALL, which neither linked bundle can satisfy.
       marketplaceBundles: [],
     },
   };

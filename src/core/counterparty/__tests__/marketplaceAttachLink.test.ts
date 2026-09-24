@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   deriveProvedAttachOutput,
+  type LinkedAttachChainSource,
   listingSpendsProvedAttach,
   type ProvedAttachOutput,
+  proveAttachInputsSettled,
   withLinkedInputAssets,
 } from '@/core/counterparty/marketplaceAttachLink';
 
@@ -93,20 +95,79 @@ describe('withLinkedInputAssets', () => {
     inputIndex: 1, utxo: `${TXID}:0`,
     assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1', asset_longname: null }],
   };
+  const unbroadcast = vi.fn(async () => true);
+  const broadcastOrUnknown = vi.fn(async () => false);
+  const failed = { inputIndex: 1, utxo: linked.utxo, assets: [], lookupFailed: true };
 
-  it('fills an input the ledger reported empty or could not reach', () => {
-    expect(withLinkedInputAssets([], linked)).toEqual([linked]);
-    const failed = { inputIndex: 1, utxo: linked.utxo, assets: [], lookupFailed: true };
-    expect(withLinkedInputAssets([failed], linked)).toEqual([linked]);
+  it('fills an input the ledger reported empty without asking the network', async () => {
+    await expect(withLinkedInputAssets([], linked, TXID, broadcastOrUnknown)).resolves.toEqual([linked]);
+    expect(broadcastOrUnknown).not.toHaveBeenCalled();
   });
 
-  it('keeps a ledger that does report assets, so a disagreement still blocks', () => {
+  it('fills a failed lookup only when the network affirmatively does not know the attach', async () => {
+    await expect(withLinkedInputAssets([failed], linked, TXID, unbroadcast)).resolves.toEqual([linked]);
+    await expect(withLinkedInputAssets([failed], linked, TXID, broadcastOrUnknown)).resolves.toEqual([failed]);
+    const throwing = async () => { throw new Error('explorer down'); };
+    await expect(withLinkedInputAssets([failed], linked, TXID, throwing)).resolves.toEqual([failed]);
+  });
+
+  it('fills a lookup held back because the attach itself is still pending', async () => {
+    const pending = { ...failed, pendingParentTxid: TXID.toUpperCase() };
+    await expect(withLinkedInputAssets([pending], linked, TXID, broadcastOrUnknown)).resolves.toEqual([linked]);
+    const otherParent = { ...failed, pendingParentTxid: 'cd'.repeat(32) };
+    await expect(withLinkedInputAssets([otherParent], linked, TXID, broadcastOrUnknown))
+      .resolves.toEqual([otherParent]);
+  });
+
+  it('keeps a ledger that does report assets, so a disagreement still blocks', async () => {
     const ledger = [{ inputIndex: 1, utxo: linked.utxo, assets: [{ asset: 'OTHER', quantity_normalized: '1' }] }];
-    expect(withLinkedInputAssets(ledger, linked)).toBe(ledger);
+    await expect(withLinkedInputAssets(ledger, linked, TXID, unbroadcast)).resolves.toBe(ledger);
   });
 
-  it('leaves every other input untouched', () => {
+  it('leaves every other input untouched', async () => {
     const other = { inputIndex: 0, utxo: 'x:0', assets: [], lookupFailed: true };
-    expect(withLinkedInputAssets([other], linked)).toEqual([other, linked]);
+    await expect(withLinkedInputAssets([other], linked, TXID, broadcastOrUnknown)).resolves.toEqual([other, linked]);
+  });
+});
+
+describe('proveAttachInputsSettled', () => {
+  const inputs = [
+    { index: 0, txid: '11'.repeat(32), vout: 0 },
+    { index: 1, txid: '22'.repeat(32), vout: 3 },
+  ];
+  const source = (overrides: Partial<LinkedAttachChainSource> = {}): LinkedAttachChainSource => ({
+    txStatus: async () => ({ confirmed: true, blockHeight: 900_000 }),
+    ledgerHeight: async () => 900_000,
+    freshBalanceCount: async () => 0,
+    ...overrides,
+  });
+
+  it('settles inputs whose parents are confirmed, indexed, and still empty', async () => {
+    const reads: string[] = [];
+    await expect(proveAttachInputsSettled(inputs, source({
+      freshBalanceCount: async utxo => { reads.push(utxo); return 0; },
+    }))).resolves.toEqual({ status: 'settled' });
+    expect(reads).toEqual([`${'11'.repeat(32)}:0`, `${'22'.repeat(32)}:3`]);
+  });
+
+  it.each([
+    ['an unconfirmed parent', { txStatus: async () => ({ confirmed: false }) }, /unconfirmed/],
+    ['a parent above the parsed height', { ledgerHeight: async () => 899_999 }, /not yet indexed/],
+    ['an explorer outage', { txStatus: async () => null }, /could not confirm/],
+    ['a parent the explorer does not know', { txStatus: async () => 'missing' as const }, /could not confirm/],
+    ['a confirmed parent with no height', { txStatus: async () => ({ confirmed: true }) }, /place/],
+    ['a ledger height outage', { ledgerHeight: async () => { throw new Error('down'); } }, /indexed/],
+    ['a failed re-read', { freshBalanceCount: async () => { throw new Error('down'); } }, /lookup/],
+  ])('asks for a retry on %s', async (_label, overrides, message) => {
+    const result = await proveAttachInputsSettled(inputs, source(overrides));
+    expect(result.status).toBe('retry');
+    expect('problem' in result && result.problem).toMatch(message);
+  });
+
+  it('blocks when a re-read input now carries assets', async () => {
+    const result = await proveAttachInputsSettled(inputs, source({
+      freshBalanceCount: async utxo => (utxo.endsWith(':3') ? 1 : 0),
+    }));
+    expect(result).toEqual({ status: 'blocked', problem: 'attach input 1 already carries attached assets' });
   });
 });

@@ -1106,6 +1106,7 @@ export const EN = {
   "marketplace_batch_create_listing_utxos": "Create $1 listing UTXOs",
   "marketplace_batch_every_fan_out_input_and": "Every fan-out input and same-wallet output was proved before this batch can sign. No Counterparty asset moves in this phase.",
   "marketplace_batch_funding_fees_and_delivery_destination": "Funding, fees, and delivery destination",
+  "marketplace_batch_latest_marketplace_expiry": "Latest marketplace expiry",
   "marketplace_batch_listing_activation": "Listing activation",
   "marketplace_batch_listing_price": "Listing price",
   "marketplace_batch_new_utxos": "New UTXOs",

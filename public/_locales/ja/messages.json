@@ -6228,5 +6228,8 @@
   },
   "psbts_approve_authorize_offers_2": {
     "message": "$1 件のオファーを承認"
+  },
+  "marketplace_batch_latest_marketplace_expiry": {
+    "message": "マーケットプレイスの最終有効期限"
   }
 }

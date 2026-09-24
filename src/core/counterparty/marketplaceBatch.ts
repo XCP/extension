@@ -6,12 +6,13 @@ import {
   type AttachForListingIntentClaim,
   type AuthorizeExactOfferIntentClaim,
   type CreateListingIntentClaim,
+  formatExpiry,
   type MarketplaceApprovalReview,
   type PrepareAssetIntentClaim,
   type PrepareBulkFanoutIntentClaim,
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
-import { displayLocale, formatAmount } from '@/core/format';
+import { formatAmount } from '@/core/format';
 import { sum, toSafeInteger } from '@/core/numeric';
 import { t } from '@/i18n';
 
@@ -313,7 +314,8 @@ export function analyzeMarketplaceBatch(
     const buyerCost = exactSafeSum([first.priceSats, first.platformFeeSats], 'offer cost');
     const deliveryUtxoSats = first.delivery.mode === 'attached' ? first.delivery.utxoValueSats : 0;
     const funding = first.bitcoinInvalidation.outpoint;
-    const latestExpiry = Math.max(...offers.map(offer => offer.marketplaceExpiresAt));
+    const expiries = offers.map(offer => offer.marketplaceExpiresAt);
+    const latestExpiry = Math.max(...expiries);
     title = offers.length === 1
       ? t('marketplace_batch_authorize_1_exact_offer')
       : t('marketplace_batch_authorize_exact_offers', count(offers.length));
@@ -337,9 +339,10 @@ export function analyzeMarketplaceBatch(
         value: t('marketplace_batch_at_most_one_offer_can_be_accepted'),
       },
       { kind: 'text' as const, label: t('marketplace_batch_transactions'), value: count(offers.length) },
-      ...offers.map(offer => ({
+      // Each target under its ledger-proved quantity (the item proof's summary), never raw units.
+      ...offers.map((offer, index) => ({
         kind: 'outpoint' as const,
-        label: offer.assets[0].asset,
+        label: reviews[index]?.summary?.description ?? offer.assets[0].asset,
         value: `${offer.assets[0].sourceOutpoint.txid}:${offer.assets[0].sourceOutpoint.vout}`,
       })),
       {
@@ -353,11 +356,12 @@ export function analyzeMarketplaceBatch(
         value: `${funding.txid}:${funding.vout}`,
       },
       {
-        kind: 'text' as const, label: t('marketplace_intent_marketplace_expiry'),
-        value: new Date(latestExpiry * 1000).toLocaleString(displayLocale(), {
-          dateStyle: 'short',
-          timeStyle: 'short',
-        }),
+        // Expiries may differ per target; name the latest rather than imply one shared deadline.
+        kind: 'text' as const,
+        label: expiries.every(expiry => expiry === latestExpiry)
+          ? t('marketplace_intent_marketplace_expiry')
+          : t('marketplace_batch_latest_marketplace_expiry'),
+        value: formatExpiry(latestExpiry),
       },
       {
         kind: 'paragraph' as const, label: t('marketplace_intent_cancellation'),

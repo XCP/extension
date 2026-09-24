@@ -6228,5 +6228,8 @@
   },
   "psbts_approve_authorize_offers_2": {
     "message": "授权 $1 个出价"
+  },
+  "marketplace_batch_latest_marketplace_expiry": {
+    "message": "最晚市场到期时间"
   }
 }

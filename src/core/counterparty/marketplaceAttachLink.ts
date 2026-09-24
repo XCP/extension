@@ -12,12 +12,16 @@
  * script and value of the output that receives them — and then admits the listing's input 1 only
  * when it is exactly that output. Nothing here reads the website's intent claims.
  *
- * The derived evidence is used in place of the ledger lookup for listing input 1 alone, and only
- * when the ledger has nothing to say about it (empty or unreachable). A `create_listing` outside
- * this pair never reaches this module and keeps requiring the ledger.
+ * The derived evidence is used in place of the ledger lookup for listing input 1 alone, only when
+ * the ledger has nothing to say about it (empty, or a failure this attach explains), and only after
+ * every attach input's parent is confirmed and indexed (`proveAttachInputsSettled`): Counterparty
+ * moves whatever those inputs carry onto the very output the listing sells. A `create_listing`
+ * outside this pair never reaches this module and keeps requiring the ledger.
  */
 
+import { apiClient, isApiError } from '@/core/api/client';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { clearApiCacheMatching, fetchServerInfo, fetchUtxoBalances } from '@/core/counterparty/api';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 
 /** What a proved attach transaction, read from its own bytes, creates. */
@@ -122,16 +126,145 @@ export function listingSpendsProvedAttach(
   return null;
 }
 
+/** Linked evidence for one input, and how to judge a failed ledger lookup of it. */
+export interface LinkedInputEvidence {
+  entry: InputAttachedAssets;
+  attachTxid: string;
+  attachIsUnbroadcast: () => Promise<boolean>;
+}
+
 /**
- * Replace the ledger's answer for one input with linked evidence when the ledger has nothing to
- * say about it. A ledger that does report assets on that outpoint is kept: the listing proof then
- * checks it against the claim like any other listing, so a disagreement still blocks.
+ * Replace the ledger's answer for one input with linked evidence.
+ *
+ * - The ledger reports assets on the outpoint: kept. The listing proof then checks it against the
+ *   claim like any other listing, so a disagreement still blocks.
+ * - The ledger reports it empty: replaced. An unbroadcast attach output reads exactly that way.
+ * - The lookup failed: replaced only when the failure is explained by this attach — the lookup
+ *   names the attach itself as the pending transaction creating the outpoint, or the network
+ *   affirmatively does not know the attach txid (it is not broadcast yet). An outage stays a retry.
  */
-export function withLinkedInputAssets(
+export async function withLinkedInputAssets(
   ledger: InputAttachedAssets[],
   linked: InputAttachedAssets,
-): InputAttachedAssets[] {
+  attachTxid: string,
+  attachIsUnbroadcast: () => Promise<boolean>,
+): Promise<InputAttachedAssets[]> {
   const existing = ledger.find(entry => entry.inputIndex === linked.inputIndex);
   if (existing && !existing.lookupFailed && existing.assets.length > 0) return ledger;
+  if (existing?.lookupFailed) {
+    // A stricter lookup may name the unconfirmed transaction behind an unknown answer.
+    const pendingParent = 'pendingParentTxid' in existing ? existing.pendingParentTxid : undefined;
+    const explained = typeof pendingParent === 'string'
+      && pendingParent.toLowerCase() === attachTxid.toLowerCase();
+    if (!explained && !await attachIsUnbroadcast().catch(() => false)) return ledger;
+  }
   return [...ledger.filter(entry => entry.inputIndex !== linked.inputIndex), linked];
+}
+
+// -------------------------------------------------------------------------------------------
+// Chain state the linked evidence depends on
+// -------------------------------------------------------------------------------------------
+
+/** A transaction's chain status per the explorer. `missing` is an affirmative "unknown to the
+ * network" (HTTP 404); null is an outage or any other unanswerable state. */
+export type LinkedTxStatus = { confirmed: boolean; blockHeight?: number } | 'missing' | null;
+
+/** The chain and ledger reads the linked proof needs; injectable so tests never touch the network. */
+export interface LinkedAttachChainSource {
+  txStatus(txid: string): Promise<LinkedTxStatus>;
+  /** The last block the Counterparty ledger has parsed. A stale (lower) value only delays proof. */
+  ledgerHeight(): Promise<number>;
+  /** How many balances the ledger reports on one outpoint, bypassing any cache. Throws on failure. */
+  freshBalanceCount(utxo: string): Promise<number>;
+}
+
+export const liveLinkedAttachChainSource: LinkedAttachChainSource = {
+  async txStatus(txid) {
+    try {
+      const response = await apiClient.get<{ confirmed?: unknown; block_height?: unknown }>(
+        `https://mempool.space/api/tx/${txid}/status`,
+        { retries: 0 },
+      );
+      const data = response.data;
+      if (typeof data?.confirmed !== 'boolean') return null;
+      return {
+        confirmed: data.confirmed,
+        ...(Number.isSafeInteger(data.block_height) ? { blockHeight: Number(data.block_height) } : {}),
+      };
+    } catch (error) {
+      return isApiError(error) && error.status === 404 ? 'missing' : null;
+    }
+  },
+  async ledgerHeight() {
+    const height = (await fetchServerInfo()).counterparty_height;
+    if (!Number.isSafeInteger(height)) throw new Error('Counterparty reported no parsed height');
+    return height;
+  },
+  async freshBalanceCount(utxo) {
+    clearApiCacheMatching(`/v2/utxos/${encodeURIComponent(utxo)}/balances`);
+    const balances = (await fetchUtxoBalances(utxo)).result ?? [];
+    return balances.filter(balance => balance.asset && balance.quantity_normalized).length;
+  },
+};
+
+export type AttachInputSettlement =
+  | { status: 'settled' }
+  | { status: 'retry' | 'blocked'; problem: string };
+
+/**
+ * Prove the ledger's view of every attach input is final before the listing relies on it.
+ *
+ * Counterparty moves every balance attached to an attach's inputs onto the same first
+ * non-OP_RETURN output the attach credits — the output the listing sells. The attach proof reads
+ * its inputs as asset-free from the ledger, but the ledger reflects only parsed blocks: an input
+ * whose parent is unconfirmed (or confirmed above the parsed height) reads empty even when that
+ * parent attaches an asset to it. The listing's SINGLE|ANYONECANPAY signature would then sell that
+ * extra asset too, for the claimed asset's price. So every parent must be confirmed at or below
+ * Counterparty's parsed height, and every input is then re-read uncached. Any unknown is a retry.
+ */
+export async function proveAttachInputsSettled(
+  inputs: Array<{ index: number; txid: string; vout: number }>,
+  source: LinkedAttachChainSource,
+): Promise<AttachInputSettlement> {
+  const parents = [...new Set(inputs.map(input => input.txid.toLowerCase()))];
+  const statuses = await Promise.all(parents.map(txid => source.txStatus(txid).catch(() => null)));
+  let highest = -1;
+  for (const [index, status] of statuses.entries()) {
+    const txid = parents[index]!;
+    if (status === null || status === 'missing') {
+      return { status: 'retry', problem: `the wallet could not confirm attach funding transaction ${txid}` };
+    }
+    if (!status.confirmed) {
+      return {
+        status: 'retry',
+        problem: `attach funding transaction ${txid} is unconfirmed; retry after it confirms and Counterparty indexes it`,
+      };
+    }
+    if (status.blockHeight === undefined) {
+      return { status: 'retry', problem: `the wallet could not place attach funding transaction ${txid} in a block` };
+    }
+    highest = Math.max(highest, status.blockHeight);
+  }
+  // Read after the statuses: the parsed height only grows, so the comparison stays conservative.
+  let ledgerHeight: number;
+  try {
+    ledgerHeight = await source.ledgerHeight();
+  } catch {
+    return { status: 'retry', problem: 'the wallet could not read how far Counterparty has indexed' };
+  }
+  if (highest > ledgerHeight) {
+    return { status: 'retry', problem: 'an attach funding transaction is not yet indexed by Counterparty' };
+  }
+  for (const input of inputs) {
+    let count: number;
+    try {
+      count = await source.freshBalanceCount(`${input.txid}:${input.vout}`);
+    } catch {
+      return { status: 'retry', problem: `the attached-asset lookup for attach input ${input.index} failed` };
+    }
+    if (count > 0) {
+      return { status: 'blocked', problem: `attach input ${input.index} already carries attached assets` };
+    }
+  }
+  return { status: 'settled' };
 }

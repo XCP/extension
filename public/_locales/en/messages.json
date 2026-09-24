@@ -8291,5 +8291,9 @@
   "psbts_approve_authorize_offers_2": {
     "message": "Authorize $1 offers",
     "description": "pages/requests/psbts/approve.tsx. Sign button for a batch of exact offers. $1 = request.items.length"
+  },
+  "marketplace_batch_latest_marketplace_expiry": {
+    "message": "Latest marketplace expiry",
+    "description": "Row label on the exact-offer batch approval screen when the offers expire at different times; its value is the latest of those marketplace expiry times."
   }
 }

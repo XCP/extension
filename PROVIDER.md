@@ -486,7 +486,14 @@ the asset and raw quantity are those of the locally decoded attach message; the 
 that output's script and amount. This evidence stands in for the ledger lookup on listing input 1
 only when the attach item itself did not fail its proof, and only when listing input 1 is exactly
 that outpoint with that owner and value; any difference blocks the bundle. If the ledger does
-report assets on that outpoint, its answer is kept and checked like any other listing. A
+report assets on that outpoint, its answer is kept and checked like any other listing. A failed
+lookup is replaced only when it is explained by the attach itself (the explorer reports the attach
+txid as unknown, or the lookup names the attach as the pending transaction); an outage stays a
+retry. Because Counterparty also moves every balance on the attach's *inputs* onto the listed
+output, the listing is proved only after every attach input's parent transaction is confirmed at
+or below Counterparty's parsed block height and each input re-reads as asset-free; an unconfirmed
+or unindexed parent, or any unanswerable lookup, asks for a retry. The attach message's quantity
+and destination must be plain decimal digits, as Core requires. A
 `create_listing` outside this pair still requires the ledger. For a Legacy asset source the attach
 txid changes when it is signed; the wallet signs the attach first, confirms its unsigned bytes did
 not change, and moves listing input 1 to the final txid (same vout) before signing the listing, so
@@ -499,7 +506,8 @@ target's attached asset from the ledger). The bundle additionally requires the s
 `bitcoinInvalidation.outpoint`, delivery, `priceSats`, and `platformFeeSats` on every item, and
 distinct `authorizationId`, `operationId`, target outpoint, and `expectedTxid`, none of which may be
 the funding outpoint. Because every signature spends the same input 0, at most one can ever settle;
-the review states this once, with every target. The acknowledgement policy is the single
+the review states this once, with every target under its ledger-proved quantity, and labels the
+expiry "Latest marketplace expiry" when the targets' expiries differ. The acknowledgement policy is the single
 authorization's, applied per item.
 
 ### Broadcasting

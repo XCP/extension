@@ -2061,6 +2061,7 @@
     "marketplace_batch_at_most_one_offer_can_be_accepted",
     "psbts_approve_authorize_offers",
     "psbts_approve_authorize_1_offer",
-    "psbts_approve_authorize_offers_2"
+    "psbts_approve_authorize_offers_2",
+    "marketplace_batch_latest_marketplace_expiry"
   ]
 }

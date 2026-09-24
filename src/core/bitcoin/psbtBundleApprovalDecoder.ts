@@ -6,11 +6,14 @@ import {
   decodePsbtForApproval,
 } from '@/core/bitcoin/psbtApprovalDecoder';
 import { fetchAssetDetails } from '@/core/counterparty/api';
-import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import {
   deriveProvedAttachOutput,
+  type LinkedAttachChainSource,
+  type LinkedInputEvidence,
   listingSpendsProvedAttach,
+  liveLinkedAttachChainSource,
   type ProvedAttachOutput,
+  proveAttachInputsSettled,
 } from '@/core/counterparty/marketplaceAttachLink';
 import {
   analyzeMarketplaceBatch,
@@ -68,7 +71,7 @@ const decodeItem = (
   item: StoredItem,
   intent: MarketplaceIntentClaimV1,
   ownedAddresses: string[] | undefined,
-  linkedInputAssets?: InputAttachedAssets,
+  linkedInput?: LinkedInputEvidence,
 ): Promise<DecodedPsbtInfo> => decodePsbtForApproval(
   item.psbtHex,
   Object.keys(item.signInputs),
@@ -79,7 +82,7 @@ const decodeItem = (
   undefined,
   intent,
   ownedAddresses,
-  linkedInputAssets,
+  { linkedInput },
 );
 
 /**
@@ -112,14 +115,17 @@ async function linkedDisplayQuantity(
   return `${proved.quantityRaw} (base units)`;
 }
 
-const withLinkBlocker = (
+/** Add a link problem to the listing's review. A retry never softens an existing block. */
+const withLinkProblem = (
   review: MarketplaceApprovalReview | undefined,
   problem: string,
+  severity: 'retry' | 'blocked',
 ): MarketplaceApprovalReview => {
   const base: MarketplaceApprovalReview = review
     ?? missingReview('create_listing', 'marketplace semantic proof 2 is missing');
   const { paymentSummary: _payment, summary: _summary, ...rest } = base;
-  return { ...rest, status: 'blocked', blockers: [...base.blockers, problem] };
+  const status = severity === 'blocked' || base.status === 'blocked' ? 'blocked' : 'retry';
+  return { ...rest, status, blockers: [...base.blockers, problem] };
 };
 
 /**
@@ -132,16 +138,17 @@ async function decodeAttachAndList(
   items: StoredItem[],
   intents: MarketplaceIntentClaimV1[],
   ownedAddresses: string[] | undefined,
+  chain: LinkedAttachChainSource,
 ): Promise<DecodedPsbtInfo[]> {
   const [attachItem, listingItem] = items;
   if (!attachItem || !listingItem || items.length !== 2 || intents.length !== 2) {
     throw new Error('attach-and-list must contain exactly two transactions');
   }
   const attach = await decodeItem(attachItem, intents[0]!, ownedAddresses);
-  let linkProblem: string | null;
-  let linked: InputAttachedAssets | undefined;
+  const problems: Array<{ problem: string; severity: 'retry' | 'blocked' }> = [];
+  let linked: LinkedInputEvidence | undefined;
   if (!attach.marketplaceReview || attach.marketplaceReview.status === 'blocked') {
-    linkProblem = 'the listing depends on an attach that did not prove';
+    problems.push({ problem: 'the listing depends on an attach that did not prove', severity: 'blocked' });
   } else {
     const unpack = attach.verification.localUnpack;
     const derived = deriveProvedAttachOutput({
@@ -150,33 +157,48 @@ async function decodeAttachAndList(
       localMessage: unpack?.success ? { messageType: unpack.messageType, data: unpack.data } : undefined,
     });
     if ('problem' in derived) {
-      linkProblem = derived.problem;
+      problems.push({ problem: derived.problem, severity: 'blocked' });
     } else {
-      const listingInput = extractPsbtDetails(listingItem.psbtHex).inputs[1];
-      linkProblem = listingSpendsProvedAttach(listingInput, derived.output);
-      if (!linkProblem) {
-        const proved = derived.output;
+      const proved = derived.output;
+      const mismatch = listingSpendsProvedAttach(extractPsbtDetails(listingItem.psbtHex).inputs[1], proved);
+      if (mismatch) {
+        problems.push({ problem: mismatch, severity: 'blocked' });
+      } else {
+        // Whatever the attach inputs carry lands on the listed output too; the ledger's "empty"
+        // for them is final only once their parents are confirmed and indexed.
+        const settled = await proveAttachInputsSettled(attach.psbtDetails.inputs, chain);
+        if (settled.status !== 'settled') {
+          problems.push({ problem: settled.problem, severity: settled.status });
+        }
         linked = {
-          inputIndex: 1,
-          utxo: `${proved.txid}:${proved.vout}`,
-          assets: [{
-            asset: proved.asset,
-            quantity: proved.quantityRaw,
-            quantity_normalized: await linkedDisplayQuantity(attach, proved),
-            asset_longname: null,
-          }],
+          entry: {
+            inputIndex: 1,
+            utxo: `${proved.txid}:${proved.vout}`,
+            assets: [{
+              asset: proved.asset,
+              quantity: proved.quantityRaw,
+              quantity_normalized: await linkedDisplayQuantity(attach, proved),
+              asset_longname: null,
+            }],
+          },
+          attachTxid: proved.txid,
+          attachIsUnbroadcast: async () => await chain.txStatus(proved.txid) === 'missing',
         };
       }
     }
   }
   const listing = await decodeItem(listingItem, intents[1]!, ownedAddresses, linked);
-  if (linkProblem) {
-    listing.marketplaceReview = withLinkBlocker(listing.marketplaceReview, linkProblem);
+  for (const { problem, severity } of problems) {
+    listing.marketplaceReview = withLinkProblem(listing.marketplaceReview, problem, severity);
   }
   return [attach, listing];
 }
 
-export async function decodePsbtBundleForApproval(stored: PsbtBundleApprovalInput, ownedAddresses?: string[]): Promise<DecodedPsbtBundleInfo> {
+export async function decodePsbtBundleForApproval(
+  stored: PsbtBundleApprovalInput,
+  ownedAddresses?: string[],
+  chain: LinkedAttachChainSource = liveLinkedAttachChainSource,
+): Promise<DecodedPsbtBundleInfo> {
   if (stored.bundleKind === 'acceptance-cpfp') {
     if (stored.items.length !== 2) {
       throw new Error('Exact acceptance fee-bump bundle must contain two transactions');
@@ -243,7 +265,7 @@ export async function decodePsbtBundleForApproval(stored: PsbtBundleApprovalInpu
     throw new Error('Stored marketplace batch kind differs from its intents');
   }
   const decoded: DecodedPsbtInfo[] = parsed.kind === 'attach-and-list'
-    ? await decodeAttachAndList(stored.items, parsed.intents, ownedAddresses)
+    ? await decodeAttachAndList(stored.items, parsed.intents, ownedAddresses, chain)
     : await Promise.all(stored.items.map((item, index) =>
         decodeItem(item, parsed.intents[index]!, ownedAddresses)));
   const itemReviews = decoded.map((item, index) =>

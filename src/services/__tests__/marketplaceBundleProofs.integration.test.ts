@@ -25,6 +25,9 @@ type Balance = { asset: string; quantity: string; quantity_normalized: string };
 const state = vi.hoisted(() => ({
   address: '',
   assets: new Map<string, Balance[] | 'fail'>(),
+  /** Explorer status per txid; absent means confirmed in an already-parsed block. */
+  txStatus: new Map<string, { confirmed: boolean; block_height?: number } | 'missing' | 'fail'>(),
+  ledgerHeight: 900_000,
   wallet: {
     isKeychainUnlocked: vi.fn(async () => true), getActiveWallet: vi.fn(),
     getActiveAddress: vi.fn(), getSettings: vi.fn(async () => ({ strictTransactionVerification: true })),
@@ -53,7 +56,29 @@ vi.mock('@/core/counterparty/api', () => ({
     return { result: entry ?? [] };
   },
   fetchAssetDetails: async () => ({ asset: 'RAREPEPE', divisible: false }),
+  fetchServerInfo: async () => ({ counterparty_height: state.ledgerHeight, backend_height: state.ledgerHeight }),
+  clearApiCacheMatching: () => {},
 }));
+// Only the explorer's transaction-status endpoint is simulated; every other request is real code.
+vi.mock('@/core/api/client', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/core/api/client')>();
+  return {
+    ...actual,
+    apiClient: {
+      ...actual.apiClient,
+      get: async (url: string, config?: unknown) => {
+        const match = /mempool\.space\/api\/tx\/([0-9a-f]{64})\/status$/.exec(url);
+        if (!match) return actual.apiClient.get(url, config as never);
+        const status = state.txStatus.get(match[1]!) ?? { confirmed: true, block_height: 800_000 };
+        if (status === 'fail') throw Object.assign(new Error('explorer down'), { code: 'NETWORK_ERROR' });
+        if (status === 'missing') {
+          throw Object.assign(new Error('Transaction not found'), { code: 'HTTP_ERROR', status: 404 });
+        }
+        return { data: status, status: 200 };
+      },
+    },
+  };
+});
 vi.mock('@/core/counterparty/transaction', () => ({ decodeCounterpartyMessage: async () => undefined }));
 vi.mock('@/core/counterparty/sourcePubkey', () => ({ getSourcePubkey: () => undefined }));
 vi.mock('@/core/bitcoin/feeRate', () => ({ getFeeRates: async () => ({ fastestFee: 2 }) }));
@@ -105,6 +130,8 @@ beforeEach(() => {
   fakeBrowser.reset(); vi.stubGlobal('chrome', fakeBrowser);
   state.address = segwit.address;
   state.assets.clear();
+  state.txStatus.clear();
+  state.ledgerHeight = 900_000;
   state.wallet.getActiveWallet.mockResolvedValue({ id: 'audit', type: 'mnemonic', addressFormat: 'p2wpkh' });
   state.wallet.getActiveAddress.mockResolvedValue({ address: segwit.address });
   state.wallet.getPairedAddresses.mockResolvedValue({ legacy, segwit });
@@ -132,6 +159,8 @@ interface PairOptions {
   listingInput?: (attachId: string) => { txid: string; index: number; amount: bigint; script: Uint8Array };
   /** Attach message body; defaults to one RAREPEPE onto output 0. */
   attachBody?: string;
+  /** A second attach input: the seller's own 330-sat UTXO created by `parent`. */
+  extraInput?: Transaction;
 }
 
 function attachAndList(options: PairOptions = {}): PsbtBundleApprovalInput['items'] {
@@ -139,9 +168,12 @@ function attachAndList(options: PairOptions = {}): PsbtBundleApprovalInput['item
   const sourceFunding = funding(source.script, 100_000n, options.legacySource ? 21 : 22);
   const attach = new Transaction({ version: 2, lockTime: 0, allowUnknownOutputs: true });
   attach.addInput({ txid: sourceFunding.id, index: 0, nonWitnessUtxo: sourceFunding.toBytes(true, false), sighashType: 1 });
+  if (options.extraInput) {
+    attach.addInput({ txid: options.extraInput.id, index: 0, nonWitnessUtxo: options.extraInput.toBytes(true, false), sighashType: 1 });
+  }
   attach.addOutput({ script: segwit.script, amount: 330n });
   attach.addOutput({ script: opReturn(sourceFunding.id, 101, options.attachBody ?? 'RAREPEPE|1|0'), amount: 0n });
-  attach.addOutput({ script: source.script, amount: 98_670n });
+  attach.addOutput({ script: source.script, amount: options.extraInput ? 99_000n : 98_670n });
 
   const spent = options.listingInput?.(attach.id)
     ?? { txid: attach.id, index: 0, amount: 330n, script: segwit.script };
@@ -176,7 +208,11 @@ function attachAndList(options: PairOptions = {}): PsbtBundleApprovalInput['item
   ]);
   expect(parsed.kind).toBe('attach-and-list');
   return [
-    { psbtHex: bytesToHex(attach.toPSBT()), signInputs: { [source.address]: [0] }, sighashTypes: [1],
+    { psbtHex: bytesToHex(attach.toPSBT()),
+      signInputs: options.extraInput
+        ? (source === segwit ? { [segwit.address]: [0, 1] } : { [source.address]: [0], [segwit.address]: [1] })
+        : { [source.address]: [0] },
+      sighashTypes: options.extraInput ? [1, 1] : [1],
       marketplaceIntent: parsed.intents[0]! },
     { psbtHex: bytesToHex(listing.toPSBT()), signInputs: { [segwit.address]: [1] }, sighashTypes: [1, 0x83],
       marketplaceIntent: parsed.intents[1]! },
@@ -213,12 +249,56 @@ describe('attach-and-list linked proof', () => {
     }
   });
 
-  it('keeps proving when the ledger is unreachable for the unbroadcast outpoint', async () => {
+  it('proves over a failed ledger lookup only when the network does not know the attach yet', async () => {
     const items = attachAndList();
-    state.assets.set(`${parsePSBT(items[0]!.psbtHex).id}:0`, 'fail');
-    const result = await review(items, 'attach-and-list');
+    const attachTxid = parsePSBT(items[0]!.psbtHex).id;
+    state.assets.set(`${attachTxid}:0`, 'fail');
+    state.txStatus.set(attachTxid, 'missing');
+    const unbroadcast = await review(items, 'attach-and-list');
+    expect(listingReview(unbroadcast)?.status).toBe('proved');
+    expect(unbroadcast.policy.blocked).toBe(false);
+
+    // An explorer outage explains nothing: the failed lookup stays a retry.
+    state.txStatus.set(attachTxid, 'fail');
+    const outage = await review(items, 'attach-and-list');
+    expect(listingReview(outage)?.status).toBe('retry');
+    expect(outage.policy.blocked).toBe(true);
+  });
+
+  // The reviewer's bundle: attach input 1 is the seller's fresh one-unit UTXO of another asset,
+  // still unconfirmed, so the ledger reads it as empty. Counterparty would move that asset onto
+  // output 0 with RAREPEPE, and the listing would sell both for RAREPEPE's price.
+  it.each([
+    ['unconfirmed', { confirmed: false }, 900_000],
+    ['confirmed above the parsed height', { confirmed: true, block_height: 900_001 }, 900_000],
+    ['of unknown status', 'fail' as const, 900_000],
+  ])('never signs while an attach input parent is %s', async (_label, status, ledgerHeight) => {
+    const prepared = funding(segwit.script, 330n, 23);
+    state.txStatus.set(prepared.id, status);
+    state.ledgerHeight = ledgerHeight;
+    const result = await review(attachAndList({ extraInput: prepared }), 'attach-and-list');
+    expect(result.decodedInfo.items[0]!.marketplaceReview?.status).toBe('caution');
+    expect(listingReview(result)?.status).toBe('retry');
+    expect(result.decodedInfo.review.status).toBe('retry');
+    expect(result.policy.blocked).toBe(true);
+    await expect(approve(result, true)).rejects.toThrow();
+    expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+
+  it('blocks once the indexed attach input shows the asset it carries', async () => {
+    const prepared = funding(segwit.script, 330n, 23);
+    state.assets.set(`${prepared.id}:0`, [{ asset: 'OTHERASSET', quantity: '1', quantity_normalized: '1' }]);
+    const result = await review(attachAndList({ extraInput: prepared }), 'attach-and-list');
+    expect(result.decodedInfo.review.status).toBe('blocked');
+    expect(result.policy.blocked).toBe(true);
+  });
+
+  it('signs the two-input attach once every parent is confirmed and indexed', async () => {
+    const prepared = funding(segwit.script, 330n, 23);
+    const result = await review(attachAndList({ extraInput: prepared }), 'attach-and-list');
     expect(listingReview(result)?.status).toBe('proved');
     expect(result.policy.blocked).toBe(false);
+    await expect(approve(result, result.policy.requiresAcknowledgement)).resolves.toHaveLength(2);
   });
 
   it('keeps a ledger that contradicts the attach, and blocks on it', async () => {

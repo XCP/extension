@@ -278,6 +278,33 @@ describe('marketplace batch aggregate proof', () => {
     expect(review.facts.map(fact => fact.label)).not.toContain('Seller wallet');
   });
 
+  it('labels each target with its ledger-proved quantity when the item proof supplies it', () => {
+    const offers = [exactOffer(0), exactOffer(1)];
+    const review = analyzeMarketplaceBatch('authorize-offers', offers, [
+      proved({ status: 'caution', family: 'authorize_exact_offer', summary: { label: 'Offer to buy', description: '1 RAREPEPE' } }),
+      proved({ status: 'caution', family: 'authorize_exact_offer', summary: { label: 'Offer to buy', description: '3 PEPECASH' } }),
+    ]);
+    expect(review.facts).toContainEqual({
+      kind: 'outpoint', label: '1 RAREPEPE', value: `${offers[0]!.assets[0].sourceOutpoint.txid}:0`,
+    });
+    expect(review.facts).toContainEqual({
+      kind: 'outpoint', label: '3 PEPECASH', value: `${offers[1]!.assets[0].sourceOutpoint.txid}:0`,
+    });
+  });
+
+  it('names the latest expiry as such only when the offers expire at different times', () => {
+    const caution = () => proved({ status: 'caution', family: 'authorize_exact_offer' });
+    const differing = analyzeMarketplaceBatch('authorize-offers', [exactOffer(0), exactOffer(1)], [caution(), caution()]);
+    expect(differing.facts.map(fact => fact.label)).toContain('Latest marketplace expiry');
+    const shared = analyzeMarketplaceBatch(
+      'authorize-offers',
+      [exactOffer(0), { ...exactOffer(1), marketplaceExpiresAt: exactOffer(0).marketplaceExpiresAt }],
+      [caution(), caution()],
+    );
+    expect(shared.facts.map(fact => fact.label)).toContain('Marketplace expiry');
+    expect(shared.facts.map(fact => fact.label)).not.toContain('Latest marketplace expiry');
+  });
+
   it('titles a single exact-offer authorization in the singular', () => {
     const review = analyzeMarketplaceBatch(
       'authorize-offers',
