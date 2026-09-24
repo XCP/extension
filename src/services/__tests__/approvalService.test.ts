@@ -36,8 +36,10 @@ vi.mock('@/platform/popup', () => ({
     close: vi.fn().mockResolvedValue(undefined),
   }),
   focusPopupWindow: vi.fn().mockResolvedValue(undefined),
+  reusePopupWindow: vi.fn().mockResolvedValue(null),
 }));
 
+import { openPopupWindow, reusePopupWindow } from '@/platform/popup';
 // Now import the service
 import { ApprovalService } from '../approvalService';
 
@@ -149,6 +151,45 @@ describe('ApprovalService', () => {
   });
 
   describe('requestApproval', () => {
+    const connectOptions = {
+      id: 'unlocked-connect', origin: 'https://test.com', method: 'xcp_requestAccounts',
+      params: [], type: 'connection' as const,
+      metadata: { domain: 'test.com', title: 'Connection Request', description: 'Site wants to connect' },
+    };
+
+    it('continues in the window a locked request already opened', async () => {
+      vi.mocked(reusePopupWindow).mockResolvedValueOnce({ id: 77, close: vi.fn() });
+      const approval = approvalService.requestApproval(connectOptions, undefined, { reuseWindowId: 77 });
+      approval.catch(() => {});
+      await whenPending(approvalService);
+      await vi.waitFor(() => expect(reusePopupWindow).toHaveBeenCalledWith(77,
+        '#/requests/connect/approve?requestId=unlocked-connect&origin=https%3A%2F%2Ftest.com'));
+      expect(openPopupWindow).not.toHaveBeenCalled();
+      // Closing that window still cancels the request.
+      expect(chrome.windows.onRemoved.addListener).toHaveBeenCalled();
+      const listener = vi.mocked(chrome.windows.onRemoved.addListener).mock.calls.at(-1)![0];
+      listener(77);
+      await expect(approval).rejects.toThrow('User closed the window');
+    });
+
+    it('opens a new window when the window to continue in is gone', async () => {
+      vi.mocked(reusePopupWindow).mockResolvedValueOnce(null);
+      const approval = approvalService.requestApproval(connectOptions, undefined, { reuseWindowId: 77 });
+      approval.catch(() => {});
+      await whenPending(approvalService);
+      await vi.waitFor(() => expect(openPopupWindow).toHaveBeenCalledTimes(1));
+      approvalService.rejectApproval('unlocked-connect', 'test cleanup');
+    });
+
+    it('never tries to reuse a window when none was named', async () => {
+      const approval = approvalService.requestApproval(connectOptions);
+      approval.catch(() => {});
+      await whenPending(approvalService);
+      await vi.waitFor(() => expect(openPopupWindow).toHaveBeenCalledTimes(1));
+      expect(reusePopupWindow).not.toHaveBeenCalled();
+      approvalService.rejectApproval('unlocked-connect', 'test cleanup');
+    });
+
     it('should create pending approval and open popup', async () => {
       // Start a request but don't await it
       const approvalPromise = approvalService.requestApproval({

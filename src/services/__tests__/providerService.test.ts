@@ -665,12 +665,47 @@ describe('ProviderService', () => {
           'https://newsite.com',
           'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',  // activeAddress from mock
           'wallet1',      // activeWallet.id from mock (no hyphen)
-          false            // paired addresses are opt-in
+          false,           // paired addresses are opt-in
+          {}               // an unlocked wallet opens the approval in a new window
         );
 
         // Should return accounts with proof
         expect((result as any).accounts).toEqual(['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']);
         expect((result as any).proof).toBeDefined();
+      });
+
+      describe('while the wallet is locked', () => {
+        const unlockThenConnect = async (pairedAddresses: boolean) => {
+          const wallet = vi.mocked(walletService.getWalletService)();
+          vi.mocked(wallet.isKeychainUnlocked).mockResolvedValue(false);
+          (chrome.windows.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 77 });
+          const pending = providerService.handleRequest(origin, 'xcp_requestAccounts',
+            pairedAddresses ? [{ capabilities: { pairedAddresses: true } }] : []);
+          await vi.waitFor(() => expect(chrome.windows.create).toHaveBeenCalledTimes(1));
+          vi.mocked(wallet.isKeychainUnlocked).mockResolvedValue(true);
+          eventEmitterService.emit('wallet-unlocked', {});
+          return pending;
+        };
+
+        it('continues into the connect approval in the window the user unlocked', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          vi.mocked(connection.hasPermission).mockResolvedValueOnce(false).mockResolvedValue(true);
+          const result = await unlockThenConnect(false) as any;
+          expect(connection.connect).toHaveBeenCalledWith(origin, activeAddress, 'wallet1', false,
+            { reuseWindowId: 77 });
+          // The unlock window is the only window this request opened.
+          expect(chrome.windows.create).toHaveBeenCalledTimes(1);
+          expect(result.accounts).toEqual([activeAddress]);
+        });
+
+        it('continues a paired-address upgrade in the same unlocked window', async () => {
+          const { connection } = grantPair();
+          vi.mocked(connection.hasPairedAddressPermission).mockResolvedValue(true);
+          await unlockThenConnect(true);
+          expect(connection.requestPairedAddressPermission).toHaveBeenCalledWith(
+            origin, activeAddress, 'wallet1', { reuseWindowId: 77 });
+          expect(connection.connect).not.toHaveBeenCalled();
+        });
       });
 
     });

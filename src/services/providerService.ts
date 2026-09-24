@@ -47,7 +47,7 @@ import { defineProxyService } from '@/platform/proxy';
 import { createWriteLock } from '@/platform/storage/mutex';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 import { keychainExists } from '@/platform/storage/walletStorage';
-import { getApprovalService } from '@/services/approvalService';
+import { type ApprovalPlacement, getApprovalService } from '@/services/approvalService';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getUpdateService } from '@/services/updateService';
@@ -378,7 +378,8 @@ export function createProviderService(): ProviderService {
   async function completeConnection(
     origin: string,
     pairedAddresses = false,
-    onBeforeConnect?: () => Promise<void>
+    onBeforeConnect?: () => Promise<void>,
+    placement: ApprovalPlacement = {}
   ) {
     const walletService = getWalletService();
     const connectionService = getConnectionService();
@@ -403,7 +404,8 @@ export function createProviderService(): ProviderService {
         await connectionService.requestPairedAddressPermission(
           origin,
           activeAddress.address,
-          activeWallet.id
+          activeWallet.id,
+          placement
         );
       }
       return buildConnectResponse(await getAccounts(origin), context);
@@ -415,7 +417,8 @@ export function createProviderService(): ProviderService {
       origin,
       activeAddress.address,
       activeWallet.id,
-      pairedAddresses
+      pairedAddresses,
+      placement
     );
     await analytics.track('connection_established');
     return buildConnectResponse(accounts, context);
@@ -546,9 +549,9 @@ export function createProviderService(): ProviderService {
               method: 'xcp_requestAccounts'
             });
 
-            // Open the regular popup - it will automatically show unlock screen
-            // and then navigate to approvals after unlock
-            await openExtensionPopup();
+            // Open the regular popup - it shows the unlock screen. After unlock the connection
+            // approval continues in this same window rather than opening a second one.
+            const unlockWindow = await openExtensionPopup();
 
             // Wait for unlock and then continue with connection
             return new Promise((resolve, reject) => {
@@ -573,9 +576,10 @@ export function createProviderService(): ProviderService {
                   return;
                 }
 
-                // Continue with connection flow
+                // Continue with connection flow, in the window the user just unlocked
                 try {
-                  resolve(await completeConnection(origin, pairedAddresses));
+                  resolve(await completeConnection(origin, pairedAddresses, undefined,
+                    { reuseWindowId: unlockWindow.id }));
                 } catch (error) {
                   reject(error);
                 }

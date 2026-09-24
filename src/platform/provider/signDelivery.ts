@@ -3,7 +3,7 @@ import { ProviderReviewError, withProviderReviewCode } from '@/core/providerRevi
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { assertSessionGeneration } from '@/platform/auth/sessionManager';
 import { pairedGrantCovers } from '@/platform/provider/pairedGrant';
-import { getIdentityMismatchCode } from '@/platform/provider/requestIdentity';
+import { getIdentityMismatchCode, supportsPairedContinuity } from '@/platform/provider/requestIdentity';
 import { type ProviderSigningRequest, SIGN_FLOW_TTL_MS } from '@/platform/provider/signFlow';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 import { walletManager } from '@/platform/walletManager';
@@ -43,9 +43,15 @@ export async function assertSignDeliveryAuthorized(
   if (pairedAddresses && !await permissions.hasPairedAddressPermission(
     request.origin, request.walletId, request.address,
   )) throw withProviderReviewCode(new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Paired address access was revoked'), 'paired_revoked');
+  // A completed signing flow may be delivered after a switch to the paired sibling, but only
+  // while the origin's current paired grant covers both halves. Connection proofs never may.
+  const continuity = 'kind' in request && typeof request.kind === 'string'
+    && supportsPairedContinuity(request.kind);
+  const grant = () => continuity
+    ? walletManager.getSettings().providerCapabilities?.[request.origin] : undefined;
   const activeAddress = await wallet.getActiveAddress();
   const activeWallet = await wallet.getActiveWallet();
-  const mismatch = getIdentityMismatchCode(request, activeAddress?.address, activeWallet?.id);
+  const mismatch = getIdentityMismatchCode(request, activeAddress?.address, activeWallet?.id, grant());
   if (mismatch) throw new ProviderReviewError(mismatch);
   const assertCurrentAuthorization = () => {
     // These are immediate in-memory reads from the background owner, not RPCs.
@@ -63,7 +69,8 @@ export async function assertSignDeliveryAuthorized(
     const currentWallet = walletManager.getActiveWallet();
     const currentAddress = currentWallet?.addresses.find(address => address.address === settings.lastActiveAddress)
       ?? currentWallet?.addresses[0];
-    const currentMismatch = getIdentityMismatchCode(request, currentAddress?.address, currentWallet?.id);
+    const currentMismatch = getIdentityMismatchCode(request, currentAddress?.address, currentWallet?.id,
+      continuity ? capability : undefined);
     if (currentMismatch) throw new ProviderReviewError(currentMismatch);
     if (Date.now() >= request.timestamp + SIGN_FLOW_TTL_MS) throw new ProviderReviewError('expired_delivery');
   };

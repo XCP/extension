@@ -71,8 +71,10 @@ export async function openPopupWindow(path: string): Promise<PopupWindow> {
     throw new Error('Failed to create popup window');
   }
 
-  const windowId = createdWindow.id;
+  return popupHandle(createdWindow.id);
+}
 
+function popupHandle(windowId: number): PopupWindow {
   return {
     id: windowId,
     close: async () => {
@@ -83,6 +85,30 @@ export async function openPopupWindow(path: string): Promise<PopupWindow> {
       }
     },
   };
+}
+
+/**
+ * Point an extension window that is already open at another route, instead of opening a second
+ * window. Used when a request had to wait for unlock: the window the user typed their password
+ * into continues straight to the request's screen.
+ *
+ * @returns the reused window, or null when it is gone (closed, or no longer ours to navigate) —
+ *   the caller then opens a new window as usual.
+ */
+export async function reusePopupWindow(windowId: number, path: string): Promise<PopupWindow | null> {
+  try {
+    const [tab] = await chrome.tabs.query({ windowId });
+    if (tab?.id === undefined) return null;
+    const baseUrl = chrome.runtime.getURL('popup.html');
+    // The id names a window this extension created. Where the browser reports the tab's URL
+    // (it may not without the "tabs" permission), also refuse to navigate anything else.
+    if (tab.url && !tab.url.startsWith(baseUrl)) return null;
+    await chrome.tabs.update(tab.id, { url: `${baseUrl}${path}`, active: true });
+    await focusPopupWindow(windowId);
+    return popupHandle(windowId);
+  } catch {
+    return null;
+  }
 }
 
 /**

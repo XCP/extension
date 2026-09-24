@@ -35,6 +35,10 @@ import { normalizeAddressForComparison } from "@/core/bitcoin/address";
 import { exceedsSaneFeeRate } from "@/core/bitcoin/feeVerification";
 import { committedOutputIndices, resolvePsbtSighashType } from "@/core/bitcoin/psbt";
 import { classifySignedInputAssets } from "@/core/counterparty/inputAssets";
+import {
+  isRoutineAttachFamily,
+  marketplaceReviewRequiresAcknowledgement,
+} from "@/core/counterparty/marketplaceReviewPolicy";
 import { shouldBlockSigning } from "@/core/counterparty/unpack/providerVerify";
 import { formatAddress, formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
@@ -275,9 +279,7 @@ export default function ApprovePsbtPage() {
   }
 
   const marketplaceReview = decodedInfo.marketplaceReview;
-  const routineAttach =
-    marketplaceReview?.family === "attach_for_listing" ||
-    marketplaceReview?.family === "prepare_asset";
+  const routineAttach = isRoutineAttachFamily(marketplaceReview?.family);
   const marketplaceBlocked =
     marketplaceReview?.status === "blocked" || marketplaceReview?.status === "retry";
   // A missing balance answer is uncertainty, not permission to assume an input is clean.
@@ -294,20 +296,14 @@ export default function ApprovePsbtPage() {
   const { attention } = partitionApprovalItems(warningItems);
   const genericAttention =
     movement.atRisk > 0 ? attention.filter((item) => item.key !== "anyonecanpay") : attention;
-  // Attach quotes are intrinsically block-dependent and already disclosed in the action card. A
-  // second click on a proved listing or inventory attach would turn that routine protocol fact
-  // into warning wallpaper. An exact offer is likewise what it says: the buyer is making an
-  // offer that the seller may accept until it expires, and the cancellation fact names the way
-  // out, so it earns neither a warning nor a second step.
-  const marketplaceRequiresAttention =
-    marketplaceReview?.status === "caution" &&
-    !routineAttach &&
-    marketplaceReview.family !== "authorize_exact_offer";
+  // Which cautions are routine (attach quotes, an exact offer's standing authorization) is decided
+  // once, beside the execution policy, so this screen and the signing service cannot disagree.
+  const marketplaceRequiresAttention = marketplaceReviewRequiresAcknowledgement(marketplaceReview);
   // Plain-language consequences per family: what signing does, and how to undo it. The analyzer's
   // notices state the same facts in protocol terms; this screen is where a person decides.
   // create_listing is absent here on purpose: a fully proved listing is 'proved', never
   // 'caution', so its consequences live in the review facts on the one screen.
-  const marketplaceAttention: WarningItem[] = !marketplaceRequiresAttention
+  const marketplaceAttention: WarningItem[] = !marketplaceRequiresAttention || !marketplaceReview
     ? []
     : marketplaceReview.notices.map((notice, index) => ({
           key: `marketplace-${index}`,
@@ -338,6 +334,17 @@ export default function ApprovePsbtPage() {
       : []),
     ...(hasHighFee ? [highFeeAttentionItem(psbtDetails.fee, estimatedVsize)] : []),
   ];
+  // The signing service refuses an unacknowledged signature whenever its policy asks for one. If
+  // this screen found nothing to show for that policy, still take the review step rather than
+  // offering a button that can only fail with "acknowledge risks".
+  if (approvalPolicy?.requiresAcknowledgement && approvalAttentionItems.length === 0) {
+    approvalAttentionItems.push({
+      key: "policy-acknowledgement",
+      severity: "warning",
+      title: t('common_review_transaction_risk'),
+      description: t('provider_review_acknowledge_risks'),
+    });
+  }
   const retryAvailable =
     marketplaceReview?.status === "retry" || signedInputsUnknownStatus.length > 0;
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;

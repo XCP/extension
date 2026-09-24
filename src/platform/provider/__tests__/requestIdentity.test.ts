@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 import {
   getConnectionRevokedError,
+  getIdentityMismatchCode,
   getIdentityMismatchError,
   getMessagePermissionError,
   getPsbtPermissionError,
@@ -35,6 +36,34 @@ describe('getIdentityMismatchError', () => {
 
   it('ignores walletId when the request has none (back-compat)', () => {
     expect(getIdentityMismatchError(req({ walletId: '' }), 'bc1qauthorized', 'any-wallet')).toBeNull();
+  });
+});
+
+describe('getIdentityMismatchCode with the paired sibling', () => {
+  const grant = { pairedAddresses: true, walletId: 'wallet-1', address: 'bc1qauthorized', pairedAddress: '1Sibling' };
+
+  it('keeps the request when the origin holds the paired grant covering both halves', () => {
+    expect(getIdentityMismatchCode(req(), '1Sibling', 'wallet-1', grant)).toBeNull();
+    // Either half may have been active when the grant was approved.
+    expect(getIdentityMismatchCode(req({ address: '1Sibling' }), 'bc1qauthorized', 'wallet-1', grant)).toBeNull();
+  });
+
+  it('treats the sibling as a changed identity without the grant', () => {
+    expect(getIdentityMismatchCode(req(), '1Sibling', 'wallet-1')).toBe('identity_changed');
+    expect(getIdentityMismatchCode(req(), '1Sibling', 'wallet-1', { ...grant, pairedAddresses: false }))
+      .toBe('identity_changed');
+    // A grant recorded before the sibling was stored covers only the one address.
+    expect(getIdentityMismatchCode(req(), '1Sibling', 'wallet-1', { ...grant, pairedAddress: undefined }))
+      .toBe('identity_changed');
+  });
+
+  it('never extends to another address, another wallet, or a missing identity', () => {
+    expect(getIdentityMismatchCode(req(), '1SomeoneElse', 'wallet-1', grant)).toBe('identity_changed');
+    expect(getIdentityMismatchCode(req(), '1Sibling', 'wallet-2', grant)).toBe('identity_changed');
+    expect(getIdentityMismatchCode(req(), '1Sibling', 'wallet-1', { ...grant, walletId: 'wallet-2' }))
+      .toBe('identity_changed');
+    expect(getIdentityMismatchCode(req(), undefined, 'wallet-1', grant)).toBe('identity_changed');
+    expect(getIdentityMismatchCode(req({ walletId: '' }), '1Sibling', 'wallet-1', grant)).toBe('identity_changed');
   });
 });
 describe('getPsbtPermissionError', () => {

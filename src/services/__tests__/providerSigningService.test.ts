@@ -302,4 +302,76 @@ describe('background provider signing execution', () => {
     await expect(approve()).rejects.toThrow(/did not pass/);
     expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
   });
+
+  describe('after a switch to the same-index paired sibling', () => {
+    const sibling = '1Siblinglegacyaddress';
+    const grant = { pairedAddresses: true, ...identity, pairedAddress: sibling };
+    const switchToSibling = (capability: object | undefined) => {
+      const capabilities = capability ? { 'https://example.test': capability } : {};
+      mocks.wallet.getSettings.mockResolvedValue({ strictTransactionVerification: true, providerCapabilities: capabilities });
+      mocks.currentSettings.mockReturnValue({ connectedWebsites: ['https://example.test'], providerCapabilities: capabilities });
+      mocks.wallet.getActiveAddress.mockResolvedValue({ address: sibling });
+      mocks.currentWallet.mockReturnValue({ id: identity.walletId, addresses: [{ address: sibling }] });
+    };
+    const psbtRequest = () => request({ kind: 'sign-psbt', psbtHex: 'psbt', signInputs: { [identity.address]: [0] } });
+
+    it('continues a PSBT request when the site holds the paired grant, signing as the active sibling', async () => {
+      await beginSignFlow(psbtRequest());
+      switchToSibling(grant);
+      await approve();
+      expect(mocks.wallet.signPsbt).toHaveBeenCalledWith('psbt', { [identity.address]: [0] }, undefined,
+        { walletId: identity.walletId, address: sibling });
+      // The request address is now a paired signer relative to the active sibling, so the paired
+      // grant was checked at execution.
+      expect(mocks.permissions.hasPairedAddressPermission).toHaveBeenCalled();
+      expect(await getSignFlow('req-1')).toMatchObject({ status: 'completed' });
+    });
+
+    it('continues a message request, signing with the requested address', async () => {
+      await beginSignFlow(request());
+      switchToSibling(grant);
+      await approve();
+      expect(mocks.wallet.signMessage).toHaveBeenCalledWith('hello', identity.address,
+        { walletId: identity.walletId, address: sibling });
+    });
+
+    it.each([
+      ['no grant', undefined],
+      ['a grant that predates the recorded sibling', { pairedAddresses: true, ...identity }],
+      ['a grant for another wallet', { ...grant, walletId: 'wallet-2' }],
+    ])('treats the switch as a changed identity with %s', async (_label, capability) => {
+      await beginSignFlow(psbtRequest());
+      switchToSibling(capability);
+      await expect(service.getReview('req-1')).rejects.toThrow(/active address changed/);
+      expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
+    });
+
+    it('refuses to sign when paired access is revoked between review and execution', async () => {
+      await beginSignFlow(psbtRequest());
+      switchToSibling(grant);
+      const review = await service.getReview('req-1');
+      mocks.permissions.hasPairedAddressPermission.mockResolvedValue(false);
+      await expect(service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: false }))
+        .rejects.toThrow(/Paired address access was revoked/);
+      expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
+    });
+
+    it('withholds a completed result when the grant is gone at delivery', async () => {
+      await beginSignFlow(psbtRequest());
+      switchToSibling(grant);
+      mocks.wallet.signPsbt.mockImplementation(async () => {
+        mocks.currentSettings.mockReturnValue({ connectedWebsites: ['https://example.test'], providerCapabilities: {} });
+        return 'signed-psbt';
+      });
+      await expect(approve()).rejects.toThrow(/active address changed/);
+      expect(mocks.emit).not.toHaveBeenCalledWith('sign-psbt-complete-req-1', expect.anything());
+    });
+
+    it('never continues a raw transaction across the pair', async () => {
+      await beginSignFlow(request({ kind: 'sign-transaction', rawTxHex: 'hex' }));
+      switchToSibling(grant);
+      await expect(service.getReview('req-1')).rejects.toThrow(/active address changed/);
+      expect(mocks.wallet.signTransaction).not.toHaveBeenCalled();
+    });
+  });
 });
