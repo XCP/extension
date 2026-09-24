@@ -6,6 +6,7 @@ import { committedOutputIndices, resolvePsbtSighashType } from '@/core/bitcoin/p
 import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import type { DecodedTransactionInfo } from '@/core/bitcoin/transactionApprovalDecoder';
+import { findUncommittedAssetSignatures } from '@/core/counterparty/durableSellAuthorization';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
 import { marketplaceReviewRequiresAcknowledgement } from '@/core/counterparty/marketplaceReviewPolicy';
 import type { SignRequestAnalysis } from '@/core/counterparty/signRequestAnalysis';
@@ -21,11 +22,12 @@ export interface ProviderApprovalPolicy {
 
 function policy(
   analysis: SignRequestAnalysis,
-  indices: number[],
+  signedInputs: Array<{ index: number; sighashType: number }>,
   strictMode: boolean,
   hasHighFee: boolean,
   flexibleFunds: boolean,
 ): ProviderApprovalPolicy {
+  const indices = signedInputs.map(input => input.index);
   const assets = classifySignedInputAssets(analysis.attachedAssets, indices);
   const semantic = analysis.marketplaceReview?.status === 'proved'
     || analysis.marketplaceReview?.status === 'caution';
@@ -47,7 +49,10 @@ function policy(
       repackProved: analysis.verification.repackProved ?? false,
       strictMode,
     }) || assets.unknownStatus.length > 0 || analysis.structureFindings.length > 0
-      || marketplace?.status === 'blocked' || marketplace?.status === 'retry',
+      || marketplace?.status === 'blocked' || marketplace?.status === 'retry'
+      // Recomputed here rather than trusted from the analysis warning, so the signer refuses a
+      // durable sell authorization even if a presentation filter ever dropped that warning.
+      || findUncommittedAssetSignatures(analysis.attachedAssets, signedInputs, marketplace).length > 0,
     requiresAcknowledgement: warning || assetWarning || marketplaceWarning
       || verificationException || hasHighFee || (!semantic && flexibleFunds),
     safeOwnChange: assets.withAssets.length === 0 && assets.unknownStatus.length === 0,
@@ -72,7 +77,7 @@ export function getPsbtApprovalPolicy(
     myAddresses: [request.address, ...Object.keys(request.signInputs ?? {})],
     fee: details.fee, committedOutputs: committedOutputIndices(sighashes, details.outputs.length),
   });
-  return policy(decoded, indices, strictMode, hasHighPsbtFee(details, fastestFee),
+  return policy(decoded, sighashes, strictMode, hasHighPsbtFee(details, fastestFee),
     movement.atRisk > 0 || sighashes.some(input => input.sighashType === 0x83));
 }
 
@@ -152,7 +157,8 @@ export function getTransactionApprovalPolicy(
   const indices = decoded.inputs.flatMap((input, index) => input.address
     && normalizeAddressForComparison(input.address) === normalizeAddressForComparison(request.address)
     ? [index] : []);
-  const result = policy(decoded, indices, strictMode,
+  // A raw transaction is signed SIGHASH_ALL throughout.
+  const result = policy(decoded, indices.map(index => ({ index, sighashType: 0x01 })), strictMode,
     decoded.fee > 10_000_000 || exceedsSaneFeeRate(decoded.fee, decoded.vsize, fastestFee), false);
   return { ...result, blocked: result.blocked || unresolved || decoded.fee < 0 || indices.length === 0,
     safeOwnChange: result.safeOwnChange && indices.length === decoded.inputs.length };
