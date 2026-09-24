@@ -155,6 +155,31 @@ export class ProviderError extends Error {
 }
 
 /**
+ * The page bridge to the extension is gone for good: the extension was reloaded or updated, so
+ * this page's content script is orphaned and can never reach the wallet again. Only a page reload
+ * injects a live one. Carried as `4900` with `data.reloadRequired`, and emitted as the
+ * `disconnect` event's payload, so a dApp can tell it from a transient `4900` and from a revoke.
+ */
+export const EXTENSION_RELOAD_REQUIRED_MESSAGE = 'XCP Wallet was updated or restarted. Reload this page to reconnect.';
+
+/** The wallet's background restarted mid-request; the bridge itself is fine, so a retry works. */
+export const EXTENSION_RESTARTED_MESSAGE = 'XCP Wallet restarted while handling this request. Please try again.';
+
+export interface ReloadRequiredError {
+  code: typeof PROVIDER_ERROR_CODES.DISCONNECTED;
+  message: string;
+  data: { reloadRequired: true };
+}
+
+export function reloadRequiredError(): ReloadRequiredError {
+  return {
+    code: PROVIDER_ERROR_CODES.DISCONNECTED,
+    message: EXTENSION_RELOAD_REQUIRED_MESSAGE,
+    data: { reloadRequired: true },
+  };
+}
+
+/**
  * Map a thrown provider error to the code and message a dApp should receive.
  * User-facing states (rejection, not-connected/locked/setup) are surfaced with a
  * structured code so dApps can branch; everything else is masked to a generic

@@ -3,7 +3,8 @@
 import { type HardwareErrorMetadata, parseHardwareErrorMetadata, withHardwareErrorMetadata } from '@/core/hardware/errorMetadata';
 import { HardwareWalletError } from '@/core/hardware/types';
 import { isProviderReviewCode, type ProviderReviewCode, providerReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
-import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
 import { decodeProxyResult, encodeProxyResult } from '@/platform/proxySerialization';
 import { whenServicesReady } from '@/services/core/serviceReadiness';
 
@@ -23,8 +24,25 @@ type PortResponse =
   | { id: number; success: true; result: unknown; resultEncoding?: 'xcp-json-v1' }
   | { id: number; success: false; error: { message: string; code?: number; reviewCode?: ProviderReviewCode; hardware?: HardwareErrorMetadata } };
 
+/** The background's "request received", sent before it waits on anything. Not a result. */
+interface PortAck { id: number; ack: true }
+interface PendingCall {
+  port: chrome.runtime.Port;
+  resolve: (value: unknown) => void;
+  reject: (error: Error) => void;
+  ackTimer: ReturnType<typeof setTimeout> | undefined;
+}
+
+/**
+ * How long a posted request may go unacknowledged before its port is presumed dead. The ack leaves
+ * the background synchronously on receipt, so this only has to cover a cold service-worker start;
+ * it does not bound how long the call itself may take (an approval can take minutes).
+ */
+export const PORT_ACK_TIMEOUT_MS = 10_000;
+
 const registeredServices = new Set<string>();
-const activePorts = new Map<string, chrome.runtime.Port>();
+/** One per proxy client: closes its cached port and fails the calls waiting on it. */
+const portDroppers = new Set<() => void>();
 const PROVIDER_QUERIES = new Set([
   'xcp_accounts', 'xcp_getBalances', 'xcp_getAddresses', 'xcp_chainId', 'xcp_getNetwork',
 ]);
@@ -87,12 +105,15 @@ function contentOrigin(sender: chrome.runtime.MessageSender | undefined): string
   } catch { return null; }
 }
 
+/** Close every cached port and fail its in-flight calls, so the next call reconnects. */
 export function disconnectAllPorts(): void {
-  for (const port of activePorts.values()) {
-    try { port.disconnect(); } catch { /* already disconnected */ }
-  }
-  activePorts.clear();
+  for (const drop of portDroppers) drop();
 }
+
+const reloadRequired = () => new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, EXTENSION_RELOAD_REQUIRED_MESSAGE);
+const disconnectedError = () => isExtensionContextValid()
+  ? new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, EXTENSION_RESTARTED_MESSAGE)
+  : reloadRequired();
 
 export function defineProxyService<T extends object>(
   serviceName: string,
@@ -121,7 +142,7 @@ export function defineProxyService<T extends object>(
       if (!trustedUI && !origin) { incoming.disconnect(); return; }
 
       let disconnected = false;
-      const reply = (response: PortResponse) => {
+      const reply = (response: PortResponse | PortAck) => {
         if (!disconnected) {
           try { incoming.postMessage(response); } catch { /* the requesting document closed */ }
         }
@@ -135,6 +156,8 @@ export function defineProxyService<T extends object>(
           return;
         }
         const { id, methodName } = request;
+        // Receipt, not an answer: lets the caller tell a slow call from a port nobody reads.
+        reply({ id, ack: true });
         if (!canCall(methodName) || (!trustedUI && methodName !== 'handleRequest')) {
           reply({ id, success: false, error: { message: `Method ${methodName} not found on ${serviceName}` } });
           return;
@@ -178,20 +201,60 @@ export function defineProxyService<T extends object>(
   };
 
   let port: chrome.runtime.Port | null = null;
-  const pendingCalls = new Map<number, { port: chrome.runtime.Port; resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+  const pendingCalls = new Map<number, PendingCall>();
   let nextId = 0;
+
+  const settle = (id: number): PendingCall | undefined => {
+    const pending = pendingCalls.get(id);
+    if (!pending) return undefined;
+    pendingCalls.delete(id);
+    clearTimeout(pending.ackTimer);
+    return pending;
+  };
+
+  /**
+   * Forget a port and fail every call still waiting on it. Also the path for a port *we* close
+   * (bfcache, missing ack): Chrome fires onDisconnect only on the far end, so a local disconnect()
+   * alone would leave those calls pending forever and the dead port cached for the next call.
+   */
+  function dropPort(dead: chrome.runtime.Port, disconnect: boolean): void {
+    if (port === dead) port = null;
+    if (disconnect) {
+      try { dead.disconnect(); } catch { /* already disconnected */ }
+    }
+    for (const [id, pending] of pendingCalls) {
+      if (pending.port !== dead) continue;
+      settle(id);
+      pending.reject(disconnectedError());
+    }
+  }
+  const dropCurrentPort = () => { if (port) dropPort(port, true); };
 
   function ensurePort(): chrome.runtime.Port {
     if (port) return port;
-    const connected = chrome.runtime.connect({ name: portName });
+    if (!isExtensionContextValid()) throw reloadRequired();
+    let connected: chrome.runtime.Port;
+    try {
+      connected = chrome.runtime.connect({ name: portName });
+    } catch (error) {
+      throw isContextInvalidatedError(error) || !isExtensionContextValid() ? reloadRequired() : error;
+    }
     port = connected;
-    activePorts.set(serviceName, connected);
+    portDroppers.add(dropCurrentPort);
     connected.onMessage.addListener((value: unknown) => {
+      if (isRecord(value) && value.ack === true && Number.isSafeInteger(value.id)) {
+        const pending = pendingCalls.get(value.id as number);
+        if (pending?.port === connected) {
+          clearTimeout(pending.ackTimer);
+          pending.ackTimer = undefined;
+        }
+        return;
+      }
       const response = parseResponse(value);
       if (!response) return;
       const pending = pendingCalls.get(response.id);
       if (!pending || pending.port !== connected) return;
-      pendingCalls.delete(response.id);
+      settle(response.id);
       if (response.success) pending.resolve(response.result);
       else {
         const error = typeof response.error.code === 'number'
@@ -203,13 +266,7 @@ export function defineProxyService<T extends object>(
     });
     connected.onDisconnect.addListener(() => {
       if (chrome.runtime?.lastError) { /* consumed */ }
-      if (port === connected) port = null;
-      if (activePorts.get(serviceName) === connected) activePorts.delete(serviceName);
-      for (const [id, pending] of pendingCalls) {
-        if (pending.port !== connected) continue;
-        pendingCalls.delete(id);
-        pending.reject(new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, 'Port disconnected'));
-      }
+      dropPort(connected, false);
     });
     return connected;
   }
@@ -224,26 +281,41 @@ export function defineProxyService<T extends object>(
         // Service objects are not thenables; inherited/symbol members are not RPC methods.
         if (typeof prop !== 'string' || prop === 'then' || !canCall(prop)) return undefined;
         return async (...args: unknown[]) => {
-          for (let attempt = 0; attempt < 2; attempt++) {
-            const connected = ensurePort();
+          for (let attempt = 0; ; attempt++) {
+            let connected: chrome.runtime.Port | undefined;
+            // Whether the background may have received the request. A request that was never
+            // posted can be sent again whatever it does; one that was can only if it is a read.
+            let sent = false;
             const id = ++nextId;
             try {
+              connected = ensurePort();
+              const target = connected;
               return await new Promise<unknown>((resolve, reject) => {
-                pendingCalls.set(id, { port: connected, resolve, reject });
-                try { connected.postMessage({ id, methodName: prop, args } satisfies PortRequest); }
-                catch (error) { pendingCalls.delete(id); reject(error); }
+                // No receipt in time means nothing is listening at the other end of an open port.
+                const ackTimer = setTimeout(() => dropPort(target, true), PORT_ACK_TIMEOUT_MS);
+                pendingCalls.set(id, { port: target, resolve, reject, ackTimer });
+                try {
+                  target.postMessage({ id, methodName: prop, args } satisfies PortRequest);
+                  sent = true;
+                } catch (error) { settle(id); reject(error); }
               });
             } catch (error) {
+              // An orphaned script can never reconnect; say so rather than retrying into it.
+              const orphaned = () => !isExtensionContextValid() || isContextInvalidatedError(error)
+                || (error instanceof ProviderError && error.message === EXTENSION_RELOAD_REQUIRED_MESSAGE);
+              if (orphaned()) throw reloadRequired();
               const message = error instanceof Error ? error.message : '';
               const isDisconnect = error instanceof ProviderError && error.code === PROVIDER_ERROR_CODES.DISCONNECTED
-                || message.includes('Attempting to use a disconnected port') || message.includes('Extension context invalidated');
-              if (!isDisconnect || attempt !== 0 || !canRetry(prop, args)) throw error;
-              if (port === connected) port = null;
-              if (activePorts.get(serviceName) === connected) activePorts.delete(serviceName);
+                || message.includes('Attempting to use a disconnected port');
+              if (!isDisconnect) throw error;
+              if (connected && port === connected) dropPort(connected, true);
+              // An extension reload disconnects the port a moment before Chrome clears runtime.id,
+              // so look again before calling this a restart that a retry can survive.
               await new Promise(resolve => setTimeout(resolve, 200));
+              if (orphaned()) throw reloadRequired();
+              if (attempt > 0 || (sent && !canRetry(prop, args))) throw error;
             }
           }
-          throw new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, 'Port disconnected');
         };
       },
     });

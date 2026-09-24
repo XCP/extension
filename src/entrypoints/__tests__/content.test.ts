@@ -1,6 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { EXTENSION_RESTARTED_MESSAGE, PROVIDER_ERROR_CODES, ProviderError, reloadRequiredError } from '@/core/rpcErrors';
+
+const reloadRequired = reloadRequiredError();
+const disconnectEvent = { target: 'xcp-wallet-injected', type: 'XCP_WALLET_EVENT', event: 'disconnect', data: reloadRequired };
+
+/** Chrome clears runtime.id in a content script whose extension was reloaded or updated. */
+function setContextValid(valid: boolean): void {
+  const id = valid ? 'test-extension-id' : undefined;
+  for (const runtime of [fakeBrowser.runtime, globalThis.chrome?.runtime]) {
+    if (runtime) (runtime as { id?: string }).id = id;
+  }
+}
 
 // Mock WXT injectScript function
 const mockInjectScript = vi.fn();
@@ -79,7 +90,8 @@ describe('Content Script', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+    setContextValid(true);
+
     // Setup global mocks
     global.window = mockWindow as any;
     global.console = mockConsole as any;
@@ -468,7 +480,7 @@ describe('Content Script', () => {
       expect(mockContext.onInvalidated).toHaveBeenCalledTimes(1);
     });
 
-    it('should keep window message listener alive but remove runtime listener on invalidation', async () => {
+    it('keeps answering the page but drops the runtime listener when the extension context dies', async () => {
       const windowRemoveEventListenerSpy = vi.spyOn(mockWindow, 'removeEventListener');
       const runtimeRemoveListenerSpy = vi.spyOn(fakeBrowser.runtime.onMessage, 'removeListener');
 
@@ -479,16 +491,110 @@ describe('Content Script', () => {
       const cleanupCallback = mockContext.onInvalidated.mock.calls[0]![0];
       expect(typeof cleanupCallback).toBe('function');
 
+      setContextValid(false);
       cleanupCallback();
 
-      // Window message listener stays alive (bridge must survive extension updates)
+      // The window listener stays: an orphan that stopped listening would leave the page hanging.
       expect(windowRemoveEventListenerSpy).not.toHaveBeenCalledWith('message', expect.any(Function));
-
-      // Runtime listener is removed (background→content channel is dead)
       expect(runtimeRemoveListenerSpy).toHaveBeenCalledWith(expect.any(Function));
+      expect(mockWindow.postMessage).toHaveBeenCalledWith(disconnectEvent, mockWindow.location.origin);
 
       windowRemoveEventListenerSpy.mockRestore();
       runtimeRemoveListenerSpy.mockRestore();
+    });
+
+    it('hands the page to a newer copy of itself when invalidated with the extension still alive', async () => {
+      const contentScript = await import('../content');
+      await contentScript.default.main(mockContext as any);
+      const messageListener = mockWindow.addEventListener.mock.calls.find(call => call[0] === 'message')?.[1];
+
+      mockContext.onInvalidated.mock.calls[0]![0]();
+      await messageListener({ source: window, origin: mockWindow.location.origin, data: {
+        target: 'xcp-wallet-content', type: 'XCP_WALLET_REQUEST', id: 1, data: { method: 'xcp_accounts', params: [] },
+      } });
+
+      // Silent: the newer script answers, and nothing tells the page its bridge is gone.
+      expect(mockWindow.postMessage).not.toHaveBeenCalled();
+      expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Bridge liveness', () => {
+    let messageListener: (event: unknown) => Promise<void>;
+    const request = (id: number | string, method = 'xcp_accounts') => ({
+      source: window,
+      origin: mockWindow.location.origin,
+      data: { target: 'xcp-wallet-content', type: 'XCP_WALLET_REQUEST', id, data: { method, params: [] } },
+    });
+    const reloadResponse = (id: number | string) => ({
+      target: 'xcp-wallet-injected', type: 'XCP_WALLET_RESPONSE', id, error: reloadRequired,
+    });
+
+    beforeEach(async () => {
+      const contentScript = await import('../content');
+      await contentScript.default.main(mockContext as any);
+      messageListener = mockWindow.addEventListener.mock.calls.find(call => call[0] === 'message')?.[1];
+    });
+
+    it('acknowledges receipt before the wallet answers', async () => {
+      let answer: (value: unknown) => void = () => {};
+      mockProviderService.handleRequest.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+      const pending = messageListener(request(1, 'xcp_signPsbt'));
+      expect(mockWindow.postMessage).toHaveBeenCalledExactlyOnceWith(
+        { target: 'xcp-wallet-injected', type: 'XCP_WALLET_ACK', id: 1 }, mockWindow.location.origin);
+      answer('signed');
+      await pending;
+      expect(mockWindow.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+        type: 'XCP_WALLET_RESPONSE', id: 1, data: { method: 'xcp_signPsbt', result: 'signed' },
+      }), mockWindow.location.origin);
+    });
+
+    it('answers at once with the typed reload error once the extension context is invalidated', async () => {
+      setContextValid(false);
+      await messageListener(request(2));
+      expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
+      expect(mockWindow.postMessage).toHaveBeenCalledWith(reloadResponse(2), mockWindow.location.origin);
+      expect(mockWindow.postMessage).toHaveBeenCalledWith(disconnectEvent, mockWindow.location.origin);
+      // The page hears `disconnect` once, not once per request.
+      await messageListener(request(3));
+      expect(mockWindow.postMessage).toHaveBeenCalledWith(reloadResponse(3), mockWindow.location.origin);
+      expect(mockWindow.postMessage.mock.calls.filter(([msg]) => msg.event === 'disconnect')).toHaveLength(1);
+    });
+
+    it('fails every request in flight when the context dies under them', async () => {
+      mockProviderService.handleRequest.mockReturnValueOnce(new Promise(() => {})); // an open approval
+      let failSecond: (error: unknown) => void = () => {};
+      mockProviderService.handleRequest.mockReturnValueOnce(new Promise((_, reject) => { failSecond = reject; }));
+      void messageListener(request(4, 'xcp_signPsbt'));
+      // One at a time: vitest stalls concurrent dynamic imports of a mocked module.
+      await vi.waitFor(() => expect(mockProviderService.handleRequest).toHaveBeenCalledTimes(1));
+      const second = messageListener(request(5));
+      await vi.waitFor(() => expect(mockProviderService.handleRequest).toHaveBeenCalledTimes(2));
+
+      setContextValid(false);
+      failSecond(new Error('Extension context invalidated.'));
+      await second;
+
+      expect(mockWindow.postMessage).toHaveBeenCalledWith(reloadResponse(4), mockWindow.location.origin);
+      expect(mockWindow.postMessage).toHaveBeenCalledWith(reloadResponse(5), mockWindow.location.origin);
+      expect(mockWindow.postMessage).toHaveBeenCalledWith(disconnectEvent, mockWindow.location.origin);
+    });
+
+    it('treats a service-worker restart as transient: surfaces a retryable 4900 and keeps the bridge', async () => {
+      mockProviderService.handleRequest.mockRejectedValueOnce(
+        new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, EXTENSION_RESTARTED_MESSAGE));
+      await messageListener(request(6, 'xcp_signPsbt'));
+      expect(mockWindow.postMessage).toHaveBeenCalledWith({
+        target: 'xcp-wallet-injected', type: 'XCP_WALLET_RESPONSE', id: 6,
+        error: { code: 4900, message: EXTENSION_RESTARTED_MESSAGE },
+      }, mockWindow.location.origin);
+      expect(mockWindow.postMessage).not.toHaveBeenCalledWith(disconnectEvent, expect.anything());
+
+      mockProviderService.handleRequest.mockResolvedValueOnce(['bc1qexample']);
+      await messageListener(request(7));
+      expect(mockWindow.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+        id: 7, data: { method: 'xcp_accounts', result: ['bc1qexample'] },
+      }), mockWindow.location.origin);
     });
   });
 

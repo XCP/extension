@@ -17,6 +17,12 @@ export const MESSAGE_TYPES = {
   REQUEST: 'XCP_WALLET_REQUEST',
   /** Response from wallet to dApp */
   RESPONSE: 'XCP_WALLET_RESPONSE',
+  /**
+   * Content script to page: "your request reached me". Sent on receipt, before the wallet
+   * answers, so the page can tell a dead bridge (no ack within seconds) from a slow approval
+   * (acked, then waiting on the user for as long as it takes).
+   */
+  ACK: 'XCP_WALLET_ACK',
   /** Event broadcast from wallet to dApp */
   EVENT: 'XCP_WALLET_EVENT',
 } as const;

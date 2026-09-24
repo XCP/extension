@@ -40,7 +40,8 @@ interface XcpProvider {
 Connect to the wallet. Opens a popup for user approval on first connection.
 
 The approval outlives the extension's background worker, which the browser may stop while the
-prompt is open. If this call fails with `4900` while the user still has the prompt up, retry it:
+prompt is open. If this call fails with `4900` (without `data.reloadRequired`; that one means
+reload the page, see [Liveness](#liveness)) while the user still has the prompt up, retry it:
 approving grants the connection whether or not the original call survived, so the retry returns
 the accounts rather than opening a second prompt. An approval granted while your call was gone
 also emits `accountsChanged`, so a listener will see it even if you never retry.
@@ -511,17 +512,54 @@ xcpwallet.on('accountsChanged', (accounts) => {
   //             later unlock re-emits [address] (no need to reconnect)
 });
 
-// Wallet revoked this site's connection (explicit disconnect only)
-xcpwallet.on('disconnect', () => {
-  // Connection revoked — call xcp_requestAccounts to reconnect
+// Two causes, told apart by the payload
+xcpwallet.on('disconnect', (error) => {
+  if (error?.code === 4900 && error.data?.reloadRequired) {
+    // This page lost its link to the extension (the wallet was updated or reloaded).
+    // Nothing reaches the wallet until the page reloads: show a "Reload page" prompt.
+    // The site's connection is NOT revoked; keep any remembered session.
+    return;
+  }
+  // Wallet revoked this site's connection (explicit disconnect only; payload is {}).
+  // Call xcp_requestAccounts to reconnect.
 });
 ```
 
-A lock emits `accountsChanged []`, not `disconnect`. Treat an empty array as "temporarily unavailable," and only `disconnect` as "must reconnect."
+A lock emits `accountsChanged []`, not `disconnect`. Treat an empty array as "temporarily unavailable," and only `disconnect` as "must reconnect" (or, with `reloadRequired`, "must reload").
+
+A reload-required `disconnect` is an `Error` shaped like an EIP-1193 `ProviderRpcError`:
+`{ code: 4900, message: 'XCP Wallet was updated or restarted. Reload this page to reconnect.', data: { reloadRequired: true } }`.
+It fires once per page, the first time the provider learns the bridge is gone (a request fails
+that way, or the content script notices its extension context was invalidated).
+
+## Liveness
+
+`window.xcpwallet` talks to the wallet through a content script. When the browser updates or
+reloads the extension, already-open pages keep their old content script, but it is orphaned:
+it can never reach the wallet again, and only reloading the page injects a live one. The
+provider makes that fail fast instead of hanging:
+
+- **Acknowledgement.** The content script acknowledges every request the moment it receives it,
+  before the wallet does any work. If no acknowledgement arrives within **5 seconds**, the
+  request (and every other request waiting on this page) rejects with the reload-required `4900`
+  and `disconnect` fires. This applies to every method, interactive ones included.
+- **After the acknowledgement** an interactive method (`xcp_requestAccounts`, `xcp_sign*`) may
+  wait as long as the user needs; the wallet's own approval timeout is the only bound. Other
+  methods keep their 60-second response timeout.
+- **Orphaned content script.** Requests it still holds, and every later request, are answered
+  immediately with the reload-required `4900`.
+- **Service-worker restarts** are not a dead bridge. The extension's background worker is stopped
+  by the browser when idle and restarted on demand; the content script reconnects on its own.
+  Read-only methods are retried once transparently. A method that was already delivered when the
+  worker stopped (e.g. a signing request) is not replayed, to avoid a duplicate prompt; it rejects
+  with a plain `4900` (`"XCP Wallet restarted while handling this request. Please try again."`,
+  no `reloadRequired`) and can simply be retried.
+- A background that never acknowledges a delivered request within 10 seconds is treated the same
+  way: the connection is dropped and re-established for the next request.
 
 ## Errors
 
-`request()` rejects with an `Error` carrying a numeric `code` (JSON-RPC / EIP-1193 style). Branch on the `code`, not the message — messages are for display and may change.
+`request()` rejects with an `Error` carrying a numeric `code` (JSON-RPC / EIP-1193 style), and sometimes a `data` object. Branch on the `code` (and `data`), not the message — messages are for display and may change.
 
 ```js
 try {
@@ -537,7 +575,8 @@ try {
 | `4001` | User rejected the request (declined or closed the popup) | Treat as a cancellation |
 | `4100` | Not connected, or the wallet is locked / not set up | Call `xcp_requestAccounts`, or prompt to unlock |
 | `4200` | Method not supported | Stop calling it |
-| `4900` | Wallet background was momentarily unavailable | Transient — retry (the SDK retries connecting and signing automatically) |
+| `4900` | Wallet background was momentarily unavailable (no `data`) | Transient — retry (the SDK retries connecting and signing automatically) |
+| `4900` + `data.reloadRequired: true` | This page's link to the extension is gone (the wallet was updated or reloaded) | Retrying cannot help: ask the user to reload the page. See [Liveness](#liveness) |
 | `-32603` | Internal error | Generic failure; internal details are intentionally masked |
 
 Only these codes carry a meaningful message; any other failure surfaces as `-32603` with `"Request failed"`.
