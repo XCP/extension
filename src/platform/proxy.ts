@@ -19,7 +19,8 @@ export interface ProxyServicePolicy<T> {
   contentScript?: 'provider';
 }
 
-interface PortRequest { id: number; methodName: string; args: unknown[] }
+/** `ack` opts in to a receipt; a caller that never asked (older clients, raw test ports) gets exactly one reply. */
+interface PortRequest { id: number; methodName: string; args: unknown[]; ack?: true }
 type PortResponse =
   | { id: number; success: true; result: unknown; resultEncoding?: 'xcp-json-v1' }
   | { id: number; success: false; error: { message: string; code?: number; reviewCode?: ProviderReviewCode; hardware?: HardwareErrorMetadata } };
@@ -59,7 +60,7 @@ function parseRequest(value: unknown): PortRequest | null {
   try {
     if (new TextEncoder().encode(JSON.stringify(value)).length > MAX_REQUEST_BYTES) return null;
   } catch { return null; }
-  return { id: value.id as number, methodName: value.methodName, args: value.args };
+  return { id: value.id as number, methodName: value.methodName, args: value.args, ...(value.ack === true ? { ack: true } : {}) };
 }
 
 function parseResponse(value: unknown): PortResponse | null {
@@ -156,8 +157,9 @@ export function defineProxyService<T extends object>(
           return;
         }
         const { id, methodName } = request;
-        // Receipt, not an answer: lets the caller tell a slow call from a port nobody reads.
-        reply({ id, ack: true });
+        // Receipt, not an answer: lets the caller tell a slow call from a port nobody reads. Only on
+        // request, so a caller that treats the first message for its id as the answer is unaffected.
+        if (request.ack) reply({ id, ack: true });
         if (!canCall(methodName) || (!trustedUI && methodName !== 'handleRequest')) {
           reply({ id, success: false, error: { message: `Method ${methodName} not found on ${serviceName}` } });
           return;
@@ -295,7 +297,7 @@ export function defineProxyService<T extends object>(
                 const ackTimer = setTimeout(() => dropPort(target, true), PORT_ACK_TIMEOUT_MS);
                 pendingCalls.set(id, { port: target, resolve, reject, ackTimer });
                 try {
-                  target.postMessage({ id, methodName: prop, args } satisfies PortRequest);
+                  target.postMessage({ id, methodName: prop, args, ack: true } satisfies PortRequest);
                   sent = true;
                 } catch (error) { settle(id); reject(error); }
               });

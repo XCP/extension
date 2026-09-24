@@ -334,13 +334,25 @@ describe('defineProxyService', () => {
       expect(port.disconnect).toHaveBeenCalledOnce();
     });
 
-    it('acknowledges receipt before the service answers', async () => {
+    it('answers a caller that did not ask for a receipt with exactly its reply, as before', async () => {
+      // The trusted-UI RPC shape e2e helpers and older clients use: first message for the id is the answer.
+      register();
+      const port = createMockPort(`proxy:${currentServiceName}`);
+      onConnectListeners.forEach(fn => { fn(port); });
+      port._fireMessage({ id: 1, methodName: 'getValue', args: [] });
+      await new Promise(r => setTimeout(r, 0));
+      expect(port.postMessage.mock.calls).toEqual([
+        [{ id: 1, success: true, result: ['value', 42], resultEncoding: 'xcp-json-v1' }],
+      ]);
+    });
+
+    it('acknowledges receipt before the service answers when asked to', async () => {
       let finish: (value: string) => void = () => {};
       testServiceInstance.getAsync = vi.fn(() => new Promise<string>((resolve) => { finish = resolve; }));
       register();
       const port = createMockPort(`proxy:${currentServiceName}`);
       onConnectListeners.forEach(fn => { fn(port); });
-      port._fireMessage({ id: 7, methodName: 'getAsync', args: [] });
+      port._fireMessage({ id: 7, methodName: 'getAsync', args: [], ack: true });
       expect(port.postMessage).toHaveBeenCalledExactlyOnceWith({ id: 7, ack: true });
       await new Promise(r => setTimeout(r, 0));
       finish('done');
