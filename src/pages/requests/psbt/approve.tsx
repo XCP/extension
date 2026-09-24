@@ -4,6 +4,7 @@ import {
   highFeeAttentionItem,
   partitionApprovalItems,
   verificationAttentionItem,
+  withPolicyAcknowledgement,
 } from "@/components/domain/approval/approval-attention";
 import {
   ApprovalFooter,
@@ -179,6 +180,10 @@ export default function ApprovePsbtPage() {
     repackProved: verification?.repackProved ?? false,
     strictMode: isStrictMode,
   });
+  // The identity this request was authorized for. After a switch to its paired Legacy/SegWit
+  // sibling the active address differs, but the signers, "your" funds and the header still belong
+  // to the request — the same inputs the background signs.
+  const requestAddress = request.address;
   const requestedAddressSpends = Object.entries(request.signInputs ?? {}).map(
     ([address, indices]) => ({
       address,
@@ -196,7 +201,7 @@ export default function ApprovePsbtPage() {
           (input) =>
             !input.address ||
             normalizeAddressForComparison(input.address) ===
-              normalizeAddressForComparison(activeAddress.address),
+              normalizeAddressForComparison(requestAddress),
         )
         .map((input) => input.index);
   const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =
@@ -222,13 +227,17 @@ export default function ApprovePsbtPage() {
   const usesPairedAddress = requestedAddressSpends.some(
     ({ address }) =>
       normalizeAddressForComparison(address) !==
-      normalizeAddressForComparison(activeAddress.address),
+      normalizeAddressForComparison(requestAddress),
   );
+  // A single signer is shown in the header; several are listed in the signing-addresses card.
+  const headerAddress = requestedAddressSpends.length === 1
+    ? requestedAddressSpends[0]!.address
+    : requestAddress;
 
   // Net effect of this transaction on your wallet — the money-movement summary,
   // computed structurally (replaces the old swap-detection heuristic; works for
-  // any tx shape). "Your" addresses are the active address plus any paired signer.
-  const myAddresses = [activeAddress.address, ...requestedAddressSpends.map((s) => s.address)];
+  // any tx shape). "Your" addresses are the request's address plus any paired signer.
+  const myAddresses = [requestAddress, ...requestedAddressSpends.map((s) => s.address)];
   // Outputs the signature leaves free are not change coming back to you.
   const committedOutputs = committedOutputIndices(
     effectiveSighashes.map(({ index, type }) => ({ index, sighashType: type })),
@@ -311,7 +320,8 @@ export default function ApprovePsbtPage() {
           title: t('psbt_approve_this_authorization_remains_usable_after'),
           description: notice.message,
         }));
-  const approvalAttentionItems: WarningItem[] = [
+  // Whatever this screen shows, it takes the review step whenever the execution policy asks for one.
+  const approvalAttentionItems: WarningItem[] = withPolicyAcknowledgement([
     ...marketplaceAttention,
     ...genericAttention,
     ...(deferredVerificationFailure ? [verificationAttentionItem(verificationWarning)] : []),
@@ -333,18 +343,7 @@ export default function ApprovePsbtPage() {
         ]
       : []),
     ...(hasHighFee ? [highFeeAttentionItem(psbtDetails.fee, estimatedVsize)] : []),
-  ];
-  // The signing service refuses an unacknowledged signature whenever its policy asks for one. If
-  // this screen found nothing to show for that policy, still take the review step rather than
-  // offering a button that can only fail with "acknowledge risks".
-  if (approvalPolicy?.requiresAcknowledgement && approvalAttentionItems.length === 0) {
-    approvalAttentionItems.push({
-      key: "policy-acknowledgement",
-      severity: "warning",
-      title: t('common_review_transaction_risk'),
-      description: t('provider_review_acknowledge_risks'),
-    });
-  }
+  ], approvalPolicy?.requiresAcknowledgement);
   const retryAvailable =
     marketplaceReview?.status === "retry" || signedInputsUnknownStatus.length > 0;
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
@@ -428,7 +427,7 @@ export default function ApprovePsbtPage() {
   return (
     <ApprovalLayout
       walletName={activeWallet.name}
-      address={activeAddress.address}
+      address={headerAddress}
       origin={request.origin}
       footer={
         <ApprovalFooter

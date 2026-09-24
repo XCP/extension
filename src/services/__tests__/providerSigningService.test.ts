@@ -356,6 +356,19 @@ describe('background provider signing execution', () => {
       expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
     });
 
+    it('treats a grant change while the review is open as a changed review', async () => {
+      await beginSignFlow(psbtRequest());
+      switchToSibling(grant);
+      const review = await service.getReview('req-1');
+      // The grant is part of the fingerprint: a decision made against the old grant is refused.
+      // Re-approved from the sibling's side: it still covers both halves, but it is a new grant.
+      switchToSibling({ pairedAddresses: true, walletId: identity.walletId, address: sibling,
+        pairedAddress: identity.address });
+      await expect(service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: false }))
+        .rejects.toThrow(/review changed/);
+      expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
+    });
+
     it('withholds a completed result when the grant is gone at delivery', async () => {
       await beginSignFlow(psbtRequest());
       switchToSibling(grant);

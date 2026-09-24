@@ -31,7 +31,8 @@ interface ReviewBase {
   /**
    * The origin's paired grant when this request may continue after a switch to the active
    * address's Legacy/SegWit sibling. Lets the screen keep the review open; execution re-reads
-   * the current grant and authorizes every signer against it.
+   * the current grant and authorizes every signer against it. Included in reviewKey, so a grant
+   * change invalidates an open review (review_changed) on purpose.
    */
   pairedGrant?: PairedGrant;
 }
@@ -181,6 +182,10 @@ export function createProviderSigningService(): ProviderSigningService {
       }
     }
     const pairedGrant = await continuityGrant(request);
+    // Part of the facts fingerprinted into reviewKey below, intentionally: a grant that changes
+    // while the screen is open (upgraded, narrowed, or re-recorded with the sibling) is a changed
+    // review, so a decision made against the old grant fails with review_changed and the screen
+    // reloads rather than signing under authority the user did not see.
     if (pairedGrant) review.pairedGrant = pairedGrant;
     if (!await getRequest(requestId)) throw new ProviderReviewError('expired_during_review');
     // The precise quote can change without changing any consequence. Include
@@ -243,7 +248,8 @@ export function createProviderSigningService(): ProviderSigningService {
       await recordSignOutcome(requestId, 'completed', result);
       const completed = await getSignFlow(requestId);
       if (completed?.status !== 'completed') throw new ProviderReviewError('expired_completion');
-      const assertDelivery = await assertSignDeliveryAuthorized(completed, needsPairedAddressGrant(request), sessionGeneration);
+      const assertDelivery = await assertSignDeliveryAuthorized(completed, needsPairedAddressGrant(request),
+        sessionGeneration, supportsPairedContinuity(request.kind));
       assertDelivery();
       eventEmitterService.emit(`${getSignFlowEventPrefix(request.kind)}-complete-${requestId}`, completed.result);
     } catch (error) {

@@ -32,6 +32,7 @@ import { analytics } from '@/platform/fathom';
 import { continuationUnlockPath, openExtensionPopup, reusePopupWindow } from '@/platform/popup';
 import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
+import { supportsPairedContinuity } from '@/platform/provider/requestIdentity';
 import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/platform/provider/signDelivery';
 import {
   beginSignFlow,
@@ -244,7 +245,8 @@ async function runSignFlow<T>(args: {
   });
 
   const authorizeDelivery = (completed: CompletedSignFlow) =>
-    assertSignDeliveryAuthorized(completed, args.pairedAddresses ?? false, sessionGeneration);
+    assertSignDeliveryAuthorized(completed, args.pairedAddresses ?? false, sessionGeneration,
+      supportsPairedContinuity(completed.kind));
   if (flow.status === 'completed') {
     const assertDelivery = await authorizeDelivery(flow);
     assertDelivery();
@@ -319,7 +321,8 @@ export function createProviderService(): ProviderService {
       throw new Error('The connection identity changed before its proof was generated');
     }
     const { request, sessionGeneration } = context;
-    const authorize = (paired: boolean) => assertSignDeliveryAuthorized(request, paired, sessionGeneration);
+    // A connection proof is bound to the exact identity approved; it never continues across the pair.
+    const authorize = (paired: boolean) => assertSignDeliveryAuthorized(request, paired, sessionGeneration, false);
     let assertCurrent = await authorize(false);
     assertCurrent();
     const paired = context.pairedSupported && await getConnectionService().hasPairedAddressPermission(

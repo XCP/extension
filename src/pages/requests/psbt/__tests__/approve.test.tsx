@@ -11,16 +11,18 @@ const state = vi.hoisted(() => ({
   approve: vi.fn(),
   decoded: null as DecodedPsbtInfo | null,
   policy: undefined as ProviderApprovalPolicy | undefined,
+  activeAddress: '',
 }));
 const request = { id: 'psbt', origin: 'https://example.test', address: ADDRESS,
   signInputs: { [ADDRESS]: [0] }, sighashTypes: [0x01] };
+const SIBLING = '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2';
 
 vi.mock('@/hooks/useSignPsbtRequest', () => ({ useSignPsbtRequest: () => ({
   request, requestId: 'psbt', decodedInfo: state.decoded, approvalPolicy: state.policy, fastestFee: 10,
   isLoading: false, isRefreshing: false, handleApprove: state.approve, handleCancel: vi.fn(), handleRetry: vi.fn(),
 }) }));
 vi.mock('@/contexts/wallet-context', () => ({ useWallet: () => ({
-  activeWallet: { name: 'Wallet', type: 'mnemonic' }, activeAddress: { address: ADDRESS },
+  activeWallet: { name: 'Wallet', type: 'mnemonic' }, activeAddress: { address: state.activeAddress },
 }) }));
 vi.mock('@/contexts/settings-context', () => ({ useSettings: () => ({ settings: { strictTransactionVerification: true } }) }));
 vi.mock('@/contexts/header-context', () => ({ useHeader: () => ({ setHeaderProps: vi.fn() }) }));
@@ -55,6 +57,7 @@ function decoded(family: MarketplaceApprovalReview['family']): DecodedPsbtInfo {
 }
 
 beforeEach(() => {
+  state.activeAddress = ADDRESS;
   state.approve.mockReset().mockResolvedValue(undefined);
   vi.spyOn(window, 'close').mockImplementation(() => {});
 });
@@ -84,4 +87,19 @@ it('takes the review step whenever the execution policy requires acknowledgement
   expect(state.approve).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Authorize offer' }));
   await waitFor(() => expect(state.approve).toHaveBeenCalledWith(true));
+});
+
+it('reviews a request as its own signer after a switch to the paired sibling', async () => {
+  // Made for the SegWit half, now showing while its Legacy sibling is active. The background signs
+  // input 0 with the request's key, so the header names it, its inputs are ours, and the sibling is
+  // not presented as an extra "paired" signer.
+  state.activeAddress = SIBLING;
+  state.decoded = decoded('prepare_asset');
+  state.policy = getPsbtApprovalPolicy(request, state.decoded, true, 10);
+  render(<ApprovePsbtPage />);
+  expect(screen.getByText(ADDRESS)).toBeInTheDocument();
+  expect(screen.queryByText(SIBLING)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Signing addresses/i)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare asset' }));
+  await waitFor(() => expect(state.approve).toHaveBeenCalledWith(false));
 });
