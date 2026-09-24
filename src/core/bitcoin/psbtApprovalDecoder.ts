@@ -6,6 +6,7 @@ import {
   type PsbtDetails,
   resolvePsbtSighashType,
 } from '@/core/bitcoin/psbt';
+import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
 import {
@@ -34,9 +35,14 @@ export async function decodePsbtForApproval(
   bitcoinPaymentIntent?: BitcoinPaymentIntentV1,
   marketplaceIntent?: MarketplaceIntentClaimV1,
   ownedAddresses?: string[],
+  resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout,
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
-  const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
+  const attachedAssetsPromise = fetchInputsAttachedAssets(
+    psbtDetails.inputs,
+    signedInputIndices,
+    resolveTrustedPrevout,
+  );
   const txid = psbtDetails.transactionId;
   let counterpartyDataHex: string | undefined;
 

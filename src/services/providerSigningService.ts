@@ -168,7 +168,7 @@ export function createProviderSigningService(): ProviderSigningService {
         const decodedInfo = await decodePsbtForApproval(request.psbtHex,
           signers.length ? signers : [request.address], Object.values(request.signInputs ?? {}).flat(),
           request.sighashTypes, request.inscription, request.signingPurpose,
-          request.bitcoinPaymentIntent, request.marketplaceIntent, ownedAddresses);
+          request.bitcoinPaymentIntent, request.marketplaceIntent, ownedAddresses, getTrustedBroadcastPrevout);
         review = { kind: request.kind, request, decodedInfo, fastestFee,
           policy: getPsbtApprovalPolicy(request, decodedInfo, strictMode, fastestFee) };
         break;

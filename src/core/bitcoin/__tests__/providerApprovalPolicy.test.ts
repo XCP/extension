@@ -7,6 +7,7 @@ import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
 import { marketplaceReviewRequiresAcknowledgement } from '@/core/counterparty/marketplaceReviewPolicy';
+import { asDisplayUnits } from '@/core/numeric';
 
 const ADDRESS = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
 const ROUTINE: MarketplaceApprovalReview['family'][] = ['attach_for_listing', 'prepare_asset', 'authorize_exact_offer'];
@@ -122,5 +123,55 @@ describe('getPsbtBundleApprovalPolicy for routine marketplace cautions', () => {
     const { policy, warnings } = getPsbtBundleApprovalPolicy(input, info, true, 10);
     expect(policy.requiresAcknowledgement).toBe(true);
     expect(warnings.some(warning => warning.title.includes('Review transaction risks'))).toBe(true);
+  });
+});
+
+describe('getPsbtApprovalPolicy for durable sell authorizations', () => {
+  const RAREPEPE = [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: asDisplayUnits('1'), asset_longname: null }];
+  const single = { address: ADDRESS, signInputs: { [ADDRESS]: [0] }, sighashTypes: [0x83] };
+
+  function over(assets: DecodedPsbtInfo['attachedAssets'], marketplaceReview?: MarketplaceApprovalReview) {
+    const info = decoded(review('create_listing', 'proved'));
+    info.attachedAssets = assets;
+    info.marketplaceReview = marketplaceReview;
+    return info;
+  }
+
+  // The signer's own gate, independent of the analysis warning a screen renders.
+  it('blocks SINGLE|ANYONECANPAY over an attached asset with no listing proof', () => {
+    const info = over([{ inputIndex: 0, utxo: 'u:0', assets: RAREPEPE }]);
+    expect(info.safety.blocked).toBe(false);
+    expect(getPsbtApprovalPolicy(single, info, true, 10).blocked).toBe(true);
+  });
+
+  it.each([0x02, 0x03, 0x82])('blocks sighash %i over an attached asset too', sighash => {
+    const info = over([{ inputIndex: 0, utxo: 'u:0', assets: RAREPEPE }]);
+    expect(getPsbtApprovalPolicy({ ...single, sighashTypes: [sighash] }, info, true, 10).blocked).toBe(true);
+  });
+
+  it('blocks it over an input whose asset status is unknown', () => {
+    const info = over([{ inputIndex: 0, utxo: 'u:0', assets: [], lookupFailed: true }]);
+    expect(getPsbtApprovalPolicy(single, info, true, 10).blocked).toBe(true);
+  });
+
+  it('does not treat a blocked or retrying listing claim as a proof', () => {
+    for (const status of ['blocked', 'retry', 'caution'] as const) {
+      const info = over([{ inputIndex: 0, utxo: 'u:0', assets: RAREPEPE }], review('create_listing', status));
+      expect(getPsbtApprovalPolicy(single, info, true, 10).blocked).toBe(true);
+    }
+  });
+
+  it('leaves ALL and ALL|ANYONECANPAY over an asset to the destination warning', () => {
+    for (const sighash of [0x00, 0x01, 0x81]) {
+      const info = over([{ inputIndex: 0, utxo: 'u:0', assets: RAREPEPE }]);
+      const policy = getPsbtApprovalPolicy({ ...single, sighashTypes: [sighash] }, info, true, 10);
+      expect(policy.blocked).toBe(false);
+      expect(policy.requiresAcknowledgement).toBe(true);
+    }
+  });
+
+  it('leaves SINGLE|ANYONECANPAY over a clean input to the flexible-funds acknowledgement', () => {
+    const policy = getPsbtApprovalPolicy(single, over([]), true, 10);
+    expect(policy).toMatchObject({ blocked: false, requiresAcknowledgement: true });
   });
 });
