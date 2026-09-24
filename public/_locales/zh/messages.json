@@ -6207,5 +6207,8 @@
   },
   "psbt_approve_fund_offer": {
     "message": "为出价准备资金"
+  },
+  "address_type_shortcut_change_address_type": {
+    "message": "更改地址类型（当前：$1）"
   }
 }

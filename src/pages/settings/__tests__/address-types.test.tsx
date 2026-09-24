@@ -2,17 +2,31 @@ import { act, cleanup, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
+import { formatAddress } from '@/core/format';
 import { mockBrowserLocale, render } from '@/i18n/test-utils';
 import AddressTypesPage from '../address-types';
 
 const fixture = vi.hoisted(() => ({
-  wallet: { id: 'wallet', type: 'mnemonic', addressFormat: 'p2wpkh' },
-  preview: vi.fn(async (_wallet: string, format: string) => `preview:${format}`),
+  wallet: {
+    id: 'wallet',
+    type: 'mnemonic',
+    addressFormat: 'p2wpkh',
+    addressCount: 3,
+    addresses: [0, 1, 2].map((index) => ({
+      name: `Address ${index + 1}`,
+      address: `active-${index}`,
+      path: `m/84'/0'/0'/0/${index}`,
+      pubKey: `02${index}`,
+    })),
+  },
+  activeAddress: 'active-0',
+  preview: vi.fn(async (_wallet: string, format: string, index?: number) => `preview:${format}:${index}`),
   update: vi.fn(async () => {}),
   header: vi.fn(),
 }));
 vi.mock('@/contexts/wallet-context', () => ({ useWallet: () => ({
   activeWallet: fixture.wallet,
+  activeAddress: fixture.wallet.addresses.find((address) => address.address === fixture.activeAddress) ?? null,
   getPreviewAddressForFormat: fixture.preview,
   updateWalletAddressFormat: fixture.update,
 }) }));
@@ -26,6 +40,7 @@ const open = () => render(<MemoryRouter><LivePage /></MemoryRouter>);
 beforeEach(() => {
   vi.clearAllMocks();
   fixture.wallet.addressFormat = AddressFormat.P2WPKH;
+  fixture.activeAddress = 'active-0';
   mockBrowserLocale({ language: 'en', numberLocale: 'de-DE' });
 });
 afterEach(() => { cleanup(); mockBrowserLocale({ language: 'en', numberLocale: 'auto' }); });
@@ -66,5 +81,22 @@ describe('localized address-type settings', () => {
     expect(screen.getByText(segwit)).toBeInTheDocument();
     expect(screen.getAllByRole('radio')).toHaveLength(2);
     expect(fixture.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('address-type previews', () => {
+  it('previews every format at the active address index, which a switch keeps', async () => {
+    fixture.activeAddress = 'active-2';
+    open();
+    await screen.findByText('Native SegWit (P2WPKH)');
+    expect(fixture.preview.mock.calls.map(([, format, index]) => [format, index])).toEqual([
+      [AddressFormat.P2TR, 2],
+      [AddressFormat.P2WPKH, 2],
+      [AddressFormat.P2SH_P2WPKH, 2],
+      [AddressFormat.P2PKH, 2],
+    ]);
+    expect(screen.getByRole('radio', { checked: true })).toHaveTextContent(
+      formatAddress(`preview:${AddressFormat.P2WPKH}:2`)
+    );
   });
 });

@@ -6207,5 +6207,8 @@
   },
   "psbt_approve_fund_offer": {
     "message": "オファーに資金を用意"
+  },
+  "address_type_shortcut_change_address_type": {
+    "message": "アドレスタイプを変更（現在: $1）"
   }
 }

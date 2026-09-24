@@ -29,6 +29,11 @@ export interface HeaderProps {
   title?: string | ReactNode;
   leftButton?: HeaderButtonProps;
   rightButton?: HeaderButtonProps;
+  /**
+   * A self-contained control rendered just before the right button, for controls that are more
+   * than one click (a popover, say). Compared by reference, so pass a stable element.
+   */
+  rightAccessory?: ReactNode;
   onBack?: () => void;
 }
 
@@ -119,7 +124,8 @@ function arePropsEqual(prev: HeaderProps, next: HeaderProps): boolean {
     prev.leftButton?.onClick === next.leftButton?.onClick &&
     prev.leftButton?.ariaLabel === next.leftButton?.ariaLabel &&
     prev.rightButton?.onClick === next.rightButton?.onClick &&
-    prev.rightButton?.ariaLabel === next.rightButton?.ariaLabel
+    prev.rightButton?.ariaLabel === next.rightButton?.ariaLabel &&
+    prev.rightAccessory === next.rightAccessory
   );
 }
 

@@ -195,8 +195,8 @@ interface WalletContextType {
   sweepUtxoAddresses: (walletId: string, indexes?: number[]) => Promise<Address[]>;
   /** Change wallet's address format (P2PKH, P2WPKH, P2TR, etc.) */
   updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;
-  /** Preview what address would be generated for a format */
-  getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
+  /** Preview the address a format generates at a derivation index (default 0) */
+  getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat, addressIndex?: number) => Promise<string>;
   /** Check whether an address belongs to any wallet in the keychain */
   isAddressInAnyWallet: (address: string) => Promise<boolean>;
   /** Remove a wallet from the extension */

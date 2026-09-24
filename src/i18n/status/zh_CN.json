@@ -2054,6 +2054,7 @@
     "marketplace_intent_set_aside",
     "marketplace_intent_paid_only_if_a_seller_accepts",
     "marketplace_intent_notice_fund_offers",
-    "psbt_approve_fund_offer"
+    "psbt_approve_fund_offer",
+    "address_type_shortcut_change_address_type"
   ]
 }
