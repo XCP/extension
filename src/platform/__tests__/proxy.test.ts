@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HardwareWalletError } from '@/core/hardware/types';
 import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, ProviderError } from '@/core/rpcErrors';
 import { markServicesReady } from '@/services/core/serviceReadiness';
-import { defineProxyService, disconnectAllPorts, isBackgroundScript, PORT_ACK_TIMEOUT_MS } from '../proxy';
+import {
+  defineProxyService, disconnectAllPorts, isBackgroundScript, PORT_ACK_TIMEOUT_MS, PORT_HEARTBEAT_INTERVAL_MS,
+  PORT_IDLE_RECONNECT_MS,
+} from '../proxy';
 
 // ---------------------------------------------------------------------------
 // Mock Chrome API
@@ -346,6 +349,15 @@ describe('defineProxyService', () => {
       ]);
     });
 
+    it('echoes a heartbeat at once, without dispatching anything or waiting on services', () => {
+      register();
+      const port = createMockPort(`proxy:${currentServiceName}`);
+      onConnectListeners.forEach(fn => { fn(port); });
+      port._fireMessage({ heartbeat: 3 });
+      expect(port.postMessage).toHaveBeenCalledExactlyOnceWith({ heartbeat: 3 });
+      expect(testServiceInstance.getValue).not.toHaveBeenCalled();
+    });
+
     it('acknowledges receipt before the service answers when asked to', async () => {
       let finish: (value: string) => void = () => {};
       testServiceInstance.getAsync = vi.fn(() => new Promise<string>((resolve) => { finish = resolve; }));
@@ -577,10 +589,16 @@ describe('defineProxyService', () => {
         expect(clientPort.disconnect).toHaveBeenCalledOnce();
       });
 
-      it('lets an acknowledged call wait as long as it needs', async () => {
+      it('lets an acknowledged call wait as long as it needs while the worker keeps answering', async () => {
         vi.useFakeTimers();
         let requestId = 0;
+        let heartbeats = 0;
         clientPort.postMessage.mockImplementation((msg: any) => {
+          if (msg.heartbeat !== undefined) {
+            heartbeats++;
+            queueMicrotask(() => clientPort._fireMessage({ heartbeat: msg.heartbeat }));
+            return;
+          }
           requestId = msg.id;
           queueMicrotask(() => clientPort._fireMessage({ id: msg.id, ack: true }));
         });
@@ -588,6 +606,53 @@ describe('defineProxyService', () => {
         await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
         clientPort._fireMessage({ id: requestId, success: true, result: 'approved' });
         await expect(result).resolves.toBe('approved');
+        expect(clientPort.disconnect).not.toHaveBeenCalled();
+        expect(heartbeats).toBe((10 * 60 * 1000) / PORT_HEARTBEAT_INTERVAL_MS);
+        // Nothing pending, so the heartbeat stops: an idle worker is left free to sleep.
+        await vi.advanceTimersByTimeAsync(PORT_HEARTBEAT_INTERVAL_MS * 4);
+        expect(heartbeats).toBe((10 * 60 * 1000) / PORT_HEARTBEAT_INTERVAL_MS);
+      });
+
+      it('fails an acknowledged call with a retryable 4900 when the worker dies silently under it', async () => {
+        vi.useFakeTimers();
+        // Acks the request, then goes silent: a stopped worker whose port never reports onDisconnect.
+        clientPort.postMessage.mockImplementation((msg: any) => {
+          if (msg.id !== undefined) queueMicrotask(() => clientPort._fireMessage({ id: msg.id, ack: true }));
+        });
+        const settled = expect(getService().setValue(1)).rejects
+          .toMatchObject({ code: 4900, message: EXTENSION_RESTARTED_MESSAGE });
+        await vi.advanceTimersByTimeAsync(PORT_HEARTBEAT_INTERVAL_MS * 2 + 200);
+        await settled;
+        expect(clientPort.disconnect).toHaveBeenCalledOnce();
+      });
+
+      it('replaces an idle port instead of waiting out the ack timeout on it', async () => {
+        vi.useFakeTimers();
+        const fresh = createMockPort(`proxy:${currentServiceName}`);
+        fresh.postMessage.mockImplementation((msg: any) => {
+          queueMicrotask(() => fresh._fireMessage({ id: msg.id, success: true, result: 'fresh' }));
+        });
+        clientPort.postMessage.mockImplementation((msg: any) => {
+          queueMicrotask(() => clientPort._fireMessage({ id: msg.id, success: true, result: 'first' }));
+        });
+        mockChrome.runtime.connect.mockReturnValueOnce(clientPort).mockReturnValueOnce(fresh);
+        const service = getService();
+        await expect(service.getValue()).resolves.toBe('first');
+        await vi.advanceTimersByTimeAsync(PORT_IDLE_RECONNECT_MS);
+        // clientPort's worker was stopped while idle; the next call must not be posted into it.
+        await expect(service.getValue()).resolves.toBe('fresh');
+        expect(clientPort.disconnect).toHaveBeenCalledOnce();
+        expect(clientPort.postMessage).toHaveBeenCalledOnce();
+      });
+
+      it('treats a service that answers 4900 as an ordinary error, not a lost port', async () => {
+        clientPort.postMessage.mockImplementation((msg: any) => {
+          queueMicrotask(() => clientPort._fireMessage({
+            id: msg.id, success: false, error: { message: 'Chain unavailable', code: 4900 },
+          }));
+        });
+        await expect(getService().getValue()).rejects.toMatchObject({ code: 4900, message: 'Chain unavailable' });
+        expect(clientPort.postMessage).toHaveBeenCalledOnce(); // not retried
         expect(clientPort.disconnect).not.toHaveBeenCalled();
       });
 

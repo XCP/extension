@@ -503,19 +503,44 @@ describe('Content Script', () => {
       runtimeRemoveListenerSpy.mockRestore();
     });
 
-    it('hands the page to a newer copy of itself when invalidated with the extension still alive', async () => {
+    const accountsRequest = (id: number) => ({ source: window, origin: mockWindow.location.origin, data: {
+      target: 'xcp-wallet-content', type: 'XCP_WALLET_REQUEST', id, data: { method: 'xcp_accounts', params: [] },
+    } });
+
+    it('keeps serving the page when the forgeable WXT hand-off event fires with the extension alive', async () => {
+      mockProviderService.handleRequest.mockResolvedValueOnce([]);
       const contentScript = await import('../content');
       await contentScript.default.main(mockContext as any);
       const messageListener = mockWindow.addEventListener.mock.calls.find(call => call[0] === 'message')?.[1];
 
-      mockContext.onInvalidated.mock.calls[0]![0]();
-      await messageListener({ source: window, origin: mockWindow.location.origin, data: {
-        target: 'xcp-wallet-content', type: 'XCP_WALLET_REQUEST', id: 1, data: { method: 'xcp_accounts', params: [] },
-      } });
+      mockContext.onInvalidated.mock.calls[0]![0](); // what a page dispatching the DOM event would cause
+      await messageListener(accountsRequest(1));
 
-      // Silent: the newer script answers, and nothing tells the page its bridge is gone.
-      expect(mockWindow.postMessage).not.toHaveBeenCalled();
-      expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
+      expect(mockProviderService.handleRequest).toHaveBeenCalledOnce();
+      expect(mockWindow.postMessage).not.toHaveBeenCalledWith(disconnectEvent, expect.anything());
+    });
+
+    it('falls silent once a newer copy of itself owns the page', async () => {
+      const contentScript = await import('../content');
+      await contentScript.default.main(mockContext as any);
+      const older = mockWindow.addEventListener.mock.calls.find(call => call[0] === 'message')?.[1];
+      await contentScript.default.main(mockContext as any); // the newer copy, same isolated world
+
+      await older(accountsRequest(2));
+      expect(mockWindow.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ id: 2 }), expect.anything());
+    });
+
+    it('tells the page its bridge is gone without waiting for a request', async () => {
+      vi.useFakeTimers();
+      try {
+        const contentScript = await import('../content');
+        await contentScript.default.main(mockContext as any);
+        setContextValid(false);
+        await vi.advanceTimersByTimeAsync(2_000);
+        expect(mockWindow.postMessage).toHaveBeenCalledExactlyOnceWith(disconnectEvent, mockWindow.location.origin);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

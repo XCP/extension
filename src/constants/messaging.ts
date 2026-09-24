@@ -23,6 +23,11 @@ export const MESSAGE_TYPES = {
    * (acked, then waiting on the user for as long as it takes).
    */
   ACK: 'XCP_WALLET_ACK',
+  /**
+   * Page to itself: a marker posted through the same window message queue as the content script's
+   * acks, so a late ack timer can check the ack was not merely queued behind a busy page.
+   */
+  PROBE: 'XCP_WALLET_PROBE',
   /** Event broadcast from wallet to dApp */
   EVENT: 'XCP_WALLET_EVENT',
 } as const;

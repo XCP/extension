@@ -529,8 +529,9 @@ A lock emits `accountsChanged []`, not `disconnect`. Treat an empty array as "te
 
 A reload-required `disconnect` is an `Error` shaped like an EIP-1193 `ProviderRpcError`:
 `{ code: 4900, message: 'XCP Wallet was updated or restarted. Reload this page to reconnect.', data: { reloadRequired: true } }`.
-It fires once per page, the first time the provider learns the bridge is gone (a request fails
-that way, or the content script notices its extension context was invalidated).
+It fires once per page, as soon as the provider learns the bridge is gone: the content script
+checks every couple of seconds whether its extension is still there (so it arrives without the
+page having to make a request), and a request that fails that way also triggers it.
 
 ## Liveness
 
@@ -541,8 +542,11 @@ provider makes that fail fast instead of hanging:
 
 - **Acknowledgement.** The content script acknowledges every request the moment it receives it,
   before the wallet does any work. If no acknowledgement arrives within **5 seconds**, the
-  request (and every other request waiting on this page) rejects with the reload-required `4900`
-  and `disconnect` fires. This applies to every method, interactive ones included.
+  provider first lets the page's pending messages drain (a page that kept its main thread busy
+  may simply not have delivered it yet) and only then rejects that request, and any other request
+  never acknowledged, with the reload-required `4900`, and fires `disconnect`. This applies to
+  every method, interactive ones included. A request that *was* acknowledged is never failed this
+  way; the content script answers it.
 - **After the acknowledgement** an interactive method (`xcp_requestAccounts`, `xcp_sign*`) may
   wait as long as the user needs; the wallet's own approval timeout is the only bound. Other
   methods keep their 60-second response timeout.
@@ -554,8 +558,16 @@ provider makes that fail fast instead of hanging:
   worker stopped (e.g. a signing request) is not replayed, to avoid a duplicate prompt; it rejects
   with a plain `4900` (`"XCP Wallet restarted while handling this request. Please try again."`,
   no `reloadRequired`) and can simply be retried.
-- A background that never acknowledges a delivered request within 10 seconds is treated the same
-  way: the connection is dropped and re-established for the next request.
+- **A worker that dies mid-request** is noticed even when the browser does not report it: while
+  a request waits (for example on an open approval), the content script checks every 15 seconds
+  that the worker still answers, and fails the request with that plain, retryable `4900` after one
+  missed check (at most about 30 seconds). These checks run only while something is waiting, so
+  they keep the worker awake no longer than a request needs it. Likewise a background that never
+  acknowledges a delivered request within 10 seconds, and a connection left idle long enough that
+  its worker may have been stopped, are replaced rather than waited on.
+
+A `4900` that the wallet itself returns as an answer (rather than a lost connection) is passed
+through as an ordinary error and not retried.
 
 ## Errors
 

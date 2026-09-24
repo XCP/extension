@@ -16,6 +16,8 @@ interface PendingRequest {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
   timers: ReturnType<typeof setTimeout>[];
+  /** The content script confirmed receipt: from here on only the wallet decides when it ends. */
+  acked: boolean;
 }
 
 type ProviderRpcError = Error & { code?: number; data?: unknown };
@@ -98,6 +100,8 @@ export default defineUnlistedScript(() => {
   let nextRequestId = 0;
   /** Set once the page has been told the bridge is gone, so `disconnect` fires once, not per request. */
   let bridgeLost = false;
+  const probes = new Map<number, () => void>();
+  let nextProbeId = 0;
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -146,10 +150,17 @@ export default defineUnlistedScript(() => {
     return pending;
   }
 
-  /** The bridge to the extension is gone for this page: fail what is waiting and say so once. */
+  /**
+   * The bridge to the extension is gone for this page: fail what is waiting and say so once.
+   * Requests the content script already acknowledged are left alone: it answers those itself,
+   * including with the reload error if its extension goes away, and one may be an approval the
+   * user is looking at right now.
+   */
   function loseBridge(): void {
     const error = reloadRequiredError();
-    for (const id of pendingRequests.keys()) takePending(id)?.reject(toRpcError(error));
+    for (const [id, pending] of pendingRequests) {
+      if (!pending.acked) takePending(id)?.reject(toRpcError(error));
+    }
     if (bridgeLost) return;
     bridgeLost = true;
     accounts = [];
@@ -159,7 +170,28 @@ export default defineUnlistedScript(() => {
   function handleAck(id: number): void {
     const pending = pendingRequests.get(id);
     if (!pending) return;
+    pending.acked = true;
     clearTimeout(pending.timers[0]);
+  }
+
+  /** Run `then` once everything already in this window's message queue has been delivered. */
+  function afterQueuedMessages(then: () => void): void {
+    const id = ++nextProbeId;
+    probes.set(id, then);
+    window.postMessage({ target: MESSAGE_TARGETS.INJECTED, type: MESSAGE_TYPES.PROBE, id }, window.location.origin);
+  }
+
+  /**
+   * The ack deadline passed. On a page that kept its main thread busy, the timer can run before
+   * the request (or its ack) got its turn in the message queue, so drain the queue first. Two
+   * rounds: the first lets a still-queued request reach the content script, whose ack then lands
+   * in the queue ahead of the second probe.
+   */
+  function confirmAckMissing(id: number): void {
+    afterQueuedMessages(() => afterQueuedMessages(() => {
+      const pending = pendingRequests.get(id);
+      if (pending && !pending.acked) loseBridge();
+    }));
   }
 
   function handleResponse(id: number, data: any, error: any): void {
@@ -208,6 +240,10 @@ export default defineUnlistedScript(() => {
     try {
       if (event.data.type === MESSAGE_TYPES.ACK) {
         handleAck(event.data.id);
+      } else if (event.data.type === MESSAGE_TYPES.PROBE) {
+        const then = probes.get(event.data.id);
+        probes.delete(event.data.id);
+        then?.();
       } else if (event.data.type === MESSAGE_TYPES.RESPONSE) {
         handleResponse(event.data.id, event.data.data, event.data.error);
       } else if (event.data.type === MESSAGE_TYPES.EVENT) {
@@ -228,15 +264,13 @@ export default defineUnlistedScript(() => {
     return new Promise((resolve, reject) => {
       const id = ++nextRequestId;
       // timers[0] is the ack deadline, cleared on receipt; timers[1] bounds non-interactive calls.
-      const timers = [setTimeout(() => {
-        if (pendingRequests.has(id)) loseBridge();
-      }, ACK_TIMEOUT_MS)];
+      const timers = [setTimeout(() => confirmAckMissing(id), ACK_TIMEOUT_MS)];
       if (!INTERACTIVE_METHODS.has(method)) {
         timers.push(setTimeout(() => {
           takePending(id)?.reject(new Error('Request timeout'));
         }, REQUEST_TIMEOUT_MS));
       }
-      pendingRequests.set(id, { resolve, reject, timers });
+      pendingRequests.set(id, { resolve, reject, timers, acked: false });
 
       window.postMessage({
         target: MESSAGE_TARGETS.CONTENT,

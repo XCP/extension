@@ -27,6 +27,11 @@ type PortResponse =
 
 /** The background's "request received", sent before it waits on anything. Not a result. */
 interface PortAck { id: number; ack: true }
+/**
+ * Liveness probe while calls wait on a port. It has no `id`, so no caller can mistake it (or its
+ * echo) for a request or an answer, and the background answers it without touching any service.
+ */
+interface PortHeartbeat { heartbeat: number }
 interface PendingCall {
   port: chrome.runtime.Port;
   resolve: (value: unknown) => void;
@@ -40,6 +45,24 @@ interface PendingCall {
  * it does not bound how long the call itself may take (an approval can take minutes).
  */
 export const PORT_ACK_TIMEOUT_MS = 10_000;
+
+/**
+ * While any call waits on a port, a heartbeat goes out this often, and a heartbeat still
+ * unanswered at the next tick means the worker behind the port is gone (Chrome does not always
+ * fire onDisconnect when a service worker is stopped). Heartbeats run only while calls are pending,
+ * so they keep the worker awake exactly as long as someone is waiting on it, and no longer.
+ */
+export const PORT_HEARTBEAT_INTERVAL_MS = 15_000;
+
+/**
+ * A port with nothing pending and no traffic for this long is replaced rather than reused: an idle
+ * worker is stopped after about 30 seconds, and a port to a stopped worker may never report it, so
+ * the first call after a pause would otherwise wait out the whole ack timeout.
+ */
+export const PORT_IDLE_RECONNECT_MS = 20_000;
+
+/** Transport loss, as opposed to a service that deliberately answered with code 4900. */
+class PortClosedError extends ProviderError {}
 
 const registeredServices = new Set<string>();
 /** One per proxy client: closes its cached port and fails the calls waiting on it. */
@@ -113,7 +136,7 @@ export function disconnectAllPorts(): void {
 
 const reloadRequired = () => new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, EXTENSION_RELOAD_REQUIRED_MESSAGE);
 const disconnectedError = () => isExtensionContextValid()
-  ? new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, EXTENSION_RESTARTED_MESSAGE)
+  ? new PortClosedError(PROVIDER_ERROR_CODES.DISCONNECTED, EXTENSION_RESTARTED_MESSAGE)
   : reloadRequired();
 
 export function defineProxyService<T extends object>(
@@ -143,12 +166,16 @@ export function defineProxyService<T extends object>(
       if (!trustedUI && !origin) { incoming.disconnect(); return; }
 
       let disconnected = false;
-      const reply = (response: PortResponse | PortAck) => {
+      const reply = (response: PortResponse | PortAck | PortHeartbeat) => {
         if (!disconnected) {
           try { incoming.postMessage(response); } catch { /* the requesting document closed */ }
         }
       };
       const dispatch = async (value: unknown): Promise<void> => {
+        if (isRecord(value) && !Object.hasOwn(value, 'id') && Number.isSafeInteger(value.heartbeat)) {
+          reply({ heartbeat: value.heartbeat as number });
+          return;
+        }
         const request = parseRequest(value);
         if (!request) {
           if (isRecord(value) && Number.isSafeInteger(value.id)) {
@@ -205,22 +232,42 @@ export function defineProxyService<T extends object>(
   let port: chrome.runtime.Port | null = null;
   const pendingCalls = new Map<number, PendingCall>();
   let nextId = 0;
+  /** Last time the current port carried anything in either direction. */
+  let lastTraffic = 0;
+  let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+  let heartbeatOutstanding = false;
+  let heartbeatSeq = 0;
+
+  const hasPendingOn = (target: chrome.runtime.Port) => {
+    for (const pending of pendingCalls.values()) if (pending.port === target) return true;
+    return false;
+  };
+
+  const stopHeartbeat = () => {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = undefined;
+    heartbeatOutstanding = false;
+  };
 
   const settle = (id: number): PendingCall | undefined => {
     const pending = pendingCalls.get(id);
     if (!pending) return undefined;
     pendingCalls.delete(id);
     clearTimeout(pending.ackTimer);
+    if (port && !hasPendingOn(port)) stopHeartbeat();
     return pending;
   };
 
   /**
    * Forget a port and fail every call still waiting on it. Also the path for a port *we* close
-   * (bfcache, missing ack): Chrome fires onDisconnect only on the far end, so a local disconnect()
-   * alone would leave those calls pending forever and the dead port cached for the next call.
+   * (bfcache, missing ack, missed heartbeat): Chrome fires onDisconnect only on the far end, so a
+   * local disconnect() alone would leave those calls pending forever and the dead port cached.
    */
   function dropPort(dead: chrome.runtime.Port, disconnect: boolean): void {
-    if (port === dead) port = null;
+    if (port === dead) {
+      port = null;
+      stopHeartbeat();
+    }
     if (disconnect) {
       try { dead.disconnect(); } catch { /* already disconnected */ }
     }
@@ -232,8 +279,26 @@ export function defineProxyService<T extends object>(
   }
   const dropCurrentPort = () => { if (port) dropPort(port, true); };
 
+  /** While calls wait on the port, prove every interval that something still answers on it. */
+  function ensureHeartbeat(target: chrome.runtime.Port): void {
+    if (heartbeatTimer !== undefined) return;
+    heartbeatTimer = setInterval(() => {
+      if (port !== target || !hasPendingOn(target)) { stopHeartbeat(); return; }
+      if (heartbeatOutstanding) { dropPort(target, true); return; }
+      heartbeatOutstanding = true;
+      try {
+        target.postMessage({ heartbeat: ++heartbeatSeq } satisfies PortHeartbeat);
+      } catch {
+        dropPort(target, true);
+      }
+    }, PORT_HEARTBEAT_INTERVAL_MS);
+  }
+
   function ensurePort(): chrome.runtime.Port {
-    if (port) return port;
+    if (port) {
+      if (hasPendingOn(port) || Date.now() - lastTraffic < PORT_IDLE_RECONNECT_MS) return port;
+      dropPort(port, true); // idle long enough that its worker may be gone without saying so
+    }
     if (!isExtensionContextValid()) throw reloadRequired();
     let connected: chrome.runtime.Port;
     try {
@@ -242,9 +307,15 @@ export function defineProxyService<T extends object>(
       throw isContextInvalidatedError(error) || !isExtensionContextValid() ? reloadRequired() : error;
     }
     port = connected;
+    lastTraffic = Date.now();
     portDroppers.add(dropCurrentPort);
     connected.onMessage.addListener((value: unknown) => {
-      if (isRecord(value) && value.ack === true && Number.isSafeInteger(value.id)) {
+      if (port === connected) {
+        lastTraffic = Date.now();
+        heartbeatOutstanding = false;
+      }
+      if (!isRecord(value) || !Object.hasOwn(value, 'id')) return; // heartbeat echo, or noise
+      if (value.ack === true && Number.isSafeInteger(value.id)) {
         const pending = pendingCalls.get(value.id as number);
         if (pending?.port === connected) {
           clearTimeout(pending.ackTimer);
@@ -299,6 +370,8 @@ export function defineProxyService<T extends object>(
                 try {
                   target.postMessage({ id, methodName: prop, args, ack: true } satisfies PortRequest);
                   sent = true;
+                  lastTraffic = Date.now();
+                  ensureHeartbeat(target);
                 } catch (error) { settle(id); reject(error); }
               });
             } catch (error) {
@@ -307,7 +380,8 @@ export function defineProxyService<T extends object>(
                 || (error instanceof ProviderError && error.message === EXTENSION_RELOAD_REQUIRED_MESSAGE);
               if (orphaned()) throw reloadRequired();
               const message = error instanceof Error ? error.message : '';
-              const isDisconnect = error instanceof ProviderError && error.code === PROVIDER_ERROR_CODES.DISCONNECTED
+              // Only transport loss retries; a service that itself answered 4900 is an ordinary error.
+              const isDisconnect = error instanceof PortClosedError
                 || message.includes('Attempting to use a disconnected port');
               if (!isDisconnect) throw error;
               if (connected && port === connected) dropPort(connected, true);

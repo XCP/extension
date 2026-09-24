@@ -4,6 +4,10 @@ import { classifyProviderError, JSON_RPC_ERROR_CODES, ProviderError, reloadRequi
 import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
 import { disconnectAllPorts } from '@/platform/proxy';
 
+const BRIDGE_OWNER_KEY = '__xcpWalletBridgeOwner';
+/** How often the content script checks whether its extension is still there. */
+const CONTEXT_WATCH_INTERVAL_MS = 2_000;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -93,7 +97,14 @@ export default defineContentScript({
     type Envelope = { target: string; type: string; id: string | number };
     const inFlight = new Map<object, Envelope>(); // keyed per request: page ids may repeat
     let bridgeClosed = false;
-    let handedOff = false;
+    /**
+     * Which copy of this script owns the page. Copies of one extension's content scripts share an
+     * isolated world, so a newer copy overwrites this and the older one falls silent; the page
+     * cannot reach this world, so unlike WXT's DOM hand-off event it cannot deafen its own bridge.
+     */
+    const ownership = {};
+    Reflect.set(globalThis, BRIDGE_OWNER_KEY, ownership);
+    const isOwner = () => Reflect.get(globalThis, BRIDGE_OWNER_KEY) === ownership;
     const closeBridge = () => {
       if (bridgeClosed) return;
       bridgeClosed = true;
@@ -109,7 +120,7 @@ export default defineContentScript({
     // The page controls the payload. The background independently validates the
     // transport and derives the origin from the browser sender.
     const messageHandler = async (event: MessageEvent<unknown>) => {
-      if (handedOff || event.source !== window || event.origin !== window.location.origin) return;
+      if (!isOwner() || event.source !== window || event.origin !== window.location.origin) return;
       const request = event.data;
       if (!isRecord(request) || request.target !== MESSAGE_TARGETS.CONTENT || request.type !== MESSAGE_TYPES.REQUEST) return;
       if (!(typeof request.id === 'string' && request.id.length <= 256)
@@ -174,11 +185,20 @@ export default defineContentScript({
 
     // The window listener deliberately outlives the context: an orphaned script that stopped
     // listening would leave the page's requests unanswered, which is the hang this replaces.
+    // WXT's own hand-off signal is a DOM event any page can forge, so it only counts when the
+    // extension really is gone; a live hand-off is decided by `isOwner` above.
     ctx.onInvalidated(() => {
-      if (!isExtensionContextValid()) { closeBridge(); return; }
-      // A newer copy of this script took over the page (WXT's hand-off); it answers from now on.
-      handedOff = true;
-      try { browser.runtime.onMessage.removeListener(runtimeMessageHandler); } catch { /* context gone */ }
+      if (!isExtensionContextValid()) closeBridge();
     });
+
+    // Tell the page as soon as the extension goes away, not at its next request. A property read,
+    // no messaging: cheap enough to run for the life of the page.
+    const contextWatch = setInterval(() => {
+      if (!isOwner() || bridgeClosed) { clearInterval(contextWatch); return; }
+      if (!isExtensionContextValid()) {
+        clearInterval(contextWatch);
+        closeBridge();
+      }
+    }, CONTEXT_WATCH_INTERVAL_MS);
   },
 });
