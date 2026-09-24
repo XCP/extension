@@ -19,7 +19,7 @@ import { ApprovalTransactionDetails } from "@/components/domain/approval/approva
 import { buildApprovalWarnings } from "@/components/domain/approval/approval-warnings";
 import { BitcoinPaymentCard } from "@/components/domain/approval/bitcoin-payment-card";
 import { CounterpartyDetailsCard } from "@/components/domain/approval/counterparty-details-card";
-import { MarketplaceReviewCard } from "@/components/domain/approval/marketplace-review-card";
+import { MarketplaceReviewCard, provedReviewNotes } from "@/components/domain/approval/marketplace-review-card";
 import { computeMoneyMovement } from "@/components/domain/approval/money-movement";
 import { buildOrderAction } from "@/components/domain/approval/order-card";
 import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
@@ -85,6 +85,8 @@ export default function ApprovePsbtPage() {
       : undefined;
   const isRepriceListing = listingContext?.mode === "reprice";
   const listingHeader = isRepriceListing ? t('psbt_approve_reprice_listing') : t('psbt_approve_create_listing');
+  const fundOffersCount =
+    request?.marketplaceIntent?.action === "fund_offers" ? request.marketplaceIntent.slotCount : 0;
 
   // Configure header
   useEffect(() => {
@@ -104,9 +106,13 @@ export default function ApprovePsbtPage() {
                     ? t('psbt_approve_authorize_offer')
                     : request?.marketplaceIntent?.action === "accept_exact_offer"
                       ? t('common_accept_offer')
-                      : t('transaction_approve_sign_transaction'),
+                      : fundOffersCount > 0
+                        ? fundOffersCount === 1
+                          ? t('psbt_approve_fund_offer_title')
+                          : t('psbt_approve_fund_offers_title')
+                        : t('transaction_approve_sign_transaction'),
     });
-  }, [listingHeader, request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);
+  }, [fundOffersCount, listingHeader, request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);
 
   useEffect(() => setShowAttention(false), [request?.id]);
 
@@ -449,7 +455,9 @@ export default function ApprovePsbtPage() {
                         : marketplaceReview?.family === "authorize_exact_offer"
                           ? t('psbt_approve_authorize_offer_2')
                           : marketplaceReview?.family === "fund_offers"
-                            ? t('psbt_approve_fund_offer')
+                            ? fundOffersCount === 1
+                              ? t('psbt_approve_fund_offer')
+                              : t('psbt_approve_fund_offers')
                             : t('common_sign_transaction')
           }
         />
@@ -546,7 +554,13 @@ export default function ApprovePsbtPage() {
         />
       )}
 
-      <CounterpartyDetailsCard fields={detailFields} recipients={decodedInfo.mpmaRecipients} />
+      <CounterpartyDetailsCard
+        fields={detailFields}
+        recipients={decodedInfo.mpmaRecipients}
+        // A plain-Bitcoin self-send carries no Counterparty message to name the section after.
+        title={marketplaceReview?.family === "fund_offers" ? t('approval_counterparty_details_card_details') : undefined}
+        notes={semanticMarketplaceReview ? provedReviewNotes(marketplaceReview!) : []}
+      />
       {retryAvailable && !marketplaceBlocked && (
         <ApprovalRetry
           onRetry={() => void handleRetry()}

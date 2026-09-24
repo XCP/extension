@@ -6207,5 +6207,35 @@
   },
   "psbt_approve_fund_offer": {
     "message": "オファーに資金を用意"
+  },
+  "marketplace_intent_title_fund_offer_collection": {
+    "message": "コレクション「$1」へのオファーに資金を用意"
+  },
+  "marketplace_intent_title_fund_offers_collection": {
+    "message": "コレクション「$2」への $1 件のオファーに資金を用意"
+  },
+  "marketplace_intent_offer_policy": {
+    "message": "オファーの対象"
+  },
+  "marketplace_intent_quoted_text": {
+    "message": "「$1」"
+  },
+  "marketplace_intent_each_label": {
+    "message": "$1(1 件あたり)"
+  },
+  "marketplace_intent_cancel_anytime_by_spending_set_aside_outputs": {
+    "message": "確保した出力を使えばいつでも取り消せます"
+  },
+  "psbt_approve_fund_offers": {
+    "message": "オファーに資金を用意"
+  },
+  "psbt_approve_fund_offer_title": {
+    "message": "オファーに資金を用意"
+  },
+  "psbt_approve_fund_offers_title": {
+    "message": "オファーに資金を用意"
+  },
+  "approval_counterparty_details_card_details": {
+    "message": "詳細"
   }
 }

@@ -9,6 +9,7 @@
 
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchUtxoBalances } from '@/core/counterparty/api';
+import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 
 /**
  * Counterparty assets attached to a single input's UTXO.
@@ -32,8 +33,6 @@ export interface InputAttachedAssets {
   }>;
 }
 
-/** Cap on per-input asset lookups. Inputs past it are reported unknown, never assumed empty. */
-export const MAX_ASSET_LOOKUP_INPUTS = 30;
 
 /**
  * Look up the Counterparty assets attached to each input's UTXO. Returns an entry for every input

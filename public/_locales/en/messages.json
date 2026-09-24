@@ -8263,5 +8263,45 @@
   "psbt_approve_fund_offer": {
     "message": "Fund offer",
     "description": "pages/requests/psbt/approve.tsx"
+  },
+  "marketplace_intent_title_fund_offer_collection": {
+    "message": "Fund an offer in collection “$1”",
+    "description": "Headline of the offer-funding approval screen when the offer targets a marketplace collection. $1 is the collection's name as the website supplied it, cleaned and shortened; keep it inside quotation marks so it cannot read as wallet text."
+  },
+  "marketplace_intent_title_fund_offers_collection": {
+    "message": "Fund $1 offers in collection “$2”",
+    "description": "Headline of the offer-funding approval screen for several offers on a marketplace collection. $1 is how many (2 or more); $2 is the collection's name as the website supplied it, kept inside quotation marks."
+  },
+  "marketplace_intent_offer_policy": {
+    "message": "Offer policy",
+    "description": "Row label on the offer-funding approval screen, above the website-supplied description of which editions of a collection the offer covers."
+  },
+  "marketplace_intent_quoted_text": {
+    "message": "“$1”",
+    "description": "Wraps website-supplied display text in quotation marks so it reads as quoted, not as wallet text. $1 is the text."
+  },
+  "marketplace_intent_each_label": {
+    "message": "$1 · each",
+    "description": "Row label marking a per-edition amount on the offer-funding approval screen. $1 is the row name, such as Offer price or Platform fee."
+  },
+  "marketplace_intent_cancel_anytime_by_spending_set_aside_outputs": {
+    "message": "Cancel anytime by spending the set-aside outputs",
+    "description": "Value of the Cancellation row on the offer-funding approval screen: spending the outputs this transaction sets aside cancels the offers they back."
+  },
+  "psbt_approve_fund_offers": {
+    "message": "Fund offers",
+    "description": "Sign button on the offer-funding approval screen when it funds two or more offers."
+  },
+  "psbt_approve_fund_offer_title": {
+    "message": "Fund Offer",
+    "description": "Page header of the offer-funding approval screen for one offer."
+  },
+  "psbt_approve_fund_offers_title": {
+    "message": "Fund Offers",
+    "description": "Page header of the offer-funding approval screen for two or more offers."
+  },
+  "approval_counterparty_details_card_details": {
+    "message": "Details",
+    "description": "Heading of the details section on an approval screen whose transaction carries no Counterparty message, such as offer funding."
   }
 }

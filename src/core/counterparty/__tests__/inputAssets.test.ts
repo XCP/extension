@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchUtxoBalances } from '@/core/counterparty/api';
+import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import { asDisplayUnits } from '@/core/numeric';
 import {
   classifySignedInputAssets,
   fetchInputsAttachedAssets,
   type InputAttachedAssets,
-  MAX_ASSET_LOOKUP_INPUTS,
 } from '../inputAssets';
 
 vi.mock('@/core/counterparty/api');

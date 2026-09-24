@@ -9,8 +9,10 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
 import type { ProtocolField } from '@/core/counterparty/describe';
+import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import { displayLocale, formatAmount } from '@/core/format';
+import { validateAssetName } from '@/core/validation/asset';
 import { t } from '@/i18n';
 
 export const MARKETPLACE_INTENT_STANDARD = 'counterparty-marketplace' as const;
@@ -496,18 +498,40 @@ const parsePrepareBulkFanoutIntent = (
 };
 
 const MAX_FUND_OFFER_SLOTS = 20;
-const MAX_FUND_OFFER_INPUTS = 50;
+/** Every funding input must be proven asset-free, and the approval screen looks up at most
+ * MAX_ASSET_LOOKUP_INPUTS of them: a larger claim could only ever sit in "Retry". */
+const MAX_FUND_OFFER_INPUTS = MAX_ASSET_LOOKUP_INPUTS;
+
+/**
+ * Website-supplied display text reduced to one plain line: control and format characters (bidi
+ * overrides and isolates, zero-width joiners, BOMs) are dropped, and any run of whitespace becomes
+ * one space. Rejects text that is empty once cleaned.
+ */
+const plainDisplayText = (value: unknown, label: string, max: number): string => {
+  const cleaned = boundedString(value, label, max)
+    .replace(/\p{Cf}/gu, '')
+    .replace(/[\p{Cc}\p{Zl}\p{Zp}\s]+/gu, ' ')
+    .trim();
+  if (cleaned.length === 0) throw new Error(`${label} must contain visible text`);
+  return cleaned;
+};
 
 const fundOffersTarget = (value: unknown): FundOffersTargetClaim => {
   if (!isRecord(value)) throw new Error('target must be an object');
   if (value.scope === 'asset') {
-    return { scope: 'asset', asset: boundedString(value.asset, 'target.asset', 250) };
+    // Shown bare in the headline, so it must be a real Counterparty asset name: a named or
+    // numeric (A-prefixed) asset, or a subasset longname.
+    const name = boundedString(value.asset, 'target.asset', 250);
+    if (!validateAssetName(name, name.includes('.')).isValid) {
+      throw new Error('target.asset must be a Counterparty asset name');
+    }
+    return { scope: 'asset', asset: name };
   }
   if (value.scope === 'collection') {
     return {
       scope: 'collection',
-      collection: boundedString(value.collection, 'target.collection', 120),
-      ...(value.policy === undefined ? {} : { policy: boundedString(value.policy, 'target.policy', 200) }),
+      collection: plainDisplayText(value.collection, 'target.collection', 120),
+      ...(value.policy === undefined ? {} : { policy: plainDisplayText(value.policy, 'target.policy', 200) }),
     };
   }
   throw new Error('target.scope must be asset or collection');
@@ -535,11 +559,16 @@ const parseFundOffersIntent = (value: Record<string, unknown>): FundOffersIntent
   ) {
     throw new Error(`fundingInputs must list 1..${MAX_FUND_OFFER_INPUTS} outpoints`);
   }
+  const seenOutpoints = new Set<string>();
   const fundingInputs = value.fundingInputs.map((candidate, index) => {
     const label = `fundingInputs[${index}]`;
     if (!isRecord(candidate)) throw new Error(`${label} must be an object`);
+    const claimed = outpoint(candidate, label);
+    const key = `${claimed.txid}:${claimed.vout}`;
+    if (seenOutpoints.has(key)) throw new Error(`${label} repeats outpoint ${key}`);
+    seenOutpoints.add(key);
     return {
-      ...outpoint(candidate, label),
+      ...claimed,
       valueSats: safeInteger(candidate.valueSats, `${label}.valueSats`, { positive: true })!,
     };
   });
@@ -1986,10 +2015,29 @@ function analyzePrepareBulkFanoutIntent(
   };
 }
 
-const fundOffersTargetLabel = (target: FundOffersTargetClaim): string =>
-  target.scope === 'asset'
-    ? target.asset
-    : target.policy ? `${target.collection} (${target.policy})` : target.collection;
+/** Keep website-supplied display text short enough that it cannot carry a sentence of its own. */
+const clipDisplayText = (value: string, max: number): string => {
+  const characters = Array.from(value);
+  return characters.length <= max ? value : `${characters.slice(0, max - 1).join('').trimEnd()}…`;
+};
+
+const MAX_TARGET_COLLECTION_DISPLAY = 40;
+const MAX_TARGET_POLICY_DISPLAY = 60;
+
+/** An asset target is a validated Counterparty name and reads bare; collection text is the
+ * website's own words, so it is always shown clipped and inside quotation marks. */
+const fundOffersTitle = (intent: FundOffersIntentClaim): string => {
+  const { target, slotCount } = intent;
+  if (target.scope === 'asset') {
+    return slotCount === 1
+      ? t('marketplace_intent_title_fund_offer', target.asset)
+      : t('marketplace_intent_title_fund_offers', [grouped(slotCount), target.asset]);
+  }
+  const collection = clipDisplayText(target.collection, MAX_TARGET_COLLECTION_DISPLAY);
+  return slotCount === 1
+    ? t('marketplace_intent_title_fund_offer_collection', collection)
+    : t('marketplace_intent_title_fund_offers_collection', [grouped(slotCount), collection]);
+};
 
 /**
  * Prove a clean-BTC self-send that backs exact offers: every signed input is the bidder's own
@@ -2108,36 +2156,46 @@ function analyzeFundOffersIntent(
     }
   }
 
-  const target = fundOffersTargetLabel(intent.target);
   const allProblems = [...retry, ...blockers];
+  const each = (label: string) => t('marketplace_intent_each_label', label);
+  const setAsideSats = safeSum(Array.from({ length: intent.slotCount }, () => intent.slotValueSats));
+  // Per-edition amounts are marked "each"; the one total is what leaves spendable balance.
+  const paymentSummary: ProtocolField[] = [
+    {
+      kind: 'amount', label: each(t('marketplace_intent_offer_price')),
+      value: satsValue(intent.priceSats),
+    },
+    {
+      kind: 'amount', label: each(t('marketplace_intent_platform_fee')),
+      value: satsValue(intent.platformFeeSats),
+      description: t('marketplace_intent_paid_only_if_a_seller_accepts'),
+    },
+    ...(attachedUtxoSats > 0 ? [{
+      kind: 'amount' as const, label: each(t('marketplace_intent_sats_kept_with_your_asset')),
+      value: satsValue(attachedUtxoSats),
+    }] : []),
+    ...(setAsideSats === null ? [] : [{
+      kind: 'amount' as const, label: t('marketplace_intent_set_aside'),
+      value: satsValue(setAsideSats),
+      description: `${grouped(intent.slotCount)} × ${satsValue(intent.slotValueSats)}`,
+    }]),
+    {
+      kind: 'amount', label: t('marketplace_intent_network_fee'),
+      value: satsValue(intent.networkFeeSats),
+    },
+  ];
+  const policy = intent.target.scope === 'collection' ? intent.target.policy : undefined;
   return {
     status: blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved',
     family: 'fund_offers',
-    title: intent.slotCount === 1
-      ? t('marketplace_intent_title_fund_offer', target)
-      : t('marketplace_intent_title_fund_offers', [grouped(intent.slotCount), target]),
+    ...(allProblems.length === 0 ? { paymentSummary } : {}),
+    title: fundOffersTitle(intent),
     facts: [
-      {
-        kind: 'amount' as const, label: t('marketplace_intent_offer_price'),
-        value: satsValue(intent.priceSats),
-      },
-      {
-        kind: 'amount' as const, label: t('marketplace_intent_set_aside'),
-        value: `${grouped(intent.slotCount)} × ${satsValue(intent.slotValueSats)}`,
-      },
-      {
-        kind: 'amount' as const, label: t('marketplace_intent_platform_fee'),
-        value: satsValue(intent.platformFeeSats),
-        description: t('marketplace_intent_paid_only_if_a_seller_accepts'),
-      },
-      ...(attachedUtxoSats > 0 ? [{
-        kind: 'amount' as const, label: t('marketplace_intent_sats_kept_with_your_asset'),
-        value: satsValue(attachedUtxoSats),
-      }] : []),
-      {
-        kind: 'amount' as const, label: t('marketplace_intent_network_fee'),
-        value: satsValue(intent.networkFeeSats),
-      },
+      ...paymentSummary,
+      ...(policy === undefined ? [] : [{
+        kind: 'text' as const, label: t('marketplace_intent_offer_policy'),
+        value: t('marketplace_intent_quoted_text', clipDisplayText(policy, MAX_TARGET_POLICY_DISPLAY)),
+      }]),
       { kind: 'amount' as const, label: t('marketplace_intent_change'), value: satsValue(intent.changeSats) },
       {
         kind: 'text' as const, label: t('marketplace_intent_marketplace_expiry'),
@@ -2145,7 +2203,7 @@ function analyzeFundOffersIntent(
       },
       {
         kind: 'paragraph' as const, label: t('marketplace_intent_cancellation'),
-        value: t('marketplace_intent_withdraw_by_spending_your_funding_utxo'),
+        value: t('marketplace_intent_cancel_anytime_by_spending_set_aside_outputs'),
       },
     ],
     notices: allProblems.length > 0
