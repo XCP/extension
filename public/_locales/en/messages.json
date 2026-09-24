@@ -8239,5 +8239,29 @@
   "default_utxo_address_name": {
     "message": "UTXO Address $1",
     "description": "Display-only default account name. $1 is the original numeric suffix; stored names remain canonical English. Custom labels are preserved."
+  },
+  "marketplace_intent_title_fund_offer": {
+    "message": "Fund an offer on $1",
+    "description": "Headline of the approval screen for a plain-Bitcoin self-send that sets aside the coins backing one marketplace offer. $1 is the asset or collection the offer is for."
+  },
+  "marketplace_intent_title_fund_offers": {
+    "message": "Fund $1 offers on $2",
+    "description": "Headline of the approval screen for a plain-Bitcoin self-send that sets aside the coins backing several marketplace offers. $1 is how many (2 or more), $2 is the asset or collection."
+  },
+  "marketplace_intent_set_aside": {
+    "message": "Set aside",
+    "description": "Row label on the offer-funding approval screen, above how many offer-backing UTXOs are created and what each is worth."
+  },
+  "marketplace_intent_paid_only_if_a_seller_accepts": {
+    "message": "Paid only if a seller accepts",
+    "description": "Note under the platform fee on the offer-funding approval screen: the fee stays in the buyer's wallet unless a seller takes the offer."
+  },
+  "marketplace_intent_notice_fund_offers": {
+    "message": "Every output stays in this wallet. These coins back your offer until a seller accepts it or you spend them, which cancels it. Letting sellers accept is a separate approval that follows.",
+    "description": "Info notice on the offer-funding approval screen: nothing leaves the wallet, the coins are only set aside, and the authorization for sellers comes as a second approval."
+  },
+  "psbt_approve_fund_offer": {
+    "message": "Fund offer",
+    "description": "pages/requests/psbt/approve.tsx"
   }
 }

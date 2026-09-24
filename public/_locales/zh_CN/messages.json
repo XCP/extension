@@ -6189,5 +6189,23 @@
   },
   "default_utxo_address_name": {
     "message": "UTXO 地址 $1"
+  },
+  "marketplace_intent_title_fund_offer": {
+    "message": "为 $1 的出价准备资金"
+  },
+  "marketplace_intent_title_fund_offers": {
+    "message": "为 $2 的 $1 个出价准备资金"
+  },
+  "marketplace_intent_set_aside": {
+    "message": "预留"
+  },
+  "marketplace_intent_paid_only_if_a_seller_accepts": {
+    "message": "仅在卖家接受时支付"
+  },
+  "marketplace_intent_notice_fund_offers": {
+    "message": "所有输出都留在此钱包中。这些币将为您的出价提供担保，直到卖家接受或您花费它们（即取消出价）。允许卖家接受是随后的另一次批准。"
+  },
+  "psbt_approve_fund_offer": {
+    "message": "为出价准备资金"
   }
 }

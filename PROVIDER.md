@@ -329,6 +329,54 @@ buyer funding and the detach destination remain flexible. A false claim is block
 asset lookup asks the user to retry rather than treating the UTXO as empty. Marketplace expiry is
 displayed as service policy, not Bitcoin signature expiry.
 
+**Offer funding (`fund_offers`).** Before a buyer can authorize exact offers, a clean-Bitcoin
+self-send sets aside one output per offered edition. It carries no Counterparty content, so the
+Counterparty-only rule above would refuse it; a proved `fund_offers` intent is the one narrow
+exception, and only that rule is lifted:
+
+```js
+await xcpwallet.request({
+  method: 'xcp_signPsbt',
+  params: [{
+    hex: fundingPsbtHex,
+    signInputs: { [bidder]: [0, 1] },
+    sighashTypes: [0x01, 0x01],
+    intent: {
+      standard: 'counterparty-marketplace',
+      version: 1,
+      action: 'fund_offers',
+      operationId: 'offer-funding:<expected txid>',
+      protocolVersion: 'exact_offer_v1',
+      assets: [],
+      bidder,
+      target: { scope: 'collection', collection: 'rare-pepe', policy: 'series 1' }, // or { scope: 'asset', asset }
+      priceSats: 8000,
+      platformFeeSats: 1000,
+      delivery: { mode: 'detached' },             // or { mode: 'attached', utxoValueSats: 330 }
+      fundingInputs: [
+        { txid: '<64-char txid>', vout: 0, valueSats: 15000 },
+        { txid: '<64-char txid>', vout: 3, valueSats: 5000 }
+      ],
+      fundingValueSats: 20000,
+      slotCount: 2,
+      slotValueSats: 9000,                        // price + platform fee (+ delivery UTXO)
+      networkFeeSats: 400,
+      changeSats: 1600,
+      expectedTxid: '<64-char txid>',
+      marketplaceExpiresAt: 1711130400
+    }
+  }]
+});
+```
+
+The wallet proves the transaction id; that the inputs are exactly the claimed outpoints and values,
+all owned by the bidder, unsigned, and free of attached assets (a failed lookup asks for a retry);
+that every input is signed `SIGHASH_ALL`; that the outputs are exactly `slotCount` outputs of
+`slotValueSats` plus optional change, all paying the bidder, with no data output; that each slot is
+the price plus the platform fee plus any attached-delivery UTXO; and that the fee equals inputs
+minus outputs. The target is display context only — the funding commits to no asset. A seller can
+take a slot only through a later `authorize_exact_offer` signature, which is its own approval.
+
 **Mixed sighash flags.** When signed inputs carry different flags, the summary
 prices only the outputs that every `ANYONECANPAY` input covers on its own. Such
 an input is detachable — whoever holds the PSBT can keep it, drop the rest, and

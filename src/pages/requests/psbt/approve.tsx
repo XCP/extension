@@ -448,7 +448,9 @@ export default function ApprovePsbtPage() {
                         ? t('common_accept_offer_2')
                         : marketplaceReview?.family === "authorize_exact_offer"
                           ? t('psbt_approve_authorize_offer_2')
-                          : t('common_sign_transaction')
+                          : marketplaceReview?.family === "fund_offers"
+                            ? t('psbt_approve_fund_offer')
+                            : t('common_sign_transaction')
           }
         />
       }
