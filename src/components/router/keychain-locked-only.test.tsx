@@ -24,7 +24,7 @@ vi.mock('react-router', async () => {
 });
 
 import { useWallet } from '@/contexts/wallet-context';
-import { KeychainLockedOnly } from './keychain-locked-only';
+import { CONTINUATION_FALLBACK_MS, KeychainLockedOnly } from './keychain-locked-only';
 
 interface MockWalletContext {
   authState: 'UNLOCKED' | 'LOCKED' | 'ONBOARDING_NEEDED';
@@ -118,6 +118,39 @@ describe('KeychainLockedOnly', () => {
 
       expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
       expect(screen.queryByText('Unlock Screen')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Unlocked in a window a request continues in', () => {
+    beforeEach(() => {
+      window.history.replaceState(null, '', '/popup.html?continues=https%3A%2F%2Fdapp.test-unlock-1');
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      window.history.replaceState(null, '', '/');
+    });
+
+    it('keeps the unlock screen instead of going home while the request loads', () => {
+      vi.useFakeTimers();
+      setupWalletContext({ authState: 'UNLOCKED', keychainExists: true, isLoading: false });
+
+      renderWithRouter();
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(screen.getByText('Unlock Screen')).toBeInTheDocument();
+      // Still waiting just short of the fallback: the background navigates this window itself.
+      vi.advanceTimersByTime(CONTINUATION_FALLBACK_MS - 1);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('still asks a locked wallet for its password', () => {
+      setupWalletContext({ authState: 'LOCKED', keychainExists: true, isLoading: false });
+
+      renderWithRouter();
+
+      expect(screen.getByText('Unlock Screen')).toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
 

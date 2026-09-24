@@ -206,6 +206,11 @@ async function stubUtxoBalances(
       },
     });
   });
+  // Fabricated funding parents are "confirmed long ago": the attach-and-list proof requires every
+  // attach input's parent to be confirmed at or below Counterparty's parsed height.
+  await api.route(/mempool\.space\/api\/tx\/[0-9a-f]{64}\/status$/, async (route: Route) => {
+    await route.fulfill({ json: { confirmed: true, block_height: 1 } });
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -276,7 +281,8 @@ interface Scenario {
     | 'Authorize listing'
     | 'Authorize reprice'
     | 'Prepare asset'
-    | 'Attach and list';
+    | 'Attach and list'
+    | 'Authorize 3 offers';
   /** Important semantic disclosures that must survive visual refactors. */
   expectedText?: string[];
   /** Principal decision facts must be visible without expanding any details. */
@@ -632,9 +638,9 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
           },
         ],
       }),
-      balances: {
-        [`${attach.txid}:0`]: [{ asset: 'COLLECTOR', quantity: '1', quantity_normalized: '1' }],
-      },
+      // Mainnet reality: no ledger has seen the attach, so its output has no balance. The listing
+      // proves from the attach item of the same bundle instead (marketplaceAttachLink.ts).
+      balances: {},
     });
   }
 
@@ -831,12 +837,12 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
   // --- exact offers: buyer authorization (caution) and seller acceptance (proved) -----------
   for (const attached of [false, true]) {
     const suffix = attached ? '-attached' : '';
-    const offer = (accepting: boolean) => {
+    const offer = (accepting: boolean, target = { txid: ASSET_TXID, vout: 7 }, index = 1) => {
       const buyerAddr = accepting ? BUYER_EXT : wallet;
       const sellerAddr = accepting ? wallet : SELLER_A;
       const inputs: BuiltInput[] = [
         { txid: BID_TXID, vout: 4, address: buyerAddr, value: 256_250 + (attached ? 330 : 0), signed: accepting },
-        { txid: ASSET_TXID, vout: 7, address: sellerAddr, value: 546 },
+        { txid: target.txid, vout: target.vout, address: sellerAddr, value: 546 },
       ];
       const outputs: BuiltOutput[] = [
         { scriptHex: attached ? scriptFor(buyerAddr) : opReturnScript(detachPayload(buyerAddr), BID_TXID), value: attached ? 330 : 0 },
@@ -848,14 +854,14 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
         standard: 'counterparty-marketplace',
         version: 1,
         action: accepting ? 'accept_exact_offer' : 'authorize_exact_offer',
-        operationId: 'authorization-1',
+        operationId: `authorization-${index}`,
         protocolVersion: 'exact_offer_v1',
         assets: [{
           asset: 'RAREPEPE',
           quantityRaw: '1',
-          sourceOutpoint: { txid: ASSET_TXID, vout: 7 },
+          sourceOutpoint: target,
         }],
-        authorizationId: 'authorization-1',
+        authorizationId: `authorization-${index}`,
         bidder: buyerAddr,
         seller: sellerAddr,
         priceSats: 250_000,
@@ -897,6 +903,45 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
         [`${ASSET_TXID}:7`]: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
       },
     });
+
+    // Several exact targets on the one funding UTXO, as the marketplace's buyer-offer flow sends
+    // them: one xcp_signPsbts review, every item proved alone, at most one can ever settle.
+    if (!attached) {
+      const targets = [
+        { txid: ASSET_TXID, vout: 7 },
+        { txid: ASSET_TXID_TWO, vout: 7 },
+        { txid: ASSET_TXID, vout: 8 },
+      ];
+      const offers = targets.map((target, index) => offer(false, target, index + 1));
+      scenarios.push({
+        name: 'bundle-authorize-offers',
+        initialText: ['Authorize 3 exact offers', 'You pay if accepted', '256,250 sats'],
+        expectedText: [
+          'Settlement',
+          'At most one can be accepted. Every offer spends the same funding UTXO.',
+          `${BID_TXID}:4`,
+          'Withdraw by spending your funding UTXO',
+        ],
+        absentText: ['Blocked: Marketplace Intent Mismatch', 'Seller wallet'],
+        route: '/requests/psbts/approve',
+        expectFooter: 'Authorize 3 offers',
+        record: seedRecord('mk-authorize-offers', {
+          requestKey: 'xcp_signPsbts:mk-authorize-offers',
+          kind: 'sign-psbts',
+          bundleKind: 'authorize-offers',
+          items: offers.map(item => ({
+            psbtHex: item.psbtHex,
+            signInputs: { [wallet]: [0] },
+            sighashTypes: [0x01, 0x01],
+            marketplaceIntent: item.intent,
+          })),
+        }),
+        balances: Object.fromEntries(targets.map(target => [
+          `${target.txid}:${target.vout}`,
+          [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+        ])),
+      });
+    }
 
     const accept = offer(true);
     scenarios.push({
@@ -1128,7 +1173,7 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
       );
 
       const footer = approval.getByRole('button', {
-        name: /^(sign transaction|buy collectibles|accept offer|prepare funds|send bitcoin|review|blocked|awaiting verification|authorize listing|authorize reprice|authorize offer|prepare asset|attach and list)$/i,
+        name: /^(sign transaction|buy collectibles|accept offer|prepare funds|send bitcoin|review|blocked|awaiting verification|authorize listing|authorize reprice|authorize offer|authorize \d+ offers|prepare asset|attach and list)$/i,
       });
       await expect(footer).toBeVisible({ timeout: 60_000 });
       const footerLabel = (await footer.textContent())?.trim() ?? '';

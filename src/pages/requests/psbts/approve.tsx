@@ -57,7 +57,9 @@ export default function ApprovePsbtsPage() {
                 ? t('psbts_approve_attach_collectibles')
                 : request?.bundleKind === "bulk-listing"
                   ? t('psbts_approve_authorize_listings')
-                  : t('psbts_approve_review_transaction_batch');
+                  : request?.bundleKind === "authorize-offers"
+                    ? t('psbts_approve_authorize_offers')
+                    : t('psbts_approve_review_transaction_batch');
     setHeaderProps({ title });
   }, [request?.bundleKind, setHeaderProps]);
 
@@ -88,6 +90,10 @@ export default function ApprovePsbtsPage() {
   if (loadError || !request || !decodedInfo) return <ApprovalUnavailable message={loadError} onRetry={requestId ? () => void handleRetry() : undefined} retrying={isRefreshing} />;
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
+  // The header names who signs: the request's own signer, not the active address, which after a
+  // switch to the paired Legacy/SegWit sibling is not the key the background signs these items with.
+  const signers = [...new Set(request.items.flatMap((item) => Object.keys(item.signInputs)))];
+  const headerAddress = signers.length === 1 ? signers[0]! : request.address;
   const blocked = !approvalPolicy || approvalPolicy.blocked
     || decodedInfo.review.status === "blocked" || decodedInfo.review.status === "retry";
   const policyItems: WarningItem[] = (decodedInfo.policyWarnings ?? []).map((warning, index) => ({
@@ -116,7 +122,11 @@ export default function ApprovePsbtsPage() {
           ? t('common_accept_offer_2')
           : request.bundleKind === "bulk-fanout"
             ? t('psbts_approve_prepare_funds_2')
-            : t('psbts_approve_sign_transactions');
+            : request.bundleKind === "authorize-offers"
+              ? request.items.length === 1
+                ? t('psbts_approve_authorize_1_offer')
+                : t('psbts_approve_authorize_offers_2', [String(request.items.length)])
+              : t('psbts_approve_sign_transactions');
   const retry = decodedInfo.review.status === "retry" || Boolean(refreshError);
   const noticeItems: WarningItem[] = [
     ...(error ? [{ key: "signing-error", severity: "danger" as const, title: error }] : []),
@@ -145,7 +155,7 @@ export default function ApprovePsbtsPage() {
   return (
     <ApprovalLayout
       walletName={activeWallet.name}
-      address={activeAddress.address}
+      address={headerAddress}
       origin={request.origin}
       footer={
         <ApprovalFooter

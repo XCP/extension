@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HardwareWalletError } from '@/core/hardware/types';
-import { ProviderError } from '@/core/rpcErrors';
+import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, ProviderError } from '@/core/rpcErrors';
 import { markServicesReady } from '@/services/core/serviceReadiness';
-import { defineProxyService, disconnectAllPorts, isBackgroundScript } from '../proxy';
+import {
+  defineProxyService, disconnectAllPorts, isBackgroundScript, PORT_ACK_TIMEOUT_MS, PORT_HEARTBEAT_INTERVAL_MS,
+  PORT_IDLE_RECONNECT_MS,
+} from '../proxy';
 
 // ---------------------------------------------------------------------------
 // Mock Chrome API
@@ -306,8 +309,9 @@ describe('defineProxyService', () => {
         port._fireMessage({ id: 1, methodName: 'handleRequest', args: ['https://site.example', 'xcp_signMessage', []] });
       }
       await new Promise(resolve => setTimeout(resolve, 0));
-      const contentError = contentPort.postMessage.mock.calls[0]?.[0].error;
-      const uiError = uiPort.postMessage.mock.calls[0]?.[0].error;
+      const answer = (port: typeof contentPort) => port.postMessage.mock.calls.find(([msg]) => !msg.ack)?.[0].error;
+      const contentError = answer(contentPort);
+      const uiError = answer(uiPort);
       expect(contentError.message).toBe(failure.message);
       expect(contentError.hardware).toBeUndefined();
       expect(uiError.message).toBe(failure.message);
@@ -331,6 +335,41 @@ describe('defineProxyService', () => {
       Object.assign(port.sender, sender);
       onConnectListeners.forEach(fn => { fn(port); });
       expect(port.disconnect).toHaveBeenCalledOnce();
+    });
+
+    it('answers a caller that did not ask for a receipt with exactly its reply, as before', async () => {
+      // The trusted-UI RPC shape e2e helpers and older clients use: first message for the id is the answer.
+      register();
+      const port = createMockPort(`proxy:${currentServiceName}`);
+      onConnectListeners.forEach(fn => { fn(port); });
+      port._fireMessage({ id: 1, methodName: 'getValue', args: [] });
+      await new Promise(r => setTimeout(r, 0));
+      expect(port.postMessage.mock.calls).toEqual([
+        [{ id: 1, success: true, result: ['value', 42], resultEncoding: 'xcp-json-v1' }],
+      ]);
+    });
+
+    it('echoes a heartbeat at once, without dispatching anything or waiting on services', () => {
+      register();
+      const port = createMockPort(`proxy:${currentServiceName}`);
+      onConnectListeners.forEach(fn => { fn(port); });
+      port._fireMessage({ heartbeat: 3 });
+      expect(port.postMessage).toHaveBeenCalledExactlyOnceWith({ heartbeat: 3 });
+      expect(testServiceInstance.getValue).not.toHaveBeenCalled();
+    });
+
+    it('acknowledges receipt before the service answers when asked to', async () => {
+      let finish: (value: string) => void = () => {};
+      testServiceInstance.getAsync = vi.fn(() => new Promise<string>((resolve) => { finish = resolve; }));
+      register();
+      const port = createMockPort(`proxy:${currentServiceName}`);
+      onConnectListeners.forEach(fn => { fn(port); });
+      port._fireMessage({ id: 7, methodName: 'getAsync', args: [], ack: true });
+      expect(port.postMessage).toHaveBeenCalledExactlyOnceWith({ id: 7, ack: true });
+      await new Promise(r => setTimeout(r, 0));
+      finish('done');
+      await new Promise(r => setTimeout(r, 0));
+      expect(port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ id: 7, success: true }));
     });
 
     it('rejects malformed requests and inherited methods without invoking service code', async () => {
@@ -432,7 +471,7 @@ describe('defineProxyService', () => {
       });
 
       const rejection = service.getValue();
-      await expect(rejection).rejects.toThrow('Port disconnected');
+      await expect(rejection).rejects.toThrow(EXTENSION_RESTARTED_MESSAGE);
       // Coded DISCONNECTED so the boundary surfaces it and the dApp SDK retries.
       await expect(rejection).rejects.toMatchObject({ code: 4900 });
     });
@@ -457,7 +496,7 @@ describe('defineProxyService', () => {
       // A signing request must NOT auto-retry across a disconnect (no duplicate popup).
       await expect(
         (service as any).handleRequest('https://dapp.com', 'xcp_signTransaction', [])
-      ).rejects.toThrow('Port disconnected');
+      ).rejects.toThrow(EXTENSION_RESTARTED_MESSAGE);
       expect(callCount).toBe(1);
     });
 
@@ -496,6 +535,153 @@ describe('defineProxyService', () => {
       await expect(getService().setValue(123)).rejects.toMatchObject({ code: 4900 });
       expect(committedOperations).toBe(1);
       expect(mockChrome.runtime.connect).toHaveBeenCalledOnce();
+    });
+
+    describe('dead bridges fail fast', () => {
+      afterEach(() => {
+        vi.useRealTimers();
+        mockChrome.runtime.id = 'test-extension-id';
+        mockChrome.runtime.connect.mockReset();
+      });
+
+      it('refuses at once, without connecting, once the extension context is invalidated', async () => {
+        mockChrome.runtime.id = undefined as any;
+        await expect(getService().getValue()).rejects.toMatchObject({ code: 4900, message: EXTENSION_RELOAD_REQUIRED_MESSAGE });
+        expect(mockChrome.runtime.connect).not.toHaveBeenCalled();
+      });
+
+      it('maps a connect that throws "Extension context invalidated" to the reload error', async () => {
+        mockChrome.runtime.connect.mockImplementation(() => { throw new Error('Extension context invalidated.'); });
+        await expect(getService().setValue(1)).rejects.toMatchObject({ code: 4900, message: EXTENSION_RELOAD_REQUIRED_MESSAGE });
+        expect(mockChrome.runtime.connect).toHaveBeenCalledOnce();
+      });
+
+      it('fails in-flight calls with the reload error when the context dies under them', async () => {
+        clientPort.postMessage.mockImplementation(() => {
+          mockChrome.runtime.id = undefined as any;
+          queueMicrotask(() => clientPort._fireDisconnect());
+        });
+        await expect(getService().getValue()).rejects.toMatchObject({ code: 4900, message: EXTENSION_RELOAD_REQUIRED_MESSAGE });
+        expect(mockChrome.runtime.connect).toHaveBeenCalledOnce();
+      });
+
+      it('drops a port that never acknowledges and retries a read on a fresh one', async () => {
+        vi.useFakeTimers();
+        const fresh = createMockPort(`proxy:${currentServiceName}`);
+        fresh.postMessage.mockImplementation((msg: any) => {
+          queueMicrotask(() => fresh._fireMessage({ id: msg.id, ack: true }));
+          queueMicrotask(() => fresh._fireMessage({ id: msg.id, success: true, result: 7 }));
+        });
+        mockChrome.runtime.connect.mockReturnValueOnce(clientPort).mockReturnValueOnce(fresh);
+        const result = getService().getValue(); // clientPort swallows it: open, but nobody listening
+        await vi.advanceTimersByTimeAsync(PORT_ACK_TIMEOUT_MS + 200);
+        await expect(result).resolves.toBe(7);
+        expect(clientPort.disconnect).toHaveBeenCalledOnce();
+      });
+
+      it('fails an unacknowledged command with a retryable 4900 instead of replaying it', async () => {
+        vi.useFakeTimers();
+        const settled = expect(getService().setValue(1)).rejects
+          .toMatchObject({ code: 4900, message: EXTENSION_RESTARTED_MESSAGE });
+        await vi.advanceTimersByTimeAsync(PORT_ACK_TIMEOUT_MS + 200);
+        await settled;
+        expect(clientPort.postMessage).toHaveBeenCalledOnce();
+        expect(clientPort.disconnect).toHaveBeenCalledOnce();
+      });
+
+      it('lets an acknowledged call wait as long as it needs while the worker keeps answering', async () => {
+        vi.useFakeTimers();
+        let requestId = 0;
+        let heartbeats = 0;
+        clientPort.postMessage.mockImplementation((msg: any) => {
+          if (msg.heartbeat !== undefined) {
+            heartbeats++;
+            queueMicrotask(() => clientPort._fireMessage({ heartbeat: msg.heartbeat }));
+            return;
+          }
+          requestId = msg.id;
+          queueMicrotask(() => clientPort._fireMessage({ id: msg.id, ack: true }));
+        });
+        const result = getService().setValue(1);
+        await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+        clientPort._fireMessage({ id: requestId, success: true, result: 'approved' });
+        await expect(result).resolves.toBe('approved');
+        expect(clientPort.disconnect).not.toHaveBeenCalled();
+        expect(heartbeats).toBe((10 * 60 * 1000) / PORT_HEARTBEAT_INTERVAL_MS);
+        // Nothing pending, so the heartbeat stops: an idle worker is left free to sleep.
+        await vi.advanceTimersByTimeAsync(PORT_HEARTBEAT_INTERVAL_MS * 4);
+        expect(heartbeats).toBe((10 * 60 * 1000) / PORT_HEARTBEAT_INTERVAL_MS);
+      });
+
+      it('fails an acknowledged call with a retryable 4900 when the worker dies silently under it', async () => {
+        vi.useFakeTimers();
+        // Acks the request, then goes silent: a stopped worker whose port never reports onDisconnect.
+        clientPort.postMessage.mockImplementation((msg: any) => {
+          if (msg.id !== undefined) queueMicrotask(() => clientPort._fireMessage({ id: msg.id, ack: true }));
+        });
+        const settled = expect(getService().setValue(1)).rejects
+          .toMatchObject({ code: 4900, message: EXTENSION_RESTARTED_MESSAGE });
+        await vi.advanceTimersByTimeAsync(PORT_HEARTBEAT_INTERVAL_MS * 2 + 200);
+        await settled;
+        expect(clientPort.disconnect).toHaveBeenCalledOnce();
+      });
+
+      it('replaces an idle port instead of waiting out the ack timeout on it', async () => {
+        vi.useFakeTimers();
+        const fresh = createMockPort(`proxy:${currentServiceName}`);
+        fresh.postMessage.mockImplementation((msg: any) => {
+          queueMicrotask(() => fresh._fireMessage({ id: msg.id, success: true, result: 'fresh' }));
+        });
+        clientPort.postMessage.mockImplementation((msg: any) => {
+          queueMicrotask(() => clientPort._fireMessage({ id: msg.id, success: true, result: 'first' }));
+        });
+        mockChrome.runtime.connect.mockReturnValueOnce(clientPort).mockReturnValueOnce(fresh);
+        const service = getService();
+        await expect(service.getValue()).resolves.toBe('first');
+        await vi.advanceTimersByTimeAsync(PORT_IDLE_RECONNECT_MS);
+        // clientPort's worker was stopped while idle; the next call must not be posted into it.
+        await expect(service.getValue()).resolves.toBe('fresh');
+        expect(clientPort.disconnect).toHaveBeenCalledOnce();
+        expect(clientPort.postMessage).toHaveBeenCalledOnce();
+      });
+
+      it('treats a service that answers 4900 as an ordinary error, not a lost port', async () => {
+        clientPort.postMessage.mockImplementation((msg: any) => {
+          queueMicrotask(() => clientPort._fireMessage({
+            id: msg.id, success: false, error: { message: 'Chain unavailable', code: 4900 },
+          }));
+        });
+        await expect(getService().getValue()).rejects.toMatchObject({ code: 4900, message: 'Chain unavailable' });
+        expect(clientPort.postMessage).toHaveBeenCalledOnce(); // not retried
+        expect(clientPort.disconnect).not.toHaveBeenCalled();
+      });
+
+      it('resends even a command that was never posted, because the port was already dead', async () => {
+        const fresh = createMockPort(`proxy:${currentServiceName}`);
+        fresh.postMessage.mockImplementation((msg: any) => {
+          queueMicrotask(() => fresh._fireMessage({ id: msg.id, success: true, result: 'ok' }));
+        });
+        clientPort.postMessage.mockImplementation(() => { throw new Error('Attempting to use a disconnected port object'); });
+        mockChrome.runtime.connect.mockReturnValueOnce(clientPort).mockReturnValueOnce(fresh);
+        await expect(getService().setValue(1)).resolves.toBe('ok');
+        expect(fresh.postMessage).toHaveBeenCalledOnce();
+      });
+
+      it('reconnects after a service-worker restart (port disconnects, context stays valid)', async () => {
+        const restarted = createMockPort(`proxy:${currentServiceName}`);
+        restarted.postMessage.mockImplementation((msg: any) => {
+          queueMicrotask(() => restarted._fireMessage({ id: msg.id, success: true, result: 1 }));
+        });
+        clientPort.postMessage.mockImplementation((msg: any) => {
+          queueMicrotask(() => clientPort._fireMessage({ id: msg.id, success: true, result: 0 }));
+        });
+        mockChrome.runtime.connect.mockReturnValueOnce(clientPort).mockReturnValueOnce(restarted);
+        const service = getService();
+        await expect(service.setValue(1)).resolves.toBe(0);
+        clientPort._fireDisconnect(); // the worker stopped while idle
+        await expect(service.setValue(2)).resolves.toBe(1);
+        expect(mockChrome.runtime.connect).toHaveBeenCalledTimes(2);
+      });
     });
 
     it('does not treat the service as a promise or expose undeclared methods', () => {
@@ -542,5 +728,30 @@ describe('disconnectAllPorts', () => {
 
     disconnectAllPorts();
     expect(port.disconnect).toHaveBeenCalled();
+  });
+
+  it('fails calls in flight on the closed port and reconnects for the next one (bfcache)', async () => {
+    Object.defineProperty(global, 'window', { value: {}, writable: true });
+    const frozen = createMockPort('proxy:Test');
+    const restored = createMockPort('proxy:Test');
+    restored.postMessage.mockImplementation((msg: any) => {
+      queueMicrotask(() => restored._fireMessage({ id: msg.id, success: true, result: 2 }));
+    });
+    const name = `BfcacheTest_${++testServiceCounter}`;
+    const ports = [frozen, restored];
+    const connects = vi.fn((portName: string) => (portName === `proxy:${name}` ? ports.shift() : createMockPort(portName)));
+    mockChrome.runtime.connect.mockReset();
+    mockChrome.runtime.connect.mockImplementation(({ name: portName }: { name: string }) => connects(portName));
+    const [, getService] = defineProxyService(name, () => ({
+      approve: () => 1,
+    }), { methods: { approve: 'command' } });
+    const service = getService();
+    const inFlight = service.approve();
+    await Promise.resolve();
+    // Chrome fires onDisconnect only on the far end, so a local disconnect must settle this itself.
+    disconnectAllPorts();
+    await expect(inFlight).rejects.toMatchObject({ code: 4900 });
+    await expect(service.approve()).resolves.toBe(2);
+    expect(connects.mock.calls.filter(([portName]) => portName === `proxy:${name}`)).toHaveLength(2);
   });
 });

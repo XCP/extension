@@ -16,8 +16,24 @@ export interface ProviderPsbtSigningCapabilities {
   psbtBatch: ProviderPsbtSigningMethodCapabilities & {
     /** Maximum number of requests accepted by one xcp_signPsbts approval. */
     maxRequests: number;
+    /**
+     * Linked marketplace bundle kinds this wallet can prove as a whole and then sign. A site
+     * sends such a bundle only when its kind is listed: an older wallet proves each item alone,
+     * which blocks a listing whose input is its sibling attach's not-yet-broadcast output.
+     */
+    marketplaceBundles: MarketplaceBundleCapability[];
   };
 }
+
+/**
+ * `attach-and-list`: [attach_for_listing, create_listing], the listing proved from the attach.
+ * `authorize-offers`: 1..8 authorize_exact_offer items sharing one bidder funding outpoint.
+ */
+export type MarketplaceBundleCapability = 'attach-and-list' | 'authorize-offers';
+
+/** Both need a software signer: the listing signs SINGLE|ANYONECANPAY over an unsigned buyer
+ * placeholder, and an exact offer leaves the seller's input unsigned for the seller. */
+const SOFTWARE_MARKETPLACE_BUNDLES: MarketplaceBundleCapability[] = ['attach-and-list', 'authorize-offers'];
 
 export interface ProviderPsbtSigningRequestShape {
   inputCount: number;
@@ -114,6 +130,7 @@ export function providerPsbtSigningCapabilities(
         inputScope: 'selected',
         externalInputs: 'any',
         maxRequests: 8,
+        marketplaceBundles: [...SOFTWARE_MARKETPLACE_BUNDLES],
       },
     };
   }
@@ -132,6 +149,9 @@ export function providerPsbtSigningCapabilities(
       inputScope: 'selected',
       externalInputs: 'presigned',
       maxRequests: supported ? 8 : 0,
+      // Every hardware wallet's batch contract requires external inputs to be pre-signed and
+      // accepts only SIGHASH_ALL, which neither linked bundle can satisfy.
+      marketplaceBundles: [],
     },
   };
 }

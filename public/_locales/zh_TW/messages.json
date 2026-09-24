@@ -6237,5 +6237,32 @@
   },
   "approval_counterparty_details_card_details": {
     "message": "詳情"
+  },
+  "marketplace_batch_authorize_1_exact_offer": {
+    "message": "授權 1 個指定出價"
+  },
+  "marketplace_batch_authorize_exact_offers": {
+    "message": "授權 $1 個指定出價"
+  },
+  "marketplace_batch_settlement": {
+    "message": "結算"
+  },
+  "marketplace_batch_at_most_one_offer_can_be_accepted": {
+    "message": "最多只能接受一個。所有出價都花費同一個資金 UTXO。"
+  },
+  "psbts_approve_authorize_offers": {
+    "message": "授權出價"
+  },
+  "psbts_approve_authorize_1_offer": {
+    "message": "授權 1 個出價"
+  },
+  "psbts_approve_authorize_offers_2": {
+    "message": "授權 $1 個出價"
+  },
+  "marketplace_batch_latest_marketplace_expiry": {
+    "message": "最晚市場到期時間"
+  },
+  "address_type_shortcut_change_address_type": {
+    "message": "變更地址型別（目前：$1）"
   }
 }

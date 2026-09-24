@@ -72,7 +72,8 @@ interface WalletService {
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
   removeWallet: (walletId: string) => Promise<void>;
-  getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
+  /** The address a format gives at a derivation index (default 0). */
+  getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat, addressIndex?: number) => Promise<string>;
   getPairedAddresses: () => Promise<PairedAddresses>;
   isAddressInAnyWallet: (address: string) => Promise<boolean>;
   signTransaction: (rawTxHex: string, sourceAddress: string, options?: SignTransactionOptions, expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
@@ -215,8 +216,8 @@ function createWalletService(): WalletService {
     removeWallet: async (walletId) => {
       await walletManager.removeWallet(walletId);
     },
-    getPreviewAddressForFormat: async (walletId, addressFormat) => {
-      return await walletManager.getPreviewAddressForFormat(walletId, addressFormat);
+    getPreviewAddressForFormat: async (walletId, addressFormat, addressIndex) => {
+      return await walletManager.getPreviewAddressForFormat(walletId, addressFormat, addressIndex);
     },
     getPairedAddresses: async () => walletManager.getPairedAddresses(),
     isAddressInAnyWallet: async (address) => {

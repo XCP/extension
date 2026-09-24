@@ -132,3 +132,22 @@ export function verificationAttentionItem(message?: string): WarningItem {
       : t('approval_approval_attention_strict_verification_is_disabled_review'),
   };
 }
+
+/**
+ * The signing service refuses an unacknowledged signature whenever its execution policy asks for
+ * one. Every approval screen that offers a review step routes its attention items through here: if
+ * the screen found nothing of its own to show for that policy, it still takes the review step
+ * rather than offering a button that can only fail with "acknowledge risks".
+ */
+export function withPolicyAcknowledgement(
+  items: WarningItem[],
+  requiresAcknowledgement: boolean | undefined,
+): WarningItem[] {
+  if (!requiresAcknowledgement || items.length > 0) return items;
+  return [{
+    key: 'policy-acknowledgement',
+    severity: 'warning',
+    title: t('common_review_transaction_risk'),
+    description: t('provider_review_acknowledge_risks'),
+  }];
+}

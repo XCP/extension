@@ -4,6 +4,7 @@ import {
   highFeeAttentionItem,
   partitionApprovalItems,
   verificationAttentionItem,
+  withPolicyAcknowledgement,
 } from "@/components/domain/approval/approval-attention";
 import {
   ApprovalFooter,
@@ -35,6 +36,10 @@ import { normalizeAddressForComparison } from "@/core/bitcoin/address";
 import { exceedsSaneFeeRate } from "@/core/bitcoin/feeVerification";
 import { committedOutputIndices, resolvePsbtSighashType } from "@/core/bitcoin/psbt";
 import { classifySignedInputAssets } from "@/core/counterparty/inputAssets";
+import {
+  isRoutineAttachFamily,
+  marketplaceReviewRequiresAcknowledgement,
+} from "@/core/counterparty/marketplaceReviewPolicy";
 import { shouldBlockSigning } from "@/core/counterparty/unpack/providerVerify";
 import { formatAddress, formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
@@ -181,6 +186,10 @@ export default function ApprovePsbtPage() {
     repackProved: verification?.repackProved ?? false,
     strictMode: isStrictMode,
   });
+  // The identity this request was authorized for. After a switch to its paired Legacy/SegWit
+  // sibling the active address differs, but the signers, "your" funds and the header still belong
+  // to the request — the same inputs the background signs.
+  const requestAddress = request.address;
   const requestedAddressSpends = Object.entries(request.signInputs ?? {}).map(
     ([address, indices]) => ({
       address,
@@ -198,7 +207,7 @@ export default function ApprovePsbtPage() {
           (input) =>
             !input.address ||
             normalizeAddressForComparison(input.address) ===
-              normalizeAddressForComparison(activeAddress.address),
+              normalizeAddressForComparison(requestAddress),
         )
         .map((input) => input.index);
   const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =
@@ -224,13 +233,17 @@ export default function ApprovePsbtPage() {
   const usesPairedAddress = requestedAddressSpends.some(
     ({ address }) =>
       normalizeAddressForComparison(address) !==
-      normalizeAddressForComparison(activeAddress.address),
+      normalizeAddressForComparison(requestAddress),
   );
+  // A single signer is shown in the header; several are listed in the signing-addresses card.
+  const headerAddress = requestedAddressSpends.length === 1
+    ? requestedAddressSpends[0]!.address
+    : requestAddress;
 
   // Net effect of this transaction on your wallet — the money-movement summary,
   // computed structurally (replaces the old swap-detection heuristic; works for
-  // any tx shape). "Your" addresses are the active address plus any paired signer.
-  const myAddresses = [activeAddress.address, ...requestedAddressSpends.map((s) => s.address)];
+  // any tx shape). "Your" addresses are the request's address plus any paired signer.
+  const myAddresses = [requestAddress, ...requestedAddressSpends.map((s) => s.address)];
   // Outputs the signature leaves free are not change coming back to you.
   const committedOutputs = committedOutputIndices(
     effectiveSighashes.map(({ index, type }) => ({ index, sighashType: type })),
@@ -281,9 +294,7 @@ export default function ApprovePsbtPage() {
   }
 
   const marketplaceReview = decodedInfo.marketplaceReview;
-  const routineAttach =
-    marketplaceReview?.family === "attach_for_listing" ||
-    marketplaceReview?.family === "prepare_asset";
+  const routineAttach = isRoutineAttachFamily(marketplaceReview?.family);
   const marketplaceBlocked =
     marketplaceReview?.status === "blocked" || marketplaceReview?.status === "retry";
   // A missing balance answer is uncertainty, not permission to assume an input is clean.
@@ -300,20 +311,14 @@ export default function ApprovePsbtPage() {
   const { attention } = partitionApprovalItems(warningItems);
   const genericAttention =
     movement.atRisk > 0 ? attention.filter((item) => item.key !== "anyonecanpay") : attention;
-  // Attach quotes are intrinsically block-dependent and already disclosed in the action card. A
-  // second click on a proved listing or inventory attach would turn that routine protocol fact
-  // into warning wallpaper. An exact offer is likewise what it says: the buyer is making an
-  // offer that the seller may accept until it expires, and the cancellation fact names the way
-  // out, so it earns neither a warning nor a second step.
-  const marketplaceRequiresAttention =
-    marketplaceReview?.status === "caution" &&
-    !routineAttach &&
-    marketplaceReview.family !== "authorize_exact_offer";
+  // Which cautions are routine (attach quotes, an exact offer's standing authorization) is decided
+  // once, beside the execution policy, so this screen and the signing service cannot disagree.
+  const marketplaceRequiresAttention = marketplaceReviewRequiresAcknowledgement(marketplaceReview);
   // Plain-language consequences per family: what signing does, and how to undo it. The analyzer's
   // notices state the same facts in protocol terms; this screen is where a person decides.
   // create_listing is absent here on purpose: a fully proved listing is 'proved', never
   // 'caution', so its consequences live in the review facts on the one screen.
-  const marketplaceAttention: WarningItem[] = !marketplaceRequiresAttention
+  const marketplaceAttention: WarningItem[] = !marketplaceRequiresAttention || !marketplaceReview
     ? []
     : marketplaceReview.notices.map((notice, index) => ({
           key: `marketplace-${index}`,
@@ -321,7 +326,8 @@ export default function ApprovePsbtPage() {
           title: t('psbt_approve_this_authorization_remains_usable_after'),
           description: notice.message,
         }));
-  const approvalAttentionItems: WarningItem[] = [
+  // Whatever this screen shows, it takes the review step whenever the execution policy asks for one.
+  const approvalAttentionItems: WarningItem[] = withPolicyAcknowledgement([
     ...marketplaceAttention,
     ...genericAttention,
     ...(deferredVerificationFailure ? [verificationAttentionItem(verificationWarning)] : []),
@@ -343,7 +349,7 @@ export default function ApprovePsbtPage() {
         ]
       : []),
     ...(hasHighFee ? [highFeeAttentionItem(psbtDetails.fee, estimatedVsize)] : []),
-  ];
+  ], approvalPolicy?.requiresAcknowledgement);
   const retryAvailable =
     marketplaceReview?.status === "retry" || signedInputsUnknownStatus.length > 0;
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
@@ -427,7 +433,7 @@ export default function ApprovePsbtPage() {
   return (
     <ApprovalLayout
       walletName={activeWallet.name}
-      address={activeAddress.address}
+      address={headerAddress}
       origin={request.origin}
       footer={
         <ApprovalFooter

@@ -1,7 +1,12 @@
 import { defineContentScript, injectScript } from '#imports';
 import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
-import { classifyProviderError, JSON_RPC_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { classifyProviderError, JSON_RPC_ERROR_CODES, ProviderError, reloadRequiredError } from '@/core/rpcErrors';
+import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
 import { disconnectAllPorts } from '@/platform/proxy';
+
+const BRIDGE_OWNER_KEY = '__xcpWalletBridgeOwner';
+/** How often the content script checks whether its extension is still there. */
+const CONTEXT_WATCH_INTERVAL_MS = 2_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -82,15 +87,55 @@ export default defineContentScript({
     // Register the runtime message handler IMMEDIATELY
     browser.runtime.onMessage.addListener(runtimeMessageHandler);
 
+    /**
+     * The bridge dies with the extension context. After an extension reload or update this script
+     * is orphaned: it keeps receiving page messages but can never reach the new background, and
+     * only a page reload injects a live one. So every request it still holds, and every request
+     * after, is answered at once with a typed 4900 instead of being left to hang, and the page is
+     * told once through the provider's `disconnect` event.
+     */
+    type Envelope = { target: string; type: string; id: string | number };
+    const inFlight = new Map<object, Envelope>(); // keyed per request: page ids may repeat
+    let bridgeClosed = false;
+    /**
+     * Which copy of this script owns the page. Copies of one extension's content scripts share an
+     * isolated world, so a newer copy overwrites this and the older one falls silent; the page
+     * cannot reach this world, so unlike WXT's DOM hand-off event it cannot deafen its own bridge.
+     */
+    const ownership = {};
+    Reflect.set(globalThis, BRIDGE_OWNER_KEY, ownership);
+    const isOwner = () => Reflect.get(globalThis, BRIDGE_OWNER_KEY) === ownership;
+    const closeBridge = () => {
+      if (bridgeClosed) return;
+      bridgeClosed = true;
+      const error = reloadRequiredError();
+      for (const envelope of inFlight.values()) window.postMessage({ ...envelope, error }, window.location.origin);
+      inFlight.clear();
+      window.postMessage({
+        target: MESSAGE_TARGETS.INJECTED, type: MESSAGE_TYPES.EVENT, event: 'disconnect', data: error,
+      }, window.location.origin);
+      try { browser.runtime.onMessage.removeListener(runtimeMessageHandler); } catch { /* context gone */ }
+    };
+
     // The page controls the payload. The background independently validates the
     // transport and derives the origin from the browser sender.
     const messageHandler = async (event: MessageEvent<unknown>) => {
-      if (event.source !== window || event.origin !== window.location.origin) return;
+      if (!isOwner() || event.source !== window || event.origin !== window.location.origin) return;
       const request = event.data;
       if (!isRecord(request) || request.target !== MESSAGE_TARGETS.CONTENT || request.type !== MESSAGE_TYPES.REQUEST) return;
       if (!(typeof request.id === 'string' && request.id.length <= 256)
         && !(typeof request.id === 'number' && Number.isSafeInteger(request.id))) return;
-      const envelope = { target: MESSAGE_TARGETS.INJECTED, type: MESSAGE_TYPES.RESPONSE, id: request.id };
+      const envelope: Envelope = { target: MESSAGE_TARGETS.INJECTED, type: MESSAGE_TYPES.RESPONSE, id: request.id };
+      // Receipt, sent before anything that can wait: it is how the page tells a live bridge that is
+      // waiting on the user from a dead one.
+      window.postMessage({ target: MESSAGE_TARGETS.INJECTED, type: MESSAGE_TYPES.ACK, id: request.id }, window.location.origin);
+      if (bridgeClosed || !isExtensionContextValid()) {
+        window.postMessage({ ...envelope, error: reloadRequiredError() }, window.location.origin);
+        closeBridge();
+        return;
+      }
+      const key = {};
+      inFlight.set(key, envelope);
       try {
         if (!isRecord(request.data) || typeof request.data.method !== 'string') {
           throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'Invalid request: method must be a string');
@@ -101,9 +146,13 @@ export default defineContentScript({
         }
         const { getProviderService } = await import('@/services/providerService');
         const result = await getProviderService().handleRequest(window.location.origin, method, params);
-        window.postMessage({ ...envelope, data: { method, result } }, window.location.origin);
+        if (inFlight.delete(key)) window.postMessage({ ...envelope, data: { method, result } }, window.location.origin);
       } catch (error: unknown) {
-        window.postMessage({ ...envelope, error: classifyProviderError(error) }, window.location.origin);
+        if (!isExtensionContextValid() || isContextInvalidatedError(error)) {
+          closeBridge(); // answers this request with everything else in flight
+          return;
+        }
+        if (inFlight.delete(key)) window.postMessage({ ...envelope, error: classifyProviderError(error) }, window.location.origin);
       }
     };
     // Add message event listeners
@@ -134,11 +183,22 @@ export default defineContentScript({
       }
     });
 
-    // Keep the window message listener alive across extension updates so the
-    // bridge between window.xcpwallet and the background survives. The proxy
-    // layer reconnects its port automatically.
+    // The window listener deliberately outlives the context: an orphaned script that stopped
+    // listening would leave the page's requests unanswered, which is the hang this replaces.
+    // WXT's own hand-off signal is a DOM event any page can forge, so it only counts when the
+    // extension really is gone; a live hand-off is decided by `isOwner` above.
     ctx.onInvalidated(() => {
-      try { browser.runtime.onMessage.removeListener(runtimeMessageHandler); } catch {}
+      if (!isExtensionContextValid()) closeBridge();
     });
+
+    // Tell the page as soon as the extension goes away, not at its next request. A property read,
+    // no messaging: cheap enough to run for the life of the page.
+    const contextWatch = setInterval(() => {
+      if (!isOwner() || bridgeClosed) { clearInterval(contextWatch); return; }
+      if (!isExtensionContextValid()) {
+        clearInterval(contextWatch);
+        closeBridge();
+      }
+    }, CONTEXT_WATCH_INTERVAL_MS);
   },
 });

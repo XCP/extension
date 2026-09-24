@@ -9,6 +9,20 @@ vi.mock('@/assets/logo.png', () => ({
 }));
 
 describe('Header', () => {
+  it('renders a right accessory before the right button', () => {
+    const rightButton = { onClick: vi.fn(), ariaLabel: 'Lock' };
+    render(<Header useLogoTitle rightAccessory={<button type="button">Accessory</button>} rightButton={rightButton} />);
+
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.map(button => button.textContent || button.getAttribute('aria-label'))).toEqual(['Accessory', 'Lock']);
+  });
+
+  it('shows the right section for an accessory alone', () => {
+    render(<Header rightAccessory={<button type="button">Accessory</button>} />);
+
+    expect(screen.getByRole('button', { name: 'Accessory' })).toBeInTheDocument();
+  });
+
   it('should render header element', () => {
     render(<Header />);
     

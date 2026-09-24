@@ -36,7 +36,8 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
   // Policy is still checked in the background at execution. This guard also keeps
   // an already loaded review from being labelled or calculated for a different wallet.
   const identityError = loadedReview && !walletLoading
-    ? getIdentityMismatchCode(loadedReview.request, activeAddress?.address, activeWallet?.id)
+    ? getIdentityMismatchCode(loadedReview.request, activeAddress?.address, activeWallet?.id,
+      loadedReview.pairedGrant)
     : null;
   const review = walletLoading || identityError ? null : loadedReview;
   const isLoading = !!requestId && (walletLoading || !current || (current.pending && !current.review));

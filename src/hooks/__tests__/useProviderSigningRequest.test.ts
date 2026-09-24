@@ -199,4 +199,26 @@ describe('provider verification retry', () => {
     await expect(result.current.handleApprove()).rejects.toThrow(/active address changed/);
     expect(mocks.approveAndSign).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['keeps', true],
+    ['refuses', false],
+  ])('%s a review after a switch to the paired sibling when the grant is %s', async (_verb, granted) => {
+    mocks.getReview.mockResolvedValue({ ...review(), ...(granted ? { pairedGrant: {
+      pairedAddresses: true, walletId: 'authorized-wallet', address: 'authorized-address', pairedAddress: 'sibling-address',
+    } } : {}) });
+    const { result, rerender } = renderHook(() => useProviderSigningRequest('sign-message'));
+    await waitFor(() => expect(result.current.review?.reviewKey).toBe('original'));
+    mocks.wallet.activeAddress = { address: 'sibling-address' };
+    rerender();
+    if (granted) {
+      expect(result.current.error).toBeNull();
+      await act(() => result.current.handleApprove());
+      expect(mocks.approveAndSign).toHaveBeenCalledOnce();
+    } else {
+      expect(result.current.review).toBeNull();
+      expect(result.current.error).toMatch(/active address changed/);
+      expect(mocks.approveAndSign).not.toHaveBeenCalled();
+    }
+  });
 });

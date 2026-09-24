@@ -1023,7 +1023,7 @@ const formatXcpRaw = (raw: string): string => {
 };
 
 /** Expiry timestamps share rows with their labels; seconds-precision wraps them into a third line. */
-function formatExpiry(unixSeconds: number): string {
+export function formatExpiry(unixSeconds: number): string {
   return new Date(unixSeconds * 1000).toLocaleString(displayLocale(), {
     dateStyle: 'short',
     timeStyle: 'short',
