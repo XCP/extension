@@ -16,15 +16,6 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/trezor-emulator-tests.yml'
-  push:
-    branches: [ main, feature/trezor-hardware-wallet ]
-    paths:
-      - 'src/core/hardware/**'
-      - 'src/core/bitcoin/**'
-      - 'e2e/hardware/init-trezor-emulator.js'
-      - 'e2e/hardware/**'
-      - '.github/workflows/trezor-emulator-tests.yml'
-  # Allow manual trigger
   workflow_dispatch:
 
 jobs:

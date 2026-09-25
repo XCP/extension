@@ -6,8 +6,8 @@ permissions:
 
 on:
   schedule:
-    # Run at 2 AM UTC every day
-    - cron: '0 2 * * *'
+    # Weekly (Mondays 2 AM UTC): the fuzz and differential suites don't change between PRs.
+    - cron: '0 2 * * 1'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
