@@ -63,6 +63,11 @@ export default defineContentScript({
 
       // Handle provider events (accountsChanged, disconnect, etc.)
       if (msg?.type === 'PROVIDER_EVENT') {
+        // Events reach every tab; only the origin they were addressed to may see them.
+        if (msg.origin !== window.location.origin) {
+          sendResponse({ received: false });
+          return true;
+        }
         try {
           // Relay event to injected script via window.postMessage
           window.postMessage({
