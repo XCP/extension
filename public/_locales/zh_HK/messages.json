@@ -6351,5 +6351,17 @@
   },
   "marketplace_batch_policy_alternatives_at_most_one_fills": {
     "message": "這些出價互為備選，最多只有一個會成交：它們都花費相同的資金 UTXO。"
+  },
+  "hardware_error_suite_access_required": {
+    "message": "Trezor 需要存取 Trezor Suite 的權限。請在錢包主頁允許後重試。"
+  },
+  "hardware_error_suite_access_denied": {
+    "message": "Trezor 需要存取 Trezor Suite 的權限。請重新連線，並在 Chrome 詢問時選擇「允許」。"
+  },
+  "trezor_access_notice_body": {
+    "message": "Trezor 現在透過 Trezor Suite 連接。請允許一次存取，以便繼續使用。"
+  },
+  "trezor_access_notice_allow": {
+    "message": "允許存取 Trezor"
   }
 }

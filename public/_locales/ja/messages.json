@@ -6351,5 +6351,17 @@
   },
   "marketplace_batch_policy_alternatives_at_most_one_fills": {
     "message": "これらのオファーは代替案です。成立するのは最大 1 件です。すべて同じ資金 UTXO を使用します。"
+  },
+  "hardware_error_suite_access_required": {
+    "message": "TrezorにはTrezor Suiteへのアクセス許可が必要です。ホーム画面で許可してから、もう一度お試しください。"
+  },
+  "hardware_error_suite_access_denied": {
+    "message": "TrezorにはTrezor Suiteへのアクセス許可が必要です。もう一度接続し、Chromeの確認で「許可」を選んでください。"
+  },
+  "trezor_access_notice_body": {
+    "message": "TrezorはTrezor Suite経由で接続するようになりました。引き続き使うには、一度だけアクセスを許可してください。"
+  },
+  "trezor_access_notice_allow": {
+    "message": "Trezorへのアクセスを許可"
   }
 }

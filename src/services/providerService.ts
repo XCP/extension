@@ -59,6 +59,7 @@ import { keychainExists } from '@/platform/storage/walletStorage';
 import { type ApprovalPlacement, getApprovalService } from '@/services/approvalService';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { PROVIDER_SERVICE_NAME, PROVIDER_SERVICE_POLICY } from '@/services/providerServiceClient';
 import { getUpdateService } from '@/services/updateService';
 import { getWalletService } from '@/services/walletService';
 import type { ApprovalRequest } from '@/types/provider';
@@ -1492,8 +1493,7 @@ export function createProviderService(): ProviderService {
 
 // Register proxy service for cross-context communication
 export const [registerProviderService, getProviderService] = defineProxyService(
-  'ProviderService',
+  PROVIDER_SERVICE_NAME,
   createProviderService,
-  { methods: { handleRequest: 'command', isConnected: 'read', disconnect: 'command',
-    getCurrentApproval: 'read', getRequestStats: 'read' }, contentScript: 'provider' },
+  PROVIDER_SERVICE_POLICY,
 );

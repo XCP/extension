@@ -7,7 +7,7 @@ walletTest('Connect 10 reaches Suite Web and surfaces cancellation through the w
     contentType: 'text/html',
     body: `<!doctype html><title>Suite test approval</title><script>
       window.calls = [];
-      const channel = { here: '@suite/web-app', peer: '@trezor/connect-webextension-externally-connectable' };
+      const channel = { here: '@trezor/suite-web', peer: '@trezor/connect-webextension-externally-connectable' };
       const send = (message) => {
         const id = new URLSearchParams(location.hash.slice(1)).get('extension-id');
         chrome.runtime.sendMessage(id, { ...message, channel }).catch(() => {});

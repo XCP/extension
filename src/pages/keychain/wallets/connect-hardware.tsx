@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { currentLocale, t } from '@/i18n';
+import { requestTrezorSuiteAccess, suiteAccessDeniedError } from '@/platform/suiteAccess';
 export default function ConnectHardware(): ReactElement {
   const locale = currentLocale();
   const navigate = useNavigate();
@@ -36,6 +37,11 @@ export default function ConnectHardware(): ReactElement {
 
   async function handleConnect() {
     setFailure(null);
+    // First, while this click still counts as a user gesture: Chrome only prompts for one.
+    if (!(await requestTrezorSuiteAccess())) {
+      setFailure(suiteAccessDeniedError());
+      return;
+    }
     setIsConnecting(true);
     setHardwareOperationInProgress(true);
 

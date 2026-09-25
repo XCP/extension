@@ -97,7 +97,7 @@ jobs:
           done
 
       - name: Build extension
-        run: npm run build
+        run: npm run build:e2e  # grants the optional Trezor Suite permission up front
 
       - name: Cache Playwright browsers
         id: pw-cache

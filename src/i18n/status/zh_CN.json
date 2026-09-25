@@ -2102,6 +2102,10 @@
     "marketplace_intent_notice_accept_policy_offer",
     "marketplace_batch_make_alternative_offers",
     "marketplace_batch_offer_n",
-    "marketplace_batch_policy_alternatives_at_most_one_fills"
+    "marketplace_batch_policy_alternatives_at_most_one_fills",
+    "hardware_error_suite_access_required",
+    "hardware_error_suite_access_denied",
+    "trezor_access_notice_body",
+    "trezor_access_notice_allow"
   ]
 }
