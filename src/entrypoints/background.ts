@@ -278,48 +278,22 @@ export default defineBackground(() => {
   }
 
 
-  // ISSUE 3 FIX: Split into two separate functions to avoid overload ambiguity
-  // Previously, emitProviderEvent(origin, event, undefined) was misinterpreted as broadcast
-
   /**
-   * Broadcast a provider event to all connected tabs
-   */
-  async function broadcastProviderEvent(event: string, eventData: unknown): Promise<void> {
-    const message = {
-      type: 'PROVIDER_EVENT',
-      event,
-      data: eventData
-    };
-    await broadcastToTabs(message);
-  }
-
-  /**
-   * Emit a provider event to tabs matching a specific origin
+   * Deliver a provider event to the pages of one origin.
+   *
+   * It goes to every tab, tagged with the origin it is for, and the content script drops any event
+   * whose origin is not its own page's. The worker cannot pick the tabs itself: it holds neither
+   * the `tabs` permission nor host permissions for sites, so `tab.url` is empty and filtering on it
+   * silently dropped every event. The content script is the extension's own code in an isolated
+   * world, so a page of another origin never sees the event.
    */
   async function emitProviderEventToOrigin(origin: string, event: string, eventData: unknown): Promise<void> {
-    const message = {
-      type: 'PROVIDER_EVENT',
-      event,
-      data: eventData
-    };
-
-    const filter = (tab: chrome.tabs.Tab) => {
-      if (!tab.url) return false;
-      try {
-        const tabOrigin = new URL(tab.url).origin;
-        return tabOrigin === origin;
-      } catch {
-        return false;
-      }
-    };
-
-    await broadcastToTabs(message, filter);
+    await broadcastToTabs({ type: 'PROVIDER_EVENT', origin, event, data: eventData });
   }
 
   // Internal events have a typed contract; the emitter observes asynchronous delivery failures.
   eventEmitterService.on('emit-provider-event', async ({ origin, event, data }) => {
-    if (origin !== undefined) await emitProviderEventToOrigin(origin, event, data);
-    else await broadcastProviderEvent(event, data);
+    await emitProviderEventToOrigin(origin, event, data);
   });
   
 

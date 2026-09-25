@@ -14,24 +14,13 @@
 type ChromeMessage = Record<string, unknown> | unknown[] | string | number | boolean | null;
 
 /**
- * Get list of tabs that can receive messages (have our content script)
+ * Every tab that has an id. Nothing here reads `tab.url`: without the `tabs` permission or a host
+ * permission Chrome leaves it empty, so filtering on it dropped every tab. A receiver decides for
+ * itself whether a message is meant for its page.
  */
-async function listMessageableTabs(filter?: (tab: chrome.tabs.Tab) => boolean): Promise<chrome.tabs.Tab[]> {
-  // Use chrome.tabs.query with URL patterns that match our content script
-  const tabs = await chrome.tabs.query({
-    url: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*']
-  });
-
-  // Filter out URLs where Chrome won't allow messaging or CS can't run
-  const isAllowed = (tab: chrome.tabs.Tab): boolean => {
-    const url = tab.url || '';
-    if (!url || !tab.id) return false;
-
-    // Exclude schemes Chrome won't message or we explicitly exclude
-    return !/^((chrome|edge|brave|opera|vivaldi|about|devtools|view-source|chrome-extension|moz-extension):)/.test(url);
-  };
-
-  return tabs.filter(tab => isAllowed(tab) && (!filter || filter(tab)));
+async function listMessageableTabs(): Promise<chrome.tabs.Tab[]> {
+  const tabs = await chrome.tabs.query({});
+  return tabs.filter(tab => tab.id !== undefined);
 }
 
 /**
@@ -68,12 +57,10 @@ function sendMessageToTabSafe<T = unknown>(
  * Handles errors gracefully and returns results for each tab.
  */
 export async function broadcastToTabs(
-  message: ChromeMessage,
-  filter?: (tab: chrome.tabs.Tab) => boolean
+  message: ChromeMessage
 ): Promise<{ tabId: number; ok: boolean; error?: string }[]> {
   try {
-    // Only get tabs where our content script can run
-    const tabs = await listMessageableTabs(filter);
+    const tabs = await listMessageableTabs();
     const _results: { tabId: number; ok: boolean; error?: string }[] = [];
 
     // Send to all tabs in parallel, let sendMessageToTabSafe handle errors
