@@ -61,10 +61,14 @@ describe('Fee Validation Fuzz Tests', () => {
       expect(result.error).toContain('zero');
     });
 
+    // Fee rates arrive as typed decimals with at most 8 places, not raw binary floats.
+    const typedRate = (minHundredths: number, maxHundredths: number) =>
+      fc.integer({ min: minHundredths, max: maxHundredths }).map(n => (n / 100).toFixed(2));
+
     it('should enforce min and max limits', () => {
       fc.assert(
         fc.property(
-          fc.float({ min: Math.fround(0.01), max: Math.fround(100000), noNaN: true }),
+          typedRate(1, 10_000_000).map(Number),
           (feeRate) => {
             const result = validateFeeRate(feeRate, {
               minRate: 10,
@@ -90,7 +94,7 @@ describe('Fee Validation Fuzz Tests', () => {
     it('should add warning for high fees', () => {
       fc.assert(
         fc.property(
-          fc.float({ min: 101, max: MAX_FEE_RATE, noNaN: true }),
+          typedRate(10_100, MAX_FEE_RATE * 100).map(Number),
           (feeRate) => {
             const result = validateFeeRate(feeRate, { warnHighFee: true });
             
@@ -98,6 +102,20 @@ describe('Fee Validation Fuzz Tests', () => {
               expect(result.isValid).toBe(true);
               expect(result.warning).toContain('high fee');
             }
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    it('should refuse more than 8 decimals as a format error, never a silent rounding', () => {
+      fc.assert(
+        fc.property(
+          fc.integer({ min: 1, max: 1000 }), fc.integer({ min: 9, max: 16 }),
+          (whole, places) => {
+            const result = validateFeeRate(`${whole}.${'0'.repeat(places - 1)}1`);
+            expect(result.isValid).toBe(false);
+            expect(result.error).toContain('up to 8 decimals');
           }
         ),
         { numRuns: 100 }

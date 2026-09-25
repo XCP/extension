@@ -166,10 +166,12 @@ describe('Numeric Utilities Fuzz Tests', () => {
 
     it('should validate decimal places constraint', () => {
       fc.assert(fc.property(
-        fc.integer({ min: 0, max: 20 }), // maxDecimals
+        // Amounts carry at most 8 decimals (Counterparty's precision); see the check below.
+        fc.integer({ min: 0, max: 8 }), // maxDecimals
         fc.integer({ min: 0, max: 30 }), // actual decimal places
         (maxDecimals, actualDecimals) => {
-          const numberStr = '1.' + '0'.repeat(actualDecimals);
+          // '1.' with nothing after the dot is an unfinished draft, not a whole number.
+          const numberStr = actualDecimals === 0 ? '1' : '1.' + '0'.repeat(actualDecimals);
           const result = isValidPositiveNumber(numberStr, { maxDecimals });
           
           if (actualDecimals <= maxDecimals) {
@@ -179,6 +181,17 @@ describe('Numeric Utilities Fuzz Tests', () => {
           }
         }
       ), { numRuns: 200 });
+    });
+
+    it('should refuse precision beyond 8 decimals whatever is asked for', () => {
+      fc.assert(fc.property(
+        fc.integer({ min: 9, max: 20 }),
+        fc.integer({ min: 0, max: 8 }),
+        (maxDecimals, actualDecimals) => {
+          const numberStr = actualDecimals === 0 ? '1' : '1.' + '0'.repeat(actualDecimals);
+          expect(isValidPositiveNumber(numberStr, { maxDecimals })).toBe(false);
+        }
+      ), { numRuns: 100 });
     });
 
     it('should reject formula injection attempts', () => {

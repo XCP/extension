@@ -156,6 +156,9 @@ describe('Pool Math Fuzz Tests', () => {
     // Hostile slippage strings: negatives, scientific notation, whitespace,
     // percent signs, formula-injection, NaN/Infinity, empty, and junk.
     const hostileSlippage = fc.oneof(
+      // Values the form accepts, so the property below is exercised rather than filtered away.
+      fc.integer({ min: 0, max: 5000 }).map(n => (n / 100).toFixed(2)),
+      fc.integer({ min: 0, max: 50 }).map(String),
       fc.double({ min: -500, max: 5000, noNaN: false }).map(String),
       fc.constantFrom('-5', '=5', '+5', '@5', '5%', ' 5 ', '1e3', '', 'abc', 'NaN', 'Infinity', '0.001', '50.01'),
       fc.string()
