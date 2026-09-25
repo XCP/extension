@@ -69,4 +69,13 @@ describe('hardware error presentation', () => {
     expect(parseHardwareErrorMetadata({ vendor: 'trezor', code: 'DEVICE_BUSY', userMessage: 'cached English', amount: 9007199254740993n }))
       .toEqual({ vendor: 'trezor', code: 'DEVICE_BUSY' });
   });
+
+  it.each([
+    ['SUITE_ACCESS_REQUIRED', 'hardware_error_suite_access_required'] as const,
+    ['SUITE_ACCESS_DENIED', 'hardware_error_suite_access_denied'] as const,
+  ])('explains the missing Trezor Suite permission for %s', (code, key) => {
+    const error = new HardwareWalletError('raw', code, 'trezor');
+    expect(hardwareErrorMessage(error)).toBe(t(key));
+    expect(hardwareErrorMessage(withHardwareErrorMetadata(new Error('raw'), { vendor: 'trezor', code }))).toBe(t(key));
+  });
 });

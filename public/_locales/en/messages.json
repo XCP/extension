@@ -8395,5 +8395,21 @@
   "approval_money_movement_view_to": {
     "message": "To",
     "description": "Label above an address that receives BTC from this transaction, on the approval summary. The amount sits on the same line."
+  },
+  "hardware_error_suite_access_required": {
+    "message": "Your Trezor needs access to Trezor Suite. Allow it on the wallet's home screen, then try again.",
+    "description": "Trezor SUITE_ACCESS_REQUIRED code: the optional suite.trezor.io permission is not granted yet. The home screen shows an \"Allow Trezor access\" button."
+  },
+  "hardware_error_suite_access_denied": {
+    "message": "Your Trezor needs access to Trezor Suite. Connect again and choose Allow when Chrome asks.",
+    "description": "Trezor SUITE_ACCESS_DENIED code: the user chose Deny in Chrome's permission prompt on the Connect Trezor page."
+  },
+  "trezor_access_notice_body": {
+    "message": "Your Trezor now connects through Trezor Suite. Allow access once to keep using it.",
+    "description": "Home screen notice for a Trezor wallet without the suite.trezor.io permission, typically connected before 0.13.0."
+  },
+  "trezor_access_notice_allow": {
+    "message": "Allow Trezor access",
+    "description": "Button in the home screen Trezor notice; opens Chrome's permission prompt for suite.trezor.io."
   }
 }
