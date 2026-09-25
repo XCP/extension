@@ -3,6 +3,7 @@ import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
 import { classifyProviderError, JSON_RPC_ERROR_CODES, ProviderError, reloadRequiredError } from '@/core/rpcErrors';
 import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
 import { disconnectAllPorts } from '@/platform/proxy';
+import { getProviderServiceClient } from '@/services/providerServiceClient';
 
 const BRIDGE_OWNER_KEY = '__xcpWalletBridgeOwner';
 /** How often the content script checks whether its extension is still there. */
@@ -149,8 +150,7 @@ export default defineContentScript({
         if (params !== undefined && !Array.isArray(params)) {
           throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'Invalid request: params must be an array');
         }
-        const { getProviderService } = await import('@/services/providerService');
-        const result = await getProviderService().handleRequest(window.location.origin, method, params);
+        const result = await getProviderServiceClient().handleRequest(window.location.origin, method, params);
         if (inFlight.delete(key)) window.postMessage({ ...envelope, data: { method, result } }, window.location.origin);
       } catch (error: unknown) {
         if (!isExtensionContextValid() || isContextInvalidatedError(error)) {
