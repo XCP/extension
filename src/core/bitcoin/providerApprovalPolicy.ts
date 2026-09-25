@@ -5,6 +5,7 @@ import { computeMoneyMovement } from '@/core/bitcoin/moneyMovement';
 import { committedOutputIndices, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
 import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
+import { hasHighPsbtFee } from '@/core/bitcoin/signedVsize';
 import type { DecodedTransactionInfo } from '@/core/bitcoin/transactionApprovalDecoder';
 import { findUncommittedAssetSignatures } from '@/core/counterparty/durableSellAuthorization';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
@@ -16,6 +17,12 @@ import { formatAmount } from '@/core/format';
 
 export interface ProviderApprovalPolicy {
   blocked: boolean;
+  /**
+   * Set on a blocked policy when some of the block is data the wallet could not look up (an
+   * input's attached assets, or a marketplace proof left at "retry"). Signing is refused all the
+   * same; the flag only lets the refusal say "retry" instead of "did not verify".
+   */
+  retry?: true;
   requiresAcknowledgement: boolean;
   safeOwnChange: boolean;
 }
@@ -42,17 +49,21 @@ function policy(
   const marketplaceWarning = marketplaceReviewRequiresAcknowledgement(marketplace);
   const verificationException = analysis.verification.passed === false
     && analysis.verification.repackProved !== true && !strictMode;
+  const blocked = shouldBlockSigning({
+    safetyBlocked: analysis.safety.blocked,
+    verificationPassed: analysis.verification.passed,
+    repackProved: analysis.verification.repackProved ?? false,
+    strictMode,
+  }) || assets.unknownStatus.length > 0 || analysis.structureFindings.length > 0
+    || marketplace?.status === 'blocked' || marketplace?.status === 'retry'
+    // Recomputed here rather than trusted from the analysis warning, so the signer refuses a
+    // durable sell authorization even if a presentation filter ever dropped that warning.
+    || findUncommittedAssetSignatures(analysis.attachedAssets, signedInputs, marketplace).length > 0;
+  // An input past the lookup cap is unknown for good; retrying cannot clear it.
+  const retry = assets.unknownStatus.some(entry => !entry.overLimit) || marketplace?.status === 'retry';
   return {
-    blocked: shouldBlockSigning({
-      safetyBlocked: analysis.safety.blocked,
-      verificationPassed: analysis.verification.passed,
-      repackProved: analysis.verification.repackProved ?? false,
-      strictMode,
-    }) || assets.unknownStatus.length > 0 || analysis.structureFindings.length > 0
-      || marketplace?.status === 'blocked' || marketplace?.status === 'retry'
-      // Recomputed here rather than trusted from the analysis warning, so the signer refuses a
-      // durable sell authorization even if a presentation filter ever dropped that warning.
-      || findUncommittedAssetSignatures(analysis.attachedAssets, signedInputs, marketplace).length > 0,
+    blocked,
+    ...(blocked && retry ? { retry: true as const } : {}),
     requiresAcknowledgement: warning || assetWarning || marketplaceWarning
       || verificationException || hasHighFee || (!semantic && flexibleFunds),
     safeOwnChange: assets.withAssets.length === 0 && assets.unknownStatus.length === 0,
@@ -79,12 +90,6 @@ export function getPsbtApprovalPolicy(
   });
   return policy(decoded, sighashes, strictMode, hasHighPsbtFee(details, fastestFee),
     movement.atRisk > 0 || sighashes.some(input => input.sighashType === 0x83));
-}
-
-function hasHighPsbtFee(details: DecodedPsbtInfo['psbtDetails'], fastestFee?: number): boolean {
-  const vsize = details.rawTxHex ? details.rawTxHex.length / 2 + details.inputs.length * 110 : undefined;
-  return details.fee > 10_000_000 || (!details.unfunded
-    && exceedsSaneFeeRate(details.fee, vsize, fastestFee));
 }
 
 /** Semantic bundle proofs supplement the ordinary signing policy; they cannot replace it. */
@@ -140,9 +145,12 @@ export function getPsbtBundleApprovalPolicy(
         message: item.marketplaceReview?.notices.map(notice => notice.message).join(' ') || 'Review this transaction’s authorization before signing.' });
     }
     result.blocked ||= itemPolicy.blocked;
+    if (itemPolicy.retry) result.retry = true;
     result.requiresAcknowledgement ||= itemPolicy.requiresAcknowledgement;
     warnings.push(...itemWarnings.map(warning => ({ ...warning, title: `Transaction ${index + 1}: ${warning.title}` })));
   }
+  if (decoded.review.status === 'retry') result.retry = true;
+  if (!result.blocked) delete result.retry;
   return { policy: result, warnings };
 }
 

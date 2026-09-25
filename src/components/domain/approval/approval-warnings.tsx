@@ -12,9 +12,11 @@
  * throughout and cannot be modified after signing.
  */
 
+import type { ReactNode } from 'react';
 import type { WarningItem } from '@/components/ui/warning-stack';
 import { getMessageSigningRisks } from '@/core/bitcoin/messageRisk';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
+import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
@@ -22,9 +24,40 @@ import { formatAmount } from '@/core/format';
 
 import { t } from '@/i18n';
 
+/**
+ * The wallet's own reasons, kept for anyone who wants them but under the plain-language headline:
+ * they are diagnostics, and a reader cannot act on "seller input 1 raw attached quantity differs".
+ */
+export function WarningDetails({ details }: { details: string[] }) {
+  if (details.length === 0) return null;
+  return (
+    <ul className="mt-2 space-y-1 text-xs opacity-80 [overflow-wrap:anywhere]">
+      {details.map((detail, index) => <li key={index}>{detail}</li>)}
+    </ul>
+  );
+}
+
+/** Headline for a marketplace proof that did not pass, by what the user can do about it. */
+export function marketplaceBlockText(kind: 'retry' | 'ledger' | 'transaction' | 'input_limit'): { title: string; description: string } {
+  switch (kind) {
+    case 'retry':
+      return { title: t('approval_marketplace_retry_title'), description: t('approval_marketplace_retry_description') };
+    case 'ledger':
+      return { title: t('approval_marketplace_listing_changed_title'), description: t('approval_marketplace_listing_changed_description') };
+    case 'input_limit':
+      return { title: t('approval_too_many_inputs_title'), description: t('approval_too_many_inputs_description', String(MAX_ASSET_LOOKUP_INPUTS)) };
+    case 'transaction':
+      return { title: t('approval_marketplace_different_transaction_title'), description: t('approval_marketplace_different_transaction_description') };
+  }
+}
+
 /** Known local findings are translated here, after crossing the background/UI language boundary. */
-function safetyWarningText(warning: SecurityWarning): { title: string; description: string } {
+function safetyWarningText(warning: SecurityWarning): { title: string; description: string; children?: ReactNode } {
   switch (warning.code) {
+    case 'marketplace_retry':
+      return { ...marketplaceBlockText('retry'), children: <WarningDetails details={warning.data.details} /> };
+    case 'marketplace_blocked':
+      return { ...marketplaceBlockText(warning.data.kind), children: <WarningDetails details={warning.data.details} /> };
     case 'zeld_would_leave':
       return {
         title: warning.severity === 'block' ? t('zeld_safety_blocked') : t('zeld_safety_warning'),
@@ -257,7 +290,16 @@ export function buildApprovalWarnings({
     });
   }
 
-  if (signedInputsUnknownStatus.length > 0) {
+  // More inputs than the wallet checks: retrying cannot help, so do not suggest it.
+  const overLimit = signedInputsUnknownStatus.some(entry => entry.overLimit);
+  if (overLimit) {
+    warningItems.push({
+      key: 'unknown-status',
+      severity: 'warning',
+      blocking: true,
+      ...marketplaceBlockText('input_limit'),
+    });
+  } else if (signedInputsUnknownStatus.length > 0) {
     warningItems.push({
       key: 'unknown-status',
       severity: 'warning',

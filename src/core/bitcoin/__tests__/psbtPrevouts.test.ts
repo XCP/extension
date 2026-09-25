@@ -2,7 +2,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
-import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
+import { PrevoutMismatchError, verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 
 const PUBLIC_KEY = getPublicKey(hexToBytes('01'.padStart(64, '0')), true);
 const SCRIPT = p2wpkh(PUBLIC_KEY).script;
@@ -49,6 +49,10 @@ describe('verifyPsbtPrevouts', () => {
     await expect(verifyPsbtPrevouts(psbtHex, {
       fetchRawTransaction: async () => parentHex,
     })).rejects.toThrow(/does not match its real previous output/);
+    // Typed, so the approval screen can say the site's data is wrong rather than "Signing failed".
+    await expect(verifyPsbtPrevouts(psbtHex, {
+      fetchRawTransaction: async () => parentHex,
+    })).rejects.toBeInstanceOf(PrevoutMismatchError);
   });
 
   it('rejects raw transaction bytes for a different txid', async () => {

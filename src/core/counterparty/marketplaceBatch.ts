@@ -446,8 +446,12 @@ export function analyzeMarketplaceBatch(
     notice = '';
   }
 
+  // One kind of block across every blocked item names the batch's block; a mix is a mismatch.
+  const blockKinds = new Set(reviews.filter(review => review.status === 'blocked').map(review => review.blockKind));
+  const [blockKind] = blockKinds;
   return {
     status,
+    ...(status === 'blocked' && blockKinds.size === 1 && blockKind ? { blockKind } : {}),
     family: 'marketplace_batch',
     title,
     ...(summary ? { bundleSummary: summary } : {}),

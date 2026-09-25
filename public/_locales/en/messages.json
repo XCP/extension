@@ -667,6 +667,42 @@
     "message": "The balance lookup failed, so attached assets can't be ruled out.",
     "description": "components/domain/approval/approval-warnings.tsx"
   },
+  "approval_marketplace_retry_title": {
+    "message": "Counterparty data is temporarily unavailable",
+    "description": "Headline on an approval screen when a marketplace check could not reach Counterparty data. A Retry button follows."
+  },
+  "approval_marketplace_retry_description": {
+    "message": "Retry in a moment.",
+    "description": "Below approval_marketplace_retry_title."
+  },
+  "approval_marketplace_listing_changed_title": {
+    "message": "This listing changed",
+    "description": "Headline when the asset a marketplace listing or offer names no longer matches the ledger, for example because it sold. Not the site's fault."
+  },
+  "approval_marketplace_listing_changed_description": {
+    "message": "The asset no longer matches what the site showed. It may have sold or moved. Return to the site and refresh.",
+    "description": "Below approval_marketplace_listing_changed_title."
+  },
+  "approval_marketplace_different_transaction_title": {
+    "message": "The site described a different transaction",
+    "description": "Headline when a marketplace transaction contradicts what the site said it does. Signing is blocked."
+  },
+  "approval_marketplace_different_transaction_description": {
+    "message": "This transaction does not match what the site said it does, so the wallet will not sign it.",
+    "description": "Below approval_marketplace_different_transaction_title."
+  },
+  "approval_too_many_inputs_title": {
+    "message": "Too many inputs to check",
+    "description": "Headline when a transaction spends more inputs than the wallet checks for attached assets. Retrying does not help."
+  },
+  "approval_too_many_inputs_description": {
+    "message": "This transaction spends more than $1 inputs, more than the wallet can check for attached assets. Ask the site to use fewer inputs.",
+    "description": "Below approval_too_many_inputs_title. $1 is the number of inputs the wallet checks."
+  },
+  "provider_review_transaction_data_mismatch": {
+    "message": "The site's transaction data does not match the blockchain. Ask the site to rebuild it.",
+    "description": "Signing stopped because the site's transaction describes an input differently from the blockchain, or the key cannot sign what it describes."
+  },
   "approval_approval_warnings_pending_parent_retry": {
     "message": "An unconfirmed transaction may attach Counterparty assets to these inputs, and the ledger can't show them until it confirms. Retry after it confirms.",
     "description": "components/domain/approval/approval-warnings.tsx, body under \"Couldn't verify asset status\" when every unknown input spends an output of an unconfirmed transaction that may attach assets to it."

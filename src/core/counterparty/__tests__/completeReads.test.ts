@@ -42,8 +42,12 @@ describe('complete wallet reads through the real API client wrapper', () => {
     const summary = await fetchInputsAttachedAssets([{ index: 0, txid: 'tx', vout: 0 }]);
     expect(summary[0]?.assets).toHaveLength(237);
     expect(summary[0]?.assets.at(-1)?.asset).toBe('ASSET236');
-    expect(get).toHaveBeenCalledTimes(24);
-    expect(get.mock.calls[1]?.[1]?.params).toMatchObject({ cursor: 10 });
+    // One batched membership question first (this stub cannot answer it, so the input is read on
+    // its own), then every page of the input's balances.
+    const pages = get.mock.calls.filter(call => String(call[0]).includes('/balances'));
+    expect(get.mock.calls[0]?.[0]).toContain('/v2/utxos/withbalances');
+    expect(pages).toHaveLength(24);
+    expect(pages[1]?.[1]?.params).toMatchObject({ cursor: 10 });
   });
 
   it('marks an input unknown when a later asset page fails', async () => {

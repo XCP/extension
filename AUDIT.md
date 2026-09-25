@@ -173,9 +173,9 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Approval for website signing | Website-supplied messages and transactions require a decision bound to the reviewed facts; state and permissions are rechecked at execution. Extension-generated connection proofs use the existing connection grant |
 | ✅ | Locked state protection | Sensitive APIs blocked when locked |
 | ✅ | WYSIWYS | Full transaction details shown before sign |
-| ✅ | Rate limiting per origin | Tiered: 5 connections, 10 transactions, 100 API calls/min |
+| ✅ | Rate limiting per origin | Tiered: 5 connections, 10 broadcasts, 100 API calls/min; signing requests are limited where they open a popup (below) |
 | ✅ | Global rate limit | 500 requests/min backstop |
-| ⚠️ | Pending-request bounds | 10-minute expiry and per-origin creation rate; no separate queue-size cap |
+| ✅ | Pending-request bounds | 10-minute expiry; at most 3 open signing popups per origin, and 30 popups/min as a backstop, charged only when a popup opens |
 | ✅ | Explicit capability consent | Paired-address access is opt-in and unchecked by default |
 | ✅ | Paired-address identity binding | Paired-address grants are scoped to origin, wallet ID, and active address, then rechecked immediately before signing |
 | ✅ | Multi-address signing constraints | Only the active address and its same-index Legacy/SegWit sibling pair are accepted; indices are unique and bounded, and each claimed signer must match the embedded prevout |

@@ -230,6 +230,51 @@ describe('fetchInputsAttachedAssets', () => {
     expect(unknownStatus[0]?.inputIndex).toBe(victimIndex);
   });
 
+  it('marks a displaced input as over the limit, so it is not offered as a retry', async () => {
+    mockedFetch.mockResolvedValue(page([]));
+    const many = Array.from({ length: MAX_ASSET_LOOKUP_INPUTS + 1 }, (_, i) => input(i, `${i}`.padStart(64, '0')));
+    const assets = await fetchInputsAttachedAssets(many);
+    expect(assets.find(entry => entry.inputIndex === MAX_ASSET_LOOKUP_INPUTS))
+      .toMatchObject({ lookupFailed: true, overLimit: true, assets: [] });
+    // A failed lookup inside the cap is still a plain, retryable failure.
+    mockedFetch.mockRejectedValue(new Error('indexer down'));
+    expect((await fetchInputsAttachedAssets([input(0)]))[0]?.overLimit).toBeUndefined();
+  });
+
+  // F7: a large or fragmented cart asks the ledger once per batch, not once per input.
+  describe('with a batched membership answer', () => {
+    const holdingTxid = 'ab'.repeat(32);
+    const source = (holding: () => Promise<Set<string>>) => ({
+      balances: vi.fn(async (utxo: string) => utxo.startsWith(holdingTxid)
+        ? [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: asDisplayUnits('1'), asset_info: { asset_longname: null } }]
+        : []),
+      withBalances: vi.fn(holding),
+      parent: vi.fn(),
+      ledgerHeights: vi.fn(),
+    });
+    const inputs = [input(0, holdingTxid), ...Array.from({ length: 40 }, (_, i) => input(i + 1, `${i + 1}`.padStart(64, '0')))];
+
+    it('reads balances only where the ledger holds something, and still checks every signed empty input', async () => {
+      const evidence = source(async () => new Set([`${holdingTxid}:0`]));
+      const assets = await fetchInputsAttachedAssets(inputs, [0, 1, 2], undefined, evidence as never);
+      expect(evidence.withBalances).toHaveBeenCalledOnce();
+      expect(evidence.balances).toHaveBeenCalledTimes(1);
+      expect(assets).toEqual([expect.objectContaining({ inputIndex: 0, assets: [expect.objectContaining({ asset: 'RAREPEPE' })] })]);
+      // Signed inputs the ledger calls empty still go through the unconfirmed-parent check.
+      expect(resolveEmpty).toHaveBeenCalledTimes(2);
+    });
+
+    it('never reads an input as empty because the batch query failed', async () => {
+      resolveEmpty.mockResolvedValue({ kind: 'unknown' });
+      const evidence = source(async () => { throw new Error('indexer down'); });
+      const assets = await fetchInputsAttachedAssets(inputs, [0, 1], undefined, evidence as never);
+      // Every input falls back to its own balance read.
+      expect(evidence.balances).toHaveBeenCalledTimes(inputs.length);
+      expect(assets.find(entry => entry.inputIndex === 0)?.assets[0]?.asset).toBe('RAREPEPE');
+      expect(assets.find(entry => entry.inputIndex === 1)).toMatchObject({ lookupFailed: true });
+    });
+  });
+
   it('drops balance rows missing an asset or quantity', async () => {
     mockedFetch.mockResolvedValue(
       page([

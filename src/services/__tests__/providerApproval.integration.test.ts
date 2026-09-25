@@ -308,7 +308,7 @@ it('refuses a batch when the asset indexer cannot check its funding inputs', asy
   state.lookupFailed = true;
   const result = await review([preparation()], true);
   expect(result.policy.blocked).toBe(true);
-  await expect(signs(result, true)).rejects.toThrow(/did not pass/);
+  await expect(signs(result, true)).rejects.toMatchObject({ reviewCode: 'retry_required' });
   expect(state.wallet.signPsbt).not.toHaveBeenCalled();
 });
 
@@ -407,7 +407,7 @@ it("refuses a payment that spends an unconfirmed attach's asset output until it 
     inputIndex: 0, lookupFailed: true, pendingParentTxid: attach.tx.id,
   })]);
   expect(result.policy.blocked).toBe(true);
-  await expect(signs(result, true)).rejects.toThrow(/did not pass/);
+  await expect(signs(result, true)).rejects.toMatchObject({ reviewCode: 'retry_required' });
   expect(state.wallet.signPsbt).not.toHaveBeenCalled();
 });
 

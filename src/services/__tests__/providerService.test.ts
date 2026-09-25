@@ -479,6 +479,7 @@ describe('ProviderService', () => {
     // Setup rate limiter mocks
     vi.mocked(rateLimiter.connectionRateLimiter.isAllowed).mockReturnValue(true);
     vi.mocked(rateLimiter.transactionRateLimiter.isAllowed).mockReturnValue(true);
+    vi.mocked(rateLimiter.signPopupRateLimiter.isAllowed).mockReturnValue(true);
     vi.mocked(rateLimiter.apiRateLimiter.isAllowed).mockReturnValue(true);
     
     // Setup security mocks  
@@ -1036,6 +1037,30 @@ describe('ProviderService', () => {
         },
       );
 
+      // T2: an embedded NONE (0x02) with explicit signInputs and no sighashTypes used to reach the
+      // approval screen and fail only inside the signer, after the user had approved it.
+      it.each([0x02, 0x03, 0x82])('refuses an embedded sighash %i on an explicitly requested input at intake', async sighash => {
+        const internalKey = hex.decode('79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798');
+        const taproot = p2tr(internalKey);
+        const tx = new Transaction({ allowUnknownInputs: true, disableScriptCheck: true });
+        tx.addInput({ txid: '11'.repeat(32), index: 0, sighashType: sighash,
+          tapInternalKey: internalKey, witnessUtxo: { script: taproot.script, amount: 100_000n } });
+        tx.addOutput({ script: taproot.script, amount: 99_000n });
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        vi.mocked(connection.hasPermission).mockResolvedValue(true);
+        const wallet = vi.mocked(walletService.getWalletService)();
+        vi.mocked(wallet.getActiveWallet).mockResolvedValue({
+          ...(await wallet.getActiveWallet())!, addressFormat: AddressFormat.P2TR,
+        });
+        vi.mocked(wallet.getActiveAddress).mockResolvedValue({
+          ...(await wallet.getActiveAddress())!, address: taproot.address,
+        });
+        await expect(providerService.handleRequest('https://test.com', 'xcp_signPsbt', [{
+          hex: hex.encode(tx.toPSBT()), signInputs: { [taproot.address]: [0] },
+        }])).rejects.toThrow(/unsupported sighash/);
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
       it('should require authorization', async () => {
         // Mock connection service to return false (not connected)
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
@@ -1314,6 +1339,87 @@ describe('ProviderService', () => {
           ['Hello Bitcoin', '1BoatSLRHtKNngkdXEeobR76b53LETtpyT']
         )).rejects.toThrow('not the active address or its paired sibling');
 
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+    });
+
+    // F6: the limit sits where a popup opens, after validation, and counts open popups rather
+    // than every call a site made in the last minute.
+    describe('Signing request limits', () => {
+      const origin = 'https://test.com';
+      const openFlow = (id: string, flowOrigin = origin) => signFlow.signFlowStorage.insert({
+        id, origin: flowOrigin, requestKey: `key-${id}`, kind: 'sign-message', message: id,
+        address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty', walletId: 'wallet1',
+        timestamp: Date.now(), status: 'pending',
+      });
+      // The auto-mocked limiters share one prototype mock, so give each its own for these tests.
+      const popup = rateLimiter.signPopupRateLimiter as unknown as Record<string, unknown>;
+      const broadcast = rateLimiter.transactionRateLimiter as unknown as Record<string, unknown>;
+      const saved = { popup: { ...popup }, broadcast: { ...broadcast } };
+      let popupAllowed: ReturnType<typeof vi.fn>;
+      let broadcastAllowed: ReturnType<typeof vi.fn>;
+      beforeEach(() => {
+        popupAllowed = vi.fn().mockReturnValue(true);
+        broadcastAllowed = vi.fn().mockReturnValue(false);
+        popup.isAllowed = popupAllowed;
+        popup.getResetTime = vi.fn().mockReturnValue(30_000);
+        broadcast.isAllowed = broadcastAllowed;
+      });
+      afterEach(() => {
+        Object.assign(popup, saved.popup);
+        Object.assign(broadcast, saved.broadcast);
+      });
+      const connect = () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+      };
+
+      it('does not charge requests rejected at intake', async () => {
+        connect();
+        await expect(providerService.handleRequest(origin, 'xcp_signMessage',
+          ['xcp-wallet' + String.fromCharCode(10) + 'origin:x'])).rejects.toThrow('connection-proof namespace');
+        await expect(providerService.handleRequest(origin, 'xcp_signPsbt', [{}]))
+          .rejects.toThrow('PSBT hex is required');
+        expect(popupAllowed).not.toHaveBeenCalled();
+        expect(broadcastAllowed).not.toHaveBeenCalled();
+      });
+
+      it('opens a popup whatever the per-minute broadcast budget says', async () => {
+        connect();
+        providerService.handleRequest(origin, 'xcp_signMessage', ['Hello Bitcoin']).catch(() => {});
+        await new Promise(resolve => setTimeout(resolve, 10));
+        expect(signFlow.beginSignFlow).toHaveBeenCalled();
+        expect(popupAllowed).toHaveBeenCalledWith(origin);
+      });
+
+      it(`refuses a new popup while ${signFlow.MAX_OPEN_SIGN_FLOWS_PER_ORIGIN} of the site's are open`, async () => {
+        connect();
+        for (let index = 0; index < signFlow.MAX_OPEN_SIGN_FLOWS_PER_ORIGIN; index++) await openFlow(`open-${index}`);
+        expect(await signFlow.countOpenSignFlows(origin)).toBe(signFlow.MAX_OPEN_SIGN_FLOWS_PER_ORIGIN);
+        await expect(providerService.handleRequest(origin, 'xcp_signMessage', ['one more']))
+          .rejects.toThrow(/Too many signing requests are waiting/);
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        expect(popupAllowed).not.toHaveBeenCalled();
+      });
+
+      it("does not count another site's open popups, or settled ones", async () => {
+        connect();
+        for (let index = 0; index < signFlow.MAX_OPEN_SIGN_FLOWS_PER_ORIGIN; index++) {
+          await openFlow(`other-${index}`, 'https://other.example');
+        }
+        await openFlow('settled');
+        await signFlow.recordSignOutcome('settled', 'cancelled');
+        expect(await signFlow.countOpenSignFlows(origin)).toBe(0);
+        providerService.handleRequest(origin, 'xcp_signMessage', ['Hello Bitcoin']).catch(() => {});
+        await new Promise(resolve => setTimeout(resolve, 10));
+        expect(signFlow.beginSignFlow).toHaveBeenCalled();
+      });
+
+      it('refuses when the popup backstop is spent, before opening anything', async () => {
+        connect();
+        popupAllowed.mockReturnValue(false);
+        await expect(providerService.handleRequest(origin, 'xcp_signMessage', ['Hello Bitcoin']))
+          .rejects.toThrow(/Signing request rate limit exceeded/);
         expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
     });

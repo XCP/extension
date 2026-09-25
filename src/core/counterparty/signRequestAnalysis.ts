@@ -46,6 +46,7 @@ import {
 import {
   analyzeTransactionSafety,
   type SafetyAnalysis,
+  type SecurityWarning,
 } from '@/core/counterparty/transactionSafety';
 import { type ProviderVerificationResult, verifyProviderTransaction } from '@/core/counterparty/unpack';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
@@ -140,6 +141,29 @@ export interface SignRequestAnalysis {
  * @param input - the transaction, already parsed, with its Counterparty payload resolved
  * @returns the analysis both approval screens render, including any blocking warnings
  */
+/**
+ * The block a failed marketplace proof raises, led by what the user can do about it. The wallet's
+ * internal reasons stay attached as details, never as the headline.
+ */
+function marketplaceBlockWarning(review: MarketplaceApprovalReview): SecurityWarning {
+  const details = review.blockers;
+  if (review.status === 'retry') {
+    return {
+      severity: 'block', code: 'marketplace_retry', data: { details },
+      title: 'Retry Required: Counterparty Data Unavailable',
+      message: `Counterparty data is temporarily unavailable. Retry in a moment. (${details.join('; ')})`,
+    };
+  }
+  const kind = review.blockKind ?? 'transaction';
+  return {
+    severity: 'block', code: 'marketplace_blocked', data: { kind, details },
+    title: kind === 'ledger' ? 'Blocked: This Listing Changed'
+      : kind === 'input_limit' ? 'Blocked: Too Many Inputs to Check'
+        : 'Blocked: The Site Described a Different Transaction',
+    message: details.join('; '),
+  };
+}
+
 export async function analyzeSignRequest(
   input: SignRequestAnalysisInput
 ): Promise<SignRequestAnalysis> {
@@ -401,13 +425,7 @@ export async function analyzeSignRequest(
     });
     if (marketplaceReview.status === 'blocked' || marketplaceReview.status === 'retry') {
       safety.warnings = [
-        {
-          severity: 'block',
-          title: marketplaceReview.status === 'retry'
-            ? 'Retry Required: Marketplace Proof Incomplete'
-            : 'Blocked: Marketplace Intent Mismatch',
-          message: marketplaceReview.blockers.join('; '),
-        },
+        marketplaceBlockWarning(marketplaceReview),
         ...safety.warnings,
       ];
       safety.blocked = true;

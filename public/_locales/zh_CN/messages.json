@@ -500,6 +500,33 @@
   "approval_approval_warnings_the_balance_lookup_failed_so": {
     "message": "余额查询失败，因此无法排除存在附加资产的可能。"
   },
+  "approval_marketplace_retry_title": {
+    "message": "暂时无法获取 Counterparty 数据"
+  },
+  "approval_marketplace_retry_description": {
+    "message": "请稍后重试。"
+  },
+  "approval_marketplace_listing_changed_title": {
+    "message": "此挂单已变更"
+  },
+  "approval_marketplace_listing_changed_description": {
+    "message": "该资产已与网站显示的不一致，可能已售出或已转移。请返回网站并刷新。"
+  },
+  "approval_marketplace_different_transaction_title": {
+    "message": "网站描述的是另一笔交易"
+  },
+  "approval_marketplace_different_transaction_description": {
+    "message": "此交易与网站的说明不符，因此钱包不会签名。"
+  },
+  "approval_too_many_inputs_title": {
+    "message": "输入过多，无法检查"
+  },
+  "approval_too_many_inputs_description": {
+    "message": "此交易花费超过 $1 个输入，超出钱包可检查附加资产的数量。请让网站减少输入数量。"
+  },
+  "provider_review_transaction_data_mismatch": {
+    "message": "网站的交易数据与区块链不符。请让网站重新构建交易。"
+  },
   "approval_approval_warnings_pending_parent_retry": {
     "message": "未确认的交易可能向这些输入附加 Counterparty 资产，在其确认前账本无法显示。请在确认后重试。"
   },
