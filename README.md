@@ -75,30 +75,37 @@ the only local check that catches a lockfile drift before CI does.
 
 ## Languages
 
-The wallet reads in the language the browser does, through the platform's own
-`_locales` mechanism: English is the default, and Japanese and Chinese (Simplified,
-Traditional for Taiwan, Traditional for Hong Kong) ship alongside it. There is no
-in-wallet language setting. Chrome loads `_locales/<browser UI language>/messages.json`,
-falling back region → language → `en`, and the manifest name and description resolve
-the same way.
+XCP Wallet follows the browser's language: English, Japanese, Simplified Chinese, and
+Traditional Chinese (Taiwan and Hong Kong). There is no language setting in the wallet;
+change Chrome's language to switch. Anything missing falls back to English.
 
-- `public/_locales/en/messages.json` is the source of truth. Every entry carries the copy
-  and a `description` naming where it appears and what each `$1` stands for; that is what
-  a translator reads.
-- Code calls `t('key')` from `@/i18n`. The key is a type generated from the English
-  catalog, so a typo fails to compile. Outside an extension context (unit tests) `t`
-  returns the English copy.
-- `node scripts/i18n.mjs build` regenerates that type after editing the English file.
-  `node scripts/i18n.mjs check` fails on a key used but undefined, defined but unused,
-  missing from a locale, or carrying different placeholders than the English.
-- Adding a language: create `public/_locales/<locale>/messages.json` with the same keys
-  and only `message` (Chrome reads nothing else), list its keys in
-  `src/i18n/status/<locale>.json` under `machine` until a native reader has checked
-  them, and run `check`. `node scripts/i18n.mjs review <locale> --machine` prints the
-  unchecked strings as a Markdown table for that reader.
-- `zh_TW` and `zh_HK` are derived from `zh_CN` with OpenCC's regional phrase tables plus
-  the term glossary shared with the launchpad (its `scripts/i18n-derive-zh.mjs`).
-  Regenerate them the same way after changing `zh_CN` rather than editing them by hand.
+The Japanese and Chinese text is machine-translated and has not yet been reviewed by
+native speakers. Corrections are welcome.
+
+### Adding or changing text
+
+1. Write the English in `public/_locales/en/messages.json`. Give each entry a
+   `description` saying where the text appears and what each `$1` stands for. That is
+   all a translator sees.
+2. Use it in code with `t('key')` from `@/i18n`. Keys are typed, so a misspelled key
+   fails to compile.
+3. Run `node scripts/i18n.mjs build` to regenerate those types.
+4. Add the key to every other `public/_locales/<locale>/messages.json` (a `message`
+   only), and list it under `machine` in `src/i18n/status/<locale>.json` until a native
+   speaker has checked it.
+5. `npm run lint` checks the catalogs. It fails on keys that are missing, unused, or have
+   different placeholders than the English, and on approval-screen labels too long to fit
+   on one line.
+
+### Reviewing a translation
+
+`node scripts/i18n.mjs review ja --machine > review-ja.md` writes the unchecked strings
+as a table: the English, the translation, and where each appears. Once a native speaker has checked a string,
+remove it from `machine` in `src/i18n/status/ja.json`.
+
+`zh_TW` and `zh_HK` are generated from `zh_CN` (OpenCC regional phrases plus a shared
+glossary) by `scripts/i18n-derive-zh.mjs` in the launchpad repository. Change `zh_CN`
+and regenerate them rather than editing them by hand.
 
 ## Build
 
