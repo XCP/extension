@@ -24,6 +24,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { TrezorAdapter } from '../../src/core/hardware/trezorAdapter';
 import { importVerifiedHardwareP2wpkhSignatures } from '../../src/core/bitcoin/hardwarePsbt';
 import { finalizePSBT } from '../../src/core/bitcoin/psbt';
+import { AddressFormat } from '../../src/core/bitcoin/address';
+import { deriveAddressesFromSecret, deriveHardwareAddress } from '../../src/core/wallet/addressDeriver';
+import type { WalletRecord } from '../../src/types/wallet';
 
 // Replace only the Suite transport boundary. Adapter calls still reach the real
 // Connect 10 SDK and emulator; the suite's beforeAll initializes BridgeTransport.
@@ -421,6 +424,71 @@ describe('Trezor Node.js Integration Tests', () => {
         spy.mockRestore();
       }
     }, 60000);
+
+    describe('Added receive addresses', () => {
+      const H = 0x80000000;
+      const ACCOUNTS: Array<[AddressFormat, number, 'p2pkh' | 'p2sh' | 'p2wpkh' | 'p2tr']> = [
+        [AddressFormat.P2PKH, 44, 'p2pkh'],
+        [AddressFormat.P2SH_P2WPKH, 49, 'p2sh'],
+        [AddressFormat.P2WPKH, 84, 'p2wpkh'],
+        [AddressFormat.P2TR, 86, 'p2tr'],
+      ];
+      const scriptType = { p2pkh: 'SPENDADDRESS', p2sh: 'SPENDP2SHWITNESS', p2wpkh: 'SPENDWITNESS', p2tr: 'SPENDTAPROOT' } as const;
+
+      /** What the wallet stores for this emulator's first account, read from the device itself. */
+      async function trezorWallet(format: AddressFormat, purpose: number, kind: keyof typeof scriptType) {
+        const account = await TrezorConnect.getPublicKey({ path: `m/${purpose}'/0'/0'`, coin: 'btc', scriptType: scriptType[kind] });
+        if (!account.success) throw new Error(JSON.stringify(account));
+        const first = await TrezorConnect.getAddress({ path: `m/${purpose}'/0'/0'/0/0`, coin: 'btc', showOnTrezor: false });
+        if (!first.success) throw new Error(JSON.stringify(first));
+        const secret = JSON.stringify({ deviceType: 'trezor', publicKey: '', accountIndex: 0, usePassphrase: false,
+          derivationPath: `m/${purpose}'/0'/0'/0/0`, xpub: account.payload.xpub });
+        const record: WalletRecord = { id: `emulator-${purpose}`, name: 'Trezor', type: 'hardware', addressFormat: format,
+          addressCount: 4, previewAddress: first.payload.address, encryptedSecret: '' };
+        return { secret, record };
+      }
+
+      for (const [format, purpose, kind] of ACCOUNTS) {
+        it(`${format}: addresses 2-4 derived from the xpub are the device's own …/0/1-3`, async () => {
+          const { secret, record } = await trezorWallet(format, purpose, kind);
+          const derived = deriveAddressesFromSecret(secret, record);
+          expect(derived).toHaveLength(4);
+          for (const index of [1, 2, 3]) {
+            const device = await TrezorConnect.getAddress({ path: `m/${purpose}'/0'/0'/0/${index}`, coin: 'btc', showOnTrezor: false });
+            if (!device.success) throw new Error(JSON.stringify(device));
+            expect(derived[index]!.address).toBe(device.payload.address);
+            expect(derived[index]!.path).toBe(`m/${purpose}'/0'/0'/0/${index}`);
+          }
+        }, 60000);
+      }
+
+      it("the device signs an input owned by an added address at that address's path", async () => {
+        const { secret, record } = await trezorWallet(AddressFormat.P2WPKH, 84, 'p2wpkh');
+        const added = deriveHardwareAddress(secret, record, 1)!;
+        const script = OutScript.encode(Address().decode(added.address));
+        const funding = syntheticFundingTransaction(0x72, 100_000n, script);
+        const transaction = new Transaction({ version: 2, lockTime: 0 });
+        transaction.addInput({ txid: funding.id, index: 0, witnessUtxo: { script, amount: 100_000n }, sighashType: SigHash.ALL });
+        transaction.addOutput({ script: OutScript.encode(Address().decode(EXPECTED_ADDRESSES.NATIVE_SEGWIT)), amount: 99_000n });
+        const adapter = new TrezorAdapter();
+        await adapter.init();
+        const sign = TrezorConnect.signTransaction.bind(TrezorConnect);
+        const spy = vi.spyOn(TrezorConnect, 'signTransaction').mockImplementationOnce(params =>
+          sign({ ...params, refTxs: [asTrezorRefTx(funding)] }));
+        const stopConfirming = confirmDevicePrompts();
+        try {
+          // signed_psbt verifies the device signature against the input's own script, so this
+          // resolves only if the key at …/0/1 is the key behind the xpub-derived address.
+          const result = await adapter.signPsbt({ psbtHex: bytesToHex(transaction.toPSBT()),
+            inputPaths: new Map([[0, [(84 | H) >>> 0, H, H, 0, 1]]]), resultFormat: 'signed_psbt' });
+          const signed = Transaction.fromRaw(hexToBytes(finalizePSBT(result.signedPsbtHex!)));
+          expect(bytesToHex(signed.getInput(0).finalScriptWitness![1]!)).toBe(added.pubKey);
+        } finally {
+          stopConfirming();
+          spy.mockRestore();
+        }
+      }, 60000);
+    });
 
     it('transaction input format matches TrezorAdapter output', async () => {
       if (!connected) {
