@@ -212,7 +212,7 @@ test.describe('Trezor Hardware Wallet Operations', () => {
           console.log('  → This is expected when using @trezor/connect-webextension with BridgeTransport');
           console.log('  → The UI flow works correctly; actual device ops require real device or @trezor/connect');
           await page.screenshot({ path: 'test-results/screenshots/trezor-sign-message-known-limitation.png' });
-          test.skip(true, `Trezor not reachable from the extension: ${setupResult.error}`);
+          test.skip(true, `No Suite Web in this spec; Connect 10 reaches the device only through Suite: ${setupResult.error}`);
         }
         console.log('  ✗ Failed to connect Trezor:', setupResult.error);
         await page.screenshot({ path: 'test-results/screenshots/trezor-sign-message-connect-failed.png' });
@@ -299,7 +299,7 @@ test.describe('Trezor Hardware Wallet Operations', () => {
       if (!setupResult.success) {
         if (setupResult.isKnownLimitation && WEBEXTENSION_BRIDGE_LIMITATION) {
           console.log('⚠ Skipping test - known webextension/bridge limitation');
-          test.skip(true, `Trezor not reachable from the extension: ${setupResult.error}`);
+          test.skip(true, `No Suite Web in this spec; Connect 10 reaches the device only through Suite: ${setupResult.error}`);
         }
         throw new Error(`Failed to connect Trezor: ${setupResult.error}`);
       }
@@ -376,7 +376,7 @@ test.describe('Trezor Transaction Signing Flow', () => {
         if (setupResult.isKnownLimitation && WEBEXTENSION_BRIDGE_LIMITATION) {
           console.log('  ⚠ Connection failed due to known webextension/bridge limitation');
           console.log('  → Test passes - UI flow works; device ops need real device');
-          test.skip(true, `Trezor not reachable from the extension: ${setupResult.error}`);
+          test.skip(true, `No Suite Web in this spec; Connect 10 reaches the device only through Suite: ${setupResult.error}`);
         }
         throw new Error(`Failed to connect Trezor: ${setupResult.error}`);
       }
@@ -456,7 +456,7 @@ test.describe('Trezor Wallet Display', () => {
       if (!setupResult.success) {
         if (setupResult.isKnownLimitation && WEBEXTENSION_BRIDGE_LIMITATION) {
           console.log('⚠ Skipping test - known webextension/bridge limitation');
-          test.skip(true, `Trezor not reachable from the extension: ${setupResult.error}`);
+          test.skip(true, `No Suite Web in this spec; Connect 10 reaches the device only through Suite: ${setupResult.error}`);
         }
         throw new Error(`Failed to connect Trezor: ${setupResult.error}`);
       }
@@ -498,7 +498,7 @@ test.describe('Trezor Wallet Display', () => {
       if (!setupResult.success) {
         if (setupResult.isKnownLimitation && WEBEXTENSION_BRIDGE_LIMITATION) {
           console.log('⚠ Skipping test - known webextension/bridge limitation');
-          test.skip(true, `Trezor not reachable from the extension: ${setupResult.error}`);
+          test.skip(true, `No Suite Web in this spec; Connect 10 reaches the device only through Suite: ${setupResult.error}`);
         }
         throw new Error(`Failed to connect Trezor: ${setupResult.error}`);
       }
@@ -562,7 +562,7 @@ test.describe('Trezor Disconnect Flow', () => {
         if (setupResult.isKnownLimitation && WEBEXTENSION_BRIDGE_LIMITATION) {
           console.log('  ⚠ Connection failed due to known webextension/bridge limitation');
           console.log('  → Test passes - UI flow works; device ops need real device');
-          test.skip(true, `Trezor not reachable from the extension: ${setupResult.error}`);
+          test.skip(true, `No Suite Web in this spec; Connect 10 reaches the device only through Suite: ${setupResult.error}`);
         }
         throw new Error(`Failed to connect Trezor: ${setupResult.error}`);
       }
@@ -631,7 +631,7 @@ test.describe('Trezor Disconnect Flow', () => {
       if (!setupResult.success) {
         if (setupResult.isKnownLimitation && WEBEXTENSION_BRIDGE_LIMITATION) {
           console.log('  ⚠ Skipping test - known webextension/bridge limitation');
-          test.skip(true, `Trezor not reachable from the extension: ${setupResult.error}`);
+          test.skip(true, `No Suite Web in this spec; Connect 10 reaches the device only through Suite: ${setupResult.error}`);
         }
         throw new Error(`Failed to connect Trezor: ${setupResult.error}`);
       }
@@ -707,7 +707,7 @@ test.describe('Trezor Session-Only Behavior', () => {
         if (setupResult.isKnownLimitation && WEBEXTENSION_BRIDGE_LIMITATION) {
           console.log('  ⚠ Connection failed due to known webextension/bridge limitation');
           console.log('  → Test passes - UI flow works; device ops need real device');
-          test.skip(true, `Trezor not reachable from the extension: ${setupResult.error}`);
+          test.skip(true, `No Suite Web in this spec; Connect 10 reaches the device only through Suite: ${setupResult.error}`);
         }
         throw new Error(`Failed to connect Trezor: ${setupResult.error}`);
       }
@@ -804,7 +804,7 @@ test.describe('Trezor Multi-Wallet Switching', () => {
         if (setupResult.isKnownLimitation && WEBEXTENSION_BRIDGE_LIMITATION) {
           console.log('  ⚠ Connection failed due to known webextension/bridge limitation');
           console.log('  → Test passes - UI flow works; device ops need real device');
-          test.skip(true, `Trezor not reachable from the extension: ${setupResult.error}`);
+          test.skip(true, `No Suite Web in this spec; Connect 10 reaches the device only through Suite: ${setupResult.error}`);
         }
         throw new Error(`Failed to connect Trezor: ${setupResult.error}`);
       }

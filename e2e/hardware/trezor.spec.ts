@@ -254,7 +254,7 @@ test.describe('Trezor Hardware Wallet', () => {
       }
 
       // Only a completed connection proves the device path; anything else is reported as a skip.
-      test.skip(result !== 'success', `Trezor not reachable from the extension (${result})`);
+      test.skip(result !== 'success', `No Suite Web in this spec; Connect 10 reaches the device only through Suite (${result})`);
     } finally {
       await cleanup(context);
     }
@@ -409,7 +409,7 @@ test.describe('Trezor Wallet Integration Proof', () => {
         } else {
           console.log('  Connection timed out (popup cannot reach localhost)');
         }
-        test.skip(true, 'Trezor not reachable from the extension');
+        test.skip(true, 'No Suite Web in this spec; Connect 10 reaches the device only through Suite');
       }
 
       await page.screenshot({ path: 'test-results/screenshots/trezor-integration-result.png' });
