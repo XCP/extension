@@ -162,19 +162,6 @@ jobs:
         continue-on-error: true
         run: npm run test:emulator
 
-      - name: Run Trezor Direct API tests (emulator verification)
-        id: direct-tests
-        timeout-minutes: 5
-        env:
-          TREZOR_EMULATOR_URL: ws://localhost:9001
-          TREZOR_BRIDGE_URL: http://localhost:21325
-          TREZOR_EMULATOR_AVAILABLE: '1'
-          NODE_OPTIONS: --max-old-space-size=4096
-          CI: 'true'
-        # Continue on error to run all test suites, but we'll check results at the end
-        continue-on-error: true
-        run: xvfb-run npx playwright test e2e/hardware/trezor-direct.spec.ts --reporter=list
-
       - name: Run Trezor UI E2E tests
         id: ui-tests
         timeout-minutes: 15
@@ -187,102 +174,31 @@ jobs:
         continue-on-error: true
         run: xvfb-run npx playwright test e2e/hardware/trezor.spec.ts --reporter=list
 
-      - name: Release device sessions before Operations tests
-        run: |
-          echo "Releasing any stale device sessions..."
-          # Get devices and release any active sessions
-          DEVICES=$(curl -s -X POST http://localhost:21325/enumerate 2>&1) || DEVICES="[]"
-          echo "Current devices: $DEVICES"
-          # Parse sessions and release them (using jq if available, or just wait)
-          if command -v jq &> /dev/null; then
-            echo "$DEVICES" | jq -r '.[] | select(.session != null) | .session' | while read session; do
-              if [ -n "$session" ]; then
-                echo "Releasing session: $session"
-                curl -s -X POST "http://localhost:21325/release/$session" || true
-              fi
-            done
-          fi
-          # Wait a moment for sessions to clear
-          sleep 2
-          echo "Sessions released"
-
-      - name: Run Trezor Operations E2E tests
-        id: ops-tests
-        timeout-minutes: 15
-        env:
-          TREZOR_EMULATOR_URL: ws://localhost:9001
-          TREZOR_BRIDGE_URL: http://localhost:21325
-          TREZOR_EMULATOR_AVAILABLE: '1'
-          NODE_OPTIONS: --max-old-space-size=4096
-          CI: 'true'
-        continue-on-error: true
-        run: xvfb-run npx playwright test e2e/hardware/trezor-operations.spec.ts --reporter=list
-
       - name: Check test results
         if: always()
         run: |
           echo "=== Trezor E2E Test Results Summary ==="
-          echo ""
           echo "Node.js Integration Tests: ${{ steps.node-tests.outcome }}"
-          echo "Direct API Tests: ${{ steps.direct-tests.outcome }}"
           echo "UI Tests: ${{ steps.ui-tests.outcome }}"
-          echo "Operations Tests: ${{ steps.ops-tests.outcome }}"
           echo ""
 
-          # Node.js, Direct API and UI tests are required to pass
-          # Operations tests pass if they complete (even with known limitation early return)
+          # Both are required. With Connect 10 the extension reaches a device only through
+          # Suite, so the device path is proved by the Node.js suite against the emulator and
+          # the Suite handshake by e2e/tests/trezor-connect-v10.spec.ts in the PR workflow.
           REQUIRED_FAILURES=0
-
           if [ "${{ steps.node-tests.outcome }}" == "failure" ]; then
             echo "❌ Node.js Integration tests failed (REQUIRED)"
-            echo "   These test actual device operations via @trezor/connect"
             REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-          else
-            echo "✅ Node.js Integration tests: PASSED"
-            echo "   → Device communication works via BridgeTransport"
           fi
-
-          if [ "${{ steps.direct-tests.outcome }}" == "failure" ]; then
-            echo "❌ Direct API tests failed (REQUIRED)"
-            REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-          else
-            echo "✅ Direct API tests: PASSED"
-          fi
-
           if [ "${{ steps.ui-tests.outcome }}" == "failure" ]; then
             echo "❌ UI tests failed (REQUIRED)"
             REQUIRED_FAILURES=$((REQUIRED_FAILURES + 1))
-          else
-            echo "✅ UI E2E tests: PASSED"
           fi
-
-          echo ""
-
-          # Note about Operations tests
-          if [ "${{ steps.ops-tests.outcome }}" == "failure" ]; then
-            echo "⚠️  Browser Operations tests: Limited (expected)"
-            echo "   @trezor/connect-webextension uses popup architecture that"
-            echo "   cannot directly communicate with BridgeTransport."
-            echo "   Device operations are verified by Node.js tests above."
-          else
-            echo "✅ Browser Operations tests: PASSED"
-          fi
-          echo ""
-
           if [ $REQUIRED_FAILURES -gt 0 ]; then
             echo "❌ $REQUIRED_FAILURES required test suite(s) failed"
-            echo ""
-            echo "Review the test artifacts for details."
             exit 1
-          else
-            echo "✅ All required test suites passed!"
-            echo ""
-            echo "Test Coverage Summary:"
-            echo "  • Device communication: Verified via Node.js @trezor/connect"
-            echo "  • Address derivation: All formats tested"
-            echo "  • Message signing: Verified with emulator"
-            echo "  • UI flow: Verified via Playwright E2E"
           fi
+          echo "✅ All required test suites passed"
 
       - name: Upload Playwright test results
         if: always()

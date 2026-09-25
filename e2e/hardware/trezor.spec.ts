@@ -1,25 +1,16 @@
 /**
- * Trezor Hardware Wallet E2E Tests
+ * Trezor connect-page E2E tests.
  *
- * These tests run against the Trezor emulator and verify that our wallet
- * can connect to and communicate with a Trezor device via Trezor Connect.
- *
- * Prerequisites (for CI):
- *   - The trezor-user-env container must be running
- *   - The emulator must be initialized with the test seed
- *   - The bridge must be accessible on localhost:21325
- *
- * Test seed: "all all all all all all all all all all all all"
+ * With Trezor Connect 10 the extension reaches a device only through Suite, so a device
+ * connection is not tested here. The device itself is covered against the emulator by
+ * trezor-node-integration.test.ts, and the Suite handshake by e2e/tests/trezor-connect-v10.spec.ts.
+ * These run in the emulator workflow.
  */
 import { test, expect, Page } from '@playwright/test';
 import { launchExtension, cleanup, createWallet, TEST_PASSWORD } from '../fixtures';
-import { emulatorPressYes } from '../helpers/trezor-emulator';
 
 // Check if emulator tests should run
 const SKIP_EMULATOR_TESTS = process.env.TREZOR_EMULATOR_AVAILABLE !== '1';
-
-// Expected addresses from the "all all all..." test seed
-const EXPECTED_P2WPKH_ADDRESS = 'bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk';
 
 /**
  * Helper to set up the extension with a wallet before accessing protected pages
@@ -51,16 +42,6 @@ async function setupWalletForHardwareTest(page: Page): Promise<void> {
   // Wait for wallet content to appear (confirms auth state is UNLOCKED)
   // This ensures AuthRequired sees the proper state before navigation
   await page.waitForTimeout(500);
-}
-
-/**
- * Auto-confirm multiple times with delays
- */
-async function autoConfirm(times: number = 3, delayMs: number = 500): Promise<void> {
-  for (let i = 0; i < times; i++) {
-    await new Promise(resolve => setTimeout(resolve, delayMs));
-    await emulatorPressYes();
-  }
 }
 
 test.describe('Trezor Hardware Wallet', () => {
@@ -172,247 +153,6 @@ test.describe('Trezor Hardware Wallet', () => {
       await expect(shieldIcon).toBeVisible();
 
       await page.screenshot({ path: 'test-results/screenshots/trezor-security-ui.png' });
-    } finally {
-      await cleanup(context);
-    }
-  });
-
-  test('can connect to Trezor emulator and see discovery results', async () => {
-    const { context, page } = await launchExtension('trezor-connect', { useSidepanel: true });
-
-    try {
-      // First, create a wallet to get authenticated
-      await setupWalletForHardwareTest(page);
-
-      // Navigate to connect-hardware page
-      const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
-      await page.waitForLoadState('networkidle');
-
-      // Wait for the page to load (discovery-based UI)
-      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 10000 });
-
-      // Connect button should be visible
-      const connectButton = page.getByRole('button', { name: /Connect Trezor/i });
-      await expect(connectButton).toBeEnabled();
-
-      // Start auto-confirming on the emulator in the background
-      const confirmPromise = autoConfirm(10, 800);
-
-      // Click the connect button
-      await connectButton.click();
-
-      // Should show discovering state
-      const discoveringVisible = await page.getByText('Discovering Accounts').isVisible({ timeout: 5000 }).catch(() => false);
-      if (discoveringVisible) {
-        console.log('Saw discovering state');
-      }
-
-      // Wait for either:
-      // 1. Discovery results page (success)
-      // 2. Error message
-      // 3. Timeout
-      const result = await Promise.race([
-        // Success: See the wallet found/connected page
-        page.getByText(/Wallet Found|Wallet Connected/i).waitFor({ timeout: 45000 }).then(() => 'success'),
-        // Error: error message appears
-        page.locator('[role="alert"]').first().waitFor({ timeout: 45000 }).then(() => 'error'),
-      ]).catch(() => 'timeout');
-
-      // Ensure auto-confirm completes
-      await confirmPromise;
-
-      console.log(`Connection result: ${result}`);
-
-      if (result === 'success') {
-        // Should see the address
-        await expect(page.getByText(/bc1q|bc1p|^1|^3/)).toBeVisible();
-
-        // Should see balance info
-        await expect(page.getByText('Bitcoin Balance')).toBeVisible();
-        await expect(page.getByText('Counterparty Assets')).toBeVisible();
-
-        // Should have a button to continue
-        const continueButton = page.getByRole('button', { name: /Use This Wallet|Continue/i });
-        await expect(continueButton).toBeVisible();
-
-        await page.screenshot({ path: 'test-results/screenshots/trezor-discovery-results.png' });
-
-        // Click to continue
-        await continueButton.click();
-
-        // Should navigate to home
-        await page.waitForURL(/index/, { timeout: 10000 });
-        console.log('Successfully navigated to home after connection');
-      } else if (result === 'error') {
-        const errorText = await page.locator('[role="alert"]').first().textContent().catch(() => 'Unknown error');
-        console.log(`Connection error: ${errorText}`);
-        await page.screenshot({ path: 'test-results/screenshots/trezor-error.png' });
-      } else {
-        console.log('Connection timed out - popup may not reach localhost emulator');
-        await page.screenshot({ path: 'test-results/screenshots/trezor-timeout.png' });
-      }
-
-      // Only a completed connection proves the device path; anything else is reported as a skip.
-      test.skip(result !== 'success', `No Suite Web in this spec; Connect 10 reaches the device only through Suite (${result})`);
-    } finally {
-      await cleanup(context);
-    }
-  });
-
-  // Suite Web handshake/cancellation is covered without an emulator in
-  // e2e/tests/trezor-connect-v10.spec.ts.
-
-  test('validates that Trezor Connect SDK is loaded', async () => {
-    const { context, page } = await launchExtension('trezor-sdk', { useSidepanel: true });
-
-    try {
-      // First, create a wallet to get authenticated
-      await setupWalletForHardwareTest(page);
-
-      // Navigate to connect-hardware page
-      const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
-      await page.waitForLoadState('networkidle');
-
-      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 10000 });
-
-      // Check if TrezorConnect is available in the page context
-      const trezorStatus = await page.evaluate(async () => {
-        // The Trezor adapter should have been initialized
-        // We can check if the global TrezorConnect is available
-        // @ts-ignore
-        const hasTrezorConnect = typeof window.TrezorConnect !== 'undefined';
-
-        return {
-          hasTrezorConnect,
-          // Check if we can access browser.runtime (needed for Trezor Connect Web)
-          hasBrowserRuntime: typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined',
-        };
-      });
-
-      console.log('Trezor SDK status:', trezorStatus);
-
-      // browser.runtime should be available in extension context
-      expect(trezorStatus.hasBrowserRuntime).toBe(true);
-
-      await page.screenshot({ path: 'test-results/screenshots/trezor-sdk-check.png' });
-    } finally {
-      await cleanup(context);
-    }
-  });
-});
-
-/**
- * Post-connection operation tests
- * These test that hardware wallets can perform operations after connecting
- */
-test.describe('Trezor Post-Connection Operations', () => {
-  test.skip(SKIP_EMULATOR_TESTS, 'Trezor emulator not available');
-
-  // TODO: These tests require a connected hardware wallet
-  // They would test:
-  // - Sign message
-  // - Sign transaction
-  // - Receive flow (display address)
-
-  test.skip('can sign a message with hardware wallet', async () => {
-    // This test would:
-    // 1. Connect Trezor wallet
-    // 2. Navigate to sign message page
-    // 3. Enter a message
-    // 4. Confirm on device
-    // 5. Verify signature returned
-  });
-
-  test.skip('can sign a transaction with hardware wallet', async () => {
-    // This test would:
-    // 1. Connect Trezor wallet
-    // 2. Create a send transaction
-    // 3. Confirm on device
-    // 4. Verify signed tx returned
-  });
-});
-
-/**
- * Full integration test that proves the wallet works with Trezor
- */
-test.describe('Trezor Wallet Integration Proof', () => {
-  test.skip(SKIP_EMULATOR_TESTS, 'Trezor emulator not available');
-
-  test('complete Trezor wallet setup proves integration works', async () => {
-    const { context, page } = await launchExtension('trezor-integration', { useSidepanel: true });
-
-    try {
-      console.log('\n========================================');
-      console.log('TREZOR WALLET E2E INTEGRATION TEST');
-      console.log('========================================\n');
-
-      // Step 0: Create a wallet to get authenticated
-      console.log('Step 0: Setting up authentication...');
-      await setupWalletForHardwareTest(page);
-      console.log('  ✓ Authenticated');
-
-      // Step 1: Navigate to connect hardware
-      console.log('\nStep 1: Navigating to Connect Hardware page...');
-      const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
-      await page.waitForLoadState('networkidle');
-
-      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 10000 });
-      console.log('  ✓ Connect Hardware page loaded');
-
-      // Step 2: Verify UI elements (discovery-based flow)
-      console.log('\nStep 2: Verifying UI elements...');
-      await expect(page.getByText('Before connecting:')).toBeVisible();
-      await expect(page.getByText('Connect your Trezor via USB')).toBeVisible();
-      await expect(page.getByRole('button', { name: /Connect Trezor/i })).toBeVisible();
-      console.log('  ✓ All UI elements present');
-
-      // Step 3: Attempt connection
-      console.log('\nStep 3: Initiating Trezor connection...');
-
-      // Start auto-confirm
-      autoConfirm(15, 600);
-
-      await page.getByRole('button', { name: /Connect Trezor/i }).click();
-
-      // Wait for result (discovery page or error)
-      const connected = await page.getByText(/Wallet Found|Wallet Connected/i)
-        .waitFor({ timeout: 60000 })
-        .then(() => true)
-        .catch(() => false);
-
-      if (connected) {
-        console.log('  ✓ Trezor connected successfully!');
-
-        // Click continue
-        await page.getByRole('button', { name: /Use This Wallet|Continue/i }).click();
-        await page.waitForURL(/index/, { timeout: 10000 });
-
-        console.log('\n========================================');
-        console.log('TREZOR INTEGRATION TEST PASSED');
-        console.log('========================================');
-        console.log('\nThis test proves:');
-        console.log('  ✓ Extension can load Trezor Connect SDK');
-        console.log('  ✓ Browser runtime APIs are available');
-        console.log('  ✓ Connection to Trezor emulator works');
-        console.log('  ✓ Address derivation completes');
-        console.log('  ✓ Discovery flow shows results');
-        console.log('  ✓ Hardware wallet stored in extension');
-      } else {
-        // Check for error message
-        const errorVisible = await page.locator('[role="alert"]').first().isVisible().catch(() => false);
-        if (errorVisible) {
-          const errorText = await page.locator('[role="alert"]').first().textContent();
-          console.log(`  Connection error: ${errorText}`);
-        } else {
-          console.log('  Connection timed out (popup cannot reach localhost)');
-        }
-        test.skip(true, 'No Suite Web in this spec; Connect 10 reaches the device only through Suite');
-      }
-
-      await page.screenshot({ path: 'test-results/screenshots/trezor-integration-result.png' });
     } finally {
       await cleanup(context);
     }
