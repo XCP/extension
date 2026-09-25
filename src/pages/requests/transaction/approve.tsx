@@ -205,7 +205,8 @@ export default function ApproveTransactionPage() {
     ...(deferredVerificationFailure ? [verificationAttentionItem(verificationWarning)] : []),
     ...(hasHighFee ? [highFeeAttentionItem(decodedInfo.fee, decodedInfo.vsize)] : []),
   ], approvalPolicy?.requiresAcknowledgement);
-  const retryAvailable = signedInputsUnknownStatus.length > 0
+  // An input past the lookup cap stays unknown however often it is retried.
+  const retryAvailable = signedInputsUnknownStatus.some(entry => !entry.overLimit)
     || decodedInfo.inputs.some(input => input.value === undefined || !input.address);
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
   const blockingItems: WarningItem[] = [

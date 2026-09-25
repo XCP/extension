@@ -38,7 +38,7 @@ vi.mock('@/platform/walletManager', () => ({
 // entirely the wrong reason. The first run of this file did exactly that.
 vi.mock('@/platform/provider/rateLimiter', () => {
   const allow = { isAllowed: () => true, getResetTime: () => 0, reset: () => {} };
-  return { apiRateLimiter: allow, connectionRateLimiter: allow, transactionRateLimiter: allow };
+  return { apiRateLimiter: allow, connectionRateLimiter: allow, signPopupRateLimiter: allow, transactionRateLimiter: allow };
 });
 vi.mock('../connectionService');
 vi.mock('../approvalService');

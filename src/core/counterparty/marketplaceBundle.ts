@@ -208,6 +208,7 @@ export function analyzeAcceptanceCpfpBundle(
         : ['the parent exact-offer acceptance did not independently prove']
     ));
   }
+  const parentBlockers = blockers.length;
   if (
     childIntent.operationId !== parentIntent.operationId
     || childIntent.authorizationId !== parentIntent.authorizationId
@@ -314,8 +315,12 @@ export function analyzeAcceptanceCpfpBundle(
   const allProblems = [...retry, ...blockers];
   const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved';
   const claim = parentIntent.assets[0];
+  // The parent's reason for blocking names the package's, unless the child adds its own.
+  const blockKind = parentReview.status === 'blocked' && blockers.length === parentBlockers
+    ? parentReview.blockKind : undefined;
   return {
     status,
+    ...(blockKind ? { blockKind } : {}),
     family: 'accept_exact_offer_with_cpfp',
     title: t('marketplace_bundle_accept_btc_for_with_fee_bump', [
       (parentIntent.priceSats / 100_000_000).toFixed(8),

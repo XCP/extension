@@ -2,7 +2,7 @@ import './setup'; // Must be first to setup browser mocks
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { DEFAULT_SETTINGS } from '@/core/settings';
-import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
+import { apiRateLimiter, connectionRateLimiter, signPopupRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
 import { walletManager } from '@/platform/walletManager';
 import { getApprovalService } from '../approvalService';
 import { getConnectionService } from '../connectionService';
@@ -61,6 +61,7 @@ describe('ProviderService Security Tests', () => {
     // Setup rate limiter mocks - by default allow all requests
     vi.mocked(connectionRateLimiter.isAllowed).mockReturnValue(true);
     vi.mocked(transactionRateLimiter.isAllowed).mockReturnValue(true);
+    vi.mocked(signPopupRateLimiter.isAllowed).mockReturnValue(true);
     vi.mocked(apiRateLimiter.isAllowed).mockReturnValue(true);
     vi.mocked(connectionRateLimiter.resetAll).mockReturnValue(undefined);
     vi.mocked(transactionRateLimiter.resetAll).mockReturnValue(undefined);

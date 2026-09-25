@@ -267,6 +267,21 @@ export async function findActiveFlowByKey(
   );
 }
 
+/**
+ * Approval popups one origin may have open at once. Every signature already needs a human click,
+ * so a site gains nothing by queueing more; this only stops a page from stacking windows.
+ */
+export const MAX_OPEN_SIGN_FLOWS_PER_ORIGIN = 3;
+
+/** This origin's flows still waiting on the user or the signer, excluding stale ones. */
+export async function countOpenSignFlows(origin: string): Promise<number> {
+  const now = Date.now();
+  const all = await signFlowStorage.getAll();
+  return all.filter(entry => entry.origin === origin
+    && (entry.status === 'pending' || entry.status === 'signing')
+    && now - entry.timestamp < SIGN_FLOW_TTL_MS).length;
+}
+
 /** Every flow still awaiting a decision. */
 export async function getPendingSignFlows(): Promise<SignFlowEntry[]> {
   const all = await signFlowStorage.getAll();

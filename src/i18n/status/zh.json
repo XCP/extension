@@ -2077,6 +2077,15 @@
     "safety_blocked_durable_sell_authorization",
     "safety_durable_sell_authorization_detail",
     "approval_approval_warnings_input_pending_parent",
-    "approval_approval_warnings_pending_parent_retry"
+    "approval_approval_warnings_pending_parent_retry",
+    "approval_marketplace_retry_title",
+    "approval_marketplace_retry_description",
+    "approval_marketplace_listing_changed_title",
+    "approval_marketplace_listing_changed_description",
+    "approval_marketplace_different_transaction_title",
+    "approval_marketplace_different_transaction_description",
+    "approval_too_many_inputs_title",
+    "approval_too_many_inputs_description",
+    "provider_review_transaction_data_mismatch"
   ]
 }

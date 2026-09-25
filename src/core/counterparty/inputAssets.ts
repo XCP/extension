@@ -36,6 +36,11 @@ export interface InputAttachedAssets {
    * Retrying after it confirms resolves it.
    */
   pendingParentTxid?: string;
+  /**
+   * Set with `lookupFailed` when the input was never checked because the transaction has more
+   * inputs than MAX_ASSET_LOOKUP_INPUTS. Unlike a failed lookup, retrying cannot clear it.
+   */
+  overLimit?: true;
   assets: Array<{
     asset: string;
     /** Exact Counterparty base-unit quantity, preserved as decimal text when the API supplies it. */
@@ -75,6 +80,7 @@ export async function fetchInputsAttachedAssets(
   );
   const checked = byPriority.slice(0, MAX_ASSET_LOOKUP_INPUTS);
   const unchecked = byPriority.slice(MAX_ASSET_LOOKUP_INPUTS);
+  const holding = await ledgerMembership(evidenceSource, checked.map(input => `${input.txid}:${input.vout}`));
 
   const results = await Promise.all(
     checked.map(async (input): Promise<InputAttachedAssets | null> => {
@@ -84,7 +90,11 @@ export async function fetchInputsAttachedAssets(
         // signed inputs were all checked clean, and whose own payload does not bind an asset to
         // this output. Do not turn Counterparty's indexing lag into an "unknown asset" blocker.
         if (await resolveTrustedPrevout(input.txid, input.vout)) return null;
-        const assets = toAttachedAssets(await evidenceSource.balances(utxo, false));
+        // The batched membership answer stands in for this input's own balance read when it says
+        // the ledger holds nothing there; an empty answer is then checked exactly as before.
+        const assets = holding && !holding.has(utxo)
+          ? []
+          : toAttachedAssets(await evidenceSource.balances(utxo, false));
         if (assets.length > 0) return { inputIndex: input.index, utxo, assets };
         // Someone else's inputs are theirs to lose; only a signed input's emptiness is load-bearing.
         if (!signed.has(input.index)) return null;
@@ -106,15 +116,30 @@ export async function fetchInputsAttachedAssets(
     })
   );
 
-  // Never queried, so unknown rather than empty.
-  const displaced = unchecked.map((input) => ({
+  // Never queried, so unknown rather than empty — and marked, since retrying cannot clear it.
+  const displaced = unchecked.map((input): InputAttachedAssets => ({
     inputIndex: input.index,
     utxo: `${input.txid}:${input.vout}`,
     assets: [],
     lookupFailed: true,
+    overLimit: true,
   }));
 
   return [...results.filter((r): r is InputAttachedAssets => r !== null), ...displaced];
+}
+
+/**
+ * Which of these outpoints the ledger says hold any balance, asked in batches rather than one
+ * request per input. Null when the source cannot answer, so each input is read on its own.
+ */
+async function ledgerMembership(source: AttachmentEvidenceSource, utxos: string[]): Promise<Set<string> | null> {
+  if (!source.withBalances || utxos.length === 0) return null;
+  try {
+    const result = await source.withBalances(utxos);
+    return result instanceof Set ? result : null;
+  } catch {
+    return null;
+  }
 }
 
 function toAttachedAssets(balances: UtxoBalance[]): InputAttachedAssets['assets'] {

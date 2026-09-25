@@ -33,6 +33,7 @@ import {
   fetchBackendTransaction,
   fetchLedgerHeights,
   fetchUtxoBalances,
+  fetchUtxosWithBalances,
   type UtxoBalance,
 } from '@/core/counterparty/api';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
@@ -54,6 +55,8 @@ export interface ParentTransaction {
 export interface AttachmentEvidenceSource {
   /** Balances attached to `txid:vout` per the Counterparty ledger. `fresh` bypasses any cache. */
   balances(utxo: string, fresh: boolean): Promise<UtxoBalance[]>;
+  /** Which of these outpoints hold any balance, asked in batches; optional, uncached. */
+  withBalances?(utxos: string[]): Promise<Set<string>>;
   /** The transaction and its confirmation state, or null when no source knows it. */
   parent(txid: string): Promise<ParentTransaction | null>;
   /** Current tip and ledger heights. Must be read after the parent it is compared against. */
@@ -82,6 +85,7 @@ async function liveParent(txid: string): Promise<ParentTransaction | null> {
 
 export const liveAttachmentEvidenceSource: AttachmentEvidenceSource = {
   balances: async (utxo, fresh) => (await fetchUtxoBalances(utxo, { fresh })).result ?? [],
+  withBalances: utxos => fetchUtxosWithBalances(utxos),
   parent: liveParent,
   ledgerHeights: () => fetchLedgerHeights(),
 };

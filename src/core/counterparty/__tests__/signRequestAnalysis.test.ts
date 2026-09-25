@@ -619,7 +619,7 @@ describe('the marketplace intent proof', () => {
     });
 
     expect(analysis.safety.warnings.slice(0, 2).map(warning => warning.title)).toEqual([
-      'Blocked: Marketplace Intent Mismatch',
+      'Blocked: The Site Described a Different Transaction',
       'Blocked: Durable Sell Authorization',
     ]);
   });
@@ -633,7 +633,7 @@ describe('the marketplace intent proof', () => {
     });
 
     expect(analysis.safety.blocked).toBe(true);
-    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Marketplace Intent Mismatch');
+    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: The Site Described a Different Transaction');
   });
 
   it('allows a proved checkout and replaces the generic detach alarm with exact semantic terms', async () => {
@@ -687,7 +687,70 @@ describe('the marketplace intent proof', () => {
     const analysis = await checkout();
 
     expect(analysis.safety.blocked).toBe(true);
-    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Marketplace Intent Mismatch');
+    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: The Site Described a Different Transaction');
+  });
+
+  // M1: a listing that sold (the ledger no longer shows the claimed asset) is not the site lying.
+  it('names a sold listing as a changed listing, not a mismatch', async () => {
+    const detach = { success: true, messageType: 'detach', data: { destination: SIGNER } };
+    vi.mocked(verifyProviderTransaction).mockReturnValue({ localUnpack: detach } as never);
+    const analysis = await checkout({
+      attachedAssets: Promise.resolve([{ inputIndex: 1, utxo: `${LISTING_TXID}:4`, assets: [] }]),
+    });
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.marketplaceReview).toMatchObject({ status: 'blocked', blockKind: 'ledger' });
+    expect(analysis.safety.warnings[0]).toMatchObject({
+      code: 'marketplace_blocked', severity: 'block', title: 'Blocked: This Listing Changed',
+      data: { kind: 'ledger', details: ['seller input 1 does not resolve to exactly one attached asset'] },
+    });
+  });
+
+  it('calls it a different transaction when a byte-level contradiction comes with the drift', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: { success: true, messageType: 'detach', data: { destination: VAULT } },
+    } as never);
+    const analysis = await checkout({
+      attachedAssets: Promise.resolve([{ inputIndex: 1, utxo: `${LISTING_TXID}:4`, assets: [] }]),
+    });
+
+    expect(analysis.marketplaceReview?.blockKind).toBeUndefined();
+    expect(analysis.safety.warnings[0]).toMatchObject({
+      code: 'marketplace_blocked', data: { kind: 'transaction' },
+    });
+  });
+
+  // M2: an indexer outage leads with the fix; the internal reason is kept only as a detail.
+  it('leads a failed lookup with a retry, keeping the internal reason as a detail', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: { success: true, messageType: 'detach', data: { destination: SIGNER } },
+    } as never);
+    const analysis = await checkout({
+      attachedAssets: Promise.resolve([{ inputIndex: 1, utxo: `${LISTING_TXID}:4`, assets: [], lookupFailed: true }]),
+    });
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]).toMatchObject({
+      code: 'marketplace_retry', title: 'Retry Required: Counterparty Data Unavailable',
+      data: { details: ['the attached-asset lookup for seller input 1 failed'] },
+    });
+  });
+
+  // F7: an input past the lookup cap is unknown for good, so it must not read as "retry".
+  it('blocks an over-limit input as too many inputs, never as a retry', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: { success: true, messageType: 'detach', data: { destination: SIGNER } },
+    } as never);
+    const analysis = await checkout({
+      attachedAssets: Promise.resolve([
+        { inputIndex: 1, utxo: `${LISTING_TXID}:4`, assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }] },
+        { inputIndex: 0, utxo: `${'11'.repeat(32)}:0`, assets: [], lookupFailed: true, overLimit: true },
+      ]),
+    });
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.marketplaceReview).toMatchObject({ status: 'blocked', blockKind: 'input_limit' });
+    expect(analysis.safety.warnings[0]).toMatchObject({ code: 'marketplace_blocked', data: { kind: 'input_limit' } });
   });
 
   it.each([
@@ -735,7 +798,7 @@ describe('the marketplace intent proof', () => {
     });
     expect(analysis.safety.blocked).toBe(true);
     expect(analysis.marketplaceReview?.status).toBe('blocked');
-    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Marketplace Intent Mismatch');
+    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: The Site Described a Different Transaction');
   });
 
   it.each([

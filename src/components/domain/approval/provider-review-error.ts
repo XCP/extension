@@ -27,6 +27,7 @@ export function providerReviewErrorMessage(error: unknown, fallback = t('common_
     case 'review_changed': return t('provider_review_review_changed');
     case 'acknowledge_risks': return t('provider_review_acknowledge_risks');
     case 'missing_attachment': return t('provider_review_missing_attachment');
+    case 'transaction_data_mismatch': return t('provider_review_transaction_data_mismatch');
     case 'interrupted': return t('provider_review_interrupted');
     case 'expired_completion': return t('provider_review_expired_completion');
     case 'expired_delivery': return t('provider_review_expired_delivery');

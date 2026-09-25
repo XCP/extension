@@ -35,6 +35,10 @@ export type SecurityWarning = SecurityWarningText & (
   | { code: 'misdirected_recovery_key'; data: { count: number } }
   | { code: 'zeld_would_leave'; data: { count: number } }
   | { code: 'durable_sell_authorization'; data: { inputs: number[] } }
+  /** A marketplace proof that could not finish: `details` are the wallet's internal reasons. */
+  | { code: 'marketplace_retry'; data: { details: string[] } }
+  /** A marketplace proof that failed, by why (MarketplaceApprovalReview.blockKind). */
+  | { code: 'marketplace_blocked'; data: { kind: 'ledger' | 'transaction' | 'input_limit'; details: string[] } }
   | { code: 'expected_btc_payment'; data: { totalSats: number; addresses: string[]; plainBitcoinPayment: boolean } }
   | { code: 'external_btc_output'; data: { totalSats: number; addresses: string[] } }
   | { code: 'counterparty_data_outputs' | 'unattributable_outputs'; data: { totalSats: number; count: number } }

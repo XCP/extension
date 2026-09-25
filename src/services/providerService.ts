@@ -30,7 +30,12 @@ import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import { analytics } from '@/platform/fathom';
 import { continuationUnlockPath, openExtensionPopup, reusePopupWindow } from '@/platform/popup';
-import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
+import {
+  apiRateLimiter,
+  connectionRateLimiter,
+  signPopupRateLimiter,
+  transactionRateLimiter,
+} from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import { supportsPairedContinuity } from '@/platform/provider/requestIdentity';
 import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/platform/provider/signDelivery';
@@ -38,9 +43,11 @@ import {
   beginSignFlow,
   type CompletedSignFlow,
   computeRequestKey,
+  countOpenSignFlows,
   findActiveFlowByKey,
   findSafeChangeSigningAddress,
   getSignFlow,
+  MAX_OPEN_SIGN_FLOWS_PER_ORIGIN,
   SIGN_FLOW_TTL_MS,
   type SignFlowEventPrefix,
 } from '@/platform/provider/signFlow';
@@ -237,6 +244,16 @@ async function runSignFlow<T>(args: {
   const flow = await withFlowCreationLock(async () => {
     const existing = await findActiveFlowByKey(requestKey, args.origin);
     if (existing) return existing;
+    // Only a request that is about to open a popup is charged, and after all validation.
+    if (await countOpenSignFlows(args.origin) >= MAX_OPEN_SIGN_FLOWS_PER_ORIGIN) {
+      throw new Error(
+        `Too many signing requests are waiting for approval. Finish or cancel one before sending another (limit ${MAX_OPEN_SIGN_FLOWS_PER_ORIGIN}).`,
+      );
+    }
+    if (!signPopupRateLimiter.isAllowed(args.origin)) {
+      const resetTime = signPopupRateLimiter.getResetTime(args.origin);
+      throw new Error(`Signing request rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds.`);
+    }
     const requestId = generateRequestId(args.approval.eventPrefix);
     await args.createAndOpen(requestId, requestKey);
     const created = await getSignFlow(requestId);
@@ -467,7 +484,9 @@ export function createProviderService(): ProviderService {
       
       // Apply rate limiting based on method type
       const isConnectionMethod = method === 'xcp_requestAccounts';
-      const isTransactionMethod = method.startsWith('xcp_sign') || method === 'xcp_broadcastTransaction';
+      // Signing requests are limited where they open a popup (runSignFlow), not here: charging
+      // them before validation counted rejected, rejoined and cancelled requests against a site.
+      const isTransactionMethod = method === 'xcp_broadcastTransaction';
       
       if (isConnectionMethod && !connectionRateLimiter.isAllowed(origin)) {
         const resetTime = connectionRateLimiter.getResetTime(origin);

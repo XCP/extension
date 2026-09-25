@@ -500,6 +500,33 @@
   "approval_approval_warnings_the_balance_lookup_failed_so": {
     "message": "残高の照会に失敗したため、アタッチされたアセットがないとは言い切れません。"
   },
+  "approval_marketplace_retry_title": {
+    "message": "Counterparty のデータを一時的に取得できません"
+  },
+  "approval_marketplace_retry_description": {
+    "message": "しばらくしてから再試行してください。"
+  },
+  "approval_marketplace_listing_changed_title": {
+    "message": "この出品は変更されました"
+  },
+  "approval_marketplace_listing_changed_description": {
+    "message": "アセットがサイトの表示と一致しなくなりました。売却または移動された可能性があります。サイトに戻って再読み込みしてください。"
+  },
+  "approval_marketplace_different_transaction_title": {
+    "message": "サイトの説明と異なる取引です"
+  },
+  "approval_marketplace_different_transaction_description": {
+    "message": "この取引はサイトの説明と一致しないため、ウォレットは署名しません。"
+  },
+  "approval_too_many_inputs_title": {
+    "message": "確認できる入力数を超えています"
+  },
+  "approval_too_many_inputs_description": {
+    "message": "この取引は $1 個を超える入力を使用しており、ウォレットがアタッチされたアセットを確認できる数を超えています。入力を減らすようサイトに依頼してください。"
+  },
+  "provider_review_transaction_data_mismatch": {
+    "message": "サイトの取引データがブロックチェーンと一致しません。取引を作り直すようサイトに依頼してください。"
+  },
   "approval_approval_warnings_pending_parent_retry": {
     "message": "未承認のトランザクションがこれらの入力に Counterparty アセットをアタッチする可能性があり、承認されるまで台帳には表示されません。承認後にもう一度お試しください。"
   },

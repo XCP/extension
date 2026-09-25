@@ -142,5 +142,12 @@ class RateLimiter {
 
 // Create singleton instances for different types of requests
 export const connectionRateLimiter = new RateLimiter(5, 60000); // 5 connection attempts per minute
-export const transactionRateLimiter = new RateLimiter(10, 60000); // 10 transactions per minute
+export const transactionRateLimiter = new RateLimiter(10, 60000); // 10 broadcasts per minute
+/**
+ * Approval popups opened per origin per minute. Charged only when a signing request actually opens
+ * one, so validation failures, rejoined requests and cancelled prompts cost nothing. The real limit
+ * is the per-origin cap on open popups (signFlow.ts); this backstop only slows a page that reopens
+ * a prompt the moment the user closes it.
+ */
+export const signPopupRateLimiter = new RateLimiter(30, 60000);
 export const apiRateLimiter = new RateLimiter(100, 60000); // 100 API calls per minute
