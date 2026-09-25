@@ -3,21 +3,42 @@ name: PR Tests
 permissions:
   contents: read
 
+# Minutes are billed, so this runs once per PR head and not again on merge: main only ever
+# receives squashes of PRs that passed here. A newer push to the same PR cancels the older run.
 on:
   pull_request:
     branches: [ main, develop ]
-    types: [ opened, synchronize, reopened ]
-  push:
-    branches: [ main ]
+    types: [ opened, synchronize, reopened, ready_for_review ]
+  workflow_dispatch:
+
+concurrency:
+  group: pr-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check-pinned-dependencies:
     name: Check Pinned Dependencies
     runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.changes.outputs.code }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # A PR that only touches docs skips the unit and e2e suites. Anything else, or no PR base
+      # (a manual run), runs everything.
+      - name: Detect code changes
+        id: changes
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then echo "code=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          files=$(git diff --name-only "$base" "${{ github.sha }}")
+          echo "$files"
+          if echo "$files" | grep -qvE '(\.md$|^docs/|^LICENSE$)'; then code=true; else code=false; fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
 
       - name: Check for unpinned dependencies
         run: |
@@ -72,11 +93,13 @@ jobs:
   unit-tests:
     name: Unit Tests (Shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    needs: lint-and-type-check
+    needs: [check-pinned-dependencies, lint-and-type-check]
+    if: needs.check-pinned-dependencies.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        # Each job pays for install and build, and a shard ran ~1 minute of tests, so two is enough.
+        shard: [1, 2]
 
     steps:
       - name: Checkout code
@@ -97,7 +120,7 @@ jobs:
       - name: Run unit tests (Shard ${{ matrix.shard }}/10)
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-        run: npx vitest run src --shard=${{ matrix.shard }}/10
+        run: npx vitest run src --shard=${{ matrix.shard }}/2
 
       - name: Upload unit test results
         if: always()
@@ -123,14 +146,16 @@ jobs:
     # `--no-sandbox` and `--disable-dev-shm-usage`, so no user remapping is needed.
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
-    timeout-minutes: 30  # Hard backstop so a stalled setup can't burn the 6h job cap
-    needs: lint-and-type-check
+    timeout-minutes: 45  # Hard backstop so a stalled setup can't burn the 6h job cap
+    needs: [check-pinned-dependencies, lint-and-type-check]
+    # Drafts are still being written; the suite runs once they are marked ready.
+    if: github.event.pull_request.draft != true && needs.check-pinned-dependencies.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
-        # Using 20 parallel batches for ~112 test files (~5-6 files per batch)
-        # This reduces tests per batch to fit within 15-minute timeout
-        batch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        # Five batches: each job spends ~3 minutes on container, install and build before any
+        # test runs, so twenty batches spent more on setup than on tests.
+        batch: [1, 2, 3, 4, 5]
 
     steps:
       - name: Checkout code
@@ -156,10 +181,10 @@ jobs:
           sleep 2
 
       - name: Run E2E tests (Batch ${{ matrix.batch }})
-        timeout-minutes: 15  # Set a reasonable timeout per batch
+        timeout-minutes: 35  # Set a reasonable timeout per batch
         run: |
           # Dynamically discover all test files and distribute them across batches
-          TOTAL_BATCHES=20
+          TOTAL_BATCHES=5
           CURRENT_BATCH=${{ matrix.batch }}
 
           # Get all test files, sorted for consistency
@@ -208,12 +233,17 @@ jobs:
   unit-tests-status:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: [unit-tests]
+    needs: [check-pinned-dependencies, unit-tests]
     if: always()
 
     steps:
       - name: Check unit test results
         run: |
+          # A docs-only PR skips the unit suite.
+          if [ "${{ needs.check-pinned-dependencies.outputs.code }}" = "false" ] && [ "${{ needs.unit-tests.result }}" = "skipped" ]; then
+            echo "Docs-only change; unit tests not needed"
+            exit 0
+          fi
           if [ "${{ needs.unit-tests.result }}" != "success" ]; then
             echo "Unit tests failed!"
             exit 1
@@ -223,13 +253,22 @@ jobs:
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [unit-tests, e2e-tests]
+    needs: [check-pinned-dependencies, unit-tests, e2e-tests]
     if: always()
 
     steps:
       - name: Check test results
         run: |
-          if [ "${{ needs.unit-tests.result }}" != "success" ] || [ "${{ needs.e2e-tests.result }}" != "success" ]; then
+          UNIT="${{ needs.unit-tests.result }}"
+          E2E="${{ needs.e2e-tests.result }}"
+          # A docs-only PR skips both suites.
+          if [ "${{ needs.check-pinned-dependencies.outputs.code }}" = "false" ]; then
+            [ "$UNIT" = "skipped" ] && UNIT=success
+            [ "$E2E" = "skipped" ] && E2E=success
+          fi
+          # A draft skips the e2e suite; it runs, and must pass, once the PR is ready.
+          if [ "$E2E" = "skipped" ] && [ "${{ github.event.pull_request.draft }}" = "true" ]; then E2E=success; fi
+          if [ "$UNIT" != "success" ] || [ "$E2E" != "success" ]; then
             echo "Tests failed!"
             exit 1
           fi
