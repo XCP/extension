@@ -4954,9 +4954,6 @@
   "wallets_connect_hardware_failed_to_connect_hardware_wallet": {
     "message": "ハードウェアウォレットに接続できませんでした"
   },
-  "wallets_connect_hardware_select_your_account_on_your": {
-    "message": "Trezor デバイスでアカウントを選択する"
-  },
   "wallets_connect_hardware_select_your_account_in_trezor_suite": {
     "message": "Trezor Suite でアカウントを選択する"
   },

@@ -4954,9 +4954,6 @@
   "wallets_connect_hardware_failed_to_connect_hardware_wallet": {
     "message": "连接硬件钱包失败"
   },
-  "wallets_connect_hardware_select_your_account_on_your": {
-    "message": "在 Trezor 设备上选择你的账户"
-  },
   "wallets_connect_hardware_select_your_account_in_trezor_suite": {
     "message": "在 Trezor Suite 中选择你的账户"
   },

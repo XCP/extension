@@ -1980,7 +1980,6 @@ export const EN = {
   "wallets_connect_hardware_connecting": "Connecting...",
   "wallets_connect_hardware_failed_to_connect_hardware_wallet": "Failed to connect hardware wallet",
   "wallets_connect_hardware_select_your_account_in_trezor_suite": "Select your account in Trezor Suite",
-  "wallets_connect_hardware_select_your_account_on_your": "Select your account on your Trezor device",
   "wallets_connect_hardware_select_your_account_when_prompted": "Select your account when prompted",
   "wallets_connect_hardware_unlock_your_device_with_pin": "Unlock your device with PIN",
   "wallets_connect_hardware_your_private_keys_never_leave": "Your private keys never leave your Trezor device.",
