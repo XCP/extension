@@ -6592,9 +6592,9 @@
     "message": "Failed to connect hardware wallet",
     "description": "pages/keychain/wallets/connect-hardware.tsx"
   },
-  "wallets_connect_hardware_select_your_account_on_your": {
-    "message": "Select your account on your Trezor device",
-    "description": "pages/keychain/wallets/connect-hardware.tsx"
+  "wallets_connect_hardware_select_your_account_in_trezor_suite": {
+    "message": "Select your account in Trezor Suite",
+    "description": "pages/keychain/wallets/connect-hardware.tsx (Connect 10: account selection happens in Trezor Suite)"
   },
   "wallets_connect_hardware_select_your_account_when_prompted": {
     "message": "Select your account when prompted",

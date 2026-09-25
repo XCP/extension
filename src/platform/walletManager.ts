@@ -743,17 +743,15 @@ export class WalletManager {
     }
 
     // Dynamically import Trezor adapter
-    const { getTrezorAdapter } = await this.mutationStep(import('@/core/hardware/trezorAdapter'));
+    const { getTrezorAdapter, resetTrezorAdapter } = await this.mutationStep(import('@/core/hardware/trezorAdapter'));
+    await this.mutationStep(resetTrezorAdapter());
     const trezor = getTrezorAdapter();
 
-    // Initialize with settings
-    const settings = this.getSettings();
-    await this.mutationStep(trezor.init({ testMode: settings?.trezorEmulatorMode }));
+    await this.mutationStep(trezor.init());
 
     // Perform account discovery - this shows Trezor's account selection UI
     // discoverAccount validates the path internally and returns accountIndex
-    // KEY: xpub is extracted from descriptor - NO separate getXpub() call needed!
-    // This reduces TrezorConnect calls from 2 to 1, meaning fewer permission prompts.
+    // The selected account includes its xpub; discoverAccount resolves its /0/0 address.
     const discovered = await this.mutationStep(trezor.discoverAccount(usePassphrase));
 
     return this.finalizeHardwareWallet({
@@ -1624,9 +1622,7 @@ export class WalletManager {
     const { DerivationPaths } = await import('@/core/hardware/types');
     const trezor = getTrezorAdapter();
 
-    // Initialize with settings
-    const settings = this.getSettings();
-    await trezor.init({ testMode: settings?.trezorEmulatorMode });
+    await trezor.init();
 
     return { trezor, DerivationPaths, hardwareData };
   }
@@ -1813,7 +1809,6 @@ export class WalletManager {
       const result = await trezor.signMessage({
         message,
         path: pathArray,
-        coin: 'Bitcoin',
       });
 
       assertStillAuthorized();

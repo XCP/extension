@@ -260,51 +260,8 @@ test.describe('Trezor Hardware Wallet', () => {
     }
   });
 
-  // TODO(trezor): connect-webextension 10.x-alpha errors during connect in headless CI; revisit on a stable release.
-  test.fixme('shows Trezor popup when connecting', async () => {
-    const { context, page } = await launchExtension('trezor-popup', { useSidepanel: true });
-
-    try {
-      // First, create a wallet to get authenticated
-      await setupWalletForHardwareTest(page);
-
-      // Navigate to connect-hardware page
-      const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
-      await page.waitForLoadState('networkidle');
-
-      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 10000 });
-
-      // Listen for new pages (Trezor Connect popup)
-      const popupPromise = context.waitForEvent('page', { timeout: 15000 }).catch(() => null);
-
-      // Click connect
-      await page.getByRole('button', { name: /Connect Trezor/i }).click();
-
-      // Wait for popup
-      const popup = await popupPromise;
-
-      if (popup) {
-        // Trezor Connect popup appeared
-        console.log('Trezor Connect popup URL:', popup.url());
-        await popup.screenshot({ path: 'test-results/screenshots/trezor-popup.png' });
-
-        // The popup URL should be from Trezor Connect
-        const popupUrl = popup.url();
-        expect(popupUrl).toMatch(/connect\.trezor\.io|localhost/);
-
-        // Close popup to clean up
-        await popup.close().catch(() => {});
-      } else {
-        // No popup - might be using iframe or emulator connected directly
-        console.log('No Trezor popup detected - may be using direct emulator connection');
-      }
-
-      await page.screenshot({ path: 'test-results/screenshots/trezor-after-click.png' });
-    } finally {
-      await cleanup(context);
-    }
-  });
+  // Suite Web handshake/cancellation is covered without an emulator in
+  // e2e/tests/trezor-connect-v10.spec.ts.
 
   test('validates that Trezor Connect SDK is loaded', async () => {
     const { context, page } = await launchExtension('trezor-sdk', { useSidepanel: true });

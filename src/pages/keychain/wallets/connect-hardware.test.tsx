@@ -35,7 +35,8 @@ it('updates a retained hardware failure in every supported language without reco
     expect(screen.getByText(t('hardware_error_busy'))).toBeVisible();
     expect(stable.header.setHeaderProps).toHaveBeenLastCalledWith(expect.objectContaining({ title: t('wallets_connect_hardware_connect_trezor') }));
     expect(stable.wallet.createHardwareWalletWithDiscovery).toHaveBeenCalledExactlyOnceWith('trezor');
-    expect(stable.resetAdapter).toHaveBeenCalledOnce();
+    // Connect 10 routes through Trezor Suite; resetting before connecting would drop that session.
+    expect(stable.resetAdapter).not.toHaveBeenCalled();
     expect(failure.message).toBe('Original device busy evidence');
   }
   expect(stable.wallet.setHardwareOperationInProgress.mock.calls).toEqual([[true], [false]]);
@@ -51,11 +52,12 @@ it.each(['Taproot P2TR: unrecognized device response', 'Cancelled: raw vendor ev
   expect(stable.wallet.createHardwareWalletWithDiscovery).toHaveBeenCalledOnce();
 });
 
-it('keeps the original adapter reset and account discovery command on success', async () => {
+it('runs account discovery once without resetting the Suite connection', async () => {
   stable.wallet.createHardwareWalletWithDiscovery.mockResolvedValue({ id: 'hardware-wallet' });
   render(<MemoryRouter><ConnectHardware /></MemoryRouter>);
   fireEvent.click(screen.getByRole('button', { name: t('wallets_connect_hardware_connect_trezor') }));
   await waitFor(() => expect(stable.wallet.setHardwareOperationInProgress).toHaveBeenLastCalledWith(false));
-  expect(stable.resetAdapter).toHaveBeenCalledOnce();
+  // Connect 10 routes through Trezor Suite; resetting before connecting would drop that session.
+    expect(stable.resetAdapter).not.toHaveBeenCalled();
   expect(stable.wallet.createHardwareWalletWithDiscovery).toHaveBeenCalledExactlyOnceWith('trezor');
 });

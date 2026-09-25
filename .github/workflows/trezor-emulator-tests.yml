@@ -9,7 +9,7 @@ on:
     paths:
       - 'src/core/hardware/**'
       - 'src/core/bitcoin/**'
-      - 'src/pages/wallet/connect-hardware.tsx'
+      - 'src/pages/keychain/wallets/connect-hardware.tsx'
       - 'e2e/hardware/**'
       - 'e2e/helpers/trezor-emulator.ts'
       - 'docker-compose.trezor.yml'
@@ -97,8 +97,6 @@ jobs:
           done
 
       - name: Build extension
-        env:
-          TREZOR_TEST_MODE: 'true'
         run: npm run build
 
       - name: Cache Playwright browsers

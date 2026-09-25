@@ -18,10 +18,21 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { Address, OutScript, p2wpkh, RawWitness, SigHash, Transaction } from '@scure/btc-signer';
-import TrezorConnect from '@trezor/connect';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import TrezorConnect, { UI_EVENTS } from '@trezor/connect';
+import { BridgeTransport } from '@trezor/transport-common';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { TrezorAdapter } from '../../src/core/hardware/trezorAdapter';
 import { importVerifiedHardwareP2wpkhSignatures } from '../../src/core/bitcoin/hardwarePsbt';
 import { finalizePSBT } from '../../src/core/bitcoin/psbt';
+
+// Replace only the Suite transport boundary. Adapter calls still reach the real
+// Connect 10 SDK and emulator; the suite's beforeAll initializes BridgeTransport.
+vi.mock('@trezor/connect-webextension', async () => {
+  const { default: sdk } = await import('@trezor/connect');
+  return { default: { ...sdk, init: async () => {},
+    signTransaction: (params: Parameters<typeof sdk.signTransaction>[0]) => sdk.signTransaction(params),
+  } };
+});
 
 // Use HTTP-based emulator control instead of WebSocket-based trezor-user-env-link
 // This avoids TypeScript errors in the trezor-user-env-link package
@@ -88,8 +99,8 @@ function confirmDevicePrompts(): () => void {
       void emulatorPressYes();
     }, 100);
   };
-  TrezorConnect.on('ui-button', handler);
-  return () => TrezorConnect.off('ui-button', handler);
+  TrezorConnect.on(UI_EVENTS.BUTTON_REQUEST, handler);
+  return () => TrezorConnect.off(UI_EVENTS.BUTTON_REQUEST, handler);
 }
 
 // Skip if emulator is not available
@@ -140,7 +151,7 @@ describe('Trezor Node.js Integration Tests', () => {
           appUrl: 'https://xcpwallet.com',
           email: 'support@xcpwallet.com',
         },
-        transports: ['BridgeTransport'],
+        transports: [new BridgeTransport({ id: 'xcp-wallet-tests', port: Number(new URL(BRIDGE_URL).port || 21325) })],
         debug: false,
       });
       console.log('TrezorConnect initialized');
@@ -281,10 +292,10 @@ describe('Trezor Node.js Integration Tests', () => {
         const result = await TrezorConnect.signMessage({
           path: "m/84'/0'/0'/0/0",
           message: testMessage,
-          coin: 'Bitcoin',
+          coin: 'btc',
         });
 
-        if (!result.success) throw new Error(result.payload.error);
+        if (!result.success) throw new Error(result.error.message);
         expect(result.success).toBe(true);
         if (result.success) {
           console.log('Signed message:', testMessage);
@@ -369,7 +380,7 @@ describe('Trezor Node.js Integration Tests', () => {
           refTxs: [asTrezorRefTx(funding)],
         });
 
-        if (!result.success) throw new Error(result.payload.error);
+        if (!result.success) throw new Error(result.error.message);
         const signedPsbt = importVerifiedHardwareP2wpkhSignatures(
           originalPsbt,
           result.payload.serializedTx,
@@ -378,6 +389,36 @@ describe('Trezor Node.js Integration Tests', () => {
         expect(finalizePSBT(signedPsbt)).toBe(result.payload.serializedTx);
       } finally {
         stopConfirming();
+      }
+    }, 60000);
+
+    it('the wallet adapter preserves nonzero locktime and verifies real device signatures', async () => {
+      const script = OutScript.encode(Address().decode(EXPECTED_ADDRESSES.NATIVE_SEGWIT));
+      const funding = syntheticFundingTransaction(0x71, 100_000n, script);
+      const transaction = new Transaction({ version: 1, lockTime: 950_000 });
+      transaction.addInput({ txid: funding.id, index: 0, sequence: 0xfffffffd,
+        witnessUtxo: { script, amount: 100_000n }, sighashType: SigHash.ALL });
+      transaction.addOutput({ script, amount: 99_000n });
+      const adapter = new TrezorAdapter();
+      await adapter.init();
+      const sign = TrezorConnect.signTransaction.bind(TrezorConnect);
+      // Supply the synthetic previous transaction that a real backend would return.
+      const spy = vi.spyOn(TrezorConnect, 'signTransaction').mockImplementationOnce(params =>
+        sign({ ...params, refTxs: [asTrezorRefTx(funding)] }));
+      const stopConfirming = confirmDevicePrompts();
+      try {
+        const result = await adapter.signPsbt({ psbtHex: bytesToHex(transaction.toPSBT()),
+          inputPaths: new Map([[0, [84 | 0x80000000, 0x80000000, 0x80000000, 0, 0]]]),
+          resultFormat: 'signed_psbt' });
+        const signed = Transaction.fromRaw(hexToBytes(finalizePSBT(result.signedPsbtHex!)));
+        expect(signed.lockTime).toBe(950_000);
+        expect(signed.version).toBe(1);
+        expect(signed.getInput(0).sequence).toBe(0xfffffffd);
+        expect(signed.getOutput(0).amount).toBe(99_000n);
+        expect(spy).toHaveBeenCalledWith(expect.objectContaining({ locktime: 950_000 }));
+      } finally {
+        stopConfirming();
+        spy.mockRestore();
       }
     }, 60000);
 
@@ -528,7 +569,7 @@ describe('Trezor Node.js Integration Tests', () => {
 
         expect(result.success).toBe(false);
         if (result.success) throw new Error('Trezor unexpectedly signed a marketplace 0x83 input');
-        expect(result.payload.error).toMatch(/Invalid witness|Unsupported sighash/i);
+        expect(result.error.message).toMatch(/Invalid witness|Unsupported sighash/i);
       } finally {
         stopConfirming();
         externalPrivateKey.fill(0);
@@ -615,7 +656,7 @@ describe('Trezor Node.js Integration Tests', () => {
           refTxs: [asTrezorRefTx(buyerFunding), asTrezorRefTx(sellerFunding)],
         });
 
-        if (!result.success) throw new Error(result.payload.error);
+        if (!result.success) throw new Error(result.error.message);
         const signedPsbt = importVerifiedHardwareP2wpkhSignatures(
           originalPsbt,
           result.payload.serializedTx,
@@ -679,7 +720,7 @@ describe('Trezor Node.js Integration Tests', () => {
 
         expect(result.success).toBe(false);
         if (result.success) throw new Error('Trezor unexpectedly signed an unverified external input');
-        expect(result.payload.error).toMatch(/external input|ownership proof|Invalid witness/i);
+        expect(result.error.message).toMatch(/external input|ownership proof|Invalid witness/i);
       } finally {
         stopConfirming();
         sellerPrivateKey.fill(0);

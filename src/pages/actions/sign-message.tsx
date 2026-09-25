@@ -12,6 +12,8 @@ import type { AddressFormat } from "@/core/bitcoin/address";
 import { getSigningCapabilities, signMessage } from "@/core/bitcoin/messageSigner";
 import { currentLocale, t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
+import { getWalletService } from '@/services/walletService';
+
 /**
  * SignMessage component for signing messages with Bitcoin addresses.
  * This is the manual signing tool available from the Actions menu.
@@ -86,18 +88,11 @@ export default function SignMessagePage(): ReactElement {
 
       // Check if this is a hardware wallet
       if (activeWallet.type === 'hardware') {
-        // Use TrezorAdapter for hardware wallet signing
-        const { getTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
-        const { DerivationPaths } = await import('@/core/hardware/types');
-        const trezor = getTrezorAdapter();
-        await trezor.init();
-
-        const hwResult = await trezor.signMessage({
-          path: DerivationPaths.stringToPath(activeAddress.path),
-          message: message,
-          coin: 'Bitcoin',
+        // Connect 10 runs in the service worker, alongside transaction signing.
+        const hwResult = await getWalletService().signMessage(message, activeAddress.address, {
+          walletId: activeWallet.id,
+          address: activeAddress.address,
         });
-
         resultSignature = hwResult.signature;
       } else {
         // Software wallet - get private key and sign locally

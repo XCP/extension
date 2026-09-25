@@ -27,13 +27,9 @@ export default defineConfig({
         'sidePanel',
         'storage',
         'alarms',
-        'scripting', // Required for Trezor Connect to inject content scripts
       ],
-      host_permissions: [
-        '*://connect.trezor.io/9/*', // Required for Trezor Connect popup communication
-        'http://localhost:21325/*', // Trezor Bridge for emulator testing
-        'http://127.0.0.1:21325/*', // Trezor Bridge alternative address
-      ],
+      host_permissions: ['https://suite.trezor.io/*'],
+      externally_connectable: { matches: ['https://suite.trezor.io/*'] },
     };
 
     // Firefox-specific: Add data collection consent (required for Firefox 140+)
@@ -60,12 +56,6 @@ export default defineConfig({
   },
   vite: (configEnv) => ({
     plugins: [tailwindcss()],
-    define: {
-      // Enable Trezor test mode when TREZOR_TEST_MODE env var is set
-      // This is used in CI to allow the extension to connect to the emulator via BridgeTransport
-      // Note: Don't use JSON.stringify - we need actual boolean, not string "true"
-      __TREZOR_TEST_MODE__: process.env.TREZOR_TEST_MODE === 'true',
-    },
     build: {
       // Vite 8 minifies with Oxc/Rolldown. Keep production diagnostics out of the distributed
       // wallet bundle using its native equivalent of the former esbuild drop setting.
