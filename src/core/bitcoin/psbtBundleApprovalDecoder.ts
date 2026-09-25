@@ -27,8 +27,10 @@ import {
 import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import type {
   AcceptExactOfferIntentClaim,
+  FundPolicyOfferIntentClaim,
   MarketplaceApprovalReview,
   MarketplaceIntentClaimV1,
+  PolicyOfferWalletContext,
 } from '@/core/counterparty/marketplaceIntent';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
@@ -72,6 +74,7 @@ const decodeItem = (
   intent: MarketplaceIntentClaimV1,
   ownedAddresses: string[] | undefined,
   linkedInput?: LinkedInputEvidence,
+  options: Pick<NonNullable<Parameters<typeof decodePsbtForApproval>[9]>, 'policyOffer' | 'sharedAttachedAssets'> = {},
 ): Promise<DecodedPsbtInfo> => decodePsbtForApproval(
   item.psbtHex,
   Object.keys(item.signInputs),
@@ -82,8 +85,51 @@ const decodeItem = (
   undefined,
   intent,
   ownedAddresses,
-  { linkedInput },
+  { linkedInput, ...options },
 );
+
+/** Alternatives decoded at once after the first; bounds the burst of per-item chain lookups. */
+const POLICY_OFFER_DECODE_CONCURRENCY = 10;
+
+/**
+ * Decode every alternative of one policy-offer funding set.
+ *
+ * The alternatives spend the identical funding inputs (each item proves that on its own bytes), so
+ * their chain facts are read once: the wallet's own proof that every funding input is confirmed,
+ * indexed, and asset-free — TRUC admits no unconfirmed ancestor for the parent — and the attached
+ * asset lookup of the first alternative, reused only for items whose inputs are exactly the same.
+ */
+async function decodeFundPolicyOffers(
+  items: StoredItem[],
+  intents: FundPolicyOfferIntentClaim[],
+  ownedAddresses: string[] | undefined,
+  chain: LinkedAttachChainSource,
+  context: Omit<PolicyOfferWalletContext, 'fundingSettlement'>,
+): Promise<DecodedPsbtInfo[]> {
+  const first = intents[0];
+  if (!first || items.length !== intents.length) {
+    throw new Error('policy-offer funding must pair one transaction with each alternative');
+  }
+  const fundingSettlement = await proveAttachInputsSettled(
+    first.fundingInputs.map((funding, index) => ({ index, txid: funding.txid, vout: funding.vout })),
+    chain,
+    'offer',
+  );
+  const policyOffer: PolicyOfferWalletContext = { ...context, fundingSettlement };
+  const head = await decodeItem(items[0]!, first, ownedAddresses, undefined, { policyOffer });
+  const sharedAttachedAssets = {
+    outpoints: head.psbtDetails.inputs.map(input => `${input.txid}:${input.vout}`),
+    assets: head.attachedAssets,
+  };
+  const decoded: DecodedPsbtInfo[] = [head];
+  for (let start = 1; start < items.length; start += POLICY_OFFER_DECODE_CONCURRENCY) {
+    const chunk = items.slice(start, start + POLICY_OFFER_DECODE_CONCURRENCY);
+    decoded.push(...await Promise.all(chunk.map((item, offset) => decodeItem(
+      item, intents[start + offset]!, ownedAddresses, undefined, { policyOffer, sharedAttachedAssets },
+    ))));
+  }
+  return decoded;
+}
 
 /**
  * Display units for the linked attach quantity. Presentation only: the proof compares the raw
@@ -200,6 +246,8 @@ export async function decodePsbtBundleForApproval(
   stored: PsbtBundleApprovalInput,
   ownedAddresses?: string[],
   chain: LinkedAttachChainSource = liveLinkedAttachChainSource,
+  /** Pinned keys and clock for policy offers; the wallet's compiled-in defaults unless a test sets them. */
+  policyOfferContext: Omit<PolicyOfferWalletContext, 'fundingSettlement'> = {},
 ): Promise<DecodedPsbtBundleInfo> {
   if (stored.bundleKind === 'acceptance-cpfp') {
     if (stored.items.length !== 2) {
@@ -268,13 +316,17 @@ export async function decodePsbtBundleForApproval(
   }
   const decoded: DecodedPsbtInfo[] = parsed.kind === 'attach-and-list'
     ? await decodeAttachAndList(stored.items, parsed.intents, ownedAddresses, chain)
-    : await Promise.all(stored.items.map((item, index) =>
-        decodeItem(item, parsed.intents[index]!, ownedAddresses)));
+    : parsed.kind === 'fund-policy-offer'
+      ? await decodeFundPolicyOffers(
+          stored.items, parsed.intents as FundPolicyOfferIntentClaim[], ownedAddresses, chain, policyOfferContext,
+        )
+      : await Promise.all(stored.items.map((item, index) =>
+          decodeItem(item, parsed.intents[index]!, ownedAddresses)));
   const itemReviews = decoded.map((item, index) =>
     item.marketplaceReview ?? missingReview(
       parsed.intents[index]!.action,
       `marketplace semantic proof ${index + 1} is missing`,
     ));
-  const review = analyzeMarketplaceBatch(parsed.kind, parsed.intents, itemReviews);
+  const review = analyzeMarketplaceBatch(parsed.kind, parsed.intents, itemReviews, policyOfferContext);
   return { items: decoded, review };
 }

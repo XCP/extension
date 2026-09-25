@@ -19,6 +19,7 @@ import {
   marketplaceTransactionHeaderProblem,
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
+import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import { generateRequestId } from '@/core/id';
 import {
   assertProviderPsbtSigningRequest,
@@ -841,8 +842,10 @@ export function createProviderService(): ProviderService {
             throw new Error('PSBT bundle parameters must be an object with requests');
           }
           const requests = (bundleParams as { requests?: unknown }).requests;
-          if (!Array.isArray(requests) || requests.length < 1 || requests.length > 8) {
-            throw new Error('This wallet version supports 1..8 linked PSBT requests');
+          // Each phase kind bounds its own count below (maxMarketplaceBatchRequests): 8, or 100
+          // alternatives of one policy-offer funding set.
+          if (!Array.isArray(requests) || requests.length < 1 || requests.length > MAX_POLICY_ALTERNATIVES) {
+            throw new Error(`This wallet version supports 1..${MAX_POLICY_ALTERNATIVES} linked PSBT requests`);
           }
           const parsedRequests = requests.map((request, requestIndex) => {
             if (!request || typeof request !== 'object' || Array.isArray(request)) {
@@ -865,12 +868,14 @@ export function createProviderService(): ProviderService {
             ) {
               throw new Error(`PSBT bundle request ${requestIndex} requires explicit signInputs`);
             }
+            // DEFAULT (0x00) is the Taproot form of ALL, which a policy offer's P2TR bidder signs
+            // with. Each family's proof still names the exact sighash it admits per input.
             if (
               !Array.isArray(candidate.sighashTypes)
-              || candidate.sighashTypes.some(value => ![0x01, 0x83].includes(value as number))
+              || candidate.sighashTypes.some(value => ![0x00, 0x01, 0x83].includes(value as number))
             ) {
               throw new Error(
-                `PSBT bundle request ${requestIndex} supports only ALL or SINGLE|ANYONECANPAY`,
+                `PSBT bundle request ${requestIndex} supports only DEFAULT, ALL, or SINGLE|ANYONECANPAY`,
               );
             }
             return {
@@ -1073,6 +1078,11 @@ export function createProviderService(): ProviderService {
           const marketplaceIntent = !isBitcoinPayment && intent !== undefined
             ? parseMarketplaceIntent(intent)
             : undefined;
+          // Its funding inputs must be proven confirmed once for the whole funding set, which only
+          // the linked review does; a lone parent would also hide its sibling alternatives.
+          if (marketplaceIntent?.action === 'fund_policy_offer') {
+            throw new Error('fund_policy_offer must be requested through xcp_signPsbts');
+          }
           if (isBitcoinPayment && inscription !== undefined) {
             throw new Error('Plain Bitcoin payment requests cannot carry inscription context');
           }

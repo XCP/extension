@@ -1,4 +1,5 @@
 import { AddressFormat } from '@/core/bitcoin/address';
+import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import type { Wallet } from '@/types/wallet';
 
 export interface ProviderPsbtSigningMethodCapabilities {
@@ -16,6 +17,8 @@ export interface ProviderPsbtSigningCapabilities {
   psbtBatch: ProviderPsbtSigningMethodCapabilities & {
     /** Maximum number of requests accepted by one xcp_signPsbts approval. */
     maxRequests: number;
+    /** Maximum alternatives in one `fund-policy-offer` approval; 0 when that bundle is unsupported. */
+    maxPolicyOfferAlternatives: number;
     /**
      * Linked marketplace bundle kinds this wallet can prove as a whole and then sign. A site
      * sends such a bundle only when its kind is listed: an older wallet proves each item alone,
@@ -28,12 +31,17 @@ export interface ProviderPsbtSigningCapabilities {
 /**
  * `attach-and-list`: [attach_for_listing, create_listing], the listing proved from the attach.
  * `authorize-offers`: 1..8 authorize_exact_offer items sharing one bidder funding outpoint.
+ * `fund-policy-offer`: 1..100 fund_policy_offer alternatives sharing one funding set; the one
+ * kind allowed more than `maxRequests`, bounded by `maxPolicyOfferAlternatives`.
  */
-export type MarketplaceBundleCapability = 'attach-and-list' | 'authorize-offers';
+export type MarketplaceBundleCapability = 'attach-and-list' | 'authorize-offers' | 'fund-policy-offer';
 
-/** Both need a software signer: the listing signs SINGLE|ANYONECANPAY over an unsigned buyer
- * placeholder, and an exact offer leaves the seller's input unsigned for the seller. */
-const SOFTWARE_MARKETPLACE_BUNDLES: MarketplaceBundleCapability[] = ['attach-and-list', 'authorize-offers'];
+/** All need a software signer: the listing signs SINGLE|ANYONECANPAY over an unsigned buyer
+ * placeholder, an exact offer leaves the seller's input unsigned for the seller, and a policy-offer
+ * parent leaves the market anchor unsigned. */
+const SOFTWARE_MARKETPLACE_BUNDLES: MarketplaceBundleCapability[] = [
+  'attach-and-list', 'authorize-offers', 'fund-policy-offer',
+];
 
 export interface ProviderPsbtSigningRequestShape {
   inputCount: number;
@@ -126,10 +134,12 @@ export function providerPsbtSigningCapabilities(
       },
       psbtBatch: {
         supported: true,
-        sighashTypes: [0x01, 0x83],
+        // A P2TR signer's policy-offer funding inputs sign DEFAULT, as its single-PSBT method does.
+        sighashTypes: wallet.addressFormat === AddressFormat.P2TR ? [0x00, 0x01, 0x83] : [0x01, 0x83],
         inputScope: 'selected',
         externalInputs: 'any',
         maxRequests: 8,
+        maxPolicyOfferAlternatives: MAX_POLICY_ALTERNATIVES,
         marketplaceBundles: [...SOFTWARE_MARKETPLACE_BUNDLES],
       },
     };
@@ -149,6 +159,7 @@ export function providerPsbtSigningCapabilities(
       inputScope: 'selected',
       externalInputs: 'presigned',
       maxRequests: supported ? 8 : 0,
+      maxPolicyOfferAlternatives: 0,
       // Every hardware wallet's batch contract requires external inputs to be pre-signed and
       // accepts only SIGHASH_ALL, which neither linked bundle can satisfy.
       marketplaceBundles: [],

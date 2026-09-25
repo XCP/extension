@@ -38,6 +38,7 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
 
 import { AddressFormat } from '@/core/bitcoin/address';
 import { signPSBT } from '@/core/bitcoin/psbt';
+import { POLICY_OFFER_VECTORS } from '@/core/counterparty/__tests__/policyOfferVectors';
 import * as replayPrevention from '@/core/replayPrevention';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
@@ -819,7 +820,8 @@ describe('ProviderService', () => {
               inputScope: 'selected',
               externalInputs: 'any',
               maxRequests: 8,
-              marketplaceBundles: ['attach-and-list', 'authorize-offers'],
+              maxPolicyOfferAlternatives: 100,
+              marketplaceBundles: ['attach-and-list', 'authorize-offers', 'fund-policy-offer'],
             },
           },
         });
@@ -858,6 +860,7 @@ describe('ProviderService', () => {
             inputScope: 'selected',
             externalInputs: 'presigned',
             maxRequests: 8,
+            maxPolicyOfferAlternatives: 0,
             marketplaceBundles: [],
           },
         });
@@ -1894,6 +1897,58 @@ describe('ProviderService', () => {
             items: [expect.objectContaining({ marketplaceIntent: MARKETPLACE_FANOUT_INTENT })],
           })
         );
+      });
+
+      describe('funded_policy_offer_v1 requests', () => {
+        const claim = POLICY_OFFER_VECTORS.fund.wpkh.claim;
+        /** `count` compact alternatives; the shape the wallet admits before any byte is proved. */
+        const policyRequests = (count: number) => Array.from({ length: count }, (_, index) => ({
+          hex: POLICY_OFFER_VECTORS.fund.wpkh.requests[0]!.hex,
+          signInputs: { [claim.bidder]: [0] },
+          sighashTypes: [0x01, 0x00],
+          intent: {
+            ...claim,
+            alternatives: [{ ...claim.alternatives[0]!, expectedParentTxid: index.toString(16).padStart(64, '0') }],
+          },
+        }));
+        const connect = () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+          connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        };
+
+        it('admits more than eight alternatives, with DEFAULT for the unsigned anchor', async () => {
+          connect();
+          // Past the count gate the request reaches the byte checks; this signer does not own the
+          // vector's bidder, so it is refused there, not for its size or its sighash entries.
+          await expect(providerService.handleRequest('https://digirare.com', 'xcp_signPsbts', [{
+            requests: policyRequests(9),
+          }])).rejects.toThrow(/not in this wallet|does not belong/);
+        });
+
+        it('refuses more than 100 alternatives', async () => {
+          connect();
+          await expect(providerService.handleRequest('https://digirare.com', 'xcp_signPsbts', [{
+            requests: policyRequests(101),
+          }])).rejects.toThrow('1..100');
+        });
+
+        it('keeps every other phase at eight requests', async () => {
+          connect();
+          const seller = MARKETPLACE_FANOUT_INTENT.seller;
+          await expect(providerService.handleRequest('https://digirare.com', 'xcp_signPsbts', [{
+            requests: Array.from({ length: 9 }, () => ({
+              hex: VALID_PSBT_HEX, signInputs: { [seller]: [0] }, sighashTypes: [0x01], intent: MARKETPLACE_FANOUT_INTENT,
+            })),
+          }])).rejects.toThrow('1..8');
+        });
+
+        it('refuses a lone parent through xcp_signPsbt', async () => {
+          connect();
+          const [request] = policyRequests(1);
+          await expect(providerService.handleRequest('https://digirare.com', 'xcp_signPsbt', [request]))
+            .rejects.toThrow(/must be requested through xcp_signPsbts/);
+        });
       });
 
       it('permits only the intentional null buyer placeholder in a listing batch', async () => {

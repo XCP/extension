@@ -13,7 +13,7 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
-import type { MarketplaceBatchKind } from '@/core/counterparty/marketplaceBatch';
+import { type MarketplaceBatchKind, maxMarketplaceBatchRequests } from '@/core/counterparty/marketplaceBatch';
 import type { BumpAcceptanceFeeIntentClaim } from '@/core/counterparty/marketplaceBundle';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
 import { type AuthorizedRequest, RequestStorage } from '@/platform/storage/requestStorage';
@@ -203,8 +203,9 @@ function isValidSignFlow(value: unknown): value is SignFlowEntry {
   if (entry.kind === 'sign-psbt') return validPsbt(entry)
     && (entry.signingPurpose === undefined || entry.signingPurpose === 'counterparty' || entry.signingPurpose === 'bitcoin-payment');
   return ['acceptance-cpfp', 'attach-and-list', 'bulk-fanout', 'prepare-assets', 'bulk-attach', 'bulk-listing',
-    'authorize-offers'].includes(entry.bundleKind as string) && Array.isArray(entry.items) && entry.items.length > 0
-    && entry.items.length <= 8 && entry.items.every(item => validPsbt(item)
+    'authorize-offers', 'fund-policy-offer'].includes(entry.bundleKind as string) && Array.isArray(entry.items)
+    && entry.items.length > 0 && entry.items.length <= maxMarketplaceBatchRequests(entry.bundleKind as string)
+    && entry.items.every(item => validPsbt(item)
       && item.signInputs && Object.keys(item.signInputs).length > 0 && Array.isArray(item.sighashTypes)
       && item.marketplaceIntent && typeof item.marketplaceIntent.action === 'string');
 }

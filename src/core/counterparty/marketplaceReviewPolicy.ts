@@ -16,6 +16,8 @@ type Family = MarketplaceApprovalReview['family'];
  * - `attach_for_listing` / `prepare_asset`: the XCP attach fee is a block-dependent quote.
  * - `authorize_exact_offer`: the buyer's signature stays usable by the named seller until the
  *   offer expires or its funding UTXO is spent; the review's cancellation fact names the way out.
+ * - `fund_policy_offer`: the pinned market key can complete the offer for up to its value until a
+ *   funding UTXO is spent; the review's notice names the key's holder and that amount.
  *
  * Only a `caution` review is exempted. `blocked` and `retry` still block, and every non-marketplace
  * warning (fees, verification exceptions, flexible funds, safety findings) is still gated.
@@ -24,6 +26,7 @@ const ROUTINE_CAUTION_FAMILIES: ReadonlySet<Family> = new Set<Family>([
   'attach_for_listing',
   'prepare_asset',
   'authorize_exact_offer',
+  'fund_policy_offer',
 ]);
 
 /** A proved attach quote: routine, disclosed on the card, and labeled as an attach. */

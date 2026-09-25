@@ -6,9 +6,11 @@
 export async function signPsbtPhaseForDelivery<T>(
   items: T[],
   sign: (item: T, index: number) => Promise<string>,
+  /** The phase kind's own bound (maxMarketplaceBatchRequests); 8 unless the kind allows more. */
+  maxItems = 8,
 ): Promise<string[]> {
-  if (items.length < 1 || items.length > 8) {
-    throw new Error('PSBT signing phase must contain 1..8 transactions');
+  if (items.length < 1 || items.length > maxItems) {
+    throw new Error(`PSBT signing phase must contain 1..${maxItems} transactions`);
   }
   const results: string[] = [];
   for (const [index, item] of items.entries()) {

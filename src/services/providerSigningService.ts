@@ -10,6 +10,7 @@ import { type DecodedPsbtInfo, decodePsbtForApproval } from '@/core/bitcoin/psbt
 import { type DecodedPsbtBundleInfo, decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { PrevoutMismatchError } from '@/core/bitcoin/psbtPrevouts';
 import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
+import { maxMarketplaceBatchRequests } from '@/core/counterparty/marketplaceBatch';
 import { SigningError } from '@/core/errors';
 import { ProviderReviewError, providerReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
@@ -93,7 +94,13 @@ export function createProviderSigningService(): ProviderSigningService {
     return (await getWalletService().getSettings()).providerCapabilities?.[request.origin];
   }
 
-  async function assertAuthorization(request: ProviderSigningRequest): Promise<{
+  /**
+   * @param onlyItem - Re-validate the structure of this one bundle item instead of every item. The
+   *   per-signature re-check uses it: identity and permission are re-read in full each time, while
+   *   the whole bundle's structure was already validated at the start of execution, so repeating
+   *   it for every signature would cost the square of the bundle size (100 policy alternatives).
+   */
+  async function assertAuthorization(request: ProviderSigningRequest, onlyItem?: SignPsbtsRequest['items'][number]): Promise<{
     ownedAddresses: string[];
     identity: SigningIdentity;
   }> {
@@ -126,7 +133,7 @@ export function createProviderSigningService(): ProviderSigningService {
       const paired = activeWallet?.type === 'mnemonic' && getPairedAddressFormats(activeWallet.addressFormat)
         ? await wallet.getPairedAddresses() : null;
       const allowed = [request.address, ...(paired ? [paired.legacy.address, paired.segwit.address] : [])];
-      const items = request.kind === 'sign-psbt' ? [request] : request.items;
+      const items = request.kind === 'sign-psbt' ? [request] : onlyItem ? [onlyItem] : request.items;
       for (const item of items) {
         const details = extractPsbtDetails(item.psbtHex);
         if (item.signInputs !== undefined) {
@@ -240,7 +247,7 @@ export function createProviderSigningService(): ProviderSigningService {
           break;
         case 'sign-psbts': {
           const sign = async (item: (typeof request.items)[number]) => {
-            await assertAuthorization(request);
+            await assertAuthorization(request, item);
             return wallet.signPsbt(item.psbtHex, item.signInputs, item.sighashTypes, identity);
           };
           const attach = request.items[0]?.marketplaceIntent;
@@ -248,7 +255,7 @@ export function createProviderSigningService(): ProviderSigningService {
             ? await signAttachAndListingForDelivery(request.items,
               attach?.action === 'attach_for_listing' ? attach.expectedAttachedOutpoint
                 : (() => { throw new ProviderReviewError('missing_attachment'); })(), sign)
-            : await signPsbtPhaseForDelivery(request.items, sign);
+            : await signPsbtPhaseForDelivery(request.items, sign, maxMarketplaceBatchRequests(request.bundleKind));
           result = { signedPsbtHexes };
           break;
         }
