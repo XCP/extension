@@ -17,7 +17,8 @@ import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 import { POLICY_OFFER_VECTORS } from './policyOfferVectors';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-const PINNED = [{ xOnlyKey: POLICY_OFFER_VECTORS.fund.wpkh.marketKey, operator: 'Digirare' }];
+/** The requesting origin as the wallet's provider verified it; never a field of the site's claim. */
+const ORIGIN = 'https://digirare.com';
 const OTHER_KEY = POLICY_OFFER_VECTORS.fund.wpkh.otherMarketKey;
 const NOW = POLICY_OFFER_VECTORS.fund.wpkh.now;
 
@@ -78,7 +79,7 @@ function fundInput(
     transactionId: details.transactionId,
     transactionVersion: details.transactionVersion,
     lockTime: details.lockTime,
-    policyOffer: { pinnedMarketKeys: PINNED, nowSeconds: NOW, fundingSettlement: { status: 'settled' } },
+    policyOffer: { origin: ORIGIN, nowSeconds: NOW, fundingSettlement: { status: 'settled' } },
     ...rest,
   };
 }
@@ -103,17 +104,20 @@ function mutatedAlternative(
 describe('fund_policy_offer proof', () => {
   describe.each(Object.entries(POLICY_OFFER_VECTORS.fund))('%s bidder', (_name, vector) => {
     it.each(vector.claim.alternatives.map((_alternative, index) => index))(
-      'proves alternative %i as a routine caution naming the pinned key holder', (index) => {
+      'proves alternative %i as a routine caution naming the origin and the market key', (index) => {
         const review = analyzeMarketplaceIntent(fundInput(vector, index));
         expect(review.blockers).toEqual([]);
         expect(review.status).toBe('caution');
         expect(review.family).toBe('fund_policy_offer');
         const alternative = vector.claim.alternatives[index]!;
+        // No list of approved market keys: the leaf's key is disclosed, not looked up.
+        const key = vector.claim.marketKey;
         expect(review.notices).toEqual([{
           severity: 'warning',
-          message: expect.stringContaining('Digirare') as unknown as string,
+          message: `Market key ${key.slice(0, 8)}…${key.slice(-8)}, requested by ${ORIGIN}, can complete this `
+            + `offer without you for up to ${alternative.offerValueSats.toLocaleString('en-US')} sats until a `
+            + 'funding UTXO is spent. Nothing is broadcast now.',
         }]);
-        expect(review.notices[0]!.message).toContain(`${alternative.offerValueSats.toLocaleString('en-US')} sats`);
         const facts = Object.fromEntries(review.facts.map(fact => [fact.label, fact]));
         expect(facts['Offer price']?.value).toBe(`${alternative.priceSats.toLocaleString('en-US')} sats`);
         expect(facts['Network fee']).toMatchObject({
@@ -139,17 +143,15 @@ describe('fund_policy_offer proof', () => {
   const otherScript = hexToBytes(POLICY_OFFER_VECTORS.accept.trSeller.feeScriptHex);
 
   it.each<[string, () => MarketplaceAnalysisInput, RegExp]>([
-    ['an unpinned market key', () => fundInput(wpkh, 0, {
-      policyOffer: { pinnedMarketKeys: [{ xOnlyKey: OTHER_KEY, operator: 'Elsewhere' }], nowSeconds: NOW, fundingSettlement: { status: 'settled' } },
-    }), /market key is not pinned/],
-    ['the compiled-in placeholder set, which pins nothing yet', () => fundInput(wpkh, 0, {
+    ['no wallet-verified requesting origin', () => fundInput(wpkh, 0, {
       policyOffer: { nowSeconds: NOW, fundingSettlement: { status: 'settled' } },
-    }), /market key is not pinned/],
-    ['a site-substituted market key', () => {
+    }), /could not establish the requesting site’s origin/],
+    // The claimed key must be the one the committed leaf and offer output already name.
+    ['a market key other than the one the leaf commits to', () => {
       const intent = clone(itemClaim(wpkh, 0));
       intent.marketKey = OTHER_KEY;
       return fundInput(wpkh, 0, { intent });
-    }, /market key is not pinned/],
+    }, /leaf differs from the one rebuilt/],
     ['a foreign internal key', () => {
       const intent = clone(itemClaim(wpkh, 0));
       intent.internalKey = tr.claim.internalKey;
@@ -167,10 +169,10 @@ describe('fund_policy_offer proof', () => {
       signerAddresses: [POLICY_OFFER_VECTORS.accept.trSeller.seller],
     }), /signer is not exactly the claimed bidder/],
     ['funding not proven confirmed', () => fundInput(wpkh, 0, {
-      policyOffer: { pinnedMarketKeys: PINNED, nowSeconds: NOW },
+      policyOffer: { origin: ORIGIN, nowSeconds: NOW },
     }), /not proven confirmed/],
     ['a funding input that already carries assets (settlement)', () => fundInput(wpkh, 0, {
-      policyOffer: { pinnedMarketKeys: PINNED, nowSeconds: NOW,
+      policyOffer: { origin: ORIGIN, nowSeconds: NOW,
         fundingSettlement: { status: 'blocked', problem: 'offer input 0 already carries attached assets' } },
     }), /already carries attached assets/],
     ['a funding input that carries assets (ledger)', () => fundInput(wpkh, 0, {
@@ -221,11 +223,11 @@ describe('fund_policy_offer proof', () => {
       return fundInput(wpkh, 0, { intent });
     }, /below the 5000-sat minimum/],
     ['an expiry under ten minutes away', () => fundInput(wpkh, 0, {
-      policyOffer: { pinnedMarketKeys: PINNED, nowSeconds: wpkh.claim.alternatives[0]!.expiresAt - 599,
+      policyOffer: { origin: ORIGIN, nowSeconds: wpkh.claim.alternatives[0]!.expiresAt - 599,
         fundingSettlement: { status: 'settled' } },
     }), /expiry is not between/],
     ['an expiry over 90 days away', () => fundInput(wpkh, 0, {
-      policyOffer: { pinnedMarketKeys: PINNED, nowSeconds: wpkh.claim.alternatives[0]!.expiresAt - 91 * 86_400,
+      policyOffer: { origin: ORIGIN, nowSeconds: wpkh.claim.alternatives[0]!.expiresAt - 91 * 86_400,
         fundingSettlement: { status: 'settled' } },
     }), /expiry is not between/],
     ['a stale expected txid', () => {
@@ -263,7 +265,7 @@ describe('fund_policy_offer proof', () => {
 
   it('asks for a retry, never a signature, when the funding confirmation or asset lookup is unknown', () => {
     const unconfirmed = analyzeMarketplaceIntent(fundInput(wpkh, 0, {
-      policyOffer: { pinnedMarketKeys: PINNED, nowSeconds: NOW, fundingSettlement: {
+      policyOffer: { origin: ORIGIN, nowSeconds: NOW, fundingSettlement: {
         status: 'retry', problem: 'offer funding transaction ab is unconfirmed; retry after it confirms and Counterparty indexes it',
       } },
     }));

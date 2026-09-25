@@ -8433,8 +8433,8 @@
     "description": "Cancellation row on the policy-offer funding approval: spending one of the coins that back the offers makes all of them impossible."
   },
   "marketplace_intent_notice_policy_offer_market_key": {
-    "message": "$1’s signing key can complete this offer for up to $2 until a funding UTXO is spent. Nothing is broadcast now.",
-    "description": "Caution on the policy-offer funding approval, naming the one trust the signature adds. $1 is the holder of the pinned market key (a company name), $2 is the largest offer amount in sats."
+    "message": "Market key $2, requested by $1, can complete this offer without you for up to $3 until a funding UTXO is spent. Nothing is broadcast now.",
+    "description": "Caution on the policy-offer funding approval, naming the one trust the signature adds. $1 is the requesting site's origin as the wallet verified it (e.g. https://digirare.com), $2 is the market's x-only public key abbreviated to its first and last 8 hex digits (e.g. 1a2b3c4d…5e6f7a8b), $3 is the largest offer amount in sats."
   },
   "marketplace_intent_pays_for_two_transactions": {
     "message": "Pays for 2 transactions, $1 vB",

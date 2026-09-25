@@ -1208,7 +1208,7 @@ export const EN = {
   "marketplace_intent_notice_authorize_exact_offer": "After signing, this seller can complete this exact trade without another approval. Other exact offers backed by the same funding UTXO are alternatives: the first confirmed spend wins and invalidates its siblings.",
   "marketplace_intent_notice_bulk_fanout_outputs_stay_in_wallet": "Every output remains controlled by this wallet. These plain-Bitcoin UTXOs fund later Counterparty attach transactions; no asset moves in this phase.",
   "marketplace_intent_notice_fund_offers": "Every output stays in this wallet. These coins back your offer until a seller accepts it or you spend them, which cancels it. Letting sellers accept is a separate approval that follows.",
-  "marketplace_intent_notice_policy_offer_market_key": "$1’s signing key can complete this offer for up to $2 until a funding UTXO is spent. Nothing is broadcast now.",
+  "marketplace_intent_notice_policy_offer_market_key": "Market key $2, requested by $1, can complete this offer without you for up to $3 until a funding UTXO is spent. Nothing is broadcast now.",
   "marketplace_intent_notice_sighash_all_attached_delivery": "SIGHASH_ALL fixes every input, seller payment, fee, change output, and the separate buyer-owned asset UTXO shown above.",
   "marketplace_intent_notice_sighash_all_detach_destination": "SIGHASH_ALL fixes every input, seller payment, fee, change output, and the detach destination shown above.",
   "marketplace_intent_offer_policy": "Offer policy",
