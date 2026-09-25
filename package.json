@@ -52,9 +52,6 @@
     "react-router": "8.3.1",
     "webext-bridge": "6.0.1"
   },
-  "overrides": {
-    "ws": "8.21.3"
-  },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
     "@playwright/test": "1.63.0",
@@ -64,7 +61,6 @@
     "@testing-library/user-event": "14.6.7",
     "@trezor/connect": "10.0.0",
     "@trezor/transport-common": "10.0.0",
-    "@trezor/trezor-user-env-link": "1.0.0",
     "@types/chrome": "0.2.9",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
@@ -78,6 +74,7 @@
     "typescript": "7.0.2",
     "vite": "8.3.0",
     "vitest": "5.0.0",
+    "ws": "8.21.3",
     "wxt": "0.21.4"
   }
 }
