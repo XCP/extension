@@ -91,16 +91,19 @@ describe('fund-policy-offer batch review', () => {
   const caution = (): MarketplaceApprovalReview => ({
     status: 'caution', family: 'fund_policy_offer', title: 'item', facts: [], notices: [], blockers: [],
   });
-  const pinned = { pinnedMarketKeys: [{ xOnlyKey: claim.marketKey, operator: 'Digirare' }] };
+  /** The requesting origin as the wallet's provider verified it. */
+  const verified = { origin: 'https://digirare.com' };
 
-  it('summarizes the alternatives once, with the key holder’s authority up to the largest offer', () => {
-    const review = analyzeMarketplaceBatch(parsed.kind, parsed.intents, parsed.intents.map(caution), pinned);
+  it('summarizes the alternatives once, with the market key’s authority up to the largest offer', () => {
+    const review = analyzeMarketplaceBatch(parsed.kind, parsed.intents, parsed.intents.map(caution), verified);
     expect(review.status).toBe('caution');
     expect(review.title).toBe(`Make ${count} alternative offers`);
     const largest = Math.max(...claim.alternatives.map(alternative => alternative.offerValueSats));
     expect(review.notices).toEqual([{
       severity: 'warning',
-      message: `Digirare’s signing key can complete this offer for up to ${largest.toLocaleString('en-US')} sats until a funding UTXO is spent. Nothing is broadcast now.`,
+      message: `Market key ${claim.marketKey.slice(0, 8)}…${claim.marketKey.slice(-8)}, requested by https://digirare.com, `
+        + `can complete this offer without you for up to ${largest.toLocaleString('en-US')} sats until a funding UTXO is spent. `
+        + 'Nothing is broadcast now.',
     }]);
     const labels = review.facts.map(fact => fact.label);
     expect(labels.slice(0, count)).toEqual(claim.alternatives.map((_alternative, index) => `Offer ${index + 1}`));
@@ -112,17 +115,25 @@ describe('fund-policy-offer batch review', () => {
 
   it('names a single offer by its price and policy', () => {
     const one = parseMarketplaceBatchIntents([compactIntents()[0]]);
-    const review = analyzeMarketplaceBatch(one.kind, one.intents, [caution()], pinned);
+    const review = analyzeMarketplaceBatch(one.kind, one.intents, [caution()], verified);
     expect(review.title).toBe(`Offer ${claim.alternatives[0]!.priceSats.toLocaleString('en-US')} sats for “rare-pepe” · Series 3`);
     expect(review.facts.map(fact => fact.label)).not.toContain('Settlement');
   });
 
-  it('blocks the whole set when any alternative is blocked, and names no key holder for an unpinned key', () => {
+  it('blocks the whole set when any alternative is blocked', () => {
     const reviews = parsed.intents.map(caution);
-    reviews[1] = { ...caution(), status: 'blocked', blockers: ['the market key is not pinned in this wallet for funded_policy_offer_v1'] };
+    reviews[1] = { ...caution(), status: 'blocked', blockers: ['the leaf differs from the one rebuilt from the displayed terms'] };
+    const review = analyzeMarketplaceBatch(parsed.kind, parsed.intents, reviews, verified);
+    expect(review.status).toBe('blocked');
+    expect(review.blockers).toEqual(['item 2: the leaf differs from the one rebuilt from the displayed terms']);
+  });
+
+  it('discloses nothing, and so offers nothing to sign, without a wallet-verified origin', () => {
+    const reviews = parsed.intents.map(() => ({
+      ...caution(), status: 'blocked' as const, blockers: ['the wallet could not establish the requesting site’s origin'],
+    }));
     const review = analyzeMarketplaceBatch(parsed.kind, parsed.intents, reviews);
     expect(review.status).toBe('blocked');
-    expect(review.blockers).toEqual(['item 2: the market key is not pinned in this wallet for funded_policy_offer_v1']);
     expect(review.notices).toEqual([]);
   });
 });

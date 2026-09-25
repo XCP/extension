@@ -43,7 +43,6 @@ import {
   unsignedPolicyParentVsize,
   validateCanonicalPolicy,
 } from '@/core/counterparty/policyOffer';
-import { PINNED_POLICY_OFFER_MARKET_KEYS, type PinnedPolicyMarketKey } from '@/core/counterparty/policyOfferKeys';
 import { displayLocale, formatAmount } from '@/core/format';
 import { validateAssetName } from '@/core/validation/asset';
 import { t } from '@/i18n';
@@ -389,11 +388,16 @@ interface OutputLike {
 
 /**
  * Wallet-side facts a policy offer is proved against. Supplied only by wallet code, never by the
- * requesting site: the pinned market keys are compiled in, the clock is the wallet's, and the
- * funding settlement is the wallet's own chain and ledger read (`proveAttachInputsSettled`).
+ * requesting site: the origin is the one the wallet's provider verified from the sender, the clock
+ * is the wallet's, and the funding settlement is the wallet's own chain and ledger read
+ * (`proveAttachInputsSettled`).
  */
 export interface PolicyOfferWalletContext {
-  pinnedMarketKeys?: readonly PinnedPolicyMarketKey[];
+  /**
+   * The requesting site's origin, as the wallet verified it from the message sender — never a
+   * value the site wrote. Named on the review beside the market key; absent means unknown and blocks.
+   */
+  origin?: string;
   /** Unix seconds. */
   nowSeconds?: number;
   /** Every funding input confirmed, indexed, and asset-free; absent means not proven. */
@@ -2630,31 +2634,40 @@ export function describeCanonicalPolicy(policy: CanonicalPolicy): string {
   return parts.join(' · ');
 }
 
-/** The wallet's own policy-offer context, never the site's. Defaults are the compiled-in keys
- * and the wallet clock; a missing funding settlement stays missing and blocks. */
+/** The wallet's own policy-offer context, never the site's. The clock defaults to the wallet's;
+ * a missing origin or funding settlement stays missing and blocks. */
 const policyWalletContext = (input: MarketplaceAnalysisInput) => ({
-  pinnedMarketKeys: input.policyOffer?.pinnedMarketKeys ?? PINNED_POLICY_OFFER_MARKET_KEYS,
+  origin: input.policyOffer?.origin,
   nowSeconds: input.policyOffer?.nowSeconds ?? Math.floor(Date.now() / 1000),
   fundingSettlement: input.policyOffer?.fundingSettlement,
 });
 
-/** Who holds a pinned market key, for the review. Wallet configuration, never the site's words. */
-export function pinnedPolicyMarketOperator(
-  marketKey: string,
-  pinnedMarketKeys: readonly PinnedPolicyMarketKey[] = PINNED_POLICY_OFFER_MARKET_KEYS,
-): string | undefined {
-  return pinnedMarketKeys.find(entry => entry.xOnlyKey === marketKey)?.operator;
+/** A market key as the review shows it: the first and last 8 hex digits of the x-only key. */
+function abbreviatePolicyMarketKey(marketKey: string): string {
+  return `${marketKey.slice(0, 8)}…${marketKey.slice(-8)}`;
+}
+
+/**
+ * The one trust a policy-offer funding signature adds, stated on the review: the market key can
+ * complete the offer without the bidder, for up to `maxValue`, until a funding UTXO is spent. The
+ * site is named by its wallet-verified origin and the key by its own digits; like mainstream
+ * wallets, this wallet does not keep a list of approved marketplace keys.
+ */
+export function policyOfferMarketKeyNotice(origin: string, marketKey: string, maxValue: string): string {
+  return t('marketplace_intent_notice_policy_offer_market_key', [
+    origin, abbreviatePolicyMarketKey(marketKey), maxValue,
+  ]);
 }
 
 /**
  * Prove one `fund_policy_offer` alternative (spec §11.1) from its own parent bytes.
  *
  * Nothing the bidder signs here is broadcast: the parent pays zero fee and cannot relay alone. What
- * the signature authorizes is the pinned market key's script path over the offer output, for as
+ * the signature authorizes is the named market key's script path over the offer output, for as
  * long as the funding inputs stay unspent. So every term the market key could later exploit is
  * rebuilt by the wallet — the leaf from the displayed terms, the output key from the bidder's own
- * key, the change back to the bidder, the fee below dust — and the market key itself must be one
- * compiled into this wallet.
+ * key, the change back to the bidder, the fee below dust — and the review names the market key
+ * and the requesting site's verified origin.
  */
 function analyzeFundPolicyOfferIntent(
   input: MarketplaceAnalysisInput,
@@ -2678,9 +2691,9 @@ function analyzeFundPolicyOfferIntent(
     blockers.push('the parent transaction id is not one of the claimed alternatives');
   }
 
-  const operator = pinnedPolicyMarketOperator(intent.marketKey, context.pinnedMarketKeys);
-  if (operator === undefined) {
-    blockers.push('the market key is not pinned in this wallet for funded_policy_offer_v1');
+  const origin = context.origin;
+  if (origin === undefined || origin === '') {
+    blockers.push('the wallet could not establish the requesting site’s origin');
   }
   const keyAddresses = attempt(blockers, () => policyInternalKeyAddresses(intent.internalKey));
   if (keyAddresses && !keyAddresses.some(address => sameAddress(address, intent.bidder))) {
@@ -2789,7 +2802,7 @@ function analyzeFundPolicyOfferIntent(
     if (hash !== undefined && hash !== alternative.policyHash) {
       blockers.push('the policy hash does not commit to the displayed policy');
     }
-    // The leaf is rebuilt from the displayed terms and the wallet's pinned key, never read back.
+    // The leaf is rebuilt from the displayed terms and the displayed market key, never read back.
     const leaf = hash === undefined ? undefined : attempt(blockers, () => encodePolicyLeaf({
       priceSats: alternative.priceSats,
       expiresAt: alternative.expiresAt,
@@ -2912,13 +2925,13 @@ function analyzeFundPolicyOfferIntent(
         value: t('marketplace_intent_policy_cancel_by_spending_funding'),
       },
     ],
-    // The one trust this signature adds, stated whenever the proof holds: the pinned key's
-    // holder can complete the offer for up to its value until a funding input is spent.
-    notices: allProblems.length > 0 || operator === undefined
+    // The one trust this signature adds, stated whenever the proof holds: the market key can
+    // complete the offer without the bidder for up to its value until a funding input is spent.
+    notices: allProblems.length > 0 || !origin
       ? []
       : [{
           severity: 'warning',
-          message: t('marketplace_intent_notice_policy_offer_market_key', [operator, satsValue(shown.offerValueSats)]),
+          message: policyOfferMarketKeyNotice(origin, intent.marketKey, satsValue(shown.offerValueSats)),
         }],
     blockers: allProblems,
   };

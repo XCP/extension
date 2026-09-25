@@ -190,7 +190,10 @@ export function createProviderSigningService(): ProviderSigningService {
         break;
       }
       case 'sign-psbts': {
-        const decodedInfo = await decodePsbtBundleForApproval(request, ownedAddresses);
+        // The origin is the one the provider verified from the sender, never the site's words.
+        const decodedInfo = await decodePsbtBundleForApproval(
+          request, ownedAddresses, undefined, { origin: request.origin },
+        );
         const { policy, warnings } = getPsbtBundleApprovalPolicy(request, decodedInfo, strictMode, fastestFee);
         review = { kind: request.kind, request,
           decodedInfo: { ...decodedInfo, policyWarnings: warnings }, fastestFee, policy };

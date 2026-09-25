@@ -10,13 +10,13 @@ import {
   type FundPolicyOfferIntentClaim,
   formatExpiry,
   type MarketplaceApprovalReview,
+  type PolicyOfferWalletContext,
   type PrepareAssetIntentClaim,
   type PrepareBulkFanoutIntentClaim,
   parseMarketplaceIntent,
-  pinnedPolicyMarketOperator,
+  policyOfferMarketKeyNotice,
 } from '@/core/counterparty/marketplaceIntent';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
-import type { PinnedPolicyMarketKey } from '@/core/counterparty/policyOfferKeys';
 import { formatAmount } from '@/core/format';
 import { sum, toSafeInteger } from '@/core/numeric';
 import { t } from '@/i18n';
@@ -292,8 +292,8 @@ export function analyzeMarketplaceBatch(
   kind: MarketplaceBatchKind,
   intents: MarketplaceBatchIntent[],
   reviews: MarketplaceApprovalReview[],
-  /** The wallet's pinned policy-offer keys; the compiled-in set unless a test supplies one. */
-  context: { pinnedMarketKeys?: readonly PinnedPolicyMarketKey[] } = {},
+  /** The requesting site's wallet-verified origin, named on a policy-offer review. */
+  context: Pick<PolicyOfferWalletContext, 'origin'> = {},
 ): MarketplaceBundleReview {
   if (intents.length !== reviews.length || intents.length < 1) {
     throw new Error('marketplace batch proof count does not match its intents');
@@ -500,12 +500,13 @@ export function analyzeMarketplaceBatch(
         value: t('marketplace_intent_policy_cancel_by_spending_funding'),
       },
     );
-    // The one trust these signatures add: the pinned key's holder can complete any one of them,
-    // for up to the largest offer, until a funding input is spent. A caution by design, stated.
-    const operator = pinnedPolicyMarketOperator(first.marketKey, context.pinnedMarketKeys);
-    notice = operator === undefined
-      ? ''
-      : t('marketplace_intent_notice_policy_offer_market_key', [operator, sats(largestOffer)]);
+    // The one trust these signatures add: the market key can complete any one of them without
+    // the bidder, for up to the largest offer, until a funding input is spent. A caution by design,
+    // stated with the site's verified origin and the key itself. Without an origin every item is
+    // already blocked, so there is nothing to disclose.
+    notice = context.origin
+      ? policyOfferMarketKeyNotice(context.origin, first.marketKey, sats(largestOffer))
+      : '';
   } else if (kind === 'bulk-fanout') {
     const fanouts = intents as PrepareBulkFanoutIntentClaim[];
     const slots = exactSafeSum(fanouts.map(intent => intent.slotCount), 'slot count');
