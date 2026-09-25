@@ -18,7 +18,8 @@ function startDapp(): Promise<{ server: http.Server; port: number }> {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end('<!DOCTYPE html><html><head><title>Account events dApp</title></head><body>dApp</body></html>');
     });
-    server.listen(0, 'localhost', () => {
+    // Every interface, so both localhost and 127.0.0.1 (two origins) reach it.
+    server.listen(0, () => {
       const address = server.address();
       if (address && typeof address !== 'string') resolve({ server, port: address.port });
     });
@@ -76,6 +77,7 @@ walletTest.describe('Account events', () => {
     expect(switched).toHaveLength(1);
     expect(switched[0]).not.toBe(original);
 
+    await navigateTo(page, 'wallet');
     await lockWallet(page);
     await expect.poll(async () => (await events(connected)).at(-1), { timeout: 15_000 }).toEqual([]);
 

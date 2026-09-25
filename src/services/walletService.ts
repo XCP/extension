@@ -102,8 +102,8 @@ function createWalletService(): WalletService {
   }
 
   // Emit accountsChanged to each connected dApp, per-origin (not a global broadcast).
-  function emitAccountsChangedToConnected(addresses: string[]) {
-    for (const origin of walletManager.getSettings().connectedWebsites) {
+  function emitAccountsChangedToConnected(addresses: string[], origins = walletManager.getSettings().connectedWebsites) {
+    for (const origin of origins) {
       eventEmitterService.emit('emit-provider-event', { origin, event: 'accountsChanged', data: addresses });
     }
   }
@@ -156,6 +156,8 @@ function createWalletService(): WalletService {
       await walletManager.ensureKeychainLoaded();
     },
     lockKeychain: async () => {
+      // The connected sites live in the keychain's settings, which locking discards; read them first.
+      const connected = [...walletManager.getSettings().connectedWebsites];
       await walletManager.lockKeychain();
       // Notify popup of keychain lock event (if it's open)
       try {
@@ -166,7 +168,7 @@ function createWalletService(): WalletService {
       }
       // Tell connected dApps the accounts are gone — per-origin, and without a
       // terminal disconnect, so unlock can restore them via accountsChanged.
-      emitAccountsChangedToConnected([]);
+      emitAccountsChangedToConnected([], connected);
     },
     createMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
       const wallet = await walletManager.createMnemonicWallet(mnemonic, password, name, addressFormat);
