@@ -17,15 +17,15 @@ walletTest.describe('Address Preview Display', () => {
     await addressTypeOption.click();
     await page.waitForLoadState('networkidle');
 
-    // Wait for radio buttons to appear
-    const radioButtons = page.locator('[role="radio"]');
-    await expect(radioButtons.first()).toBeVisible({ timeout: 10000 });
+    // Wait for address type options to appear
+    const typeOptions = page.locator('[role="option"]');
+    await expect(typeOptions.first()).toBeVisible({ timeout: 10000 });
 
     // Verify we have multiple address type options
-    await expect(radioButtons).toHaveCount(4, { timeout: 5000 });
+    await expect(typeOptions).toHaveCount(4, { timeout: 5000 });
 
     // Check that each card has a title
-    const cards = await radioButtons.all();
+    const cards = await typeOptions.all();
     for (const card of cards) {
       const title = card.locator('span').first();
       await expect(title).toBeVisible();
@@ -54,14 +54,14 @@ walletTest.describe('Address Preview Display', () => {
     await addressTypeOption.click();
     await page.waitForURL(/address-type/, { timeout: 10000 });
 
-    // Wait for radio buttons to appear
-    const radioButtons = page.locator('[role="radio"]');
-    await expect(radioButtons.first()).toBeVisible({ timeout: 10000 });
+    // Wait for address type options to appear
+    const typeOptions = page.locator('[role="option"]');
+    await expect(typeOptions.first()).toBeVisible({ timeout: 10000 });
 
     await page.waitForLoadState('networkidle');
 
     // Count initial options
-    const initialCount = await radioButtons.count();
+    const initialCount = await typeOptions.count();
     expect(initialCount).toBeGreaterThan(0);
 
     // Lock and unlock
@@ -83,6 +83,6 @@ walletTest.describe('Address Preview Display', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify same number of options after unlock
-    await expect(radioButtons).toHaveCount(initialCount, { timeout: 10000 });
+    await expect(typeOptions).toHaveCount(initialCount, { timeout: 10000 });
   });
 });

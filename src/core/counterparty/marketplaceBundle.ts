@@ -322,8 +322,8 @@ export function analyzeAcceptanceCpfpBundle(
     status,
     ...(blockKind ? { blockKind } : {}),
     family: 'accept_exact_offer_with_cpfp',
-    title: t('marketplace_bundle_accept_btc_for_with_fee_bump', [
-      (parentIntent.priceSats / 100_000_000).toFixed(8),
+    title: t('marketplace_bundle_accept_price_for_with_fee_bump', [
+      sats(parentIntent.priceSats),
       claim.asset,
     ]),
     ...(status === 'proved' ? {
@@ -342,7 +342,7 @@ export function analyzeAcceptanceCpfpBundle(
             value: sats(parentIntent.priceSats),
           },
           {
-            kind: 'amount' as const, label: t('marketplace_bundle_your_utxo_sats_returned'),
+            kind: 'amount' as const, label: t('marketplace_bundle_utxo_returned'),
             value: sats(parentIntent.utxoValueSats),
           },
           {
@@ -365,11 +365,11 @@ export function analyzeAcceptanceCpfpBundle(
       },
       // The buyer-paid platform fee is not the seller's cost and is not listed here.
       {
-        kind: 'amount' as const, label: t('marketplace_bundle_your_utxo_sats_returned'),
+        kind: 'amount' as const, label: t('marketplace_bundle_utxo_returned'),
         value: sats(parentIntent.utxoValueSats),
       },
       {
-        kind: 'amount' as const, label: t('marketplace_bundle_parent_seller_proceeds'),
+        kind: 'amount' as const, label: t('marketplace_bundle_sale_proceeds'),
         value: sats(childIntent.parentSellerProceedsSats),
       },
       {
@@ -382,7 +382,7 @@ export function analyzeAcceptanceCpfpBundle(
       },
       // The package total is the "Network fees" amount in the summary above; not repeated here.
       {
-        kind: 'amount' as const, label: t('marketplace_bundle_quoted_package_rate'),
+        kind: 'amount' as const, label: t('marketplace_bundle_fee_rate'),
         value: t('marketplace_bundle_sat_vb', childIntent.packageFeeRate.toFixed(2)),
       },
       {

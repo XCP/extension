@@ -66,7 +66,7 @@ describe('fairminter approval terms from decoded bytes', () => {
     expect(result.protocol).toEqual(expect.arrayContaining([
       { label: 'XCP price per lot', value: '2.50000000 XCP', kind: 'amount' },
       { label: 'Lot size', value: `1.00000000 ${asset}`, kind: 'amount' },
-      { label: 'Per transaction limit', value: `5.00000000 ${asset}`, kind: 'amount' },
+      { label: 'Per-tx limit', value: `5.00000000 ${asset}`, kind: 'amount' },
       { label: 'Per address limit', value: `10.00000000 ${asset}`, kind: 'amount' },
       { label: 'Hard cap', value: `100.00000000 ${asset}`, kind: 'amount' },
       { label: 'Soft cap', value: `50.00000000 ${asset}`, kind: 'amount' },
@@ -74,7 +74,7 @@ describe('fairminter approval terms from decoded bytes', () => {
       { label: 'Premint', value: `10.00000000 ${asset}`, kind: 'amount' },
       { label: 'Starts', value: 'Block 961,200', kind: 'text' },
       { label: 'Ends', value: 'Block 963,000', kind: 'text' },
-      { label: 'Minted asset commission', value: '5%', kind: 'amount' },
+      { label: 'Commission', value: '5%', kind: 'amount' },
       { label: 'Divisible', value: 'Yes', kind: 'text' },
       { label: 'Lock description', value: 'Yes', kind: 'text' },
       { label: 'Lock quantity', value: 'No', kind: 'text' },
@@ -114,7 +114,7 @@ describe('fairminter approval terms from decoded bytes', () => {
       softCap: 0n, premintQuantity: 0n, poolQuantity: 0n, startBlock: 0, endBlock: 0,
     });
     expect(result.protocol).toEqual(expect.arrayContaining([
-      { label: 'Per transaction limit', value: 'No limit', kind: 'amount' },
+      { label: 'Per-tx limit', value: 'No limit', kind: 'amount' },
       { label: 'Per address limit', value: 'No limit', kind: 'amount' },
       { label: 'Hard cap', value: 'No limit', kind: 'amount' },
       { label: 'Starts', value: 'On confirmation', kind: 'text' },

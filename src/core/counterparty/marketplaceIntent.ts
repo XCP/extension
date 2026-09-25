@@ -969,10 +969,9 @@ function analyzeCreateListingIntent({
   };
   const salePrice: ProtocolField = { kind: 'amount', label: t('marketplace_intent_sale_price'), value: satsValue(intent.priceSats) };
   const utxoReturn: ProtocolField = {
-    kind: 'amount', label: t('marketplace_intent_your_utxo_sats_returned'), value: satsValue(intent.utxoValueSats), layout: 'stacked',
+    kind: 'amount', label: t('marketplace_intent_utxo_returned'), value: satsValue(intent.utxoValueSats),
   };
   const repricing = intent.listingContext?.mode === 'reprice';
-  const priceBtc = (intent.priceSats / 100_000_000).toFixed(8);
   return {
     status,
     family: 'create_listing',
@@ -987,8 +986,8 @@ function analyzeCreateListingIntent({
       },
     } : {}),
     title: repricing
-      ? t('marketplace_intent_title_reprice_asset_to_btc', [claim.asset, priceBtc])
-      : t('marketplace_intent_title_list_asset_for_btc', [claim.asset, priceBtc]),
+      ? t('marketplace_intent_title_reprice_asset_to_price', [claim.asset, satsValue(intent.priceSats)])
+      : t('marketplace_intent_title_list_asset_for_price', [claim.asset, satsValue(intent.priceSats)]),
     facts: [
       payout, salePrice, utxoReturn,
       // The headline already names the proved quantity and asset.
@@ -1003,10 +1002,10 @@ function analyzeCreateListingIntent({
       },
       {
         kind: 'text' as const, label: t('marketplace_intent_broadcast'),
-        value: t('marketplace_intent_not_broadcast_now'),
+        value: t('marketplace_intent_not_now'),
       },
       {
-        kind: 'text' as const, label: t('marketplace_intent_marketplace_expiry'),
+        kind: 'date' as const, label: t('marketplace_intent_expires'),
         value: intent.marketplaceExpiresAt === null
           ? t('marketplace_intent_none_requested')
           : formatExpiry(intent.marketplaceExpiresAt),
@@ -1249,12 +1248,12 @@ function analyzeAttachIntent(
         value: satsValue(intent.utxoValueSats),
       },
       {
-        kind: 'amount' as const, label: t('marketplace_intent_quoted_xcp_fee'),
+        kind: 'amount' as const, label: t('marketplace_intent_xcp_fee'),
         value: formatXcpRaw(intent.protocolFee.quotedAmountRaw),
-        description: t('marketplace_intent_finalized_at_confirmation'),
+        description: t('common_xcp_fee_may_change'),
       },
       {
-        kind: 'text' as const, label: t('marketplace_intent_operation_expiry'),
+        kind: 'date' as const, label: t('marketplace_intent_expires'),
         value: formatExpiry(intent.operationExpiresAt),
       },
     ],
@@ -1520,7 +1519,7 @@ function analyzeBuyListingsIntent(
     { kind: 'amount', label: t('marketplace_intent_platform_fee'), value: satsValue(intent.platformFeeSats) },
     { kind: 'amount', label: t('marketplace_intent_network_fee'), value: satsValue(intent.networkFeeSats) },
     ...(deliveryUtxoSats > 0 ? [{
-      kind: 'amount' as const, label: t('marketplace_intent_sats_kept_with_your_asset'),
+      kind: 'amount' as const, label: t('marketplace_intent_asset_utxo'),
       value: satsValue(deliveryUtxoSats),
       description: t('marketplace_intent_still_yours_separate_from_the_purchase_cost_and_change'),
     }] : []),
@@ -1531,7 +1530,6 @@ function analyzeBuyListingsIntent(
   const collectibles = itemCount === 1
     ? t('marketplace_intent_one_collectible')
     : t('marketplace_intent_collectibles_count', grouped(itemCount));
-  const totalBtc = (intent.totalSats / 100_000_000).toFixed(8);
   return {
     status,
     family: 'buy_listings',
@@ -1544,8 +1542,8 @@ function analyzeBuyListingsIntent(
       },
     } : {}),
     title: itemCount === 1
-      ? t('marketplace_intent_title_buy_one_collectible_for_btc', totalBtc)
-      : t('marketplace_intent_title_buy_collectibles_for_btc', [grouped(itemCount), totalBtc]),
+      ? t('marketplace_intent_title_buy_one_collectible_for_price', satsValue(intent.totalSats))
+      : t('marketplace_intent_title_buy_collectibles_for_price', [grouped(itemCount), satsValue(intent.totalSats)]),
     facts: [
       ...paymentSummary,
       ...(receivedAsset
@@ -1569,7 +1567,7 @@ function analyzeBuyListingsIntent(
           : t('marketplace_intent_assets_detach_to_this_address'),
       },
       {
-        kind: 'text' as const, label: t('marketplace_intent_marketplace_expiry'),
+        kind: 'date' as const, label: t('marketplace_intent_expires'),
         value: formatExpiry(intent.marketplaceExpiresAt),
       },
     ],
@@ -1852,7 +1850,7 @@ function analyzeExactOfferIntent(
     offerPrice,
     ...(intent.platformFeeSats > 0 ? [platformFee] : []),
     ...(deliveryUtxoSats > 0 ? [{
-      kind: 'amount' as const, label: t('marketplace_intent_sats_kept_with_your_asset'),
+      kind: 'amount' as const, label: t('marketplace_intent_asset_utxo'),
       value: satsValue(deliveryUtxoSats),
       description: t('marketplace_intent_still_yours_separate_from_the_offer_cost'),
     }] : []),
@@ -1861,13 +1859,12 @@ function analyzeExactOfferIntent(
     // The seller sees the fee only when it comes out of their proceeds.
     ...(sellerPaysFee ? [platformFee] : []),
     {
-      kind: 'amount', label: t('marketplace_intent_your_utxo_sats_returned'),
+      kind: 'amount', label: t('marketplace_intent_utxo_returned'),
       value: satsValue(intent.utxoValueSats),
     },
     networkFee,
   ];
   const offerAsset = provedQuantity ? `${provedQuantity} ${claim.asset}` : claim.asset;
-  const offerBtc = ((offerPriceSats ?? intent.priceSats) / 100_000_000).toFixed(8);
   return {
     status,
     ...ledgerBlockKind(blockers, ledger),
@@ -1882,8 +1879,8 @@ function analyzeExactOfferIntent(
       },
     } : {}),
     title: authorizing
-      ? t('marketplace_intent_title_authorize_btc_for_asset', [offerBtc, offerAsset])
-      : t('marketplace_intent_title_accept_btc_for_asset', [offerBtc, offerAsset]),
+      ? t('marketplace_intent_title_authorize_price_for_asset', [satsValue(offerPriceSats ?? intent.priceSats), offerAsset])
+      : t('marketplace_intent_title_accept_price_for_asset', [satsValue(offerPriceSats ?? intent.priceSats), offerAsset]),
     facts: [
       ...paymentSummary,
       // Whoever pays the platform fee sees it: the bidder when they funded it, the seller when it
@@ -1914,7 +1911,7 @@ function analyzeExactOfferIntent(
         value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}`,
       },
       {
-        kind: 'text' as const, label: t('marketplace_intent_marketplace_expiry'),
+        kind: 'date' as const, label: t('marketplace_intent_expires'),
         value: formatExpiry(intent.marketplaceExpiresAt),
       },
       ...(authorizing ? [{
@@ -2054,7 +2051,7 @@ function analyzePrepareBulkFanoutIntent(
         value: satsValue(intent.networkFeeSats),
       },
       {
-        kind: 'text' as const, label: t('marketplace_intent_operation_expiry'),
+        kind: 'date' as const, label: t('marketplace_intent_expires'),
         value: formatExpiry(intent.operationExpiresAt),
       },
     ],
@@ -2224,7 +2221,7 @@ function analyzeFundOffersIntent(
       description: t('marketplace_intent_paid_only_if_a_seller_accepts'),
     },
     ...(attachedUtxoSats > 0 ? [{
-      kind: 'amount' as const, label: each(t('marketplace_intent_sats_kept_with_your_asset')),
+      kind: 'amount' as const, label: each(t('marketplace_intent_asset_utxo')),
       value: satsValue(attachedUtxoSats),
     }] : []),
     ...(setAsideSats === null ? [] : [{
@@ -2251,7 +2248,7 @@ function analyzeFundOffersIntent(
       }]),
       { kind: 'amount' as const, label: t('marketplace_intent_change'), value: satsValue(intent.changeSats) },
       {
-        kind: 'text' as const, label: t('marketplace_intent_marketplace_expiry'),
+        kind: 'date' as const, label: t('marketplace_intent_expires'),
         value: formatExpiry(intent.marketplaceExpiresAt),
       },
       {

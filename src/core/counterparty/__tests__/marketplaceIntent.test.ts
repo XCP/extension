@@ -616,8 +616,8 @@ describe('attach-for-listing proof', () => {
     expect(review.family).toBe('attach_for_listing');
     expect(review.blockers).toEqual([]);
     expect(review.facts).toContainEqual({
-      kind: 'amount', label: 'Quoted XCP fee',
-      value: '0.25 XCP', description: 'Finalized at confirmation',
+      kind: 'amount', label: 'XCP fee',
+      value: '0.25 XCP', description: 'The XCP fee may change at confirmation.',
     });
     // The block-dependence lives in the fact row itself; the attach carries no extra notice.
     expect(review.notices).toEqual([]);
@@ -756,8 +756,8 @@ describe('prepare-asset proof', () => {
       blockers: [],
     });
     expect(review.facts).toContainEqual({
-      kind: 'amount', label: 'Quoted XCP fee',
-      value: '0.25 XCP', description: 'Finalized at confirmation',
+      kind: 'amount', label: 'XCP fee',
+      value: '0.25 XCP', description: 'The XCP fee may change at confirmation.',
     });
     expect(review.title).not.toMatch(/list/i);
   });
@@ -824,7 +824,7 @@ describe('create-listing proof', () => {
     expect(review.facts).toEqual(expect.arrayContaining([
       { kind: 'amount', label: 'Sale price', value: '250,000 sats' },
       {
-        kind: 'amount', label: 'Your UTXO sats returned', value: `${utxoSats} sats`, layout: 'stacked',
+        kind: 'amount', label: 'UTXO returned', value: `${utxoSats} sats`,
       },
       { kind: 'amount', label: 'Your payout if sold', value: (250_000 + utxoSats).toLocaleString() + ' sats', emphasis: 'primary' },
     ]));
@@ -846,7 +846,7 @@ describe('create-listing proof', () => {
       value: '250,546 sats',
       emphasis: 'primary',
     });
-    expect(review.facts).toContainEqual({ kind: 'text', label: 'Broadcast', value: 'Not broadcast now.' });
+    expect(review.facts).toContainEqual({ kind: 'text', label: 'Broadcast', value: 'Not now' });
     expect(review.facts).toContainEqual({
       kind: 'paragraph', label: 'Marketplace cancellation',
       value: 'Delist without a transaction',
@@ -870,7 +870,7 @@ describe('create-listing proof', () => {
     });
 
     expect(review.status).toBe('proved');
-    expect(review.title).toBe('Reprice 1 RAREPEPE to 0.00250000 BTC');
+    expect(review.title).toBe('Reprice 1 RAREPEPE to 250,000 sats');
     expect(review.summary).toEqual({ label: 'Reprice listing', description: '1 RAREPEPE' });
   });
 
@@ -964,7 +964,7 @@ describe('buy-listings proof', () => {
     expect(listing.status).toBe('proved');
     expect(listing.facts).toEqual(expect.arrayContaining([
       { kind: 'amount', label: 'Sale price', value: '100,000 sats' },
-      { kind: 'amount', label: 'Your UTXO sats returned', value: `${sellerAssetUtxo} sats`, layout: 'stacked' },
+      { kind: 'amount', label: 'UTXO returned', value: `${sellerAssetUtxo} sats` },
       { kind: 'amount', label: 'Your payout if sold', value: `${sellerPayout.toLocaleString()} sats`, emphasis: 'primary' },
     ]));
     expect(analyzeMarketplaceIntent(checkout)).toMatchObject({ status: 'proved', blockers: [] });
@@ -991,7 +991,7 @@ describe('buy-listings proof', () => {
     expect(review.facts[0]).toEqual({ kind: 'amount', label: 'You pay', value: '306,000 sats', emphasis: 'primary' });
     expect(review.facts).toContainEqual({ kind: 'address', label: 'Delivery', value: BUYER, description: 'Assets detach to this address' });
     expect(review.paymentSummary).toContainEqual({ kind: 'amount', label: 'Change', value: '94,000 sats' });
-    expect(review.paymentSummary?.some(field => field.label === 'Sats kept with your asset')).toBe(false);
+    expect(review.paymentSummary?.some(field => field.label === 'Asset UTXO')).toBe(false);
   });
 
   it('proves one attached purchase and its buyer-owned asset UTXO', () => {
@@ -1000,7 +1000,7 @@ describe('buy-listings proof', () => {
     expect(review).toMatchObject({ status: 'proved', family: 'buy_listings', blockers: [] });
     expect(review.paymentSummary?.[0]).toMatchObject({ label: 'You pay', value: '106,000 sats' });
     expect(review.paymentSummary).toContainEqual({ kind: 'amount', label: 'Change', value: '293,670 sats' });
-    expect(review.paymentSummary).toContainEqual(expect.objectContaining({ label: 'Sats kept with your asset', value: '330 sats' }));
+    expect(review.paymentSummary).toContainEqual(expect.objectContaining({ label: 'Asset UTXO', value: '330 sats' }));
     expect(review.paymentSummary?.some(field => field.value === '294,000 sats')).toBe(false);
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'You receive', value: '1 RAREPEPE' });
     expect(review.facts).toContainEqual({
@@ -1016,7 +1016,7 @@ describe('buy-listings proof', () => {
     const review = analyzeMarketplaceIntent(request);
     expect(review.status).toBe('proved');
     expect(review.paymentSummary?.some(field => field.label === 'Change')).toBe(false);
-    expect(review.paymentSummary?.some(field => field.label === 'Sats kept with your asset')).toBe(attached);
+    expect(review.paymentSummary?.some(field => field.label === 'Asset UTXO')).toBe(attached);
   });
 
   it('names the ledger-normalized divisible amount in the attached purchase summary', () => {
@@ -1168,7 +1168,7 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
           expect(review.paymentSummary?.some(field => field.label === 'Change')).toBe(false);
           expect(review.paymentSummary?.some(field => field.label === 'Platform fee')).toBe(!accepting);
           expect(review.paymentSummary?.some(field => field.label === 'Network fee')).toBe(accepting);
-          expect(review.paymentSummary?.some(field => field.label === 'Sats kept with your asset')).toBe(!accepting && attached);
+          expect(review.paymentSummary?.some(field => field.label === 'Asset UTXO')).toBe(!accepting && attached);
           expect(review.facts.some(field => field.label === 'Cancellation')).toBe(!accepting);
           expect(review.facts).toContainEqual({
             kind: 'amount', label: 'Network fee', value: '500 sats', description: 'Deducted from seller proceeds',
@@ -1197,7 +1197,7 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
             value: accepting ? '243,796 sats' : '250,000 sats',
           });
           expect(review.facts).toContainEqual({ kind: 'address', label: 'Fee recipient', value: PLATFORM });
-          expect(review.title).toContain('0.00250000');
+          expect(review.title).toContain('250,000 sats');
           if (!accepting) {
             expect(review.facts).toContainEqual({
               kind: 'amount', label: 'Buyer funding', value: `${(250_000 + (attached ? 330 : 0)).toLocaleString()} sats`,
@@ -1509,7 +1509,7 @@ describe('offer funding proof', () => {
     });
     expect(review).toMatchObject({ status: 'proved', title: 'Fund an offer on RAREPEPE' });
     expect(review.paymentSummary).toContainEqual({
-      kind: 'amount', label: 'Sats kept with your asset · each', value: '330 sats',
+      kind: 'amount', label: 'Asset UTXO · each', value: '330 sats',
     });
     expect(review.paymentSummary).toContainEqual({
       kind: 'amount', label: 'Set aside', value: '9,330 sats', description: '1 × 9,330 sats',

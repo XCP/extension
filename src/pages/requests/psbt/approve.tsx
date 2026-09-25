@@ -14,6 +14,7 @@ import {
   ApprovalRetry,
   ApprovalUnavailable,
 } from "@/components/domain/approval/approval-chrome";
+import { ApprovalIdentifier } from "@/components/domain/approval/approval-identifier";
 import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
 import { ApprovalSummaryCard } from "@/components/domain/approval/approval-summary-card";
 import { ApprovalTransactionDetails } from "@/components/domain/approval/approval-transaction-details";
@@ -41,7 +42,7 @@ import {
   marketplaceReviewRequiresAcknowledgement,
 } from "@/core/counterparty/marketplaceReviewPolicy";
 import { shouldBlockSigning } from "@/core/counterparty/unpack/providerVerify";
-import { formatAddress, formatAmount } from "@/core/format";
+import { formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import { useSignPsbtRequest } from "@/hooks/useSignPsbtRequest";
@@ -403,12 +404,13 @@ export default function ApprovePsbtPage() {
   const protocolFields = txAction && "protocol" in txAction ? txAction.protocol : [];
   const detailFields = [
     ...marketplaceFacts.filter(field => !primaryFacts.includes(field) && !paymentLabels.has(field.label)),
-    // The quoted marketplace XCP fee supersedes the generic XCP-fee row on an attach.
+    // The marketplace's XCP fee fact supersedes the generic XCP-fee row on an attach. Compared
+    // as catalog strings, so the match holds in every language.
     ...protocolFields.filter(
       (field) =>
         !(
-          field.label === "XCP fee" &&
-          marketplaceFacts.some((fact) => fact.label === "Quoted XCP fee")
+          field.label === t('tx_action_xcp_fee') &&
+          marketplaceFacts.some((fact) => fact.label === t('marketplace_intent_xcp_fee'))
         ),
     ),
   ];
@@ -516,14 +518,15 @@ export default function ApprovePsbtPage() {
           </p>
           <div className="space-y-2">
             {requestedAddressSpends.map(({ address, indices, value }) => (
-              <div key={address} className="flex items-start justify-between gap-3 text-xs">
-                <div>
-                  <p className="font-mono text-gray-700">{formatAddress(address, true)}</p>
+              <div key={address} className="space-y-0.5 text-xs">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                   <p className="text-gray-500">
                     {t('psbt_approve_inputs', [String(indices.map((index) => `#${index}`).join(", "))])}
                   </p>
+                  <p className="ml-auto font-medium tabular-nums text-gray-700">{t('psbt_approve_sats', [formatAmount({ value, maximumFractionDigits: 0 })])}</p>
                 </div>
-                <p className="font-medium text-gray-700">{t('psbt_approve_sats', [formatAmount({ value, maximumFractionDigits: 0 })])}</p>
+                {/* In full: which key signs is the question this list answers. */}
+                <div className="text-gray-700"><ApprovalIdentifier value={address} /></div>
               </div>
             ))}
           </div>
@@ -578,6 +581,8 @@ export default function ApprovePsbtPage() {
         attachedAssets={attachedAssets}
         verification={verification}
         attachVout={attachDestinationVout(decodedInfo)}
+        // Marketplace screens state every price and fee in sats; the transaction list follows.
+        unit={marketplaceReview ? "sats" : "btc"}
       />
     </ApprovalLayout>
   );

@@ -54,3 +54,26 @@ it('checks expanded placeholder contents while accepting Windows line endings', 
   expect(run('build').status).toBe(0);
   expect(run('check').status).toBe(0);
 });
+
+it('rejects an approval fact label that would wrap at popup width', () => {
+  mkdirSync(join(fixtureRoot, 'src/core/counterparty'), { recursive: true });
+  const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'));
+  catalog.marketplace_example_label = { message: 'Your UTXO sats returned' };
+  catalog.marketplace_example_note = { message: 'A label on its own line above' };
+  writeFileSync(catalogPath, JSON.stringify(catalog));
+  writeFileSync(join(fixtureRoot, 'src/core/counterparty/example.ts'), [
+    "export const row = { kind: 'amount', label: t('marketplace_example_label'), value: '330 sats' };",
+    "export const note = { kind: 'paragraph', label: t('marketplace_example_note'), value: 'text' };",
+    '',
+  ].join('\n'));
+  expect(run('build').status).toBe(0);
+  const long = run('check');
+  expect(long.status).toBe(1);
+  expect(long.stderr).toContain('marketplace_example_label "Your UTXO sats returned" is 23 units, budget 18');
+  expect(long.stderr).not.toContain('marketplace_example_note');
+
+  catalog.marketplace_example_label = { message: 'UTXO returned' };
+  writeFileSync(catalogPath, JSON.stringify(catalog));
+  expect(run('build').status).toBe(0);
+  expect(run('check').status).toBe(0);
+});

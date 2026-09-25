@@ -3008,11 +3008,8 @@
   "marketplace_batch_attach_fee": {
     "message": "附加費用"
   },
-  "marketplace_batch_attach_network_fee": {
-    "message": "附加的網路費用"
-  },
-  "marketplace_batch_attach_transaction_only": {
-    "message": "僅附加交易"
+  "marketplace_batch_attach_only": {
+    "message": "僅附加"
   },
   "marketplace_batch_authorize_1_listing_reprice": {
     "message": "授權 1 次上架改價"
@@ -3026,13 +3023,13 @@
   "marketplace_batch_broadcast": {
     "message": "廣播"
   },
-  "marketplace_batch_broadcast_now": {
-    "message": "立即廣播的內容"
+  "marketplace_batch_sent_now": {
+    "message": "立即發送"
   },
   "marketplace_batch_buyer_controls": {
     "message": "由買家決定"
   },
-  "marketplace_batch_combined_asking_prices": {
+  "marketplace_batch_total_asking": {
     "message": "上架價格合計"
   },
   "marketplace_batch_create_1_listing_utxo": {
@@ -3056,8 +3053,8 @@
   "marketplace_batch_new_utxos": {
     "message": "新增 UTXO"
   },
-  "marketplace_batch_not_broadcast_now": {
-    "message": "現在不會廣播。"
+  "marketplace_batch_not_now": {
+    "message": "暫不廣播"
   },
   "marketplace_batch_prepare_1_collectible": {
     "message": "準備 1 個收藏品"
@@ -3065,8 +3062,8 @@
   "marketplace_batch_prepare_collectibles": {
     "message": "準備 $1 個收藏品"
   },
-  "marketplace_batch_quoted_xcp_fee": {
-    "message": "XCP 費用報價"
+  "marketplace_batch_xcp_fee": {
+    "message": "XCP 費用"
   },
   "marketplace_batch_sats": {
     "message": "$1 sats"
@@ -3086,20 +3083,17 @@
   "marketplace_batch_the_attach_transaction_is_broadcast": {
     "message": "附加交易會先廣播。上架將在確認並對已附加資產完成獨立驗證後可用。"
   },
-  "marketplace_batch_total_network_fees": {
-    "message": "網路費用合計"
+  "marketplace_batch_network_fees": {
+    "message": "網路費用"
   },
-  "marketplace_batch_total_quoted_xcp_fees": {
-    "message": "XCP 費用報價合計"
+  "marketplace_batch_xcp_fees": {
+    "message": "XCP 費用合計"
   },
   "marketplace_batch_transactions": {
     "message": "交易數"
   },
   "marketplace_batch_utxo_returned": {
-    "message": "返還的 UTXO"
-  },
-  "marketplace_batch_xcp_fee_quote": {
-    "message": "XCP 費用報價"
+    "message": "返還 UTXO"
   },
   "marketplace_batch_your_payout_if_all_sell": {
     "message": "全部售出後你的收益"
@@ -3107,11 +3101,8 @@
   "marketplace_batch_your_payout_if_sold": {
     "message": "售出後你的收益"
   },
-  "marketplace_batch_your_utxo_sats_returned": {
-    "message": "返還給你的 UTXO sats"
-  },
-  "marketplace_bundle_accept_btc_for_with_fee_bump": {
-    "message": "以 $1 BTC 接受 $2 並提高費用"
+  "marketplace_bundle_accept_price_for_with_fee_bump": {
+    "message": "以 $1 接受 $2 並提高費用"
   },
   "marketplace_bundle_accept_offer_for": {
     "message": "接受 $1 的報價"
@@ -3140,11 +3131,11 @@
   "marketplace_bundle_parent_fee": {
     "message": "父交易費用"
   },
-  "marketplace_bundle_parent_seller_proceeds": {
-    "message": "父交易的賣家收益"
+  "marketplace_bundle_sale_proceeds": {
+    "message": "銷售收益"
   },
-  "marketplace_bundle_quoted_package_rate": {
-    "message": "交易包費率報價"
+  "marketplace_bundle_fee_rate": {
+    "message": "費率"
   },
   "marketplace_bundle_sat_vb": {
     "message": "$1 sat/vB"
@@ -3161,8 +3152,8 @@
   "marketplace_bundle_your_proceeds_after_fee_bump": {
     "message": "提高費用後你的收益"
   },
-  "marketplace_bundle_your_utxo_sats_returned": {
-    "message": "返還給你的 UTXO sats"
+  "marketplace_bundle_utxo_returned": {
+    "message": "返還 UTXO"
   },
   "marketplace_intent_accept_offer": {
     "message": "接受報價"
@@ -3218,9 +3209,6 @@
   "marketplace_intent_fee_recipient": {
     "message": "費用收款方"
   },
-  "marketplace_intent_finalized_at_confirmation": {
-    "message": "確認時才最終確定"
-  },
   "marketplace_intent_funding_fees_and_delivery_destination": {
     "message": "資金、費用和交付地址"
   },
@@ -3242,8 +3230,8 @@
   "marketplace_intent_marketplace_cancellation": {
     "message": "市場取消方式"
   },
-  "marketplace_intent_marketplace_expiry": {
-    "message": "市場有效期"
+  "marketplace_intent_expires": {
+    "message": "有效期至"
   },
   "marketplace_intent_network_fee": {
     "message": "網路費用"
@@ -3260,8 +3248,8 @@
   "marketplace_intent_none_requested": {
     "message": "未設定"
   },
-  "marketplace_intent_not_broadcast_now": {
-    "message": "現在不廣播。"
+  "marketplace_intent_not_now": {
+    "message": "暫不廣播"
   },
   "marketplace_intent_notice_accept_exact_offer": {
     "message": "你的簽名即可按此條件完成這筆出售，無需買家再次確認。如果買家已經花費了共用的出資 UTXO，廣播會失敗，你的資產仍歸你所有。"
@@ -3290,17 +3278,14 @@
   "marketplace_intent_one_collectible": {
     "message": "1 件收藏品"
   },
-  "marketplace_intent_operation_expiry": {
-    "message": "操作有效期"
-  },
   "marketplace_intent_paid_by_the_buyer": {
     "message": "由買家支付"
   },
   "marketplace_intent_platform_fee": {
     "message": "平台費用"
   },
-  "marketplace_intent_quoted_xcp_fee": {
-    "message": "XCP 費用報價"
+  "marketplace_intent_xcp_fee": {
+    "message": "XCP 費用"
   },
   "marketplace_intent_reprice_listing": {
     "message": "修改上架價格"
@@ -3308,8 +3293,8 @@
   "marketplace_intent_sale_price": {
     "message": "售價"
   },
-  "marketplace_intent_sats_kept_with_your_asset": {
-    "message": "隨資產保留的 sats"
+  "marketplace_intent_asset_utxo": {
+    "message": "資產 UTXO"
   },
   "marketplace_intent_seller_receives": {
     "message": "賣家收到"
@@ -3329,20 +3314,20 @@
   "marketplace_intent_still_yours_separate_from_the_purchase_cost_and_change": {
     "message": "仍歸你所有，與購買成本和找零分開計算"
   },
-  "marketplace_intent_title_accept_btc_for_asset": {
-    "message": "接受以 $1 BTC 出售 $2"
+  "marketplace_intent_title_accept_price_for_asset": {
+    "message": "接受以 $1 出售 $2"
   },
   "marketplace_intent_title_attach_asset_for_listing": {
     "message": "為上架附加 $1"
   },
-  "marketplace_intent_title_authorize_btc_for_asset": {
-    "message": "授權以 $1 BTC 購買 $2"
+  "marketplace_intent_title_authorize_price_for_asset": {
+    "message": "授權以 $1 購買 $2"
   },
-  "marketplace_intent_title_buy_collectibles_for_btc": {
-    "message": "以 $2 BTC 購買 $1 件收藏品"
+  "marketplace_intent_title_buy_collectibles_for_price": {
+    "message": "以 $2 購買 $1 件收藏品"
   },
-  "marketplace_intent_title_buy_one_collectible_for_btc": {
-    "message": "以 $1 BTC 購買 1 件收藏品"
+  "marketplace_intent_title_buy_one_collectible_for_price": {
+    "message": "以 $1 購買 1 件收藏品"
   },
   "marketplace_intent_title_create_listing_utxos": {
     "message": "建立 $1 個上架 UTXO"
@@ -3350,14 +3335,14 @@
   "marketplace_intent_title_create_one_listing_utxo": {
     "message": "建立 1 個上架 UTXO"
   },
-  "marketplace_intent_title_list_asset_for_btc": {
-    "message": "將 1 $1 以 $2 BTC 上架"
+  "marketplace_intent_title_list_asset_for_price": {
+    "message": "將 1 $1 以 $2 上架"
   },
   "marketplace_intent_title_prepare_asset": {
     "message": "準備 $1"
   },
-  "marketplace_intent_title_reprice_asset_to_btc": {
-    "message": "將 1 $1 改價為 $2 BTC"
+  "marketplace_intent_title_reprice_asset_to_price": {
+    "message": "將 1 $1 改價為 $2"
   },
   "marketplace_intent_unavailable": {
     "message": "不可用"
@@ -3377,8 +3362,8 @@
   "marketplace_intent_your_payout_if_sold": {
     "message": "售出後的收益"
   },
-  "marketplace_intent_your_utxo_sats_returned": {
-    "message": "返還的 UTXO sats"
+  "marketplace_intent_utxo_returned": {
+    "message": "返還 UTXO"
   },
   "menus_address_menu_address_actions": {
     "message": "地址操作"
@@ -5479,8 +5464,8 @@
   "tx_action_no_limit": {
     "message": "不限"
   },
-  "tx_action_per_transaction_limit": {
-    "message": "每筆交易上限"
+  "tx_action_per_tx_limit": {
+    "message": "每筆上限"
   },
   "tx_action_per_address_limit": {
     "message": "每個地址上限"
@@ -5533,8 +5518,8 @@
   "tx_action_no_end_block": {
     "message": "無結束區塊"
   },
-  "tx_action_minted_asset_commission": {
-    "message": "鑄造資產佣金比例"
+  "tx_action_commission": {
+    "message": "佣金比例"
   },
   "tx_action_divisible": {
     "message": "可分割"
@@ -6298,10 +6283,28 @@
   "psbts_approve_authorize_offers_2": {
     "message": "授權 $1 個出價"
   },
-  "marketplace_batch_latest_marketplace_expiry": {
-    "message": "最晚市場到期時間"
+  "marketplace_batch_latest_expiry": {
+    "message": "最晚到期"
   },
   "address_type_shortcut_change_address_type": {
     "message": "變更地址型別（目前：$1）"
+  },
+  "common_xcp_fee_may_change": {
+    "message": "XCP 費用可能在確認時變動。"
+  },
+  "approval_copy": {
+    "message": "複製"
+  },
+  "approval_copy_named": {
+    "message": "複製$1"
+  },
+  "approval_list_show_all": {
+    "message": "顯示全部 $1 項"
+  },
+  "approval_list_show_fewer": {
+    "message": "收起"
+  },
+  "approval_money_movement_view_to": {
+    "message": "發送至"
   }
 }
