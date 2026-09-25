@@ -51,6 +51,7 @@ import {
   getKeychainRecord,
   saveKeychainRecord,
 } from '@/platform/storage/walletStorage';
+import { assertTrezorSuiteAccess } from '@/platform/suiteAccess';
 import { huntInBackground } from '@/platform/zeldHunt';
 // Note: getTrezorAdapter is dynamically imported in createHardwareWalletWithDiscovery to avoid
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
@@ -743,6 +744,7 @@ export class WalletManager {
       throw new Error(`Hardware wallet type '${deviceType}' is not yet supported`);
     }
 
+    await this.mutationStep(assertTrezorSuiteAccess());
     // Dynamically import Trezor adapter
     const { getTrezorAdapter, resetTrezorAdapter } = await this.mutationStep(import('@/core/hardware/trezorAdapter'));
     await this.mutationStep(resetTrezorAdapter());
@@ -1621,6 +1623,7 @@ export class WalletManager {
       throw new Error(`Hardware wallet type '${hardwareData.deviceType}' is not yet supported`);
     }
 
+    await assertTrezorSuiteAccess();
     // Dynamically import to avoid loading @trezor/connect-webextension at startup
     const { getTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
     const { DerivationPaths } = await import('@/core/hardware/types');

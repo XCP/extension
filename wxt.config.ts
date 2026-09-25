@@ -4,6 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   srcDir: 'src',
+  // An e2e build (`wxt build --mode e2e`) replaces the build in .output/chrome-mv3, which is what
+  // the Playwright fixtures load; WXT would otherwise add a mode suffix to the directory.
+  ...(process.argv.includes('e2e') ? { outDirTemplate: '{{browser}}-mv{{manifestVersion}}' } : {}),
   modules: ['@wxt-dev/module-react'],
   targetBrowsers: ['chrome', 'firefox'],
   webExt: {
@@ -28,7 +31,13 @@ export default defineConfig({
         'storage',
         'alarms',
       ],
-      host_permissions: ['https://suite.trezor.io/*'],
+      // Trezor Connect 10 reads the Suite Web tab's URL to talk to it, which needs host access to
+      // suite.trezor.io. It is optional so an update never disables the wallet for people who do
+      // not use a Trezor: the wallet asks on the first Trezor click (core/hardware/suiteAccess.ts).
+      // `wxt build --mode e2e` grants it up front, because automation cannot answer Chrome's prompt.
+      ...(env.mode === 'e2e'
+        ? { host_permissions: ['https://suite.trezor.io/*'] }
+        : { optional_host_permissions: ['https://suite.trezor.io/*'] }),
       externally_connectable: { matches: ['https://suite.trezor.io/*'] },
     };
 

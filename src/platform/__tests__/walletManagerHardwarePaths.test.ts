@@ -58,4 +58,23 @@ describe('WalletManager hardware input derivation', () => {
       ]),
     }));
   });
+
+  it('refuses before touching the device when Trezor Suite access is not granted', async () => {
+    (chrome.permissions as unknown as { contains: ReturnType<typeof vi.fn> }).contains.mockResolvedValue(false);
+    hardware.init.mockClear();
+    hardware.signPsbt.mockClear();
+    const key = '03'.padStart(64, '0');
+    const owner = p2wpkh(getPublicKey(hexToBytes(key)));
+    const wallet: Wallet = {
+      id: 'hardware-no-access', name: 'Hardware', type: 'hardware', addressFormat: AddressFormat.P2WPKH, addressCount: 1,
+      addresses: [{ address: owner.address!, name: 'Address 1', path: "m/84'/0'/0'/0/0", pubKey: bytesToHex(getPublicKey(hexToBytes(key))) }],
+    };
+    const manager = new WalletManager();
+    manager['wallets'] = [wallet];
+    manager['activeWalletId'] = wallet.id;
+
+    await expect(manager.signMessage('hello', owner.address!)).rejects.toMatchObject({ code: 'SUITE_ACCESS_REQUIRED' });
+    expect(hardware.init).not.toHaveBeenCalled();
+    expect(hardware.signPsbt).not.toHaveBeenCalled();
+  });
 });

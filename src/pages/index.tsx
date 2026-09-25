@@ -7,6 +7,7 @@ import { AddressTypeShortcut } from '@/components/domain/address/address-type-sh
 import { AssetList } from "@/components/domain/asset/asset-list";
 import { BalanceList } from "@/components/domain/balance/balance-list";
 import { UtxoList } from "@/components/domain/utxo/utxo-list";
+import { TrezorAccessNotice } from '@/components/domain/wallet/trezor-access-notice';
 import {
   FaCheck,
   FaChevronRight,
@@ -283,6 +284,7 @@ export default function HomePage(): ReactElement {
     <div className="p-4">{t('app_no_wallet_unlocked')}</div>
   ) : (
     <>
+      <TrezorAccessNotice />
       {renderCurrentAddress()}
       {renderActionButtons()}
       {renderBalancesHeader()}

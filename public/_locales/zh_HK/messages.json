@@ -6306,5 +6306,17 @@
   },
   "approval_money_movement_view_to": {
     "message": "發送至"
+  },
+  "hardware_error_suite_access_required": {
+    "message": "Trezor 需要存取 Trezor Suite 的權限。請在錢包主頁允許後重試。"
+  },
+  "hardware_error_suite_access_denied": {
+    "message": "Trezor 需要存取 Trezor Suite 的權限。請重新連線，並在 Chrome 詢問時選擇「允許」。"
+  },
+  "trezor_access_notice_body": {
+    "message": "Trezor 現在透過 Trezor Suite 連接。請允許一次存取，以便繼續使用。"
+  },
+  "trezor_access_notice_allow": {
+    "message": "允許存取 Trezor"
   }
 }

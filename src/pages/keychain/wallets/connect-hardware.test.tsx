@@ -61,3 +61,23 @@ it('runs account discovery once without resetting the Suite connection', async (
     expect(stable.resetAdapter).not.toHaveBeenCalled();
   expect(stable.wallet.createHardwareWalletWithDiscovery).toHaveBeenCalledExactlyOnceWith('trezor');
 });
+
+it('asks Chrome for Trezor Suite access before connecting, and connects once it is allowed', async () => {
+  const permissions = chrome.permissions as unknown as { request: ReturnType<typeof vi.fn> };
+  stable.wallet.createHardwareWalletWithDiscovery.mockResolvedValue({ id: 'hardware-wallet' });
+  render(<MemoryRouter><ConnectHardware /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: t('wallets_connect_hardware_connect_trezor') }));
+  await waitFor(() => expect(stable.wallet.createHardwareWalletWithDiscovery).toHaveBeenCalledOnce());
+  expect(permissions.request).toHaveBeenCalledWith({ origins: ['https://suite.trezor.io/*'] });
+  expect(permissions.request.mock.invocationCallOrder[0])
+    .toBeLessThan(stable.wallet.createHardwareWalletWithDiscovery.mock.invocationCallOrder[0]!);
+});
+
+it('does not open Suite when the user denies access, and says how to retry', async () => {
+  (chrome.permissions as unknown as { request: ReturnType<typeof vi.fn> }).request.mockResolvedValue(false);
+  render(<MemoryRouter><ConnectHardware /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: t('wallets_connect_hardware_connect_trezor') }));
+  await screen.findByText(t('hardware_error_suite_access_denied'));
+  expect(stable.wallet.createHardwareWalletWithDiscovery).not.toHaveBeenCalled();
+  expect(stable.wallet.setHardwareOperationInProgress).not.toHaveBeenCalled();
+});

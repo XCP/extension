@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { configure } from '@testing-library/react';
 
@@ -29,6 +29,15 @@ vi.mock('@trezor/connect-webextension', () => ({
     REQUEST_CONFIRMATION: 'ui-request_confirmation',
   },
 }));
+
+// The optional Trezor Suite host permission (platform/suiteAccess.ts) reads as granted unless a
+// test says otherwise, so hardware tests exercise signing rather than the permission gate.
+beforeEach(() => {
+  const permissions = (globalThis as { chrome?: { permissions?: Record<string, unknown> } }).chrome?.permissions;
+  if (!permissions) return;
+  permissions.contains = vi.fn(async () => true);
+  permissions.request = vi.fn(async () => true);
+});
 
 // Configure testing-library with longer async timeouts for CI
 configure({

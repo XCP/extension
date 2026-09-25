@@ -146,7 +146,7 @@ jobs:
         run: npm ci
 
       - name: Build extension
-        run: npm run build
+        run: npm run build:e2e  # grants the optional Trezor Suite permission up front
 
       - name: Configure Xvfb (MetaMask style)
         run: |

@@ -2087,6 +2087,10 @@
     "approval_marketplace_different_transaction_description",
     "approval_too_many_inputs_title",
     "approval_too_many_inputs_description",
-    "provider_review_transaction_data_mismatch"
+    "provider_review_transaction_data_mismatch",
+    "hardware_error_suite_access_required",
+    "hardware_error_suite_access_denied",
+    "trezor_access_notice_body",
+    "trezor_access_notice_allow"
   ]
 }
