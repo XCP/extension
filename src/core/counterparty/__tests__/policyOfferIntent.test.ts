@@ -8,6 +8,7 @@ import {
   type AcceptPolicyOfferIntentClaim,
   analyzeMarketplaceIntent,
   type FundPolicyOfferIntentClaim,
+  formatExpiry,
   type MarketplaceAnalysisInput,
   marketplaceTransactionHeaderProblem,
   parseMarketplaceIntent,
@@ -104,19 +105,16 @@ function mutatedAlternative(
 describe('fund_policy_offer proof', () => {
   describe.each(Object.entries(POLICY_OFFER_VECTORS.fund))('%s bidder', (_name, vector) => {
     it.each(vector.claim.alternatives.map((_alternative, index) => index))(
-      'proves alternative %i as a routine caution naming the origin and the market key', (index) => {
+      'proves alternative %i as a routine caution stating the offer stands until it expires', (index) => {
         const review = analyzeMarketplaceIntent(fundInput(vector, index));
         expect(review.blockers).toEqual([]);
         expect(review.status).toBe('caution');
         expect(review.family).toBe('fund_policy_offer');
         const alternative = vector.claim.alternatives[index]!;
-        // No list of approved market keys: the leaf's key is disclosed, not looked up.
-        const key = vector.claim.marketKey;
+        // No list of approved market keys: the notice states what the signature leaves standing.
         expect(review.notices).toEqual([{
           severity: 'warning',
-          message: `Market key ${key.slice(0, 8)}…${key.slice(-8)}, requested by ${ORIGIN}, can complete this `
-            + `offer without you for up to ${alternative.offerValueSats.toLocaleString('en-US')} sats until a `
-            + 'funding UTXO is spent. Nothing is broadcast now.',
+          message: `Standing offer. Can be filled without asking you again until ${formatExpiry(alternative.expiresAt)}, or until you cancel. Nothing is broadcast now.`,
         }]);
         const facts = Object.fromEntries(review.facts.map(fact => [fact.label, fact]));
         expect(facts['Offer price']?.value).toBe(`${alternative.priceSats.toLocaleString('en-US')} sats`);

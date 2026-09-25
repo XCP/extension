@@ -17,7 +17,7 @@ import { decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
-import { type AcceptPolicyOfferIntentClaim, parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
+import { type AcceptPolicyOfferIntentClaim, formatExpiry, parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import {
   type CanonicalPolicy,
   encodePolicyLeaf,
@@ -299,10 +299,12 @@ describe('fund-policy-offer bundle', () => {
 
       expect(result.decodedInfo.review.blockers).toEqual([]);
       expect(result.decodedInfo.review.status).toBe('caution');
-      // The notice names the sender-verified origin and the abbreviated key, not a pinned operator.
-      const notice = result.decodedInfo.review.notices[0]?.message;
-      expect(notice).toContain('requested by https://audit.invalid');
-      expect(notice).toContain(`Market key ${state.marketKey.slice(0, 8)}…${state.marketKey.slice(-8)}`);
+      // One standing-offer notice for the set, to the latest alternative's expiry.
+      const latest = Math.max(...(offer.claim.alternatives as Array<{ expiresAt: number }>).map(a => a.expiresAt));
+      expect(result.decodedInfo.review.notices).toEqual([{
+        severity: 'warning',
+        message: `Standing offer. Can be filled without asking you again until ${formatExpiry(latest)}, or until you cancel. Nothing is broadcast now.`,
+      }]);
       expect(result.decodedInfo.policyWarnings?.filter(warning => warning.severity === 'block')).toEqual([]);
       expect(result.policy.blocked).toBe(false);
       // A routine caution: the card states the market key's authority; no second confirmation.

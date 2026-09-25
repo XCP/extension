@@ -2642,21 +2642,13 @@ const policyWalletContext = (input: MarketplaceAnalysisInput) => ({
   fundingSettlement: input.policyOffer?.fundingSettlement,
 });
 
-/** A market key as the review shows it: the first and last 8 hex digits of the x-only key. */
-function abbreviatePolicyMarketKey(marketKey: string): string {
-  return `${marketKey.slice(0, 8)}…${marketKey.slice(-8)}`;
-}
-
 /**
- * The one trust a policy-offer funding signature adds, stated on the review: the market key can
- * complete the offer without the bidder, for up to `maxValue`, until a funding UTXO is spent. The
- * site is named by its wallet-verified origin and the key by its own digits; like mainstream
- * wallets, this wallet does not keep a list of approved marketplace keys.
+ * What a policy-offer funding signature leaves standing, stated on the review: the offer can be
+ * filled without another prompt until it expires (unix seconds) or the bidder cancels it by
+ * spending a funding UTXO. Like mainstream wallets, this wallet keeps no list of marketplace keys.
  */
-export function policyOfferMarketKeyNotice(origin: string, marketKey: string, maxValue: string): string {
-  return t('marketplace_intent_notice_policy_offer_market_key', [
-    origin, abbreviatePolicyMarketKey(marketKey), maxValue,
-  ]);
+export function policyOfferStandingNotice(expiresAt: number): string {
+  return t('marketplace_intent_notice_policy_offer_market_key', formatExpiry(expiresAt));
 }
 
 /**
@@ -2925,13 +2917,13 @@ function analyzeFundPolicyOfferIntent(
         value: t('marketplace_intent_policy_cancel_by_spending_funding'),
       },
     ],
-    // The one trust this signature adds, stated whenever the proof holds: the market key can
-    // complete the offer without the bidder for up to its value until a funding input is spent.
+    // What this signature leaves standing, stated whenever the proof holds: the offer can be
+    // filled without another prompt until it expires or a funding input is spent.
     notices: allProblems.length > 0 || !origin
       ? []
       : [{
           severity: 'warning',
-          message: policyOfferMarketKeyNotice(origin, intent.marketKey, satsValue(shown.offerValueSats)),
+          message: policyOfferStandingNotice(shown.expiresAt),
         }],
     blockers: allProblems,
   };

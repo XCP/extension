@@ -14,7 +14,7 @@ import {
   type PrepareAssetIntentClaim,
   type PrepareBulkFanoutIntentClaim,
   parseMarketplaceIntent,
-  policyOfferMarketKeyNotice,
+  policyOfferStandingNotice,
 } from '@/core/counterparty/marketplaceIntent';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import { formatAmount } from '@/core/format';
@@ -453,9 +453,6 @@ export function analyzeMarketplaceBatch(
     const first = offers[0]!;
     const alternatives = offers.map(offer => offer.alternatives[0]!);
     const only = alternatives.length === 1 ? alternatives[0]! : undefined;
-    const largestOffer = alternatives.reduce(
-      (largest, alternative) => (alternative.offerValueSats > largest ? alternative.offerValueSats : largest), 0,
-    );
     const expiries = alternatives.map(alternative => alternative.expiresAt);
     const latestExpiry = Math.max(...expiries);
     title = only
@@ -500,13 +497,10 @@ export function analyzeMarketplaceBatch(
         value: t('marketplace_intent_policy_cancel_by_spending_funding'),
       },
     );
-    // The one trust these signatures add: the market key can complete any one of them without
-    // the bidder, for up to the largest offer, until a funding input is spent. A caution by design,
-    // stated with the site's verified origin and the key itself. Without an origin every item is
-    // already blocked, so there is nothing to disclose.
-    notice = context.origin
-      ? policyOfferMarketKeyNotice(context.origin, first.marketKey, sats(largestOffer))
-      : '';
+    // What these signatures leave standing: one of them can be filled without another prompt
+    // until the latest alternative expires or a funding input is spent. A caution by design.
+    // Without a verified origin every item is already blocked, so there is nothing to disclose.
+    notice = context.origin ? policyOfferStandingNotice(latestExpiry) : '';
   } else if (kind === 'bulk-fanout') {
     const fanouts = intents as PrepareBulkFanoutIntentClaim[];
     const slots = exactSafeSum(fanouts.map(intent => intent.slotCount), 'slot count');

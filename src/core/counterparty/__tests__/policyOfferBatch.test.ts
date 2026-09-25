@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeMarketplaceBatch, parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
-import type { FundPolicyOfferIntentClaim, MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import {
+  type FundPolicyOfferIntentClaim,
+  formatExpiry,
+  type MarketplaceApprovalReview,
+} from '@/core/counterparty/marketplaceIntent';
 import { POLICY_OFFER_VECTORS } from './policyOfferVectors';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -94,16 +98,14 @@ describe('fund-policy-offer batch review', () => {
   /** The requesting origin as the wallet's provider verified it. */
   const verified = { origin: 'https://digirare.com' };
 
-  it('summarizes the alternatives once, with the market key’s authority up to the largest offer', () => {
+  it('summarizes the alternatives once, with one standing-offer notice to the latest expiry', () => {
     const review = analyzeMarketplaceBatch(parsed.kind, parsed.intents, parsed.intents.map(caution), verified);
     expect(review.status).toBe('caution');
     expect(review.title).toBe(`Make ${count} alternative offers`);
-    const largest = Math.max(...claim.alternatives.map(alternative => alternative.offerValueSats));
+    const latest = Math.max(...claim.alternatives.map(alternative => alternative.expiresAt));
     expect(review.notices).toEqual([{
       severity: 'warning',
-      message: `Market key ${claim.marketKey.slice(0, 8)}…${claim.marketKey.slice(-8)}, requested by https://digirare.com, `
-        + `can complete this offer without you for up to ${largest.toLocaleString('en-US')} sats until a funding UTXO is spent. `
-        + 'Nothing is broadcast now.',
+      message: `Standing offer. Can be filled without asking you again until ${formatExpiry(latest)}, or until you cancel. Nothing is broadcast now.`,
     }]);
     const labels = review.facts.map(fact => fact.label);
     expect(labels.slice(0, count)).toEqual(claim.alternatives.map((_alternative, index) => `Offer ${index + 1}`));
