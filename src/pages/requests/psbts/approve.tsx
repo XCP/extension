@@ -7,6 +7,8 @@ import {
   ApprovalNoWallet,
   ApprovalUnavailable,
 } from "@/components/domain/approval/approval-chrome";
+import { ApprovalIdentifier } from "@/components/domain/approval/approval-identifier";
+import { ApprovalList } from "@/components/domain/approval/approval-list";
 import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
 import { BundleReviewCard } from "@/components/domain/approval/bundle-review-card";
 import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
@@ -193,26 +195,30 @@ export default function ApprovePsbtsPage() {
       )}
       <BundleReviewCard review={decodedInfo.review} />
       <Collapsible compact variant="card" title={t('common_transactions')}>
-        <div className="space-y-3 text-xs">
-          {decodedInfo.items.map((item, index) => (
-            <div
-              key={`${item.txid ?? "transaction"}-${index}`}
-              className={index > 0 ? "border-t border-gray-200 pt-3" : ""}
-            >
-              <p className="font-semibold text-gray-900">
-                {index + 1}.{" "}
-                {item.marketplaceReview?.title ??
-                  request.items[index]?.marketplaceIntent.action
-                    .replaceAll("_", " ")
-                    .replace(/\b\w/g, (c) => c.toUpperCase())}
-              </p>
-              <p className="mt-1 break-all text-gray-500">{item.txid}</p>
-              <p className="mt-1 text-gray-700">
-                {t('psbts_approve_fee_sats', [formatAmount({ value: item.psbtDetails.fee, maximumFractionDigits: 0 })])}
-              </p>
-            </div>
-          ))}
-          <p className="border-t border-gray-100 pt-3 text-gray-500">
+        <div className="text-xs">
+          <ApprovalList
+            className="space-y-3"
+            items={decodedInfo.items}
+            render={(item, index) => (
+              <div
+                key={`${item.txid ?? "transaction"}-${index}`}
+                className={index > 0 ? "border-t border-gray-200 pt-3" : ""}
+              >
+                <p className="font-semibold text-gray-900">
+                  {index + 1}.{" "}
+                  {item.marketplaceReview?.title ??
+                    request.items[index]?.marketplaceIntent.action
+                      .replaceAll("_", " ")
+                      .replace(/\b\w/g, (c) => c.toUpperCase())}
+                </p>
+                {item.txid && <div className="mt-1 text-gray-600"><ApprovalIdentifier value={item.txid} /></div>}
+                <p className="mt-1 tabular-nums text-gray-700">
+                  {t('psbts_approve_fee_sats', [formatAmount({ value: item.psbtDetails.fee, maximumFractionDigits: 0 })])}
+                </p>
+              </div>
+            )}
+          />
+          <p className="mt-3 border-t border-gray-100 pt-3 text-gray-500">
             {t('psbts_approve_the_wallet_returns_this_batch')}
           </p>
         </div>

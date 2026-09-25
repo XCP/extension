@@ -136,6 +136,105 @@ function numbersInNoLanguage() {
   return findings;
 }
 
+/**
+ * Approval fact labels that would wrap.
+ *
+ * A fact row gives its label the space the value leaves, so a label longer than the budget
+ * breaks onto a second line at popup width, and in Japanese or Chinese it breaks mid-word. The
+ * budget for a row label is 18 half-width units at 350px (18 Latin characters, or 9 full-width
+ * ones, which count double) and 28 in the side panel; every approval can open in the popup, so
+ * the popup budget is the one enforced. A label that sits on its own line above its value (a
+ * headline amount, a paragraph, an address) has the whole line, and gets twice the budget.
+ * Kept in step with src/components/domain/approval/fact-layout.ts; the approval galleries assert
+ * the same thing on the rendered screens.
+ *
+ * Label keys are found where approval facts are built: a `label:` property built from
+ * `t('key')` in the Counterparty review producers and approval surfaces, a `label={t('key')}`
+ * prop on an approval surface, and the English label sources the protocol describer passes
+ * through tx-action-info's localizer.
+ */
+const LABEL_BUDGET = 18;
+const STACKED_LABEL_BUDGET = 36;
+const FULL_WIDTH = /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]/u;
+/** A substituted value (an asset name, a count) is assumed to be four units wide. */
+const displayWidth = (text) => [...text.replace(/\$\d/g, 'XXXX')].reduce((width, char) => width + (FULL_WIDTH.test(char) ? 2 : 1), 0);
+const STACKED = /'(?:paragraph|address|outpoint|identifier)'|emphasis:\s*'primary'|layout:\s*'stacked'/;
+
+/** The text of the call or object literal that opens at `from`, up to its closing bracket. */
+function balanced(text, from) {
+  let depth = 0;
+  for (let at = from; at < text.length; at += 1) {
+    const char = text[at];
+    if (char === '(' || char === '[' || char === '{') depth += 1;
+    else if (char === ')' || char === ']' || char === '}') { depth -= 1; if (depth === 0) return text.slice(from, at + 1); }
+  }
+  return text.slice(from);
+}
+
+/** Label key -> true when every use stacks it on its own line (one row use keeps the row budget). */
+function factLabelKeys() {
+  const rows = new Set();
+  const stacked = new Set();
+  const note = (key, isStacked) => (isStacked ? stacked : rows).add(key);
+  const PRODUCERS = ['core/counterparty/', 'components/domain/approval/', 'pages/requests/'];
+  for (const file of sourceFiles(SRC)) {
+    const rel = relative(SRC, file).replace(/\\/g, '/');
+    if (!PRODUCERS.some((prefix) => rel.startsWith(prefix))) continue;
+    const text = readFileSync(file, 'utf8');
+    for (const match of text.matchAll(/\blabel:([\s\S]{0,240}?)\bvalue:/g)) {
+      const open = text.lastIndexOf('{', match.index);
+      const object = open >= 0 ? balanced(text, open) : match[0];
+      for (const [, key] of match[1].matchAll(/\bt\(\s*'([A-Za-z0-9_]+)'/g)) note(key, STACKED.test(object));
+    }
+    for (const [, key] of text.matchAll(/\blabel=\{t\(\s*'([A-Za-z0-9_]+)'/g)) note(key, false);
+  }
+  // The describer labels in English and tx-action-info maps each source string to its key.
+  const describePath = join(SRC, 'core', 'counterparty', 'describe.ts');
+  const localizerPath = join(SRC, 'components', 'domain', 'tx', 'tx-action-info.ts');
+  const describe = existsSync(describePath) ? readFileSync(describePath, 'utf8') : '';
+  const localizer = existsSync(localizerPath) ? readFileSync(localizerPath, 'utf8') : '';
+  const keyFor = new Map([...localizer.matchAll(/case "((?:[^"\\]|\\.)*)": return t\('([A-Za-z0-9_]+)'/g)].map(([, source, key]) => [source, key]));
+  const sources = [['Memo', true]];
+  for (const match of describe.matchAll(/\badd(?:Memo)?\(/g)) {
+    const call = balanced(describe, match.index + match[0].length - 1);
+    // The first argument, up to its top-level comma; every string literal in it is a label source.
+    let depth = 0;
+    let end = 1;
+    for (; end < call.length; end += 1) {
+      const char = call[end];
+      if (char === '(' || char === '[' || char === '{') depth += 1;
+      else if (char === ')' || char === ']' || char === '}') { if (depth === 0) break; depth -= 1; }
+      else if (char === ',' && depth === 0) break;
+    }
+    const isStacked = match[0] === 'addMemo(' || STACKED.test(call);
+    for (const [, source] of call.slice(1, end).matchAll(/'([^'\n]+)'/g)) sources.push([source, isStacked]);
+  }
+  for (const match of describe.matchAll(/\blabel:\s*text\('([^'\n]+)'/g)) {
+    const open = describe.lastIndexOf('{', match.index);
+    sources.push([match[1], STACKED.test(balanced(describe, open))]);
+  }
+  for (const [source, isStacked] of sources) if (keyFor.has(source)) note(keyFor.get(source), isStacked);
+  const keys = new Map();
+  for (const key of [...rows, ...stacked].sort()) if (key in en) keys.set(key, !rows.has(key));
+  return keys;
+}
+
+function labelsOverBudget() {
+  const findings = [];
+  const keys = factLabelKeys();
+  for (const name of ['en', ...locales]) {
+    const catalog = readJson(join(LOCALES_DIR, name, 'messages.json'), {});
+    for (const [key, isStacked] of keys) {
+      if (!catalog[key]) continue;
+      const label = expandedMessage(catalog[key]);
+      const width = displayWidth(label);
+      const budget = isStacked ? STACKED_LABEL_BUDGET : LABEL_BUDGET;
+      if (width > budget) findings.push(`  ${name}: ${key} "${label}" is ${width} units, budget ${budget}${isStacked ? ' (own line)' : ''}`);
+    }
+  }
+  return { keys, findings };
+}
+
 function check() {
   let failed = false;
   const used = usedKeys();
@@ -184,6 +283,13 @@ function check() {
       }
     }
   }
+  const labels = labelsOverBudget();
+  if (labels.findings.length) {
+    failed = true;
+    console.error(`approval fact labels over budget at popup width (${labels.findings.length}; full-width characters count 2):`);
+    for (const line of labels.findings) console.error(line);
+  }
+  console.log(`approval fact labels: ${labels.keys.size} keys measured (row ${LABEL_BUDGET}, own line ${STACKED_LABEL_BUDGET} units)`);
   const numbers = numbersInNoLanguage();
   if (numbers.length) {
     failed = true;

@@ -546,7 +546,7 @@ describe('the marketplace intent proof', () => {
     });
     expect(analysis.marketplaceReview?.facts).toEqual(expect.arrayContaining([
       { kind: 'amount', label: 'Sale price', value: '250,000 sats' },
-      { kind: 'text', label: 'Broadcast', value: 'Not broadcast now.' },
+      { kind: 'text', label: 'Broadcast', value: 'Not now' },
       { kind: 'paragraph', label: 'Marketplace cancellation', value: 'Delist without a transaction' },
       { kind: 'paragraph', label: 'Signature invalidation', value: 'Spend the asset UTXO' },
     ]));
@@ -574,8 +574,8 @@ describe('the marketplace intent proof', () => {
       blockers: [],
     });
     expect(analysis.marketplaceReview?.facts).toContainEqual({
-      kind: 'amount', label: 'Quoted XCP fee',
-      value: '0.25 XCP', description: 'Finalized at confirmation',
+      kind: 'amount', label: 'XCP fee',
+      value: '0.25 XCP', description: 'The XCP fee may change at confirmation.',
     });
     expect(analysis.marketplaceReview?.facts).toContainEqual({
       kind: 'amount', label: 'New UTXO value',

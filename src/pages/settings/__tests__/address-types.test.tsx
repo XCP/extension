@@ -1,4 +1,4 @@
-import { act, cleanup, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
@@ -49,7 +49,7 @@ describe('localized address-type settings', () => {
   it('updates language in place without changing the selected format or deriving new addresses', async () => {
     open();
     await screen.findByText('Native SegWit (P2WPKH)');
-    const selected = screen.getByRole('radio', { checked: true });
+    const selected = screen.getByRole('option', { selected: true });
     const previewCalls = fixture.preview.mock.calls.map(call => [...call]);
     for (const [language, native, nested, legacy] of [
       ['ja', 'ネイティブSegWit', 'ネスト型SegWit', 'レガシー'],
@@ -63,7 +63,7 @@ describe('localized address-type settings', () => {
       expect(screen.getByText(`${nested} (P2SH-P2WPKH)`)).toBeInTheDocument();
       expect(screen.getByText(`${legacy} (P2PKH)`)).toBeInTheDocument();
       expect(screen.getByText('Taproot (P2TR)')).toBeInTheDocument();
-      expect(screen.getByRole('radio', { checked: true })).toBe(selected);
+      expect(screen.getByRole('option', { selected: true })).toBe(selected);
     }
     expect(fixture.preview.mock.calls).toEqual(previewCalls);
     expect(fixture.update).not.toHaveBeenCalled();
@@ -79,7 +79,7 @@ describe('localized address-type settings', () => {
     open();
     await screen.findByText(legacy);
     expect(screen.getByText(segwit)).toBeInTheDocument();
-    expect(screen.getAllByRole('radio')).toHaveLength(2);
+    expect(screen.getAllByRole('option')).toHaveLength(2);
     expect(fixture.update).not.toHaveBeenCalled();
   });
 });
@@ -95,8 +95,37 @@ describe('address-type previews', () => {
       [AddressFormat.P2SH_P2WPKH, 2],
       [AddressFormat.P2PKH, 2],
     ]);
-    expect(screen.getByRole('radio', { checked: true })).toHaveTextContent(
+    expect(screen.getByRole('option', { selected: true })).toHaveTextContent(
       formatAddress(`preview:${AddressFormat.P2WPKH}:2`)
     );
+  });
+});
+
+describe('address-type listbox', () => {
+  it('moves focus with the arrow keys and switches only on Enter, Space or a click', async () => {
+    open();
+    await screen.findByText('Native SegWit (P2WPKH)');
+    expect(screen.getByRole('listbox', { name: 'Address Type' })).toBeInTheDocument();
+    const selected = screen.getByRole('option', { selected: true });
+    const options = screen.getAllByRole('option');
+    const next = options[options.indexOf(selected) + 1]!;
+    act(() => selected.focus());
+    await act(async () => { fireEvent.keyDown(selected, { key: 'ArrowDown' }); });
+    expect(next).toHaveFocus();
+    expect(fixture.update).not.toHaveBeenCalled();
+    expect(screen.getByRole('option', { selected: true })).toBe(selected);
+
+    await act(async () => { fireEvent.keyDown(next, { key: 'Enter' }); });
+    expect(fixture.update).toHaveBeenCalledTimes(1);
+    expect(fixture.update).toHaveBeenCalledWith('wallet', AddressFormat.P2SH_P2WPKH);
+  });
+
+  it('does not re-save the format already in use', async () => {
+    open();
+    await screen.findByText('Native SegWit (P2WPKH)');
+    const selected = screen.getByRole('option', { selected: true });
+    await act(async () => { fireEvent.click(selected); });
+    await act(async () => { fireEvent.keyDown(selected, { key: ' ' }); });
+    expect(fixture.update).not.toHaveBeenCalled();
   });
 });

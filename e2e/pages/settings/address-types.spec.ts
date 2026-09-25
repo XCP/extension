@@ -26,9 +26,9 @@ walletTest.describe('Address Type Settings Page (/settings/address-types)', () =
 
     if (!page.url().includes('/settings/address-types')) return;
 
-    // Should show radio group with address type options
-    const radioGroup = page.getByRole('radiogroup').first();
-    await expect(radioGroup).toBeVisible({ timeout: 5000 });
+    // Should show listbox with address type options
+    const typeList = page.getByRole('listbox').first();
+    await expect(typeList).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows address previews for each type', async ({ page }) => {
@@ -49,7 +49,7 @@ walletTest.describe('Address Type Settings Page (/settings/address-types)', () =
     if (!page.url().includes('/settings/address-types')) return;
 
     // Find options and click a different one
-    const options = page.getByRole('radio');
+    const options = page.getByRole('option');
     const count = await options.count();
 
     if (count > 1) {
@@ -104,8 +104,8 @@ walletTest.describe('Address Type Settings Page (/settings/address-types)', () =
 
     if (!page.url().includes('/settings/address-types')) return;
 
-    // One radio option should be checked
-    const selectedOption = page.locator('[role="radio"][aria-checked="true"], [data-checked="true"]');
+    // One address type option should be checked
+    const selectedOption = page.locator('[role="option"][aria-selected="true"]');
     await expect(selectedOption.first()).toBeVisible({ timeout: 5000 });
   });
 
@@ -115,16 +115,16 @@ walletTest.describe('Address Type Settings Page (/settings/address-types)', () =
 
     if (!page.url().includes('/settings/address-types')) return;
 
-    // Find all radio options
-    const options = page.getByRole('radio');
+    // Find all address type options
+    const options = page.getByRole('option');
     const count = await options.count();
 
     if (count <= 1) return; // Skip if only one option
 
     // Get currently selected
-    const currentlySelected = page.locator('[role="radio"][aria-checked="true"], [data-checked="true"]');
+    const currentlySelected = page.locator('[role="option"][aria-selected="true"]');
     const currentIndex = await currentlySelected.evaluate((el, allOptions) => {
-      const radios = document.querySelectorAll('[role="radio"]');
+      const radios = document.querySelectorAll('[role="option"]');
       return Array.from(radios).indexOf(el);
     });
 
@@ -134,7 +134,7 @@ walletTest.describe('Address Type Settings Page (/settings/address-types)', () =
     await page.waitForLoadState('networkidle');
 
     // New option should be selected
-    const newSelected = page.locator('[role="radio"][aria-checked="true"], [data-checked="true"]');
+    const newSelected = page.locator('[role="option"][aria-selected="true"]');
     await expect(newSelected.first()).toBeVisible({ timeout: 5000 });
   });
 
@@ -144,13 +144,13 @@ walletTest.describe('Address Type Settings Page (/settings/address-types)', () =
 
     if (!page.url().includes('/settings/address-types')) return;
 
-    const options = page.getByRole('radio');
+    const options = page.getByRole('option');
     const count = await options.count();
 
     if (count <= 1) return;
 
     // Change type
-    const uncheckedOption = page.locator('[role="radio"][aria-checked="false"]').first();
+    const uncheckedOption = page.locator('[role="option"][aria-selected="false"]').first();
     const uncheckedCount = await uncheckedOption.count();
 
     if (uncheckedCount > 0) {

@@ -1,4 +1,4 @@
-import { captureApprovalSizes } from '../utils/approval-layout';
+import { captureApprovalSizes, captureExpanded } from '../utils/approval-layout';
 /**
  * Screenshots every marketplace / provider-safety approval screen the 0.9 work added, one file
  * per state — the companion to approval-gallery.spec.ts for the surfaces that gallery cannot
@@ -26,7 +26,7 @@ import { Address, OutScript } from '@scure/btc-signer';
 import { expect, navigateTo, walletTest } from '../fixtures';
 import { settings } from '../selectors';
 import { ADDRESS_TYPE_DISPLAY_NAMES, type AddressType } from '../test-data';
-import { assertGalleryWorkerRouting, authorizeGalleryOrigin, createGalleryApi, type GalleryApi, selectGalleryScenarios } from '../utils/provider-gallery';
+import { assertGalleryWorkerRouting, authorizeGalleryOrigin, callGalleryService, createGalleryApi, type GalleryApi, selectGalleryScenarios } from '../utils/provider-gallery';
 
 const OUT_DIR = 'test-results/marketplace-gallery';
 
@@ -265,7 +265,7 @@ async function selectAddressType(page: Page, addressType: Extract<AddressType, '
   await navigateTo(page, 'settings');
   await settings.addressTypeOption(page).click();
   await expect(page).toHaveURL(/address-type/);
-  const option = page.locator('[role="radio"]').filter({
+  const option = page.locator('[role="option"]').filter({
     hasText: ADDRESS_TYPE_DISPLAY_NAMES[addressType],
   });
   await expect(option).toBeVisible();
@@ -519,7 +519,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
         wallet,
         'New UTXO value',
         '330 sats',
-        'Quoted XCP fee',
+        'XCP fee',
       ],
       absentText: [
         'for listing',
@@ -614,8 +614,8 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
         'Attach and list COLLECTOR',
         'Asset source',
         pairedLegacy,
-        'Broadcast now',
-        'Attach transaction only',
+        'Sent now',
+        'Attach only',
         'Listing activation',
         'After confirmation and Counterparty verification',
       ],
@@ -729,7 +729,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
         [`${ASSET_TXID}:7`]: [{ asset: 'RAREPEPE', quantity: '100000000', quantity_normalized: '1' }],
       },
       expectedText: [
-        'Not broadcast now.',
+        'Not now',
         'Marketplace cancellation',
         'Signature invalidation',
         'Spend the asset UTXO',
@@ -1178,7 +1178,7 @@ const SCREEN_SPACING_MS = 2_000;
 const settle = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 walletTest('captures every marketplace and provider-safety approval screen', async ({ context, page, extensionId }) => {
-  walletTest.setTimeout(300_000);
+  walletTest.setTimeout(600_000);
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
   // A paired permission is defined for the Legacy and Native SegWit formats at the same wallet
@@ -1191,6 +1191,8 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
   expect(wallet).toMatch(/^bc1q/);
 
   const identity = await authorizeGalleryOrigin(page, ORIGIN, true);
+  // A full run with the expanded captures can outlast the default five-minute auto-lock.
+  await callGalleryService(page, 'updateSettings', [{ autoLockTimer: '30m' }]);
   expect(identity.address).toBe(wallet);
   await assertGalleryWorkerRouting(context, extensionId);
   const scenarios = selectGalleryScenarios(buildScenarios(wallet, pairedLegacy, identity.walletId), scenario => scenario.name);
@@ -1254,6 +1256,9 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
         await expect(body).not.toContainText(absentText);
       }
       await approval.screenshot({ path: path.join(OUT_DIR, `${scenario.name}.png`), fullPage: true });
+      for (const width of [350, 520]) {
+        await captureExpanded(approval, path.join(OUT_DIR, `${scenario.name}-expanded-${width}.png`), width);
+      }
 
       const review = approval.getByRole('button', { name: /^review$/i });
       if (await review.count()) {

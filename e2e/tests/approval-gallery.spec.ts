@@ -1,4 +1,4 @@
-import { captureApprovalSizes } from '../utils/approval-layout';
+import { captureApprovalSizes, captureExpanded } from '../utils/approval-layout';
 /**
  * Screenshots every provider approval screen, one file per state.
  *
@@ -441,7 +441,7 @@ async function collectWarnings(
 walletTest.use({ browserLocale: LOCALE });
 
 walletTest('captures every provider approval screen', async ({ context, page, extensionId }) => {
-  walletTest.setTimeout(300_000);
+  walletTest.setTimeout(600_000);
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
   const scenarios = selectGalleryScenarios(Object.entries(scenarioFixtures.scenarios), ([name]) => name);
@@ -450,6 +450,8 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
     throw new Error('XCP_GALLERY_INCLUDE_RETRY requires send-with-memo in the selected scenarios');
   }
   const identity = await authorizeGalleryOrigin(page, ORIGIN);
+  // A full run with the expanded captures outlasts the default five-minute auto-lock.
+  await callGalleryService(page, 'updateSettings', [{ autoLockTimer: '30m' }]);
   const signerAddress = identity.address;
   await assertGalleryWorkerRouting(context, extensionId);
   await expect(page.locator('html')).toHaveAttribute('lang', LOCALE);
@@ -557,6 +559,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
       }
 
       await approval.screenshot({ path: path.join(OUT_DIR, `${name}.png`), fullPage: true });
+      await captureExpanded(approval, path.join(OUT_DIR, `${name}-expanded-350.png`));
       captured.push(name);
       await approval.close();
       await api.dispose();
@@ -611,6 +614,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
       await psbtDetails.click();
 
       await approval.screenshot({ path: path.join(OUT_DIR, `psbt-${name}.png`), fullPage: true });
+      await captureExpanded(approval, path.join(OUT_DIR, `psbt-${name}-expanded-350.png`));
       await approval.close();
       await api.dispose();
     }, { subtitle: name, params: { scenario: name, requestType: 'psbt' } });

@@ -56,17 +56,17 @@ async function selectAddressType(page: any, addressType: AddressType): Promise<v
   await addressTypeOption.click();
   await expect(page).toHaveURL(/address-type/);
 
-  const radioOptions = page.locator('[role="radio"]');
-  await expect(radioOptions.first()).toBeVisible();
+  const typeOptions = page.locator('[role="option"]');
+  await expect(typeOptions.first()).toBeVisible();
 
   const displayName = ADDRESS_TYPE_DISPLAY_NAMES[addressType];
-  const targetOption = page.locator(`[role="radio"]`).filter({ hasText: displayName });
+  const targetOption = page.locator(`[role="option"]`).filter({ hasText: displayName });
 
   const targetCount = await targetOption.count();
   if (targetCount > 0) {
     await targetOption.click();
   } else {
-    const options = await radioOptions.all();
+    const options = await typeOptions.all();
     for (const option of options) {
       const text = await option.textContent();
       if (text?.includes(addressType.toUpperCase()) || text?.includes(displayName)) {
@@ -184,10 +184,10 @@ walletTest.describe('Address Type Matrix - Address Preview in Settings', () => {
     await expect(page).toHaveURL(/address-type/);
 
     await page.waitForLoadState('networkidle');
-    const radioOptions = page.locator('[role="radio"]');
-    await expect(radioOptions.first()).toBeVisible({ timeout: 10000 });
+    const typeOptions = page.locator('[role="option"]');
+    await expect(typeOptions.first()).toBeVisible({ timeout: 10000 });
 
-    const options = await radioOptions.all();
+    const options = await typeOptions.all();
     expect(options.length).toBeGreaterThanOrEqual(4);
 
     for (const option of options) {
@@ -206,10 +206,10 @@ walletTest.describe('Address Type Matrix - Address Preview in Settings', () => {
       await expect(page).toHaveURL(/address-type/);
 
       await page.waitForLoadState('networkidle');
-      await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('[role="option"]').first()).toBeVisible({ timeout: 10000 });
 
       const displayName = ADDRESS_TYPE_DISPLAY_NAMES[addressType];
-      const card = page.locator('[role="radio"]').filter({ hasText: displayName });
+      const card = page.locator('[role="option"]').filter({ hasText: displayName });
       const cardCount = await card.count();
 
       if (cardCount === 0) {
@@ -307,22 +307,22 @@ test.describe('Address Type Matrix - Counterwallet Wallet', () => {
     await expect(extensionPage).toHaveURL(/address-type/);
 
     await extensionPage.waitForLoadState('networkidle');
-    const radioOptions = extensionPage.locator('[role="radio"]');
-    await expect(radioOptions.first()).toBeVisible({ timeout: 10000 });
+    const typeOptions = extensionPage.locator('[role="option"]');
+    await expect(typeOptions.first()).toBeVisible({ timeout: 10000 });
 
-    const options = await radioOptions.all();
+    const options = await typeOptions.all();
     expect(options.length).toBe(2);
 
     // CounterWallet options should be visible
-    const counterwalletOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'CounterWallet (P2PKH)' });
-    const counterwalletSegwitOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'CounterWallet SegWit' });
+    const counterwalletOption = extensionPage.locator('[role="option"]').filter({ hasText: 'CounterWallet (P2PKH)' });
+    const counterwalletSegwitOption = extensionPage.locator('[role="option"]').filter({ hasText: 'CounterWallet SegWit' });
 
     await expect(counterwalletOption).toBeVisible();
     await expect(counterwalletSegwitOption).toBeVisible();
 
     // Standard address types should NOT be visible
-    const legacyOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'Legacy (P2PKH)' });
-    const taprootOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'Taproot' });
+    const legacyOption = extensionPage.locator('[role="option"]').filter({ hasText: 'Legacy (P2PKH)' });
+    const taprootOption = extensionPage.locator('[role="option"]').filter({ hasText: 'Taproot' });
 
     const legacyCount = await legacyOption.count();
     const taprootCount = await taprootOption.count();

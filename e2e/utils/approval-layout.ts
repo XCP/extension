@@ -1,6 +1,53 @@
 import path from 'node:path';
 import { expect, type Page } from '@playwright/test';
 
+/**
+ * Every rendered approval fact label must sit on one line at this width.
+ *
+ * The label budget in scripts/i18n.mjs keeps catalog strings short; this checks the rendered
+ * result, in whatever locale the gallery runs, including labels built from data.
+ */
+export async function assertFactLabelsFit(page: Page, name: string, width: number) {
+  const wrapped = await page.locator('[data-fact-label]').evaluateAll(labels => labels.flatMap(label => {
+    const range = document.createRange();
+    range.selectNodeContents(label);
+    const rects = [...range.getClientRects()].filter(rect => rect.width > 0);
+    const lines = new Set(rects.map(rect => Math.round(rect.top))).size;
+    return lines > 1 ? [label.textContent ?? ''] : [];
+  }));
+  expect(wrapped, `${name}: fact labels wrap at ${width}px`).toEqual([]);
+}
+
+/**
+ * The whole approval at one width, with the scroll container unrolled so nothing below the fold is
+ * cut off. The regular full-page capture stops at the popup's 600px content box.
+ */
+export async function captureExpanded(page: Page, file: string, width = 350) {
+  const previous = page.viewportSize();
+  await page.setViewportSize({ width, height: 600 });
+  const content = page.getByTestId('approval-content');
+  await content.evaluate(element => {
+    for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+      node.dataset.galleryStyle = node.getAttribute('style') ?? '';
+      node.style.setProperty('height', 'auto', 'important');
+      node.style.setProperty('max-height', 'none', 'important');
+      node.style.setProperty('overflow', 'visible', 'important');
+    }
+    element.style.setProperty('flex', 'none', 'important');
+  });
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await assertFactLabelsFit(page, path.basename(file), width);
+  await page.screenshot({ path: file, fullPage: true });
+  await content.evaluate(element => {
+    for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+      const style = node.dataset.galleryStyle ?? '';
+      if (style) node.setAttribute('style', style); else node.removeAttribute('style');
+      delete node.dataset.galleryStyle;
+    }
+  });
+  if (previous) await page.setViewportSize(previous);
+}
+
 /** Capture the initial decision separately from the taller, expanded evidence gallery. */
 export async function captureApprovalSizes(page: Page, directory: string, name: string, reviewLabel = 'Review') {
   const content = page.getByTestId('approval-content');
@@ -16,6 +63,7 @@ export async function captureApprovalSizes(page: Page, directory: string, name: 
     });
     expect(await content.evaluate(element => element.scrollWidth <= element.clientWidth),
       `${name}: approval overflows at ${width}px`).toBe(true);
+    await assertFactLabelsFit(page, name, width);
     const notice = content.getByTestId('approval-notice');
     if (/(caution|warning|blocked)/.test(name) || await page.getByRole('button', { name: reviewLabel, exact: true }).count()) {
       await expect(notice.first(), `${name}: the exception must be visible before approval`).toBeInViewport({ ratio: 1 });

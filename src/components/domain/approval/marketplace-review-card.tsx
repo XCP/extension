@@ -38,7 +38,11 @@ export function MarketplaceReviewCard({ review, onRetry, retrying = false, retry
           (review.blockers.length > 0 ? review.blockers : [review.title]).map((reason, index) => ({
             key: `marketplace-blocker-${index}`, severity: retry ? 'warning' : 'danger',
             title: reason,
-            ...(index === 0 ? { description: retry ? `${review.title}. Signing stays unavailable until verification succeeds.` : `${review.title}. Signing is blocked.` } : {}),
+            ...(index === 0 ? {
+              description: retry
+                ? t('approval_marketplace_review_card_signing_unavailable_until_verified', [review.title])
+                : t('approval_marketplace_review_card_signing_blocked', [review.title]),
+            } : {}),
           }))
         } />
         {retry && onRetry && <Button color="gray" onClick={onRetry} disabled={retrying} className="mt-3 text-sm" fullWidth>

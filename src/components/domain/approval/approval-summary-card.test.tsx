@@ -29,7 +29,7 @@ describe('ApprovalSummaryCard', () => {
     expect(screen.getByText('Deducted from seller proceeds')).toBeInTheDocument();
     expect(screen.queryByText('Returned to wallet')).not.toBeInTheDocument();
     expect(screen.queryByText('Change')).not.toBeInTheDocument();
-    expect(screen.queryByTitle('bc1qexternaldest')).not.toBeInTheDocument();
+    expect(screen.queryByText('bc1qexternaldest')).not.toBeInTheDocument();
   });
 
   it('shows the buyer conditional cost, not a generic send', () => {
@@ -51,11 +51,11 @@ describe('ApprovalSummaryCard', () => {
     render(<ApprovalSummaryCard {...base} txAction={{ label: 'Buy collectibles', description: '1 collectible' }} marketplaceReview={review({
       family: 'buy_listings', paymentSummary: [
         { kind: 'amount', label: 'You pay', value: '106,000 sats', emphasis: 'primary' },
-        { kind: 'amount', label: 'Sats kept with your asset', value: '330 sats' },
+        { kind: 'amount', label: 'Asset UTXO', value: '330 sats' },
         { kind: 'amount', label: 'Change', value: '293,670 sats' },
       ],
     })} />);
-    expect(screen.getByText('Sats kept with your asset')).toBeInTheDocument();
+    expect(screen.getByText('Asset UTXO')).toBeInTheDocument();
     expect(screen.getByText('330 sats')).toBeInTheDocument();
     expect(screen.getByText('Change')).toBeInTheDocument();
     expect(screen.getByText('293,670 sats')).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe('ApprovalSummaryCard', () => {
     render(<ApprovalSummaryCard {...base} txAction={null} marketplaceReview={review({ status })} />);
     expect(screen.queryByText('250,046 sats')).not.toBeInTheDocument();
     expect(screen.getByText('You send')).toBeInTheDocument();
-    expect(screen.getByTitle('bc1qexternaldest')).toBeInTheDocument();
+    expect(screen.getByText('bc1qexternaldest')).toBeInTheDocument();
   });
 
   it('does not drop a high-fee warning when replacing generic movement', () => {
@@ -93,7 +93,7 @@ describe('ApprovalSummaryCard', () => {
     const total = screen.getByText('306,000 sats');
     expect(total.compareDocumentPosition(screen.getByText('Network fee')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText('2 collectibles')).toBeInTheDocument();
-    expect(screen.getByTitle('bc1qexternaldest')).toBeInTheDocument();
+    expect(screen.getByText('bc1qexternaldest')).toBeInTheDocument();
   });
   it('leads with the Counterparty action and shows money-movement beneath (no BTC headline)', () => {
     render(<ApprovalSummaryCard {...base} txAction={{ label: 'Send', description: '5 PEPECASH' }} />);

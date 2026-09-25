@@ -3964,13 +3964,9 @@
     "message": "Attach fee",
     "description": "Label in the attach-and-list summary, beside the miner fee in sats paid by the attach transaction."
   },
-  "marketplace_batch_attach_network_fee": {
-    "message": "Attach network fee",
-    "description": "Label in the attach-and-list fact list, beside the miner fee in sats the attach transaction pays."
-  },
-  "marketplace_batch_attach_transaction_only": {
-    "message": "Attach transaction only",
-    "description": "Value beside \"Broadcast now\" on the attach-and-list approval screen: only the attach transaction goes to the network now, the listing does not."
+  "marketplace_batch_attach_only": {
+    "message": "Attach only",
+    "description": "Value beside \"Sent now\" on the Attach and List screen: only the attach transaction is broadcast when signing."
   },
   "marketplace_batch_authorize_1_listing_reprice": {
     "message": "Authorize 1 listing reprice",
@@ -3988,17 +3984,17 @@
     "message": "Broadcast",
     "description": "Label on the listing batch approval screen, beside whether the signed transactions go to the network now."
   },
-  "marketplace_batch_broadcast_now": {
-    "message": "Broadcast now",
-    "description": "Label in the attach-and-list fact list for what is broadcast immediately; its value is \"Attach transaction only\"."
+  "marketplace_batch_sent_now": {
+    "message": "Sent now",
+    "description": "Row label on the Attach and List screen, beside what signing broadcasts right away (only the attach; the listing is not broadcast)."
   },
   "marketplace_batch_buyer_controls": {
     "message": "Buyer controls",
     "description": "Label on the listing batch approval screen for the parts of the transaction the buyer, not the seller, decides."
   },
-  "marketplace_batch_combined_asking_prices": {
-    "message": "Combined asking prices",
-    "description": "Label on the listing batch approval screen, beside the summed asking price of every listing, in sats."
+  "marketplace_batch_total_asking": {
+    "message": "Total asking",
+    "description": "Row label on the batch listing approval screen: every listing's asking price, summed."
   },
   "marketplace_batch_create_1_listing_utxo": {
     "message": "Create 1 listing UTXO",
@@ -4028,9 +4024,9 @@
     "message": "New UTXOs",
     "description": "Label on the fan-out batch approval screen, beside the count of UTXOs the batch creates."
   },
-  "marketplace_batch_not_broadcast_now": {
-    "message": "Not broadcast now.",
-    "description": "Value beside \"Broadcast\" on the listing batch approval screen: signing only authorizes the listings, nothing is sent to the network yet."
+  "marketplace_batch_not_now": {
+    "message": "Not now",
+    "description": "Value beside \"Broadcast\" on a batch listing screen: signing a listing does not broadcast anything; a buyer completes it later."
   },
   "marketplace_batch_prepare_1_collectible": {
     "message": "Prepare 1 collectible",
@@ -4040,9 +4036,9 @@
     "message": "Prepare $1 collectibles",
     "description": "Title of the batch approval screen that prepares collectibles for sale. $1 is the number of collectibles (always 2 or more; the single case has its own message)."
   },
-  "marketplace_batch_quoted_xcp_fee": {
-    "message": "Quoted XCP fee",
-    "description": "Label in the attach-and-list fact list, beside the quoted Counterparty protocol fee in XCP."
+  "marketplace_batch_xcp_fee": {
+    "message": "XCP fee",
+    "description": "Row label on the Attach and List approval screen for the XCP (Counterparty protocol) fee the attach pays. Never a miner or platform fee; the screen notes it may change at confirmation."
   },
   "marketplace_batch_sats": {
     "message": "$1 sats",
@@ -4068,13 +4064,13 @@
     "message": "The attach transaction is broadcast first. The listing becomes available after confirmation and independent verification of the attached asset.",
     "description": "Notice under the attach-and-list approval screen explaining the two-step order of the phase."
   },
-  "marketplace_batch_total_network_fees": {
-    "message": "Total network fees",
-    "description": "Label on the batch approval screen, above the summed miner fee in sats."
+  "marketplace_batch_network_fees": {
+    "message": "Network fees",
+    "description": "Row label on batch approval screens: the network (miner) fees of every transaction in the batch, summed."
   },
-  "marketplace_batch_total_quoted_xcp_fees": {
-    "message": "Total quoted XCP fees",
-    "description": "Label on the batch approval screen, beside the summed quoted Counterparty protocol fee in XCP."
+  "marketplace_batch_xcp_fees": {
+    "message": "XCP fees",
+    "description": "Row label on a batch attach/prepare approval screen: the XCP (Counterparty protocol) fees of every attach, summed. Never a miner or platform fee."
   },
   "marketplace_batch_transactions": {
     "message": "Transactions",
@@ -4084,10 +4080,6 @@
     "message": "UTXO returned",
     "description": "Label in the attach-and-list summary, beside the sats held by the asset UTXO that come back to the seller on a sale."
   },
-  "marketplace_batch_xcp_fee_quote": {
-    "message": "XCP fee quote",
-    "description": "Label in the attach-and-list summary, beside the quoted Counterparty protocol fee in XCP. XCP is a ticker and stays Latin."
-  },
   "marketplace_batch_your_payout_if_all_sell": {
     "message": "Your payout if all sell",
     "description": "Label on the listing batch approval screen, above the total the seller receives in sats if every listing in the batch sells."
@@ -4096,13 +4088,9 @@
     "message": "Your payout if sold",
     "description": "Label on the attach-and-list approval screen, above the satoshi amount the seller receives if the listing sells."
   },
-  "marketplace_batch_your_utxo_sats_returned": {
-    "message": "Your UTXO sats returned",
-    "description": "Label in the batch approval fact list, beside the satoshis locked in the seller's asset UTXO that come back to the seller."
-  },
-  "marketplace_bundle_accept_btc_for_with_fee_bump": {
-    "message": "Accept $1 BTC for $2 with fee bump",
-    "description": "Title of the approval screen where a seller accepts an exact offer and pays a child transaction to speed it up. $1 is the offer price in BTC with 8 decimals, $2 is the asset name."
+  "marketplace_bundle_accept_price_for_with_fee_bump": {
+    "message": "Accept $1 for $2 with fee bump",
+    "description": "Title of the Accept Offer with fee bump review. $1 is the offer price with its unit (e.g. 250,000 sats), $2 the asset name."
   },
   "marketplace_bundle_accept_offer_for": {
     "message": "Accept offer for $1",
@@ -4140,13 +4128,13 @@
     "message": "Parent fee",
     "description": "Label on the offer-acceptance bundle approval screen, beside the miner fee in sats of the parent transaction."
   },
-  "marketplace_bundle_parent_seller_proceeds": {
-    "message": "Parent seller proceeds",
-    "description": "Label on the offer-acceptance bundle approval screen, beside the sats the parent transaction pays the seller before the child fee is taken out."
+  "marketplace_bundle_sale_proceeds": {
+    "message": "Sale proceeds",
+    "description": "Row label on the Accept Offer with fee bump screen: what the sale transaction (the parent) pays the seller, before the child fee bump spends part of it."
   },
-  "marketplace_bundle_quoted_package_rate": {
-    "message": "Quoted package rate",
-    "description": "Label on the offer-acceptance bundle approval screen, beside the fee rate in sat/vB quoted for the parent and child transactions together."
+  "marketplace_bundle_fee_rate": {
+    "message": "Fee rate",
+    "description": "Row label on the Accept Offer with fee bump screen: the combined fee rate of the sale and fee-bump transactions, in sat/vB."
   },
   "marketplace_bundle_sat_vb": {
     "message": "$1 sat/vB",
@@ -4168,9 +4156,9 @@
     "message": "Your proceeds after fee bump",
     "description": "Label on the offer-acceptance bundle approval screen, above the sats the seller keeps once the child fee-bump transaction is paid."
   },
-  "marketplace_bundle_your_utxo_sats_returned": {
-    "message": "Your UTXO sats returned",
-    "description": "Label on the offer-acceptance bundle approval screen, beside the satoshis locked in the seller's asset UTXO that come back to the seller."
+  "marketplace_bundle_utxo_returned": {
+    "message": "UTXO returned",
+    "description": "Row label on the Accept Offer approval screen: the sats of the UTXO carrying the asset, which come back to the seller with the sale."
   },
   "marketplace_intent_accept_offer": {
     "message": "Accept offer",
@@ -4244,10 +4232,6 @@
     "message": "Fee recipient",
     "description": "Row label on the exact-offer approval screen, above the address the platform fee is paid to."
   },
-  "marketplace_intent_finalized_at_confirmation": {
-    "message": "Finalized at confirmation",
-    "description": "Note under the 'Quoted XCP fee' row: the quote can still move, and the real amount is fixed only when the transaction confirms."
-  },
   "marketplace_intent_funding_fees_and_delivery_destination": {
     "message": "Funding, fees, and delivery destination",
     "description": "Value of the 'Buyer controls' row on the listing approval screen: the parts of the transaction the buyer, not the seller, decides."
@@ -4276,9 +4260,9 @@
     "message": "Marketplace cancellation",
     "description": "Row label on the listing approval screen, above how the seller can withdraw the listing."
   },
-  "marketplace_intent_marketplace_expiry": {
-    "message": "Marketplace expiry",
-    "description": "Row label on the marketplace approval screen, above the date and time the marketplace stops honouring this listing or offer."
+  "marketplace_intent_expires": {
+    "message": "Expires",
+    "description": "Row label: the date and time after which the marketplace stops honoring this signature. The value is a date."
   },
   "marketplace_intent_network_fee": {
     "message": "Network fee",
@@ -4300,9 +4284,9 @@
     "message": "None requested",
     "description": "Value of the 'Marketplace expiry' row when the site asked for no expiry at all."
   },
-  "marketplace_intent_not_broadcast_now": {
-    "message": "Not broadcast now.",
-    "description": "Value of the Broadcast row on the listing approval screen: signing only authorizes the listing, it does not send a transaction."
+  "marketplace_intent_not_now": {
+    "message": "Not now",
+    "description": "Value beside \"Broadcast\" on the listing screen: signing a listing does not broadcast anything; a buyer completes it later."
   },
   "marketplace_intent_notice_accept_exact_offer": {
     "message": "Your signature completes this exact sale without a buyer callback. If the buyer already spent the shared funding UTXO, broadcast fails and your asset remains yours.",
@@ -4340,10 +4324,6 @@
     "message": "1 collectible",
     "description": "Subtitle under the checkout action summary when the basket holds exactly one collectible."
   },
-  "marketplace_intent_operation_expiry": {
-    "message": "Operation expiry",
-    "description": "Row label on the marketplace approval screen, above the date and time this prepared operation stops being valid."
-  },
   "marketplace_intent_paid_by_the_buyer": {
     "message": "Paid by the buyer",
     "description": "Note under the 'Platform fee' row on the exact-offer approval screen: the buyer covers this fee, not the seller."
@@ -4352,9 +4332,9 @@
     "message": "Platform fee",
     "description": "Label on the marketplace approval screen, above the sats paid to the marketplace itself. Distinct from the Bitcoin network fee."
   },
-  "marketplace_intent_quoted_xcp_fee": {
-    "message": "Quoted XCP fee",
-    "description": "Row label on the attach approval screen, above the XCP protocol fee the site quoted. The final amount is only settled when the transaction confirms."
+  "marketplace_intent_xcp_fee": {
+    "message": "XCP fee",
+    "description": "Row label on the Prepare asset approval screen for the XCP (Counterparty protocol) fee the attach pays. Never a miner or platform fee."
   },
   "marketplace_intent_reprice_listing": {
     "message": "Reprice listing",
@@ -4364,9 +4344,9 @@
     "message": "Sale price",
     "description": "Label on the marketplace approval screen, above the listing price in sats."
   },
-  "marketplace_intent_sats_kept_with_your_asset": {
-    "message": "Sats kept with your asset",
-    "description": "Label on the marketplace approval screen, above the sats that stay locked in the UTXO the asset is attached to. The reader still owns them."
+  "marketplace_intent_asset_utxo": {
+    "message": "Asset UTXO",
+    "description": "Row label: the sats of the UTXO the asset is attached to, which stay with the asset and remain the signer's. $1 is not used."
   },
   "marketplace_intent_seller_receives": {
     "message": "Seller receives",
@@ -4392,25 +4372,25 @@
     "message": "Still yours, separate from the purchase cost and change",
     "description": "Note under the 'Sats kept with your asset' row on the checkout screen: those sats are not spent, they simply move with the asset."
   },
-  "marketplace_intent_title_accept_btc_for_asset": {
-    "message": "Accept $1 BTC for $2",
-    "description": "Headline of the exact-offer approval screen shown to the seller. $1 is the offer price in BTC, $2 is the asset with its quantity when known (e.g. '1 RAREPEPE') or just the asset name."
+  "marketplace_intent_title_accept_price_for_asset": {
+    "message": "Accept $1 for $2",
+    "description": "Title of the Accept Offer review. $1 is the offer price with its unit (e.g. 250,000 sats), $2 the asset name."
   },
   "marketplace_intent_title_attach_asset_for_listing": {
     "message": "Attach $1 for listing",
     "description": "Headline of the approval screen for an attach done as part of listing an asset for sale. $1 is the asset name (e.g. RAREPEPE). 'Attach' is the Counterparty operation that binds an asset to a UTXO."
   },
-  "marketplace_intent_title_authorize_btc_for_asset": {
-    "message": "Authorize $1 BTC for $2",
-    "description": "Headline of the exact-offer approval screen shown to the bidder. $1 is the offer price in BTC (e.g. 0.00250000), $2 is the asset with its quantity when known (e.g. '1 RAREPEPE') or just the asset name."
+  "marketplace_intent_title_authorize_price_for_asset": {
+    "message": "Authorize $1 for $2",
+    "description": "Title of the Authorize Offer review. $1 is the offer price with its unit (e.g. 250,000 sats), $2 the asset name."
   },
-  "marketplace_intent_title_buy_collectibles_for_btc": {
-    "message": "Buy $1 collectibles for $2 BTC",
-    "description": "Headline of the marketplace checkout approval screen when the basket holds more than one collectible. $1 is the count (2 or more), $2 is the total price in BTC."
+  "marketplace_intent_title_buy_collectibles_for_price": {
+    "message": "Buy $1 collectibles for $2",
+    "description": "Title of the Buy review for several items. $1 is the item count, $2 the total with its unit (e.g. 1,250,000 sats)."
   },
-  "marketplace_intent_title_buy_one_collectible_for_btc": {
-    "message": "Buy 1 collectible for $1 BTC",
-    "description": "Headline of the marketplace checkout approval screen when the basket holds exactly one collectible. $1 is the total price in BTC (e.g. 0.00250000)."
+  "marketplace_intent_title_buy_one_collectible_for_price": {
+    "message": "Buy 1 collectible for $1",
+    "description": "Title of the Buy review for one item. $1 is the total with its unit (e.g. 250,000 sats)."
   },
   "marketplace_intent_title_create_listing_utxos": {
     "message": "Create $1 listing UTXOs",
@@ -4420,17 +4400,17 @@
     "message": "Create 1 listing UTXO",
     "description": "Headline of the approval screen for a fan-out transaction that creates exactly one plain-Bitcoin UTXO to fund a later listing."
   },
-  "marketplace_intent_title_list_asset_for_btc": {
-    "message": "List 1 $1 for $2 BTC",
-    "description": "Headline of the marketplace approval screen for a new listing. $1 is the asset name (e.g. RAREPEPE), $2 is the price in BTC (e.g. 0.00250000). The quantity is always exactly 1."
+  "marketplace_intent_title_list_asset_for_price": {
+    "message": "List 1 $1 for $2",
+    "description": "Headline of the marketplace approval screen for a new listing. $1 is the asset name (e.g. RAREPEPE), $2 is the price with its unit (e.g. 250,000 sats). The quantity is always exactly 1."
   },
   "marketplace_intent_title_prepare_asset": {
     "message": "Prepare $1",
     "description": "Headline of the approval screen for an attach that moves an asset onto its own UTXO ahead of listing it. $1 is the asset name (e.g. RAREPEPE)."
   },
-  "marketplace_intent_title_reprice_asset_to_btc": {
-    "message": "Reprice 1 $1 to $2 BTC",
-    "description": "Headline of the marketplace approval screen when an existing listing's price changes. $1 is the asset name, $2 is the new price in BTC. The quantity is always exactly 1."
+  "marketplace_intent_title_reprice_asset_to_price": {
+    "message": "Reprice 1 $1 to $2",
+    "description": "Headline of the marketplace approval screen when an existing listing's price changes. $1 is the asset name, $2 is the new price with its unit (e.g. 250,000 sats). The quantity is always exactly 1."
   },
   "marketplace_intent_unavailable": {
     "message": "Unavailable",
@@ -4456,9 +4436,9 @@
     "message": "Your payout if sold",
     "description": "Label on the marketplace approval screen, above the sats the seller receives if their listing sells. Seller's own screen, so 'your'."
   },
-  "marketplace_intent_your_utxo_sats_returned": {
-    "message": "Your UTXO sats returned",
-    "description": "Label on the marketplace approval screen, above the sats locked in the seller's asset UTXO that come back to them when the listing sells."
+  "marketplace_intent_utxo_returned": {
+    "message": "UTXO returned",
+    "description": "Row label on listing and offer approval screens: the sats of the UTXO carrying the asset, which come back to the seller with the sale."
   },
   "menus_address_menu_address_actions": {
     "message": "Address actions",
@@ -7256,9 +7236,9 @@
     "message": "No limit",
     "description": "Counterparty approval no limit. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
   },
-  "tx_action_per_transaction_limit": {
-    "message": "Per transaction limit",
-    "description": "Counterparty approval per transaction limit. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  "tx_action_per_tx_limit": {
+    "message": "Per-tx limit",
+    "description": "Fairminter approval row label: the most that one mint transaction may mint."
   },
   "tx_action_per_address_limit": {
     "message": "Per address limit",
@@ -7328,9 +7308,9 @@
     "message": "No end block",
     "description": "Counterparty approval no end block. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
   },
-  "tx_action_minted_asset_commission": {
-    "message": "Minted asset commission",
-    "description": "Counterparty approval minted asset commission. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+  "tx_action_commission": {
+    "message": "Commission",
+    "description": "Fairminter approval row label: the percentage of each mint paid to the issuer as commission. The value is a percentage."
   },
   "tx_action_divisible": {
     "message": "Divisible",
@@ -8348,12 +8328,44 @@
     "message": "Authorize $1 offers",
     "description": "pages/requests/psbts/approve.tsx. Sign button for a batch of exact offers. $1 = request.items.length"
   },
-  "marketplace_batch_latest_marketplace_expiry": {
-    "message": "Latest marketplace expiry",
-    "description": "Row label on the exact-offer batch approval screen when the offers expire at different times; its value is the latest of those marketplace expiry times."
+  "marketplace_batch_latest_expiry": {
+    "message": "Latest expiry",
+    "description": "Row label on a multi-offer screen when the offers expire at different times: the latest of those dates."
   },
   "address_type_shortcut_change_address_type": {
     "message": "Change address type (current: $1)",
     "description": "Tooltip and accessible name of the home-header icon button that opens a popover for switching the active wallet's address type (components/domain/address/address-type-shortcut.tsx). $1 = the current address type's label, e.g. Native SegWit (P2WPKH)"
+  },
+  "common_xcp_fee_may_change": {
+    "message": "The XCP fee may change at confirmation.",
+    "description": "Note under an XCP (Counterparty protocol) fee on approval screens: the fee is settled when the transaction confirms."
+  },
+  "approval_copy": {
+    "message": "Copy",
+    "description": "Accessible name of the copy button beside an address, outpoint or transaction id on approval screens."
+  },
+  "approval_copy_named": {
+    "message": "Copy $1",
+    "description": "Accessible name of the copy button beside an approval fact. $1 is the fact's label, e.g. \"Delivery\"."
+  },
+  "approval_list_show_all": {
+    "message": "Show all $1",
+    "description": "Button under the first three items of a long approval list. $1 is the total number of items."
+  },
+  "approval_list_show_fewer": {
+    "message": "Show fewer",
+    "description": "Button that folds an expanded approval list back to its first three items."
+  },
+  "approval_money_movement_view_to": {
+    "message": "To",
+    "description": "Label above an address that receives BTC from this transaction, on the approval summary. The amount sits on the same line."
+  },
+  "approval_marketplace_review_card_signing_unavailable_until_verified": {
+    "message": "$1. Signing stays unavailable until verification succeeds.",
+    "description": "Detail under the first reason a marketplace review is waiting to verify. $1 is the review title, e.g. \"List 1 RAREPEPE for 250,000 sats\"."
+  },
+  "approval_marketplace_review_card_signing_blocked": {
+    "message": "$1. Signing is blocked.",
+    "description": "Detail under the first reason a marketplace review did not verify. $1 is the review title, e.g. \"List 1 RAREPEPE for 250,000 sats\"."
   }
 }

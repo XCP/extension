@@ -20,15 +20,9 @@ export function BundleReviewCard({ review }: { review: MarketplaceBundleReview }
     <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
       <ApprovalFacts fields={[summary.outcome]} />
       <p className="mt-1 text-sm text-gray-700 [overflow-wrap:anywhere]">{summary.action}</p>
-      <dl className="mt-3 space-y-1.5 border-t border-gray-100 pt-3 text-sm leading-5">
-        {summary.amounts.map(field => (
-          <div key={field.label} className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-            <dt className="text-gray-600">{field.label}</dt>
-            <dd className="ml-auto min-w-0 text-right font-medium tabular-nums text-gray-900 [overflow-wrap:anywhere]">{field.value}</dd>
-            {field.description && <dd className="w-full text-xs leading-normal text-gray-600">{field.description}</dd>}
-          </div>
-        ))}
-      </dl>
+      <div className="mt-3 border-t border-gray-100 pt-3">
+        <ApprovalFacts fields={summary.amounts} />
+      </div>
       {summary.timing && <p className="mt-3 text-xs leading-4 text-gray-600">{summary.timing}</p>}
       <Collapsible className="mt-3 border-t border-gray-100 pt-3" title={t('approval_bundle_review_card_payout_and_fee_details')}>
         <ApprovalFacts fields={review.facts.filter(field =>

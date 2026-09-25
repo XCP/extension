@@ -268,10 +268,10 @@ describe('AddressTypeShortcut popover', () => {
 describe('parity with Settings → Address type', () => {
   async function settingsOptions() {
     const view = render(<MemoryRouter><AddressTypesPage /></MemoryRouter>);
-    const radios = await screen.findAllByRole('radio');
+    const radios = await screen.findAllByRole('option');
     const texts = radios.map((radio) => radio.textContent);
     // Whether settings lets a choice through: click another format and see if it reaches the wallet.
-    const other = radios.find((radio) => radio.getAttribute('aria-checked') !== 'true');
+    const other = radios.find((radio) => radio.getAttribute('aria-selected') !== 'true');
     if (other) {
       await act(async () => { fireEvent.click(other); });
     }
@@ -314,7 +314,7 @@ describe('parity with Settings → Address type', () => {
     fixture.update.mockImplementation(async () => { throw new Error('Only mnemonic wallets can change address type.'); });
     setWallet('privateKey', AddressFormat.P2WPKH);
     render(<MemoryRouter><AddressTypesPage /></MemoryRouter>);
-    const radios = await screen.findAllByRole('radio');
+    const radios = await screen.findAllByRole('option');
     await act(async () => { fireEvent.click(radios[0] as HTMLElement); });
     expect(await screen.findByText('Only mnemonic wallets can change address type.')).toBeInTheDocument();
     cleanup();

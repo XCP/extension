@@ -99,7 +99,7 @@ describe('MarketplaceReviewCard', () => {
       title: 'Attach 1 raw unit of RAREPEPE',
       facts: [
         { label: 'Network fee', value: '1,000 sats' },
-        { label: 'Quoted XCP fee', value: '0.25 XCP' },
+        { label: 'XCP fee', value: '0.25 XCP' },
       ],
       notices: [{
         severity: 'warning',
