@@ -358,6 +358,27 @@ const feeExactBase = (accepting = false, attached = false, feeSats = 6_250) => {
   };
 };
 
+/** The taker fee: the bidder funds only the offer, and the seller's proceeds pay the fee. The
+ * claim's `priceSats` is the seller's price after the fee, so the released equations still hold. */
+const takerExactBase = (accepting = false, attached = false, feeSats = 6_250) => {
+  const request = attached ? attachedExactBase(accepting) : exactBase(accepting);
+  return {
+    ...request,
+    intent: {
+      ...request.intent,
+      priceSats: request.intent.priceSats - feeSats,
+      sellerProceedsSats: request.intent.sellerProceedsSats - feeSats,
+      platformFeeSats: feeSats,
+      sellerPaidFeeSats: feeSats,
+    },
+    outputs: [
+      request.outputs[0]!,
+      { ...request.outputs[1]!, value: request.outputs[1]!.value - feeSats },
+      { index: 2, type: 'p2tr', address: PLATFORM, value: feeSats },
+    ],
+  };
+};
+
 const fanoutIntent: PrepareBulkFanoutIntentClaim = {
   standard: 'counterparty-marketplace',
   version: 1,
@@ -1105,6 +1126,13 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
     }).status).toBe('blocked');
   });
 
+  it('rejects a seller-paid fee larger than the fee output', () => {
+    expect(() => parseMarketplaceIntent({ ...authorizeExactIntent, platformFeeSats: 1_000, sellerPaidFeeSats: 1_001 }))
+      .toThrow(/sellerPaidFeeSats/);
+    expect(() => parseMarketplaceIntent({ ...authorizeExactIntent, platformFeeSats: 1_000, sellerPaidFeeSats: -1 }))
+      .toThrow(/sellerPaidFeeSats/);
+  });
+
   it.each([-1, 0.5, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity, '6250', null])(
     'rejects an invalid platform fee %s at the request boundary', platformFeeSats => {
       expect(() => parseMarketplaceIntent({ ...authorizeExactIntent, platformFeeSats })).toThrow(/platformFeeSats/);
@@ -1149,6 +1177,31 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
             expect(review.facts).toContainEqual(expect.objectContaining({
               label: 'Buyer funding', value: `${(250_000 + feeSats + (attached ? 330 : 0)).toLocaleString()} sats`,
             }));
+          }
+        });
+
+        it('proves a seller-paid taker fee and shows the offer as the bidder made it', () => {
+          const request = takerExactBase(accepting, attached, 6_250);
+          const parsed = parseMarketplaceIntent(request.intent);
+          expect(parsed).toEqual(request.intent);
+          const review = analyzeMarketplaceIntent({ ...request, intent: parsed });
+          expect(review).toMatchObject({ status: accepting ? 'proved' : 'caution', blockers: [] });
+          const fee = {
+            kind: 'amount', label: 'Platform fee', value: '6,250 sats', description: 'Deducted from seller proceeds',
+          };
+          // Both sides see the full 250,000-sat offer and a fee that comes out of the seller's proceeds.
+          expect(review.paymentSummary).toContainEqual({ kind: 'amount', label: 'Offer price', value: '250,000 sats' });
+          expect(review.paymentSummary).toContainEqual(fee);
+          expect(review.paymentSummary?.[0]).toEqual({
+            kind: 'amount', label: accepting ? 'You receive' : 'You pay if accepted', emphasis: 'primary',
+            value: accepting ? '243,796 sats' : '250,000 sats',
+          });
+          expect(review.facts).toContainEqual({ kind: 'address', label: 'Fee recipient', value: PLATFORM });
+          expect(review.title).toContain('250,000 sats');
+          if (!accepting) {
+            expect(review.facts).toContainEqual({
+              kind: 'amount', label: 'Buyer funding', value: `${(250_000 + (attached ? 330 : 0)).toLocaleString()} sats`,
+            });
           }
         });
 

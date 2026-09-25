@@ -138,8 +138,16 @@ interface ExactOfferIntentBase<Action extends 'authorize_exact_offer' | 'accept_
   utxoValueSats: number;
   sellerProceedsSats: number;
   networkFeeSats: number;
-  /** Buyer-funded external fee. Omitted pre-fee v1 requests parse as zero. */
+  /** The marketplace fee output. Omitted pre-fee v1 requests parse as zero. */
   platformFeeSats: number;
+  /**
+   * The part of that fee the seller pays out of their proceeds (the marketplace charges the taker,
+   * and accepting an offer takes it). `priceSats` is then the price the seller is paid after it,
+   * which keeps every equation below exact; the offer as the bidder made it is
+   * `priceSats + sellerPaidFeeSats`. Display only, and optional: builds that predate it ignore it,
+   * and an absent value means the bidder funded the whole fee.
+   */
+  sellerPaidFeeSats?: number;
   expectedTxid: string;
   delivery: MarketplaceSettlementDelivery;
   marketplaceExpiresAt: number;
@@ -729,6 +737,15 @@ const parseExactOfferIntent = <
   if (!/^[0-9a-f]{64}$/.test(expectedTxid)) {
     throw new Error('expectedTxid must be 32-byte hex');
   }
+  const platformFeeSats = value.platformFeeSats === undefined
+    ? 0
+    : nonNegativeSafeInteger(value.platformFeeSats, 'platformFeeSats');
+  const sellerPaidFeeSats = value.sellerPaidFeeSats === undefined
+    ? undefined
+    : nonNegativeSafeInteger(value.sellerPaidFeeSats, 'sellerPaidFeeSats');
+  if (sellerPaidFeeSats !== undefined && sellerPaidFeeSats > platformFeeSats) {
+    throw new Error('sellerPaidFeeSats cannot exceed platformFeeSats');
+  }
 
   return {
     standard: MARKETPLACE_INTENT_STANDARD,
@@ -748,9 +765,8 @@ const parseExactOfferIntent = <
       positive: true,
     })!,
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
-    platformFeeSats: value.platformFeeSats === undefined
-      ? 0
-      : nonNegativeSafeInteger(value.platformFeeSats, 'platformFeeSats'),
+    platformFeeSats,
+    ...(sellerPaidFeeSats === undefined ? {} : { sellerPaidFeeSats }),
     expectedTxid,
     delivery,
     marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
@@ -1798,12 +1814,21 @@ function analyzeExactOfferIntent(
         ? 'caution'
         : 'proved';
   const fundingOutpoint = intent.bitcoinInvalidation.outpoint;
+  // Absent means the bidder funded the whole fee (requests from before the taker fee).
+  const sellerPaidFeeSats = intent.sellerPaidFeeSats ?? 0;
+  const sellerPaysFee = sellerPaidFeeSats > 0;
+  // The offer as the bidder made it; `priceSats` is what the seller is paid after the taker fee.
+  const offerPriceSats = safeSum([intent.priceSats, sellerPaidFeeSats]);
   const offerPrice: ProtocolField = {
-    kind: 'amount', label: t('marketplace_intent_offer_price'), value: satsValue(intent.priceSats),
+    kind: 'amount',
+    label: t('marketplace_intent_offer_price'),
+    value: offerPriceSats === null ? t('marketplace_intent_unavailable') : satsValue(offerPriceSats),
   };
   const platformFee: ProtocolField = {
     kind: 'amount', label: t('marketplace_intent_platform_fee'), value: satsValue(intent.platformFeeSats),
-    description: t('marketplace_intent_paid_by_the_buyer'),
+    description: sellerPaysFee
+      ? t('marketplace_intent_deducted_from_seller_proceeds')
+      : t('marketplace_intent_paid_by_the_buyer'),
   };
   const networkFee: ProtocolField = {
     kind: 'amount', label: t('marketplace_intent_network_fee'), value: satsValue(intent.networkFeeSats),
@@ -1831,6 +1856,8 @@ function analyzeExactOfferIntent(
     }] : []),
   ] : [
     sellerReceives, offerPrice,
+    // The seller sees the fee only when it comes out of their proceeds.
+    ...(sellerPaysFee ? [platformFee] : []),
     {
       kind: 'amount', label: t('marketplace_intent_utxo_returned'),
       value: satsValue(intent.utxoValueSats),
@@ -1852,19 +1879,22 @@ function analyzeExactOfferIntent(
       },
     } : {}),
     title: authorizing
-      ? t('marketplace_intent_title_authorize_price_for_asset', [satsValue(intent.priceSats), offerAsset])
-      : t('marketplace_intent_title_accept_price_for_asset', [satsValue(intent.priceSats), offerAsset]),
+      ? t('marketplace_intent_title_authorize_price_for_asset', [satsValue(offerPriceSats ?? intent.priceSats), offerAsset])
+      : t('marketplace_intent_title_accept_price_for_asset', [satsValue(offerPriceSats ?? intent.priceSats), offerAsset]),
     facts: [
       ...paymentSummary,
-      // The platform fee is the buyer's cost. The seller does not pay it, so their screen does
-      // not list it; the fee output itself remains itemized in the raw transaction section.
-      ...(authorizing && intent.platformFeeSats > 0 && outputs[2]?.address ? [{
+      // Whoever pays the platform fee sees it: the bidder when they funded it, the seller when it
+      // comes out of their proceeds. The fee output itself stays itemized in the raw transaction.
+      ...((authorizing || sellerPaysFee) && intent.platformFeeSats > 0 && outputs[2]?.address ? [{
         kind: 'address' as const, label: t('marketplace_intent_fee_recipient'), value: outputs[2].address,
       }] : []),
       ...(authorizing && buyerFundingSats !== null ? [{
         kind: 'amount' as const, label: t('marketplace_intent_buyer_funding'),
         value: satsValue(buyerFundingSats),
-        description: t('marketplace_intent_offer_price_platform_fee_and_any_attached_delivery_utxo'),
+        // With a seller-paid fee the funding is only the offer and any delivery UTXO.
+        ...(sellerPaysFee
+          ? {}
+          : { description: t('marketplace_intent_offer_price_platform_fee_and_any_attached_delivery_utxo') }),
       }] : []),
       ...(authorizing ? [sellerReceives, networkFee] : []),
       {
