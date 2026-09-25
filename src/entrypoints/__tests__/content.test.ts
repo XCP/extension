@@ -679,6 +679,7 @@ describe('Content Script', () => {
       runtimeMessageListener(
         {
           type: 'PROVIDER_EVENT',
+          origin: mockWindow.location.origin,
           event: 'test-event',
           data: 'test-data'
         },
@@ -699,6 +700,29 @@ describe('Content Script', () => {
         },
         mockWindow.location.origin
       );
+    });
+
+    it('drops provider events addressed to another origin, or to none', async () => {
+      mockInjectScript.mockResolvedValue(undefined);
+      const contentScript = await import('../content');
+      await contentScript.default.main(mockContext as any);
+      const listeners = (fakeBrowser.runtime.onMessage.addListener as any).mock.calls;
+      const runtimeMessageListener = listeners[listeners.length - 1][0];
+
+      for (const origin of ['https://evil.example', undefined]) {
+        mockWindow.postMessage.mockClear();
+        const sendResponse = vi.fn();
+        runtimeMessageListener(
+          { type: 'PROVIDER_EVENT', origin, event: 'accountsChanged', data: ['bc1qsecret'] },
+          {},
+          sendResponse
+        );
+        expect(sendResponse).toHaveBeenCalledWith({ received: false });
+        expect(mockWindow.postMessage).not.toHaveBeenCalledWith(
+          expect.objectContaining({ event: 'accountsChanged' }),
+          expect.anything()
+        );
+      }
     });
   });
 });

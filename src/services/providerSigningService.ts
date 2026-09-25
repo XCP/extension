@@ -8,8 +8,10 @@ import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { type DecodedPsbtInfo, decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
 import { type DecodedPsbtBundleInfo, decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDecoder';
+import { PrevoutMismatchError } from '@/core/bitcoin/psbtPrevouts';
 import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
-import { ProviderReviewError } from '@/core/providerReviewErrors';
+import { SigningError } from '@/core/errors';
+import { ProviderReviewError, providerReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import type { SigningIdentity } from '@/platform/auth/signingIdentity';
@@ -55,6 +57,12 @@ export interface ProviderSigningService {
   getReview(requestId: string): Promise<ProviderSigningReview>;
   approveAndSign(requestId: string, decision: SigningDecision): Promise<void>;
   reject(requestId: string): Promise<void>;
+}
+
+/** A signer failure caused by the site's transaction bytes, not by the wallet or the network. */
+function isTransactionDataMismatch(error: unknown): error is Error {
+  return !providerReviewCode(error)
+    && (error instanceof PrevoutMismatchError || error instanceof SigningError);
 }
 
 export function createProviderSigningService(): ProviderSigningService {
@@ -201,7 +209,11 @@ export function createProviderSigningService(): ProviderSigningService {
       throw new ProviderReviewError('invalid_decision');
     }
     const review = await getReview(requestId);
-    if (review.policy.blocked) throw new ProviderReviewError('verification_failed');
+    // Re-reviewed at the click, so a lookup that fails just now blocks. Say retry for that, not
+    // "did not pass verification": nothing was disproved, and Retry is the fix.
+    if (review.policy.blocked) {
+      throw new ProviderReviewError(review.policy.retry ? 'retry_required' : 'verification_failed');
+    }
     if (review.reviewKey !== decision.reviewKey) {
       throw new ProviderReviewError('review_changed');
     }
@@ -258,7 +270,11 @@ export function createProviderSigningService(): ProviderSigningService {
       if (outcome?.status === 'cancelled') {
         eventEmitterService.emit(`${getSignFlowEventPrefix(request.kind)}-cancel-${requestId}`, { reason: 'Signing failed' });
       }
-      throw error;
+      // The signer re-reads every signed input from its real parent. When the site's PSBT
+      // disagrees, or the key cannot sign what it describes, the fix is on the site's side.
+      throw isTransactionDataMismatch(error)
+        ? withProviderReviewCode(error, 'transaction_data_mismatch')
+        : error;
     }
   }
 

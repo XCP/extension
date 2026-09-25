@@ -278,6 +278,21 @@ describe('marketplace batch aggregate proof', () => {
     expect(review.facts.map(fact => fact.label)).not.toContain('Seller wallet');
   });
 
+  // M1: a batch reads as "listing changed" only when every blocked item is ledger drift.
+  it('carries a shared block kind, and drops it when blocked items disagree', () => {
+    const offers = [exactOffer(0), exactOffer(1)];
+    const changed = () => proved({ status: 'blocked', family: 'authorize_exact_offer', blockKind: 'ledger', blockers: ['sold'] });
+    expect(analyzeMarketplaceBatch('authorize-offers', offers, [changed(), changed()]))
+      .toMatchObject({ status: 'blocked', blockKind: 'ledger' });
+    expect(analyzeMarketplaceBatch('authorize-offers', offers,
+      [changed(), proved({ status: 'caution', family: 'authorize_exact_offer' })]))
+      .toMatchObject({ status: 'blocked', blockKind: 'ledger' });
+    const mixed = analyzeMarketplaceBatch('authorize-offers', offers,
+      [changed(), proved({ status: 'blocked', family: 'authorize_exact_offer', blockers: ['lies'] })]);
+    expect(mixed.status).toBe('blocked');
+    expect(mixed.blockKind).toBeUndefined();
+  });
+
   it('labels each target with its ledger-proved quantity when the item proof supplies it', () => {
     const offers = [exactOffer(0), exactOffer(1)];
     const review = analyzeMarketplaceBatch('authorize-offers', offers, [

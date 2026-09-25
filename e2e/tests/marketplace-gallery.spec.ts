@@ -203,7 +203,9 @@ interface StubBalance {
  * Answer every /v2/utxos/{utxo}/balances lookup from the scenario's table: listed outpoints
  * carry the given assets, 'fail' simulates an unreachable ledger (the retry state), and every
  * other outpoint is confirmed empty — these outpoints are fabricated, so the real API's answer
- * for them would be an accident. Everything else still reaches the real API.
+ * for them would be an accident. The batched /v2/utxos/withbalances membership query answers
+ * from the same table (and fails with it), so the two ledger views cannot disagree. Everything
+ * else still reaches the real API.
  */
 async function stubUtxoBalances(
   api: GalleryApi,
@@ -211,6 +213,16 @@ async function stubUtxoBalances(
 ): Promise<void> {
   await api.route('**/v2/utxos/**', async (route: Route) => {
     const url = new URL(route.request().url());
+    if (url.pathname.endsWith('/v2/utxos/withbalances')) {
+      const utxos = url.searchParams.get('utxos')?.split(',') ?? [];
+      if (utxos.some(utxo => balances[utxo] === 'fail')) {
+        return route.fulfill({ status: 500, body: 'stubbed ledger outage' });
+      }
+      return route.fulfill({ json: { result: Object.fromEntries(utxos.map(utxo => {
+        const entry = balances[utxo];
+        return [utxo, Array.isArray(entry) && entry.length > 0];
+      })) } });
+    }
     const match = url.pathname.match(/\/v2\/utxos\/([^/]+)\/balances/);
     if (!match) return route.fallback();
     const utxo = decodeURIComponent(match[1]!);
@@ -962,7 +974,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
           `${BID_TXID}:4`,
           'Withdraw by spending your funding UTXO',
         ],
-        absentText: ['Blocked: Marketplace Intent Mismatch', 'Seller wallet'],
+        absentText: ['The site described a different transaction', 'This listing changed', 'Seller wallet'],
         route: '/requests/psbts/approve',
         expectFooter: 'Authorize 3 offers',
         record: seedRecord('mk-authorize-offers', {

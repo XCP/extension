@@ -175,3 +175,45 @@ describe('getPsbtApprovalPolicy for durable sell authorizations', () => {
     expect(policy).toMatchObject({ blocked: false, requiresAcknowledgement: true });
   });
 });
+
+// T1: the click re-runs the review; the policy says when a fresh block is only a failed lookup.
+describe('the retry flag on a blocked policy', () => {
+  const plain = (attachedAssets: DecodedPsbtInfo['attachedAssets'], marketplaceReview?: MarketplaceApprovalReview) => {
+    const info = decoded(review('buy_listings', 'proved'));
+    info.attachedAssets = attachedAssets;
+    info.marketplaceReview = marketplaceReview;
+    return info;
+  };
+
+  it('is set when a signed input could not be looked up, or the proof is left at retry', () => {
+    expect(getPsbtApprovalPolicy(request, plain([{ inputIndex: 0, utxo: 'u:0', assets: [], lookupFailed: true }]), true, 10))
+      .toMatchObject({ blocked: true, retry: true });
+    expect(getPsbtApprovalPolicy(request, plain([], review('buy_listings', 'retry')), true, 10))
+      .toMatchObject({ blocked: true, retry: true });
+  });
+
+  it('is not set for an input past the lookup cap, which retrying cannot clear', () => {
+    const policy = getPsbtApprovalPolicy(request,
+      plain([{ inputIndex: 0, utxo: 'u:0', assets: [], lookupFailed: true, overLimit: true }]), true, 10);
+    expect(policy.blocked).toBe(true);
+    expect(policy.retry).toBeUndefined();
+  });
+
+  it('never appears on a policy that is not blocked', () => {
+    const policy = getPsbtApprovalPolicy(request, plain([]), true, 10);
+    expect(policy.blocked).toBe(false);
+    expect(policy).not.toHaveProperty('retry');
+  });
+
+  it('is set on a bundle whose review is left at retry', () => {
+    const items = [decoded(review('create_listing'))];
+    const input: PsbtBundleApprovalInput & { address: string } = {
+      address: ADDRESS, bundleKind: 'bulk-listing',
+      items: [{ psbtHex: '', signInputs: { [ADDRESS]: [0] }, sighashTypes: [0x01],
+        marketplaceIntent: {} as PsbtBundleApprovalInput['items'][number]['marketplaceIntent'] }],
+    };
+    const { policy } = getPsbtBundleApprovalPolicy(input,
+      { items, review: { ...review('marketplace_batch'), status: 'retry' } }, true, 10);
+    expect(policy).toMatchObject({ blocked: true, retry: true });
+  });
+});

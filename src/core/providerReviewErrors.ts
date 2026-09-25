@@ -22,6 +22,7 @@ export const PROVIDER_REVIEW_MESSAGES = {
   review_changed: 'The transaction review changed. Reload this approval and review it again.',
   acknowledge_risks: 'Review and acknowledge the transaction risks before signing',
   missing_attachment: 'Missing attachment parent',
+  transaction_data_mismatch: "The site's transaction data does not match the blockchain. Ask the site to rebuild it.",
   interrupted: 'Signing request was cancelled or expired',
   expired_completion: 'Signing request expired before completion',
   expired_delivery: 'Signing request expired before delivery',

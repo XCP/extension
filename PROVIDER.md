@@ -755,7 +755,9 @@ const result = await validateProof(proof, origin, address, {
 
 - **Origin validation**: The content script provides the origin — page JavaScript cannot spoof it
 - **Connection proof**: BIP-322 signature proving address ownership, message format controlled by extension
-- **Rate limiting**: Connection, transaction, and API requests are rate-limited per origin
+- **Rate limiting**: Connection, broadcast, and API requests are rate-limited per origin. A signing
+  request is limited only when it would open an approval popup: at most 3 may be open per origin
+  at once, so send the next request after the user answers the last
 - **Replay protection**: Broadcast transactions are tracked to prevent double-submission
 - **Parameter validation**: All inputs are type-checked and size-limited (max 1MB)
 - **CSP analysis**: Sites without Content Security Policy generate console warnings

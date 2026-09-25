@@ -10,6 +10,7 @@ import {
 import { ApprovalIdentifier } from "@/components/domain/approval/approval-identifier";
 import { ApprovalList } from "@/components/domain/approval/approval-list";
 import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
+import { marketplaceBlockText, WarningDetails } from "@/components/domain/approval/approval-warnings";
 import { BundleReviewCard } from "@/components/domain/approval/bundle-review-card";
 import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { Button } from "@/components/ui/button";
@@ -129,16 +130,27 @@ export default function ApprovePsbtsPage() {
                 ? t('psbts_approve_authorize_1_offer')
                 : t('psbts_approve_authorize_offers_2', [String(request.items.length)])
               : t('psbts_approve_sign_transactions');
-  const retry = decodedInfo.review.status === "retry" || Boolean(refreshError);
+  const retry = decodedInfo.review.status === "retry" || Boolean(approvalPolicy?.retry) || Boolean(refreshError);
+  // A blocked bundle leads with what the user can do — retry, refresh the site, or not sign — and
+  // keeps the wallet's own reasons, per item, underneath as details.
+  const leadKind = decodedInfo.review.status === "retry" || approvalPolicy?.retry
+    ? "retry" as const
+    : decodedInfo.review.status === "blocked"
+      ? decodedInfo.review.blockKind ?? "transaction" as const
+      : null;
+  const blockedItems: WarningItem[] = !blocked ? [] : leadKind ? [{
+    key: "bundle-lead",
+    severity: leadKind === "retry" ? "warning" : "danger",
+    ...marketplaceBlockText(leadKind),
+    children: <WarningDetails details={[
+      ...(decodedInfo.policyWarnings ?? []).map((warning) => `${warning.title}: ${warning.message}`),
+      ...decodedInfo.review.blockers,
+    ]} />,
+  }] : policyItems;
   const noticeItems: WarningItem[] = [
     ...(error ? [{ key: "signing-error", severity: "danger" as const, title: error }] : []),
     ...(refreshError ? [{ key: "refresh-error", severity: "warning" as const, title: refreshError }] : []),
-    ...(blocked ? policyItems : []),
-    ...(blocked ? decodedInfo.review.blockers.map((problem, index) => ({
-      key: `bundle-blocker-${index}`,
-      severity: decodedInfo.review.status === "retry" ? "warning" as const : "danger" as const,
-      title: problem,
-    })) : []),
+    ...blockedItems,
     ...(decodedInfo.review.status === "caution" ? decodedInfo.review.notices
       .filter(notice => notice.severity !== "info")
       .map((notice, index) => ({

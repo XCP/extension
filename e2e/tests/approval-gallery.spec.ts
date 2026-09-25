@@ -330,7 +330,15 @@ async function installScenarioStubs(
     })) },
   }));
   await api.route(/\/v2\/utxos\//, (route) => {
-    const match = new URL(route.request().url()).pathname.match(/\/v2\/utxos\/([^/]+)\/balances/);
+    const url = new URL(route.request().url());
+    // The batched membership query answers from the same fixture as the per-outpoint read below,
+    // so the two ledger views agree: only the detach fixture's outpoint holds anything.
+    if (url.pathname.endsWith('/v2/utxos/withbalances')) {
+      const utxos = url.searchParams.get('utxos')?.split(',') ?? [];
+      return route.fulfill({ json: { result: Object.fromEntries(utxos.map(utxo =>
+        [utxo, name === 'detach' && utxo === fixtureOutpoint])) } });
+    }
+    const match = url.pathname.match(/\/v2\/utxos\/([^/]+)\/balances/);
     if (!match) return route.fallback();
     const utxo = decodeURIComponent(match[1]!);
     return route.fulfill({
@@ -512,7 +520,8 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
       if (FIXED_DATA) fixtureAudits.push(await installApprovalLocalizationFixtures(api, name));
       let unavailable = includeRetry && name === 'send-with-memo';
       if (unavailable) {
-        await api.route(/\/v2\/utxos\/[^/]+\/balances/, route => unavailable
+        // The outage covers the batched membership query too, as a real ledger outage would.
+        await api.route(/\/v2\/utxos\/([^/]+\/balances|withbalances)/, route => unavailable
           ? route.fulfill({ status: 503, json: { error: 'Fixture asset status unavailable' } })
           : route.fallback());
       }

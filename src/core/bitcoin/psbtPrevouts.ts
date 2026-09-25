@@ -36,6 +36,18 @@ export interface VerifyPsbtPrevoutsOptions {
   inputIndices?: readonly number[];
 }
 
+/**
+ * The PSBT describes an input differently from the blockchain: a parent that hashes to another
+ * txid, an output that does not exist, or a witness UTXO whose amount or script differs. A lookup
+ * that failed is a plain ValidationError instead, since retrying may clear it.
+ */
+export class PrevoutMismatchError extends ValidationError {
+  constructor(message: string) {
+    super('INVALID_PSBT', message);
+    this.name = 'PrevoutMismatchError';
+  }
+}
+
 const sameBytes = (left: Uint8Array, right: Uint8Array): boolean =>
   left.length === right.length && left.every((byte, index) => byte === right[index]);
 
@@ -95,17 +107,11 @@ export async function verifyPsbtPrevouts(
 
       const previous = parseConsensusTransaction(rawTransaction);
       if (previous.id !== txid) {
-        throw new ValidationError(
-          'INVALID_PSBT',
-          `Previous transaction data does not match PSBT input ${index}`,
-        );
+        throw new PrevoutMismatchError(`Previous transaction data does not match PSBT input ${index}`);
       }
       const output = previous.getOutput(input.index);
       if (!output?.script || output.amount === undefined) {
-        throw new ValidationError(
-          'INVALID_PSBT',
-          `Previous output ${txid}:${input.index} does not exist`,
-        );
+        throw new PrevoutMismatchError(`Previous output ${txid}:${input.index} does not exist`);
       }
       if (
         input.witnessUtxo
@@ -114,10 +120,7 @@ export async function verifyPsbtPrevouts(
           || !sameBytes(input.witnessUtxo.script, output.script)
         )
       ) {
-        throw new ValidationError(
-          'INVALID_PSBT',
-          `PSBT input ${index} does not match its real previous output`,
-        );
+        throw new PrevoutMismatchError(`PSBT input ${index} does not match its real previous output`);
       }
 
       const address = decodeAddressFromScript(bytesToHex(output.script)) ?? undefined;

@@ -208,6 +208,8 @@ export interface DecodedInput {
   sequence?: number;
   address?: string;
   value?: number;          // in satoshis, if known from witnessUtxo
+  /** Script type of the output this input spends, from the embedded prevout; sizes its signature. */
+  scriptType?: DecodedOutput['type'];
   sighashType?: number;    // sighash type from PSBT input (e.g. 0x83 for SINGLE|ANYONECANPAY)
   /** Existing signature/finalization material, used to prove marketplace placeholder slots empty. */
   hasSignatures?: boolean;
@@ -420,8 +422,9 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
       const prevout = (input.index !== undefined ? input.nonWitnessUtxo?.outputs[input.index] : undefined)
         ?? input.witnessUtxo;
       const value = prevout?.amount !== undefined ? Number(prevout.amount) : undefined;
-      const address = prevout?.script
-        ? decodeAddressFromScript(bytesToHex(prevout.script)) ?? undefined
+      const prevoutScriptHex = prevout?.script ? bytesToHex(prevout.script) : undefined;
+      const address = prevoutScriptHex
+        ? decodeAddressFromScript(prevoutScriptHex) ?? undefined
         : undefined;
 
       if (value !== undefined) {
@@ -440,6 +443,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         sequence: input.sequence ?? 0xffffffff,
         address,
         value,
+        ...(prevoutScriptHex ? { scriptType: getScriptType(prevoutScriptHex) } : {}),
         sighashType: input.sighashType,
         hasSignatures: Boolean(
           input.tapKeySig

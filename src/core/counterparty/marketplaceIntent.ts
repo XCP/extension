@@ -237,6 +237,13 @@ export interface MarketplaceApprovalReview {
   facts: ProtocolField[];
   notices: Array<{ severity: 'info' | 'warning' | 'danger'; message: string }>;
   blockers: string[];
+  /**
+   * Why a `blocked` review is blocked, when that is narrower than "the transaction contradicts the
+   * site's claim": `ledger` when every blocker is the ledger no longer matching the claimed asset
+   * (the listing sold or moved), `input_limit` when the transaction has more inputs than the
+   * wallet checks. Presentation only; any blocked review refuses signing the same way.
+   */
+  blockKind?: 'ledger' | 'input_limit';
 }
 
 interface InputLike {
@@ -830,6 +837,10 @@ const sameAddress = (left: string | undefined, right: string) =>
   && normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
 
 /** Prove the seller's flexible listing authorization from independent transaction facts. */
+/** A block whose every reason is the ledger disagreeing with the claimed asset: the listing changed. */
+const ledgerBlockKind = (blockers: string[], ledger: ReadonlySet<string>): { blockKind?: 'ledger' } =>
+  blockers.length > 0 && blockers.every(problem => ledger.has(problem)) ? { blockKind: 'ledger' } : {};
+
 function analyzeCreateListingIntent({
   inputs,
   outputs,
@@ -841,6 +852,8 @@ function analyzeCreateListingIntent({
 }: MarketplaceAnalysisInput, intent: CreateListingIntentClaim): MarketplaceApprovalReview {
   const blockers: string[] = [];
   const retry: string[] = [];
+  const ledger = new Set<string>();
+  const ledgerBlock = (problem: string) => { ledger.add(problem); blockers.push(problem); };
   const claim = intent.assets[0];
   const sellerInput = inputs[1];
   const sellerOutput = outputs[1];
@@ -905,14 +918,14 @@ function analyzeCreateListingIntent({
   if (balance?.lookupFailed) {
     retry.push('the attached-asset lookup for seller input 1 failed');
   } else if (!balance || balance.assets.length !== 1) {
-    blockers.push('seller input 1 does not independently resolve to exactly one attached asset');
+    ledgerBlock('seller input 1 does not independently resolve to exactly one attached asset');
   } else {
     const actual = balance.assets[0]!;
-    if (actual.asset !== claim.asset) blockers.push('attached asset name differs from the claim');
+    if (actual.asset !== claim.asset) ledgerBlock('attached asset name differs from the claim');
     if (actual.quantity === undefined) {
       retry.push('the indexer did not return an exact raw attached quantity');
     } else if (actual.quantity !== claim.quantityRaw) {
-      blockers.push('attached asset raw quantity differs from the claim');
+      ledgerBlock('attached asset raw quantity differs from the claim');
     } else {
       provedQuantity = actual.quantity_normalized;
     }
@@ -926,7 +939,10 @@ function analyzeCreateListingIntent({
     && (attachedAssetDestination?.destinationCommitted !== false
       || attachedAssetDestination?.mode !== 'flexible')
   ) {
-    blockers.push('listing signature does not prove the expected buyer-selected delivery flexibility');
+    // Without exactly one attached asset on the ledger there is nothing whose delivery can prove.
+    const problem = 'listing signature does not prove the expected buyer-selected delivery flexibility';
+    if (!balance || balance.assets.length !== 1) ledgerBlock(problem);
+    else blockers.push(problem);
   }
 
   const allProblems = [...retry, ...blockers];
@@ -943,6 +959,7 @@ function analyzeCreateListingIntent({
   return {
     status,
     family: 'create_listing',
+    ...ledgerBlockKind(blockers, ledger),
     ...(status === 'proved' ? { paymentSummary: [payout, salePrice, utxoReturn] } : {}),
     ...(status === 'proved' && provedQuantity !== null ? {
       summary: {
@@ -1246,6 +1263,8 @@ function analyzeBuyListingsIntent(
   } = input;
   const blockers: string[] = [];
   const retry: string[] = [];
+  const ledger = new Set<string>();
+  const ledgerBlock = (problem: string) => { ledger.add(problem); blockers.push(problem); };
   const itemCount = intent.items.length;
   const firstAdditionalBuyerInput = itemCount + 1;
   const attachedDelivery = intent.delivery.mode === 'attached';
@@ -1399,16 +1418,16 @@ function analyzeBuyListingsIntent(
     if (balance?.lookupFailed) {
       retry.push(`the attached-asset lookup for seller input ${sellerInputIndex} failed`);
     } else if (!balance || balance.assets.length !== 1) {
-      blockers.push(`seller input ${sellerInputIndex} does not resolve to exactly one attached asset`);
+      ledgerBlock(`seller input ${sellerInputIndex} does not resolve to exactly one attached asset`);
     } else {
       const actual = balance.assets[0]!;
       if (actual.asset !== item.asset) {
-        blockers.push(`seller input ${sellerInputIndex} attached asset differs from the claim`);
+        ledgerBlock(`seller input ${sellerInputIndex} attached asset differs from the claim`);
       }
       if (actual.quantity === undefined) {
         retry.push(`seller input ${sellerInputIndex} has no exact raw attached quantity`);
       } else if (actual.quantity !== item.quantityRaw) {
-        blockers.push(`seller input ${sellerInputIndex} raw attached quantity differs from the claim`);
+        ledgerBlock(`seller input ${sellerInputIndex} raw attached quantity differs from the claim`);
       }
     }
   }
@@ -1498,6 +1517,7 @@ function analyzeBuyListingsIntent(
   return {
     status,
     family: 'buy_listings',
+    ...ledgerBlockKind(blockers, ledger),
     ...(status === 'proved' ? {
       paymentSummary,
       summary: {
@@ -1569,6 +1589,8 @@ function analyzeExactOfferIntent(
   } = input;
   const blockers: string[] = [];
   const retry: string[] = [];
+  const ledger = new Set<string>();
+  const ledgerBlock = (problem: string) => { ledger.add(problem); blockers.push(problem); };
   const claim = intent.assets[0];
   const authorizing = intent.action === 'authorize_exact_offer';
   const attachedDelivery = intent.delivery.mode === 'attached';
@@ -1720,16 +1742,16 @@ function analyzeExactOfferIntent(
   if (sellerBalance?.lookupFailed) {
     retry.push('the attached-asset lookup for seller input 1 failed');
   } else if (!sellerBalance || sellerBalance.assets.length !== 1) {
-    blockers.push('seller input 1 does not independently resolve to exactly one attached asset');
+    ledgerBlock('seller input 1 does not independently resolve to exactly one attached asset');
   } else {
     const actual = sellerBalance.assets[0]!;
     if (actual.asset !== claim.asset) {
-      blockers.push('seller input 1 attached asset differs from the claim');
+      ledgerBlock('seller input 1 attached asset differs from the claim');
     }
     if (actual.quantity === undefined) {
       retry.push('seller input 1 has no exact raw attached quantity');
     } else if (actual.quantity !== claim.quantityRaw) {
-      blockers.push('seller input 1 raw attached quantity differs from the claim');
+      ledgerBlock('seller input 1 raw attached quantity differs from the claim');
     } else {
       provedQuantity = actual.quantity_normalized;
     }
@@ -1818,6 +1840,7 @@ function analyzeExactOfferIntent(
   const offerAsset = provedQuantity ? `${provedQuantity} ${claim.asset}` : claim.asset;
   return {
     status,
+    ...ledgerBlockKind(blockers, ledger),
     family: intent.action,
     ...(allProblems.length === 0 ? {
       paymentSummary,
@@ -2214,6 +2237,16 @@ function analyzeFundOffersIntent(
 }
 
 export function analyzeMarketplaceIntent(input: MarketplaceAnalysisInput): MarketplaceApprovalReview {
+  const review = analyzeMarketplaceIntentClaim(input);
+  // An input the wallet never looked up because the transaction has too many can only ever read
+  // as "retry", and retrying cannot clear it. Say what it is. Still blocked either way.
+  if (review.status === 'retry' && input.attachedAssets.some(entry => entry.overLimit)) {
+    return { ...review, status: 'blocked', blockKind: 'input_limit' };
+  }
+  return review;
+}
+
+function analyzeMarketplaceIntentClaim(input: MarketplaceAnalysisInput): MarketplaceApprovalReview {
   switch (input.intent.action) {
     case 'attach_for_listing':
     case 'prepare_asset':

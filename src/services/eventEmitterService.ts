@@ -16,7 +16,7 @@ export interface ProviderEvents {
 }
 
 export type ProviderEventPayload = {
-  [K in keyof ProviderEvents]: { origin?: string; event: K; data: ProviderEvents[K] }
+  [K in keyof ProviderEvents]: { origin: string; event: K; data: ProviderEvents[K] }
 }[keyof ProviderEvents];
 
 type CompletedEvents = {

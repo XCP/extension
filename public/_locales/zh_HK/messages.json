@@ -500,6 +500,33 @@
   "approval_approval_warnings_the_balance_lookup_failed_so": {
     "message": "餘額查詢失敗，因此無法排除存在附加資產的可能。"
   },
+  "approval_marketplace_retry_title": {
+    "message": "暫時無法取得 Counterparty 數據"
+  },
+  "approval_marketplace_retry_description": {
+    "message": "請稍後重試。"
+  },
+  "approval_marketplace_listing_changed_title": {
+    "message": "此掛單已變更"
+  },
+  "approval_marketplace_listing_changed_description": {
+    "message": "該資產已與網站顯示的不一致，可能已售出或已轉移。請返回網站並重新整理。"
+  },
+  "approval_marketplace_different_transaction_title": {
+    "message": "網站描述的是另一筆交易"
+  },
+  "approval_marketplace_different_transaction_description": {
+    "message": "此交易與網站的說明不符，因此錢包不會簽署。"
+  },
+  "approval_too_many_inputs_title": {
+    "message": "輸入過多，無法檢查"
+  },
+  "approval_too_many_inputs_description": {
+    "message": "此交易花費超過 $1 個輸入，超出錢包可檢查附加資產的數量。請要求網站減少輸入數量。"
+  },
+  "provider_review_transaction_data_mismatch": {
+    "message": "網站的交易數據與區塊鏈不符。請要求網站重新建立交易。"
+  },
   "approval_approval_warnings_pending_parent_retry": {
     "message": "未確認的交易可能向這些輸入附加 Counterparty 資產，在其確認前帳本無法顯示。請在確認後重試。"
   },
@@ -6279,11 +6306,5 @@
   },
   "approval_money_movement_view_to": {
     "message": "發送至"
-  },
-  "approval_marketplace_review_card_signing_unavailable_until_verified": {
-    "message": "$1。驗證成功前無法簽署。"
-  },
-  "approval_marketplace_review_card_signing_blocked": {
-    "message": "$1。簽署已被阻止。"
   }
 }

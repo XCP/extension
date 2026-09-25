@@ -123,9 +123,11 @@ const withLinkProblem = (
 ): MarketplaceApprovalReview => {
   const base: MarketplaceApprovalReview = review
     ?? missingReview('create_listing', 'marketplace semantic proof 2 is missing');
-  const { paymentSummary: _payment, summary: _summary, ...rest } = base;
+  const { paymentSummary: _payment, summary: _summary, blockKind, ...rest } = base;
   const status = severity === 'blocked' || base.status === 'blocked' ? 'blocked' : 'retry';
-  return { ...rest, status, blockers: [...base.blockers, problem] };
+  // A broken link between the two transactions is the site's contradiction, whatever else held.
+  return { ...rest, status, blockers: [...base.blockers, problem],
+    ...(severity === 'retry' && status === 'blocked' && blockKind ? { blockKind } : {}) };
 };
 
 /**

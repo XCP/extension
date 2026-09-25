@@ -36,6 +36,8 @@ vi.mock('@/core/bitcoin/psbt', async importOriginal => ({
   extractPsbtDetails: () => ({ inputs: [{ index: 0, address: 'bc1qauthorized' }], outputs: [] }),
 }));
 
+import { PrevoutMismatchError } from '@/core/bitcoin/psbtPrevouts';
+import { SigningError } from '@/core/errors';
 import { beginSignFlow, claimSignFlow, getSignFlow, type NewSignFlow, recordSignOutcome, SIGN_FLOW_TTL_MS, signFlowStorage } from '@/platform/provider/signFlow';
 import { createProviderSigningService } from '../providerSigningService';
 
@@ -109,6 +111,51 @@ describe('background provider signing execution', () => {
       .rejects.toThrow(/did not pass/);
     expect(mocks.wallet.signTransaction).not.toHaveBeenCalled();
     expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+
+  // T1: the click re-runs the review, so a lookup that fails at that moment blocks signing. It is
+  // still refused, but as a retry, not as a transaction that failed verification.
+  it('refuses a lookup that fails at the click as retry_required, never signing', async () => {
+    await beginSignFlow(request({ kind: 'sign-psbt', psbtHex: 'original-psbt', signInputs: { [identity.address]: [0] } }));
+    const review = await service.getReview('req-1');
+    expect(review.policy.blocked).toBe(false);
+    mocks.decodePsbt.mockImplementation(async () => ({ ...analysis(),
+      attachedAssets: [{ inputIndex: 0, utxo: 'prev:0', assets: [], lookupFailed: true }],
+      psbtDetails: { inputs: [{ index: 0, address: identity.address, value: 20_000 }],
+        outputs: [{ index: 0, address: identity.address, value: 19_000, type: 'p2wpkh' }], fee: 1000 } }));
+    await expect(service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: true }))
+      .rejects.toMatchObject({ reviewCode: 'retry_required' });
+    expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
+    expect(await getSignFlow('req-1')).toMatchObject({ status: 'pending' });
+  });
+
+  it('keeps verification_failed when a fresh block is not a lookup failure', async () => {
+    await beginSignFlow(request({ kind: 'sign-psbt', psbtHex: 'original-psbt', signInputs: { [identity.address]: [0] } }));
+    const review = await service.getReview('req-1');
+    mocks.decodePsbt.mockImplementation(async () => ({ ...analysis(), structureFindings: [{ code: 'attach_missing_output' }],
+      psbtDetails: { inputs: [{ index: 0, address: identity.address, value: 20_000 }], outputs: [], fee: 1000 } }));
+    await expect(service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: true }))
+      .rejects.toMatchObject({ reviewCode: 'verification_failed' });
+    expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+
+  // M4: the signer's own prevout check is the right place, but its raw text is not an answer.
+  it.each([
+    ['a prevout mismatch', () => new PrevoutMismatchError('PSBT input 0 does not match its real previous output')],
+    ['a software signer failure', () => new SigningError('Failed to sign PSBT: No inputs could be signed')],
+  ])('tells the user the site data is wrong on %s, and cancels the flow', async (_label, failure) => {
+    await beginSignFlow(request({ kind: 'sign-psbt', psbtHex: 'original-psbt', signInputs: { [identity.address]: [0] } }));
+    mocks.wallet.signPsbt.mockRejectedValue(failure());
+    await expect(approve(true)).rejects.toMatchObject({ reviewCode: 'transaction_data_mismatch' });
+    expect(await getSignFlow('req-1')).toMatchObject({ status: 'cancelled' });
+  });
+
+  it('leaves an unrelated signer failure as it is', async () => {
+    await beginSignFlow(request({ kind: 'sign-psbt', psbtHex: 'original-psbt', signInputs: { [identity.address]: [0] } }));
+    mocks.wallet.signPsbt.mockRejectedValue(new Error('Wallet is locked'));
+    const failure = await approve(true).catch(error => error);
+    expect(failure.message).toBe('Wallet is locked');
+    expect(failure.reviewCode).toBeUndefined();
   });
 
   it('refuses changed review facts rather than signing a different displayed outcome', async () => {

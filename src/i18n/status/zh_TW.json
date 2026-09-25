@@ -2079,7 +2079,14 @@
     "approval_list_show_all",
     "approval_list_show_fewer",
     "approval_money_movement_view_to",
-    "approval_marketplace_review_card_signing_unavailable_until_verified",
-    "approval_marketplace_review_card_signing_blocked"
+    "approval_marketplace_retry_title",
+    "approval_marketplace_retry_description",
+    "approval_marketplace_listing_changed_title",
+    "approval_marketplace_listing_changed_description",
+    "approval_marketplace_different_transaction_title",
+    "approval_marketplace_different_transaction_description",
+    "approval_too_many_inputs_title",
+    "approval_too_many_inputs_description",
+    "provider_review_transaction_data_mismatch"
   ]
 }

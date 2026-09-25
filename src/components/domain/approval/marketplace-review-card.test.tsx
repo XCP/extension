@@ -125,8 +125,11 @@ describe('MarketplaceReviewCard', () => {
 
     expect(screen.getByText('Verification incomplete — retry')).toBeInTheDocument();
     expect(screen.queryByText('Marketplace terms did not verify')).not.toBeInTheDocument();
+    // M2: the plain-language cause leads; the wallet's own reason is only a detail.
+    expect(screen.getByTestId('approval-notice-reason')).toHaveTextContent('Counterparty data is temporarily unavailable');
     fireEvent.click(screen.getByRole('button', { name: 'Why signing is unavailable' }));
-    expect(screen.getByText(/Signing stays unavailable until verification succeeds/i)).toBeInTheDocument();
+    expect(screen.getByText('Retry in a moment.')).toBeInTheDocument();
+    expect(screen.getByText('Asset status is required before signing.')).toBeInTheDocument();
     expect(screen.queryByText(/Nothing looks wrong/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry verification' })).not.toBeInTheDocument();
   });
@@ -142,9 +145,40 @@ describe('MarketplaceReviewCard', () => {
     }} />);
 
     expect(screen.getByText('Marketplace terms did not verify')).toBeInTheDocument();
-    expect(screen.getByTestId('approval-notice-reason')).toHaveTextContent('Seller payment differs.');
+    expect(screen.getByTestId('approval-notice-reason')).toHaveTextContent('The site described a different transaction');
     fireEvent.click(screen.getByRole('button', { name: 'Why signing is unavailable' }));
-    expect(screen.getByText(/Signing is blocked/i)).toBeInTheDocument();
+    expect(screen.getByText(/the wallet will not sign it/i)).toBeInTheDocument();
+    expect(screen.getByText('Seller payment differs.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry verification' })).not.toBeInTheDocument();
+  });
+
+  // M1: ledger drift is not the site's fault, so it must not read as a contradiction.
+  it('tells the user a sold listing changed, rather than blaming the site', () => {
+    render(<MarketplaceReviewCard review={{
+      status: 'blocked', blockKind: 'ledger', family: 'buy_listings',
+      title: 'Buy 1 collectible', facts: [], notices: [],
+      blockers: ['seller input 1 does not resolve to exactly one attached asset'],
+    }} onRetry={vi.fn()} />);
+
+    expect(screen.getByTestId('approval-notice-reason')).toHaveTextContent('This listing changed');
+    expect(screen.queryByText('The site described a different transaction')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Why signing is unavailable' }));
+    expect(screen.getByText(/Return to the site and refresh/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry verification' })).not.toBeInTheDocument();
+  });
+
+  // F7: more inputs than the wallet checks is final; offering Retry would be a dead end.
+  it('says too many inputs, with no retry, when the lookup cap was hit', () => {
+    render(<MarketplaceReviewCard review={{
+      status: 'blocked', blockKind: 'input_limit', family: 'buy_listings',
+      title: 'Buy 20 collectibles', facts: [], notices: [],
+      blockers: ['the attached-asset lookup for buyer input 60 failed'],
+    }} onRetry={vi.fn()} />);
+
+    expect(screen.getByTestId('approval-notice-reason')).toHaveTextContent('Too many inputs to check');
+    fireEvent.click(screen.getByRole('button', { name: 'Why signing is unavailable' }));
+    expect(screen.getByText(/more than 60 inputs/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry verification' })).not.toBeInTheDocument();
   });
 
   it('offers recovery independently of authorization and disables a pending retry', () => {

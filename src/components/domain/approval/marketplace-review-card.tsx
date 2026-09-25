@@ -3,6 +3,7 @@ import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceI
 import { t } from '@/i18n';
 import { ApprovalFacts } from './approval-facts';
 import { ApprovalNotice } from './approval-notice';
+import { marketplaceBlockText, WarningDetails } from './approval-warnings';
 
 /**
  * Self-sends whose info notice is the plain-language outcome ("every output stays in this
@@ -34,17 +35,12 @@ export function MarketplaceReviewCard({ review, onRetry, retrying = false, retry
   if (!showFacts) {
     return (
       <div>
-        <ApprovalNotice blocked statusLabel={retry ? t('approval_marketplace_review_card_verification_incomplete_retry') : t('common_marketplace_terms_did_not_verify')} items={
-          (review.blockers.length > 0 ? review.blockers : [review.title]).map((reason, index) => ({
-            key: `marketplace-blocker-${index}`, severity: retry ? 'warning' : 'danger',
-            title: reason,
-            ...(index === 0 ? {
-              description: retry
-                ? t('approval_marketplace_review_card_signing_unavailable_until_verified', [review.title])
-                : t('approval_marketplace_review_card_signing_blocked', [review.title]),
-            } : {}),
-          }))
-        } />
+        {/* Lead with what the user can do; the wallet's own reasons stay underneath. */}
+        <ApprovalNotice blocked statusLabel={retry ? t('approval_marketplace_review_card_verification_incomplete_retry') : t('common_marketplace_terms_did_not_verify')} items={[{
+          key: 'marketplace-blocker', severity: retry ? 'warning' : 'danger',
+          ...marketplaceBlockText(retry ? 'retry' : review.blockKind ?? 'transaction'),
+          children: <WarningDetails details={[review.title, ...review.blockers]} />,
+        }]} />
         {retry && onRetry && <Button color="gray" onClick={onRetry} disabled={retrying} className="mt-3 text-sm" fullWidth>
           {retrying ? t('common_verifying') : t('common_retry_verification')}
         </Button>}
