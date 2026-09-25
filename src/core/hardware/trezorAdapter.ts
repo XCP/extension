@@ -474,7 +474,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       addressSelection: 'fullAccount',
       device: { useEmptyPassphrase: !usePassphrase },
     });
-    console.log('[TrezorAdapter] selectAccount result:', JSON.stringify(result, null, 2));
+    console.log('[TrezorAdapter] selectAccount success:', result.success);
 
     if (!result.success) {
       const errorMsg = result.error.message?.toLowerCase() || '';
