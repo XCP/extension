@@ -28,7 +28,8 @@ export default defineConfig({
         'storage',
         'alarms',
       ],
-      host_permissions: ['https://suite.trezor.io/*'],
+      // Trezor Connect 10 opens Suite and Suite answers over externally_connectable, which the
+      // library checks by origin; it needs no host permission (and none means no install warning).
       externally_connectable: { matches: ['https://suite.trezor.io/*'] },
     };
 
