@@ -38,8 +38,8 @@ const mockProviderService = {
   handleRequest: vi.fn()
 };
 
-vi.mock('@/services/providerService', () => ({
-  getProviderService: () => mockProviderService
+vi.mock('@/services/providerServiceClient', () => ({
+  getProviderServiceClient: () => mockProviderService
 }));
 
 // Setup fake browser
