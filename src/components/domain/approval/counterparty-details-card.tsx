@@ -10,6 +10,7 @@ import type { ProtocolField } from '@/core/counterparty/describe';
 import { t } from '@/i18n';
 import { ApprovalFacts } from './approval-facts';
 import { ApprovalIdentifier } from './approval-identifier';
+import { ApprovalList } from './approval-list';
 /** An mpma_send recipient: destinations travel in the payload, so this list is the only account of who is paid. */
 export interface CounterpartyDetailRecipient {
   asset: string;
@@ -44,22 +45,21 @@ export function CounterpartyDetailsCard({
           <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">
             {t('approval_counterparty_details_card_recipients', [String(recipients.length)])}
           </h4>
-          <div className="space-y-2">
-            {recipients.map((recipient, index) => (
-              <div key={`${recipient.address}-${index}`} className="rounded bg-gray-50 p-2 text-xs">
-                <div className="flex justify-between gap-2">
+          <ApprovalList
+            items={recipients}
+            render={(recipient, index) => (
+              <div key={`${recipient.address}-${index}`} className="rounded bg-gray-50 px-2 py-1.5">
+                <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3">
                   <span className="min-w-0 text-gray-600 [overflow-wrap:anywhere]">{recipient.asset}</span>
-                  <span className="flex-shrink-0 font-medium text-gray-900">
-                    {recipient.quantity}
-                  </span>
+                  <span className="ml-auto font-medium tabular-nums text-gray-900">{recipient.quantity}</span>
                 </div>
                 {/* Shown in full: short address fragments are grindable for lookalikes. */}
-                <div className="select-all font-mono leading-normal text-gray-600 [overflow-wrap:anywhere]" title={recipient.address}>
-                  <ApprovalIdentifier value={recipient.address} />
+                <div className="mt-0.5 text-gray-700" title={recipient.address}>
+                  <ApprovalIdentifier value={recipient.address} copyLabel={recipient.asset} />
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          />
         </div>
       )}
     </div>

@@ -8,7 +8,7 @@ import { walletTest, expect, navigateTo, getCurrentAddress } from '../fixtures';
 import { settings, selectAddress } from '../selectors';
 
 walletTest.describe('Settings with Headless UI Components', () => {
-  walletTest('change address type using Headless UI RadioGroup', async ({ page }) => {
+  walletTest('change address type through the address type listbox', async ({ page }) => {
     const originalAddress = await getCurrentAddress(page);
     expect(originalAddress).toBeTruthy();
 
@@ -20,27 +20,27 @@ walletTest.describe('Settings with Headless UI Components', () => {
     await page.waitForURL(/address-type/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
-    // Wait for radio options to be visible
-    await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 5000 });
-
-    const radioOptions = await page.locator('[role="radio"]').all();
-    expect(radioOptions.length).toBeGreaterThan(1);
+    const typeOptions = page.getByRole('listbox').getByRole('option');
+    await expect(typeOptions.first()).toBeVisible({ timeout: 5000 });
+    const count = await typeOptions.count();
+    expect(count).toBeGreaterThan(1);
 
     let selectedIndex = -1;
-    for (let i = 0; i < radioOptions.length; i++) {
-      const checkedAttr = await radioOptions[i].getAttribute('aria-checked');
-      const isChecked = checkedAttr === 'true';
-      if (isChecked) {
+    for (let i = 0; i < count; i++) {
+      if (await typeOptions.nth(i).getAttribute('aria-selected') === 'true') {
         selectedIndex = i;
         break;
       }
     }
-
     const nextIndex = selectedIndex === 0 ? 1 : 0;
-    await radioOptions[nextIndex].click();
 
-    const newChecked = await radioOptions[nextIndex].getAttribute('aria-checked');
-    expect(newChecked).toBe('true');
+    // Arrow keys move focus only; nothing switches until Enter.
+    await typeOptions.nth(selectedIndex).focus();
+    await page.keyboard.press(nextIndex > selectedIndex ? 'ArrowDown' : 'ArrowUp');
+    await expect(typeOptions.nth(nextIndex)).toBeFocused();
+    await expect(typeOptions.nth(selectedIndex)).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Enter');
+    await expect(typeOptions.nth(nextIndex)).toHaveAttribute('aria-selected', 'true');
 
     await navigateTo(page, 'wallet');
 

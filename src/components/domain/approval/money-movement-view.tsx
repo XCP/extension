@@ -1,9 +1,10 @@
 import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import type { PsbtFlexibilityKind } from '@/components/domain/approval/psbt-flexibility';
-import { formatAddress, formatAmount } from '@/core/format';
+import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
 import { t } from '@/i18n';
+import { ApprovalIdentifier } from './approval-identifier';
 
 const btc = (sats: number) =>
   formatAmount({ value: fromSatoshis(sats, true), minimumFractionDigits: 8, maximumFractionDigits: 8 });
@@ -68,16 +69,21 @@ export function MoneyMovementView({
         </div>
       )}
       <div className="pt-3 border-t border-gray-100 space-y-2 text-sm leading-5">
+        {/* Each destination in full, under its amount: a shortened address is the part a
+            lookalike grinder matches, and this is the screen where the signer decides. */}
         {external.map((dest, i) => (
-          <div key={i} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <span className="text-gray-500 truncate" title={dest.address ?? undefined}>
-              {dest.address
-                ? formatAddress(dest.address, true)
-                : dest.isData
-                  ? t('approval_money_movement_view_protocol_data_recoverable')
-                  : t('approval_money_movement_view_unknown_address')}
-            </span>
-            <span className="font-medium text-gray-900 tabular-nums">{btc(dest.value)} BTC</span>
+          <div key={i}>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <span className="text-gray-500">
+                {dest.address
+                  ? t('approval_money_movement_view_to')
+                  : dest.isData
+                    ? t('approval_money_movement_view_protocol_data_recoverable')
+                    : t('approval_money_movement_view_unknown_address')}
+              </span>
+              <span className="ml-auto font-medium text-gray-900 tabular-nums">{btc(dest.value)} BTC</span>
+            </div>
+            {dest.address && <div className="mt-0.5 text-gray-700"><ApprovalIdentifier value={dest.address} /></div>}
           </div>
         ))}
         {atRisk > 0 && (

@@ -32,9 +32,9 @@ walletTest.describe('Settings Address Preview', () => {
     await addressTypeOpt.click();
     await page.waitForLoadState('networkidle');
 
-    // Should show radio options for address types
-    const radioButtons = page.locator('[role="radio"]');
-    await expect(radioButtons.first()).toBeVisible({ timeout: 10000 });
+    // Should show address type options for address types
+    const typeOptions = page.locator('[role="option"]');
+    await expect(typeOptions.first()).toBeVisible({ timeout: 10000 });
 
     // Should have address type content
     await expect(page.locator('text=/Legacy|SegWit|Taproot|P2PKH|P2WPKH|P2TR/i').first()).toBeVisible();
@@ -47,11 +47,11 @@ walletTest.describe('Settings Address Preview', () => {
     await expect(addressTypeOption).toBeVisible({ timeout: 5000 });
     await addressTypeOption.click();
 
-    const radioOptions = page.locator('[role="radio"]');
-    await expect(radioOptions.first()).toBeVisible({ timeout: 10000 });
+    const typeOptions = page.locator('[role="option"]');
+    await expect(typeOptions.first()).toBeVisible({ timeout: 10000 });
 
     // Should have multiple address type options
-    const count = await radioOptions.count();
+    const count = await typeOptions.count();
     expect(count).toBeGreaterThan(1);
   });
 
@@ -62,10 +62,10 @@ walletTest.describe('Settings Address Preview', () => {
     await expect(addressTypeOption).toBeVisible({ timeout: 5000 });
     await addressTypeOption.click();
 
-    const radioOptions = page.locator('[role="radio"]');
-    await expect(radioOptions.first()).toBeVisible({ timeout: 10000 });
+    const typeOptions = page.locator('[role="option"]');
+    await expect(typeOptions.first()).toBeVisible({ timeout: 10000 });
 
-    const optionCount = await radioOptions.count();
+    const optionCount = await typeOptions.count();
     if (optionCount <= 1) {
       return; // Only one option, can't test switching
     }
@@ -73,7 +73,7 @@ walletTest.describe('Settings Address Preview', () => {
     // Find the currently selected option
     let selectedIndex = -1;
     for (let i = 0; i < optionCount; i++) {
-      const isChecked = await radioOptions.nth(i).getAttribute('aria-checked');
+      const isChecked = await typeOptions.nth(i).getAttribute('aria-selected');
       if (isChecked === 'true') {
         selectedIndex = i;
         break;
@@ -82,10 +82,10 @@ walletTest.describe('Settings Address Preview', () => {
 
     // Click a different option
     const newIndex = selectedIndex === 0 ? 1 : 0;
-    await radioOptions.nth(newIndex).click();
+    await typeOptions.nth(newIndex).click();
 
     // Verify selection changed
-    await expect(radioOptions.nth(newIndex)).toHaveAttribute('aria-checked', 'true');
+    await expect(typeOptions.nth(newIndex)).toHaveAttribute('aria-selected', 'true');
 
     // Go back and verify settings updated
     await page.goBack();

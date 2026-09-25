@@ -1,9 +1,9 @@
-import { RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { localizedAddressFormatLabel } from '@/components/domain/address/address-format-label';
-import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
+import { AddressFormatListbox } from '@/components/domain/address/address-format-listbox';
+import { FaCheck } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
@@ -87,11 +87,13 @@ export default function AddressTypesPage(): ReactElement {
    * Updates the wallet's address type through the shared switching path.
    * @param newType - The new address type to set.
    */
-  const handleAddressFormatChange = async (newType: AddressFormat | null) => {
+  const handleAddressFormatChange = async (newType: AddressFormat) => {
+    // Choosing the type already in use changes nothing.
+    if (newType === selectedFormat) return;
     // Recorded when the switch starts, not when it finishes re-deriving the wallet: Back pressed
     // in between must still leave for home, where the new address is about to appear.
     const before = hasChangedType.current;
-    if (newType) hasChangedType.current = newType !== originalAddressFormat.current;
+    hasChangedType.current = newType !== originalAddressFormat.current;
     if (!(await switchFormat(newType))) hasChangedType.current = before;
   };
 
@@ -123,30 +125,42 @@ export default function AddressTypesPage(): ReactElement {
           </p>
         </div>
       )}
-      <RadioGroup
-        value={selectedFormat}
-        onChange={handleAddressFormatChange}
-        className="space-y-2"
+      {/* A listbox, not a radio group: switching re-derives the wallet, so arrowing through the
+          options only moves focus; Enter, Space or a click switches. */}
+      <AddressFormatListbox
+        formats={formats}
+        selectedFormat={selectedFormat}
+        onCommit={(format) => void handleAddressFormatChange(format)}
+        label={t('common_address_type')}
         disabled={isHardwareWallet}
+        className="space-y-2"
+        optionClassName={({ selected, disabled }) => `relative w-full rounded p-4 outline-none transition duration-300 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+          disabled
+            ? "cursor-not-allowed bg-gray-100 opacity-60"
+            : selected
+              ? "cursor-pointer border-2 border-blue-500 bg-white shadow-md"
+              : "cursor-pointer border-2 border-transparent bg-white hover:bg-gray-50"
+        }`}
       >
-        <SelectionCardGroup>
-          {formats.map((type) => {
-            const typeLabel = localizedAddressFormatLabel(type);
-            // Use loaded address preview
-            const address = previews[type] || "";
-            const addressPreview = address ? formatAddress(address) : "";
-
-            return (
-              <SelectionCard
-                key={type}
-                value={type}
-                title={typeLabel}
-                description={addressPreview}
-              />
-            );
-          })}
-        </SelectionCardGroup>
-      </RadioGroup>
+        {(type, { selected }) => {
+          const address = previews[type] || "";
+          return (
+            <div className="flex items-start">
+              <div className="flex min-w-0 flex-grow flex-col">
+                <span className={`text-sm font-medium ${isHardwareWallet ? "text-gray-500" : "text-gray-900"}`}>
+                  {localizedAddressFormatLabel(type)}
+                </span>
+                {address && <span className="mt-1 text-xs text-gray-500">{formatAddress(address)}</span>}
+              </div>
+              {selected && !isHardwareWallet && (
+                <div className="ml-3 flex-shrink-0">
+                  <FaCheck className="size-4 text-blue-500" aria-hidden="true" />
+                </div>
+              )}
+            </div>
+          );
+        }}
+      </AddressFormatListbox>
     </section>
   );
 }

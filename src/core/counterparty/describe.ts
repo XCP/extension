@@ -417,7 +417,12 @@ export interface ProtocolField {
   label: string;
   value: string;
   /** Producers choose meaning explicitly; older persisted reviews default to ordinary text. */
-  kind?: 'amount' | 'address' | 'outpoint' | 'identifier' | 'text' | 'paragraph';
+  kind?: 'amount' | 'date' | 'address' | 'outpoint' | 'identifier' | 'text' | 'paragraph' | 'list';
+  /**
+   * A `list` field's entries, one per line under the label. `value` still carries them joined, so
+   * anything reading fields as text keeps seeing every entry.
+   */
+  items?: string[];
   emphasis?: 'primary';
   layout?: 'stacked';
   /** Supporting context stays separate from an amount or identifier. */
@@ -504,6 +509,14 @@ export function protocolFields(
     if (value === undefined || value === null || value === '') return;
     fields.push({ label: text(label), value: String(value), kind });
   };
+  /** Core settles the XCP fee when the transaction confirms, so the quoted figure always carries that note. */
+  const addXcpFee = () => {
+    if (!context.protocolFeeXcp) return;
+    fields.push({
+      label: text('XCP fee'), value: `${context.protocolFeeXcp} XCP`, kind: 'amount',
+      description: text('The XCP fee may change at confirmation.'),
+    });
+  };
   const addMemo = (label = 'Memo') => add(
     m.memoEncoding === 'hex' ? text('$1 (hex)', [text(label)]) : label,
     m.memo,
@@ -575,7 +588,7 @@ export function protocolFields(
       add('Lot size', amount(m.quantityByPrice, m.asset), 'amount');
       const cap = (value: unknown) => value == null ? undefined
         : isGreaterThan(String(value), 0) ? amount(value, m.asset) : text('No limit');
-      add('Per transaction limit', cap(m.maxMintPerTx), 'amount');
+      add('Per-tx limit', cap(m.maxMintPerTx), 'amount');
       add('Per address limit', cap(m.maxMintPerAddress), 'amount');
       add('Hard cap', cap(m.hardCap), 'amount');
       if (m.softCap != null && isGreaterThan(String(m.softCap), 0)) {
@@ -606,7 +619,7 @@ export function protocolFields(
         : m.endBlock === 0 ? text('No end block')
         : text('Block $1', [formatAmount({ value: m.endBlock, maximumFractionDigits: 0 })]));
       if (m.mintedAssetCommissionInt != null) {
-        add('Minted asset commission', `${toGroupedString(divide(String(m.mintedAssetCommissionInt), 1_000_000))}%`, 'amount');
+        add('Commission', `${toGroupedString(divide(String(m.mintedAssetCommissionInt), 1_000_000))}%`, 'amount');
       }
       add('Divisible', m.divisible === undefined ? undefined : text(m.divisible ? 'Yes' : 'No'));
       add('Lock description', m.lockDescription === undefined ? undefined : text(m.lockDescription ? 'Yes' : 'No'));
@@ -754,7 +767,7 @@ export function protocolFields(
     case 'attach':
       // The XCP fee is a cost; the UTXO is an identifier, so it comes second. Asset and amount are
       // already stated in the headline.
-      add('XCP fee', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined, 'amount');
+      addXcpFee();
       add(
         'New UTXO',
         context.transactionId !== undefined && m.destinationVout !== undefined
@@ -766,8 +779,15 @@ export function protocolFields(
 
     case 'detach':
       // The destination is in the headline. What is not is which balances come back.
-      for (const asset of context.detachingAssets ?? []) add('Detached', asset, 'amount');
-      add('XCP fee', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined, 'amount');
+      // One list, not a row per balance: a six-item cart otherwise stacks six "Detached" rows.
+      if (context.detachingAssets?.length === 1) add('Detached', context.detachingAssets[0], 'amount');
+      else if (context.detachingAssets?.length) {
+        fields.push({
+          label: text('Detached'), value: context.detachingAssets.join(', '),
+          kind: 'list', items: [...context.detachingAssets],
+        });
+      }
+      addXcpFee();
       break;
 
     case 'utxo':

@@ -31,17 +31,11 @@ walletTest.describe('FileUploadInput Component', () => {
     await page.goto(`${baseUrl}/settings/address-types`);
     await page.waitForLoadState('networkidle');
 
-    // Click on the Taproot card (HeadlessUI RadioGroup.Option)
-    const taprootCard = page.locator('text=Taproot').first();
-    await expect(taprootCard).toBeVisible({ timeout: 5000 });
-    await taprootCard.click();
-
-    // Wait for address type to update (HeadlessUI uses data-headlessui-state="checked" or aria-checked)
-    await expect(async () => {
-      const selected = page.locator('[data-headlessui-state*="checked"]:has-text("Taproot"), [aria-checked="true"]:has-text("Taproot")');
-      const isSelected = await selected.count() > 0;
-      expect(isSelected).toBe(true);
-    }).toPass({ timeout: 5000 });
+    // Choose Taproot in the address-type listbox
+    const taprootOption = page.getByRole('option').filter({ hasText: 'Taproot' }).first();
+    await expect(taprootOption).toBeVisible({ timeout: 5000 });
+    await taprootOption.click();
+    await expect(taprootOption).toHaveAttribute('aria-selected', 'true', { timeout: 5000 });
 
     // Now navigate to broadcast page
     await page.goto(`${baseUrl}/compose/broadcast`);

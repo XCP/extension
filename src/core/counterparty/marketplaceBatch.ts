@@ -263,7 +263,7 @@ export function analyzeMarketplaceBatch(
           { kind: 'amount', label: t('marketplace_batch_utxo_returned'), value: sats(listing.utxoValueSats) },
           { kind: 'amount', label: t('marketplace_batch_attach_fee'), value: sats(attach.networkFeeSats) },
           {
-            kind: 'amount', label: t('marketplace_batch_xcp_fee_quote'),
+            kind: 'amount', label: t('marketplace_batch_xcp_fee'),
             value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]),
           },
         ],
@@ -277,15 +277,15 @@ export function analyzeMarketplaceBatch(
       },
       { kind: 'amount' as const, label: t('marketplace_batch_listing_price'), value: sats(listing.priceSats) },
       {
-        kind: 'amount', label: t('marketplace_batch_your_utxo_sats_returned'),
-        value: sats(listing.utxoValueSats), layout: 'stacked',
+        kind: 'amount', label: t('marketplace_batch_utxo_returned'),
+        value: sats(listing.utxoValueSats),
       },
       {
-        kind: 'amount' as const, label: t('marketplace_batch_attach_network_fee'),
+        kind: 'amount' as const, label: t('marketplace_batch_attach_fee'),
         value: sats(attach.networkFeeSats),
       },
       {
-        kind: 'amount' as const, label: t('marketplace_batch_quoted_xcp_fee'),
+        kind: 'amount' as const, label: t('marketplace_batch_xcp_fee'),
         value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]),
       },
       ...identityFacts,
@@ -293,8 +293,8 @@ export function analyzeMarketplaceBatch(
         ? []
         : [{ kind: 'address' as const, label: t('marketplace_batch_asset_source'), value: attach.assetSource }]),
       {
-        kind: 'text' as const, label: t('marketplace_batch_broadcast_now'),
-        value: t('marketplace_batch_attach_transaction_only'),
+        kind: 'text' as const, label: t('marketplace_batch_sent_now'),
+        value: t('marketplace_batch_attach_only'),
       },
       {
         kind: 'paragraph' as const, label: t('marketplace_batch_listing_activation'),
@@ -330,7 +330,7 @@ export function analyzeMarketplaceBatch(
         value: sats(first.platformFeeSats), description: t('marketplace_intent_paid_by_the_buyer'),
       }] : []),
       ...(deliveryUtxoSats > 0 ? [{
-        kind: 'amount' as const, label: t('marketplace_intent_sats_kept_with_your_asset'),
+        kind: 'amount' as const, label: t('marketplace_intent_asset_utxo'),
         value: sats(deliveryUtxoSats),
         description: t('marketplace_intent_still_yours_separate_from_the_offer_cost'),
       }] : []),
@@ -357,10 +357,10 @@ export function analyzeMarketplaceBatch(
       },
       {
         // Expiries may differ per target; name the latest rather than imply one shared deadline.
-        kind: 'text' as const,
+        kind: 'date' as const,
         label: expiries.every(expiry => expiry === latestExpiry)
-          ? t('marketplace_intent_marketplace_expiry')
-          : t('marketplace_batch_latest_marketplace_expiry'),
+          ? t('marketplace_intent_expires')
+          : t('marketplace_batch_latest_expiry'),
         value: formatExpiry(latestExpiry),
       },
       {
@@ -380,7 +380,7 @@ export function analyzeMarketplaceBatch(
       : t('marketplace_batch_create_listing_utxos', count(slots));
     facts.push(
       { kind: 'amount' as const, label: t('marketplace_batch_new_utxos'), value: count(slots) },
-      { kind: 'amount' as const, label: t('marketplace_batch_total_network_fees'), value: sats(fees) },
+      { kind: 'amount' as const, label: t('marketplace_batch_network_fees'), value: sats(fees) },
     );
     notice = t('marketplace_batch_every_fan_out_input_and');
   } else if (kind === 'bulk-attach' || kind === 'prepare-assets') {
@@ -392,16 +392,22 @@ export function analyzeMarketplaceBatch(
         ? t('marketplace_batch_prepare_1_collectible')
         : t('marketplace_batch_prepare_collectibles', count(attaches.length));
     facts.push(
-      { kind: 'amount' as const, label: t('marketplace_batch_total_network_fees'), value: sats(fees) },
+      { kind: 'amount' as const, label: t('marketplace_batch_network_fees'), value: sats(fees) },
       {
-        kind: 'amount' as const, label: t('marketplace_batch_total_quoted_xcp_fees'),
+        kind: 'amount' as const, label: t('marketplace_batch_xcp_fees'),
         value: formatXcpRaw(attaches.map(intent => intent.protocolFee.quotedAmountRaw)),
+        description: t('common_xcp_fee_may_change'),
       },
+      // The key that signs input 0 when the assets sit on the paired Legacy/SegWit sibling; the
+      // single attach and attach-and-list screens already name it.
+      ...[...new Set(attaches.map(intent => intent.assetSource))]
+        .filter(source => !sameAddress(source, seller))
+        .map(source => ({ kind: 'address' as const, label: t('marketplace_batch_asset_source'), value: source })),
     );
     // No notice. Every clean attach is `caution` by design, which turns any notice here amber —
     // and a recital of the checks that just passed reads as an alarm about a batch where nothing
     // is wrong. The single-attach review says the same thing by carrying `notices: []`, and the
-    // quoted XCP fee is already a fact above.
+    // XCP fee, with its may-change note, is already a fact above.
     notice = '';
   } else {
     const listings = intents as CreateListingIntentClaim[];
@@ -419,9 +425,9 @@ export function analyzeMarketplaceBatch(
     // Proved reviews speak through facts, not notices, so the durable-signature boundary has to
     // live here — the same rows the single-listing screen shows.
     facts.push(
-      { kind: 'amount' as const, label: t('marketplace_batch_combined_asking_prices'), value: sats(gross) },
+      { kind: 'amount' as const, label: t('marketplace_batch_total_asking'), value: sats(gross) },
       {
-        kind: 'amount', label: t('marketplace_batch_your_utxo_sats_returned'), value: sats(returned),
+        kind: 'amount', label: t('marketplace_batch_utxo_returned'), value: sats(returned),
       },
       {
         kind: 'amount', label: t('marketplace_batch_your_payout_if_all_sell'),
@@ -433,7 +439,7 @@ export function analyzeMarketplaceBatch(
       },
       {
         kind: 'text' as const, label: t('marketplace_batch_broadcast'),
-        value: t('marketplace_batch_not_broadcast_now'),
+        value: t('marketplace_batch_not_now'),
       },
       {
         kind: 'paragraph' as const, label: t('marketplace_batch_signature_invalidation'),

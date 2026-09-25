@@ -310,14 +310,14 @@ describe('marketplace batch aggregate proof', () => {
   it('names the latest expiry as such only when the offers expire at different times', () => {
     const caution = () => proved({ status: 'caution', family: 'authorize_exact_offer' });
     const differing = analyzeMarketplaceBatch('authorize-offers', [exactOffer(0), exactOffer(1)], [caution(), caution()]);
-    expect(differing.facts.map(fact => fact.label)).toContain('Latest marketplace expiry');
+    expect(differing.facts.map(fact => fact.label)).toContain('Latest expiry');
     const shared = analyzeMarketplaceBatch(
       'authorize-offers',
       [exactOffer(0), { ...exactOffer(1), marketplaceExpiresAt: exactOffer(0).marketplaceExpiresAt }],
       [caution(), caution()],
     );
-    expect(shared.facts.map(fact => fact.label)).toContain('Marketplace expiry');
-    expect(shared.facts.map(fact => fact.label)).not.toContain('Latest marketplace expiry');
+    expect(shared.facts.map(fact => fact.label)).toContain('Expires');
+    expect(shared.facts.map(fact => fact.label)).not.toContain('Latest expiry');
   });
 
   it('titles a single exact-offer authorization in the singular', () => {
@@ -363,14 +363,14 @@ describe('marketplace batch aggregate proof', () => {
       { kind: 'amount', label: 'Your payout if sold', value: '100,546 sats', emphasis: 'primary' },
       { kind: 'amount', label: 'Listing price', value: '100,000 sats' },
       {
-        kind: 'amount', label: 'Your UTXO sats returned', value: '546 sats', layout: 'stacked',
+        kind: 'amount', label: 'UTXO returned', value: '546 sats',
       },
     ]);
     expect(review.facts.slice(3).map(field => field.label)).toEqual([
-      'Attach network fee', 'Quoted XCP fee', 'Transactions', 'Seller wallet', 'Asset source',
-      'Broadcast now', 'Listing activation', 'Signature invalidation',
+      'Attach fee', 'XCP fee', 'Transactions', 'Seller wallet', 'Asset source',
+      'Sent now', 'Listing activation', 'Signature invalidation',
     ]);
-    expect(review.facts).toContainEqual({ kind: 'text', label: 'Broadcast now', value: 'Attach transaction only' });
+    expect(review.facts).toContainEqual({ kind: 'text', label: 'Sent now', value: 'Attach only' });
     expect(review.facts).toContainEqual({
       kind: 'paragraph', label: 'Listing activation',
       value: 'After confirmation and Counterparty verification',
@@ -402,7 +402,7 @@ describe('marketplace batch aggregate proof', () => {
       blockers: [],
     });
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'New UTXOs', value: '4' });
-    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Total network fees', value: '2,000 sats' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Network fees', value: '2,000 sats' });
   });
 
   it('summarizes a price-free preparation phase without calling it a listing', () => {
@@ -417,8 +417,12 @@ describe('marketplace batch aggregate proof', () => {
       title: 'Prepare 2 collectibles',
       blockers: [],
     });
-    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Total network fees', value: '908 sats' });
-    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Total quoted XCP fees', value: '0.5 XCP' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Network fees', value: '908 sats' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'XCP fees', value: '0.5 XCP', description: 'The XCP fee may change at confirmation.' });
+    // The paired Legacy source that signs input 0, once, though both attaches spend from it.
+    expect(review.facts.filter(fact => fact.label === 'Asset source')).toEqual([
+      { kind: 'address', label: 'Asset source', value: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7' },
+    ]);
   });
 
   // The bulk-listing screen has no attention interstitial: these facts are the only place the
@@ -432,12 +436,12 @@ describe('marketplace batch aggregate proof', () => {
 
     expect(review.status).toBe('proved');
     expect(review.title).toBe('Authorize 2 marketplace listings');
-    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Combined asking prices', value: '200,000 sats' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Total asking', value: '200,000 sats' });
     expect(review.facts).toContainEqual({
       kind: 'paragraph', label: 'Buyer controls',
       value: 'Funding, fees, and delivery destination',
     });
-    expect(review.facts).toContainEqual({ kind: 'text', label: 'Broadcast', value: 'Not broadcast now.' });
+    expect(review.facts).toContainEqual({ kind: 'text', label: 'Broadcast', value: 'Not now' });
     expect(review.facts).toContainEqual({
       kind: 'paragraph', label: 'Signature invalidation',
       value: 'Spend each attached asset UTXO',

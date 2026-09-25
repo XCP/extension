@@ -94,7 +94,7 @@ const localizeAction: DescriptionLocalizer = (source, substitutions) => {
     case "XCP price per lot": return t('tx_action_xcp_price_per_lot', substitutions);
     case "Lot size": return t('tx_action_lot_size', substitutions);
     case "No limit": return t('tx_action_no_limit', substitutions);
-    case "Per transaction limit": return t('tx_action_per_transaction_limit', substitutions);
+    case "Per-tx limit": return t('tx_action_per_tx_limit', substitutions);
     case "Per address limit": return t('tx_action_per_address_limit', substitutions);
     case "Hard cap": return t('tx_action_hard_cap', substitutions);
     case "Soft cap": return t('tx_action_soft_cap', substitutions);
@@ -112,7 +112,7 @@ const localizeAction: DescriptionLocalizer = (source, substitutions) => {
     case "Ends": return t('tx_action_ends', substitutions);
     case "On confirmation": return t('tx_action_on_confirmation', substitutions);
     case "No end block": return t('tx_action_no_end_block', substitutions);
-    case "Minted asset commission": return t('tx_action_minted_asset_commission', substitutions);
+    case "Commission": return t('tx_action_commission', substitutions);
     case "Divisible": return t('tx_action_divisible', substitutions);
     case "Yes": return t('tx_action_yes', substitutions);
     case "No": return t('tx_action_no', substitutions);
@@ -153,6 +153,7 @@ const localizeAction: DescriptionLocalizer = (source, substitutions) => {
     case "Min LP received": return t('tx_action_min_lp_received', substitutions);
     case "Min $1 back": return t('tx_action_min_asset_back', substitutions);
     case "XCP fee": return t('tx_action_xcp_fee', substitutions);
+    case "The XCP fee may change at confirmation.": return t('common_xcp_fee_may_change', substitutions);
     case "New UTXO": return t('tx_action_new_utxo', substitutions);
     case "Detached": return t('tx_action_detached', substitutions);
     case "From UTXO": return t('tx_action_from_utxo', substitutions);
