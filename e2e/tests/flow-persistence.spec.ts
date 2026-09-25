@@ -96,16 +96,16 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
     await expect(extensionPage).toHaveURL(/address-type/, { timeout: 10000 });
 
     // Select Legacy (P2PKH) address type
-    const radioOptions = extensionPage.locator('[role="radio"]');
-    await expect(radioOptions.first()).toBeVisible({ timeout: 5000 });
+    const typeOptions = extensionPage.getByRole('option');
+    await expect(typeOptions.first()).toBeVisible({ timeout: 5000 });
 
-    const legacyOption = radioOptions.filter({ hasText: 'Legacy' }).first();
+    const legacyOption = typeOptions.filter({ hasText: 'Legacy' }).first();
     const legacyCount = await legacyOption.count();
 
     if (legacyCount > 0) {
       await legacyOption.click();
-      // Wait for the radio to be checked (UI update)
-      await expect(legacyOption).toHaveAttribute('aria-checked', 'true', { timeout: 5000 });
+      // Wait for the option to be selected (UI update)
+      await expect(legacyOption).toHaveAttribute('aria-selected', 'true', { timeout: 5000 });
     }
 
     // Wait for the address type change to take effect (async context update)
