@@ -253,8 +253,8 @@ test.describe('Trezor Hardware Wallet', () => {
         await page.screenshot({ path: 'test-results/screenshots/trezor-timeout.png' });
       }
 
-      // Test passes if we got any response - all prove integration works
-      expect(['success', 'error', 'timeout']).toContain(result);
+      // Only a completed connection proves the device path; anything else is reported as a skip.
+      test.skip(result !== 'success', `Trezor not reachable from the extension (${result})`);
     } finally {
       await cleanup(context);
     }
@@ -409,6 +409,7 @@ test.describe('Trezor Wallet Integration Proof', () => {
         } else {
           console.log('  Connection timed out (popup cannot reach localhost)');
         }
+        test.skip(true, 'Trezor not reachable from the extension');
       }
 
       await page.screenshot({ path: 'test-results/screenshots/trezor-integration-result.png' });
