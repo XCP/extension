@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { formatAddress } from '@/core/format';
@@ -127,5 +127,32 @@ describe('address-type listbox', () => {
     await act(async () => { fireEvent.click(selected); });
     await act(async () => { fireEvent.keyDown(selected, { key: ' ' }); });
     expect(fixture.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('Back after choosing a type', () => {
+  function Where() {
+    return <output data-testid="where">{useLocation().pathname}</output>;
+  }
+  const openAt = () => render(
+    <MemoryRouter initialEntries={['/settings/address-type']}><LivePage /><Where /></MemoryRouter>,
+  );
+  const back = () => act(async () => { fixture.header.mock.lastCall?.[0].onBack(); });
+
+  it('goes home when Back is pressed while the switch is still re-deriving the wallet', async () => {
+    fixture.update.mockImplementationOnce(() => new Promise<void>(() => {}));
+    openAt();
+    fireEvent.click(await screen.findByText('Legacy (P2PKH)'));
+    await back();
+    expect(screen.getByTestId('where').textContent).toBe('/index');
+  });
+
+  it('returns to settings when the switch failed', async () => {
+    fixture.update.mockRejectedValueOnce(new Error('refused'));
+    openAt();
+    fireEvent.click(await screen.findByText('Legacy (P2PKH)'));
+    await screen.findByText('refused');
+    await back();
+    expect(screen.getByTestId('where').textContent).toBe('/settings');
   });
 });

@@ -90,9 +90,11 @@ export default function AddressTypesPage(): ReactElement {
   const handleAddressFormatChange = async (newType: AddressFormat) => {
     // Choosing the type already in use changes nothing.
     if (newType === selectedFormat) return;
-    if (await switchFormat(newType)) {
-      hasChangedType.current = newType !== originalAddressFormat.current;
-    }
+    // Recorded when the switch starts, not when it finishes re-deriving the wallet: Back pressed
+    // in between must still leave for home, where the new address is about to appear.
+    const before = hasChangedType.current;
+    hasChangedType.current = newType !== originalAddressFormat.current;
+    if (!(await switchFormat(newType))) hasChangedType.current = before;
   };
 
   if (isLoadingPreviews) {
