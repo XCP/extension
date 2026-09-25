@@ -8,8 +8,14 @@
  */
 
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
-import { fetchUtxoBalances } from '@/core/counterparty/api';
+import type { UtxoBalance } from '@/core/counterparty/api';
 import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
+import {
+  type AttachmentEvidenceSource,
+  createPendingEvidenceContext,
+  liveAttachmentEvidenceSource,
+  resolveEmptyLedgerOutpoint,
+} from '@/core/counterparty/pendingAttachments';
 
 /**
  * Counterparty assets attached to a single input's UTXO.
@@ -24,6 +30,12 @@ export interface InputAttachedAssets {
    * or rate-limit failure is not shown as "no assets."
    */
   lookupFailed?: boolean;
+  /**
+   * Set with `lookupFailed` when the ledger's empty answer cannot be trusted yet: this unconfirmed
+   * (or not yet parsed) transaction may attach Counterparty balances to the input's outpoint.
+   * Retrying after it confirms resolves it.
+   */
+  pendingParentTxid?: string;
   assets: Array<{
     asset: string;
     /** Exact Counterparty base-unit quantity, preserved as decimal text when the API supplies it. */
@@ -41,14 +53,23 @@ export interface InputAttachedAssets {
  *
  * Signed inputs are looked up first. Their asset status is what the user is agreeing to, so the cap
  * must not let input ordering decide which of them gets checked.
+ *
+ * The ledger only reflects parsed blocks, so an empty answer for a signed input is accepted only
+ * once the transaction that created the outpoint is shown unable to have attached anything to it,
+ * or already parsed (`pendingAttachments.ts`). Otherwise the input is reported as unknown, with
+ * `pendingParentTxid` naming the unconfirmed transaction when that is the reason.
+ *
+ * @param signedInputIndices - the inputs being signed; omitted means every input is signed
  */
 export async function fetchInputsAttachedAssets(
   inputs: Array<{ index: number; txid: string; vout: number }>,
   signedInputIndices?: number[],
-  resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout
+  resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout,
+  evidenceSource: AttachmentEvidenceSource = liveAttachmentEvidenceSource
 ): Promise<InputAttachedAssets[]> {
   // Stable sort, so inputs keep their order within the signed and unsigned groups.
-  const signed = new Set(signedInputIndices ?? []);
+  const signed = new Set(signedInputIndices ?? inputs.map(input => input.index));
+  const pendingContext = createPendingEvidenceContext(evidenceSource);
   const byPriority = [...inputs].sort(
     (a, b) => Number(signed.has(b.index)) - Number(signed.has(a.index))
   );
@@ -63,16 +84,21 @@ export async function fetchInputsAttachedAssets(
         // signed inputs were all checked clean, and whose own payload does not bind an asset to
         // this output. Do not turn Counterparty's indexing lag into an "unknown asset" blocker.
         if (await resolveTrustedPrevout(input.txid, input.vout)) return null;
-        const res = await fetchUtxoBalances(utxo);
-        const assets = (res.result ?? [])
-          .filter((b) => b.asset && b.quantity_normalized)
-          .map((b) => ({
-            asset: b.asset,
-            ...(b.quantity !== undefined ? { quantity: String(b.quantity) } : {}),
-            quantity_normalized: b.quantity_normalized,
-            asset_longname: b.asset_info?.asset_longname ?? null,
-          }));
-        return assets.length > 0 ? { inputIndex: input.index, utxo, assets } : null;
+        const assets = toAttachedAssets(await evidenceSource.balances(utxo, false));
+        if (assets.length > 0) return { inputIndex: input.index, utxo, assets };
+        // Someone else's inputs are theirs to lose; only a signed input's emptiness is load-bearing.
+        if (!signed.has(input.index)) return null;
+        const evidence = await resolveEmptyLedgerOutpoint(pendingContext, input.txid, input.vout);
+        switch (evidence.kind) {
+          case 'clean':
+            return null;
+          case 'assets':
+            return { inputIndex: input.index, utxo, assets: toAttachedAssets(evidence.balances) };
+          case 'pending':
+            return { inputIndex: input.index, utxo, assets: [], lookupFailed: true, pendingParentTxid: evidence.parentTxid };
+          case 'unknown':
+            return { inputIndex: input.index, utxo, assets: [], lookupFailed: true };
+        }
       } catch (err) {
         console.warn(`Failed to fetch attached assets for ${utxo}:`, err);
         return { inputIndex: input.index, utxo, assets: [], lookupFailed: true };
@@ -89,6 +115,17 @@ export async function fetchInputsAttachedAssets(
   }));
 
   return [...results.filter((r): r is InputAttachedAssets => r !== null), ...displaced];
+}
+
+function toAttachedAssets(balances: UtxoBalance[]): InputAttachedAssets['assets'] {
+  return balances
+    .filter((b) => b.asset && b.quantity_normalized)
+    .map((b) => ({
+      asset: b.asset,
+      ...(b.quantity !== undefined ? { quantity: String(b.quantity) } : {}),
+      quantity_normalized: b.quantity_normalized,
+      asset_longname: b.asset_info?.asset_longname ?? null,
+    }));
 }
 
 export interface SignedInputAssetSummary {

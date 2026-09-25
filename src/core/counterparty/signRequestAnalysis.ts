@@ -23,6 +23,7 @@ import {
   movesCounterpartyValue,
   resolveAttachedAssetDestination,
 } from '@/core/counterparty/attachedAssetMovement';
+import { findUncommittedAssetSignatures } from '@/core/counterparty/durableSellAuthorization';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import {
   analyzeMarketplaceIntent,
@@ -50,6 +51,7 @@ import { type ProviderVerificationResult, verifyProviderTransaction } from '@/co
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import { getActiveSettings } from '@/core/settings';
 import { classifyZeldOutpoints } from '@/core/zeld/protection';
+import { t } from '@/i18n';
 
 /** An input being signed, identified by the outpoint it spends. */
 export interface AnalyzedInput {
@@ -449,6 +451,34 @@ export async function analyzeSignRequest(
       }
       safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
     }
+  }
+
+  // Last, so no marketplace family's warning filter can remove it: a SINGLE/NONE signature over
+  // an asset-bearing (or unverifiable) input is a durable offer to sell that asset to whoever
+  // holds the signature. Only a proved listing may ask for one (`durableSellAuthorization.ts`).
+  const durableSellInputs = findUncommittedAssetSignatures(
+    attachedAssets,
+    input.signedInputs,
+    marketplaceReview,
+  );
+  if (durableSellInputs.length > 0) {
+    const inputList = durableSellInputs.map(index => `#${index}`).join(', ');
+    // After any existing blocks, which name a more specific failure (a disproved marketplace
+    // claim, a sweep), and ahead of everything that does not block.
+    const firstNonBlock = safety.warnings.findIndex(warning => warning.severity !== 'block');
+    const split = firstNonBlock === -1 ? safety.warnings.length : firstNonBlock;
+    safety.warnings = [
+      ...safety.warnings.slice(0, split),
+      {
+        code: 'durable_sell_authorization',
+        data: { inputs: durableSellInputs },
+        severity: 'block',
+        title: t('safety_blocked_durable_sell_authorization'),
+        message: t('safety_durable_sell_authorization_detail', inputList),
+      },
+      ...safety.warnings.slice(split),
+    ];
+    safety.blocked = true;
   }
 
   return {

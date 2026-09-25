@@ -488,6 +488,9 @@
   "approval_approval_warnings_input_status_unknown": {
     "message": "入力 #$1: 状態不明"
   },
+  "approval_approval_warnings_input_pending_parent": {
+    "message": "入力 #$1: 未承認トランザクション $2 によって作成され、アセットがアタッチされる可能性があります"
+  },
   "approval_approval_warnings_inputs_you_are_signing_carry": {
     "message": "署名する入力にはアタッチされたアセットが含まれています。署名すると BTC だけでなくそのアセットも移動します。"
   },
@@ -496,6 +499,9 @@
   },
   "approval_approval_warnings_the_balance_lookup_failed_so": {
     "message": "残高の照会に失敗したため、アタッチされたアセットがないとは言い切れません。"
+  },
+  "approval_approval_warnings_pending_parent_retry": {
+    "message": "未承認のトランザクションがこれらの入力に Counterparty アセットをアタッチする可能性があり、承認されるまで台帳には表示されません。承認後にもう一度お試しください。"
   },
   "approval_approval_warnings_the_signature_for_attached_input": {
     "message": "アタッチされた入力 $1 の署名は、アセットの送り先を確定していません。この PSBT を完成させる側が、明示的なデタッチ先アドレスや別の最初の出力を選べる可能性があります。以下の承認内容を正確に確認してください。"
@@ -3967,6 +3973,12 @@
   },
   "safety_blocked_sweep_transaction": {
     "message": "ブロック: スイープトランザクション"
+  },
+  "safety_blocked_durable_sell_authorization": {
+    "message": "ブロック: 継続的な売却承認"
+  },
+  "safety_durable_sell_authorization_detail": {
+    "message": "入力 $1 は Counterparty アセットを保有しているか、保有していないことをウォレットが確認できません。さらにこの署名はトランザクションの出力を固定しません (SIGHASH_SINGLE または NONE)。これはそのアセットを売却する継続的な承認です。署名を持つ人は、その UTXO が使われるまでいつでも売却を完了し、アセットの送り先を選べます。これを求めてよいのは、検証済みのマーケットプレイス出品だけです。"
   },
   "safety_btc_payment": {
     "message": "BTC の支払い"

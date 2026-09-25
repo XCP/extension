@@ -348,3 +348,68 @@ describe('buildApprovalWarnings', () => {
     ]);
   });
 });
+
+describe('external destination addresses', () => {
+  // Two addresses sharing their first twelve characters: truncated to that prefix they were
+  // indistinguishable, which is what a vanity-generated look-alike exploits.
+  const REAL = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
+  const LOOKALIKE = 'bc1qxy2kgdygj0000000000000000000000000fjhx0wlh';
+
+  it.each(['en', 'ja', 'zh-TW'] as const)('names every external destination in full (%s)', language => {
+    mockBrowserLocale({ language });
+    const { warnings } = analyzeTransactionSafety('enhanced_send', [
+      { value: 20_000, type: 'address', address: LOOKALIKE },
+    ], REAL);
+    const [external] = warnings.filter(warning => warning.code === 'external_btc_output');
+    expect(external?.message).toContain(LOOKALIKE);
+    const [item] = buildApprovalWarnings({ ...EMPTY, safetyWarnings: warnings });
+    expect(item?.description).toContain(LOOKALIKE);
+    expect(item?.description).not.toContain('…');
+  });
+
+  it('names several destinations in full, and a verified inscription commit too', () => {
+    const other = 'bc1q9h7garjh7fs9eyqnxc2ch8qkjt5n6y0qn3u5t0';
+    const { warnings } = analyzeTransactionSafety('enhanced_send', [
+      { value: 20_000, type: 'address', address: LOOKALIKE },
+      { value: 20_000, type: 'address', address: other },
+    ], REAL);
+    const items = buildApprovalWarnings({ ...EMPTY, safetyWarnings: warnings });
+    expect(items[0]?.description).toContain(`${LOOKALIKE}, ${other}`);
+    const commit = analyzeTransactionSafety('enhanced_send', [], REAL, { verifiedCommit: { address: other, value: 1_000 } });
+    expect(buildApprovalWarnings({ ...EMPTY, safetyWarnings: commit.warnings })[0]?.description).toContain(other);
+  });
+});
+
+describe('inputs awaiting an unconfirmed parent', () => {
+  const PARENT = 'cd'.repeat(32);
+
+  it('says which transaction must confirm, instead of calling it a failed lookup', () => {
+    const [item] = buildApprovalWarnings({
+      ...EMPTY,
+      signedInputsUnknownStatus: [{ inputIndex: 1, utxo: `${PARENT}:0`, assets: [], lookupFailed: true, pendingParentTxid: PARENT }],
+    });
+    expect(item).toMatchObject({ key: 'unknown-status', blocking: true, description: t('approval_approval_warnings_pending_parent_retry') });
+  });
+
+  it('keeps the failed-lookup wording when any input simply could not be read', () => {
+    const [item] = buildApprovalWarnings({
+      ...EMPTY,
+      signedInputsUnknownStatus: [
+        { inputIndex: 0, utxo: 'a:0', assets: [], lookupFailed: true },
+        { inputIndex: 1, utxo: `${PARENT}:0`, assets: [], lookupFailed: true, pendingParentTxid: PARENT },
+      ],
+    });
+    expect(item?.description).toBe(t('approval_approval_warnings_the_balance_lookup_failed_so'));
+  });
+});
+
+describe('durable sell authorization', () => {
+  it.each(['en', 'ja', 'zh-CN'] as const)('translates the block and names the inputs (%s)', language => {
+    mockBrowserLocale({ language });
+    const [item] = buildApprovalWarnings({ ...EMPTY, safetyWarnings: [{
+      code: 'durable_sell_authorization', data: { inputs: [0, 2] }, severity: 'block', title: 'English', message: 'English',
+    }] });
+    expect(item).toMatchObject({ severity: 'danger', blocking: true, title: t('safety_blocked_durable_sell_authorization') });
+    expect(item?.description).toContain('#0, #2');
+  });
+});

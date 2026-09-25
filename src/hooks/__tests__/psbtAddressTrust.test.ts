@@ -18,6 +18,12 @@ vi.mock('@/core/counterparty/api', async (original) => ({
   ...(await original<typeof import('@/core/counterparty/api')>()),
   fetchUtxoBalances: vi.fn().mockResolvedValue({ result: [] }),
 }));
+// These inputs spend fictional parents; their emptiness is taken as settled (see
+// pendingAttachments.test.ts for when it is not).
+vi.mock('@/core/counterparty/pendingAttachments', async (original) => ({
+  ...(await original<typeof import('@/core/counterparty/pendingAttachments')>()),
+  resolveEmptyLedgerOutpoint: vi.fn().mockResolvedValue({ kind: 'clean' }),
+}));
 
 const privateKey = '01'.padStart(64, '0');
 const signer = p2wpkh(getPublicKey(hexToBytes(privateKey)));

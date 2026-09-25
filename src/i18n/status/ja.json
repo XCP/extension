@@ -2073,6 +2073,10 @@
     "psbts_approve_authorize_1_offer",
     "psbts_approve_authorize_offers_2",
     "marketplace_batch_latest_marketplace_expiry",
-    "address_type_shortcut_change_address_type"
+    "address_type_shortcut_change_address_type",
+    "safety_blocked_durable_sell_authorization",
+    "safety_durable_sell_authorization_detail",
+    "approval_approval_warnings_input_pending_parent",
+    "approval_approval_warnings_pending_parent_retry"
   ]
 }
