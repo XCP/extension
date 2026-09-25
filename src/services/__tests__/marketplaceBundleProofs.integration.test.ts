@@ -28,6 +28,8 @@ const state = vi.hoisted(() => ({
   /** Explorer status per txid; absent means confirmed in an already-parsed block. */
   txStatus: new Map<string, { confirmed: boolean; block_height?: number } | 'missing' | 'fail'>(),
   ledgerHeight: 900_000,
+  /** Raw bytes of every fabricated parent, served by the simulated explorer. */
+  parents: new Map<string, string>(),
   wallet: {
     isKeychainUnlocked: vi.fn(async () => true), getActiveWallet: vi.fn(),
     getActiveAddress: vi.fn(), getSettings: vi.fn(async () => ({ strictTransactionVerification: true })),
@@ -58,6 +60,9 @@ vi.mock('@/core/counterparty/api', () => ({
   fetchAssetDetails: async () => ({ asset: 'RAREPEPE', divisible: false }),
   fetchServerInfo: async () => ({ counterparty_height: state.ledgerHeight, backend_height: state.ledgerHeight }),
   clearApiCacheMatching: () => {},
+  // The node backend has none of the fabricated transactions; parents come from the explorer.
+  fetchBackendTransaction: async () => { throw new Error('Transaction not found'); },
+  fetchLedgerHeights: async () => ({ backendHeight: state.ledgerHeight, counterpartyHeight: state.ledgerHeight }),
 }));
 // Only the explorer's transaction-status endpoint is simulated; every other request is real code.
 vi.mock('@/core/api/client', async importOriginal => {
@@ -67,7 +72,16 @@ vi.mock('@/core/api/client', async importOriginal => {
     apiClient: {
       ...actual.apiClient,
       get: async (url: string, config?: unknown) => {
-        const match = /mempool\.space\/api\/tx\/([0-9a-f]{64})\/status$/.exec(url);
+        const notFound = () => Object.assign(new Error('Transaction not found'), { code: 'HTTP_ERROR', status: 404 });
+        const raw = /mempool\.space\/api\/tx\/([0-9a-f]{64})\/hex$/.exec(url);
+        if (raw) {
+          const bytes = state.parents.get(raw[1]!);
+          const known = state.txStatus.get(raw[1]!);
+          if (!bytes || known === 'missing' || known === 'fail') throw notFound();
+          return { data: bytes, status: 200 };
+        }
+        if (url.includes('/v2/bitcoin/transactions/')) throw notFound();
+        const match =/mempool\.space\/api\/tx\/([0-9a-f]{64})\/status$/.exec(url);
         if (!match) return actual.apiClient.get(url, config as never);
         const status = state.txStatus.get(match[1]!) ?? { confirmed: true, block_height: 800_000 };
         if (status === 'fail') throw Object.assign(new Error('explorer down'), { code: 'NETWORK_ERROR' });
@@ -102,6 +116,7 @@ function funding(script: Uint8Array, amount: bigint, seed: number) {
   const tx = new Transaction();
   tx.addInput({ txid: new Uint8Array(32).fill(seed), index: 0 });
   tx.addOutput({ script, amount });
+  state.parents.set(tx.id, bytesToHex(tx.toBytes(true, false)));
   return tx;
 }
 
@@ -174,6 +189,9 @@ function attachAndList(options: PairOptions = {}): PsbtBundleApprovalInput['item
   attach.addOutput({ script: segwit.script, amount: 330n });
   attach.addOutput({ script: opReturn(sourceFunding.id, 101, options.attachBody ?? 'RAREPEPE|1|0'), amount: 0n });
   attach.addOutput({ script: source.script, amount: options.extraInput ? 99_000n : 98_670n });
+
+  // Not broadcast yet: the explorer has never heard of the attach, exactly as on mainnet.
+  if (!state.txStatus.has(attach.id)) state.txStatus.set(attach.id, 'missing');
 
   const spent = options.listingInput?.(attach.id)
     ?? { txid: attach.id, index: 0, amount: 330n, script: segwit.script };
@@ -277,7 +295,9 @@ describe('attach-and-list linked proof', () => {
     state.txStatus.set(prepared.id, status);
     state.ledgerHeight = ledgerHeight;
     const result = await review(attachAndList({ extraInput: prepared }), 'attach-and-list');
-    expect(result.decodedInfo.items[0]!.marketplaceReview?.status).toBe('caution');
+    // The attach itself spends an output whose contents the ledger cannot vouch for yet, so the
+    // input-asset check holds it at retry too; the listing link is refused on its own grounds.
+    expect(result.decodedInfo.items[0]!.marketplaceReview?.status).toBe('retry');
     expect(listingReview(result)?.status).toBe('retry');
     expect(result.decodedInfo.review.status).toBe('retry');
     expect(result.policy.blocked).toBe(true);
@@ -346,18 +366,19 @@ describe('attach-and-list linked proof', () => {
   it('never links a standalone listing: bulk-listing still requires the ledger', async () => {
     const [, listing] = attachAndList();
     const result = await review([listing!], 'bulk-listing');
-    expect(result.decodedInfo.items[0]!.marketplaceReview?.status).toBe('blocked');
-    expect(result.decodedInfo.items[0]!.marketplaceReview?.blockers).toContain(
-      'seller input 1 does not independently resolve to exactly one attached asset',
-    );
+    // The ledger has never seen the unbroadcast attach output, so the listing cannot prove: it
+    // waits for the ledger (retry) rather than borrowing the attach's evidence.
+    expect(result.decodedInfo.items[0]!.marketplaceReview?.status).toBe('retry');
     expect(result.policy.blocked).toBe(true);
+    await expect(approve(result, true)).rejects.toThrow();
+    expect(state.wallet.signPsbt).not.toHaveBeenCalled();
   });
 
   it('never links a single create_listing request', async () => {
     const [, listing] = attachAndList();
     const decoded = await decodePsbtForApproval(listing!.psbtHex, [segwit.address], [1], [1, 0x83],
       undefined, 'counterparty', undefined, listing!.marketplaceIntent as never, [segwit.address]);
-    expect(decoded.marketplaceReview?.status).toBe('blocked');
+    expect(decoded.marketplaceReview?.status).toBe('retry');
     expect(decoded.safety.blocked).toBe(true);
   });
 });

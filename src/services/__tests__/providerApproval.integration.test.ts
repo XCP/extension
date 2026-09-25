@@ -20,6 +20,8 @@ const state = vi.hoisted(() => ({
   address: '', zeld: false,
   assets: new Map<string, Array<{asset: string; quantity: string; quantity_normalized: string}>>(),
   lookupFailed: false,
+  /** Previous transactions the simulated node knows, and how deep each is buried (0 = mempool). */
+  parents: new Map<string, {hex: string; confirmations: number}>(),
   wallet: {
     isKeychainUnlocked: vi.fn(async () => true), getActiveWallet: vi.fn(),
     getActiveAddress: vi.fn(), getSettings: vi.fn(async () => ({strictTransactionVerification: true})),
@@ -37,10 +39,24 @@ vi.mock('@/platform/walletManager', () => ({walletManager: {
   getActiveWallet: () => ({id: 'audit', addresses: [{address: state.address}]}),
 }}));
 vi.mock('@/core/settings', () => ({getActiveSettings: () => ({zeldHuntSeconds: 15})}));
-vi.mock('@/core/counterparty/api', () => ({fetchUtxoBalances: async (utxo: string) => {
-  if (state.lookupFailed) throw new Error('Indexer unavailable');
-  return {result: state.assets.get(utxo) ?? []};
-}}));
+vi.mock('@/core/counterparty/api', () => ({
+  fetchUtxoBalances: async (utxo: string) => {
+    if (state.lookupFailed) throw new Error('Indexer unavailable');
+    return {result: state.assets.get(utxo) ?? []};
+  },
+  fetchBackendTransaction: async (txid: string) => {
+    const parent = state.parents.get(txid);
+    if (!parent) throw new Error('No such transaction');
+    return parent;
+  },
+  fetchLedgerHeights: async () => ({backendHeight: 900_000, counterpartyHeight: 900_000}),
+}));
+// The explorer fallback knows nothing the simulated node does not.
+vi.mock('@/core/bitcoin/utxo', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/core/bitcoin/utxo')>()),
+  fetchPreviousRawTransaction: async () => null,
+  fetchTransactionChainStatus: async () => null,
+}));
 vi.mock('@/core/counterparty/transaction', () => ({decodeCounterpartyMessage: async () => undefined}));
 vi.mock('@/core/counterparty/sourcePubkey', () => ({getSourcePubkey: () => undefined}));
 vi.mock('@/core/bitcoin/feeRate', () => ({getFeeRates: async () => ({fastestFee: 2})}));
@@ -48,22 +64,44 @@ vi.mock('@/core/zeld/protection', () => ({classifyZeldOutpoints: async (inputs: 
   bearing: state.zeld ? inputs : [], unknown: [], clean: state.zeld ? [] : inputs,
 })}));
 
+/** A confirmed-looking coin, created by a transaction the tests never need to fetch. */
+function funding(script: Uint8Array, amount: bigint, seed: number) {
+  const tx = new Transaction();
+  tx.addInput({txid: new Uint8Array(32).fill(seed), index: 0});
+  tx.addOutput({script, amount});
+  return known(tx);
+}
+
 const walletKey = new Uint8Array(32).fill(7);
 const wallet = p2pkh(getPublicKey(walletKey));
 const paired = p2wpkh(getPublicKey(walletKey));
 const outsider = p2wpkh(getPublicKey(new Uint8Array(32).fill(9)));
 
+/** Make a transaction known to the simulated node, confirmed unless said otherwise. */
+function known<T extends Transaction>(tx: T, confirmations = 6): T {
+  state.parents.set(tx.id, {hex: bytesToHex(tx.toBytes(true, false)), confirmations});
+  return tx;
+}
+
 function preparation(destination: { address: string; script: Uint8Array } = wallet, fee = 1000, seed = 1) {
-  const prev = new Transaction();
-  prev.addInput({txid: new Uint8Array(32).fill(seed), index: 0});
-  prev.addOutput({script: wallet.script, amount: 1_000_000n});
+  return preparationAttach(destination, fee, seed).item;
+}
+
+/** A marketplace prepare_asset attach: asset output 0, encrypted attach OP_RETURN, change last. */
+function preparationAttach(
+  destination: { address: string; script: Uint8Array } = wallet, fee = 1000, seed = 1,
+  spend?: {tx: Transaction; vout: number; value: bigint},
+) {
+  const prev = spend?.tx ?? funding(wallet.script, 1_000_000n, seed);
+  const vout = spend?.vout ?? 0;
+  const value = spend?.value ?? 1_000_000n;
   const tx = new Transaction({version: 2, lockTime: 0, allowUnknownOutputs: true});
-  tx.addInput({txid: prev.id, index: 0, nonWitnessUtxo: prev.toBytes(true, false),
+  tx.addInput({txid: prev.id, index: vout, nonWitnessUtxo: prev.toBytes(true, false),
     sighashType: 1});
   tx.addOutput({script: destination.script, amount: 546n});
   const payload = new Uint8Array([...hexToBytes('434e54525052545965'), ...new TextEncoder().encode('RAREPEPE|1|0')]);
   tx.addOutput({script: Script.encode(['RETURN', arc4(hexToBytes(prev.id), payload)]), amount: 0n});
-  tx.addOutput({script: wallet.script, amount: BigInt(1_000_000 - 546 - fee)});
+  tx.addOutput({script: wallet.script, amount: value - 546n - BigInt(fee)});
   const marketplaceIntent = parseMarketplaceIntent({
     standard: 'counterparty-marketplace', version: 1, action: 'prepare_asset',
     operationId: 'audit-operation', protocolVersion: 'counterparty_prepare_assets_v1',
@@ -73,7 +111,7 @@ function preparation(destination: { address: string; script: Uint8Array } = wall
     protocolFee: {asset: 'XCP', quotedAmountRaw: '25000000', actualAmountRaw: null,
       observedBlock: 900000, variableUntilConfirmed: true}, operationExpiresAt: 2000000000,
   });
-  return {psbtHex: bytesToHex(tx.toPSBT()), signInputs: {[wallet.address]: [0]}, sighashTypes: [1], marketplaceIntent};
+  return {tx, item: {psbtHex: bytesToHex(tx.toPSBT()), signInputs: {[wallet.address]: [0]}, sighashTypes: [1], marketplaceIntent}};
 }
 
 async function review(items: PsbtBundleApprovalInput['items'], batch: boolean, bundleKind: PsbtBundleApprovalInput['bundleKind'] = 'prepare-assets') {
@@ -88,7 +126,7 @@ async function review(items: PsbtBundleApprovalInput['items'], batch: boolean, b
 
 beforeEach(() => {
   fakeBrowser.reset(); vi.stubGlobal('chrome', fakeBrowser); state.address = wallet.address; state.zeld = false;
-  state.assets.clear(); state.lookupFailed = false;
+  state.assets.clear(); state.lookupFailed = false; state.parents.clear();
   state.wallet.getActiveWallet.mockResolvedValue({id: 'audit', type: 'mnemonic', addressFormat: 'p2pkh'});
   state.wallet.getActiveAddress.mockResolvedValue({address: wallet.address});
   state.wallet.getPairedAddresses.mockResolvedValue({legacy: wallet, segwit: paired});
@@ -158,12 +196,6 @@ it('retains a ZELD safety block in an otherwise proved acceptance/CPFP bundle', 
   expect(state.wallet.signPsbt).not.toHaveBeenCalled();
 });
 
-function funding(script: Uint8Array, amount: bigint, seed: number) {
-  const tx = new Transaction();
-  tx.addInput({txid: new Uint8Array(32).fill(seed), index: 0});
-  tx.addOutput({script, amount});
-  return tx;
-}
 
 function acceptance(childFee = 1000): PsbtBundleApprovalInput['items'] {
   state.address = paired.address;
@@ -235,10 +267,12 @@ it('still signs a proved same-wallet fan-out without Counterparty data', async (
   await signs(result);
 });
 
-function offerFunding(): PsbtBundleApprovalInput['items'][number] {
-  const prev = funding(wallet.script, 50_000n, 8);
+function offerFunding(
+  source: {tx: Transaction; vout: number} = {tx: funding(wallet.script, 50_000n, 8), vout: 0},
+): PsbtBundleApprovalInput['items'][number] {
+  const prev = source.tx;
   const tx = new Transaction({version: 2, lockTime: 0});
-  tx.addInput({txid: prev.id, index: 0, nonWitnessUtxo: prev.toBytes(true, false), sighashType: 1});
+  tx.addInput({txid: prev.id, index: source.vout, nonWitnessUtxo: prev.toBytes(true, false), sighashType: 1});
   for (const amount of [9_000n, 9_000n, 31_500n]) tx.addOutput({script: wallet.script, amount});
   const item = {psbtHex: bytesToHex(tx.toPSBT()), signInputs: {[wallet.address]: [0]}, sighashTypes: [1]};
   return {...item, marketplaceIntent: parseMarketplaceIntent({
@@ -246,7 +280,7 @@ function offerFunding(): PsbtBundleApprovalInput['items'][number] {
     operationId: `offer-funding:${tx.id}`, protocolVersion: 'exact_offer_v1', assets: [],
     bidder: wallet.address, target: {scope: 'asset', asset: 'RAREPEPE'},
     priceSats: 8_000, platformFeeSats: 1_000, delivery: {mode: 'detached'},
-    fundingInputs: [{txid: prev.id, vout: 0, valueSats: 50_000}], fundingValueSats: 50_000,
+    fundingInputs: [{txid: prev.id, vout: source.vout, valueSats: 50_000}], fundingValueSats: 50_000,
     slotCount: 2, slotValueSats: 9_000, networkFeeSats: 500, changeSats: 31_500,
     expectedTxid: tx.id, marketplaceExpiresAt: 2000000000,
   })};
@@ -312,4 +346,139 @@ it('keeps a valid unfunded listing authorization signable and usable by its buye
   purchase.signIdx(new Uint8Array(32).fill(9), 0, [1]);
   purchase.finalize();
   expect(purchase.extract().length).toBeGreaterThan(0);
+});
+
+// --- Unconfirmed parents (pending attachments) -------------------------------------------------
+// The ledger cannot show an attach until its block is parsed. These cover the marketplace chain
+// shapes that must keep working before confirmation, and the spends that must wait for it.
+
+const attachChange = (value = 1_000_000n, fee = 1000n) => value - 546n - fee;
+
+it("signs the next attach in a chain funded by an unconfirmed attach's change", async () => {
+  const first = preparationAttach(wallet, 1000, 21);
+  known(first.tx, 0);
+  const next = preparationAttach(wallet, 1000, 22, {tx: first.tx, vout: 2, value: attachChange()});
+  for (const batch of [false, true]) {
+    const result = await review([next.item], batch);
+    expect(result.policy).toMatchObject({blocked: false, requiresAcknowledgement: false});
+  }
+  await signs(await review([next.item], false));
+});
+
+it("signs offer funding from an unconfirmed plain fan-out's first slot", async () => {
+  const root = funding(wallet.script, 120_000n, 23);
+  const fanout = new Transaction({version: 2, lockTime: 0});
+  fanout.addInput({txid: root.id, index: 0, nonWitnessUtxo: root.toBytes(true, false)});
+  for (const amount of [50_000n, 50_000n, 19_000n]) fanout.addOutput({script: wallet.script, amount});
+  known(fanout, 0);
+  for (const vout of [0, 1]) {
+    const result = await review([offerFunding({tx: fanout, vout})], false);
+    expect(result.policy).toMatchObject({blocked: false, requiresAcknowledgement: false});
+  }
+});
+
+function paymentFrom(prev: Transaction, vout: number, value: bigint) {
+  const tx = new Transaction({version: 2, lockTime: 0});
+  tx.addInput({txid: prev.id, index: vout, nonWitnessUtxo: prev.toBytes(true, false), sighashType: 1});
+  tx.addOutput({script: outsider.script, amount: 1_000n});
+  tx.addOutput({script: wallet.script, amount: value - 1_500n});
+  return {
+    psbtHex: bytesToHex(tx.toPSBT()), signInputs: {[wallet.address]: [0]}, sighashTypes: [1],
+    signingPurpose: 'bitcoin-payment' as const,
+    bitcoinPaymentIntent: {standard: 'xcp-wallet/bitcoin-payment', version: 1, action: 'pay',
+      outputs: [{address: outsider.address, amountSats: 1_000}]},
+  };
+}
+
+async function reviewPayment(item: ReturnType<typeof paymentFrom>) {
+  const id = crypto.randomUUID();
+  await beginSignFlow({id, walletId: 'audit', address: state.address, origin: 'https://audit.invalid',
+    timestamp: Date.now(), requestKey: id, kind: 'sign-psbt', ...item,
+  } as Parameters<typeof beginSignFlow>[0]);
+  return createProviderSigningService().getReview(id);
+}
+
+it("refuses a payment that spends an unconfirmed attach's asset output until it confirms", async () => {
+  const attach = preparationAttach(wallet, 1000, 24);
+  known(attach.tx, 0);
+  const result = await reviewPayment(paymentFrom(attach.tx, 0, 546n + 2_000n));
+  if (result.kind !== 'sign-psbt') throw new Error('wrong kind');
+  expect(result.decodedInfo.attachedAssets).toEqual([expect.objectContaining({
+    inputIndex: 0, lookupFailed: true, pendingParentTxid: attach.tx.id,
+  })]);
+  expect(result.policy.blocked).toBe(true);
+  await expect(signs(result, true)).rejects.toThrow(/did not pass/);
+  expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+});
+
+it("still allows a payment from the same unconfirmed attach's change", async () => {
+  const attach = preparationAttach(wallet, 1000, 25);
+  known(attach.tx, 0);
+  const result = await reviewPayment(paymentFrom(attach.tx, 2, attachChange()));
+  if (result.kind !== 'sign-psbt') throw new Error('wrong kind');
+  expect(result.decodedInfo.attachedAssets).toEqual([]);
+  expect(result.policy.blocked).toBe(false);
+});
+
+it('refuses the first output of an unconfirmed plain spend of an attached UTXO', async () => {
+  // No Counterparty payload, but it spends an attached UTXO: Core moves the asset to output 0.
+  const attached = funding(wallet.script, 546n, 26);
+  state.assets.set(`${attached.id}:0`, [{asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1'}]);
+  const cash = funding(wallet.script, 50_000n, 27);
+  const mover = new Transaction({version: 2, lockTime: 0});
+  mover.addInput({txid: attached.id, index: 0});
+  mover.addInput({txid: cash.id, index: 0});
+  mover.addOutput({script: wallet.script, amount: 10_000n});
+  mover.addOutput({script: wallet.script, amount: 40_000n});
+  known(mover, 0);
+  const exposed = await reviewPayment(paymentFrom(mover, 0, 10_000n));
+  expect(exposed.policy.blocked).toBe(true);
+  // Its second output is not Core's move destination.
+  const change = await reviewPayment(paymentFrom(mover, 1, 40_000n));
+  expect(change.policy.blocked).toBe(false);
+});
+
+it('reads the ledger again once an attach has confirmed and been parsed', async () => {
+  const attach = preparationAttach(wallet, 1000, 28);
+  known(attach.tx, 1);
+  state.assets.set(`${attach.tx.id}:0`, [{asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1'}]);
+  const result = await reviewPayment(paymentFrom(attach.tx, 0, 546n + 2_000n));
+  if (result.kind !== 'sign-psbt') throw new Error('wrong kind');
+  expect(result.decodedInfo.attachedAssets[0]?.assets).toHaveLength(1);
+  expect(result.policy.blocked).toBe(true);
+});
+
+// --- Durable sell authorizations -----------------------------------------------------------------
+
+function sellAuthorization(sighashType: number, seed: number) {
+  const prev = funding(wallet.script, 546n, seed);
+  state.assets.set(`${prev.id}:0`, [{asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1'}]);
+  const tx = new Transaction({version: 2, lockTime: 0});
+  tx.addInput({txid: prev.id, index: 0, nonWitnessUtxo: prev.toBytes(true, false), sighashType});
+  tx.addOutput({script: wallet.script, amount: 1_000n});
+  return {psbtHex: bytesToHex(tx.toPSBT()), signInputs: {[wallet.address]: [0]}, sighashTypes: [sighashType]};
+}
+
+async function reviewPlain(item: ReturnType<typeof sellAuthorization>) {
+  const id = crypto.randomUUID();
+  await beginSignFlow({id, walletId: 'audit', address: state.address, origin: 'https://audit.invalid',
+    timestamp: Date.now(), requestKey: id, kind: 'sign-psbt', ...item,
+  } as Parameters<typeof beginSignFlow>[0]);
+  return createProviderSigningService().getReview(id);
+}
+
+it('refuses a SINGLE|ANYONECANPAY signature over an attached asset outside a proved listing, acknowledged or not', async () => {
+  const result = await reviewPlain(sellAuthorization(0x83, 31));
+  if (result.kind !== 'sign-psbt') throw new Error('wrong kind');
+  expect(result.decodedInfo.safety.warnings[0]).toMatchObject({code: 'durable_sell_authorization', severity: 'block'});
+  expect(result.policy.blocked).toBe(true);
+  await expect(signs(result, true)).rejects.toThrow(/did not pass/);
+  expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+});
+
+it('leaves ALL|ANYONECANPAY over an attached asset to the acknowledged destination warning', async () => {
+  const result = await reviewPlain(sellAuthorization(0x81, 32));
+  if (result.kind !== 'sign-psbt') throw new Error('wrong kind');
+  expect(result.decodedInfo.safety.warnings.map(warning => warning.code)).not.toContain('durable_sell_authorization');
+  expect(result.policy.blocked).toBe(false);
 });

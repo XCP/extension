@@ -488,6 +488,9 @@
   "approval_approval_warnings_input_status_unknown": {
     "message": "输入 #$1: 状态未知"
   },
+  "approval_approval_warnings_input_pending_parent": {
+    "message": "输入 #$1：由未确认交易 $2 创建，该交易可能向其附加资产"
+  },
   "approval_approval_warnings_inputs_you_are_signing_carry": {
     "message": "你正在签名的输入带有附加资产。签名会转移这些资产，而不仅仅是 BTC。"
   },
@@ -496,6 +499,9 @@
   },
   "approval_approval_warnings_the_balance_lookup_failed_so": {
     "message": "余额查询失败，因此无法排除存在附加资产的可能。"
+  },
+  "approval_approval_warnings_pending_parent_retry": {
+    "message": "未确认的交易可能向这些输入附加 Counterparty 资产，在其确认前账本无法显示。请在确认后重试。"
   },
   "approval_approval_warnings_the_signature_for_attached_input": {
     "message": "附加输入 $1 的签名没有锁定资产的去向。完成此 PSBT 的一方可以选择明确的分离地址或不同的第一个输出。请仔细查看下方的授权内容。"
@@ -3967,6 +3973,12 @@
   },
   "safety_blocked_sweep_transaction": {
     "message": "已阻止：清扫交易"
+  },
+  "safety_blocked_durable_sell_authorization": {
+    "message": "已阻止：持久出售授权"
+  },
+  "safety_durable_sell_authorization_detail": {
+    "message": "输入 $1 持有 Counterparty 资产，或钱包无法确认其未持有资产，而此签名不固定交易的输出（SIGHASH_SINGLE 或 NONE）。这是出售这些资产的持久授权：持有签名的人可在该 UTXO 被花费前随时完成出售，并决定资产的去向。只有经过验证的市场挂单才能请求这种签名。"
   },
   "safety_btc_payment": {
     "message": "BTC 支付"

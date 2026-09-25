@@ -34,6 +34,7 @@ export type SecurityWarning = SecurityWarningText & (
   | { code: 'inscription_commit'; data: { totalSats: number; address: string } }
   | { code: 'misdirected_recovery_key'; data: { count: number } }
   | { code: 'zeld_would_leave'; data: { count: number } }
+  | { code: 'durable_sell_authorization'; data: { inputs: number[] } }
   | { code: 'expected_btc_payment'; data: { totalSats: number; addresses: string[]; plainBitcoinPayment: boolean } }
   | { code: 'external_btc_output'; data: { totalSats: number; addresses: string[] } }
   | { code: 'counterparty_data_outputs' | 'unattributable_outputs'; data: { totalSats: number; count: number } }
@@ -312,7 +313,7 @@ export function analyzeTransactionSafety(
       title: t('safety_inscription_commit'),
       message: t('safety_this_funds_an_inscription', [
         btcAmount,
-        `${options.verifiedCommit.address.slice(0, 12)}…`,
+        options.verifiedCommit.address,
       ]),
     });
   }
@@ -342,7 +343,9 @@ export function analyzeTransactionSafety(
     const totalSats = suspiciousOutputs.reduce((sum, o) => sum + o.value, 0);
     const btcAmount = (totalSats / 100_000_000).toFixed(8);
     const addresses = suspiciousOutputs.map(o => o.address);
-    const addressList = addresses.map(a => a.slice(0, 12) + '…').join(', ');
+    // Full addresses: a look-alike sharing the first dozen characters is the cheapest spoof there
+    // is, and the payment and marketplace cards already show destinations in full.
+    const addressList = addresses.join(', ');
     const oneAddress = addresses.length === 1;
     const expected = options.plainBitcoinPayment
       || (messageType !== undefined && BTC_PAYING_MESSAGE_TYPES.has(messageType));

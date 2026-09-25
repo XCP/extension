@@ -46,8 +46,13 @@ function safetyWarningText(warning: SecurityWarning): { title: string; descripti
       return {
         title: t('safety_inscription_commit'),
         description: t('safety_this_funds_an_inscription', [
-          (warning.data.totalSats / 100_000_000).toFixed(8), `${warning.data.address.slice(0, 12)}…`,
+          (warning.data.totalSats / 100_000_000).toFixed(8), warning.data.address,
         ]),
+      };
+    case 'durable_sell_authorization':
+      return {
+        title: t('safety_blocked_durable_sell_authorization'),
+        description: t('safety_durable_sell_authorization_detail', warning.data.inputs.map(index => `#${index}`).join(', ')),
       };
     case 'misdirected_recovery_key':
       return {
@@ -59,7 +64,9 @@ function safetyWarningText(warning: SecurityWarning): { title: string; descripti
     case 'expected_btc_payment':
     case 'external_btc_output': {
       const btcAmount = (warning.data.totalSats / 100_000_000).toFixed(8);
-      const addressList = warning.data.addresses.map(address => `${address.slice(0, 12)}…`).join(', ');
+      // In full, as the payment and marketplace cards show them: a same-prefix look-alike must not
+      // read the same as the real destination.
+      const addressList = warning.data.addresses.join(', ');
       if (warning.code === 'expected_btc_payment') {
         return {
           title: warning.data.plainBitcoinPayment ? t('safety_bitcoin_payment') : t('safety_btc_payment'),
@@ -258,11 +265,17 @@ export function buildApprovalWarnings({
       title: t('approval_approval_warnings_couldn_t_verify_asset_status'),
       // The inputs are listed below and the severity already carries the "be careful" — a closing
       // "proceed only if you trust this" sentence adds words the reader cannot act on.
-      description: t('approval_approval_warnings_the_balance_lookup_failed_so'),
+      description: signedInputsUnknownStatus.every(entry => entry.pendingParentTxid)
+        ? t('approval_approval_warnings_pending_parent_retry')
+        : t('approval_approval_warnings_the_balance_lookup_failed_so'),
       children: (
-        <ul className="mt-2 space-y-1 text-xs font-medium">
+        <ul className="mt-2 space-y-1 text-xs font-medium [overflow-wrap:anywhere]">
           {signedInputsUnknownStatus.map(entry => (
-            <li key={entry.inputIndex}>{t('approval_approval_warnings_input_status_unknown', [String(entry.inputIndex)])}</li>
+            <li key={entry.inputIndex}>
+              {entry.pendingParentTxid
+                ? t('approval_approval_warnings_input_pending_parent', [String(entry.inputIndex), entry.pendingParentTxid])
+                : t('approval_approval_warnings_input_status_unknown', [String(entry.inputIndex)])}
+            </li>
           ))}
         </ul>
       ),
