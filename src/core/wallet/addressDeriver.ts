@@ -4,7 +4,7 @@
  */
 
 import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import {
   type AddressFormat,
@@ -188,6 +188,41 @@ function hardwarePubKey(hardwareData: HardwareWalletSecret): string {
   return derivePubkeyFromAccountKey(accountKey, hardwareData.derivationPath) ?? '';
 }
 
+/**
+ * A hardware wallet's receive address at `index` (…/0/index), derived from the stored account
+ * xpub. Null when it cannot be derived, or when the xpub does not reproduce the address the device
+ * reported for index 0: an account key that disagrees with the device must never name an address
+ * whose funds the device would then be asked to sign for.
+ */
+export function deriveHardwareAddress(secret: string, record: WalletRecord, index: number): Address | null {
+  if (record.type !== 'hardware' || !Number.isSafeInteger(index) || index < 0) return null;
+  let hardwareData: HardwareWalletSecret;
+  try {
+    hardwareData = JSON.parse(secret);
+  } catch {
+    return null;
+  }
+  const accountKey = hardwareData.xpub;
+  const firstPath = hardwareData.derivationPath;
+  if (!accountKey || !firstPath?.endsWith('/0/0')) return null;
+  const receivePath = (i: number) => `${firstPath.slice(0, -'/0'.length)}/${i}`;
+
+  const at = (i: number): Address | null => {
+    const pubKey = derivePubkeyFromAccountKey(accountKey, receivePath(i));
+    if (!pubKey) return null;
+    return {
+      name: `Address ${i + 1}`,
+      path: receivePath(i),
+      address: encodeAddress(hexToBytes(pubKey), record.addressFormat),
+      pubKey,
+    };
+  };
+
+  const first = at(0);
+  if (!first || first.address !== record.previewAddress) return null;
+  return index === 0 ? first : at(index);
+}
+
 /** Derives addresses from a decrypted secret based on wallet type */
 export function deriveAddressesFromSecret(secret: string, record: WalletRecord): Address[] {
   if (record.type === 'mnemonic') {
@@ -200,18 +235,24 @@ export function deriveAddressesFromSecret(secret: string, record: WalletRecord):
   }
 
   if (record.type === 'hardware') {
-    // Hardware wallet secret contains metadata, not private keys
-    // The address is stored in the secret, no derivation needed
+    // Hardware wallet secret contains metadata, not private keys. Address 1 is the one the device
+    // itself reported at connect, kept in the record's previewAddress; later receive addresses are
+    // derived from the account xpub.
     try {
       const hardwareData: HardwareWalletSecret = JSON.parse(secret);
-      // We need the address from the record's previewAddress since
-      // hardware secrets don't store the address directly
-      return [{
+      const first: Address = {
         name: 'Address 1',
         path: hardwareData.derivationPath,
         address: record.previewAddress,
         pubKey: hardwarePubKey(hardwareData),
-      }];
+      };
+      const rest: Address[] = [];
+      for (let index = 1; index < (record.addressCount || 1); index++) {
+        const address = deriveHardwareAddress(secret, record, index);
+        if (!address) break;
+        rest.push(address);
+      }
+      return [first, ...rest];
     } catch {
       return [];
     }

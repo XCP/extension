@@ -64,7 +64,7 @@ export default function AddressesPage(): ReactElement {
    * Handles adding a new address to the active wallet.
    */
   const handleAddAddress = useCallback(async () => {
-    if (!activeWallet?.id || activeWallet.type !== "mnemonic") return;
+    if (!activeWallet?.id || (activeWallet.type !== "mnemonic" && activeWallet.type !== "hardware")) return;
     if (isAddingAddress) return; // Prevent spam clicks
     if (activeWallet.addresses.length >= MAX_ADDRESSES_PER_WALLET) {
       setError(t('addresses_maximum_number_of_addresses_reached', [String(MAX_ADDRESSES_PER_WALLET)]));
@@ -207,7 +207,7 @@ export default function AddressesPage(): ReactElement {
           disabled={
             activeWallet.addresses.length >= MAX_ADDRESSES_PER_WALLET ||
             keychainLocked ||
-            activeWallet.type !== "mnemonic" ||
+            (activeWallet.type !== "mnemonic" && activeWallet.type !== "hardware") ||
             isAddingAddress
           }
           aria-label={t('addresses_add_address')}
