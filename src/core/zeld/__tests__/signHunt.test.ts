@@ -52,14 +52,18 @@ describe('huntZeldWhileSigning', () => {
     for (let i = 0; i < 3; i++) tx.addInput({ txid: hexToBytes(PREV_TXID), index: i });
     tx.addOutput({ script: payment.script, amount: 90_000n });
     const hunt = vi.fn(huntTxid);
-    const result = await huntZeldWhileSigning({ ...context, compressed, rawTxHex: bytesToHex(tx.toBytes(true, false)),
+    // A real hunt. Multi-input spends first sign a 2,048-signature pool (~3 s idle), which alone
+    // can outlast a 5 s budget on a loaded runner, so give it the production cap; the hunt returns
+    // at its first hit. One zero keeps the hashing after the warm-up trivial: this test is about
+    // combining three inputs' signatures, not rarity.
+    const result = await huntZeldWhileSigning({ ...context, seconds: 60, targetZeros: 1, compressed, rawTxHex: bytesToHex(tx.toBytes(true, false)),
       sourceAddress: payment.address!, lockScripts: Array(3).fill(bytesToHex(payment.script)), hunt });
     expect(hunt.mock.calls[0]?.[0].kind).toBe('legacy-signature-pool');
-    expect(result?.txid.startsWith('00')).toBe(true);
+    expect(result?.txid.startsWith('0')).toBe(true);
     const parsed = btc.Transaction.fromRaw(hexToBytes(result!.signedTxHex), { allowUnknownOutputs: true });
     expect(parsed.inputsLength).toBe(3);
     expect(parsed.getOutput(0).amount).toBe(90_000n);
-  }, 15_000);
+  }, 90_000);
 
   it('retains parallel legacy hunting on runtimes with Worker support', async () => {
     const tx = new btc.Transaction({ allowUnknownOutputs: true });
