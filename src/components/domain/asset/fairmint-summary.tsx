@@ -22,6 +22,8 @@ import { formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
 
 
+import { t } from '@/i18n';
+
 function Row({ label, value }: { label: string; value: string }): ReactElement {
   return (
     <div className="flex justify-between gap-3 text-sm">
@@ -48,7 +50,7 @@ export function FairmintSummary({
     <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-1.5">
       {hasQuantity && (
         <Row
-          label="You receive"
+          label={t('asset_fairmint_summary_you_receive')}
           value={`${formatAmount({
             value: quantity,
             maximumFractionDigits: decimals,
@@ -58,13 +60,13 @@ export function FairmintSummary({
       )}
 
       {paid ? (
-        <Row label="Price" value={`${getFairminterLotCost(fairminter)} XCP per lot`} />
+        <Row label={t('common_price')} value={t('asset_fairmint_summary_xcp_per_lot', [String(getFairminterLotCost(fairminter))])} />
       ) : (
         // A free mint's whole cost is the miner fee, and its amount is set by the fairminter.
-        <Row label="Price" value="Bitcoin network fee only" />
+        <Row label={t('common_price')} value={t('common_bitcoin_network_fee_only')} />
       )}
 
-      <Row label="Payment" value={describeFairminterPaymentModel(model)} />
+      <Row label={t('common_payment')} value={describeFairminterPaymentModel(model)} />
     </div>
   );
 }

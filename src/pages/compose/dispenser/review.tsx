@@ -1,9 +1,11 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
-import { formatAmount, formatAsset } from "@/core/format";
+import { formatAmount, formatAsset, formatFiatEstimate } from "@/core/format";
 import { divide, fromSatoshis, multiply, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
+
+import { t } from '@/i18n';
 
 /**
  * Props for the ReviewDispenser component.
@@ -54,7 +56,7 @@ export function ReviewDispenser({
   const escrowQuantity = result.params.escrow_quantity_normalized;
   const giveQuantity = result.params.give_quantity_normalized;
 
-  // Calculate BTC values for USD display
+  // Calculate BTC values for fiat estimate
   const mainchainrate = decoded?.mainchainrate ?? result.params.mainchainrate;
   const escrowForRatio = toBigNumber(
     decoded?.escrowQuantity ?? result.params.escrow_quantity
@@ -70,40 +72,40 @@ export function ReviewDispenser({
     : null;
   const bitcoinTotalBtc = dispenseCount === null ? null : multiply(dispenseCount, perDispenseBtc);
 
-  // Format USD values
-  const perDispenseUsd = btcPrice !== null
-    ? `$${formatAmount({ value: multiply(perDispenseBtc, btcPrice), minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  // Format current fiat estimates
+  const perDispenseFiat = btcPrice !== null
+    ? formatFiatEstimate(multiply(perDispenseBtc, btcPrice), settings.fiat)
     : null;
-  const bitcoinTotalUsd = btcPrice !== null && bitcoinTotalBtc !== null
-    ? `$${formatAmount({ value: multiply(bitcoinTotalBtc, btcPrice), minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const bitcoinTotalFiat = btcPrice !== null && bitcoinTotalBtc !== null
+    ? formatFiatEstimate(multiply(bitcoinTotalBtc, btcPrice), settings.fiat)
     : null;
 
   const customFields = [
     {
-      label: "Escrow Amount",
+      label: t('common_escrow_amount'),
       value: `${escrowQuantity} ${displayAsset}`,
     },
     {
-      label: "Amount per Dispense",
+      label: t('common_amount_per_dispense'),
       value: `${giveQuantity} ${displayAsset}`,
     },
     {
-      label: "Per Dispense",
+      label: t('dispenser_review_per_dispense'),
       value: `${formatAmount({
         value: perDispenseBtc,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,
-      rightElement: perDispenseUsd ? <span className="text-gray-500">{perDispenseUsd}</span> : undefined,
+      rightElement: perDispenseFiat ? <span className="text-gray-500">{perDispenseFiat}</span> : undefined,
     },
     {
-      label: "Bitcoin Total",
+      label: t('dispenser_review_bitcoin_total'),
       value: `${formatAmount({
         value: bitcoinTotalBtc,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,
-      rightElement: bitcoinTotalUsd ? <span className="text-gray-500">{bitcoinTotalUsd}</span> : undefined,
+      rightElement: bitcoinTotalFiat ? <span className="text-gray-500">{bitcoinTotalFiat}</span> : undefined,
     },
   ];
 

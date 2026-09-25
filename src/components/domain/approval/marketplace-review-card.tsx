@@ -1,7 +1,24 @@
 import { Button } from '@/components/ui/button';
 import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import { t } from '@/i18n';
 import { ApprovalFacts } from './approval-facts';
 import { ApprovalNotice } from './approval-notice';
+
+/**
+ * Self-sends whose info notice is the plain-language outcome ("every output stays in this
+ * wallet"), not a recital of protocol checks. Other families' proved notices restate what the
+ * facts already show (e.g. which outputs SIGHASH_ALL fixes) and stay hidden.
+ */
+const OUTCOME_NOTICE_FAMILIES: ReadonlySet<MarketplaceApprovalReview['family']> = new Set([
+  'fund_offers',
+  'prepare_bulk_fanout',
+]);
+
+/** Info notices a proved review shows beside its facts. Caution notices take their own path. */
+export function provedReviewNotes(review: MarketplaceApprovalReview): string[] {
+  if (review.status !== 'proved' || !OUTCOME_NOTICE_FAMILIES.has(review.family)) return [];
+  return review.notices.filter(notice => notice.severity === 'info').map(notice => notice.message);
+}
 
 /** Semantic review produced after the wallet independently evaluates the marketplace family. */
 export function MarketplaceReviewCard({ review, onRetry, retrying = false, retryError }: {
@@ -17,15 +34,15 @@ export function MarketplaceReviewCard({ review, onRetry, retrying = false, retry
   if (!showFacts) {
     return (
       <div>
-        <ApprovalNotice blocked statusLabel={retry ? 'Verification incomplete — retry' : 'Marketplace terms did not verify'} items={
+        <ApprovalNotice blocked statusLabel={retry ? t('approval_marketplace_review_card_verification_incomplete_retry') : t('common_marketplace_terms_did_not_verify')} items={
           (review.blockers.length > 0 ? review.blockers : [review.title]).map((reason, index) => ({
             key: `marketplace-blocker-${index}`, severity: retry ? 'warning' : 'danger',
             title: reason,
-            ...(index === 0 ? { description: `${review.title}. Signing ${retry ? 'stays unavailable until verification succeeds' : 'is blocked'}.` } : {}),
+            ...(index === 0 ? { description: retry ? `${review.title}. Signing stays unavailable until verification succeeds.` : `${review.title}. Signing is blocked.` } : {}),
           }))
         } />
         {retry && onRetry && <Button color="gray" onClick={onRetry} disabled={retrying} className="mt-3 text-sm" fullWidth>
-          {retrying ? 'Verifying…' : 'Retry verification'}
+          {retrying ? t('common_verifying') : t('common_retry_verification')}
         </Button>}
         {retry && retryError && <p role="alert" className="mt-2 text-sm leading-5 text-danger-800">{retryError}</p>}
       </div>
@@ -35,8 +52,8 @@ export function MarketplaceReviewCard({ review, onRetry, retrying = false, retry
     <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
       <p className="text-sm font-semibold text-gray-900">{review.title}</p>
       <div className="mt-3 border-t border-gray-100 pt-3"><ApprovalFacts fields={review.facts} /></div>
-      {caution && review.notices.map((notice, index) => (
-        <p key={`${notice.severity}-${index}`} className="mt-3 border-t border-gray-100 pt-3 text-sm leading-5 text-gray-600">{notice.message}</p>
+      {(caution ? review.notices.map(notice => notice.message) : provedReviewNotes(review)).map((message, index) => (
+        <p key={`note-${index}`} className="mt-3 border-t border-gray-100 pt-3 text-sm leading-5 text-gray-600">{message}</p>
       ))}
     </div>
   );

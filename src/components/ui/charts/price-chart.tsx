@@ -1,7 +1,9 @@
 import type { ReactElement } from 'react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { PricePoint } from '@/core/bitcoin/price';
+import { displayLocale, formatAmount } from '@/core/format';
 import { type BigNumber, maximum, minimum, subtract, toBigNumber, toNumber } from "@/core/numeric";
+import { currentLocale, t } from '@/i18n';
 
 interface PriceChartProps {
   data: PricePoint[];
@@ -32,6 +34,7 @@ export const PriceChart = memo(({
   priceDecimals = 0,
   timeFormat = 'datetime',
 }: PriceChartProps): ReactElement => {
+  const locale = currentLocale();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -83,7 +86,7 @@ export const PriceChart = memo(({
       ctx.fillStyle = '#9ca3af';
       ctx.font = '14px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('No data available', width / 2, height / 2);
+      ctx.fillText(t('charts_price_chart_no_data_available'), width / 2, height / 2);
       return;
     }
 
@@ -145,7 +148,7 @@ export const PriceChart = memo(({
       ctx.stroke();
     }
 
-  }, [data, width, height, lineColor, loading, hoverIndex, getScaleFns, padding.bottom, padding.top]);
+  }, [data, width, height, lineColor, loading, hoverIndex, getScaleFns, padding.bottom, padding.top, locale]);
 
   // Handle mouse move to find closest data point
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -169,20 +172,22 @@ export const PriceChart = memo(({
 
   // Format price for display
   const formatPrice = (price: number) => {
-    return `${currencySymbol}${price.toLocaleString('en-US', { maximumFractionDigits: priceDecimals })}`;
+    return `${currencySymbol}${formatAmount({ value: price, maximumFractionDigits: priceDecimals })}`;
   };
 
-  // Format time for display
+  // Format time for display. The tooltip needs its own date options, so it resolves the
+  // language the same way `@/core/format` does rather than pinning a literal.
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
+    const locale = displayLocale();
     if (timeFormat === 'date') {
-      return date.toLocaleDateString('en-US', {
+      return date.toLocaleDateString(locale, {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
       });
     }
-    return date.toLocaleString('en-US', {
+    return date.toLocaleString(locale, {
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
@@ -216,7 +221,7 @@ export const PriceChart = memo(({
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         role="img"
-        aria-label="Price chart"
+        aria-label={t('charts_price_chart_price_chart')}
       />
     </div>
   );

@@ -6,6 +6,8 @@ import { formatAddress, formatAmount } from "@/core/format";
 import { add, divide, fromSatoshis, multiply, roundDown, roundUp, toNumber, toSatoshis } from '@/core/numeric';
 import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
 
+import { t } from '@/i18n';
+
 interface ConsolidationReviewProps {
   apiResponse: {
     params: {
@@ -96,9 +98,9 @@ export const ConsolidationReview = ({
   if (!consolidationData) {
     return (
       <div className="p-4 bg-white rounded-lg shadow-lg">
-        <p className="text-red-600">No consolidation data available</p>
+        <p className="text-red-600">{t('common_no_consolidation_data_available')}</p>
         <Button onClick={onBack} color="gray" className="mt-4">
-          Back
+          {t('common_back')}
         </Button>
       </div>
     );
@@ -124,17 +126,17 @@ export const ConsolidationReview = ({
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
-      <h2 className="text-lg font-bold">Review Consolidation</h2>
+      <h2 className="text-lg font-bold">{t('consolidate_review_review_consolidation')}</h2>
 
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
 
       {/* Progress indicator for multi-batch processing */}
       {isProcessing && currentBatch > 0 && numBatches > 1 && (
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
-          <h4 className="font-semibold text-blue-900 mb-2">Processing Batches...</h4>
+          <h4 className="font-semibold text-blue-900 mb-2">{t('consolidate_review_processing_batches')}</h4>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Current Batch:</span>
+              <span>{t('consolidate_review_current_batch')}</span>
               <span className="font-medium">{currentBatch} of {numBatches}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -147,7 +149,7 @@ export const ConsolidationReview = ({
               <div className="mt-2 text-xs">
                 {results.map((result, idx) => (
                   <div key={idx} className={`flex justify-between ${result.status === 'error' ? 'text-red-700' : 'text-green-700'}`}>
-                    <span>Batch {result.batchNumber}:</span>
+                    <span>{t('consolidate_review_batch', [String(result.batchNumber)])}</span>
                     <span>{result.status === 'success' ? '✓ Broadcast' : '✗ Failed'}</span>
                   </div>
                 ))}
@@ -161,30 +163,30 @@ export const ConsolidationReview = ({
         {/* Batch Information */}
         {numBatches > 1 && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <h4 className="font-semibold text-blue-900 mb-2">Batch Consolidation</h4>
+            <h4 className="font-semibold text-blue-900 mb-2">{t('consolidate_review_batch_consolidation')}</h4>
             <div className="text-sm text-blue-800 space-y-1">
               <div className="flex justify-between">
-                <span>Total Batches:</span>
+                <span>{t('common_total_batches')}</span>
                 <span className="font-medium">{numBatches}</span>
               </div>
               <div className="flex justify-between">
-                <span>UTXOs per Batch:</span>
-                <span className="font-medium">Up to {consolidationData.summary.max_batch_utxos}</span>
+                <span>{t('consolidate_review_utxos_per_batch')}</span>
+                <span className="font-medium">{t('consolidate_review_up_to', [String(consolidationData.summary.max_batch_utxos)])}</span>
               </div>
               <div className="flex justify-between">
-                <span>Total UTXOs:</span>
+                <span>{t('consolidate_review_total_utxos')}</span>
                 <span className="font-medium">{totalUtxos}</span>
               </div>
             </div>
             <p className="text-xs text-blue-700 mt-2 italic">
-              All {numBatches} batches will be signed and broadcast automatically with one click.
+              {t('consolidate_review_all_batches_will_be_signed', [String(numBatches)])}
             </p>
           </div>
         )}
 
         {/* From Address */}
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">From:</span>
+          <span className="font-semibold text-gray-700">{t('common_from')}</span>
           <div className="text-gray-900 break-all bg-gray-50 p-2 rounded">
             {formatAddress(params.source, true)}
           </div>
@@ -192,7 +194,7 @@ export const ConsolidationReview = ({
 
         {/* Destination Address */}
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">To:</span>
+          <span className="font-semibold text-gray-700">{t('common_to')}</span>
           <div className="text-gray-900 bg-gray-50 p-2 rounded">
             {formatAddress(params.destination, true)}
           </div>
@@ -200,33 +202,32 @@ export const ConsolidationReview = ({
 
         {/* Consolidation Summary */}
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">Consolidating:</span>
+          <span className="font-semibold text-gray-700">{t('consolidate_review_consolidating')}</span>
           <div className="text-gray-900 bg-gray-50 p-2 rounded">
-            {formatAmount({
+            {t('consolidate_review_btc_utxos', [String(formatAmount({
               value: totalBtc,
               minimumFractionDigits: 8,
               maximumFractionDigits: 8,
-            })}{" "}
-            BTC ({totalUtxos} UTXOs)
+            })), String(" "), String(totalUtxos)])}
           </div>
         </div>
 
         {/* Fee Rate */}
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">Fee Rate:</span>
+          <span className="font-semibold text-gray-700">{t('consolidate_review_fee_rate')}</span>
           <div className="text-gray-900 bg-gray-50 p-2 rounded">
-            {params.feeRateSatPerVByte} sat/vB
+            {t('common_sat_vb', [String(params.feeRateSatPerVByte)])}
           </div>
         </div>
 
         {/* Fee Breakdown */}
         <div className="space-y-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
           <h4 className="font-semibold text-yellow-900">
-            Fee Breakdown {numBatches > 1 ? `(${numBatches} batches total)` : ''}
+            {numBatches > 1 ? t('consolidate_review_fee_breakdown_batches_total', [String(numBatches)]) : t('consolidate_review_fee_breakdown')}
           </h4>
           
           <div className="flex justify-between text-sm">
-            <span className="text-gray-700">Network Fee:</span>
+            <span className="text-gray-700">{t('consolidate_review_network_fee')}</span>
             <span className="text-gray-900">
               ~{formatAmount({
                 value: fromSatoshis(fees.totalNetworkFee),
@@ -239,7 +240,7 @@ export const ConsolidationReview = ({
           
           {fees.totalServiceFee > 0 && feeConfig && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-700">Service Fee ({feeConfig.fee_percent}%):</span>
+              <span className="text-gray-700">{t('consolidate_review_service_fee', [String(feeConfig.fee_percent)])}</span>
               <span className="text-gray-900">
                 ~{formatAmount({
                   value: fromSatoshis(fees.totalServiceFee),
@@ -252,7 +253,7 @@ export const ConsolidationReview = ({
           )}
           
           <div className="flex justify-between text-sm font-semibold border-t pt-2">
-            <span className="text-gray-700">Total Fees:</span>
+            <span className="text-gray-700">{t('consolidate_review_total_fees')}</span>
             <span className="text-yellow-900">
               ~{formatAmount({
                 value: fromSatoshis(add(fees.totalNetworkFee, fees.totalServiceFee)),
@@ -265,14 +266,14 @@ export const ConsolidationReview = ({
 
           {fees.totalServiceFee === 0 && feeConfig && (
             <p className="text-xs text-green-700 italic">
-              ✓ Service fee waived (amount below threshold)
+              {t('consolidate_review_service_fee_waived_amount_below')}
             </p>
           )}
         </div>
 
         {/* Net Total */}
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">You Will Receive:</span>
+          <span className="font-semibold text-gray-700">{t('consolidate_review_you_will_receive')}</span>
           <div className="text-green-700 font-medium bg-green-50 p-2 rounded">
             ~{formatAmount({
               value: fromSatoshis(fees.totalOutput),
@@ -286,14 +287,14 @@ export const ConsolidationReview = ({
 
       <div className="flex space-x-4">
         <Button onClick={onBack} color="gray">
-          Back
+          {t('common_back')}
         </Button>
         <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning || isProcessing}>
-          {isProcessing 
-            ? `Processing Batch ${currentBatch} of ${numBatches}...` 
-            : isSigning 
-              ? "Signing & Broadcasting…" 
-              : `Sign & Broadcast ${numBatches > 1 ? `${numBatches} Transactions` : 'Transaction'}`}
+          {isProcessing
+            ? t('consolidate_review_processing_batch_of', [String(currentBatch), String(numBatches)])
+            : isSigning
+              ? t('consolidate_review_signing_broadcasting')
+              : numBatches > 1 ? t('consolidate_review_sign_broadcast_transactions', [String(numBatches)]) : t('consolidate_review_sign_broadcast_transaction')}
         </Button>
       </div>
     </div>

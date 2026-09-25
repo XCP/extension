@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import { FaSpinner } from '@/components/icons';
 
+import { t } from '@/i18n';
+
 interface SpinnerProps {
   /** Additional CSS classes */
   className?: string;
@@ -55,7 +57,7 @@ export const Spinner = memo<SpinnerProps>(({
           {message}
         </p>
       ) : (
-        <span className="sr-only">Loading…</span>
+        <span className="sr-only">{t('common_loading')}</span>
       )}
     </div>
   );

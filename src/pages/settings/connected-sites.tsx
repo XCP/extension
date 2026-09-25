@@ -6,6 +6,7 @@ import { ConnectedSiteCard } from "@/components/ui/cards/connected-site-card";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
+import { t } from '@/i18n';
 import { getProviderService } from "@/services/providerService";
 
 /**
@@ -85,37 +86,37 @@ export default function ConnectedSitesPage(): ReactElement {
   // Configure header with reset button when sites exist, help button otherwise
   useEffect(() => {
     setHeaderProps({
-      title: "Connected Sites",
+      title: t('common_connected_sites'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: connectedSites.length > 0 ? {
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleDisconnectAll,
-        ariaLabel: "Disconnect all sites",
+        ariaLabel: t('settings_connected_sites_disconnect_all_sites'),
       } : {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(PATHS.HELP_URL, "_blank"),
-        ariaLabel: "Help",
+        ariaLabel: t('common_help'),
       },
     });
   }, [setHeaderProps, navigate, connectedSites.length, handleDisconnectAll]);
 
 
   if (isLoading) {
-    return <Spinner message="Loading connected sites…" />;
+    return <Spinner message={t('settings_connected_sites_loading_connected_sites')} />;
   }
 
   return (
     <section className={connectedSites.length === 0 ? 'h-full flex items-center justify-center' : 'p-4 space-y-4'} aria-labelledby="connected-sites-title">
       <h2 id="connected-sites-title" className="sr-only">
-        Connected Sites
+        {t('common_connected_sites')}
       </h2>
 
       {connectedSites.length === 0 ? (
         <div className="bg-gray-50 rounded-lg p-8 text-center">
           <FiGlobe className="size-12 text-gray-400 mx-auto mb-3" aria-hidden="true" />
-          <p className="text-gray-600">No connected sites</p>
+          <p className="text-gray-600">{t('settings_connected_sites_no_connected_sites')}</p>
           <p className="text-sm text-gray-500 mt-1">
-            Sites you connect to will appear here
+            {t('settings_connected_sites_sites_you_connect_to_will')}
           </p>
         </div>
       ) : (

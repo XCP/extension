@@ -243,6 +243,16 @@ export const FiExternalLink = (props: IconProps): ReactElement => (
   </FeatherIcon>
 );
 
+export const FiLayers = (props: IconProps): ReactElement => (
+  <FeatherIcon {...props}>
+    <>
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+    </>
+  </FeatherIcon>
+);
+
 export const FiMinus = (props: IconProps): ReactElement => (
   <FeatherIcon {...props}>
     <line x1="5" y1="12" x2="19" y2="12" />

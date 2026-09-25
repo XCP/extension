@@ -6,7 +6,11 @@
  * place the screen says where the assets actually go.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { checkMessageStructure } from '@/core/counterparty/messageStructure';
+import { analyzeTransactionSafety, type SecurityWarning } from '@/core/counterparty/transactionSafety';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import type { ApprovalWarningInput } from '../approval-warnings';
 import { buildApprovalWarnings } from '../approval-warnings';
 
@@ -17,6 +21,13 @@ const EMPTY: ApprovalWarningInput = {
   signedInputsWithAssets: [],
   signedInputsUnknownStatus: [],
 };
+
+afterEach(() => mockBrowserLocale({ language: 'en' }));
+
+const structureFindings = [
+  ...checkMessageStructure('utxo', { source: `${'AB'.repeat(32)}:1234` }, { inputs: [], outputs: [] }),
+  ...checkMessageStructure('attach', { destinationVout: 1234 }, { inputs: [], outputs: [{ index: 0 }] }),
+];
 
 const destination = (over: Record<string, unknown>) =>
   ({
@@ -66,6 +77,71 @@ describe('buildApprovalWarnings', () => {
     });
 
     expect(item).toMatchObject({ severity: 'danger', title: 'Sweep', description: 'Drains the address.' });
+  });
+
+  it.each(['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const)(
+    'translates serialized English safety findings in the %s foreground without changing their decisions',
+    (language) => {
+      const signer = '1MySignerAddressXXXXXXXXXXXXXXabc123';
+      const destination = 'bc1qExactAddressCaseIsPreserved';
+      const dataScript = `51${`21${'ab'.repeat(33)}`.repeat(3)}53ae`;
+      const analyze = () => [
+        ...['sweep', 'destroy', 'detach', 'future_PROTOCOL'].flatMap(type =>
+          analyzeTransactionSafety(type, [], signer).warnings),
+        ...analyzeTransactionSafety(undefined, [{ value: 0, type: 'op_return' }], signer).warnings,
+        ...analyzeTransactionSafety('enhanced_send', [{ value: 12345678, type: 'address', address: destination }], signer).warnings,
+        ...analyzeTransactionSafety('enhanced_send', [
+          { value: 12345678, type: 'address', address: destination },
+          { value: 87654322, type: 'address', address: '1OtherExactAddress' },
+        ], signer).warnings,
+        ...analyzeTransactionSafety('btcpay', [{ value: 12345678, type: 'address', address: destination }], signer).warnings,
+        ...analyzeTransactionSafety(undefined, [{ value: 12345678, type: 'address', address: destination }], signer, { plainBitcoinPayment: true }).warnings,
+        ...analyzeTransactionSafety('enhanced_send', [], signer, { verifiedCommit: { address: destination, value: 12345678 } }).warnings,
+        ...[1, 2].flatMap(count => analyzeTransactionSafety('fairminter',
+          Array.from({ length: count }, () => ({ value: 1234, type: 'unknown', script: dataScript })), signer).warnings),
+        ...[1, 2].flatMap(count => analyzeTransactionSafety('enhanced_send',
+          Array.from({ length: count }, () => ({ value: 12345678, type: 'unknown' })), signer).warnings),
+      ];
+      mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
+      const serialized: SecurityWarning[] = JSON.parse(JSON.stringify(analyze()));
+      const snapshot = JSON.stringify(serialized);
+      expect(serialized.find(w => w.code === 'destroy')?.title).toBe('Danger: Supply Destruction');
+      expect(serialized.find(w => w.code === 'external_btc_output')?.data).toEqual({
+        totalSats: 12345678, addresses: [destination],
+      });
+
+      mockBrowserLocale({ language, numberLocale: 'de-DE' });
+      const items = buildApprovalWarnings({ ...EMPTY, safetyWarnings: serialized });
+      const foreground = analyze();
+      expect(items).toHaveLength(serialized.length);
+      items.forEach((item, index) => {
+        const original = serialized[index]!;
+        expect(item).toMatchObject({
+          key: `safety-${index}`,
+          severity: original.severity === 'block' ? 'danger' : original.severity,
+          blocking: original.severity === 'block',
+          title: foreground[index]!.title,
+          description: foreground[index]!.message,
+        });
+        expect(item.title).not.toBe(original.title);
+        expect(item.description).not.toBe(original.message);
+      });
+      expect(items.find(item => item.title === t('safety_unknown_transaction_type'))?.description).toContain('future_PROTOCOL');
+      expect(items.find(item => item.title === t('safety_btc_sent_to_external_address'))?.description).toContain('0.12345678');
+      expect(JSON.stringify(serialized)).toBe(snapshot);
+    },
+  );
+
+  it.each(['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const)('uses recovery-key counts in %s without translating unknown diagnostics', language => {
+    mockBrowserLocale({ language });
+    const safetyWarnings: SecurityWarning[] = [1, 2].map(count => ({
+      code: 'misdirected_recovery_key', data: { count }, severity: 'warning', title: 'English title', message: 'English body',
+    }));
+    safetyWarnings.push({ severity: 'block', title: 'Remote diagnostic', message: 'Original API error: 0123 / exact' });
+    const items = buildApprovalWarnings({ ...EMPTY, safetyWarnings });
+    expect(items[0]?.description).toBe(t('safety_data_output_embeds_a_recovery_key', '1'));
+    expect(items[1]?.description).toBe(t('safety_data_outputs_embed_a_recovery_key', '2'));
+    expect(items[2]).toMatchObject({ title: 'Remote diagnostic', description: 'Original API error: 0123 / exact', severity: 'danger', blocking: true });
   });
 
   it.each([
@@ -194,15 +270,45 @@ describe('buildApprovalWarnings', () => {
   it('lists every structure finding', () => {
     const items = buildApprovalWarnings({
       ...EMPTY,
-      structureFindings: [
-        { title: 'Bad ref', message: 'Points at a missing input.' },
-        { title: 'Bad vout', message: 'Points past the end.' },
-      ] as ApprovalWarningInput['structureFindings'],
+      structureFindings,
     });
 
     expect(items).toHaveLength(2);
     expect(items.map((i) => i.key)).toEqual(['structure-0', 'structure-1']);
     expect(items.every((i) => i.severity === 'warning')).toBe(true);
+    expect(items.every((i) => i.blocking)).toBe(true);
+  });
+
+  it.each(['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'])('translates local structure findings in %s without changing evidence or the block', language => {
+    const before = structuredClone(structureFindings);
+    mockBrowserLocale({ language, numberLocale: 'de-DE' });
+    const [move, attach] = buildApprovalWarnings({ ...EMPTY, structureFindings });
+    expect(move).toMatchObject({
+      key: 'structure-0', severity: 'warning', blocking: true,
+      title: t('approval_structure_utxo_source_not_spent_title'),
+      description: t('approval_structure_utxo_source_not_spent_description', [`${'AB'.repeat(32)}:1234`]),
+    });
+    expect(attach).toMatchObject({
+      key: 'structure-1', severity: 'warning', blocking: true,
+      title: t('approval_structure_attach_missing_output_title'),
+      description: t('approval_structure_attach_missing_output_one', ['1234', '1']),
+    });
+    expect(move?.description).toContain(`${'AB'.repeat(32)}:1234`);
+    expect(attach?.description).toContain('#1234');
+    expect(attach?.description).not.toContain('#1.234');
+    expect(structureFindings).toEqual(before);
+    if (language !== 'en') expect(move?.title).not.toBe(before[0]?.title);
+  });
+
+  it('keeps zero and multiple output counts distinct from the singular message', () => {
+    for (const outputCount of [0, 2]) {
+      const findings = checkMessageStructure('attach', { destinationVout: 7 }, {
+        inputs: [], outputs: Array.from({ length: outputCount }, (_, index) => ({ index })),
+      });
+      const [item] = buildApprovalWarnings({ ...EMPTY, structureFindings: findings });
+      expect(item?.description).toContain(`${outputCount} outputs`);
+      expect(item?.description).toContain('If signed and confirmed, the Bitcoin fee would still be paid.');
+    }
   });
 
   it('separates inputs carrying assets from inputs whose status is unknown', () => {
@@ -225,7 +331,7 @@ describe('buildApprovalWarnings', () => {
     const items = buildApprovalWarnings({
       safetyWarnings: [{ severity: 'danger', title: 'S', message: 'm' }],
       attachedAssetDestination: destination({}),
-      structureFindings: [{ title: 'F', message: 'm' }] as ApprovalWarningInput['structureFindings'],
+      structureFindings: structureFindings.slice(0, 1),
       signedInputsWithAssets: [
         { inputIndex: 0, utxo: 'a:0', assets: [{ asset: 'XCP', quantity_normalized: '1' }] },
       ] as unknown as ApprovalWarningInput['signedInputsWithAssets'],
@@ -240,5 +346,70 @@ describe('buildApprovalWarnings', () => {
       'structure-0',
       'unknown-status',
     ]);
+  });
+});
+
+describe('external destination addresses', () => {
+  // Two addresses sharing their first twelve characters: truncated to that prefix they were
+  // indistinguishable, which is what a vanity-generated look-alike exploits.
+  const REAL = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
+  const LOOKALIKE = 'bc1qxy2kgdygj0000000000000000000000000fjhx0wlh';
+
+  it.each(['en', 'ja', 'zh-TW'] as const)('names every external destination in full (%s)', language => {
+    mockBrowserLocale({ language });
+    const { warnings } = analyzeTransactionSafety('enhanced_send', [
+      { value: 20_000, type: 'address', address: LOOKALIKE },
+    ], REAL);
+    const [external] = warnings.filter(warning => warning.code === 'external_btc_output');
+    expect(external?.message).toContain(LOOKALIKE);
+    const [item] = buildApprovalWarnings({ ...EMPTY, safetyWarnings: warnings });
+    expect(item?.description).toContain(LOOKALIKE);
+    expect(item?.description).not.toContain('…');
+  });
+
+  it('names several destinations in full, and a verified inscription commit too', () => {
+    const other = 'bc1q9h7garjh7fs9eyqnxc2ch8qkjt5n6y0qn3u5t0';
+    const { warnings } = analyzeTransactionSafety('enhanced_send', [
+      { value: 20_000, type: 'address', address: LOOKALIKE },
+      { value: 20_000, type: 'address', address: other },
+    ], REAL);
+    const items = buildApprovalWarnings({ ...EMPTY, safetyWarnings: warnings });
+    expect(items[0]?.description).toContain(`${LOOKALIKE}, ${other}`);
+    const commit = analyzeTransactionSafety('enhanced_send', [], REAL, { verifiedCommit: { address: other, value: 1_000 } });
+    expect(buildApprovalWarnings({ ...EMPTY, safetyWarnings: commit.warnings })[0]?.description).toContain(other);
+  });
+});
+
+describe('inputs awaiting an unconfirmed parent', () => {
+  const PARENT = 'cd'.repeat(32);
+
+  it('says which transaction must confirm, instead of calling it a failed lookup', () => {
+    const [item] = buildApprovalWarnings({
+      ...EMPTY,
+      signedInputsUnknownStatus: [{ inputIndex: 1, utxo: `${PARENT}:0`, assets: [], lookupFailed: true, pendingParentTxid: PARENT }],
+    });
+    expect(item).toMatchObject({ key: 'unknown-status', blocking: true, description: t('approval_approval_warnings_pending_parent_retry') });
+  });
+
+  it('keeps the failed-lookup wording when any input simply could not be read', () => {
+    const [item] = buildApprovalWarnings({
+      ...EMPTY,
+      signedInputsUnknownStatus: [
+        { inputIndex: 0, utxo: 'a:0', assets: [], lookupFailed: true },
+        { inputIndex: 1, utxo: `${PARENT}:0`, assets: [], lookupFailed: true, pendingParentTxid: PARENT },
+      ],
+    });
+    expect(item?.description).toBe(t('approval_approval_warnings_the_balance_lookup_failed_so'));
+  });
+});
+
+describe('durable sell authorization', () => {
+  it.each(['en', 'ja', 'zh-CN'] as const)('translates the block and names the inputs (%s)', language => {
+    mockBrowserLocale({ language });
+    const [item] = buildApprovalWarnings({ ...EMPTY, safetyWarnings: [{
+      code: 'durable_sell_authorization', data: { inputs: [0, 2] }, severity: 'block', title: 'English', message: 'English',
+    }] });
+    expect(item).toMatchObject({ severity: 'danger', blocking: true, title: t('safety_blocked_durable_sell_authorization') });
+    expect(item?.description).toContain('#0, #2');
   });
 });

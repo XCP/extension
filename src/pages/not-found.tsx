@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { t } from '@/i18n';
 import { analytics } from '@/platform/fathom';
 
 const NotFound = () => {
@@ -8,8 +9,8 @@ const NotFound = () => {
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold">Not Found</h2>
-      <p>This is a placeholder.</p>
+      <h2 className="text-xl font-bold">{t('not_found')}</h2>
+      <p>{t('not_found_this_is_a_placeholder')}</p>
     </div>
   );
 };

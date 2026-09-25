@@ -1,5 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewDividend component.
  */
@@ -26,9 +28,9 @@ export function ReviewDividend({
   const { result } = apiResponse;
 
   const customFields = [
-    { label: "Asset", value: result.params.asset },
+    { label: t('common_asset'), value: result.params.asset },
     {
-      label: "Dividend",
+      label: t('common_dividend'),
       value: `${result.params.quantity_per_unit_normalized} ${result.params.dividend_asset}`,
     },
   ];

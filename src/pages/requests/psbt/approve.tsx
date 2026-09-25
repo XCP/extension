@@ -4,6 +4,7 @@ import {
   highFeeAttentionItem,
   partitionApprovalItems,
   verificationAttentionItem,
+  withPolicyAcknowledgement,
 } from "@/components/domain/approval/approval-attention";
 import {
   ApprovalFooter,
@@ -19,9 +20,10 @@ import { ApprovalTransactionDetails } from "@/components/domain/approval/approva
 import { buildApprovalWarnings } from "@/components/domain/approval/approval-warnings";
 import { BitcoinPaymentCard } from "@/components/domain/approval/bitcoin-payment-card";
 import { CounterpartyDetailsCard } from "@/components/domain/approval/counterparty-details-card";
-import { MarketplaceReviewCard } from "@/components/domain/approval/marketplace-review-card";
+import { MarketplaceReviewCard, provedReviewNotes } from "@/components/domain/approval/marketplace-review-card";
 import { computeMoneyMovement } from "@/components/domain/approval/money-movement";
 import { buildOrderAction } from "@/components/domain/approval/order-card";
+import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { describePsbtFlexibility } from "@/components/domain/approval/psbt-flexibility";
 import { attachDestinationVout, getTxActionInfo } from "@/components/domain/tx/tx-action-info";
 import { Collapsible } from "@/components/ui/collapsible";
@@ -34,11 +36,16 @@ import { normalizeAddressForComparison } from "@/core/bitcoin/address";
 import { exceedsSaneFeeRate } from "@/core/bitcoin/feeVerification";
 import { committedOutputIndices, resolvePsbtSighashType } from "@/core/bitcoin/psbt";
 import { classifySignedInputAssets } from "@/core/counterparty/inputAssets";
+import {
+  isRoutineAttachFamily,
+  marketplaceReviewRequiresAcknowledgement,
+} from "@/core/counterparty/marketplaceReviewPolicy";
 import { shouldBlockSigning } from "@/core/counterparty/unpack/providerVerify";
 import { formatAddress, formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import { useSignPsbtRequest } from "@/hooks/useSignPsbtRequest";
+import { t } from '@/i18n';
 
 function formatSighashType(sighashType: number): string {
   switch (sighashType) {
@@ -74,36 +81,43 @@ export default function ApprovePsbtPage() {
   usePopupLifecycle(requestId, "sign-psbt");
 
   const [isSigning, setIsSigning] = useState(false);
-  const [error, setError] = useState<string>("");
+  const [signingError, setError] = useState<unknown>(null);
+  const error = signingError ? providerReviewErrorMessage(signingError) : '';
   const [showAttention, setShowAttention] = useState(false);
   const listingContext =
     request?.marketplaceIntent?.action === "create_listing"
       ? request.marketplaceIntent.listingContext
       : undefined;
   const isRepriceListing = listingContext?.mode === "reprice";
-  const listingHeader = isRepriceListing ? "Reprice Listing" : "Create Listing";
+  const listingHeader = isRepriceListing ? t('psbt_approve_reprice_listing') : t('psbt_approve_create_listing');
+  const fundOffersCount =
+    request?.marketplaceIntent?.action === "fund_offers" ? request.marketplaceIntent.slotCount : 0;
 
   // Configure header
   useEffect(() => {
     setHeaderProps({
       title:
         request?.signingPurpose === "bitcoin-payment"
-          ? "Send Bitcoin"
+          ? t('common_send_bitcoin')
           : request?.marketplaceIntent?.action === "attach_for_listing"
-            ? "Attach for Listing"
+            ? t('psbt_approve_attach_for_listing')
             : request?.marketplaceIntent?.action === "prepare_asset"
-              ? "Prepare Asset"
+              ? t('psbt_approve_prepare_asset')
               : request?.marketplaceIntent?.action === "create_listing"
                 ? listingHeader
                 : request?.marketplaceIntent?.action === "buy_listings"
-                  ? "Buy Collectibles"
+                  ? t('psbt_approve_buy_collectibles')
                   : request?.marketplaceIntent?.action === "authorize_exact_offer"
-                    ? "Authorize Offer"
+                    ? t('psbt_approve_authorize_offer')
                     : request?.marketplaceIntent?.action === "accept_exact_offer"
-                      ? "Accept Offer"
-                      : "Sign Transaction",
+                      ? t('common_accept_offer')
+                      : fundOffersCount > 0
+                        ? fundOffersCount === 1
+                          ? t('psbt_approve_fund_offer_title')
+                          : t('psbt_approve_fund_offers_title')
+                        : t('transaction_approve_sign_transaction'),
     });
-  }, [listingHeader, request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);
+  }, [fundOffersCount, listingHeader, request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);
 
   useEffect(() => setShowAttention(false), [request?.id]);
 
@@ -115,7 +129,7 @@ export default function ApprovePsbtPage() {
       await handleApprove(showAttention);
       window.close();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Failed to sign request");
+      setError(failure instanceof Error ? failure : {});
       setIsSigning(false);
     }
   };
@@ -172,6 +186,10 @@ export default function ApprovePsbtPage() {
     repackProved: verification?.repackProved ?? false,
     strictMode: isStrictMode,
   });
+  // The identity this request was authorized for. After a switch to its paired Legacy/SegWit
+  // sibling the active address differs, but the signers, "your" funds and the header still belong
+  // to the request — the same inputs the background signs.
+  const requestAddress = request.address;
   const requestedAddressSpends = Object.entries(request.signInputs ?? {}).map(
     ([address, indices]) => ({
       address,
@@ -189,7 +207,7 @@ export default function ApprovePsbtPage() {
           (input) =>
             !input.address ||
             normalizeAddressForComparison(input.address) ===
-              normalizeAddressForComparison(activeAddress.address),
+              normalizeAddressForComparison(requestAddress),
         )
         .map((input) => input.index);
   const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =
@@ -215,13 +233,17 @@ export default function ApprovePsbtPage() {
   const usesPairedAddress = requestedAddressSpends.some(
     ({ address }) =>
       normalizeAddressForComparison(address) !==
-      normalizeAddressForComparison(activeAddress.address),
+      normalizeAddressForComparison(requestAddress),
   );
+  // A single signer is shown in the header; several are listed in the signing-addresses card.
+  const headerAddress = requestedAddressSpends.length === 1
+    ? requestedAddressSpends[0]!.address
+    : requestAddress;
 
   // Net effect of this transaction on your wallet — the money-movement summary,
   // computed structurally (replaces the old swap-detection heuristic; works for
-  // any tx shape). "Your" addresses are the active address plus any paired signer.
-  const myAddresses = [activeAddress.address, ...requestedAddressSpends.map((s) => s.address)];
+  // any tx shape). "Your" addresses are the request's address plus any paired signer.
+  const myAddresses = [requestAddress, ...requestedAddressSpends.map((s) => s.address)];
   // Outputs the signature leaves free are not change coming back to you.
   const committedOutputs = committedOutputIndices(
     effectiveSighashes.map(({ index, type }) => ({ index, sighashType: type })),
@@ -263,7 +285,7 @@ export default function ApprovePsbtPage() {
         <ul className="mt-2 space-y-1 text-xs font-medium">
           {anyoneCanPaySighashes.map(({ index, type }) => (
             <li key={index}>
-              Input #{index}: {formatSighashType(type)}
+              {t('psbt_approve_input', [String(index), String(formatSighashType(type))])}
             </li>
           ))}
         </ul>
@@ -272,9 +294,7 @@ export default function ApprovePsbtPage() {
   }
 
   const marketplaceReview = decodedInfo.marketplaceReview;
-  const routineAttach =
-    marketplaceReview?.family === "attach_for_listing" ||
-    marketplaceReview?.family === "prepare_asset";
+  const routineAttach = isRoutineAttachFamily(marketplaceReview?.family);
   const marketplaceBlocked =
     marketplaceReview?.status === "blocked" || marketplaceReview?.status === "retry";
   // A missing balance answer is uncertainty, not permission to assume an input is clean.
@@ -291,28 +311,23 @@ export default function ApprovePsbtPage() {
   const { attention } = partitionApprovalItems(warningItems);
   const genericAttention =
     movement.atRisk > 0 ? attention.filter((item) => item.key !== "anyonecanpay") : attention;
-  // Attach quotes are intrinsically block-dependent and already disclosed in the action card. A
-  // second click on a proved listing or inventory attach would turn that routine protocol fact
-  // into warning wallpaper. An exact offer is likewise what it says: the buyer is making an
-  // offer that the seller may accept until it expires, and the cancellation fact names the way
-  // out, so it earns neither a warning nor a second step.
-  const marketplaceRequiresAttention =
-    marketplaceReview?.status === "caution" &&
-    !routineAttach &&
-    marketplaceReview.family !== "authorize_exact_offer";
+  // Which cautions are routine (attach quotes, an exact offer's standing authorization) is decided
+  // once, beside the execution policy, so this screen and the signing service cannot disagree.
+  const marketplaceRequiresAttention = marketplaceReviewRequiresAcknowledgement(marketplaceReview);
   // Plain-language consequences per family: what signing does, and how to undo it. The analyzer's
   // notices state the same facts in protocol terms; this screen is where a person decides.
   // create_listing is absent here on purpose: a fully proved listing is 'proved', never
   // 'caution', so its consequences live in the review facts on the one screen.
-  const marketplaceAttention: WarningItem[] = !marketplaceRequiresAttention
+  const marketplaceAttention: WarningItem[] = !marketplaceRequiresAttention || !marketplaceReview
     ? []
     : marketplaceReview.notices.map((notice, index) => ({
           key: `marketplace-${index}`,
           severity: notice.severity,
-          title: "This authorization remains usable after signing",
+          title: t('psbt_approve_this_authorization_remains_usable_after'),
           description: notice.message,
         }));
-  const approvalAttentionItems: WarningItem[] = [
+  // Whatever this screen shows, it takes the review step whenever the execution policy asks for one.
+  const approvalAttentionItems: WarningItem[] = withPolicyAcknowledgement([
     ...marketplaceAttention,
     ...genericAttention,
     ...(deferredVerificationFailure ? [verificationAttentionItem(verificationWarning)] : []),
@@ -323,18 +338,18 @@ export default function ApprovePsbtPage() {
           {
             key: "btc-at-risk",
             severity: "danger" as const,
-            title: `${formatAmount({
+            title: t('psbt_approve_btc_is_not_guaranteed_back', [String(formatAmount({
               value: fromSatoshis(movement.atRisk, true),
               minimumFractionDigits: 8,
               maximumFractionDigits: 8,
-            })} BTC is not guaranteed back`,
+            }))]),
             description:
-              "The requested signature does not commit every output returning this amount. Whoever completes the transaction may redirect it.",
+              t('psbt_approve_the_requested_signature_does_not'),
           },
         ]
       : []),
     ...(hasHighFee ? [highFeeAttentionItem(psbtDetails.fee, estimatedVsize)] : []),
-  ];
+  ], approvalPolicy?.requiresAcknowledgement);
   const retryAvailable =
     marketplaceReview?.status === "retry" || signedInputsUnknownStatus.length > 0;
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
@@ -342,22 +357,22 @@ export default function ApprovePsbtPage() {
     counterpartyMessage?.messageType === "destroy" && txAction
       ? txAction.description
       : marketplaceRequiresAttention
-        ? "Review before signing"
+        ? t('common_review_before_signing')
         : approvalAttentionItems.some((item) => item.severity === "danger")
-          ? "Review transaction risk"
-          : "Review before signing";
+          ? t('common_review_transaction_risk')
+          : t('common_review_before_signing');
   const confirmLabel =
     marketplaceReview?.family === "create_listing"
       ? isRepriceListing
-        ? "Authorize reprice"
-        : "Authorize listing"
+        ? t('psbt_approve_authorize_reprice')
+        : t('psbt_approve_authorize_listing')
       : marketplaceReview?.family === "authorize_exact_offer"
-        ? "Authorize offer"
+        ? t('psbt_approve_authorize_offer_2')
         : marketplaceReview?.family === "prepare_asset"
-          ? "Prepare asset"
+          ? t('psbt_approve_prepare_asset_2')
           : counterpartyMessage?.messageType === "destroy"
-            ? "Destroy supply"
-            : "Confirm and sign";
+            ? t('common_destroy_supply')
+            : t('common_confirm_and_sign');
   // The payment card is the one voice for a failed plain-Bitcoin payment, exactly as the
   // marketplace card is for its gate: the generic stack stays silent and the card carries the
   // analyzer's reason.
@@ -369,7 +384,7 @@ export default function ApprovePsbtPage() {
     ...attention.filter(item => item.blocking),
     ...(verificationPassed === false && !verification?.repackProved && isStrictMode ? [{
       key: "verification-block", severity: "danger" as const,
-      title: "Transaction details did not verify", description: verificationWarning,
+      title: t('common_transaction_details_did_not_verify'), description: verificationWarning,
     }] : []),
   ];
   // The attach XCP fee is a quote until confirmation; the fact row already says so, and a yellow
@@ -418,7 +433,7 @@ export default function ApprovePsbtPage() {
   return (
     <ApprovalLayout
       walletName={activeWallet.name}
-      address={activeAddress.address}
+      address={headerAddress}
       origin={request.origin}
       footer={
         <ApprovalFooter
@@ -427,25 +442,29 @@ export default function ApprovePsbtPage() {
           busy={isSigning}
           blocked={blockSigning || isRefreshing || Boolean(refreshError)}
           blockedLabel={
-            retryAvailable || isRefreshing || refreshError ? "Awaiting verification" : "Blocked"
+            retryAvailable || isRefreshing || refreshError ? t('common_awaiting_verification') : t('approval_blocked')
           }
           isHardware={activeWallet.type === "hardware"}
           signLabel={
             requiresAttention
-              ? "Review"
+              ? t('approval_review')
               : marketplaceReview?.family === "create_listing"
                 ? confirmLabel
                 : marketplaceReview?.family === "prepare_asset"
                   ? confirmLabel
                   : isBitcoinPayment
-                    ? "Send Bitcoin"
+                    ? t('common_send_bitcoin')
                     : marketplaceReview?.family === "buy_listings"
-                      ? "Buy collectibles"
+                      ? t('psbt_approve_buy_collectibles_2')
                       : marketplaceReview?.family === "accept_exact_offer"
-                        ? "Accept offer"
+                        ? t('common_accept_offer_2')
                         : marketplaceReview?.family === "authorize_exact_offer"
-                          ? "Authorize offer"
-                          : "Sign transaction"
+                          ? t('psbt_approve_authorize_offer_2')
+                          : marketplaceReview?.family === "fund_offers"
+                            ? fundOffersCount === 1
+                              ? t('psbt_approve_fund_offer')
+                              : t('psbt_approve_fund_offers')
+                            : t('common_sign_transaction')
           }
         />
       }
@@ -454,7 +473,7 @@ export default function ApprovePsbtPage() {
         requiresAttention && (
           <ApprovalAttentionScreen
             title={attentionTitle}
-            description="Confirm the authorization details below before the wallet adds your signature."
+            description={t('psbt_approve_confirm_the_authorization_details_below')}
             items={approvalAttentionItems}
             confirmLabel={confirmLabel}
             busy={isSigning}
@@ -495,10 +514,10 @@ export default function ApprovePsbtPage() {
         <Collapsible
           compact
           variant="card"
-          title={`Signing addresses (${requestedAddressSpends.length})`}
+          title={t('psbt_approve_signing_addresses', [String(requestedAddressSpends.length)])}
         >
           <p className="text-xs text-gray-500">
-            Only the inputs shown below will be signed with their matching addresses in this wallet.
+            {t('psbt_approve_only_the_inputs_shown_below')}
           </p>
           <div className="space-y-2">
             {requestedAddressSpends.map(({ address, indices, value }) => (
@@ -506,10 +525,10 @@ export default function ApprovePsbtPage() {
                 <div>
                   <p className="font-mono text-gray-700">{formatAddress(address, true)}</p>
                   <p className="text-gray-500">
-                    Inputs {indices.map((index) => `#${index}`).join(", ")}
+                    {t('psbt_approve_inputs', [String(indices.map((index) => `#${index}`).join(", "))])}
                   </p>
                 </div>
-                <p className="font-medium text-gray-700">{value.toLocaleString()} sats</p>
+                <p className="font-medium text-gray-700">{t('psbt_approve_sats', [formatAmount({ value, maximumFractionDigits: 0 })])}</p>
               </div>
             ))}
           </div>
@@ -541,7 +560,13 @@ export default function ApprovePsbtPage() {
         />
       )}
 
-      <CounterpartyDetailsCard fields={detailFields} recipients={decodedInfo.mpmaRecipients} />
+      <CounterpartyDetailsCard
+        fields={detailFields}
+        recipients={decodedInfo.mpmaRecipients}
+        // A plain-Bitcoin self-send carries no Counterparty message to name the section after.
+        title={marketplaceReview?.family === "fund_offers" ? t('approval_counterparty_details_card_details') : undefined}
+        notes={semanticMarketplaceReview ? provedReviewNotes(marketplaceReview!) : []}
+      />
       {retryAvailable && !marketplaceBlocked && (
         <ApprovalRetry
           onRetry={() => void handleRetry()}

@@ -14,6 +14,7 @@ import { fromSatoshis, toSatoshis } from '@/core/numeric';
 import { validateQuantity } from '@/core/validation/amount';
 import { fetchZeldBalance, ZELD_DISPLAY_NAME, type ZeldAddressBalance, zeldBaseUnitsToDisplay } from '@/core/zeld/api';
 import { composeZeldSend, zeldRecipientDustSats } from '@/core/zeld/sendCompose';
+import { t } from '@/i18n';
 
 interface ZeldSendFormData {
   destination: string;
@@ -74,14 +75,14 @@ function ZeldSendForm({
   return (
     <ComposerForm
       formAction={handleSubmit}
-      submitText="Continue"
+      submitText={t('common_continue')}
       submitDisabled={!amountValid || recipientSats === undefined}
       showFeeRate
     >
       <div className="rounded-lg bg-gray-50 p-3 text-sm flex items-center gap-3">
         <AssetIcon asset={ZELD_DISPLAY_NAME} size="md" imageSrc={zeldIcon} />
-        <div className="min-w-0 flex-1 flex justify-between gap-3">
-          <span className="text-gray-500">Available</span>
+        <div className="min-w-0 flex-1 flex flex-wrap justify-between gap-3">
+          <span className="text-gray-500">{t('zeld_available')}</span>
           <span className="font-medium text-gray-900">
             {formatAmount({ value: zeldBaseUnitsToDisplay(available), minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD
           </span>
@@ -92,12 +93,12 @@ function ZeldSendForm({
         onChange={setDestination}
         showHelpText={showHelpText}
         helpText={recipientSats === undefined
-          ? 'The ZELD arrives on a small Bitcoin output.'
-          : `The ZELD arrives on a ${recipientSats}-sat Bitcoin output; the rest of the BTC returns to you.`}
+          ? t('zeld_recipient_help')
+          : t('zeld_recipient_sats_help', [formatAmount({ value: recipientSats, maximumFractionDigits: 0 })])}
       />
       <Field>
         <Label className="text-sm font-medium text-gray-700">
-          Amount <span className="text-red-500">*</span>
+          {t('common_amount')} <span className="text-red-500">*</span>
         </Label>
         <div className="mt-1 flex gap-2">
           <Input
@@ -114,12 +115,12 @@ function ZeldSendForm({
             disabled={available === 0n}
             className="px-3 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
           >
-            Max
+            {t('common_max')}
           </button>
         </div>
         {showHelpText && (
           <Description className="mt-1 text-sm text-gray-500">
-            Up to 8 decimal places. Unsent ZELD stays with you.
+            {t('zeld_amount_help')}
           </Description>
         )}
       </Field>
@@ -150,8 +151,8 @@ function ZeldSendReview({
       error={error}
       isSigning={isSigning}
       customFields={[
-        { label: 'Amount', value: `${formatAmount({ value: amount, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD` },
-        { label: 'Recipient BTC', value: `${apiResponse.result.btc_out.toLocaleString()} sats (${fromSatoshis(apiResponse.result.btc_out)} BTC)` },
+        { label: t('common_amount'), value: `${formatAmount({ value: amount, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD` },
+        { label: t('zeld_recipient_btc'), value: `${formatAmount({ value: apiResponse.result.btc_out, maximumFractionDigits: 0 })} sats (${fromSatoshis(apiResponse.result.btc_out)} BTC)` },
       ]}
     />
   );
@@ -169,7 +170,7 @@ export default function ZeldSendPage(): ReactElement {
       <Composer<ZeldSendFormData>
         composeType="send"
         composeApiMethod={compose as unknown as (data: ZeldSendFormData) => Promise<ApiResponse>}
-        initialTitle="Send ZELD"
+        initialTitle={t('zeld_send')}
         FormComponent={ZeldSendForm}
         ReviewComponent={ZeldSendReview}
       />

@@ -1,7 +1,52 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { MarketplaceReviewCard } from './marketplace-review-card';
+import {
+  analyzeMarketplaceIntent,
+  type FundOffersIntentClaim,
+  type MarketplaceAnalysisInput,
+  type PrepareBulkFanoutIntentClaim,
+} from '@/core/counterparty/marketplaceIntent';
+import { CounterpartyDetailsCard } from './counterparty-details-card';
+import { MarketplaceReviewCard, provedReviewNotes } from './marketplace-review-card';
+
+const OWNER = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+const SPEND_TXID = '22'.repeat(32);
+const COIN_TXID = '23'.repeat(32);
+
+const selfSend = (intent: FundOffersIntentClaim | PrepareBulkFanoutIntentClaim): MarketplaceAnalysisInput => ({
+  intent,
+  inputs: [{ index: 0, txid: COIN_TXID, vout: 0, address: OWNER, value: 20_000, hasSignatures: false }],
+  outputs: [
+    { index: 0, type: 'p2wpkh', address: OWNER, value: 9_000 },
+    { index: 1, type: 'p2wpkh', address: OWNER, value: 9_000 },
+    { index: 2, type: 'p2wpkh', address: OWNER, value: 1_600 },
+  ],
+  signedInputs: [{ index: 0, sighashType: 0x01 }],
+  signerAddresses: [OWNER],
+  attachedAssets: [],
+  attachedAssetDestination: null,
+  hasCounterpartyPayload: false,
+  transactionId: SPEND_TXID,
+});
+
+const fundOffers: FundOffersIntentClaim = {
+  standard: 'counterparty-marketplace', version: 1, action: 'fund_offers',
+  operationId: `offer-funding:${SPEND_TXID}`, protocolVersion: 'exact_offer_v1', assets: [],
+  bidder: OWNER, target: { scope: 'asset', asset: 'RAREPEPE' },
+  priceSats: 8_000, platformFeeSats: 1_000, delivery: { mode: 'detached' },
+  fundingInputs: [{ txid: COIN_TXID, vout: 0, valueSats: 20_000 }], fundingValueSats: 20_000,
+  slotCount: 2, slotValueSats: 9_000, networkFeeSats: 400, changeSats: 1_600,
+  expectedTxid: SPEND_TXID, marketplaceExpiresAt: 2_000_000_000,
+};
+
+const fanout: PrepareBulkFanoutIntentClaim = {
+  standard: 'counterparty-marketplace', version: 1, action: 'prepare_bulk_fanout',
+  operationId: 'bulk-1', protocolVersion: 'counterparty_bulk_attach_v1', assets: [], batchIndex: 0,
+  seller: OWNER, fundingOutpoint: { txid: COIN_TXID, vout: 0 }, fundingValueSats: 20_000,
+  slotCount: 2, slotValueSats: 9_000, networkFeeSats: 400, changeSats: 1_600,
+  expectedTxid: SPEND_TXID, operationExpiresAt: 2_000_000_000,
+};
 
 describe('MarketplaceReviewCard', () => {
   it('explains a proved flexible listing without a generic drain warning', () => {
@@ -114,5 +159,36 @@ describe('MarketplaceReviewCard', () => {
     rerender(<MarketplaceReviewCard review={review} onRetry={onRetry} retryError="Ledger still unavailable" />);
     expect(screen.getByRole('alert')).toHaveTextContent('Ledger still unavailable');
     expect(screen.queryByRole('button', { name: /^(sign|authorize)( |$)/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('proved self-send outcome notes', () => {
+  it.each([
+    ['fund_offers', fundOffers, /Every output stays in this wallet/],
+    ['prepare_bulk_fanout', fanout, /Every output remains controlled by this wallet/],
+  ] as const)('renders the %s reassurance on the approval details and the review card', (_family, intent, note) => {
+    const review = analyzeMarketplaceIntent(selfSend(intent));
+    expect(review.status).toBe('proved');
+
+    // What the single-PSBT approval screen renders for a proved review.
+    const { unmount } = render(<CounterpartyDetailsCard fields={review.facts} notes={provedReviewNotes(review)} />);
+    expect(screen.getByText(note)).toBeInTheDocument();
+    unmount();
+
+    render(<MarketplaceReviewCard review={review} />);
+    expect(screen.getByText(note)).toBeInTheDocument();
+  });
+
+  it('names a Counterparty-free section by the title it is given', () => {
+    const review = analyzeMarketplaceIntent(selfSend(fundOffers));
+    render(<CounterpartyDetailsCard fields={review.facts} title="Details" />);
+    expect(screen.getByRole('heading', { name: 'Details' })).toBeInTheDocument();
+    expect(screen.queryByText('Counterparty')).not.toBeInTheDocument();
+  });
+
+  it('keeps notes off a self-send that did not prove', () => {
+    const review = analyzeMarketplaceIntent({ ...selfSend(fundOffers), hasCounterpartyPayload: true });
+    expect(review.status).toBe('blocked');
+    expect(provedReviewNotes(review)).toEqual([]);
   });
 });

@@ -1,6 +1,7 @@
 import { Composer } from "@/components/composer/composer";
 import type { ApiResponse, MPMAOptions } from "@/core/counterparty/compose";
 import { composeMPMA } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { MPMAForm } from "@/pages/compose/send/mpma/form";
 import { ReviewMPMA } from "@/pages/compose/send/mpma/review";
 
@@ -28,7 +29,7 @@ function ComposeMpmaPage() {
     // The three lists are parallel by construction in the MPMA form; a
     // mismatch means corrupted form state and must not reach compose
     if (destinations.length !== assets.length || quantities.length !== assets.length) {
-      throw new Error('Mismatched MPMA form data: assets, destinations, and quantities must align');
+      throw new Error(t('send_mpma_mismatched_mpma_form_data_assets'));
     }
 
     const mpmaOptions: MPMAOptions = {
@@ -49,7 +50,7 @@ function ComposeMpmaPage() {
       <Composer<MPMAData>
         composeType="mpma"
         composeApiMethod={composeTransaction}
-        initialTitle="MPMA Send"
+        initialTitle={t('send_mpma_mpma_send')}
         FormComponent={MPMAForm}
         ReviewComponent={ReviewMPMA}
       />

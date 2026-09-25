@@ -40,7 +40,8 @@ interface XcpProvider {
 Connect to the wallet. Opens a popup for user approval on first connection.
 
 The approval outlives the extension's background worker, which the browser may stop while the
-prompt is open. If this call fails with `4900` while the user still has the prompt up, retry it:
+prompt is open. If this call fails with `4900` (without `data.reloadRequired`; that one means
+reload the page, see [Liveness](#liveness)) while the user still has the prompt up, retry it:
 approving grants the connection whether or not the original call survived, so the retry returns
 the accounts rather than opening a second prompt. An approval granted while your call was gone
 also emits `accountsChanged`, so a listener will see it even if you never retry.
@@ -148,6 +149,22 @@ outright when it is not one. Plain Bitcoin website payments use the narrower
   showing a figure it cannot stand behind. Fixed-rate dispensers are unaffected.
 - **Undecodable payloads.** A Counterparty payload the wallet cannot decode is surfaced as an
   unrecognized transaction and blocked, not rendered as an ordinary transfer.
+- **Durable sell authorizations.** A `SINGLE|ANYONECANPAY` signature (or any other sighash that
+  leaves outputs uncommitted) over an input that carries attached assets — or whose asset status
+  cannot be verified — lets whoever holds it complete a sale of those assets at any time until the
+  UTXO is spent, with the assets delivered wherever they choose. It is refused, acknowledged or not,
+  unless a proved `create_listing` intent covers that exact input. `ALL|ANYONECANPAY` commits every
+  output, so it stays with the attached-asset destination warning instead.
+- **Assets the ledger cannot show yet.** The asset lookup asks the Counterparty ledger, which only
+  reflects parsed blocks. An empty answer for a signed input is accepted only when the transaction
+  that created the outpoint could not have attached anything to it: it carries no attach (or legacy
+  move) naming that output, and — if the outpoint is its first non-`OP_RETURN` output, where Core
+  moves attached balances — nothing it spends carries or may carry attached assets (checked up the
+  unconfirmed chain, bounded). Otherwise the wallet waits for that transaction to confirm and be
+  parsed, then reads the ledger again; until then signing asks for a retry. An unknown outpoint, or
+  a node that cannot say how far it has parsed, is never treated as asset-free. Spending the change
+  of an unconfirmed attach, or any output of an unconfirmed plain-Bitcoin fan-out or offer funding,
+  is unaffected. The wallet's own recent broadcasts are trusted as before.
 
 A refusal is shown to the user with its reason; the method returns a rejection to the caller.
 
@@ -270,8 +287,10 @@ Attached-asset review likewise presents one outcome, not several warnings for
 the same movement. When the destination is resolved, the destination and exact
 asset list share one row: movement to the wallet's own output or a detach back
 to its own address is information, while delivery outside the wallet or a
-signature that leaves delivery flexible is danger. A failed asset lookup
-remains a warning because an unknown UTXO is never treated as asset-free.
+signature that leaves delivery flexible is danger (and, outside a proved listing, blocked as a
+durable sell authorization). A failed asset lookup blocks with a retry because an unknown UTXO is
+never treated as asset-free; when the reason is an unconfirmed transaction that may attach assets
+to the input, the screen names that transaction and asks to retry after it confirms.
 
 When local transaction verification blocks approval, the popup recommends
 retrying or asking the site to rebuild the request. It does not instruct the
@@ -328,6 +347,63 @@ with `SINGLE|ANYONECANPAY`, and exact asset UTXO-plus-price payment at output 1.
 buyer funding and the detach destination remain flexible. A false claim is blocked; an unavailable
 asset lookup asks the user to retry rather than treating the UTXO as empty. Marketplace expiry is
 displayed as service policy, not Bitcoin signature expiry.
+
+**Offer funding (`fund_offers`).** Before a buyer can authorize exact offers, a clean-Bitcoin
+self-send sets aside one output per offered edition. It carries no Counterparty content, so the
+Counterparty-only rule above would refuse it; a proved `fund_offers` intent is the one narrow
+exception, and only that rule is lifted:
+
+```js
+await xcpwallet.request({
+  method: 'xcp_signPsbt',
+  params: [{
+    hex: fundingPsbtHex,
+    signInputs: { [bidder]: [0, 1] },
+    sighashTypes: [0x01, 0x01],
+    intent: {
+      standard: 'counterparty-marketplace',
+      version: 1,
+      action: 'fund_offers',
+      operationId: 'offer-funding:<expected txid>',
+      protocolVersion: 'exact_offer_v1',
+      assets: [],
+      bidder,
+      target: { scope: 'collection', collection: 'rare-pepe', policy: 'series 1' }, // or { scope: 'asset', asset }
+      priceSats: 8000,
+      platformFeeSats: 1000,
+      delivery: { mode: 'detached' },             // or { mode: 'attached', utxoValueSats: 330 }
+      fundingInputs: [
+        { txid: '<64-char txid>', vout: 0, valueSats: 15000 },
+        { txid: '<64-char txid>', vout: 3, valueSats: 5000 }
+      ],
+      fundingValueSats: 20000,
+      slotCount: 2,
+      slotValueSats: 9000,                        // price + platform fee (+ delivery UTXO)
+      networkFeeSats: 400,
+      changeSats: 1600,
+      expectedTxid: '<64-char txid>',
+      marketplaceExpiresAt: 1711130400
+    }
+  }]
+});
+```
+
+The wallet proves the transaction id; that the inputs are exactly the claimed outpoints and values,
+all owned by the bidder, unsigned, and free of attached assets (a failed lookup asks for a retry);
+that every input is signed `SIGHASH_ALL`; that the outputs are exactly `slotCount` outputs of
+`slotValueSats` plus optional change, all paying the bidder, with no data output; that each slot is
+the price plus the platform fee plus any attached-delivery UTXO; and that the fee equals inputs
+minus outputs. The target is display context only — the funding commits to no asset. A seller can
+take a slot only through a later `authorize_exact_offer` signature, which is its own approval.
+
+- **`sighashTypes` must be `0x01` (`SIGHASH_ALL`) for every input, Taproot included.**
+  `SIGHASH_DEFAULT` (`0x00`) commits to the same data but is refused for this intent: the wallet
+  proves the exact flag, so an explicit or PSBT-embedded `0x00` on a P2TR input is blocked.
+- `fundingInputs` lists 1..30 distinct outpoints, the most the approval screen checks for
+  attached assets; a repeated outpoint is refused.
+- `target.asset` must be a Counterparty asset name (named, numeric `A…`, or a subasset longname).
+  `target.collection` and `target.policy` are cleaned of control and bidi characters, collapsed to
+  one line, shortened, and shown in quotation marks as the website's own words.
 
 **Mixed sighash flags.** When signed inputs carry different flags, the summary
 prices only the outputs that every `ANYONECANPAY` input covers on its own. Such
@@ -389,13 +465,81 @@ An extra output, substituted address or amount, unreadable output script, OP_RET
 lookup, or attached asset hard-blocks signing. The approval always appears and shows the full
 destination and amount. The `description`, `reference`, and requesting origin can change wording,
 but can never make an unsafe PSBT signable. A proved payment is shown once in that exact-output
-card; the generic analyzer's truncated payment notice is omitted rather than duplicating it.
+card; the generic analyzer's duplicate payment notice is omitted rather than repeating it.
+
+Every external-destination notice names each address in full. A same-prefix look-alike (easy to
+generate for the first dozen characters) must read differently from the real destination.
 
 The existing permissioned paired-address capability also applies to this method. A payment that
 spends both the same-index Legacy P2PKH and SegWit P2WPKH addresses must name both addresses and
 their absolute input indices in `signInputs`, with a `SIGHASH_ALL` entry for each input. Both
 addresses are then recognized as wallet-owned when classifying change. This does not relax the
 per-origin paired-address permission, exact-output proof, or attached-asset checks.
+
+#### `xcp_signPsbts`
+
+Sign 1..8 linked marketplace PSBTs in one approval. Every request carries a
+`counterparty-marketplace` intent; the wallet admits only the bundle kinds below, proves every item
+against its own bytes first, and returns **all signatures or none** (a later signer failure
+discards earlier signatures before anything is returned).
+
+```js
+const result = await xcpwallet.request({
+  method: 'xcp_signPsbts',
+  params: [{
+    requests: [
+      { hex, signInputs: { [address]: [0] }, sighashTypes: [0x01, 0x01], intent },
+      // ...
+    ]
+  }]
+});
+// { hexes: ['<signed PSBT hex>', ...] } — same order as `requests`
+```
+
+| Kind | Items | What is proved beyond each item |
+|---|---|---|
+| `attach-and-list` | `[attach_for_listing, create_listing]` | The listing spends exactly the attach's new asset output (see below). |
+| `authorize-offers` | 1..8 `authorize_exact_offer` | One bidder, funding outpoint, delivery, price, and fee; distinct targets. |
+| `acceptance-cpfp` | `[accept_exact_offer, bump_acceptance_fee]` | The child spends exactly the proved parent's seller output 1. |
+| `bulk-listing`, `bulk-attach`, `prepare-assets`, `bulk-fanout` | 1..8 of one action | One seller identity; distinct targets. |
+
+**Advertised bundles.** `xcp_getAddresses` reports the linked kinds this wallet can prove at
+`signing.psbtBatch.marketplaceBundles` (currently `["attach-and-list", "authorize-offers"]` for a
+software wallet and `[]` for a hardware wallet, whose batch contract accepts only `SIGHASH_ALL`
+with every external input pre-signed). Send a linked bundle only when its kind is listed; an older
+wallet proves each item alone and blocks the listing below.
+
+**`attach-and-list`.** The listing's asset input is the attach's output, which is not broadcast
+yet, so no Counterparty ledger can report its balance. The wallet uses the attach instead, read from
+its own bytes and never from the intent: the outpoint is the attach PSBT's unsigned txid and the
+asset output index (the first non-OP_RETURN output, which an explicit `destination_vout` must equal);
+the asset and raw quantity are those of the locally decoded attach message; the owner and value are
+that output's script and amount. This evidence stands in for the ledger lookup on listing input 1
+only when the attach item itself did not fail its proof, and only when listing input 1 is exactly
+that outpoint with that owner and value; any difference blocks the bundle. If the ledger does
+report assets on that outpoint, its answer is kept and checked like any other listing. A failed
+lookup is replaced only when it is explained by the attach itself (the explorer reports the attach
+txid as unknown, or the lookup names the attach as the pending transaction); an outage stays a
+retry. Because Counterparty also moves every balance on the attach's *inputs* onto the listed
+output, the listing is proved only after every attach input's parent transaction is confirmed at
+or below Counterparty's parsed block height and each input re-reads as asset-free; an unconfirmed
+or unindexed parent, or any unanswerable lookup, asks for a retry. The attach message's quantity
+and destination must be plain decimal digits, as Core requires. A
+`create_listing` outside this pair still requires the ledger. For a Legacy asset source the attach
+txid changes when it is signed; the wallet signs the attach first, confirms its unsigned bytes did
+not change, and moves listing input 1 to the final txid (same vout) before signing the listing, so
+the listing signature covers exactly the proved attach output.
+
+**`authorize-offers`.** Several exact targets backed by one buyer funding UTXO, as returned by the
+marketplace's batch preflight. Each item is proved exactly as a single `authorize_exact_offer`
+(only input 0, `SIGHASH_ALL`, never `SINGLE|ANYONECANPAY`; fixed outputs, fee, and delivery; the
+target's attached asset from the ledger). The bundle additionally requires the same bidder,
+`bitcoinInvalidation.outpoint`, delivery, `priceSats`, and `platformFeeSats` on every item, and
+distinct `authorizationId`, `operationId`, target outpoint, and `expectedTxid`, none of which may be
+the funding outpoint. Because every signature spends the same input 0, at most one can ever settle;
+the review states this once, with every target under its ledger-proved quantity, and labels the
+expiry "Latest marketplace expiry" when the targets' expiries differ. The acknowledgement policy is the single
+authorization's, applied per item.
 
 ### Broadcasting
 
@@ -435,8 +579,13 @@ it returns the corresponding P2PKH and P2WPKH addresses and public keys.
 
 ```js
 const addresses = await xcpwallet.request({ method: 'xcp_getAddresses' });
-// { active: {...}, legacy: {...}, segwit: {...} }
+// { active: {...}, signing: {...}, legacy: {...}, segwit: {...} }
 ```
+
+`signing` reports what the active wallet can sign through the provider, so a site can avoid
+opening an approval that cannot succeed: `psbt` and `psbtBatch` each give the accepted sighash
+bytes, input scope, and external-input rule, and `psbtBatch` adds `maxRequests` and
+`marketplaceBundles` (the linked `xcp_signPsbts` kinds it can prove; see above).
 
 #### `xcp_chainId`
 
@@ -463,17 +612,66 @@ xcpwallet.on('accountsChanged', (accounts) => {
   //             later unlock re-emits [address] (no need to reconnect)
 });
 
-// Wallet revoked this site's connection (explicit disconnect only)
-xcpwallet.on('disconnect', () => {
-  // Connection revoked — call xcp_requestAccounts to reconnect
+// Two causes, told apart by the payload
+xcpwallet.on('disconnect', (error) => {
+  if (error?.code === 4900 && error.data?.reloadRequired) {
+    // This page lost its link to the extension (the wallet was updated or reloaded).
+    // Nothing reaches the wallet until the page reloads: show a "Reload page" prompt.
+    // The site's connection is NOT revoked; keep any remembered session.
+    return;
+  }
+  // Wallet revoked this site's connection (explicit disconnect only; payload is {}).
+  // Call xcp_requestAccounts to reconnect.
 });
 ```
 
-A lock emits `accountsChanged []`, not `disconnect`. Treat an empty array as "temporarily unavailable," and only `disconnect` as "must reconnect."
+A lock emits `accountsChanged []`, not `disconnect`. Treat an empty array as "temporarily unavailable," and only `disconnect` as "must reconnect" (or, with `reloadRequired`, "must reload").
+
+A reload-required `disconnect` is an `Error` shaped like an EIP-1193 `ProviderRpcError`:
+`{ code: 4900, message: 'XCP Wallet was updated or restarted. Reload this page to reconnect.', data: { reloadRequired: true } }`.
+It fires once per page, as soon as the provider learns the bridge is gone: the content script
+checks every couple of seconds whether its extension is still there (so it arrives without the
+page having to make a request), and a request that fails that way also triggers it.
+
+## Liveness
+
+`window.xcpwallet` talks to the wallet through a content script. When the browser updates or
+reloads the extension, already-open pages keep their old content script, but it is orphaned:
+it can never reach the wallet again, and only reloading the page injects a live one. The
+provider makes that fail fast instead of hanging:
+
+- **Acknowledgement.** The content script acknowledges every request the moment it receives it,
+  before the wallet does any work. If no acknowledgement arrives within **5 seconds**, the
+  provider first lets the page's pending messages drain (a page that kept its main thread busy
+  may simply not have delivered it yet) and only then rejects that request, and any other request
+  never acknowledged, with the reload-required `4900`, and fires `disconnect`. This applies to
+  every method, interactive ones included. A request that *was* acknowledged is never failed this
+  way; the content script answers it.
+- **After the acknowledgement** an interactive method (`xcp_requestAccounts`, `xcp_sign*`) may
+  wait as long as the user needs; the wallet's own approval timeout is the only bound. Other
+  methods keep their 60-second response timeout.
+- **Orphaned content script.** Requests it still holds, and every later request, are answered
+  immediately with the reload-required `4900`.
+- **Service-worker restarts** are not a dead bridge. The extension's background worker is stopped
+  by the browser when idle and restarted on demand; the content script reconnects on its own.
+  Read-only methods are retried once transparently. A method that was already delivered when the
+  worker stopped (e.g. a signing request) is not replayed, to avoid a duplicate prompt; it rejects
+  with a plain `4900` (`"XCP Wallet restarted while handling this request. Please try again."`,
+  no `reloadRequired`) and can simply be retried.
+- **A worker that dies mid-request** is noticed even when the browser does not report it: while
+  a request waits (for example on an open approval), the content script checks every 15 seconds
+  that the worker still answers, and fails the request with that plain, retryable `4900` after one
+  missed check (at most about 30 seconds). These checks run only while something is waiting, so
+  they keep the worker awake no longer than a request needs it. Likewise a background that never
+  acknowledges a delivered request within 10 seconds, and a connection left idle long enough that
+  its worker may have been stopped, are replaced rather than waited on.
+
+A `4900` that the wallet itself returns as an answer (rather than a lost connection) is passed
+through as an ordinary error and not retried.
 
 ## Errors
 
-`request()` rejects with an `Error` carrying a numeric `code` (JSON-RPC / EIP-1193 style). Branch on the `code`, not the message — messages are for display and may change.
+`request()` rejects with an `Error` carrying a numeric `code` (JSON-RPC / EIP-1193 style), and sometimes a `data` object. Branch on the `code` (and `data`), not the message — messages are for display and may change.
 
 ```js
 try {
@@ -489,7 +687,8 @@ try {
 | `4001` | User rejected the request (declined or closed the popup) | Treat as a cancellation |
 | `4100` | Not connected, or the wallet is locked / not set up | Call `xcp_requestAccounts`, or prompt to unlock |
 | `4200` | Method not supported | Stop calling it |
-| `4900` | Wallet background was momentarily unavailable | Transient — retry (the SDK retries connecting and signing automatically) |
+| `4900` | Wallet background was momentarily unavailable (no `data`) | Transient — retry (the SDK retries connecting and signing automatically) |
+| `4900` + `data.reloadRequired: true` | This page's link to the extension is gone (the wallet was updated or reloaded) | Retrying cannot help: ask the user to reload the page. See [Liveness](#liveness) |
 | `-32603` | Internal error | Generic failure; internal details are intentionally masked |
 
 Only these codes carry a meaningful message; any other failure surfaces as `-32603` with `"Request failed"`.

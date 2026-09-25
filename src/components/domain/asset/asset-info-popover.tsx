@@ -5,6 +5,8 @@ import type { AssetInfo } from "@/core/counterparty/api";
 import { formatAddress, formatTimeAgo } from "@/core/format";
 import { isNumericAsset } from "@/core/validation/asset";
 
+import { t } from '@/i18n';
+
 interface AssetInfoPopoverProps {
   assetInfo: AssetInfo | null;
   userBalance?: string;
@@ -47,7 +49,7 @@ export function AssetInfoPopover({
       <button type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-        aria-label="View asset details"
+        aria-label={t('asset_asset_info_popover_view_asset_details')}
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
@@ -57,12 +59,12 @@ export function AssetInfoPopover({
         <div className="absolute right-0 top-10 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 min-w-[200px]">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-gray-700">
-              Asset Details
+              {t('common_asset_details')}
             </span>
             <button type="button"
               onClick={() => setIsOpen(false)}
               className="p-0.5 text-gray-400 hover:text-gray-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-              aria-label="Close"
+              aria-label={t('common_close')}
             >
               <FiX className="size-3" aria-hidden="true" />
             </button>
@@ -87,7 +89,7 @@ export function AssetInfoPopover({
           <div className="space-y-1.5 text-xs">
             {(assetInfo.owner || assetInfo.issuer) && (
               <div className="flex justify-between">
-                <span className="text-gray-500">Owner</span>
+                <span className="text-gray-500">{t('asset_asset_info_popover_owner')}</span>
                 <span className="text-gray-900 font-mono">
                   {formatAddress(assetInfo.owner || assetInfo.issuer!)}
                 </span>
@@ -95,33 +97,33 @@ export function AssetInfoPopover({
             )}
             {assetInfo.first_issuance_block_time && (
               <div className="flex justify-between">
-                <span className="text-gray-500">Issued</span>
+                <span className="text-gray-500">{t('asset_asset_info_popover_issued')}</span>
                 <span className="text-gray-900">
                   {formatTimeAgo(assetInfo.first_issuance_block_time)}
                 </span>
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-gray-500">Locked</span>
+              <span className="text-gray-500">{t('common_locked')}</span>
               <span className="text-gray-900">
                 {assetInfo.locked ? "Yes" : "No"}
               </span>
             </div>
             {assetInfo.description_locked && (
               <div className="flex justify-between">
-                <span className="text-gray-500">Description Locked</span>
-                <span className="text-gray-900">Yes</span>
+                <span className="text-gray-500">{t('common_description_locked')}</span>
+                <span className="text-gray-900">{t('asset_asset_info_popover_yes')}</span>
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-gray-500">Divisible</span>
+              <span className="text-gray-500">{t('common_divisible')}</span>
               <span className="text-gray-900">
                 {assetInfo.divisible ? "Yes" : "No"}
               </span>
             </div>
             {userBalance !== undefined && (
               <div className="flex justify-between">
-                <span className="text-gray-500">Your Balance</span>
+                <span className="text-gray-500">{t('common_your_balance')}</span>
                 <span className="text-gray-900">{userBalance}</span>
               </div>
             )}

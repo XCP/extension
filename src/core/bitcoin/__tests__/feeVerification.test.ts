@@ -36,6 +36,10 @@ describe('checkTransactionFee', () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/abnormally high|far exceeds/i);
+    expect(result.diagnostic).toEqual({
+      code: 'fee_abnormally_high',
+      data: { feeSats: 99_975_233, approximateRate: '389008' },
+    });
   });
 
   it('coerces a string user rate (the form value) and still bounds the fee', () => {
@@ -47,6 +51,7 @@ describe('checkTransactionFee', () => {
     }, resolverReturning(OUTPUT_TOTAL + 150_000))).resolves.toMatchObject({
       ok: false,
       error: expect.stringMatching(/exceeds your selected rate/i),
+      diagnostic: { code: 'fee_exceeds_selected_rate', data: { feeSats: 150_000, selectedRate: 10 } },
     });
   });
 
@@ -60,6 +65,7 @@ describe('checkTransactionFee', () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/exceeds your selected rate/i);
+    expect(result.diagnostic).toEqual({ code: 'fee_exceeds_selected_rate', data: { feeSats: 150_000, selectedRate: 10 } });
   });
 
   it('rejects outputs exceeding inputs', async () => {
@@ -70,6 +76,7 @@ describe('checkTransactionFee', () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/exceed inputs/i);
+    expect(result.diagnostic).toEqual({ code: 'fee_outputs_exceed_inputs' });
   });
 
   it('allows a modest fee when no user rate is set', async () => {
@@ -107,6 +114,7 @@ describe('input values are never taken from the compose response', () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/could not establish/i);
+    expect(result.diagnostic).toEqual({ code: 'fee_inputs_unavailable' });
   });
 
   it('refuses when the resolver throws', async () => {
@@ -117,6 +125,7 @@ describe('input values are never taken from the compose response', () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/could not establish/i);
+    expect(result.diagnostic).toEqual({ code: 'fee_inputs_unavailable' });
   });
 
   it('refuses a partial answer rather than summing what it got', async () => {
@@ -131,5 +140,6 @@ describe('input values are never taken from the compose response', () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/could not establish/i);
+    expect(result.diagnostic).toEqual({ code: 'fee_inputs_unavailable' });
   });
 });

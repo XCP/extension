@@ -1,6 +1,8 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewBTCPay component.
  */
@@ -34,7 +36,7 @@ export function ReviewBTCPay({
     | undefined;
 
   const customFields = [
-    { label: "Order Match ID", value: decoded?.orderMatchId ?? result.params.order_match_id },
+    { label: t('common_order_match_id'), value: decoded?.orderMatchId ?? result.params.order_match_id },
   ];
 
   return (

@@ -1,8 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from '@/i18n/test-utils';
 import "@testing-library/jest-dom/vitest";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { BalanceList } from "./balance-list";
 
 // Mock dependencies
@@ -203,6 +206,7 @@ describe("BalanceList", () => {
   ];
 
   beforeEach(() => {
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
     vi.clearAllMocks();
     mockActiveWallet = { id: "wallet1", name: "Test Wallet" };
     mockActiveAddress = { address: "bc1qtest123", name: "Test Address" };
@@ -219,6 +223,11 @@ describe("BalanceList", () => {
     mockIsSearching = false;
     mockSearchError = null;
     mockInView.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    cleanup();
+    mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
   });
 
   // The rule from live testing: an asset fully escrowed on an in-mempool order shows a spendable
@@ -766,7 +775,17 @@ describe("BalanceList", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load more balances");
     expect(screen.getByText("BTC")).toBeInTheDocument();
     expect(mockFetchTokenBalances).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    const reads = [mockFetchBTCBalance, mockFetchTokenBalance, mockFetchTokenBalances, mockFetchMempoolLedgerEvents];
+    const counts = reads.map(read => read.mock.calls.length);
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
+      expect(screen.getByRole('alert')).toHaveTextContent(t('balance_balance_list_load_more_failed'));
+      expect(screen.getByText('BTC')).toBeInTheDocument();
+      expect(screen.getByText('1.00000000')).toBeInTheDocument();
+      expect(reads.map(read => read.mock.calls.length)).toEqual(counts);
+      expect(mockSetSearchQuery).not.toHaveBeenCalled();
+    }
+    fireEvent.click(screen.getByRole("button", { name: t('common_retry') }));
     await screen.findByText("XCP");
     expect(mockFetchTokenBalances).toHaveBeenNthCalledWith(2, "bc1qtest123", { type: "address", limit: 20, offset: 0 });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -780,7 +799,15 @@ describe("BalanceList", () => {
     rerender(<BalanceList refreshNonce={1} onRefreshed={onRefreshed} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load balances");
     expect(onRefreshed).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    const reads = [mockFetchBTCBalance, mockFetchTokenBalance, mockFetchTokenBalances, mockFetchMempoolLedgerEvents];
+    const counts = reads.map(read => read.mock.calls.length);
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+      act(() => { mockBrowserLocale({ language, numberLocale: 'en-US' }); });
+      expect(screen.getByRole('alert')).toHaveTextContent(t('balance_balance_list_load_failed'));
+      expect(reads.map(read => read.mock.calls.length)).toEqual(counts);
+      expect(onRefreshed).toHaveBeenCalledOnce();
+    }
+    fireEvent.click(screen.getByRole("button", { name: t('common_retry') }));
     await screen.findByText("BTC");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(onRefreshed).toHaveBeenCalledOnce();

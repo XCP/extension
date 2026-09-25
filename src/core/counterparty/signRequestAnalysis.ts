@@ -23,6 +23,7 @@ import {
   movesCounterpartyValue,
   resolveAttachedAssetDestination,
 } from '@/core/counterparty/attachedAssetMovement';
+import { findUncommittedAssetSignatures } from '@/core/counterparty/durableSellAuthorization';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import {
   analyzeMarketplaceIntent,
@@ -50,6 +51,7 @@ import { type ProviderVerificationResult, verifyProviderTransaction } from '@/co
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import { getActiveSettings } from '@/core/settings';
 import { classifyZeldOutpoints } from '@/core/zeld/protection';
+import { t } from '@/i18n';
 
 /** An input being signed, identified by the outpoint it spends. */
 export interface AnalyzedInput {
@@ -81,6 +83,8 @@ export interface SignRequestAnalysisInput {
   outputs: AnalyzedOutput[];
   /** Addresses this wallet would sign with. Empty when the caller has none to name. */
   signerAddresses: string[];
+  /** Trusted wallet ownership, never addresses asserted by a site. */
+  ownedAddresses?: string[];
   /**
    * Indices of the inputs this wallet is being asked to sign. Assets on inputs it does not sign
    * belong to someone else's side of the transaction.
@@ -119,6 +123,7 @@ export interface SignRequestAnalysis {
   safety: SafetyAnalysis;
   attachedAssets: InputAttachedAssets[];
   mpmaRecipients: MpmaRecipient[];
+  /** Exact local evidence stays unchanged until the approval UI translates the stable code. */
   structureFindings: StructureFinding[];
   protocolContext: ProtocolContext;
   attachedAssetDestination: AttachedAssetDestination | null;
@@ -267,6 +272,8 @@ export async function analyzeSignRequest(
         ...safety.warnings,
         {
           severity: hunting ? 'block' : 'warning',
+          code: 'zeld_would_leave',
+          data: { count },
           title: hunting ? 'Blocked: ZELD Would Leave' : 'ZELD Would Leave',
           message:
             `${count} of the outputs this site asks you to spend ${count === 1 ? 'holds' : 'hold'} ZELD, `
@@ -381,6 +388,7 @@ export async function analyzeSignRequest(
       signerAddresses,
       attachedAssets,
       attachedAssetDestination,
+      ownedAddresses: input.ownedAddresses,
       hasCounterpartyPayload: Boolean(counterpartyDataHex),
       transactionId,
       localCounterpartyMessage: verification.localUnpack?.success
@@ -403,6 +411,14 @@ export async function analyzeSignRequest(
         ...safety.warnings,
       ];
       safety.blocked = true;
+    } else if (
+      marketplaceReview.status === 'proved'
+      && (marketplaceReview.family === 'prepare_bulk_fanout' || marketplaceReview.family === 'fund_offers')
+    ) {
+      // A proved fan-out or offer funding spends clean funding into exact same-wallet outputs.
+      // Only its absence of a Counterparty payload is exempt; every other block survives.
+      safety.warnings = safety.warnings.filter(warning => warning.code !== 'counterparty_only_gate');
+      safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
     } else if (
       (marketplaceReview.status === 'proved' || marketplaceReview.status === 'caution')
       && (
@@ -435,6 +451,34 @@ export async function analyzeSignRequest(
       }
       safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
     }
+  }
+
+  // Last, so no marketplace family's warning filter can remove it: a SINGLE/NONE signature over
+  // an asset-bearing (or unverifiable) input is a durable offer to sell that asset to whoever
+  // holds the signature. Only a proved listing may ask for one (`durableSellAuthorization.ts`).
+  const durableSellInputs = findUncommittedAssetSignatures(
+    attachedAssets,
+    input.signedInputs,
+    marketplaceReview,
+  );
+  if (durableSellInputs.length > 0) {
+    const inputList = durableSellInputs.map(index => `#${index}`).join(', ');
+    // After any existing blocks, which name a more specific failure (a disproved marketplace
+    // claim, a sweep), and ahead of everything that does not block.
+    const firstNonBlock = safety.warnings.findIndex(warning => warning.severity !== 'block');
+    const split = firstNonBlock === -1 ? safety.warnings.length : firstNonBlock;
+    safety.warnings = [
+      ...safety.warnings.slice(0, split),
+      {
+        code: 'durable_sell_authorization',
+        data: { inputs: durableSellInputs },
+        severity: 'block',
+        title: t('safety_blocked_durable_sell_authorization'),
+        message: t('safety_durable_sell_authorization_detail', inputList),
+      },
+      ...safety.warnings.slice(split),
+    ];
+    safety.blocked = true;
   }
 
   return {

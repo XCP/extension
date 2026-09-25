@@ -1,5 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 interface ReviewLockDescriptionProps {
   apiResponse: any;
   onSign: () => void;
@@ -18,10 +20,10 @@ export function ReviewLockDescription({
   const { result } = apiResponse;
 
   const customFields = [
-    { label: "Asset", value: result.params.asset },
+    { label: t('common_asset'), value: result.params.asset },
     {
-      label: "Action",
-      value: "Lock Description",
+      label: t('lock_description_review_action'),
+      value: t('common_lock_description'),
       className: "text-red-600 font-medium"
     },
   ];

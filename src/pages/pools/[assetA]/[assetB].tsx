@@ -8,8 +8,8 @@ import { useHeader } from "@/contexts/header-context";
 import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { usePool } from "@/hooks/usePool";
+import { t } from '@/i18n';
 import { PoolOverview } from "@/pages/pools/pool-overview";
-
 export default function PoolPage(): ReactElement {
   const { assetA, assetB } = useParams<{ assetA: string; assetB: string }>();
   const navigate = useNavigate();
@@ -26,18 +26,18 @@ export default function PoolPage(): ReactElement {
 
   useEffect(() => {
     setHeaderProps({
-      title: "Pool",
+      title: t('common_pool'),
       onBack: () => navigate(-1),
     });
     return () => setHeaderProps(null);
   }, [navigate, setHeaderProps]);
 
   if (!decodedAssetA || !decodedAssetB) {
-    return <div className="p-4 text-center text-gray-600">Pool pair not found</div>;
+    return <div className="p-4 text-center text-gray-600">{t('asseta_assetb_pool_pair_not_found')}</div>;
   }
 
   if (isLoading) {
-    return <Spinner message="Loading pool..." className="min-h-[240px]" />;
+    return <Spinner message={t('asseta_assetb_loading_pool')} className="min-h-[240px]" />;
   }
 
   if (error) {
@@ -52,10 +52,10 @@ export default function PoolPage(): ReactElement {
     return (
       <section className="p-4 space-y-4" aria-label={pair}>
         <div className="rounded border border-gray-200 bg-white p-4">
-          <div className="text-xs font-medium uppercase text-gray-500">Pool</div>
+          <div className="text-xs font-medium uppercase text-gray-500">{t('common_pool')}</div>
           <div className="mt-1 text-lg font-semibold text-gray-900">{pair}</div>
           <p className="mt-2 text-sm text-gray-600">
-            This pool has not been created yet.
+            {t('asseta_assetb_this_pool_has_not_been')}
           </p>
           <Button
             type="button"
@@ -63,7 +63,7 @@ export default function PoolPage(): ReactElement {
             className="mt-4"
             onClick={() => navigate(`/compose/pool/deposit/${encodeURIComponent(decodedAssetA)}/${encodeURIComponent(decodedAssetB)}`)}
           >
-            Enter Pool
+            {t('asseta_assetb_enter_pool')}
           </Button>
         </div>
       </section>

@@ -2,6 +2,7 @@ import { FiAlertTriangle } from '@/components/icons';
 import { Collapsible } from '@/components/ui/collapsible';
 import type { WarningItem } from '@/components/ui/warning-stack';
 
+import { t } from '@/i18n';
 /** A concrete exception belongs in the first view; its full evidence remains inspectable. */
 export function ApprovalNotice({ items, blocked = false, statusLabel }: {
   items: WarningItem[];
@@ -21,10 +22,10 @@ export function ApprovalNotice({ items, blocked = false, statusLabel }: {
       <div className="flex items-start gap-2">
         <FiAlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
         <div className="min-w-0 flex-1">
-          {blocked && <p className="mb-0.5 text-xs font-medium">{statusLabel ?? 'Signing blocked'}</p>}
-          <p data-testid="approval-notice-reason" className="font-semibold">{first?.title ?? 'This request could not be verified'}</p>
+          {blocked && <p className="mb-0.5 text-xs font-medium">{statusLabel ?? t('approval_approval_notice_signing_blocked')}</p>}
+          <p data-testid="approval-notice-reason" className="font-semibold">{first?.title ?? t('approval_approval_notice_this_request_could_not_be')}</p>
           {hasDetails && (
-            <Collapsible title={blocked ? 'Why signing is unavailable' : 'What to review'} className="mt-2">
+            <Collapsible title={blocked ? t('approval_approval_notice_why_signing_is_unavailable') : t('approval_approval_notice_what_to_review')} className="mt-2">
               {ordered.map((item, index) => (
                 <div key={item.key}>
                   {index > 0 && <p className="font-semibold">{item.title}</p>}

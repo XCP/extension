@@ -71,8 +71,10 @@ export async function openPopupWindow(path: string): Promise<PopupWindow> {
     throw new Error('Failed to create popup window');
   }
 
-  const windowId = createdWindow.id;
+  return popupHandle(createdWindow.id);
+}
 
+function popupHandle(windowId: number): PopupWindow {
   return {
     id: windowId,
     close: async () => {
@@ -83,6 +85,55 @@ export async function openPopupWindow(path: string): Promise<PopupWindow> {
       }
     },
   };
+}
+
+/**
+ * Query parameter on a window opened to unlock for a request that will continue in that same
+ * window (a locked connect). The unlock screen then waits for the background to navigate it on
+ * instead of going home. See `awaitsContinuation`.
+ */
+export const CONTINUES_PARAM = 'continues';
+
+/** The path for an unlock window whose request continues in it; pass to `openExtensionPopup`. */
+export function continuationUnlockPath(requestId: string): string {
+  return `?${CONTINUES_PARAM}=${encodeURIComponent(requestId)}`;
+}
+
+/** True in a document opened by `continuationUnlockPath`. */
+export function awaitsContinuation(search: string = globalThis.location?.search ?? ''): boolean {
+  return new URLSearchParams(search).has(CONTINUES_PARAM);
+}
+
+/**
+ * Point an extension window that is already open at another route, instead of opening a second
+ * window. Used when a request had to wait for unlock: the window the user typed their password
+ * into continues straight to the request's screen.
+ *
+ * The navigation always loads a new document. A change of fragment alone would be a same-document
+ * navigation: the old app would keep running with whatever state and pending navigations it had
+ * (the unlock screen's own "go home" among them) and could overwrite the new route. A fresh query
+ * parameter makes the URL differ outside the fragment, so the browser discards that document.
+ *
+ * @param path - the fragment route to open, starting with `#`
+ * @returns the reused window, or null when it is gone (closed, or no longer ours to navigate) —
+ *   the caller then opens a new window as usual.
+ */
+export async function reusePopupWindow(windowId: number, path: string): Promise<PopupWindow | null> {
+  try {
+    const [tab] = await chrome.tabs.query({ windowId });
+    if (tab?.id === undefined) return null;
+    const baseUrl = chrome.runtime.getURL('popup.html');
+    // The real guard is the window id: callers only pass ids returned by this extension's own
+    // chrome.windows.create, so the window is one we opened. Without the "tabs" permission the
+    // browser may not report tab.url at all; where it does, also refuse to navigate anything else.
+    if (tab.url && !tab.url.startsWith(baseUrl)) return null;
+    const reload = `?reuse=${encodeURIComponent(crypto.randomUUID())}`;
+    await chrome.tabs.update(tab.id, { url: `${baseUrl}${reload}${path}`, active: true });
+    await focusPopupWindow(windowId);
+    return popupHandle(windowId);
+  } catch {
+    return null;
+  }
 }
 
 /**

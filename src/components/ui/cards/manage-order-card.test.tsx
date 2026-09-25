@@ -1,6 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from '@/i18n/test-utils';
 import '@testing-library/jest-dom/vitest';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { ManageOrderCard } from './manage-order-card';
 
 const mockNavigate = vi.fn();
@@ -21,7 +24,14 @@ const openOrder: any = {
 };
 
 describe('ManageOrderCard', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockBrowserLocale({ language: 'en' });
+  });
+  afterEach(() => {
+    cleanup();
+    mockBrowserLocale({ language: 'en' });
+  });
 
   // A cancel already in the mempool means a second cancel can only fail and burn its fee: the
   // button gives way to the same italic word the balance list uses for in-flight activity.
@@ -30,6 +40,20 @@ describe('ManageOrderCard', () => {
 
     expect(screen.getByText('Cancelling')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+  });
+
+  it('changes a mounted non-English cancellation label without restoring the cancel action', () => {
+    mockBrowserLocale({ language: 'ja' });
+    render(<ManageOrderCard order={openOrder} isCancelling />);
+    expect(screen.getByText(t('cards_manage_order_card_cancelling'))).toBeInTheDocument();
+    for (const language of ['zh-CN', 'zh-TW', 'zh-HK', 'en']) {
+      act(() => { mockBrowserLocale({ language }); });
+      expect(screen.getByText(t('cards_manage_order_card_cancelling'))).toBeInTheDocument();
+      expect(screen.getAllByRole('button')).toHaveLength(1);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    }
+    expect(openOrder.status).toBe('open');
+    expect(openOrder.give_remaining_normalized).toBe('10');
   });
 
   // Regression: the pair line read each side's canonical name, and a subasset's canonical name

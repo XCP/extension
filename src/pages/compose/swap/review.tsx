@@ -3,6 +3,8 @@ import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatPriceRatio } from "@/core/format";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewSwap component.
  */
@@ -43,15 +45,15 @@ export function ReviewSwap({
 
   const customFields = [
     {
-      label: "You Send",
+      label: t('common_you_send'),
       value: `${giveQuantityDisplay} ${giveAssetDisplay}`,
     },
     {
-      label: "Minimum Received",
+      label: t('swap_review_minimum_received'),
       value: `${getQuantityDisplay} ${getAssetDisplay}`,
     },
     {
-      label: "Minimum Price",
+      label: t('swap_review_minimum_price'),
       value: formatPriceRatio(
         giveQuantityDisplay,
         getQuantityDisplay,
@@ -64,7 +66,7 @@ export function ReviewSwap({
           type="button"
           onClick={() => setIsPriceFlipped(!isPriceFlipped)}
           className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          aria-label="Flip price ratio"
+          aria-label={t('common_flip_price_ratio')}
         >
           <FaExchangeAlt className="size-4 text-gray-600" aria-hidden="true" />
         </button>
@@ -72,7 +74,7 @@ export function ReviewSwap({
     },
     // Swaps compose with expiration 1: fill what the price allows on
     // confirmation, refund the rest a block later.
-    { label: "Fills", value: "Immediately, or cancels next block" },
+    { label: t('swap_review_fills'), value: t('swap_review_immediately_or_cancels_next_block') },
   ];
 
   return (

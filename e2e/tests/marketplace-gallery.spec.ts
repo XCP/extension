@@ -132,6 +132,29 @@ function buildRawTx(inputs: BuiltInput[], outputs: BuiltOutput[]): string {
   ].join('');
 }
 
+/**
+ * Parents the stubbed node serves for fabricated inputs. The wallet checks an empty-ledger input
+ * by fetching its parent and requiring the bytes to hash to the input's txid, so a signed input
+ * needs a real (if meaningless) parent transaction rather than a repeated-byte txid.
+ */
+const FABRICATED_PARENTS = new Map<string, string>();
+
+/** A deterministic plain-BTC parent with enough outputs for any vout the gallery uses. */
+function fabricatedParentTxid(seed: string, outputCount = 8): string {
+  const raw = buildRawTx(
+    [{ txid: seed.repeat(32), vout: 0, value: 0 }],
+    Array.from({ length: outputCount }, () => ({ scriptHex: scriptFor(fakeAddress(0x42)), value: 1_000 })),
+  );
+  return servedParentTxid(raw);
+}
+
+/** Serve an already-built parent (e.g. a Legacy prevout the PSBT also carries) and return its txid. */
+function servedParentTxid(raw: string): string {
+  const txid = txidOf(raw);
+  FABRICATED_PARENTS.set(txid, raw);
+  return txid;
+}
+
 /** A plausible final witness (sig-shaped bytes + a compressed-pubkey-shaped key). */
 const FAKE_WITNESS = (() => {
   const sig = '30440220' + '11'.repeat(32) + '0220' + '22'.repeat(32) + '01';
@@ -206,6 +229,28 @@ async function stubUtxoBalances(
       },
     });
   });
+  // The stubbed chain knows exactly the fabricated parents: they are "confirmed long ago" (the
+  // attach-and-list proof requires every attach input's parent to be confirmed at or below
+  // Counterparty's parsed height), and the node hands back their bytes. Every other txid — the
+  // transactions under review, like an attach not yet broadcast — is unknown, as on mainnet.
+  const notFound = (route: Route) => route.fulfill({ status: 404, body: 'Transaction not found' });
+  await api.route(/mempool\.space\/api\/tx\/[0-9a-f]{64}\/status$/, async (route: Route) => {
+    const txid = /\/tx\/([0-9a-f]{64})\/status$/.exec(route.request().url())![1]!;
+    if (!FABRICATED_PARENTS.has(txid)) return notFound(route);
+    return route.fulfill({ json: { confirmed: true, block_height: 1 } });
+  });
+  await api.route(/\/v2\/bitcoin\/transactions\/[0-9a-f]{64}/, async (route: Route) => {
+    const txid = /\/v2\/bitcoin\/transactions\/([0-9a-f]{64})/.exec(route.request().url())![1]!;
+    const raw = FABRICATED_PARENTS.get(txid);
+    if (!raw) return notFound(route);
+    return route.fulfill({ json: { result: { hex: raw, confirmations: 1_000 } } });
+  });
+  await api.route(/mempool\.space\/api\/tx\/[0-9a-f]{64}\/hex$/, async (route: Route) => {
+    const txid = /\/tx\/([0-9a-f]{64})\/hex$/.exec(route.request().url())![1]!;
+    const raw = FABRICATED_PARENTS.get(txid);
+    if (!raw) return notFound(route);
+    return route.fulfill({ body: raw, contentType: 'text/plain' });
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -276,7 +321,8 @@ interface Scenario {
     | 'Authorize listing'
     | 'Authorize reprice'
     | 'Prepare asset'
-    | 'Attach and list';
+    | 'Attach and list'
+    | 'Authorize 3 offers';
   /** Important semantic disclosures that must survive visual refactors. */
   expectedText?: string[];
   /** Principal decision facts must be visible without expanding any details. */
@@ -293,8 +339,8 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
 
   const ASSET_TXID = 'ab'.repeat(32);
   const ASSET_TXID_TWO = 'cd'.repeat(32);
-  const FUNDING_TXID = '11'.repeat(32);
-  const BID_TXID = '19'.repeat(32);
+  const FUNDING_TXID = fabricatedParentTxid('11');
+  const BID_TXID = fabricatedParentTxid('19');
   const scenarios: Scenario[] = [];
   const seedRecord = (
     id: string,
@@ -311,7 +357,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
 
   // --- attach_for_listing (caution: block-dependent XCP fee) --------------------------------
   {
-    const funding: BuiltInput = { txid: '15'.repeat(32), vout: 0, address: wallet, value: 100_000 };
+    const funding: BuiltInput = { txid: fabricatedParentTxid('15'), vout: 0, address: wallet, value: 100_000 };
     const payload = attachPayload('RAREPEPE', '1', 0);
     const outputs: BuiltOutput[] = [
       { scriptHex: scriptFor(wallet), value: 546 },
@@ -366,14 +412,14 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
       [{ scriptHex: scriptFor(pairedLegacy), value: 330 }],
     );
     const legacySource: BuiltInput = {
-      txid: txidOf(legacyPrevTx),
+      txid: servedParentTxid(legacyPrevTx),
       vout: 0,
       address: pairedLegacy,
       value: 330,
       nonWitnessUtxoHex: legacyPrevTx,
     };
     const segwitFunding: BuiltInput = {
-      txid: '17'.repeat(32),
+      txid: fabricatedParentTxid('17'),
       vout: 1,
       address: wallet,
       value: 10_000,
@@ -440,14 +486,14 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
       [{ scriptHex: scriptFor(pairedLegacy), value: 330 }],
     );
     const legacySource: BuiltInput = {
-      txid: txidOf(legacyPrevTx),
+      txid: servedParentTxid(legacyPrevTx),
       vout: 0,
       address: pairedLegacy,
       value: 330,
       nonWitnessUtxoHex: legacyPrevTx,
     };
     const modernFunding: BuiltInput = {
-      txid: '2b'.repeat(32),
+      txid: fabricatedParentTxid('2b'),
       vout: 1,
       address: wallet,
       value: 10_000,
@@ -523,14 +569,14 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
       [{ scriptHex: scriptFor(pairedLegacy), value: 330 }],
     );
     const legacySource: BuiltInput = {
-      txid: txidOf(legacyPrevTx),
+      txid: servedParentTxid(legacyPrevTx),
       vout: 0,
       address: pairedLegacy,
       value: 330,
       nonWitnessUtxoHex: legacyPrevTx,
     };
     const modernFunding: BuiltInput = {
-      txid: '1a'.repeat(32),
+      txid: fabricatedParentTxid('1a'),
       vout: 1,
       address: wallet,
       value: 10_000,
@@ -632,9 +678,9 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
           },
         ],
       }),
-      balances: {
-        [`${attach.txid}:0`]: [{ asset: 'COLLECTOR', quantity: '1', quantity_normalized: '1' }],
-      },
+      // Mainnet reality: no ledger has seen the attach, so its output has no balance. The listing
+      // proves from the attach item of the same bundle instead (marketplaceAttachLink.ts).
+      balances: {},
     });
   }
 
@@ -831,12 +877,12 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
   // --- exact offers: buyer authorization (caution) and seller acceptance (proved) -----------
   for (const attached of [false, true]) {
     const suffix = attached ? '-attached' : '';
-    const offer = (accepting: boolean) => {
+    const offer = (accepting: boolean, target = { txid: ASSET_TXID, vout: 7 }, index = 1) => {
       const buyerAddr = accepting ? BUYER_EXT : wallet;
       const sellerAddr = accepting ? wallet : SELLER_A;
       const inputs: BuiltInput[] = [
         { txid: BID_TXID, vout: 4, address: buyerAddr, value: 256_250 + (attached ? 330 : 0), signed: accepting },
-        { txid: ASSET_TXID, vout: 7, address: sellerAddr, value: 546 },
+        { txid: target.txid, vout: target.vout, address: sellerAddr, value: 546 },
       ];
       const outputs: BuiltOutput[] = [
         { scriptHex: attached ? scriptFor(buyerAddr) : opReturnScript(detachPayload(buyerAddr), BID_TXID), value: attached ? 330 : 0 },
@@ -848,14 +894,14 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
         standard: 'counterparty-marketplace',
         version: 1,
         action: accepting ? 'accept_exact_offer' : 'authorize_exact_offer',
-        operationId: 'authorization-1',
+        operationId: `authorization-${index}`,
         protocolVersion: 'exact_offer_v1',
         assets: [{
           asset: 'RAREPEPE',
           quantityRaw: '1',
-          sourceOutpoint: { txid: ASSET_TXID, vout: 7 },
+          sourceOutpoint: target,
         }],
-        authorizationId: 'authorization-1',
+        authorizationId: `authorization-${index}`,
         bidder: buyerAddr,
         seller: sellerAddr,
         priceSats: 250_000,
@@ -897,6 +943,45 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
         [`${ASSET_TXID}:7`]: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
       },
     });
+
+    // Several exact targets on the one funding UTXO, as the marketplace's buyer-offer flow sends
+    // them: one xcp_signPsbts review, every item proved alone, at most one can ever settle.
+    if (!attached) {
+      const targets = [
+        { txid: ASSET_TXID, vout: 7 },
+        { txid: ASSET_TXID_TWO, vout: 7 },
+        { txid: ASSET_TXID, vout: 8 },
+      ];
+      const offers = targets.map((target, index) => offer(false, target, index + 1));
+      scenarios.push({
+        name: 'bundle-authorize-offers',
+        initialText: ['Authorize 3 exact offers', 'You pay if accepted', '256,250 sats'],
+        expectedText: [
+          'Settlement',
+          'At most one can be accepted. Every offer spends the same funding UTXO.',
+          `${BID_TXID}:4`,
+          'Withdraw by spending your funding UTXO',
+        ],
+        absentText: ['Blocked: Marketplace Intent Mismatch', 'Seller wallet'],
+        route: '/requests/psbts/approve',
+        expectFooter: 'Authorize 3 offers',
+        record: seedRecord('mk-authorize-offers', {
+          requestKey: 'xcp_signPsbts:mk-authorize-offers',
+          kind: 'sign-psbts',
+          bundleKind: 'authorize-offers',
+          items: offers.map(item => ({
+            psbtHex: item.psbtHex,
+            signInputs: { [wallet]: [0] },
+            sighashTypes: [0x01, 0x01],
+            marketplaceIntent: item.intent,
+          })),
+        }),
+        balances: Object.fromEntries(targets.map(target => [
+          `${target.txid}:${target.vout}`,
+          [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+        ])),
+      });
+    }
 
     const accept = offer(true);
     scenarios.push({
@@ -983,7 +1068,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
   // Counterparty-only gate blocks it there — so the fan-out phase exists only as a bundle. -----
   {
     const parents = ['31', '32'].map((seed, index) => {
-      const fundingTxid = seed.repeat(32);
+      const fundingTxid = fabricatedParentTxid(seed);
       const { psbtHex, txid } = buildPsbt(
         [{ txid: fundingTxid, vout: 2, address: wallet, value: 100_000 }],
         [
@@ -1033,7 +1118,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
   // --- xcp_signBitcoinPsbt: exact website payment (proved) and its tampered twin ------------
   {
     const buildPay = (declaredSats: number) => buildPsbt(
-      [{ txid: '31'.repeat(32), vout: 0, address: wallet, value: 100_000 }],
+      [{ txid: fabricatedParentTxid('31'), vout: 0, address: wallet, value: 100_000 }],
       [
         { scriptHex: scriptFor(BUYER_EXT), value: 21_600 },
         { scriptHex: scriptFor(wallet), value: 77_400 },
@@ -1128,7 +1213,7 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
       );
 
       const footer = approval.getByRole('button', {
-        name: /^(sign transaction|buy collectibles|accept offer|prepare funds|send bitcoin|review|blocked|awaiting verification|authorize listing|authorize reprice|authorize offer|prepare asset|attach and list)$/i,
+        name: /^(sign transaction|buy collectibles|accept offer|prepare funds|send bitcoin|review|blocked|awaiting verification|authorize listing|authorize reprice|authorize offer|authorize \d+ offers|prepare asset|attach and list)$/i,
       });
       await expect(footer).toBeVisible({ timeout: 60_000 });
       const footerLabel = (await footer.textContent())?.trim() ?? '';

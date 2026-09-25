@@ -5,6 +5,7 @@ import {
 } from '@/core/counterparty/marketplaceBatch';
 import type {
   AttachForListingIntentClaim,
+  AuthorizeExactOfferIntentClaim,
   CreateListingIntentClaim,
   MarketplaceApprovalReview,
   PrepareAssetIntentClaim,
@@ -102,6 +103,35 @@ const fanout = (batchIndex: number): PrepareBulkFanoutIntentClaim => ({
   operationExpiresAt: 2_000_000_000,
 });
 
+const BIDDER = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+const FUNDING = { txid: '51'.repeat(32), vout: 3 };
+
+const exactOffer = (index: number): AuthorizeExactOfferIntentClaim => ({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'authorize_exact_offer',
+  operationId: `auth-${index}`,
+  protocolVersion: 'exact_offer_v1',
+  assets: [{
+    asset: index % 2 === 0 ? 'RAREPEPE' : 'PEPECASH',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: indexedHex(0x60, index), vout: 0 },
+  }],
+  authorizationId: `auth-${index}`,
+  bidder: BIDDER,
+  seller: SELLER,
+  priceSats: 250_000,
+  utxoValueSats: 546,
+  sellerProceedsSats: 250_046,
+  networkFeeSats: 500,
+  platformFeeSats: 1_000,
+  expectedTxid: indexedHex(0x80, index),
+  delivery: { mode: 'detached', address: BIDDER },
+  marketplaceExpiresAt: 2_000_003_600 + index,
+  bitcoinExpiresAt: null,
+  bitcoinInvalidation: { type: 'spend_funding_outpoint', outpoint: FUNDING },
+});
+
 const proved = (overrides: Partial<MarketplaceApprovalReview> = {}): MarketplaceApprovalReview => ({
   status: 'proved',
   family: 'prepare_bulk_fanout',
@@ -168,7 +198,138 @@ describe('homogeneous marketplace batch parser', () => {
   });
 });
 
+describe('exact-offer authorization batch parser', () => {
+  it.each([1, 2, 8])('accepts %i exact targets sharing one bidder funding outpoint', count => {
+    const offers = Array.from({ length: count }, (_, index) => exactOffer(index));
+    expect(parseMarketplaceBatchIntents(offers)).toEqual({ kind: 'authorize-offers', intents: offers });
+  });
+
+  it('refuses more than eight authorizations', () => {
+    expect(() => parseMarketplaceBatchIntents(Array.from({ length: 9 }, (_, index) => exactOffer(index))))
+      .toThrow(/1\.\.8/);
+  });
+
+  it.each([
+    ['bidder', { bidder: SELLER, delivery: { mode: 'detached' as const, address: SELLER } }, /one bidder/],
+    ['funding outpoint', {
+      bitcoinInvalidation: { type: 'spend_funding_outpoint' as const, outpoint: { ...FUNDING, vout: 4 } },
+    }, /one funding outpoint/],
+    ['delivery mode', {
+      delivery: { mode: 'attached' as const, address: BIDDER, utxoValueSats: 546 },
+    }, /one delivery/],
+    ['delivery address', {
+      delivery: { mode: 'detached' as const, address: '1BoatSLRHtKNngkdXEeobR76b53LETtpyT' },
+    }, /one delivery/],
+    ['price', { priceSats: 250_001 }, /one price/],
+    ['platform fee', { platformFeeSats: 999 }, /one price/],
+    ['authorization id', { authorizationId: 'auth-0' }, /duplicate authorization/],
+    ['operation id', { operationId: 'auth-0' }, /duplicate operation/],
+    ['target outpoint', { assets: exactOffer(0).assets }, /duplicate target/],
+    ['transaction', { expectedTxid: exactOffer(0).expectedTxid }, /duplicate transaction/],
+    ['self-funded target', {
+      assets: [{ ...exactOffer(1).assets[0], sourceOutpoint: FUNDING }],
+    }, /own funding outpoint/],
+  ])('refuses a batch whose second item has a different or duplicate %s', (_label, change, message) => {
+    expect(() => parseMarketplaceBatchIntents([exactOffer(0), { ...exactOffer(1), ...change }]))
+      .toThrow(message);
+  });
+
+  it.each([
+    ['acceptance', { ...exactOffer(1), action: 'accept_exact_offer' }],
+    ['listing', listing(0)],
+  ])('refuses an authorization batch mixed with an %s', (_label, other) => {
+    expect(() => parseMarketplaceBatchIntents([exactOffer(0), other])).toThrow(/one semantic action/);
+  });
+
+  it('refuses an item that does not parse as an exact-offer authorization', () => {
+    const { bitcoinInvalidation: _dropped, ...unbound } = exactOffer(1);
+    expect(() => parseMarketplaceBatchIntents([exactOffer(0), unbound])).toThrow(/funding outpoint/);
+  });
+});
+
 describe('marketplace batch aggregate proof', () => {
+  it('summarizes exact-offer authorizations once, with mutual exclusivity and every target', () => {
+    const offers = [exactOffer(0), exactOffer(1), exactOffer(2)];
+    const review = analyzeMarketplaceBatch(
+      'authorize-offers',
+      offers,
+      offers.map(() => proved({ status: 'caution', family: 'authorize_exact_offer' })),
+    );
+    expect(review).toMatchObject({
+      status: 'caution', family: 'marketplace_batch', title: 'Authorize 3 exact offers',
+      notices: [], blockers: [],
+    });
+    expect(review.facts[0]).toEqual({
+      kind: 'amount', label: 'You pay if accepted', value: '251,000 sats', emphasis: 'primary',
+    });
+    expect(review.facts).toContainEqual({
+      kind: 'paragraph', label: 'Settlement',
+      value: 'At most one can be accepted. Every offer spends the same funding UTXO.',
+    });
+    expect(review.facts).toContainEqual({
+      kind: 'outpoint', label: 'Funding UTXO', value: `${FUNDING.txid}:${FUNDING.vout}`,
+    });
+    for (const offer of offers) {
+      expect(review.facts).toContainEqual({
+        kind: 'outpoint', label: offer.assets[0].asset,
+        value: `${offer.assets[0].sourceOutpoint.txid}:0`,
+      });
+    }
+    expect(review.facts.map(fact => fact.label)).not.toContain('Seller wallet');
+  });
+
+  it('labels each target with its ledger-proved quantity when the item proof supplies it', () => {
+    const offers = [exactOffer(0), exactOffer(1)];
+    const review = analyzeMarketplaceBatch('authorize-offers', offers, [
+      proved({ status: 'caution', family: 'authorize_exact_offer', summary: { label: 'Offer to buy', description: '1 RAREPEPE' } }),
+      proved({ status: 'caution', family: 'authorize_exact_offer', summary: { label: 'Offer to buy', description: '3 PEPECASH' } }),
+    ]);
+    expect(review.facts).toContainEqual({
+      kind: 'outpoint', label: '1 RAREPEPE', value: `${offers[0]!.assets[0].sourceOutpoint.txid}:0`,
+    });
+    expect(review.facts).toContainEqual({
+      kind: 'outpoint', label: '3 PEPECASH', value: `${offers[1]!.assets[0].sourceOutpoint.txid}:0`,
+    });
+  });
+
+  it('names the latest expiry as such only when the offers expire at different times', () => {
+    const caution = () => proved({ status: 'caution', family: 'authorize_exact_offer' });
+    const differing = analyzeMarketplaceBatch('authorize-offers', [exactOffer(0), exactOffer(1)], [caution(), caution()]);
+    expect(differing.facts.map(fact => fact.label)).toContain('Latest marketplace expiry');
+    const shared = analyzeMarketplaceBatch(
+      'authorize-offers',
+      [exactOffer(0), { ...exactOffer(1), marketplaceExpiresAt: exactOffer(0).marketplaceExpiresAt }],
+      [caution(), caution()],
+    );
+    expect(shared.facts.map(fact => fact.label)).toContain('Marketplace expiry');
+    expect(shared.facts.map(fact => fact.label)).not.toContain('Latest marketplace expiry');
+  });
+
+  it('titles a single exact-offer authorization in the singular', () => {
+    const review = analyzeMarketplaceBatch(
+      'authorize-offers',
+      [exactOffer(0)],
+      [proved({ status: 'caution', family: 'authorize_exact_offer' })],
+    );
+    expect(review.title).toBe('Authorize 1 exact offer');
+  });
+
+  it('blocks the whole authorization batch when any item did not prove', () => {
+    const review = analyzeMarketplaceBatch(
+      'authorize-offers',
+      [exactOffer(0), exactOffer(1)],
+      [
+        proved({ status: 'caution', family: 'authorize_exact_offer' }),
+        proved({
+          status: 'blocked', family: 'authorize_exact_offer',
+          blockers: ['the wallet must sign only input 0 with ALL (0x01) for this action'],
+        }),
+      ],
+    );
+    expect(review.status).toBe('blocked');
+    expect(review.blockers).toEqual(['item 2: the wallet must sign only input 0 with ALL (0x01) for this action']);
+  });
+
   it('explains the attach now and automatic listing activation boundary', () => {
     const review = analyzeMarketplaceBatch(
       'attach-and-list',

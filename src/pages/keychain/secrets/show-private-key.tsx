@@ -11,6 +11,8 @@ import { useWallet } from "@/contexts/wallet-context";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useSecretReveal } from "@/hooks/useSecretReveal";
 
+import { t } from '@/i18n';
+
 const PATHS = {
   BACK: -1,
 } as const;
@@ -40,7 +42,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
       // Checked after the password, as it was before: a missing path is not a
       // reason to tell someone whether their password was right.
       if (walletType === "mnemonic" && !addressPath) {
-        throw new Error("Address derivation path is missing.");
+        throw new Error(t('secrets_show_private_key_address_derivation_path_is_missing'));
       }
       try {
         // Load the wallet to decrypt its secret
@@ -50,14 +52,14 @@ export default function ShowPrivateKeyPage(): ReactElement {
             ? await getPrivateKey(walletId!)
             : await getPrivateKey(walletId!, addressPath);
 
-        if (!privKeyData) throw new Error("Failed to retrieve private key");
-        if (!privKeyData.wif) throw new Error("Private key WIF format not available");
+        if (!privKeyData) throw new Error(t('secrets_show_private_key_failed_to_retrieve_private_key'));
+        if (!privKeyData.wif) throw new Error(t('secrets_show_private_key_private_key_wif_format_not'));
 
         setPrivateKey(privKeyData.wif);
       } catch (err) {
         console.error("Error revealing private key:", err);
         throw new Error(
-          err instanceof Error ? err.message : "Failed to reveal private key."
+          err instanceof Error ? err.message : t('secrets_show_private_key_failed_to_reveal_private_key')
         );
       }
     },
@@ -67,16 +69,16 @@ export default function ShowPrivateKeyPage(): ReactElement {
     if (walletId) {
       const wallet = wallets.find((w) => w.id === walletId);
       if (!wallet) {
-        setSubmissionError("Wallet not found.");
+        setSubmissionError(t('common_wallet_not_found'));
       } else if (wallet.type === "hardware") {
-        setSubmissionError("Hardware wallets do not expose private keys. Keys are stored securely on your device.");
+        setSubmissionError(t('secrets_show_private_key_hardware_wallets_do_not_expose'));
         setWalletType("hardware");
       } else {
         setWalletType(wallet.type);
       }
     }
     setHeaderProps({
-      title: "Private Key",
+      title: t('common_private_key'),
       onBack: () => navigate(PATHS.BACK),
     });
   }, [walletId, wallets, setHeaderProps, navigate, setSubmissionError]);
@@ -88,25 +90,25 @@ export default function ShowPrivateKeyPage(): ReactElement {
 
   return (
     <section className="flex flex-col h-full p-4" aria-labelledby="show-private-key-title">
-      <h2 id="show-private-key-title" className="sr-only">Show Private Key</h2>
+      <h2 id="show-private-key-title" className="sr-only">{t('common_show_private_key')}</h2>
       {submissionError && <ErrorAlert message={submissionError} onClose={clearError} />}
       {!isConfirmed ? (
         <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow">
           <Banner
             severity="warning"
             className="max-w-md w-full mb-6"
-            title="Keep your private key private"
-            description="Never share it with anyone. Anyone with this key can steal your funds."
+            title={t('secrets_show_private_key_keep_your_private_key_private')}
+            description={t('secrets_show_private_key_never_share_it_with_anyone')}
           />
           <div className="w-full max-w-md space-y-4">
             <PasswordInput
               name="password"
-              placeholder="Enter your password"
+              placeholder={t('common_enter_your_password')}
               disabled={pending}
               innerRef={passwordInputRef}
             />
-            <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Show Private Key">
-              {pending ? "Verifying…" : "Show Private Key"}
+            <Button type="submit" disabled={pending} fullWidth color="red" aria-label={t('common_show_private_key')}>
+              {pending ? t('common_verifying') : t('common_show_private_key')}
             </Button>
           </div>
         </form>
@@ -114,16 +116,16 @@ export default function ShowPrivateKeyPage(): ReactElement {
         <div className="flex flex-col items-center justify-center flex-grow">
           <div className="w-full max-w-md space-y-4">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Your Private Key (WIF)</h2>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('secrets_show_private_key_your_private_key_wif')}</h2>
               <p className="text-sm text-gray-600">
-                This is your private key in Wallet Import Format. Never share it with anyone.
+                {t('secrets_show_private_key_this_is_your_private_key')}
               </p>
             </div>
             <button type="button"
               onClick={handleCopyPrivateKey}
               // Distinct from the button below, which copies the same thing: two
               // controls sharing one accessible name is ambiguous to announce.
-              aria-label="Copy the private key shown here"
+              aria-label={t('secrets_show_private_key_copy_the_private_key_shown')}
               className="block w-full text-left font-mono text-sm bg-white border border-gray-200 rounded-lg p-4 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors duration-200"
             >
               {privateKey}
@@ -133,14 +135,14 @@ export default function ShowPrivateKeyPage(): ReactElement {
               color="blue"
               fullWidth
               className="max-w-sm"
-              aria-label="Copy Private Key"
+              aria-label={t('secrets_show_private_key_copy_private_key')}
             >
-              {isCopied(privateKey) ? "Copied!" : "Copy Private Key"}
+              {isCopied(privateKey) ? t('common_copied') : t('secrets_show_private_key_copy_private_key')}
             </Button>
             <Banner
               severity="warning"
-              title="Keep this private"
-              description="Anyone with it can steal your funds."
+              title={t('common_keep_this_private')}
+              description={t('common_anyone_with_it_can_steal')}
             />
           </div>
         </div>

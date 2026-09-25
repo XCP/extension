@@ -821,18 +821,67 @@ export async function fetchAssetDetails(
  */
 export async function fetchUtxoBalances(
   utxo: string,
-  options: PaginationOptions = {}
+  options: PaginationOptions & {
+    /** Bypass the response cache: the caller must see the ledger as of now, not a minute ago. */
+    fresh?: boolean;
+  } = {}
 ): Promise<PaginatedResponse<UtxoBalance>> {
   // Transaction summaries and move/detach forms need every attached asset. Explicit
   // pagination remains available for callers that render a paged list.
   if (options.limit === undefined && options.offset === undefined) {
-    return cpApiGetAll<UtxoBalance>(`/v2/utxos/${encodePath(utxo)}/balances`, { verbose: options.verbose ?? true });
+    return cpApiGetAll<UtxoBalance>(
+      `/v2/utxos/${encodePath(utxo)}/balances`,
+      { verbose: options.verbose ?? true },
+      options.fresh ? { skipCache: true } : {},
+    );
   }
   return cpApiGet<PaginatedResponse<UtxoBalance>>(`/v2/utxos/${encodePath(utxo)}/balances`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
   });
+}
+
+/**
+ * A Bitcoin transaction as the Counterparty node's own backend sees it, uncached.
+ *
+ * `confirmations` is absent (or zero) while the transaction is unconfirmed. Callers deciding
+ * whether the Counterparty ledger can already reflect this transaction must compare it with
+ * `fetchLedgerHeights`, fetched afterwards.
+ */
+export async function fetchBackendTransaction(
+  txid: string
+): Promise<{ hex: string; confirmations: number }> {
+  const data = await cpApiGet<{ result?: { hex?: unknown; confirmations?: unknown } }>(
+    `/v2/bitcoin/transactions/${encodePath(txid)}`,
+    undefined,
+    { skipCache: true },
+  );
+  const hex = data?.result?.hex;
+  if (typeof hex !== 'string' || hex.length === 0) {
+    throw new CounterpartyApiError('Transaction has no raw hex', '/v2/bitcoin/transactions');
+  }
+  const confirmations = data.result?.confirmations;
+  return {
+    hex,
+    confirmations: typeof confirmations === 'number' && Number.isSafeInteger(confirmations) && confirmations > 0
+      ? confirmations
+      : 0,
+  };
+}
+
+/** The node's Bitcoin tip and the last block its Counterparty ledger has parsed, uncached. */
+export async function fetchLedgerHeights(): Promise<{ backendHeight: number; counterpartyHeight: number }> {
+  const data = await cpApiGet<{ result?: Partial<ServerInfo> }>('/v2/', undefined, { skipCache: true });
+  const backendHeight = data?.result?.backend_height;
+  const counterpartyHeight = data?.result?.counterparty_height;
+  if (
+    typeof backendHeight !== 'number' || !Number.isSafeInteger(backendHeight)
+    || typeof counterpartyHeight !== 'number' || !Number.isSafeInteger(counterpartyHeight)
+  ) {
+    throw new CounterpartyApiError('Server info has no block heights', '/v2/');
+  }
+  return { backendHeight, counterpartyHeight };
 }
 
 /** Check candidates, not an arbitrarily capped list of an address's asset balances. */

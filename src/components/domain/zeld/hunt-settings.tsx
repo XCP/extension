@@ -4,6 +4,8 @@ import { useState } from "react";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { useSettings } from "@/contexts/settings-context";
 import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS } from "@/core/zeld/protocol";
+import { t } from '@/i18n';
+import { zeldErrorMessage } from './error-message';
 
 interface HuntSettingsProps {
   showHelpText?: boolean;
@@ -33,7 +35,7 @@ export function HuntSettings({ showHelpText = false, showTimeInput = true }: Hun
     const trimmed = draft.trim();
     const parsed = /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
     if (!isValidZeldHuntSeconds(parsed)) {
-      setError(`Enter a whole number of seconds from 0 to ${MAX_ZELD_HUNT_SECONDS}.`);
+      setError(t('zeld_hunt_invalid_seconds', [String(MAX_ZELD_HUNT_SECONDS)]));
       return;
     }
     setError(null);
@@ -44,7 +46,7 @@ export function HuntSettings({ showHelpText = false, showTimeInput = true }: Hun
     try {
       await updateSettings({ zeldHuntSeconds: parsed });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save the hunt time.");
+      setError(zeldErrorMessage(cause) ?? (cause instanceof Error ? cause.message : t('zeld_hunt_save_time_failed')));
     }
   };
 
@@ -54,21 +56,21 @@ export function HuntSettings({ showHelpText = false, showTimeInput = true }: Hun
     try {
       await updateSettings({ zeldHuntSeconds: enabled ? lastBudget : 0 });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save the hunt setting.");
+      setError(zeldErrorMessage(cause) ?? (cause instanceof Error ? cause.message : t('zeld_hunt_save_setting_failed')));
     } finally { setSaving(false); }
   };
 
   return (
     <div>
-      <SettingSwitch label="Enable ZELD Hunting" checked={stored > 0} onChange={enabled => { void toggle(enabled); }}
+      <SettingSwitch label={t('zeld_hunt_enable')} checked={stored > 0} onChange={enabled => { void toggle(enabled); }}
         disabled={saving} showHelpText={showHelpText}
-        description="Look for ZELD while making eligible transactions. No extra BTC fee. If no result is found, your transaction continues normally." />
+        description={t('zeld_hunt_description')} />
       {error && (
         <p className="mt-1 text-sm text-red-600" role="alert">{error}</p>
       )}
       {showTimeInput && (
         <Field className="mt-3">
-          <Label htmlFor="zeld-hunt-seconds" className="text-sm font-medium">Maximum wait per transaction</Label>
+          <Label htmlFor="zeld-hunt-seconds" className="text-sm font-medium">{t('zeld_hunt_wait')}</Label>
           <div className="mt-1 flex items-center gap-2">
             <input
               id="zeld-hunt-seconds"
@@ -80,14 +82,14 @@ export function HuntSettings({ showHelpText = false, showTimeInput = true }: Hun
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
               }}
-              aria-label="Seconds to hunt for a ZELD transaction ID"
+              aria-label={t('zeld_hunt_seconds_label')}
               aria-invalid={error ? true : undefined}
               className="w-24 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
             />
-            <span className="text-sm text-gray-500">seconds (0 is off, {MAX_ZELD_HUNT_SECONDS} max)</span>
+            <span className="text-sm text-gray-500">{t('zeld_hunt_seconds_hint', [String(MAX_ZELD_HUNT_SECONDS)])}</span>
           </div>
           <Description className={`mt-2 text-sm text-gray-500 ${showHelpText ? "" : "hidden"}`}>
-            Uses your device's processing power for up to this many seconds. Finding ZELD is not guaranteed.
+            {t('zeld_hunt_device_help')}
           </Description>
         </Field>
       )}

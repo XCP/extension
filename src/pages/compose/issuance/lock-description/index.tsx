@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { composeIssuance } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { LockDescriptionForm } from "@/pages/compose/issuance/lock-description/form";
 import { ReviewLockDescription } from "@/pages/compose/issuance/lock-description/review";
 
@@ -16,7 +17,7 @@ function ComposeLockDescriptionPage() {
   if (!asset) {
     return (
       <div className="p-4 text-center text-red-600">
-        Asset parameter is required
+        {t('common_asset_parameter_is_required')}
       </div>
     );
   }
@@ -26,8 +27,8 @@ function ComposeLockDescriptionPage() {
       <Composer<IssuanceOptions>
         composeType="issuance"
         composeApiMethod={composeIssuance}
-        initialTitle="Lock Description"
-        FormComponent={(props) => (
+        initialTitle={t('common_lock_description')}
+        renderForm={(props) => (
           <LockDescriptionForm {...props} asset={asset} />
         )}
         ReviewComponent={ReviewLockDescription}

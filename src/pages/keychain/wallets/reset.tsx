@@ -9,6 +9,8 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 
+import { t } from '@/i18n';
+
 const PATHS = {
   BACK: "/settings",
   SUCCESS: "/keychain/onboarding",
@@ -25,7 +27,7 @@ function ResetWalletPage() {
 
   useEffect(() => {
     setHeaderProps({
-      title: "Reset Wallet",
+      title: t('common_reset_wallet'),
       onBack: () => navigate(PATHS.BACK),
     });
   }, [setHeaderProps, navigate]);
@@ -39,21 +41,21 @@ function ResetWalletPage() {
 
     const password = formData.get("password") as string;
     if (!password) {
-      setSubmissionError("Password cannot be empty.");
+      setSubmissionError(t('common_password_cannot_be_empty'));
       return;
     }
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setSubmissionError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      setSubmissionError(t('common_password_must_be_at_least', [String(MIN_PASSWORD_LENGTH)]));
       return;
     }
     try {
       const isValid = await verifyPassword(password);
       if (!isValid) {
-        setSubmissionError("Password does not match.");
+        setSubmissionError(t('common_password_does_not_match'));
         return;
       }
     } catch {
-      setSubmissionError("Password verification failed.");
+      setSubmissionError(t('common_password_verification_failed'));
       return;
     }
 
@@ -62,31 +64,31 @@ function ResetWalletPage() {
       navigate(PATHS.SUCCESS);
     } catch (err) {
       console.error("Error resetting wallet:", err);
-      setSubmissionError("Failed to reset wallet. Please try again.");
+      setSubmissionError(t('wallets_reset_failed_to_reset_wallet_please'));
     }
   }
 
   return (
     <section className="flex flex-col h-full p-4" aria-labelledby="reset-wallet-title">
-      <h2 id="reset-wallet-title" className="sr-only text-2xl font-bold mb-2">Reset Wallet</h2>
+      <h2 id="reset-wallet-title" className="sr-only text-2xl font-bold mb-2">{t('common_reset_wallet')}</h2>
       {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow" aria-describedby="reset-wallet-warning">
         <Banner
           id="reset-wallet-warning"
           severity="danger"
           className="max-w-md w-full mb-6"
-          title="This can't be undone"
-          description="Resetting your wallet will delete all wallet data. This action cannot be undone."
+          title={t('common_this_can_t_be_undone')}
+          description={t('wallets_reset_resetting_your_wallet_will_delete')}
         />
         <div className="w-full max-w-md space-y-4">
           <PasswordInput
             name="password"
-            placeholder="Confirm your password"
+            placeholder={t('common_confirm_your_password')}
             disabled={pending}
             innerRef={passwordInputRef}
           />
-          <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Reset Wallet">
-            {pending ? "Resetting…" : "Reset Wallet"}
+          <Button type="submit" disabled={pending} fullWidth color="red" aria-label={t('common_reset_wallet')}>
+            {pending ? t('wallets_reset_resetting') : t('common_reset_wallet')}
           </Button>
         </div>
       </form>

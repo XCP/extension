@@ -1,6 +1,8 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useSettings } from "@/contexts/settings-context";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewBroadcast component.
  */
@@ -30,13 +32,13 @@ export function ReviewBroadcast({
   
   // Base fields always shown
   const customFields = [
-    { label: "Message", value: result.params.text },
+    { label: t('common_message'), value: result.params.text },
   ];
   
   // Add value and fee_fraction fields if advanced options are enabled
   if (showAdvancedOptions) {
-    customFields.push({ label: "Value", value: result.params.value });
-    customFields.push({ label: "Fee Fraction", value: result.params.fee_fraction });
+    customFields.push({ label: t('common_value'), value: result.params.value });
+    customFields.push({ label: t('common_fee_fraction'), value: result.params.fee_fraction });
   }
 
   return (

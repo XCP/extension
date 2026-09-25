@@ -29,9 +29,10 @@ import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import { analytics } from '@/platform/fathom';
-import { openExtensionPopup } from '@/platform/popup';
+import { continuationUnlockPath, openExtensionPopup, reusePopupWindow } from '@/platform/popup';
 import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
+import { supportsPairedContinuity } from '@/platform/provider/requestIdentity';
 import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/platform/provider/signDelivery';
 import {
   beginSignFlow,
@@ -47,7 +48,7 @@ import { defineProxyService } from '@/platform/proxy';
 import { createWriteLock } from '@/platform/storage/mutex';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 import { keychainExists } from '@/platform/storage/walletStorage';
-import { getApprovalService } from '@/services/approvalService';
+import { type ApprovalPlacement, getApprovalService } from '@/services/approvalService';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getUpdateService } from '@/services/updateService';
@@ -244,7 +245,8 @@ async function runSignFlow<T>(args: {
   });
 
   const authorizeDelivery = (completed: CompletedSignFlow) =>
-    assertSignDeliveryAuthorized(completed, args.pairedAddresses ?? false, sessionGeneration);
+    assertSignDeliveryAuthorized(completed, args.pairedAddresses ?? false, sessionGeneration,
+      supportsPairedContinuity(completed.kind));
   if (flow.status === 'completed') {
     const assertDelivery = await authorizeDelivery(flow);
     assertDelivery();
@@ -319,7 +321,8 @@ export function createProviderService(): ProviderService {
       throw new Error('The connection identity changed before its proof was generated');
     }
     const { request, sessionGeneration } = context;
-    const authorize = (paired: boolean) => assertSignDeliveryAuthorized(request, paired, sessionGeneration);
+    // A connection proof is bound to the exact identity approved; it never continues across the pair.
+    const authorize = (paired: boolean) => assertSignDeliveryAuthorized(request, paired, sessionGeneration, false);
     let assertCurrent = await authorize(false);
     assertCurrent();
     const paired = context.pairedSupported && await getConnectionService().hasPairedAddressPermission(
@@ -378,7 +381,8 @@ export function createProviderService(): ProviderService {
   async function completeConnection(
     origin: string,
     pairedAddresses = false,
-    onBeforeConnect?: () => Promise<void>
+    onBeforeConnect?: () => Promise<void>,
+    placement: ApprovalPlacement = {}
   ) {
     const walletService = getWalletService();
     const connectionService = getConnectionService();
@@ -403,7 +407,8 @@ export function createProviderService(): ProviderService {
         await connectionService.requestPairedAddressPermission(
           origin,
           activeAddress.address,
-          activeWallet.id
+          activeWallet.id,
+          placement
         );
       }
       return buildConnectResponse(await getAccounts(origin), context);
@@ -415,7 +420,8 @@ export function createProviderService(): ProviderService {
       origin,
       activeAddress.address,
       activeWallet.id,
-      pairedAddresses
+      pairedAddresses,
+      placement
     );
     await analytics.track('connection_established');
     return buildConnectResponse(accounts, context);
@@ -546,9 +552,10 @@ export function createProviderService(): ProviderService {
               method: 'xcp_requestAccounts'
             });
 
-            // Open the regular popup - it will automatically show unlock screen
-            // and then navigate to approvals after unlock
-            await openExtensionPopup();
+            // Open the regular popup - it shows the unlock screen. After unlock the connection
+            // approval continues in this same window rather than opening a second one; the marked
+            // path tells the unlock screen to wait for that instead of going home.
+            const unlockWindow = await openExtensionPopup(continuationUnlockPath(requestId));
 
             // Wait for unlock and then continue with connection
             return new Promise((resolve, reject) => {
@@ -573,11 +580,19 @@ export function createProviderService(): ProviderService {
                   return;
                 }
 
-                // Continue with connection flow
+                // Continue with connection flow, in the window the user just unlocked
+                let continued = false;
                 try {
-                  resolve(await completeConnection(origin, pairedAddresses));
+                  resolve(await completeConnection(origin, pairedAddresses, undefined, {
+                    reuseWindowId: unlockWindow.id,
+                    onReused: () => { continued = true; },
+                  }));
                 } catch (error) {
                   reject(error);
+                } finally {
+                  // No approval took the window (already connected, or the flow failed first):
+                  // release the waiting unlock screen to the home page.
+                  if (!continued) void reusePopupWindow(unlockWindow.id, '#/index');
                 }
               };
 

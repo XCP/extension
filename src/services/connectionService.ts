@@ -16,7 +16,7 @@ import { analytics } from '@/platform/fathom';
 import { pairedGrantCovers } from '@/platform/provider/pairedGrant';
 import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
 import { createWriteLock } from '@/platform/storage/mutex';
-import { type ApprovalResult, getApprovalService } from '@/services/approvalService';
+import { type ApprovalPlacement, type ApprovalResult, getApprovalService } from '@/services/approvalService';
 import { BaseService } from '@/services/core/BaseService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getWalletService } from '@/services/walletService';
@@ -111,7 +111,8 @@ export class ConnectionService extends BaseService {
     origin: string,
     address: string,
     walletId: string,
-    pairedAddresses = false
+    pairedAddresses = false,
+    placement: ApprovalPlacement = {}
   ): Promise<ApprovalResult> {
     // Prevent duplicate requests for the same origin
     const dedupeKey = `${origin}-pending`;
@@ -156,7 +157,7 @@ export class ConnectionService extends BaseService {
           title: 'Connection Request',
           description: 'This site wants to connect to your wallet',
         },
-      });
+      }, undefined, placement);
 
       this.state.pendingPermissionRequests.delete(dedupeKey);
       this.state.pendingPermissionRequests.delete(requestId);
@@ -257,10 +258,11 @@ export class ConnectionService extends BaseService {
   async requestPairedAddressPermission(
     origin: string,
     address: string,
-    walletId: string
+    walletId: string,
+    placement: ApprovalPlacement = {}
   ): Promise<void> {
     if (await this.hasPairedAddressPermission(origin, walletId, address)) return;
-    const result = await this.requestPermission(origin, address, walletId, true);
+    const result = await this.requestPermission(origin, address, walletId, true, placement);
     if (!result.approved || result.updatedParams?.pairedAddresses !== true) {
       throw new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, 'Paired address access was not granted');
     }
@@ -314,7 +316,8 @@ export class ConnectionService extends BaseService {
     origin: string,
     address: string,
     walletId: string,
-    pairedAddresses = false
+    pairedAddresses = false,
+    placement: ApprovalPlacement = {}
   ): Promise<string[]> {
     console.debug('[ConnectionService] Connecting dApp:', { origin, address, walletId });
 
@@ -331,7 +334,7 @@ export class ConnectionService extends BaseService {
     }
 
     // Request user permission
-    const approval = await this.requestPermission(origin, address, walletId, pairedAddresses);
+    const approval = await this.requestPermission(origin, address, walletId, pairedAddresses, placement);
 
     if (approval.approved) {
       await this.grantConnection({

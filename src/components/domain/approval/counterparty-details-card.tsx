@@ -7,9 +7,9 @@
  */
 
 import type { ProtocolField } from '@/core/counterparty/describe';
+import { t } from '@/i18n';
 import { ApprovalFacts } from './approval-facts';
 import { ApprovalIdentifier } from './approval-identifier';
-
 /** An mpma_send recipient: destinations travel in the payload, so this list is the only account of who is paid. */
 export interface CounterpartyDetailRecipient {
   asset: string;
@@ -20,20 +20,29 @@ export interface CounterpartyDetailRecipient {
 export function CounterpartyDetailsCard({
   fields,
   recipients = [],
+  title,
+  notes = [],
 }: {
   fields: ProtocolField[];
   recipients?: CounterpartyDetailRecipient[];
+  /** Section heading when the transaction carries no Counterparty message to name it after. */
+  title?: string;
+  /** Plain-language outcome statements shown under the facts. */
+  notes?: string[];
 }) {
   if (fields.length === 0 && recipients.length === 0) return null;
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-4">
-      <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Counterparty</h3>
+      <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">{title ?? t('approval_counterparty_details_card_counterparty')}</h3>
       <ApprovalFacts fields={fields} />
+      {notes.map((note, index) => (
+        <p key={`note-${index}`} className="mt-3 border-t border-gray-100 pt-3 text-sm leading-5 text-gray-600">{note}</p>
+      ))}
       {recipients.length > 0 && (
         <div className={fields.length > 0 ? 'mt-3' : ''}>
           <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">
-            Recipients ({recipients.length})
+            {t('approval_counterparty_details_card_recipients', [String(recipients.length)])}
           </h4>
           <div className="space-y-2">
             {recipients.map((recipient, index) => (

@@ -1,6 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from '@/i18n/test-utils';
 import '@testing-library/jest-dom/vitest';
+import { t } from '@/i18n';
+import { mockBrowserLocale } from '@/i18n/test-utils';
 import { ManageDispenserCard } from './manage-dispenser-card';
 
 const mockNavigate = vi.fn();
@@ -19,7 +22,14 @@ const openDispenser: any = {
 };
 
 describe('ManageDispenserCard', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockBrowserLocale({ language: 'en' });
+  });
+  afterEach(() => {
+    cleanup();
+    mockBrowserLocale({ language: 'en' });
+  });
 
   // A close already in the mempool means closing again fails and refilling escrows into a
   // dispenser that is ending; both give way to the balance list's italic in-flight word.
@@ -29,6 +39,20 @@ describe('ManageDispenserCard', () => {
     expect(screen.getByText('Closing')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Refill' })).not.toBeInTheDocument();
+  });
+
+  it('changes a mounted non-English closing label without restoring refill or close actions', () => {
+    mockBrowserLocale({ language: 'ja' });
+    render(<ManageDispenserCard dispenser={openDispenser} isClosing />);
+    expect(screen.getByText(t('dispenser_manage_dispenser_card_closing'))).toBeInTheDocument();
+    for (const language of ['zh-CN', 'zh-TW', 'zh-HK', 'en']) {
+      act(() => { mockBrowserLocale({ language }); });
+      expect(screen.getByText(t('dispenser_manage_dispenser_card_closing'))).toBeInTheDocument();
+      expect(screen.getAllByRole('button')).toHaveLength(1);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    }
+    expect(openDispenser.status).toBe(0);
+    expect(openDispenser.give_remaining_normalized).toBe('5');
   });
 
   it('opens the dispenser when the card body is clicked', () => {

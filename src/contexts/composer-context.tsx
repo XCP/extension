@@ -46,6 +46,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router";
+import { transactionErrorMessage } from '@/components/composer/transaction-error-message';
 import {
   ComposerContext,
   type ComposerState,
@@ -81,10 +82,11 @@ import { extractCounterpartyPayload } from "@/core/counterparty/unpack/opReturn"
 import { verifyTransaction } from "@/core/counterparty/unpack/verify";
 import { fromSatoshis } from '@/core/numeric';
 import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
+import { ComposeVerificationError } from '@/core/validation/compose-verification-error';
 import { huntZeldForCompose } from "@/core/zeld/composeHunt";
 import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility";
+import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
-
 
 /**
  * Maximum age for a composed transaction before requiring recomposition (5 minutes).
@@ -100,6 +102,11 @@ const STALE_TRANSACTION_MS = 5 * 60 * 1000;
  * are listed because both are provably unspendable.
  */
 const BURN_ADDRESSES = ['1CounterpartyXXXXXXXXXXXXXXXUWLpVr', 'mvCounterpartyXXXXXXXXXXXXXXW24Hef'];
+
+/** Keep structured local failures until render, so a language change cannot stale the diagnostic. */
+type InternalComposerState<T> = Omit<ComposerState<T>, 'error'> & {
+  error: string | ComposeVerificationError | null;
+};
 
 /**
  * Every Bitcoin address named anywhere in the request, regardless of field. The property being
@@ -188,7 +195,7 @@ export function ComposerProvider<T>({
   const acceptZeldHuntRef = useRef<AbortController | null>(null);
 
   // Initialize state
-  const [state, setState] = useState<ComposerState<T>>(freshComposerState);
+  const [state, setState] = useState<InternalComposerState<T>>(freshComposerState);
 
 
   // Help text state (can be toggled locally)
@@ -250,7 +257,7 @@ export function ComposerProvider<T>({
     }
 
     if (!activeAddress) {
-      setState(prev => ({ ...prev, error: "No active address available" }));
+      setState(prev => ({ ...prev, error: t('composer_context_no_active_address_available') }));
       return;
     }
 
@@ -285,16 +292,16 @@ export function ComposerProvider<T>({
 
       // Validate response structure
       if (!response || typeof response !== 'object') {
-        throw new Error('Invalid API response: Response is not an object');
+        throw new Error(t('composer_context_invalid_api_response_response_is'));
       }
 
       if (!response.result || typeof response.result !== 'object') {
-        throw new Error('Invalid API response: Missing or invalid result field');
+        throw new Error(t('composer_context_invalid_api_response_missing_or'));
       }
 
       // Ensure we have the minimum required fields
       if (!response.result.rawtransaction) {
-        throw new Error('Invalid API response: Missing rawtransaction');
+        throw new Error(t('composer_context_invalid_api_response_missing_rawtransaction'));
       }
 
       // Verify the transaction locally before showing review screen
@@ -314,21 +321,21 @@ export function ComposerProvider<T>({
         const expectedMessage = packComposeMessage(composeType, dataForApi);
         if (!expectedMessage) {
           throw new Error(
-            'Transaction verification failed: this inscription could not be rebuilt for checking.'
+            t('composer_context_transaction_verification_failed_this_inscription')
           );
         }
         const envelopeCheck = verifyInscriptionEnvelope(envelopeScript, expectedMessage.bytes);
         if (!envelopeCheck.ok || !envelopeCheck.commitAddress) {
-          throw new Error(envelopeCheck.error || 'Transaction verification failed: bad inscription.');
+          throw new Error(envelopeCheck.error || t('composer_context_transaction_verification_failed_bad_inscription'));
         }
         // The reveal is signed by the composer, so its outputs are checked rather than trusted.
         const revealHex = response.result.signed_reveal_rawtransaction;
         if (typeof revealHex !== 'string' || revealHex.length === 0) {
-          throw new Error('The composer did not return the reveal transaction for this inscription.');
+          throw new Error(t('composer_context_the_composer_did_not_return'));
         }
         const revealCheck = verifyRevealTransaction(revealHex, [activeAddress.address]);
         if (!revealCheck.ok) {
-          throw new Error(revealCheck.error || 'Transaction verification failed: bad reveal.');
+          throw new Error(revealCheck.error || t('composer_context_transaction_verification_failed_bad_reveal'));
         }
         inscriptionCommitAddress = envelopeCheck.commitAddress;
       }
@@ -355,7 +362,7 @@ export function ComposerProvider<T>({
           // (`check_transaction_sanity` raises on `tx_data != data`).
           if (bytesToHex(expected.bytes).toLowerCase() !== counterpartyData.toLowerCase()) {
             throw new Error(
-              'Transaction verification failed: the composed message does not match your request.'
+              t('composer_context_transaction_verification_failed_the_composed')
             );
           }
         } else {
@@ -367,7 +374,7 @@ export function ComposerProvider<T>({
             // In strict mode (default), block the transaction
             // Verification errors are critical security issues
             const errorDetails = verification.errors.join('; ');
-            throw new Error(`Transaction verification failed: ${errorDetails}`);
+            throw new Error(t('composer_context_transaction_verification_failed', [String(errorDetails)]));
           }
 
           // Differences too minor to block, shown on the review screen so the user can still see them.
@@ -378,10 +385,7 @@ export function ComposerProvider<T>({
         // it and cannot do what was asked. Signing it would spend the fee to no effect. Types that
         // legitimately carry no message (a BTC send, a burn) cannot be built and do not reach here,
         // and an inscription's message lives in its envelope rather than an output.
-        throw new Error(
-          'Transaction verification failed: the composed transaction carries no Counterparty '
-          + 'message, so it would not do what you asked.'
-        );
+        throw new Error(t('composer_context_transaction_verification_failed_the_composed_2'));
       }
       // A transaction with no payload and no message to expect is a plain BTC spend; its outputs
       // and fee are still checked below.
@@ -395,7 +399,10 @@ export function ComposerProvider<T>({
         userFeeRate: dataForApi.sat_per_vbyte ?? null,
       }, fetchInputValues);
       if (!feeCheck.ok) {
-        throw new Error(feeCheck.error || 'Transaction fee verification failed');
+        throw new ComposeVerificationError(
+          feeCheck.error || t('composer_context_transaction_fee_verification_failed'),
+          feeCheck.diagnostic,
+        );
       }
 
       // Show the fee computed from the transaction's own inputs and outputs, not `btc_fee` as the
@@ -409,8 +416,7 @@ export function ComposerProvider<T>({
         // discrepancy.
         if (typeof reportedFee === 'number' && reportedFee !== feeCheck.computedFee) {
           verificationWarnings.push(
-            `This transaction pays a ${feeCheck.computedFee} sat miner fee, though the composer `
-            + `reported ${reportedFee}. The amount shown is the one the transaction pays.`
+            t('composer_context_this_transaction_pays_a_sat', [String(feeCheck.computedFee), String(reportedFee)])
           );
         }
         response = {
@@ -437,17 +443,11 @@ export function ComposerProvider<T>({
             : '';
           const match = matchId ? await fetchOrderMatch(matchId) : null;
           if (!match) {
-            throw new Error(
-              'Transaction verification failed: this order match could not be read, so the '
-              + 'payment it settles could not be checked.'
-            );
+            throw new Error(t('composer_context_transaction_verification_failed_this_order'));
           }
           const payment = btcPayPayment(match);
           if (!payment) {
-            throw new Error(
-              'Transaction verification failed: neither side of this order match is BTC, so it '
-              + 'is not settled by a BTCPay.'
-            );
+            throw new Error(t('composer_context_transaction_verification_failed_neither_side'));
           }
           intendedDestinations.push({ address: payment.address, value: payment.quantity });
         }
@@ -487,7 +487,10 @@ export function ComposerProvider<T>({
             : undefined,
         });
         if (!outputCheck.ok) {
-          throw new Error(outputCheck.error || 'Transaction pays outputs your request did not ask for');
+          throw new ComposeVerificationError(
+            outputCheck.error || t('composer_context_transaction_pays_outputs_your_request'),
+            outputCheck.diagnostic,
+          );
         }
       }
 
@@ -548,11 +551,11 @@ export function ComposerProvider<T>({
 
       console.error("Compose error:", error);
 
-      let errorMessage = "An error occurred while composing the transaction.";
+      let errorMessage = t('composer_context_an_error_occurred_while_composing');
       if (isApiError(error) && error.response?.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
         errorMessage = (error.response.data as { error: string }).error;
       } else if (error instanceof Error) {
-        errorMessage = error.message;
+        errorMessage = transactionErrorMessage(error) ?? error.message;
       }
 
       analytics.track(`compose_error_${classifyTransactionError(errorMessage)}`);
@@ -562,7 +565,7 @@ export function ComposerProvider<T>({
 
       setState(prev => ({
         ...prev,
-        error: errorMessage,
+        error: error instanceof ComposeVerificationError ? error : errorMessage,
         isComposing: false,
       }));
     }
@@ -571,7 +574,7 @@ export function ComposerProvider<T>({
   // Core sign and broadcast logic - extracted to avoid duplication
   const performSignAndBroadcast = useCallback(async () => {
     if (!state.apiResponse || !activeAddress) {
-      throw new Error("Invalid transaction data");
+      throw new Error(t('composer_context_invalid_transaction_data'));
     }
 
     const rawTxHex = state.apiResponse.result.rawtransaction;
@@ -591,7 +594,7 @@ export function ComposerProvider<T>({
     );
 
     if (replayCheck.isReplay) {
-      throw new Error(`Transaction replay detected: ${replayCheck.reason}`);
+      throw new Error(t('composer_context_transaction_replay_detected', [String(replayCheck.reason)]));
     }
 
     // For hardware wallets, pause idle timer during signing
@@ -660,9 +663,7 @@ export function ComposerProvider<T>({
           ...prev,
           verificationWarnings: [
             ...prev.verificationWarnings,
-            `The inscription's commit transaction was broadcast, but the reveal that publishes the `
-            + `content was not accepted (${detail}). The content is not on chain yet. Reveal `
-            + `transaction: ${revealHex}`,
+            t('composer_context_the_inscription_s_commit_transaction', [String(detail), String(revealHex)]),
           ],
         }));
       }
@@ -684,7 +685,7 @@ export function ComposerProvider<T>({
     }
 
     if (!state.apiResponse || !activeAddress || !activeWallet) {
-      setState(prev => ({ ...prev, error: "Invalid transaction data" }));
+      setState(prev => ({ ...prev, error: t('composer_context_invalid_transaction_data') }));
       return;
     }
 
@@ -692,7 +693,7 @@ export function ComposerProvider<T>({
     if (state.composedAt && Date.now() - state.composedAt > STALE_TRANSACTION_MS) {
       setState(prev => ({
         ...prev,
-        error: "Transaction data is stale. Please go back and recompose the transaction.",
+        error: t('composer_context_transaction_data_is_stale_please'),
       }));
       return;
     }
@@ -734,9 +735,9 @@ export function ComposerProvider<T>({
       }
 
       console.error("Sign/broadcast error:", error);
-      let errorMessage = "Failed to sign and broadcast transaction";
+      let errorMessage = t('composer_context_failed_to_sign_and_broadcast');
       if (error instanceof Error) {
-        errorMessage = error.message;
+        errorMessage = transactionErrorMessage(error) ?? error.message;
       }
 
       analytics.track(`broadcast_error_${classifyTransactionError(errorMessage)}`);
@@ -746,7 +747,7 @@ export function ComposerProvider<T>({
 
       setState(prev => ({
         ...prev,
-        error: errorMessage,
+        error: error instanceof ComposeVerificationError ? error : errorMessage,
         isSigning: false,
       }));
     }
@@ -779,12 +780,18 @@ export function ComposerProvider<T>({
     setState(prev => ({ ...prev, error: null }));
   }, []);
 
+  const displayedError = state.error instanceof ComposeVerificationError
+    ? transactionErrorMessage(state.error) ?? state.error.message
+    : state.error;
   const acceptZeldHunt = useCallback(() => {
     acceptZeldHuntRef.current?.abort();
   }, []);
 
   const contextValue = useMemo(() => ({
-    state,
+    state: {
+      ...state,
+      error: displayedError,
+    },
     composeTransaction,
     signAndBroadcast,
     goBack,
@@ -800,6 +807,7 @@ export function ComposerProvider<T>({
     settings,
   }), [
     state,
+    displayedError,
     composeTransaction,
     signAndBroadcast,
     goBack,

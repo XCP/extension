@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatPriceRatio } from "@/core/format";
+import { formatAmount, formatPriceRatio } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
 import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
+
+import { t } from '@/i18n';
 
 const formatExpiration = (expiration: unknown) => {
   const blocks = Number(expiration ?? DEFAULT_ORDER_EXPIRATION);
   return blocks === 0
-    ? "Never expires"
-    : `${blocks.toLocaleString()} block${blocks === 1 ? "" : "s"}`;
+    ? t('common_never_expires')
+    : t('order_review_expiration_blocks', [formatAmount({ value: blocks, maximumFractionDigits: 0 })]);
 };
 
 /**
@@ -60,30 +62,30 @@ export function ReviewOrder({
 
   const customFields = [
     {
-      label: "Give",
+      label: t('common_give'),
       value: `${giveQuantityDisplay} ${giveAssetDisplay}`,
     },
     {
-      label: "Get",
+      label: t('common_get'),
       value: `${getQuantityDisplay} ${getAssetDisplay}`,
     },
     {
-      label: "Price",
+      label: t('common_price'),
       value: getPriceDisplay(),
       rightElement: (
         <button
           type="button"
           onClick={() => setIsPriceFlipped(!isPriceFlipped)}
           className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          aria-label="Flip price ratio"
+          aria-label={t('common_flip_price_ratio')}
         >
           <FaExchangeAlt className="size-4 text-gray-600" aria-hidden="true" />
         </button>
       ),
     },
-    { label: "Expiration", value: formatExpiration(result.params.expiration) },
+    { label: t('common_expiration'), value: formatExpiration(result.params.expiration) },
     ...(result.params.fee_required && isGreaterThan(result.params.fee_required, 0)
-      ? [{ label: "Fee Required", value: `${result.params.fee_required} satoshis` }]
+      ? [{ label: t('common_fee_required'), value: `${result.params.fee_required} satoshis` }]
       : []),
   ];
 

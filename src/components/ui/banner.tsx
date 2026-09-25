@@ -26,10 +26,10 @@ interface BannerProps {
  * Colors come from the Phase 0 semantic tokens (see popup/style.css).
  */
 const SEVERITY: Record<BannerSeverity, { container: string; icon: string; text: string; Icon: IconComponent }> = {
-  danger:  { container: 'bg-danger-50 border-danger-200',   icon: 'text-danger-600',  text: 'text-danger-800',  Icon: FiShieldOff },
-  warning: { container: 'bg-warning-50 border-warning-200', icon: 'text-warning-600', text: 'text-warning-800', Icon: FiAlertTriangle },
-  info:    { container: 'bg-info-50 border-info-200',       icon: 'text-info-600',    text: 'text-info-800',    Icon: FiInfo },
-  success: { container: 'bg-success-50 border-success-200', icon: 'text-success-600', text: 'text-success-800', Icon: FaCheckCircle },
+  danger:  { container: 'bg-danger-50 border-danger-200',   icon: 'text-danger-600',  text: "text-danger-800",  Icon: FiShieldOff },
+  warning: { container: 'bg-warning-50 border-warning-200', icon: 'text-warning-600', text: "text-warning-800", Icon: FiAlertTriangle },
+  info:    { container: 'bg-info-50 border-info-200',       icon: 'text-info-600',    text: "text-info-800",    Icon: FiInfo },
+  success: { container: 'bg-success-50 border-success-200', icon: 'text-success-600', text: "text-success-800", Icon: FaCheckCircle },
 };
 
 /**
@@ -46,9 +46,10 @@ export const Banner = memo<BannerProps>(({ severity, title, description, childre
     <div id={id} className={`rounded-lg border p-4 ${s.container} ${className}`}>
       <div className="flex items-start">
         <Icon className={`size-5 ${s.icon} mt-0.5 mr-2 flex-shrink-0`} aria-hidden="true" />
-        <div className={`text-sm ${s.text}`}>
+        <div className={`min-w-0 text-sm ${s.text}`}>
           <p className="font-medium">{title}</p>
-          {description && <p className="text-xs mt-1">{description}</p>}
+          {/* Warnings name full addresses and txids; wrap them rather than overflow the popup. */}
+          {description && <p className="text-xs mt-1 [overflow-wrap:anywhere]">{description}</p>}
           {children}
         </div>
       </div>

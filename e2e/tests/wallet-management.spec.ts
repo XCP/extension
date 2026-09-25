@@ -147,7 +147,7 @@ walletTest.describe('Wallet Menu Options', () => {
     const optionsButton = page.locator('button[aria-label="Wallet options"]').first();
     await optionsButton.click();
 
-    await expect(page.getByText('Show Passphrase')).toBeVisible();
+    await expect(page.getByText('Show Recovery Phrase')).toBeVisible();
   });
 
   walletTest('wallet options menu shows remove option', async ({ page }) => {

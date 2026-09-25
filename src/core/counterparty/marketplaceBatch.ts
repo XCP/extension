@@ -4,32 +4,94 @@ import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import {
   type AttachForListingIntentClaim,
+  type AuthorizeExactOfferIntentClaim,
   type CreateListingIntentClaim,
+  formatExpiry,
   type MarketplaceApprovalReview,
   type PrepareAssetIntentClaim,
   type PrepareBulkFanoutIntentClaim,
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
+import { formatAmount } from '@/core/format';
 import { sum, toSafeInteger } from '@/core/numeric';
+import { t } from '@/i18n';
 
 export type MarketplaceBatchIntent =
   | PrepareBulkFanoutIntentClaim
   | PrepareAssetIntentClaim
   | AttachForListingIntentClaim
-  | CreateListingIntentClaim;
+  | CreateListingIntentClaim
+  | AuthorizeExactOfferIntentClaim;
 
 export type MarketplaceBatchKind =
   | 'attach-and-list'
   | 'bulk-fanout'
   | 'prepare-assets'
   | 'bulk-attach'
-  | 'bulk-listing';
+  | 'bulk-listing'
+  | 'authorize-offers';
 
 const sameAddress = (left: string, right: string): boolean =>
   normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
 
 const batchIdentity = (intent: MarketplaceBatchIntent): string =>
-  intent.action === 'prepare_asset' ? intent.utxoOwner : intent.seller;
+  intent.action === 'prepare_asset'
+    ? intent.utxoOwner
+    : intent.action === 'authorize_exact_offer' ? intent.bidder : intent.seller;
+
+const outpointKey = (outpoint: { txid: string; vout: number }): string =>
+  `${outpoint.txid}:${outpoint.vout}`;
+
+const sameDelivery = (
+  left: AuthorizeExactOfferIntentClaim['delivery'],
+  right: AuthorizeExactOfferIntentClaim['delivery'],
+): boolean =>
+  left.mode === right.mode
+  && sameAddress(left.address, right.address)
+  && (left.mode === 'detached' || (right.mode === 'attached' && left.utxoValueSats === right.utxoValueSats));
+
+/**
+ * Several exact targets backed by one bidder funding outpoint. Every item spends the same input 0,
+ * so the signatures are mutually exclusive by construction: the first one a seller completes
+ * spends the funding UTXO and invalidates every sibling. Each item still proves on its own bytes
+ * (only input 0, ALL, never 0x83); this admits only the shared economic terms the review
+ * summarizes once, and refuses a batch whose items could not all be that same offer.
+ */
+function parseAuthorizeOffers(offers: AuthorizeExactOfferIntentClaim[]): AuthorizeExactOfferIntentClaim[] {
+  const first = offers[0]!;
+  const funding = outpointKey(first.bitcoinInvalidation.outpoint);
+  for (const offer of offers) {
+    if (!sameAddress(offer.bidder, first.bidder)) {
+      throw new Error('exact-offer authorizations must share one bidder');
+    }
+    if (outpointKey(offer.bitcoinInvalidation.outpoint) !== funding) {
+      throw new Error('exact-offer authorizations must share one funding outpoint');
+    }
+    if (!sameDelivery(offer.delivery, first.delivery)) {
+      throw new Error('exact-offer authorizations must share one delivery');
+    }
+    if (offer.priceSats !== first.priceSats || offer.platformFeeSats !== first.platformFeeSats) {
+      throw new Error('exact-offer authorizations must share one price and platform fee');
+    }
+  }
+  if (new Set(offers.map(offer => offer.authorizationId)).size !== offers.length) {
+    throw new Error('exact-offer batch contains a duplicate authorization id');
+  }
+  if (new Set(offers.map(offer => offer.operationId)).size !== offers.length) {
+    throw new Error('marketplace batch contains a duplicate operation id');
+  }
+  const targets = offers.map(offer => outpointKey(offer.assets[0].sourceOutpoint));
+  if (new Set(targets).size !== targets.length) {
+    throw new Error('exact-offer batch contains a duplicate target outpoint');
+  }
+  if (targets.includes(funding)) {
+    throw new Error('exact-offer target cannot be its own funding outpoint');
+  }
+  if (new Set(offers.map(offer => offer.expectedTxid)).size !== offers.length) {
+    throw new Error('exact-offer batch contains a duplicate transaction');
+  }
+  return offers;
+}
 
 /** Parse an untrusted request array and admit only bounded homogeneous signing phases. */
 export function parseMarketplaceBatchIntents(values: unknown[]): {
@@ -66,6 +128,12 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
   const action = parsed[0]!.action;
   if (!parsed.every(intent => intent.action === action)) {
     throw new Error('marketplace batch requests must use one semantic action');
+  }
+  if (action === 'authorize_exact_offer') {
+    return {
+      kind: 'authorize-offers',
+      intents: parseAuthorizeOffers(parsed as AuthorizeExactOfferIntentClaim[]),
+    };
   }
   if (!['prepare_bulk_fanout', 'prepare_asset', 'attach_for_listing', 'create_listing'].includes(action)) {
     throw new Error('marketplace action is not supported in a multi-PSBT phase');
@@ -134,6 +202,11 @@ const exactSafeSum = (values: number[], label: string): number => {
   return total;
 };
 
+/** Whole-unit counts and satoshi amounts, in the language the wallet is read in. */
+const count = (value: number): string => formatAmount({ value, maximumFractionDigits: 0 });
+
+const sats = (value: number): string => t('marketplace_batch_sats', count(value));
+
 const formatXcpRaw = (values: string[]): string => {
   const raw = sum(values).toFixed(0);
   const padded = raw.padStart(9, '0');
@@ -162,10 +235,12 @@ export function analyzeMarketplaceBatch(
         : 'proved';
   const seller = batchIdentity(intents[0]!);
   const identityFacts: MarketplaceApprovalReview['facts'] = [
-    { kind: 'text' as const, label: 'Transactions', value: intents.length.toLocaleString() },
-    { kind: 'address' as const, label: 'Seller wallet', value: seller },
+    { kind: 'text' as const, label: t('marketplace_batch_transactions'), value: count(intents.length) },
+    { kind: 'address' as const, label: t('marketplace_batch_seller_wallet'), value: seller },
   ];
-  const facts: MarketplaceApprovalReview['facts'] = kind === 'attach-and-list' ? [] : [...identityFacts];
+  const facts: MarketplaceApprovalReview['facts'] = kind === 'attach-and-list' || kind === 'authorize-offers'
+    ? []
+    : [...identityFacts];
   let title: string;
   let notice: string;
   let summary: MarketplaceBundleReview['bundleSummary'];
@@ -175,61 +250,151 @@ export function analyzeMarketplaceBatch(
       AttachForListingIntentClaim,
       CreateListingIntentClaim,
     ];
-    title = `Attach and list ${attach.assets[0].asset}`;
+    title = t('marketplace_batch_attach_and_list_asset', attach.assets[0].asset);
     if (status === 'proved' || status === 'caution') {
       summary = {
         outcome: {
-          kind: 'amount', label: 'Your payout if sold',
-          value: `${listing.guaranteedSellerPaymentSats.toLocaleString()} sats`, emphasis: 'primary',
+          kind: 'amount', label: t('marketplace_batch_your_payout_if_sold'),
+          value: sats(listing.guaranteedSellerPaymentSats), emphasis: 'primary',
         },
         action: title,
         amounts: [
-          { kind: 'amount', label: 'Listing price', value: `${listing.priceSats.toLocaleString()} sats` },
-          { kind: 'amount', label: 'UTXO returned', value: `${listing.utxoValueSats.toLocaleString()} sats` },
-          { kind: 'amount', label: 'Attach fee', value: `${attach.networkFeeSats.toLocaleString()} sats` },
-          { kind: 'amount', label: 'XCP fee quote', value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]) },
+          { kind: 'amount', label: t('marketplace_batch_listing_price'), value: sats(listing.priceSats) },
+          { kind: 'amount', label: t('marketplace_batch_utxo_returned'), value: sats(listing.utxoValueSats) },
+          { kind: 'amount', label: t('marketplace_batch_attach_fee'), value: sats(attach.networkFeeSats) },
+          {
+            kind: 'amount', label: t('marketplace_batch_xcp_fee_quote'),
+            value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]),
+          },
         ],
-        timing: 'Attach costs are paid first; payout requires a sale. The XCP fee may change at confirmation.',
+        timing: t('marketplace_batch_attach_costs_are_paid_first'),
       };
     }
     facts.push(
-      { kind: 'amount', label: 'Your payout if sold', value: `${listing.guaranteedSellerPaymentSats.toLocaleString()} sats`, emphasis: 'primary' },
-      { kind: 'amount' as const, label: 'Listing price', value: `${listing.priceSats.toLocaleString()} sats` },
       {
-        kind: 'amount', label: 'Your UTXO sats returned',
-        value: `${listing.utxoValueSats.toLocaleString()} sats`, layout: 'stacked',
+        kind: 'amount', label: t('marketplace_batch_your_payout_if_sold'),
+        value: sats(listing.guaranteedSellerPaymentSats), emphasis: 'primary',
       },
-      { kind: 'amount' as const, label: 'Attach network fee', value: `${attach.networkFeeSats.toLocaleString()} sats` },
-      { kind: 'amount' as const, label: 'Quoted XCP fee', value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]) },
+      { kind: 'amount' as const, label: t('marketplace_batch_listing_price'), value: sats(listing.priceSats) },
+      {
+        kind: 'amount', label: t('marketplace_batch_your_utxo_sats_returned'),
+        value: sats(listing.utxoValueSats), layout: 'stacked',
+      },
+      {
+        kind: 'amount' as const, label: t('marketplace_batch_attach_network_fee'),
+        value: sats(attach.networkFeeSats),
+      },
+      {
+        kind: 'amount' as const, label: t('marketplace_batch_quoted_xcp_fee'),
+        value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]),
+      },
       ...identityFacts,
       ...(sameAddress(attach.assetSource, attach.seller)
         ? []
-        : [{ kind: 'address' as const, label: 'Asset source', value: attach.assetSource }]),
-      { kind: 'text' as const, label: 'Broadcast now', value: 'Attach transaction only' },
-      { kind: 'paragraph' as const, label: 'Listing activation', value: 'After confirmation and Counterparty verification' },
-      { kind: 'paragraph' as const, label: 'Signature invalidation', value: 'Spend the attached asset UTXO' },
+        : [{ kind: 'address' as const, label: t('marketplace_batch_asset_source'), value: attach.assetSource }]),
+      {
+        kind: 'text' as const, label: t('marketplace_batch_broadcast_now'),
+        value: t('marketplace_batch_attach_transaction_only'),
+      },
+      {
+        kind: 'paragraph' as const, label: t('marketplace_batch_listing_activation'),
+        value: t('marketplace_batch_after_confirmation_and_counterparty'),
+      },
+      {
+        kind: 'paragraph' as const, label: t('marketplace_batch_signature_invalidation'),
+        value: t('marketplace_batch_spend_the_attached_asset_utxo'),
+      },
     );
-    notice = 'The attach transaction is broadcast first. The listing becomes available after confirmation and independent verification of the attached asset.';
+    notice = t('marketplace_batch_the_attach_transaction_is_broadcast');
+  } else if (kind === 'authorize-offers') {
+    // The parser admitted only items sharing bidder, funding outpoint, delivery, price, and fee,
+    // and each item proved those against its own bytes, so the first item speaks for all of them.
+    const offers = intents as AuthorizeExactOfferIntentClaim[];
+    const first = offers[0]!;
+    const buyerCost = exactSafeSum([first.priceSats, first.platformFeeSats], 'offer cost');
+    const deliveryUtxoSats = first.delivery.mode === 'attached' ? first.delivery.utxoValueSats : 0;
+    const funding = first.bitcoinInvalidation.outpoint;
+    const expiries = offers.map(offer => offer.marketplaceExpiresAt);
+    const latestExpiry = Math.max(...expiries);
+    title = offers.length === 1
+      ? t('marketplace_batch_authorize_1_exact_offer')
+      : t('marketplace_batch_authorize_exact_offers', count(offers.length));
+    facts.push(
+      {
+        kind: 'amount', label: t('marketplace_intent_you_pay_if_accepted'),
+        value: sats(buyerCost), emphasis: 'primary',
+      },
+      { kind: 'amount' as const, label: t('marketplace_intent_offer_price'), value: sats(first.priceSats) },
+      ...(first.platformFeeSats > 0 ? [{
+        kind: 'amount' as const, label: t('marketplace_intent_platform_fee'),
+        value: sats(first.platformFeeSats), description: t('marketplace_intent_paid_by_the_buyer'),
+      }] : []),
+      ...(deliveryUtxoSats > 0 ? [{
+        kind: 'amount' as const, label: t('marketplace_intent_sats_kept_with_your_asset'),
+        value: sats(deliveryUtxoSats),
+        description: t('marketplace_intent_still_yours_separate_from_the_offer_cost'),
+      }] : []),
+      {
+        kind: 'paragraph' as const, label: t('marketplace_batch_settlement'),
+        value: t('marketplace_batch_at_most_one_offer_can_be_accepted'),
+      },
+      { kind: 'text' as const, label: t('marketplace_batch_transactions'), value: count(offers.length) },
+      // Each target under its ledger-proved quantity (the item proof's summary), never raw units.
+      ...offers.map((offer, index) => ({
+        kind: 'outpoint' as const,
+        label: reviews[index]?.summary?.description ?? offer.assets[0].asset,
+        value: `${offer.assets[0].sourceOutpoint.txid}:${offer.assets[0].sourceOutpoint.vout}`,
+      })),
+      {
+        kind: 'address' as const, label: t('marketplace_intent_delivery'), value: first.delivery.address,
+        description: first.delivery.mode === 'attached'
+          ? t('marketplace_intent_asset_stays_attached_to_sat_utxo', count(deliveryUtxoSats))
+          : t('marketplace_intent_asset_detaches_to_this_address'),
+      },
+      {
+        kind: 'outpoint' as const, label: t('marketplace_intent_funding_utxo'),
+        value: `${funding.txid}:${funding.vout}`,
+      },
+      {
+        // Expiries may differ per target; name the latest rather than imply one shared deadline.
+        kind: 'text' as const,
+        label: expiries.every(expiry => expiry === latestExpiry)
+          ? t('marketplace_intent_marketplace_expiry')
+          : t('marketplace_batch_latest_marketplace_expiry'),
+        value: formatExpiry(latestExpiry),
+      },
+      {
+        kind: 'paragraph' as const, label: t('marketplace_intent_cancellation'),
+        value: t('marketplace_intent_withdraw_by_spending_your_funding_utxo'),
+      },
+    );
+    // No notice, as for listings: each item is `caution` by design (a durable buyer signature),
+    // and the settlement and cancellation facts above are what that caution says.
+    notice = '';
   } else if (kind === 'bulk-fanout') {
     const fanouts = intents as PrepareBulkFanoutIntentClaim[];
     const slots = exactSafeSum(fanouts.map(intent => intent.slotCount), 'slot count');
     const fees = exactSafeSum(fanouts.map(intent => intent.networkFeeSats), 'network fee');
-    title = `Create ${slots} listing UTXO${slots === 1 ? '' : 's'}`;
+    title = slots === 1
+      ? t('marketplace_batch_create_1_listing_utxo')
+      : t('marketplace_batch_create_listing_utxos', count(slots));
     facts.push(
-      { kind: 'amount' as const, label: 'New UTXOs', value: slots.toLocaleString() },
-      { kind: 'amount' as const, label: 'Total network fees', value: `${fees.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: t('marketplace_batch_new_utxos'), value: count(slots) },
+      { kind: 'amount' as const, label: t('marketplace_batch_total_network_fees'), value: sats(fees) },
     );
-    notice = 'Every fan-out input and same-wallet output was proved before this batch can sign. No Counterparty asset moves in this phase.';
+    notice = t('marketplace_batch_every_fan_out_input_and');
   } else if (kind === 'bulk-attach' || kind === 'prepare-assets') {
     const attaches = intents as Array<AttachForListingIntentClaim | PrepareAssetIntentClaim>;
     const fees = exactSafeSum(attaches.map(intent => intent.networkFeeSats), 'network fee');
-    title = kind === 'prepare-assets'
-      ? `Prepare ${attaches.length} collectible${attaches.length === 1 ? '' : 's'}`
-      : `Attach ${attaches.length} collectibles for listing`;
+    title = kind !== 'prepare-assets'
+      ? t('marketplace_batch_attach_collectibles_for_listing', count(attaches.length))
+      : attaches.length === 1
+        ? t('marketplace_batch_prepare_1_collectible')
+        : t('marketplace_batch_prepare_collectibles', count(attaches.length));
     facts.push(
-      { kind: 'amount' as const, label: 'Total network fees', value: `${fees.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: t('marketplace_batch_total_network_fees'), value: sats(fees) },
       {
-        kind: 'amount' as const, label: 'Total quoted XCP fees',
+        kind: 'amount' as const, label: t('marketplace_batch_total_quoted_xcp_fees'),
         value: formatXcpRaw(attaches.map(intent => intent.protocolFee.quotedAmountRaw)),
       },
     );
@@ -246,20 +411,34 @@ export function analyzeMarketplaceBatch(
     // A batch where every item replaces an existing authorization is a reprice, and saying
     // "listings" would describe it as putting new items up for sale. Mixed batches stay generic.
     const allReprice = listings.every(intent => intent.listingContext?.mode === 'reprice');
-    title = allReprice
-      ? `Authorize ${listings.length} listing reprice${listings.length === 1 ? '' : 's'}`
-      : `Authorize ${listings.length} marketplace listings`;
+    title = !allReprice
+      ? t('marketplace_batch_authorize_marketplace_listings', count(listings.length))
+      : listings.length === 1
+        ? t('marketplace_batch_authorize_1_listing_reprice')
+        : t('marketplace_batch_authorize_listing_reprices', count(listings.length));
     // Proved reviews speak through facts, not notices, so the durable-signature boundary has to
     // live here — the same rows the single-listing screen shows.
     facts.push(
-      { kind: 'amount' as const, label: 'Combined asking prices', value: `${gross.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: t('marketplace_batch_combined_asking_prices'), value: sats(gross) },
       {
-        kind: 'amount', label: 'Your UTXO sats returned', value: `${returned.toLocaleString()} sats`,
+        kind: 'amount', label: t('marketplace_batch_your_utxo_sats_returned'), value: sats(returned),
       },
-      { kind: 'amount', label: 'Your payout if all sell', value: `${payouts.toLocaleString()} sats`, emphasis: 'primary' },
-      { kind: 'paragraph' as const, label: 'Buyer controls', value: 'Funding, fees, and delivery destination' },
-      { kind: 'text' as const, label: 'Broadcast', value: 'Not broadcast now.' },
-      { kind: 'paragraph' as const, label: 'Signature invalidation', value: 'Spend each attached asset UTXO' },
+      {
+        kind: 'amount', label: t('marketplace_batch_your_payout_if_all_sell'),
+        value: sats(payouts), emphasis: 'primary',
+      },
+      {
+        kind: 'paragraph' as const, label: t('marketplace_batch_buyer_controls'),
+        value: t('marketplace_batch_funding_fees_and_delivery_destination'),
+      },
+      {
+        kind: 'text' as const, label: t('marketplace_batch_broadcast'),
+        value: t('marketplace_batch_not_broadcast_now'),
+      },
+      {
+        kind: 'paragraph' as const, label: t('marketplace_batch_signature_invalidation'),
+        value: t('marketplace_batch_spend_each_attached_asset_utxo'),
+      },
     );
     // No notice, for the reason stated above the facts: the durable-signature boundary is the
     // `Signature invalidation` row, and the per-listing guarantee is what the payout rows say.

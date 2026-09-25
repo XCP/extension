@@ -5,6 +5,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { formatTxid } from "@/core/format";
 import type { UtxoSource } from "@/hooks/useUtxoSource";
 
+import { t } from '@/i18n';
 /**
  * Shows which UTXO a compose form is spending from, what it holds, and any
  * failure to load that. Also carries the hidden sourceUtxo field that the
@@ -32,7 +33,8 @@ export function UtxoSourceField({ source }: { source: UtxoSource }): ReactElemen
       {utxo && (
         <div>
           <span className="block text-sm font-medium text-gray-700">
-            Output <span className="text-red-500">*</span>
+            
+            {t('common_output')} <span className="text-red-500">*</span>
           </span>
           <button
             type="button"
@@ -46,7 +48,8 @@ export function UtxoSourceField({ source }: { source: UtxoSource }): ReactElemen
               {isLoadingBalances ? (
                 <span className="flex items-center gap-1">
                   <FaSpinner className="animate-spin size-4" aria-hidden="true" />
-                  Loading…
+                  
+                  {t('common_loading')}
                 </span>
               ) : (
                 `${balances.length} ${balances.length === 1 ? "Balance" : "Balances"}`

@@ -1,5 +1,8 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ProviderReviewError } from '@/core/providerReviewErrors';
+import { t } from '@/i18n';
+import { mockBrowserLocale, renderHook } from '@/i18n/test-utils';
 import type { ProviderSigningReview } from '@/services/providerSigningService';
 import { useProviderSigningRequest } from '../useProviderSigningRequest';
 
@@ -23,12 +26,31 @@ function review(reviewKey = 'original', id = 'req-1'): ProviderSigningReview {
 
 describe('provider verification retry', () => {
   beforeEach(() => {
+    mockBrowserLocale({ language: 'en' });
     vi.clearAllMocks();
     mocks.requestId = 'req-1';
     mocks.wallet = { activeAddress: { address: 'authorized-address' }, activeWallet: { id: 'authorized-wallet' }, isLoading: false };
     mocks.getReview.mockResolvedValue(review());
     mocks.approveAndSign.mockResolvedValue(undefined);
     mocks.reject.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => mockBrowserLocale({}));
+
+  it('retranslates a retained authorization failure without refetching or enabling signing', async () => {
+    const failure = new ProviderReviewError('connection_revoked');
+    mocks.getReview.mockRejectedValueOnce(failure);
+    const { result } = renderHook(() => useProviderSigningRequest('sign-message'));
+    await waitFor(() => expect(result.current.error).toBe(failure.message));
+    for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK', 'en']) {
+      act(() => mockBrowserLocale({ language }));
+      expect(result.current.error).toBe(t('provider_review_connection_revoked'));
+      expect(result.current.review).toBeNull();
+      await expect(result.current.handleApprove()).rejects.toThrow('No reviewed signing request');
+      expect(mocks.getReview).toHaveBeenCalledOnce();
+      expect(mocks.approveAndSign).not.toHaveBeenCalled();
+    }
+    expect(failure.message).toBe('This site is no longer connected. Reconnect it before signing.');
   });
 
   it('retries a failed initial load without retrying any signing command', async () => {
@@ -176,5 +198,27 @@ describe('provider verification retry', () => {
     expect(result.current.error).toMatch(/active address changed/);
     await expect(result.current.handleApprove()).rejects.toThrow(/active address changed/);
     expect(mocks.approveAndSign).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['keeps', true],
+    ['refuses', false],
+  ])('%s a review after a switch to the paired sibling when the grant is %s', async (_verb, granted) => {
+    mocks.getReview.mockResolvedValue({ ...review(), ...(granted ? { pairedGrant: {
+      pairedAddresses: true, walletId: 'authorized-wallet', address: 'authorized-address', pairedAddress: 'sibling-address',
+    } } : {}) });
+    const { result, rerender } = renderHook(() => useProviderSigningRequest('sign-message'));
+    await waitFor(() => expect(result.current.review?.reviewKey).toBe('original'));
+    mocks.wallet.activeAddress = { address: 'sibling-address' };
+    rerender();
+    if (granted) {
+      expect(result.current.error).toBeNull();
+      await act(() => result.current.handleApprove());
+      expect(mocks.approveAndSign).toHaveBeenCalledOnce();
+    } else {
+      expect(result.current.review).toBeNull();
+      expect(result.current.error).toMatch(/active address changed/);
+      expect(mocks.approveAndSign).not.toHaveBeenCalled();
+    }
   });
 });

@@ -5,8 +5,8 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
+import { t } from '@/i18n';
 import { PoolOverview } from "@/pages/pools/pool-overview";
-
 export default function PoolPositionPage(): ReactElement {
   const { lpAsset } = useParams<{ lpAsset: string }>();
   const navigate = useNavigate();
@@ -16,14 +16,14 @@ export default function PoolPositionPage(): ReactElement {
 
   useEffect(() => {
     setHeaderProps({
-      title: "Pool",
+      title: t('common_pool'),
       onBack: () => navigate(-1),
     });
     return () => setHeaderProps(null);
   }, [navigate, setHeaderProps]);
 
   if (isLoading) {
-    return <Spinner message="Loading pool position..." />;
+    return <Spinner message={t('common_loading_pool_position')} />;
   }
 
   if (!pool) {
@@ -34,7 +34,7 @@ export default function PoolPositionPage(): ReactElement {
         </div>
       );
     }
-    return <div className="p-4 text-center text-gray-600">Pool position not found</div>;
+    return <div className="p-4 text-center text-gray-600">{t('common_pool_position_not_found')}</div>;
   }
 
   return <PoolOverview pool={pool} position={pool} />;

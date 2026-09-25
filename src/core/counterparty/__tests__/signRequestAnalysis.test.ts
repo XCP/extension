@@ -15,6 +15,11 @@ import { parseMarketplaceIntent } from '../marketplaceIntent';
 import type { ProtocolContext } from '../protocolContext';
 import { type AnalyzedOutput, analyzeSignRequest } from '../signRequestAnalysis';
 
+// ZELD-specific behavior has its own suite; this suite must not query the live indexer.
+vi.mock('@/core/zeld/protection', () => ({
+  classifyZeldOutpoints: async () => ({ bearing: [], unknown: [], clean: [] }),
+}));
+
 vi.mock('@/core/counterparty/transaction', () => ({
   decodeCounterpartyMessage: vi.fn(async () => null),
   resolveMpmaRecipients: vi.fn(async () => []),
@@ -182,6 +187,21 @@ function run(overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) 
 
 const blockedOnNotCounterparty = (warnings: { title: string }[]) =>
   warnings.some((w) => w.title === 'Blocked: Not a Counterparty Transaction');
+
+describe('local structure evidence', () => {
+  it.each([
+    { messageType: 'attach', data: { asset: 'XCP', quantity: 1n, destinationVout: 7 }, code: 'attach_missing_output', evidence: { destinationVout: 7, outputCount: 1 } },
+    { messageType: 'utxo', data: { source: `${'AB'.repeat(32)}:1234`, destination: SIGNER, asset: 'XCP', quantity: 1n }, code: 'utxo_source_not_spent', evidence: { source: `${'AB'.repeat(32)}:1234` } },
+  ])('passes $code from the local decoder to the approval unchanged', async ({ messageType, data, code, evidence }) => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({ localUnpack: { success: true, messageType, data } } as never);
+    vi.mocked(resolveProtocolContext).mockResolvedValue({ context: {} as ProtocolContext, warnings: [] });
+    vi.mocked(decodeCounterpartyMessage).mockResolvedValue(null);
+    const analysis = await run({ counterpartyDataHex: '00' });
+    expect(analysis.structureFindings).toHaveLength(1);
+    expect(analysis.structureFindings[0]).toMatchObject({ code, data: evidence });
+    expect(analysis.structureFindings[0]?.message).toContain('If signed and confirmed, the Bitcoin fee would still be paid.');
+  });
+});
 
 describe('the not-a-Counterparty-transaction gate', () => {
   beforeEach(() => {
@@ -561,6 +581,47 @@ describe('the marketplace intent proof', () => {
       kind: 'amount', label: 'New UTXO value',
       value: '546 sats',
     });
+  });
+
+  // The phishing shape: the same durable sell authorization, requested through the generic
+  // screen with no listing claim to prove, used to need only an acknowledgement.
+  it('blocks the listing signature when no marketplace listing proof backs it', async () => {
+    const analysis = await listing({ marketplaceIntent: undefined });
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]).toMatchObject({
+      code: 'durable_sell_authorization',
+      severity: 'block',
+      data: { inputs: [1] },
+      title: 'Blocked: Durable Sell Authorization',
+    });
+    expect(analysis.safety.warnings[0]?.message).toContain('Only a verified marketplace listing may ask for it');
+  });
+
+  it('blocks it over an input whose asset status is unknown', async () => {
+    const analysis = await listing({
+      marketplaceIntent: undefined,
+      attachedAssets: Promise.resolve([{
+        inputIndex: 1, utxo: `${LISTING_TXID}:4`, assets: [], lookupFailed: true, pendingParentTxid: LISTING_TXID,
+      }]),
+    });
+
+    expect(analysis.safety.warnings.map(warning => warning.code)).toContain('durable_sell_authorization');
+    expect(analysis.safety.blocked).toBe(true);
+  });
+
+  it('keeps the specific mismatch first and still names the durable authorization', async () => {
+    const analysis = await listing({
+      outputs: [
+        { index: 0, value: 546, type: 'witness_v0_keyhash', address: SIGNER },
+        { index: 1, value: 250_545, type: 'witness_v0_keyhash', address: SIGNER },
+      ],
+    });
+
+    expect(analysis.safety.warnings.slice(0, 2).map(warning => warning.title)).toEqual([
+      'Blocked: Marketplace Intent Mismatch',
+      'Blocked: Durable Sell Authorization',
+    ]);
   });
 
   it('hard-blocks a site claim whose seller payment differs from the PSBT', async () => {

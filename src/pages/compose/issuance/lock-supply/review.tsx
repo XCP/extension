@@ -1,5 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewIssuanceLockSupply component.
  */
@@ -29,8 +31,8 @@ export function ReviewIssuanceLockSupply({
   const currentSupply = result.params.asset_info?.supply_normalized ?? "0";
 
   const customFields = [
-    { label: "Asset", value: result.params.asset },
-    { label: "Supply to Lock", value: currentSupply },
+    { label: t('common_asset'), value: result.params.asset },
+    { label: t('lock_supply_review_supply_to_lock'), value: currentSupply },
   ];
 
   return (

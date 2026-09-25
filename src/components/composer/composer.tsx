@@ -1,5 +1,5 @@
 import { type ReactElement, useCallback, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { HuntProgress } from "@/components/domain/zeld/hunt-progress";
 import { FiHelpCircle, FiRefreshCw, FiX } from "@/components/icons";
 import { SuccessScreen } from "@/components/screens/success-screen";
@@ -11,6 +11,7 @@ import { useHeader } from "@/contexts/header-context";
 import type { ApiResponse } from "@/core/counterparty/compose";
 import { HUNTS_WHILE_SIGNING } from "@/core/zeld/eligibility";
 
+import { t } from '@/i18n';
 /**
  * Compose operation types for internal wallet use
  */
@@ -36,13 +37,16 @@ interface ComposerProps<T> {
   initialFormData?: T;
 
   // Components
-  FormComponent: (props: {
+  FormComponent?: (props: {
     formAction: (formData: FormData) => void | Promise<void>;
     initialFormData: T | null;
     error?: string | null;
     showHelpText?: boolean;
   }) => ReactElement;
-  ReviewComponent: (props: {
+  /** Render callbacks return elements; changing their identity must not remount their forms. */
+  renderForm?: ComposerProps<T>['FormComponent'];
+  renderReview?: ComposerProps<T>['ReviewComponent'];
+  ReviewComponent?: (props: {
     apiResponse: ApiResponse;
     onSign: () => void;
     onBack: () => void;
@@ -72,6 +76,8 @@ function ComposerInner<T>({
   initialFormData,
   FormComponent,
   ReviewComponent,
+  renderForm,
+  renderReview,
   headerCallbacks,
 }: ComposerInnerProps<T>): ReactElement {
   const navigate = useNavigate();
@@ -107,7 +113,7 @@ function ComposerInner<T>({
         leftButton: {
           icon: <FiX className="size-4" aria-hidden="true" />,
           onClick: handleCancel,
-          ariaLabel: "Cancel transaction",
+          ariaLabel: t('composer_composer_cancel_transaction'),
         },
       };
     }
@@ -120,7 +126,7 @@ function ComposerInner<T>({
         rightButton: {
           icon: <FiX className="size-4" aria-hidden="true" />,
           onClick: handleCancel,
-          ariaLabel: "Cancel and return to index",
+          ariaLabel: t('composer_composer_cancel_and_return_to_index'),
         },
       };
     }
@@ -133,7 +139,7 @@ function ComposerInner<T>({
         rightButton: {
           icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
           onClick: reset,
-          ariaLabel: "Return to form",
+          ariaLabel: t('composer_composer_return_to_form'),
         },
       };
     }
@@ -145,7 +151,7 @@ function ComposerInner<T>({
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: headerCallbacks?.onToggleHelp || toggleHelpText,
-        ariaLabel: "Toggle help text",
+        ariaLabel: t('common_toggle_help_text'),
       },
     };
   }, [
@@ -180,9 +186,9 @@ function ComposerInner<T>({
     const hunt = state.zeldHuntProgress;
     const metadata = state.apiResponse?.result.zeld_hunt;
     const signingBudget = metadata?.reason === HUNTS_WHILE_SIGNING ? metadata.seconds : 0;
-    const message = state.isComposing ? "Composing transaction…"
-      : signingBudget ? `Signing and broadcasting… ZELD hunting may take up to ${signingBudget}s.`
-      : "Signing and broadcasting…";
+    const message = state.isComposing ? t('composer_composer_composing_transaction')
+      : signingBudget ? t('zeld_signing_hunt', [String(signingBudget)])
+      : t('composer_composer_signing_and_broadcasting');
     return (
       <div className="min-h-[300px] p-4 flex flex-col items-center justify-center">
         {hunt ? <HuntProgress progress={hunt} onContinue={acceptZeldHunt} /> : <Spinner message={message} />}
@@ -192,14 +198,19 @@ function ComposerInner<T>({
 
   return (
     <>
-      {state.step === "form" && (
+      {state.step === "form" && (renderForm ? renderForm({
+        formAction: handleFormAction,
+        initialFormData: state.formData ?? initialFormData ?? null,
+        error: state.error,
+        showHelpText,
+      }) : FormComponent && (
         <FormComponent
           formAction={handleFormAction}
           initialFormData={state.formData ?? initialFormData ?? null}
           error={state.error}
           showHelpText={showHelpText}
         />
-      )}
+      ))}
 
       {state.step === "review" && state.apiResponse && (
         <>
@@ -207,8 +218,8 @@ function ComposerInner<T>({
             <div className="px-4 pt-4">
               <Banner
                 severity="warning"
-                title="Composed transaction differs from your request"
-                description="These differences are not dangerous on their own, but review them before signing."
+                title={t('composer_composer_composed_transaction_differs_from_your')}
+                description={t('composer_composer_these_differences_are_not_dangerous')}
               >
                 <ul className="mt-1 list-disc pl-4 space-y-0.5">
                   {state.verificationWarnings.map((warning, index) => (
@@ -218,13 +229,19 @@ function ComposerInner<T>({
               </Banner>
             </div>
           )}
-          <ReviewComponent
+          {renderReview ? renderReview({
+            apiResponse: state.apiResponse,
+            onSign: signAndBroadcast,
+            onBack: goBack,
+            error: state.error,
+            isSigning: state.isSigning,
+          }) : ReviewComponent && <ReviewComponent
             apiResponse={state.apiResponse}
-            onSign={signAndBroadcast}
+            onSign={() => { void signAndBroadcast(); }}
             onBack={goBack}
             error={state.error}
             isSigning={state.isSigning}
-          />
+          />}
         </>
       )}
 
@@ -248,10 +265,14 @@ export function Composer<T>({
   initialFormData,
   FormComponent,
   ReviewComponent,
+  renderForm,
+  renderReview,
   headerCallbacks,
 }: ComposerProps<T>): ReactElement {
+  const { pathname } = useLocation();
   return (
     <ComposerProvider<T>
+      key={pathname}
       composeType={composeType}
       composeApi={composeApiMethod}
       initialTitle={initialTitle}
@@ -261,6 +282,8 @@ export function Composer<T>({
         initialFormData={initialFormData}
         FormComponent={FormComponent}
         ReviewComponent={ReviewComponent}
+        renderForm={renderForm}
+        renderReview={renderReview}
         headerCallbacks={headerCallbacks}
       />
     </ComposerProvider>

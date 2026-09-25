@@ -353,7 +353,9 @@ describe('ConnectionService', () => {
             address: 'bc1qactive',
             walletId: 'wallet-123',
           }],
-        })
+        }),
+        undefined,
+        {},
       );
       expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: ['https://paired.com'],

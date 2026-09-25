@@ -5,6 +5,8 @@ import { BsThreeDots, FaExchangeAlt, FaPlus } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { BaseMenu } from '@/components/ui/menus/base-menu';
 
+import { t } from '@/i18n';
+
 interface UtxoMenuProps {
   utxo: string;
 }
@@ -23,18 +25,20 @@ export function UtxoMenu({ utxo }: UtxoMenuProps): ReactElement {
   return (
     <BaseMenu
       trigger={<BsThreeDots className="size-4" aria-hidden="true" />}
-      ariaLabel="UTXO actions"
+      ariaLabel={t('utxo_utxo_menu_utxo_actions')}
     >
       <MenuItem>
         <Button variant="menu-item" fullWidth onClick={handleDetach}>
           <FaPlus className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Detach
+          
+          {t('common_detach')}
         </Button>
       </MenuItem>
       <MenuItem>
         <Button variant="menu-item" fullWidth onClick={handleMove}>
           <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Move
+          
+          {t('common_move')}
         </Button>
       </MenuItem>
     </BaseMenu>

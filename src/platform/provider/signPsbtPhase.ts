@@ -83,6 +83,11 @@ export async function signAttachAndListingForDelivery<T extends { psbtHex: strin
   if (items.length !== 2) throw new Error('attach-and-list requires exactly two transactions');
   const attach = items[0]!;
   const listing = items[1]!;
+  // The listing was proved against the attach's own unsigned bytes, never against a claimed txid.
+  // Refuse to rebind unless the outpoint being replaced is exactly that reviewed attach output.
+  if (parsePSBT(attach.psbtHex).id !== txidHex(expectedOutpoint.txid, 'expected attach txid')) {
+    throw new Error('attach-and-list outpoint is not the reviewed attach transaction');
+  }
 
   const signedAttach = await sign(attach, 0);
   if (unsignedTransactionHex(signedAttach) !== unsignedTransactionHex(attach.psbtHex)) {

@@ -19,6 +19,7 @@ import { isGreaterThan } from "@/core/numeric";
 import { useBlockHeight } from "@/hooks/useBlockHeight";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
+import { t } from '@/i18n';
 /**
  * The list and the per-asset endpoint return the same row, so they share one type. Re-exported
  * under the name the mint screens already use.
@@ -160,7 +161,7 @@ export function FairminterSelectInput({
     return (
       <img
         src={`https://cdn.xcp.io/img/icon/${asset}`}
-        alt={`${asset} icon`}
+        alt={t('close_form_icon', [String(asset)])}
         className="size-5 rounded-full"
         onError={(e) => {
           (e.target as HTMLImageElement).style.display = "none";
@@ -260,21 +261,21 @@ export function FairminterSelectInput({
       </Combobox>
       {page.error ? (
         <div role="alert" className="mt-2 text-sm text-red-600">
-          Unable to load {page.data.length ? 'more' : 'available'} fairminters.{' '}
-          <button type="button" className="underline" onClick={page.retry}>Retry</button>
+          {page.data.length ? t('fairminter_more_failed') : t('fairminter_available_failed')}{' '}
+          <button type="button" className="underline" onClick={page.retry}>{t('common_retry')}</button>
         </div>
       ) : page.isLoading || page.isFetchingMore ? (
-        <p role="status" className="mt-2 text-sm text-gray-500">Loading fairminters…</p>
+        <p role="status" className="mt-2 text-sm text-gray-500">{t('asset_fairminter_select_input_loading_fairminters')}</p>
       ) : page.hasMore ? (
         <button type="button" className="mt-2 text-sm text-blue-600 underline" onClick={page.loadMore}>
-          Load more fairminters
+          {t('fairminter_load_more')}
         </button>
       ) : filteredFairminters.length === 0 ? (
-        <p className="mt-2 text-sm text-gray-500">No matching fairminters.</p>
+        <p className="mt-2 text-sm text-gray-500">{t('fairminter_no_matches')}</p>
       ) : null}
       {showHelpText && (
         <p className="mt-2 text-sm text-gray-500">
-          {description || "Select an open fairminter asset to mint"}
+          {description || t('asset_fairminter_select_input_select_an_open_fairminter_asset')}
         </p>
       )}
     </div>

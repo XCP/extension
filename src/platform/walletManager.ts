@@ -29,6 +29,7 @@ import {
   generateWalletIdFromPrivateKey,
   getPairedAddressFormats,
 } from '@/core/wallet/addressDeriver';
+import { addressIndexKeptBySwitch } from '@/core/wallet/addressFormatChoices';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
 import { detectUtxoAddress, isUtxoAddressPath, parseUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS } from '@/core/zeld/protocol';
@@ -953,15 +954,30 @@ export class WalletManager {
       throw new Error(`ZELD hunt time must be a whole number of seconds from 0 to ${MAX_ZELD_HUNT_SECONDS}`);
     }
 
-    // Merge updates into settings
-    this.keychain.settings = {
-      ...this.keychain.settings,
+    const keychain = this.keychain;
+    const previousSettings = keychain.settings;
+    const generation = this.vaultGeneration;
+    const nextSettings = {
+      ...previousSettings,
       ...updates,
     };
+    keychain.settings = nextSettings;
 
-    await this.mutationStep(this.persistKeychain());
+    try {
+      await this.mutationStep(this.persistKeychain());
+    } catch (error) {
+      // getSettings() is also the foreground's rollback source. A failed write must not leave
+      // the rejected node/security settings in that live view. Other mutations are serialized;
+      // a lock/session change, however, must never have its cleared state restored here.
+      if (this.keychain === keychain && this.vaultGeneration === generation
+        && keychain.settings === nextSettings) {
+        keychain.settings = previousSettings;
+      }
+      throw error;
+    }
 
     // Persist the new idle limit in session metadata too, so activity and worker recovery keep it.
+    // This follows the committed keychain write: a session-metadata failure must not roll it back.
     if (updates.autoLockTimer) {
       const timeoutMs = getAutoLockTimeoutMs(updates.autoLockTimer);
       await this.mutationStep(sessionManager.updateSessionTimeout(timeoutMs));
@@ -1313,16 +1329,9 @@ export class WalletManager {
     }
 
     // Address count belongs to the mnemonic wallet. A format switch changes the
-    // derivation branch, not how many derivation indices the user has exposed.
-    const activeAddress = wallet.addresses.find(
-      address => address.address === this.getSettings().lastActiveAddress
-    ) ?? wallet.addresses[0];
-    const activeIndex = activeAddress
-      ? Number(activeAddress.path.split('/').at(-1))
-      : 0;
-    const selectedIndex = Number.isSafeInteger(activeIndex) && activeIndex >= 0
-      ? Math.min(activeIndex, Math.max(wallet.addressCount - 1, 0))
-      : 0;
+    // derivation branch, not how many derivation indices the user has exposed. The
+    // address-type previews derive at this same index.
+    const selectedIndex = addressIndexKeptBySwitch(wallet, this.getSettings().lastActiveAddress);
 
     wallet.addressFormat = newType;
     wallet.addresses = deriveMnemonicAddresses(
@@ -1522,7 +1531,19 @@ export class WalletManager {
     }
   }
 
-  public async getPreviewAddressForFormat(walletId: string, addressFormat: AddressFormat): Promise<string> {
+  /**
+   * The address `addressFormat` gives at derivation `addressIndex` — for a switch preview, the index
+   * `addressIndexKeptBySwitch` says the switch keeps. Private-key wallets have one key, so the
+   * index does not apply to them.
+   */
+  public async getPreviewAddressForFormat(
+    walletId: string,
+    addressFormat: AddressFormat,
+    addressIndex = 0
+  ): Promise<string> {
+    if (!Number.isSafeInteger(addressIndex) || addressIndex < 0) {
+      throw new Error('Invalid preview address index');
+    }
     // Generate address on-demand (requires wallet to be unlocked)
     const secret = await sessionManager.getUnlockedSecret(walletId);
     if (!secret) {
@@ -1537,7 +1558,7 @@ export class WalletManager {
     if (wallet.type === 'mnemonic') {
       return getAddressFromMnemonic(
         secret,
-        `${getDerivationPathForAddressFormat(addressFormat)}/0`,
+        `${getDerivationPathForAddressFormat(addressFormat)}/${addressIndex}`,
         addressFormat
       );
     } else {

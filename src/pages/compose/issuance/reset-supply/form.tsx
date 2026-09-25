@@ -13,6 +13,8 @@ import { asDisplayUnits } from "@/core/numeric";
 import { maxSupplyForDivisibility } from "@/core/validation/amount";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ResetSupplyForm component, aligned with Composer's formAction.
  */
@@ -89,20 +91,19 @@ export function ResetSupplyForm({
 
   // Early returns
   if (assetLoading) {
-    return <Spinner message="Loading asset details…" />;
+    return <Spinner message={t('common_loading_asset_details')} />;
   }
 
   if (assetError || !assetInfo) {
     return (
       <div className="p-4 text-red-500">
-        Unable to load asset details. Please ensure the asset exists and you have the necessary
-        permissions.
+        {t('common_unable_to_load_asset_details')}
       </div>
     );
   }
 
   if (asset === "BTC" || asset === "XCP") {
-    return <div className="p-4 text-red-500">Cannot reset {asset}</div>;
+    return <div className="p-4 text-red-500">{t('reset_supply_form_cannot_reset', [String(asset)])}</div>;
   }
 
   if (assetInfo.locked) {
@@ -110,7 +111,7 @@ export function ResetSupplyForm({
       <div className="p-4">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
           <p className="text-yellow-800">
-            This asset's supply is locked, so it cannot be reset.
+            {t('reset_supply_form_this_asset_s_supply_is')}
           </p>
         </div>
       </div>
@@ -139,8 +140,7 @@ export function ResetSupplyForm({
     >
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
         <p className="text-sm text-yellow-700">
-          This destroys all {assetInfo?.supply_normalized || "0"} existing {asset} and re-issues the
-          asset with the supply below. It cannot be undone.
+          {t('reset_supply_form_this_destroys_all_existing_and', [String(assetInfo?.supply_normalized || "0"), String(asset)])}
         </p>
       </div>
 
@@ -153,9 +153,9 @@ export function ResetSupplyForm({
         showHelpText={showHelpText}
         sourceAddress={activeAddress}
         maxAmount={getMaxAmount()}
-        label="New Supply"
+        label={t('common_new_supply')}
         name="quantity_display"
-        description={`The quantity of ${asset} to issue after the reset.`}
+        description={t('reset_supply_form_the_quantity_of_to_issue', [String(asset)])}
         disabled={pending}
         disableMaxButton={true}
         isDivisible={isDivisible}
@@ -164,14 +164,14 @@ export function ResetSupplyForm({
       <div className="grid grid-cols-3 gap-4">
         <CheckboxInput
           name="divisible"
-          label="Divisible"
+          label={t('common_divisible')}
           checked={isDivisible}
           onChange={setDivisibleChoice}
           disabled={pending}
         />
         <CheckboxInput
           name="lock"
-          label="Locked"
+          label={t('common_locked')}
           checked={isLocked}
           onChange={setIsLocked}
           disabled={pending}
@@ -181,17 +181,17 @@ export function ResetSupplyForm({
       <TextAreaInput
         value={description}
         onChange={setDescriptionChoice}
-        label="Description"
+        label={t('common_description')}
         name="description_display"
         rows={1}
         disabled={pending}
         showHelpText={showHelpText}
-        helpText="A textual description for the asset. Leave unchanged to keep the current one."
+        helpText={t('reset_supply_form_a_textual_description_for_the')}
       />
 
       <CheckboxInput
         name="confirm"
-        label="I understand this cannot be undone"
+        label={t('common_i_understand_this_cannot_be')}
         checked={isConfirmed}
         onChange={setIsConfirmed}
         disabled={pending}

@@ -8,7 +8,9 @@ import {
   type MarketplaceAssetClaim,
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
+import { formatAmount } from '@/core/format';
 import { toFiniteNumber } from '@/core/numeric';
+import { t } from '@/i18n';
 
 export interface BumpAcceptanceFeeIntentClaim {
   standard: 'counterparty-marketplace';
@@ -175,6 +177,10 @@ export function parseAcceptanceCpfpBundleIntents(
   };
 }
 
+/** Satoshi amounts, in the language the wallet is read in. */
+const sats = (value: number): string =>
+  t('marketplace_bundle_sats', formatAmount({ value, maximumFractionDigits: 0 }));
+
 const sameAddress = (left: string | undefined, right: string): boolean =>
   left !== undefined
   && normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
@@ -311,54 +317,85 @@ export function analyzeAcceptanceCpfpBundle(
   return {
     status,
     family: 'accept_exact_offer_with_cpfp',
-    title:
-      `Accept ${(parentIntent.priceSats / 100_000_000).toFixed(8)} BTC for ${claim.asset}`
-      + ' with fee bump',
+    title: t('marketplace_bundle_accept_btc_for_with_fee_bump', [
+      (parentIntent.priceSats / 100_000_000).toFixed(8),
+      claim.asset,
+    ]),
     ...(status === 'proved' ? {
       bundleSummary: {
         outcome: {
-          kind: 'amount' as const, label: 'You receive',
-          value: `${childIntent.finalSellerProceedsSats.toLocaleString()} sats`, emphasis: 'primary' as const,
+          kind: 'amount' as const, label: t('marketplace_bundle_you_receive'),
+          value: sats(childIntent.finalSellerProceedsSats), emphasis: 'primary' as const,
         },
-        action: `Accept offer for ${parentReview.summary?.description ?? claim.asset}`,
+        action: t(
+          'marketplace_bundle_accept_offer_for',
+          parentReview.summary?.description ?? claim.asset,
+        ),
         amounts: [
-          { kind: 'amount' as const, label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
-          { kind: 'amount' as const, label: 'Your UTXO sats returned', value: `${parentIntent.utxoValueSats.toLocaleString()} sats` },
-          { kind: 'amount' as const, label: 'Network fees', value: `${childIntent.packageFeeSats.toLocaleString()} sats` },
+          {
+            kind: 'amount' as const, label: t('marketplace_bundle_offer_price'),
+            value: sats(parentIntent.priceSats),
+          },
+          {
+            kind: 'amount' as const, label: t('marketplace_bundle_your_utxo_sats_returned'),
+            value: sats(parentIntent.utxoValueSats),
+          },
+          {
+            kind: 'amount' as const, label: t('marketplace_bundle_network_fees'),
+            value: sats(childIntent.packageFeeSats),
+          },
         ],
-        timing: 'Both network fees are already deducted from your final proceeds.',
+        timing: t('marketplace_bundle_both_network_fees_are_already'),
       },
     } : {}),
     facts: [
       {
-        kind: 'amount', label: 'Your proceeds after fee bump',
-        value: `${childIntent.finalSellerProceedsSats.toLocaleString()} sats`,
+        kind: 'amount', label: t('marketplace_bundle_your_proceeds_after_fee_bump'),
+        value: sats(childIntent.finalSellerProceedsSats),
         emphasis: 'primary',
       },
-      { kind: 'amount' as const, label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
-      // The buyer-paid platform fee is not the seller's cost and is not listed here.
-      { kind: 'amount' as const, label: 'Your UTXO sats returned', value: `${parentIntent.utxoValueSats.toLocaleString()} sats` },
       {
-        kind: 'amount' as const, label: 'Parent seller proceeds',
-        value: `${childIntent.parentSellerProceedsSats.toLocaleString()} sats`,
+        kind: 'amount' as const, label: t('marketplace_bundle_offer_price'),
+        value: sats(parentIntent.priceSats),
       },
-      { kind: 'amount' as const, label: 'Parent fee', value: `${childIntent.parentNetworkFeeSats.toLocaleString()} sats` },
-      { kind: 'amount' as const, label: 'Added child fee', value: `${childIntent.childNetworkFeeSats.toLocaleString()} sats` },
-      // The package total is the "Network fees" amount in the summary above; not repeated here.
-      { kind: 'amount' as const, label: 'Quoted package rate', value: `${childIntent.packageFeeRate.toFixed(2)} sat/vB` },
+      // The buyer-paid platform fee is not the seller's cost and is not listed here.
       {
-        kind: 'address' as const, label: 'Delivery', value: parentIntent.delivery.address,
+        kind: 'amount' as const, label: t('marketplace_bundle_your_utxo_sats_returned'),
+        value: sats(parentIntent.utxoValueSats),
+      },
+      {
+        kind: 'amount' as const, label: t('marketplace_bundle_parent_seller_proceeds'),
+        value: sats(childIntent.parentSellerProceedsSats),
+      },
+      {
+        kind: 'amount' as const, label: t('marketplace_bundle_parent_fee'),
+        value: sats(childIntent.parentNetworkFeeSats),
+      },
+      {
+        kind: 'amount' as const, label: t('marketplace_bundle_added_child_fee'),
+        value: sats(childIntent.childNetworkFeeSats),
+      },
+      // The package total is the "Network fees" amount in the summary above; not repeated here.
+      {
+        kind: 'amount' as const, label: t('marketplace_bundle_quoted_package_rate'),
+        value: t('marketplace_bundle_sat_vb', childIntent.packageFeeRate.toFixed(2)),
+      },
+      {
+        kind: 'address' as const, label: t('marketplace_bundle_delivery'),
+        value: parentIntent.delivery.address,
         description: parentIntent.delivery.mode === 'attached'
-          ? `Asset stays attached to a ${parentIntent.delivery.utxoValueSats.toLocaleString()}-sat UTXO at this address`
-          : 'Asset detaches to this address',
+          ? t(
+              'marketplace_bundle_asset_stays_attached_to_a',
+              formatAmount({ value: parentIntent.delivery.utxoValueSats, maximumFractionDigits: 0 }),
+            )
+          : t('marketplace_bundle_asset_detaches_to_this_address'),
       },
     ],
     notices: allProblems.length > 0
       ? []
       : [{
           severity: 'info',
-          message:
-            'The parent completes the exact sale and the child spends only your parent proceeds back to you. Both transactions were proved before either signature is requested.',
+          message: t('marketplace_bundle_the_parent_completes_the_exact'),
         }],
     blockers: allProblems,
   };

@@ -1,24 +1,26 @@
 import { RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { FiHelpCircle } from "@/components/icons";
+import { localizedAddressFormatLabel } from '@/components/domain/address/address-format-label';
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, getAddressFormatLabel, isCounterwalletFormat, isFreewalletBIP39Format } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/address';
 import { formatAddress } from "@/core/format";
+import { isAddressFormatLocked } from '@/core/wallet/addressFormatChoices';
+import { useAddressFormatSwitch } from "@/hooks/useAddressFormatSwitch";
+
+import { t } from '@/i18n';
 
 /**
  * Constants for navigation paths and address type options.
  */
 const PATHS = {
   BACK: "/settings",
-  HELP_URL: "https://youtube.com", // Placeholder for now
 } as const;
-const AVAILABLE_ADDRESS_TYPES = Object.values(AddressFormat);
 
 /**
  * AddressTypeSettings component allows users to select and update the wallet's address type.
@@ -38,16 +40,20 @@ export default function AddressTypesPage(): ReactElement {
   const location = useLocation();
   const { setHeaderProps } = useHeader();
   const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
-  const { activeWallet, updateWalletAddressFormat, getPreviewAddressForFormat } = useWallet();
-  const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<AddressFormat | null>(null);
+  const { activeWallet } = useWallet();
+  const {
+    formats,
+    previews,
+    isLoadingPreviews,
+    selectedFormat,
+    error,
+    clearError,
+    switchFormat,
+  } = useAddressFormatSwitch();
   const originalAddressFormat = useRef<AddressFormat | null>(null);
   const hasChangedType = useRef(false);
-  const isChanging = useRef(false);
 
-  // Configure header with dynamic back navigation and help button
+  // Configure header with dynamic back navigation.
   useEffect(() => {
     const handleBack = () => {
       // Return to the page that linked here (e.g. the address list)
@@ -63,89 +69,31 @@ export default function AddressTypesPage(): ReactElement {
     };
 
     setHeaderProps({
-      title: "Address Type",
+      title: t('common_address_type'),
       onBack: handleBack,
-      rightButton: {
-        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
-        onClick: () => window.open(PATHS.HELP_URL, "_blank"),
-        ariaLabel: "Help",
-      },
+      rightButton: undefined,
     });
   }, [setHeaderProps, navigate, returnTo]);
 
 
-  // Load preview addresses
+  // Remember the address type the page opened with, so Back knows whether it changed.
   useEffect(() => {
-    const loadAddresses = async () => {
-      if (!activeWallet) {
-        setIsInitialLoading(false);
-        return;
-      }
-
-      setIsInitialLoading(true);
-      const addressMap: { [key: string]: string } = {};
-
-      for (const format of AVAILABLE_ADDRESS_TYPES) {
-        try {
-          // Try to get cached or generate preview
-          const preview = await getPreviewAddressForFormat(activeWallet.id, format);
-          addressMap[format] = preview;
-        } catch (err) {
-          // If no cached preview available, leave empty
-          console.debug(`No preview available for ${format}:`, err);
-          addressMap[format] = "";
-        }
-      }
-
-      setAddresses(addressMap);
-      setIsInitialLoading(false);
-    };
-
-    loadAddresses();
-  }, [activeWallet, getPreviewAddressForFormat]);
-
-  // Sync selected type with active wallet and store original
-  useEffect(() => {
-    if (activeWallet) {
-      setSelectedFormat(activeWallet.addressFormat);
-      // Store the original address type on mount
-      if (originalAddressFormat.current === null) {
-        originalAddressFormat.current = activeWallet.addressFormat;
-      }
+    if (activeWallet && originalAddressFormat.current === null) {
+      originalAddressFormat.current = activeWallet.addressFormat;
     }
   }, [activeWallet]);
 
   /**
-   * Updates the wallet's address type and refreshes the preview address.
+   * Updates the wallet's address type through the shared switching path.
    * @param newType - The new address type to set.
    */
   const handleAddressFormatChange = async (newType: AddressFormat | null) => {
-    if (!newType) return;
-    if (!activeWallet || isChanging.current) return;
-
-    // Update selected type immediately for instant UI response
-    setSelectedFormat(newType);
-
-    // Track that a change has been made
-    hasChangedType.current = newType !== originalAddressFormat.current;
-
-    isChanging.current = true;
-
-    try {
-      await updateWalletAddressFormat(activeWallet.id, newType);
-      setError(null);
-    } catch (err) {
-      console.error("Error updating address type:", err);
-      setError(err instanceof Error ? err.message : "Failed to update address type");
-      // Revert selection on error
-      setSelectedFormat(activeWallet.addressFormat);
-      hasChangedType.current = activeWallet.addressFormat !== originalAddressFormat.current;
-    } finally {
-      isChanging.current = false;
+    if (await switchFormat(newType)) {
+      hasChangedType.current = newType !== originalAddressFormat.current;
     }
   };
 
-  if (isInitialLoading) {
+  if (isLoadingPreviews) {
     return (
       <div className="flex items-center justify-center h-full">
         <Spinner />
@@ -154,23 +102,22 @@ export default function AddressTypesPage(): ReactElement {
   }
 
   if (!activeWallet) {
-    return <div className="p-4 text-center text-gray-500">No wallet available</div>;
+    return <div className="p-4 text-center text-gray-500">{t('settings_address_types_no_wallet_available')}</div>;
   }
 
   // Hardware wallets cannot change address type - they need to be reconnected with a different format
-  const isHardwareWallet = activeWallet.type === 'hardware';
+  const isHardwareWallet = isAddressFormatLocked(activeWallet);
 
   return (
     <section className="space-y-2 p-4" aria-labelledby="address-type-settings-title">
       <h2 id="address-type-settings-title" className="sr-only">
-        Address Type Settings
+        {t('settings_address_types_address_type_settings')}
       </h2>
-      {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+      {error && <ErrorAlert message={error} onClose={clearError} />}
       {isHardwareWallet && (
         <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 mb-4">
           <p className="text-sm text-blue-200">
-            <strong>Hardware Wallet</strong>: Address type is set when you connect your device.
-            To use a different address format, go to Add Wallet and connect your Trezor again with the desired format.
+            <strong>{t('settings_address_types_hardware_wallet')}</strong>{t('settings_address_types_address_type_is_set_when')}
           </p>
         </div>
       )}
@@ -181,29 +128,10 @@ export default function AddressTypesPage(): ReactElement {
         disabled={isHardwareWallet}
       >
         <SelectionCardGroup>
-          {AVAILABLE_ADDRESS_TYPES.filter((type) => {
-            const walletFormat = activeWallet?.addressFormat;
-
-            // For Counterwallet users, only show Counterwallet formats
-            if (walletFormat && isCounterwalletFormat(walletFormat)) {
-              return isCounterwalletFormat(type);
-            }
-
-            // For FreeWallet BIP39 users, only show FreeWallet BIP39 formats
-            if (walletFormat && isFreewalletBIP39Format(walletFormat)) {
-              return isFreewalletBIP39Format(type);
-            }
-
-            // For standard BIP39 users, hide both Counterwallet and FreeWallet groups
-            if (isCounterwalletFormat(type) || isFreewalletBIP39Format(type)) {
-              return false;
-            }
-
-            return true;
-          }).map((type) => {
-            const typeLabel = getAddressFormatLabel(type);
+          {formats.map((type) => {
+            const typeLabel = localizedAddressFormatLabel(type);
             // Use loaded address preview
-            const address = addresses[type] || "";
+            const address = previews[type] || "";
             const addressPreview = address ? formatAddress(address) : "";
 
             return (

@@ -99,14 +99,26 @@ export function unpackAttach(payload: Uint8Array): AttachData {
     }
 
     const [asset, quantityStr, destinationVoutStr] = parts;
+    // Decimal digits only. `BigInt` alone also reads `0x1`/`0b1` and `parseInt` reads `1abc` as 1,
+    // so a payload Core rejects would have decoded as a clean attach. An empty destination is
+    // Core's "first non-OP_RETURN output" default.
+    const quantityText = (quantityStr ?? '').trim();
+    if (!/^\d+$/.test(quantityText)) {
+      throw new Error('Invalid attach quantity');
+    }
+    const destinationText = (destinationVoutStr ?? '').trim();
+    if (destinationText !== '' && !/^\d+$/.test(destinationText)) {
+      throw new Error('Invalid attach destination vout');
+    }
+    const destinationVout = destinationText === '' ? undefined : Number(destinationText);
+    if (destinationVout !== undefined && !Number.isSafeInteger(destinationVout)) {
+      throw new Error('Invalid attach destination vout');
+    }
 
     return {
       asset: asset || '',
-      quantity: BigInt(quantityStr || '0'),
-      destinationVout:
-        destinationVoutStr && destinationVoutStr !== ''
-          ? parseInt(destinationVoutStr, 10)
-          : undefined,
+      quantity: BigInt(quantityText),
+      destinationVout,
     };
   } catch (e) {
     if (e instanceof Error && e.message.startsWith('Invalid attach')) {

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 
+import { t } from '@/i18n';
 /**
  * Renders detailed information for sweep transactions
  */
@@ -10,11 +11,11 @@ export function sweep(tx: Transaction): Array<{ label: string; value: string | R
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
-      label: "Type",
-      value: "Sweep All Assets",
+      label: t('common_type'),
+      value: t('messages_sweep_sweep_all_assets'),
     },
     {
-      label: "Destination",
+      label: t('common_destination'),
       value: (
         <span className="text-xs break-all">
           {params.destination}
@@ -26,20 +27,20 @@ export function sweep(tx: Transaction): Array<{ label: string; value: string | R
   // Flags
   if (params.flags !== undefined) {
     const flagDescriptions: string[] = [];
-    if (params.flags & 1) flagDescriptions.push("Include Balances");
-    if (params.flags & 2) flagDescriptions.push("Include Ownership");
-    if (params.flags & 4) flagDescriptions.push("Close Dispensers");
+    if (params.flags & 1) flagDescriptions.push(t('messages_sweep_include_balances'));
+    if (params.flags & 2) flagDescriptions.push(t('messages_sweep_include_ownership'));
+    if (params.flags & 4) flagDescriptions.push(t('messages_sweep_close_dispensers'));
     
     fields.push({
-      label: "Flags",
-      value: flagDescriptions.length > 0 ? flagDescriptions.join(", ") : `Raw value: ${params.flags}`,
+      label: t('messages_sweep_flags'),
+      value: flagDescriptions.length > 0 ? flagDescriptions.join(", ") : t('messages_sweep_raw_value', [String(params.flags)]),
     });
   }
   
   // Memo
   if (params.memo) {
     fields.push({
-      label: "Memo",
+      label: t('common_memo'),
       value: (
         <div className="break-all">
           {params.memo}
@@ -57,7 +58,7 @@ export function sweep(tx: Transaction): Array<{ label: string; value: string | R
   
   if (sweepEvents && sweepEvents.length > 0) {
     fields.push({
-      label: "Assets Swept",
+      label: t('messages_sweep_assets_swept'),
       value: (
         <div className="space-y-1 max-h-32 overflow-y-auto">
           {sweepEvents.map((event: any, idx: number) => (
