@@ -23,6 +23,7 @@ import { mapVerifiedInputPaths } from '@/core/hardware/inputPaths';
 import { type AppSettings, DEFAULT_SETTINGS, getAutoLockTimeoutMs, setSettingsProvider } from '@/core/settings';
 import {
   deriveAddressesFromSecret,
+  deriveHardwareAddress,
   deriveMnemonicAddress,
   deriveMnemonicAddresses,
   generateWalletId,
@@ -1168,24 +1169,27 @@ export class WalletManager {
   private async addAddressInternal(walletId: string): Promise<Address> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
-    if (wallet.type !== 'mnemonic')
-      throw new Error('Can only add addresses to a mnemonic wallet.');
-    const mnemonic = await this.mutationStep(sessionManager.getUnlockedSecret(walletId));
-    if (!mnemonic)
+    if (wallet.type !== 'mnemonic' && wallet.type !== 'hardware')
+      throw new Error('Can only add addresses to a mnemonic or hardware wallet.');
+    const secret = await this.mutationStep(sessionManager.getUnlockedSecret(walletId));
+    if (!secret)
       throw new Error('Wallet is locked. Please unlock first.');
     if (wallet.addressCount >= MAX_ADDRESSES_PER_WALLET) {
       throw new Error(`Cannot exceed ${MAX_ADDRESSES_PER_WALLET} addresses.`);
     }
+    if (!this.keychain) throw new Error('Keychain not loaded');
+    const keychainRecord = this.keychain.wallets.find((r) => r.id === walletId);
+    if (!keychainRecord) throw new Error('Missing keychain record.');
 
     const index = wallet.addressCount;
-    const newAddr = deriveMnemonicAddress(mnemonic, wallet.addressFormat, index);
+    const newAddr = wallet.type === 'hardware'
+      ? deriveHardwareAddress(secret, keychainRecord, index)
+      : deriveMnemonicAddress(secret, wallet.addressFormat, index);
+    if (!newAddr) throw new Error('Cannot derive another address for this hardware wallet.');
     wallet.addresses.push(newAddr);
     wallet.addressCount++;
 
     // Update keychain record
-    if (!this.keychain) throw new Error('Keychain not loaded');
-    const keychainRecord = this.keychain.wallets.find((r) => r.id === walletId);
-    if (!keychainRecord) throw new Error('Missing keychain record.');
     keychainRecord.addressCount = wallet.addressCount;
     await this.mutationStep(this.persistKeychain());
 
