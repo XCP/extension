@@ -21,9 +21,17 @@ describe('providerPsbtSigningCapabilities', () => {
           inputScope: 'selected',
           externalInputs: 'any',
           maxRequests: 8,
-          marketplaceBundles: ['attach-and-list', 'authorize-offers'],
+          maxPolicyOfferAlternatives: 100,
+          marketplaceBundles: ['attach-and-list', 'authorize-offers', 'fund-policy-offer'],
         },
       });
+  });
+
+  it('lets a Taproot software signer sign policy-offer funding DEFAULT in a batch', () => {
+    const batch = providerPsbtSigningCapabilities({ type: 'mnemonic', addressFormat: AddressFormat.P2TR }).psbtBatch;
+    expect(batch.sighashTypes).toEqual([0x00, 0x01, 0x83]);
+    expect(batch.marketplaceBundles).toContain('fund-policy-offer');
+    expect(batch.maxPolicyOfferAlternatives).toBe(100);
   });
 
   it('reports the proved selected-input and pre-signed external Trezor contract', () => {
@@ -41,6 +49,7 @@ describe('providerPsbtSigningCapabilities', () => {
           inputScope: 'selected',
           externalInputs: 'presigned',
           maxRequests: 8,
+          maxPolicyOfferAlternatives: 0,
           marketplaceBundles: [],
         },
       });
@@ -63,6 +72,7 @@ describe('providerPsbtSigningCapabilities', () => {
             inputScope: 'selected',
             externalInputs: 'presigned',
             maxRequests: 0,
+            maxPolicyOfferAlternatives: 0,
             marketplaceBundles: [],
           },
         });

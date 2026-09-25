@@ -60,7 +60,7 @@ export default function ApprovePsbtsPage() {
                 ? t('psbts_approve_attach_collectibles')
                 : request?.bundleKind === "bulk-listing"
                   ? t('psbts_approve_authorize_listings')
-                  : request?.bundleKind === "authorize-offers"
+                  : request?.bundleKind === "authorize-offers" || request?.bundleKind === "fund-policy-offer"
                     ? t('psbts_approve_authorize_offers')
                     : t('psbts_approve_review_transaction_batch');
     setHeaderProps({ title });
@@ -125,7 +125,7 @@ export default function ApprovePsbtsPage() {
           ? t('common_accept_offer_2')
           : request.bundleKind === "bulk-fanout"
             ? t('psbts_approve_prepare_funds_2')
-            : request.bundleKind === "authorize-offers"
+            : request.bundleKind === "authorize-offers" || request.bundleKind === "fund-policy-offer"
               ? request.items.length === 1
                 ? t('psbts_approve_authorize_1_offer')
                 : t('psbts_approve_authorize_offers_2', [String(request.items.length)])

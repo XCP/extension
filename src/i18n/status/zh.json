@@ -2087,6 +2087,21 @@
     "approval_marketplace_different_transaction_description",
     "approval_too_many_inputs_title",
     "approval_too_many_inputs_description",
-    "provider_review_transaction_data_mismatch"
+    "provider_review_transaction_data_mismatch",
+    "marketplace_intent_title_policy_offer",
+    "marketplace_intent_policy_series",
+    "marketplace_intent_policy_artist",
+    "marketplace_intent_policy_issued_year",
+    "marketplace_intent_policy_min_supply",
+    "marketplace_intent_policy_max_supply",
+    "marketplace_intent_none_now",
+    "marketplace_intent_seller_pays_marketplace_and_network_fees",
+    "marketplace_intent_policy_cancel_by_spending_funding",
+    "marketplace_intent_notice_policy_offer_market_key",
+    "marketplace_intent_pays_for_two_transactions",
+    "marketplace_intent_notice_accept_policy_offer",
+    "marketplace_batch_make_alternative_offers",
+    "marketplace_batch_offer_n",
+    "marketplace_batch_policy_alternatives_at_most_one_fills"
   ]
 }

@@ -29,6 +29,7 @@ import {
   analyzeMarketplaceIntent,
   type MarketplaceApprovalReview,
   type MarketplaceIntentClaimV1,
+  type PolicyOfferWalletContext,
 } from '@/core/counterparty/marketplaceIntent';
 import { checkMessageStructure, type StructureFinding } from '@/core/counterparty/messageStructure';
 import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
@@ -62,6 +63,9 @@ export interface AnalyzedInput {
   hasSignatures?: boolean;
   address?: string;
   value?: number;
+  sequence?: number;
+  /** Script type of the spent prevout. */
+  scriptType?: string;
 }
 
 /**
@@ -113,6 +117,11 @@ export interface SignRequestAnalysisInput {
   bitcoinPaymentIntent?: BitcoinPaymentIntentV1;
   /** Optional marketplace assertions; every term is proved below before receiving semantic UI. */
   marketplaceIntent?: MarketplaceIntentClaimV1;
+  /** Bitcoin transaction header, decoded from the bytes; protocols that pin it prove it. */
+  transactionVersion?: number;
+  lockTime?: number;
+  /** Wallet-supplied policy-offer facts (pinned keys, clock, funding settlement). Never a site's. */
+  policyOffer?: PolicyOfferWalletContext;
 }
 
 export interface SignRequestAnalysis {
@@ -415,6 +424,9 @@ export async function analyzeSignRequest(
       ownedAddresses: input.ownedAddresses,
       hasCounterpartyPayload: Boolean(counterpartyDataHex),
       transactionId,
+      transactionVersion: input.transactionVersion,
+      lockTime: input.lockTime,
+      policyOffer: input.policyOffer,
       localCounterpartyMessage: verification.localUnpack?.success
         && verification.localUnpack.messageType
         ? {
@@ -438,11 +450,24 @@ export async function analyzeSignRequest(
       safety.warnings = safety.warnings.filter(warning => warning.code !== 'counterparty_only_gate');
       safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
     } else if (
+      marketplaceReview.status === 'caution'
+      && marketplaceReview.family === 'fund_policy_offer'
+    ) {
+      // A proved policy-offer parent carries no Counterparty message by design, and its two
+      // outputs that are not the bidder's — the offer output rebuilt from the bidder's own key and
+      // the pinned market key's leaf, and the anchor returned to itself — are exactly what the
+      // review states. Those two findings are exempt; every other block (ZELD included) survives.
+      safety.warnings = safety.warnings.filter(
+        warning => warning.code !== 'counterparty_only_gate' && warning.code !== 'external_btc_output',
+      );
+      safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
+    } else if (
       (marketplaceReview.status === 'proved' || marketplaceReview.status === 'caution')
       && (
         marketplaceReview.family === 'buy_listings'
         || marketplaceReview.family === 'authorize_exact_offer'
         || marketplaceReview.family === 'accept_exact_offer'
+        || marketplaceReview.family === 'accept_policy_offer'
       )
     ) {
       // These semantic cards prove the exact delivery output, attached asset, payments, and

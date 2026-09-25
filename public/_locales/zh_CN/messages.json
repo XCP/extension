@@ -6306,5 +6306,50 @@
   },
   "approval_money_movement_view_to": {
     "message": "发送至"
+  },
+  "marketplace_intent_title_policy_offer": {
+    "message": "为 $2 出价 $1"
+  },
+  "marketplace_intent_policy_series": {
+    "message": "系列 $1"
+  },
+  "marketplace_intent_policy_artist": {
+    "message": "艺术家 $1"
+  },
+  "marketplace_intent_policy_issued_year": {
+    "message": "$1 年发行"
+  },
+  "marketplace_intent_policy_min_supply": {
+    "message": "供应量 ≥ $1"
+  },
+  "marketplace_intent_policy_max_supply": {
+    "message": "供应量 ≤ $1"
+  },
+  "marketplace_intent_none_now": {
+    "message": "目前无"
+  },
+  "marketplace_intent_seller_pays_marketplace_and_network_fees": {
+    "message": "接受出价的卖家支付市场费用和网络费用"
+  },
+  "marketplace_intent_policy_cancel_by_spending_funding": {
+    "message": "花费任一资金 UTXO 即在链上取消所有备选出价"
+  },
+  "marketplace_intent_notice_policy_offer_market_key": {
+    "message": "在资金 UTXO 被花费之前，$1 的签名密钥最多可以 $2 完成此出价。现在不会广播任何内容。"
+  },
+  "marketplace_intent_pays_for_two_transactions": {
+    "message": "支付 2 笔交易，$1 vB"
+  },
+  "marketplace_intent_notice_accept_policy_offer": {
+    "message": "市场为买家的出价联署后，你的签名即完成此次出售。如果出价已失效，则不会广播任何内容，你的资产仍归你所有。"
+  },
+  "marketplace_batch_make_alternative_offers": {
+    "message": "创建 $1 个备选出价"
+  },
+  "marketplace_batch_offer_n": {
+    "message": "出价 $1"
+  },
+  "marketplace_batch_policy_alternatives_at_most_one_fills": {
+    "message": "这些出价互为备选，最多只有一个会成交：它们都花费相同的资金 UTXO。"
   }
 }

@@ -6,12 +6,17 @@ import {
   type AttachForListingIntentClaim,
   type AuthorizeExactOfferIntentClaim,
   type CreateListingIntentClaim,
+  describeCanonicalPolicy,
+  type FundPolicyOfferIntentClaim,
   formatExpiry,
   type MarketplaceApprovalReview,
   type PrepareAssetIntentClaim,
   type PrepareBulkFanoutIntentClaim,
   parseMarketplaceIntent,
+  pinnedPolicyMarketOperator,
 } from '@/core/counterparty/marketplaceIntent';
+import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
+import type { PinnedPolicyMarketKey } from '@/core/counterparty/policyOfferKeys';
 import { formatAmount } from '@/core/format';
 import { sum, toSafeInteger } from '@/core/numeric';
 import { t } from '@/i18n';
@@ -21,7 +26,8 @@ export type MarketplaceBatchIntent =
   | PrepareAssetIntentClaim
   | AttachForListingIntentClaim
   | CreateListingIntentClaim
-  | AuthorizeExactOfferIntentClaim;
+  | AuthorizeExactOfferIntentClaim
+  | FundPolicyOfferIntentClaim;
 
 export type MarketplaceBatchKind =
   | 'attach-and-list'
@@ -29,7 +35,15 @@ export type MarketplaceBatchKind =
   | 'prepare-assets'
   | 'bulk-attach'
   | 'bulk-listing'
-  | 'authorize-offers';
+  | 'authorize-offers'
+  | 'fund-policy-offer';
+
+/** Every linked phase but a policy-offer funding set, whose alternatives may number 1..100. */
+export const MAX_MARKETPLACE_BATCH_REQUESTS = 8;
+
+/** How many requests one phase of this kind may carry. */
+export const maxMarketplaceBatchRequests = (kind: string): number =>
+  kind === 'fund-policy-offer' ? MAX_POLICY_ALTERNATIVES : MAX_MARKETPLACE_BATCH_REQUESTS;
 
 const sameAddress = (left: string, right: string): boolean =>
   normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
@@ -37,7 +51,9 @@ const sameAddress = (left: string, right: string): boolean =>
 const batchIdentity = (intent: MarketplaceBatchIntent): string =>
   intent.action === 'prepare_asset'
     ? intent.utxoOwner
-    : intent.action === 'authorize_exact_offer' ? intent.bidder : intent.seller;
+    : intent.action === 'authorize_exact_offer' || intent.action === 'fund_policy_offer'
+      ? intent.bidder
+      : intent.seller;
 
 const outpointKey = (outpoint: { txid: string; vout: number }): string =>
   `${outpoint.txid}:${outpoint.vout}`;
@@ -93,15 +109,71 @@ function parseAuthorizeOffers(offers: AuthorizeExactOfferIntentClaim[]): Authori
   return offers;
 }
 
+/**
+ * The alternatives of one policy-offer funding set, one request per parent (spec §7.1).
+ *
+ * Every alternative spends the identical funding inputs and anchor, so at most one can ever be
+ * mined: the requests are admitted only when they share every term but the alternative itself.
+ * Two wire forms are accepted and normalized to one alternative per item. In the reference form
+ * each request repeats the complete claim and request i signs alternative i; that repetition grows
+ * with the square of the count and passes the wallet's 1 MB request limit near 30 alternatives. In
+ * the compact form each request carries the shared claim with only its own alternative, which
+ * scales to the protocol's 100.
+ */
+function parseFundPolicyOffers(parsed: FundPolicyOfferIntentClaim[]): FundPolicyOfferIntentClaim[] {
+  const first = parsed[0]!;
+  const count = parsed.length;
+  const shared = (claim: FundPolicyOfferIntentClaim): string => JSON.stringify([
+    claim.operationId, claim.bidder, claim.internalKey, claim.marketKey, claim.delivery,
+    claim.fundingInputs, claim.anchor, claim.marketplaceFee,
+  ]);
+  const sharedTerms = shared(first);
+  const completeForm = count > 1 && first.alternatives.length === count;
+  const completeList = JSON.stringify(first.alternatives);
+  const items = parsed.map((claim, index) => {
+    if (shared(claim) !== sharedTerms) {
+      throw new Error('policy-offer alternatives must share one bidder, keys, delivery, funding set, and anchor');
+    }
+    if (completeForm) {
+      if (JSON.stringify(claim.alternatives) !== completeList) {
+        throw new Error('policy-offer requests describe different alternative lists');
+      }
+      return { ...claim, alternatives: [claim.alternatives[index]!] };
+    }
+    if (claim.alternatives.length !== 1) {
+      throw new Error('each policy-offer request must carry its own alternative or the complete list');
+    }
+    return claim;
+  });
+  const parents = items.map(item => item.alternatives[0]!.expectedParentTxid);
+  if (new Set(parents).size !== parents.length) {
+    throw new Error('policy-offer batch contains a duplicate parent transaction');
+  }
+  return items;
+}
+
 /** Parse an untrusted request array and admit only bounded homogeneous signing phases. */
 export function parseMarketplaceBatchIntents(values: unknown[]): {
   kind: MarketplaceBatchKind;
   intents: MarketplaceBatchIntent[];
 } {
-  if (values.length < 1 || values.length > 8) {
-    throw new Error('marketplace batch must contain 1..8 requests');
+  const head = values[0];
+  const policyOffers = typeof head === 'object' && head !== null && !Array.isArray(head)
+    && (head as { action?: unknown }).action === 'fund_policy_offer';
+  const limit = policyOffers ? MAX_POLICY_ALTERNATIVES : MAX_MARKETPLACE_BATCH_REQUESTS;
+  if (values.length < 1 || values.length > limit) {
+    throw new Error(`marketplace batch must contain 1..${limit} requests`);
   }
   const parsed = values.map(parseMarketplaceIntent);
+  if (policyOffers) {
+    if (!parsed.every(intent => intent.action === 'fund_policy_offer')) {
+      throw new Error('marketplace batch requests must use one semantic action');
+    }
+    return {
+      kind: 'fund-policy-offer',
+      intents: parseFundPolicyOffers(parsed as FundPolicyOfferIntentClaim[]),
+    };
+  }
   if (
     parsed.length === 2
     && parsed[0]!.action === 'attach_for_listing'
@@ -220,6 +292,8 @@ export function analyzeMarketplaceBatch(
   kind: MarketplaceBatchKind,
   intents: MarketplaceBatchIntent[],
   reviews: MarketplaceApprovalReview[],
+  /** The wallet's pinned policy-offer keys; the compiled-in set unless a test supplies one. */
+  context: { pinnedMarketKeys?: readonly PinnedPolicyMarketKey[] } = {},
 ): MarketplaceBundleReview {
   if (intents.length !== reviews.length || intents.length < 1) {
     throw new Error('marketplace batch proof count does not match its intents');
@@ -238,9 +312,10 @@ export function analyzeMarketplaceBatch(
     { kind: 'text' as const, label: t('marketplace_batch_transactions'), value: count(intents.length) },
     { kind: 'address' as const, label: t('marketplace_batch_seller_wallet'), value: seller },
   ];
-  const facts: MarketplaceApprovalReview['facts'] = kind === 'attach-and-list' || kind === 'authorize-offers'
-    ? []
-    : [...identityFacts];
+  const facts: MarketplaceApprovalReview['facts'] =
+    kind === 'attach-and-list' || kind === 'authorize-offers' || kind === 'fund-policy-offer'
+      ? []
+      : [...identityFacts];
   let title: string;
   let notice: string;
   let summary: MarketplaceBundleReview['bundleSummary'];
@@ -371,6 +446,66 @@ export function analyzeMarketplaceBatch(
     // No notice, as for listings: each item is `caution` by design (a durable buyer signature),
     // and the settlement and cancellation facts above are what that caution says.
     notice = '';
+  } else if (kind === 'fund-policy-offer') {
+    // The parser admitted only items sharing bidder, keys, delivery, funding set, and anchor, and
+    // each item proved its own alternative against its own bytes.
+    const offers = intents as FundPolicyOfferIntentClaim[];
+    const first = offers[0]!;
+    const alternatives = offers.map(offer => offer.alternatives[0]!);
+    const only = alternatives.length === 1 ? alternatives[0]! : undefined;
+    const largestOffer = alternatives.reduce(
+      (largest, alternative) => (alternative.offerValueSats > largest ? alternative.offerValueSats : largest), 0,
+    );
+    const expiries = alternatives.map(alternative => alternative.expiresAt);
+    const latestExpiry = Math.max(...expiries);
+    title = only
+      ? t('marketplace_intent_title_policy_offer', [sats(only.priceSats), describeCanonicalPolicy(only.policy)])
+      : t('marketplace_batch_make_alternative_offers', count(offers.length));
+    facts.push(
+      ...(only ? [
+        {
+          kind: 'amount' as const, label: t('marketplace_intent_offer_price'), value: sats(only.priceSats),
+          emphasis: 'primary' as const,
+        },
+        { kind: 'text' as const, label: t('marketplace_intent_offer_policy'), value: describeCanonicalPolicy(only.policy) },
+      ] : alternatives.map((alternative, index) => ({
+        kind: 'amount' as const, label: t('marketplace_batch_offer_n', count(index + 1)),
+        value: sats(alternative.priceSats), description: describeCanonicalPolicy(alternative.policy),
+      }))),
+      {
+        kind: 'text' as const, label: t('marketplace_intent_network_fee'), value: t('marketplace_intent_none_now'),
+        description: t('marketplace_intent_seller_pays_marketplace_and_network_fees'),
+      },
+      ...(only ? [] : [{
+        kind: 'paragraph' as const, label: t('marketplace_batch_settlement'),
+        value: t('marketplace_batch_policy_alternatives_at_most_one_fills'),
+      }]),
+      {
+        kind: 'address' as const, label: t('marketplace_intent_delivery'), value: first.delivery.address,
+        description: t('marketplace_intent_asset_detaches_to_this_address'),
+      },
+      ...first.fundingInputs.map(funding => ({
+        kind: 'outpoint' as const, label: t('marketplace_intent_funding_utxo'),
+        value: `${funding.txid}:${funding.vout}`,
+      })),
+      {
+        kind: 'date' as const,
+        label: expiries.every(expiry => expiry === latestExpiry)
+          ? t('marketplace_intent_expires')
+          : t('marketplace_batch_latest_expiry'),
+        value: formatExpiry(latestExpiry),
+      },
+      {
+        kind: 'paragraph' as const, label: t('marketplace_intent_cancellation'),
+        value: t('marketplace_intent_policy_cancel_by_spending_funding'),
+      },
+    );
+    // The one trust these signatures add: the pinned key's holder can complete any one of them,
+    // for up to the largest offer, until a funding input is spent. A caution by design, stated.
+    const operator = pinnedPolicyMarketOperator(first.marketKey, context.pinnedMarketKeys);
+    notice = operator === undefined
+      ? ''
+      : t('marketplace_intent_notice_policy_offer_market_key', [operator, sats(largestOffer)]);
   } else if (kind === 'bulk-fanout') {
     const fanouts = intents as PrepareBulkFanoutIntentClaim[];
     const slots = exactSafeSum(fanouts.map(intent => intent.slotCount), 'slot count');

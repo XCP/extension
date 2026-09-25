@@ -7,9 +7,9 @@ import {
   resolvePsbtSighashType,
 } from '@/core/bitcoin/psbt';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
-import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
+import { fetchInputsAttachedAssets, type InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import { type LinkedInputEvidence, withLinkedInputAssets } from '@/core/counterparty/marketplaceAttachLink';
-import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceIntentClaimV1, PolicyOfferWalletContext } from '@/core/counterparty/marketplaceIntent';
 import {
   type InscriptionCommitContext,
   resolveRevealMessage,
@@ -45,11 +45,25 @@ export async function decodePsbtForApproval(
     linkedInput?: LinkedInputEvidence;
     /** Resolves prevouts the wallet itself broadcast (its trusted journal). */
     resolveTrustedPrevout?: TrustedPrevoutResolver;
+    /**
+     * A ledger lookup already made for exactly these input outpoints, in this order. The bundle
+     * decoder shares one lookup across policy-offer alternatives, which the batch proof requires
+     * to spend the identical inputs; any other input list is looked up afresh.
+     */
+    sharedAttachedAssets?: { outpoints: string[]; assets: InputAttachedAssets[] };
+    /** Wallet-supplied policy-offer facts; see PolicyOfferWalletContext. */
+    policyOffer?: PolicyOfferWalletContext;
   } = {},
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
-  const { linkedInput, resolveTrustedPrevout = noTrustedPrevout } = options;
-  const ledgerAssets = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices, resolveTrustedPrevout);
+  const { linkedInput, resolveTrustedPrevout = noTrustedPrevout, sharedAttachedAssets } = options;
+  const outpoints = psbtDetails.inputs.map(input => `${input.txid}:${input.vout}`);
+  const reusable = sharedAttachedAssets !== undefined
+    && sharedAttachedAssets.outpoints.length === outpoints.length
+    && sharedAttachedAssets.outpoints.every((outpoint, index) => outpoint === outpoints[index]);
+  const ledgerAssets = reusable
+    ? Promise.resolve(sharedAttachedAssets.assets)
+    : fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices, resolveTrustedPrevout);
   const attachedAssetsPromise = linkedInput
     ? ledgerAssets.then(ledger => withLinkedInputAssets(
         ledger, linkedInput.entry, linkedInput.attachTxid, linkedInput.attachIsUnbroadcast,
@@ -94,6 +108,9 @@ export async function decodePsbtForApproval(
     bitcoinPaymentIntent,
     marketplaceIntent,
     ownedAddresses,
+    transactionVersion: psbtDetails.transactionVersion,
+    lockTime: psbtDetails.lockTime,
+    policyOffer: options.policyOffer,
   });
 
   return { psbtDetails, txid, ...analysis };

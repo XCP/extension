@@ -225,6 +225,9 @@ export type AttachInputSettlement =
 export async function proveAttachInputsSettled(
   inputs: Array<{ index: number; txid: string; vout: number }>,
   source: LinkedAttachChainSource,
+  /** What the inputs fund, for the problem text. A policy offer's funding inputs need the same
+   * proof: confirmed (TRUC allows its parent no unconfirmed ancestor), indexed, and asset-free. */
+  subject: 'attach' | 'offer' = 'attach',
 ): Promise<AttachInputSettlement> {
   const parents = [...new Set(inputs.map(input => input.txid.toLowerCase()))];
   const statuses = await Promise.all(parents.map(txid => source.txStatus(txid).catch(() => null)));
@@ -232,16 +235,16 @@ export async function proveAttachInputsSettled(
   for (const [index, status] of statuses.entries()) {
     const txid = parents[index]!;
     if (status === null || status === 'missing') {
-      return { status: 'retry', problem: `the wallet could not confirm attach funding transaction ${txid}` };
+      return { status: 'retry', problem: `the wallet could not confirm ${subject} funding transaction ${txid}` };
     }
     if (!status.confirmed) {
       return {
         status: 'retry',
-        problem: `attach funding transaction ${txid} is unconfirmed; retry after it confirms and Counterparty indexes it`,
+        problem: `${subject} funding transaction ${txid} is unconfirmed; retry after it confirms and Counterparty indexes it`,
       };
     }
     if (status.blockHeight === undefined) {
-      return { status: 'retry', problem: `the wallet could not place attach funding transaction ${txid} in a block` };
+      return { status: 'retry', problem: `the wallet could not place ${subject} funding transaction ${txid} in a block` };
     }
     highest = Math.max(highest, status.blockHeight);
   }
@@ -253,17 +256,17 @@ export async function proveAttachInputsSettled(
     return { status: 'retry', problem: 'the wallet could not read how far Counterparty has indexed' };
   }
   if (highest > ledgerHeight) {
-    return { status: 'retry', problem: 'an attach funding transaction is not yet indexed by Counterparty' };
+    return { status: 'retry', problem: `an ${subject} funding transaction is not yet indexed by Counterparty` };
   }
   for (const input of inputs) {
     let count: number;
     try {
       count = await source.freshBalanceCount(`${input.txid}:${input.vout}`);
     } catch {
-      return { status: 'retry', problem: `the attached-asset lookup for attach input ${input.index} failed` };
+      return { status: 'retry', problem: `the attached-asset lookup for ${subject} input ${input.index} failed` };
     }
     if (count > 0) {
-      return { status: 'blocked', problem: `attach input ${input.index} already carries attached assets` };
+      return { status: 'blocked', problem: `${subject} input ${input.index} already carries attached assets` };
     }
   }
   return { status: 'settled' };

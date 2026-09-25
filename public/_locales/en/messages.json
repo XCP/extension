@@ -8395,5 +8395,65 @@
   "approval_money_movement_view_to": {
     "message": "To",
     "description": "Label above an address that receives BTC from this transaction, on the approval summary. The amount sits on the same line."
+  },
+  "marketplace_intent_title_policy_offer": {
+    "message": "Offer $1 for $2",
+    "description": "Headline of the policy-offer funding approval: the bidder offers a price for anything matching a policy. $1 is the price in sats, $2 is the asset name or the quoted collection with its traits."
+  },
+  "marketplace_intent_policy_series": {
+    "message": "Series $1",
+    "description": "Part of a policy-offer description: only collectibles from this series match. $1 is the series number."
+  },
+  "marketplace_intent_policy_artist": {
+    "message": "Artist $1",
+    "description": "Part of a policy-offer description: only collectibles by this artist match. $1 is the quoted artist name."
+  },
+  "marketplace_intent_policy_issued_year": {
+    "message": "Issued $1",
+    "description": "Part of a policy-offer description: only collectibles issued in this year match. $1 is the year."
+  },
+  "marketplace_intent_policy_min_supply": {
+    "message": "Supply ≥ $1",
+    "description": "Part of a policy-offer description: only collectibles with at least this many units issued match. $1 is the unit count."
+  },
+  "marketplace_intent_policy_max_supply": {
+    "message": "Supply ≤ $1",
+    "description": "Part of a policy-offer description: only collectibles with at most this many units issued match. $1 is the unit count."
+  },
+  "marketplace_intent_none_now": {
+    "message": "None now",
+    "description": "Value of the network fee row on the policy-offer funding approval: the bidder pays no network fee when making the offer."
+  },
+  "marketplace_intent_seller_pays_marketplace_and_network_fees": {
+    "message": "The seller who accepts pays the marketplace fee and the network fee",
+    "description": "Note under the network fee row on the policy-offer funding approval: both fees come out of the accepting seller's proceeds."
+  },
+  "marketplace_intent_policy_cancel_by_spending_funding": {
+    "message": "Spending any funding UTXO cancels every alternative on-chain",
+    "description": "Cancellation row on the policy-offer funding approval: spending one of the coins that back the offers makes all of them impossible."
+  },
+  "marketplace_intent_notice_policy_offer_market_key": {
+    "message": "$1’s signing key can complete this offer for up to $2 until a funding UTXO is spent. Nothing is broadcast now.",
+    "description": "Caution on the policy-offer funding approval, naming the one trust the signature adds. $1 is the holder of the pinned market key (a company name), $2 is the largest offer amount in sats."
+  },
+  "marketplace_intent_pays_for_two_transactions": {
+    "message": "Pays for 2 transactions, $1 vB",
+    "description": "Note under the network fee on the policy-offer acceptance approval: the seller's fee confirms both the buyer's offer transaction and the sale. $1 is their combined size in virtual bytes."
+  },
+  "marketplace_intent_notice_accept_policy_offer": {
+    "message": "Your signature completes this sale once the marketplace co-signs the buyer’s offer. If the offer is gone, nothing is broadcast and your asset stays yours.",
+    "description": "Info notice on the policy-offer acceptance approval."
+  },
+  "marketplace_batch_make_alternative_offers": {
+    "message": "Make $1 alternative offers",
+    "description": "Title of the batch approval where the bidder signs several policy offers backed by the same coins. $1 is how many (2 or more)."
+  },
+  "marketplace_batch_offer_n": {
+    "message": "Offer $1",
+    "description": "Row label on the policy-offer batch approval, above one alternative's price. $1 is its position (1, 2, …)."
+  },
+  "marketplace_batch_policy_alternatives_at_most_one_fills": {
+    "message": "These offers are alternatives. At most one can fill: every one spends the same funding UTXOs.",
+    "description": "Settlement row on the policy-offer batch approval."
   }
 }

@@ -6306,5 +6306,50 @@
   },
   "approval_money_movement_view_to": {
     "message": "送付先"
+  },
+  "marketplace_intent_title_policy_offer": {
+    "message": "$2 に $1 のオファー"
+  },
+  "marketplace_intent_policy_series": {
+    "message": "シリーズ $1"
+  },
+  "marketplace_intent_policy_artist": {
+    "message": "アーティスト $1"
+  },
+  "marketplace_intent_policy_issued_year": {
+    "message": "$1 年発行"
+  },
+  "marketplace_intent_policy_min_supply": {
+    "message": "供給量 ≥ $1"
+  },
+  "marketplace_intent_policy_max_supply": {
+    "message": "供給量 ≤ $1"
+  },
+  "marketplace_intent_none_now": {
+    "message": "現時点ではなし"
+  },
+  "marketplace_intent_seller_pays_marketplace_and_network_fees": {
+    "message": "承諾する売り手がマーケットプレイス手数料とネットワーク手数料を支払います"
+  },
+  "marketplace_intent_policy_cancel_by_spending_funding": {
+    "message": "いずれかの資金 UTXO を使用すると、すべての代替オファーがオンチェーンで取り消されます"
+  },
+  "marketplace_intent_notice_policy_offer_market_key": {
+    "message": "資金 UTXO が使用されるまで、$1 の署名鍵は最大 $2 でこのオファーを成立させることができます。現時点では何もブロードキャストされません。"
+  },
+  "marketplace_intent_pays_for_two_transactions": {
+    "message": "2 件のトランザクション分、$1 vB"
+  },
+  "marketplace_intent_notice_accept_policy_offer": {
+    "message": "マーケットプレイスが買い手のオファーに共同署名すると、あなたの署名でこの売却が完了します。オファーがなくなっている場合は何もブロードキャストされず、アセットはあなたのもとに残ります。"
+  },
+  "marketplace_batch_make_alternative_offers": {
+    "message": "$1 件の代替オファーを作成"
+  },
+  "marketplace_batch_offer_n": {
+    "message": "オファー $1"
+  },
+  "marketplace_batch_policy_alternatives_at_most_one_fills": {
+    "message": "これらのオファーは代替案です。成立するのは最大 1 件です。すべて同じ資金 UTXO を使用します。"
   }
 }
