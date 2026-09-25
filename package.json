@@ -53,8 +53,6 @@
     "webext-bridge": "6.0.1"
   },
   "overrides": {
-    "protobufjs": "8.8.0",
-    "toml": "5.0.0",
     "ws": "8.21.3"
   },
   "devDependencies": {
