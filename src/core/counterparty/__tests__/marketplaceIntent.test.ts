@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import {
   type AcceptExactOfferIntentClaim,
   type AttachForListingIntentClaim,
@@ -448,6 +449,35 @@ const fundOffersBase = () => ({
 });
 
 describe('marketplace intent wire parser', () => {
+  it('accepts as many funding inputs as the asset lookup checks', () => {
+    const fundingInputs = Array.from({ length: MAX_ASSET_LOOKUP_INPUTS }, (_, vout) => ({
+      txid: FUND_OFFERS_INPUT_TXID, vout, valueSats: 1_000,
+    }));
+    expect(parseMarketplaceIntent({ ...fundOffersIntent, fundingInputs })).toMatchObject({ fundingInputs });
+  });
+
+  it.each(['A95428956661682177', 'RAREPEPE.series1', 'XCPASSET'])(
+    'accepts the Counterparty asset name %s as an offer target',
+    (name) => {
+      expect(parseMarketplaceIntent({ ...fundOffersIntent, target: { scope: 'asset', asset: name } }))
+        .toMatchObject({ target: { scope: 'asset', asset: name } });
+    },
+  );
+
+  it('reduces collection and policy text to one plain line', () => {
+    const parsed = parseMarketplaceIntent({
+      ...fundOffersIntent,
+      target: {
+        scope: 'collection',
+        collection: ' rare\u202e-pepe\u2069\r\n\r\n  s1 ',
+        policy: 'series\u200b 1\r\r\n\u2028(no fee)',
+      },
+    });
+    expect(parsed).toMatchObject({
+      target: { scope: 'collection', collection: 'rare-pepe s1', policy: 'series 1 (no fee)' },
+    });
+  });
+
   it('copies a bounded offer-funding claim', () => {
     expect(parseMarketplaceIntent(fundOffersIntent)).toEqual(fundOffersIntent);
     const attached = {
@@ -466,6 +496,23 @@ describe('marketplace intent wire parser', () => {
     ['claimed assets', { assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }] }],
     ['other protocol', { protocolVersion: 'direct_v1' }],
     ['unknown delivery', { delivery: { mode: 'teleport' } }],
+    ['more inputs than the asset lookup checks', {
+      fundingInputs: Array.from({ length: MAX_ASSET_LOOKUP_INPUTS + 1 }, (_, vout) => ({
+        txid: FUND_OFFERS_INPUT_TXID, vout, valueSats: 1_000,
+      })),
+    }],
+    ['a repeated funding outpoint', {
+      fundingInputs: [
+        fundOffersIntent.fundingInputs[0]!,
+        { ...fundOffersIntent.fundingInputs[0]!, txid: FUND_OFFERS_INPUT_TXID.toUpperCase(), valueSats: 5_000 },
+      ],
+    }],
+    ['wallet copy as the asset', { target: { scope: 'asset', asset: 'RAREPEPE - refund only, nothing leaves (no fee)' } }],
+    ['a lowercase asset', { target: { scope: 'asset', asset: 'rarepepe' } }],
+    ['a numeric asset out of range', { target: { scope: 'asset', asset: 'A123' } }],
+    ['a collection of only bidi and control characters', {
+      target: { scope: 'collection', collection: '\u202e\u2066\n\t\u200b' },
+    }],
   ])('refuses an offer-funding claim with %s', (_label, override) => {
     expect(() => parseMarketplaceIntent({ ...fundOffersIntent, ...override })).toThrow();
   });
@@ -1349,12 +1396,43 @@ describe('offer funding proof', () => {
     const review = analyzeMarketplaceIntent(fundOffersBase());
 
     expect(review).toMatchObject({ status: 'proved', family: 'fund_offers', blockers: [] });
-    expect(review.title).toBe('Fund 2 offers on rare-pepe (series 1)');
-    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Set aside', value: '2 × 9,000 sats' });
-    expect(review.facts).toContainEqual(expect.objectContaining({
-      label: 'Platform fee', value: '1,000 sats', description: 'Paid only if a seller accepts',
-    }));
-    expect(review.notices[0]?.message).toMatch(/stays in this wallet/i);
+    // Website text reads as a quotation, never as wallet copy; the policy is its own row.
+    expect(review.title).toBe('Fund 2 offers in collection “rare-pepe”');
+    expect(review.paymentSummary).toEqual([
+      { kind: 'amount', label: 'Offer price · each', value: '8,000 sats' },
+      {
+        kind: 'amount', label: 'Platform fee · each', value: '1,000 sats',
+        description: 'Paid only if a seller accepts',
+      },
+      { kind: 'amount', label: 'Set aside', value: '18,000 sats', description: '2 × 9,000 sats' },
+      { kind: 'amount', label: 'Network fee', value: '400 sats' },
+    ]);
+    expect(review.facts.filter(fact => fact.label === 'Network fee')).toHaveLength(1);
+    expect(review.facts).toContainEqual({ kind: 'text', label: 'Offer policy', value: '“series 1”' });
+    expect(review.facts).toContainEqual({
+      kind: 'paragraph', label: 'Cancellation', value: 'Cancel anytime by spending the set-aside outputs',
+    });
+  });
+
+  it('clips long collection and policy text instead of letting it carry a sentence', () => {
+    const review = analyzeMarketplaceIntent({
+      ...fundOffersBase(),
+      intent: {
+        ...fundOffersIntent,
+        target: { scope: 'collection', collection: 'c'.repeat(120), policy: 'p'.repeat(200) },
+      },
+    });
+    expect(review.title).toBe(`Fund 2 offers in collection “${'c'.repeat(39)}…”`);
+    expect(review.facts).toContainEqual({
+      kind: 'text', label: 'Offer policy', value: `“${'p'.repeat(59)}…”`,
+    });
+  });
+
+  it('withholds the payment summary until the funding proves', () => {
+    const review = analyzeMarketplaceIntent({ ...fundOffersBase(), signerAddresses: [SELLER] });
+    expect(review.status).toBe('blocked');
+    expect(review.paymentSummary).toBeUndefined();
+    expect(review.notices).toEqual([]);
   });
 
   it('proves a one-edition attached-delivery funding without change', () => {
@@ -1377,7 +1455,12 @@ describe('offer funding proof', () => {
       attachedAssets: [fundOffersBase().attachedAssets[0]!],
     });
     expect(review).toMatchObject({ status: 'proved', title: 'Fund an offer on RAREPEPE' });
-    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Sats kept with your asset', value: '330 sats' });
+    expect(review.paymentSummary).toContainEqual({
+      kind: 'amount', label: 'Sats kept with your asset · each', value: '330 sats',
+    });
+    expect(review.paymentSummary).toContainEqual({
+      kind: 'amount', label: 'Set aside', value: '9,330 sats', description: '1 × 9,330 sats',
+    });
   });
 
   it.each([

@@ -3,6 +3,23 @@ import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceI
 import { t } from '@/i18n';
 import { ApprovalFacts } from './approval-facts';
 import { ApprovalNotice } from './approval-notice';
+
+/**
+ * Self-sends whose info notice is the plain-language outcome ("every output stays in this
+ * wallet"), not a recital of protocol checks. Other families' proved notices restate what the
+ * facts already show (e.g. which outputs SIGHASH_ALL fixes) and stay hidden.
+ */
+const OUTCOME_NOTICE_FAMILIES: ReadonlySet<MarketplaceApprovalReview['family']> = new Set([
+  'fund_offers',
+  'prepare_bulk_fanout',
+]);
+
+/** Info notices a proved review shows beside its facts. Caution notices take their own path. */
+export function provedReviewNotes(review: MarketplaceApprovalReview): string[] {
+  if (review.status !== 'proved' || !OUTCOME_NOTICE_FAMILIES.has(review.family)) return [];
+  return review.notices.filter(notice => notice.severity === 'info').map(notice => notice.message);
+}
+
 /** Semantic review produced after the wallet independently evaluates the marketplace family. */
 export function MarketplaceReviewCard({ review, onRetry, retrying = false, retryError }: {
   review: MarketplaceApprovalReview;
@@ -35,8 +52,8 @@ export function MarketplaceReviewCard({ review, onRetry, retrying = false, retry
     <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
       <p className="text-sm font-semibold text-gray-900">{review.title}</p>
       <div className="mt-3 border-t border-gray-100 pt-3"><ApprovalFacts fields={review.facts} /></div>
-      {caution && review.notices.map((notice, index) => (
-        <p key={`${notice.severity}-${index}`} className="mt-3 border-t border-gray-100 pt-3 text-sm leading-5 text-gray-600">{notice.message}</p>
+      {(caution ? review.notices.map(notice => notice.message) : provedReviewNotes(review)).map((message, index) => (
+        <p key={`note-${index}`} className="mt-3 border-t border-gray-100 pt-3 text-sm leading-5 text-gray-600">{message}</p>
       ))}
     </div>
   );

@@ -6220,6 +6220,36 @@
   "psbt_approve_fund_offer": {
     "message": "為出價準備資金"
   },
+  "marketplace_intent_title_fund_offer_collection": {
+    "message": "為合集「$1」的出價準備資金"
+  },
+  "marketplace_intent_title_fund_offers_collection": {
+    "message": "為合集「$2」的 $1 個出價準備資金"
+  },
+  "marketplace_intent_offer_policy": {
+    "message": "出價範圍"
+  },
+  "marketplace_intent_quoted_text": {
+    "message": "「$1」"
+  },
+  "marketplace_intent_each_label": {
+    "message": "$1(每件)"
+  },
+  "marketplace_intent_cancel_anytime_by_spending_set_aside_outputs": {
+    "message": "花費預留的輸出即可隨時取消"
+  },
+  "psbt_approve_fund_offers": {
+    "message": "為出價準備資金"
+  },
+  "psbt_approve_fund_offer_title": {
+    "message": "為出價準備資金"
+  },
+  "psbt_approve_fund_offers_title": {
+    "message": "為出價準備資金"
+  },
+  "approval_counterparty_details_card_details": {
+    "message": "詳情"
+  },
   "marketplace_batch_authorize_1_exact_offer": {
     "message": "授權 1 個指定出價"
   },

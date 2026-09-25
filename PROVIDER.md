@@ -396,6 +396,15 @@ the price plus the platform fee plus any attached-delivery UTXO; and that the fe
 minus outputs. The target is display context only — the funding commits to no asset. A seller can
 take a slot only through a later `authorize_exact_offer` signature, which is its own approval.
 
+- **`sighashTypes` must be `0x01` (`SIGHASH_ALL`) for every input, Taproot included.**
+  `SIGHASH_DEFAULT` (`0x00`) commits to the same data but is refused for this intent: the wallet
+  proves the exact flag, so an explicit or PSBT-embedded `0x00` on a P2TR input is blocked.
+- `fundingInputs` lists 1..30 distinct outpoints, the most the approval screen checks for
+  attached assets; a repeated outpoint is refused.
+- `target.asset` must be a Counterparty asset name (named, numeric `A…`, or a subasset longname).
+  `target.collection` and `target.policy` are cleaned of control and bidi characters, collapsed to
+  one line, shortened, and shown in quotation marks as the website's own words.
+
 **Mixed sighash flags.** When signed inputs carry different flags, the summary
 prices only the outputs that every `ANYONECANPAY` input covers on its own. Such
 an input is detachable — whoever holds the PSBT can keep it, drop the rest, and
