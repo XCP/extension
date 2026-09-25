@@ -261,28 +261,20 @@ jobs:
 
       - name: Check for known vulnerabilities
         run: |
-          # Count high/critical advisories EXCLUDING the remotely loaded @trezor/* SDK.
-          # @trezor/connect-webextension loads that SDK remotely from connect.trezor.io —
-          # none of it is bundled into the shipped extension (verified by unpacking the
-          # published artifact), and its remaining advisories (the elliptic chain,
-          # GHSA-848j-6mx2-7j84) have no fixed release upstream. npm audit reports
-          # transitive packages by their own names rather than their dependency path.
+          # Production dependencies must be clean at high/critical. The @trezor/* exemption for
+          # the elliptic chain (GHSA-848j-6mx2-7j84) ended with Connect 10, which dropped it.
           # Fixable transitive advisories must be resolved rather than allowlisted.
-          # Anything outside the @trezor/* packages must be clean at high/critical.
-          ACCEPTED='^@trezor/'
           audit_output=$(npm audit --omit=dev --json 2>/dev/null || true)
-          real=$(echo "$audit_output" | jq --arg re "$ACCEPTED" '
+          real=$(echo "$audit_output" | jq '
             [.vulnerabilities | to_entries[]
-             | select(.value.severity == "high" or .value.severity == "critical")
-             | select(.key | test($re) | not)] | length')
+             | select(.value.severity == "high" or .value.severity == "critical")] | length')
 
           if [ "$real" -gt 0 ]; then
-            echo "Found $real unaccepted high/critical vulnerabilities:"
-            echo "$audit_output" | jq -r --arg re "$ACCEPTED" '
+            echo "Found $real high/critical vulnerabilities:"
+            echo "$audit_output" | jq -r '
               .vulnerabilities | to_entries[]
               | select(.value.severity == "high" or .value.severity == "critical")
-              | select(.key | test($re) | not)
               | "\(.key): \(.value.severity)"'
             exit 1
           fi
-          echo "No unaccepted high/critical vulnerabilities."
+          echo "No high/critical vulnerabilities."
