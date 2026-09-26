@@ -1,8 +1,9 @@
-// Type only: the English catalog value is 138 KB, and the browser already carries it as
-// public/_locales/en/messages.json, the default locale every other catalog falls back to.
-import type { MessageKey } from '@/i18n/en.generated';
+// Type only, so it is erased from every bundle: the browser already carries the English catalog
+// as public/_locales/en/messages.json, the default locale every other catalog falls back to.
+import type enCatalog from '@@/public/_locales/en/messages.json';
 
-export type { MessageKey } from '@/i18n/en.generated';
+/** A key of the English catalog, so a call site cannot name a message that does not exist. */
+export type MessageKey = keyof typeof enCatalog;
 
 /** Resolve messages through the browser-selected extension catalog. */
 export function t(key: MessageKey, substitutions?: string | readonly string[]): string {

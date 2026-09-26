@@ -152,31 +152,32 @@ translation of it:
 |---|---|
 | `ja` | Japanese translation |
 | `zh_CN` | Simplified Chinese translation, and the source for the other Chinese catalogs |
-| `zh` | An exact copy of `zh_CN`. Chrome falls back from an unmatched regional Chinese locale (such as `zh_SG`, or a bare `zh`) to `zh`, and without it those users would see English |
+| `zh` | An exact copy of `zh_CN`, written by `node scripts/i18n.mjs sync-zh`. Chrome falls back from an unmatched regional Chinese locale (such as `zh_SG`, or a bare `zh`) to `zh`, and without it those users would see English |
 | `zh_TW`, `zh_HK` | Derived from `zh_CN`: OpenCC's Taiwan and Hong Kong phrase tables, then the shared glossary's renderings and known OpenCC fixes. The reference implementation is `apps/web/scripts/i18n-derive-zh.mjs` in [XCP/launchpad](https://github.com/XCP/launchpad), which reads that repository's catalog layout |
 
 ### Adding or changing text
 
 1. Write the English in `public/_locales/en/messages.json`. Give each entry a `description`
    saying where the text appears and what each `$1` stands for. That is all a translator sees.
-2. Use it in code with `t('key')` from `@/i18n`. Keys are typed, so a misspelled key fails to
-   compile.
-3. Run `node scripts/i18n.mjs build` to regenerate those types (`src/i18n/en.generated.ts`).
-4. Add the key, with a `message` only, to `ja` and `zh_CN`. Copy the `zh_CN` text unchanged into
-   `zh`, and write `zh_TW` and `zh_HK` as the regional conversion of that `zh_CN` text, not as
-   separate translations. Change Chinese wording in `zh_CN` first and carry it to the others.
-5. List the key under `machine` in `src/i18n/status/<locale>.json` for every locale you added it
-   to, until a native speaker has checked it.
-6. `npm run lint` checks the catalogs (`lint:i18n`). It fails on keys that are missing, unused, or
-   have different placeholders than the English; on numbers formatted in a fixed locale; and on
-   approval-screen labels too long to fit on one line (see
+2. Use it in code with `t('key')` from `@/i18n`. Keys are typed from the English catalog itself,
+   so a misspelled key fails to compile; there is nothing to regenerate.
+3. Add the key, with a `message` only, to `ja` and `zh_CN`, then run
+   `node scripts/i18n.mjs sync-zh` to copy `zh_CN` into `zh`. Write `zh_TW` and `zh_HK` as the
+   regional conversion of that `zh_CN` text, not as separate translations. Change Chinese wording
+   in `zh_CN` first and carry it to the others.
+4. A new string is a machine draft until a native speaker checks it; there is no status file to
+   update.
+5. `npm run lint` checks the catalogs (`lint:i18n`). It fails on keys that are missing, unused, or
+   have different placeholders than the English; on a `zh` that differs from `zh_CN`; on numbers
+   formatted in a fixed locale; and on approval-screen labels too long to fit on one line (see
    [Approval screens](docs/approval-screens.md#label-length-is-enforced)).
 
 ### Reviewing a translation
 
 `node scripts/i18n.mjs review ja --machine > review-ja.md` writes the unchecked strings as a
 table: the English, the translation, and where each appears. Once a native speaker has checked a
-string, remove it from `machine` in `src/i18n/status/ja.json`.
+string, add its key to `reviewed` in `i18n/reviewed/ja.json`. The check fails if that list names
+a key that no longer exists.
 
 ## Releasing
 
