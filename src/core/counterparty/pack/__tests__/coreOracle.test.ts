@@ -12,7 +12,7 @@
  * — so each case below is "what would you compose for these params?" answered by core itself.
  *
  * Skipped unless `COUNTERPARTY_API_URL` is set, so ordinary runs stay offline and deterministic.
- * The nightly workflow sets it (see `.github/workflows/nightly-tests.yml`), so this does run on a
+ * The weekly workflow sets it (see `.github/workflows/nightly-tests.yml`), so this does run on a
  * schedule rather than only on request — a skipped-by-default check that nothing ever executes
  * protects nobody. To run it locally:
  *

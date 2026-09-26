@@ -59,7 +59,6 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the code map, trust boundaries, and s
 ```bash
 npm install        # plain install — never --legacy-peer-deps, it prunes @testing-library/dom
 npm run dev        # Chrome
-npm run dev:firefox
 ```
 
 After changing `package.json` or `package-lock.json`, run:
@@ -137,8 +136,9 @@ npx vitest run src/platform/__tests__/proxy.test.ts --retry=0
 npx playwright test e2e/tests/provider-message-signing.spec.ts
 ```
 
-Full-suite commands (`npm test`, `test:unit`, `test:e2e`) are restricted to CI.
-Locally, select the tests affected by the change. `npm run lint` includes type-aware
+`npm test` (the unit suite) and `npm run test:e2e` (an e2e build, then every Playwright spec)
+run the full suites; the e2e suite takes well over an hour serially, so CI shards it.
+Locally, prefer selecting the tests affected by the change. `npm run lint` includes type-aware
 promise checks and rejects increases in the existing per-file/rule warning budgets.
 After fixing warnings, run `npm run lint:prune` to reduce those budgets; it cannot add allowances.
 

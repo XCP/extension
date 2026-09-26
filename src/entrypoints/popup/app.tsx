@@ -109,7 +109,8 @@ export default function App() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!isLoading) return preloadPages();
+    if (isLoading) return;
+    return preloadPages();
   }, [isLoading]);
 
   if (isLoading) return <FullscreenLoading />;

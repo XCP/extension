@@ -1,8 +1,8 @@
-name: Nightly Tests
+# Runs weekly, not nightly. The file keeps its old name because tests and docs link to it.
+name: Weekly Tests
 
 permissions:
   contents: read
-  issues: write  # For creating failure notification issues
 
 on:
   schedule:
@@ -11,59 +11,60 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 jobs:
-  full-test-suite:
-    name: Full Test Suite
+  # The unit suite never touches the network.
+  unit-tests:
+    name: Unit Suite
     runs-on: ubuntu-latest
-    # The official Playwright image ships Chromium and every system library it needs, so the
-    # browser-install and `install-deps` steps below are gone. `playwright install-deps` ran apt
-    # against the runner's Ubuntu mirror on every job and routinely stalled there, timing out
-    # 4-6 batches per run; the retry loop could not help, because the whole loop shared one
-    # `timeout-minutes` budget that a single stalled attempt exhausted.
-    #
-    # The tag MUST track the `@playwright/test` version in package.json. The image's browsers are
-    # built for that exact release, and Playwright refuses to launch a build it did not expect.
-    #
-    # The image runs as root, which Chromium normally refuses — the e2e fixtures already pass
-    # `--no-sandbox` and `--disable-dev-shm-usage`, so no user remapping is needed.
-    container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
-    timeout-minutes: 120  # Hard backstop so a stalled setup can't burn the 6h job cap
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
-      
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
-      - name: Build extension
-        run: npm run build
-      
-      - name: Run TypeScript type checking
-        run: npm run compile
-        continue-on-error: true
-      
+
       - name: Run unit tests
         timeout-minutes: 15
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src
 
+  # Both steps here call the live counterparty-core API (the fuzz suite includes the wire
+  # differential), so they share a job: an API outage fails this job alone and cannot hide a
+  # unit or e2e regression.
+  live-api:
+    name: Compose Oracle and Fuzz Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
       # Asks a live counterparty-core node what it would compose for a matrix of parameters and
-      # requires our locally packed message bytes to match exactly. Composed-message verification is
-      # byte equality, so a divergence between our packer and core blocks those transaction types
-      # outright — this is the check that catches such drift before a release rather than after.
-      # Nightly rather than per-PR because it depends on a third-party endpoint being reachable.
-      # Two checks live here: coreOracle asks a node what it would compose for a set of params, and
-      # onchainRoundTrip rebuilds real confirmed transactions and requires byte equality with the
-      # chain. The second covers types core cannot compose synthetically (a dividend needs an asset
-      # with holders, a fairmint needs an open fairminter).
+      # requires our locally packed message bytes to match exactly. Composed-message verification
+      # is byte equality, so a divergence between our packer and core blocks those transaction
+      # types outright — this is the check that catches such drift before a release rather than
+      # after. Two checks live here: coreOracle asks a node what it would compose for a set of
+      # params, and onchainRoundTrip rebuilds real confirmed transactions and requires byte
+      # equality with the chain. The second covers types core cannot compose synthetically (a
+      # dividend needs an asset with holders, a fairmint needs an open fairminter).
       - name: Run compose oracle against counterparty-core
         timeout-minutes: 5
         env:
@@ -71,116 +72,109 @@ jobs:
           COUNTERPARTY_API_URL: ${{ vars.COUNTERPARTY_API_URL || 'https://api.counterparty.io:4000' }}
         run: npx vitest run src/core/counterparty/pack
 
+      # Runs even when the oracle failed, so an oracle outage cannot hide a fuzz failure.
       - name: Run fuzz tests
+        if: ${{ !cancelled() }}
         timeout-minutes: 15
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src --config vitest.fuzz.config.ts
 
-      # Extension tests must launch Chromium headed so Manifest V3 service workers and extension
-      # pages are available. Give those windows a virtual display, as the PR E2E job does.
-      - name: Configure Xvfb
+  # The same sharded run as PRs, with more retries. One serial invocation of the whole suite
+  # needs close to two hours, more than a single job should be given.
+  e2e-tests:
+    name: E2E Tests (Shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    # See pr-tests.yml: the image tag MUST track the `@playwright/test` version in package.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+    timeout-minutes: 60  # Hard backstop so a stalled setup can't burn the 6h job cap
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build:e2e  # grants the optional Trezor Suite permission up front
+
+      # Extension tests launch Chromium headed so MV3 service workers and extension pages exist.
+      - name: Start Xvfb
         run: |
           Xvfb -ac :99 -screen 0 1280x1024x16 &
           sleep 2
-      
-      # continue-on-error so the report and artifact steps below still run; the report step
-      # re-raises the failure, so a red E2E run still fails the job and files the issue.
-      - name: Run all E2E tests
-        id: e2e
-        # The full suite is intentionally serial because two headed extension profiles can race
-        # Chromium service-worker registration on one runner. It currently needs more than the old
-        # 30-minute Playwright global limit, so this stays below the job's 120-minute hard backstop.
-        timeout-minutes: 105
-        run: npx playwright test --retries=3 --workers=1
+
+      # The shard total here must match the matrix above.
+      - name: Run E2E tests (Shard ${{ matrix.shard }}/6)
+        timeout-minutes: 45
+        run: npx playwright test --shard=${{ matrix.shard }}/6 --workers=1 --retries=3
         env:
+          CI: true
           DISPLAY: ':99'
-        continue-on-error: true
-      
+
       # The Playwright image does not ship jq, so the stats are read with node. A missing
       # test-results.json means Playwright never got as far as running anything — a config or
-      # load error — and is treated as a failure rather than an empty report.
-      - name: Generate test report
+      # load error — which the test step's own failure already reports.
+      - name: Summarize results
         if: always()
         run: |
           {
-            echo "# Nightly Test Report"
-            echo "Date: $(date)"
-            echo ""
-            if [ "${{ steps.e2e.outcome }}" = "skipped" ]; then
-              echo "## E2E Results"
-              echo "Skipped because an earlier test step failed."
-            elif [ -f "test-results.json" ]; then
-              echo "## E2E Results"
+            echo "## E2E Results (Shard ${{ matrix.shard }}/6)"
+            if [ -f "test-results.json" ]; then
               echo '```json'
               node -e 'console.log(JSON.stringify(require("./test-results.json").stats, null, 2))'
               echo '```'
             else
-              echo "## E2E Results"
               echo "No test-results.json was written: Playwright did not run."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.e2e.outcome }}" = "skipped" ]; then
-            exit 0
-          fi
-          if [ ! -f "test-results.json" ]; then
-            echo "::error::Playwright produced no test-results.json"
-            exit 1
-          fi
-          if [ "${{ steps.e2e.outcome }}" != "success" ]; then
-            echo "::error::E2E tests failed"
-            exit 1
-          fi
 
       - name: Upload test artifacts
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: nightly-test-results-${{ github.run_number }}
+          name: weekly-test-results-${{ github.run_number }}-shard-${{ matrix.shard }}
           path: |
             test-results/
             playwright-report/
+            test-results.json
           retention-days: 30
+          if-no-files-found: ignore
 
-      - name: Close resolved nightly failure issues
-        if: success()
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const issues = await github.paginate(github.rest.issues.listForRepo, {
-              owner,
-              repo,
-              state: 'open',
-              labels: 'automated,test-failure',
-              per_page: 100,
-            });
-            const nightlyIssues = issues.filter(
-              issue => !issue.pull_request && issue.title.startsWith('Nightly tests failed')
-            );
-            for (const issue of nightlyIssues) {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: issue.number,
-                body: `Resolved by successful nightly run ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}.`,
-              });
-              await github.rest.issues.update({
-                owner,
-                repo,
-                issue_number: issue.number,
-                state: 'closed',
-                state_reason: 'completed',
-              });
-            }
-      
-      - name: Notify on failure
-        if: failure()
-        uses: actions/github-script@v8
+  # Opens (or comments on) one tracking issue when any job fails, and closes it after a clean run.
+  report:
+    name: Report
+    runs-on: ubuntu-latest
+    needs: [unit-tests, live-api, e2e-tests]
+    if: ${{ !cancelled() }}
+    permissions:
+      issues: write
+
+    steps:
+      - name: Open or close the failure issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          RESULTS: ${{ toJSON(needs) }}
         with:
           script: |
             const { owner, repo } = context.repo;
             const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const failed = Object.entries(JSON.parse(process.env.RESULTS))
+              .filter(([, job]) => job.result !== 'success')
+              .map(([name, job]) => `${name}: ${job.result}`);
+
             const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner,
               repo,
@@ -188,22 +182,44 @@ jobs:
               labels: 'automated,test-failure',
               per_page: 100,
             });
-            const existing = issues.find(
-              issue => !issue.pull_request && issue.title.startsWith('Nightly tests failed')
-            );
-            if (existing) {
+            // Issues opened before the rename say "Nightly".
+            const tracking = issues.filter(issue => !issue.pull_request
+              && /^(Weekly|Nightly) tests failed/.test(issue.title));
+
+            if (failed.length === 0) {
+              for (const issue of tracking) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `Resolved by successful weekly run ${runUrl}.`,
+                });
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                  state_reason: 'completed',
+                });
+              }
+              return;
+            }
+
+            const detail = failed.map(line => `- ${line}`).join('\n');
+            if (tracking.length > 0) {
               await github.rest.issues.createComment({
                 owner,
                 repo,
-                issue_number: existing.number,
-                body: `Another nightly run failed: ${runUrl}`,
+                issue_number: tracking[0].number,
+                body: `Another weekly run failed: ${runUrl}\n\n${detail}`,
               });
             } else {
               await github.rest.issues.create({
                 owner,
                 repo,
-                title: `Nightly tests failed - ${new Date().toISOString().split('T')[0]}`,
-                body: `The nightly test run failed. Please check the [workflow run](${runUrl}) for details.`,
+                title: `Weekly tests failed - ${new Date().toISOString().split('T')[0]}`,
+                body: `The weekly test run failed. See the [workflow run](${runUrl}).\n\n${detail}`,
                 labels: ['automated', 'test-failure'],
               });
             }
+            core.setFailed(`Failed jobs: ${failed.join(', ')}`);

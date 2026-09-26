@@ -10,7 +10,12 @@ export default defineConfig({
     testTimeout: 15000,
     hookTimeout: 15000,
 
-    // Exclude fuzz tests from default runs (run separately in nightly)
+    // Unit tests live in src. The e2e directory holds Playwright specs (*.spec.ts), which vitest
+    // must never collect, plus a few vitest suites that need a live service and skip without
+    // their env flag: the Trezor emulator suite (`npm run test:emulator`) and the ZELD regtest
+    // suites (`ZELD_REGTEST=1 npx vitest run e2e/zeld/...`).
+    include: ['src/**/*.test.{ts,tsx}', 'e2e/**/*.test.ts'],
+    // Fuzz tests run separately in the weekly workflow (vitest.fuzz.config.ts).
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
@@ -25,8 +30,8 @@ export default defineConfig({
     fileParallelism: !process.env.CI,
     // Isolate test files to prevent shared state memory buildup
     isolate: true,
-    // Retry failed tests (often memory-related crashes are transient)
-    retry: process.env.CI ? 2 : 1, // More retries in CI
+    // No retries: a test that passes only on a second attempt is flaky, and retrying hides it.
+    retry: 0,
     // Sharding: use CLI --shard option (e.g., npx vitest --shard=1/3)
   },
 });

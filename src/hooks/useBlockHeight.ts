@@ -71,13 +71,11 @@ export function useBlockHeight(options: UseBlockHeightOptions = {}) {
 
   // Set up refresh interval if provided
   useEffect(() => {
-    if (refreshInterval && refreshInterval > 0) {
-      const intervalId = setInterval(() => {
-        fetchBlockHeight(true); // Force refresh on interval
-      }, refreshInterval);
-      
-      return () => clearInterval(intervalId);
-    }
+    if (!refreshInterval || refreshInterval <= 0) return;
+    const intervalId = setInterval(() => {
+      fetchBlockHeight(true); // Force refresh on interval
+    }, refreshInterval);
+    return () => clearInterval(intervalId);
   }, [refreshInterval, fetchBlockHeight]);
 
   // Cleanup on unmount
