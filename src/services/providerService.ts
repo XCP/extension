@@ -58,13 +58,12 @@ import { defineProxyService } from '@/platform/proxy';
 import { createWriteLock } from '@/platform/storage/mutex';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 import { keychainExists } from '@/platform/storage/walletStorage';
-import { type ApprovalPlacement, getApprovalService } from '@/services/approvalService';
+import type { ApprovalPlacement } from '@/services/approvalService';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { PROVIDER_SERVICE_NAME, PROVIDER_SERVICE_POLICY } from '@/services/providerServiceClient';
 import { getUpdateService } from '@/services/updateService';
 import { getWalletService } from '@/services/walletService';
-import type { ApprovalRequest } from '@/types/provider';
 
 
 // Define proper types for provider requests and responses
@@ -98,29 +97,9 @@ export interface ProviderService {
   handleRequest: (origin: string, method: string, params?: ProviderRequestParams, metadata?: ProviderMetadata) => Promise<ProviderResponse>;
 
   /**
-   * Check if origin is connected
-   */
-  isConnected: (origin: string) => Promise<boolean>;
-
-  /**
-   * Disconnect an origin
+   * Disconnect an origin (the connected-sites settings page)
    */
   disconnect: (origin: string) => Promise<void>;
-
-  /**
-   * Get the current pending approval if any
-   */
-  getCurrentApproval: () => Promise<ApprovalRequest | null>;
-
-  /**
-   * Get statistics about pending requests
-   */
-  getRequestStats: () => Promise<any>;
-
-  /**
-   * Cleanup resources and destroy the service
-   */
-  destroy: () => Promise<void>;
 }
 
 /**
@@ -1504,62 +1483,16 @@ export function createProviderService(): ProviderService {
   }
   
   /**
-   * Check if origin is connected
-   */
-  async function isConnected(origin: string): Promise<boolean> {
-    const connectionService = getConnectionService();
-    return await connectionService.hasPermission(origin);
-  }
-  
-  /**
    * Disconnect an origin
    */
   async function disconnect(origin: string): Promise<void> {
     const connectionService = getConnectionService();
     await connectionService.disconnect(origin);
   }
-  
-  /**
-   * Get the current pending approval if any
-   */
-  async function getCurrentApproval(): Promise<ApprovalRequest | null> {
-    const approvalService = getApprovalService();
-    return approvalService.getCurrentApproval();
-  }
-
-  /**
-   * Get statistics about pending requests
-   */
-  async function getRequestStats(): Promise<any> {
-    const connectionService = getConnectionService();
-    const approvalService = getApprovalService();
-
-    const connectedSites = await connectionService.getConnectedWebsites();
-    const currentApproval = approvalService.getCurrentApproval();
-
-    return {
-      connections: {
-        connectedSites: connectedSites.length,
-        sites: connectedSites
-      },
-      approval: currentApproval
-    };
-  }
-  
-  /**
-   * Cleanup resources and destroy the service
-   */
-  async function destroy(): Promise<void> {
-    console.log('[ProviderService] Destroying...');
-  }
 
   return {
     handleRequest,
-    isConnected,
     disconnect,
-    getCurrentApproval,
-    getRequestStats,
-    destroy
   };
 }
 

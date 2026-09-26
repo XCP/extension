@@ -1191,22 +1191,6 @@ describe('ProviderService', () => {
     });
   });
   
-  describe('isConnected', () => {
-    it('should return true if origin is in connected websites', async () => {
-      // Mock connection service to return true for this origin
-      const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
-
-      const result = await providerService.isConnected('https://connected.com');
-      expect(result).toBe(true);
-    });
-    
-    it('should return false if origin is not connected', async () => {
-      const result = await providerService.isConnected('https://notconnected.com');
-      expect(result).toBe(false);
-    });
-  });
-  
   describe('disconnect', () => {
     it('should remove origin from connected websites', async () => {
       const mockConnectionService = vi.mocked(connectionService.getConnectionService)();

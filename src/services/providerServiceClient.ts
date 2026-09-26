@@ -13,10 +13,7 @@ import type { ProviderService } from '@/services/providerService';
 export const PROVIDER_SERVICE_NAME = 'ProviderService';
 
 export const PROVIDER_SERVICE_POLICY: ProxyServicePolicy<ProviderService> = {
-  methods: {
-    handleRequest: 'command', isConnected: 'read', disconnect: 'command',
-    getCurrentApproval: 'read', getRequestStats: 'read',
-  },
+  methods: { handleRequest: 'command', disconnect: 'command' },
   contentScript: 'provider',
 };
 
