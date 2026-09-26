@@ -55,7 +55,7 @@ or pull request instead.
 
 ## Dependencies
 
-The wallet has 14 direct runtime dependencies, pinned to exact versions in `package.json`.
+The wallet has 13 direct runtime dependencies, pinned to exact versions in `package.json`.
 
 | Package | Purpose |
 |---------|---------|
@@ -65,7 +65,6 @@ The wallet has 14 direct runtime dependencies, pinned to exact versions in `pack
 | [bignumber.js](https://github.com/MikeMcl/bignumber.js) | Arbitrary precision arithmetic |
 | [react](https://react.dev/), [react-dom](https://react.dev/), [react-router](https://reactrouter.com/) | UI framework |
 | [@headlessui/react](https://headlessui.com/) | Accessible components |
-| [webext-bridge](https://github.com/serversideup/webext-bridge) | Extension messaging |
 
 ## Development
 
