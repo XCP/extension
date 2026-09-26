@@ -129,14 +129,6 @@ export interface AppSettings {
 
   /** User has visited recover bitcoin page */
   hasVisitedRecoverBitcoin?: boolean;
-
-  // Hardware Wallet Testing
-  /**
-   * Enable Trezor emulator mode for development testing.
-   * When enabled, Trezor Connect uses direct bridge communication without popup.
-   * SECURITY: Never enable in production - bypasses user confirmation UI.
-   */
-  trezorEmulatorMode?: boolean;
 }
 
 /**
@@ -189,7 +181,7 @@ export function setSettingsProvider(provider: () => AppSettings): void {
  * Settings live inside the encrypted keychain, so they cannot be read without the key —
  * `walletManager.getSettings()` returns DEFAULT_SETTINGS when no keychain is loaded, and so does
  * this when no provider is registered yet. For the security flags that fails safe:
- * `strictTransactionVerification` defaults to true and `trezorEmulatorMode` to undefined.
+ * `strictTransactionVerification` defaults to true.
  *
  * `counterpartyApiBase` is the exception. It falls back to the public node, so a user who pointed
  * the wallet at their own node has any request issued before unlock go somewhere they did not
