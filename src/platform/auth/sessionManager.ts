@@ -177,12 +177,20 @@ export async function isSessionExpired(): Promise<boolean> {
   return metadataExpired(metadata);
 }
 
-/** Ignore delayed alarms belonging to an earlier session or an idle deadline since extended. */
+/**
+ * Ignore delayed alarms belonging to an earlier session or an idle deadline since extended.
+ *
+ * A master key with no metadata at all is expired too: locking removes the metadata before the key,
+ * so that is a lock that did not finish, and the key must not stay behind. Neither metadata nor a
+ * key is a first run, which is merely locked.
+ */
 export async function expireSessionIfNeeded(): Promise<boolean> {
   const generation = sessionGeneration;
   const expiryGeneration = await withSessionWriteLock(async () => {
     const metadata = await getSessionMetadata();
-    if (!metadata || generation !== sessionGeneration || sessionInvalidated || !metadataExpired(metadata)) return null;
+    if (generation !== sessionGeneration || sessionInvalidated) return null;
+    const expired = metadata ? metadataExpired(metadata) : (await getCachedKeychainMasterKey()) !== null;
+    if (!expired || generation !== sessionGeneration || sessionInvalidated) return null;
     // Invalidate while still serialized with activity. Perform full cleanup after releasing this
     // lock, since the registered wallet-lock handler also needs the session write queue.
     sessionInvalidated = true;
