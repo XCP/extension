@@ -155,6 +155,31 @@ describe('ZELD guard on composed transactions', () => {
     expect(parsed.outputs.map(o => o.type === 'op_return' ? 'data' : o.value)).toEqual(['data', 90_000, 1_000]);
   });
 
+  it('never moves change ahead of a Taproot commit, whose reveal spends output 0 by txid', async () => {
+    const commitScript = hexToBytes(`5120${'ab'.repeat(32)}`);
+    const commit = unsignedRawTx({
+      inputs: [{ txid: CLEAN_TXID, index: 0 }],
+      outputs: [{ script: commitScript, amount: 330n }, { script: SOURCE_P2WPKH.script, amount: 90_000n }],
+    });
+    const send = () => composeSend({
+      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, asset: 'XCP', quantity: 1, sat_per_vbyte: 2,
+      encoding: 'taproot',
+    });
+
+    // Without a reveal the same shape would have its change moved first…
+    api.get.mockResolvedValueOnce(response(commit) as never);
+    expect((await send()).result.rawtransaction).not.toBe(commit);
+
+    // …with one, the commit is left exactly as composed.
+    const withReveal = response(commit);
+    Object.assign(withReveal.data.result, { envelope_script: '00', signed_reveal_rawtransaction: '00' });
+    api.get.mockResolvedValueOnce(withReveal as never);
+    const composed = await send();
+    expect(urlOf(1).searchParams.get('encoding')).toBe('taproot');
+    expect(composed.result.rawtransaction).toBe(commit);
+    expect(composed.result.zeld_protection?.change_first).toBeUndefined();
+  });
+
   it('does not decorate a clean transaction just because the indexer was unreachable', async () => {
     zeldUtxos.mockRejectedValue(new Error('down'));
     api.get.mockResolvedValueOnce(response(burnSpending(CLEAN_TXID)) as never);

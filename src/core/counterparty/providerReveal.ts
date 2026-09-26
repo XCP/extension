@@ -37,20 +37,19 @@
  */
 
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { p2tr, type Transaction } from '@scure/btc-signer';
+import type { Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
-import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
-import { extractEnvelopeMessage, parseInstructions } from '@/core/counterparty/unpack/ordEnvelope';
+import {
+  extractDataEnvelopeMessage,
+  extractEnvelopeMessage,
+  parseInstructions,
+  proveSingleLeafSpend,
+  REVEAL_MARKER_SCRIPT,
+} from '@/core/counterparty/unpack/ordEnvelope';
 import { t } from '@/i18n';
-
-/** The reveal's OP_RETURN: exactly one push of the bare CNTRPRTY marker (`parse_vout`). */
-const REVEAL_MARKER_SCRIPT = `6a08${COUNTERPARTY_PREFIX_HEX}`;
-
-/** Tapscript leaf version; any other would publish a script bitcoin does not execute. */
-const TAPSCRIPT_LEAF_VERSION = 0xc0;
 
 /** The largest reveal a site may pass: a standard transaction's 400,000 weight, all witness. */
 export const MAX_REVEAL_HEX_LENGTH = 800_000;
@@ -203,36 +202,6 @@ interface CommitLike {
 
 const refuse = (reason: RevealRefusal, error: string): RevealVerification => ({ ok: false, reason, error });
 
-/**
- * Read the message a plain data envelope carries, exactly as core's generic branch does: every
- * push between OP_IF and the last three instructions, concatenated. Narrower than core, never
- * wider: the tail must be OP_ENDIF, a 32-byte key and OP_CHECKSIG, and nothing but pushes may sit
- * inside — core skips stray opcodes silently, and a script that relies on that is refused here.
- */
-function readDataEnvelope(leaf: Uint8Array): string | null {
-  const instructions = parseInstructions(leaf);
-  if (!instructions || instructions.length < 6) return null;
-  const [first, second] = instructions;
-  const isOp = (index: number, op: number) => {
-    const instruction = instructions[index];
-    return instruction !== undefined && 'op' in instruction && instruction.op === op;
-  };
-  if (!first || !('push' in first) || first.push.length !== 0) return null;
-  if (!second || !('op' in second) || second.op !== 0x63) return null;
-  const last = instructions.length - 1;
-  if (!isOp(last, 0xac) || !isOp(last - 2, 0x68)) return null;
-  const key = instructions[last - 1];
-  if (!key || !('push' in key) || key.push.length !== 32) return null;
-
-  const chunks: Uint8Array[] = [];
-  for (const instruction of instructions.slice(2, last - 2)) {
-    if (!('push' in instruction)) return null;
-    chunks.push(instruction.push);
-  }
-  const hex = chunks.map((chunk) => bytesToHex(chunk)).join('');
-  return hex.length > 0 ? COUNTERPARTY_PREFIX_HEX + hex : null;
-}
-
 /** Core's own test for an ord envelope (`is_ord`): "ord" then the 0x07 metaprotocol tag. */
 function isOrdEnvelope(leaf: Uint8Array): boolean {
   const instructions = parseInstructions(leaf);
@@ -275,44 +244,18 @@ export function verifyCounterpartyReveal(
     return refuse('not_this_transaction', `This transaction has no output ${input.index} to reveal.`);
   }
 
-  // Core reads the envelope only from a first-input witness of exactly three elements: for a
-  // Taproot script-path spend that is [argument, leaf, control block].
-  const witness = input.finalScriptWitness;
-  const leaf = witness?.length === 3 ? witness[1] : undefined;
-  const control = witness?.length === 3 ? witness[2] : undefined;
-  if (!leaf || !control) {
-    return refuse('script_not_committed', 'The reveal is not a single-script Taproot spend.');
+  const proof = proveSingleLeafSpend(input.finalScriptWitness, output.script);
+  if (!proof.ok) {
+    return refuse('script_not_committed', proof.reason === 'not_committed'
+      ? `Output ${output.index} does not commit to the script the reveal publishes.`
+      : proof.error);
   }
-  // 33 bytes: leaf version and internal key, no merkle path, so the tree is this one leaf.
-  if (control.length !== 33 || (control[0]! & 0xfe) !== TAPSCRIPT_LEAF_VERSION) {
-    return refuse(
-      'script_not_committed',
-      'The spent output commits to more than one script, so the site could reveal another.',
-    );
-  }
-  let committedScript: string;
-  try {
-    const payment = p2tr(
-      control.slice(1),
-      { script: leaf, leafVersion: TAPSCRIPT_LEAF_VERSION },
-      undefined,
-      true,
-    );
-    committedScript = bytesToHex(payment.script);
-  } catch {
-    return refuse('script_not_committed', 'The reveal’s control block could not be read.');
-  }
-  if (committedScript !== output.script.toLowerCase()) {
-    return refuse(
-      'script_not_committed',
-      `Output ${output.index} does not commit to the script the reveal publishes.`,
-    );
-  }
+  const { leaf } = proof;
 
   const hasMarker = Array.from({ length: reveal.outputsLength }, (_, index) => reveal.getOutput(index))
     .some((candidate) => candidate.script && bytesToHex(candidate.script) === REVEAL_MARKER_SCRIPT);
   const ord = isOrdEnvelope(leaf);
-  const messageHex = ord ? extractEnvelopeMessage(leaf)?.messageHex ?? null : readDataEnvelope(leaf);
+  const messageHex = ord ? extractEnvelopeMessage(leaf)?.messageHex ?? null : extractDataEnvelopeMessage(leaf);
   const unpacked = messageHex ? unpackCounterpartyMessage(messageHex) : undefined;
   if (!hasMarker || !messageHex || !unpacked?.success || !unpacked.messageType) {
     return refuse(

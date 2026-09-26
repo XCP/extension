@@ -6,7 +6,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAddress, formatAmount, formatFiatEstimate } from "@/core/format";
-import { formatFeeRate, fromSatoshis } from "@/core/numeric";
+import { add, formatFeeRate, fromSatoshis } from "@/core/numeric";
 import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
@@ -127,6 +127,11 @@ export function ReviewScreen({
   // Calculate fee in fiat
   const feeInBtc = fromSatoshis(result.btc_fee, true);
   const feeInFiat = btcPrice ? feeInBtc * btcPrice : null;
+  // A Taproot compose is a commit plus a pre-signed reveal. `btc_fee` is the commit's; the reveal's
+  // is set by the composer context only after the reveal verified (`reveal_fee`).
+  const totalFeeInBtc = typeof result.reveal_fee === "number" && result.signed_reveal_rawtransaction
+    ? fromSatoshis(add(result.btc_fee, result.reveal_fee), true)
+    : null;
   const xcpFee = result.xcp_fee === undefined ? null : fromSatoshis(result.xcp_fee, true);
   const xcpFeeInFiat = xcpFee !== null && xcpPrice ? xcpFee * xcpPrice : null;
 
@@ -230,6 +235,15 @@ export function ReviewScreen({
                 </span>
               )}
             </div>
+            {totalFeeInBtc !== null && (
+              <p className="mt-1 text-sm text-gray-600">
+                {t('screens_review_screen_commit_then_reveal', [formatAmount({
+                  value: totalFeeInBtc,
+                  minimumFractionDigits: 8,
+                  maximumFractionDigits: 8,
+                })])}
+              </p>
+            )}
           </div>
         </div>
       </div>

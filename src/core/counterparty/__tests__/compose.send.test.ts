@@ -181,6 +181,24 @@ describe('Compose Send Operations', () => {
       expect(actualUrl).toContain('bc1qthird');
     });
 
+    it('carries the chosen encoding into the MPMA it becomes', async () => {
+      mockedApiClient.get.mockResolvedValue(createApiResponseWithResult());
+
+      await composeSendOrMPMA({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        destination: mockDestAddress,
+        destinations: `${mockDestAddress}, bc1qsecond`,
+        encoding: 'taproot',
+      });
+
+      const actualUrl = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      expect(actualUrl.pathname).toContain('/compose/mpma');
+      expect(actualUrl.searchParams.get('encoding')).toBe('taproot');
+    });
+
     it('should duplicate asset and quantity for each destination in MPMA', async () => {
       mockedApiClient.get.mockResolvedValue(createApiResponseWithResult());
       const destinations = `${mockDestAddress}, bc1qsecond`;

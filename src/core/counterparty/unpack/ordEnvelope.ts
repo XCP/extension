@@ -21,15 +21,19 @@
  * not signing, never the reverse. Where core is lax (it never checks the metaprotocol says "xcp",
  * reads whatever sits at the mime position, and truncates the type id to a byte), this is lax in
  * exactly the same way, because the point is to report what the chain will execute.
+ *
+ * Also here, because every Taproot reveal check needs them: core's plain data envelope, and the
+ * proof that a script-path spend publishes the only leaf its spent output commits to.
  */
 
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { p2tr } from '@scure/btc-signer';
 import { type CborEncodable, encodeCbor } from '@/core/counterparty/pack/cbor';
 import { type CborValue, decodeCbor } from '@/core/counterparty/unpack/cbor';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
 
 /** One parsed script instruction: an opcode byte, or the bytes a push pushed. */
-type Instruction = { op: number } | { push: Uint8Array };
+export type Instruction = { op: number } | { push: Uint8Array };
 
 /**
  * Parse a script into instructions. Only push encodings and bare opcodes — the envelope grammar
@@ -230,4 +234,87 @@ export function extractEnvelopeMessage(script: Uint8Array): OrdEnvelopeMessage |
     contentLength: bodyLength,
     checksigPubkey: pubkeyInstruction.push,
   };
+}
+
+const OP_ENDIF = 0x68;
+
+/**
+ * Read the message a plain data envelope carries, exactly as core's generic branch does: every
+ * push between OP_IF and the last three instructions, concatenated, CNTRPRTY prefix added. Null
+ * when the script is not one.
+ *
+ * Narrower than core, never wider: the tail must be OP_ENDIF, a 32-byte key and OP_CHECKSIG, and
+ * nothing but pushes may sit inside — core skips stray opcodes silently, and a script that relies
+ * on that is refused here. Whether the script is an ord envelope instead is the caller's question.
+ */
+export function extractDataEnvelopeMessage(script: Uint8Array): string | null {
+  const instructions = parseInstructions(script);
+  if (!instructions || instructions.length < 6) return null;
+  const first = instructions[0];
+  if (!isPush(first) || first.push.length !== 0) return null;
+  if (!isOp(instructions[1], OP_IF)) return null;
+  const last = instructions.length - 1;
+  if (!isOp(instructions[last], OP_CHECKSIG) || !isOp(instructions[last - 2], OP_ENDIF)) return null;
+  const key = instructions[last - 1];
+  if (!isPush(key) || key.push.length !== 32) return null;
+
+  const chunks: string[] = [];
+  for (const instruction of instructions.slice(2, last - 2)) {
+    if (!isPush(instruction)) return null;
+    chunks.push(bytesToHex(instruction.push));
+  }
+  const hex = chunks.join('');
+  return hex.length > 0 ? COUNTERPARTY_PREFIX_HEX + hex : null;
+}
+
+/** The reveal's OP_RETURN: exactly one push of the bare CNTRPRTY marker (`parse_vout`). */
+export const REVEAL_MARKER_SCRIPT = `6a08${COUNTERPARTY_PREFIX_HEX}`;
+
+/** Tapscript leaf version; any other would publish a script bitcoin does not execute. */
+const TAPSCRIPT_LEAF_VERSION = 0xc0;
+
+/** Why a witness does not prove the only script its spent output can publish. */
+export type SingleLeafRefusal = 'not_script_path' | 'more_than_one_leaf' | 'unreadable_control' | 'not_committed';
+
+export type SingleLeafProof =
+  | { ok: true; leaf: Uint8Array; internalKey: Uint8Array }
+  | { ok: false; reason: SingleLeafRefusal; error: string };
+
+/**
+ * Prove a Taproot script-path witness publishes the only script `outputScriptHex` commits to.
+ *
+ * Core reads the envelope only from a witness of exactly three elements: for a script-path spend
+ * that is [argument, leaf, control block]. A 33-byte control block is the leaf version and the
+ * internal key with no merkle path, so the tree is this one leaf; the leaf tweaking that key to
+ * exactly the output's key proves no other leaf exists, so no other script can ever be revealed
+ * from the output.
+ */
+export function proveSingleLeafSpend(
+  witness: Uint8Array[] | undefined,
+  outputScriptHex: string,
+): SingleLeafProof {
+  const leaf = witness?.length === 3 ? witness[1] : undefined;
+  const control = witness?.length === 3 ? witness[2] : undefined;
+  if (!leaf || !control) {
+    return { ok: false, reason: 'not_script_path', error: 'The reveal is not a single-script Taproot spend.' };
+  }
+  if (control.length !== 33 || (control[0]! & 0xfe) !== TAPSCRIPT_LEAF_VERSION) {
+    return {
+      ok: false,
+      reason: 'more_than_one_leaf',
+      error: 'The spent output commits to more than one script, so another could be revealed.',
+    };
+  }
+  const internalKey = control.slice(1);
+  let committedScript: string;
+  try {
+    const payment = p2tr(internalKey, { script: leaf, leafVersion: TAPSCRIPT_LEAF_VERSION }, undefined, true);
+    committedScript = bytesToHex(payment.script);
+  } catch {
+    return { ok: false, reason: 'unreadable_control', error: 'The reveal’s control block could not be read.' };
+  }
+  if (committedScript !== outputScriptHex.replace(/^0x/, '').toLowerCase()) {
+    return { ok: false, reason: 'not_committed', error: 'The spent output does not commit to the script the reveal publishes.' };
+  }
+  return { ok: true, leaf, internalKey };
 }
