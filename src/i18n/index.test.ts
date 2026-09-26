@@ -1,7 +1,7 @@
+import en from '@@/public/_locales/en/messages.json';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { applyDocumentLocale, currentLocale, currentNumberLocale, t } from '@/i18n';
-import { EN } from '@/i18n/en.generated';
 
 /** A browser whose i18n answers with the given catalog, empty for anything else (Chrome's behaviour). */
 function runtimeWith(catalog: Record<string, string>) {
@@ -21,7 +21,7 @@ afterEach(() => {
 
 describe('t', () => {
   it('reads English from the default-locale catalog, as the test setup answers like Chrome', () => {
-    expect(t('common_cancel')).toBe(EN.common_cancel);
+    expect(t('common_cancel')).toBe(en.common_cancel.message);
     expect(t('settings_version', ['1.2.3'])).toBe('Version 1.2.3');
   });
 
@@ -74,12 +74,11 @@ describe('currentLocale', () => {
 
 describe('the catalog', () => {
   it('names the manifest and its own language', () => {
-    // EN is the generated type source; tests may read it as a value, the extension never does.
-    expect(EN.appName).toBe('XCP Wallet');
-    expect(EN.appLocale).toBe('en');
+    // Tests may read the catalog as a value; the extension only ever imports its type.
+    expect(en.appName.message).toBe('XCP Wallet');
+    expect(en.appLocale.message).toBe('en');
   });
 });
-
 
 describe('automatic formatting', () => {
   it.each(['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'])('follows the resolved %s catalog', locale => {
