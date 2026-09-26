@@ -12,7 +12,7 @@ import type { AddressFormat } from "@/core/bitcoin/address";
 import { getSigningCapabilities, signMessage } from "@/core/bitcoin/messageSigner";
 import { currentLocale, t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
-import { getWalletService } from '@/services/walletService';
+import { getWalletServiceClient } from '@/services/walletServiceClient';
 
 /**
  * SignMessage component for signing messages with Bitcoin addresses.
@@ -89,7 +89,7 @@ export default function SignMessagePage(): ReactElement {
       // Check if this is a hardware wallet
       if (activeWallet.type === 'hardware') {
         // Connect 10 runs in the service worker, alongside transaction signing.
-        const hwResult = await getWalletService().signMessage(message, activeAddress.address, {
+        const hwResult = await getWalletServiceClient().signMessage(message, activeAddress.address, {
           walletId: activeWallet.id,
           address: activeAddress.address,
         });

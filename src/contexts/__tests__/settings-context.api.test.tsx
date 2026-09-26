@@ -9,7 +9,7 @@ import { watchKeychainRecord } from '@/platform/storage/walletStorage';
 import { SettingsProvider, useSettings } from '../settings-context';
 
 const service = vi.hoisted(() => ({ getSettings: vi.fn(), updateSettings: vi.fn() }));
-vi.mock('@/services/walletService', () => ({ getWalletService: () => service }));
+vi.mock('@/services/walletServiceClient', () => ({ getWalletServiceClient: () => service }));
 vi.mock('@/platform/fathom', () => ({ analytics: { track: vi.fn() } }));
 vi.mock('@/platform/storage/walletStorage', () => ({ watchKeychainRecord: vi.fn(() => () => {}) }));
 vi.mock('webext-bridge/popup', () => ({ onMessage: vi.fn(() => () => {}) }));

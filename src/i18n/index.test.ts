@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { applyDocumentLocale, currentLocale, currentNumberLocale, t } from '@/i18n';
 import { EN } from '@/i18n/en.generated';
 
@@ -19,15 +20,19 @@ afterEach(() => {
 });
 
 describe('t', () => {
-  it('reads the English catalog when there is no extension runtime', () => {
-    vi.stubGlobal('chrome', undefined);
+  it('reads English from the default-locale catalog, as the test setup answers like Chrome', () => {
     expect(t('common_cancel')).toBe(EN.common_cancel);
     expect(t('settings_version', ['1.2.3'])).toBe('Version 1.2.3');
   });
 
-  it('reads the English catalog when the runtime stub throws, as the fake browser does', () => {
+  it('shows the key when there is no extension runtime (no English is bundled)', () => {
+    vi.stubGlobal('chrome', undefined);
+    expect(t('common_cancel')).toBe('common_cancel');
+  });
+
+  it('shows the key when the runtime throws', () => {
     vi.stubGlobal('chrome', { i18n: { getMessage: () => { throw new Error('not implemented'); } } });
-    expect(t('common_cancel')).toBe(EN.common_cancel);
+    expect(t('common_cancel')).toBe('common_cancel');
   });
 
   it('prefers the message the browser resolved for its own locale', () => {
@@ -37,13 +42,8 @@ describe('t', () => {
     expect(getMessage).toHaveBeenCalledWith('settings_version', ['1.2.3']);
   });
 
-  it('falls back to English for a key the active locale lacks, which Chrome reports as an empty string', () => {
-    runtimeWith({ common_cancel: 'キャンセル' });
-    expect(t('common_close')).toBe(EN.common_close);
-  });
-
   it('substitutes every positional placeholder and blanks a missing one', () => {
-    vi.stubGlobal('chrome', undefined);
+    vi.stubGlobal('chrome', fakeBrowser);
     expect(t('addresses_history_page_of', ['2', '9'])).toBe('Page 2 of 9');
     expect(t('addresses_history_page_of', ['2'])).toBe('Page 2 of ');
   });
@@ -56,7 +56,12 @@ describe('currentLocale', () => {
   });
 
   it('is English when the wallet does not speak the browser language', () => {
-    runtimeWith({});
+    runtimeWith({ appLocale: 'en' });
+    expect(currentLocale()).toBe('en');
+  });
+
+  it('is English outside an extension runtime', () => {
+    vi.stubGlobal('chrome', undefined);
     expect(currentLocale()).toBe('en');
   });
 
@@ -69,6 +74,7 @@ describe('currentLocale', () => {
 
 describe('the catalog', () => {
   it('names the manifest and its own language', () => {
+    // EN is the generated type source; tests may read it as a value, the extension never does.
     expect(EN.appName).toBe('XCP Wallet');
     expect(EN.appLocale).toBe('en');
   });

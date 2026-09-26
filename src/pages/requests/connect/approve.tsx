@@ -11,7 +11,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { getPairedAddressFormats } from "@/core/wallet/addressDeriver";
 import { t } from '@/i18n';
 import { getApprovalService } from "@/services/approvalService";
-import { getWalletService } from "@/services/walletService";
+import { getWalletServiceClient } from "@/services/walletServiceClient";
 import type { ApprovalRequest } from "@/types/provider";
 import type { Address, PairedAddresses, Wallet } from "@/types/wallet";
 
@@ -112,7 +112,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
         if (!requested || !supportsPairedAddresses) return;
 
         try {
-          const pairs = await getWalletService().getPairedAddresses();
+          const pairs = await getWalletServiceClient().getPairedAddresses();
           if (cancelled) return;
           // The service derives the currently selected wallet. A late background selection
           // must not turn a valid request for A into displayed consent for B's addresses.

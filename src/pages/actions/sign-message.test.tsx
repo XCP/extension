@@ -12,7 +12,7 @@ vi.mock('@/contexts/wallet-context', () => ({ useWallet: () => ({
   activeAddress: { address: 'bc1qtest', path: "m/84'/0'/0'/0/0" },
   getPrivateKey: privateKey,
 }) }));
-vi.mock('@/services/walletService', () => ({ getWalletService: () => ({ signMessage: sign }) }));
+vi.mock('@/services/walletServiceClient', () => ({ getWalletServiceClient: () => ({ signMessage: sign }) }));
 vi.mock('@/platform/fathom', () => ({ analytics: { track: vi.fn() } }));
 
 describe('manual hardware message signing', () => {
