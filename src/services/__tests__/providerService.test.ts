@@ -2155,7 +2155,9 @@ describe('ProviderService', () => {
             'https://counterwallet.example',
             'xcp_signBitcoinPsbt',
             [{ ...paymentParams, reveal: 'ab'.repeat(80) }]
-          )).rejects.toThrow('request it with xcp_signPsbt');
+          )).rejects.toMatchObject({
+            code: -32602, message: expect.stringContaining('request it with xcp_signPsbt'),
+          });
 
           expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
         });
@@ -2195,7 +2197,9 @@ describe('ProviderService', () => {
             'https://counterwallet.example',
             'xcp_signPsbt',
             [{ hex: VALID_PSBT_HEX, reveal }]
-          )).rejects.toThrow('reveal must be the signed reveal transaction');
+          )).rejects.toMatchObject({
+            code: -32602, message: expect.stringContaining('reveal must be the signed reveal transaction'),
+          });
 
           expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
         });
@@ -2212,7 +2216,7 @@ describe('ProviderService', () => {
               reveal: 'ab'.repeat(80),
               inscription: { revealScript: 'ab', tapInternalKey: 'cd'.repeat(32) },
             }]
-          )).rejects.toThrow('either inscription or reveal');
+          )).rejects.toMatchObject({ code: -32602, message: expect.stringContaining('either inscription or reveal') });
         });
       });
     });

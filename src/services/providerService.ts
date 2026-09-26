@@ -27,7 +27,7 @@ import {
   providerPsbtSigningCapabilities,
 } from '@/core/providerCapabilities';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
-import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import { analytics } from '@/platform/fathom';
@@ -1109,17 +1109,18 @@ export function createProviderService(): ProviderService {
           }
           // A Counterparty Taproot commit's reveal. Its message is what signing the commit really
           // authorizes, so it is a Counterparty request, never a plain Bitcoin payment. Shape
-          // only here; the review proves the commit output commits to exactly its script.
+          // only here; the review proves the commit output commits to exactly its script. These
+          // are the caller's mistakes, so they go back as -32602 with the reason, not masked.
           if (reveal !== undefined) {
             if (isBitcoinPayment) {
-              throw new Error('A Counterparty reveal makes this a Counterparty transaction; request it with xcp_signPsbt');
+              throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'A Counterparty reveal makes this a Counterparty transaction; request it with xcp_signPsbt');
             }
             if (inscription !== undefined) {
-              throw new Error('Pass either inscription or reveal, not both');
+              throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'Pass either inscription or reveal, not both');
             }
             if (typeof reveal !== 'string' || reveal.length === 0 || reveal.length % 2 !== 0
               || reveal.length > MAX_REVEAL_HEX_LENGTH || !/^[0-9a-fA-F]+$/.test(reveal)) {
-              throw new Error('reveal must be the signed reveal transaction as a hex string');
+              throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'reveal must be the signed reveal transaction as a hex string');
             }
           }
           if (signInputs !== undefined && (

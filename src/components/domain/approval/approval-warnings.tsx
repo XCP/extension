@@ -19,7 +19,7 @@ import type { AttachedAssetDestination } from '@/core/counterparty/attachedAsset
 import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
-import { revealRefusalText } from '@/core/counterparty/providerReveal';
+import { revealControlText, revealOutputsText, revealRefusalText } from '@/core/counterparty/providerReveal';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { formatAmount } from '@/core/format';
 
@@ -93,16 +93,35 @@ function safetyWarningText(warning: SecurityWarning): { title: string; descripti
     case 'counterparty_reveal_refused':
       return {
         title: t('safety_blocked_reveal_did_not_verify'),
-        description: revealRefusalText(warning.data.reason, warning.data.messageType),
+        description: revealRefusalText(warning.data.reason),
       };
+    case 'counterparty_reveal_site_control':
+      return revealControlText(warning.data);
+    case 'counterparty_reveal_outputs': {
+      const text = revealOutputsText(warning.data);
+      return {
+        title: text.title,
+        description: text.description,
+        children: (
+          <>
+            {text.items.length > 0 && (
+              <ul className="mt-2 space-y-1 text-xs font-medium [overflow-wrap:anywhere]">
+                {text.items.map((item, index) => <li key={index}>{item}</li>)}
+              </ul>
+            )}
+            <p className="mt-2 text-xs opacity-80">{text.note}</p>
+          </>
+        ),
+      };
+    }
     case 'unproven_script_output': {
       const btcAmount = (warning.data.totalSats / 100_000_000).toFixed(8);
-      const { addresses } = warning.data;
+      const { addresses, source } = warning.data;
       return {
         title: t('safety_unproven_script_output'),
         description: addresses.length === 1
-          ? t('safety_unproven_script_output_one', [btcAmount, addresses[0]!])
-          : t('safety_unproven_script_output_many', [btcAmount, String(addresses.length), addresses.join(', ')]),
+          ? t('safety_unproven_script_output_one', [btcAmount, addresses[0]!, source])
+          : t('safety_unproven_script_output_many', [btcAmount, addresses.join(', '), source]),
       };
     }
     case 'durable_sell_authorization':

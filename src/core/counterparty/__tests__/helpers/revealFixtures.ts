@@ -2,7 +2,7 @@
  * Real-shaped Counterparty Taproot commit/reveal pairs, built the way core builds them
  * (`composer.py`, `prepare_taproot_output` / `get_reveal_outputs`): the commit pays a P2TR output
  * whose internal key and single leaf key are one throwaway key, and the reveal spends it by that
- * leaf with the bare CNTRPRTY marker as its only output.
+ * leaf with the bare CNTRPRTY marker as its only output (plus any `leading`/`trailing` outputs).
  */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
@@ -67,6 +67,17 @@ export const FAIRMINTER_METADATA = encodeCbor([
   900000n, 0n, 10000000000n, 900420n, 0n, false, true, true, true, 5000000000n, 95428956661682178n,
 ]);
 
+export interface RevealOutputSpec {
+  script: Uint8Array;
+  amount: bigint;
+}
+
+/** A P2WPKH output script for an address the fixtures know: the user's or the other party's. */
+export function payTo(address: string, amount: bigint): RevealOutputSpec {
+  const secret = address === USER_ADDRESS ? USER_KEY : key(2);
+  return { script: p2wpkh(getPublicKey(secret, true)).script, amount };
+}
+
 export interface CommitFixture {
   psbtHex: string;
   txid: string;
@@ -113,12 +124,15 @@ export function buildCommit(leaf: Uint8Array, options: {
 /**
  * The reveal, signed with the throwaway key and finalized as core does: [signature, leaf, control
  * block]. `publish` swaps in a different leaf after signing — the tampered-envelope case.
+ * `leading` outputs go ahead of the marker (core's destinations), `trailing` after it.
  */
 export function buildReveal(commit: CommitFixture, options: {
   txid?: string;
   vout?: number;
   publish?: Uint8Array;
   marker?: boolean;
+  leading?: RevealOutputSpec[];
+  trailing?: RevealOutputSpec[];
 } = {}): string {
   const tx = new Transaction({ allowUnknownOutputs: true });
   const [controlBlock] = commit.tapLeafScript!.find(([, script]) =>
@@ -129,10 +143,12 @@ export function buildReveal(commit: CommitFixture, options: {
     witnessUtxo: { script: commit.commitScript, amount: BigInt(commit.commitValue) },
     tapLeafScript: [[controlBlock, new Uint8Array([...commit.leaf, 0xc0])]],
   });
+  for (const output of options.leading ?? []) tx.addOutput(output);
   tx.addOutput({
     script: options.marker === false ? hexToBytes('6a0474657374') : MARKER_SCRIPT,
     amount: 0n,
   });
+  for (const output of options.trailing ?? []) tx.addOutput(output);
   tx.sign(EPHEMERAL_KEY);
   const signature = tx.getInput(0).tapScriptSig![0]![1];
   tx.updateInput(0, {

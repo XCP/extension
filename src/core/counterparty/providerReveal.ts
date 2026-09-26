@@ -3,40 +3,44 @@
  *
  * Counterparty's Taproot data encoding is two transactions. The commit pays a small output to a
  * P2TR address; the reveal spends that output by a script path whose tapleaf is an envelope
- * carrying the message, signed with a throwaway key held by whoever built it. Counterparty
- * credits the message to the address that funded the *commit*, not to the reveal's signer
- * (`bitcoin_client.rs`, `resolve_commit_parent`: the source is the output spent by the commit's
- * first input). So a site can ask this wallet to sign what reads as a few hundred sats to a
- * Taproot address, then broadcast its own reveal that sends, destroys or issues this wallet's
- * assets. Nothing in the commit's bytes shows it.
+ * carrying the message, signed with a key held by whoever built it, and publishes the message
+ * from the address that funded the commit. Signing the commit is signing that message, though
+ * nothing in the commit's own bytes shows it.
  *
  * When the site supplies the reveal, the commit stops being opaque. What the reveal publishes is
  * fixed by the commit, not by the reveal: a P2TR output key commits to its script tree, so when
  * the output key is the internal key tweaked by exactly one leaf, that leaf is the only script
- * any reveal can ever publish from it. The throwaway key can re-sign a different reveal
+ * any reveal can ever publish from it. The reveal's key can re-sign a different reveal
  * transaction, but not a different leaf. Everything below follows from that:
  *
- * - the reveal's first input must spend an output of this transaction — the one core reads the
- *   envelope from is the first input's witness, so that is the only one that can carry a message;
+ * - the reveal's first input must spend an output of this transaction, since core reads the
+ *   envelope from that input's witness;
  * - its witness must be the three-element script-path spend core reads, whose control block
  *   carries no merkle path, and the leaf plus internal key must tweak to exactly the spent
  *   output's key — proof that no other leaf exists;
  * - the leaf must be an envelope core reads, decoding to a Counterparty message the wallet can
  *   describe, and the reveal must carry the CNTRPRTY marker core requires;
- * - the message type must not take any of its meaning from the reveal's outputs, because those
- *   are the one part the site can still change after the user signs (an issuance with a
- *   destination output is an ownership transfer; an attach lands on whichever output it names);
- * - the commit's first input must be this wallet's, since that is who the message is credited to.
+ * - the commit must be funded from this wallet, the address the message is
+ *   published from.
  *
- * A key-path spend of the commit output publishes no envelope, so core attributes nothing it
- * carries to the commit's funder; the internal key is therefore not restricted. The worst it
- * allows is what the commit already concedes: the site keeps the commit output's value.
+ * What the proof cannot fix is the reveal's *outputs*. Core signs its own reveals with a key it
+ * discards, so those can never change; but a site that built its reveal with its own key can
+ * re-sign it with different outputs, and the wallet cannot tell the two apart. Some message types
+ * take part of their meaning from those outputs (core's parsers read `tx["destination"]`, the
+ * first output ahead of the data, or the transaction's outputs and spent UTXOs). They are not
+ * refused: they are decoded, and `revealSiteControl` names exactly what the site decides, per
+ * type, so the review can say it.
+ *
+ * A key-path spend of the commit output publishes no envelope, so the internal key is not
+ * restricted. The worst it allows is what the commit already concedes: the site keeps the commit
+ * output's value.
  */
 
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { p2tr, type Transaction } from '@scure/btc-signer';
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { decodeAddressFromScript, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
+import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
 import { extractEnvelopeMessage, parseInstructions } from '@/core/counterparty/unpack/ordEnvelope';
@@ -52,12 +56,13 @@ const TAPSCRIPT_LEAF_VERSION = 0xc0;
 export const MAX_REVEAL_HEX_LENGTH = 800_000;
 
 /**
- * Message types whose whole meaning is in the message. Every other type reads the reveal's
- * outputs (a legacy send's recipient, an issuance's transfer destination, an attach's output,
- * a dispense or BTCpay's payment), which the site chooses after the commit is signed. Sweep is
- * listed so it reaches the ordinary sweep block, which names it.
+ * Message types whose whole meaning is in the message: none of their parsers reads the
+ * transaction's outputs or spent UTXOs to decide what happens. (An order's `fee_provided` is the
+ * reveal's miner fee, which a re-signed reveal can only raise with the site's own inputs, and a
+ * destroy is invalidated, not redirected, by an output ahead of its data.) Sweep is listed so it
+ * reaches the ordinary sweep block.
  */
-const REVEAL_SAFE_MESSAGE_TYPES = new Set([
+const MESSAGE_ONLY_TYPES = new Set([
   'enhanced_send',
   'mpma_send',
   'sweep',
@@ -73,13 +78,77 @@ const REVEAL_SAFE_MESSAGE_TYPES = new Set([
   'poolwithdraw',
 ]);
 
+/**
+ * What the site decides about a proved reveal's message, from core's parser for each type:
+ *
+ * - `message_only`: nothing but whether and when the reveal is broadcast.
+ * - `send_recipient`: a legacy send (`send1.py`) pays `tx["destination"]`, the reveal's first
+ *   output ahead of its data.
+ * - `issuance_transfer`: an issuance with a `tx["destination"]` makes that address the issuer
+ *   (`issuance.py`: `issuer = tx["destination"]; transfer = True`), an ownership transfer.
+ * - `attach_output`: an attach (`attach.py`) lands on `<reveal txid>:<destination_vout>` or the
+ *   reveal's first non-OP_RETURN output, whose script the reveal's builder writes.
+ * - `dispense_payment`: a dispense (`dispense.py`) buys from whichever dispensers the reveal's
+ *   outputs pay, with the BTC the reveal carries.
+ * - `btcpay_payment`: a BTCpay settles only when the reveal pays the order match's counterparty
+ *   (`btcpay.py`, `check_btcpay_destination`).
+ * - `detach_inputs`: a detach (`detach.py`) releases the UTXOs the reveal spends, never the
+ *   user's, whose UTXOs the reveal cannot spend without a signature this request does not give.
+ * - `not_executed`: the legacy UTXO message (id 100) has not been parsed since
+ *   `spend_utxo_to_detach` (block 871,900), before Taproot reveals existed (block 902,000).
+ * - `outputs_unknown`: any other type; the wallet does not claim to know what the outputs decide.
+ */
+export type RevealSiteControl =
+  | 'message_only'
+  | 'send_recipient'
+  | 'issuance_transfer'
+  | 'attach_output'
+  | 'dispense_payment'
+  | 'btcpay_payment'
+  | 'detach_inputs'
+  | 'not_executed'
+  | 'outputs_unknown';
+
+const OUTPUT_DEPENDENT: Record<string, RevealSiteControl> = {
+  send: 'send_recipient',
+  issuance: 'issuance_transfer',
+  attach: 'attach_output',
+  dispense: 'dispense_payment',
+  btcpay: 'btcpay_payment',
+  detach: 'detach_inputs',
+  utxo: 'not_executed',
+  utxo_move: 'not_executed',
+};
+
+export function revealSiteControl(messageType: string): RevealSiteControl {
+  if (MESSAGE_ONLY_TYPES.has(messageType)) return 'message_only';
+  return OUTPUT_DEPENDENT[messageType] ?? 'outputs_unknown';
+}
+
+/**
+ * Whether what the site controls can change what the user gives up (who receives an asset, who
+ * owns one, who holds an attached UTXO, what BTC buys) or whether the action happens at all.
+ * Those take the review step; the rest are stated as information.
+ */
+export function revealControlNeedsReview(control: RevealSiteControl): boolean {
+  return control !== 'message_only' && control !== 'detach_inputs' && control !== 'not_executed';
+}
+
+/** One output of the reveal as supplied. */
+export interface RevealOutput {
+  index: number;
+  value: number;
+  /** Undefined for a script no decoder attributes to an address. */
+  address?: string;
+  opReturn: boolean;
+}
+
 /** Why a supplied reveal was refused; each has its own sentence on the approval screen. */
 export type RevealRefusal =
   | 'unreadable'
   | 'not_this_transaction'
   | 'script_not_committed'
   | 'not_counterparty'
-  | 'outputs_decide'
   | 'source_not_signer'
   /** The commit carries its own Counterparty message too; the screen could describe only one. */
   | 'two_messages';
@@ -96,14 +165,20 @@ export type RevealVerification =
       commitIndex: number;
       commitAddress: string;
       commitValue: number;
-      /** The address Counterparty credits the message to: the commit's first input. */
+      /** The address the message is published from: the one funding the commit. */
       sourceAddress: string;
+      /** The reveal's outputs as supplied: what it does now, whatever a re-signing could do. */
+      outputs: RevealOutput[];
+      /**
+       * The reveal's outputs ahead of its data, as supplied: core's destinations. With exactly
+       * one, it is `tx["destination"]`; with more than one, core skips the message altogether
+       * (`blocks.py`, a multi-part destination). `null` for an output with no address.
+       */
+      destinations: (string | null)[];
     }
   | {
       ok: false;
       reason: RevealRefusal;
-      /** The decoded type, for `outputs_decide`. */
-      messageType?: string;
       /** English diagnostics for logs and the raw fallback; the screen translates `reason`. */
       error: string;
     };
@@ -126,11 +201,7 @@ interface CommitLike {
   outputs: CommitOutputLike[];
 }
 
-const refuse = (
-  reason: RevealRefusal,
-  error: string,
-  messageType?: string,
-): RevealVerification => ({ ok: false, reason, error, ...(messageType ? { messageType } : {}) });
+const refuse = (reason: RevealRefusal, error: string): RevealVerification => ({ ok: false, reason, error });
 
 /**
  * Read the message a plain data envelope carries, exactly as core's generic branch does: every
@@ -251,21 +322,28 @@ export function verifyCounterpartyReveal(
         : 'The reveal lacks the CNTRPRTY marker, so Counterparty would not read it.',
     );
   }
-  if (!REVEAL_SAFE_MESSAGE_TYPES.has(unpacked.messageType)) {
-    return refuse(
-      'outputs_decide',
-      `A ${unpacked.messageType} message takes part of its meaning from the reveal’s outputs, which the site can change after you sign.`,
-      unpacked.messageType,
-    );
-  }
 
   const source = commit.inputs[0]?.address;
   const signers = new Set(signerAddresses.map(normalizeAddressForComparison));
   if (!source || !signers.has(normalizeAddressForComparison(source))) {
     return refuse(
       'source_not_signer',
-      'Counterparty credits this message to the commit’s first input, which this wallet does not sign.',
+      'The commit is not funded from an address this wallet signs for.',
     );
+  }
+
+  const outputs: RevealOutput[] = [];
+  const destinations: (string | null)[] = [];
+  let dataSeen = false;
+  for (let index = 0; index < reveal.outputsLength; index += 1) {
+    const candidate = reveal.getOutput(index);
+    const script = candidate.script ? bytesToHex(candidate.script) : '';
+    const opReturn = script.startsWith('6a');
+    const address = opReturn || !script ? undefined : decodeAddressFromScript(script) ?? undefined;
+    outputs.push({ index, value: Number(candidate.amount ?? 0n), address, opReturn });
+    // Core's destinations are the outputs ahead of the data (`bitcoin_client.rs`, parse_vout).
+    if (script === REVEAL_MARKER_SCRIPT) dataSeen = true;
+    else if (!dataSeen && !opReturn) destinations.push(address ?? null);
   }
 
   return {
@@ -277,44 +355,200 @@ export function verifyCounterpartyReveal(
     commitAddress: output.address ?? '',
     commitValue: output.value,
     sourceAddress: source,
+    outputs,
+    destinations,
   };
 }
 
 /** The approval screen's sentence for a refusal, in the reader's language. */
-export function revealRefusalText(reason: RevealRefusal, messageType?: string): string {
+export function revealRefusalText(reason: RevealRefusal): string {
   switch (reason) {
     case 'unreadable': return t('safety_reveal_unreadable');
     case 'not_this_transaction': return t('safety_reveal_not_this_transaction');
     case 'script_not_committed': return t('safety_reveal_script_not_committed');
     case 'not_counterparty': return t('safety_reveal_not_counterparty');
-    case 'outputs_decide': return t('safety_reveal_outputs_decide', messageType ?? '');
     case 'source_not_signer': return t('safety_reveal_source_not_signer');
     case 'two_messages': return t('safety_reveal_two_messages');
   }
 }
 
 /**
- * Output scripts whose spend can carry a witness core would read as an envelope: anything that
- * commits to a script (P2TR, P2WSH, P2SH, which may wrap P2WSH) and any other witness program,
- * which bitcoin does not validate at all. Only key-hash outputs cannot: a P2PKH spend has no
- * witness and a P2WPKH spend's witness is always a signature and a key.
+ * The reveal output an attach lands on, as supplied (`attach.py`): the named vout, or the first
+ * output that is not OP_RETURN. Null when the reveal has no such output, or names an OP_RETURN,
+ * both of which core rejects.
  */
-export function canCarryRevealWitness(scriptHex: string | undefined): boolean {
-  if (!scriptHex) return false;
-  let script: Uint8Array;
-  try {
-    script = hexToBytes(scriptHex);
-  } catch {
-    return false;
+export function revealAttachTarget(outputs: RevealOutput[], destinationVout: number | undefined): RevealOutput | null {
+  if (destinationVout !== undefined) {
+    const named = outputs[destinationVout];
+    return named && !named.opReturn ? named : null;
   }
-  // P2SH: OP_HASH160 <20> OP_EQUAL.
-  if (script.length === 23 && script[0] === 0xa9 && script[1] === 0x14 && script[22] === 0x87) return true;
-  // Witness program: version opcode (OP_0, OP_1..OP_16) then a single 2-40 byte push.
-  const version = script[0];
-  const length = script[1];
-  if (version === undefined || length === undefined) return false;
-  const isVersion = version === 0x00 || (version >= 0x51 && version <= 0x60);
-  if (!isVersion || length < 2 || length > 40 || script.length !== length + 2) return false;
-  // P2WPKH is the one witness program whose spend cannot publish anything.
-  return !(version === 0x00 && length === 20);
+  return outputs.find((output) => !output.opReturn) ?? null;
+}
+
+/** What the reveal, as supplied, does with the part of the message its outputs decide. */
+export type RevealSupplied =
+  | { kind: 'recipient'; address: string | null; owned: boolean }
+  | { kind: 'no_recipient' }
+  | { kind: 'new_owner'; address: string | null; owned: boolean }
+  | { kind: 'no_transfer' }
+  | { kind: 'attach_output'; vout: number; address: string | null; owned: boolean }
+  | { kind: 'attach_missing' };
+
+/** The facts behind the "site builds the second transaction" disclosure. */
+export interface RevealControlFacts {
+  control: Exclude<RevealSiteControl, 'message_only'>;
+  messageType: string;
+  /** The asset an issuance or attach names. */
+  asset?: string;
+  /**
+   * The reveal as supplied, where its outputs decide something. Absent when core would read no
+   * single destination from it (more than one output ahead of the data: core skips the message).
+   */
+  supplied?: RevealSupplied;
+}
+
+export interface RevealOutputFact extends RevealOutput {
+  /** Pays one of this wallet's addresses. */
+  owned: boolean;
+}
+
+/** The reveal's outputs, stated as proved facts about the transaction the site supplied. */
+export interface RevealOutputsFacts {
+  outputs: RevealOutputFact[];
+  /** Sats the supplied reveal pays anywhere but this wallet's addresses. */
+  externalSats: number;
+}
+
+type ProvedReveal = Extract<RevealVerification, { ok: true }>;
+
+/**
+ * The review's statement of a proved reveal: what the site decides about its message, when
+ * anything, and what the reveal as supplied pays. Severity follows consequence: a type whose
+ * outcome the outputs can change, or a reveal that pays someone else, takes the review step.
+ *
+ * @param reveal - the proved reveal
+ * @param messageData - the local decode of its message
+ * @param ownedAddresses - this wallet's addresses, to say which outputs are the user's
+ */
+export function revealDisclosures(
+  reveal: ProvedReveal,
+  messageData: unknown,
+  ownedAddresses: string[],
+): SecurityWarning[] {
+  const owned = new Set(ownedAddresses.map(normalizeAddressForComparison));
+  const isOwned = (address: string | null | undefined) =>
+    !!address && owned.has(normalizeAddressForComparison(address));
+  const warnings: SecurityWarning[] = [];
+
+  const control = revealSiteControl(reveal.messageType);
+  if (control !== 'message_only') {
+    const data = (messageData ?? {}) as { asset?: unknown; destinationVout?: unknown };
+    const asset = typeof data.asset === 'string' ? data.asset : undefined;
+    const single = reveal.destinations.length <= 1;
+    const destination = reveal.destinations[0];
+    let supplied: RevealSupplied | undefined;
+    if (control === 'send_recipient' && single) {
+      supplied = destination === undefined
+        ? { kind: 'no_recipient' }
+        : { kind: 'recipient', address: destination, owned: isOwned(destination) };
+    } else if (control === 'issuance_transfer' && single) {
+      supplied = destination === undefined
+        ? { kind: 'no_transfer' }
+        : { kind: 'new_owner', address: destination, owned: isOwned(destination) };
+    } else if (control === 'attach_output') {
+      const vout = typeof data.destinationVout === 'number' ? data.destinationVout : undefined;
+      const target = revealAttachTarget(reveal.outputs, vout);
+      supplied = target
+        ? { kind: 'attach_output', vout: target.index, address: target.address ?? null, owned: isOwned(target.address) }
+        : { kind: 'attach_missing' };
+    }
+    const facts: RevealControlFacts = {
+      control,
+      messageType: reveal.messageType,
+      ...(asset ? { asset } : {}),
+      ...(supplied ? { supplied } : {}),
+    };
+    const text = revealControlText(facts);
+    warnings.push({
+      code: 'counterparty_reveal_site_control',
+      data: facts,
+      severity: revealControlNeedsReview(control) ? 'warning' : 'info',
+      title: text.title,
+      message: text.description,
+    });
+  }
+
+  const outputs = reveal.outputs.map((output) => ({ ...output, owned: isOwned(output.address) }));
+  const externalSats = outputs
+    .filter((output) => !output.owned)
+    .reduce((sum, output) => sum + output.value, 0);
+  const facts: RevealOutputsFacts = { outputs, externalSats };
+  const text = revealOutputsText(facts);
+  warnings.push({
+    code: 'counterparty_reveal_outputs',
+    data: facts,
+    severity: externalSats > 0 ? 'warning' : 'info',
+    title: text.title,
+    message: [text.description, ...text.items, text.note].join(' '),
+  });
+  return warnings;
+}
+
+function addressLabel(address: string | null | undefined, owned: boolean): string {
+  if (!address) return t('safety_reveal_address_none');
+  return owned ? t('safety_reveal_address_yours', address) : t('safety_reveal_address_not_yours', address);
+}
+
+function suppliedText(supplied: RevealSupplied | undefined): string | undefined {
+  switch (supplied?.kind) {
+    case undefined: return undefined;
+    case 'recipient': return t('safety_reveal_supplied_recipient', addressLabel(supplied.address, supplied.owned));
+    case 'no_recipient': return t('safety_reveal_supplied_no_recipient');
+    case 'new_owner': return t('safety_reveal_supplied_new_owner', addressLabel(supplied.address, supplied.owned));
+    case 'no_transfer': return t('safety_reveal_supplied_no_transfer');
+    case 'attach_output':
+      return t('safety_reveal_supplied_attach_output', [String(supplied.vout), addressLabel(supplied.address, supplied.owned)]);
+    case 'attach_missing': return t('safety_reveal_supplied_attach_missing');
+  }
+}
+
+/** The disclosure of what the site decides, in the reader's language. */
+export function revealControlText(facts: RevealControlFacts): { title: string; description: string } {
+  const asset = facts.asset ?? facts.messageType;
+  let sentence: string;
+  switch (facts.control) {
+    case 'send_recipient': sentence = t('safety_reveal_control_send_recipient'); break;
+    case 'issuance_transfer': sentence = t('safety_reveal_control_issuance_transfer', asset); break;
+    case 'attach_output': sentence = t('safety_reveal_control_attach_output', asset); break;
+    case 'dispense_payment': sentence = t('safety_reveal_control_dispense_payment'); break;
+    case 'btcpay_payment': sentence = t('safety_reveal_control_btcpay_payment'); break;
+    case 'detach_inputs': sentence = t('safety_reveal_control_detach_inputs'); break;
+    case 'not_executed': sentence = t('safety_reveal_control_not_executed'); break;
+    case 'outputs_unknown': sentence = t('safety_reveal_control_outputs_unknown', facts.messageType); break;
+  }
+  const supplied = suppliedText(facts.supplied);
+  return {
+    title: t('safety_reveal_site_builds_title'),
+    description: supplied ? `${sentence} ${supplied}` : sentence,
+  };
+}
+
+/** The statement of the supplied reveal's outputs, in the reader's language. */
+export function revealOutputsText(facts: RevealOutputsFacts): {
+  title: string;
+  description: string;
+  /** One line per output that carries value. */
+  items: string[];
+  /** Why these are facts about this reveal, not about every reveal of the commit. */
+  note: string;
+} {
+  const paying = facts.outputs.filter((output) => output.value > 0);
+  return {
+    title: facts.externalSats > 0 ? t('safety_reveal_outputs_pays_other_title') : t('safety_reveal_outputs_title'),
+    description: paying.length === 0 ? t('safety_reveal_outputs_data_only') : t('safety_reveal_outputs_pays'),
+    items: paying.map((output) => t('safety_reveal_output_item', [
+      String(output.value), addressLabel(output.opReturn ? null : output.address, output.owned),
+    ])),
+    note: t('safety_reveal_outputs_resign_note'),
+  };
 }

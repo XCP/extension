@@ -416,15 +416,16 @@ describe('durable sell authorization', () => {
 
 describe('Counterparty commits and script addresses', () => {
   const COMMIT = 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr';
+  const PAYER = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
 
   it.each(['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const)('translates each finding from its facts (%s)', language => {
     mockBrowserLocale({ language });
     const safetyWarnings: SecurityWarning[] = [
-      { code: 'counterparty_reveal_refused', data: { reason: 'outputs_decide', messageType: 'issuance' },
+      { code: 'counterparty_reveal_refused', data: { reason: 'script_not_committed' },
         severity: 'block', title: 'English', message: 'English' },
-      { code: 'unproven_script_output', data: { totalSats: 600, addresses: [COMMIT] },
+      { code: 'unproven_script_output', data: { totalSats: 600, addresses: [COMMIT], source: PAYER },
         severity: 'warning', title: 'English', message: 'English' },
-      { code: 'unproven_script_output', data: { totalSats: 1_200, addresses: [COMMIT, COMMIT] },
+      { code: 'unproven_script_output', data: { totalSats: 1_200, addresses: [COMMIT, COMMIT], source: PAYER },
         severity: 'warning', title: 'English', message: 'English' },
       ...analyzeTransactionSafety('mpma_send', [], 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', {
         verifiedCommit: { address: COMMIT, value: 600, kind: 'reveal' },
@@ -435,15 +436,15 @@ describe('Counterparty commits and script addresses', () => {
     expect(items[0]).toMatchObject({
       blocking: true,
       title: t('safety_blocked_reveal_did_not_verify'),
-      description: t('safety_reveal_outputs_decide', 'issuance'),
+      description: t('safety_reveal_script_not_committed'),
     });
     expect(items[1]).toMatchObject({
       severity: 'warning',
       title: t('safety_unproven_script_output'),
-      description: t('safety_unproven_script_output_one', ['0.00000600', COMMIT]),
+      description: t('safety_unproven_script_output_one', ['0.00000600', COMMIT, PAYER]),
     });
     expect(items[2]?.description).toBe(
-      t('safety_unproven_script_output_many', ['0.00001200', '2', `${COMMIT}, ${COMMIT}`]));
+      t('safety_unproven_script_output_many', ['0.00001200', `${COMMIT}, ${COMMIT}`, PAYER]));
     expect(items[3]).toMatchObject({
       severity: 'info',
       title: t('safety_counterparty_reveal_commit'),
@@ -451,5 +452,35 @@ describe('Counterparty commits and script addresses', () => {
     });
     // Not the inscription wording: this commit's key is the site's, not the user's.
     expect(items[3]?.title).not.toBe(t('safety_inscription_commit'));
+  });
+
+  it.each(['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const)('states a proved reveal from its facts (%s)', language => {
+    mockBrowserLocale({ language });
+    const safetyWarnings: SecurityWarning[] = [
+      { code: 'counterparty_reveal_site_control',
+        data: { control: 'issuance_transfer', messageType: 'issuance', asset: 'PEPECASH',
+          supplied: { kind: 'new_owner', address: PAYER, owned: false } },
+        severity: 'warning', title: 'English', message: 'English' },
+      { code: 'counterparty_reveal_outputs',
+        data: { externalSats: 330, outputs: [
+          { index: 0, value: 0, opReturn: true, owned: false },
+          { index: 1, value: 330, address: PAYER, opReturn: false, owned: false },
+        ] },
+        severity: 'warning', title: 'English', message: 'English' },
+    ];
+    const items = buildApprovalWarnings({ ...EMPTY, safetyWarnings });
+
+    expect(items[0]).toMatchObject({
+      severity: 'warning',
+      title: t('safety_reveal_site_builds_title'),
+      description: `${t('safety_reveal_control_issuance_transfer', 'PEPECASH')} `
+        + t('safety_reveal_supplied_new_owner', t('safety_reveal_address_not_yours', PAYER)),
+    });
+    expect(items[1]).toMatchObject({
+      severity: 'warning',
+      title: t('safety_reveal_outputs_pays_other_title'),
+      description: t('safety_reveal_outputs_pays'),
+    });
+    expect(items[1]?.children).toBeTruthy();
   });
 });

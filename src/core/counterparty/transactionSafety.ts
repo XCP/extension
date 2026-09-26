@@ -9,7 +9,11 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { publicKeyPointId } from '@/core/bitcoin/publicKeyIdentity';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
-import type { RevealRefusal } from '@/core/counterparty/providerReveal';
+import type {
+  RevealControlFacts,
+  RevealOutputsFacts,
+  RevealRefusal,
+} from '@/core/counterparty/providerReveal';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import {
   bareMultisigRecoveryPubkey,
@@ -36,12 +40,16 @@ export type SecurityWarning = SecurityWarningText & (
   /** A commit whose site-held reveal was proved: the BTC funds the reveal that publishes the message. */
   | { code: 'counterparty_reveal_commit'; data: { totalSats: number; address: string } }
   /** A site-supplied reveal that did not prove out, by why (providerReveal.ts). */
-  | { code: 'counterparty_reveal_refused'; data: { reason: RevealRefusal; messageType?: string } }
+  | { code: 'counterparty_reveal_refused'; data: { reason: RevealRefusal } }
+  /** What the site decides about a proved reveal's message, through the outputs it builds. */
+  | { code: 'counterparty_reveal_site_control'; data: RevealControlFacts }
+  /** The outputs of the reveal the site supplied, as proved facts. */
+  | { code: 'counterparty_reveal_outputs'; data: RevealOutputsFacts }
   /**
-   * Outputs to addresses whose spend could publish a Counterparty envelope credited to this
-   * wallet, with no reveal to show what it would say.
+   * Payments to script addresses the wallet does not control, from `source`, this wallet's
+   * address, which holds Counterparty assets (or could not be shown not to).
    */
-  | { code: 'unproven_script_output'; data: { totalSats: number; addresses: string[] } }
+  | { code: 'unproven_script_output'; data: { totalSats: number; addresses: string[]; source: string } }
   | { code: 'misdirected_recovery_key'; data: { count: number } }
   | { code: 'zeld_would_leave'; data: { count: number } }
   | { code: 'durable_sell_authorization'; data: { inputs: number[] } }

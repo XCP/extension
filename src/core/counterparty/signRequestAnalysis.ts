@@ -18,6 +18,8 @@ import {
   type BitcoinPaymentProof,
   proveBitcoinPaymentIntent,
 } from '@/core/bitcoin/providerPayment';
+import { scriptPaymentCandidates, scriptPaymentRisk } from '@/core/bitcoin/scriptPaymentRisk';
+import { addressHoldsCounterpartyAssets } from '@/core/counterparty/assetHoldings';
 import {
   type AttachedAssetDestination,
   movesCounterpartyValue,
@@ -38,8 +40,8 @@ import {
   verifyInscriptionCommit,
 } from '@/core/counterparty/providerInscriptions';
 import {
-  canCarryRevealWitness,
   type RevealVerification,
+  revealDisclosures,
   revealRefusalText,
   verifyCounterpartyReveal,
 } from '@/core/counterparty/providerReveal';
@@ -207,6 +209,7 @@ export async function analyzeSignRequest(
   // The same for a Counterparty commit whose reveal the site holds, except that the proof is the
   // commit output's own key committing to the reveal's single script (providerReveal.ts).
   let revealRefusal: SecurityWarning | undefined;
+  let provedReveal: Extract<RevealVerification, { ok: true }> | undefined;
   if (input.counterpartyReveal !== undefined && !input.inscriptionContext) {
     const checked: RevealVerification = counterpartyDataHex
       ? { ok: false, reason: 'two_messages',
@@ -217,15 +220,16 @@ export async function analyzeSignRequest(
           signerAddresses,
         );
     if (checked.ok) {
+      provedReveal = checked;
       counterpartyDataHex = checked.messageHex;
       verifiedCommit = { address: checked.commitAddress, value: checked.commitValue, kind: 'reveal' };
     } else {
       revealRefusal = {
         code: 'counterparty_reveal_refused',
-        data: { reason: checked.reason, ...(checked.messageType ? { messageType: checked.messageType } : {}) },
+        data: { reason: checked.reason },
         severity: 'block',
         title: t('safety_blocked_reveal_did_not_verify'),
-        message: revealRefusalText(checked.reason, checked.messageType),
+        message: revealRefusalText(checked.reason),
       };
     }
   }
@@ -243,6 +247,21 @@ export async function analyzeSignRequest(
       commitRefusal = 'The inscription context names no signing address to verify against.';
     }
   }
+
+  // Payments to script addresses the wallet does not control can carry risk for an address
+  // holding Counterparty assets. The candidates come from the bytes now; the payer's holdings are
+  // looked up alongside the other reads, not after them, and only when there is a candidate.
+  const ownedAddresses = [...signerAddresses, ...(input.ownedAddresses ?? [])];
+  const scriptPaymentInput = {
+    outputs,
+    payerAddress: inputs[0]?.address,
+    ownedAddresses,
+    provenAddresses: verifiedCommit ? [verifiedCommit.address] : [],
+  };
+  const scriptPayments = revealRefusal ? [] : scriptPaymentCandidates(scriptPaymentInput);
+  const payerHoldsAssets = scriptPayments.length > 0
+    ? addressHoldsCounterpartyAssets(inputs[0]!.address!)
+    : Promise.resolve(false);
 
   // The API's rendering is for display only — richer than the local unpack, and not trusted by
   // anything below that decides whether signing is safe.
@@ -282,39 +301,13 @@ export async function analyzeSignRequest(
   if (revealRefusal) {
     safety.warnings = [revealRefusal, ...safety.warnings];
     safety.blocked = true;
-  } else {
-    // Without a reveal, an output whose spend could publish an envelope is opaque: Counterparty
-    // credits whatever its reveal says to the address funding this transaction's first input.
-    // Only that funder is exposed, so the caution is raised only when it is this wallet.
-    const own = new Set(
-      [...signerAddresses, ...(input.ownedAddresses ?? [])].map(normalizeAddressForComparison),
-    );
-    const funder = inputs[0]?.address;
-    if (funder && own.has(normalizeAddressForComparison(funder))) {
-      const unproven = outputs.filter((output) =>
-        output.type !== 'op_return'
-        && !!output.address
-        && !own.has(normalizeAddressForComparison(output.address))
-        && output.address !== verifiedCommit?.address
-        && canCarryRevealWitness(output.script));
-      if (unproven.length > 0) {
-        const totalSats = unproven.reduce((sum, output) => sum + output.value, 0);
-        const addresses = unproven.map((output) => output.address!);
-        const btcAmount = (totalSats / 100_000_000).toFixed(8);
-        safety.warnings = [
-          ...safety.warnings,
-          {
-            code: 'unproven_script_output',
-            data: { totalSats, addresses },
-            severity: 'warning',
-            title: t('safety_unproven_script_output'),
-            message: addresses.length === 1
-              ? t('safety_unproven_script_output_one', [btcAmount, addresses[0]!])
-              : t('safety_unproven_script_output_many', [btcAmount, String(addresses.length), addresses.join(', ')]),
-          },
-        ];
-      }
-    }
+  } else if (provedReveal) {
+    // A proved reveal fixes its message, not its outputs: say what the outputs decide for this
+    // message type, and what the reveal as supplied pays. After any block, ahead of the rest.
+    const disclosures = revealDisclosures(provedReveal, verification.localUnpack?.data, ownedAddresses);
+    const firstNonBlock = safety.warnings.findIndex(warning => warning.severity !== 'block');
+    const split = firstNonBlock === -1 ? safety.warnings.length : firstNonBlock;
+    safety.warnings = [...safety.warnings.slice(0, split), ...disclosures, ...safety.warnings.slice(split)];
   }
 
   // mpma_send is described from the bytes, not from the API's rendering of them — see
@@ -360,6 +353,27 @@ export async function analyzeSignRequest(
   }
 
   const attachedAssets = await input.attachedAssets;
+
+  if (scriptPayments.length > 0) {
+    // Assets on the spent UTXOs count too; an input whose lookup failed is unknown, not empty.
+    const inputsCarryAssets = attachedAssets.some(entry => entry.assets.length > 0 || entry.lookupFailed);
+    const risk = scriptPaymentRisk(scriptPaymentInput, inputsCarryAssets || await payerHoldsAssets);
+    if (risk) {
+      const btcAmount = (risk.totalSats / 100_000_000).toFixed(8);
+      safety.warnings = [
+        ...safety.warnings,
+        {
+          code: 'unproven_script_output',
+          data: risk,
+          severity: 'warning',
+          title: t('safety_unproven_script_output'),
+          message: risk.addresses.length === 1
+            ? t('safety_unproven_script_output_one', [btcAmount, risk.addresses[0]!, risk.source])
+            : t('safety_unproven_script_output_many', [btcAmount, risk.addresses.join(', '), risk.source]),
+        },
+      ];
+    }
+  }
 
   // ZELD rides on the first spendable output. A site's transaction that spends this wallet's
   // ZELD-bearing outputs and pays someone else first would hand them the ZELD. The composer's
@@ -537,9 +551,9 @@ export async function analyzeSignRequest(
       // outputs that are not the bidder's — the offer output rebuilt from the bidder's own key and
       // the named market key's leaf, and the anchor returned to itself — are exactly what the
       // review states. Those findings are exempt; every other block (ZELD included) survives.
-      // The offer output is a script address, but its one leaf is rebuilt byte for byte and
-      // opens with the fixed protocol tag, which no Counterparty message decodes from, so the
-      // script-address caution has nothing left to say about what a spend of it could publish.
+      // The offer output is a script address, but its one leaf is rebuilt byte for byte from
+      // the bidder's own key and the named market key, so the script-address caution does not
+      // apply to it.
       safety.warnings = safety.warnings.filter(
         warning => warning.code !== 'counterparty_only_gate' && warning.code !== 'external_btc_output'
           && warning.code !== 'unproven_script_output',

@@ -5396,12 +5396,8 @@
     "message": "The site's reveal does not publish a Counterparty message this wallet can read.",
     "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\"."
   },
-  "safety_reveal_outputs_decide": {
-    "message": "A $1 message takes part of its meaning from the reveal's outputs, which the site could change after you sign. Only messages stated entirely in the reveal can be signed this way.",
-    "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\". $1 = the raw Counterparty message type name, e.g. \"issuance\"."
-  },
   "safety_reveal_source_not_signer": {
-    "message": "Counterparty credits this message to whoever funds this transaction's first input, and that input is not yours.",
+    "message": "The reveal's message would be published from an address that is not yours.",
     "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\"."
   },
   "safety_reveal_two_messages": {
@@ -5410,15 +5406,111 @@
   },
   "safety_unproven_script_output": {
     "message": "Payment to a Script Address",
-    "description": "Approval screen warning title (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx): the transaction is funded from your address and pays an address that could be a Counterparty commit (P2TR, P2WSH, P2SH or another witness program), with no reveal supplied to show what it would publish."
+    "description": "Approval screen warning title (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx): the transaction pays a script address (P2TR, P2WSH, P2SH or another witness program) this wallet does not control, from an address holding Counterparty assets."
   },
   "safety_unproven_script_output_one": {
-    "message": "$1 BTC goes to $2, an address that can hide a script. If it is a Counterparty commit, the site can then publish a message that Counterparty credits to your address, such as sending or destroying your assets. Continue only if you know who controls this address. A site can show what the payment is for by including its reveal.",
-    "description": "Approval screen warning body (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx) under \"Payment to a Script Address\", for exactly one address. $1 = BTC amount, 8 decimals; $2 = the full address, never truncated."
+    "message": "$1 BTC goes to $2, a script address. Paying a script address can let its owner move your Counterparty assets from $3. Only continue if you trust the recipient.",
+    "description": "Approval screen warning body (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx) under \"Payment to a Script Address\", for exactly one address. Shown only when the paying address holds Counterparty assets. $1 = BTC amount, 8 decimals; $2 = the full script address (P2TR, P2WSH or P2SH), never truncated; $3 = your address funding this transaction, in full."
   },
   "safety_unproven_script_output_many": {
-    "message": "$1 BTC goes to $2 addresses that can hide a script: $3. If one is a Counterparty commit, the site can then publish a message that Counterparty credits to your address, such as sending or destroying your assets. Continue only if you know who controls these addresses. A site can show what a payment is for by including its reveal.",
-    "description": "Approval screen warning body (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx) under \"Payment to a Script Address\", for two or more addresses. $1 = BTC amount, 8 decimals; $2 = how many addresses; $3 = the comma-separated addresses, each in full, never truncated."
+    "message": "$1 BTC goes to script addresses: $2. Paying a script address can let its owner move your Counterparty assets from $3. Only continue if you trust the recipients.",
+    "description": "Approval screen warning body (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx) under \"Payment to a Script Address\", for two or more addresses. Shown only when the paying address holds Counterparty assets. $1 = total BTC amount, 8 decimals; $2 = the comma-separated script addresses, each in full; $3 = your address funding this transaction, in full."
+  },
+  "safety_reveal_site_builds_title": {
+    "message": "The Site Builds the Second Transaction",
+    "description": "Approval screen title (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) over what the site decides about a verified Counterparty reveal (the \"second transaction\") through the outputs it builds."
+  },
+  "safety_reveal_control_send_recipient": {
+    "message": "A legacy send goes to the address the second transaction pays ahead of its data. The site builds the second transaction and chooses the recipient.",
+    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under \"The Site Builds the Second Transaction\". The second transaction is the Counterparty reveal the site supplied; it publishes the message shown above from your address."
+  },
+  "safety_reveal_control_issuance_transfer": {
+    "message": "The site can also transfer ownership of $1 to an address it chooses: an address the second transaction pays ahead of its data becomes the new owner.",
+    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under \"The Site Builds the Second Transaction\". The second transaction is the Counterparty reveal the site supplied; it publishes the message shown above from your address. $1 = asset name."
+  },
+  "safety_reveal_control_attach_output": {
+    "message": "This attaches your $1 to an output of the second transaction. The site builds that transaction and chooses the output, so the asset goes wherever the site decides.",
+    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under \"The Site Builds the Second Transaction\". The second transaction is the Counterparty reveal the site supplied; it publishes the message shown above from your address. $1 = asset name."
+  },
+  "safety_reveal_control_dispense_payment": {
+    "message": "A dispense buys from whichever dispensers the second transaction pays. The site builds that transaction and chooses which dispensers are paid and how much.",
+    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under \"The Site Builds the Second Transaction\". The second transaction is the Counterparty reveal the site supplied; it publishes the message shown above from your address."
+  },
+  "safety_reveal_control_btcpay_payment": {
+    "message": "A BTCPay settles only if the second transaction pays your order match. The site builds that transaction, so it decides whether the match is paid.",
+    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under \"The Site Builds the Second Transaction\". The second transaction is the Counterparty reveal the site supplied; it publishes the message shown above from your address."
+  },
+  "safety_reveal_control_detach_inputs": {
+    "message": "A detach releases assets from the UTXOs the second transaction spends. It spends this transaction's output, and could spend your UTXOs only with a signature this request does not give.",
+    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under \"The Site Builds the Second Transaction\". The second transaction is the Counterparty reveal the site supplied; it publishes the message shown above from your address."
+  },
+  "safety_reveal_control_not_executed": {
+    "message": "Counterparty no longer executes this legacy UTXO message, so publishing it changes nothing.",
+    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under \"The Site Builds the Second Transaction\". The second transaction is the Counterparty reveal the site supplied; it publishes the message shown above from your address."
+  },
+  "safety_reveal_control_outputs_unknown": {
+    "message": "The site builds the second transaction, and the wallet cannot tell whether its outputs change what this $1 message does.",
+    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under \"The Site Builds the Second Transaction\". The second transaction is the Counterparty reveal the site supplied; it publishes the message shown above from your address. $1 = the raw Counterparty message type name, e.g. \"bet\"."
+  },
+  "safety_reveal_supplied_recipient": {
+    "message": "As supplied, the recipient is $1.",
+    "description": "Second sentence appended to a \"The Site Builds the Second Transaction\" body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): what the reveal the site supplied does. $1 = an address followed by \"(yours)\" or \"(not yours)\", or \"an output with no address\"."
+  },
+  "safety_reveal_supplied_no_recipient": {
+    "message": "As supplied, it names no recipient, so Counterparty would reject the send.",
+    "description": "Second sentence appended to a \"The Site Builds the Second Transaction\" body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): what the reveal the site supplied does."
+  },
+  "safety_reveal_supplied_new_owner": {
+    "message": "As supplied, ownership goes to $1.",
+    "description": "Second sentence appended to a \"The Site Builds the Second Transaction\" body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): what the reveal the site supplied does. $1 = an address followed by \"(yours)\" or \"(not yours)\", or \"an output with no address\"."
+  },
+  "safety_reveal_supplied_no_transfer": {
+    "message": "As supplied, it does not transfer ownership.",
+    "description": "Second sentence appended to a \"The Site Builds the Second Transaction\" body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): what the reveal the site supplied does."
+  },
+  "safety_reveal_supplied_attach_output": {
+    "message": "As supplied, output #$1 receives it: $2.",
+    "description": "Second sentence appended to a \"The Site Builds the Second Transaction\" body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): what the reveal the site supplied does. $1 = output number; $2 = an address followed by \"(yours)\" or \"(not yours)\", or \"an output with no address\"."
+  },
+  "safety_reveal_supplied_attach_missing": {
+    "message": "As supplied, it has no output to attach to, so Counterparty would reject the attach.",
+    "description": "Second sentence appended to a \"The Site Builds the Second Transaction\" body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): what the reveal the site supplied does."
+  },
+  "safety_reveal_address_yours": {
+    "message": "$1 (yours)",
+    "description": "Address label (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx). $1 = a full address that belongs to this wallet."
+  },
+  "safety_reveal_address_not_yours": {
+    "message": "$1 (not yours)",
+    "description": "Address label (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx). $1 = a full address that does not belong to this wallet."
+  },
+  "safety_reveal_address_none": {
+    "message": "an output with no address",
+    "description": "Address label (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) for an output whose script has no address, used where an address would go."
+  },
+  "safety_reveal_outputs_title": {
+    "message": "Second Transaction",
+    "description": "Approval screen information title (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) over the outputs of the Counterparty reveal the site supplied."
+  },
+  "safety_reveal_outputs_pays_other_title": {
+    "message": "Second Transaction Pays Another Address",
+    "description": "Approval screen warning title (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): the Counterparty reveal the site supplied pays BTC to an address that is not this wallet's."
+  },
+  "safety_reveal_outputs_data_only": {
+    "message": "Second transaction: data only, no payment.",
+    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): the site's Counterparty reveal carries only the message and pays nothing."
+  },
+  "safety_reveal_outputs_pays": {
+    "message": "Second transaction, as the site supplied it, pays:",
+    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx), followed by a list of the reveal's payments."
+  },
+  "safety_reveal_output_item": {
+    "message": "$1 sats to $2",
+    "description": "List item (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx). $1 = amount in sats; $2 = an address followed by \"(yours)\" or \"(not yours)\", or \"an output with no address\"."
+  },
+  "safety_reveal_outputs_resign_note": {
+    "message": "A site holding the second transaction's key could sign it again with different outputs. One built by Counterparty's own service cannot be, but the wallet cannot tell which this is.",
+    "description": "Approval screen note (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under the reveal's outputs."
   },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "This sends $1 BTC to $2, matching the payment outputs the site declared. Check the address is the one you mean.",
