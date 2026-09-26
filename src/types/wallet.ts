@@ -113,6 +113,12 @@ export interface Keychain {
   wallets: WalletRecord[];
   /** Application settings (encrypted with keychain) */
   settings: AppSettings;
+  /**
+   * Script addresses this wallet's addresses have already paid, as "payer recipient" pairs, so
+   * the script-address notice is not repeated (see core/wallet/scriptRecipients). Absent until the
+   * first is recorded.
+   */
+  scriptPaymentRecipients?: string[];
 }
 
 /**

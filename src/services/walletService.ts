@@ -83,6 +83,10 @@ export interface WalletService {
   signMessage: (message: string, address: string, expectedIdentity?: { walletId: string; address: string }) => Promise<{ signature: string; address: string }>;
   signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
   getLastActiveAddress: () => Promise<string | undefined>;
+  /** Script addresses `payer` has already paid, so the notice for them is not repeated. */
+  getKnownScriptRecipients: (payer: string) => Promise<string[]>;
+  /** Remember, in the encrypted keychain, that `payer` paid these script addresses. */
+  recordScriptRecipients: (payer: string, recipients: string[]) => Promise<void>;
   setLastActiveAddress: (address: string) => Promise<void>;
   /** Record user activity; `activityTime` is when it happened, for activity the UI reports late. */
   setLastActiveTime: (activityTime?: number) => Promise<void>;
@@ -245,6 +249,8 @@ function createWalletService(): WalletService {
     signPsbt: async (psbtHex, signInputs, sighashTypes, expectedIdentity) => {
       return walletManager.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity);
     },
+    getKnownScriptRecipients: async (payer) => walletManager.getKnownScriptRecipients(payer),
+    recordScriptRecipients: async (payer, recipients) => walletManager.recordScriptRecipients(payer, recipients),
     getLastActiveAddress: async () => {
       const settings = walletManager.getSettings();
       return settings?.lastActiveAddress;

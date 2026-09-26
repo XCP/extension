@@ -15,7 +15,7 @@ import { add, divide, fromSatoshis, multiply, roundDown, roundUp, toNumber, toSa
 import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
 
 import { t } from '@/i18n';
-import { getKnownScriptRecipients, recordScriptRecipients } from "@/platform/storage/scriptRecipientStorage";
+import { getKnownScriptRecipients, recordScriptRecipients } from "@/services/scriptRecipientsClient";
 
 interface ConsolidationReviewProps {
   apiResponse: {

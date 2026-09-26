@@ -35,6 +35,7 @@ import {
 import { addressIndexKeptBySwitch } from '@/core/wallet/addressFormatChoices';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
 import { detectUtxoAddress, isUtxoAddressPath, parseUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
+import { knownScriptRecipients, MAX_RECIPIENTS_PER_RECORD, withScriptRecipients } from '@/core/wallet/scriptRecipients';
 import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS } from '@/core/zeld/protocol';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { SessionRecoveryState } from '@/platform/auth/sessionManager';
@@ -1029,6 +1030,34 @@ export class WalletManager {
       const timeoutMs = getAutoLockTimeoutMs(updates.autoLockTimer);
       await this.mutationStep(sessionManager.updateSessionTimeout(timeoutMs));
     }
+  }
+
+  /**
+   * The script addresses `payer` has already paid from the wallet's own flows (see
+   * core/wallet/scriptRecipients). Empty while locked.
+   */
+  public getKnownScriptRecipients(payer: string): string[] {
+    if (typeof payer !== 'string' || !this.keychain) return [];
+    return knownScriptRecipients(this.keychain.scriptPaymentRecipients ?? [], payer);
+  }
+
+  /**
+   * Remember that `payer` paid the script addresses `recipients`, in the encrypted keychain. Writes
+   * nothing when every one is already recorded, so paying a known recipient again costs nothing.
+   */
+  public async recordScriptRecipients(payer: string, recipients: string[]): Promise<void> {
+    if (typeof payer !== 'string' || !Array.isArray(recipients)
+      || recipients.length > MAX_RECIPIENTS_PER_RECORD
+      || !recipients.every((recipient) => typeof recipient === 'string')) {
+      throw new Error('Invalid script payment recipients');
+    }
+    if (recipients.length === 0) return;
+    return this.mutateVault(async () => {
+      if (!this.keychain) throw new Error('Keychain not loaded');
+      const next = withScriptRecipients(this.keychain.scriptPaymentRecipients ?? [], payer, recipients);
+      if (!next) return;
+      await this.commitKeychain((draft) => { draft.scriptPaymentRecipients = next; });
+    });
   }
 
   /** Persist a connection and its optional paired-address grant in one keychain write. */
