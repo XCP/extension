@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/platform/storage/updateStorage', () => ({
-  getUpdateState: vi.fn(async () => null),
-  setUpdateState: vi.fn(async () => {}),
+const h = vi.hoisted(() => ({
+  stored: null as Record<string, unknown> | null,
+  whenServicesReady: vi.fn(async () => {}),
 }));
+
+vi.mock('@/platform/storage/updateStorage', () => ({
+  getUpdateState: vi.fn(async () => h.stored),
+  setUpdateState: vi.fn(async (state: Record<string, unknown>) => { h.stored = { ...state }; }),
+}));
+vi.mock('@/services/core/serviceReadiness', () => ({ whenServicesReady: h.whenServicesReady }));
 
 type UpdateListener = (details: { version: string }) => void;
 
@@ -38,6 +44,8 @@ async function freshService() {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  h.stored = null;
+  h.whenServicesReady.mockImplementation(async () => {});
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -117,5 +125,48 @@ describe('UpdateService', () => {
     announce('1.0.1');
     await vi.advanceTimersByTimeAsync(5 * 60_000);
     expect(chromeStub.runtime.reload).not.toHaveBeenCalled();
+  });
+
+  it('listens before initialising, and acts on an update only once services are ready', async () => {
+    let ready!: () => void;
+    h.whenServicesReady.mockImplementation(() => new Promise<void>(resolve => { ready = resolve; }));
+    const { chromeStub, announce } = stubChrome();
+    const { UpdateService } = await import('../updateService');
+    const service = new UpdateService();
+    service.listen();
+    expect(chromeStub.runtime.onUpdateAvailable.addListener).toHaveBeenCalledTimes(1);
+
+    announce('1.0.1');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(service.getStatus().reloadScheduled).toBe(false);
+
+    await service.initialize();
+    // initialize() does not register a second listener.
+    expect(chromeStub.runtime.onUpdateAvailable.addListener).toHaveBeenCalledTimes(1);
+    ready();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(chromeStub.runtime.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('resumes a reload the previous worker scheduled but never ran', async () => {
+    h.stored = { updateAvailable: true, pendingVersion: '1.0.1', reloadScheduled: true, currentVersion: '1.0.0', lastCheckTime: 0 };
+    const { chromeStub } = stubChrome();
+    await freshService();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(chromeStub.runtime.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the scheduled reload before reloading, so a wake cannot loop on it', async () => {
+    const { chromeStub, announce } = stubChrome();
+    await freshService();
+    announce('1.0.1');
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(chromeStub.runtime.reload).toHaveBeenCalledTimes(1);
+    expect(h.stored?.reloadScheduled).toBe(false);
+
+    // The reload did not apply the update (still 1.0.0): the next worker does not reload again.
+    await freshService();
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(chromeStub.runtime.reload).toHaveBeenCalledTimes(1);
   });
 });

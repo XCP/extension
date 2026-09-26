@@ -75,7 +75,8 @@ function funding(script: Uint8Array, amount: bigint, seed: number) {
 const walletKey = new Uint8Array(32).fill(7);
 const wallet = p2pkh(getPublicKey(walletKey));
 const paired = p2wpkh(getPublicKey(walletKey));
-const outsider = p2wpkh(getPublicKey(new Uint8Array(32).fill(9)));
+const outsiderKey = new Uint8Array(32).fill(9);
+const outsider = p2wpkh(getPublicKey(outsiderKey));
 
 /** Make a transaction known to the simulated node, confirmed unless said otherwise. */
 function known<T extends Transaction>(tx: T, confirmations = 6): T {
@@ -140,7 +141,15 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-async function signs(result: Awaited<ReturnType<typeof review>>, risksAcknowledged = false) {
+/**
+ * `buyerKey` marks an exact-offer acceptance: its parent comes back with the seller's input 1
+ * signed and the buyer's input 0 untouched, and the market's merge is simulated before finalizing.
+ */
+async function signs(
+  result: Awaited<ReturnType<typeof review>>,
+  risksAcknowledged = false,
+  buyerKey?: Uint8Array,
+) {
   await createProviderSigningService().approveAndSign(result.request.id, {
     reviewKey: result.reviewKey, risksAcknowledged,
   });
@@ -149,9 +158,15 @@ async function signs(result: Awaited<ReturnType<typeof review>>, risksAcknowledg
   if (completed?.status !== 'completed') throw new Error('Signing did not complete');
   const output = completed.result as {signedPsbtHex?: string; signedPsbtHexes?: string[]};
   const signed = output.signedPsbtHexes ?? [output.signedPsbtHex!];
-  for (const hex of signed) {
+  for (const [position, hex] of signed.entries()) {
     const tx = parsePSBT(hex);
-    expect(tx.getInput(0).partialSig?.length).toBe(1);
+    if (buyerKey && position === 0) {
+      expect(tx.getInput(0).partialSig).toBeUndefined();
+      expect(tx.getInput(1).partialSig?.length).toBe(1);
+      tx.signIdx(buyerKey, 0, [1]);
+    } else {
+      expect(tx.getInput(0).partialSig?.length).toBe(1);
+    }
     tx.finalize();
     expect(tx.extract().length).toBeGreaterThan(0);
   }
@@ -210,7 +225,7 @@ function acceptance(childFee = 1000): PsbtBundleApprovalInput['items'] {
   });
   parent.addOutput({script: outsider.script, amount: 546n});
   parent.addOutput({script: paired.script, amount: 250_046n});
-  parent.signIdx(new Uint8Array(32).fill(9), 0, [1]);
+  // Served unsigned: the market merges the buyer's input 0 signature after the seller signs.
   const child = new Transaction({version: 2, lockTime: 0});
   child.addInput({txid: parent.id, index: 1, nonWitnessUtxo: parent.toBytes(true, false), sighashType: 1});
   child.addOutput({script: paired.script, amount: BigInt(250_046 - childFee)});
@@ -238,7 +253,7 @@ function acceptance(childFee = 1000): PsbtBundleApprovalInput['items'] {
 it('signs a valid acceptance and linked CPFP child without an extra prompt', async () => {
   const result = await review(acceptance(), true, 'acceptance-cpfp');
   expect(result.policy).toMatchObject({blocked: false, requiresAcknowledgement: false});
-  await signs(result);
+  await signs(result, false, outsiderKey);
 });
 
 it('requires acknowledgment for an excessive child fee even when its site quote is low', async () => {
@@ -246,7 +261,7 @@ it('requires acknowledgment for an excessive child fee even when its site quote 
   expect(result.policy).toMatchObject({blocked: false, requiresAcknowledgement: true});
   await expect(signs(result)).rejects.toThrow(/acknowledge/);
   expect(state.wallet.signPsbt).not.toHaveBeenCalled();
-  await signs(result, true);
+  await signs(result, true, outsiderKey);
 });
 
 it('still signs a proved same-wallet fan-out without Counterparty data', async () => {

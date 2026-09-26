@@ -550,7 +550,7 @@ describe('WalletContext', () => {
       expect(mockWalletService.selectWallet).toHaveBeenCalledWith(secondWallet.id);
     });
 
-    it('emits accountsChanged to each connected site when a wallet switch changes the address', async () => {
+    it('leaves telling connected sites about a wallet switch to the background', async () => {
       const firstWallet: Wallet = {
         ...mockWallets[0]!,
         addressFormat: AddressFormat.P2WPKH,
@@ -593,21 +593,13 @@ describe('WalletContext', () => {
         await result.current.selectWallet(secondWallet.id);
       });
 
-      expect(mockWalletService.emitProviderEvent).toHaveBeenNthCalledWith(
-        1,
-        'https://one.example',
-        'accountsChanged',
-        ['1second']
-      );
-      expect(mockWalletService.emitProviderEvent).toHaveBeenNthCalledWith(
-        2,
-        'https://two.example',
-        'accountsChanged',
-        ['1second']
-      );
+      // walletService.selectWallet emits accountsChanged itself (see walletProviderEvents.test.ts);
+      // a page emitting too would announce every switch twice, or not at all when it is closed.
+      expect(result.current.activeAddress?.address).toBe('1second');
+      expect(mockWalletService.emitProviderEvent).not.toHaveBeenCalled();
     });
 
-    it('preserves the selected index and emits accountsChanged after an address format change', async () => {
+    it('preserves the selected index after an address format change, leaving events to the background', async () => {
       const legacyWallet: Wallet = {
         ...mockWallets[0]!,
         addressFormat: AddressFormat.P2PKH,
@@ -664,11 +656,7 @@ describe('WalletContext', () => {
 
       expect(result.current.activeWallet?.addressCount).toBe(2);
       expect(result.current.activeAddress?.address).toBe('taproot-1');
-      expect(mockWalletService.emitProviderEvent).toHaveBeenCalledWith(
-        'https://market.example',
-        'accountsChanged',
-        ['taproot-1']
-      );
+      expect(mockWalletService.emitProviderEvent).not.toHaveBeenCalled();
     });
 
     it('should set active address', async () => {

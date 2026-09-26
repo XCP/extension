@@ -22,6 +22,11 @@ describe('classifyProviderError', () => {
     expect(classifyProviderError(err)).toEqual({ code: 4100, message: 'wallet busy zzz' });
   });
 
+  it('surfaces a limit exceeded (-32005) with its message', () => {
+    const err = new ProviderError(JSON_RPC_ERROR_CODES.LIMIT_EXCEEDED, 'Rate limit exceeded. Please wait 5 seconds.');
+    expect(classifyProviderError(err)).toEqual({ code: -32005, message: 'Rate limit exceeded. Please wait 5 seconds.' });
+  });
+
   it('masks a carried INTERNAL_ERROR rather than leaking its message', () => {
     const err = new ProviderError(JSON_RPC_ERROR_CODES.INTERNAL_ERROR, 'db connection string leaked');
     expect(classifyProviderError(err)).toEqual({ code: -32603, message: 'Request failed' });

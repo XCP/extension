@@ -42,6 +42,13 @@ export const JSON_RPC_ERROR_CODES = {
    * -32000 to -32099
    */
   SERVER_ERROR: -32000,
+
+  /**
+   * Limit exceeded: the request exceeds a defined limit (EIP-1474). Used for per-origin rate
+   * limits and the cap on signing requests waiting for approval; the message says how long to wait.
+   * @see https://eips.ethereum.org/EIPS/eip-1474#error-codes
+   */
+  LIMIT_EXCEEDED: -32005,
 } as const;
 
 /**
@@ -200,6 +207,7 @@ const SURFACEABLE_CODES: ReadonlySet<number> = new Set([
   PROVIDER_ERROR_CODES.CHAINS_NOT_ADDED,
   JSON_RPC_ERROR_CODES.METHOD_NOT_FOUND,
   JSON_RPC_ERROR_CODES.INVALID_PARAMS,
+  JSON_RPC_ERROR_CODES.LIMIT_EXCEEDED,
 ]);
 
 export function classifyProviderError(error: unknown): { code: number; message: string } {

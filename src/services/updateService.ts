@@ -18,6 +18,7 @@ import {
   setUpdateState,
   type UpdateState,
 } from '@/platform/storage/updateStorage';
+import { whenServicesReady } from '@/services/core/serviceReadiness';
 
 /** Extension documents whose presence means someone is using the wallet right now. */
 const UI_CONTEXT_TYPES = ['POPUP', 'TAB', 'SIDE_PANEL'] as const;
@@ -41,22 +42,34 @@ class UpdateService {
   private reloadTimeout?: ReturnType<typeof setTimeout>;
   private updateListener: ((details: chrome.runtime.UpdateAvailableDetails) => void) | null = null;
 
+  /**
+   * Register the update listener. Synchronous, so the background can call it in its first turn:
+   * an update being downloaded can be what wakes the worker, and Chrome delivers that event only
+   * to listeners registered by then. The handler waits for initialisation (which loads the state
+   * it updates) before acting. If initialisation never finishes, the update is left to Chrome,
+   * which applies it the next time the worker stops.
+   */
+  listen(): void {
+    if (!chrome.runtime.onUpdateAvailable || this.updateListener) return;
+    this.updateListener = (details) => {
+      console.log('[UpdateService] Update available:', details.version);
+      whenServicesReady()
+        .then(() => this.handleUpdateAvailable(details.version))
+        .catch(error => {
+          console.error('[UpdateService] Failed to process available update:', error);
+        });
+    };
+    chrome.runtime.onUpdateAvailable.addListener(this.updateListener);
+  }
+
   async initialize(): Promise<void> {
     console.log('[UpdateService] Initializing...');
 
     // Load previous state
     await this.loadState();
 
-    // Set up update listener
-    if (chrome.runtime.onUpdateAvailable && !this.updateListener) {
-      this.updateListener = (details) => {
-        console.log('[UpdateService] Update available:', details.version);
-        this.handleUpdateAvailable(details.version).catch(error => {
-          console.error('[UpdateService] Failed to process available update:', error);
-        });
-      };
-      chrome.runtime.onUpdateAvailable.addListener(this.updateListener);
-    }
+    // Normally already registered by the background's first turn; idempotent.
+    this.listen();
 
     chrome.alarms?.clear(LEGACY_ALARM_NAME).catch(error => {
       console.warn('[UpdateService] Could not clear legacy alarm:', error);
@@ -64,6 +77,13 @@ class UpdateService {
 
     // Check for version changes after reload
     await this.checkVersionAfterReload();
+
+    // A reload that was waiting for the wallet to go idle when the previous worker stopped. Chrome
+    // announces an update once, so nothing else would ever pick it up again.
+    if (this.state.reloadScheduled) {
+      console.log('[UpdateService] Resuming the update reload scheduled before the worker stopped');
+      this.scheduleReload();
+    }
 
     console.log('[UpdateService] Initialized with version:', this.state.currentVersion);
   }
@@ -134,6 +154,10 @@ class UpdateService {
       return;
     }
     console.log('[UpdateService] Reloading extension for update...');
+    // Cleared first so a reload that does not apply the update (none was really pending any more)
+    // cannot resume into another reload on every wake.
+    this.state.reloadScheduled = false;
+    await this.saveState();
     chrome.runtime.reload();
   }
 

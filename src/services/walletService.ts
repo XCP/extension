@@ -39,7 +39,6 @@ export interface WalletService {
   /** Load the keychain from the session master key, if a valid session has one. */
   ensureKeychainLoaded: () => Promise<void>;
   lockKeychain: () => Promise<void>;
-  emitProviderEvent: (origin: string, event: 'accountsChanged', data: string[]) => Promise<void>;
   createMnemonicWallet: (
     mnemonic: string,
     password: string,
@@ -110,6 +109,20 @@ function createWalletService(): WalletService {
     }
   }
 
+  /**
+   * Run an operation that can change the active address (switching wallet or address, a format
+   * change, adding or removing a wallet) and, if it did, tell connected sites. Decided here, from
+   * the state that answers `xcp_accounts`, rather than by whichever extension page happened to
+   * make the change.
+   */
+  async function withActiveAddressChange<T>(operation: () => Promise<T>): Promise<T> {
+    const before = resolveActiveAddressString();
+    const result = await operation();
+    const after = resolveActiveAddressString();
+    if (after !== before) emitAccountsChangedToConnected(after ? [after] : []);
+    return result;
+  }
+
   const service: WalletService = {
     refreshWallets: async () => {
       await walletManager.refreshWallets();
@@ -148,9 +161,7 @@ function createWalletService(): WalletService {
       const activeAddress = resolveActiveAddressString();
       if (activeAddress) emitAccountsChangedToConnected([activeAddress]);
     },
-    selectWallet: async (walletId) => {
-      await walletManager.selectWallet(walletId);
-    },
+    selectWallet: async (walletId) => withActiveAddressChange(() => walletManager.selectWallet(walletId)),
     isKeychainUnlocked: async () => {
       return walletManager.isKeychainUnlocked();
     },
@@ -173,13 +184,15 @@ function createWalletService(): WalletService {
       emitAccountsChangedToConnected([], connected);
     },
     createMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
-      const wallet = await walletManager.createMnemonicWallet(mnemonic, password, name, addressFormat);
+      const wallet = await withActiveAddressChange(
+        () => walletManager.createMnemonicWallet(mnemonic, password, name, addressFormat));
       // Emit wallet-created event for any pending connection requests waiting for onboarding
       eventEmitterService.emit('wallet-created', { walletId: wallet.id });
       return wallet;
     },
     createPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
-      const wallet = await walletManager.createPrivateKeyWallet(privateKey, password, name, addressFormat);
+      const wallet = await withActiveAddressChange(
+        () => walletManager.createPrivateKeyWallet(privateKey, password, name, addressFormat));
       // Emit wallet-created event for any pending connection requests waiting for onboarding
       eventEmitterService.emit('wallet-created', { walletId: wallet.id });
       return wallet;
@@ -189,10 +202,11 @@ function createWalletService(): WalletService {
       if (process.env.NODE_ENV !== 'development') {
         throw new Error('Test address import is only available in development mode');
       }
-      return walletManager.importTestAddress(address, name);
+      return withActiveAddressChange(() => walletManager.importTestAddress(address, name));
     },
     createHardwareWalletWithDiscovery: async (deviceType, name, usePassphrase) => {
-      return walletManager.createHardwareWalletWithDiscovery(deviceType, name, usePassphrase);
+      return withActiveAddressChange(
+        () => walletManager.createHardwareWalletWithDiscovery(deviceType, name, usePassphrase));
     },
     addAddress: async (walletId) => walletManager.addAddress(walletId),
     addUtxoAddress: async (walletId, index) => walletManager.addUtxoAddress(walletId, index),
@@ -205,9 +219,8 @@ function createWalletService(): WalletService {
     updatePassword: async (currentPassword, newPassword) => {
       await walletManager.updatePassword(currentPassword, newPassword);
     },
-    updateWalletAddressFormat: async (walletId, newType) => {
-      await walletManager.updateWalletAddressFormat(walletId, newType);
-    },
+    updateWalletAddressFormat: async (walletId, newType) => withActiveAddressChange(
+      () => walletManager.updateWalletAddressFormat(walletId, newType)),
     updateWalletPinnedAssets: async (pinnedAssets) => {
       await walletManager.updateWalletPinnedAssets(pinnedAssets);
     },
@@ -217,9 +230,7 @@ function createWalletService(): WalletService {
     getPrivateKey: async (walletId, derivationPath) => {
       return walletManager.getPrivateKey(walletId, derivationPath);
     },
-    removeWallet: async (walletId) => {
-      await walletManager.removeWallet(walletId);
-    },
+    removeWallet: async (walletId) => withActiveAddressChange(() => walletManager.removeWallet(walletId)),
     getPreviewAddressForFormat: async (walletId, addressFormat, addressIndex) => {
       return await walletManager.getPreviewAddressForFormat(walletId, addressFormat, addressIndex);
     },
@@ -243,28 +254,13 @@ function createWalletService(): WalletService {
       const settings = walletManager.getSettings();
       return settings?.lastActiveAddress;
     },
-    setLastActiveAddress: async (address) => {
-      await walletManager.updateSettings({ lastActiveAddress: address });
-      // Don't emit accountsChanged here - it's handled in wallet-context
-      // which emits to all connected sites
-    },
+    setLastActiveAddress: async (address) => withActiveAddressChange(
+      () => walletManager.updateSettings({ lastActiveAddress: address })),
     setLastActiveTime: async (activityTime) => {
       if (activityTime !== undefined && (typeof activityTime !== 'number' || !Number.isFinite(activityTime))) {
         throw new Error('Invalid activity time');
       }
       await setLastActiveTime(activityTime);
-    },
-    emitProviderEvent: async (origin, event, data) => {
-      if (typeof origin !== 'string' || event !== 'accountsChanged' ||
-          !Array.isArray(data) || !data.every(address => typeof address === 'string')) {
-        throw new Error('Invalid provider event');
-      }
-      // Emit provider event through the event emitter service
-      eventEmitterService.emit('emit-provider-event', {
-        origin,
-        event,
-        data
-      });
     },
     consolidateBareMultisig: async (sourceAddress, batchData, feeRateSatPerVByte, destinationAddress) => {
       // Sign in the background so the private key never reaches the popup

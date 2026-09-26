@@ -28,7 +28,6 @@ export type WalletEvents = CompletedEvents & CancelledEvents & ProviderEvents & 
   'emit-provider-event': ProviderEventPayload;
   'wallet-created': { walletId: string };
   'wallet-unlocked': Record<string, never>;
-  'pending-unlock-connection': { requestId: string; origin: string; method: 'xcp_requestAccounts' };
 };
 
 type EventCallback<T = unknown> = (data: T, origin?: string) => void | Promise<void>;

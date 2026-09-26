@@ -3246,7 +3246,7 @@
     "message": "暫不廣播"
   },
   "marketplace_intent_notice_accept_exact_offer": {
-    "message": "你的簽名即可按此條件完成這筆出售，無需買家再次確認。如果買家已經花費了共用的出資 UTXO，廣播會失敗，你的資產仍歸你所有。"
+    "message": "你只簽署自己的輸入。市場會使用其持有的買家授權按此條件完成這筆出售，無需買家再次確認。如果買家已經花費了共用的出資 UTXO，廣播會失敗，你的資產仍歸你所有。"
   },
   "marketplace_intent_notice_authorize_exact_offer": {
     "message": "簽名後，該賣家無需再次批准即可按此條件完成交易。以同一出資 UTXO 為支撐的其他報價互為備選：最先確認的那筆花費生效，其餘全部作廢。"
