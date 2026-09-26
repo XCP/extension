@@ -128,12 +128,13 @@ describe('WalletManager', () => {
 
     // Mock HD key derivation
     vi.mocked(mnemonicToSeedSync).mockReturnValue(new Uint8Array(64));
-    vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
-      derive: vi.fn().mockReturnValue({
-        publicKey: new Uint8Array([2, 3, 4]),
-        privateKey: new Uint8Array([1, 2, 3]),
-      }),
-    } as any);
+    // Every node derives to the same stub, including the chain nodes addresses now hang from.
+    const node: any = {
+      publicKey: new Uint8Array([2, 3, 4]),
+      privateKey: new Uint8Array([1, 2, 3]),
+      derive: vi.fn(() => node),
+    };
+    vi.mocked(HDKey.fromMasterSeed).mockReturnValue({ derive: vi.fn().mockReturnValue(node) } as any);
     vi.mocked(bytesToHex).mockReturnValue('0203040506');
 
     walletManager = new WalletManager();
@@ -314,9 +315,8 @@ describe('WalletManager', () => {
       walletManager['keychain'] = keychain;
       mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
       mocks.keyBased.decryptWithKey.mockResolvedValue('test mnemonic');
-      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
-        derive: vi.fn().mockReturnValue({ publicKey: new Uint8Array([2, 3, 4]) }),
-      } as any);
+      const node: any = { publicKey: new Uint8Array([2, 3, 4]), derive: vi.fn(() => node) };
+      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({ derive: vi.fn().mockReturnValue(node) } as any);
       vi.mocked(encodeAddress).mockReturnValue('bc1qselected');
 
       await walletManager.selectWallet(wallet.id);
@@ -351,11 +351,13 @@ describe('WalletManager', () => {
       mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
       mocks.walletStorage.getKeychainRecord.mockResolvedValue(createTestKeychainRecord());
       mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/86'/0'/0'/0");
-      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
-        derive: vi.fn((path: string) => ({
-          publicKey: new Uint8Array([2, Number(path.split('/').at(-1))]),
-        })),
-      } as any);
+      // A node's key names the last step of the path that reached it, from the master key or from
+      // the chain node the addresses are taken from.
+      const nodeAt = (path: string): any => ({
+        publicKey: new Uint8Array([2, Number(path.split('/').at(-1))]),
+        derive: (next: string) => nodeAt(next),
+      });
+      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({ derive: vi.fn(nodeAt) } as any);
       vi.mocked(encodeAddress).mockImplementation(
         publicKey => `taproot-${publicKey[1]}`
       );
