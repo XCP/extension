@@ -668,6 +668,59 @@ describe("BalanceList", () => {
     expect(mockFetchTokenBalance).toHaveBeenCalledWith("bc1qtest123", "XCP", { type: "address" });
   });
 
+  describe("a pinned subasset, listed by the node under its numeric name", () => {
+    const subasset = (asset: string, longname: string | null, quantity = "5"): TokenBalance => ({
+      asset,
+      quantity_normalized: asDisplayUnits(quantity),
+      asset_info: { asset_longname: longname, description: "", issuer: "", divisible: false, locked: false },
+    });
+    const listed = subasset("A95428956661682177", "PARENT.child");
+    const plain = (asset: string) => subasset(asset, null, "1");
+    const menuAssets = () => screen.getAllByTestId("balance-menu").map((menu) => menu.getAttribute("data-asset"));
+
+    it("is read from the first page, once, among the pins", async () => {
+      mockSettings.pinnedAssets = ["PARENT.child", "PEPECASH"];
+      mockResultCount = 2;
+      mockFetchTokenBalances.mockResolvedValue([mockTokenBalances[1], listed]);
+
+      render(<BalanceList />);
+
+      await waitFor(() => expect(screen.getByText("PARENT.child")).toBeInTheDocument());
+      expect(mockFetchTokenBalance).not.toHaveBeenCalled();
+      expect(screen.getAllByText("PARENT.child")).toHaveLength(1);
+      expect(menuAssets()).toEqual(["BTC", "A95428956661682177", "PEPECASH"]);
+    });
+
+    it("is not asked for by name when a partial first page already lists it", async () => {
+      mockSettings.pinnedAssets = ["PARENT.child"];
+      mockResultCount = 250;
+      mockFetchTokenBalances.mockResolvedValue([listed]);
+
+      render(<BalanceList />);
+
+      await waitFor(() => expect(screen.getByText("PARENT.child")).toBeInTheDocument());
+      expect(mockFetchTokenBalance).not.toHaveBeenCalled();
+      expect(screen.getAllByText("PARENT.child")).toHaveLength(1);
+    });
+
+    it("is not shown twice when a later page lists the asset read by name", async () => {
+      mockInView.mockReturnValue(true);
+      mockSettings.pinnedAssets = ["PARENT.child"];
+      mockResultCount = 101;
+      const firstPage = Array.from({ length: 100 }, (_, i) => plain(`TOKEN${i}`));
+      mockFetchTokenBalances.mockResolvedValueOnce(firstPage).mockResolvedValueOnce([listed]).mockResolvedValue([]);
+      mockFetchTokenBalance.mockResolvedValue(subasset("PARENT.child", "PARENT.child"));
+
+      render(<BalanceList />);
+
+      await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(menuAssets()).toContain("A95428956661682177"));
+      expect(mockFetchTokenBalance).toHaveBeenCalledWith("bc1qtest123", "PARENT.child", { type: "address" });
+      expect(screen.getAllByText("PARENT.child")).toHaveLength(1);
+      expect(menuAssets()[1]).toBe("A95428956661682177");
+    });
+  });
+
   it("shows pinned assets in pinned order, not the node's order", async () => {
     mockResultCount = 2;
     mockFetchTokenBalances.mockResolvedValue([mockTokenBalances[1], mockTokenBalances[0]]);

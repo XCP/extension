@@ -8,8 +8,7 @@ import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import type { AddressFormat } from "@/core/bitcoin/address";
-import { getSigningCapabilities, signMessage } from "@/core/bitcoin/messageSigner";
+import { getSigningCapabilities } from "@/core/bitcoin/messageSigner";
 import { currentLocale, t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 import { getWalletServiceClient } from '@/services/walletServiceClient';
@@ -23,7 +22,7 @@ export default function SignMessagePage(): ReactElement {
   const locale = currentLocale();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet, activeAddress, getPrivateKey } = useWallet();
+  const { activeWallet, activeAddress } = useWallet();
 
   // State
   const [message, setMessage] = useState("");
@@ -84,39 +83,14 @@ export default function SignMessagePage(): ReactElement {
     setSignature("");
 
     try {
-      let resultSignature: string;
-
-      // Check if this is a hardware wallet
-      if (activeWallet.type === 'hardware') {
-        // Connect 10 runs in the service worker, alongside transaction signing.
-        const hwResult = await getWalletServiceClient().signMessage(message, activeAddress.address, {
-          walletId: activeWallet.id,
-          address: activeAddress.address,
-        });
-        resultSignature = hwResult.signature;
-      } else {
-        // Software wallet - get private key and sign locally
-        const privateKeyResult = await getPrivateKey(
-          activeWallet.id,
-          activeAddress.path
-        );
-
-        // Use the hex format for signing
-        const privateKeyHex = privateKeyResult.hex;
-        const compressed = privateKeyResult.compressed;
-
-        // Sign the message
-        const result = await signMessage(
-          message,
-          privateKeyHex,
-          addressFormat as AddressFormat,
-          compressed
-        );
-
-        resultSignature = result.signature;
-      }
-
-      setSignature(resultSignature);
+      // Every wallet type signs in the background, which holds the keys (or reaches the Trezor)
+      // and checks that the wallet and address shown here are still the ones it would sign with.
+      // The popup never sees a private key.
+      const result = await getWalletServiceClient().signMessage(message, activeAddress.address, {
+        walletId: activeWallet.id,
+        address: activeAddress.address,
+      });
+      setSignature(result.signature);
       analytics.track('message_signed');
     } catch (err) {
       console.error("Failed to sign message:", err);

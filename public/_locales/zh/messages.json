@@ -356,12 +356,6 @@
   "appName": {
     "message": "XCP Wallet"
   },
-  "approval_approval_attention_about_sat_vb": {
-    "message": "（约 $1 sat/vB）"
-  },
-  "approval_approval_attention_confirm_that_this_fee_is": {
-    "message": "请确认此费用是有意设置的。"
-  },
   "approval_approval_attention_review_this_exception_before_signing": {
     "message": "$1 签名前请检查此例外情况。"
   },
@@ -371,8 +365,11 @@
   "approval_approval_attention_the_wallet_could_not_reproduce": {
     "message": "钱包无法复现交易的每个字段"
   },
-  "approval_approval_attention_this_transaction_pays_sats": {
-    "message": "此交易支付 $1 sats"
+  "approval_approval_attention_high_fee_with_rate": {
+    "message": "此交易支付 $1 sats（约 $2 sat/vB）。请确认此费用是有意设置的。"
+  },
+  "approval_approval_attention_high_fee": {
+    "message": "此交易支付 $1 sats。请确认此费用是有意设置的。"
   },
   "approval_approval_attention_unusually_high_network_fee": {
     "message": "网络费用异常高"
@@ -431,8 +428,8 @@
   "approval_approval_transaction_details_outputs": {
     "message": "输出 ($1)"
   },
-  "approval_approval_warnings_a_memo_description_or_asset": {
-    "message": "备注、描述或资产标签中包含可能重排或隐藏文本的字符。"
+  "approval_approval_warnings_hidden_characters_description": {
+    "message": "备注、描述或资产标签中包含可能重排或隐藏文本的字符。请仔细核对解码后的数量和接收地址。"
   },
   "approval_approval_warnings_a_memo_description_or_asset_2": {
     "message": "备注、描述或资产标签中包含不会显示的字符。"
@@ -451,9 +448,6 @@
   },
   "approval_approval_warnings_attached_assets_move_to_your": {
     "message": "附加的资产将移动到你自己的输出"
-  },
-  "approval_approval_warnings_check_the_decoded_amounts_and": {
-    "message": "请仔细核对解码后的数量和接收地址。"
   },
   "approval_approval_warnings_couldn_t_verify_asset_status": {
     "message": "无法验证资产状态"
@@ -6354,6 +6348,12 @@
   },
   "trezor_access_notice_body": {
     "message": "Trezor 现在通过 Trezor Suite 连接。请允许一次访问，以便继续使用。"
+  },
+  "trezor_access_notice_title": {
+    "message": "需要 Trezor Suite 访问权限"
+  },
+  "trezor_access_notice_failed": {
+    "message": "无法请求 Trezor 访问权限。请重试。"
   },
   "trezor_access_notice_allow": {
     "message": "允许访问 Trezor"

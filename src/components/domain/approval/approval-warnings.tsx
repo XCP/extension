@@ -187,8 +187,7 @@ export function buildApprovalWarnings({
           ? t('approval_approval_warnings_transaction_details_contain_hidden_characters')
           : t('approval_approval_warnings_transaction_details_contain_control_characters'),
         description: risk.key === 'deceptive-characters'
-          ? t('approval_approval_warnings_a_memo_description_or_asset')
-            + t('approval_approval_warnings_check_the_decoded_amounts_and')
+          ? t('approval_approval_warnings_hidden_characters_description')
           : t('approval_approval_warnings_a_memo_description_or_asset_2'),
       });
     }

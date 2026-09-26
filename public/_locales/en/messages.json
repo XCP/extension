@@ -475,14 +475,6 @@
     "message": "XCP Wallet",
     "description": "The extension name shown in the browser toolbar and store listing"
   },
-  "approval_approval_attention_about_sat_vb": {
-    "message": "(about $1 sat/vB)",
-    "description": "components/domain/approval/approval-attention.tsx. $1 = feeRate"
-  },
-  "approval_approval_attention_confirm_that_this_fee_is": {
-    "message": "Confirm that this fee is intentional.",
-    "description": "components/domain/approval/approval-attention.tsx"
-  },
   "approval_approval_attention_review_this_exception_before_signing": {
     "message": "$1 Review this exception before signing.",
     "description": "components/domain/approval/approval-attention.tsx. $1 = message"
@@ -495,9 +487,13 @@
     "message": "The wallet could not reproduce every transaction field",
     "description": "components/domain/approval/approval-attention.tsx"
   },
-  "approval_approval_attention_this_transaction_pays_sats": {
-    "message": "This transaction pays $1 sats",
-    "description": "components/domain/approval/approval-attention.tsx. $1 = feeSats.toLocaleString()"
+  "approval_approval_attention_high_fee_with_rate": {
+    "message": "This transaction pays $1 sats (about $2 sat/vB). Confirm that this fee is intentional.",
+    "description": "components/domain/approval/approval-attention.tsx. $1 = network fee in sats, formatted; $2 = fee rate in sat/vB, rounded up"
+  },
+  "approval_approval_attention_high_fee": {
+    "message": "This transaction pays $1 sats. Confirm that this fee is intentional.",
+    "description": "components/domain/approval/approval-attention.tsx, when the transaction size is unknown. $1 = network fee in sats, formatted"
   },
   "approval_approval_attention_unusually_high_network_fee": {
     "message": "Unusually high network fee",
@@ -575,8 +571,8 @@
     "message": "Outputs ($1)",
     "description": "components/domain/approval/approval-transaction-details.tsx. $1 = outputs.length"
   },
-  "approval_approval_warnings_a_memo_description_or_asset": {
-    "message": "A memo, description, or asset label uses characters that can reorder or hide text.",
+  "approval_approval_warnings_hidden_characters_description": {
+    "message": "A memo, description, or asset label uses characters that can reorder or hide text. Check the decoded amounts and destinations carefully.",
     "description": "components/domain/approval/approval-warnings.tsx"
   },
   "approval_approval_warnings_a_memo_description_or_asset_2": {
@@ -601,10 +597,6 @@
   },
   "approval_approval_warnings_attached_assets_move_to_your": {
     "message": "Attached assets move to your own output",
-    "description": "components/domain/approval/approval-warnings.tsx"
-  },
-  "approval_approval_warnings_check_the_decoded_amounts_and": {
-    "message": "Check the decoded amounts and destinations carefully.",
     "description": "components/domain/approval/approval-warnings.tsx"
   },
   "approval_approval_warnings_couldn_t_verify_asset_status": {
@@ -8459,6 +8451,14 @@
   "trezor_access_notice_body": {
     "message": "Your Trezor now connects through Trezor Suite. Allow access once to keep using it.",
     "description": "Home screen notice for a Trezor wallet without the suite.trezor.io permission, typically connected before 0.13.0."
+  },
+  "trezor_access_notice_title": {
+    "message": "Trezor Suite access needed",
+    "description": "components/domain/wallet/trezor-access-notice.tsx: heading of the home-screen notice asking once for Trezor Suite host access"
+  },
+  "trezor_access_notice_failed": {
+    "message": "Could not ask for Trezor access. Try again.",
+    "description": "components/domain/wallet/trezor-access-notice.tsx: shown when Chrome's permission prompt could not be opened"
   },
   "trezor_access_notice_allow": {
     "message": "Allow Trezor access",

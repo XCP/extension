@@ -348,16 +348,23 @@ export function defineProxyService<T extends object>(
     return connected;
   }
 
+  // One client and one function per method, so callers holding either (React hooks' dependency
+  // lists, effect subscriptions) see a stable identity rather than a fresh one on every read.
+  let client: T | undefined;
+  const methodCache = new Map<string, (...args: unknown[]) => Promise<unknown>>();
+
   const getService = (): T => {
     if (isBackgroundScript()) {
       if (!serviceInstance) throw new Error(`Failed to get an instance of ${serviceName}: registerService has not been called`);
       return serviceInstance;
     }
-    return new Proxy({} as T, {
+    client ??= new Proxy({} as T, {
       get: (_target, prop) => {
         // Service objects are not thenables; inherited/symbol members are not RPC methods.
         if (typeof prop !== 'string' || prop === 'then' || !canCall(prop)) return undefined;
-        return async (...args: unknown[]) => {
+        const cached = methodCache.get(prop);
+        if (cached) return cached;
+        const method = async (...args: unknown[]) => {
           for (let attempt = 0; ; attempt++) {
             let connected: chrome.runtime.Port | undefined;
             // Whether the background may have received the request. A request that was never
@@ -397,8 +404,11 @@ export function defineProxyService<T extends object>(
             }
           }
         };
+        methodCache.set(prop, method);
+        return method;
       },
     });
+    return client;
   };
   return [register, getService];
 }
