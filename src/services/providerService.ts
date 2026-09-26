@@ -10,18 +10,23 @@
 import { type AddressFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
-import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import {
-  extractPsbtDetails, resolvePsbtSighashType, spendsTaprootOutput, tapLeafOwnerAddress, validateSignInputs,
-} from '@/core/bitcoin/psbt';
+  checkSignInputOwners,
+  hasAuthenticatedFunding,
+  hasExcessSighashEntries,
+  missingSighashEntries,
+  psbtHeaderProblem,
+  psbtSigningRequestShape,
+  usesSingleWithoutOutput,
+} from '@/core/bitcoin/providerPsbtIntake';
+import { signerScope, walletSupportsPair } from '@/core/bitcoin/providerSignerScope';
+import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
+import { extractPsbtDetails } from '@/core/bitcoin/psbt';
 import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { fetchTokenBalance } from '@/core/counterparty/api';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
-import {
-  marketplaceTransactionHeaderProblem,
-  parseMarketplaceIntent,
-} from '@/core/counterparty/marketplaceIntent';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import { MAX_REVEAL_HEX_LENGTH } from '@/core/counterparty/providerReveal';
 import { generateRequestId } from '@/core/id';
@@ -33,7 +38,6 @@ import {
 import { checkReplayAttempt, markTransactionBroadcasted, markTransactionFailed, recordTransaction } from '@/core/replayPrevention';
 import { supportsPairedContinuity } from '@/core/requestIdentity';
 import { APPROVAL_WINDOW_FAILED_MESSAGE, JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
-import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import { analytics } from '@/platform/fathom';
 import { continuationUnlockPath, openExtensionPopup, reusePopupWindow } from '@/platform/popup';
@@ -62,12 +66,13 @@ import { createWriteLock } from '@/platform/storage/mutex';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 import { keychainExists } from '@/platform/storage/walletStorage';
 import type { ApprovalPlacement } from '@/services/approvalService';
-import { getConnectionService } from '@/services/connectionService';
+import { type ConnectionService, getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { PROVIDER_SERVICE_NAME, PROVIDER_SERVICE_POLICY } from '@/services/providerServiceClient';
 import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/services/signDelivery';
 import { getUpdateService } from '@/services/updateService';
-import { getWalletService } from '@/services/walletService';
+import { getWalletService, type WalletService } from '@/services/walletService';
+import type { PairedAddresses } from '@/types/wallet';
 
 
 // Define proper types for provider requests and responses
@@ -164,9 +169,27 @@ function parseSitePsbt(psbtHex: string, prefix = ''): ReturnType<typeof extractP
   }
 }
 
-/** Whether the wallet can derive the active index's Legacy/SegWit sibling pair. */
-const walletSupportsPair = (wallet: { type: string; addressFormat: AddressFormat }) =>
-  wallet.type === 'mnemonic' && Boolean(getPairedAddressFormats(wallet.addressFormat));
+/** The active address's Legacy/SegWit pair, loaded only for a wallet that can derive one. */
+async function loadPairedAddresses(
+  walletService: Pick<WalletService, 'getPairedAddresses'>,
+  wallet: { type: string; addressFormat: AddressFormat },
+): Promise<PairedAddresses | null> {
+  return walletSupportsPair(wallet) ? await walletService.getPairedAddresses() : null;
+}
+
+/** Refuse (4100) a request that signs with a paired sibling the site was never granted. */
+async function assertPairedAddressGrant(
+  connectionService: Pick<ConnectionService, 'hasPairedAddressPermission'>,
+  origin: string,
+  identity: { walletId: string; address: string },
+): Promise<void> {
+  if (!await connectionService.hasPairedAddressPermission(origin, identity.walletId, identity.address)) {
+    throw new ProviderError(
+      PROVIDER_ERROR_CODES.UNAUTHORIZED,
+      'Paired Legacy/SegWit address access has not been granted',
+    );
+  }
+}
 
 /**
  * Call `onClosed` when the user closes a window this request opened for them (unlock or wallet
@@ -800,31 +823,13 @@ export function createProviderService(): ProviderService {
             address
             && normalizeAddressForComparison(address) !== normalizeAddressForComparison(activeAddress.address)
           ) {
-            const supportsPairedAddresses = Boolean(
-              getPairedAddressFormats(activeWallet.addressFormat)
-            );
-            const paired = activeWallet.type === 'mnemonic' && supportsPairedAddresses
-              ? await walletService.getPairedAddresses()
-              : null;
-            const target = paired
-              ? [paired.legacy, paired.segwit].find(candidate =>
-                  normalizeAddressForComparison(candidate.address)
-                    === normalizeAddressForComparison(address)
-                )
-              : undefined;
+            const paired = await loadPairedAddresses(walletService, activeWallet);
+            const target = signerScope(activeAddress.address, paired).findPairedTarget(address);
             if (!target) {
               throw invalidParams('Specified address is not the active address or its paired sibling');
             }
-            if (!await connectionService.hasPairedAddressPermission(
-              origin,
-              activeWallet.id,
-              activeAddress.address
-            )) {
-              throw new ProviderError(
-                PROVIDER_ERROR_CODES.UNAUTHORIZED,
-                'Paired Legacy/SegWit address access has not been granted'
-              );
-            }
+            await assertPairedAddressGrant(
+              connectionService, origin, { walletId: activeWallet.id, address: activeAddress.address });
             signingAddress = target.address;
           }
 
@@ -997,22 +1002,8 @@ export function createProviderService(): ProviderService {
           const activeWallet = await walletService.getActiveWallet();
           if (!activeAddress || !activeWallet) throw walletLocked();
 
-          const supportsPairedAddresses = Boolean(
-            getPairedAddressFormats(activeWallet.addressFormat),
-          );
-          const paired = activeWallet.type === 'mnemonic' && supportsPairedAddresses
-            ? await walletService.getPairedAddresses()
-            : null;
-          const allowedAddresses = [
-            activeAddress.address,
-            ...(paired ? [paired.legacy.address, paired.segwit.address] : []),
-          ];
-          const pairedAddressSet = new Set(
-            paired
-              ? [paired.legacy.address, paired.segwit.address].map(normalizeAddressForComparison)
-              : [],
-          );
-          const normalizedActiveAddress = normalizeAddressForComparison(activeAddress.address);
+          const scope = signerScope(
+            activeAddress.address, await loadPairedAddresses(walletService, activeWallet));
           const signing = providerPsbtSigningCapabilities(activeWallet).psbtBatch;
           for (const bundleIntent of parsedBundle.intents) {
             const unsupported = unsupportedMarketplaceActionReason(signing, bundleIntent.action);
@@ -1023,84 +1014,45 @@ export function createProviderService(): ProviderService {
           for (const [requestIndex, request] of parsedRequests.entries()) {
             const details = parseSitePsbt(request.psbtHex, `PSBT bundle request ${requestIndex}: `);
             const marketplaceIntent = parsedBundle.intents[requestIndex]!;
-            const headerProblem = marketplaceTransactionHeaderProblem(
-              marketplaceIntent,
-              details.transactionVersion,
-              details.lockTime,
-            );
+            const headerProblem = psbtHeaderProblem(marketplaceIntent, details);
             if (headerProblem) {
               throw invalidParams(`PSBT bundle request ${requestIndex}: ${headerProblem}`);
             }
-            const permitsNullBuyerPlaceholder = marketplaceIntent.action === 'create_listing';
-            const missingAuthenticatedPrevout = details.inputs.some((input, inputIndex) =>
-              input.value === undefined && !(permitsNullBuyerPlaceholder && inputIndex === 0));
-            if ((!permitsNullBuyerPlaceholder && details.unfunded) || missingAuthenticatedPrevout) {
+            if (!hasAuthenticatedFunding(details, {
+              nullBuyerPlaceholder: marketplaceIntent.action === 'create_listing',
+            })) {
               throw invalidParams(
                 `PSBT bundle request ${requestIndex} must be fully funded with authenticated prevouts`,
               );
             }
-            if (request.sighashTypes.length > details.inputs.length) {
+            if (hasExcessSighashEntries(request.sighashTypes, details)) {
               throw invalidParams(`PSBT bundle request ${requestIndex} has too many sighash entries`);
             }
-            if (request.sighashTypes.some(
-              (value, index) => value === 0x83 && index >= details.outputs.length,
-            )) {
+            if (usesSingleWithoutOutput(request.sighashTypes, details)) {
               throw invalidParams(
                 `PSBT bundle request ${requestIndex} uses SINGLE without a paired output`,
               );
             }
-            const validation = validateSignInputs(
-              request.signInputs,
-              allowedAddresses,
-              details.inputs.length,
-              details.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address),
-            );
+            const validation = checkSignInputOwners(request.signInputs, scope.allowed, details);
             if (!validation.valid) {
               throw invalidParams(`PSBT bundle request ${requestIndex}: ${validation.error}`);
             }
             const requestedInputIndices = Object.values(request.signInputs).flat();
-            const missing = requestedInputIndices.filter(
-              inputIndex => request.sighashTypes[inputIndex] === undefined,
-            );
+            const missing = missingSighashEntries(requestedInputIndices, request.sighashTypes);
             if (missing.length > 0) {
               throw invalidParams(
                 `PSBT bundle request ${requestIndex} is missing absolute sighash entries for inputs: ${missing.join(', ')}`,
               );
             }
-            asInvalidParams(() => assertProviderPsbtSigningRequest(signing, {
-              inputCount: details.inputs.length,
-              requestedInputIndices,
-              // An unselected input's entry describes a signature someone else made. Only the
-              // hardware contract checks it, so it keeps the ALL fallback that contract expects.
-              sighashTypes: details.inputs.map((input, inputIndex) =>
-                requestedInputIndices.includes(inputIndex)
-                  ? resolvePsbtSighashType(
-                    request.sighashTypes[inputIndex], input.sighashType, spendsTaprootOutput(input),
-                  )
-                  : resolvePsbtSighashType(undefined, input.sighashType)
-              ),
-              presignedInputIndices: details.inputs
-                .filter(input => input.hasSignatures)
-                .map(input => input.index),
-            }), `PSBT bundle request ${requestIndex}: `);
-            usesPairedAddress ||= Object.keys(request.signInputs).some(address => {
-              const normalizedAddress = normalizeAddressForComparison(address);
-              return normalizedAddress !== normalizedActiveAddress
-                && pairedAddressSet.has(normalizedAddress);
-            });
+            asInvalidParams(() => assertProviderPsbtSigningRequest(
+              signing,
+              psbtSigningRequestShape(details, requestedInputIndices, request.sighashTypes),
+            ), `PSBT bundle request ${requestIndex}: `);
+            usesPairedAddress ||= scope.usesPairedSigner(request.signInputs);
           }
-          if (
-            usesPairedAddress
-            && !await connectionService.hasPairedAddressPermission(
-              origin,
-              activeWallet.id,
-              activeAddress.address,
-            )
-          ) {
-            throw new ProviderError(
-              PROVIDER_ERROR_CODES.UNAUTHORIZED,
-              'Paired Legacy/SegWit address access has not been granted',
-            );
+          if (usesPairedAddress) {
+            await assertPairedAddressGrant(
+              connectionService, origin, { walletId: activeWallet.id, address: activeAddress.address });
           }
 
           return await runSignFlow({
@@ -1244,12 +1196,10 @@ export function createProviderService(): ProviderService {
           const psbtDetails = parseSitePsbt(psbtHex);
           // The explicit entries are checked against the PSBT first, so these reasons are the ones a
           // site hears; resolveProviderSignInputs below also covers sighashes embedded in the PSBT.
-          if (sighashTypes && sighashTypes.length > psbtDetails.inputs.length) {
+          if (sighashTypes && hasExcessSighashEntries(sighashTypes, psbtDetails)) {
             throw invalidParams('sighashTypes contains more entries than the PSBT has inputs');
           }
-          if (sighashTypes?.some(
-            (value, index) => value === 0x83 && index >= psbtDetails.outputs.length
-          )) {
+          if (sighashTypes && usesSingleWithoutOutput(sighashTypes, psbtDetails)) {
             throw invalidParams('SIGHASH_SINGLE requires an output at the same index');
           }
           if (activeWallet.type === 'hardware' && signInputs === undefined) {
@@ -1260,7 +1210,6 @@ export function createProviderService(): ProviderService {
           const requestedInputIndices = signInputs === undefined
             ? undefined
             : Object.values(signInputs).flat();
-          const requestedInputSet = new Set(requestedInputIndices ?? []);
           const unsupportedAction = unsupportedMarketplaceActionReason(
             providerPsbtSigningCapabilities(activeWallet).psbt,
             marketplaceIntent?.action,
@@ -1268,89 +1217,33 @@ export function createProviderService(): ProviderService {
           if (unsupportedAction) throw invalidParams(unsupportedAction);
           asInvalidParams(() => assertProviderPsbtSigningRequest(
             providerPsbtSigningCapabilities(activeWallet).psbt,
-            {
-              inputCount: psbtDetails.inputs.length,
-              requestedInputIndices,
-              // An unselected input's entry describes a signature someone else made. Only the
-              // hardware contract checks it, so it keeps the ALL fallback that contract expects.
-              sighashTypes: psbtDetails.inputs.map((input, inputIndex) =>
-                requestedInputSet.has(inputIndex)
-                  ? resolvePsbtSighashType(sighashTypes?.[inputIndex], input.sighashType, spendsTaprootOutput(input))
-                  : resolvePsbtSighashType(undefined, input.sighashType)
-              ),
-              presignedInputIndices: psbtDetails.inputs
-                .filter(input => input.hasSignatures)
-                .map(input => input.index),
-            },
+            psbtSigningRequestShape(psbtDetails, requestedInputIndices, sighashTypes),
           ));
           if (marketplaceIntent) {
-            const headerProblem = marketplaceTransactionHeaderProblem(
-              marketplaceIntent,
-              psbtDetails.transactionVersion,
-              psbtDetails.lockTime,
-            );
+            const headerProblem = psbtHeaderProblem(marketplaceIntent, psbtDetails);
             if (headerProblem) throw invalidParams(headerProblem);
           }
-          if (isBitcoinPayment && (
-            psbtDetails.unfunded
-            || psbtDetails.inputs.some(input => input.value === undefined)
-          )) {
+          if (isBitcoinPayment && !hasAuthenticatedFunding(psbtDetails)) {
             throw invalidParams(
               'Plain Bitcoin payment requests must be fully funded with authenticated prevout amounts before review'
             );
           }
 
           if (signInputs !== undefined) {
-            const supportsPairedAddresses = Boolean(
-              getPairedAddressFormats(activeWallet.addressFormat)
-            );
-            const paired = activeWallet.type === 'mnemonic' && supportsPairedAddresses
-              ? await walletService.getPairedAddresses()
-              : null;
-            const allowedAddresses = [
-              activeAddress.address,
-              ...(paired ? [paired.legacy.address, paired.segwit.address] : []),
-            ];
-            // Ownership per input: normally the prevout's own address, but an inscription
-            // reveal spends a commit output whose address belongs to nobody — there the input is
-            // owned by whoever the declared leaf's checksig key encodes to (tapLeafOwnerAddress).
-            const validation = validateSignInputs(
-              signInputs,
-              allowedAddresses,
-              psbtDetails.inputs.length,
-              psbtDetails.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address)
-            );
+            const scope = signerScope(
+              activeAddress.address, await loadPairedAddresses(walletService, activeWallet));
+            const validation = checkSignInputOwners(signInputs, scope.allowed, psbtDetails);
             if (!validation.valid) throw invalidParams(validation.error ?? 'Invalid signInputs');
-
-            const pairedAddressSet = new Set(
-              paired
-                ? [paired.legacy.address, paired.segwit.address].map(normalizeAddressForComparison)
-                : []
-            );
-            const normalizedActiveAddress = normalizeAddressForComparison(activeAddress.address);
-            const usesPairedAddress = Object.keys(signInputs).some(address => {
-              const normalizedAddress = normalizeAddressForComparison(address);
-              return normalizedAddress !== normalizedActiveAddress
-                && pairedAddressSet.has(normalizedAddress);
-            });
-            if (usesPairedAddress && !await connectionService.hasPairedAddressPermission(
-              origin,
-              activeWallet.id,
-              activeAddress.address
-            )) {
-              throw new ProviderError(
-                PROVIDER_ERROR_CODES.UNAUTHORIZED,
-                'Paired Legacy/SegWit address access has not been granted'
-              );
+            if (scope.usesPairedSigner(signInputs)) {
+              await assertPairedAddressGrant(
+                connectionService, origin, { walletId: activeWallet.id, address: activeAddress.address });
             }
           }
           if (sighashTypes !== undefined) {
             const requestedInputIndices = signInputs === undefined
               ? Array.from({ length: psbtDetails.inputs.length }, (_, index) => index)
               : Object.values(signInputs).flat();
-            const missingInputIndices = requestedInputIndices.filter(
-              index => sighashTypes[index] === undefined
-            );
+            const missingInputIndices = missingSighashEntries(requestedInputIndices, sighashTypes);
             if (missingInputIndices.length > 0) {
               throw invalidParams(
                 `sighashTypes is indexed by absolute PSBT input index and is missing entries for inputs: ${missingInputIndices.join(', ')}`
