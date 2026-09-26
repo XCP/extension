@@ -613,7 +613,7 @@ try {
 | `4001` | User rejected the request: declined it, closed the approval, unlock or setup window, or let it expire without answering (the unlock wait and every approval time out) | Treat as a cancellation |
 | `4100` | Not connected, or the wallet is locked / not set up | Call `xcp_requestAccounts`, or prompt to unlock |
 | `4200` | Method not supported | Stop calling it |
-| `4900` | Wallet background was momentarily unavailable, or is still starting up (no `data`) | Transient — retry (the SDK retries connecting and signing automatically) |
+| `4900` | Wallet background was momentarily unavailable, or is still starting up (no `data`) | Transient — retry (the SDK retries a plain `4900` once; it never replays a signing request) |
 | `4900` + `data.reloadRequired: true` | This page's link to the extension is gone (the wallet was updated or reloaded) | Retrying cannot help: ask the user to reload the page. See [Liveness](#liveness) |
 | `-32602` | Invalid params: the request's shape or content is wrong (missing or mistyped fields, unsupported sighash, `signInputs` naming an input or address it cannot, parameters over 1MB, `fund_policy_offer` sent to `xcp_signPsbt`) | Fix the request; resending it unchanged fails the same way. The message says what is wrong |
 | `-32005` | Limit exceeded ([EIP-1474](https://eips.ethereum.org/EIPS/eip-1474#error-codes)): a per-origin rate limit, or too many signing requests already waiting for approval | Wait and retry; the message says how long, or to finish an open request first |
