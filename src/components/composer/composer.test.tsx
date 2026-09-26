@@ -91,7 +91,8 @@ vi.mock('@/contexts/wallet-context', () => ({
     activeWallet: mockActiveWallet,
     activeAddress: mockActiveAddress,
     signTransaction: mockSignTransaction,
-    broadcastTransaction: mockBroadcastTransaction
+    broadcastTransaction: mockBroadcastTransaction,
+    wallets: [],
   })
 }));
 

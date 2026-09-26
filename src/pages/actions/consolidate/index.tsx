@@ -12,7 +12,7 @@ import { ConsolidationReview } from "@/pages/actions/consolidate/review";
 
 function ConsolidatePage() {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet } = useWallet();
+  const { activeAddress, activeWallet, wallets } = useWallet();
   const { consolidateAllBatches, isProcessing, currentBatch, results } =
     useMultiBatchConsolidation();
   const [step, setStep] = useState<"form" | "review">("form");
@@ -128,6 +128,8 @@ function ConsolidatePage() {
           onBack={handleBack}
           error={error}
           setError={setError}
+          ownedAddresses={wallets.flatMap(wallet => wallet.addresses.map(entry => entry.address))}
+          isHardware={activeWallet.type === "hardware"}
           isProcessing={isProcessing}
           currentBatch={currentBatch}
           results={results}

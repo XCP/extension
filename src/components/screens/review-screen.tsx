@@ -1,10 +1,13 @@
-import type { ReactElement, ReactNode } from "react";
+import { type ReactElement, type ReactNode, useState } from "react";
+import { ApprovalAttentionScreen } from "@/components/domain/approval/approval-attention";
 import { ZeldField } from "@/components/domain/zeld/zeld-field";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
+import { scriptPaymentRiskText } from "@/core/counterparty/scriptPaymentCaution";
 import { formatAddress, formatAmount, formatFiatEstimate } from "@/core/format";
 import { formatFeeRate, fromSatoshis } from "@/core/numeric";
 import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
@@ -114,9 +117,20 @@ export function ReviewScreen({
   // where an unenumerated difference could hide, and they all render through here.
   //
   // Optional context because this component is also rendered outside a compose flow.
-  const decoded = useComposerOptional()?.state.decodedMessage?.data as
+  const composer = useComposerOptional();
+  const decoded = composer?.state.decodedMessage?.data as
     | { destination?: string; source?: string }
     | undefined;
+
+  // A payment to someone else's script address from an address holding Counterparty assets: stated
+  // here, and signed only from a second step that names it, as a site's request would be.
+  const scriptPaymentRisk = composer?.state.scriptPaymentRisk ?? null;
+  const scriptPaymentCaution = scriptPaymentRisk ? scriptPaymentRiskText(scriptPaymentRisk) : null;
+  const [showAttention, setShowAttention] = useState(false);
+  const handleSign = () => {
+    if (scriptPaymentCaution) setShowAttention(true);
+    else onSign();
+  };
 
   const sourceAddress = result.name === "dispense" ? result.params.address : result.params.source;
   const destinationAddress = result.name === "dispense"
@@ -139,6 +153,10 @@ export function ReviewScreen({
           message={error}
           onClose={hideBackButton ? undefined : onBack}
         />
+      )}
+
+      {scriptPaymentCaution && (
+        <Banner severity="warning" title={scriptPaymentCaution.title} description={scriptPaymentCaution.description} />
       )}
       
       <div className="space-y-4">
@@ -255,15 +273,34 @@ export function ReviewScreen({
           </Button>
         )}
         <Button
-          onClick={onSign}
+          onClick={handleSign}
           color="blue"
           fullWidth
           disabled={isSigning || signDisabled}
-          aria-label={isSigning ? t('screens_review_screen_signing_transaction') : t('screens_review_screen_sign_and_broadcast_transaction')}
+          aria-label={isSigning
+            ? t('screens_review_screen_signing_transaction')
+            : scriptPaymentCaution ? t('approval_review') : t('screens_review_screen_sign_and_broadcast_transaction')}
         >
-          {isSigning ? t('common_signing') : t('screens_review_screen_sign_broadcast')}
+          {isSigning ? t('common_signing') : scriptPaymentCaution ? t('approval_review') : t('screens_review_screen_sign_broadcast')}
         </Button>
       </div>
+
+      {showAttention && scriptPaymentCaution && (
+        <ApprovalAttentionScreen
+          title={t('common_review_before_signing')}
+          description={t('transaction_approve_confirm_the_exceptional_transaction_behavior')}
+          items={[{ key: 'script-payment', severity: 'warning', ...scriptPaymentCaution }]}
+          confirmLabel={t('common_confirm_and_sign')}
+          busy={isSigning}
+          isHardware={composer?.activeWallet?.type === 'hardware'}
+          onBack={() => setShowAttention(false)}
+          onConfirm={() => {
+            composer?.acknowledgeScriptPaymentRisk();
+            setShowAttention(false);
+            onSign();
+          }}
+        />
+      )}
     </div>
   );
 }

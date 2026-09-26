@@ -5390,15 +5390,15 @@
   },
   "safety_unproven_script_output": {
     "message": "Payment to a Script Address",
-    "description": "Approval screen warning title (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx): the transaction pays a script address (P2TR, P2WSH, P2SH or another witness program) this wallet does not control, from an address holding Counterparty assets."
+    "description": "Approval screen warning title (core/counterparty/scriptPaymentCaution.ts: site signing requests, and the wallet's own send and consolidation review screens): the transaction pays a script address (P2TR, P2WSH, P2SH or another witness program) this wallet does not control, from an address holding Counterparty assets."
   },
   "safety_unproven_script_output_one": {
     "message": "$1 BTC goes to $2, a script address. Paying a script address can let its owner move your Counterparty assets from $3. Only continue if you trust the recipient.",
-    "description": "Approval screen warning body (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx) under \"Payment to a Script Address\", for exactly one address. Shown only when the paying address holds Counterparty assets. $1 = BTC amount, 8 decimals; $2 = the full script address (P2TR, P2WSH or P2SH), never truncated; $3 = your address funding this transaction, in full."
+    "description": "Approval screen warning body (core/counterparty/scriptPaymentCaution.ts: site signing requests, and the wallet's own send and consolidation review screens) under \"Payment to a Script Address\", for exactly one address. Shown only when the paying address holds Counterparty assets. $1 = BTC amount, 8 decimals; $2 = the full script address (P2TR, P2WSH or P2SH), never truncated; $3 = your address funding this transaction, in full."
   },
   "safety_unproven_script_output_many": {
     "message": "$1 BTC goes to script addresses: $2. Paying a script address can let its owner move your Counterparty assets from $3. Only continue if you trust the recipients.",
-    "description": "Approval screen warning body (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx) under \"Payment to a Script Address\", for two or more addresses. Shown only when the paying address holds Counterparty assets. $1 = total BTC amount, 8 decimals; $2 = the comma-separated script addresses, each in full; $3 = your address funding this transaction, in full."
+    "description": "Approval screen warning body (core/counterparty/scriptPaymentCaution.ts: site signing requests, and the wallet's own send and consolidation review screens) under \"Payment to a Script Address\", for two or more addresses. Shown only when the paying address holds Counterparty assets. $1 = total BTC amount, 8 decimals; $2 = the comma-separated script addresses, each in full; $3 = your address funding this transaction, in full."
   },
   "safety_reveal_site_builds_title": {
     "message": "The Site Builds the Second Transaction",

@@ -73,6 +73,10 @@ import {
   withPinnedDestinations,
 } from "@/core/counterparty/outputPolicy";
 import { packComposeMessage } from "@/core/counterparty/pack/messages";
+import {
+  assessOwnScriptPayments,
+  composedTransactionOutputs,
+} from "@/core/counterparty/scriptPaymentCaution";
 import { getSourcePubkey } from "@/core/counterparty/sourcePubkey";
 import { fetchInputValues } from "@/core/counterparty/transaction";
 import { unpackCounterpartyMessage } from "@/core/counterparty/unpack";
@@ -102,6 +106,9 @@ const STALE_TRANSACTION_MS = 5 * 60 * 1000;
  * are listed because both are provably unspendable.
  */
 const BURN_ADDRESSES = ['1CounterpartyXXXXXXXXXXXXXXXUWLpVr', 'mvCounterpartyXXXXXXXXXXXXXXW24Hef'];
+
+/** Compose types whose inputs are, by what they do, UTXOs carrying attached assets. */
+const SPENDS_ATTACHED_ASSETS = new Set(['detach', 'move', 'move-utxo']);
 
 /** Keep structured local failures until render, so a language change cannot stale the diagnostic. */
 type InternalComposerState<T> = Omit<ComposerState<T>, 'error'> & {
@@ -148,6 +155,7 @@ function freshComposerState<T>(): ComposerState<T> {
     composedAt: null,
     feeRate: null,
     zeldHuntProgress: null,
+    scriptPaymentRisk: null,
   };
 }
 
@@ -178,7 +186,9 @@ export function ComposerProvider<T>({
   initialTitle,
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress } = useWallet();
+  const {
+    activeAddress, activeWallet, wallets, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress,
+  } = useWallet();
   const { settings } = useSettings();
   const { clearBalances } = useHeader();
   // Read once per render so the compose callback depends on the number, not the settings object.
@@ -193,6 +203,9 @@ export function ComposerProvider<T>({
   const abortControllerRef = useRef<AbortController | null>(null);
   // Fired by the spinner's "Use it now": the hunt settles for the rare txid it already has.
   const acceptZeldHuntRef = useRef<AbortController | null>(null);
+  // Set synchronously by the review's acknowledgement, so the sign that follows it in the same
+  // handler sees it; cleared whenever a new transaction is composed or the review is left.
+  const scriptPaymentAcknowledgedRef = useRef(false);
 
   // Initialize state
   const [state, setState] = useState<InternalComposerState<T>>(freshComposerState);
@@ -265,6 +278,7 @@ export function ComposerProvider<T>({
     abortControllerRef.current?.abort();
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
+    scriptPaymentAcknowledgedRef.current = false;
 
     // Convert FormData to object early so we can preserve it on error
     const rawData = Object.fromEntries(formData);
@@ -502,6 +516,23 @@ export function ComposerProvider<T>({
         },
       };
 
+      // Paying a script address someone else controls can carry risk for an address holding
+      // Counterparty assets: the same caution a site's request gets, stated before signing. Any
+      // address in any of this wallet's wallets is its own, and a verified inscription commit is
+      // proved rather than paid to someone. The ZELD hunt below changes no output.
+      const ownedAddresses = [
+        activeAddress.address,
+        ...wallets.flatMap(wallet => wallet.addresses.map(entry => entry.address)),
+      ];
+      const scriptPaymentRisk = await assessOwnScriptPayments({
+        outputs: composedTransactionOutputs(response.result.rawtransaction, ownedAddresses),
+        payerAddress: activeAddress.address,
+        ownedAddresses,
+        provenAddresses: inscriptionCommitAddress ? [inscriptionCommitAddress] : [],
+        inputsCarryAssets: SPENDS_ATTACHED_ASSETS.has(composeType),
+      });
+      if (signal.aborted) return;
+
       // Hunt for a ZELD txid last, once every check above has passed, because it edits the
       // transaction: nLockTime becomes the nonce, behind final sequences. The hunt proves that is
       // the only change
@@ -542,6 +573,7 @@ export function ComposerProvider<T>({
         isComposing: false,
         composedAt: Date.now(),
         zeldHuntProgress: null,
+        scriptPaymentRisk,
       }));
     } catch (error) {
       // Silently ignore abort errors (user navigated away)
@@ -569,7 +601,7 @@ export function ComposerProvider<T>({
         isComposing: false,
       }));
     }
-  }, [activeAddress, activeWallet, composeApi, composeType, zeldHuntSeconds, state.isComposing]);
+  }, [activeAddress, activeWallet, wallets, composeApi, composeType, zeldHuntSeconds, state.isComposing]);
 
   // Core sign and broadcast logic - extracted to avoid duplication
   const performSignAndBroadcast = useCallback(async () => {
@@ -689,6 +721,13 @@ export function ComposerProvider<T>({
       return;
     }
 
+    // The review takes a separate step for this caution; signing without it is refused rather
+    // than trusted to every review component.
+    if (state.scriptPaymentRisk && !scriptPaymentAcknowledgedRef.current) {
+      setState(prev => ({ ...prev, error: t('provider_review_acknowledge_risks') }));
+      return;
+    }
+
     // Check for stale transaction (composed too long ago)
     if (state.composedAt && Date.now() - state.composedAt > STALE_TRANSACTION_MS) {
       setState(prev => ({
@@ -751,16 +790,21 @@ export function ComposerProvider<T>({
         isSigning: false,
       }));
     }
-  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, performSignAndBroadcast, clearBalances]);
+  }, [
+    state.apiResponse, state.isSigning, state.composedAt, state.scriptPaymentRisk,
+    activeAddress, activeWallet, performSignAndBroadcast, clearBalances,
+  ]);
 
   // Navigation actions
   const reset = useCallback(() => {
+    scriptPaymentAcknowledgedRef.current = false;
     setState(freshComposerState<T>());
     currentComposeTypeRef.current = composeType;
   }, [composeType]);
 
   const goBack = useCallback(() => {
     if (state.step === "review") {
+      scriptPaymentAcknowledgedRef.current = false;
       // Go back to form, preserving user's form data for quick edits
       setState(prev => ({
         ...prev,
@@ -769,6 +813,7 @@ export function ComposerProvider<T>({
         error: null,
         verificationWarnings: [],
         decodedMessage: null,
+        scriptPaymentRisk: null,
       }));
     } else if (state.step === "success") {
       reset();
@@ -786,6 +831,9 @@ export function ComposerProvider<T>({
   const acceptZeldHunt = useCallback(() => {
     acceptZeldHuntRef.current?.abort();
   }, []);
+  const acknowledgeScriptPaymentRisk = useCallback(() => {
+    scriptPaymentAcknowledgedRef.current = true;
+  }, []);
 
   const contextValue = useMemo(() => ({
     state: {
@@ -798,6 +846,7 @@ export function ComposerProvider<T>({
     reset,
     clearError,
     acceptZeldHunt,
+    acknowledgeScriptPaymentRisk,
     showHelpText,
     toggleHelpText,
     feeRate: state.feeRate,
@@ -814,6 +863,7 @@ export function ComposerProvider<T>({
     reset,
     clearError,
     acceptZeldHunt,
+    acknowledgeScriptPaymentRisk,
     showHelpText,
     toggleHelpText,
     setFeeRate,
