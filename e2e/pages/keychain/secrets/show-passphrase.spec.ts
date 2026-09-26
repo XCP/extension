@@ -118,8 +118,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
     await secrets.revealButton(page).click();
 
-    // The password gate passes, then selectWallet/getUnencryptedMnemonic
-    // fails for the unknown wallet ID
+    // The background accepts the password, then finds no wallet with this ID
     await expect(common.errorAlert(page)).toBeVisible({ timeout: 5000 });
     await expect(common.errorAlert(page)).toContainText(/Incorrect password or failed to reveal recovery phrase/i);
   });
