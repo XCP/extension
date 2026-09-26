@@ -4,8 +4,8 @@ The wallet uses Chrome's native extension catalog selection throughout onboardin
 unlocking, popup, sidepanel, and transaction approvals. There is no saved interface
 language or number-format preference. `t()` reads `chrome.i18n.getMessage()`, which
 resolves a key missing from the active locale from the English default catalog, so no
-English is bundled into the scripts: `src/i18n/en.generated.ts` is imported only as the
-`MessageKey` type. Outside an extension runtime `t()` returns the key itself; unit tests
+English is bundled into the scripts: `public/_locales/en/messages.json` is imported only
+as a type, whose keys are `MessageKey`. Outside an extension runtime `t()` returns the key itself; unit tests
 get English because `vitest.setup.ts` answers `getMessage` from
 `public/_locales/en/messages.json` the way Chrome does.
 
@@ -50,9 +50,9 @@ amounts may show current fiat equivalents, not fiat prices recorded at trade tim
 
 ## Messages and review
 
-English `public/_locales/en/messages.json` is the source of truth. Generated
-`MessageKey` types catch invalid keys. `node scripts/i18n.mjs check` checks complete
-catalogs, used keys, named/positional placeholders and generated English contents.
+English `public/_locales/en/messages.json` is the source of truth. `MessageKey`, typed
+from its keys, catches invalid keys at compile time. `node scripts/i18n.mjs check` checks
+complete catalogs, used keys, named/positional placeholders and that `zh` matches `zh_CN`.
 Named placeholders preserve adjacent substitutions in Chrome's catalog syntax.
 
 Known API, hardware, verification and provider failures retain structured facts
@@ -60,8 +60,9 @@ and translate at the UI boundary. Unknown diagnostics preserve their raw text.
 Translation never changes RPC codes, retry decisions, authorization or signing.
 
 How to add, translate and review strings, and how the Chinese catalogs relate to one
-another, is in [CONTRIBUTING.md](../../CONTRIBUTING.md#languages). Machine-drafted strings
-that no native speaker has checked are listed under `machine` in `src/i18n/status/<locale>.json`.
+another, is in [CONTRIBUTING.md](../../CONTRIBUTING.md#languages). Strings a native speaker
+has checked are listed under `reviewed` in `i18n/reviewed/<locale>.json`; every other string
+is a machine draft.
 
 ### Default wallet and address names
 
