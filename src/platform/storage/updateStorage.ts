@@ -13,7 +13,6 @@ export interface UpdateState {
   updateAvailable: boolean;
   currentVersion: string;
   pendingVersion?: string;
-  lastCheckTime: number;
   reloadScheduled: boolean;
 }
 
@@ -29,7 +28,6 @@ function isValidUpdateState(value: unknown): value is UpdateState {
   return (
     typeof obj.updateAvailable === 'boolean' &&
     typeof obj.currentVersion === 'string' &&
-    typeof obj.lastCheckTime === 'number' &&
     typeof obj.reloadScheduled === 'boolean'
   );
 }
@@ -56,7 +54,9 @@ export async function getUpdateState(): Promise<UpdateState | null> {
       console.warn('Invalid update state shape in storage');
       return null;
     }
-    return value;
+    // Copy the known fields only: records from earlier versions also carry a lastCheckTime.
+    const { updateAvailable, currentVersion, pendingVersion, reloadScheduled } = value;
+    return { updateAvailable, currentVersion, reloadScheduled, ...(pendingVersion === undefined ? {} : { pendingVersion }) };
   } catch (err) {
     console.error('Failed to get update state:', err);
     return null;

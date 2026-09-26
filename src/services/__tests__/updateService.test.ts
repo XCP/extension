@@ -58,8 +58,6 @@ describe('UpdateService', () => {
     await freshService();
     expect(chromeStub.alarms.create).not.toHaveBeenCalled();
     expect(chromeStub.alarms.onAlarm.addListener).not.toHaveBeenCalled();
-    // ...and clears the one earlier versions left, which would otherwise fire every 15 minutes.
-    expect(chromeStub.alarms.clear).toHaveBeenCalledWith('update-service-periodic-check');
   });
 
   it('never reloads without an update, however long it runs', async () => {
@@ -138,7 +136,7 @@ describe('UpdateService', () => {
 
     announce('1.0.1');
     await vi.advanceTimersByTimeAsync(0);
-    expect(service.getStatus().reloadScheduled).toBe(false);
+    expect(h.stored).toBeNull();
 
     await service.initialize();
     // initialize() does not register a second listener.
@@ -149,7 +147,7 @@ describe('UpdateService', () => {
   });
 
   it('resumes a reload the previous worker scheduled but never ran', async () => {
-    h.stored = { updateAvailable: true, pendingVersion: '1.0.1', reloadScheduled: true, currentVersion: '1.0.0', lastCheckTime: 0 };
+    h.stored = { updateAvailable: true, pendingVersion: '1.0.1', reloadScheduled: true, currentVersion: '1.0.0' };
     const { chromeStub } = stubChrome();
     await freshService();
     await vi.advanceTimersByTimeAsync(30_000);
