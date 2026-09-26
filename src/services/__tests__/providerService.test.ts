@@ -24,6 +24,7 @@ import { POLICY_OFFER_VECTORS } from '@/core/counterparty/__tests__/policyOfferV
 import * as replayPrevention from '@/core/replayPrevention';
 import { classifyProviderError } from '@/core/rpcErrors';
 import { DEFAULT_SETTINGS } from '@/core/settings';
+import { analytics } from '@/platform/fathom';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import * as signFlow from '@/platform/provider/signFlow';
@@ -646,6 +647,42 @@ describe('ProviderService', () => {
         expect((result as any).proof).toBeDefined();
       });
 
+      describe('asking for paired addresses from a wallet with no pair', () => {
+        const useUnpairedWallet = async () => {
+          const wallet = vi.mocked(walletService.getWalletService)();
+          const taprootWallet = { ...(await wallet.getActiveWallet())!, addressFormat: AddressFormat.P2TR };
+          vi.mocked(wallet.getActiveWallet).mockResolvedValue(taprootWallet);
+          vi.mocked(walletManager.getActiveWallet).mockReturnValue(taprootWallet);
+          return wallet;
+        };
+        const paired = [{ capabilities: { pairedAddresses: true } }];
+
+        it('connects without offering the capability', async () => {
+          const wallet = await useUnpairedWallet();
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true);
+          connection.connect = vi.fn().mockResolvedValue([activeAddress]);
+
+          const result = await providerService.handleRequest('https://newsite.com', 'xcp_requestAccounts', paired) as any;
+
+          expect(connection.connect).toHaveBeenCalledWith('https://newsite.com', activeAddress, 'wallet1', false, {});
+          expect(result.accounts).toEqual([activeAddress]);
+          expect(wallet.getPairedAddresses).not.toHaveBeenCalled();
+        });
+
+        it('does not ask an already connected site to approve a pair', async () => {
+          await useUnpairedWallet();
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+          connection.requestPairedAddressPermission = vi.fn().mockResolvedValue(undefined);
+
+          const result = await providerService.handleRequest(origin, 'xcp_requestAccounts', paired) as any;
+
+          expect(connection.requestPairedAddressPermission).not.toHaveBeenCalled();
+          expect(result.accounts).toEqual([activeAddress]);
+        });
+      });
+
       describe('while the wallet is locked', () => {
         const unlockThenConnect = async (pairedAddresses: boolean) => {
           const wallet = vi.mocked(walletService.getWalletService)();
@@ -852,6 +889,22 @@ describe('ProviderService', () => {
           'wallet1',
           'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty'
         );
+      });
+
+      it('serves the active address alone when a paired grant is held by a wallet with no pair', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const wallet = vi.mocked(walletService.getWalletService)();
+        const active = await wallet.getActiveWallet();
+        wallet.getActiveWallet = vi.fn().mockResolvedValue({ ...active!, addressFormat: AddressFormat.P2TR });
+
+        const result = await providerService.handleRequest('https://connected.com', 'xcp_getAddresses', []) as any;
+
+        expect(result.active).toMatchObject({ type: 'p2tr' });
+        expect(result).not.toHaveProperty('legacy');
+        expect(result).not.toHaveProperty('segwit');
+        expect(wallet.getPairedAddresses).not.toHaveBeenCalled();
       });
     });
 
@@ -1145,7 +1198,7 @@ describe('ProviderService', () => {
             'xcp_getBalances',
             []
           )
-        ).rejects.toThrow('No active address');
+        ).rejects.toMatchObject({ code: 4100, message: 'Wallet is locked or not set up. Unlock XCP Wallet and try again.' });
       });
     });
 
@@ -2424,7 +2477,7 @@ describe('ProviderService', () => {
             'xcp_signPsbt',
             [{ hex: VALID_PSBT_HEX }]
           )
-        ).rejects.toThrow('No active address');
+        ).rejects.toMatchObject({ code: 4100, message: 'Wallet is locked or not set up. Unlock XCP Wallet and try again.' });
       });
     });
 
@@ -2475,6 +2528,18 @@ describe('ProviderService', () => {
       refuse(rateLimiter.signPopupRateLimiter);
       const answer = await seen(providerService.handleRequest(origin, 'xcp_signMessage', ['Hello']));
       expect(answer).toEqual({ code: -32005, message: 'Signing request rate limit exceeded. Please wait 30 seconds.' });
+      // A refusal from inside the sign flow still reaches handleRequest's failure accounting.
+      expect(analytics.track).toHaveBeenCalledWith('provider_error');
+    });
+
+    it('does not count a signing request nobody approved as a provider error', async () => {
+      vi.useFakeTimers();
+      connect();
+      const answer = seen(providerService.handleRequest(origin, 'xcp_signMessage', ['Hello']));
+      await vi.waitFor(() => expect(signFlow.beginSignFlow).toHaveBeenCalled());
+      await vi.advanceTimersByTimeAsync(signFlow.SIGN_FLOW_TTL_MS + 1);
+      expect((await answer).code).toBe(4001);
+      expect(analytics.track).not.toHaveBeenCalledWith('provider_error');
     });
 
     it('surfaces the cap on signing requests waiting for approval as -32005', async () => {
@@ -2580,9 +2645,39 @@ describe('ProviderService', () => {
 
     it('still masks an internal failure', async () => {
       connect();
-      vi.mocked(walletService.getWalletService)().getActiveAddress = vi.fn().mockResolvedValue(null);
+      vi.mocked(walletService.getWalletService)().getActiveWallet = vi.fn().mockRejectedValue(new Error('wallet storage read failed'));
       const answer = await seen(providerService.handleRequest(origin, 'xcp_signPsbt', [{ hex: VALID_PSBT_HEX }]));
       expect(answer).toEqual({ code: -32603, message: 'Request failed' });
+    });
+
+    it.each(['xcp_getAddresses', 'xcp_getBalances', 'xcp_signMessage', 'xcp_signPsbt'])(
+      'tells a connected site the wallet is locked (4100) from %s', async (method) => {
+        connect();
+        vi.mocked(walletService.getWalletService)().getActiveAddress = vi.fn().mockResolvedValue(undefined);
+        const params = method === 'xcp_signMessage' ? ['Hello']
+          : method === 'xcp_signPsbt' ? [{ hex: VALID_PSBT_HEX }] : [];
+        const answer = await seen(providerService.handleRequest(origin, method, params));
+        expect(answer).toEqual({ code: 4100, message: 'Wallet is locked or not set up. Unlock XCP Wallet and try again.' });
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
+    it.each([
+      ['not hex', 'zz-not-hex'],
+      ['the wrong magic', VALID_PSBT_HEX.replace(/^70736274ff/, '70736274fe')],
+      ['junk after the magic', '70736274ff' + '00'.repeat(20)],
+    ])('surfaces a PSBT that is %s as -32602 without the parser internals', async (_label, psbtHex) => {
+      connect();
+      const answer = await seen(providerService.handleRequest(origin, 'xcp_signPsbt', [{ hex: psbtHex }]));
+      expect(answer).toEqual({ code: -32602, message: 'PSBT could not be parsed' });
+    });
+
+    it('refuses a { hex } that is not a string before the sign-popup limiter or a flow', async () => {
+      connect();
+      Object.assign(rateLimiter.signPopupRateLimiter, { isAllowed: vi.fn().mockReturnValue(true) });
+      const answer = await seen(providerService.handleRequest(origin, 'xcp_signTransaction', [{ hex: 42 }]));
+      expect(answer).toEqual({ code: -32602, message: 'Transaction hex must be a string' });
+      expect(rateLimiter.signPopupRateLimiter.isAllowed).not.toHaveBeenCalled();
+      expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
     });
 
     it('tells the site the request expired (4001) when nobody unlocks in time', async () => {
