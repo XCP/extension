@@ -1923,6 +1923,9 @@ export class WalletManager {
       assertTransactionMatchesReviewed(parsePSBT(completedPsbtHex), reviewed);
 
       const { trezor, DerivationPaths } = await this.getInitializedTrezor(wallet.id);
+      // Device init awaits; a lock during it empties the address list, so check the session
+      // before mapping paths from that list.
+      assertStillAuthorized();
       const inputPaths = mapVerifiedInputPaths(
         verified.prevouts,
         wallet.addresses,
@@ -2102,6 +2105,9 @@ export class WalletManager {
         verified.prevouts.map(prevout => Number(prevout.amount)),
         verified.prevouts.map(prevout => bytesToHex(prevout.script)));
       const { trezor, DerivationPaths } = await this.getInitializedTrezor(wallet.id);
+      // Device init awaits; a lock during it empties the address list, so check the session
+      // before mapping paths from that list.
+      assertStillAuthorized();
       const inputPaths = mapVerifiedInputPaths(
         verified.prevouts.filter(prevout => requestedIndices.has(prevout.index)),
         wallet.addresses,
@@ -2128,6 +2134,9 @@ export class WalletManager {
       resolveTrustedPrevout: getTrustedBroadcastPrevout,
       ...(requestedInputIndices ? { inputIndices: requestedInputIndices } : {}),
     });
+    // Prevout verification awaits the network. A lock or identity change during it must stop
+    // this request here, as it does on the hardware path, before any key is selected.
+    assertStillAuthorized();
     psbtHex = verified.hex;
 
     // If signInputs is provided, sign only the specified inputs
@@ -2155,16 +2164,21 @@ export class WalletManager {
         const targetFormat = pairedTarget?.format ?? wallet.addressFormat;
         const secret = await sessionManager.getUnlockedSecret(wallet.id);
         if (!secret) throw new Error('Wallet is locked');
-        const privateKeyHex = targetFormat === wallet.addressFormat
-          ? (await this.getPrivateKey(wallet.id, targetAddress.path)).hex
-          : mnemonicPrivateKeyAt(secret, targetFormat, targetAddress.path, WalletManager.nodeCache(wallet.id, secret));
+        // A paired address is always a mnemonic key, which is compressed.
+        const key = targetFormat === wallet.addressFormat
+          ? await this.getPrivateKey(wallet.id, targetAddress.path)
+          : {
+              hex: mnemonicPrivateKeyAt(secret, targetFormat, targetAddress.path, WalletManager.nodeCache(wallet.id, secret)),
+              compressed: true,
+            };
         assertStillAuthorized();
         signedPsbtHex = btcSignPSBT(
           signedPsbtHex,
-          privateKeyHex,
+          key.hex,
           inputIndices,
           targetFormat,
-          sighashTypes
+          sighashTypes,
+          key.compressed,
         );
       }
 
@@ -2185,7 +2199,8 @@ export class WalletManager {
         privateKeyResult.hex,
         [], // Empty array means try all inputs
         wallet.addressFormat,
-        sighashTypes
+        sighashTypes,
+        privateKeyResult.compressed,
       );
     }
   }

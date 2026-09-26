@@ -157,6 +157,18 @@ describe('where attached assets go', () => {
     });
   });
 
+  it("treats Taproot's SIGHASH_DEFAULT (0x00) as committing the destination, exactly as ALL", () => {
+    // BIP 341: DEFAULT signs every input and output, like ALL. A P2TR signer's own inputs resolve
+    // to it when neither the request nor the PSBT names a sighash.
+    const outputs = [{ index: 0, type: 'p2wpkh', address: MINE }];
+    const withDefault = resolveAttachedAssetDestination(outputs, [withAssets(0)], [0], [MINE], [{ index: 0, sighashType: 0x00 }]);
+    expect(withDefault).toStrictEqual(resolveAttachedAssetDestination(outputs, [withAssets(0)], [0], [MINE], all()));
+    expect(withDefault?.destinationCommitted).toBe(true);
+    // 0x80 (DEFAULT's base with ANYONECANPAY) is not a valid Taproot sighash and commits nothing.
+    expect(resolveAttachedAssetDestination(outputs, [withAssets(0)], [0], [MINE], [{ index: 0, sighashType: 0x80 }])
+      ?.destinationCommitted).toBe(false);
+  });
+
   it('treats a missing effective sighash as flexible, never as implicit ALL', () => {
     const result = resolveAttachedAssetDestination(
       [{ index: 0, type: 'p2wpkh', address: MINE }],

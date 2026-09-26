@@ -187,10 +187,14 @@ describe('a lock during software PSBT signing', () => {
     const address = await use('p2wpkh');
     const fixture = register(address);
     const pending = parkNext('fetchPreviousRawTransaction');
+    const getPrivateKey = vi.spyOn(manager, 'getPrivateKey');
+    const getPairedAddresses = vi.spyOn(manager, 'getPairedAddresses');
     const signing = manager.signPsbt(fixture.witnessPsbt, explicit ? { [address]: [0, 1] } : undefined);
-    // Parked before any secret is read. No session check follows verification on this path; the
-    // lock has emptied the wallet's address list, so the next step finds no address to sign with.
-    await lockWhileParked(signing, pending, explicit ? 'No active address' : 'No addresses in wallet');
+    // Parked before any secret is read. The session is checked right after verification, as on
+    // the hardware path, so the lock is reported as such and no key is looked up.
+    await lockWhileParked(signing, pending, SESSION_CHANGED);
+    expect(getPairedAddresses).not.toHaveBeenCalled();
+    expect(getPrivateKey).not.toHaveBeenCalled();
     expect(signIdx).not.toHaveBeenCalled();
   });
 
@@ -262,10 +266,9 @@ describe('a lock during Trezor signing', () => {
 
   it.each(['signTransaction', 'signPsbt', 'signMessage'] as const)('%s: parked in device init, never asks the device to sign', async (method) => {
     const pending = parkDevice(hardware.init);
-    // The transaction paths map input paths from the wallet's addresses before their session
-    // check, and the lock has emptied that list; the message path reaches the session check.
-    await lockWhileParked(requests[method](), pending,
-      method === 'signMessage' ? SESSION_CHANGED : 'PSBT input 0 does not belong to a derived address in this hardware wallet');
+    // Every path checks the session right after init, before it maps input paths from the
+    // wallet's address list (which the lock has emptied).
+    await lockWhileParked(requests[method](), pending, SESSION_CHANGED);
     expect(hardware.init).toHaveBeenCalledTimes(1);
     expect(hardware.signPsbt).not.toHaveBeenCalled();
     expect(hardware.signMessage).not.toHaveBeenCalled();

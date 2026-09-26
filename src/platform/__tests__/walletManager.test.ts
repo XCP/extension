@@ -810,7 +810,8 @@ describe('WalletManager', () => {
         '11'.repeat(32),
         [],
         AddressFormat.P2WPKH,
-        undefined
+        undefined,
+        true,
       );
     });
 

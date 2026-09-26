@@ -34,7 +34,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { normalizeAddressForComparison } from "@/core/bitcoin/address";
-import { committedOutputIndices, resolvePsbtSighashType } from "@/core/bitcoin/psbt";
+import { committedOutputIndices, resolvePsbtSighashType, spendsTaprootOutput } from "@/core/bitcoin/psbt";
 import { estimateSignedPsbtVsize, hasHighPsbtFee } from "@/core/bitcoin/signedVsize";
 import { classifySignedInputAssets } from "@/core/counterparty/inputAssets";
 import {
@@ -222,6 +222,7 @@ export default function ApprovePsbtPage() {
     type: resolvePsbtSighashType(
       request.sighashTypes?.[index],
       psbtDetails.inputs[index]?.sighashType,
+      spendsTaprootOutput(psbtDetails.inputs[index]),
     ),
   }));
   const anyoneCanPaySighashes = effectiveSighashes.filter(({ type }) => (type & 0x80) !== 0);
