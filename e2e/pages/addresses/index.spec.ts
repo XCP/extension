@@ -4,8 +4,8 @@
  * Tests for /addresses route - select or add address for mnemonic wallets
  */
 
-import { walletTest, expect } from '../../fixtures';
-import { selectAddress, common } from '../../selectors';
+import { expect, walletTest } from '../../fixtures';
+import { common, selectAddress } from '../../selectors';
 
 walletTest.describe('Select Address Page (/addresses)', () => {
   walletTest('select address page loads', async ({ page }) => {

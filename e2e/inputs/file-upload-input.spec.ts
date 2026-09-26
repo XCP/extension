@@ -18,7 +18,7 @@
  * - Update description page (inscribe content)
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('FileUploadInput Component', () => {
   // Navigate to broadcast page which uses InscriptionUploadInput

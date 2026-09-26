@@ -5,8 +5,8 @@
  * This page is shown when no wallet exists yet.
  */
 
-import { test, expect, launchExtension, cleanup } from '../../fixtures';
-import { onboarding, importWallet } from '../../selectors';
+import { cleanup, expect, launchExtension, test } from '../../fixtures';
+import { importWallet, onboarding } from '../../selectors';
 
 // Use base test (not walletTest) since we're testing the pre-wallet state
 test.describe('Onboarding Page (/keychain/onboarding)', () => {

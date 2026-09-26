@@ -2,8 +2,8 @@
  * Wallet Import Tests (/keychain/setup/import-mnemonic)
  */
 
-import { test, walletTest, expect, importMnemonic, navigateTo, TEST_MNEMONIC, TEST_PRIVATE_KEY, TEST_PASSWORD } from '@e2e/fixtures';
-import { onboarding, importWallet, index, settings } from '@e2e/selectors';
+import { expect, importMnemonic, navigateTo, TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY, test, walletTest } from '@e2e/fixtures';
+import { importWallet, onboarding, settings } from '@e2e/selectors';
 
 // Known addresses for the standard test mnemonic
 const EXPECTED_ADDRESSES = {
@@ -28,9 +28,10 @@ test.describe('Import Wallet - Mnemonic', () => {
 
     // Verify one of the expected truncated addresses is visible
     const addressText = await extensionPage.locator('.font-mono').first().textContent();
-    const matchesExpected = Object.values(EXPECTED_ADDRESSES).some(addr =>
-      addressText?.includes(addr.split('...')[0])
-    );
+    const matchesExpected = Object.values(EXPECTED_ADDRESSES).some(addr => {
+      const [visiblePrefix = ''] = addr.split('...');
+      return addressText?.includes(visiblePrefix);
+    });
     const isValidBitcoinAddress = addressText?.startsWith('bc1') || addressText?.startsWith('1') || addressText?.startsWith('3');
     expect(matchesExpected || isValidBitcoinAddress,
       `Expected valid Bitcoin address, got: ${addressText}`).toBe(true);
@@ -99,16 +100,16 @@ test.describe('Import Wallet - Mnemonic', () => {
 
     // Enter only 6 words
     const words = TEST_MNEMONIC.split(' ');
-    for (let i = 0; i < 6; i++) {
-      await importWallet.wordInput(extensionPage, i).fill(words[i]);
+    for (const [i, word] of words.slice(0, 6).entries()) {
+      await importWallet.wordInput(extensionPage, i).fill(word);
     }
 
     // Checkbox should still be disabled
     await expect(importWallet.savedPhraseCheckbox(extensionPage)).toBeDisabled();
 
     // Fill remaining words
-    for (let i = 6; i < 12; i++) {
-      await importWallet.wordInput(extensionPage, i).fill(words[i]);
+    for (const [offset, word] of words.slice(6, 12).entries()) {
+      await importWallet.wordInput(extensionPage, 6 + offset).fill(word);
     }
 
     // Checkbox should now be enabled
@@ -121,8 +122,8 @@ test.describe('Import Wallet - Mnemonic', () => {
 
     // Fill all words
     const words = TEST_MNEMONIC.split(' ');
-    for (let i = 0; i < 12; i++) {
-      await importWallet.wordInput(extensionPage, i).fill(words[i]);
+    for (const [i, word] of words.slice(0, 12).entries()) {
+      await importWallet.wordInput(extensionPage, i).fill(word);
     }
 
     // Password field should NOT be visible yet
@@ -189,8 +190,8 @@ test.describe('Import Wallet - Mnemonic', () => {
 
     // Fill valid mnemonic
     const words = TEST_MNEMONIC.split(' ');
-    for (let i = 0; i < 12; i++) {
-      await importWallet.wordInput(extensionPage, i).fill(words[i]);
+    for (const [i, word] of words.slice(0, 12).entries()) {
+      await importWallet.wordInput(extensionPage, i).fill(word);
     }
 
     await importWallet.savedPhraseCheckbox(extensionPage).check();

@@ -15,37 +15,34 @@
  */
 
 import {
-  test,
-  walletTest,
-  expect,
   createWallet,
+  expect,
   importMnemonic,
-  importPrivateKey,
   navigateTo,
-  lockWallet,
-  unlockWallet,
-  TEST_PASSWORD,
+  TEST_COUNTERWALLET_MNEMONIC,
   TEST_MNEMONIC,
+  TEST_PASSWORD,
   TEST_PRIVATE_KEY,
-  TEST_COUNTERWALLET_MNEMONIC
+  test,
+  walletTest
 } from '../fixtures';
 import {
-  STANDARD_ADDRESS_TYPES,
-  COUNTERWALLET_ADDRESS_TYPES,
-  ADDRESS_TYPE_DISPLAY_NAMES,
-  ADDRESS_PREFIX_STRINGS,
-  type AddressType,
-} from '../test-data';
-import {
-  settings,
-  index,
-  viewAddress,
-  selectAddress,
   header,
-  selectWallet,
+  importWallet,
+  index,
   onboarding,
-  importWallet
+  selectAddress,
+  selectWallet,
+  settings,
+  viewAddress
 } from '../selectors';
+import {
+  ADDRESS_PREFIX_STRINGS,
+  ADDRESS_TYPE_DISPLAY_NAMES,
+  type AddressType,
+  COUNTERWALLET_ADDRESS_TYPES,
+  STANDARD_ADDRESS_TYPES,
+} from '../test-data';
 
 async function selectAddressType(page: any, addressType: AddressType): Promise<void> {
   await navigateTo(page, 'settings');
@@ -115,7 +112,7 @@ function validateAddressPrefix(address: string, addressType: AddressType): boole
   const prefix = ADDRESS_PREFIX_STRINGS.mainnet[addressType];
 
   if (address.includes('...')) {
-    const visiblePrefix = address.split('...')[0];
+    const [visiblePrefix = ''] = address.split('...');
     return visiblePrefix.startsWith(prefix);
   }
 

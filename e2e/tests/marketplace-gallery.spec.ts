@@ -334,6 +334,7 @@ interface Scenario {
     | 'Authorize reprice'
     | 'Prepare asset'
     | 'Attach and list'
+    | 'Authorize offer'
     | 'Authorize 3 offers';
   /** Important semantic disclosures that must survive visual refactors. */
   expectedText?: string[];

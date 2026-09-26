@@ -4,8 +4,8 @@
  * Tests for the wallet unlock page shown when wallet is locked.
  */
 
-import { walletTest, expect, lockWallet, unlockWallet, TEST_PASSWORD } from '../../fixtures';
-import { unlock, index } from '../../selectors';
+import { expect, lockWallet, TEST_PASSWORD, walletTest } from '../../fixtures';
+import { unlock } from '../../selectors';
 
 walletTest.describe('Unlock Wallet Page (/keychain/unlock)', () => {
   walletTest('shows unlock form when wallet is locked', async ({ page }) => {

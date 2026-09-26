@@ -1,7 +1,7 @@
 /** Real browser catalogs and extension surfaces, with authored read fixtures. No signing. */
 import { writeFileSync } from 'node:fs';
-import { Address, OutScript, Transaction } from '@scure/btc-signer';
 import type { Page, TestInfo } from '@playwright/test';
+import { Address, OutScript, Transaction } from '@scure/btc-signer';
 import { expect, walletTest } from '../fixtures';
 import { approvalCatalog } from '../utils/approval-locale';
 import { authorizeGalleryOrigin, callGalleryService } from '../utils/provider-gallery';

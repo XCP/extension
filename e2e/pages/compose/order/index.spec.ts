@@ -4,11 +4,11 @@
  * Tests for creating DEX orders.
  */
 
-import { walletTest, expect, navigateTo } from '@e2e/fixtures';
+import { expect, navigateTo, walletTest } from '@e2e/fixtures';
 import { compose } from '@e2e/selectors';
 import {
-  enableValidationBypass,
   enableDryRun,
+  enableValidationBypass,
   waitForReview,
 } from '../../../compose-test-helpers';
 
@@ -80,10 +80,6 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
 
     await expect(amountInput).toBeVisible({ timeout: 5000 });
     await expect(priceInput).toBeVisible({ timeout: 5000 });
-
-    // Both inputs should be required for form submission
-    const amountRequired = await amountInput.getAttribute('required');
-    const priceRequired = await priceInput.getAttribute('required');
 
     // Both inputs should start empty (requiring user input)
     await expect(amountInput).toHaveValue('');

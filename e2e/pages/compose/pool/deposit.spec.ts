@@ -2,7 +2,7 @@
  * Compose Pool Deposit Page Tests (/compose/pool/deposit)
  */
 
-import { walletTest, expect } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
 import { compose } from '@e2e/selectors';
 import {
   clickBack,

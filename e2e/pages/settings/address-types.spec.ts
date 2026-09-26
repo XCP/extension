@@ -4,8 +4,8 @@
  * Tests for /settings/address-types route - change wallet address format
  */
 
-import { walletTest, expect } from '../../fixtures';
-import { settings, common } from '../../selectors';
+import { expect, walletTest } from '../../fixtures';
+import { common } from '../../selectors';
 
 walletTest.describe('Address Type Settings Page (/settings/address-types)', () => {
   walletTest('address type settings page loads', async ({ page }) => {

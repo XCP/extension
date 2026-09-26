@@ -5,12 +5,11 @@
  * password show/hide toggles, and input visibility.
  */
 
-import { test, expect, TEST_PASSWORD, TEST_MNEMONIC } from '../fixtures';
+import { expect, TEST_MNEMONIC, TEST_PASSWORD, test } from '../fixtures';
 import {
-  onboarding,
   createWallet,
   importWallet,
-  selectWallet
+  onboarding,
 } from '../selectors';
 
 test.describe('Wallet UI Interactions', () => {
@@ -105,9 +104,9 @@ test.describe('Wallet UI Interactions', () => {
     if (eyeButtonCount > 0) {
       // Fill in the mnemonic words
       const mnemonicWords = TEST_MNEMONIC.split(' ');
-      for (let i = 0; i < mnemonicWords.length; i++) {
+      for (const [i, word] of mnemonicWords.entries()) {
         const input = importWallet.wordInput(extensionPage, i);
-        await input.fill(mnemonicWords[i]);
+        await input.fill(word);
       }
 
       const initialType = await firstInput.getAttribute('type');
@@ -142,9 +141,9 @@ test.describe('Wallet UI Interactions', () => {
     await expect(firstInput).toBeVisible({ timeout: 5000 });
 
     const mnemonicWords = TEST_MNEMONIC.split(' ');
-    for (let i = 0; i < mnemonicWords.length; i++) {
+    for (const [i, word] of mnemonicWords.entries()) {
       const input = importWallet.wordInput(extensionPage, i);
-      await input.fill(mnemonicWords[i]);
+      await input.fill(word);
     }
 
     // Check the confirmation checkbox

@@ -16,7 +16,7 @@
  * - Fairmint page (select fairminter to mint from)
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 // Note: Fairmint page requires active fairminters from API which may not be available in test environment
 // Tests use conditional skipping based on actual page state rather than blanket skip

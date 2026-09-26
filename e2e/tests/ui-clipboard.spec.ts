@@ -7,22 +7,22 @@
  */
 
 import {
-  test,
-  walletTest,
-  expect,
   createWallet,
+  expect,
   navigateTo,
-  TEST_PASSWORD
+  TEST_PASSWORD,
+  test,
+  walletTest
 } from '../fixtures';
 import {
-  index,
-  selectAddress,
   actions,
-  signMessage,
   createWallet as createWalletSelectors,
-  viewAddress,
+  index,
+  onboarding,
+  selectAddress,
+  signMessage,
   unlock,
-  onboarding
+  viewAddress
 } from '../selectors';
 
 walletTest.describe('Clipboard - Copy Address', () => {

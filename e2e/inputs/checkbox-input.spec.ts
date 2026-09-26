@@ -16,7 +16,7 @@
  * - Issue asset (divisible, locked options)
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('CheckboxInput Component', () => {
   // Navigate to issuance page which uses CheckboxInput for divisible/locked options

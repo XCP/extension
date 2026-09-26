@@ -4,8 +4,8 @@
  * Tests for /settings/pinned-assets route - manage pinned assets on dashboard
  */
 
-import { walletTest, expect } from '../../fixtures';
-import { pinnedAssets, common } from '../../selectors';
+import { expect, walletTest } from '../../fixtures';
+import { common, pinnedAssets } from '../../selectors';
 
 walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
   walletTest('pinned assets page loads', async ({ page }) => {
