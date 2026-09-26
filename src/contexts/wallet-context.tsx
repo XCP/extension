@@ -51,7 +51,7 @@ import { withStateLock } from "@/core/wallet/stateLockManager";
 import { watchKeychainLock } from "@/platform/storage/keyStorage";
 import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
 import { getWalletServiceClient } from "@/services/walletServiceClient";
-import type { Address, SignTransactionOptions, Wallet } from "@/types/wallet";
+import type { Address, RevealSecretRequest, SignTransactionOptions, Wallet } from "@/types/wallet";
 
 /**
  * Authentication state enum.
@@ -203,11 +203,12 @@ interface WalletContextType {
   /** Reset all wallets (factory reset) */
   resetKeychain: (password: string) => Promise<void>;
 
-  // ─── Secrets (require unlock) ──────────────────────────────────────────────
-  /** Get decrypted mnemonic for backup */
-  getUnencryptedMnemonic: (walletId: string) => Promise<string>;
-  /** Get private key in WIF and hex formats */
-  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
+  // ─── Secrets (require unlock and the password) ─────────────────────────────
+  /**
+   * A recovery phrase or WIF private key. The background checks the password before decrypting
+   * anything; null means it was wrong.
+   */
+  revealSecret: (request: RevealSecretRequest) => Promise<string | null>;
 
   // ─── Transactions ──────────────────────────────────────────────────────────
   /**
@@ -607,8 +608,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         hardwareOperationInProgress: false,
       });
     },
-    getUnencryptedMnemonic: walletService.getUnencryptedMnemonic,
-    getPrivateKey: walletService.getPrivateKey,
+    revealSecret: walletService.revealSecret,
     setLastActiveTime,
     verifyPassword: walletService.verifyPassword,
     updateWalletAddressFormat: (walletId, newType) => withIdentityRefresh(

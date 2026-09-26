@@ -1045,43 +1045,6 @@ describe('WalletManager', () => {
       expect(signMessage).toHaveBeenCalledWith('hello', '22'.repeat(32), format, compressed);
     });
   });
-  describe('Mnemonic Access', () => {
-    it('should get unencrypted mnemonic for unlocked wallet', async () => {
-      const wallet = createTestWallet({ type: 'mnemonic' });
-      walletManager['wallets'] = [wallet];
-
-      const mnemonic = 'test mnemonic phrase';
-      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(mnemonic);
-
-      const result = await walletManager.getUnencryptedMnemonic(wallet.id);
-
-      expect(result).toBe(mnemonic);
-    });
-
-    it('should throw error for locked wallet', async () => {
-      const wallet = createTestWallet();
-      walletManager['wallets'] = [wallet];
-
-      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
-
-      await expect(
-        walletManager.getUnencryptedMnemonic(wallet.id)
-      ).rejects.toThrow('Wallet secret not found or locked');
-    });
-
-    it('should get secret for private key wallet', async () => {
-      const wallet = createPrivateKeyWallet();
-      walletManager['wallets'] = [wallet];
-
-      const privateKeyData = JSON.stringify({ key: 'private-key-hex', compressed: true });
-      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(privateKeyData);
-
-      const result = await walletManager.getUnencryptedMnemonic(wallet.id);
-
-      expect(result).toBe(privateKeyData);
-    });
-  });
-
   describe('Keychain Status', () => {
     it('should return true when keychain is unlocked', async () => {
       const keychain = createTestKeychain([]);

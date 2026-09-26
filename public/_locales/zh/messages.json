@@ -4256,9 +4256,6 @@
   "secrets_show_private_key_copy_the_private_key_shown": {
     "message": "复制此处显示的私钥"
   },
-  "secrets_show_private_key_failed_to_retrieve_private_key": {
-    "message": "获取私钥失败"
-  },
   "secrets_show_private_key_failed_to_reveal_private_key": {
     "message": "显示私钥失败。"
   },

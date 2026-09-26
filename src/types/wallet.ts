@@ -132,6 +132,19 @@ export interface KeychainRecord {
   encryptedKeychain: string;
 }
 
+/**
+ * A request to show the user one of a wallet's secrets. The password is checked in the
+ * background before anything is decrypted.
+ */
+export interface RevealSecretRequest {
+  walletId: string;
+  password: string;
+  /** The recovery phrase of a mnemonic wallet, or a private key in WIF. */
+  kind: 'mnemonic' | 'privateKey';
+  /** For a mnemonic wallet's private key: the address's derivation path. */
+  path?: string;
+}
+
 // ============================================================================
 // Transaction Signing Types
 // ============================================================================

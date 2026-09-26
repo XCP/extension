@@ -59,7 +59,7 @@ import { huntInBackground } from '@/platform/zeldHunt';
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
 // Import types from centralized types module
-import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
+import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, RevealSecretRequest, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
 
 // Re-export types for backwards compatibility
 export type { Address, Wallet };
@@ -398,12 +398,6 @@ export class WalletManager {
     }
 
     return false;
-  }
-
-  public async getUnencryptedMnemonic(walletId: string): Promise<string> {
-    const secret = await sessionManager.getUnlockedSecret(walletId);
-    if (!secret) throw new Error("Wallet secret not found or locked");
-    return secret;
   }
 
   public async createMnemonicWallet(
@@ -1320,23 +1314,69 @@ export class WalletManager {
   }
 
   private async verifyPasswordInternal(password: string): Promise<boolean> {
-    // Shares the unlock failure window: verifyPassword is the same oracle
+    return (await this.mutationStep(this.openVaultWithPassword(password))) !== null;
+  }
+
+  /**
+   * The saved vault opened with the key `password` derives, or null when the password is wrong.
+   * Shares the unlock failure window: checking a password is the same oracle as unlocking.
+   */
+  private async openVaultWithPassword(password: string): Promise<{ key: CryptoKey; keychain: Keychain } | null> {
     await this.mutationStep(assertUnlockAllowed());
 
     const keychainRecord = await this.mutationStep(getKeychainRecord());
-    if (!keychainRecord) return false;
+    if (!keychainRecord) return null;
 
     // Try to decrypt the keychain with the given password
     try {
       const salt = base64ToBuffer(keychainRecord.salt);
-      const masterKey = await this.mutationStep(deriveKey(password, salt, keychainRecord.kdf.iterations));
-      await this.mutationStep(decryptKeychain(keychainRecord, masterKey));
+      const key = await this.mutationStep(deriveKey(password, salt, keychainRecord.kdf.iterations));
+      const keychain = await this.mutationStep(decryptKeychain(keychainRecord, key));
       await this.mutationStep(clearUnlockAttempts());
-      return true;
+      return { key, keychain };
     } catch {
       await this.mutationStep(recordFailedUnlockAttempt());
-      return false;
+      return null;
     }
+  }
+
+  /**
+   * One of a wallet's secrets, for the reveal screens: its recovery phrase, or a private key in
+   * WIF (a private-key wallet's own, or a mnemonic wallet's at `path`).
+   *
+   * The password is checked here, in the background, before anything is decrypted, and a wrong one
+   * counts against the same limit as unlocking. Returns null for a wrong password. The wallet need
+   * not be the active one, and revealing it does not make it so.
+   */
+  public async revealSecret(request: RevealSecretRequest): Promise<string | null> {
+    return this.mutateVault(() => this.revealSecretInternal(request));
+  }
+
+  private async revealSecretInternal({ walletId, password, kind, path }: RevealSecretRequest): Promise<string | null> {
+    if (kind !== 'mnemonic' && kind !== 'privateKey') throw new Error('Unknown kind of secret');
+    if (path !== undefined && typeof path !== 'string') throw new Error('Invalid derivation path');
+    // Only for an unlocked session, as the reveal screens are.
+    if (!this.keychain) throw new Error('Wallet is locked. Please unlock first.');
+
+    const vault = await this.mutationStep(this.openVaultWithPassword(password));
+    if (!vault) return null;
+
+    const record = vault.keychain.wallets.find((r) => r.id === walletId);
+    if (!record) throw new Error('Wallet not found');
+    if (record.type === 'hardware' || record.isTestOnly) {
+      throw new Error('This wallet has no secret to reveal');
+    }
+    if (kind === 'mnemonic' && record.type !== 'mnemonic') {
+      throw new Error('Only a mnemonic wallet has a recovery phrase');
+    }
+    if (kind === 'privateKey' && record.type === 'mnemonic' && !path) {
+      throw new Error('The address derivation path is missing');
+    }
+
+    const secret = await this.mutationStep(decryptWithKey(record.encryptedSecret, vault.key));
+    if (kind === 'mnemonic') return secret;
+    if (record.type === 'privateKey') return (JSON.parse(secret) as { wif: string }).wif;
+    return encodeWIF(mnemonicPrivateKeyAt(secret, record.addressFormat, path!), true);
   }
 
   public async resetKeychain(password: string): Promise<void> {
@@ -1577,16 +1617,6 @@ export class WalletManager {
     });
     wallet.extraPaths = [...remaining];
     wallet.addresses = addresses;
-  }
-
-  /**
-   * Updates the pinned assets in the global settings.
-   * This method is kept for backward compatibility.
-   *
-   * @param pinnedAssets - Array of asset IDs to pin
-   */
-  public async updateWalletPinnedAssets(pinnedAssets: string[]): Promise<void> {
-    await this.updateSettings({ pinnedAssets });
   }
 
   public async getPrivateKey(walletId: string, derivationPath?: string): Promise<{ wif: string; hex: string; compressed: boolean }> {

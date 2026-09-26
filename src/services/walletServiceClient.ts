@@ -16,19 +16,20 @@ export const WALLET_SERVICE_NAME = 'WalletService';
 export const WALLET_SERVICE_POLICY: ProxyServicePolicy<WalletService> = {
   methods: {
     refreshWallets: 'command', getSettings: 'read', updateSettings: 'command',
-    addConnectedWebsite: 'command', removeConnectedWebsite: 'command', clearConnectedWebsites: 'command',
-    setPairedAddressPermission: 'command',
+    // Test fixtures authorize a site with this (e2e/utils/provider-gallery.ts); the extension's own
+    // pages grant only through the connection flow.
+    addConnectedWebsite: 'command',
     getWallets: 'read', getActiveWallet: 'read', getActiveAddress: 'read',
     unlockKeychain: 'command', selectWallet: 'command', isKeychainUnlocked: 'read',
-    ensureKeychainLoaded: 'command', lockKeychain: 'command',
+    lockKeychain: 'command',
     createMnemonicWallet: 'command', createPrivateKeyWallet: 'command', importTestAddress: 'command',
     createHardwareWalletWithDiscovery: 'command', addAddress: 'command', addUtxoAddress: 'command',
     removeUtxoAddress: 'command', sweepUtxoAddresses: 'command', verifyPassword: 'command',
     resetKeychain: 'command', updatePassword: 'command', updateWalletAddressFormat: 'command',
-    updateWalletPinnedAssets: 'command', getUnencryptedMnemonic: 'command', getPrivateKey: 'command',
+    revealSecret: 'command',
     removeWallet: 'command', getPreviewAddressForFormat: 'read', getPairedAddresses: 'read',
     isAddressInAnyWallet: 'read', signTransaction: 'command', broadcastTransaction: 'command',
-    signMessage: 'command', signPsbt: 'command', getLastActiveAddress: 'read',
+    signMessage: 'command', getLastActiveAddress: 'read',
     setLastActiveAddress: 'command', setLastActiveTime: 'command', consolidateBareMultisig: 'command',
   },
 };
