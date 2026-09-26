@@ -1060,48 +1060,88 @@ export class WalletManager {
     });
   }
 
-  /** Persist a connection and its optional paired-address grant in one keychain write. */
+  /**
+   * Persist a connection and its optional paired-address grant in one keychain write.
+   *
+   * A paired grant this replaces or drops is withdrawn from memory before the write (see
+   * `revokeInMemory`); the new connection and grant take effect only once saved.
+   */
   public addConnectedWebsite(origin: string, pairedIdentity?: { walletId: string; address: string; pairedAddress?: string }): Promise<void> {
     return this.mutateVault(async () => {
-      const settings = this.getSettings();
-      const providerCapabilities = { ...settings.providerCapabilities };
-      if (pairedIdentity) providerCapabilities[origin] = { pairedAddresses: true, ...pairedIdentity };
-      else delete providerCapabilities[origin];
-      await this.updateSettingsInternal({
-        connectedWebsites: [...new Set([...settings.connectedWebsites, origin])],
-        providerCapabilities,
+      const capability = pairedIdentity ? { pairedAddresses: true, ...pairedIdentity } : undefined;
+      this.withdrawReplacedCapability(origin, capability);
+      await this.commitKeychain((draft) => {
+        draft.settings = { ...draft.settings, connectedWebsites: [...new Set([...draft.settings.connectedWebsites, origin])] };
+        WalletManager.setCapability(draft, origin, capability);
       });
     });
   }
 
+  /** Revokes a connection and its paired grant. Refused in memory at once, then saved. */
   public removeConnectedWebsite(origin: string): Promise<void> {
-    return this.mutateVault(async () => {
-      const settings = this.getSettings();
-      const providerCapabilities = { ...settings.providerCapabilities };
-      delete providerCapabilities[origin];
-      await this.updateSettingsInternal({
-        connectedWebsites: settings.connectedWebsites.filter(site => site !== origin),
-        providerCapabilities,
-      });
-    });
+    return this.mutateVault(() => this.commitKeychain((draft) => {
+      draft.settings = {
+        ...draft.settings,
+        connectedWebsites: draft.settings.connectedWebsites.filter(site => site !== origin),
+      };
+      WalletManager.setCapability(draft, origin, undefined);
+    }, { restrictive: true }));
   }
 
+  /** Revokes every connection and paired grant. Refused in memory at once, then saved. */
   public clearConnectedWebsites(): Promise<void> {
-    return this.updateSettings({ connectedWebsites: [], providerCapabilities: {} });
+    return this.mutateVault(() => this.commitKeychain((draft) => {
+      draft.settings = { ...draft.settings, connectedWebsites: [], providerCapabilities: {} };
+    }, { restrictive: true }));
   }
 
-  /** A revoked connection cannot be recreated by an in-flight capability approval. */
+  /**
+   * Grants (`identity`) or revokes (null) a site's paired-address access. A revocation, or the grant a
+   * new one replaces, is withdrawn from memory before the write; a grant takes effect once saved.
+   * A revoked connection cannot be recreated by an in-flight capability approval.
+   */
   public setPairedAddressPermission(origin: string, identity: { walletId: string; address: string; pairedAddress?: string } | null): Promise<void> {
     return this.mutateVault(async () => {
-      const settings = this.getSettings();
-      if (identity && !settings.connectedWebsites.includes(origin)) {
+      if (!identity) {
+        await this.commitKeychain((draft) => { WalletManager.setCapability(draft, origin, undefined); }, { restrictive: true });
+        return;
+      }
+      if (!this.getSettings().connectedWebsites.includes(origin)) {
         throw new Error('Site disconnected before paired address access was granted');
       }
-      const providerCapabilities = { ...settings.providerCapabilities };
-      if (identity) providerCapabilities[origin] = { pairedAddresses: true, ...identity };
-      else delete providerCapabilities[origin];
-      await this.updateSettingsInternal({ providerCapabilities });
+      const capability = { pairedAddresses: true, ...identity };
+      this.withdrawReplacedCapability(origin, capability);
+      await this.commitKeychain((draft) => { WalletManager.setCapability(draft, origin, capability); });
     });
+  }
+
+  private static setCapability(keychain: Keychain, origin: string, capability: NonNullable<AppSettings['providerCapabilities']>[string] | undefined): void {
+    const providerCapabilities = { ...keychain.settings.providerCapabilities };
+    if (capability) providerCapabilities[origin] = capability;
+    else delete providerCapabilities[origin];
+    keychain.settings = { ...keychain.settings, providerCapabilities };
+  }
+
+  /** Withdraws the origin's current paired grant from memory now if `next` would not keep it as is. */
+  private withdrawReplacedCapability(origin: string, next: NonNullable<AppSettings['providerCapabilities']>[string] | undefined): void {
+    const current = this.keychain?.settings.providerCapabilities?.[origin];
+    if (!current || JSON.stringify(current) === JSON.stringify(next)) return;
+    this.revokeInMemory((draft) => { WalletManager.setCapability(draft, origin, undefined); });
+  }
+
+  /**
+   * Applies a change that only removes access (a connection, a paired grant) to the live keychain
+   * immediately, before anything is written. Permission and delivery checks read the live keychain
+   * synchronously, so they refuse from this moment rather than once the write completes. Memory
+   * more restrictive than disk is safe: if the write then fails, the revocation stays in memory and
+   * the next successful write saves it. Never use it for a change that grants anything.
+   */
+  private revokeInMemory(change: (draft: Keychain) => void): void {
+    const current = this.keychain;
+    if (!current) throw new Error('Keychain not loaded');
+    const draft = structuredClone(current);
+    change(draft);
+    this.keychain = draft;
   }
 
   /**
@@ -1115,8 +1155,18 @@ export class WalletManager {
    * unlocked secrets) after this returns, never before, so that follows the disk too.
    *
    * `change` runs synchronously on the copy and may throw to abandon the change.
+   *
+   * `restrictive` is for a change that only removes access: it fails closed instead. The change is
+   * published before the write (`revokeInMemory`) and kept in memory if the write fails, so no check
+   * can still pass on the grant while it is being revoked.
    */
-  private async commitKeychain<T>(change: (draft: Keychain) => T): Promise<T> {
+  private async commitKeychain<T>(change: (draft: Keychain) => T, options: { restrictive?: boolean } = {}): Promise<T> {
+    if (options.restrictive) {
+      let result!: T;
+      this.revokeInMemory((draft) => { result = change(draft); });
+      await this.mutationStep(this.persistKeychain(this.keychain!));
+      return result;
+    }
     const current = this.keychain;
     if (!current) throw new Error('Keychain not loaded');
     const draft = structuredClone(current);
@@ -1416,6 +1466,13 @@ export class WalletManager {
     const valid = await this.mutationStep(this.verifyPasswordInternal(password));
     if (!valid) throw new Error('Invalid password');
 
+    // Every site loses access now, not once the vault is deleted: a reset revokes all grants, and
+    // fails closed like any other revocation if the delete does not complete.
+    if (this.keychain) {
+      this.revokeInMemory((draft) => {
+        draft.settings = { ...draft.settings, connectedWebsites: [], providerCapabilities: {} };
+      });
+    }
     await this.mutationStep(deleteKeychain());
     await this.lockKeychain();
 
