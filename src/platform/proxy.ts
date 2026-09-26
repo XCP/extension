@@ -2,6 +2,7 @@
 
 import { type HardwareErrorMetadata, parseHardwareErrorMetadata, withHardwareErrorMetadata } from '@/core/hardware/errorMetadata';
 import { HardwareWalletError } from '@/core/hardware/types';
+import { isRecord } from '@/core/isRecord';
 import { isProviderReviewCode, type ProviderReviewCode, providerReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
 import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { recordProviderTab } from '@/platform/browser';
@@ -72,10 +73,6 @@ const PROVIDER_QUERIES = new Set([
   'xcp_accounts', 'xcp_getBalances', 'xcp_getAddresses', 'xcp_chainId', 'xcp_getNetwork',
 ]);
 const MAX_REQUEST_BYTES = 1024 * 1024 + 4096;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
 
 function parseRequest(value: unknown): PortRequest | null {
   if (!isRecord(value) || !Number.isSafeInteger(value.id) || (value.id as number) < 1

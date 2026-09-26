@@ -4068,10 +4068,6 @@
     "message": "XCP fee",
     "description": "Row label on the Attach and List approval screen for the XCP (Counterparty protocol) fee the attach pays. Never a miner or platform fee; the screen notes it may change at confirmation."
   },
-  "marketplace_batch_sats": {
-    "message": "$1 sats",
-    "description": "A satoshi amount on the multi-transaction marketplace approval screen. $1 is the already-formatted whole number of satoshis. \"sats\" is the unit ticker and stays Latin."
-  },
   "marketplace_batch_seller_wallet": {
     "message": "Seller wallet",
     "description": "Label on the batch approval screen, beside the address that sells in every transaction of the batch."
@@ -4167,10 +4163,6 @@
   "marketplace_bundle_sat_vb": {
     "message": "$1 sat/vB",
     "description": "A fee rate on the offer-acceptance bundle approval screen. $1 is the rate with two decimals; sat/vB is the unit and stays Latin."
-  },
-  "marketplace_bundle_sats": {
-    "message": "$1 sats",
-    "description": "A satoshi amount on the offer-acceptance bundle approval screen. $1 is the already-formatted whole number of satoshis. \"sats\" is the unit ticker and stays Latin."
   },
   "marketplace_bundle_the_parent_completes_the_exact": {
     "message": "The parent completes the exact sale and the child spends only your parent proceeds back to you. Both transactions were proved before either signature is requested.",

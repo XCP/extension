@@ -1,11 +1,12 @@
 /** Execution policy for a website request. Presentation may add warnings, never remove these gates. */
+import { SigHash } from '@scure/btc-signer';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
 import { computeMoneyMovement } from '@/core/bitcoin/moneyMovement';
 import { committedOutputIndices, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
 import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
-import { hasHighPsbtFee } from '@/core/bitcoin/signedVsize';
+import { HIGH_ABSOLUTE_FEE_SATS, hasHighPsbtFee } from '@/core/bitcoin/signedVsize';
 import type { DecodedTransactionInfo } from '@/core/bitcoin/transactionApprovalDecoder';
 import { findUncommittedAssetSignatures } from '@/core/counterparty/durableSellAuthorization';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
@@ -89,7 +90,7 @@ export function getPsbtApprovalPolicy(
     fee: details.fee, committedOutputs: committedOutputIndices(sighashes, details.outputs.length),
   });
   return policy(decoded, sighashes, strictMode, hasHighPsbtFee(details, fastestFee),
-    movement.atRisk > 0 || sighashes.some(input => input.sighashType === 0x83));
+    movement.atRisk > 0 || sighashes.some(input => input.sighashType === SigHash.SINGLE_ANYONECANPAY));
 }
 
 /** Semantic bundle proofs supplement the ordinary signing policy; they cannot replace it. */
@@ -166,8 +167,8 @@ export function getTransactionApprovalPolicy(
     && normalizeAddressForComparison(input.address) === normalizeAddressForComparison(request.address)
     ? [index] : []);
   // A raw transaction is signed SIGHASH_ALL throughout.
-  const result = policy(decoded, indices.map(index => ({ index, sighashType: 0x01 })), strictMode,
-    decoded.fee > 10_000_000 || exceedsSaneFeeRate(decoded.fee, decoded.vsize, fastestFee), false);
+  const result = policy(decoded, indices.map(index => ({ index, sighashType: SigHash.ALL })), strictMode,
+    decoded.fee > HIGH_ABSOLUTE_FEE_SATS || exceedsSaneFeeRate(decoded.fee, decoded.vsize, fastestFee), false);
   return { ...result, blocked: result.blocked || unresolved || decoded.fee < 0 || indices.length === 0,
     safeOwnChange: result.safeOwnChange && indices.length === decoded.inputs.length };
 }

@@ -3059,9 +3059,6 @@
   "marketplace_batch_xcp_fee": {
     "message": "XCP 费用"
   },
-  "marketplace_batch_sats": {
-    "message": "$1 sats"
-  },
   "marketplace_batch_seller_wallet": {
     "message": "卖家钱包"
   },
@@ -3133,9 +3130,6 @@
   },
   "marketplace_bundle_sat_vb": {
     "message": "$1 sat/vB"
-  },
-  "marketplace_bundle_sats": {
-    "message": "$1 sats"
   },
   "marketplace_bundle_the_parent_completes_the_exact": {
     "message": "父交易完成这笔精确的出售，子交易仅将你在父交易中的收益花回给你。在请求任一签名之前，两笔交易都已通过验证。"
