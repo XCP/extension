@@ -671,17 +671,17 @@ describe('ConnectionService', () => {
   });
 
   describe('rate limiting', () => {
-    it('should enforce connection rate limits', async () => {
-      // Mock rate limiter to reject requests immediately
+    // The provider service charges the connect limit once per xcp_requestAccounts. Charging it here
+    // as well made one connect cost two slots, and its refusal reached the site masked as -32603.
+    it('does not charge the connect rate limit a second time', async () => {
       vi.mocked(connectionRateLimiter.isAllowed).mockReturnValue(false);
-      vi.mocked(connectionRateLimiter.getResetTime).mockReturnValue(30000); // 30 seconds
-      
-      // Should throw rate limit error immediately
+
       await expect(connectionService.connect(
         'https://rate-limited.com',
         '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
         'wallet-123'
-      )).rejects.toThrow('Rate limit exceeded. Please wait 30 seconds before trying again.');
+      )).resolves.toEqual(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']);
+      expect(connectionRateLimiter.isAllowed).not.toHaveBeenCalled();
     });
   });
 });

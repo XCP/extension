@@ -697,13 +697,13 @@ try {
 
 | Code | Meaning | What to do |
 |------|---------|------------|
-| `4001` | User rejected the request: declined it, closed the approval, unlock or setup window, or let it expire without answering (the unlock wait and every approval time out) | Treat as a cancellation |
+| `4001` | User rejected the request: declined it, closed the approval, unlock or setup window, or let it expire without answering (the unlock wait and every approval time out). Also sent when the approval window could not be opened, so nothing was shown or approved | Treat as a cancellation; resending may succeed |
 | `4100` | Not connected, or the wallet is locked / not set up | Call `xcp_requestAccounts`, or prompt to unlock |
 | `4200` | Method not supported | Stop calling it |
 | `4900` | Wallet background was momentarily unavailable, or is still starting up (no `data`) | Transient — retry (the SDK retries a plain `4900` once; it never replays a signing request) |
 | `4900` + `data.reloadRequired: true` | This page's link to the extension is gone (the wallet was updated or reloaded) | Retrying cannot help: ask the user to reload the page. See [Liveness](#liveness) |
-| `-32602` | Invalid params: the request's shape or content is wrong (missing or mistyped fields, unsupported sighash, `signInputs` naming an input or address it cannot, parameters over 1MB, `fund_policy_offer` sent to `xcp_signPsbt`) | Fix the request; resending it unchanged fails the same way. The message says what is wrong |
-| `-32005` | Limit exceeded ([EIP-1474](https://eips.ethereum.org/EIPS/eip-1474#error-codes)): a per-origin rate limit, or too many signing requests already waiting for approval | Wait and retry; the message says how long, or to finish an open request first |
+| `-32602` | Invalid params: the request's shape or content is wrong (missing or mistyped fields, unsupported sighash, `signInputs` naming an input or address it cannot, parameters over 1MB, `fund_policy_offer` sent to `xcp_signPsbt`, a message signer outside the active pair, a PSBT whose transaction header or funding does not fit its intent, a marketplace action the active wallet cannot sign) | Fix the request; resending it unchanged fails the same way. The message says what is wrong |
+| `-32005` | Limit exceeded ([EIP-1474](https://eips.ethereum.org/EIPS/eip-1474#error-codes)): a per-origin rate limit, too many signing requests already waiting for approval, or a connection request from the site already waiting | Wait and retry; the message says how long, or to finish an open request first |
 | `-32603` | Internal error | Generic failure; internal details are intentionally masked |
 
 Only these codes carry a meaningful message; any other failure surfaces as `-32603` with `"Request failed"`.

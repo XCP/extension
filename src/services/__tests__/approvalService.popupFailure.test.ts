@@ -92,6 +92,29 @@ describe('ApprovalService when the approval window cannot be opened', () => {
     expect(unhandled).toEqual([]);
   });
 
+  it('leaves a newer request alone when an older one fails to open late', async () => {
+    let failFirst!: (error: Error) => void;
+    vi.mocked(chrome.windows.getCurrent)
+      .mockReturnValueOnce(new Promise((_, reject) => { failFirst = reject; }) as never)
+      .mockResolvedValue({ id: 1, width: 1000, height: 800, top: 0, left: 0 } as never);
+
+    const first = service.requestApproval(options).catch((e: unknown) => e);
+    await vi.waitFor(() => expect(chrome.windows.getCurrent).toHaveBeenCalledTimes(1));
+    const second = service.requestApproval({ ...options, id: 'connect-2' });
+    second.catch(() => {});
+    await vi.waitFor(() => expect(chrome.windows.onRemoved.addListener).toHaveBeenCalledTimes(1));
+
+    failFirst(new Error('No current window'));
+    await first;
+
+    expect(service.getCurrentApproval()?.id).toBe('connect-2');
+    expect(chrome.windows.onRemoved.removeListener).not.toHaveBeenCalled();
+    // Closing the newer request's window still ends it.
+    const listener = vi.mocked(chrome.windows.onRemoved.addListener).mock.calls[0]![0];
+    listener(12345);
+    await expect(second).rejects.toThrow('User closed the window');
+  });
+
   it('lets the next request open normally once a window exists again', async () => {
     await service.requestApproval(options).catch(() => {});
     vi.mocked(chrome.windows.getCurrent).mockResolvedValue({ id: 1, width: 1000, height: 800, top: 0, left: 0 } as never);

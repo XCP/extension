@@ -27,8 +27,8 @@ import {
   providerPsbtSigningCapabilities,
   unsupportedMarketplaceActionReason,
 } from '@/core/providerCapabilities';
-import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
-import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { checkReplayAttempt, markTransactionBroadcasted, markTransactionFailed, recordTransaction } from '@/core/replayPrevention';
+import { APPROVAL_WINDOW_FAILED_MESSAGE, JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import { analytics } from '@/platform/fathom';
@@ -45,6 +45,7 @@ import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/platform
 import {
   beginSignFlow,
   type CompletedSignFlow,
+  cancelPendingSignFlow,
   computeRequestKey,
   countOpenSignFlows,
   findActiveFlowByKey,
@@ -239,8 +240,8 @@ function awaitSignApproval<T>(opts: {
 
 /**
  * Run a signing request through its durable flow: recover a completed result,
- * rejoin a pending one (no new popup), or begin a fresh flow. createAndOpen
- * stores the per-type request and opens the popup for the new-flow case.
+ * rejoin a pending one (no new popup), or begin a fresh flow. For the new-flow case, create
+ * stores the per-type request and this opens its approval screen.
  */
 const withFlowCreationLock = createWriteLock();
 
@@ -257,7 +258,10 @@ async function runSignFlow<T>(args: {
     timeoutMessage: string;
     mapResult: (result: any) => T;
   };
-  createAndOpen: (requestId: string, requestKey: string) => Promise<void>;
+  /** Store the per-type request under this id. */
+  create: (requestId: string, requestKey: string) => Promise<void>;
+  /** The approval screen's route, opened with `?requestId=`. */
+  approvalRoute: string;
 }): Promise<T> {
   const sessionGeneration = getSessionGeneration();
   const requestKey = computeRequestKey(args.origin, args.method, args.params, args.identity);
@@ -276,7 +280,16 @@ async function runSignFlow<T>(args: {
       throw limitExceeded(`Signing request rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds.`);
     }
     const requestId = generateRequestId(args.approval.eventPrefix);
-    await args.createAndOpen(requestId, requestKey);
+    await args.create(requestId, requestKey);
+    try {
+      await openExtensionPopup(`${args.approvalRoute}?requestId=${requestId}`);
+    } catch (error) {
+      // No window, no way to answer. Left pending, the flow would count against this origin's cap
+      // for its full TTL and an identical retry would rejoin it instead of opening a window.
+      console.error('[ProviderService] Could not open the signing approval window:', error);
+      await cancelPendingSignFlow(requestId).catch(() => {});
+      throw new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, APPROVAL_WINDOW_FAILED_MESSAGE);
+    }
     const created = await getSignFlow(requestId);
     if (!created) throw new Error('Signing request could not be stored');
     return created;
@@ -761,7 +774,7 @@ export function createProviderService(): ProviderService {
                 )
               : undefined;
             if (!target) {
-              throw new Error('Specified address is not the active address or its paired sibling');
+              throw invalidParams('Specified address is not the active address or its paired sibling');
             }
             if (!await connectionService.hasPairedAddressPermission(
               origin,
@@ -789,7 +802,7 @@ export function createProviderService(): ProviderService {
               timeoutMessage: 'Sign message request timeout',
               mapResult: (result) => result.signature,
             },
-            createAndOpen: async (requestId, requestKey) => {
+            create: async (requestId, requestKey) => {
               // Binds the request to the authorized address/wallet so signing
               // can't later use a different identity.
               await beginSignFlow({
@@ -803,8 +816,8 @@ export function createProviderService(): ProviderService {
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               });
-              await openExtensionPopup(`#/requests/message/approve?requestId=${requestId}`);
             },
+            approvalRoute: '#/requests/message/approve',
           });
         }
         
@@ -842,7 +855,7 @@ export function createProviderService(): ProviderService {
               timeoutMessage: 'Transaction signing request timeout',
               mapResult: (result) => ({ hex: result.signedTxHex }),
             },
-            createAndOpen: async (requestId, requestKey) => {
+            create: async (requestId, requestKey) => {
               // Binds the request to the authorized address/wallet so signing
               // can't later use a different identity.
               await beginSignFlow({
@@ -855,8 +868,8 @@ export function createProviderService(): ProviderService {
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               });
-              await openExtensionPopup(`#/requests/transaction/approve?requestId=${requestId}`);
             },
+            approvalRoute: '#/requests/transaction/approve',
           });
         }
 
@@ -957,7 +970,7 @@ export function createProviderService(): ProviderService {
           const signing = providerPsbtSigningCapabilities(activeWallet).psbtBatch;
           for (const bundleIntent of parsedBundle.intents) {
             const unsupported = unsupportedMarketplaceActionReason(signing, bundleIntent.action);
-            if (unsupported) throw new Error(unsupported);
+            if (unsupported) throw invalidParams(unsupported);
           }
           let usesPairedAddress = false;
 
@@ -970,13 +983,13 @@ export function createProviderService(): ProviderService {
               details.lockTime,
             );
             if (headerProblem) {
-              throw new Error(`PSBT bundle request ${requestIndex}: ${headerProblem}`);
+              throw invalidParams(`PSBT bundle request ${requestIndex}: ${headerProblem}`);
             }
             const permitsNullBuyerPlaceholder = marketplaceIntent.action === 'create_listing';
             const missingAuthenticatedPrevout = details.inputs.some((input, inputIndex) =>
               input.value === undefined && !(permitsNullBuyerPlaceholder && inputIndex === 0));
             if ((!permitsNullBuyerPlaceholder && details.unfunded) || missingAuthenticatedPrevout) {
-              throw new Error(
+              throw invalidParams(
                 `PSBT bundle request ${requestIndex} must be fully funded with authenticated prevouts`,
               );
             }
@@ -1053,7 +1066,7 @@ export function createProviderService(): ProviderService {
               timeoutMessage: 'PSBT bundle signing request timeout',
               mapResult: result => ({ hexes: result.signedPsbtHexes }),
             },
-            createAndOpen: async (requestId, requestKey) => {
+            create: async (requestId, requestKey) => {
               await beginSignFlow({
                 id: requestId,
                 origin,
@@ -1070,8 +1083,8 @@ export function createProviderService(): ProviderService {
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               });
-              await openExtensionPopup(`#/requests/psbts/approve?requestId=${requestId}`);
             },
+            approvalRoute: '#/requests/psbts/approve',
           });
         }
 
@@ -1188,7 +1201,7 @@ export function createProviderService(): ProviderService {
             providerPsbtSigningCapabilities(activeWallet).psbt,
             marketplaceIntent?.action,
           );
-          if (unsupportedAction) throw new Error(unsupportedAction);
+          if (unsupportedAction) throw invalidParams(unsupportedAction);
           assertProviderPsbtSigningRequest(
             providerPsbtSigningCapabilities(activeWallet).psbt,
             {
@@ -1210,13 +1223,13 @@ export function createProviderService(): ProviderService {
               psbtDetails.transactionVersion,
               psbtDetails.lockTime,
             );
-            if (headerProblem) throw new Error(headerProblem);
+            if (headerProblem) throw invalidParams(headerProblem);
           }
           if (isBitcoinPayment && (
             psbtDetails.unfunded
             || psbtDetails.inputs.some(input => input.value === undefined)
           )) {
-            throw new Error(
+            throw invalidParams(
               'Plain Bitcoin payment requests must be fully funded with authenticated prevout amounts before review'
             );
           }
@@ -1299,7 +1312,7 @@ export function createProviderService(): ProviderService {
               timeoutMessage: 'PSBT signing request timeout',
               mapResult: (result) => ({ hex: result.signedPsbtHex }),
             },
-            createAndOpen: async (requestId, requestKey) => {
+            create: async (requestId, requestKey) => {
               await beginSignFlow({
                 id: requestId,
                 origin,
@@ -1322,8 +1335,8 @@ export function createProviderService(): ProviderService {
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               });
-              await openExtensionPopup(`#/requests/psbt/approve?requestId=${requestId}`);
             },
+            approvalRoute: '#/requests/psbt/approve',
           });
         }
 
@@ -1433,8 +1446,18 @@ export function createProviderService(): ProviderService {
             { status: 'pending' }
           );
 
-          // Broadcast using WalletService directly
-          const result = await walletService.broadcastTransaction(signedTx);
+          // A failed attempt must not hold the record 'pending', or checkReplayAttempt refuses the
+          // same transaction for five minutes and the site cannot retry what never went out. Resending
+          // identical signed bytes is harmless: if an earlier attempt did land and only its answer
+          // was lost, the node reports the transaction as already known, which the broadcaster
+          // treats as success (isAlreadyKnownError), so a retry returns the txid rather than failing.
+          let result: Awaited<ReturnType<typeof walletService.broadcastTransaction>>;
+          try {
+            result = await walletService.broadcastTransaction(signedTx);
+          } catch (error) {
+            markTransactionFailed(pendingKey);
+            throw error;
+          }
 
           // Mark as successfully broadcasted
           if (result.txid) {

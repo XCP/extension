@@ -88,7 +88,7 @@ describe('xcp_broadcastTransaction retry after a failure', () => {
     broadcast.mockResolvedValue({ txid: TXID });
 
     await expect(send()).resolves.toEqual({ txid: TXID });
-    const replay = await send().catch(error => error);
+    const replay: Error = await send().catch((error: Error) => error) as Error;
 
     expect(replay).toBeInstanceOf(Error);
     expect(String(replay.message)).toMatch(/replay/i);
