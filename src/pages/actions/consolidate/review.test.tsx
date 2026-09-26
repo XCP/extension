@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import '@testing-library/jest-dom/vitest';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import { getKnownScriptRecipients, recordScriptRecipients } from '@/platform/storage/scriptRecipientStorage';
 import { ConsolidationReview } from './review';
 
 const api = vi.hoisted(() => ({
@@ -51,17 +53,32 @@ async function signWhenReady(name: string) {
 describe('ConsolidationReview script-address caution', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fakeBrowser.reset();
     api.fetchTokenBalances.mockResolvedValue([{ asset: 'XCP' }]);
     api.fetchOwnedAssets.mockResolvedValue([]);
   });
 
-  it('asks for the review step when the recovered BTC goes to a script address', async () => {
+  it('shows the notice when the recovered BTC goes to a script address, and signs directly', async () => {
     const onSign = renderReview(P2TR, SOURCE);
-    await signWhenReady('Review');
-    expect(onSign).not.toHaveBeenCalled();
-    expect(screen.getAllByText('Payment to a Script Address').length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm and sign' }));
+    await signWhenReady('Sign & Broadcast Transaction');
+    expect(screen.getByText('Payment to a Script Address')).toBeInTheDocument();
     expect(onSign).toHaveBeenCalledTimes(1);
+    await waitFor(async () => expect(await getKnownScriptRecipients(SOURCE)).toEqual([P2TR]));
+  });
+
+  it('does not repeat the notice for a destination the address has already paid', async () => {
+    await recordScriptRecipients(SOURCE, [P2TR]);
+    const onSign = renderReview(P2TR, SOURCE);
+    await signWhenReady('Sign & Broadcast Transaction');
+    expect(onSign).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Payment to a Script Address')).not.toBeInTheDocument();
+    expect(api.fetchTokenBalances).not.toHaveBeenCalled();
+  });
+
+  it('still shows it for a script-address service fee, which is checked like any other payment', async () => {
+    renderReview(SOURCE, P2TR);
+    await signWhenReady('Sign & Broadcast Transaction');
+    expect(screen.getByText('Payment to a Script Address')).toBeInTheDocument();
   });
 
   it('changes nothing for an address holding no assets', async () => {

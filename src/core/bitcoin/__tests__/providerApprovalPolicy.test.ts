@@ -217,3 +217,16 @@ describe('the retry flag on a blocked policy', () => {
     expect(policy).toMatchObject({ blocked: true, retry: true });
   });
 });
+
+describe('the script-address caution on site requests', () => {
+  it('still takes the review step', () => {
+    const info = decoded(review('attach_for_listing', 'proved'));
+    info.marketplaceReview = undefined;
+    info.safety.warnings = [{
+      code: 'unproven_script_output',
+      data: { totalSats: 600, addresses: ['bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr'], source: ADDRESS },
+      severity: 'warning', title: 'Payment to a Script Address', message: 'Check it.',
+    }];
+    expect(getPsbtApprovalPolicy(request, info, true, 10)).toMatchObject({ blocked: false, requiresAcknowledgement: true });
+  });
+});

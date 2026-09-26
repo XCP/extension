@@ -9,6 +9,7 @@ import { decodeAddressFromScript } from '@/core/bitcoin/address';
 import {
   assessOwnScriptPayments,
   composedTransactionOutputs,
+  ownScriptRecipients,
   plannedPaymentOutputs,
   scriptPaymentRiskText,
 } from '@/core/counterparty/scriptPaymentCaution';
@@ -187,5 +188,27 @@ describe('consolidation (payments planned before the transaction is built)', () 
     });
     expect(risk).toBeNull();
     expect(api.fetchTokenBalances).not.toHaveBeenCalled();
+  });
+});
+
+describe('recipients already paid', () => {
+  const ownedAddresses = [PAYER, OWN_TAPROOT];
+  const input = (raw: string, knownRecipients: string[]) => ({
+    outputs: composedTransactionOutputs(raw, ownedAddresses), payerAddress: PAYER, ownedAddresses, knownRecipients,
+  });
+
+  it('are not cautioned again, and need no lookup', async () => {
+    expect(await assessOwnScriptPayments(input(composed([[P2TR, 10_000n]]), [P2TR]))).toBeNull();
+    expect(api.fetchTokenBalances).not.toHaveBeenCalled();
+  });
+
+  it('leave a new recipient in the same transaction cautioned', async () => {
+    const risk = await assessOwnScriptPayments(input(composed([[P2TR, 1_000n], [P2WSH, 2_000n]]), [P2TR]));
+    expect(risk).toEqual({ totalSats: 2_000, addresses: [P2WSH], source: PAYER });
+  });
+
+  it('are still listed for recording, with owned and key-hash outputs left out', () => {
+    expect(ownScriptRecipients(input(composed([[P2TR, 1_000n], [P2WPKH, 1n], [OWN_TAPROOT, 1n]]), [P2TR])))
+      .toEqual([P2TR]);
   });
 });

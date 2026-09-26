@@ -17,13 +17,10 @@ const P2TR = 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr';
 
 const composer = vi.hoisted(() => ({
   risk: null as ScriptPaymentRisk | null,
-  acknowledge: vi.fn(),
 }));
 vi.mock('@/contexts/composer-context-object', () => ({
   useComposerOptional: () => ({
     state: { decodedMessage: null, scriptPaymentRisk: composer.risk },
-    activeWallet: { type: 'mnemonic' },
-    acknowledgeScriptPaymentRisk: composer.acknowledge,
   }),
 }));
 
@@ -48,7 +45,7 @@ describe('ReviewScreen script-address caution', () => {
     expect(onSign).toHaveBeenCalledTimes(1);
   });
 
-  it('states the caution and requires the acknowledgement step before signing', () => {
+  it('shows the notice above an enabled sign button that signs directly', () => {
     composer.risk = { totalSats: 5_000, addresses: [P2TR], source: SOURCE };
     const onSign = renderReview();
 
@@ -57,20 +54,11 @@ describe('ReviewScreen script-address caution', () => {
       `0.00005000 BTC goes to ${P2TR}, a script address. Paying a script address can let its owner move your Counterparty assets from ${SOURCE}. Only continue if you trust the recipient.`,
     )).toBeInTheDocument();
 
-    // The main button opens the review step; it does not sign.
-    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
-    expect(onSign).not.toHaveBeenCalled();
-    expect(composer.acknowledge).not.toHaveBeenCalled();
-    expect(screen.getByRole('heading', { name: 'Review before signing' })).toBeInTheDocument();
-
-    // Backing out signs nothing.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Back' }).at(-1)!);
-    expect(onSign).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm and sign' }));
-    expect(composer.acknowledge).toHaveBeenCalledTimes(1);
+    const sign = screen.getByRole('button', { name: 'Sign and broadcast transaction' });
+    expect(sign).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Review' })).not.toBeInTheDocument();
+    fireEvent.click(sign);
     expect(onSign).toHaveBeenCalledTimes(1);
-    expect(composer.acknowledge.mock.invocationCallOrder[0]!).toBeLessThan(onSign.mock.invocationCallOrder[0]!);
+    expect(screen.queryByRole('heading', { name: 'Review before signing' })).not.toBeInTheDocument();
   });
 });

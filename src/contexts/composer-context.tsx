@@ -79,6 +79,7 @@ import { packComposeMessage } from "@/core/counterparty/pack/messages";
 import {
   assessOwnScriptPayments,
   composedTransactionOutputs,
+  ownScriptRecipients,
 } from "@/core/counterparty/scriptPaymentCaution";
 import { getSourcePubkey } from "@/core/counterparty/sourcePubkey";
 import { chooseComposeEncoding, composeWithEncoding } from "@/core/counterparty/taprootEncoding";
@@ -95,6 +96,7 @@ import { huntZeldForCompose } from "@/core/zeld/composeHunt";
 import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility";
 import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
+import { getKnownScriptRecipients, recordScriptRecipients } from "@/platform/storage/scriptRecipientStorage";
 
 /**
  * Maximum age for a composed transaction before requiring recomposition (5 minutes).
@@ -207,9 +209,9 @@ export function ComposerProvider<T>({
   const abortControllerRef = useRef<AbortController | null>(null);
   // Fired by the spinner's "Use it now": the hunt settles for the rare txid it already has.
   const acceptZeldHuntRef = useRef<AbortController | null>(null);
-  // Set synchronously by the review's acknowledgement, so the sign that follows it in the same
-  // handler sees it; cleared whenever a new transaction is composed or the review is left.
-  const scriptPaymentAcknowledgedRef = useRef(false);
+  // Script addresses someone else controls that the reviewed transaction pays, recorded once it
+  // is broadcast so the notice is not repeated for them.
+  const scriptRecipientsRef = useRef<string[]>([]);
 
   // Initialize state
   const [state, setState] = useState<InternalComposerState<T>>(freshComposerState);
@@ -282,7 +284,7 @@ export function ComposerProvider<T>({
     abortControllerRef.current?.abort();
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
-    scriptPaymentAcknowledgedRef.current = false;
+    scriptRecipientsRef.current = [];
 
     // Convert FormData to object early so we can preserve it on error
     const rawData = Object.fromEntries(formData);
@@ -566,21 +568,30 @@ export function ComposerProvider<T>({
       };
 
       // Paying a script address someone else controls can carry risk for an address holding
-      // Counterparty assets: the same caution a site's request gets, stated before signing. Any
-      // address in any of this wallet's wallets is its own, and a verified inscription commit is
-      // proved rather than paid to someone. The ZELD hunt below changes no output.
+      // Counterparty assets: the caution a site's request gets, stated here as a notice on the
+      // review. Any address in any of this wallet's wallets is its own, a verified Taproot commit
+      // is proved rather than paid to someone, and a recipient this address has paid before is
+      // not repeated. The ZELD hunt below changes no output.
       const ownedAddresses = [
         activeAddress.address,
         ...wallets.flatMap(wallet => wallet.addresses.map(entry => entry.address)),
       ];
-      const scriptPaymentRisk = await assessOwnScriptPayments({
+      const scriptPayments = {
         outputs: composedTransactionOutputs(response.result.rawtransaction, ownedAddresses),
         payerAddress: activeAddress.address,
         ownedAddresses,
-        provenAddresses: inscriptionCommitAddress ? [inscriptionCommitAddress] : [],
+        provenAddresses: taprootCommitAddress ? [taprootCommitAddress] : [],
         inputsCarryAssets: SPENDS_ATTACHED_ASSETS.has(composeType),
-      });
+      };
+      const scriptRecipients = ownScriptRecipients(scriptPayments);
+      const scriptPaymentRisk = scriptRecipients.length > 0
+        ? await assessOwnScriptPayments({
+          ...scriptPayments,
+          knownRecipients: await getKnownScriptRecipients(activeAddress.address),
+        })
+        : null;
       if (signal.aborted) return;
+      scriptRecipientsRef.current = scriptRecipients;
 
       // Hunt for a ZELD txid last, once every check above has passed, because it edits the
       // transaction: nLockTime becomes the nonce, behind final sequences. The hunt proves that is
@@ -723,6 +734,7 @@ export function ComposerProvider<T>({
     );
 
     const broadcastResponse = await broadcastTransaction(signedTxHex);
+    void recordScriptRecipients(activeAddress.address, scriptRecipientsRef.current);
 
     // Record the real txid as broadcasted (the placeholder stays as 'pending'
     // but will be cleaned up automatically; replay prevention matches on params)
@@ -776,13 +788,6 @@ export function ComposerProvider<T>({
 
     if (!state.apiResponse || !activeAddress || !activeWallet) {
       setState(prev => ({ ...prev, error: t('composer_context_invalid_transaction_data') }));
-      return;
-    }
-
-    // The review takes a separate step for this caution; signing without it is refused rather
-    // than trusted to every review component.
-    if (state.scriptPaymentRisk && !scriptPaymentAcknowledgedRef.current) {
-      setState(prev => ({ ...prev, error: t('provider_review_acknowledge_risks') }));
       return;
     }
 
@@ -848,21 +853,18 @@ export function ComposerProvider<T>({
         isSigning: false,
       }));
     }
-  }, [
-    state.apiResponse, state.isSigning, state.composedAt, state.scriptPaymentRisk,
-    activeAddress, activeWallet, performSignAndBroadcast, clearBalances,
-  ]);
+  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, performSignAndBroadcast, clearBalances]);
 
   // Navigation actions
   const reset = useCallback(() => {
-    scriptPaymentAcknowledgedRef.current = false;
+    scriptRecipientsRef.current = [];
     setState(freshComposerState<T>());
     currentComposeTypeRef.current = composeType;
   }, [composeType]);
 
   const goBack = useCallback(() => {
     if (state.step === "review") {
-      scriptPaymentAcknowledgedRef.current = false;
+      scriptRecipientsRef.current = [];
       // Go back to form, preserving user's form data for quick edits
       setState(prev => ({
         ...prev,
@@ -889,9 +891,6 @@ export function ComposerProvider<T>({
   const acceptZeldHunt = useCallback(() => {
     acceptZeldHuntRef.current?.abort();
   }, []);
-  const acknowledgeScriptPaymentRisk = useCallback(() => {
-    scriptPaymentAcknowledgedRef.current = true;
-  }, []);
 
   const contextValue = useMemo(() => ({
     state: {
@@ -904,7 +903,6 @@ export function ComposerProvider<T>({
     reset,
     clearError,
     acceptZeldHunt,
-    acknowledgeScriptPaymentRisk,
     showHelpText,
     toggleHelpText,
     feeRate: state.feeRate,
@@ -921,7 +919,6 @@ export function ComposerProvider<T>({
     reset,
     clearError,
     acceptZeldHunt,
-    acknowledgeScriptPaymentRisk,
     showHelpText,
     toggleHelpText,
     setFeeRate,

@@ -1,15 +1,17 @@
 /**
- * The composer states the script-address caution for the wallet's own transactions, and signs one
- * that carries it only after the review's acknowledgement.
+ * The composer states the script-address notice for the wallet's own transactions, signs as usual
+ * when it is shown, and does not repeat it for a recipient the address has already paid.
  */
 
 import * as btc from '@scure/btc-signer';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { arc4, hexToBytes } from '@/core/counterparty/unpack/binary';
+import { getKnownScriptRecipients, recordScriptRecipients } from '@/platform/storage/scriptRecipientStorage';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
 
@@ -118,6 +120,7 @@ const sendBtc = (destination: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  fakeBrowser.reset();
   api.fetchAssetDetails.mockResolvedValue(null);
   api.fetchTokenBalances.mockResolvedValue([{ asset: 'XCP' }]);
   api.fetchOwnedAssets.mockResolvedValue([]);
@@ -164,29 +167,44 @@ describe('the script-address caution in the composer', () => {
     expect(result.current.state.scriptPaymentRisk?.addresses).toEqual([P2TR]);
   });
 
-  it('refuses to sign until the review acknowledges it, then signs', async () => {
+  it('signs as usual while the notice is shown, then remembers the recipient', async () => {
     const { result } = await sendBtc(P2TR);
-    await act(async () => { await result.current.signAndBroadcast(); });
-    expect(wallet.signTransaction).not.toHaveBeenCalled();
-    expect(result.current.state.error).toBe('Review and acknowledge the transaction risks before signing');
-
-    act(() => { result.current.acknowledgeScriptPaymentRisk(); });
+    expect(result.current.state.scriptPaymentRisk).not.toBeNull();
     await act(async () => { await result.current.signAndBroadcast(); });
     expect(wallet.signTransaction).toHaveBeenCalledTimes(1);
     expect(result.current.state.step).toBe('success');
+    await waitFor(async () => expect(await getKnownScriptRecipients(OWN_ADDRESS)).toEqual([P2TR]));
   });
 
-  it('forgets the acknowledgement when the review is left', async () => {
+  it('does not repeat the notice for a second payment to the same recipient', async () => {
+    const first = await sendBtc(P2TR);
+    await act(async () => { await first.result.current.signAndBroadcast(); });
+    await waitFor(async () => expect(await getKnownScriptRecipients(OWN_ADDRESS)).toEqual([P2TR]));
+    first.unmount();
+
+    api.fetchTokenBalances.mockClear();
     const { result } = await sendBtc(P2TR);
-    act(() => { result.current.acknowledgeScriptPaymentRisk(); });
-    act(() => { result.current.goBack(); });
     expect(result.current.state.scriptPaymentRisk).toBeNull();
-    const form = new FormData();
-    form.set('asset', 'BTC');
-    form.set('destination', P2TR);
-    form.set('quantity', '0.00005000');
-    await act(async () => { await result.current.composeTransaction(form); });
+    expect(api.fetchTokenBalances).not.toHaveBeenCalled();
+  });
+
+  it('shows no notice for a recipient the address has already paid', async () => {
+    await recordScriptRecipients(OWN_ADDRESS, [P2SH]);
+    const { result } = await compose('send', dispense(P2SH), { asset: 'BTC', destination: P2SH, quantity: '0.00005788', sat_per_vbyte: '1.6' });
+    expect(result.current.state.scriptPaymentRisk).toBeNull();
+    expect(api.fetchTokenBalances).not.toHaveBeenCalled();
+  });
+
+  it('still states it for a new recipient alongside a known one', async () => {
+    await recordScriptRecipients(OWN_ADDRESS, [P2SH]);
+    const { result } = await sendBtc(P2TR);
+    expect(result.current.state.scriptPaymentRisk?.addresses).toEqual([P2TR]);
+  });
+
+  it('records nothing for a key-hash payment', async () => {
+    const { result } = await sendBtc(P2WPKH);
     await act(async () => { await result.current.signAndBroadcast(); });
-    expect(wallet.signTransaction).not.toHaveBeenCalled();
+    expect(result.current.state.step).toBe('success');
+    expect(await getKnownScriptRecipients(OWN_ADDRESS)).toEqual([]);
   });
 });

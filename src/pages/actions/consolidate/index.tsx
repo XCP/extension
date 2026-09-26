@@ -129,7 +129,6 @@ function ConsolidatePage() {
           error={error}
           setError={setError}
           ownedAddresses={wallets.flatMap(wallet => wallet.addresses.map(entry => entry.address))}
-          isHardware={activeWallet.type === "hardware"}
           isProcessing={isProcessing}
           currentBatch={currentBatch}
           results={results}

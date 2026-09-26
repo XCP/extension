@@ -74,24 +74,41 @@ export interface OwnScriptPaymentInput {
   provenAddresses?: string[];
   /** The spent inputs are known to carry attached assets (a UTXO move or detach). */
   inputsCarryAssets?: boolean;
+  /** Script addresses the payer has already paid, which the notice is not repeated for. */
+  knownRecipients?: string[];
 }
 
-/**
- * The risk to state before the wallet signs its own transaction, or null. The holdings lookup runs
- * only when an output pays someone else's script address, so most transactions cost nothing extra;
- * a failed lookup counts as holding (`assetHoldings.ts`).
- */
-export async function assessOwnScriptPayments(input: OwnScriptPaymentInput): Promise<ScriptPaymentRisk | null> {
+function detectionInput(input: OwnScriptPaymentInput) {
   const payer = normalizeAddressForComparison(input.payerAddress);
   const ownedAddresses = input.ownedAddresses.some(address => normalizeAddressForComparison(address) === payer)
     ? input.ownedAddresses
     : [input.payerAddress, ...input.ownedAddresses];
-  const detection = {
+  return {
     outputs: input.outputs,
     payerAddress: input.payerAddress,
     ownedAddresses,
-    provenAddresses: input.provenAddresses ?? [],
+    provenAddresses: [...(input.provenAddresses ?? []), ...(input.knownRecipients ?? [])],
   };
+}
+
+/**
+ * Every script address someone else controls that these outputs pay, known or not, whatever the
+ * payer holds: what to record once the transaction is signed, so a later payment to one of them
+ * is recognized.
+ */
+export function ownScriptRecipients(input: OwnScriptPaymentInput): string[] {
+  return scriptPaymentCandidates(detectionInput({ ...input, knownRecipients: [] }))
+    .map(candidate => candidate.address);
+}
+
+/**
+ * The risk to state before the wallet signs its own transaction, or null. The holdings lookup runs
+ * only when an output pays a script address someone else controls that the payer has not paid
+ * before, so most transactions cost nothing extra; a failed lookup counts as holding
+ * (`assetHoldings.ts`).
+ */
+export async function assessOwnScriptPayments(input: OwnScriptPaymentInput): Promise<ScriptPaymentRisk | null> {
+  const detection = detectionInput(input);
   if (scriptPaymentCandidates(detection).length === 0) return null;
   const holds = input.inputsCarryAssets === true || await addressHoldsCounterpartyAssets(input.payerAddress);
   return scriptPaymentRisk(detection, holds);

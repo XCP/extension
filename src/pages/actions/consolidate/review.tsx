@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { ApprovalAttentionScreen } from "@/components/domain/approval/approval-attention";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -7,6 +6,7 @@ import type { ConsolidationData } from "@/core/bitcoin/consolidationApi";
 import type { ScriptPaymentRisk } from "@/core/bitcoin/scriptPaymentRisk";
 import {
   assessOwnScriptPayments,
+  ownScriptRecipients,
   plannedPaymentOutputs,
   scriptPaymentRiskText,
 } from "@/core/counterparty/scriptPaymentCaution";
@@ -15,6 +15,7 @@ import { add, divide, fromSatoshis, multiply, roundDown, roundUp, toNumber, toSa
 import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
 
 import { t } from '@/i18n';
+import { getKnownScriptRecipients, recordScriptRecipients } from "@/platform/storage/scriptRecipientStorage";
 
 interface ConsolidationReviewProps {
   apiResponse: {
@@ -32,8 +33,6 @@ interface ConsolidationReviewProps {
   setError: (error: string | null) => void;
   /** Every address this wallet controls: consolidating to one of them pays no one else. */
   ownedAddresses: string[];
-  /** Signing from a hardware wallet, for the confirmation step's busy label. */
-  isHardware?: boolean;
   isProcessing?: boolean;
   currentBatch?: number;
   results?: ConsolidationResult[];
@@ -108,18 +107,17 @@ export const ConsolidationReview = ({
   error,
   setError,
   ownedAddresses,
-  isHardware = false,
   isProcessing = false,
   currentBatch = 0,
   results = []
 }: ConsolidationReviewProps) => {
   const [isSigning, setIsSigning] = useState(false);
-  const [showAttention, setShowAttention] = useState(false);
   const { params, consolidationData, allBatches } = apiResponse;
 
   // The payments these batches will make, by address, for the script-address caution: the
   // recovered BTC to the destination and each service fee to its address. Keyed so a result is
-  // used only for the payments it was computed for; signing waits for the answer.
+  // used only for the payments it was computed for; signing waits for the answer, which is local
+  // unless a script address this address has not paid before is involved.
   const fees = calculateBatchFees(allBatches, params.feeRateSatPerVByte);
   const plannedPayments = [
     { address: params.destination, value: fees.totalOutput },
@@ -130,8 +128,14 @@ export const ConsolidationReview = ({
   useEffect(() => {
     let cancelled = false;
     const [source, payments, owned] = JSON.parse(paymentsKey) as [string, { address: string; value: number }[], string[]];
-    void assessOwnScriptPayments({ outputs: plannedPaymentOutputs(payments), payerAddress: source, ownedAddresses: owned })
-      .then(risk => { if (!cancelled) setScriptPaymentCheck({ key: paymentsKey, risk }); });
+    const check = async () => {
+      const knownRecipients = await getKnownScriptRecipients(source);
+      const risk = await assessOwnScriptPayments({
+        outputs: plannedPaymentOutputs(payments), payerAddress: source, ownedAddresses: owned, knownRecipients,
+      });
+      if (!cancelled) setScriptPaymentCheck({ key: paymentsKey, risk });
+    };
+    void check();
     return () => { cancelled = true; };
   }, [paymentsKey]);
   const scriptPaymentChecking = scriptPaymentCheck?.key !== paymentsKey;
@@ -158,6 +162,10 @@ export const ConsolidationReview = ({
     setIsSigning(true);
     try {
       await onSign();
+      // Remember the script addresses paid, so the notice is not repeated for them.
+      await recordScriptRecipients(params.source, ownScriptRecipients({
+        outputs: plannedPaymentOutputs(plannedPayments), payerAddress: params.source, ownedAddresses,
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -171,9 +179,6 @@ export const ConsolidationReview = ({
 
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
 
-      {scriptPaymentCaution && (
-        <Banner severity="warning" title={scriptPaymentCaution.title} description={scriptPaymentCaution.description} />
-      )}
 
       {/* Progress indicator for multi-batch processing */}
       {isProcessing && currentBatch > 0 && numBatches > 1 && (
@@ -330,12 +335,16 @@ export const ConsolidationReview = ({
         </div>
       </div>
 
+      {scriptPaymentCaution && (
+        <Banner severity="warning" title={scriptPaymentCaution.title} description={scriptPaymentCaution.description} />
+      )}
+
       <div className="flex space-x-4">
         <Button onClick={onBack} color="gray">
           {t('common_back')}
         </Button>
         <Button
-          onClick={scriptPaymentCaution ? () => setShowAttention(true) : handleSignClick}
+          onClick={() => { void handleSignClick(); }}
           color="blue"
           fullWidth
           disabled={isSigning || isProcessing || scriptPaymentChecking}
@@ -344,26 +353,9 @@ export const ConsolidationReview = ({
             ? t('consolidate_review_processing_batch_of', [String(currentBatch), String(numBatches)])
             : isSigning
               ? t('consolidate_review_signing_broadcasting')
-              : scriptPaymentCaution ? t('approval_review')
               : numBatches > 1 ? t('consolidate_review_sign_broadcast_transactions', [String(numBatches)]) : t('consolidate_review_sign_broadcast_transaction')}
         </Button>
       </div>
-
-      {showAttention && scriptPaymentCaution && (
-        <ApprovalAttentionScreen
-          title={t('common_review_before_signing')}
-          description={t('transaction_approve_confirm_the_exceptional_transaction_behavior')}
-          items={[{ key: 'script-payment', severity: 'warning', ...scriptPaymentCaution }]}
-          confirmLabel={t('common_confirm_and_sign')}
-          busy={isSigning || isProcessing}
-          isHardware={isHardware}
-          onBack={() => setShowAttention(false)}
-          onConfirm={() => {
-            setShowAttention(false);
-            void handleSignClick();
-          }}
-        />
-      )}
     </div>
   );
 };

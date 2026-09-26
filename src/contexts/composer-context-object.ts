@@ -32,8 +32,8 @@ export interface ComposerState<T> {
   /** Live figures while a ZELD hunt runs between composing and review; null otherwise. */
   zeldHuntProgress: ZeldHuntProgress | null;
   /**
-   * Payments to script addresses this wallet does not control, from an address holding
-   * Counterparty assets; null when there are none. Signing waits for an acknowledgement.
+   * Payments to script addresses this wallet does not control and has not paid before, from an
+   * address holding Counterparty assets; null when there are none. The review states it.
    */
   scriptPaymentRisk: ScriptPaymentRisk | null;
 }
@@ -47,8 +47,6 @@ export interface ComposerContextType<T> {
   goBack: () => void;
   reset: () => void;
   clearError: () => void;
-  /** Record that the user reviewed `state.scriptPaymentRisk`; call it before `signAndBroadcast`. */
-  acknowledgeScriptPaymentRisk: () => void;
   /** Settle the ZELD hunt for the rare txid it already holds rather than waiting out the budget. */
   acceptZeldHunt: () => void;
 

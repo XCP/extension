@@ -34,6 +34,7 @@ vi.mock('@/contexts/wallet-context', () => ({
     signTransaction,
     broadcastTransaction,
     setHardwareOperationInProgress: vi.fn(),
+    wallets: [],
     authState: 'UNLOCKED',
     keychainLocked: false,
   }),
