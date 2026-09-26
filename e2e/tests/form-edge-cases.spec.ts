@@ -6,14 +6,14 @@
  */
 
 import {
-  test,
-  walletTest,
   expect,
   navigateTo,
   TEST_MNEMONIC,
+  test,
+  walletTest,
 } from '../fixtures';
+import { actions, createWallet as createWalletSelectors, importWallet, index, onboarding, send } from '../selectors';
 import { TEST_ADDRESSES, TEST_PRIVATE_KEYS } from '../test-data';
-import { onboarding, actions, index, send, createWallet as createWalletSelectors, importWallet } from '../selectors';
 
 test.describe('Form Edge Cases - Mnemonic Input', () => {
   test('can paste full mnemonic into first input field', async ({ extensionPage }) => {
@@ -60,9 +60,9 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
     await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 5000 });
 
     const mnemonicWords = TEST_MNEMONIC.split(' ');
-    for (let i = 0; i < Math.min(12, mnemonicWords.length); i++) {
+    for (const [i, word] of mnemonicWords.slice(0, 12).entries()) {
       const input = importWallet.wordInput(extensionPage, i);
-      await input.fill(mnemonicWords[i].toUpperCase());
+      await input.fill(word.toUpperCase());
     }
 
     // Check the confirmation checkbox (required before Continue button appears)
@@ -80,9 +80,9 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
 
     const invalidWords = ['notaword', 'invalid', 'fake', 'wrong', 'bad', 'test',
       'garbage', 'random', 'stuff', 'here', 'more', 'words'];
-    for (let i = 0; i < 12; i++) {
+    for (const [i, word] of invalidWords.slice(0, 12).entries()) {
       const input = importWallet.wordInput(extensionPage, i);
-      await input.fill(invalidWords[i]);
+      await input.fill(word);
     }
 
     // Check confirmation checkbox - HeadlessUI Checkbox renders as button with role="checkbox"

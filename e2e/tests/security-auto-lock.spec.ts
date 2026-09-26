@@ -5,14 +5,14 @@
  */
 
 import {
-  test,
-  walletTest,
-  expect,
   createWallet,
-  navigateTo,
+  expect,
   lockWallet,
+  navigateTo,
+  TEST_PASSWORD,
+  test,
   unlockWallet,
-  TEST_PASSWORD
+  walletTest
 } from '../fixtures';
 import { settings } from '../selectors';
 

@@ -4,7 +4,7 @@
  * Tests for the remove wallet page that allows deleting a wallet with password confirmation.
  */
 
-import { walletTest, expect, navigateTo, TEST_PASSWORD } from '@e2e/fixtures';
+import { expect, TEST_PASSWORD, walletTest } from '@e2e/fixtures';
 import { common, createWallet } from '@e2e/selectors';
 
 walletTest.describe('Remove Wallet Page (/keychain/wallets/remove)', () => {

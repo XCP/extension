@@ -4,8 +4,8 @@
  * Tests for basic extension loading and functionality.
  */
 
-import { test, expect } from '../fixtures';
-import { onboarding, unlock, index } from '../selectors';
+import { expect, test } from '../fixtures';
+import { index, onboarding, unlock } from '../selectors';
 
 test('extension loads', async ({ extensionPage }) => {
   await extensionPage.waitForLoadState('networkidle', { timeout: 30000 });

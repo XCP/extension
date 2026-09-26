@@ -1,8 +1,8 @@
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 import { approvalCatalog } from '../utils/approval-locale';
 import { callGalleryService } from '../utils/provider-gallery';
 
-for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) walletTest.describe(language, () => {
+for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) walletTest.describe(language, () => {
   walletTest.use({ browserLocale: language });
   walletTest('default names translate on display while service names stay canonical', async ({ page }, info) => {
     const message = approvalCatalog(language);

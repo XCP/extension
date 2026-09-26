@@ -7,18 +7,18 @@
  */
 
 import {
-  test,
-  walletTest,
-  expect,
   createWallet,
+  expect,
   importMnemonic,
   lockWallet,
-  unlockWallet,
   navigateTo,
+  TEST_MNEMONIC,
   TEST_PASSWORD,
-  TEST_MNEMONIC
+  test,
+  unlockWallet,
+  walletTest
 } from '../fixtures';
-import { index, selectAddress, settings, actions, send, unlock, onboarding, importWallet, common } from '../selectors';
+import { actions, common, importWallet, index, onboarding, send, settings, unlock } from '../selectors';
 import { TEST_ADDRESSES } from '../test-data';
 
 test.describe('User Journey: New User Onboarding to First Transaction', () => {

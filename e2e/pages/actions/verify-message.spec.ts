@@ -4,8 +4,8 @@
  * Tests for verifying signed messages via the Actions page UI.
  */
 
-import { walletTest, expect, navigateTo, grantClipboardPermissions, TEST_PASSWORD } from '../../fixtures';
-import { actions, verifyMessage, signMessage, viewAddress, index } from '../../selectors';
+import { expect, grantClipboardPermissions, navigateTo, TEST_PASSWORD, walletTest } from '../../fixtures';
+import { actions, index, signMessage, verifyMessage, viewAddress } from '../../selectors';
 
 walletTest.describe('Verify Message', () => {
   walletTest('navigates to verify message page', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 const fairminters = Array.from({ length: 125 }, (_, i) => ({
   tx_hash: i.toString(16).padStart(64, '0'), asset: `PAGETEST${String(i).padStart(3, '0')}`,

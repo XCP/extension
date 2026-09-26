@@ -4,8 +4,8 @@
  * Tests for proper HeadlessUI component behavior in settings.
  */
 
-import { walletTest, expect, navigateTo, getCurrentAddress } from '../fixtures';
-import { settings, selectAddress } from '../selectors';
+import { expect, getCurrentAddress, navigateTo, walletTest } from '../fixtures';
+import { settings } from '../selectors';
 
 walletTest.describe('Settings with Headless UI Components', () => {
   walletTest('change address type through the address type listbox', async ({ page }) => {
@@ -72,10 +72,10 @@ walletTest.describe('Settings with Headless UI Components', () => {
       return; // Auto-lock timer not present on this page
     }
 
-    const timeoutOptions = await page.locator('[role="radio"]').all();
-    expect(timeoutOptions.length).toBeGreaterThan(0);
+    const timeoutOptions = page.locator('[role="radio"]');
+    expect(await timeoutOptions.count()).toBeGreaterThan(0);
 
-    const firstOption = timeoutOptions[0];
+    const firstOption = timeoutOptions.first();
     await firstOption.click();
 
     const isSelected = await firstOption.getAttribute('aria-checked');
@@ -102,20 +102,20 @@ walletTest.describe('Settings with Headless UI Components', () => {
   walletTest('headless UI dropdown menus in settings', async ({ page }) => {
     await navigateTo(page, 'settings');
 
-    const dropdownButtons = await page.locator('[role="button"][aria-haspopup="listbox"]').all();
+    const dropdownButtons = page.locator('[role="button"][aria-haspopup="listbox"]');
 
     // Skip if no dropdown menus on settings page
-    if (dropdownButtons.length === 0) {
+    if ((await dropdownButtons.count()) === 0) {
       return;
     }
 
-    const firstDropdown = dropdownButtons[0];
+    const firstDropdown = dropdownButtons.first();
     await firstDropdown.click();
 
-    const options = await page.locator('[role="option"]').all();
-    expect(options.length).toBeGreaterThan(1);
+    const options = page.locator('[role="option"]');
+    expect(await options.count()).toBeGreaterThan(1);
 
-    await options[1].click();
+    await options.nth(1).click();
 
     // Dropdown should close after selection
     await expect(page.locator('[role="listbox"]')).not.toBeVisible({ timeout: 3000 });

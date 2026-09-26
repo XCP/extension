@@ -4,20 +4,19 @@
  * Provides automatic setup/teardown for extension and wallet states.
  */
 
-import { test as base, expect, BrowserContext, Page } from '@playwright/test';
-import { chromium } from '@playwright/test';
-import path from 'path';
+import { type BrowserContext, test as base, chromium, expect, type Page } from '@playwright/test';
 import fs from 'fs';
-import { TEST_PASSWORDS, TEST_MNEMONICS, TEST_PRIVATE_KEYS } from './test-data';
+import path from 'path';
 import {
-  onboarding,
   createWallet as createWalletSelectors,
-  importWallet,
-  unlock,
   header,
-  selectAddress,
+  importWallet,
   index,
+  onboarding,
+  selectAddress,
+  unlock,
 } from './selectors';
+import { TEST_MNEMONICS, TEST_PASSWORDS, TEST_PRIVATE_KEYS } from './test-data';
 
 // ============================================================================
 // Constants (re-exported from test-data.ts for convenience)
@@ -105,7 +104,7 @@ async function launchExtension(testId: string, options?: LaunchOptions): Promise
     // Method 1: Check service workers
     for (const sw of context.serviceWorkers()) {
       const match = sw.url().match(/chrome-extension:\/\/([^/]+)/);
-      if (match) {
+      if (match?.[1]) {
         extensionId = match[1];
         break;
       }
@@ -115,7 +114,7 @@ async function launchExtension(testId: string, options?: LaunchOptions): Promise
     if (!extensionId) {
       for (const p of context.pages()) {
         const match = p.url().match(/chrome-extension:\/\/([^/]+)/);
-        if (match) {
+        if (match?.[1]) {
           extensionId = match[1];
           break;
         }
@@ -126,7 +125,7 @@ async function launchExtension(testId: string, options?: LaunchOptions): Promise
     if (!extensionId) {
       for (const bp of context.backgroundPages()) {
         const match = bp.url().match(/chrome-extension:\/\/([^/]+)/);
-        if (match) {
+        if (match?.[1]) {
           extensionId = match[1];
           break;
         }
@@ -187,8 +186,8 @@ async function importMnemonic(page: Page, mnemonic = TEST_MNEMONIC, password = T
   await importWallet.wordInput(page, 0).waitFor({ state: 'visible' });
 
   const words = mnemonic.split(' ');
-  for (let i = 0; i < words.length && i < 12; i++) {
-    await importWallet.wordInput(page, i).fill(words[i]);
+  for (const [i, word] of words.slice(0, 12).entries()) {
+    await importWallet.wordInput(page, i).fill(word);
   }
 
   // Wait for the checkbox to become enabled (words must be validated)
@@ -404,14 +403,14 @@ export const test = base.extend<ExtensionFixtures>({
   extensionId: async ({ extensionContext }, use) => {
     for (const sw of extensionContext.serviceWorkers()) {
       const match = sw.url().match(/chrome-extension:\/\/([^/]+)/);
-      if (match) {
+      if (match?.[1]) {
         await use(match[1]);
         return;
       }
     }
     for (const p of extensionContext.pages()) {
       const match = p.url().match(/chrome-extension:\/\/([^/]+)/);
-      if (match) {
+      if (match?.[1]) {
         await use(match[1]);
         return;
       }
@@ -453,7 +452,7 @@ export const walletTest = base.extend<WalletFixtures>({
   extensionId: async ({ context }, use) => {
     for (const sw of context.serviceWorkers()) {
       const match = sw.url().match(/chrome-extension:\/\/([^/]+)/);
-      if (match) {
+      if (match?.[1]) {
         await use(match[1]);
         return;
       }
@@ -466,22 +465,21 @@ export const walletTest = base.extend<WalletFixtures>({
 // Exports
 // ============================================================================
 
+export type { NavTarget };
 export {
-  expect,
-  launchExtension,
+  cleanup,
   createWallet,
+  expect,
+  getCurrentAddress,
+  getPrivateKeyRoute,
+  getWalletId,
+  grantClipboardPermissions,
   importMnemonic,
   importPrivateKey,
-  unlockWallet,
+  launchExtension,
   lockWallet,
-  setupWallet,
   navigateTo,
-  cleanup,
-  getCurrentAddress,
-  getWalletId,
-  getPrivateKeyRoute,
-  grantClipboardPermissions,
+  setupWallet,
+  unlockWallet,
   // Note: sleep() is intentionally not exported - use web-first assertions instead
 };
-
-export type { NavTarget };

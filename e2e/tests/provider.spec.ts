@@ -7,8 +7,8 @@
  * Uses walletTest fixture which provides a browser context with the extension loaded.
  */
 
-import { walletTest, expect } from '../fixtures';
 import * as http from 'http';
+import { expect, walletTest } from '../fixtures';
 
 // Helper to create test HTML server
 function createTestServer(): Promise<{ server: http.Server; url: string }> {

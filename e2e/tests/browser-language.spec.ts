@@ -1,6 +1,6 @@
-import { chromium, expect, test } from '@playwright/test';
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { chromium, expect, test } from '@playwright/test';
 import { TEST_MNEMONICS, TEST_PASSWORDS } from '../test-data';
 import { callGalleryService } from '../utils/provider-gallery';
 

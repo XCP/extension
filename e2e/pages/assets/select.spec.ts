@@ -4,7 +4,7 @@
  * Tests for the asset selection page used when choosing assets for transactions.
  */
 
-import { walletTest, expect } from '../../fixtures';
+import { expect, walletTest } from '../../fixtures';
 
 walletTest.describe('Select Assets Page (/assets)', () => {
   walletTest('page loads and shows asset selection UI', async ({ page }) => {

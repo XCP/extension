@@ -4,7 +4,7 @@
  * Core wallet features: balance display, navigation, copy address, etc.
  */
 
-import { walletTest, expect, navigateTo, getCurrentAddress, grantClipboardPermissions, unlockWallet, TEST_PASSWORD } from '../fixtures';
+import { expect, getCurrentAddress, grantClipboardPermissions, navigateTo, TEST_PASSWORD, unlockWallet, walletTest } from '../fixtures';
 import { index, settings, viewAddress } from '../selectors';
 
 walletTest.describe('Balance Display', () => {
@@ -136,7 +136,8 @@ walletTest.describe('Settings Access', () => {
 
 walletTest.describe('State Persistence', () => {
   walletTest('wallet state persists after reload', async ({ page }) => {
-    const initialAddress = await getCurrentAddress(page);
+    // Let the address render before reloading.
+    await getCurrentAddress(page);
 
     await page.reload();
     await page.waitForLoadState('domcontentloaded');

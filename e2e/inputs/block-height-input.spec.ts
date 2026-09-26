@@ -15,7 +15,7 @@
  * - Fairminter page (start/end block heights)
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('BlockHeightInput Component', () => {
   // Navigate to fairminter page which uses BlockHeightInput
@@ -124,7 +124,7 @@ walletTest.describe('BlockHeightInput Component', () => {
       await expect(async () => {
         const value = await input.inputValue();
         if (value) {
-          const numValue = parseInt(value);
+          const numValue = parseInt(value, 10);
           expect(numValue).toBeGreaterThan(0);
         }
       }).toPass({ timeout: 5000 });

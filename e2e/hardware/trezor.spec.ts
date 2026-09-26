@@ -6,8 +6,8 @@
  * trezor-node-integration.test.ts, and the Suite handshake by e2e/tests/trezor-connect-v10.spec.ts.
  * These run in the emulator workflow.
  */
-import { test, expect, Page } from '@playwright/test';
-import { launchExtension, cleanup, createWallet, TEST_PASSWORD } from '../fixtures';
+import { expect, type Page, test } from '@playwright/test';
+import { cleanup, createWallet, launchExtension, TEST_PASSWORD } from '../fixtures';
 
 // Check if emulator tests should run
 const SKIP_EMULATOR_TESTS = process.env.TREZOR_EMULATOR_AVAILABLE !== '1';
@@ -46,6 +46,7 @@ async function setupWalletForHardwareTest(page: Page): Promise<void> {
 
 test.describe('Trezor Hardware Wallet', () => {
   // Skip all tests if emulator not available
+  // biome-ignore lint/suspicious/noSkippedTests: conditional skip, runs only when a Trezor emulator is available.
   test.skip(SKIP_EMULATOR_TESTS, 'Trezor emulator not available');
 
   test('can navigate to connect hardware wallet page', async () => {

@@ -1,8 +1,8 @@
-import type { Page, TestInfo } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { walletTest, expect } from '../fixtures';
-import { callGalleryService, createGalleryApi } from '../utils/provider-gallery';
+import type { Page, TestInfo } from '@playwright/test';
 import { estimateVsize } from '../../src/core/bitcoin/feeEstimation';
+import { expect, walletTest } from '../fixtures';
+import { callGalleryService, createGalleryApi } from '../utils/provider-gallery';
 
 const locales = ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const;
 const catalogs = Object.fromEntries(['en', ...locales].map(locale => [locale,

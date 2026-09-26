@@ -9,11 +9,11 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { buildFixtureTransaction } from '../compose-fixture-tx';
 import { checkOutputPolicy } from '../../src/core/counterparty/outputPolicy';
 import { packComposeMessage } from '../../src/core/counterparty/pack/messages';
 import { bytesToHex } from '../../src/core/counterparty/unpack/binary';
 import { extractCounterpartyPayload } from '../../src/core/counterparty/unpack/opReturn';
+import { buildFixtureTransaction } from '../compose-fixture-tx';
 
 const SOURCE = '14udFRS6AdnQNJZn9RZ1H3LtSqP7k2UeTC';
 const OTHER = '1BoatSLRHtKNngkdXEeobR76b53LETtpyT';

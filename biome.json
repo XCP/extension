@@ -74,6 +74,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["e2e/**/*.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noEmptyPattern": "off"
+          }
+        }
+      }
     }
   ]
 }
