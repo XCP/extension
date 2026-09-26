@@ -3,7 +3,7 @@ import { SigHash } from '@scure/btc-signer';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
 import { computeMoneyMovement } from '@/core/bitcoin/moneyMovement';
-import { committedOutputIndices, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
+import { committedOutputIndices, resolvePsbtSighashType, spendsTaprootOutput } from '@/core/bitcoin/psbt';
 import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { HIGH_ABSOLUTE_FEE_SATS, hasHighPsbtFee } from '@/core/bitcoin/signedVsize';
@@ -82,7 +82,7 @@ export function getPsbtApprovalPolicy(
     : details.inputs.filter(input => !input.address || normalizeAddressForComparison(input.address)
       === normalizeAddressForComparison(request.address)).map(input => input.index);
   const sighashes = indices.map(index => ({ index, sighashType: resolvePsbtSighashType(
-    request.sighashTypes?.[index], details.inputs[index]?.sighashType,
+    request.sighashTypes?.[index], details.inputs[index]?.sighashType, spendsTaprootOutput(details.inputs[index]),
   ) }));
   const movement = computeMoneyMovement({
     inputs: details.inputs, outputs: details.outputs,

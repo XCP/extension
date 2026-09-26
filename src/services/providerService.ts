@@ -11,7 +11,9 @@ import { type AddressFormat, normalizeAddressForComparison } from '@/core/bitcoi
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
-import { extractPsbtDetails, resolvePsbtSighashType, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
+import {
+  extractPsbtDetails, resolvePsbtSighashType, spendsTaprootOutput, tapLeafOwnerAddress, validateSignInputs,
+} from '@/core/bitcoin/psbt';
 import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { fetchTokenBalance } from '@/core/counterparty/api';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
@@ -1011,9 +1013,13 @@ export function createProviderService(): ProviderService {
             assertProviderPsbtSigningRequest(signing, {
               inputCount: details.inputs.length,
               requestedInputIndices,
+              // An unselected input's entry describes a signature someone else made. Only the
+              // hardware contract checks it, so it keeps the ALL fallback that contract expects.
               sighashTypes: details.inputs.map((input, inputIndex) =>
                 requestedInputIndices.includes(inputIndex)
-                  ? resolvePsbtSighashType(request.sighashTypes[inputIndex], input.sighashType)
+                  ? resolvePsbtSighashType(
+                    request.sighashTypes[inputIndex], input.sighashType, spendsTaprootOutput(input),
+                  )
                   : resolvePsbtSighashType(undefined, input.sighashType)
               ),
               presignedInputIndices: details.inputs
@@ -1194,9 +1200,11 @@ export function createProviderService(): ProviderService {
             {
               inputCount: psbtDetails.inputs.length,
               requestedInputIndices,
+              // An unselected input's entry describes a signature someone else made. Only the
+              // hardware contract checks it, so it keeps the ALL fallback that contract expects.
               sighashTypes: psbtDetails.inputs.map((input, inputIndex) =>
                 requestedInputSet.has(inputIndex)
-                  ? resolvePsbtSighashType(sighashTypes?.[inputIndex], input.sighashType)
+                  ? resolvePsbtSighashType(sighashTypes?.[inputIndex], input.sighashType, spendsTaprootOutput(input))
                   : resolvePsbtSighashType(undefined, input.sighashType)
               ),
               presignedInputIndices: psbtDetails.inputs

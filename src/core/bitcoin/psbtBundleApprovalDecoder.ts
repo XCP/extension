@@ -1,6 +1,6 @@
 /** Semantic proof of every item in an atomic provider signing phase. */
 
-import { extractPsbtDetails, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
+import { extractPsbtDetails, resolvePsbtSighashType, spendsTaprootOutput } from '@/core/bitcoin/psbt';
 import {
   type DecodedPsbtInfo,
   decodePsbtForApproval,
@@ -296,6 +296,7 @@ export async function decodePsbtBundleForApproval(
         sighashType: resolvePsbtSighashType(
           childItem!.sighashTypes[index],
           child.inputs[index]?.sighashType,
+          spendsTaprootOutput(child.inputs[index]),
         ),
       })),
       childSignerAddresses: Object.keys(childItem!.signInputs),

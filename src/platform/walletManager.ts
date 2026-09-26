@@ -2155,16 +2155,21 @@ export class WalletManager {
         const targetFormat = pairedTarget?.format ?? wallet.addressFormat;
         const secret = await sessionManager.getUnlockedSecret(wallet.id);
         if (!secret) throw new Error('Wallet is locked');
-        const privateKeyHex = targetFormat === wallet.addressFormat
-          ? (await this.getPrivateKey(wallet.id, targetAddress.path)).hex
-          : mnemonicPrivateKeyAt(secret, targetFormat, targetAddress.path, WalletManager.nodeCache(wallet.id, secret));
+        // A paired address is always a mnemonic key, which is compressed.
+        const key = targetFormat === wallet.addressFormat
+          ? await this.getPrivateKey(wallet.id, targetAddress.path)
+          : {
+              hex: mnemonicPrivateKeyAt(secret, targetFormat, targetAddress.path, WalletManager.nodeCache(wallet.id, secret)),
+              compressed: true,
+            };
         assertStillAuthorized();
         signedPsbtHex = btcSignPSBT(
           signedPsbtHex,
-          privateKeyHex,
+          key.hex,
           inputIndices,
           targetFormat,
-          sighashTypes
+          sighashTypes,
+          key.compressed,
         );
       }
 
@@ -2185,7 +2190,8 @@ export class WalletManager {
         privateKeyResult.hex,
         [], // Empty array means try all inputs
         wallet.addressFormat,
-        sighashTypes
+        sighashTypes,
+        privateKeyResult.compressed,
       );
     }
   }

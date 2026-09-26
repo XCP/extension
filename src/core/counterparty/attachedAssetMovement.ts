@@ -103,11 +103,14 @@ export function resolveAttachedAssetDestination(
   if (sourceInputs.length === 0) return null;
 
   const sighashByInput = new Map(signedInputs.map(input => [input.index, input.sighashType]));
-  // ALL and ALL|ANYONECANPAY both bind every output and therefore also bind the absence of an
-  // overriding detach message. A missing effective sighash is unknown, never optimistically ALL.
-  const destinationCommitted = sourceInputs.every(inputIndex =>
-    sighashBase(sighashByInput.get(inputIndex) ?? -1) === SigHash.ALL
-  );
+  // ALL, ALL|ANYONECANPAY and Taproot's DEFAULT (0x00) all bind every output and therefore also
+  // bind the absence of an overriding detach message. A missing effective sighash is unknown,
+  // never optimistically ALL.
+  const destinationCommitted = sourceInputs.every(inputIndex => {
+    const sighashType = sighashByInput.get(inputIndex);
+    return sighashType === SigHash.DEFAULT
+      || (sighashType !== undefined && sighashBase(sighashType) === SigHash.ALL);
+  });
 
   const explicitDestination = detachDestination(counterpartyMessage);
   if (explicitDestination !== null) {

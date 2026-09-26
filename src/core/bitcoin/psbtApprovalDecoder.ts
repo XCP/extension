@@ -5,6 +5,7 @@ import {
   extractPsbtDetails,
   type PsbtDetails,
   resolvePsbtSighashType,
+  spendsTaprootOutput,
 } from '@/core/bitcoin/psbt';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchInputsAttachedAssets, type InputAttachedAssets } from '@/core/counterparty/inputAssets';
@@ -101,6 +102,7 @@ export async function decodePsbtForApproval(
       sighashType: resolvePsbtSighashType(
         requestedSighashTypes?.[index],
         psbtDetails.inputs[index]?.sighashType,
+        spendsTaprootOutput(psbtDetails.inputs[index]),
       ),
     })),
     transactionId: txid,

@@ -7,9 +7,10 @@
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { Address, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
-import { taprootTweakPrivKey } from '@scure/btc-signer/utils.js';
+import { Address, getInputType, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { hash160, taprootTweakPrivKey } from '@scure/btc-signer/utils.js';
 import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { signInputWithUncompressedKey } from '@/core/bitcoin/uncompressedSigner';
 import { SigningError, ValidationError } from '@/core/errors';
 import { toSafeInteger } from '@/core/numeric';
 
@@ -36,13 +37,23 @@ function assertPsbtEncodedSize(length: number, encoding: 'hex' | 'base64'): void
   }
 }
 
-/** Resolve the exact sighash the signer will use for one PSBT input. */
+/**
+ * Resolve the exact sighash the signer will use for one PSBT input: the request's explicit entry,
+ * then the type embedded in the PSBT input, then the input's own default. An input spending a
+ * Taproot output defaults to SIGHASH_DEFAULT (0x00): BIP 341 makes it the implied type, BIP 371
+ * PSBTs leave the field out for it, and the signer refuses to sign such an input with ALL. Every
+ * other input defaults to SIGHASH_ALL. Both commit to every input and every output.
+ */
 export function resolvePsbtSighashType(
   explicitSighashType?: number,
-  embeddedSighashType?: number
+  embeddedSighashType?: number,
+  spendsTaproot = false,
 ): number {
-  return explicitSighashType ?? embeddedSighashType ?? SigHash.ALL;
+  return explicitSighashType ?? embeddedSighashType ?? (spendsTaproot ? SigHash.DEFAULT : SigHash.ALL);
 }
+
+/** Whether a decoded PSBT input spends a Taproot output, which sets its default sighash. */
+export const spendsTaprootOutput = (input?: { scriptType?: string }): boolean => input?.scriptType === 'p2tr';
 
 /** The sighash type without its ANYONECANPAY bit: DEFAULT, ALL, NONE or SINGLE. */
 export const sighashBase = (sighashType: number): number => sighashType & 0x1f;
@@ -546,6 +557,40 @@ export function tapLeafOwnerAddress(input: DecodedInput): string | undefined {
 }
 
 /**
+ * Sign one input with an uncompressed key. The PSBT signer handles compressed keys only, so this
+ * makes the checks it would make and then signs the legacy digest itself. Only a P2PKH prevout
+ * paying hash160 of this uncompressed key is signable (no other script type is valid for an
+ * uncompressed key); a legacy input must carry its full previous transaction; the input's own
+ * sighash must be the resolved one (so an embedded or requested DEFAULT is refused, as the PSBT
+ * signer refuses it on a legacy input); and SIGHASH_SINGLE needs an output at the same index.
+ */
+function signP2pkhInputWithUncompressedKey(
+  tx: Transaction,
+  inputIdx: number,
+  privateKey: Uint8Array,
+  uncompressedPubkey: Uint8Array,
+  sighashType: number,
+): void {
+  // Throws for a legacy input carrying only a witnessUtxo, exactly as the PSBT signer does.
+  const inputType = getInputType(tx.getInput(inputIdx), false);
+  const last = inputType.last as { type: string; hash?: Uint8Array };
+  const ownHash = hash160(uncompressedPubkey);
+  if (
+    inputType.type !== 'pkh' || !last.hash || last.hash.length !== ownHash.length
+    || last.hash.some((byte, index) => byte !== ownHash[index])
+  ) {
+    throw new Error(`Input script doesn't have pubKey: ${bytesToHex(inputType.lastScript)}`);
+  }
+  if (inputType.sighash !== sighashType) {
+    throw new Error(`Input with not allowed sigHash=${inputType.sighash}. Allowed: ${sighashType}`);
+  }
+  if (sighashBase(sighashType) === SigHash.SINGLE && inputIdx >= tx.outputsLength) {
+    throw new Error(`Input with sighash SINGLE, but there is no output with corresponding index=${inputIdx}`);
+  }
+  signInputWithUncompressedKey(tx, inputIdx, privateKey, uncompressedPubkey, inputType.lastScript, sighashType);
+}
+
+/**
  * Sign specified inputs of a PSBT
  *
  * @param psbt - PSBT in hex or base64 format
@@ -553,6 +598,8 @@ export function tapLeafOwnerAddress(input: DecodedInput): string | undefined {
  * @param inputIndices - Which input indices to sign (if empty, tries all)
  * @param addressFormat - Address format for the signing key
  * @param sighashTypes - Optional sighash type per input (for atomic swaps use 0x81 = ALL|ANYONECANPAY)
+ * @param compressed - Whether the key's public key is compressed. An uncompressed key (an imported
+ *   uncompressed WIF) owns only P2PKH outputs and signs only those.
  * @returns Signed PSBT hex (not finalized - caller can finalize or pass to next signer)
  */
 export function signPSBT(
@@ -560,7 +607,8 @@ export function signPSBT(
   privateKeyHex: string,
   inputIndices: number[],
   addressFormat: AddressFormat,
-  sighashTypes?: number[]
+  sighashTypes?: number[],
+  compressed = true,
 ): string {
   // Normalize to hex (handles both hex and base64 input)
   const psbtHex = normalizePsbtToHex(psbt);
@@ -579,7 +627,12 @@ export function signPSBT(
   assertPsbtComplexity(tx);
 
   const privateKeyBytes = hexToBytes(privateKeyHex);
-  const pubkeyBytes = getPublicKey(privateKeyBytes, true);
+  if (!compressed && addressFormat !== AddressFormat.P2PKH) {
+    privateKeyBytes.fill(0);
+    throw new ValidationError('INVALID_PSBT', 'An uncompressed key can sign only P2PKH inputs');
+  }
+  // The key's own public key: an uncompressed key's P2PKH address hashes the 65-byte encoding.
+  const pubkeyBytes = getPublicKey(privateKeyBytes, compressed);
 
   // If no specific indices provided, try to sign all inputs
   const indicesToSign = inputIndices.length > 0
@@ -658,11 +711,16 @@ export function signPSBT(
         }
       }
 
-      // Determine sighash: use the explicit sighashTypes param if provided,
-      // then fall back to the sighash embedded in the PSBT input, then default to ALL
+      // Determine sighash: use the explicit sighashTypes param if provided, then fall back to the
+      // sighash embedded in the PSBT input, then to the input's default (DEFAULT for a Taproot
+      // prevout, ALL otherwise)
       const input = tx.getInput(inputIdx);
+      const inputPrevout = (input.index !== undefined ? input.nonWitnessUtxo?.outputs[input.index] : undefined)
+        ?? input.witnessUtxo;
+      const spendsTaproot = inputPrevout?.script !== undefined
+        && getScriptType(bytesToHex(inputPrevout.script)) === 'p2tr';
       const requestedSighashType = sighashTypes?.[inputIdx];
-      const sighashType = resolvePsbtSighashType(requestedSighashType, input.sighashType);
+      const sighashType = resolvePsbtSighashType(requestedSighashType, input.sighashType, spendsTaproot);
       // Enforce the allowlist on the EFFECTIVE sighash, so an embedded
       // SIGHASH_NONE/SINGLE can't bypass the explicit-parameter check. In
       // best-effort mode the input may be a co-signer's, so skip it; with
@@ -679,7 +737,11 @@ export function signPSBT(
       }
 
       try {
-        tx.signIdx(privateKeyBytes, inputIdx, [sighashType]);
+        if (compressed) {
+          tx.signIdx(privateKeyBytes, inputIdx, [sighashType]);
+        } else {
+          signP2pkhInputWithUncompressedKey(tx, inputIdx, privateKeyBytes, pubkeyBytes, sighashType);
+        }
         signedCount++;
       } catch (inputErr) {
         // A tapscript spend of this signer's own taproot address — an inscription reveal — names
