@@ -1,3 +1,4 @@
+import { SigHash } from '@scure/btc-signer';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import type { Wallet } from '@/types/wallet';
@@ -128,14 +129,18 @@ export function providerPsbtSigningCapabilities(
     return {
       psbt: {
         supported: true,
-        sighashTypes: wallet.addressFormat === AddressFormat.P2TR ? [0x00, 0x01, 0x81, 0x83] : [0x01, 0x81, 0x83],
+        sighashTypes: wallet.addressFormat === AddressFormat.P2TR
+          ? [SigHash.DEFAULT, SigHash.ALL, SigHash.ALL_ANYONECANPAY, SigHash.SINGLE_ANYONECANPAY]
+          : [SigHash.ALL, SigHash.ALL_ANYONECANPAY, SigHash.SINGLE_ANYONECANPAY],
         inputScope: 'selected',
         externalInputs: 'any',
       },
       psbtBatch: {
         supported: true,
         // A P2TR signer's policy-offer funding inputs sign DEFAULT, as its single-PSBT method does.
-        sighashTypes: wallet.addressFormat === AddressFormat.P2TR ? [0x00, 0x01, 0x83] : [0x01, 0x83],
+        sighashTypes: wallet.addressFormat === AddressFormat.P2TR
+          ? [SigHash.DEFAULT, SigHash.ALL, SigHash.SINGLE_ANYONECANPAY]
+          : [SigHash.ALL, SigHash.SINGLE_ANYONECANPAY],
         inputScope: 'selected',
         externalInputs: 'any',
         maxRequests: 8,
@@ -149,13 +154,13 @@ export function providerPsbtSigningCapabilities(
   return {
     psbt: {
       supported,
-      sighashTypes: supported ? [0x01] : [],
+      sighashTypes: supported ? [SigHash.ALL] : [],
       inputScope: 'selected',
       externalInputs: 'presigned',
     },
     psbtBatch: {
       supported,
-      sighashTypes: supported ? [0x01] : [],
+      sighashTypes: supported ? [SigHash.ALL] : [],
       inputScope: 'selected',
       externalInputs: 'presigned',
       maxRequests: supported ? 8 : 0,

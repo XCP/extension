@@ -1,7 +1,6 @@
+import { SigHash } from '@scure/btc-signer';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
-import { ALLOWED_PSBT_SIGHASH_TYPES, type PsbtDetails, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
-
-const SIGHASH_SINGLE = 0x03;
+import { ALLOWED_PSBT_SIGHASH_TYPES, type PsbtDetails, resolvePsbtSighashType, sighashBase } from '@/core/bitcoin/psbt';
 
 /**
  * Refuse at intake a sighash the signer would refuse after approval. The effective sighash is the
@@ -21,7 +20,7 @@ function assertEffectiveSighashes(
     if (!ALLOWED_PSBT_SIGHASH_TYPES.has(sighash)) {
       throw new Error(`Input ${index} uses an unsupported sighash type`);
     }
-    if ((sighash & 0x1f) === SIGHASH_SINGLE && index >= details.outputs.length) {
+    if (sighashBase(sighash) === SigHash.SINGLE && index >= details.outputs.length) {
       throw new Error('SIGHASH_SINGLE requires an output at the same index');
     }
   }

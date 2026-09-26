@@ -1,5 +1,6 @@
 /** Exact-offer proofs: the bidder's authorization and the seller's acceptance of one transaction. */
 
+import { SigHash } from '@scure/btc-signer';
 import { sameAddress } from '@/core/bitcoin/address';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import { formatExpiry, grouped, satsValue } from '@/core/counterparty/marketplace/format';
@@ -120,7 +121,7 @@ export function analyzeExactOfferIntent(
   if (new Set(inputOutpoints).size !== inputOutpoints.length) {
     blockers.push('the exact offer contains a duplicate input outpoint');
   }
-  if (!signsExactly(signedInputs, [requestedInputIndex], [0x01])) {
+  if (!signsExactly(signedInputs, [requestedInputIndex], [SigHash.ALL])) {
     blockers.push(
       `the wallet must sign only input ${requestedInputIndex} with ALL (0x01) for this action`,
     );

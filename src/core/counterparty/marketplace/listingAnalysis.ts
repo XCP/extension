@@ -1,5 +1,6 @@
 /** Listing-side marketplace proofs: attach, flexible listing authorization, and buyer checkout. */
 
+import { SigHash } from '@scure/btc-signer';
 import { normalizeAddressForComparison, sameAddress } from '@/core/bitcoin/address';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import { formatExpiry, formatXcpRaw, grouped, satsValue } from '@/core/counterparty/marketplace/format';
@@ -54,7 +55,7 @@ export function analyzeCreateListingIntent({
   }
   if (hasCounterpartyPayload) blockers.push('a listing authorization must not carry a Counterparty payload yet');
 
-  if (!signsExactly(signedInputs, [1], [0x83])) {
+  if (!signsExactly(signedInputs, [1], [SigHash.SINGLE_ANYONECANPAY])) {
     blockers.push('the wallet must sign only input 1 with SINGLE|ANYONECANPAY (0x83)');
   }
   if (signerAddresses.length !== 1 || !sameAddress(signerAddresses[0], intent.seller)) {
@@ -250,7 +251,7 @@ export function analyzeAttachIntent(
   if (new Set(inputOutpoints).size !== inputOutpoints.length) {
     blockers.push('the attach request contains a duplicate input outpoint');
   }
-  if (!signsExactly(signedInputs, inputs.map((_, index) => index), [0x01])) {
+  if (!signsExactly(signedInputs, inputs.map((_, index) => index), [SigHash.ALL])) {
     blockers.push('the wallet must sign every attach input exactly once with ALL (0x01)');
   }
   if (!sameAddress(inputs[0]?.address, assetSource)) {
@@ -443,7 +444,7 @@ export function analyzeBuyListingsIntent(
       (_, index) => firstAdditionalBuyerInput + index,
     ),
   ];
-  if (!signsExactly(signedInputs, expectedSignedIndices, [0x01])) {
+  if (!signsExactly(signedInputs, expectedSignedIndices, [SigHash.ALL])) {
     blockers.push('the wallet must sign every buyer funding input, and only those inputs, with ALL (0x01)');
   }
   if (signerAddresses.length !== 1 || !sameAddress(signerAddresses[0], intent.buyer)) {

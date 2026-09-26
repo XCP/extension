@@ -1,5 +1,6 @@
 /** Atomic wallet proof for an exact-offer acceptance parent and its seller-funded CPFP child. */
 
+import { SigHash } from '@scure/btc-signer';
 import { sameAddress } from '@/core/bitcoin/address';
 import type { InputLike, OutputLike } from '@/core/counterparty/marketplace/intentTypes';
 import { boundedString, hex32, positiveRawQuantity, safeInteger } from '@/core/counterparty/marketplace/wire';
@@ -207,7 +208,7 @@ export function analyzeAcceptanceCpfpBundle(
   if (
     input.childSignedInputs.length !== 1
     || input.childSignedInputs[0]?.index !== 0
-    || input.childSignedInputs[0]?.sighashType !== 0x01
+    || input.childSignedInputs[0]?.sighashType !== SigHash.ALL
   ) {
     blockers.push('the wallet must sign only child input 0 with ALL (0x01)');
   }

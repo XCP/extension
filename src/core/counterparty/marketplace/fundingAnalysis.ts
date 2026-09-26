@@ -1,5 +1,6 @@
 /** Clean-BTC self-sends that prepare listing UTXOs or set aside exact-offer funding. */
 
+import { SigHash } from '@scure/btc-signer';
 import { sameAddress } from '@/core/bitcoin/address';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import {
@@ -54,7 +55,7 @@ export function analyzePrepareBulkFanoutIntent(
   if (inputs.length !== 1) {
     blockers.push(`expected exactly one fan-out funding input, got ${inputs.length}`);
   }
-  if (!signsExactly(signedInputs, [0], [0x01])) {
+  if (!signsExactly(signedInputs, [0], [SigHash.ALL])) {
     blockers.push('the wallet must sign only fan-out input 0 with ALL (0x01)');
   }
   if (signerAddresses.length !== 1 || !sameAddress(signerAddresses[0], intent.seller)) {
@@ -213,7 +214,7 @@ export function analyzeFundOffersIntent(
   if (
     signedInputs.length !== inputs.length
     || inputs.some(transactionInput => !signedIndices.has(transactionInput.index))
-    || signedInputs.some(entry => entry.sighashType !== 0x01)
+    || signedInputs.some(entry => entry.sighashType !== SigHash.ALL)
   ) {
     blockers.push('the wallet must sign every offer funding input with ALL (0x01)');
   }

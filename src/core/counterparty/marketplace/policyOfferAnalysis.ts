@@ -1,6 +1,7 @@
 /** `funded_policy_offer_v1` proofs: the bidder's funding parent and the seller's acceptance child. */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { SigHash } from '@scure/btc-signer';
 import { decodeAddressFromScript, sameAddress } from '@/core/bitcoin/address';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import {
@@ -175,7 +176,7 @@ export function analyzeFundPolicyOfferIntent(
   }
 
   // Every funding input, only those — never the anchor — with a signature over the whole parent.
-  const allowedSighashes = bidderTaproot ? [0x00, 0x01] : [0x01];
+  const allowedSighashes = bidderTaproot ? [SigHash.DEFAULT, SigHash.ALL] : [SigHash.ALL];
   const fundingIndices = intent.fundingInputs.map((_, index) => index);
   if (!signsExactly(signedInputs, fundingIndices, allowedSighashes)) {
     blockers.push(bidderTaproot
@@ -441,7 +442,7 @@ export function analyzeAcceptPolicyOfferIntent(
     }
   });
   const sellerTaproot = sellerInput?.scriptType === 'p2tr';
-  if (!signsExactly(signedInputs, [1], sellerTaproot ? [0x00, 0x01] : [0x01])) {
+  if (!signsExactly(signedInputs, [1], sellerTaproot ? [SigHash.DEFAULT, SigHash.ALL] : [SigHash.ALL])) {
     blockers.push(sellerTaproot
       ? 'the wallet must sign only input 1 with DEFAULT or ALL'
       : 'the wallet must sign only input 1 with ALL (0x01)');

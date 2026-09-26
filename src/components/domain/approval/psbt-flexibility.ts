@@ -1,3 +1,5 @@
+import { SigHash } from '@scure/btc-signer';
+import { sighashBase } from '@/core/bitcoin/psbt';
 import { t } from '@/i18n';
 
 export type PsbtFlexibilityKind = 'inputs-only' | 'outputs-flexible';
@@ -24,7 +26,7 @@ export function describePsbtFlexibility(
   if (anyoneCanPay.length === 0) return null;
 
   const hasOutputFlexibleSignature = anyoneCanPay.some(
-    ({ sighashType }) => (sighashType & 0x1f) !== 0x01
+    ({ sighashType }) => sighashBase(sighashType) !== SigHash.ALL
   );
 
   if (atRiskSats > 0) {
