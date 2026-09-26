@@ -254,6 +254,79 @@ function reverseHex(hex: string): string {
   return hex.match(/../g)!.reverse().join('');
 }
 
+function amountHex(sats: number): string {
+  return reverseHex(BigInt(sats).toString(16).padStart(16, '0'));
+}
+
+/**
+ * A real compose with its commit output 0 funded with `commitValue`, and its reveal re-pointed at
+ * that commit, returning `changeValue` in its ord output when given. The reveal's signature goes
+ * stale; nothing checked here reads it.
+ */
+function refunded(fixture: TaprootFixture, commitValue: number, changeValue?: number) {
+  const commit = Transaction.fromRaw(hexToBytes(fixture.rawtransaction), { allowUnknownOutputs: true });
+  const { amount, script } = commit.getOutput(0);
+  const scriptHex = `${(script!.length).toString(16).padStart(2, '0')}${bytesToHex(script!)}`;
+  const rawtransaction = fixture.rawtransaction
+    .replace(`${amountHex(Number(amount))}${scriptHex}`, `${amountHex(commitValue)}${scriptHex}`);
+  const commitId = Transaction.fromRaw(hexToBytes(rawtransaction), { allowUnknownOutputs: true }).id;
+  let reveal = fixture.signed_reveal_rawtransaction.replace(reverseHex(commit.id), reverseHex(commitId));
+  if (changeValue !== undefined) {
+    const change = Transaction.fromRaw(hexToBytes(reveal), { allowUnknownOutputs: true }).getOutput(1);
+    const changeScript = `${(change.script!.length).toString(16).padStart(2, '0')}${bytesToHex(change.script!)}`;
+    reveal = reveal.replace(`${amountHex(Number(change.amount))}${changeScript}`, `${amountHex(changeValue)}${changeScript}`);
+  }
+  return { reveal, options: { ...revealOptions(fixture), commitTxHex: rawtransaction } };
+}
+
+describe('what the commit output may hold', () => {
+  // Core's ord reveal: 1,291 sats committed, 546 returned, 745 fee.
+  const ORD_FEE = 745;
+
+  it("rebuilds core's own ord pair unchanged, and accepts it", () => {
+    const { reveal, options } = refunded(ORD_BROADCAST_TAPROOT, ORD_FEE + 546, 546);
+    expect(options.commitTxHex).toBe(ORD_BROADCAST_TAPROOT.rawtransaction);
+    expect(reveal).toBe(ORD_BROADCAST_TAPROOT.signed_reveal_rawtransaction);
+    expect(verifyRevealTransaction(reveal, options)).toEqual({ ok: true, revealFee: ORD_FEE });
+  });
+
+  it('refuses a large commit whose reveal returns a little and burns the rest as fee', () => {
+    const { reveal, options } = refunded(ORD_BROADCAST_TAPROOT, 50_000_000, 1000);
+    const result = verifyRevealTransaction(reveal, options);
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/not accepted/);
+  });
+
+  it('refuses a large ord commit even when the reveal returns nearly all of it to the source', () => {
+    // The fee is exactly core's, but the commit output holds 0.1 BTC under the envelope key.
+    const { reveal, options } = refunded(ORD_BROADCAST_TAPROOT, ORD_FEE + 10_000_000, 10_000_000);
+    const result = verifyRevealTransaction(reveal, options);
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/more than the dust core sends back/);
+  });
+
+  it("refuses an ord reveal returning one sat more than core's dust", () => {
+    const { reveal, options } = refunded(ORD_BROADCAST_TAPROOT, ORD_FEE + 547, 547);
+    const result = verifyRevealTransaction(reveal, options);
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/more than the dust core sends back/);
+  });
+
+  it('refuses a data commit holding more than the reveal fee, since its reveal returns nothing', () => {
+    // Core's send commit is 330 sats, all of it fee; any more is fee the user never chose.
+    const same = refunded(SEND_TAPROOT, 330);
+    expect(same.options.commitTxHex).toBe(SEND_TAPROOT.rawtransaction);
+    expect(verifyRevealTransaction(same.reveal, same.options)).toEqual({ ok: true, revealFee: 330 });
+
+    for (const value of [1_000, 50_000_000]) {
+      const { reveal, options } = refunded(SEND_TAPROOT, value);
+      const result = verifyRevealTransaction(reveal, options);
+      expect(result.ok).toBe(false);
+      expect(result.error).toMatch(/higher fee/);
+    }
+  });
+});
+
 /**
  * A real compose whose commit output 0 is re-pointed at another script tree, and whose reveal is
  * re-pointed at that commit with the control block for the fixture's envelope in that tree. The

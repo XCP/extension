@@ -335,6 +335,15 @@ export function readDataEnvelope(envelopeScriptHex: string, network: Network = '
 /** `config.DEFAULT_SEGWIT_DUST_SIZE`: core never funds a commit output below this. */
 export const COMMIT_DUST_FLOOR = 330;
 
+/**
+ * `config.DEFAULT_REGULAR_DUST_SIZE`: what core returns to the source in an ord reveal
+ * (`get_reveal_outputs` pays `regular_dust_size(construct_params)`, and the wallet never sets
+ * `regular_dust_size` on a compose request). The commit output's key-path is the envelope key the
+ * server holds, so whatever the commit output holds beyond the reveal's fee is only as safe as
+ * that key — the reveal may return no more than this.
+ */
+export const ORD_REVEAL_CHANGE_SATS = 546;
+
 export interface RevealCheckOptions {
   /** The envelope the reveal publishes, which decides the outputs core gives it. */
   kind: EnvelopeKind;
@@ -366,7 +375,8 @@ export interface RevealCheck {
  * - one input, spending output 0 of this commit, which must pay the derived commit address and
  *   commit to the verified envelope as its only leaf, published as the reveal's tapleaf;
  * - a data envelope's reveal has only the zero-value CNTRPRTY marker, so the whole commit output
- *   is fee; an ord reveal adds exactly one output returning dust to the source;
+ *   is fee; an ord reveal adds exactly one output returning dust to the source, and no more than
+ *   core's dust, since the envelope key can also spend the commit output by its key path;
  * - the commit output holds the reveal's fee at the user's rate plus that dust, raised to the
  *   segwit dust floor, and no more.
  *
@@ -428,6 +438,9 @@ export function verifyRevealTransaction(revealHex: string, options: RevealCheckO
     const address = change?.script ? decodeAddressFromScript(bytesToHex(change.script)) : null;
     if (!address || !own.has(address.toLowerCase()) || change?.amount === undefined) {
       return { ok: false, error: 'The reveal pays an address that is not yours, so it was not accepted.' };
+    }
+    if (change.amount > BigInt(ORD_REVEAL_CHANGE_SATS)) {
+      return { ok: false, error: 'The reveal returns more than the dust core sends back, so it was not accepted.' };
     }
     returned = change.amount;
   }
