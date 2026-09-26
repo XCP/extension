@@ -473,7 +473,7 @@ describe('the marketplace intent proof', () => {
         vout: 1,
         address: SIGNER,
         value: 256_250,
-        hasSignatures: accepting,
+        hasSignatures: false,
       },
       {
         index: 1,
@@ -516,7 +516,7 @@ describe('the marketplace intent proof', () => {
         vout: 1,
         address: SIGNER,
         value: 256_580,
-        hasSignatures: accepting,
+        hasSignatures: false,
       },
       {
         index: 1,
