@@ -53,10 +53,12 @@ describe('WalletManager.addAddress on a Trezor wallet', () => {
 
     expect([second.path, second.address]).toEqual([expected[1]!.path, expected[1]!.address]);
     expect([third.path, third.address]).toEqual([expected[2]!.path, expected[2]!.address]);
-    expect(record.addressCount).toBe(3);
+    // A saved change replaces the live keychain, so read the record back from it.
+    const saved = manager['keychain']!.wallets[0]!;
+    expect(saved.addressCount).toBe(3);
     expect(manager['persistKeychain']).toHaveBeenCalledTimes(2);
     // What the next unlock rebuilds is what was just added.
-    expect(deriveAddressesFromSecret(secret.value, record).map(a => a.address))
+    expect(deriveAddressesFromSecret(secret.value, saved).map(a => a.address))
       .toEqual(expected.map(a => a.address));
   });
 
