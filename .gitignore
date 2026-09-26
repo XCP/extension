@@ -46,7 +46,6 @@ tmpclaude-*-cwd
 # Local reference folders (not part of repo)
 counterparty-core/
 docs/*
-!docs/adr/
 !docs/signing-policy.md
 !docs/marketplace-intents.md
 !docs/approval-screens.md
