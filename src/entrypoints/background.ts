@@ -7,10 +7,10 @@ import {
 } from '@/platform/auth/sessionManager';
 import { markSessionRecovery } from '@/platform/auth/sessionReady';
 import { deliverProviderEvent, wereAccountsAnnounced } from '@/platform/browser';
+import { markServicesReady, whenServicesReady } from '@/platform/serviceReadiness';
 import { getCachedKeychainMasterKey } from '@/platform/storage/keyStorage';
 import { getApprovalService, registerApprovalService } from '@/services/approvalService';
 import { getConnectionService } from '@/services/connectionService';
-import { markServicesReady, whenServicesReady } from '@/platform/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { registerProviderService } from '@/services/providerService';

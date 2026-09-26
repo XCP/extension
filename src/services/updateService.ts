@@ -14,12 +14,12 @@
  * background (see LEGACY_ALARMS in entrypoints/background.ts).
  */
 
+import { whenServicesReady } from '@/platform/serviceReadiness';
 import {
   getUpdateState,
   setUpdateState,
   type UpdateState,
 } from '@/platform/storage/updateStorage';
-import { whenServicesReady } from '@/platform/serviceReadiness';
 
 /** Extension documents whose presence means someone is using the wallet right now. */
 const UI_CONTEXT_TYPES = ['POPUP', 'TAB', 'SIDE_PANEL'] as const;

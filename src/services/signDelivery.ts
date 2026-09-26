@@ -1,3 +1,9 @@
+/**
+ * The delivery-time authorization check shared by the provider and provider-signing services.
+ *
+ * Background-only, and a services-layer module rather than a platform one: it asks the wallet and
+ * connection services, and its synchronous guard reads the background's own walletManager.
+ */
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { ProviderReviewError, withProviderReviewCode } from '@/core/providerReviewErrors';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';

@@ -41,7 +41,6 @@ import {
 } from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import { supportsPairedContinuity } from '@/platform/provider/requestIdentity';
-import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/platform/provider/signDelivery';
 import {
   beginSignFlow,
   type CompletedSignFlow,
@@ -62,6 +61,7 @@ import type { ApprovalPlacement } from '@/services/approvalService';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { PROVIDER_SERVICE_NAME, PROVIDER_SERVICE_POLICY } from '@/services/providerServiceClient';
+import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/services/signDelivery';
 import { getUpdateService } from '@/services/updateService';
 import { getWalletService } from '@/services/walletService';
 

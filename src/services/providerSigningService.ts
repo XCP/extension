@@ -19,13 +19,13 @@ import type { SigningIdentity } from '@/platform/auth/signingIdentity';
 import type { PairedGrant } from '@/platform/provider/pairedGrant';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
 import { getConnectionRevokedCode, getIdentityMismatchCode, getMessagePermissionCode, getPsbtPermissionCode, supportsPairedContinuity } from '@/platform/provider/requestIdentity';
-import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/platform/provider/signDelivery';
 import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignMessageRequest, type SignPsbtRequest, type SignPsbtsRequest, type SignTransactionRequest } from '@/platform/provider/signFlow';
 import { signAttachAndListingForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
 import { defineProxyService } from '@/platform/proxy';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY } from '@/services/providerSigningServiceClient';
+import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/services/signDelivery';
 import { getWalletService } from '@/services/walletService';
 
 interface ReviewBase {
