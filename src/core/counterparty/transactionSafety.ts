@@ -7,6 +7,7 @@
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { DUST_LIMIT_SATS } from '@/core/bitcoin/constants';
 import { publicKeyPointId } from '@/core/bitcoin/publicKeyIdentity';
 import type { MarketplaceBlockKind } from '@/core/counterparty/marketplaceIntent';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
@@ -152,7 +153,7 @@ const SAFE_MESSAGE_TYPES = new Set([
  * and are normal for Counterparty transactions (e.g., multisig encoding,
  * dispenser triggers).
  */
-const DUST_THRESHOLD = 546;
+const DUST_THRESHOLD = DUST_LIMIT_SATS;
 
 /**
  * Output script types that can carry a Counterparty payload. Reaching one of these without a

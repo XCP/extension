@@ -66,7 +66,7 @@ export function estimateSignedPsbtVsize(details: {
 }
 
 /** Absolute fee above which a site-built transaction always needs a second look: 0.1 BTC. */
-const HIGH_ABSOLUTE_FEE_SATS = 10_000_000;
+export const HIGH_ABSOLUTE_FEE_SATS = 10_000_000;
 
 /**
  * Whether a PSBT's fee needs acknowledgement: over 0.1 BTC, or a rate far above the network's.

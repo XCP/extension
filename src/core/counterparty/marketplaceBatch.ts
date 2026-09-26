@@ -30,20 +30,24 @@ export type MarketplaceBatchIntent =
   | AuthorizeExactOfferIntentClaim
   | FundPolicyOfferIntentClaim;
 
-export type MarketplaceBatchKind =
-  | 'attach-and-list'
-  | 'bulk-fanout'
-  | 'prepare-assets'
-  | 'bulk-attach'
-  | 'bulk-listing'
-  | 'authorize-offers'
-  | 'fund-policy-offer';
+/** Every homogeneous linked phase this wallet proves as a whole, as a runtime list for validation. */
+export const MARKETPLACE_BATCH_KINDS = [
+  'attach-and-list',
+  'bulk-fanout',
+  'prepare-assets',
+  'bulk-attach',
+  'bulk-listing',
+  'authorize-offers',
+  'fund-policy-offer',
+] as const;
+
+export type MarketplaceBatchKind = typeof MARKETPLACE_BATCH_KINDS[number];
 
 /** Every linked phase but a policy-offer funding set, whose alternatives may number 1..100. */
 export const MAX_MARKETPLACE_BATCH_REQUESTS = 8;
 
 /** How many requests one phase of this kind may carry. */
-export const maxMarketplaceBatchRequests = (kind: string): number =>
+export const maxMarketplaceBatchRequests = (kind: MarketplaceBatchKind | 'acceptance-cpfp'): number =>
   kind === 'fund-policy-offer' ? MAX_POLICY_ALTERNATIVES : MAX_MARKETPLACE_BATCH_REQUESTS;
 
 const batchIdentity = (intent: MarketplaceBatchIntent): string =>

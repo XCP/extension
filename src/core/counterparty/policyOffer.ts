@@ -20,6 +20,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { p2tr, p2wpkh } from '@scure/btc-signer';
 import { tagSchnorr, taprootTweakPubkey } from '@scure/btc-signer/utils.js';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
+import { DUST_LIMIT_SATS, RBF_SEQUENCE } from '@/core/bitcoin/constants';
 import type { DecodedOutput } from '@/core/bitcoin/psbt';
 import { parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
 import { arc4 } from '@/core/counterparty/unpack/binary';
@@ -28,7 +29,7 @@ import { toSafeInteger } from '@/core/numeric';
 export const POLICY_OFFER_PROTOCOL_VERSION = 'funded_policy_offer_v1' as const;
 export const POLICY_OFFER_TX_VERSION = 3;
 export const POLICY_OFFER_LOCKTIME = 0;
-export const POLICY_OFFER_SEQUENCE = 0xfffffffd;
+export const POLICY_OFFER_SEQUENCE = RBF_SEQUENCE;
 export const POLICY_OFFER_LEAF_VERSION = 0xc0;
 export const POLICY_OFFER_TAG = 'digirare/policy-offer/v1';
 const POLICY_OFFER_TAG_BYTES = new TextEncoder().encode(POLICY_OFFER_TAG);
@@ -50,7 +51,7 @@ export const PLATFORM_FEE_BPS = 250;
 export const PLATFORM_FEE_MIN_SATS = 1_000;
 export const MIN_POLICY_PRICE_SATS = 5_000;
 /** Seller proceeds must exceed this, the same guard as every other marketplace settlement. */
-export const POLICY_SELLER_DUST_SATS = 546;
+export const POLICY_SELLER_DUST_SATS = DUST_LIMIT_SATS;
 
 /** Integer arithmetic, rounded up, exactly as the marketplace computes the fee output. */
 export function platformFeeSats(priceSats: number): number {

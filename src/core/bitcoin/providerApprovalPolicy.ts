@@ -6,7 +6,7 @@ import { computeMoneyMovement } from '@/core/bitcoin/moneyMovement';
 import { committedOutputIndices, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
 import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
-import { hasHighPsbtFee } from '@/core/bitcoin/signedVsize';
+import { HIGH_ABSOLUTE_FEE_SATS, hasHighPsbtFee } from '@/core/bitcoin/signedVsize';
 import type { DecodedTransactionInfo } from '@/core/bitcoin/transactionApprovalDecoder';
 import { findUncommittedAssetSignatures } from '@/core/counterparty/durableSellAuthorization';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
@@ -168,7 +168,7 @@ export function getTransactionApprovalPolicy(
     ? [index] : []);
   // A raw transaction is signed SIGHASH_ALL throughout.
   const result = policy(decoded, indices.map(index => ({ index, sighashType: SigHash.ALL })), strictMode,
-    decoded.fee > 10_000_000 || exceedsSaneFeeRate(decoded.fee, decoded.vsize, fastestFee), false);
+    decoded.fee > HIGH_ABSOLUTE_FEE_SATS || exceedsSaneFeeRate(decoded.fee, decoded.vsize, fastestFee), false);
   return { ...result, blocked: result.blocked || unresolved || decoded.fee < 0 || indices.length === 0,
     safeOwnChange: result.safeOwnChange && indices.length === decoded.inputs.length };
 }

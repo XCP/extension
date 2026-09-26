@@ -4,10 +4,11 @@
  */
 
 import { type DecimalPlaces, parseAmountDraft } from '@/core/amount-contract/amounts';
+import { DUST_LIMIT_SATS } from '@/core/bitcoin/constants';
 import { BigNumber, fromSatoshis, toBigNumber } from '@/core/numeric';
 
 // Constants
-export const DUST_LIMIT = 546; // satoshis
+export const DUST_LIMIT = DUST_LIMIT_SATS; // satoshis
 export const MAX_SATOSHIS = 2100000000000000; // 21 million BTC in satoshis
 export const SATOSHIS_PER_BTC = 100000000;
 /**

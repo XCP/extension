@@ -62,8 +62,8 @@ const parseListingContext = (
 /** Bound and copy the v1 wire claim. The result remains untrusted until analyzed. */
 export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1 {
   if (!isRecord(value)) throw new Error('marketplace intent must be an object');
-  if (value.standard !== MARKETPLACE_INTENT_STANDARD || value.version !== 1) {
-    throw new Error(`marketplace intent must use ${MARKETPLACE_INTENT_STANDARD} version 1`);
+  if (value.standard !== MARKETPLACE_INTENT_STANDARD || value.version !== MARKETPLACE_INTENT_VERSION) {
+    throw new Error(`marketplace intent must use ${MARKETPLACE_INTENT_STANDARD} version ${MARKETPLACE_INTENT_VERSION}`);
   }
   if (value.action === 'attach_for_listing') return parseAttachForListingIntent(value);
   if (value.action === 'prepare_asset') return parsePrepareAssetIntent(value);
@@ -114,6 +114,9 @@ export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1
   };
 }
 
+/** Attach-funding slots one listing fan-out may create. */
+const MAX_BULK_FANOUT_SLOTS = 24;
+
 const parsePrepareBulkFanoutIntent = (
   value: Record<string, unknown>,
 ): PrepareBulkFanoutIntentClaim => {
@@ -129,8 +132,8 @@ const parsePrepareBulkFanoutIntent = (
   if (batchIndex < 0) {
     throw new Error('batchIndex must be a non-negative safe integer');
   }
-  if (slotCount > 24) {
-    throw new Error('slotCount must be 1..24');
+  if (slotCount > MAX_BULK_FANOUT_SLOTS) {
+    throw new Error(`slotCount must be 1..${MAX_BULK_FANOUT_SLOTS}`);
   }
   return {
     standard: MARKETPLACE_INTENT_STANDARD,
@@ -317,7 +320,10 @@ const parseFundPolicyOfferIntent = (value: Record<string, unknown>): FundPolicyO
     || value.marketplaceFee.bps !== PLATFORM_FEE_BPS
     || value.marketplaceFee.minSats !== PLATFORM_FEE_MIN_SATS
   ) {
-    throw new Error('marketplaceFee must be the published seller-paid 250 bps, 1,000-sat minimum');
+    throw new Error(
+      `marketplaceFee must be the published seller-paid ${PLATFORM_FEE_BPS} bps, `
+      + `${PLATFORM_FEE_MIN_SATS.toLocaleString('en-US')}-sat minimum`,
+    );
   }
   const alternatives = value.alternatives.map(parseFundPolicyOfferAlternative);
   if (new Set(alternatives.map(alternative => alternative.expectedParentTxid)).size !== alternatives.length) {
@@ -548,6 +554,9 @@ const parseExactOfferIntent = <
   };
 };
 
+/** Listings one checkout may buy. */
+const MAX_BUY_LISTINGS_ITEMS = 20;
+
 const parseBuyListingsIntent = (value: Record<string, unknown>): BuyListingsIntentClaim => {
   if (value.protocolVersion !== 'direct_v1') {
     throw new Error('buy_listings intent has the wrong protocolVersion');
@@ -556,10 +565,10 @@ const parseBuyListingsIntent = (value: Record<string, unknown>): BuyListingsInte
     !Array.isArray(value.assets)
     || !Array.isArray(value.items)
     || value.items.length < 1
-    || value.items.length > 20
+    || value.items.length > MAX_BUY_LISTINGS_ITEMS
     || value.assets.length !== value.items.length
   ) {
-    throw new Error('buy_listings intent must claim 1..20 aligned assets and items');
+    throw new Error(`buy_listings intent must claim 1..${MAX_BUY_LISTINGS_ITEMS} aligned assets and items`);
   }
   const delivery = settlementDelivery(value.delivery, 'delivery');
   if (delivery.mode === 'attached' && value.items.length !== 1) {
