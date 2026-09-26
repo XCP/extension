@@ -1,7 +1,6 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { FaEyeSlash, FiRefreshCw } from "@/components/icons";
-import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
@@ -161,13 +160,6 @@ function CreateMnemonicPage() {
               </button>
             )}
           </div>
-          {isRecoveryPhraseVisible && (
-            <Banner
-              severity="warning"
-              title={t('common_keep_this_private')}
-              description={t('common_anyone_with_it_can_steal')}
-            />
-          )}
           <CheckboxInput
             name="confirmed"
             label={t('common_i_have_saved_my_secret')}
