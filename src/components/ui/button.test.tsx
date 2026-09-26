@@ -365,7 +365,7 @@ describe('Button', () => {
           fc.constantFrom('solid', 'transparent', 'icon', 'header', 'menu', 'menu-item', 'input'),
           (color: any, variant: any) => {
             // Skip youtube variant as it has different rendering logic
-            if (variant === 'youtube') return true;
+            if (variant === 'youtube') return;
             
             const { container, unmount } = render(<Button color={color} variant={variant}>Test</Button>);
             
