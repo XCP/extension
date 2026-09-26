@@ -18,6 +18,7 @@ import { getMessageSigningRisks } from '@/core/bitcoin/messageRisk';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
 import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
+import type { MarketplaceBlockKind } from '@/core/counterparty/marketplaceIntent';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { formatAmount } from '@/core/format';
@@ -38,7 +39,7 @@ export function WarningDetails({ details }: { details: string[] }) {
 }
 
 /** Headline for a marketplace proof that did not pass, by what the user can do about it. */
-export function marketplaceBlockText(kind: 'retry' | 'ledger' | 'transaction' | 'input_limit'): { title: string; description: string } {
+export function marketplaceBlockText(kind: 'retry' | 'transaction' | MarketplaceBlockKind): { title: string; description: string } {
   switch (kind) {
     case 'retry':
       return { title: t('approval_marketplace_retry_title'), description: t('approval_marketplace_retry_description') };

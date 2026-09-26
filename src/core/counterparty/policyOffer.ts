@@ -20,6 +20,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { p2tr, p2wpkh } from '@scure/btc-signer';
 import { tagSchnorr, taprootTweakPubkey } from '@scure/btc-signer/utils.js';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
+import type { DecodedOutput } from '@/core/bitcoin/psbt';
 import { parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
 import { arc4 } from '@/core/counterparty/unpack/binary';
 import { toSafeInteger } from '@/core/numeric';
@@ -411,7 +412,7 @@ const compactSizeLength = (n: number): number => (n < 0xfd ? 1 : n <= 0xffff ? 3
  * P2TR, 72+33-byte P2WPKH) and the market's 64-byte DEFAULT anchor signature on the last input.
  */
 export function unsignedPolicyParentVsize(
-  inputScriptTypes: ReadonlyArray<string | undefined>,
+  inputScriptTypes: ReadonlyArray<DecodedOutput['type'] | undefined>,
   outputScriptsHex: readonly string[],
 ): number {
   const witnesses = inputScriptTypes.map((type, index) => {

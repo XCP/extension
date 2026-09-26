@@ -8,6 +8,7 @@
  */
 
 import { apiClient, isApiError } from '@/core/api/client';
+import { isRecord } from '@/core/isRecord';
 import { asDisplayUnits, type DisplayUnits, fromSatoshis } from '@/core/numeric';
 
 /** The public ZeldHash indexer. Not a setting: there is one, and it is read-only. */
@@ -46,10 +47,6 @@ const utxoCache = new Map<string, { expires: number; promise: Promise<ZeldUtxo[]
 
 export function clearZeldCaches(): void {
   utxoCache.clear();
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** A non-negative integer the indexer serialised as a JSON number, as a bigint. */

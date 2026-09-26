@@ -1,6 +1,8 @@
 /** Atomic wallet proof for an exact-offer acceptance parent and its seller-funded CPFP child. */
 
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { sameAddress } from '@/core/bitcoin/address';
+import type { InputLike, OutputLike } from '@/core/counterparty/marketplace/intentTypes';
+import { boundedString, hex32, positiveRawQuantity, safeInteger } from '@/core/counterparty/marketplace/wire';
 import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import {
   type AcceptExactOfferIntentClaim,
@@ -9,6 +11,7 @@ import {
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
 import { formatAmount } from '@/core/format';
+import { isRecord } from '@/core/isRecord';
 import { toFiniteNumber } from '@/core/numeric';
 import { t } from '@/i18n';
 
@@ -32,22 +35,6 @@ export interface BumpAcceptanceFeeIntentClaim {
   finalSellerProceedsSats: number;
 }
 
-interface InputLike {
-  index: number;
-  txid: string;
-  vout: number;
-  address?: string;
-  value?: number;
-  hasSignatures?: boolean;
-}
-
-interface OutputLike {
-  index: number;
-  type: string;
-  address?: string;
-  value: number;
-}
-
 export interface AcceptanceCpfpBundleAnalysisInput {
   parentIntent: AcceptExactOfferIntentClaim;
   parentReview: MarketplaceApprovalReview;
@@ -60,22 +47,8 @@ export interface AcceptanceCpfpBundleAnalysisInput {
   childHasCounterpartyPayload: boolean;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const boundedString = (value: unknown, label: string, max = 160): string => {
-  if (typeof value !== 'string' || value.length < 1 || value.length > max) {
-    throw new Error(`${label} must be a non-empty string of at most ${max} characters`);
-  }
-  return value;
-};
-
-const positiveInteger = (value: unknown, label: string): number => {
-  if (!Number.isSafeInteger(value) || Number(value) <= 0) {
-    throw new Error(`${label} must be a positive safe integer`);
-  }
-  return Number(value);
-};
+const positiveInteger = (value: unknown, label: string): number =>
+  safeInteger(value, label, { positive: true });
 
 const nonNegativeInteger = (value: unknown, label: string): number => {
   if (!Number.isSafeInteger(value) || Number(value) < 0) {
@@ -84,26 +57,17 @@ const nonNegativeInteger = (value: unknown, label: string): number => {
   return Number(value);
 };
 
-const txid = (value: unknown, label: string): string => {
-  const parsed = boundedString(value, label, 64).toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(parsed)) throw new Error(`${label} must be 32-byte hex`);
-  return parsed;
-};
-
 const parseAsset = (value: unknown): MarketplaceAssetClaim => {
   if (!isRecord(value) || !isRecord(value.sourceOutpoint)) {
     throw new Error('bumpAcceptanceFee.assets[0] must carry a source outpoint');
   }
-  const quantityRaw = boundedString(value.quantityRaw, 'quantityRaw', 24);
-  if (!/^[1-9][0-9]*$/.test(quantityRaw)) {
-    throw new Error('quantityRaw must be a positive base-unit integer string');
-  }
+  const quantityRaw = positiveRawQuantity(value.quantityRaw, 'quantityRaw');
   const vout = nonNegativeInteger(value.sourceOutpoint.vout, 'sourceOutpoint.vout');
   return {
     asset: boundedString(value.asset, 'asset', 250),
     quantityRaw,
     sourceOutpoint: {
-      txid: txid(value.sourceOutpoint.txid, 'sourceOutpoint.txid'),
+      txid: hex32(value.sourceOutpoint.txid, 'sourceOutpoint.txid'),
       vout,
     },
   };
@@ -152,8 +116,8 @@ export function parseAcceptanceCpfpBundleIntents(
       assets: [parseAsset(childValue.assets[0])],
       authorizationId: boundedString(childValue.authorizationId, 'authorizationId'),
       seller: boundedString(childValue.seller, 'seller', 128),
-      parentExpectedTxid: txid(childValue.parentExpectedTxid, 'parentExpectedTxid'),
-      childExpectedTxid: txid(childValue.childExpectedTxid, 'childExpectedTxid'),
+      parentExpectedTxid: hex32(childValue.parentExpectedTxid, 'parentExpectedTxid'),
+      childExpectedTxid: hex32(childValue.childExpectedTxid, 'childExpectedTxid'),
       parentSellerProceedsVout: 1,
       parentSellerProceedsSats: positiveInteger(
         childValue.parentSellerProceedsSats,
@@ -180,10 +144,6 @@ export function parseAcceptanceCpfpBundleIntents(
 /** Satoshi amounts, in the language the wallet is read in. */
 const sats = (value: number): string =>
   t('marketplace_bundle_sats', formatAmount({ value, maximumFractionDigits: 0 }));
-
-const sameAddress = (left: string | undefined, right: string): boolean =>
-  left !== undefined
-  && normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
 
 const sameAsset = (left: MarketplaceAssetClaim, right: MarketplaceAssetClaim): boolean =>
   left.asset === right.asset

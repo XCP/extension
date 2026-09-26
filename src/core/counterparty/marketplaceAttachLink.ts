@@ -20,9 +20,11 @@
  */
 
 import { apiClient, isApiError } from '@/core/api/client';
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { sameAddress } from '@/core/bitcoin/address';
 import { clearApiCacheMatching, fetchServerInfo, fetchUtxoBalances } from '@/core/counterparty/api';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
+import type { InputLike, OutputLike } from '@/core/counterparty/marketplace/intentTypes';
+import { isRecord } from '@/core/isRecord';
 
 /** What a proved attach transaction, read from its own bytes, creates. */
 export interface ProvedAttachOutput {
@@ -37,22 +39,7 @@ export interface ProvedAttachOutput {
   valueSats: number;
 }
 
-interface AttachOutputLike {
-  index: number;
-  type: string;
-  address?: string;
-  value: number;
-}
-
-interface ListingInputLike {
-  txid: string;
-  vout: number;
-  address?: string;
-  value?: number;
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+type ListingInputLike = Pick<InputLike, 'txid' | 'vout' | 'address' | 'value'>;
 
 /**
  * Derive the created asset UTXO from the attach's own bytes.
@@ -64,7 +51,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  */
 export function deriveProvedAttachOutput(attach: {
   transactionId: string | undefined;
-  outputs: AttachOutputLike[];
+  outputs: OutputLike[];
   localMessage: { messageType?: string; data?: unknown } | undefined;
 }): { output: ProvedAttachOutput } | { problem: string } {
   const txid = attach.transactionId?.toLowerCase();
@@ -113,11 +100,7 @@ export function listingSpendsProvedAttach(
   if (listingInput.txid.toLowerCase() !== proved.txid || listingInput.vout !== proved.vout) {
     return 'listing input 1 is not the asset output the attach creates';
   }
-  if (
-    !listingInput.address
-    || normalizeAddressForComparison(listingInput.address)
-      !== normalizeAddressForComparison(proved.owner)
-  ) {
+  if (!sameAddress(listingInput.address, proved.owner)) {
     return 'listing input 1 is not controlled by the attach asset output owner';
   }
   if (listingInput.value !== proved.valueSats) {

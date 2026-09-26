@@ -1,7 +1,6 @@
 /** Checks shared by every marketplace intent analyzer. */
 
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
-import type { InputLike, MarketplaceOutpointClaim } from '@/core/counterparty/marketplace/intentTypes';
+import type { InputLike, MarketplaceBlockKind, MarketplaceOutpointClaim } from '@/core/counterparty/marketplace/intentTypes';
 import {
   POLICY_OFFER_LOCKTIME,
   POLICY_OFFER_PROTOCOL_VERSION,
@@ -35,12 +34,8 @@ export function marketplaceTransactionHeaderProblem(
   return null;
 }
 
-export const sameAddress = (left: string | undefined, right: string) =>
-  left !== undefined
-  && normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
-
 /** A block whose every reason is the ledger disagreeing with the claimed asset: the listing changed. */
-export const ledgerBlockKind = (blockers: string[], ledger: ReadonlySet<string>): { blockKind?: 'ledger' } =>
+export const ledgerBlockKind = (blockers: string[], ledger: ReadonlySet<string>): { blockKind?: Extract<MarketplaceBlockKind, 'ledger'> } =>
   blockers.length > 0 && blockers.every(problem => ledger.has(problem)) ? { blockKind: 'ledger' } : {};
 
 export const sameOutpoint = (

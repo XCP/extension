@@ -1,5 +1,6 @@
 /** Versioned Counterparty marketplace intent claims, as parsed from the wire, and their reviews. */
 
+import type { DecodedOutput } from '@/core/bitcoin/psbt';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
@@ -30,6 +31,15 @@ export type MarketplaceSettlementDelivery =
   | { mode: 'detached'; address: string }
   | { mode: 'attached'; address: string; utxoValueSats: number };
 
+/** The Counterparty XCP fee an attach quotes; Core settles the real amount when it confirms. */
+export interface MarketplaceProtocolFeeClaim {
+  asset: 'XCP';
+  quotedAmountRaw: string;
+  actualAmountRaw: string | null;
+  observedBlock: number | null;
+  variableUntilConfirmed: boolean;
+}
+
 export interface AttachForListingIntentClaim {
   standard: typeof MARKETPLACE_INTENT_STANDARD;
   version: typeof MARKETPLACE_INTENT_VERSION;
@@ -45,13 +55,7 @@ export interface AttachForListingIntentClaim {
   utxoAddress: string;
   utxoValueSats: number;
   networkFeeSats: number;
-  protocolFee: {
-    asset: 'XCP';
-    quotedAmountRaw: string;
-    actualAmountRaw: string | null;
-    observedBlock: number | null;
-    variableUntilConfirmed: boolean;
-  };
+  protocolFee: MarketplaceProtocolFeeClaim;
   operationExpiresAt: number;
 }
 
@@ -67,13 +71,7 @@ export interface PrepareAssetIntentClaim {
   expectedAttachedOutpoint: MarketplaceOutpointClaim;
   utxoValueSats: number;
   networkFeeSats: number;
-  protocolFee: {
-    asset: 'XCP';
-    quotedAmountRaw: string;
-    actualAmountRaw: string | null;
-    observedBlock: number | null;
-    variableUntilConfirmed: boolean;
-  };
+  protocolFee: MarketplaceProtocolFeeClaim;
   operationExpiresAt: number;
 }
 
@@ -296,6 +294,9 @@ export type MarketplaceIntentClaimV1 =
   | FundPolicyOfferIntentClaim
   | AcceptPolicyOfferIntentClaim;
 
+/** Why a blocked review is blocked, when narrower than a contradicted claim (see `blockKind`). */
+export type MarketplaceBlockKind = 'ledger' | 'input_limit';
+
 export interface MarketplaceApprovalReview {
   /** Optional concise action summary, separate from the full transaction description. */
   summary?: { label: string; description: string };
@@ -326,7 +327,7 @@ export interface MarketplaceApprovalReview {
    * (the listing sold or moved), `input_limit` when the transaction has more inputs than the
    * wallet checks. Presentation only; any blocked review refuses signing the same way.
    */
-  blockKind?: 'ledger' | 'input_limit';
+  blockKind?: MarketplaceBlockKind;
 }
 
 export interface InputLike {
@@ -339,7 +340,7 @@ export interface InputLike {
   /** nSequence, where the caller decoded it. */
   sequence?: number;
   /** Script type of the spent prevout, where the caller decoded it. */
-  scriptType?: string;
+  scriptType?: DecodedOutput['type'];
 }
 
 export interface OutputLike {

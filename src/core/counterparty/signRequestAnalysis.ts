@@ -18,6 +18,7 @@ import {
   type BitcoinPaymentProof,
   proveBitcoinPaymentIntent,
 } from '@/core/bitcoin/providerPayment';
+import type { DecodedOutput } from '@/core/bitcoin/psbt';
 import {
   type AttachedAssetDestination,
   movesCounterpartyValue,
@@ -65,7 +66,7 @@ export interface AnalyzedInput {
   value?: number;
   sequence?: number;
   /** Script type of the spent prevout. */
-  scriptType?: string;
+  scriptType?: DecodedOutput['type'];
 }
 
 /**

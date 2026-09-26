@@ -1,6 +1,6 @@
 /** Listing-side marketplace proofs: attach, flexible listing authorization, and buyer checkout. */
 
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { normalizeAddressForComparison, sameAddress } from '@/core/bitcoin/address';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import { formatExpiry, formatXcpRaw, grouped, satsValue } from '@/core/counterparty/marketplace/format';
 import type {
@@ -11,8 +11,8 @@ import type {
   MarketplaceApprovalReview,
   PrepareAssetIntentClaim,
 } from '@/core/counterparty/marketplace/intentTypes';
-import { ledgerBlockKind, safeSum, sameAddress, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
-import { isRecord } from '@/core/counterparty/marketplace/wire';
+import { ledgerBlockKind, safeSum, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
+import { isRecord } from '@/core/isRecord';
 import { t } from '@/i18n';
 
 /** Prove the seller's flexible listing authorization from independent transaction facts. */

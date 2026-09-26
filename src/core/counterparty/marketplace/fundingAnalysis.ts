@@ -1,5 +1,6 @@
 /** Clean-BTC self-sends that prepare listing UTXOs or set aside exact-offer funding. */
 
+import { sameAddress } from '@/core/bitcoin/address';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import {
   clipDisplayText,
@@ -15,7 +16,7 @@ import type {
   MarketplaceApprovalReview,
   PrepareBulkFanoutIntentClaim,
 } from '@/core/counterparty/marketplace/intentTypes';
-import { safeSum, sameAddress, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
+import { safeSum, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
 import { t } from '@/i18n';
 
 /** Prove a clean-BTC parent that creates same-owner attach funding slots. */

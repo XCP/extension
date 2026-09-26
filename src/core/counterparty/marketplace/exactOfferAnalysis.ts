@@ -1,5 +1,6 @@
 /** Exact-offer proofs: the bidder's authorization and the seller's acceptance of one transaction. */
 
+import { sameAddress } from '@/core/bitcoin/address';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import { formatExpiry, grouped, satsValue } from '@/core/counterparty/marketplace/format';
 import type {
@@ -8,8 +9,8 @@ import type {
   MarketplaceAnalysisInput,
   MarketplaceApprovalReview,
 } from '@/core/counterparty/marketplace/intentTypes';
-import { ledgerBlockKind, safeSum, sameAddress, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
-import { isRecord } from '@/core/counterparty/marketplace/wire';
+import { ledgerBlockKind, safeSum, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
+import { isRecord } from '@/core/isRecord';
 import { t } from '@/i18n';
 
 /**

@@ -1,6 +1,6 @@
 /** Homogeneous multi-PSBT marketplace phases. Every item proves independently first. */
 
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { sameAddress } from '@/core/bitcoin/address';
 import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import {
   type AttachForListingIntentClaim,
@@ -18,6 +18,7 @@ import {
 } from '@/core/counterparty/marketplaceIntent';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import { formatAmount } from '@/core/format';
+import { isRecord } from '@/core/isRecord';
 import { sum, toSafeInteger } from '@/core/numeric';
 import { t } from '@/i18n';
 
@@ -44,9 +45,6 @@ export const MAX_MARKETPLACE_BATCH_REQUESTS = 8;
 /** How many requests one phase of this kind may carry. */
 export const maxMarketplaceBatchRequests = (kind: string): number =>
   kind === 'fund-policy-offer' ? MAX_POLICY_ALTERNATIVES : MAX_MARKETPLACE_BATCH_REQUESTS;
-
-const sameAddress = (left: string, right: string): boolean =>
-  normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
 
 const batchIdentity = (intent: MarketplaceBatchIntent): string =>
   intent.action === 'prepare_asset'
@@ -158,8 +156,7 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
   intents: MarketplaceBatchIntent[];
 } {
   const head = values[0];
-  const policyOffers = typeof head === 'object' && head !== null && !Array.isArray(head)
-    && (head as { action?: unknown }).action === 'fund_policy_offer';
+  const policyOffers = isRecord(head) && head.action === 'fund_policy_offer';
   const limit = policyOffers ? MAX_POLICY_ALTERNATIVES : MAX_MARKETPLACE_BATCH_REQUESTS;
   if (values.length < 1 || values.length > limit) {
     throw new Error(`marketplace batch must contain 1..${limit} requests`);

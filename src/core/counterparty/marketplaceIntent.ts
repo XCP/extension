@@ -37,6 +37,7 @@ export {
   type MarketplaceAnalysisInput,
   type MarketplaceApprovalReview,
   type MarketplaceAssetClaim,
+  type MarketplaceBlockKind,
   type MarketplaceIntentClaimV1,
   type MarketplaceOutpointClaim,
   type MarketplaceSettlementDelivery,

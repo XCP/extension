@@ -22,10 +22,11 @@ import {
   assetWithoutOutpoint,
   boundedString,
   evenHex,
+  fundingOutpoints,
   hex32,
-  isRecord,
   nonNegativeRawInteger,
   nonNegativeSafeInteger,
+  nullableSafeInteger,
   outpoint,
   plainDisplayText,
   safeInteger,
@@ -41,6 +42,7 @@ import {
   POLICY_OFFER_PROTOCOL_VERSION,
   validateCanonicalPolicy,
 } from '@/core/counterparty/policyOffer';
+import { isRecord } from '@/core/isRecord';
 import { validateAssetName } from '@/core/validation/asset';
 
 const parseListingContext = (
@@ -97,18 +99,16 @@ export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1
     protocolVersion: 'counterparty_attach_listing_v1',
     assets: [asset(value.assets[0], 'assets[0]')],
     seller: boundedString(value.seller, 'seller', 128),
-    priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true })!,
-    utxoValueSats: safeInteger(value.utxoValueSats, 'utxoValueSats', { positive: true })!,
+    priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true }),
+    utxoValueSats: safeInteger(value.utxoValueSats, 'utxoValueSats', { positive: true }),
     guaranteedSellerPaymentSats: safeInteger(
       value.guaranteedSellerPaymentSats,
       'guaranteedSellerPaymentSats',
       { positive: true },
-    )!,
+    ),
     delivery: { mode: 'buyer_selected_detach' },
-    signingRequestExpiresAt: safeInteger(value.signingRequestExpiresAt, 'signingRequestExpiresAt')!,
-    marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
-      nullable: true,
-    }),
+    signingRequestExpiresAt: safeInteger(value.signingRequestExpiresAt, 'signingRequestExpiresAt'),
+    marketplaceExpiresAt: nullableSafeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt'),
     bitcoinExpiresAt: null,
     ...parseListingContext(value.listingContext),
   };
@@ -123,16 +123,13 @@ const parsePrepareBulkFanoutIntent = (
   if (!Array.isArray(value.assets) || value.assets.length !== 0) {
     throw new Error('prepare_bulk_fanout must not claim attached assets');
   }
-  const expectedTxid = boundedString(value.expectedTxid, 'expectedTxid', 64).toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(expectedTxid)) {
-    throw new Error('expectedTxid must be 32-byte hex');
-  }
+  const expectedTxid = hex32(value.expectedTxid, 'expectedTxid');
   const batchIndex = safeInteger(value.batchIndex, 'batchIndex');
   const slotCount = safeInteger(value.slotCount, 'slotCount', { positive: true });
-  if (batchIndex === null || batchIndex < 0) {
+  if (batchIndex < 0) {
     throw new Error('batchIndex must be a non-negative safe integer');
   }
-  if (slotCount === null || slotCount > 24) {
+  if (slotCount > 24) {
     throw new Error('slotCount must be 1..24');
   }
   return {
@@ -147,15 +144,15 @@ const parsePrepareBulkFanoutIntent = (
     fundingOutpoint: outpoint(value.fundingOutpoint, 'fundingOutpoint'),
     fundingValueSats: safeInteger(value.fundingValueSats, 'fundingValueSats', {
       positive: true,
-    })!,
+    }),
     slotCount,
-    slotValueSats: safeInteger(value.slotValueSats, 'slotValueSats', { positive: true })!,
+    slotValueSats: safeInteger(value.slotValueSats, 'slotValueSats', { positive: true }),
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
     changeSats: nonNegativeSafeInteger(value.changeSats, 'changeSats'),
     expectedTxid,
     operationExpiresAt: safeInteger(value.operationExpiresAt, 'operationExpiresAt', {
       positive: true,
-    })!,
+    }),
   };
 };
 
@@ -163,8 +160,6 @@ const MAX_FUND_OFFER_SLOTS = 20;
 /** Every funding input must be proven asset-free, and the approval screen looks up at most
  * MAX_ASSET_LOOKUP_INPUTS of them: a larger claim could only ever sit in "Retry". */
 const MAX_FUND_OFFER_INPUTS = MAX_ASSET_LOOKUP_INPUTS;
-
-
 
 const fundOffersTarget = (value: unknown): FundOffersTargetClaim => {
   if (!isRecord(value)) throw new Error('target must be an object');
@@ -194,12 +189,9 @@ const parseFundOffersIntent = (value: Record<string, unknown>): FundOffersIntent
   if (!Array.isArray(value.assets) || value.assets.length !== 0) {
     throw new Error('fund_offers must not claim attached assets');
   }
-  const expectedTxid = boundedString(value.expectedTxid, 'expectedTxid', 64).toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(expectedTxid)) {
-    throw new Error('expectedTxid must be 32-byte hex');
-  }
+  const expectedTxid = hex32(value.expectedTxid, 'expectedTxid');
   const slotCount = safeInteger(value.slotCount, 'slotCount', { positive: true });
-  if (slotCount === null || slotCount > MAX_FUND_OFFER_SLOTS) {
+  if (slotCount > MAX_FUND_OFFER_SLOTS) {
     throw new Error(`slotCount must be 1..${MAX_FUND_OFFER_SLOTS}`);
   }
   if (
@@ -209,19 +201,7 @@ const parseFundOffersIntent = (value: Record<string, unknown>): FundOffersIntent
   ) {
     throw new Error(`fundingInputs must list 1..${MAX_FUND_OFFER_INPUTS} outpoints`);
   }
-  const seenOutpoints = new Set<string>();
-  const fundingInputs = value.fundingInputs.map((candidate, index) => {
-    const label = `fundingInputs[${index}]`;
-    if (!isRecord(candidate)) throw new Error(`${label} must be an object`);
-    const claimed = outpoint(candidate, label);
-    const key = `${claimed.txid}:${claimed.vout}`;
-    if (seenOutpoints.has(key)) throw new Error(`${label} repeats outpoint ${key}`);
-    seenOutpoints.add(key);
-    return {
-      ...claimed,
-      valueSats: safeInteger(candidate.valueSats, `${label}.valueSats`, { positive: true })!,
-    };
-  });
+  const fundingInputs = fundingOutpoints(value.fundingInputs);
   if (!isRecord(value.delivery)) throw new Error('delivery must be an object');
   let delivery: FundOffersIntentClaim['delivery'];
   if (value.delivery.mode === 'detached') {
@@ -231,7 +211,7 @@ const parseFundOffersIntent = (value: Record<string, unknown>): FundOffersIntent
       mode: 'attached',
       utxoValueSats: safeInteger(value.delivery.utxoValueSats, 'delivery.utxoValueSats', {
         positive: true,
-      })!,
+      }),
     };
   } else {
     throw new Error('delivery.mode must be detached or attached');
@@ -245,23 +225,21 @@ const parseFundOffersIntent = (value: Record<string, unknown>): FundOffersIntent
     assets: [],
     bidder: boundedString(value.bidder, 'bidder', 128),
     target: fundOffersTarget(value.target),
-    priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true })!,
+    priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true }),
     platformFeeSats: nonNegativeSafeInteger(value.platformFeeSats, 'platformFeeSats'),
     delivery,
     fundingInputs,
-    fundingValueSats: safeInteger(value.fundingValueSats, 'fundingValueSats', { positive: true })!,
+    fundingValueSats: safeInteger(value.fundingValueSats, 'fundingValueSats', { positive: true }),
     slotCount,
-    slotValueSats: safeInteger(value.slotValueSats, 'slotValueSats', { positive: true })!,
+    slotValueSats: safeInteger(value.slotValueSats, 'slotValueSats', { positive: true }),
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
     changeSats: nonNegativeSafeInteger(value.changeSats, 'changeSats'),
     expectedTxid,
     marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
       positive: true,
-    })!,
+    }),
   };
 };
-
-
 
 const policyDetachedDelivery = (value: unknown): { mode: 'detached'; address: string } => {
   if (!isRecord(value)) throw new Error('delivery must be an object');
@@ -286,15 +264,15 @@ const parseFundPolicyOfferAlternative = (
   }
   return {
     expectedParentTxid: hex32(value.expectedParentTxid, `${label}.expectedParentTxid`),
-    priceSats: safeInteger(value.priceSats, `${label}.priceSats`, { positive: true })!,
-    offerValueSats: safeInteger(value.offerValueSats, `${label}.offerValueSats`, { positive: true })!,
-    expiresAt: safeInteger(value.expiresAt, `${label}.expiresAt`, { positive: true })!,
+    priceSats: safeInteger(value.priceSats, `${label}.priceSats`, { positive: true }),
+    offerValueSats: safeInteger(value.offerValueSats, `${label}.offerValueSats`, { positive: true }),
+    expiresAt: safeInteger(value.expiresAt, `${label}.expiresAt`, { positive: true }),
     policy,
     policyHash: hex32(value.policyHash, `${label}.policyHash`),
     // 114 bytes of envelope plus a detach address of at most 71 bytes.
     leafHex: evenHex(value.leafHex, `${label}.leafHex`, 185),
     offerScriptPubKey: evenHex(value.offerScriptPubKey, `${label}.offerScriptPubKey`, 34),
-    parentVsize: safeInteger(value.parentVsize, `${label}.parentVsize`, { positive: true })!,
+    parentVsize: safeInteger(value.parentVsize, `${label}.parentVsize`, { positive: true }),
     changeSats: nonNegativeSafeInteger(value.changeSats, `${label}.changeSats`),
     parentFeeSats: nonNegativeSafeInteger(value.parentFeeSats, `${label}.parentFeeSats`),
     ...(value.detachScriptHex === undefined
@@ -324,19 +302,10 @@ const parseFundPolicyOfferIntent = (value: Record<string, unknown>): FundPolicyO
   ) {
     throw new Error(`fundingInputs must list 1..${MAX_POLICY_PARENT_FUNDING_INPUTS} outpoints`);
   }
-  const seenOutpoints = new Set<string>();
-  const fundingInputs = value.fundingInputs.map((candidate, index) => {
-    const label = `fundingInputs[${index}]`;
-    if (!isRecord(candidate)) throw new Error(`${label} must be an object`);
-    const claimed = outpoint(candidate, label);
-    const key = `${claimed.txid}:${claimed.vout}`;
-    if (seenOutpoints.has(key)) throw new Error(`${label} repeats outpoint ${key}`);
-    seenOutpoints.add(key);
-    return { ...claimed, valueSats: safeInteger(candidate.valueSats, `${label}.valueSats`, { positive: true })! };
-  });
+  const fundingInputs = fundingOutpoints(value.fundingInputs);
   if (!isRecord(value.anchor)) throw new Error('anchor must be an object');
   const anchorOutpoint = outpoint(value.anchor, 'anchor');
-  if (seenOutpoints.has(`${anchorOutpoint.txid}:${anchorOutpoint.vout}`)) {
+  if (fundingInputs.some(funding => funding.txid === anchorOutpoint.txid && funding.vout === anchorOutpoint.vout)) {
     throw new Error('anchor repeats a funding outpoint');
   }
   if (value.anchor.valueSats !== POLICY_ANCHOR_SATS) {
@@ -405,24 +374,24 @@ const parseAcceptPolicyOfferIntent = (value: Record<string, unknown>): AcceptPol
     operationId: boundedString(value.operationId, 'operationId'),
     assets: [asset(value.assets[0], 'assets[0]')],
     offerOutpoint: { parentTxid: hex32(value.offerOutpoint.parentTxid, 'offerOutpoint.parentTxid'), vout: 0 },
-    offerValueSats: safeInteger(value.offerValueSats, 'offerValueSats', { positive: true })!,
-    priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true })!,
+    offerValueSats: safeInteger(value.offerValueSats, 'offerValueSats', { positive: true }),
+    priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true }),
     // A witness-stripped parent within the 1,000 vB cap is far below this bound.
     parentRawHex: evenHex(value.parentRawHex, 'parentRawHex', 4_000),
     parentInputValuesSats: value.parentInputValuesSats.map((entry, index) =>
-      safeInteger(entry, `parentInputValuesSats[${index}]`, { positive: true })!),
-    parentVsize: safeInteger(value.parentVsize, 'parentVsize', { positive: true })!,
+      safeInteger(entry, `parentInputValuesSats[${index}]`, { positive: true })),
+    parentVsize: safeInteger(value.parentVsize, 'parentVsize', { positive: true }),
     parentFeeSats: nonNegativeSafeInteger(value.parentFeeSats, 'parentFeeSats'),
     leafHex: evenHex(value.leafHex, 'leafHex', 185),
     internalKey: hex32(value.internalKey, 'internalKey'),
     seller: boundedString(value.seller, 'seller', 128),
-    utxoValueSats: safeInteger(value.utxoValueSats, 'utxoValueSats', { positive: true })!,
+    utxoValueSats: safeInteger(value.utxoValueSats, 'utxoValueSats', { positive: true }),
     delivery: policyDetachedDelivery(value.delivery),
     platformFeeSats: nonNegativeSafeInteger(value.platformFeeSats, 'platformFeeSats'),
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
-    packageVsize: safeInteger(value.packageVsize, 'packageVsize', { positive: true })!,
+    packageVsize: safeInteger(value.packageVsize, 'packageVsize', { positive: true }),
     packageFeeRate,
-    sellerProceedsSats: safeInteger(value.sellerProceedsSats, 'sellerProceedsSats', { positive: true })!,
+    sellerProceedsSats: safeInteger(value.sellerProceedsSats, 'sellerProceedsSats', { positive: true }),
     expectedTxid: hex32(value.expectedTxid, 'expectedTxid'),
   };
 };
@@ -440,9 +409,7 @@ const parseAttachTransactionClaim = (
   const actualAmountRaw = value.protocolFee.actualAmountRaw === null
     ? null
     : nonNegativeRawInteger(value.protocolFee.actualAmountRaw, 'protocolFee.actualAmountRaw');
-  const observedBlock = safeInteger(value.protocolFee.observedBlock, 'protocolFee.observedBlock', {
-    nullable: true,
-  });
+  const observedBlock = nullableSafeInteger(value.protocolFee.observedBlock, 'protocolFee.observedBlock');
   if (observedBlock !== null && observedBlock < 0) {
     throw new Error('protocolFee.observedBlock must be a non-negative safe integer or null');
   }
@@ -462,7 +429,7 @@ const parseAttachTransactionClaim = (
     ),
     utxoValueSats: safeInteger(value.utxoValueSats, 'utxoValueSats', {
       positive: true,
-    })!,
+    }),
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
     protocolFee: {
       asset: 'XCP' as const,
@@ -476,7 +443,7 @@ const parseAttachTransactionClaim = (
     },
     operationExpiresAt: safeInteger(value.operationExpiresAt, 'operationExpiresAt', {
       positive: true,
-    })!,
+    }),
   };
 };
 
@@ -534,10 +501,7 @@ const parseExactOfferIntent = <
   ) {
     throw new Error(`${action} must be invalidated by spending its funding outpoint`);
   }
-  const expectedTxid = boundedString(value.expectedTxid, 'expectedTxid', 64).toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(expectedTxid)) {
-    throw new Error('expectedTxid must be 32-byte hex');
-  }
+  const expectedTxid = hex32(value.expectedTxid, 'expectedTxid');
   const platformFeeSats = value.platformFeeSats === undefined
     ? 0
     : nonNegativeSafeInteger(value.platformFeeSats, 'platformFeeSats');
@@ -558,13 +522,13 @@ const parseExactOfferIntent = <
     authorizationId: boundedString(value.authorizationId, 'authorizationId'),
     bidder: boundedString(value.bidder, 'bidder', 128),
     seller: boundedString(value.seller, 'seller', 128),
-    priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true })!,
+    priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true }),
     utxoValueSats: safeInteger(value.utxoValueSats, 'utxoValueSats', {
       positive: true,
-    })!,
+    }),
     sellerProceedsSats: safeInteger(value.sellerProceedsSats, 'sellerProceedsSats', {
       positive: true,
-    })!,
+    }),
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
     platformFeeSats,
     ...(sellerPaidFeeSats === undefined ? {} : { sellerPaidFeeSats }),
@@ -572,7 +536,7 @@ const parseExactOfferIntent = <
     delivery,
     marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
       positive: true,
-    })!,
+    }),
     bitcoinExpiresAt: null,
     bitcoinInvalidation: {
       type: 'spend_funding_outpoint',
@@ -612,21 +576,18 @@ const parseBuyListingsIntent = (value: Record<string, unknown>): BuyListingsInte
         itemValue.utxoValueSats,
         `items[${index}].utxoValueSats`,
         { positive: true },
-      )!,
+      ),
       priceSats: safeInteger(itemValue.priceSats, `items[${index}].priceSats`, {
         positive: true,
-      })!,
+      }),
       sellerPaymentSats: safeInteger(
         itemValue.sellerPaymentSats,
         `items[${index}].sellerPaymentSats`,
         { positive: true },
-      )!,
+      ),
     };
   });
-  const expectedTxid = boundedString(value.expectedTxid, 'expectedTxid', 64).toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(expectedTxid)) {
-    throw new Error('expectedTxid must be 32-byte hex');
-  }
+  const expectedTxid = hex32(value.expectedTxid, 'expectedTxid');
 
   return {
     standard: MARKETPLACE_INTENT_STANDARD,
@@ -637,14 +598,14 @@ const parseBuyListingsIntent = (value: Record<string, unknown>): BuyListingsInte
     assets: value.assets.map((entry, index) => asset(entry, `assets[${index}]`)),
     buyer: boundedString(value.buyer, 'buyer', 128),
     items,
-    subtotalSats: safeInteger(value.subtotalSats, 'subtotalSats', { positive: true })!,
+    subtotalSats: safeInteger(value.subtotalSats, 'subtotalSats', { positive: true }),
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
     platformFeeSats: nonNegativeSafeInteger(value.platformFeeSats, 'platformFeeSats'),
-    totalSats: safeInteger(value.totalSats, 'totalSats', { positive: true })!,
+    totalSats: safeInteger(value.totalSats, 'totalSats', { positive: true }),
     expectedTxid,
     delivery,
     marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
       positive: true,
-    })!,
+    }),
   };
 };

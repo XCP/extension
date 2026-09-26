@@ -1,7 +1,7 @@
 /** `funded_policy_offer_v1` proofs: the bidder's funding parent and the seller's acceptance child. */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { decodeAddressFromScript } from '@/core/bitcoin/address';
+import { decodeAddressFromScript, sameAddress } from '@/core/bitcoin/address';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import {
   describeCanonicalPolicy,
@@ -16,7 +16,7 @@ import type {
   MarketplaceAnalysisInput,
   MarketplaceApprovalReview,
 } from '@/core/counterparty/marketplace/intentTypes';
-import { attempt, ledgerBlockKind, safeSum, sameAddress, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
+import { attempt, ledgerBlockKind, safeSum, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
 import {
   decodePolicyDetachScript,
   decodePolicyLeaf,

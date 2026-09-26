@@ -1,5 +1,6 @@
 /** How marketplace reviews write amounts, dates, and website-supplied text. */
 
+import { oneLineText } from '@/core/counterparty/marketplace/wire';
 import type { CanonicalPolicy } from '@/core/counterparty/policyOffer';
 import { displayLocale, formatAmount } from '@/core/format';
 import { t } from '@/i18n';
@@ -44,10 +45,7 @@ export const MAX_TARGET_POLICY_DISPLAY = 60;
 /** Website-supplied policy text reduced to one visible line. Presentation only: the hash commits
  * to the exact canonical string, which the wallet re-hashes before any of this is shown. */
 const visibleText = (value: string, max: number): string => {
-  const cleaned = value
-    .replace(/\p{Cf}/gu, '')
-    .replace(/[\p{Cc}\p{Zl}\p{Zp}\s]+/gu, ' ')
-    .trim();
+  const cleaned = oneLineText(value);
   return clipDisplayText(cleaned.length > 0 ? cleaned : '?', max);
 };
 
