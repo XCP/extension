@@ -156,6 +156,13 @@ wallet supports are listed under [`xcp_signPsbts`](../PROVIDER.md#xcp_signpsbts)
 first proved on its own exactly as a single `xcp_signPsbt` request would be; a bundle then adds the
 cross-item checks below.
 
+**`accept_exact_offer` is served unsigned.** One party's signature is never served to another: the
+seller receives the acceptance template with the buyer's input 0 *unsigned*, signs only input 1
+with `SIGHASH_ALL`, and the market merges the buyer's stored input 0 signature server-side. The
+wallet blocks an acceptance whose input 0 already carries signature material. A wallet whose
+contract requires every external input to be pre-signed (hardware) therefore cannot accept exact
+offers; it refuses the request before any approval opens, with a reason the site can show.
+
 ### `attach-and-list`
 
 The listing's asset input is the attach's output, which is not broadcast yet, so no Counterparty

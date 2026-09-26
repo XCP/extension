@@ -240,7 +240,6 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | Status | Item | Implementation |
 |--------|------|----------------|
 | ✅ | Opt-out available | Users can disable in Settings > Advanced |
-| ⚪ | Browser consent integration | Not applicable—the extension ships for Chrome only |
 | ✅ | Path sanitization | Dynamic params stripped (wallet IDs, asset names, tx hashes); data-shaped segments on unlisted routes truncated (fail closed) |
 | ✅ | No query strings | Empty `qs: {}` sent; no UTM/marketing params |
 | ✅ | No referrer tracking | Empty `r: ''` for all events |

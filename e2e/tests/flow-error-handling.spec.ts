@@ -6,15 +6,15 @@
  */
 
 import {
-  test,
-  walletTest,
-  expect,
   createWallet,
+  expect,
   lockWallet,
   navigateTo,
-  TEST_PASSWORD
+  TEST_PASSWORD,
+  test,
+  walletTest
 } from '../fixtures';
-import { onboarding, unlock, importWallet, actions, signMessage, header, common } from '../selectors';
+import { actions, common, header, importWallet, onboarding, signMessage, unlock } from '../selectors';
 
 test.describe('Error Handling', () => {
   test('invalid mnemonic phrase shows error or prevents import', async ({ extensionPage }) => {
@@ -22,6 +22,7 @@ test.describe('Error Handling', () => {
     const importButton = onboarding.importWalletButton(extensionPage);
     const buttonCount = await importButton.count();
 
+    // biome-ignore lint/suspicious/noSkippedTests: conditional skip, import onboarding is unreachable once a wallet exists.
     test.skip(buttonCount === 0, 'Wallet already exists, cannot test invalid mnemonic import');
 
     await expect(importButton).toBeVisible({ timeout: 5000 });
@@ -30,8 +31,8 @@ test.describe('Error Handling', () => {
 
     // Fill with completely invalid mnemonic words (gibberish not in BIP39 wordlist)
     const invalidWords = 'zzzzz xxxxx yyyyy wwwww vvvvv uuuuu ttttt sssss rrrrr qqqqq ppppp ooooo'.split(' ');
-    for (let i = 0; i < 12; i++) {
-      await importWallet.wordInput(extensionPage, i).fill(invalidWords[i]);
+    for (const [i, word] of invalidWords.slice(0, 12).entries()) {
+      await importWallet.wordInput(extensionPage, i).fill(word);
     }
 
     // Wait for validation to process

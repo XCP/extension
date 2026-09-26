@@ -13,6 +13,8 @@
  * fails rather than proceeding — an initialisation that never finished cannot vouch for anything.
  */
 
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+
 /** How long a call waits for initialisation before failing. Generous; init is normally instant. */
 const READY_TIMEOUT_MS = 10_000;
 
@@ -50,7 +52,7 @@ export function getReadinessState(): { ready: boolean; error?: string } {
 /**
  * Wait for initialisation to finish.
  *
- * @throws when it has not finished in time, so the caller gets a definite failure rather than a
+ * @throws ProviderError(4900) when it has not finished in time, so the caller gets a definite failure rather than a
  *   promise that never settles.
  */
 export async function whenServicesReady(): Promise<void> {
@@ -60,7 +62,11 @@ export async function whenServicesReady(): Promise<void> {
       ready,
       new Promise<never>((_resolve, reject) => {
         timer = setTimeout(
-          () => reject(new Error('Wallet is still starting up; please try again.')),
+          // A plain 4900 is the provider's "momentarily unavailable, retry" answer, which is exactly
+          // this; as a plain Error a site would only ever see the masked -32603.
+          () => reject(new ProviderError(
+            PROVIDER_ERROR_CODES.DISCONNECTED, 'Wallet is still starting up; please try again.',
+          )),
           READY_TIMEOUT_MS
         );
       }),

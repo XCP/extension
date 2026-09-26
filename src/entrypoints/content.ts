@@ -1,5 +1,6 @@
 import { defineContentScript, injectScript } from '#imports';
 import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
+import { isRecord } from '@/core/isRecord';
 import { classifyProviderError, JSON_RPC_ERROR_CODES, ProviderError, reloadRequiredError } from '@/core/rpcErrors';
 import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
 import { disconnectAllPorts } from '@/platform/proxy';
@@ -8,10 +9,6 @@ import { getProviderServiceClient } from '@/services/providerServiceClient';
 const BRIDGE_OWNER_KEY = '__xcpWalletBridgeOwner';
 /** How often the content script checks whether its extension is still there. */
 const CONTEXT_WATCH_INTERVAL_MS = 2_000;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
 
 // Always include localhost for local dApp testing (safe - only accessible locally)
 // HTTPS for all other sites

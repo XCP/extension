@@ -1,5 +1,5 @@
 /** Global pool search must finish paging even when filtering hides the scroll sentinel. */
-import { mkdir, copyFile } from 'node:fs/promises';
+import { copyFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { Page, TestInfo } from '@playwright/test';
 import { expect, navigateTo, walletTest } from '../../fixtures';

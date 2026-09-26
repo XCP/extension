@@ -356,12 +356,6 @@
   "appName": {
     "message": "XCP Wallet"
   },
-  "approval_approval_attention_about_sat_vb": {
-    "message": "（約 $1 sat/vB）"
-  },
-  "approval_approval_attention_confirm_that_this_fee_is": {
-    "message": "請確認此費用是有意設置的。"
-  },
   "approval_approval_attention_review_this_exception_before_signing": {
     "message": "$1 簽名前請檢查此例外情況。"
   },
@@ -371,8 +365,11 @@
   "approval_approval_attention_the_wallet_could_not_reproduce": {
     "message": "錢包無法復現交易的每個字段"
   },
-  "approval_approval_attention_this_transaction_pays_sats": {
-    "message": "此交易支付 $1 sats"
+  "approval_approval_attention_high_fee_with_rate": {
+    "message": "此交易支付 $1 sats（約 $2 sat/vB）。請確認此費用是有意設置的。"
+  },
+  "approval_approval_attention_high_fee": {
+    "message": "此交易支付 $1 sats。請確認此費用是有意設置的。"
   },
   "approval_approval_attention_unusually_high_network_fee": {
     "message": "網絡費用異常高"
@@ -431,8 +428,8 @@
   "approval_approval_transaction_details_outputs": {
     "message": "輸出 ($1)"
   },
-  "approval_approval_warnings_a_memo_description_or_asset": {
-    "message": "備註、描述或資產標籤中包含可能重排或隱藏文本的字符。"
+  "approval_approval_warnings_hidden_characters_description": {
+    "message": "備註、描述或資產標籤中包含可能重排或隱藏文本的字符。請仔細核對解碼後的數量和接收地址。"
   },
   "approval_approval_warnings_a_memo_description_or_asset_2": {
     "message": "備註、描述或資產標籤中包含不會顯示的字符。"
@@ -451,9 +448,6 @@
   },
   "approval_approval_warnings_attached_assets_move_to_your": {
     "message": "附加的資產將移動到你自己的輸出"
-  },
-  "approval_approval_warnings_check_the_decoded_amounts_and": {
-    "message": "請仔細核對解碼後的數量和接收地址。"
   },
   "approval_approval_warnings_couldn_t_verify_asset_status": {
     "message": "無法驗證資產狀態"
@@ -3065,9 +3059,6 @@
   "marketplace_batch_xcp_fee": {
     "message": "XCP 費用"
   },
-  "marketplace_batch_sats": {
-    "message": "$1 sats"
-  },
   "marketplace_batch_seller_wallet": {
     "message": "賣家錢包"
   },
@@ -3139,9 +3130,6 @@
   },
   "marketplace_bundle_sat_vb": {
     "message": "$1 sat/vB"
-  },
-  "marketplace_bundle_sats": {
-    "message": "$1 sats"
   },
   "marketplace_bundle_the_parent_completes_the_exact": {
     "message": "父交易完成這筆精確的出售，子交易僅將你在父交易中的收益花回給你。在請求任一簽名之前，兩筆交易都已通過驗證。"
@@ -3252,7 +3240,7 @@
     "message": "暫不廣播"
   },
   "marketplace_intent_notice_accept_exact_offer": {
-    "message": "你的簽名即可按此條件完成這筆出售，無需買家再次確認。如果買家已經花費了共用的出資 UTXO，廣播會失敗，你的資產仍歸你所有。"
+    "message": "你只簽署自己的輸入。市場會使用其持有的買家授權按此條件完成這筆出售，無需買家再次確認。如果買家已經花費了共用的出資 UTXO，廣播會失敗，你的資產仍歸你所有。"
   },
   "marketplace_intent_notice_authorize_exact_offer": {
     "message": "簽名後，該賣家無需再次批准即可按此條件完成交易。以同一出資 UTXO 為支撐的其他報價互為備選：最先確認的那筆花費生效，其餘全部作廢。"
@@ -6360,6 +6348,12 @@
   },
   "trezor_access_notice_body": {
     "message": "Trezor 現在透過 Trezor Suite 連接。請允許一次存取，以便繼續使用。"
+  },
+  "trezor_access_notice_title": {
+    "message": "需要 Trezor Suite 存取權限"
+  },
+  "trezor_access_notice_failed": {
+    "message": "無法要求 Trezor 存取權限。請重試。"
   },
   "trezor_access_notice_allow": {
     "message": "允許存取 Trezor"

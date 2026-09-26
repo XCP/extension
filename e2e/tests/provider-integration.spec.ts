@@ -9,11 +9,10 @@ import { randomUUID } from 'node:crypto';
  * - Handle wallet locked state
  */
 
-import { test as base, expect, Page, BrowserContext } from '@playwright/test';
+import { type BrowserContext, test as base, chromium, expect, type Page } from '@playwright/test';
 import * as http from 'http';
 import path from 'path';
-import { chromium } from '@playwright/test';
-import { onboarding, createWallet as createWalletSelectors } from '../selectors';
+import { createWallet as createWalletSelectors, onboarding } from '../selectors';
 import { TEST_PASSWORDS } from '../test-data';
 
 // Test constants
@@ -252,7 +251,7 @@ async function launchExtension(testId: string): Promise<{
 
     for (const sw of context.serviceWorkers()) {
       const match = sw.url().match(/chrome-extension:\/\/([^/]+)/);
-      if (match) {
+      if (match?.[1]) {
         extensionId = match[1];
         break;
       }
@@ -261,7 +260,7 @@ async function launchExtension(testId: string): Promise<{
     if (!extensionId) {
       for (const p of context.pages()) {
         const match = p.url().match(/chrome-extension:\/\/([^/]+)/);
-        if (match) {
+        if (match?.[1]) {
           extensionId = match[1];
           break;
         }
@@ -332,7 +331,7 @@ test.describe('Provider Integration - Full Flow', () => {
    */
 
   test('provider is injected and responds to requests', async ({ dappServer }) => {
-    const { context, page: extensionPage, extensionId } = await launchExtension('provider-basic');
+    const { context, page: extensionPage } = await launchExtension('provider-basic');
 
     try {
       await createWallet(extensionPage);
@@ -552,7 +551,7 @@ test.describe('Provider Integration - Wallet States', () => {
         await new Promise(r => setTimeout(r, 1000));
         for (const sw of context.serviceWorkers()) {
           const match = sw.url().match(/chrome-extension:\/\/([^/]+)/);
-          if (match) {
+          if (match?.[1]) {
             extensionId = match[1];
             break;
           }

@@ -5,9 +5,9 @@
  * This component allows users to enter one or more destination addresses.
  */
 
-import { walletTest, expect, navigateTo } from '../fixtures';
+import { expect, navigateTo, walletTest } from '../fixtures';
 import { compose, index } from '../selectors';
-import { TEST_ADDRESSES, INVALID_ADDRESSES } from '../test-data';
+import { INVALID_ADDRESSES, TEST_ADDRESSES } from '../test-data';
 
 walletTest.describe('DestinationsInput Component', () => {
   // Navigate to send page which uses DestinationsInput

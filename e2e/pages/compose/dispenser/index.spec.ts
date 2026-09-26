@@ -4,13 +4,13 @@
  * Tests for creating a new dispenser.
  */
 
-import { walletTest, expect, navigateTo } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
 import { compose } from '@e2e/selectors';
 import {
-  enableValidationBypass,
-  enableDryRun,
-  waitForReview,
   clickBack,
+  enableDryRun,
+  enableValidationBypass,
+  waitForReview,
 } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {

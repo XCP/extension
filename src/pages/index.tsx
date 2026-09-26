@@ -106,10 +106,9 @@ export default function HomePage(): ReactElement {
   }, [setHeaderProps, navigate, activeWallet, lockKeychain]);
 
   useEffect(() => {
-    if (copiedToClipboard) {
-      const timer = setTimeout(() => setCopiedToClipboard(false), COPY_FEEDBACK_DURATION);
-      return () => clearTimeout(timer);
-    }
+    if (!copiedToClipboard) return;
+    const timer = setTimeout(() => setCopiedToClipboard(false), COPY_FEEDBACK_DURATION);
+    return () => clearTimeout(timer);
   }, [copiedToClipboard]);
 
   // Check if address has UTXO-attached balances

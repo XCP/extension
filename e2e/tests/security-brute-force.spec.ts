@@ -4,7 +4,7 @@
  * Tests verifying protection against brute force attacks on the wallet unlock.
  */
 
-import { walletTest, expect, lockWallet, unlockWallet, TEST_PASSWORD } from '../fixtures';
+import { expect, lockWallet, TEST_PASSWORD, unlockWallet, walletTest } from '../fixtures';
 import { unlock } from '../selectors';
 
 walletTest.describe('Brute Force Protection', () => {

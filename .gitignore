@@ -17,7 +17,6 @@ web-ext.config.ts
 
 # Editor directories and files
 .vscode/*
-!.vscode/extensions.json
 .idea
 .DS_Store
 *.suo
@@ -32,9 +31,6 @@ playwright-report/
 test-results/
 e2e/state-*.json
 userData/
-userData/created/
-userData/imported/
-userData/onboarding/
 
 # Claude Code settings
 .claude/
@@ -55,7 +51,6 @@ MANUAL_TEST_PLAN.txt
 *.tsbuildinfo
 
 test-results.json
-test-results/
 
 # Env files. Nothing here needs one today, but anything that does would hold store
 # or API credentials, and there was previously no rule stopping one being committed.

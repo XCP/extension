@@ -67,8 +67,9 @@ npm run build:e2e
 npx playwright test e2e/tests/provider-message-signing.spec.ts
 ```
 
-Run the tests your change affects. The full-suite scripts (`npm test`, `test:unit`, `test:e2e`)
-refuse to run outside CI.
+`npm test` (the unit suite) and `npm run test:e2e` (an e2e build, then every Playwright spec) run
+the full suites; the e2e suite takes well over an hour serially, so CI shards it. Locally, prefer
+the tests your change affects.
 
 - **Unit tests** are Vitest files next to the code under `src`.
 - **Browser tests** are Playwright specs under `e2e/`. They load `.output/chrome-mv3`, so run

@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # package.json pins every dependency to an exact version (CI rejects ranges), and
+  # `versioning-strategy: increase` keeps each bump an exact pin rather than adding a range.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    versioning-strategy: increase
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for every minor and patch bump; majors arrive one per PR so each can be reviewed.
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # The Playwright container image tag in the workflows must move with @playwright/test,
+      # which Dependabot cannot do, so these are bumped by hand.
+      - dependency-name: '@playwright/test'
+      - dependency-name: playwright
+      - dependency-name: playwright-core
+
+  # Workflow actions are pinned to commit SHAs with a version comment, which Dependabot updates.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      actions-minor-and-patch:
+        update-types: [minor, patch]

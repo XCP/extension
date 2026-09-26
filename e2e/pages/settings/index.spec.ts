@@ -4,8 +4,8 @@
  * Tests for /settings route - main settings menu page
  */
 
-import { walletTest, expect, navigateTo } from '../../fixtures';
-import { settings, common } from '../../selectors';
+import { expect, navigateTo, walletTest } from '../../fixtures';
+import { common, settings } from '../../selectors';
 
 walletTest.describe('Settings Index Page (/settings)', () => {
   walletTest('settings page loads and shows title', async ({ page }) => {

@@ -12,11 +12,10 @@
  * where users may reload pages, lock wallets, or interrupt flows.
  */
 
-import { test as base, expect, Page, BrowserContext } from '@playwright/test';
+import { type BrowserContext, test as base, chromium, expect, type Page } from '@playwright/test';
 import * as http from 'http';
 import path from 'path';
-import { chromium } from '@playwright/test';
-import { onboarding, createWallet as createWalletSelectors, unlock, header } from '../selectors';
+import { createWallet as createWalletSelectors, onboarding } from '../selectors';
 import { TEST_PASSWORDS } from '../test-data';
 
 const TEST_PASSWORD = TEST_PASSWORDS.valid;
@@ -348,7 +347,7 @@ async function launchExtension(testId: string): Promise<{
     await new Promise(r => setTimeout(r, 1000));
     for (const sw of context.serviceWorkers()) {
       const match = sw.url().match(/chrome-extension:\/\/([^/]+)/);
-      if (match) {
+      if (match?.[1]) {
         extensionId = match[1];
         break;
       }
@@ -378,17 +377,6 @@ async function createWallet(page: Page): Promise<void> {
   await page.waitForURL(/index/, { timeout: 15000 });
 }
 
-async function lockWallet(page: Page): Promise<void> {
-  await header.lockButton(page).click();
-  await page.waitForURL(/unlock/);
-}
-
-async function unlockWallet(page: Page): Promise<void> {
-  await unlock.passwordInput(page).fill(TEST_PASSWORD);
-  await unlock.unlockButton(page).click();
-  await page.waitForURL(/index/, { timeout: 10000 });
-}
-
 async function waitForProvider(page: Page, timeout = 10000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeout) {
@@ -415,7 +403,7 @@ const test = base.extend<{
 
 test.describe('Provider Resilience - Connection Recovery', () => {
   test('dApp correctly detects connection state on page load', async ({ dappServer }) => {
-    const { context, page: extensionPage, extensionId } = await launchExtension('detect-state');
+    const { context, page: extensionPage } = await launchExtension('detect-state');
 
     try {
       await createWallet(extensionPage);
@@ -438,7 +426,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
   });
 
   test('connection persists after page reload', async ({ dappServer }) => {
-    const { context, page: extensionPage, extensionId } = await launchExtension('persist-reload');
+    const { context, page: extensionPage } = await launchExtension('persist-reload');
 
     try {
       await createWallet(extensionPage);
@@ -501,8 +489,9 @@ test.describe('Provider Resilience - Connection Recovery', () => {
   });
 
   // TODO(e2e): lock-during-connect timing race is flaky in headless CI; revisit.
+  // biome-ignore lint/suspicious/noSkippedTests: quarantined per the TODO above until the lock-during-connect race is fixed.
   test.fixme('handles wallet lock during connection attempt gracefully', async ({ dappServer }) => {
-    const { context, page: extensionPage, extensionId } = await launchExtension('lock-during');
+    const { context, page: extensionPage } = await launchExtension('lock-during');
 
     try {
       await createWallet(extensionPage);
@@ -513,7 +502,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       await dappPage.waitForSelector('.status.disconnected', { timeout: 10000 });
 
       // Start connection but don't wait for it
-      dappPage.evaluate(() => {
+      void dappPage.evaluate(() => {
         (window as any).testFunctions.connect();
       });
 
@@ -551,7 +540,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
   });
 
   test('multiple rapid connect clicks are handled gracefully', async ({ dappServer }) => {
-    const { context, page: extensionPage, extensionId } = await launchExtension('rapid-clicks');
+    const { context, page: extensionPage } = await launchExtension('rapid-clicks');
 
     try {
       await createWallet(extensionPage);
@@ -585,7 +574,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
   });
 
   test('xcp_accounts returns empty array when disconnected', async ({ dappServer }) => {
-    const { context, page: extensionPage, extensionId } = await launchExtension('state-consistency');
+    const { context, page: extensionPage } = await launchExtension('state-consistency');
 
     try {
       await createWallet(extensionPage);
@@ -611,7 +600,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
   });
 
   test('handles extension service worker restart', async ({ dappServer }) => {
-    const { context, page: extensionPage, extensionId } = await launchExtension('sw-restart');
+    const { context, page: extensionPage } = await launchExtension('sw-restart');
 
     try {
       await createWallet(extensionPage);
@@ -735,7 +724,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
 
 test.describe('Provider Resilience - Error Handling', () => {
   test('handles request timeout gracefully', async ({ dappServer }) => {
-    const { context, page: extensionPage, extensionId } = await launchExtension('timeout');
+    const { context, page: extensionPage } = await launchExtension('timeout');
 
     try {
       await createWallet(extensionPage);
@@ -769,7 +758,7 @@ test.describe('Provider Resilience - Error Handling', () => {
   });
 
   test('handles invalid method gracefully', async ({ dappServer }) => {
-    const { context, page: extensionPage, extensionId } = await launchExtension('invalid-method');
+    const { context, page: extensionPage } = await launchExtension('invalid-method');
 
     try {
       await createWallet(extensionPage);

@@ -21,9 +21,18 @@ const h = vi.hoisted(() => {
     isKeychainUnlocked: vi.fn(async () => false),
     getActiveAddress: vi.fn(async () => undefined as { address: string } | undefined),
   };
-  const update = { initialize: vi.fn(async () => {}), addBusyCheck: vi.fn(), destroy: vi.fn() };
+  const update = {
+    initialize: vi.fn(async () => { order.push('update.initialize'); }),
+    listen: vi.fn(() => { order.push('update.listen'); }),
+    addBusyCheck: vi.fn(),
+    destroy: vi.fn(),
+  };
+  const popupMonitor = {
+    initialize: vi.fn(() => { order.push('popupMonitor.initialize'); }),
+    destroy: vi.fn(),
+  };
   return {
-    order, approval, connection, wallet, update,
+    order, approval, connection, wallet, update, popupMonitor,
     recovery: 'LOCKED' as string,
     cachedKey: null as string | null,
     markServicesReady: vi.fn(() => { order.push('markServicesReady'); }),
@@ -59,7 +68,7 @@ vi.mock('@/services/core/serviceReadiness', () => ({
   getReadinessState: vi.fn(() => ({ ready: true })),
 }));
 vi.mock('@/services/eventEmitterService', () => ({ eventEmitterService: { on: vi.fn(), emit: h.emit } }));
-vi.mock('@/services/popupMonitorService', () => ({ getPopupMonitorService: () => ({ initialize: vi.fn(), destroy: vi.fn() }) }));
+vi.mock('@/services/popupMonitorService', () => ({ getPopupMonitorService: () => h.popupMonitor }));
 vi.mock('@/services/providerService', () => ({ getProviderService: () => ({}), registerProviderService: vi.fn() }));
 vi.mock('@/services/providerSigningService', () => ({ registerProviderSigningService: vi.fn() }));
 vi.mock('@/services/updateService', () => ({ getUpdateService: () => h.update }));
@@ -97,6 +106,7 @@ beforeEach(() => {
       onConnect: listener(),
       onInstalled: listener(),
       onSuspend: listener(),
+      onSuspendCanceled: listener(),
     },
     tabs: { onUpdated: listener(), onRemoved: listener() },
     alarms: { clear: vi.fn(async () => true), onAlarm: listener() },
@@ -128,6 +138,24 @@ describe('background wakes', () => {
 });
 
 describe('background startup', () => {
+  it('registers the popup-lifecycle and update listeners in the first turn, before any await', async () => {
+    // MV3 delivers the event that woke the worker only to listeners registered by the end of the
+    // first turn; initialisation awaits storage long before it would get to them.
+    const background = await import('../background');
+    (background.default as unknown as { main: () => void }).main();
+    expect(h.popupMonitor.initialize).toHaveBeenCalledOnce();
+    expect(h.update.listen).toHaveBeenCalledOnce();
+    expect(h.order).toEqual(['popupMonitor.initialize', 'update.listen']);
+    await vi.waitFor(() => expect(h.markServicesReady).toHaveBeenCalled());
+  });
+
+  it('tears nothing down on suspend, which an event page can cancel', async () => {
+    await startBackground();
+    expect((chromeStub.runtime.onSuspend as ReturnType<typeof listener>).addListener).not.toHaveBeenCalled();
+    expect(h.update.destroy).not.toHaveBeenCalled();
+    expect(h.popupMonitor.destroy).not.toHaveBeenCalled();
+  });
+
   it('initializes the approval and connection services before serving anything', async () => {
     // Registering their proxies only answers calls. Without initialize(), an approval pending when
     // the worker stopped is never resumed and a connect approval is never completed.

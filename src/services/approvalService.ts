@@ -11,6 +11,7 @@
  * by answering anyone; see registerCompletionHandler.
  */
 
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
 import { openPopupWindow, type PopupWindow, reusePopupWindow } from '@/platform/popup';
 import {
@@ -156,7 +157,7 @@ export class ApprovalService extends BaseService {
       if (result.approved) {
         approval.waiter.resolve(result);
       } else {
-        approval.waiter.reject(new Error('User denied the request'));
+        approval.waiter.reject(new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, 'User denied the request'));
       }
       return true;
     }
@@ -244,6 +245,10 @@ export class ApprovalService extends BaseService {
    *
    * Called from paths that cannot await — a window-close listener, a timeout — so the record is
    * updated without waiting on it. Memory is already correct; storage catches up.
+   *
+   * Every way an approval ends without one (closed, timed out, superseded, denied) is a 4001 to
+   * the site; as a plain Error it reached the page masked as -32603 "Request failed". The reasons
+   * are this service's own fixed texts.
    */
   private rejectCurrentApproval(reason: string): void {
     if (!this.pendingApproval) return;
@@ -253,7 +258,7 @@ export class ApprovalService extends BaseService {
     void recordApprovalOutcome(approval.id, 'cancelled').catch((error) => {
       console.error('[ApprovalService] Failed to record approval outcome:', error);
     });
-    approval.waiter?.reject(new Error(reason));
+    approval.waiter?.reject(new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, reason));
     this.updateBadge();
   }
 
@@ -397,12 +402,10 @@ export class ApprovalService extends BaseService {
 
 // Proxy for cross-context communication
 import { defineProxyService } from '@/platform/proxy';
+import { APPROVAL_SERVICE_NAME, APPROVAL_SERVICE_POLICY } from '@/services/approvalServiceClient';
 
 export const [registerApprovalService, getApprovalService] = defineProxyService(
-  'ApprovalService',
+  APPROVAL_SERVICE_NAME,
   () => new ApprovalService(),
-  { methods: {
-    resolveApproval: 'command', rejectApproval: 'command',
-    getCurrentApproval: 'read', hasPendingApproval: 'read',
-  } },
+  APPROVAL_SERVICE_POLICY,
 );

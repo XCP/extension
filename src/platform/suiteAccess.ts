@@ -7,8 +7,9 @@
  * in an extension page, so `request` belongs in click handlers; the background can only check.
  */
 import { HardwareWalletError } from '@/core/hardware/types';
+import { TREZOR_SUITE_ORIGINS } from '@/platform/suiteOrigins';
 
-export const TREZOR_SUITE_ORIGINS = ['https://suite.trezor.io/*'];
+export { TREZOR_SUITE_ORIGINS };
 
 function permissionsApi(): typeof chrome.permissions | undefined {
   return (globalThis as { chrome?: typeof chrome }).chrome?.permissions;

@@ -17,7 +17,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /** The files that own the boundary. Listeners registered anywhere else are a finding in itself. */
-const BOUNDARY_FILES = ['src/entrypoints/background.ts', 'src/platform/proxy.ts'] as const;
+const BOUNDARY_FILES = [
+  'src/entrypoints/background.ts',
+  'src/platform/proxy.ts',
+  // Registers its port listener from the background's first turn (see background.ts).
+  'src/services/popupMonitorService.ts',
+] as const;
 
 const REGISTRATION =
   /chrome\.runtime\.onConnect\.addListener|chrome\.runtime\.onMessage\.addListener|MessageBus\.onMessage\('([^']+)'|webextBridgeOnMessage\('([^']+)'/g;
@@ -47,6 +52,11 @@ const DOORS: Record<string, Door> = {
   "background.ts startup-health-check": {
     gated: false,
     reason: 'Reports whether initialisation finished. Gating it would deadlock the question.',
+  },
+  "popupMonitorService.ts chrome.runtime.onConnect#1": {
+    gated: true,
+    reason: 'Popup-lifecycle ports from approval windows. Tracking a port is in-memory and happens at ' +
+      'once; cancelling or expiring a signing request reads its flow and so waits for initialisation.',
   },
   "proxy.ts chrome.runtime.onConnect#1": {
     gated: true,

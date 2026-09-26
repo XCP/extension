@@ -5,11 +5,19 @@ permissions:
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
     paths:
       - 'src/core/hardware/**'
       - 'src/core/bitcoin/**'
       - 'src/pages/keychain/wallets/connect-hardware.tsx'
+      - 'src/platform/suiteAccess.ts'
+      - 'src/platform/suiteOrigins.ts'
+      - 'src/platform/walletManager.ts'
+      - 'src/components/domain/wallet/trezor-access-notice.tsx'
+      - 'wxt.config.ts'
+      - 'vitest.config.ts'
+      - 'vitest.setup.ts'
+      - 'playwright.config.ts'
       - 'e2e/hardware/**'
       - 'e2e/helpers/trezor-emulator.ts'
       - 'docker-compose.trezor.yml'
@@ -17,6 +25,11 @@ on:
       - 'package-lock.json'
       - '.github/workflows/trezor-emulator-tests.yml'
   workflow_dispatch:
+
+# A newer push to the same PR cancels the older run.
+concurrency:
+  group: trezor-emulator-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   trezor-emulator-tests:
@@ -39,10 +52,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -51,7 +64,7 @@ jobs:
         run: npm ci
 
       - name: Install xvfb for headless display
-        run: sudo apt-get install -y xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Wait for WebSocket controller
         timeout-minutes: 2
@@ -81,18 +94,20 @@ jobs:
             if curl -s -X POST http://localhost:21325/enumerate > /dev/null 2>&1; then
               echo "Bridge is responding!"
               curl -s -X POST http://localhost:21325/enumerate 2>&1 | head -50
-              break
+              exit 0
             fi
             echo "Attempt $i/30: Bridge not ready yet..."
             sleep 2
           done
+          echo "Bridge failed to start"
+          exit 1
 
       - name: Build extension
         run: npm run build:e2e  # grants the optional Trezor Suite permission up front
 
       - name: Cache Playwright browsers
         id: pw-cache
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
@@ -193,45 +208,11 @@ jobs:
 
       - name: Upload Playwright test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: trezor-playwright-test-results
           path: |
             test-results/
             playwright-report/
-          retention-days: 7
-          if-no-files-found: ignore
-
-  hardware-unit-tests:
-    name: Hardware Wallet Unit Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build extension
-        run: npm run build
-
-      - name: Run hardware wallet unit tests
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-        run: npx vitest run src/core/hardware --reporter=verbose
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: hardware-unit-test-results
-          path: test-results/
           retention-days: 7
           if-no-files-found: ignore

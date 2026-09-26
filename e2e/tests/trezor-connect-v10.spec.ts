@@ -1,4 +1,4 @@
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 // Exercise the built SDK, service worker and Chrome's external messaging permission.
 // Only Suite's approval UI is replaced; this does not claim physical-device coverage.

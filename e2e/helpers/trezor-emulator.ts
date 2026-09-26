@@ -230,7 +230,7 @@ export async function getEmulatorStatus(): Promise<{
  */
 export function startAutoConfirm(intervalMs: number = 500): () => void {
   const interval = setInterval(() => {
-    emulatorPressYes();
+    void emulatorPressYes();
   }, intervalMs);
 
   return () => clearInterval(interval);

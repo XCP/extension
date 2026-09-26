@@ -4,8 +4,8 @@
  * Tests for the reset wallet page that allows deleting all wallet data with password confirmation.
  */
 
-import { walletTest, expect, navigateTo, TEST_PASSWORD } from '@e2e/fixtures';
-import { common, settings, errors } from '@e2e/selectors';
+import { expect, navigateTo, TEST_PASSWORD, walletTest } from '@e2e/fixtures';
+import { common, errors } from '@e2e/selectors';
 import { TEST_PASSWORDS } from '@e2e/test-data';
 
 // Local selectors for wallet/reset page (not common enough for selectors.ts)

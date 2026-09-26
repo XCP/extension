@@ -1,4 +1,4 @@
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 const address = '1ALLSET1VJQqiDNTpHbKVJQY8qa4KofMr8';
 const dispensers = Array.from({ length: 237 }, (_, i) => ({

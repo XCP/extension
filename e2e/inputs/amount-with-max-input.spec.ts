@@ -11,10 +11,10 @@
  * - Decimal handling
  */
 
-import { walletTest, expect, navigateTo } from '../fixtures';
-import { TEST_AMOUNTS, TEST_ADDRESSES } from '../test-data';
-import { index, compose } from '../selectors';
 import englishMessages from '../../public/_locales/en/messages.json' with { type: 'json' };
+import { expect, navigateTo, walletTest } from '../fixtures';
+import { compose, index } from '../selectors';
+import { TEST_ADDRESSES, TEST_AMOUNTS } from '../test-data';
 
 // Helper to get the quantity/amount input
 const getAmountInput = (page: any) => compose.send.quantityInput(page);

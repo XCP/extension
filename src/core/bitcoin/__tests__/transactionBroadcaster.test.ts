@@ -99,14 +99,19 @@ describe('Transaction Broadcaster Utilities', () => {
     });
 
     it('should include simulated delay', async () => {
-      const startTime = Date.now();
-      await broadcastTransaction(mockSignedTxHex);
-      const endTime = Date.now();
-      const elapsed = endTime - startTime;
-
-      // Allow for small timing variations (490-510ms range)
-      expect(elapsed).toBeGreaterThanOrEqual(490);
-      expect(elapsed).toBeLessThanOrEqual(520);
+      // Fake timers: a wall-clock upper bound failed whenever the machine was busy.
+      vi.useFakeTimers();
+      try {
+        let settled = false;
+        const pending = broadcastTransaction(mockSignedTxHex).then(() => { settled = true; });
+        await vi.advanceTimersByTimeAsync(499);
+        expect(settled).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        await pending;
+        expect(settled).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

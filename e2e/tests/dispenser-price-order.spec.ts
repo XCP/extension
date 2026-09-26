@@ -1,4 +1,4 @@
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest('dispenser market requests price/age ordering before twenty-row pagination', async ({ page, context }) => {
   const offers = Array.from({ length: 23 }, (_, i) => ({

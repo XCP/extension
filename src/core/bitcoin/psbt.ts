@@ -44,6 +44,9 @@ export function resolvePsbtSighashType(
   return explicitSighashType ?? embeddedSighashType ?? SigHash.ALL;
 }
 
+/** The sighash type without its ANYONECANPAY bit: DEFAULT, ALL, NONE or SINGLE. */
+export const sighashBase = (sighashType: number): number => sighashType & 0x1f;
+
 /**
  * Sighash flags a dApp PSBT signing request may use. Excludes SIGHASH_NONE
  * (commits to no outputs) and bare SIGHASH_SINGLE without ANYONECANPAY, so a
@@ -79,13 +82,13 @@ export function committedOutputIndices(
 
   const isDetachable = (sighashType: number) => (sighashType & 0x80) !== 0;
   const commitsToEveryOutput = (sighashType: number) => {
-    const base = sighashType & 0x1f;
+    const base = sighashBase(sighashType);
     return base === SigHash.DEFAULT || base === SigHash.ALL;
   };
 
   /** Outputs one signature covers alone: SINGLE takes the output at its index, NONE takes none. */
   const ownCommitment = ({ index, sighashType }: { index: number; sighashType: number }) =>
-    (sighashType & 0x1f) === SigHash.SINGLE && index < outputCount
+    sighashBase(sighashType) === SigHash.SINGLE && index < outputCount
       ? new Set([index])
       : new Set<number>();
 

@@ -1,68 +1,57 @@
 import { defineConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite';
+import { TREZOR_SUITE_ORIGINS } from './src/platform/suiteOrigins';
+
+/** The `--mode`/`-m` value WXT was started with, in any of the spellings its CLI accepts. */
+function cliMode(argv = process.argv): string | undefined {
+  for (const [i, arg] of argv.entries()) {
+    if (arg === '--mode' || arg === '-m') return argv[i + 1];
+    if (arg.startsWith('--mode=')) return arg.slice('--mode='.length);
+    if (arg.startsWith('-m=')) return arg.slice('-m='.length);
+  }
+  return undefined;
+}
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   srcDir: 'src',
   // An e2e build (`wxt build --mode e2e`) replaces the build in .output/chrome-mv3, which is what
-  // the Playwright fixtures load; WXT would otherwise add a mode suffix to the directory.
-  ...(process.argv.includes('e2e') ? { outDirTemplate: '{{browser}}-mv{{manifestVersion}}' } : {}),
+  // the Playwright fixtures load; WXT would otherwise add a mode suffix to the directory. The
+  // directory is resolved before the manifest callback sees `env.mode`, so it is read from argv.
+  ...(cliMode() === 'e2e' ? { outDirTemplate: '{{browser}}-mv{{manifestVersion}}' } : {}),
   modules: ['@wxt-dev/module-react'],
-  targetBrowsers: ['chrome', 'firefox'],
+  // Chrome only: the wallet is not built or distributed for any other browser.
+  targetBrowsers: ['chrome'],
   webExt: {
     chromiumPort: 9222,
   },
-  manifest: (env) => {
-    const baseManifest = {
-      // Localized through public/_locales; Chrome picks the file by its own UI language.
-      name: '__MSG_appName__',
-      description: '__MSG_appDescription__',
-      default_locale: 'en',
-      web_accessible_resources: [
-        {
-          resources: ['injected.js'],
-          // Mirror the content-script matches so injected.js isn't probeable on
-          // pages where the provider is never injected (fingerprinting surface).
-          matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
-        },
-      ],
-      permissions: [
-        'sidePanel',
-        'storage',
-        'alarms',
-      ],
-      // Trezor Connect 10 reads the Suite Web tab's URL to talk to it, which needs host access to
-      // suite.trezor.io. It is optional so an update never disables the wallet for people who do
-      // not use a Trezor: the wallet asks on the first Trezor click (core/hardware/suiteAccess.ts).
-      // `wxt build --mode e2e` grants it up front, because automation cannot answer Chrome's prompt.
-      ...(env.mode === 'e2e'
-        ? { host_permissions: ['https://suite.trezor.io/*'] }
-        : { optional_host_permissions: ['https://suite.trezor.io/*'] }),
-      externally_connectable: { matches: ['https://suite.trezor.io/*'] },
-    };
-
-    // Firefox-specific: Add data collection consent (required for Firefox 140+)
-    // This enables Firefox's built-in consent UI for analytics
-    if (env.browser === 'firefox') {
-      return {
-        ...baseManifest,
-        browser_specific_settings: {
-          gecko: {
-            id: 'wallet@xcpwallet.com',
-            // storage.session, which holds the unlocked session key, was added in Firefox 115.
-            strict_min_version: '115.0',
-            data_collection_permissions: {
-              // technicalAndInteraction is opt-out by default in Firefox's UI
-              // Users can toggle it during install or in about:addons
-              optional: ['technicalAndInteraction'],
-            },
-          },
-        },
-      };
-    }
-
-    return baseManifest;
-  },
+  manifest: (env) => ({
+    // Localized through public/_locales; Chrome picks the file by its own UI language.
+    name: '__MSG_appName__',
+    description: '__MSG_appDescription__',
+    default_locale: 'en',
+    web_accessible_resources: [
+      {
+        resources: ['injected.js'],
+        // Mirror the content-script matches so injected.js isn't probeable on
+        // pages where the provider is never injected (fingerprinting surface).
+        matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
+      },
+    ],
+    permissions: [
+      'sidePanel',
+      'storage',
+      'alarms',
+    ],
+    // Trezor Connect 10 reads the Suite Web tab's URL to talk to it, which needs host access to
+    // suite.trezor.io. It is optional so an update never disables the wallet for people who do
+    // not use a Trezor: the wallet asks on the first Trezor click (src/platform/suiteAccess.ts).
+    // `wxt build --mode e2e` grants it up front, because automation cannot answer Chrome's prompt.
+    ...(env.mode === 'e2e'
+      ? { host_permissions: TREZOR_SUITE_ORIGINS }
+      : { optional_host_permissions: TREZOR_SUITE_ORIGINS }),
+    externally_connectable: { matches: TREZOR_SUITE_ORIGINS },
+  }),
   vite: (configEnv) => ({
     plugins: [tailwindcss()],
     build: {

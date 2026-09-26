@@ -4,8 +4,8 @@
  * Tests for /market/dispensers/:asset route - dispensers for a specific asset
  */
 
-import { walletTest, expect } from '@e2e/fixtures';
-import { market, common } from '@e2e/selectors';
+import { expect, walletTest } from '@e2e/fixtures';
+import { common, market } from '@e2e/selectors';
 
 walletTest.describe('Asset Dispensers Page (/market/dispensers/:asset)', () => {
   walletTest.beforeEach(async ({ page }) => {

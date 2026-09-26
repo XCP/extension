@@ -4,9 +4,13 @@
 # hardware wallet integration without a physical device.
 #
 # Usage:
-#   docker-compose -f docker-compose.trezor.yml up -d
-#   npm run test:emulator
-#   docker-compose -f docker-compose.trezor.yml down
+#   docker compose -f docker-compose.trezor.yml up -d
+#   node e2e/hardware/init-trezor-emulator.js     # starts the emulator and bridge, loads the test seed
+#   TREZOR_EMULATOR_AVAILABLE=1 npm run test:emulator
+#   docker compose -f docker-compose.trezor.yml down
+#
+# Without TREZOR_EMULATOR_AVAILABLE=1 the emulator suite skips itself. In PowerShell, set it with
+# `$env:TREZOR_EMULATOR_AVAILABLE = '1'` before running the tests.
 #
 # Prerequisites:
 #   - Docker and Docker Compose installed
@@ -16,8 +20,6 @@
 # The emulator will be available at:
 #   - Emulator controller: ws://localhost:9001
 #   - Bridge: http://localhost:21325
-
-version: '3.8'
 
 services:
   trezor-user-env:

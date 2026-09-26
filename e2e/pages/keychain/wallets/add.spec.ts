@@ -4,7 +4,7 @@
  * Tests for the add wallet page that provides options to create or import a wallet.
  */
 
-import { walletTest, expect } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
 import { header, selectWallet } from '@e2e/selectors';
 
 walletTest.describe('Add Wallet Page (/keychain/wallets/add)', () => {

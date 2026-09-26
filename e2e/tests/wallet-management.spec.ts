@@ -5,18 +5,16 @@
  */
 
 import {
-  test,
-  walletTest,
-  expect,
   createWallet,
-  importMnemonic,
-  importPrivateKey,
+  expect,
   navigateTo,
-  TEST_PASSWORD,
   TEST_MNEMONIC,
-  TEST_PRIVATE_KEY
+  TEST_PASSWORD,
+  TEST_PRIVATE_KEY,
+  test,
+  walletTest
 } from '../fixtures';
-import { header, settings, viewAddress, importWallet, createWallet as createWalletSelectors, selectWallet, onboarding } from '../selectors';
+import { createWallet as createWalletSelectors, header, importWallet, onboarding, selectWallet } from '../selectors';
 
 test.describe('Wallet Selection', () => {
   test('header button opens wallet selection', async ({ extensionPage }) => {
@@ -82,8 +80,8 @@ test.describe('Multi-Wallet Support', () => {
 
     // Fill mnemonic
     const words = TEST_MNEMONIC.split(' ');
-    for (let i = 0; i < 12; i++) {
-      await importWallet.wordInput(extensionPage, i).fill(words[i]);
+    for (const [i, word] of words.slice(0, 12).entries()) {
+      await importWallet.wordInput(extensionPage, i).fill(word);
     }
 
     await importWallet.savedPhraseCheckbox(extensionPage).check();

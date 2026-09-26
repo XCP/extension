@@ -18,6 +18,7 @@ import {
   type BitcoinPaymentProof,
   proveBitcoinPaymentIntent,
 } from '@/core/bitcoin/providerPayment';
+import type { DecodedOutput } from '@/core/bitcoin/psbt';
 import {
   type AttachedAssetDestination,
   movesCounterpartyValue,
@@ -65,7 +66,7 @@ export interface AnalyzedInput {
   value?: number;
   sequence?: number;
   /** Script type of the spent prevout. */
-  scriptType?: string;
+  scriptType?: DecodedOutput['type'];
 }
 
 /**
@@ -145,12 +146,6 @@ export interface SignRequestAnalysis {
 }
 
 /**
- * Run every safety check that applies to a transaction a website has asked this wallet to sign.
- *
- * @param input - the transaction, already parsed, with its Counterparty payload resolved
- * @returns the analysis both approval screens render, including any blocking warnings
- */
-/**
  * The block a failed marketplace proof raises, led by what the user can do about it. The wallet's
  * internal reasons stay attached as details, never as the headline.
  */
@@ -173,6 +168,12 @@ function marketplaceBlockWarning(review: MarketplaceApprovalReview): SecurityWar
   };
 }
 
+/**
+ * Run every safety check that applies to a transaction a website has asked this wallet to sign.
+ *
+ * @param input - the transaction, already parsed, with its Counterparty payload resolved
+ * @returns the analysis both approval screens render, including any blocking warnings
+ */
 export async function analyzeSignRequest(
   input: SignRequestAnalysisInput
 ): Promise<SignRequestAnalysis> {

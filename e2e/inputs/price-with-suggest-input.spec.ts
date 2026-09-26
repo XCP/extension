@@ -16,7 +16,7 @@
  * - Create dispenser page (set BTC price)
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('PriceWithSuggestInput Component', () => {
   // Navigate to dispenser page which uses PriceWithSuggestInput

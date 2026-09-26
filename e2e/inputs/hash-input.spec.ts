@@ -17,7 +17,7 @@
  * - Close dispenser by hash
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 // Valid test hashes
 const VALID_TX_HASH = 'a'.repeat(64);

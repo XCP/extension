@@ -8,7 +8,7 @@
  * Full approval flow is tested in e2e/flows/provider-integration.spec.ts
  */
 
-import { walletTest, expect } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
 
 walletTest.describe('Approve Transaction Page (/requests/transaction/approve)', () => {
   walletTest('page loads without crashing', async ({ page }) => {

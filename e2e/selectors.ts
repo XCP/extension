@@ -21,7 +21,7 @@
  * - data-testid - prefer semantic/accessible selectors
  */
 
-import { Page, Locator } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 // ============================================================================
 // Onboarding
@@ -450,7 +450,6 @@ export const market = {
   xcpRange30d: (page: Page) => page.getByRole('button', { name: '30D' }),
   xcpRangeAll: (page: Page) => page.getByRole('button', { name: 'All' }),
   dexRate: (page: Page) => page.getByText(/DEX Rate/i),
-  floorPrice: (page: Page) => page.getByText(/Floor Price/i),
   allTimeHigh: (page: Page) => page.getByText(/All-Time High/i),
 
   // Asset dispensers/orders pages - main heading

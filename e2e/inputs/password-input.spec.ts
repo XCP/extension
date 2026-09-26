@@ -14,7 +14,7 @@
  * We test on the security settings page where password change uses PasswordInput.
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('PasswordInput Component', () => {
   // Navigate to security settings which has password change functionality

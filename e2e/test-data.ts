@@ -64,7 +64,7 @@ export const INVALID_ADDRESSES = [
   'bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jjX', // Invalid bech32m char
   '',
   '   ',
-];
+] as const;
 
 /**
  * Test passwords for authentication testing
