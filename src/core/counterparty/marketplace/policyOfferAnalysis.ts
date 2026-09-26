@@ -16,7 +16,20 @@ import type {
   MarketplaceAnalysisInput,
   MarketplaceApprovalReview,
 } from '@/core/counterparty/marketplace/intentTypes';
-import { attempt, ledgerBlockKind, safeSum, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
+import {
+  attempt,
+  isPolicyOfferHeader,
+  ledgerBlockKind,
+  newProofLog,
+  proveActualFee,
+  proveAttachedAsset,
+  proveTxidClaim,
+  reviewStatus,
+  safeSum,
+  sameOutpoint,
+  sellerInputAssetMessages,
+  signsExactly,
+} from '@/core/counterparty/marketplace/proofs';
 import {
   decodePolicyDetachScript,
   decodePolicyLeaf,
@@ -28,9 +41,7 @@ import {
   POLICY_CHANGE_DUST_SATS,
   POLICY_MAX_EXPIRY_SECONDS,
   POLICY_MIN_EXPIRY_SECONDS,
-  POLICY_OFFER_LOCKTIME,
   POLICY_OFFER_SEQUENCE,
-  POLICY_OFFER_TX_VERSION,
   POLICY_SELLER_DUST_SATS,
   parseWitnessStrippedParent,
   platformFeeSats,
@@ -68,8 +79,8 @@ export function analyzeFundPolicyOfferIntent(
     inputs, outputs, signedInputs, signerAddresses, attachedAssets, hasCounterpartyPayload, transactionId,
   } = input;
   const context = policyWalletContext(input);
-  const blockers: string[] = [];
-  const retry: string[] = [];
+  const log = newProofLog();
+  const { blockers, retry } = log;
   const fundingCount = intent.fundingInputs.length;
 
   const txid = transactionId?.toLowerCase();
@@ -114,7 +125,7 @@ export function analyzeFundPolicyOfferIntent(
     blockers.push(settlement.problem);
   }
 
-  if (input.transactionVersion !== POLICY_OFFER_TX_VERSION || input.lockTime !== POLICY_OFFER_LOCKTIME) {
+  if (!isPolicyOfferHeader(input.transactionVersion, input.lockTime)) {
     blockers.push('the offer parent must be Bitcoin transaction version 3 with locktime 0');
   }
   if (hasCounterpartyPayload) blockers.push('an offer parent must not carry a Counterparty payload');
@@ -165,12 +176,8 @@ export function analyzeFundPolicyOfferIntent(
 
   // Every funding input, only those — never the anchor — with a signature over the whole parent.
   const allowedSighashes = bidderTaproot ? [0x00, 0x01] : [0x01];
-  const sortedSigned = [...signedInputs].sort((left, right) => left.index - right.index);
-  if (
-    sortedSigned.length !== fundingCount
-    || sortedSigned.some((signed, index) => signed.index !== index || !allowedSighashes.includes(signed.sighashType))
-    || new Set(signedInputs.map(signed => signed.index)).size !== signedInputs.length
-  ) {
+  const fundingIndices = intent.fundingInputs.map((_, index) => index);
+  if (!signsExactly(signedInputs, fundingIndices, allowedSighashes)) {
     blockers.push(bidderTaproot
       ? 'the wallet must sign every funding input, and only those, with DEFAULT or ALL'
       : 'the wallet must sign every funding input, and only those, with ALL (0x01)');
@@ -252,14 +259,10 @@ export function analyzeFundPolicyOfferIntent(
     ) {
       blockers.push(`the parent fee does not balance or exceeds ${MAX_POLICY_PARENT_FEE_SATS} sats`);
     }
-    const inputValues = inputs.map(transactionInput => transactionInput.value);
-    if (!inputValues.some(value => value === undefined)) {
-      const actualIn = safeSum(inputValues as number[]);
-      const actualOut = safeSum(outputs.map(output => output.value));
-      if (actualIn === null || actualOut === null || actualIn - actualOut !== alternative.parentFeeSats) {
-        blockers.push('the actual parent fee differs from the claim');
-      }
-    }
+    // Each unknown input value already raised its own retry above.
+    proveActualFee(log, inputs.map(transactionInput => transactionInput.value), outputs, alternative.parentFeeSats, {
+      differs: 'the actual parent fee differs from the claim',
+    });
     const vsize = attempt(blockers, () => unsignedPolicyParentVsize(
       inputs.map(transactionInput => transactionInput.scriptType),
       outputs.map((output) => {
@@ -279,7 +282,7 @@ export function analyzeFundPolicyOfferIntent(
   }
 
   const allProblems = [...retry, ...blockers];
-  const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'caution';
+  const status = reviewStatus(log, 'caution');
   const shown = alternative ?? intent.alternatives[0]!;
   const policyText = describeCanonicalPolicy(shown.policy);
   const offerPrice: ProtocolField = {
@@ -343,10 +346,8 @@ export function analyzeAcceptPolicyOfferIntent(
   const {
     inputs, outputs, signedInputs, signerAddresses, attachedAssets, hasCounterpartyPayload, transactionId,
   } = input;
-  const blockers: string[] = [];
-  const retry: string[] = [];
-  const ledger = new Set<string>();
-  const ledgerBlock = (problem: string) => { ledger.add(problem); blockers.push(problem); };
+  const log = newProofLog();
+  const { blockers, retry } = log;
   const claim = intent.assets[0];
   const parentTxid = intent.offerOutpoint.parentTxid;
 
@@ -358,7 +359,7 @@ export function analyzeAcceptPolicyOfferIntent(
   const parent = attempt(blockers, () => parseWitnessStrippedParent(intent.parentRawHex));
   if (parent) {
     if (parent.txid !== parentTxid) blockers.push('the parent bytes do not hash to the offer outpoint');
-    if (parent.version !== POLICY_OFFER_TX_VERSION || parent.lockTime !== POLICY_OFFER_LOCKTIME) {
+    if (!isPolicyOfferHeader(parent.version, parent.lockTime)) {
       blockers.push('the offer parent must be Bitcoin transaction version 3 with locktime 0');
     }
     if (intent.parentInputValuesSats.length !== parent.inputCount) {
@@ -398,12 +399,11 @@ export function analyzeAcceptPolicyOfferIntent(
   }
 
   // The child.
-  if (!transactionId) {
-    retry.push('the wallet could not establish the acceptance transaction id');
-  } else if (transactionId.toLowerCase() !== intent.expectedTxid) {
-    blockers.push('the acceptance transaction id differs from the claim');
-  }
-  if (input.transactionVersion !== POLICY_OFFER_TX_VERSION || input.lockTime !== POLICY_OFFER_LOCKTIME) {
+  proveTxidClaim(log, transactionId, intent.expectedTxid, {
+    unknown: 'the wallet could not establish the acceptance transaction id',
+    differs: 'the acceptance transaction id differs from the claim',
+  });
+  if (!isPolicyOfferHeader(input.transactionVersion, input.lockTime)) {
     blockers.push('the acceptance must be Bitcoin transaction version 3 with locktime 0');
   }
   if (inputs.length !== 2 || outputs.length !== 3) {
@@ -441,33 +441,15 @@ export function analyzeAcceptPolicyOfferIntent(
     }
   });
   const sellerTaproot = sellerInput?.scriptType === 'p2tr';
-  if (
-    signedInputs.length !== 1
-    || signedInputs[0]?.index !== 1
-    || !(sellerTaproot ? [0x00, 0x01] : [0x01]).includes(signedInputs[0]!.sighashType)
-  ) {
+  if (!signsExactly(signedInputs, [1], sellerTaproot ? [0x00, 0x01] : [0x01])) {
     blockers.push(sellerTaproot
       ? 'the wallet must sign only input 1 with DEFAULT or ALL'
       : 'the wallet must sign only input 1 with ALL (0x01)');
   }
 
-  const balance = attachedAssets.find(entry => entry.inputIndex === 1);
-  let provedQuantity: string | null = null;
-  if (balance?.lookupFailed) {
-    retry.push('the attached-asset lookup for seller input 1 failed');
-  } else if (!balance || balance.assets.length !== 1) {
-    ledgerBlock('seller input 1 does not independently resolve to exactly one attached asset');
-  } else {
-    const actual = balance.assets[0]!;
-    if (actual.asset !== claim.asset) ledgerBlock('seller input 1 attached asset differs from the claim');
-    if (actual.quantity === undefined) {
-      retry.push('seller input 1 has no exact raw attached quantity');
-    } else if (actual.quantity !== claim.quantityRaw) {
-      ledgerBlock('seller input 1 raw attached quantity differs from the claim');
-    } else {
-      provedQuantity = actual.quantity_normalized;
-    }
-  }
+  const provedQuantity = proveAttachedAsset(
+    log, attachedAssets.find(entry => entry.inputIndex === 1), claim, sellerInputAssetMessages(1),
+  );
 
   if (!hasCounterpartyPayload) blockers.push('the acceptance carries no Counterparty payload');
   const delivery = outputs[0];
@@ -493,14 +475,10 @@ export function analyzeAcceptPolicyOfferIntent(
     intent.sellerProceedsSats, intent.platformFeeSats, intent.networkFeeSats,
   ]);
   if (!conserved) blockers.push('the offer and asset UTXO do not equal the proceeds, marketplace fee, and network fee');
-  const inputValues = inputs.map(transactionInput => transactionInput.value);
-  if (!inputValues.some(value => value === undefined)) {
-    const actualIn = safeSum(inputValues as number[]);
-    const actualOut = safeSum(outputs.map(output => output.value));
-    if (actualIn === null || actualOut === null || actualIn - actualOut !== intent.networkFeeSats) {
-      blockers.push('the actual network fee differs from the claim');
-    }
-  }
+  // An unknown seller input value already raised its retry above.
+  proveActualFee(log, inputs.map(transactionInput => transactionInput.value), outputs, intent.networkFeeSats, {
+    differs: 'the actual network fee differs from the claim',
+  });
   if (intent.sellerProceedsSats <= POLICY_SELLER_DUST_SATS) {
     blockers.push(`seller proceeds must exceed ${POLICY_SELLER_DUST_SATS} sats`);
   }
@@ -509,7 +487,7 @@ export function analyzeAcceptPolicyOfferIntent(
   }
 
   const allProblems = [...retry, ...blockers];
-  const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved';
+  const status = reviewStatus(log, 'proved');
   const paymentSummary: ProtocolField[] = [
     {
       kind: 'amount', label: t('marketplace_intent_you_receive'), value: satsValue(intent.sellerProceedsSats),
@@ -530,7 +508,7 @@ export function analyzeAcceptPolicyOfferIntent(
   return {
     status,
     family: 'accept_policy_offer',
-    ...ledgerBlockKind(blockers, ledger),
+    ...ledgerBlockKind(blockers, log.ledger),
     ...(allProblems.length === 0 ? {
       paymentSummary,
       summary: { label: t('marketplace_intent_accept_offer'), description: offerAsset },

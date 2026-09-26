@@ -9,7 +9,18 @@ import type {
   MarketplaceAnalysisInput,
   MarketplaceApprovalReview,
 } from '@/core/counterparty/marketplace/intentTypes';
-import { ledgerBlockKind, safeSum, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
+import {
+  ledgerBlockKind,
+  newProofLog,
+  proveActualFee,
+  proveAttachedAsset,
+  proveTxidClaim,
+  reviewStatus,
+  safeSum,
+  sameOutpoint,
+  sellerInputAssetMessages,
+  signsExactly,
+} from '@/core/counterparty/marketplace/proofs';
 import { isRecord } from '@/core/isRecord';
 import { t } from '@/i18n';
 
@@ -33,10 +44,8 @@ export function analyzeExactOfferIntent(
     transactionId,
     localCounterpartyMessage,
   } = input;
-  const blockers: string[] = [];
-  const retry: string[] = [];
-  const ledger = new Set<string>();
-  const ledgerBlock = (problem: string) => { ledger.add(problem); blockers.push(problem); };
+  const log = newProofLog();
+  const { blockers, retry } = log;
   const claim = intent.assets[0];
   const authorizing = intent.action === 'authorize_exact_offer';
   const attachedDelivery = intent.delivery.mode === 'attached';
@@ -52,11 +61,10 @@ export function analyzeExactOfferIntent(
   if (!sameAddress(intent.delivery.address, intent.bidder)) {
     blockers.push('the delivery address differs from the bidder');
   }
-  if (!transactionId) {
-    retry.push('the wallet could not establish the unsigned transaction id');
-  } else if (transactionId.toLowerCase() !== intent.expectedTxid) {
-    blockers.push('the unsigned transaction id differs from the exact authorization');
-  }
+  proveTxidClaim(log, transactionId, intent.expectedTxid, {
+    unknown: 'the wallet could not establish the unsigned transaction id',
+    differs: 'the unsigned transaction id differs from the exact authorization',
+  });
   const detachData = isRecord(localCounterpartyMessage?.data)
     ? localCounterpartyMessage.data
     : undefined;
@@ -112,11 +120,7 @@ export function analyzeExactOfferIntent(
   if (new Set(inputOutpoints).size !== inputOutpoints.length) {
     blockers.push('the exact offer contains a duplicate input outpoint');
   }
-  if (
-    signedInputs.length !== 1
-    || signedInputs[0]?.index !== requestedInputIndex
-    || signedInputs[0]?.sighashType !== 0x01
-  ) {
+  if (!signsExactly(signedInputs, [requestedInputIndex], [0x01])) {
     blockers.push(
       `the wallet must sign only input ${requestedInputIndex} with ALL (0x01) for this action`,
     );
@@ -181,27 +185,9 @@ export function analyzeExactOfferIntent(
   } else if (bidderBalance && bidderBalance.assets.length > 0) {
     blockers.push('buyer funding input 0 carries attached Counterparty assets');
   }
-  const sellerBalance = balances.get(1);
   // The ledger-normalized amount, for display: the title only needs it on proved/caution, where
   // this lookup has succeeded — so the screen never has to show raw base units.
-  let provedQuantity: string | null = null;
-  if (sellerBalance?.lookupFailed) {
-    retry.push('the attached-asset lookup for seller input 1 failed');
-  } else if (!sellerBalance || sellerBalance.assets.length !== 1) {
-    ledgerBlock('seller input 1 does not independently resolve to exactly one attached asset');
-  } else {
-    const actual = sellerBalance.assets[0]!;
-    if (actual.asset !== claim.asset) {
-      ledgerBlock('seller input 1 attached asset differs from the claim');
-    }
-    if (actual.quantity === undefined) {
-      retry.push('seller input 1 has no exact raw attached quantity');
-    } else if (actual.quantity !== claim.quantityRaw) {
-      ledgerBlock('seller input 1 raw attached quantity differs from the claim');
-    } else {
-      provedQuantity = actual.quantity_normalized;
-    }
-  }
+  const provedQuantity = proveAttachedAsset(log, balances.get(1), claim, sellerInputAssetMessages(1));
 
   const claimedProceeds = safeSum([
     intent.priceSats,
@@ -223,26 +209,13 @@ export function analyzeExactOfferIntent(
     }
   }
 
-  const allInputValues = inputs.map(transactionInput => transactionInput.value);
-  if (allInputValues.some(value => value === undefined)) {
-    retry.push('the wallet could not authenticate every input value needed to prove the miner fee');
-  } else {
-    const inputTotal = safeSum(allInputValues as number[]);
-    const outputTotal = safeSum(outputs.map(output => output.value));
-    const actualFee = inputTotal === null || outputTotal === null ? null : inputTotal - outputTotal;
-    if (actualFee === null || actualFee < 0 || actualFee !== intent.networkFeeSats) {
-      blockers.push('the actual miner fee differs from the exact-offer claim');
-    }
-  }
+  proveActualFee(log, inputs.map(transactionInput => transactionInput.value), outputs, intent.networkFeeSats, {
+    unauthenticated: 'the wallet could not authenticate every input value needed to prove the miner fee',
+    differs: 'the actual miner fee differs from the exact-offer claim',
+  });
 
   const allProblems = [...retry, ...blockers];
-  const status = blockers.length > 0
-    ? 'blocked'
-    : retry.length > 0
-      ? 'retry'
-      : authorizing
-        ? 'caution'
-        : 'proved';
+  const status = reviewStatus(log, authorizing ? 'caution' : 'proved');
   const fundingOutpoint = intent.bitcoinInvalidation.outpoint;
   // Absent means the bidder funded the whole fee (requests from before the taker fee).
   const sellerPaidFeeSats = intent.sellerPaidFeeSats ?? 0;
@@ -297,7 +270,7 @@ export function analyzeExactOfferIntent(
   const offerAsset = provedQuantity ? `${provedQuantity} ${claim.asset}` : claim.asset;
   return {
     status,
-    ...ledgerBlockKind(blockers, ledger),
+    ...ledgerBlockKind(blockers, log.ledger),
     family: intent.action,
     ...(allProblems.length === 0 ? {
       paymentSummary,

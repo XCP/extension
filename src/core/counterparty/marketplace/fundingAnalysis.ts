@@ -16,7 +16,15 @@ import type {
   MarketplaceApprovalReview,
   PrepareBulkFanoutIntentClaim,
 } from '@/core/counterparty/marketplace/intentTypes';
-import { safeSum, sameOutpoint } from '@/core/counterparty/marketplace/proofs';
+import {
+  newProofLog,
+  proveActualFee,
+  proveTxidClaim,
+  reviewStatus,
+  safeSum,
+  sameOutpoint,
+  signsExactly,
+} from '@/core/counterparty/marketplace/proofs';
 import { t } from '@/i18n';
 
 /** Prove a clean-BTC parent that creates same-owner attach funding slots. */
@@ -33,25 +41,20 @@ export function analyzePrepareBulkFanoutIntent(
     hasCounterpartyPayload,
     transactionId,
   } = input;
-  const blockers: string[] = [];
-  const retry: string[] = [];
+  const log = newProofLog();
+  const { blockers, retry } = log;
 
-  if (!transactionId) {
-    retry.push('the wallet could not establish the fan-out transaction id');
-  } else if (transactionId.toLowerCase() !== intent.expectedTxid) {
-    blockers.push('the fan-out transaction id differs from the claim');
-  }
+  proveTxidClaim(log, transactionId, intent.expectedTxid, {
+    unknown: 'the wallet could not establish the fan-out transaction id',
+    differs: 'the fan-out transaction id differs from the claim',
+  });
   if (hasCounterpartyPayload) {
     blockers.push('a funding fan-out must not carry a Counterparty payload');
   }
   if (inputs.length !== 1) {
     blockers.push(`expected exactly one fan-out funding input, got ${inputs.length}`);
   }
-  if (
-    signedInputs.length !== 1
-    || signedInputs[0]?.index !== 0
-    || signedInputs[0]?.sighashType !== 0x01
-  ) {
+  if (!signsExactly(signedInputs, [0], [0x01])) {
     blockers.push('the wallet must sign only fan-out input 0 with ALL (0x01)');
   }
   if (signerAddresses.length !== 1 || !sameAddress(signerAddresses[0], intent.seller)) {
@@ -108,17 +111,14 @@ export function analyzePrepareBulkFanoutIntent(
   if (claimedFee === null || claimedFee < 0 || claimedFee !== intent.networkFeeSats) {
     blockers.push('the claimed fan-out fee does not equal funding minus outputs');
   }
-  if (fundingInput?.value !== undefined) {
-    const actualOutputTotal = safeSum(outputs.map(output => output.value));
-    const actualFee = actualOutputTotal === null ? null : fundingInput.value - actualOutputTotal;
-    if (actualFee === null || actualFee < 0 || actualFee !== intent.networkFeeSats) {
-      blockers.push('the actual fan-out fee differs from the claim');
-    }
-  }
+  // Only the one funding input's value: the retry for it being unknown is already raised above.
+  proveActualFee(log, [fundingInput?.value], outputs, intent.networkFeeSats, {
+    differs: 'the actual fan-out fee differs from the claim',
+  });
 
   const allProblems = [...retry, ...blockers];
   return {
-    status: blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved',
+    status: reviewStatus(log, 'proved'),
     family: 'prepare_bulk_fanout',
     title: intent.slotCount === 1
       ? t('marketplace_intent_title_create_one_listing_utxo')
@@ -186,14 +186,13 @@ export function analyzeFundOffersIntent(
     hasCounterpartyPayload,
     transactionId,
   } = input;
-  const blockers: string[] = [];
-  const retry: string[] = [];
+  const log = newProofLog();
+  const { blockers, retry } = log;
 
-  if (!transactionId) {
-    retry.push('the wallet could not establish the offer funding transaction id');
-  } else if (transactionId.toLowerCase() !== intent.expectedTxid) {
-    blockers.push('the offer funding transaction id differs from the claim');
-  }
+  proveTxidClaim(log, transactionId, intent.expectedTxid, {
+    unknown: 'the wallet could not establish the offer funding transaction id',
+    differs: 'the offer funding transaction id differs from the claim',
+  });
   if (hasCounterpartyPayload) {
     blockers.push('offer funding must not carry a Counterparty payload');
   }
@@ -271,18 +270,10 @@ export function analyzeFundOffersIntent(
   if (claimedFee === null || claimedFee < 0 || claimedFee !== intent.networkFeeSats) {
     blockers.push('the claimed offer funding fee does not equal funding minus outputs');
   }
-  const actualInputTotal = inputs.every(transactionInput => transactionInput.value !== undefined)
-    ? safeSum(inputs.map(transactionInput => transactionInput.value!))
-    : undefined;
-  if (actualInputTotal !== undefined) {
-    const actualOutputTotal = safeSum(outputs.map(output => output.value));
-    const actualFee = actualInputTotal === null || actualOutputTotal === null
-      ? null
-      : actualInputTotal - actualOutputTotal;
-    if (actualFee === null || actualFee < 0 || actualFee !== intent.networkFeeSats) {
-      blockers.push('the actual offer funding fee differs from the claim');
-    }
-  }
+  // Each unknown input value already raised its own retry above.
+  proveActualFee(log, inputs.map(transactionInput => transactionInput.value), outputs, intent.networkFeeSats, {
+    differs: 'the actual offer funding fee differs from the claim',
+  });
 
   const allProblems = [...retry, ...blockers];
   const each = (label: string) => t('marketplace_intent_each_label', label);
@@ -314,7 +305,7 @@ export function analyzeFundOffersIntent(
   ];
   const policy = intent.target.scope === 'collection' ? intent.target.policy : undefined;
   return {
-    status: blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved',
+    status: reviewStatus(log, 'proved'),
     family: 'fund_offers',
     ...(allProblems.length === 0 ? { paymentSummary } : {}),
     title: fundOffersTitle(intent),
