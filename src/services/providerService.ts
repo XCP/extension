@@ -28,6 +28,7 @@ import {
   unsupportedMarketplaceActionReason,
 } from '@/core/providerCapabilities';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
+import { supportsPairedContinuity } from '@/core/requestIdentity';
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
@@ -40,7 +41,6 @@ import {
   transactionRateLimiter,
 } from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
-import { supportsPairedContinuity } from '@/platform/provider/requestIdentity';
 import {
   beginSignFlow,
   type CompletedSignFlow,

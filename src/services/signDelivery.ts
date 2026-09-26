@@ -5,11 +5,11 @@
  * connection services, and its synchronous guard reads the background's own walletManager.
  */
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { pairedGrantCovers } from '@/core/pairedGrant';
 import { ProviderReviewError, withProviderReviewCode } from '@/core/providerReviewErrors';
+import { getIdentityMismatchCode } from '@/core/requestIdentity';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { assertSessionGeneration } from '@/platform/auth/sessionManager';
-import { pairedGrantCovers } from '@/platform/provider/pairedGrant';
-import { getIdentityMismatchCode } from '@/platform/provider/requestIdentity';
 import { type ProviderSigningRequest, SIGN_FLOW_TTL_MS } from '@/platform/provider/signFlow';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 import { walletManager } from '@/platform/walletManager';

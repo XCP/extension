@@ -1,7 +1,16 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
-import { PROVIDER_REVIEW_MESSAGES, type ProviderReviewCode } from '@/core/providerReviewErrors';
-import { type PairedGrant, pairedGrantCovers } from '@/platform/provider/pairedGrant';
-import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
+import { type PairedGrant, pairedGrantCovers } from '@/core/pairedGrant';
+import type { ProviderReviewCode } from '@/core/providerReviewErrors';
+
+/**
+ * The part of a stored provider request these checks read: which site asked, and the signing
+ * identity it was authorized for. platform/storage's AuthorizedRequest satisfies it structurally.
+ */
+export interface AuthorizedIdentity {
+  origin: string;
+  address: string;
+  walletId: string;
+}
 
 /**
  * Returns a diagnostic code if the active signing identity no longer matches the
@@ -15,7 +24,7 @@ import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
  * it authorizes no signer — each signer is still checked against the grant at execution.
  */
 export function getIdentityMismatchCode(
-  request: AuthorizedRequest,
+  request: AuthorizedIdentity,
   activeAddress: string | undefined,
   activeWalletId: string | undefined,
   pairedGrant?: PairedGrant,
@@ -28,7 +37,7 @@ export function getIdentityMismatchCode(
 
 /** True when the active address is the request address's sibling under the origin's paired grant. */
 export function isGrantedPairedSibling(
-  request: AuthorizedRequest,
+  request: AuthorizedIdentity,
   activeAddress: string | undefined,
   pairedGrant: PairedGrant | undefined,
 ): boolean {
@@ -44,11 +53,11 @@ export function isGrantedPairedSibling(
 export function supportsPairedContinuity(kind: string): boolean {
   return kind === 'sign-message' || kind === 'sign-psbt' || kind === 'sign-psbts';
 }
-interface PsbtAuthorizationRequest extends AuthorizedRequest {
+interface PsbtAuthorizationRequest extends AuthorizedIdentity {
   signInputs?: Record<string, number[]>;
 }
 
-interface MessageAuthorizationRequest extends AuthorizedRequest {
+interface MessageAuthorizationRequest extends AuthorizedIdentity {
   signingAddress?: string;
 }
 
@@ -66,7 +75,7 @@ interface ProviderPermissionReader {
  * already open. Signing would hand the result to an origin that no longer has permission.
  */
 export async function getConnectionRevokedCode(
-  request: AuthorizedRequest,
+  request: AuthorizedIdentity,
   permissions: Pick<ProviderPermissionReader, 'hasPermission'>,
 ): Promise<ProviderReviewCode | null> {
   if (!await permissions.hasPermission(request.origin)) {
@@ -121,25 +130,4 @@ export async function getPsbtPermissionCode(
   }
 
   return null;
-}
-
-/** Preserve the existing raw-message API for callers outside the localized review UI. */
-export function getIdentityMismatchError(...args: Parameters<typeof getIdentityMismatchCode>): string | null {
-  const code = getIdentityMismatchCode(...args);
-  return code ? PROVIDER_REVIEW_MESSAGES[code] : null;
-}
-
-export async function getConnectionRevokedError(...args: Parameters<typeof getConnectionRevokedCode>): Promise<string | null> {
-  const code = await getConnectionRevokedCode(...args);
-  return code ? PROVIDER_REVIEW_MESSAGES[code] : null;
-}
-
-export async function getMessagePermissionError(...args: Parameters<typeof getMessagePermissionCode>): Promise<string | null> {
-  const code = await getMessagePermissionCode(...args);
-  return code ? PROVIDER_REVIEW_MESSAGES[code] : null;
-}
-
-export async function getPsbtPermissionError(...args: Parameters<typeof getPsbtPermissionCode>): Promise<string | null> {
-  const code = await getPsbtPermissionCode(...args);
-  return code ? PROVIDER_REVIEW_MESSAGES[code] : null;
 }

@@ -11,9 +11,9 @@
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { generateRequestId } from '@/core/id';
+import { pairedGrantCovers } from '@/core/pairedGrant';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
-import { pairedGrantCovers } from '@/platform/provider/pairedGrant';
 import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
 import { createWriteLock } from '@/platform/storage/mutex';
 import { type ApprovalPlacement, type ApprovalResult, getApprovalService } from '@/services/approvalService';
