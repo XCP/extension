@@ -1923,6 +1923,9 @@ export class WalletManager {
       assertTransactionMatchesReviewed(parsePSBT(completedPsbtHex), reviewed);
 
       const { trezor, DerivationPaths } = await this.getInitializedTrezor(wallet.id);
+      // Device init awaits; a lock during it empties the address list, so check the session
+      // before mapping paths from that list.
+      assertStillAuthorized();
       const inputPaths = mapVerifiedInputPaths(
         verified.prevouts,
         wallet.addresses,
@@ -2102,6 +2105,9 @@ export class WalletManager {
         verified.prevouts.map(prevout => Number(prevout.amount)),
         verified.prevouts.map(prevout => bytesToHex(prevout.script)));
       const { trezor, DerivationPaths } = await this.getInitializedTrezor(wallet.id);
+      // Device init awaits; a lock during it empties the address list, so check the session
+      // before mapping paths from that list.
+      assertStillAuthorized();
       const inputPaths = mapVerifiedInputPaths(
         verified.prevouts.filter(prevout => requestedIndices.has(prevout.index)),
         wallet.addresses,
@@ -2128,6 +2134,9 @@ export class WalletManager {
       resolveTrustedPrevout: getTrustedBroadcastPrevout,
       ...(requestedInputIndices ? { inputIndices: requestedInputIndices } : {}),
     });
+    // Prevout verification awaits the network. A lock or identity change during it must stop
+    // this request here, as it does on the hardware path, before any key is selected.
+    assertStillAuthorized();
     psbtHex = verified.hex;
 
     // If signInputs is provided, sign only the specified inputs
