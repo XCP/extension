@@ -7,7 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { t } from '@/i18n';
-import { getProviderService } from "@/services/providerService";
+import { getProviderServiceClient } from "@/services/providerServiceClient";
 
 /**
  * Constants for navigation paths.
@@ -52,7 +52,7 @@ export default function ConnectedSitesPage(): ReactElement {
    */
   const handleDisconnectSite = async (origin: string) => {
     try {
-      const providerService = getProviderService();
+      const providerService = getProviderServiceClient();
       // Disconnecting rewrites the settings, and the list follows from those — so there is nothing
       // to update here. A failure leaves the site listed, which is the truth.
       await providerService.disconnect(origin);
@@ -67,7 +67,7 @@ export default function ConnectedSitesPage(): ReactElement {
   const handleDisconnectAll = useCallback(async () => {
     try {
       const sitesToDisconnect = [...connectedSites];
-      const providerService = getProviderService();
+      const providerService = getProviderServiceClient();
 
       // Disconnect all sites and wait for completion
       const disconnectPromises = sitesToDisconnect.map(site =>

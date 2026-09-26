@@ -1,5 +1,6 @@
 import { parseAmountDraft, serializeDecimal, serializeRawInteger } from "@/core/amount-contract/amounts";
 import { apiClient } from '@/core/api/client';
+import { runCounterpartyRequest } from '@/core/counterparty/api';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
@@ -560,13 +561,17 @@ async function sendComposeRequest(
     );
   }
 
-  const response = fitsInUrl
-    ? await apiClient.get<ApiResponse | { error: string }>(url, {
-        headers: { 'Content-Type': 'application/json' },
-      })
-    : await apiClient.post<ApiResponse | { error: string }>(apiUrl, query, {
+  // No Content-Type on the GET: it has no body, and the header would make every compose URL pay a
+  // CORS preflight first. Paced by the node's gate at priority, so a 429 is waited out rather than
+  // shown, and a compose never queues behind a screen's backlog of reads. A timed-out compose is not
+  // sent again: the node spent the full minute on it once already.
+  const retry = { retries: 1, retryOnTimeout: false };
+  const response = await runCounterpartyRequest(() => fitsInUrl
+    ? apiClient.get<ApiResponse | { error: string }>(url, retry)
+    : apiClient.post<ApiResponse | { error: string }>(apiUrl, query, {
+        ...retry,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
+      }), { priority: true });
 
   if ('error' in response.data) {
     throw new CounterpartyApiError(response.data.error, endpoint, {});

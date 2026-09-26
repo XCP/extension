@@ -4,7 +4,7 @@
  * Tests for signing messages via the Actions page UI.
  */
 
-import { walletTest, expect, navigateTo, grantClipboardPermissions, TEST_PASSWORD } from '../../fixtures';
+import { expect, grantClipboardPermissions, navigateTo, TEST_PASSWORD, walletTest } from '../../fixtures';
 import { actions, signMessage } from '../../selectors';
 
 walletTest.describe('Sign Message', () => {

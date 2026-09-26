@@ -1,6 +1,6 @@
 import * as btc from '@scure/btc-signer';
 import { arc4, hexToBytes } from '../../src/core/counterparty/unpack/binary';
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 const destination = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
 const txid = 'ab'.repeat(32);

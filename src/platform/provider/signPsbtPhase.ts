@@ -1,3 +1,5 @@
+import { MAX_MARKETPLACE_BATCH_REQUESTS } from '@/core/counterparty/marketplaceBatch';
+
 /**
  * Sign one already-proved phase in order, but disclose results only as a complete set.
  * Earlier signatures may exist in local memory if a later signer fails; callers cannot
@@ -7,7 +9,7 @@ export async function signPsbtPhaseForDelivery<T>(
   items: T[],
   sign: (item: T, index: number) => Promise<string>,
   /** The phase kind's own bound (maxMarketplaceBatchRequests); 8 unless the kind allows more. */
-  maxItems = 8,
+  maxItems = MAX_MARKETPLACE_BATCH_REQUESTS,
 ): Promise<string[]> {
   if (items.length < 1 || items.length > maxItems) {
     throw new Error(`PSBT signing phase must contain 1..${maxItems} transactions`);

@@ -3,12 +3,20 @@
  *
  * Provides:
  * - Service lifecycle management (initialize, destroy)
- * - State persistence for service worker restarts
+ * - State restore on initialize, and save on destroy or whenever a service calls saveState()
  * - Dependency declaration for explicit initialization ordering
+ *
+ * ### No periodic persistence
+ *
+ * Services used to save their state from a 5-minute alarm. A periodic alarm wakes an idle worker
+ * whether or not there is anything to save: about 288 cold starts a day, each re-running the
+ * whole startup, to store listener names nothing read. A service whose state matters across a
+ * restart saves it when the state changes (saveState is protected for exactly that); one whose
+ * state does not, does not persist it.
  *
  * ## Architecture Decision Records
  *
- * ### ADR-005: Explicit Service Dependency Ordering
+ * ### Design note: Explicit Service Dependency Ordering
  *
  * **Context**: Services often depend on other services being initialized first.
  * Without explicit ordering, initialization race conditions can occur.
@@ -39,26 +47,10 @@ import {
 
 export abstract class BaseService {
   protected readonly serviceName: string;
-  private readonly persistAlarmName: string;
   private initialized = false;
   private initializationPromise: Promise<void> | null = null;
   private destroyPromise: Promise<void> | null = null;
   protected serviceStartTime: number = 0;
-
-  // Static: single shared listener with O(1) dispatch via Map
-  private static alarmHandlers = new Map<string, () => Promise<void>>();
-  private static listenerRegistered = false;
-
-  private static ensureAlarmListener(): void {
-    if (this.listenerRegistered || !chrome?.alarms?.onAlarm) {
-      return;
-    }
-    chrome.alarms.onAlarm.addListener((alarm) => {
-      const handler = BaseService.alarmHandlers.get(alarm.name);
-      handler?.().catch(error => console.error('[BaseService] Alarm handler failed:', error));
-    });
-    this.listenerRegistered = true;
-  }
 
   /**
    * @param serviceName Unique identifier for this service (must be non-empty)
@@ -69,13 +61,12 @@ export abstract class BaseService {
       throw new Error('Service name must be non-empty');
     }
     this.serviceName = serviceName;
-    this.persistAlarmName = `${serviceName}-persist`;
   }
 
   /**
    * Initialize the service
    * - Restores persisted state
-   * - Registers alarms for state persistence
+   * - Clears the alarms earlier versions created, which would otherwise keep waking the worker
    */
   async initialize(): Promise<void> {
     // Already initialized
@@ -106,21 +97,13 @@ export abstract class BaseService {
       // Restore any persisted state
       await this.restoreState();
 
-      // Persist state without keeping an idle worker alive. Recovery handles suspension.
+      // Alarms survive extension updates. Clear the ones earlier versions left behind: a periodic
+      // alarm wakes the worker even with no listener for it.
       if (chrome?.alarms) {
-        await chrome.alarms.clear(`${this.serviceName}-keepalive`);
-
-        // Set up state persistence alarm (every 5 minutes)
-        await chrome.alarms.create(this.persistAlarmName, {
-          periodInMinutes: 5,
-        });
-
-        // Register handlers in shared static map (O(1) dispatch)
-        BaseService.alarmHandlers.set(
-          this.persistAlarmName,
-          () => this.handlePersist()
-        );
-        BaseService.ensureAlarmListener();
+        await Promise.all([
+          chrome.alarms.clear(`${this.serviceName}-keepalive`),
+          chrome.alarms.clear(`${this.serviceName}-persist`),
+        ]);
       }
 
       // Call service-specific initialization
@@ -139,7 +122,6 @@ export abstract class BaseService {
   /**
    * Destroy the service
    * - Saves current state
-   * - Cleans up alarms
    * - Performs service-specific cleanup
    */
   async destroy(): Promise<void> {
@@ -172,14 +154,6 @@ export abstract class BaseService {
       // Save current state before destruction
       await this.saveState();
 
-      // Clear alarms and remove from shared handler map
-      if (chrome?.alarms) {
-        await chrome.alarms.clear(this.persistAlarmName);
-
-        // Remove handlers from shared map
-        BaseService.alarmHandlers.delete(this.persistAlarmName);
-      }
-
       // Call service-specific cleanup
       await this.onDestroy();
 
@@ -194,13 +168,6 @@ export abstract class BaseService {
       console.error(`[${this.serviceName}] Failed to destroy:`, error);
       throw error;
     }
-  }
-
-  /**
-   * Handle persist alarm - save current state
-   */
-  private async handlePersist(): Promise<void> {
-    await this.saveState();
   }
 
   /**

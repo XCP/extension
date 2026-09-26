@@ -17,7 +17,7 @@
  * - Destroy supply page
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 // Test asset names
 const VALID_ASSET_NAME = 'TESTASSET';
@@ -37,7 +37,7 @@ walletTest.describe('AssetNameInput Component', () => {
       // Handle asset details endpoints - check if asset exists
       if (url.includes('/v2/assets/')) {
         const assetMatch = url.match(/\/v2\/assets\/([^/?]+)/);
-        const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
+        const assetName = assetMatch?.[1] ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
 
         // Known/reserved assets that should show as "taken"
         const takenAssets = ['XCP', 'BTC', 'PEPECASH'];

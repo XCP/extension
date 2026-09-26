@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
+import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/contexts/wallet-context';
 import { t } from '@/i18n';
@@ -12,8 +13,12 @@ import { hasTrezorSuiteAccess, requestTrezorSuiteAccess } from '@/platform/suite
  */
 export function TrezorAccessNotice(): ReactElement | null {
   const { activeWallet } = useWallet();
+  // The device vendor lives in the wallet's encrypted secret, not on the wallet the popup sees.
+  // Trezor is the only hardware wallet the wallet can create (walletManager refuses any other),
+  // so a hardware wallet is a Trezor.
   const isTrezor = activeWallet?.type === 'hardware';
   const [missing, setMissing] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!isTrezor) return;
@@ -25,20 +30,28 @@ export function TrezorAccessNotice(): ReactElement | null {
   }, [isTrezor]);
 
   const allow = async () => {
-    if (await requestTrezorSuiteAccess()) setMissing(false);
+    setFailed(false);
+    try {
+      if (await requestTrezorSuiteAccess()) setMissing(false);
+    } catch (error) {
+      console.error('Trezor Suite access request failed:', error);
+      setFailed(true);
+    }
   };
 
   if (!isTrezor || !missing) return null;
   return (
-    <div role="status" className="mb-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-      <p>{t('trezor_access_notice_body')}</p>
-      <Button
-        className="mt-2"
-        fullWidth
-        onClick={() => { void allow(); }}
-      >
-        {t('trezor_access_notice_allow')}
-      </Button>
+    <div role="status" className="mb-3">
+      <Banner severity="warning" title={t('trezor_access_notice_title')} description={t('trezor_access_notice_body')}>
+        {failed && <p role="alert" className="text-xs mt-1">{t('trezor_access_notice_failed')}</p>}
+        <Button
+          className="mt-2"
+          fullWidth
+          onClick={() => { void allow(); }}
+        >
+          {t('trezor_access_notice_allow')}
+        </Button>
+      </Banner>
     </div>
   );
 }

@@ -4,8 +4,8 @@
  * Tests for /addresses/details route - display QR code and copy address
  */
 
-import { walletTest, expect, grantClipboardPermissions } from '../../fixtures';
-import { viewAddress, common } from '../../selectors';
+import { expect, grantClipboardPermissions, walletTest } from '../../fixtures';
+import { viewAddress } from '../../selectors';
 
 walletTest.describe('View Address Page (/addresses/details)', () => {
   walletTest('view address page loads', async ({ page }) => {

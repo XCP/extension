@@ -128,12 +128,13 @@ describe('WalletManager', () => {
 
     // Mock HD key derivation
     vi.mocked(mnemonicToSeedSync).mockReturnValue(new Uint8Array(64));
-    vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
-      derive: vi.fn().mockReturnValue({
-        publicKey: new Uint8Array([2, 3, 4]),
-        privateKey: new Uint8Array([1, 2, 3]),
-      }),
-    } as any);
+    // Every node derives to the same stub, including the chain nodes addresses now hang from.
+    const node: any = {
+      publicKey: new Uint8Array([2, 3, 4]),
+      privateKey: new Uint8Array([1, 2, 3]),
+      derive: vi.fn(() => node),
+    };
+    vi.mocked(HDKey.fromMasterSeed).mockReturnValue({ derive: vi.fn().mockReturnValue(node) } as any);
     vi.mocked(bytesToHex).mockReturnValue('0203040506');
 
     walletManager = new WalletManager();
@@ -314,9 +315,8 @@ describe('WalletManager', () => {
       walletManager['keychain'] = keychain;
       mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
       mocks.keyBased.decryptWithKey.mockResolvedValue('test mnemonic');
-      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
-        derive: vi.fn().mockReturnValue({ publicKey: new Uint8Array([2, 3, 4]) }),
-      } as any);
+      const node: any = { publicKey: new Uint8Array([2, 3, 4]), derive: vi.fn(() => node) };
+      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({ derive: vi.fn().mockReturnValue(node) } as any);
       vi.mocked(encodeAddress).mockReturnValue('bc1qselected');
 
       await walletManager.selectWallet(wallet.id);
@@ -351,11 +351,13 @@ describe('WalletManager', () => {
       mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
       mocks.walletStorage.getKeychainRecord.mockResolvedValue(createTestKeychainRecord());
       mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/86'/0'/0'/0");
-      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
-        derive: vi.fn((path: string) => ({
-          publicKey: new Uint8Array([2, Number(path.split('/').at(-1))]),
-        })),
-      } as any);
+      // A node's key names the last step of the path that reached it, from the master key or from
+      // the chain node the addresses are taken from.
+      const nodeAt = (path: string): any => ({
+        publicKey: new Uint8Array([2, Number(path.split('/').at(-1))]),
+        derive: (next: string) => nodeAt(next),
+      });
+      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({ derive: vi.fn(nodeAt) } as any);
       vi.mocked(encodeAddress).mockImplementation(
         publicKey => `taproot-${publicKey[1]}`
       );
@@ -1010,6 +1012,33 @@ describe('WalletManager', () => {
         AddressFormat.P2WPKH,
         true,
       );
+    });
+
+    // The manual sign-message page used to sign in the popup with the wallet's format and the key's
+    // own compression flag; signing in the background must produce the same signature for each.
+    it.each([
+      { type: 'mnemonic' as const, format: AddressFormat.P2WPKH, compressed: true, paired: true },
+      { type: 'mnemonic' as const, format: AddressFormat.P2PKH, compressed: true, paired: true },
+      { type: 'mnemonic' as const, format: AddressFormat.P2TR, compressed: true, paired: false },
+      { type: 'privateKey' as const, format: AddressFormat.P2PKH, compressed: false, paired: false },
+      { type: 'privateKey' as const, format: AddressFormat.P2SH_P2WPKH, compressed: true, paired: false },
+    ])('signs a $type $format address with its wallet format and key compression', async ({ type, format, compressed, paired }) => {
+      const own = { name: 'Address 1', address: 'own-address', path: "m/0'/0/0", pubKey: '02aa' };
+      const wallet = createTestWallet({ type, addressFormat: format, addresses: [own] });
+      walletManager['wallets'] = [wallet];
+      walletManager['activeWalletId'] = wallet.id;
+      const pairedSpy = vi.spyOn(walletManager, 'getPairedAddresses').mockResolvedValue({
+        legacy: { ...own, address: format === AddressFormat.P2PKH ? 'own-address' : '1other', format: AddressFormat.P2PKH, type: 'p2pkh' },
+        segwit: { ...own, address: format === AddressFormat.P2WPKH ? 'own-address' : 'bc1qother', format: AddressFormat.P2WPKH, type: 'p2wpkh' },
+      });
+      const privateKeySpy = vi.spyOn(walletManager, 'getPrivateKey').mockResolvedValue({ hex: '22'.repeat(32), wif: 'wif', compressed });
+      vi.mocked(signMessage).mockResolvedValue({ signature: 'sig', address: 'own-address' });
+
+      await walletManager.signMessage('hello', 'own-address', { walletId: wallet.id, address: 'own-address' });
+
+      expect(pairedSpy).toHaveBeenCalledTimes(paired ? 1 : 0);
+      expect(privateKeySpy).toHaveBeenCalledWith(wallet.id, own.path);
+      expect(signMessage).toHaveBeenCalledWith('hello', '22'.repeat(32), format, compressed);
     });
   });
   describe('Mnemonic Access', () => {

@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   wallet: { activeAddress: { address: 'bound-address' }, activeWallet: { id: 'bound-wallet' }, isLoading: false },
 }));
 vi.mock('react-router', () => ({ useSearchParams: () => [new URLSearchParams('requestId=req-1')] }));
-vi.mock('@/services/providerSigningService', () => ({ getProviderSigningService: () => mocks }));
+vi.mock('@/services/providerSigningServiceClient', () => ({ getProviderSigningServiceClient: () => mocks }));
 vi.mock('@/contexts/wallet-context', () => ({ useWallet: () => mocks.wallet }));
 
 const review = {

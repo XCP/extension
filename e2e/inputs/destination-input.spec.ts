@@ -11,9 +11,9 @@
  * - Required field validation
  */
 
-import { walletTest, expect, navigateTo } from '../fixtures';
-import { TEST_ADDRESSES, INVALID_ADDRESSES } from '../test-data';
-import { index, compose } from '../selectors';
+import { expect, navigateTo, walletTest } from '../fixtures';
+import { compose, index } from '../selectors';
+import { INVALID_ADDRESSES, TEST_ADDRESSES } from '../test-data';
 
 walletTest.describe('DestinationInput Component', () => {
   walletTest.beforeEach(async ({ page }) => {

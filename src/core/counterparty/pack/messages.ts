@@ -1,6 +1,6 @@
 /**
  * Local construction of the Counterparty message bytes a compose request should produce, so
- * verification can be a single byte comparison instead of a field-by-field walk (ADR-019, see
+ * verification can be a single byte comparison instead of a field-by-field walk (see the design note in
  * `unpack/verify.ts`).
  *
  * Field order and encoding follow core's compose functions exactly, since the output is compared

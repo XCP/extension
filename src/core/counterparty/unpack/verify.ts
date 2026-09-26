@@ -5,12 +5,12 @@
  * normalized form data (the user's intent), never against `response.result.params` — the API's echo
  * of the request cannot testify about the API.
  *
- * ### ADR-019: The composer is untrusted, and verification is structural
+ * ### Design note: The composer is untrusted, and verification is structural
  *
  * **Context.** Counterparty transactions are not built locally. The user's form input is sent to a
  * counterparty-core API which *composes* the transaction and returns raw bytes to sign. That makes
  * the composer a party to every transaction, and the trust boundary diagram in AUDIT.md previously
- * did not name it. This ADR settles the question the rest of this module depends on.
+ * did not name it. This note settles the question the rest of this module depends on.
  *
  * **Decision.** The composer is **untrusted**. The API endpoint is user-configurable and may be
  * infrastructure this project does not run, so a response is treated as an adversarial input in the
@@ -70,6 +70,7 @@
  */
 
 
+import { bytesToHex } from '@noble/hashes/utils.js';
 // Import compose types directly
 import type {
   CancelOptions,
@@ -82,7 +83,7 @@ import type {
   SendOptions,
   SweepOptions,
 } from '@/core/counterparty/compose';
-import { addressesEqual } from '@/core/counterparty/unpack/address';
+import { addressesEqual, packAddress } from '@/core/counterparty/unpack/address';
 import { MessageTypeId, type UnpackedMessageData, unpackCounterpartyMessage } from '@/core/counterparty/unpack/index';
 import type { AttachData, DetachData, MoveData } from '@/core/counterparty/unpack/messages/attach';
 import type { BroadcastData } from '@/core/counterparty/unpack/messages/broadcast';
@@ -382,6 +383,20 @@ function verifySend(
 }
 
 /**
+ * One string per class of addresses `addressesEqual` treats as the same: the packed bytes when the
+ * address packs, else the address itself. `addressesEqual(a, b)` is true exactly when the strings
+ * match or both pack to the same bytes, and that is exactly when these keys match, so counting
+ * keys is the same multiset comparison as pairing addresses with `addressesEqual` one by one.
+ */
+export function addressComparisonKey(address: string): string {
+  try {
+    return `packed:${bytesToHex(packAddress(address))}`;
+  } catch {
+    return `raw:${address}`;
+  }
+}
+
+/**
  * Verify a multi-destination send (composed as an MPMA message).
  *
  * The send form fans one asset+quantity out to a comma-separated destination
@@ -413,8 +428,7 @@ export function verifyMultiSend(
     return;
   }
 
-  // Consume each intended destination once so duplicates or substitutions are caught.
-  const remaining = [...intended];
+  const consume = intendedDestinations(intended);
   for (const send of data.sends) {
     if (!valuesEqual(send.asset, params.asset)) {
       addMismatch(result, 'asset', params.asset, send.asset, 'critical',
@@ -424,14 +438,49 @@ export function verifyMultiSend(
       addMismatch(result, 'quantity', params.quantity, send.quantity, 'critical',
         'Wrong amount = lose more than intended');
     }
-    const matchIdx = remaining.findIndex((address) => addressesEqual(address, send.destination));
-    if (matchIdx === -1) {
+    if (!consume(send.destination)) {
       addMismatch(result, 'destination', intended, send.destination, 'critical',
         'Recipient not in the intended destination list');
-    } else {
-      remaining.splice(matchIdx, 1);
     }
   }
+}
+
+/**
+ * The intended destinations as a multiset each send consumes one of, so duplicates and
+ * substitutions are caught. Returns false when nothing left matches the destination.
+ *
+ * Which of several equal addresses a send consumes cannot matter — later sends match by the same
+ * equality — so this counts equality classes rather than searching a list. The search it replaces
+ * packed both sides of every comparison and scanned the whole list per send: a 1000-recipient send
+ * whose order differed from the request took seconds. An address that appears verbatim is
+ * consumed without packing anything, which is every send when the order matches; the first one
+ * that does not switches to counting by `addressComparisonKey`, packing each remaining address once.
+ */
+function intendedDestinations(intended: string[]): (destination: string) => boolean {
+  const verbatim = new Map<string, number>();
+  for (const address of intended) verbatim.set(address, (verbatim.get(address) ?? 0) + 1);
+  let byKey: Map<string, number> | null = null;
+
+  return (destination) => {
+    if (!byKey) {
+      const left = verbatim.get(destination) ?? 0;
+      if (left > 0) {
+        verbatim.set(destination, left - 1);
+        return true;
+      }
+      byKey = new Map();
+      for (const [address, count] of verbatim) {
+        if (count === 0) continue;
+        const key = addressComparisonKey(address);
+        byKey.set(key, (byKey.get(key) ?? 0) + count);
+      }
+    }
+    const key = addressComparisonKey(destination);
+    const left = byKey.get(key) ?? 0;
+    if (left === 0) return false;
+    byKey.set(key, left - 1);
+    return true;
+  };
 }
 
 /**

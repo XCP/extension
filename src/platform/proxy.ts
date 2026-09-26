@@ -2,8 +2,10 @@
 
 import { type HardwareErrorMetadata, parseHardwareErrorMetadata, withHardwareErrorMetadata } from '@/core/hardware/errorMetadata';
 import { HardwareWalletError } from '@/core/hardware/types';
+import { isRecord } from '@/core/isRecord';
 import { isProviderReviewCode, type ProviderReviewCode, providerReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
 import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { recordProviderTab } from '@/platform/browser';
 import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
 import { decodeProxyResult, encodeProxyResult } from '@/platform/proxySerialization';
 import { whenServicesReady } from '@/services/core/serviceReadiness';
@@ -71,10 +73,6 @@ const PROVIDER_QUERIES = new Set([
   'xcp_accounts', 'xcp_getBalances', 'xcp_getAddresses', 'xcp_chainId', 'xcp_getNetwork',
 ]);
 const MAX_REQUEST_BYTES = 1024 * 1024 + 4096;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
 
 function parseRequest(value: unknown): PortRequest | null {
   if (!isRecord(value) || !Number.isSafeInteger(value.id) || (value.id as number) < 1
@@ -164,6 +162,12 @@ export function defineProxyService<T extends object>(
       const trustedUI = isExtensionPageSender(incoming.sender);
       const origin = policy.contentScript === 'provider' ? contentOrigin(incoming.sender) : null;
       if (!trustedUI && !origin) { incoming.disconnect(); return; }
+      // The one place the worker learns, from Chrome rather than the page, which tab shows which
+      // origin; provider events are addressed with it (see platform/browser.ts).
+      const tabId = incoming.sender?.tab?.id;
+      if (origin && tabId !== undefined && tabId >= 0) {
+        void recordProviderTab(tabId, origin).catch(() => { /* events fall back to not reaching this tab */ });
+      }
 
       let disconnected = false;
       const reply = (response: PortResponse | PortAck | PortHeartbeat) => {
@@ -344,16 +348,23 @@ export function defineProxyService<T extends object>(
     return connected;
   }
 
+  // One client and one function per method, so callers holding either (React hooks' dependency
+  // lists, effect subscriptions) see a stable identity rather than a fresh one on every read.
+  let client: T | undefined;
+  const methodCache = new Map<string, (...args: unknown[]) => Promise<unknown>>();
+
   const getService = (): T => {
     if (isBackgroundScript()) {
       if (!serviceInstance) throw new Error(`Failed to get an instance of ${serviceName}: registerService has not been called`);
       return serviceInstance;
     }
-    return new Proxy({} as T, {
+    client ??= new Proxy({} as T, {
       get: (_target, prop) => {
         // Service objects are not thenables; inherited/symbol members are not RPC methods.
         if (typeof prop !== 'string' || prop === 'then' || !canCall(prop)) return undefined;
-        return async (...args: unknown[]) => {
+        const cached = methodCache.get(prop);
+        if (cached) return cached;
+        const method = async (...args: unknown[]) => {
           for (let attempt = 0; ; attempt++) {
             let connected: chrome.runtime.Port | undefined;
             // Whether the background may have received the request. A request that was never
@@ -393,8 +404,11 @@ export function defineProxyService<T extends object>(
             }
           }
         };
+        methodCache.set(prop, method);
+        return method;
       },
     });
+    return client;
   };
   return [register, getService];
 }

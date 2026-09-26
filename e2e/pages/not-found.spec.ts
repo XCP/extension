@@ -4,7 +4,7 @@
  * Tests for the 404 page shown when navigating to an invalid route.
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('Not Found Page (/not-found)', () => {
   walletTest('displays not found message for invalid route', async ({ page }) => {

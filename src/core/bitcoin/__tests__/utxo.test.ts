@@ -50,6 +50,7 @@ describe('UTXO Utilities', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    mockApiClient.get.mockReset();
     // Clear all caches to ensure test isolation
     clearBitcoinCaches();
 
@@ -332,80 +333,63 @@ describe('UTXO Utilities', () => {
   describe('fetchPreviousRawTransaction', () => {
     const mockRawHex = '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08044c86041b020602ffffffff0100f2052a010000004341041b0e8c2567c12536aa13357b79a073dc4444acb83c4ec7a0e2f99dd7457516c5817242da796924ca4e99947d087fedf9ce467cb9f7c6287078f801df276fdf84424ac00000000';
 
-    it('should fetch raw transaction from Counterparty API', async () => {
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: mockRawHex } }));
+    /** Answer by host, since the Counterparty leg is paced and so is not called synchronously. */
+    function route(answers: { mempool?: () => unknown; counterparty?: () => unknown }) {
+      mockApiClient.get.mockImplementation(async (url: string) => {
+        const answer = new URL(url).hostname === 'mempool.space' ? answers.mempool : answers.counterparty;
+        if (!answer) throw new Error(`unexpected request: ${url}`);
+        return mockApiResponse(await answer()) as any;
+      });
+    }
+    const fails = () => { throw new Error('Network error'); };
+
+    it('asks mempool.space first and does not touch the Counterparty node when it answers', async () => {
+      route({ mempool: () => `${mockRawHex}
+` });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
       expect(result).toBe(mockRawHex);
-      expect(mockApiClient.get).toHaveBeenCalledWith(
-        `https://api.counterparty.io/v2/bitcoin/transactions/${mockTxid}`
-      );
-    });
-
-    it('should return null when transaction not found', async () => {
-      // Counterparty returns null result -> falls through to mempool
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: null }));
-      // Mempool returns empty string
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
-
-      const result = await fetchPreviousRawTransaction(mockTxid);
-
-      expect(result).toBeNull();
-    });
-
-    it('should return null when hex not present in response', async () => {
-      // Counterparty returns result without hex field -> falls through to mempool
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { no_hex_field: 'data' } }));
-      // Mempool returns empty string
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
-
-      const result = await fetchPreviousRawTransaction(mockTxid);
-
-      expect(result).toBeNull();
-    });
-
-    it('should return null when response data is malformed', async () => {
-      // Counterparty returns null data -> falls through to mempool
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(null));
-      // Mempool returns empty string
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
-
-      const result = await fetchPreviousRawTransaction(mockTxid);
-
-      expect(result).toBeNull();
-    });
-
-    it('should return null when result is undefined', async () => {
-      // Counterparty returns undefined result -> falls through to mempool
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: undefined }));
-      // Mempool returns empty string
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
-
-      const result = await fetchPreviousRawTransaction(mockTxid);
-
-      expect(result).toBeNull();
-    });
-
-    it('should fall back to mempool.space when Counterparty API fails', async () => {
-      // Counterparty API fails
-      mockApiClient.get.mockRejectedValueOnce(new Error('Network error'));
-      // Mempool fallback succeeds
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockRawHex));
-
-      const result = await fetchPreviousRawTransaction(mockTxid);
-
-      expect(result).toBe(mockRawHex);
+      expect(mockApiClient.get).toHaveBeenCalledTimes(1);
       expect(mockApiClient.get).toHaveBeenCalledWith(
         `https://mempool.space/api/tx/${mockTxid}/hex`,
         { retries: 0 }
       );
     });
 
+    it('falls back to the Counterparty API when mempool.space fails', async () => {
+      route({ mempool: fails, counterparty: () => ({ result: { hex: mockRawHex } }) });
+
+      const result = await fetchPreviousRawTransaction(mockTxid);
+
+      expect(result).toBe(mockRawHex);
+      expect(mockApiClient.get).toHaveBeenCalledWith(
+        `https://api.counterparty.io/v2/bitcoin/transactions/${mockTxid}`,
+        { retries: 1 }
+      );
+    });
+
+    it('falls back when mempool.space answers something that is not hex', async () => {
+      route({ mempool: () => 'Transaction not found', counterparty: () => ({ result: { hex: mockRawHex } }) });
+
+      await expect(fetchPreviousRawTransaction(mockTxid)).resolves.toBe(mockRawHex);
+    });
+
+    it.each([
+      ['a null result', { result: null }],
+      ['no hex field', { result: { no_hex_field: 'data' } }],
+      ['malformed data', null],
+      ['an undefined result', { result: undefined }],
+      ['a null hex', { result: { hex: null } }],
+      ['an undefined hex', { result: { hex: undefined } }],
+    ])('returns null when mempool.space is empty and the node answers with %s', async (_name, answer) => {
+      route({ mempool: () => '', counterparty: () => answer });
+
+      await expect(fetchPreviousRawTransaction(mockTxid)).resolves.toBeNull();
+    });
+
     it('should return null when all sources fail', async () => {
-      // Both Counterparty and mempool fail
-      mockApiClient.get.mockRejectedValueOnce(new Error('Network error'));
-      mockApiClient.get.mockRejectedValueOnce(new Error('Network error'));
+      route({ mempool: fails, counterparty: fails });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -413,84 +397,44 @@ describe('UTXO Utilities', () => {
     });
 
     it('should use custom counterparty API base URL', async () => {
-      // Override the mock for this specific test
       mockGetSettings.mockReturnValueOnce({
         counterpartyApiBase: 'https://custom.api.com'
       } as any);
-
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: mockRawHex } }));
+      mockApiClient.get.mockImplementation(async (url: string) => {
+        if (url.startsWith('https://mempool.space/')) throw new Error('down');
+        return mockApiResponse({ result: { hex: mockRawHex } }) as any;
+      });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
       expect(result).toBe(mockRawHex);
       expect(mockApiClient.get).toHaveBeenCalledWith(
-        `https://custom.api.com/v2/bitcoin/transactions/${mockTxid}`
+        `https://custom.api.com/v2/bitcoin/transactions/${mockTxid}`,
+        { retries: 1 }
       );
-    });
-
-    it('should handle empty hex field', async () => {
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: '' } }));
-
-      const result = await fetchPreviousRawTransaction(mockTxid);
-
-      expect(result).toBe('');
     });
 
     it('should handle very long transaction hex', async () => {
       const longHex = 'a'.repeat(10000);
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: longHex } }));
+      route({ mempool: () => longHex });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
       expect(result).toBe(longHex);
     });
 
-    it('should handle special characters in txid', async () => {
-      const specialTxid = 'abc-def_123';
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: mockRawHex } }));
-
-      await fetchPreviousRawTransaction(specialTxid);
-
-      expect(mockApiClient.get).toHaveBeenCalledWith(
-        `https://api.counterparty.io/v2/bitcoin/transactions/${specialTxid}`
-      );
-    });
-
     it('should handle response with extra fields', async () => {
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({
-        result: {
-          hex: mockRawHex,
-          extra_field: 'extra_data',
-          another_field: 123
-        },
-        extra_top_level: 'data'
-      }));
+      route({
+        mempool: fails,
+        counterparty: () => ({
+          result: { hex: mockRawHex, extra_field: 'extra_data', another_field: 123 },
+          extra_top_level: 'data',
+        }),
+      });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
       expect(result).toBe(mockRawHex);
-    });
-
-    it('should handle null hex value', async () => {
-      // Counterparty returns null hex -> falls through to mempool
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: null } }));
-      // Mempool returns empty string
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
-
-      const result = await fetchPreviousRawTransaction(mockTxid);
-
-      expect(result).toBeNull();
-    });
-
-    it('should handle undefined hex value', async () => {
-      // Counterparty returns undefined hex -> falls through to mempool
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: undefined } }));
-      // Mempool returns empty string
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
-
-      const result = await fetchPreviousRawTransaction(mockTxid);
-
-      expect(result).toBeNull();
     });
   });
 
@@ -553,11 +497,31 @@ describe('UTXO Utilities', () => {
       clearBitcoinCaches();
     });
 
+    /**
+     * The Counterparty leg is paced, so it is not called before the mempool leg: answer by host,
+     * each host from its own queue, rather than by call order.
+     */
+    const queues = { counterparty: [] as Array<() => unknown>, mempool: [] as Array<() => unknown> };
+    const counterpartyAnswers = (answer: () => unknown) => { queues.counterparty.push(answer); };
+    const mempoolAnswers = (answer: () => unknown) => { queues.mempool.push(answer); };
+    beforeEach(() => {
+      queues.counterparty.length = 0;
+      queues.mempool.length = 0;
+      mockApiClient.get.mockImplementation(async (url: string) => {
+        const queue = new URL(url).hostname === 'mempool.space' ? queues.mempool : queues.counterparty;
+        const answer = queue.shift();
+        if (!answer) throw new Error(`unexpected request: ${url}`);
+        return mockApiResponse(await answer()) as any;
+      });
+    });
+    const ok = (data: unknown) => () => data;
+    const fail = (message: string) => () => { throw new Error(message); };
+
     it('returns transaction with status from parallel fetches', async () => {
       // Counterparty API call
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { ...mockBtcTx } }));
+      counterpartyAnswers(ok({ result: { ...mockBtcTx } }));
       // Mempool status call
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
+      mempoolAnswers(ok(mockStatus));
 
       const result = await fetchBitcoinTransaction(mockTxid);
       expect(result).not.toBeNull();
@@ -568,9 +532,9 @@ describe('UTXO Utilities', () => {
 
     it('returns transaction without status when mempool fails', async () => {
       // Counterparty API call
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { ...mockBtcTx } }));
+      counterpartyAnswers(ok({ result: { ...mockBtcTx } }));
       // Mempool status call fails
-      mockApiClient.get.mockRejectedValueOnce(new Error('mempool down'));
+      mempoolAnswers(fail('mempool down'));
 
       const result = await fetchBitcoinTransaction(mockTxid);
       expect(result).not.toBeNull();
@@ -581,9 +545,9 @@ describe('UTXO Utilities', () => {
 
     it('returns null when counterparty API fails', async () => {
       // Both calls are in Promise.all, but the outer try/catch handles the error
-      mockApiClient.get.mockRejectedValueOnce(new Error('API error'));
+      counterpartyAnswers(fail('API error'));
       // Mempool call would also happen but Promise.all rejects on first failure
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
+      mempoolAnswers(ok(mockStatus));
 
       const result = await fetchBitcoinTransaction(mockTxid);
       expect(result).toBeNull();
@@ -591,9 +555,9 @@ describe('UTXO Utilities', () => {
 
     it('returns null when counterparty API returns no result', async () => {
       // Counterparty returns empty data
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({}));
+      counterpartyAnswers(ok({}));
       // Mempool status call
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
+      mempoolAnswers(ok(mockStatus));
 
       const result = await fetchBitcoinTransaction(mockTxid);
       expect(result).toBeNull();
@@ -605,21 +569,22 @@ describe('UTXO Utilities', () => {
       } as any);
 
       // Counterparty API call
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { ...mockBtcTx } }));
+      counterpartyAnswers(ok({ result: { ...mockBtcTx } }));
       // Mempool status call
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
+      mempoolAnswers(ok(mockStatus));
 
       await fetchBitcoinTransaction(mockTxid);
       expect(mockApiClient.get).toHaveBeenCalledWith(
-        expect.stringContaining('https://custom-api.example.com/v2/bitcoin/transactions/')
+        expect.stringContaining('https://custom-api.example.com/v2/bitcoin/transactions/'),
+        { retries: 1 }
       );
     });
 
     it('caches results and returns cached value on second call', async () => {
       // Counterparty API call
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { ...mockBtcTx } }));
+      counterpartyAnswers(ok({ result: { ...mockBtcTx } }));
       // Mempool status call
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
+      mempoolAnswers(ok(mockStatus));
 
       const result1 = await fetchBitcoinTransaction(mockTxid);
       const result2 = await fetchBitcoinTransaction(mockTxid);
@@ -631,15 +596,15 @@ describe('UTXO Utilities', () => {
 
     it('does not cache null results', async () => {
       // First attempt: Counterparty fails, mempool succeeds but doesn't matter
-      mockApiClient.get.mockRejectedValueOnce(new Error('fail'));
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
+      counterpartyAnswers(fail('fail'));
+      mempoolAnswers(ok(mockStatus));
 
       const result1 = await fetchBitcoinTransaction(mockTxid);
       expect(result1).toBeNull();
 
       // Second call should retry since null wasn't cached
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { ...mockBtcTx } }));
-      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
+      counterpartyAnswers(ok({ result: { ...mockBtcTx } }));
+      mempoolAnswers(ok(mockStatus));
 
       const result2 = await fetchBitcoinTransaction(mockTxid);
       expect(result2).not.toBeNull();

@@ -11,7 +11,7 @@
  */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Address, OutScript, Transaction } from '@scure/btc-signer';
+import { Address, OutScript, p2tr, TaprootControlBlock, Transaction, utils } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
@@ -247,6 +247,89 @@ describe('the pre-signed reveal transaction', () => {
     });
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/higher fee/);
+  });
+});
+
+function reverseHex(hex: string): string {
+  return hex.match(/../g)!.reverse().join('');
+}
+
+/**
+ * A real compose whose commit output 0 is re-pointed at another script tree, and whose reveal is
+ * re-pointed at that commit with the control block for the fixture's envelope in that tree. The
+ * reveal's signature goes stale; nothing checked here reads it.
+ */
+function recommitted(fixture: TaprootFixture, options: { internalKey?: Uint8Array; extraLeaf?: string }) {
+  const envelope = hexToBytes(fixture.envelope_script);
+  const envelopeKey = envelope.slice(-33, -1);
+  const tree = options.extraLeaf
+    ? [{ script: envelope }, { script: hexToBytes(options.extraLeaf) }]
+    : { script: envelope };
+  const payment = p2tr(options.internalKey ?? envelopeKey, tree, undefined, true);
+  const [controlBlock] = payment.tapLeafScript!.find(([, script]) =>
+    bytesToHex(script.slice(0, -1)) === fixture.envelope_script)!;
+  const control = bytesToHex(TaprootControlBlock.encode(controlBlock));
+
+  const original = Transaction.fromRaw(hexToBytes(fixture.rawtransaction), { allowUnknownOutputs: true });
+  const rawtransaction = fixture.rawtransaction.replace(bytesToHex(original.getOutput(0).script!), bytesToHex(payment.script));
+  const commitId = Transaction.fromRaw(hexToBytes(rawtransaction), { allowUnknownOutputs: true }).id;
+  const originalControl = fixture.signed_reveal_rawtransaction.slice(-8 - 66, -8);
+  const reveal = fixture.signed_reveal_rawtransaction
+    .replace(reverseHex(original.id), reverseHex(commitId))
+    .replace(`21${originalControl}00000000`, `${(control.length / 2).toString(16).padStart(2, '0')}${control}00000000`);
+  return { rawtransaction, reveal, outputAddress: payment.address! };
+}
+
+describe("the commit output's script tree", () => {
+  it("accepts core's pair: the output commits to the verified envelope alone, under its own key", () => {
+    for (const fixture of [SEND_TAPROOT, MPMA_TAPROOT, ORD_BROADCAST_TAPROOT]) {
+      expect(verifyRevealTransaction(fixture.signed_reveal_rawtransaction, revealOptions(fixture)).ok).toBe(true);
+    }
+    // Rebuilding the same single-leaf tree reproduces core's commit exactly.
+    const same = recommitted(SEND_TAPROOT, {});
+    expect(same.rawtransaction).toBe(SEND_TAPROOT.rawtransaction);
+    expect(same.reveal).toBe(SEND_TAPROOT.signed_reveal_rawtransaction);
+  });
+
+  it('refuses a commit output that hides a second leaf, even at the address that output pays', () => {
+    const { rawtransaction, reveal, outputAddress } = recommitted(SEND_TAPROOT, { extraLeaf: MPMA_TAPROOT.envelope_script });
+    const options = { ...revealOptions(SEND_TAPROOT), commitTxHex: rawtransaction };
+    expect(rawtransaction).not.toBe(SEND_TAPROOT.rawtransaction);
+
+    expect(verifyRevealTransaction(reveal, options).ok).toBe(false);
+    const result = verifyRevealTransaction(reveal, { ...options, commitAddress: outputAddress });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/commit to exactly the verified envelope/);
+  });
+
+  it('refuses a commit output under a different internal key, even at the address that output pays', () => {
+    const otherKey = utils.pubSchnorr(new Uint8Array(32).fill(7));
+    const { rawtransaction, reveal, outputAddress } = recommitted(SEND_TAPROOT, { internalKey: otherKey });
+    const options = { ...revealOptions(SEND_TAPROOT), commitTxHex: rawtransaction };
+    expect(rawtransaction).not.toBe(SEND_TAPROOT.rawtransaction);
+
+    expect(verifyRevealTransaction(reveal, options).ok).toBe(false);
+    const result = verifyRevealTransaction(reveal, { ...options, commitAddress: outputAddress });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/commit to exactly the verified envelope/);
+  });
+
+  it('refuses a commit output to a different leaf than the one the reveal publishes', () => {
+    // The commit pays for the MPMA's envelope; the reveal shows the send's.
+    const mpmaCommit = MPMA_TAPROOT.rawtransaction;
+    const mpmaOutput = commitOutputAddress(MPMA_TAPROOT);
+    const commitId = Transaction.fromRaw(hexToBytes(mpmaCommit), { allowUnknownOutputs: true }).id;
+    const sendId = Transaction.fromRaw(hexToBytes(SEND_TAPROOT.rawtransaction), { allowUnknownOutputs: true }).id;
+    const reveal = SEND_TAPROOT.signed_reveal_rawtransaction.replace(reverseHex(sendId), reverseHex(commitId));
+    expect(reveal).not.toBe(SEND_TAPROOT.signed_reveal_rawtransaction);
+
+    const result = verifyRevealTransaction(reveal, {
+      ...revealOptions(SEND_TAPROOT),
+      commitTxHex: mpmaCommit,
+      commitAddress: mpmaOutput,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/commit to exactly the verified envelope/);
   });
 });
 

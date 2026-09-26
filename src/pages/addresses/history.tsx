@@ -8,7 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchTransactions, type PaginatedResponse, type Transaction } from "@/core/counterparty/api";
+import { clearApiCacheMatching, fetchTransactions, type PaginatedResponse, type Transaction } from "@/core/counterparty/api";
 
 import { t } from '@/i18n';
 
@@ -47,13 +47,18 @@ export default function AddressHistoryPage(): ReactElement {
 
   /**
    * Loads transactions for the current page, handling loading and error states.
+   *
+   * `fresh` is for the refresh button and the unconfirmed-transaction poll: both exist to show
+   * what changed, and the API layer keeps answers for a minute, so without dropping this
+   * address's cached pages they redrew the same stale list.
    */
-  const loadTransactions = async () => {
+  const loadTransactions = async ({ fresh = false }: { fresh?: boolean } = {}) => {
     if (!activeAddress?.address) {
       setTransactions([]);
       return;
     }
 
+    if (fresh) clearApiCacheMatching(`/v2/addresses/${encodeURIComponent(activeAddress.address)}/transactions`);
     setIsLoading(true);
     try {
       const offset = (currentPage - 1) * TRANSACTIONS_PER_PAGE;
@@ -101,15 +106,13 @@ export default function AddressHistoryPage(): ReactElement {
   useEffect(() => {
     // Check if there are any unconfirmed transactions
     const hasUnconfirmed = transactions.some(tx => tx.confirmed === false);
-    
-    if (hasUnconfirmed) {
-      // Set up interval to refresh every 30 seconds
-      const interval = setInterval(() => {
-        loadTransactions();
-      }, 30000); // 30 seconds
-      
-      return () => clearInterval(interval);
-    }
+    if (!hasUnconfirmed) return;
+
+    // Set up interval to refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadTransactions({ fresh: true });
+    }, 30000); // 30 seconds
+    return () => clearInterval(interval);
   }, [transactions]);
 
   // Configure header. loadTransactions omitted (see above).
@@ -119,7 +122,7 @@ export default function AddressHistoryPage(): ReactElement {
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FiRefreshCw className={`size-3 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />,
-        onClick: () => loadTransactions(),
+        onClick: () => loadTransactions({ fresh: true }),
         ariaLabel: t('addresses_history_refresh_transactions'),
         disabled: isLoading,
       },

@@ -77,10 +77,18 @@ describe('current BTC quote freshness', () => {
     await getBtc24hStats('usd');
     get.mockResolvedValue(response({ data: { amount: '100000' } }));
     expect(await getBtcPrice()).toBe(100000);
+    // Sources are tried in order, so the first answer is the only request.
+    expect(get).toHaveBeenCalledTimes(2);
 
     get.mockRejectedValue(new Error('All providers unavailable'));
+    // Within the minute the spot quote is shared rather than fetched again...
+    now += 59_999;
+    expect(await getBtcPrice()).toBe(100000);
+    expect(get).toHaveBeenCalledTimes(2);
+    // ...and once it has expired, a failure is a failure, not the old quote.
+    now += 1;
     expect(await getBtcPrice()).toBeNull();
-    expect(get).toHaveBeenCalledTimes(7);
+    expect(get).toHaveBeenCalledTimes(5);
   });
 
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])('does not cache an unusable current CNY quote: %s', async price => {
@@ -112,5 +120,18 @@ describe('current BTC quote freshness', () => {
     now += 24 * 60 * 60 * 1000;
     get.mockRejectedValue(new Error('History unavailable'));
     expect(await getBtcPriceHistory('24h', 'cny')).toEqual(history);
+  });
+
+  it('shares one spot request among concurrent callers and does not cache a failure', async () => {
+    const { getBtcPrice } = await import('@/core/bitcoin/price');
+    get.mockRejectedValueOnce(new Error('Coinbase down'))
+      .mockRejectedValueOnce(new Error('Kraken down'))
+      .mockRejectedValueOnce(new Error('mempool down'));
+    expect(await Promise.all([getBtcPrice(), getBtcPrice()])).toEqual([null, null]);
+    expect(get).toHaveBeenCalledTimes(3);
+
+    get.mockResolvedValue(response({ data: { amount: '90000' } }));
+    expect(await Promise.all([getBtcPrice(), getBtcPrice(), getBtcPrice()])).toEqual([90000, 90000, 90000]);
+    expect(get).toHaveBeenCalledTimes(4);
   });
 });

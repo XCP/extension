@@ -16,7 +16,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { describe, expect, it } from 'vitest';
-import { derivePubkeyFromAccountKey } from '../hardwarePubkey';
+import { derivePubkeyFromAccountKey, pubkeyDeriverFromAccountKey } from '../hardwarePubkey';
 
 /** BIP39's own test vector, so the seed is not something I invented either. */
 const MNEMONIC =
@@ -112,5 +112,44 @@ describe('derivePubkeyFromAccountKey', () => {
     const account = HDKey.fromExtendedKey(MASTER.derive("m/84'/0'/0'").publicExtendedKey);
     const key = derivePubkeyFromAccountKey(account.publicExtendedKey, "m/84'/0'/0'/0/0");
     expect(key).toMatch(/^0[23][0-9a-f]{64}$/);
+  });
+});
+
+/**
+ * The batch form parses the account key once and reuses the chain node. It must give exactly what
+ * the one-at-a-time routine gives for the same key and path — including every null — so that
+ * routine is the oracle here, called with the full path each time.
+ */
+describe('pubkeyDeriverFromAccountKey', () => {
+  const account = MASTER.derive("m/84'/0'/0'").publicExtendedKey;
+  const oracle = (key: string, chain: string, index: number) => derivePubkeyFromAccountKey(key, `${chain}/${index}`);
+  const indexes = [0, 1, 2, 19, 20, 99, 1000, 0x7fffffff, 0x80000000, 2 ** 32, -1, 1.5, Number.MAX_SAFE_INTEGER];
+
+  it.each([
+    ['the ordinary receive chain', account, "m/84'/0'/0'/0"],
+    ['the change chain', account, "m/84'/0'/0'/1"],
+    ['h-hardened components', account, 'm/84h/0h/0h/0'],
+    ['a chain that ends at the account (nothing left but the index)', account, "m/84'/0'/0'"],
+    ['a chain that stops above the account', account, "m/84'/0'"],
+    ['a chain whose last step equals the account depth', MASTER.derive("m/84'/0'/0'/0").publicExtendedKey, "m/84'/0'/0'"],
+    ['a hardened step below the account', account, "m/84'/0'/0'/0'"],
+    ['a path that does not parse', account, 'm/84/x/0'],
+    ['a key that is not an extended key', 'not-a-key', "m/84'/0'/0'/0"],
+    ['an empty key', '', "m/84'/0'/0'/0"],
+    ['a corrupted extended key', `${account.slice(0, -4)}aaaa`, "m/84'/0'/0'/0"],
+  ])('matches derivePubkeyFromAccountKey for %s', (_label, key, chain) => {
+    const derive = pubkeyDeriverFromAccountKey(key, chain);
+    for (const index of indexes) {
+      expect(derive(index), `index ${index}`).toBe(oracle(key, chain, index));
+    }
+  });
+
+  it('matches for a zpub-serialized account over a long run', () => {
+    const zpub = HDKey.fromMasterSeed(mnemonicToSeedSync(MNEMONIC), ZPUB).derive("m/84'/0'/0'").publicExtendedKey;
+    expect(zpub.startsWith('zpub')).toBe(true);
+    const derive = pubkeyDeriverFromAccountKey(zpub, "m/84'/0'/0'/0");
+    for (let index = 0; index < 50; index++) {
+      expect(derive(index)).toBe(truth(`m/84'/0'/0'/0/${index}`));
+    }
   });
 });

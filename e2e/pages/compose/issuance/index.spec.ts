@@ -4,13 +4,13 @@
  * Tests for the main asset issuance form.
  */
 
-import { walletTest, expect, navigateTo } from '@e2e/fixtures';
-import { compose, actions } from '@e2e/selectors';
+import { expect, navigateTo, walletTest } from '@e2e/fixtures';
+import { actions, compose } from '@e2e/selectors';
 import {
-  enableValidationBypass,
-  enableDryRun,
-  waitForReview,
   clickBack,
+  enableDryRun,
+  enableValidationBypass,
+  waitForReview,
 } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
@@ -63,7 +63,6 @@ walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
     await nameInput.blur();
 
     // Either error message visible or submit disabled
-    const errorMessage = compose.common.errorMessage(page);
     const submitButton = compose.issuance.issueButton(page);
 
     // Submit button should be disabled with invalid name (min 4 chars)

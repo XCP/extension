@@ -5,7 +5,7 @@
  * Uses @trezor/connect-webextension for browser extension service worker communication.
  *
  * ---
- * ADR-017: Hardware Wallet Integration Architecture
+ * Design note: Hardware Wallet Integration Architecture
  * ---
  *
  * **Context**: Users need hardware wallet support (Trezor, Ledger) for secure key storage
@@ -56,6 +56,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { Script, Transaction } from '@scure/btc-signer';
 import TrezorConnect from '@trezor/connect-webextension';
 import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
+import { RBF_SEQUENCE } from '@/core/bitcoin/constants';
 import {
   extractPresignedExternalP2wpkhInput,
   importVerifiedHardwareP2wpkhSignatures,
@@ -85,8 +86,6 @@ type TrezorSignTransactionRequest = Parameters<typeof TrezorConnect.signTransact
 type TrezorSignInput = TrezorSignTransactionRequest['inputs'][number];
 type TrezorSignOutput = TrezorSignTransactionRequest['outputs'][number];
 
-// 0xfffffffd enables RBF.
-const RBF_SEQUENCE = 0xfffffffd;
 
 /**
  * Configuration options for TrezorAdapter initialization

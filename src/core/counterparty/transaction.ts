@@ -7,7 +7,7 @@
 
 import { API_TIMEOUTS, apiClient } from '@/core/api/client';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
-import { fetchAssetDetails } from '@/core/counterparty/api';
+import { fetchAssetDetails, runCounterpartyRequest } from '@/core/counterparty/api';
 import { type DescribableMessage, describeMessage } from '@/core/counterparty/describe';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
@@ -77,10 +77,12 @@ export async function decodeRawTransaction(
     verbose: verbose.toString(),
   });
 
-  const response = await apiClient.get<{ result: DecodedBitcoinTransaction }>(`${url}?${params}`, {
+  // Paced with the node's other requests, ahead of queued reads: a review screen waits on this.
+  // No Content-Type: a GET has no body, and the header would force a CORS preflight.
+  const response = await runCounterpartyRequest(() => apiClient.get<{ result: DecodedBitcoinTransaction }>(`${url}?${params}`, {
     timeout: API_TIMEOUTS.DEFAULT,
-    headers: { 'Content-Type': 'application/json' },
-  });
+    retries: 1,
+  }), { priority: true });
 
   if (response.status !== 200 || !response.data?.result) {
     throw new Error('Failed to decode transaction');
@@ -210,10 +212,10 @@ export async function unpackCounterpartyData(
   });
 
   try {
-    const response = await apiClient.get<{ result: UnpackedCounterpartyData }>(`${url}?${params}`, {
+    const response = await runCounterpartyRequest(() => apiClient.get<{ result: UnpackedCounterpartyData }>(`${url}?${params}`, {
       timeout: API_TIMEOUTS.DEFAULT,
-      headers: { 'Content-Type': 'application/json' },
-    });
+      retries: 1,
+    }), { priority: true });
 
     if (response.status !== 200 || !response.data?.result) {
       return null;

@@ -3,6 +3,8 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "skipLibCheck": true,
+    "noImplicitReturns": true,
+    "noUncheckedSideEffectImports": true,
     "types": ["chrome"]
   },
   "exclude": [

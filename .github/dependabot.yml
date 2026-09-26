@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # Every Dependabot PR runs the full PR CI, so updates arrive monthly and grouped: at most one
+  # npm PR and one Actions PR a month, majors included.
+  #
+  # package.json pins every dependency to an exact version (CI rejects ranges), and
+  # `versioning-strategy: increase` keeps each bump an exact pin rather than adding a range.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    versioning-strategy: increase
+    open-pull-requests-limit: 1
+    groups:
+      npm:
+        patterns: ['*']
+    ignore:
+      # The Playwright container image tag in the workflows must move with @playwright/test,
+      # which Dependabot cannot do, so these are bumped by hand.
+      - dependency-name: '@playwright/test'
+      - dependency-name: playwright
+      - dependency-name: playwright-core
+
+  # Workflow actions are pinned to commit SHAs with a version comment, which Dependabot updates.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns: ['*']

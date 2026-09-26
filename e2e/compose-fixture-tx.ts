@@ -3,7 +3,7 @@
  *
  * The composer verifies what it is about to sign: it rebuilds the message the request should have
  * produced and requires the transaction's own bytes to carry exactly that (`composer-context.tsx`,
- * ADR-019). A placeholder rawtransaction therefore fails verification for every compose type that
+ * and `unpack/verify.ts`). A placeholder rawtransaction therefore fails verification for every compose type that
  * can pack a message — correctly, because a placeholder really does carry no message.
  *
  * So the mock composes for real: it packs the message with the same code the extension uses,

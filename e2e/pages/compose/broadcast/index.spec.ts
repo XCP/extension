@@ -5,13 +5,13 @@
  * Inscription functionality is available for SegWit wallet types.
  */
 
-import { walletTest, expect, navigateTo } from '@e2e/fixtures';
-import { compose, actions } from '@e2e/selectors';
+import { expect, navigateTo, walletTest } from '@e2e/fixtures';
+import { actions, compose } from '@e2e/selectors';
 import {
-  enableValidationBypass,
-  enableDryRun,
-  waitForReview,
   clickBack,
+  enableDryRun,
+  enableValidationBypass,
+  waitForReview,
 } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Broadcast Page (/compose/broadcast)', () => {

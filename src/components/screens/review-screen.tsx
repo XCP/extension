@@ -108,7 +108,7 @@ export function ReviewScreen({
 
   // Prefer the destination the transaction actually encodes over the API's echo of the request.
   // `result.params` is the composer repeating what it was asked for, so it cannot testify about
-  // the composer (ADR-019): a response that composed a different recipient than it echoed would
+  // the composer (see `unpack/verify.ts`): a response that composed a different recipient than it echoed would
   // otherwise display as correct. Types with byte equality are already proven, but the ones
   // verified only field by field — btcpay, dispenser, the pool and UTXO screens — are exactly
   // where an unenumerated difference could hide, and they all render through here.

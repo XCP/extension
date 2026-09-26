@@ -391,10 +391,16 @@ export function ComposerProvider<T>({
           };
         }
         // Byte equality first: rebuild the message this request should have produced and compare
-        // it whole, so no field goes unchecked (ADR-019). A null return means the type cannot be
+        // it whole, so no field goes unchecked (see `unpack/verify.ts`). A null return means the type cannot be
         // constructed locally and falls through to field comparison; the decoded message supplies
         // only values the request cannot determine (see `Observed` in pack/messages.ts).
         const expected = packComposeMessage(composeType, dataForApi, decodedMessage?.data);
+
+        // An envelope's message is held to the exact bytes of the request, never to field
+        // comparison: Taproot is only chosen for messages built locally.
+        if (!expected && taprootCommitAddress) {
+          throw new Error(t('composer_context_taproot_unexpected_envelope'));
+        }
 
         if (expected) {
           // Any difference is fatal, with no severity gradation: there is no benign reason for a
@@ -467,7 +473,7 @@ export function ComposerProvider<T>({
 
       // Account for every output: each must be the data output, an address the request names, or
       // change to one of our own addresses. Anything else rejects the transaction, so a response
-      // that adds a recipient fails closed even though no field-level check covers it (ADR-019).
+      // that adds a recipient fails closed even though no field-level check covers it (see `unpack/verify.ts`).
       if (activeAddress) {
         const intendedDestinations: IntendedDestination[] =
           addressesNamedIn(dataForApi).map(address => ({ address }));

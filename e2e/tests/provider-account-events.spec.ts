@@ -8,9 +8,9 @@
  */
 
 import * as http from 'node:http';
-import type { Page } from '@playwright/test';
 import { expect, lockWallet, navigateTo, walletTest } from '@e2e/fixtures';
 import { settings } from '@e2e/selectors';
+import type { Page } from '@playwright/test';
 
 function startDapp(): Promise<{ server: http.Server; port: number }> {
   return new Promise((resolve) => {

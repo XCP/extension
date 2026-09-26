@@ -251,10 +251,19 @@ export async function normalizeFormData(
     const assets = String(rawData.assets ?? '').split(',');
     const quantities = String(rawData.quantities ?? '').split(',');
     if (assets.length !== quantities.length) throw new Error('Each destination must have exactly one asset and quantity.');
+    // Each distinct asset is looked up once and all at once, not one after another; the answers
+    // are still consumed in order below, so the first bad row is still the one reported.
+    const lookups = new Map<string, Promise<boolean>>();
+    for (const asset of assets) {
+      if (!asset || lookups.has(asset)) continue;
+      const lookup = divisibility(asset);
+      lookup.catch(() => {});
+      lookups.set(asset, lookup);
+    }
     const normalized: string[] = [];
     for (let i = 0; i < assets.length; i++) {
       if (!assets[i]) throw new Error('An asset is required for each quantity.');
-      normalized.push(exactQuantity(quantities[i]!, await divisibility(assets[i]!), `Quantity ${i + 1}`));
+      normalized.push(exactQuantity(quantities[i]!, await lookups.get(assets[i]!)!, `Quantity ${i + 1}`));
     }
     normalizedData.quantities = normalized.join(',');
   }

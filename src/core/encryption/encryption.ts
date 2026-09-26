@@ -22,7 +22,7 @@ const PBKDF2_ITERATIONS = 600_000;
 const MIN_ENCRYPTED_SIZE = IV_BYTES + GCM_TAG_BYTES;
 
 /**
- * Security validation constants (ADR-014)
+ * Security validation constants
  *
  * These thresholds enforce minimum security requirements at the API boundary.
  * Invalid inputs are rejected with exceptions (fail-closed), not silently accepted.

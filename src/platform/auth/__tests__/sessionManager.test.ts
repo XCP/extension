@@ -400,6 +400,53 @@ describe('sessionManager', () => {
       );
     });
 
+    describe('activity reported late, with the time it happened', () => {
+      const timeout = 5 * 60 * 1000;
+      function sessionWith(lastActiveTime: number) {
+        global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+          sessionMetadata: { unlockedAt: Date.now() - 120_000, timeout, lastActiveTime },
+        });
+      }
+
+      it('sets the deadline from when the user was active, not when the report arrived', async () => {
+        const now = Date.now();
+        sessionWith(now - 60_000);
+        await setLastActiveTime(now - 10_000);
+
+        expect(global.chrome.storage.session.set).toHaveBeenCalledWith({
+          sessionMetadata: expect.objectContaining({ lastActiveTime: now - 10_000 }),
+        });
+        const [, alarm] = vi.mocked(global.chrome.alarms.create).mock.calls.at(-1)!;
+        expect(alarm.when).toBeGreaterThanOrEqual(now - 10_000 + timeout - 5);
+        expect(alarm.when).toBeLessThanOrEqual(now - 10_000 + timeout + 50);
+      });
+
+      it('never records activity in the future', async () => {
+        const now = Date.now();
+        sessionWith(now - 60_000);
+        await setLastActiveTime(now + 10 * 60_000);
+
+        const [[written]] = vi.mocked(global.chrome.storage.session.set).mock.calls as unknown as [[{ sessionMetadata: { lastActiveTime: number } }]];
+        expect(written.sessionMetadata.lastActiveTime).toBeLessThanOrEqual(Date.now());
+      });
+
+      it('ignores a report older than the activity already recorded', async () => {
+        const now = Date.now();
+        sessionWith(now - 5_000);
+        await setLastActiveTime(now - 20_000);
+
+        expect(global.chrome.storage.session.set).not.toHaveBeenCalled();
+        expect(global.chrome.alarms.create).not.toHaveBeenCalled();
+      });
+
+      it('cannot revive an expired session', async () => {
+        sessionWith(Date.now() - timeout - 1_000);
+        await setLastActiveTime(Date.now());
+
+        expect(global.chrome.storage.session.set).not.toHaveBeenCalled();
+      });
+    });
+
     it('should expire session when absolute timeout is exceeded (even with recent activity)', async () => {
       const walletId = VALID_WALLET_ID_1;
       const secret = 'test-secret';

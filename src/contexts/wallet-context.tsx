@@ -47,11 +47,10 @@ import {
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { type AddressFormat, DEFAULT_ADDRESS_FORMAT } from '@/core/bitcoin/address';
 import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
-import { recordOwnChangeFromRawTx } from '@/core/counterparty/pendingChange';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
-import { getWalletService } from "@/services/walletService";
+import { getWalletServiceClient } from "@/services/walletServiceClient";
 import type { Address, SignTransactionOptions, Wallet } from "@/types/wallet";
 
 /**
@@ -155,8 +154,8 @@ interface WalletContextType {
   // ─── Wallet Selection ──────────────────────────────────────────────────────
   /** Set the active address within the current wallet */
   setActiveAddress: (address: Address | null) => Promise<void>;
-  /** Update last activity timestamp (for auto-lock) */
-  setLastActiveTime: () => Promise<void>;
+  /** Update last activity timestamp (for auto-lock); `activityTime` is when it happened, if earlier */
+  setLastActiveTime: (activityTime?: number) => Promise<void>;
   /** Check if keychain is currently locked */
   isKeychainLocked: () => Promise<boolean>;
 
@@ -250,7 +249,9 @@ const withRefresh = <T extends (...args: any[]) => Promise<any>>(
  * @returns {ReactElement} Context provider
  */
 export function WalletProvider({ children }: { children: ReactNode }): ReactElement {
-  const walletService = getWalletService();
+  // Read once: every callback, the mount effect's subscriptions and the context value depend on
+  // this, so a new identity per render would re-subscribe and refresh on every render.
+  const [walletService] = useState(getWalletServiceClient);
   const [walletState, setWalletState] = useState<WalletState>({
     authState: AuthState.Onboarding,
     keychainExists: false,
@@ -489,21 +490,11 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     };
   }, [refreshWalletState, walletService]); // Removed walletState.authState to prevent re-runs
 
-  const emitAccountsChanged = useCallback(async (address?: string) => {
-    const settings = await walletService.getSettings();
-    for (const origin of settings.connectedWebsites) {
-      await walletService.emitProviderEvent(
-        origin,
-        'accountsChanged',
-        address ? [address] : []
-      );
-    }
-  }, [walletService]);
-
+  // Connected sites hear about an active-address change from the background (walletService),
+  // which decides it from the same state that answers them; nothing here emits provider events.
   const withIdentityRefresh = useCallback(
     async <T,>(lockKey: string, operation: () => Promise<T>): Promise<T> => {
       return withStateLock(lockKey, async () => {
-        const previousAddress = walletStateRef.current.activeAddress?.address;
         const result = await operation();
 
         await refreshWalletState();
@@ -515,33 +506,25 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         ) {
           await walletService.setLastActiveAddress(nextAddress);
         }
-        if (previousAddress !== nextAddress) {
-          await emitAccountsChanged(nextAddress);
-        }
 
         return result;
       });
     },
-    [emitAccountsChanged, refreshWalletState, walletService]
+    [refreshWalletState, walletService]
   );
 
   const setActiveAddress = useCallback(
     async (address: Address | null) => {
       return withStateLock('wallet-set-address', async () => {
-        // Use ref to get current address without stale closure
-        const oldAddress = walletStateRef.current.activeAddress?.address;
-        const newAddress = address?.address;
-
         setWalletState((prev) => ({ ...prev, activeAddress: address }));
         if (address) await walletService.setLastActiveAddress(address.address);
-        if (oldAddress !== newAddress) await emitAccountsChanged(newAddress);
       });
     },
-    [emitAccountsChanged, walletService]
+    [walletService]
   );
 
-  const setLastActiveTime = useCallback(async () => {
-    await walletService.setLastActiveTime();
+  const setLastActiveTime = useCallback(async (activityTime?: number) => {
+    await walletService.setLastActiveTime(activityTime);
   }, [walletService]);
 
   const setHardwareOperationInProgress = useCallback((inProgress: boolean) => {
@@ -665,8 +648,11 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       recordSpentInputsFromRawTx(signedTxHex);
       // The symmetric half: our own change becomes spendable immediately, so an address whose
       // only UTXO was just consumed can chain without waiting for the indexer. pendingChange
-      // owns the safety judgment about which outputs qualify.
-      recordOwnChangeFromRawTx(
+      // owns the safety judgment about which outputs qualify. Loaded here, after a broadcast,
+      // because its transaction parser is not needed to open the popup; awaited so the change is
+      // recorded before the caller composes again. A failed chunk load only skips the shortcut.
+      const pendingChange = await import('@/core/counterparty/pendingChange').catch(() => null);
+      pendingChange?.recordOwnChangeFromRawTx(
         signedTxHex,
         walletStateRef.current.wallets.flatMap((wallet) => wallet.addresses.map((a) => a.address))
       );

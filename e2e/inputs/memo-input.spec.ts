@@ -12,7 +12,7 @@
  * - Clearing and editing memo
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('MemoInput Component', () => {
   // Navigate to asset send page which shows MemoInput

@@ -33,8 +33,9 @@
  *
  * The trailing pubkey is drawn randomly per compose, so it is read from the composed script —
  * the same allowance core makes when it strips the last two elements before comparing. It cannot
- * redirect the message: the commit address derives from it *and* the verified envelope, and the
- * reveal's outputs and fee are checked separately (`verifyRevealTransaction`). Core holds the
+ * redirect the message: the commit address derives from it *and* the verified envelope, the
+ * commit output is proved to commit to that envelope as its only leaf, and the reveal's outputs
+ * and fee are checked separately (`verifyRevealTransaction`). Core holds the
  * matching private key, so the value the commit output carries is at core's mercy until the reveal
  * confirms; that value is bounded to the reveal's fee at the user's rate for the same reason.
  */
@@ -46,7 +47,13 @@ import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { type CborEncodable, encodeCbor } from '@/core/counterparty/pack/cbor';
 import { decodeCbor } from '@/core/counterparty/unpack/cbor';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
-import { type Instruction, parseInstructions } from '@/core/counterparty/unpack/ordEnvelope';
+import {
+  extractDataEnvelopeMessage,
+  type Instruction,
+  parseInstructions,
+  proveSingleLeafSpend,
+  REVEAL_MARKER_SCRIPT,
+} from '@/core/counterparty/unpack/ordEnvelope';
 import { add, isGreaterThan, maximum, multiply, roundUp, subtract, toFiniteNumber, toSafeInteger } from '@/core/numeric';
 
 /** Core chunks both metadata and content at this size (`helpers.chunkify`). */
@@ -310,37 +317,23 @@ export function readDataEnvelope(envelopeScriptHex: string, network: Network = '
   if (!composed) return { ok: false, error: 'The composed envelope script could not be read.' };
   if (envelopeKind(envelopeScriptHex) !== 'data') return unexpected;
   const pubkey = extractEnvelopePubkey(composed);
-  const instructions = parseInstructions(composed);
-  if (!pubkey || !instructions) return unexpected;
+  if (!pubkey) return unexpected;
 
-  // OP_FALSE, OP_IF, the chunks, OP_ENDIF, pubkey, OP_CHECKSIG.
-  const chunks: Uint8Array[] = [];
-  for (const instruction of instructions.slice(2, -3)) {
-    if (!('push' in instruction) || instruction.push.length === 0) return unexpected;
-    chunks.push(instruction.push);
-  }
-  const data = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0));
-  let offset = 0;
-  for (const chunk of chunks) {
-    data.set(chunk, offset);
-    offset += chunk.length;
-  }
-  if (data.length === 0) return { ok: false, error: 'The composed envelope carries no message.' };
-
+  // Read as the chain reads it, then rebuilt: only core's chunking of that message matches.
+  const messageHex = extractDataEnvelopeMessage(composed);
+  if (!messageHex) return { ok: false, error: 'The composed envelope carries no message.' };
+  const data = hexToBytes(messageHex.slice(COUNTERPARTY_PREFIX_HEX.length));
   if (bytesToHex(buildDataEnvelopeScript(data, pubkey)) !== bytesToHex(composed)) return unexpected;
 
   const commitAddress = commitAddressFor(pubkey, composed, network);
   if (!commitAddress) {
     return { ok: false, error: 'The envelope commit address could not be derived.' };
   }
-  return { ok: true, commitAddress, messageHex: COUNTERPARTY_PREFIX_HEX + bytesToHex(data) };
+  return { ok: true, commitAddress, messageHex };
 }
 
 /** `config.DEFAULT_SEGWIT_DUST_SIZE`: core never funds a commit output below this. */
 export const COMMIT_DUST_FLOOR = 330;
-
-/** The reveal's OP_RETURN: the bare CNTRPRTY marker core's indexer requires (`get_reveal_outputs`). */
-const REVEAL_MARKER_SCRIPT = `6a08${COUNTERPARTY_PREFIX_HEX}`;
 
 export interface RevealCheckOptions {
   /** The envelope the reveal publishes, which decides the outputs core gives it. */
@@ -370,8 +363,8 @@ export interface RevealCheck {
  * The reveal is built and signed by the server, so none of it is the user's choice — but all of it
  * is checkable against core's construction (`get_reveal_outputs`, `prepare_taproot_output`):
  *
- * - one input, spending output 0 of this commit, which must pay the derived commit address, and
- *   publishing the verified envelope as its tapleaf;
+ * - one input, spending output 0 of this commit, which must pay the derived commit address and
+ *   commit to the verified envelope as its only leaf, published as the reveal's tapleaf;
  * - a data envelope's reveal has only the zero-value CNTRPRTY marker, so the whole commit output
  *   is fee; an ord reveal adds exactly one output returning dust to the source;
  * - the commit output holds the reveal's fee at the user's rate plus that dust, raised to the
@@ -399,19 +392,27 @@ export function verifyRevealTransaction(revealHex: string, options: RevealCheckO
   if (!input?.txid || input.index !== 0 || bytesToHex(input.txid) !== commit.id) {
     return { ok: false, error: 'The reveal does not spend this commit transaction.' };
   }
-  // The script-path witness is [signature, tapleaf, control block]. The commit address already
-  // binds the envelope, so a different leaf could not spend it; checked anyway so a reveal that
-  // could never confirm is refused before the commit that funds it is signed.
-  const witness = input.finalScriptWitness;
-  const leaf = witness?.length === 3 ? witness[1] : undefined;
-  if (!leaf || bytesToHex(leaf) !== options.envelopeScriptHex.replace(/^0x/, '').toLowerCase()) {
-    return { ok: false, error: 'The reveal does not publish the verified envelope.' };
-  }
   const commitOutput = commit.outputsLength > 0 ? commit.getOutput(0) : undefined;
   const commitScript = commitOutput?.script ? bytesToHex(commitOutput.script) : '';
   const commitPays = commitScript ? decodeAddressFromScript(commitScript) : null;
   if (commitOutput?.amount === undefined || !commitPays || commitPays !== options.commitAddress) {
     return { ok: false, error: 'The commit transaction does not fund the reveal it was composed with.' };
+  }
+  // The script-path witness is [signature, tapleaf, control block]. Proved against the output the
+  // wallet signs, not just its address: the output's key is the control block's internal key
+  // tweaked by this one leaf, so it commits to that leaf and no other; the leaf is the verified
+  // envelope, and the internal key is the envelope's own, as core builds it. No other message can
+  // be published from the output.
+  const proof = proveSingleLeafSpend(input.finalScriptWitness, commitScript);
+  if (!proof.ok) {
+    return { ok: false, error: 'The commit output does not commit to exactly the verified envelope.' };
+  }
+  if (bytesToHex(proof.leaf) !== options.envelopeScriptHex.replace(/^0x/, '').toLowerCase()) {
+    return { ok: false, error: 'The reveal does not publish the verified envelope.' };
+  }
+  const envelopeKey = extractEnvelopePubkey(proof.leaf);
+  if (!envelopeKey || bytesToHex(envelopeKey) !== bytesToHex(proof.internalKey)) {
+    return { ok: false, error: 'The commit output does not commit to exactly the verified envelope.' };
   }
 
   // Exactly the outputs core gives this kind of reveal.

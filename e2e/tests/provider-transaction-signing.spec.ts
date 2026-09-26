@@ -10,8 +10,8 @@
  * Uses walletTest fixture which provides a browser context with the extension loaded.
  */
 
-import { walletTest, expect } from '../fixtures';
 import * as http from 'http';
+import { expect, walletTest } from '../fixtures';
 
 // Test fixtures - minimal valid transaction/PSBT hex for testing
 const TEST_FIXTURES = {

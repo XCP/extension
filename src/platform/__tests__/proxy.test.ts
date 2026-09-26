@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HardwareWalletError } from '@/core/hardware/types';
 import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, ProviderError } from '@/core/rpcErrors';
+import { recordProviderTab } from '@/platform/browser';
 import { markServicesReady } from '@/services/core/serviceReadiness';
 import {
   defineProxyService, disconnectAllPorts, isBackgroundScript, PORT_ACK_TIMEOUT_MS, PORT_HEARTBEAT_INTERVAL_MS,
   PORT_IDLE_RECONNECT_MS,
 } from '../proxy';
+
+vi.mock('@/platform/browser', () => ({ recordProviderTab: vi.fn(async () => {}) }));
 
 // ---------------------------------------------------------------------------
 // Mock Chrome API
@@ -293,6 +296,23 @@ describe('defineProxyService', () => {
       expect(port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ id: 2, success: false }));
     });
 
+    it('records which tab a provider port came from, so events reach only the tabs of its origin', () => {
+      const name = `TabRecord_${++testServiceCounter}`;
+      const [registerProvider] = defineProxyService(name, () => ({ handleRequest: vi.fn() }), {
+        methods: { handleRequest: 'command' }, contentScript: 'provider',
+      });
+      registerProvider();
+      const contentPort = createMockPort(`proxy:${name}`);
+      Object.assign(contentPort.sender, { url: 'https://site.example/path', origin: 'https://site.example', frameId: 0, tab: { id: 7 } });
+      const uiPort = createMockPort(`proxy:${name}`);
+      Object.assign(uiPort.sender, { tab: { id: 8 } });
+      const framePort = createMockPort(`proxy:${name}`);
+      Object.assign(framePort.sender, { url: 'https://site.example/', origin: 'https://site.example', frameId: 1, tab: { id: 9 } });
+      vi.mocked(recordProviderTab).mockClear();
+      for (const port of [contentPort, uiPort, framePort]) onConnectListeners.forEach(fn => { fn(port); });
+      expect(recordProviderTab).toHaveBeenCalledExactlyOnceWith(7, 'https://site.example');
+    });
+
     it('keeps hardware metadata private to extension UI, preserving the public raw error', async () => {
       const failure = new HardwareWalletError('Original SDK evidence', 'DEVICE_BUSY', 'trezor', 'English hint');
       const handleRequest = vi.fn().mockRejectedValue(failure);
@@ -404,6 +424,15 @@ describe('defineProxyService', () => {
       const service = getService();
       expect(service).not.toBe(testServiceInstance);
       expect(typeof service.getValue).toBe('function');
+    });
+
+    it('returns one client with stable method functions, so React dependencies hold', () => {
+      const first = getService();
+      const second = getService();
+      expect(second).toBe(first);
+      expect(second.getValue).toBe(first.getValue);
+      expect(first.getAsync).toBe(first.getAsync);
+      expect(first.getAsync).not.toBe(first.getValue);
     });
 
     it('should connect port and send message on method call', async () => {

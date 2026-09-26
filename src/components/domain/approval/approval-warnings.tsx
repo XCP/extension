@@ -18,7 +18,9 @@ import { getMessageSigningRisks } from '@/core/bitcoin/messageRisk';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
 import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
+import type { MarketplaceBlockKind } from '@/core/counterparty/marketplaceIntent';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
+import { revealControlText, revealOutputsText, revealRefusalText } from '@/core/counterparty/providerReveal';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { formatAmount } from '@/core/format';
 
@@ -38,7 +40,7 @@ export function WarningDetails({ details }: { details: string[] }) {
 }
 
 /** Headline for a marketplace proof that did not pass, by what the user can do about it. */
-export function marketplaceBlockText(kind: 'retry' | 'ledger' | 'transaction' | 'input_limit'): { title: string; description: string } {
+export function marketplaceBlockText(kind: 'retry' | 'transaction' | MarketplaceBlockKind): { title: string; description: string } {
   switch (kind) {
     case 'retry':
       return { title: t('approval_marketplace_retry_title'), description: t('approval_marketplace_retry_description') };
@@ -82,6 +84,47 @@ function safetyWarningText(warning: SecurityWarning): { title: string; descripti
           (warning.data.totalSats / 100_000_000).toFixed(8), warning.data.address,
         ]),
       };
+    case 'counterparty_reveal_commit':
+      return {
+        title: t('safety_counterparty_reveal_commit'),
+        description: t('safety_counterparty_reveal_commit_detail', [
+          (warning.data.totalSats / 100_000_000).toFixed(8), warning.data.address,
+        ]),
+      };
+    case 'counterparty_reveal_refused':
+      return {
+        title: t('safety_blocked_reveal_did_not_verify'),
+        description: revealRefusalText(warning.data.reason),
+      };
+    case 'counterparty_reveal_site_control':
+      return revealControlText(warning.data);
+    case 'counterparty_reveal_outputs': {
+      const text = revealOutputsText(warning.data);
+      return {
+        title: text.title,
+        description: text.description,
+        children: (
+          <>
+            {text.items.length > 0 && (
+              <ul className="mt-2 space-y-1 text-xs font-medium [overflow-wrap:anywhere]">
+                {text.items.map((item, index) => <li key={index}>{item}</li>)}
+              </ul>
+            )}
+            <p className="mt-2 text-xs opacity-80">{text.note}</p>
+          </>
+        ),
+      };
+    }
+    case 'unproven_script_output': {
+      const btcAmount = (warning.data.totalSats / 100_000_000).toFixed(8);
+      const { addresses, source } = warning.data;
+      return {
+        title: t('safety_unproven_script_output'),
+        description: addresses.length === 1
+          ? t('safety_unproven_script_output_one', [btcAmount, addresses[0]!, source])
+          : t('safety_unproven_script_output_many', [btcAmount, addresses.join(', '), source]),
+      };
+    }
     case 'durable_sell_authorization':
       return {
         title: t('safety_blocked_durable_sell_authorization'),
@@ -186,8 +229,7 @@ export function buildApprovalWarnings({
           ? t('approval_approval_warnings_transaction_details_contain_hidden_characters')
           : t('approval_approval_warnings_transaction_details_contain_control_characters'),
         description: risk.key === 'deceptive-characters'
-          ? t('approval_approval_warnings_a_memo_description_or_asset')
-            + t('approval_approval_warnings_check_the_decoded_amounts_and')
+          ? t('approval_approval_warnings_hidden_characters_description')
           : t('approval_approval_warnings_a_memo_description_or_asset_2'),
       });
     }

@@ -111,8 +111,8 @@ const mockWalletService = {
   removeWallet: vi.fn().mockResolvedValue(undefined),
 };
 
-vi.mock('@/services/walletService', () => ({
-  getWalletService: vi.fn(() => mockWalletService),
+vi.mock('@/services/walletServiceClient', () => ({
+  getWalletServiceClient: vi.fn(() => mockWalletService),
 }));
 
 describe('WalletContext', () => {
@@ -227,6 +227,30 @@ describe('WalletContext', () => {
       await waitFor(() => {
         expect(result.current.authState).toBe('UNLOCKED');
       });
+    });
+
+    it('subscribes once and keeps its value across re-renders, whatever the service getter returns', async () => {
+      const { getWalletServiceClient } = await import('@/services/walletServiceClient');
+      // A getter that hands out a fresh object each call, as the proxy once did.
+      vi.mocked(getWalletServiceClient).mockImplementation(() => ({ ...mockWalletService }) as any);
+      const { onMessage } = await import('webext-bridge/popup');
+      try {
+        const { result, rerender } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+        await waitFor(() => { expect(result.current.authState).toBe('LOCKED'); });
+        const subscriptions = vi.mocked(onMessage).mock.calls.length;
+        const refreshes = mockWalletService.refreshWallets.mock.calls.length;
+        const value = result.current;
+
+        rerender();
+        rerender();
+        rerender();
+
+        expect(vi.mocked(onMessage).mock.calls.length).toBe(subscriptions);
+        expect(mockWalletService.refreshWallets.mock.calls.length).toBe(refreshes);
+        expect(result.current).toBe(value);
+      } finally {
+        vi.mocked(getWalletServiceClient).mockImplementation(() => mockWalletService as any);
+      }
     });
   });
 
@@ -526,7 +550,7 @@ describe('WalletContext', () => {
       expect(mockWalletService.selectWallet).toHaveBeenCalledWith(secondWallet.id);
     });
 
-    it('emits accountsChanged to each connected site when a wallet switch changes the address', async () => {
+    it('leaves telling connected sites about a wallet switch to the background', async () => {
       const firstWallet: Wallet = {
         ...mockWallets[0]!,
         addressFormat: AddressFormat.P2WPKH,
@@ -569,21 +593,13 @@ describe('WalletContext', () => {
         await result.current.selectWallet(secondWallet.id);
       });
 
-      expect(mockWalletService.emitProviderEvent).toHaveBeenNthCalledWith(
-        1,
-        'https://one.example',
-        'accountsChanged',
-        ['1second']
-      );
-      expect(mockWalletService.emitProviderEvent).toHaveBeenNthCalledWith(
-        2,
-        'https://two.example',
-        'accountsChanged',
-        ['1second']
-      );
+      // walletService.selectWallet emits accountsChanged itself (see walletProviderEvents.test.ts);
+      // a page emitting too would announce every switch twice, or not at all when it is closed.
+      expect(result.current.activeAddress?.address).toBe('1second');
+      expect(mockWalletService.emitProviderEvent).not.toHaveBeenCalled();
     });
 
-    it('preserves the selected index and emits accountsChanged after an address format change', async () => {
+    it('preserves the selected index after an address format change, leaving events to the background', async () => {
       const legacyWallet: Wallet = {
         ...mockWallets[0]!,
         addressFormat: AddressFormat.P2PKH,
@@ -640,11 +656,7 @@ describe('WalletContext', () => {
 
       expect(result.current.activeWallet?.addressCount).toBe(2);
       expect(result.current.activeAddress?.address).toBe('taproot-1');
-      expect(mockWalletService.emitProviderEvent).toHaveBeenCalledWith(
-        'https://market.example',
-        'accountsChanged',
-        ['taproot-1']
-      );
+      expect(mockWalletService.emitProviderEvent).not.toHaveBeenCalled();
     });
 
     it('should set active address', async () => {
@@ -885,7 +897,7 @@ describe('WalletContext', () => {
       await act(async () => {
         // This would normally be triggered by an external event
         // We're testing that the comparison functions detect the change
-        const service = (await import('@/services/walletService')).getWalletService();
+        const service = (await import('@/services/walletServiceClient')).getWalletServiceClient();
         await service.refreshWallets();
       });
 

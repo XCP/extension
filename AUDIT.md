@@ -28,7 +28,7 @@ August 2026 — review of the transaction construction, verification and signing
 | Variant analysis | Input validation bypasses | No variants found |
 | Property-based testing | Roundtrip/validation properties | 17 properties verified |
 
-**Vulnerability Reporting:** [GitHub Security Advisories](../../security/advisories/new) or see [bug bounty program](SECURITY.md).
+**Vulnerability Reporting:** Report privately through [GitHub Security Advisories](https://github.com/XCP/extension/security/advisories/new). The bug bounty is paused; see [SECURITY.md](SECURITY.md) for what to report there and what to send as an issue or pull request.
 
 ---
 
@@ -41,9 +41,10 @@ August 2026 — review of the transaction construction, verification and signing
 | **Disk attacker** (stolen device, malware reading files) | All secrets encrypted at rest with AES-256-GCM |
 | **Brute-force password attack** | PBKDF2 with 600K iterations, rate limiting |
 | **Malicious dApp** | Origin validation, explicit approval for all signing |
-| **Supply chain attack** | Minimal deps (13), exact version pins, npm audit CI |
+| **Supply chain attack** | Minimal deps (14), exact version pins, npm audit CI |
 | **Memory inspection** (while unlocked) | Auto-lock timeout, session cleared on lock |
 | **Replay attacks** | Nonce tracking, transaction deduplication |
+| **Compromised or spoofed Trezor Suite** | Under Trezor Connect 10, every Trezor approval is hosted by Trezor Suite Web (`suite.trezor.io`), which the manifest admits through `externally_connectable` and an optional host permission granted on first Trezor use. Suite relays requests to the device; it does not decide them. The device shows and confirms what it signs, and the wallet checks that the returned transaction preserves the reviewed serialization before using it |
 
 ### What We Do NOT Protect Against
 
@@ -52,18 +53,18 @@ August 2026 — review of the transaction construction, verification and signing
 | **Compromised browser/OS** | Platform trust required; no defense possible |
 | **Physical access while unlocked** | User responsibility; we provide auto-lock |
 | **Screenshots** | Browser API limitation; cannot prevent |
-| **Advanced memory forensics** | JavaScript limitation (see ADR-001) |
+| **Advanced memory forensics** | JavaScript limitation (see [sessionManager.ts](src/platform/auth/sessionManager.ts)) |
 
 ### Trust Boundaries
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  UNTRUSTED: dApps, user input, stored encrypted data,       │
-│             the Counterparty compose API (ADR-019)          │
+│             the Counterparty compose API (verify.ts)        │
 └──────────────────────────┬──────────────────────────────────┘
                            │ Validation + Origin checks
                            │ Structural verification of composed
-                           │ transactions (ADR-019)
+                           │ transactions (verify.ts)
                            v
 ┌─────────────────────────────────────────────────────────────┐
 │  EXTENSION: Background service worker, popup UI             │
@@ -78,7 +79,7 @@ August 2026 — review of the transaction construction, verification and signing
 The compose API is inside the untrusted band deliberately. Counterparty transactions are composed
 remotely, so the composer is a party to every transaction; the endpoint is user-configurable and may
 be infrastructure this project does not run. Verification is therefore structural rather than
-field-enumerated — see ADR-019 in [verify.ts](src/core/counterparty/unpack/verify.ts).
+field-enumerated — see the design note in [verify.ts](src/core/counterparty/unpack/verify.ts).
 
 ---
 
@@ -101,16 +102,16 @@ field-enumerated — see ADR-019 in [verify.ts](src/core/counterparty/unpack/ver
 | ✅ | Use CSPRNG for all randomness | `crypto.getRandomValues()` for salts, IVs, keys |
 | ✅ | High iteration key derivation | PBKDF2 with 600,000 iterations |
 | ✅ | Use audited crypto libraries | Noble/Scure family (Cure53 audited) |
-| ⚪ | HKDF domain separation | Superseded by the unified keychain (ADR-015): one master key, doubly-encrypted wallet secrets |
+| ⚪ | HKDF domain separation | Superseded by the unified keychain ([walletManager.ts](src/platform/walletManager.ts)): one master key, doubly-encrypted wallet secrets |
 | ✅ | Random salt per password | 16-byte random salt at keychain creation and password change |
 | ✅ | Random IV per encryption | 12-byte random IV for each operation |
 | ✅ | Timing attack mitigation | Random delays (0-10ms) on decryption |
 | ✅ | Key buffers zeroed after use | Password and signing key bytes zeroed in finally blocks |
-| ⚠️ | Memory clearing | JS limitation—V8 may retain copies (ADR-001) |
+| ⚠️ | Memory clearing | JS limitation—V8 may retain copies ([sessionManager.ts](src/platform/auth/sessionManager.ts)) |
 | ⚪ | HSM/hardware key storage | Not applicable—browser extension |
 | ⚪ | Key rotation | Not applicable—user controls keys |
 
-### Input Validation Thresholds (ADR-014)
+### Input Validation Thresholds
 
 The encryption module enforces minimum security thresholds at the API boundary:
 
@@ -150,13 +151,13 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 
 | Status | Item | Implementation |
 |--------|------|----------------|
-| ✅ | Minimal permissions | `storage`, `alarms`, `sidePanel`, `scripting` only |
+| ✅ | Minimal permissions | `sidePanel`, `storage`, `alarms`; optional host access to `https://suite.trezor.io/*`, requested on first Trezor use; `externally_connectable` for `suite.trezor.io` only; content scripts on `https://*/*`, `http://localhost/*` and `http://127.0.0.1/*` |
 | ✅ | Message origin validation | Background validates sender context |
 | ✅ | CSP enforced | MV3 strict default, no unsafe-eval |
 | ✅ | No hardcoded secrets | Scanned with gitleaks patterns |
 | ✅ | Dependency version pinning | Exact versions in package.json |
-| ✅ | npm audit clean | 0 high/critical outside the documented @trezor/elliptic acceptance; gated in CI |
-| ✅ | Console stripping in prod | esbuild `drop` removes all console.* calls |
+| ✅ | npm audit clean | 0 high/critical in production dependencies; gated in CI |
+| ✅ | Console stripping in prod | Rolldown `minify.compress.dropConsole` removes console.* calls from production builds |
 | ✅ | Content script isolation | Separate injected.js, content.js contexts |
 | ✅ | XSS protection | Input sanitization, no innerHTML with user data |
 | ✅ | Clickjacking protection | postMessage origin validation |
@@ -192,9 +193,9 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 
 | Status | Item | Implementation |
 |--------|------|----------------|
-| ✅ | Local message verification | On every compose carrying a Counterparty OP_RETURN, the payload is decrypted (ARC4, first-input-txid key) and the message the request should produce is rebuilt locally and required to match byte for byte — sends, broadcasts, issuances, subasset issuances, ownership transfers, reissuances and MPMA batches. Where a field cannot be predicted from the request (a reissuance's divisibility, a server-drawn subasset asset id, a wallet-stamped broadcast timestamp) it is borrowed from the decoded message and the comparison drops to field level for that type, which is reported as a weaker check rather than presented as byte equality. Verified against a live node by `coreOracle.test.ts` and against real on-chain messages by `onchainRoundTrip.test.ts` (ADR-019) |
+| ✅ | Local message verification | On every compose carrying a Counterparty OP_RETURN, the payload is decrypted (ARC4, first-input-txid key) and the message the request should produce is rebuilt locally and required to match byte for byte — sends, broadcasts, issuances, subasset issuances, ownership transfers, reissuances and MPMA batches. Where a field cannot be predicted from the request (a reissuance's divisibility, a server-drawn subasset asset id, a wallet-stamped broadcast timestamp) it is borrowed from the decoded message and the comparison drops to field level for that type, which is reported as a weaker check rather than presented as byte equality. Verified against a live node by `coreOracle.test.ts` and against real on-chain messages by `onchainRoundTrip.test.ts` (design note in [verify.ts](src/core/counterparty/unpack/verify.ts)) |
 | ✅ | Signed-transaction integrity | The signer rebuilds the transaction rather than signing the parsed bytes, because it needs per-input prevout data the raw bytes do not carry. Version, lock time, per-input txid/index/sequence and per-output script/amount are compared against the parsed source before signing; a difference refuses to sign rather than producing a signature over bytes the user did not review (`transactionSigner.ts`) |
-| ✅ | Display derived from decoded bytes | Amounts, assets, destinations, memos and fees on the compose review and dapp approval screens are decoded from the transaction's own bytes rather than read back from the API's echo of the request, which cannot testify about the API. The fee shown is resolved independently of the compose response. Asset divisibility remains a ledger fact read from `asset_info`, so the decimal point retains that dependency (ADR-019) |
+| ✅ | Display derived from decoded bytes | Amounts, assets, destinations, memos and fees on the compose review and dapp approval screens are decoded from the transaction's own bytes rather than read back from the API's echo of the request, which cannot testify about the API. The fee shown is resolved independently of the compose response. Asset divisibility remains a ledger fact read from `asset_info`, so the decimal point retains that dependency (design note in [verify.ts](src/core/counterparty/unpack/verify.ts)) |
 | ✅ | Address display integrity | Output addresses on dapp approval screens are shown in full rather than abbreviated, so a lookalike address cannot match on a truncated prefix and suffix |
 | ✅ | Fee bounding | Miner fee recomputed locally (inputs − outputs) and rejected before signing if it exceeds the user's selected rate or an absolute ceiling, or if outputs exceed inputs |
 | ✅ | Broadcast txid integrity | Reported txid computed locally from the signed bytes, not the broadcast endpoint's echo |
@@ -202,7 +203,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Race condition prevention | Mutex locks, `isComposing`/`isSigning` guards |
 | ✅ | Stale transaction detection | 5-minute timeout on composed transactions |
 | ✅ | Address checksum validation | Base58check (double-SHA256) and Bech32 checksums verified client-side |
-| ✅ | Bitcoin output verification | Deny-by-default accounting: every output must be the Counterparty data output, an address the request names, or change to an address the signer controls — anything else rejects the transaction before the review screen, so an added recipient fails closed without any field-level check covering it. BTCPay is exempt (its payee is derived from the order match, not the request). Verified by `outputPolicy.test.ts` and `composer.test.tsx` (ADR-019) |
+| ✅ | Bitcoin output verification | Deny-by-default accounting: every output must be the Counterparty data output, an address the request names, or change to an address the signer controls — anything else rejects the transaction before the review screen, so an added recipient fails closed without any field-level check covering it. BTCPay is exempt (its payee is derived from the order match, not the request). Verified by `outputPolicy.test.ts` and `composer.test.tsx` (design note in [verify.ts](src/core/counterparty/unpack/verify.ts)) |
 
 ## Input Validation
 
@@ -232,14 +233,13 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | User vs internal errors | Separate `userMessage` field |
 | ✅ | Generic decryption errors | Prevents padding oracle attacks |
 | ✅ | Stack traces hidden | Never exposed to external callers |
-| ✅ | Logging stripped in prod | console.log/error removed |
+| ✅ | Logging stripped in prod | console.* removed by the production minifier |
 
-## Privacy & Analytics (ADR-016)
+## Privacy & Analytics
 
 | Status | Item | Implementation |
 |--------|------|----------------|
 | ✅ | Opt-out available | Users can disable in Settings > Advanced |
-| ✅ | Firefox consent integration | Respects Firefox 140+ built-in data collection consent |
 | ✅ | Path sanitization | Dynamic params stripped (wallet IDs, asset names, tx hashes); data-shaped segments on unlisted routes truncated (fail closed) |
 | ✅ | No query strings | Empty `qs: {}` sent; no UTM/marketing params |
 | ✅ | No referrer tracking | Empty `r: ''` for all events |
@@ -249,7 +249,26 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Self-hosted script | Bundled directly; no third-party JS execution |
 | ⚪ | User identification | Not supported—by design |
 
-**Events tracked:** `compose`, `broadcast`, `consolidate` and its eligibility funnel, categorized error events (`compose_error_<category>`, `broadcast_error_<category>`, `consolidate_error_<category>` — categories only, never messages), `not_found`, connection events.
+**Events tracked:** anonymized page views (sanitized paths, above) and these events, taken from
+every `analytics.track` call in `src`:
+
+- Compose and broadcast: `compose`, `compose_error_<category>`, `broadcast` (with a bucketed fee),
+  `broadcast_error_<category>`
+- Consolidation: `consolidate` (with a bucketed amount), `consolidate_eligible`,
+  `consolidate_ineligible`, `consolidate_fetch_error`, `consolidate_stale_retry`,
+  `consolidate_report_failed`, `consolidate_error_<category>`
+- Wallets and addresses: `wallet_created`, `wallet_imported`, `private_key_imported`,
+  `gift_card_imported`, `address_switched`
+- Website connections and requests: `connection_request`, `connection_established`,
+  `connection_disconnected`, `connection_disconnect_all` (with the number of sites),
+  `request_approved`, `request_rejected`, `message_signed`, `transaction_signed`, `psbt_signed`,
+  `psbt_bundle_signed`, `transaction_broadcasted`, `provider_error`
+- Other interface actions: `settings_changed`, `copy_to_clipboard`, `asset_searched`,
+  `asset_pinned`, `asset_unpinned`, `buy_bitcoin`, `buy_xcp`, `not_found`
+
+`<category>` is one of `inputs_spent`, `mempool`, `fee`, `signature`, `insufficient_funds`,
+`invalid_params`, `network` or `other` (`classifyTransactionError` in `fathom.ts`); error messages
+are never sent.
 
 **BTC bucketing:** Amounts are bucketed (dust/micro/tiny/small/medium/large/whale/mega) to understand volume without revealing exact values that could correlate with on-chain data.
 
@@ -260,7 +279,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Exact version pinning | No wildcards in package.json |
 | ✅ | Lockfile integrity | package-lock.json with hashes |
 | ✅ | npm audit CI | Runs on every PR |
-| ✅ | Minimal dependencies | 13 runtime deps (most wallets have 50+) |
+| ✅ | Minimal dependencies | 14 direct runtime deps (most wallets have 50+) |
 | ⚪ | Dependency confusion | Not applicable—no private packages |
 
 ## Hardware Wallet Security
@@ -274,26 +293,26 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | MV3 service worker compatibility | Uses @trezor/connect-webextension for service worker support |
 | ✅ | PSBT signing flow | BIP-174 format for SegWit transaction signing |
 | ✅ | PSBT input validation | Verifies witnessUtxo values match API-provided amounts |
-| ✅ | RBF enabled by default | Sequence 0xfffffffd allows fee bumping |
+| ✅ | Sequence integrity | Software and hardware signers keep each input's reviewed sequence rather than forcing one; wallet-built UTXO consolidations set 0xfffffffd (RBF) |
 | ✅ | Address derivation paths | Standard BIP-44/49/84/86 paths per address format |
 | ✅ | Reference transaction fetching | Automatically fetches prev tx data for non-SegWit inputs |
 | ✅ | Sidepanel-only access | Hardware wallet features require sidepanel context |
 | ✅ | No extension trust required | Compromised extension cannot sign without device |
-| ⚠️ | Trezor popup UX | Adds friction but expected for hardware wallet security |
+| ⚠️ | Trezor Suite UX | Every Trezor approval opens in Trezor Suite Web; adds friction but expected for hardware wallet security |
 | ⚪ | Ledger support | Future enhancement—interface designed for multi-vendor |
 
 ---
 
 ## Known Limitations
 
-### JavaScript Memory Clearing (ADR-001)
+### JavaScript Memory Clearing
 
 Browser JavaScript cannot guarantee secure memory clearing:
 - String immutability may retain original data
 - V8 garbage collector timing is non-deterministic
 - JIT optimizations may preserve copies
 
-**Mitigation:** Defense-in-depth via short session timeouts (1-30 min configurable), auto-lock on idle, and re-authentication on service worker restart.
+**Mitigation:** Defense-in-depth via short session timeouts (1-30 min configurable), auto-lock on idle, and the 8-hour absolute session cap. Service worker restarts keep the session by design (see [Service Worker Session Persistence](#service-worker-session-persistence)).
 
 **Industry context:** MetaMask, UniSat, Xverse face identical constraints. True secure memory requires native code (libsodium), which browsers don't support.
 
@@ -324,32 +343,6 @@ This is not true constant-time code. For higher-security applications, constant-
 
 ---
 
-## Architecture Decision Records
-
-| ADR | Decision | Location |
-|-----|----------|----------|
-| ADR-001 | JavaScript memory clearing limitations | [sessionManager.ts](src/platform/auth/sessionManager.ts) |
-| ADR-002 | No automatic key refresh during session | [sessionManager.ts](src/platform/auth/sessionManager.ts) |
-| ADR-003 | No distributed tracing (future enhancement) | [MessageBus.ts](src/services/core/MessageBus.ts) |
-| ADR-004 | Promise-based write mutex for storage | [mutex.ts](src/platform/storage/mutex.ts) |
-| ADR-005 | Explicit service dependency ordering | [BaseService.ts](src/services/core/BaseService.ts) |
-| ADR-006 | Request callbacks lost on service worker restart; durable requests provide recovery | [signFlow.ts](src/platform/provider/signFlow.ts) |
-| ADR-007 | Distributed request state design | [approvalService.ts](src/services/approvalService.ts) |
-| ADR-008 | Storage error handling pattern | [walletStorage.ts](src/platform/storage/walletStorage.ts) |
-| ADR-009 | Key derivation with HKDF domain separation — superseded by ADR-015 | [walletManager.ts](src/platform/walletManager.ts) |
-| ADR-010 | Storage pattern decisions (class vs function) | [requestStorage.ts](src/platform/storage/requestStorage.ts) |
-| ADR-011 | Isolated wallet and settings storage | [walletStorage.ts](src/platform/storage/walletStorage.ts) |
-| ADR-012 | Type organization and extraction strategy | [wallet.ts](src/types/wallet.ts), [provider.ts](src/types/provider.ts) |
-| ADR-013 | Constants organization strategy | [wallet/constants.ts](src/core/wallet/constants.ts) |
-| ADR-014 | Input validation thresholds for encryption | [encryption.ts](src/core/encryption/encryption.ts) |
-| ADR-015 | Unified keychain architecture | [walletManager.ts](src/platform/walletManager.ts) |
-| ADR-016 | Privacy-focused analytics with Fathom | [fathom.ts](src/platform/fathom.ts) |
-| ADR-017 | Hardware wallet integration architecture | [trezorAdapter.ts](src/core/hardware/trezorAdapter.ts) |
-| ADR-018 | Explicit, identity-bound paired-address provider capability | [providerService.ts](src/services/providerService.ts) |
-| ADR-019 | Untrusted compose API; structural (deny-by-default) transaction verification | [verify.ts](src/core/counterparty/unpack/verify.ts) |
-
----
-
 ## Summary
 
 | Category | ✅ | ⚠️ | ❌ | ⚪ |
@@ -358,14 +351,14 @@ This is not true constant-time code. For higher-security applications, constant-
 | Session | 6 | 0 | 0 | 2 |
 | Password | 3 | 2 | 1 | 0 |
 | Extension | 10 | 1 | 0 | 2 |
-| Provider API | 18 | 0 | 0 | 0 |
+| Provider API | 19 | 0 | 0 | 0 |
 | Transaction | 11 | 0 | 0 | 0 |
 | Input Validation | 5 | 0 | 0 | 0 |
 | UI/UX | 3 | 0 | 1 | 2 |
 | Error Handling | 4 | 0 | 0 | 0 |
-| Privacy & Analytics | 9 | 0 | 0 | 1 |
+| Privacy & Analytics | 8 | 0 | 0 | 2 |
 | Supply Chain | 4 | 0 | 0 | 1 |
 | Hardware Wallet | 12 | 1 | 0 | 1 |
-| **Total** | **94** | **5** | **2** | **12** |
+| **Total** | **94** | **5** | **2** | **13** |
 
 **Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)

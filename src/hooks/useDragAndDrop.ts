@@ -107,15 +107,14 @@ export function useDragAndDrop<T>({
 
   // Add and cleanup mouse move listener when dragging
   useEffect(() => {
-    if (isDragging) {
-      const handleGlobalMouseMove = (e: MouseEvent) => {
-        setGhostPosition({ x: e.clientX, y: e.clientY });
-      };
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      return () => {
-        document.removeEventListener('mousemove', handleGlobalMouseMove);
-      };
-    }
+    if (!isDragging) return;
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      setGhostPosition({ x: e.clientX, y: e.clientY });
+    };
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+    };
   }, [isDragging]);
 
   return {

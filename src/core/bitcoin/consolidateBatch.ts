@@ -7,14 +7,12 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { Address, OutScript, Transaction } from '@scure/btc-signer';
 import type { ConsolidationData, ConsolidationUTXO } from '@/core/bitcoin/consolidationApi';
+import { DUST_LIMIT_SATS, RBF_SEQUENCE } from '@/core/bitcoin/constants';
 import { assertSignableBareMultisig, signAndFinalizeBareMultisig } from '@/core/bitcoin/multisigSigner';
 import { parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
 import { multiply, roundUp, toSafeInteger } from '@/core/numeric';
 
-// RBF-enabled sequence number
-const RBF_SEQUENCE = 0xfffffffd;
-
-const DUST_LIMIT_SATS = 546n;
+const DUST_LIMIT = BigInt(DUST_LIMIT_SATS);
 
 // Empirical consolidation transaction sizes: ~115 bytes per bare multisig
 // input (36 outpoint + 1 scriptSig varint + ~74 scriptSig + 4 sequence),
@@ -169,7 +167,7 @@ export async function consolidateBareMultisigBatch(
         const candidate = (afterNetworkFee * BigInt(batchData.fee_config.fee_percent)) / 100n;
         // A sub-dust service output is unpayable; below that size the whole
         // amount stays with the user instead of becoming extra miner fee.
-        if (candidate > DUST_LIMIT_SATS) {
+        if (candidate > DUST_LIMIT) {
           serviceFeeSats = candidate;
           serviceFeeAddress = batchData.fee_config.fee_address;
           networkFeeSats = feeWithServiceOutput;
@@ -179,7 +177,7 @@ export async function consolidateBareMultisigBatch(
 
     const totalFeeSats = networkFeeSats + serviceFeeSats;
     const outputSats = totalInputSats - totalFeeSats;
-    if (outputSats <= DUST_LIMIT_SATS) {
+    if (outputSats <= DUST_LIMIT) {
       throw new Error(
         `Output amount (${outputSats} sats) is below dust threshold. ` +
         `Total input: ${totalInputSats} sats, Total fees: ${totalFeeSats} sats`
@@ -207,7 +205,7 @@ export async function consolidateBareMultisigBatch(
     };
   } finally {
     // Zero out private key bytes after use (defense in depth)
-    // See ADR-001 in sessionManager.ts for JS memory limitation context
+    // See the memory-clearing note in sessionManager.ts for JS memory limitation context
     privateKeyBytes.fill(0);
   }
 }

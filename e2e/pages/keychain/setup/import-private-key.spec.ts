@@ -4,8 +4,8 @@
  * Tests for importing a wallet using a private key with address format selection.
  */
 
-import { walletTest, test, expect, launchExtension, cleanup, TEST_PRIVATE_KEY, TEST_PASSWORD } from '@e2e/fixtures';
-import { importWallet, common, onboarding } from '@e2e/selectors';
+import { expect, TEST_PASSWORD, TEST_PRIVATE_KEY, walletTest } from '@e2e/fixtures';
+import { common, importWallet } from '@e2e/selectors';
 
 // Tests for import when wallet already exists
 walletTest.describe('Import Private Key Page - With Existing Wallet (/keychain/setup/import-private-key)', () => {

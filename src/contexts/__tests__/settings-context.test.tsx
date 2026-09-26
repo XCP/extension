@@ -6,12 +6,12 @@ import { DEFAULT_SETTINGS } from '@/core/settings';
 import { saveKeychainRecord } from '@/platform/storage/walletStorage';
 import { SettingsProvider, useSettings } from '../settings-context';
 
-// Mock walletService
+// Mock the wallet service client
 const mockGetSettings = vi.fn();
 const mockUpdateSettings = vi.fn();
 
-vi.mock('@/services/walletService', () => ({
-  getWalletService: () => ({
+vi.mock('@/services/walletServiceClient', () => ({
+  getWalletServiceClient: () => ({
     getSettings: () => mockGetSettings(),
     updateSettings: (updates: Partial<AppSettings>) => mockUpdateSettings(updates),
   }),

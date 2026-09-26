@@ -26,6 +26,12 @@ export interface RequestConfig {
   signal?: AbortSignal;
   params?: Record<string, string | number | boolean>;
   retries?: number;
+  /**
+   * Whether a timed-out request is sent again. Defaults to true. False for requests whose timeout
+   * is long and whose server-side work is expensive (compose): a request that ran out a sixty
+   * second clock once will usually do so again, and re-sending it only multiplies the wait.
+   */
+  retryOnTimeout?: boolean;
 }
 
 /**
@@ -279,7 +285,8 @@ async function fetchWithTimeout<T>(
  */
 export async function withRetry<T>(
   requestFn: () => Promise<T>,
-  maxRetries: number = RETRY_CONFIG.maxRetries
+  maxRetries: number = RETRY_CONFIG.maxRetries,
+  retryOnTimeout = true
 ): Promise<T> {
   // Ensure maxRetries is non-negative
   const effectiveMaxRetries = Math.max(0, maxRetries);
@@ -301,7 +308,8 @@ export async function withRetry<T>(
       }
 
       // Don't retry if it's not retryable
-      if (!RETRY_CONFIG.shouldRetry(lastError, lastError.status)) {
+      if (!RETRY_CONFIG.shouldRetry(lastError, lastError.status)
+        || (!retryOnTimeout && lastError.code === 'TIMEOUT')) {
         throw lastError;
       }
 
@@ -341,7 +349,7 @@ export const apiClient = {
       method: 'GET',
       headers: config?.headers ? { ...config.headers } : undefined,
       timeout,
-    }, config?.signal), config?.retries);
+    }, config?.signal), config?.retries, config?.retryOnTimeout);
   },
 
   /**
@@ -363,15 +371,20 @@ export const apiClient = {
       }
     }
 
+    // A Content-Type describes a body. Declaring application/json on a POST that has none (the
+    // Counterparty broadcast carries its hex in the query) buys nothing and costs a CORS preflight
+    // round trip before every send, so the header goes out only with a body.
+    const { 'Content-Type': _declared, ...otherHeaders } = config?.headers ?? {};
+    const headers = body === undefined
+      ? otherHeaders
+      : { 'Content-Type': contentType, ...otherHeaders };
+
     return withRetry(() => fetchWithTimeout<T>(fullUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': contentType,
-        ...config?.headers,
-      },
+      headers,
       body,
       timeout,
-    }, config?.signal), config?.retries);
+    }, config?.signal), config?.retries, config?.retryOnTimeout);
   },
 
   /**
@@ -392,7 +405,7 @@ export const apiClient = {
       },
       body,
       timeout,
-    }, config?.signal), config?.retries);
+    }, config?.signal), config?.retries, config?.retryOnTimeout);
   },
 
   /**
@@ -406,7 +419,7 @@ export const apiClient = {
       method: 'DELETE',
       headers: config?.headers ? { ...config.headers } : undefined,
       timeout,
-    }, config?.signal), config?.retries);
+    }, config?.signal), config?.retries, config?.retryOnTimeout);
   },
 
   /**
@@ -427,6 +440,6 @@ export const apiClient = {
       },
       body,
       timeout,
-    }, config?.signal), config?.retries);
+    }, config?.signal), config?.retries, config?.retryOnTimeout);
   },
 };

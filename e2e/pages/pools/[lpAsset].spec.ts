@@ -2,7 +2,7 @@
  * Pool Position Page Tests (/pools/:lpAsset)
  */
 
-import { walletTest, expect } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
 import { enableValidationBypass } from '../../compose-test-helpers';
 
 walletTest.describe('Pool Position Page (/pools/:lpAsset)', () => {

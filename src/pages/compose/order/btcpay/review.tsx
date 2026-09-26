@@ -30,7 +30,7 @@ export function ReviewBTCPay({
   // Which order match is being settled is the whole content of a BTCPay, and it is the one field
   // the transaction itself states. Reading it from the decoded message rather than from the
   // response's echo means a composer that settled a different match cannot display as the one
-  // that was asked for (ADR-019). BTCPay has no local packer, so this echo was unverified.
+  // that was asked for (see `unpack/verify.ts`). BTCPay has no local packer, so this echo was unverified.
   const decoded = useComposerOptional()?.state.decodedMessage?.data as
     | { orderMatchId?: string }
     | undefined;

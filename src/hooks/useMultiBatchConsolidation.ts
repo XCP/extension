@@ -9,7 +9,7 @@ import {
 } from "@/core/bitcoin/consolidationApi";
 import { fromSatoshis } from '@/core/numeric';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
-import { getWalletService } from "@/services/walletService";
+import { getWalletServiceClient } from "@/services/walletServiceClient";
 
 export interface ConsolidationResult {
   batchNumber: number;
@@ -73,7 +73,7 @@ export function useMultiBatchConsolidation() {
 
     try {
       // Signing happens in the background; the key never enters the popup
-      const walletService = getWalletService();
+      const walletService = getWalletServiceClient();
 
       const runBatch = async (batch: ConsolidationData, batchNumber: number): Promise<ConsolidationResult> => {
         setCurrentBatch(batchNumber);

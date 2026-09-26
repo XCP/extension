@@ -9,9 +9,9 @@
  */
 
 import * as http from 'node:http';
-import type { Page } from '@playwright/test';
 import { expect, lockWallet, TEST_PASSWORD, walletTest } from '@e2e/fixtures';
 import { unlock } from '@e2e/selectors';
+import type { Page } from '@playwright/test';
 
 function startDapp(): Promise<{ server: http.Server; url: string }> {
   return new Promise((resolve) => {

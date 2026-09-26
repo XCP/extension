@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
-import { Address, OutScript } from '@scure/btc-signer';
 import type { Page, TestInfo } from '@playwright/test';
-import { walletTest, expect } from '../fixtures';
+import { Address, OutScript } from '@scure/btc-signer';
+import { expect, walletTest } from '../fixtures';
 import { approvalCatalog } from '../utils/approval-locale';
 import { callGalleryService } from '../utils/provider-gallery';
 
@@ -31,7 +31,7 @@ async function capture(page: Page, info: TestInfo, scene: string) {
   writeFileSync(info.outputPath(`${scene}.json`), JSON.stringify({ scene, metrics, screenshots, text }, null, 2));
 }
 
-for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) walletTest.describe(language, () => {
+for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) walletTest.describe(language, () => {
   walletTest.use({ browserLocale: language });
   walletTest('new main screens retain localized text, canonical drafts and review controls', async ({ page, context, extensionId }, info) => {
     walletTest.setTimeout(240_000);

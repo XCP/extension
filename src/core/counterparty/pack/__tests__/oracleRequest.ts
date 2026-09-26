@@ -1,21 +1,16 @@
-/** Retry the transient failures a live nightly oracle can encounter without hiding real errors. */
-export async function fetchOracle(url: string): Promise<Response> {
-  const attempts = 3;
-  let lastError: unknown;
+import { fetchLiveApi } from '../../__tests__/liveApi';
 
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try {
-      const response = await fetch(url);
-      const retryable = response.status === 429 || response.status >= 500;
-      if (response.ok || !retryable || attempt === attempts - 1) return response;
-    } catch (error) {
-      lastError = error;
-      if (attempt === attempts - 1) throw error;
-    }
-
-    // Keep the whole request comfortably inside each oracle case's 30-second timeout.
-    await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
-  }
-
-  throw lastError ?? new Error('oracle request failed without a response');
+/**
+ * The oracle's live requests: paced and retried on 429/5xx through the shared live-API queue, with
+ * a backoff budget that fits inside each oracle case's 60-second timeout. A rate limit that outlasts
+ * it fails the case with a message naming the 429 rather than a bare status.
+ */
+export function fetchOracle(url: string): Promise<Response> {
+  return fetchLiveApi(url, {
+    spacingMs: 250,
+    maxAttempts: 5,
+    baseDelayMs: 1_000,
+    maxDelayMs: 15_000,
+    maxTotalWaitMs: 30_000,
+  });
 }

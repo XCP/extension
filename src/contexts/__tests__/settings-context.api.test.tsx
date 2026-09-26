@@ -9,7 +9,7 @@ import { watchKeychainRecord } from '@/platform/storage/walletStorage';
 import { SettingsProvider, useSettings } from '../settings-context';
 
 const service = vi.hoisted(() => ({ getSettings: vi.fn(), updateSettings: vi.fn() }));
-vi.mock('@/services/walletService', () => ({ getWalletService: () => service }));
+vi.mock('@/services/walletServiceClient', () => ({ getWalletServiceClient: () => service }));
 vi.mock('@/platform/fathom', () => ({ analytics: { track: vi.fn() } }));
 vi.mock('@/platform/storage/walletStorage', () => ({ watchKeychainRecord: vi.fn(() => () => {}) }));
 vi.mock('webext-bridge/popup', () => ({ onMessage: vi.fn(() => () => {}) }));
@@ -29,7 +29,7 @@ function deferred<T>() {
 
 async function quoteAt(base: string) {
   await fetchPoolQuote('XCP', 'PEPECASH', '100000000');
-  expect(apiClient.get).toHaveBeenLastCalledWith(`${base}${path}`, { params: { quantity: '100000000' } });
+  expect(apiClient.get).toHaveBeenLastCalledWith(`${base}${path}`, { params: { quantity: '100000000' }, retries: 1 });
 }
 
 function lock() {
@@ -71,7 +71,7 @@ describe('foreground Core requests use confirmed settings', () => {
       wrapper: ({ children }) => <SettingsProvider><Ready>{children}</Ready></SettingsProvider>,
     });
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(1));
-    expect(apiClient.get).toHaveBeenLastCalledWith(`${nodeA}${path}`, { params: { quantity: '100000000' } });
+    expect(apiClient.get).toHaveBeenLastCalledWith(`${nodeA}${path}`, { params: { quantity: '100000000' }, retries: 1 });
     const reads = service.getSettings.mock.calls.length;
     await act(async () => result.current.updateSettings({ fiat: 'jpy' }));
     expect(result.current.settings).toMatchObject({ fiat: 'jpy' });

@@ -44,4 +44,18 @@ describe('serviceReadiness', () => {
 
     vi.useRealTimers();
   });
+
+  it('tells a site the startup wait ran out as a retryable 4900, not a masked failure', async () => {
+    vi.useFakeTimers();
+    const { whenServicesReady } = await freshBarrier();
+    const { classifyProviderError } = await import('@/core/rpcErrors');
+
+    const waiting = whenServicesReady().catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(11_000);
+    expect(classifyProviderError(await waiting)).toEqual({
+      code: 4900, message: 'Wallet is still starting up; please try again.',
+    });
+
+    vi.useRealTimers();
+  });
 });

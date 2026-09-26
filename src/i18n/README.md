@@ -2,8 +2,12 @@
 
 The wallet uses Chrome's native extension catalog selection throughout onboarding,
 unlocking, popup, sidepanel, and transaction approvals. There is no saved interface
-language or number-format preference. `t()` reads `chrome.i18n.getMessage()` and
-falls back to the generated English catalog outside an extension runtime.
+language or number-format preference. `t()` reads `chrome.i18n.getMessage()`, which
+resolves a key missing from the active locale from the English default catalog, so no
+English is bundled into the scripts: `src/i18n/en.generated.ts` is imported only as the
+`MessageKey` type. Outside an extension runtime `t()` returns the key itself; unit tests
+get English because `vitest.setup.ts` answers `getMessage` from
+`public/_locales/en/messages.json` the way Chrome does.
 
 Each catalog's `appLocale` identifies the language actually selected. It controls
 the document's `lang` attribute and automatic number/date formatting, including
@@ -19,6 +23,9 @@ Traditional Chinese catalogs are included. Chrome documents `zh_CN` and `zh_TW`
 as supported Chinese locales. Packaged-browser tests also cover pinned Chromium's
 behavior where a Hong Kong preference loads `zh_HK` while `getUILanguage()` reports
 `zh-TW`. This is not a separate Hong Kong Chrome Web Store listing claim.
+A generic `zh` catalog, identical to `zh_CN`, catches Chinese preferences with no
+exact catalog (such as `zh_SG` or a bare `zh`), which Chrome would otherwise resolve
+to English.
 See [Chrome i18n](https://developer.chrome.com/docs/extensions/reference/api/i18n)
 and [Chromium locale selection](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/extensions/common/extension_l10n_util.cc).
 
@@ -51,21 +58,10 @@ Named placeholders preserve adjacent substitutions in Chrome's catalog syntax.
 Known API, hardware, verification and provider failures retain structured facts
 and translate at the UI boundary. Unknown diagnostics preserve their raw text.
 Translation never changes RPC codes, retry decisions, authorization or signing.
-Historical order/MPMA displays retain the contextual corrections in PR405.
 
-The records under `review/` describe earlier terminology and contextual passes;
-their exact hashes and machine provenance remain historical evidence, not current
-native-speaker signoff. The [September 20 wording and layout review](review/quality-layout-2026-09-20.md)
-records subsequent corrections to payment warnings, gift-card instructions,
-Traditional Chinese characters, terminology and narrow-screen layouts. Its JSON
-companion records the exact catalog changes and hashes. Native-speaker review is
-outstanding.
-
-The [latest-main integration review](review/main-integration-2026-09-20.md) covers
-ZELD, complete-list pagination and BTC dispenser-payment text added through
-`da63b07c`. Its JSON companion records the 94 added messages, three removed keys
-and updated catalog hashes. Its recorded default-name gap is addressed by the
-display-only follow-up below; those hashes remain evidence of the earlier revision.
+How to add, translate and review strings, and how the Chinese catalogs relate to one
+another, is in [CONTRIBUTING.md](../../CONTRIBUTING.md#languages). Machine-drafted strings
+that no native speaker has checked are listed under `machine` in `src/i18n/status/<locale>.json`.
 
 ### Default wallet and address names
 
@@ -77,15 +73,11 @@ is needed. The numeric suffix is preserved exactly. Other labels are returned
 verbatim, including extra whitespace or text. A custom name exactly matching a
 default pattern follows that pattern, consistent with existing wallet renumbering.
 
-The three display messages bring the catalogs to 2,050 entries. The follow-up has
-187 passing focused unit tests, including custom-name preservation and approval
-identity checks. `e2e/tests/default-name-localization.spec.ts` checks the localized
-dashboard, wallet/address lists, address details and removal confirmation against
-unchanged canonical service names in all four native browser locales.
-The logo header reserves space for a single-line default name; unusually long
-labels truncate and expose the full display text in a tooltip. The follow-up
-header/helper test run passes 49 tests, and the rebuilt four-language browser run
-also checks that default name labels fit without truncation.
+`e2e/tests/default-name-localization.spec.ts` checks the localized dashboard,
+wallet/address lists, address details and removal confirmation against unchanged
+canonical service names in every supported browser locale. The logo header reserves
+space for a single-line default name; unusually long labels truncate and expose the
+full display text in a tooltip.
 
 ## Validation
 
@@ -104,8 +96,8 @@ or broadcasting.
 350px/520px sidepanel layouts in Japanese and all three Chinese variants. It scrolls
 the internal content container to capture long instructions and expanded approval
 details, checks control overflow, and verifies that blocked payment actions stay
-disabled. Older popup galleries with larger browser viewports still render a
-350px body; they are not evidence of a wide sidepanel layout.
+disabled. Popup galleries with larger browser viewports still render a 350px body;
+they are not evidence of a wide sidepanel layout.
 
 `src/i18n/test-utils.tsx` is imported only by unit tests. It mocks browser catalogs
 and rerenders test roots for retained-state coverage. Optional formatter mocks

@@ -47,19 +47,20 @@ export function KeychainLockedOnly(): ReactElement | null {
       return;
     }
 
-    if (continuing) {
-      const fallback = setTimeout(() => {
-        // A new document without the continuation marker, so a later lock/unlock here goes home.
-        window.location.replace(`${window.location.pathname}#/index`);
-      }, CONTINUATION_FALLBACK_MS);
-      return () => clearTimeout(fallback);
+    if (!continuing) {
+      if (authState === 'UNLOCKED') {
+        // Already unlocked - redirect to intended destination or home
+        const returnTo = (location.state as { from?: string })?.from || '/';
+        navigate(returnTo, { replace: true });
+      }
+      return;
     }
 
-    if (authState === 'UNLOCKED') {
-      // Already unlocked - redirect to intended destination or home
-      const returnTo = (location.state as { from?: string })?.from || '/';
-      navigate(returnTo, { replace: true });
-    }
+    const fallback = setTimeout(() => {
+      // A new document without the continuation marker, so a later lock/unlock here goes home.
+      window.location.replace(`${window.location.pathname}#/index`);
+    }, CONTINUATION_FALLBACK_MS);
+    return () => clearTimeout(fallback);
   }, [authState, keychainExists, isLoading, navigate, location.state, continuing]);
 
   if (isLoading) {

@@ -21,7 +21,7 @@ const VALID_BTC_ONLY_TX =
   '00000000';
 
 // The composed fixture below pays its change to this P2PKH script, so the mock wallet must own that
-// address — output accounting (ADR-019) rejects a transaction whose outputs it cannot attribute.
+// address — output accounting (see `unpack/verify.ts`) rejects a transaction whose outputs it cannot attribute.
 const OWN_ADDRESS = decodeAddressFromScript('76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac')!;
 
 // Mock wallet context to avoid webext-bridge dependency in tests
@@ -39,7 +39,7 @@ vi.mock('@/core/counterparty/api', () => ({
   fetchAssetDetails: vi.fn().mockResolvedValue(null),
 }));
 
-// Fee verification always resolves input values independently of the compose response (ADR-019),
+// Fee verification always resolves input values independently of the compose response (see `unpack/verify.ts`),
 // so every compose consults this resolver. Stub it rather than reaching the network.
 vi.mock('@/core/counterparty/transaction', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/counterparty/transaction')>()),

@@ -4,7 +4,7 @@
  * Tests for the Actions page navigation and available operations.
  */
 
-import { walletTest, expect, navigateTo } from '../../fixtures';
+import { expect, navigateTo, walletTest } from '../../fixtures';
 import { actions, common } from '../../selectors';
 
 walletTest.describe('Actions Page', () => {

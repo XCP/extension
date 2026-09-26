@@ -16,8 +16,8 @@
  * - Dispense page (buy from dispenser)
  */
 
-import { walletTest, expect } from '../fixtures';
-import { TEST_ADDRESSES, INVALID_ADDRESSES } from '../test-data';
+import { expect, walletTest } from '../fixtures';
+import { INVALID_ADDRESSES, TEST_ADDRESSES } from '../test-data';
 
 walletTest.describe('DispenserInput Component', () => {
   // Navigate to dispense page which uses DispenserInput

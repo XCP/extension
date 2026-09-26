@@ -17,7 +17,7 @@
  * - Issue asset (description)
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 import { signMessage } from '../selectors';
 
 walletTest.describe('TextAreaInput Component', () => {
@@ -57,7 +57,7 @@ walletTest.describe('TextAreaInput Component', () => {
       const rows = await textarea.getAttribute('rows');
       // Should have at least 1 row, but typically 3+
       if (rows !== null) {
-        expect(parseInt(rows)).toBeGreaterThanOrEqual(1);
+        expect(parseInt(rows, 10)).toBeGreaterThanOrEqual(1);
       }
       // rows being null is acceptable (uses CSS height instead)
     });
@@ -170,10 +170,10 @@ walletTest.describe('TextAreaInput Component', () => {
   walletTest.describe('Accessibility', () => {
     walletTest('textarea has accessible name', async ({ page }) => {
       const textarea = getMessageTextarea(page);
-      // Check for label association
+      // The label is associated with the textarea by for/id
       const label = page.locator('label:has-text("Message")');
-      const labelFor = await label.getAttribute('for');
-      const textareaId = await textarea.getAttribute('id');
+      await expect(label).toHaveAttribute('for', /.+/);
+      await expect(textarea).toHaveAttribute('id', (await label.getAttribute('for')) ?? '');
       const name = await textarea.getAttribute('name');
 
       // Should have a name attribute for form submission

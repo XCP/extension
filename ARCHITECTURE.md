@@ -1,8 +1,9 @@
 # Wallet architecture
 
 XCP Wallet uses WXT, React, and TypeScript. The background context owns decrypted wallet state
-and signing; popup and side-panel pages call explicit service methods. Chrome uses a service
-worker, while the current Firefox build uses a background page. Chrome may suspend idle workers.
+and signing; popup and side-panel pages call explicit service methods. The extension is built
+for Chrome (Chromium) only. Its background is a Manifest V3 service worker, which Chrome may
+suspend when idle.
 Session metadata and request records support recovery without relying on timers or in-memory
 promises surviving.
 
@@ -20,6 +21,23 @@ promises surviving.
 | `src/core/bitcoin`, `src/core/counterparty` | Transaction parsing, proofs, verification, money movement, signing |
 | `src/core/hardware` | Device integration and transaction integrity checks |
 | `src/hooks`, `src/pages`, `src/components` | UI state, review presentation, user decisions |
+
+## Layers
+
+Dependencies point one way, from the top of this list to the bottom:
+
+1. `src/types`, `src/constants`: shapes and fixed values, importing nothing above them.
+2. `src/core`: pure logic (parsing, proofs, verification, fee and money-movement maths). It may
+   use `src/i18n`, a shared leaf, for user-facing strings; it does not touch `chrome.*` or React.
+3. `src/platform`: browser APIs, storage, sessions, the wallet manager, and the RPC proxy.
+4. `src/services`: the background services that own state and signing. Popup, side-panel and
+   content code reach them through the `*ServiceClient` proxies, never by importing a service.
+5. `src/contexts`, then `src/hooks`: React state built on the service clients.
+6. `src/components`, then `src/pages`: presentation and user decisions.
+
+`src/entrypoints` are composition roots: they wire the layers together and hold no domain logic of
+their own. Keys, decrypted secrets and signing stay in the background; UI code receives reviews
+and results, never key material.
 
 ## Website requests
 
@@ -94,7 +112,10 @@ Decryption validates the versioned keychain schema before exposing settings or w
 Session metadata writes are serialized, and timeout changes update the persisted inactivity
 deadline as well as the alarm. The eight-hour absolute cap remains independent of user activity.
 Alarms recheck the current generation and deadline, so an old alarm cannot lock a renewed session.
-Idle keep-alive alarms are removed; restoration and persisted deadlines handle suspension.
+The only alarm is the session deadline: there are no keep-alive, periodic state-persist or
+periodic update-check alarms, and restoration and persisted deadlines handle suspension. The popup
+reports activity at most every 30 seconds, carrying the time of the last input, so the persisted
+deadline still follows the user's last input rather than the report.
 
 ## Type and lint contracts
 
@@ -106,8 +127,9 @@ Chrome port results use an explicit, lossless tagged encoding for bigint quantit
 arrays. Both containers and scalar values are tagged, so ordinary objects cannot impersonate
 encoded types. Hashing a review also preserves these types rather than rounding quantities.
 
-`npm run lint` runs Biome, Oxlint, and the type-aware `no-floating-promises` and
-`no-misused-promises` rules. `lint-baseline.json` starts from commit `a040c6d4` and records legacy
+`npm run lint` runs Biome, Oxlint, the type-aware `no-floating-promises` and
+`no-misused-promises` rules, and `lint:i18n` (the translation catalog and approval-label checks
+described in [CONTRIBUTING.md](CONTRIBUTING.md#languages)). `lint-baseline.json` starts from commit `a040c6d4` and records legacy
 warning counts per file and rule. New files have zero allowance; `lint:prune` can only lower budgets.
 This is incremental enforcement, not a claim that every legacy React or promise warning is fixed.
 Handle failures or propagate promises when changing affected code; adding `void` alone does not

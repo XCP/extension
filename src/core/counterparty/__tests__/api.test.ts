@@ -1103,6 +1103,7 @@ describe('counterparty/api.ts', () => {
             verbose: true,
             limit: 100,
           },
+          retries: 1,
         }
       );
     });

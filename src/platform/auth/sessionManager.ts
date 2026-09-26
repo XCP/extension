@@ -3,7 +3,7 @@
  *
  * ## Architecture Decision Records
  *
- * ### ADR-001: JavaScript Memory Clearing Limitation (Acceptable)
+ * ### Design note: JavaScript Memory Clearing Limitation (Acceptable)
  *
  * **Context**: When clearing secrets from memory, we overwrite with zeros before deletion.
  * However, JavaScript/V8 does not guarantee that the original string data is immediately
@@ -27,7 +27,7 @@
  * - Native messaging host: Requires separate install, poor UX
  * - Accept and document: Chosen approach
  *
- * ### ADR-002: No Automatic Key Refresh During Session (Acceptable)
+ * ### Design note: No Automatic Key Refresh During Session (Acceptable)
  *
  * **Context**: Some systems rotate encryption keys periodically during active sessions
  * to limit the window of exposure if a key is compromised.
@@ -47,6 +47,7 @@
  * - Accept current design: Chosen approach
  */
 
+import type { HDKey } from '@scure/bip32';
 import { exportKey, importKey } from '@/core/encryption/encryption';
 import {
   assertRateLimit,
@@ -58,6 +59,7 @@ import {
   validateTimeout,
   validateWalletId,
 } from '@/core/validation/session';
+import type { HdNodeCache } from '@/core/wallet/addressDeriver';
 import {
   clearCachedKeychainMasterKey,
   getCachedKeychainMasterKey,
@@ -73,6 +75,25 @@ import {
 
 // In-memory store for decrypted secrets (by wallet ID).
 let unlockedSecrets: Record<string, string> = {};
+
+/**
+ * HD nodes derived from an unlocked mnemonic, by wallet ID then by what the node is (the master
+ * key of one seed, or one chain node). They are the secret in another form — every key below them
+ * derives from them — so they live and die with it: every path that clears a wallet's secret
+ * clears its nodes, and zeroes their private keys, in the same synchronous step.
+ *
+ * Holding them saves re-running the seed (PBKDF2, 2048 rounds for BIP-39) and the hardened steps
+ * for every key a signing flow asks for; a 100-item bundle asked for hundreds.
+ */
+const unlockedHdNodes = new Map<string, Map<string, HDKey>>();
+
+function clearUnlockedHdNodes(walletId: string): void {
+  const nodes = unlockedHdNodes.get(walletId);
+  if (!nodes) return;
+  unlockedHdNodes.delete(walletId);
+  nodes.forEach((node) => { node.wipePrivateData(); });
+  nodes.clear();
+}
 let lastActiveTime: number = Date.now();
 
 // Reads may finish after a lock or a different unlock. The generation changes synchronously,
@@ -209,8 +230,35 @@ export function storeUnlockedSecret(walletId: string, secret: string): void {
   const currentSecretCount = Object.keys(unlockedSecrets).length;
   assertSecretLimit(currentSecretCount, walletId, unlockedSecrets);
   
+  // A different secret under this ID invalidates what was derived from the old one.
+  if (unlockedSecrets[walletId] !== secret) clearUnlockedHdNodes(walletId);
+
   // Store the secret
   unlockedSecrets[walletId] = secret;
+}
+
+/**
+ * A node cache for `walletId` while `secret` is its unlocked secret.
+ *
+ * Every lookup re-checks, synchronously, that the session is live and that this is still the
+ * wallet's stored secret. A caller that read the secret before a lock or a switch therefore
+ * derives afresh and keeps nothing, rather than repopulating a cache the lock just cleared.
+ */
+export function unlockedHdNodeCache(walletId: string, secret: string): HdNodeCache {
+  return (key, derive) => {
+    const live = !sessionInvalidated && walletId in unlockedSecrets && unlockedSecrets[walletId] === secret;
+    if (!live) return derive();
+    const cached = unlockedHdNodes.get(walletId)?.get(key);
+    if (cached) return cached;
+    const node = derive();
+    let nodes = unlockedHdNodes.get(walletId);
+    if (!nodes) {
+      nodes = new Map();
+      unlockedHdNodes.set(walletId, nodes);
+    }
+    nodes.set(key, node);
+    return node;
+  };
 }
 
 /**
@@ -260,7 +308,10 @@ export function clearUnlockedSecret(walletId: string): void {
   if (!walletId) {
     return;
   }
-  
+
+  // Before anything that can return early: nodes must never outlive the secret they came from.
+  clearUnlockedHdNodes(walletId);
+
   // Validate wallet ID format
   try {
     validateWalletId(walletId);
@@ -270,7 +321,7 @@ export function clearUnlockedSecret(walletId: string): void {
   }
   
   if (walletId in unlockedSecrets) {
-    // Best-effort memory clearing - see ADR-001 for JS memory limitation details
+    // Best-effort memory clearing - see the memory-clearing note above for JS memory limitation details
     const secretLength = unlockedSecrets[walletId]!.length;
     if (secretLength > 0) {
       unlockedSecrets[walletId] = '0'.repeat(secretLength);
@@ -289,6 +340,7 @@ export async function clearAllUnlockedSecrets(): Promise<void> {
   ++sessionGeneration;
   sessionInvalidated = true;
   Object.keys(unlockedSecrets).forEach((walletId) => { clearUnlockedSecret(walletId); });
+  [...unlockedHdNodes.keys()].forEach(clearUnlockedHdNodes);
 
   // Clear all rate limiting data
   clearAllRateLimits();
@@ -368,17 +420,26 @@ export async function getKeychainMasterKey(): Promise<CryptoKey | null> {
  * Updates the last active time to mark user activity.
  * Also updates the persisted session metadata and reschedules the expiry alarm.
  *
+ * `activityTime` is when the activity happened, for a caller that reports it late: the popup
+ * batches its reports (at most one per 30 seconds) and sends the time of the last activity in the
+ * batch, so the deadline is the configured idle timeout after the user really stopped, not after
+ * the report arrived. It can only ever move the deadline back to a moment that has passed: a time
+ * in the future is clamped to now, and one older than the recorded activity changes nothing.
+ * Omitted, it is now.
+ *
  * Serialized with timeout changes and lock cleanup. An activity write already in progress when
  * locking starts is followed by cleanup; a queued one is discarded by the generation check.
  */
-export async function setLastActiveTime(): Promise<void> {
+export async function setLastActiveTime(activityTime?: number): Promise<void> {
   const generation = sessionGeneration;
-  lastActiveTime = Date.now();
-  const activityTime = lastActiveTime;
+  const now = Date.now();
+  const at = activityTime !== undefined && Number.isFinite(activityTime) ? Math.min(activityTime, now) : now;
+  lastActiveTime = Math.max(lastActiveTime, at);
   await withSessionWriteLock(async () => {
     const metadata = await getSessionMetadata();
     if (!metadata || generation !== sessionGeneration || sessionInvalidated || metadataExpired(metadata)) return;
-    metadata.lastActiveTime = Math.max(metadata.lastActiveTime, activityTime);
+    if (at < metadata.lastActiveTime) return; // older than what is recorded: changes nothing
+    metadata.lastActiveTime = at;
     await persistSessionMetadata(metadata);
     if (generation !== sessionGeneration || sessionInvalidated) return;
     await scheduleSessionExpiry(sessionDeadline(metadata) - Date.now());

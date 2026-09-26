@@ -15,7 +15,7 @@
  * - Pinned assets settings (search assets)
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('SearchInput Component', () => {
   // Navigate to pinned assets settings which uses SearchInput

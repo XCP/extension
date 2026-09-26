@@ -2,8 +2,8 @@
  * Wallet Creation Tests (/keychain/setup/create-mnemonic)
  */
 
-import { test, expect, createWallet as createWalletFlow, TEST_PASSWORD } from '@e2e/fixtures';
-import { onboarding, createWallet, index } from '@e2e/selectors';
+import { createWallet as createWalletFlow, expect, TEST_PASSWORD, test } from '@e2e/fixtures';
+import { createWallet, index, onboarding } from '@e2e/selectors';
 import type { Page } from '@playwright/test';
 
 async function getMnemonicWords(page: Page): Promise<string[]> {

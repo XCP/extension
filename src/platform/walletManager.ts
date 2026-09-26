@@ -4,7 +4,7 @@ import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { AddressFormat, DEFAULT_ADDRESS_FORMAT, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { signMessage } from '@/core/bitcoin/messageSigner';
-import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemonic, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
+import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
 import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails, parsePSBT, resolvePsbtSighashType, validateSignInputs } from '@/core/bitcoin/psbt';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
@@ -29,6 +29,8 @@ import {
   generateWalletId,
   generateWalletIdFromPrivateKey,
   getPairedAddressFormats,
+  type HdNodeCache,
+  mnemonicPrivateKeyAt,
 } from '@/core/wallet/addressDeriver';
 import { addressIndexKeptBySwitch } from '@/core/wallet/addressFormatChoices';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
@@ -72,7 +74,7 @@ export { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS };
 const RECOVERY_WAIT_MS = 5_000;
 
 /**
- * WalletManager - Core wallet state management (ADR-015)
+ * WalletManager - Core wallet state management
  *
  * ## Architecture: Unified Keychain
  *
@@ -147,6 +149,74 @@ export class WalletManager {
     return result;
   }
 
+  /**
+   * Each wallet's derived addresses, by wallet ID, with the record facts they were derived from.
+   *
+   * Public data: the same addresses the wallet list shows. Kept so a popup open, a keychain write,
+   * an unlock or a switch that finds the record unchanged reuses the list instead of re-deriving
+   * it, and so the send form's "is this one of my addresses" check stops decrypting and deriving
+   * every other wallet on each submit. Cleared on lock and when the keychain is reloaded; an entry
+   * whose record changed (count, format, extra paths, secret) simply misses.
+   */
+  private readonly derivedAddressSets = new Map<string, { fingerprint: string; addresses: Address[] }>();
+
+  /** Paired Legacy/SegWit addresses by wallet, format and index. Public; cleared with the above. */
+  private readonly pairedAddressMemo = new Map<string, Address>();
+
+  private clearDerivedAddressCaches(): void {
+    this.derivedAddressSets.clear();
+    this.pairedAddressMemo.clear();
+  }
+
+  /** What an address list depends on besides the secret itself (which `encryptedSecret` stands for). */
+  private static addressFingerprint(record: WalletRecord): string {
+    return JSON.stringify([
+      record.type, record.addressFormat, record.addressCount, record.extraPaths ?? [],
+      record.previewAddress, record.isTestOnly ?? false, record.encryptedSecret,
+    ]);
+  }
+
+  private static copyAddresses(addresses: Address[]): Address[] {
+    return addresses.map((address) => ({ ...address }));
+  }
+
+  private cachedAddressesFor(record: WalletRecord): Address[] | undefined {
+    const hit = this.derivedAddressSets.get(record.id);
+    if (!hit || hit.fingerprint !== WalletManager.addressFingerprint(record)) return undefined;
+    return WalletManager.copyAddresses(hit.addresses);
+  }
+
+  /**
+   * The record's addresses, derived only when the record changed since they were last derived.
+   * `generation` is the vault generation the secret was read under; a lock since then keeps the
+   * result out of the cache.
+   */
+  private addressesFor(
+    secret: string,
+    record: WalletRecord,
+    generation = this.vaultGeneration,
+    cache?: HdNodeCache,
+  ): Address[] {
+    const cached = this.cachedAddressesFor(record);
+    if (cached) return cached;
+    const addresses = deriveAddressesFromSecret(secret, record, cache);
+    if (generation === this.vaultGeneration && this.keychain) {
+      this.derivedAddressSets.set(record.id, {
+        fingerprint: WalletManager.addressFingerprint(record),
+        addresses: WalletManager.copyAddresses(addresses),
+      });
+    }
+    return addresses;
+  }
+
+  /**
+   * The session's node cache for this wallet's unlocked secret. Nodes are held in the session
+   * manager beside the secret and cleared with it on lock, switch, removal and reset.
+   */
+  private static nodeCache(walletId: string, secret: string): HdNodeCache | undefined {
+    return sessionManager.unlockedHdNodeCache(walletId, secret);
+  }
+
   public async setLastActiveTime(): Promise<void> {
     await sessionManager.setLastActiveTime();
   }
@@ -209,6 +279,7 @@ export class WalletManager {
 
     try {
       const decryptedKeychain = await this.mutationStep(decryptKeychain(keychainRecord, masterKey));
+      this.clearDerivedAddressCaches();
       this.keychain = decryptedKeychain;
       this.wallets = decryptedKeychain.wallets.map((r) => this.walletFromRecord(r));
       await this.mutationStep(this.refreshWalletAddresses());
@@ -225,6 +296,7 @@ export class WalletManager {
     } catch {
       this.wallets = [];
       this.keychain = null;
+      this.clearDerivedAddressCaches();
     }
   }
 
@@ -257,7 +329,9 @@ export class WalletManager {
       const record = this.keychain.wallets.find(r => r.id === wallet.id);
       if (!record) continue;
 
-      wallet.addresses = deriveAddressesFromSecret(secret, record);
+      // Runs on every popup open and every keychain write. The addresses only change when the
+      // record does, so an unchanged record reuses the list rather than re-deriving it.
+      wallet.addresses = this.addressesFor(secret, record, undefined, WalletManager.nodeCache(wallet.id, secret));
     }
   }
 
@@ -290,10 +364,14 @@ export class WalletManager {
       return false;
     }
 
+    const generation = this.vaultGeneration;
     const masterKey = await sessionManager.getKeychainMasterKey();
-    if (!masterKey) {
+    if (!masterKey || !this.keychain || generation !== this.vaultGeneration) {
       return false;
     }
+
+    const matches = (addresses: Address[]) =>
+      addresses.some((addr) => addr.address.toLowerCase() === normalizedAddress);
 
     for (const record of this.keychain.wallets) {
       const wallet = this.getWalletById(record.id);
@@ -301,10 +379,17 @@ export class WalletManager {
         continue;
       }
 
+      // Public addresses derived earlier this session need no decrypt and no derivation.
+      const cached = this.cachedAddressesFor(record);
+      if (cached) {
+        if (matches(cached)) return true;
+        continue;
+      }
+
       try {
         const secret = await decryptWithKey(record.encryptedSecret, masterKey);
-        const addresses = deriveAddressesFromSecret(secret, record);
-        if (addresses.some((addr) => addr.address.toLowerCase() === normalizedAddress)) {
+        // No node cache: this wallet's secret is not the unlocked one and must not be kept.
+        if (matches(this.addressesFor(secret, record, generation))) {
           return true;
         }
       } catch {
@@ -886,7 +971,7 @@ export class WalletManager {
     // Decrypt and derive addresses
     const secret = await this.mutationStep(decryptWithKey(record.encryptedSecret, masterKey));
     sessionManager.storeUnlockedSecret(walletId, secret);
-    wallet.addresses = deriveAddressesFromSecret(secret, record);
+    wallet.addresses = this.addressesFor(secret, record, undefined, WalletManager.nodeCache(walletId, secret));
     // Extra paths are appended to the same list but are not part of the sequential run, so they
     // must not count here — `addAddress` derives the next index from this.
     wallet.addressCount = wallet.addresses.filter(
@@ -1140,6 +1225,7 @@ export class WalletManager {
     // it: every mutation continuation checks the generation before publishing its result.
     this.wallets.forEach((wallet) => { wallet.addresses = []; });
     this.keychain = null;
+    this.clearDerivedAddressCaches();
     const lock = this.finishLock().finally(() => {
       if (this.lockInFlight === lock) this.lockInFlight = null;
     });
@@ -1186,7 +1272,7 @@ export class WalletManager {
     const index = wallet.addressCount;
     const newAddr = wallet.type === 'hardware'
       ? deriveHardwareAddress(secret, keychainRecord, index)
-      : deriveMnemonicAddress(secret, wallet.addressFormat, index);
+      : deriveMnemonicAddress(secret, wallet.addressFormat, index, WalletManager.nodeCache(walletId, secret));
     if (!newAddr) throw new Error('Cannot derive another address for this hardware wallet.');
     wallet.addresses.push(newAddr);
     wallet.addressCount++;
@@ -1209,6 +1295,7 @@ export class WalletManager {
     // Remove from memory
     this.wallets.splice(idx, 1);
     sessionManager.clearUnlockedSecret(walletId);
+    this.clearDerivedAddressCaches();
 
     // Remove from keychain
     if (!this.keychain) throw new Error('Keychain not loaded');
@@ -1275,6 +1362,7 @@ export class WalletManager {
     await this.mutationStep(deleteKeychain());
     await this.lockKeychain();
 
+    this.clearDerivedAddressCaches();
     this.wallets = [];
     this.keychain = null;
     this.activeWalletId = null;
@@ -1343,7 +1431,8 @@ export class WalletManager {
     wallet.addresses = deriveMnemonicAddresses(
       mnemonic,
       newType,
-      Math.max(wallet.addressCount, 1)
+      Math.max(wallet.addressCount, 1),
+      WalletManager.nodeCache(walletId, mnemonic),
     );
     wallet.previewAddress = wallet.addresses[0]!.address;
 
@@ -1423,7 +1512,7 @@ export class WalletManager {
 
     keychainRecord.extraPaths = [...(keychainRecord.extraPaths ?? []), ...discovered];
     wallet.extraPaths = keychainRecord.extraPaths;
-    wallet.addresses = deriveAddressesFromSecret(mnemonic, keychainRecord);
+    wallet.addresses = this.addressesFor(mnemonic, keychainRecord, undefined, WalletManager.nodeCache(walletId, mnemonic));
     await this.mutationStep(this.persistKeychain());
 
     return wallet.addresses.filter((address) => discovered.includes(address.path));
@@ -1491,7 +1580,7 @@ export class WalletManager {
 
     const mnemonic = await this.mutationStep(sessionManager.getUnlockedSecret(walletId));
     if (mnemonic) {
-      wallet.addresses = deriveAddressesFromSecret(mnemonic, keychainRecord);
+      wallet.addresses = this.addressesFor(mnemonic, keychainRecord, undefined, WalletManager.nodeCache(walletId, mnemonic));
     } else {
       wallet.addresses = wallet.addresses.filter((address) => address.path !== path);
     }
@@ -1524,7 +1613,7 @@ export class WalletManager {
       const path =
         derivationPath ||
         (wallet.addresses[0]?.path ?? `${getDerivationPathForAddressFormat(wallet.addressFormat)}/0`);
-      const privateKeyHex = getPrivateKeyFromMnemonic(secret, path, wallet.addressFormat);
+      const privateKeyHex = mnemonicPrivateKeyAt(secret, wallet.addressFormat, path, WalletManager.nodeCache(walletId, secret));
       const wifFormat = encodeWIF(privateKeyHex, true);
       return {
         wif: wifFormat,
@@ -1587,11 +1676,22 @@ export class WalletManager {
     if (!activeAddress) throw new Error('No active address');
     const index = Number(activeAddress.path.split('/').at(-1));
     if (!Number.isSafeInteger(index) || index < 0) throw new Error('Invalid active derivation index');
+    const generation = this.vaultGeneration;
     const secret = await sessionManager.getUnlockedSecret(wallet.id);
     if (!secret) throw new Error('Wallet is locked');
+    // Asked for several times per signature (authorization, then the signer), and once per item
+    // of a bundle. The addresses are public and fixed by wallet, format and index.
+    const paired = (format: AddressFormat): Address => {
+      const key = `${wallet.id}|${format}|${index}`;
+      const memo = this.pairedAddressMemo.get(key);
+      if (memo) return { ...memo };
+      const address = deriveMnemonicAddress(secret, format, index, WalletManager.nodeCache(wallet.id, secret));
+      if (generation === this.vaultGeneration && this.keychain) this.pairedAddressMemo.set(key, { ...address });
+      return address;
+    };
     return {
-      legacy: { ...deriveMnemonicAddress(secret, formats.legacy, index), format: formats.legacy, type: 'p2pkh' },
-      segwit: { ...deriveMnemonicAddress(secret, formats.segwit, index), format: formats.segwit, type: 'p2wpkh' },
+      legacy: { ...paired(formats.legacy), format: formats.legacy, type: 'p2pkh' },
+      segwit: { ...paired(formats.segwit), format: formats.segwit, type: 'p2wpkh' },
     };
   }
 
@@ -1842,8 +1942,8 @@ export class WalletManager {
    * It returns a signed PSBT hex (not finalized) that can be combined with other signatures.
    *
    * Trezor provider signing is supported for explicit Native SegWit SIGHASH_ALL inputs. Any
-   * unselected input must already carry a verifiable Native SegWit SIGHASH_ALL signature. This
-   * permits unilateral exact-offer acceptance without weakening the device's safety checks.
+   * unselected input must already carry a verifiable Native SegWit SIGHASH_ALL signature. Exact-offer
+   * acceptance does not qualify: the market serves it with the buyer's input unsigned.
    *
    * @param psbtHex - PSBT in hex format
    * @param signInputs - Optional map of address → input indices to sign
@@ -1955,7 +2055,7 @@ export class WalletManager {
         if (!secret) throw new Error('Wallet is locked');
         const privateKeyHex = targetFormat === wallet.addressFormat
           ? (await this.getPrivateKey(wallet.id, targetAddress.path)).hex
-          : getPrivateKeyFromMnemonic(secret, targetAddress.path, targetFormat);
+          : mnemonicPrivateKeyAt(secret, targetFormat, targetAddress.path, WalletManager.nodeCache(wallet.id, secret));
         assertStillAuthorized();
         signedPsbtHex = btcSignPSBT(
           signedPsbtHex,

@@ -10,8 +10,8 @@
  * - Success state: "Details" heading with UTXO info
  */
 
-import type { Page } from '@playwright/test';
 import { expect, walletTest } from '@e2e/fixtures';
+import type { Page } from '@playwright/test';
 
 walletTest.describe('View UTXO Page (/assets/utxos/:txHash)', () => {
   const testTxid = '0000000000000000000000000000000000000000000000000000000000000000';

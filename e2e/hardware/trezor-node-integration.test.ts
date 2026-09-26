@@ -21,10 +21,10 @@ import { Address, OutScript, p2wpkh, RawWitness, SigHash, Transaction } from '@s
 import TrezorConnect, { UI_EVENTS } from '@trezor/connect';
 import { BridgeTransport } from '@trezor/transport-common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { TrezorAdapter } from '../../src/core/hardware/trezorAdapter';
+import { AddressFormat } from '../../src/core/bitcoin/address';
 import { importVerifiedHardwareP2wpkhSignatures } from '../../src/core/bitcoin/hardwarePsbt';
 import { finalizePSBT } from '../../src/core/bitcoin/psbt';
-import { AddressFormat } from '../../src/core/bitcoin/address';
+import { TrezorAdapter } from '../../src/core/hardware/trezorAdapter';
 import { deriveAddressesFromSecret, deriveHardwareAddress } from '../../src/core/wallet/addressDeriver';
 import type { WalletRecord } from '../../src/types/wallet';
 
@@ -41,8 +41,8 @@ vi.mock('@trezor/connect-webextension', async () => {
 // This avoids TypeScript errors in the trezor-user-env-link package
 import {
   emulatorPressYes,
-  isEmulatorAvailable,
   isBridgeAvailable,
+  isEmulatorAvailable,
   waitForDevice,
 } from '../helpers/trezor-emulator';
 
@@ -82,7 +82,7 @@ const asTrezorRefTx = (funding: Transaction) => {
     lock_time: funding.lockTime,
     inputs: [{
       prev_hash: bytesToHex(input.txid!),
-      prev_index: input.index,
+      prev_index: input.index!,
       script_sig: bytesToHex(input.finalScriptSig!),
       sequence: input.sequence ?? 0xffffffff,
     }],
@@ -112,6 +112,7 @@ const SKIP_TESTS = process.env.TREZOR_EMULATOR_AVAILABLE !== '1';
 describe('Trezor Node.js Integration Tests', () => {
   // Skip entire suite if emulator not available
   if (SKIP_TESTS) {
+    // biome-ignore lint/suspicious/noSkippedTests: runs only against a Trezor emulator (TREZOR_EMULATOR_AVAILABLE=1); the placeholder reports why the suite did not run.
     it.skip('Trezor emulator not available', () => {});
     return;
   }
@@ -154,6 +155,9 @@ describe('Trezor Node.js Integration Tests', () => {
           appUrl: 'https://xcpwallet.com',
           email: 'support@xcpwallet.com',
         },
+        // @trezor/connect types transports against its own vendored copy of AbstractTransport, so the real
+        // BridgeTransport is nominally incompatible (protected `stopped`) though identical at runtime.
+        // @ts-expect-error -- vendored AbstractTransport mismatch in @trezor/connect 10 typings
         transports: [new BridgeTransport({ id: 'xcp-wallet-tests', port: Number(new URL(BRIDGE_URL).port || 21325) })],
         debug: false,
       });
@@ -202,7 +206,7 @@ describe('Trezor Node.js Integration Tests', () => {
       }
 
       // Auto-confirm on emulator via HTTP API
-      emulatorPressYes();
+      void emulatorPressYes();
 
       const result = await TrezorConnect.getAddress({
         path: "m/84'/0'/0'/0/0",
@@ -223,7 +227,7 @@ describe('Trezor Node.js Integration Tests', () => {
         return;
       }
 
-      emulatorPressYes();
+      void emulatorPressYes();
 
       const result = await TrezorConnect.getAddress({
         path: "m/44'/0'/0'/0/0",
@@ -244,7 +248,7 @@ describe('Trezor Node.js Integration Tests', () => {
         return;
       }
 
-      emulatorPressYes();
+      void emulatorPressYes();
 
       const result = await TrezorConnect.getAddress({
         path: "m/49'/0'/0'/0/0",
@@ -265,7 +269,7 @@ describe('Trezor Node.js Integration Tests', () => {
         return;
       }
 
-      emulatorPressYes();
+      void emulatorPressYes();
 
       const result = await TrezorConnect.getPublicKey({
         path: "m/84'/0'/0'",
@@ -320,7 +324,7 @@ describe('Trezor Node.js Integration Tests', () => {
         return;
       }
 
-      emulatorPressYes();
+      void emulatorPressYes();
 
       const result = await TrezorConnect.getAddress({
         bundle: [
@@ -338,7 +342,7 @@ describe('Trezor Node.js Integration Tests', () => {
           console.log(`  [${i}] ${addr.address}`);
         });
         expect(addresses.length).toBe(3);
-        expect(addresses[0].address).toBe(EXPECTED_ADDRESSES.NATIVE_SEGWIT);
+        expect(addresses[0]?.address).toBe(EXPECTED_ADDRESSES.NATIVE_SEGWIT);
       }
     }, 30000);
   });
@@ -600,14 +604,14 @@ describe('Trezor Node.js Integration Tests', () => {
             {
               address_n: [84 | 0x80000000, 0x80000000, 0x80000000, 0, 0],
               prev_hash: bytesToHex(firstInput.txid),
-              prev_index: firstInput.index,
+              prev_index: firstInput.index!,
               amount: '100000',
               script_type: 'SPENDWITNESS',
               sequence: firstInput.sequence,
             },
             {
               prev_hash: bytesToHex(secondInput.txid),
-              prev_index: secondInput.index,
+              prev_index: secondInput.index!,
               amount: '50000',
               script_type: 'EXTERNAL',
               sequence: secondInput.sequence,
@@ -688,7 +692,7 @@ describe('Trezor Node.js Integration Tests', () => {
           inputs: [
             {
               prev_hash: bytesToHex(buyerInput.txid),
-              prev_index: buyerInput.index,
+              prev_index: buyerInput.index!,
               amount: '110000',
               script_type: 'EXTERNAL',
               sequence: buyerInput.sequence,
@@ -699,7 +703,7 @@ describe('Trezor Node.js Integration Tests', () => {
             {
               address_n: [84 | 0x80000000, 0x80000000, 0x80000000, 0, 0],
               prev_hash: bytesToHex(sellerInput.txid),
-              prev_index: sellerInput.index,
+              prev_index: sellerInput.index!,
               amount: '330',
               script_type: 'SPENDWITNESS',
               sequence: sellerInput.sequence,

@@ -92,3 +92,72 @@ export function derivePubkeyFromAccountKey(accountKey: string, fullPath: string)
     return null;
   }
 }
+
+/**
+ * `derivePubkeyFromAccountKey` for every child of one chain path, parsing the account key once.
+ *
+ * Returns `index => derivePubkeyFromAccountKey(accountKey, `${chainPath}/${index}`)`, the same
+ * answer for every input including the null ones, but without re-reading base58, re-checking the
+ * checksum and re-walking the chain for each index: a hardware wallet's receive addresses share
+ * everything above the last step. The node above the index is derived once, on first use.
+ */
+export function pubkeyDeriverFromAccountKey(
+  accountKey: string,
+  chainPath: string,
+): (index: number) => string | null {
+  const never = () => null;
+  const versions = VERSIONS[accountKey.slice(0, 4).toLowerCase()];
+  if (!versions) return never;
+  const chain = pathIndices(chainPath);
+  if (!chain) return never;
+  let account: HDKey;
+  try {
+    account = HDKey.fromExtendedKey(accountKey, versions);
+  } catch {
+    return never;
+  }
+  // The full path is the chain plus one step. The key's own depth decides how much of it remains,
+  // exactly as in derivePubkeyFromAccountKey.
+  const fullLength = chain.length + 1;
+  if (account.depth > fullLength) return never;
+
+  // The index step exactly as the full path `${chainPath}/${index}` would have parsed it.
+  const indexOf = (index: number): number | null => {
+    const parsed = pathIndices(`${index}`);
+    return parsed?.length === 1 ? parsed[0]! : null;
+  };
+
+  if (account.depth === fullLength) {
+    // Nothing remains to derive: the account key itself is the answer, whatever the index.
+    const own = account.publicKey ? bytesToHex(account.publicKey) : null;
+    return (index) => (indexOf(index) === null ? null : own);
+  }
+
+  let parent: HDKey | null | undefined;
+  const parentNode = (): HDKey | null => {
+    if (parent !== undefined) return parent;
+    try {
+      let node = account;
+      for (const step of chain.slice(account.depth)) {
+        if (step >= 0x80000000) return (parent = null);
+        node = node.deriveChild(step);
+      }
+      return (parent = node);
+    } catch {
+      return (parent = null);
+    }
+  };
+
+  return (index) => {
+    const step = indexOf(index);
+    if (step === null || step >= 0x80000000) return null;
+    const node = parentNode();
+    if (!node) return null;
+    try {
+      const child = node.deriveChild(step);
+      return child.publicKey ? bytesToHex(child.publicKey) : null;
+    } catch {
+      return null;
+    }
+  };
+}

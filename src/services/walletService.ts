@@ -14,14 +14,15 @@ import {
   consolidateBareMultisigBatch,
 } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
-import { registerSessionExpiredHandler } from '@/platform/auth/sessionManager';
+import { registerSessionExpiredHandler, setLastActiveTime } from '@/platform/auth/sessionManager';
 import { defineProxyService } from '@/platform/proxy';
 import { walletManager } from '@/platform/walletManager';
 import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { WALLET_SERVICE_NAME, WALLET_SERVICE_POLICY } from '@/services/walletServiceClient';
 import type { Address, PairedAddresses, SignTransactionOptions, Wallet } from '@/types/wallet';
 
-interface WalletService {
+export interface WalletService {
   refreshWallets: () => Promise<void>;
   getSettings: () => Promise<import('@/core/settings').AppSettings>;
   updateSettings: (updates: Partial<import('@/core/settings').AppSettings>) => Promise<void>;
@@ -38,7 +39,6 @@ interface WalletService {
   /** Load the keychain from the session master key, if a valid session has one. */
   ensureKeychainLoaded: () => Promise<void>;
   lockKeychain: () => Promise<void>;
-  emitProviderEvent: (origin: string, event: 'accountsChanged', data: string[]) => Promise<void>;
   createMnemonicWallet: (
     mnemonic: string,
     password: string,
@@ -82,7 +82,8 @@ interface WalletService {
   signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
   getLastActiveAddress: () => Promise<string | undefined>;
   setLastActiveAddress: (address: string) => Promise<void>;
-  setLastActiveTime: () => Promise<void>;
+  /** Record user activity; `activityTime` is when it happened, for activity the UI reports late. */
+  setLastActiveTime: (activityTime?: number) => Promise<void>;
   consolidateBareMultisig: (
     sourceAddress: string,
     batchData: ConsolidationData,
@@ -106,6 +107,20 @@ function createWalletService(): WalletService {
     for (const origin of origins) {
       eventEmitterService.emit('emit-provider-event', { origin, event: 'accountsChanged', data: addresses });
     }
+  }
+
+  /**
+   * Run an operation that can change the active address (switching wallet or address, a format
+   * change, adding or removing a wallet) and, if it did, tell connected sites. Decided here, from
+   * the state that answers `xcp_accounts`, rather than by whichever extension page happened to
+   * make the change.
+   */
+  async function withActiveAddressChange<T>(operation: () => Promise<T>): Promise<T> {
+    const before = resolveActiveAddressString();
+    const result = await operation();
+    const after = resolveActiveAddressString();
+    if (after !== before) emitAccountsChangedToConnected(after ? [after] : []);
+    return result;
   }
 
   const service: WalletService = {
@@ -146,9 +161,7 @@ function createWalletService(): WalletService {
       const activeAddress = resolveActiveAddressString();
       if (activeAddress) emitAccountsChangedToConnected([activeAddress]);
     },
-    selectWallet: async (walletId) => {
-      await walletManager.selectWallet(walletId);
-    },
+    selectWallet: async (walletId) => withActiveAddressChange(() => walletManager.selectWallet(walletId)),
     isKeychainUnlocked: async () => {
       return walletManager.isKeychainUnlocked();
     },
@@ -159,25 +172,27 @@ function createWalletService(): WalletService {
       // The connected sites live in the keychain's settings, which locking discards; read them first.
       const connected = [...walletManager.getSettings().connectedWebsites];
       await walletManager.lockKeychain();
-      // Notify popup of keychain lock event (if it's open)
-      try {
-        await MessageBus.notifyKeychainLocked(true);
-      } catch (error) {
-        // Popup might not be open, which is fine
+      // Tell an open popup, without waiting on it. webext-bridge holds a message for 'popup' until
+      // one connects, so awaiting this stalled every lock (and so every cold start that locked) for
+      // its ~5s timeout when no popup was open. The UI does not depend on it arriving: it also
+      // watches the master key's removal from session storage.
+      void MessageBus.notifyKeychainLocked(true).catch((error: unknown) => {
         console.debug('[WalletService] Could not notify popup of keychain lock event:', error);
-      }
+      });
       // Tell connected dApps the accounts are gone — per-origin, and without a
       // terminal disconnect, so unlock can restore them via accountsChanged.
       emitAccountsChangedToConnected([], connected);
     },
     createMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
-      const wallet = await walletManager.createMnemonicWallet(mnemonic, password, name, addressFormat);
+      const wallet = await withActiveAddressChange(
+        () => walletManager.createMnemonicWallet(mnemonic, password, name, addressFormat));
       // Emit wallet-created event for any pending connection requests waiting for onboarding
       eventEmitterService.emit('wallet-created', { walletId: wallet.id });
       return wallet;
     },
     createPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
-      const wallet = await walletManager.createPrivateKeyWallet(privateKey, password, name, addressFormat);
+      const wallet = await withActiveAddressChange(
+        () => walletManager.createPrivateKeyWallet(privateKey, password, name, addressFormat));
       // Emit wallet-created event for any pending connection requests waiting for onboarding
       eventEmitterService.emit('wallet-created', { walletId: wallet.id });
       return wallet;
@@ -187,10 +202,11 @@ function createWalletService(): WalletService {
       if (process.env.NODE_ENV !== 'development') {
         throw new Error('Test address import is only available in development mode');
       }
-      return walletManager.importTestAddress(address, name);
+      return withActiveAddressChange(() => walletManager.importTestAddress(address, name));
     },
     createHardwareWalletWithDiscovery: async (deviceType, name, usePassphrase) => {
-      return walletManager.createHardwareWalletWithDiscovery(deviceType, name, usePassphrase);
+      return withActiveAddressChange(
+        () => walletManager.createHardwareWalletWithDiscovery(deviceType, name, usePassphrase));
     },
     addAddress: async (walletId) => walletManager.addAddress(walletId),
     addUtxoAddress: async (walletId, index) => walletManager.addUtxoAddress(walletId, index),
@@ -203,9 +219,8 @@ function createWalletService(): WalletService {
     updatePassword: async (currentPassword, newPassword) => {
       await walletManager.updatePassword(currentPassword, newPassword);
     },
-    updateWalletAddressFormat: async (walletId, newType) => {
-      await walletManager.updateWalletAddressFormat(walletId, newType);
-    },
+    updateWalletAddressFormat: async (walletId, newType) => withActiveAddressChange(
+      () => walletManager.updateWalletAddressFormat(walletId, newType)),
     updateWalletPinnedAssets: async (pinnedAssets) => {
       await walletManager.updateWalletPinnedAssets(pinnedAssets);
     },
@@ -215,9 +230,7 @@ function createWalletService(): WalletService {
     getPrivateKey: async (walletId, derivationPath) => {
       return walletManager.getPrivateKey(walletId, derivationPath);
     },
-    removeWallet: async (walletId) => {
-      await walletManager.removeWallet(walletId);
-    },
+    removeWallet: async (walletId) => withActiveAddressChange(() => walletManager.removeWallet(walletId)),
     getPreviewAddressForFormat: async (walletId, addressFormat, addressIndex) => {
       return await walletManager.getPreviewAddressForFormat(walletId, addressFormat, addressIndex);
     },
@@ -241,23 +254,13 @@ function createWalletService(): WalletService {
       const settings = walletManager.getSettings();
       return settings?.lastActiveAddress;
     },
-    setLastActiveAddress: async (address) => {
-      await walletManager.updateSettings({ lastActiveAddress: address });
-      // Don't emit accountsChanged here - it's handled in wallet-context
-      // which emits to all connected sites
-    },
-    setLastActiveTime: async () => await walletManager.setLastActiveTime(),
-    emitProviderEvent: async (origin, event, data) => {
-      if (typeof origin !== 'string' || event !== 'accountsChanged' ||
-          !Array.isArray(data) || !data.every(address => typeof address === 'string')) {
-        throw new Error('Invalid provider event');
+    setLastActiveAddress: async (address) => withActiveAddressChange(
+      () => walletManager.updateSettings({ lastActiveAddress: address })),
+    setLastActiveTime: async (activityTime) => {
+      if (activityTime !== undefined && (typeof activityTime !== 'number' || !Number.isFinite(activityTime))) {
+        throw new Error('Invalid activity time');
       }
-      // Emit provider event through the event emitter service
-      eventEmitterService.emit('emit-provider-event', {
-        origin,
-        event,
-        data
-      });
+      await setLastActiveTime(activityTime);
     },
     consolidateBareMultisig: async (sourceAddress, batchData, feeRateSatPerVByte, destinationAddress) => {
       // Sign in the background so the private key never reaches the popup
@@ -287,25 +290,9 @@ function createWalletService(): WalletService {
 
 // Create the proxy service
 const [registerWalletService, getWalletServiceRaw] = defineProxyService(
-  'WalletService',
+  WALLET_SERVICE_NAME,
   createWalletService,
-  { methods: {
-    refreshWallets: 'command', getSettings: 'read', updateSettings: 'command',
-    addConnectedWebsite: 'command', removeConnectedWebsite: 'command', clearConnectedWebsites: 'command',
-    setPairedAddressPermission: 'command',
-    getWallets: 'read', getActiveWallet: 'read', getActiveAddress: 'read',
-    unlockKeychain: 'command', selectWallet: 'command', isKeychainUnlocked: 'read',
-    ensureKeychainLoaded: 'command', lockKeychain: 'command', emitProviderEvent: 'command',
-    createMnemonicWallet: 'command', createPrivateKeyWallet: 'command', importTestAddress: 'command',
-    createHardwareWalletWithDiscovery: 'command', addAddress: 'command', addUtxoAddress: 'command',
-    removeUtxoAddress: 'command', sweepUtxoAddresses: 'command', verifyPassword: 'command',
-    resetKeychain: 'command', updatePassword: 'command', updateWalletAddressFormat: 'command',
-    updateWalletPinnedAssets: 'command', getUnencryptedMnemonic: 'command', getPrivateKey: 'command',
-    removeWallet: 'command', getPreviewAddressForFormat: 'read', getPairedAddresses: 'read',
-    isAddressInAnyWallet: 'read', signTransaction: 'command', broadcastTransaction: 'command',
-    signMessage: 'command', signPsbt: 'command', getLastActiveAddress: 'read',
-    setLastActiveAddress: 'command', setLastActiveTime: 'command', consolidateBareMultisig: 'command',
-  } },
+  WALLET_SERVICE_POLICY,
 );
 
 // Get the wallet service directly from the proxy

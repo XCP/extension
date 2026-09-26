@@ -3,6 +3,7 @@ import { AddressFormat } from '@/core/bitcoin/address';
 import {
   assertProviderPsbtSigningRequest,
   providerPsbtSigningCapabilities,
+  unsupportedMarketplaceActionReason,
 } from '@/core/providerCapabilities';
 
 describe('providerPsbtSigningCapabilities', () => {
@@ -102,7 +103,7 @@ describe('assertProviderPsbtSigningRequest', () => {
     })).not.toThrow();
   });
 
-  it('admits exact-offer acceptance with a pre-signed SIGHASH_ALL buyer input', () => {
+  it('admits a request whose only unselected input is pre-signed with SIGHASH_ALL', () => {
     expect(() => assertProviderPsbtSigningRequest(trezor.psbt, {
       inputCount: 2,
       requestedInputIndices: [1],
@@ -124,6 +125,18 @@ describe('assertProviderPsbtSigningRequest', () => {
     ['unsupported sighash', { inputCount: 2, requestedInputIndices: [0, 1], sighashTypes: [0x01, 0x83] }],
   ])('rejects hardware %s before signing', (_label, request) => {
     expect(() => assertProviderPsbtSigningRequest(trezor.psbt, request)).toThrow();
+  });
+
+  it('names exact-offer acceptance as unavailable where external inputs must be pre-signed', () => {
+    // The market serves acceptance with the buyer's input 0 unsigned and merges it itself.
+    expect(unsupportedMarketplaceActionReason(trezor.psbt, 'accept_exact_offer'))
+      .toMatch(/cannot accept offers.*software wallet/);
+    expect(unsupportedMarketplaceActionReason(trezor.psbtBatch, 'accept_exact_offer'))
+      .toMatch(/cannot accept offers/);
+    expect(unsupportedMarketplaceActionReason(trezor.psbt, 'authorize_exact_offer')).toBeNull();
+    expect(unsupportedMarketplaceActionReason(trezor.psbt, undefined)).toBeNull();
+    const software = providerPsbtSigningCapabilities({ type: 'mnemonic', addressFormat: AddressFormat.P2WPKH });
+    expect(unsupportedMarketplaceActionReason(software.psbt, 'accept_exact_offer')).toBeNull();
   });
 
   it('permits a selected-input software listing authorization', () => {

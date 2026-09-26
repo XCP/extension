@@ -72,7 +72,9 @@ describe('Compose Specialized Operations', () => {
       const expectedUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/${endpoint}`;
       const actualCall = mockedApiClient.get.mock.calls[0]!;
       expect(actualCall[0]).toContain(expectedUrl);
-      expect(actualCall[1]?.headers?.['Content-Type']).toBe('application/json');
+      expect(actualCall[1]?.headers?.['Content-Type']).toBeUndefined();
+      // A compose that ran out its minute is not sent again.
+      expect(actualCall[1]).toMatchObject({ retryOnTimeout: false });
     });
 
     it('should handle errors in generic composition', async () => {

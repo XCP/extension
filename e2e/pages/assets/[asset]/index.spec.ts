@@ -10,7 +10,7 @@
  * - Success state: "Asset Details" heading with Supply, Divisible, Locked, Issuer fields
  */
 
-import { walletTest, expect } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
 
 walletTest.describe('View Asset Page (/assets/:asset)', () => {
   // Helper to navigate to asset page and wait for content to load

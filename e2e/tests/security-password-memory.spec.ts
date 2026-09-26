@@ -13,7 +13,7 @@
  * internals that may independently retain input values.
  */
 
-import { test, expect, createWallet, lockWallet, TEST_PASSWORD } from '../fixtures';
+import { createWallet, expect, lockWallet, TEST_PASSWORD, test } from '../fixtures';
 
 test.describe('Password Memory Security', () => {
   test('password is not stored in React state on unlock page', async ({

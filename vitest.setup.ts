@@ -1,6 +1,25 @@
 import { afterAll, beforeAll, beforeEach, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { configure } from '@testing-library/react';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
+import enMessages from './public/_locales/en/messages.json';
+
+// Production t() has no bundled English: the browser's i18n resolves every key from the
+// default-locale catalog. The fake browser's getMessage throws, so answer from the English
+// catalog the way Chrome does: named $NAME$ placeholders expand to their content, then $1..$9
+// take the substitutions (missing ones blank), and a key it does not know is an empty string.
+type CatalogEntry = { message: string; placeholders?: Record<string, { content: string }> };
+function englishMessage(key: string, substitutions?: string | (string | number)[]): string {
+  const entry = (enMessages as Record<string, CatalogEntry>)[key];
+  if (!entry) return '';
+  const subs = substitutions === undefined ? [] : typeof substitutions === 'string' ? [substitutions] : substitutions;
+  return entry.message
+    .replace(/\$([A-Za-z0-9_]+)\$/g, (match, name: string) => entry.placeholders?.[name.toLowerCase()]?.content ?? match)
+    .replace(/\$(\d)/g, (_, index: string) => String(subs[Number(index) - 1] ?? ''));
+}
+// Patch the shared fake browser object itself: WXT's own setup stubs it as the `chrome` and
+// `browser` globals, and it may run after this file.
+fakeBrowser.i18n.getMessage = englishMessage as typeof fakeBrowser.i18n.getMessage;
 
 // Mock @trezor/connect-webextension to prevent auto-initialization during import
 // The module tries to use browser.runtime.onConnect.addListener which isn't implemented in fake-browser

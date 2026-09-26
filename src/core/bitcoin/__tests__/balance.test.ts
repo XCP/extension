@@ -69,29 +69,12 @@ describe('Bitcoin Balance Utilities', () => {
     expect(balance).toBe(750000);
   });
 
-  it('should fetch balance from blockchain.info successfully', async () => {
-    vi.mocked(apiClient.get)
-      .mockRejectedValueOnce(new Error('HTTP 500'))
-      .mockRejectedValueOnce(new Error('HTTP 503'))
-      .mockRejectedValueOnce(new Error('HTTP 429'))
-      .mockResolvedValueOnce(okResponse({ final_balance: 850000 }));
+  it('does not fall back to full-history or retired explorers', async () => {
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('HTTP 500'));
 
-    const balance = await fetchBTCBalance(mockAddress);
-    expect(balance).toBe(850000);
-  });
-
-  it('should fetch balance from sochain.com successfully', async () => {
-    vi.mocked(apiClient.get)
-      .mockRejectedValueOnce(new Error('HTTP 500'))
-      .mockRejectedValueOnce(new Error('HTTP 503'))
-      .mockRejectedValueOnce(new Error('HTTP 429'))
-      .mockRejectedValueOnce(new Error('HTTP 404'))
-      .mockResolvedValueOnce(okResponse({
-        data: { confirmed_balance: '0.01234567' }
-      }));
-
-    const balance = await fetchBTCBalance(mockAddress);
-    expect(balance).toBe(1234567); // 0.01234567 * 1e8
+    await expect(fetchBTCBalance(mockAddress)).rejects.toThrow('Failed to fetch BTC balance from all explorers');
+    const hosts = vi.mocked(apiClient.get).mock.calls.map(([url]) => new URL(url).hostname);
+    expect(hosts).toEqual(['blockstream.info', 'mempool.space', 'api.blockcypher.com']);
   });
 
   it('should handle BigInt values correctly for blockstream/mempool responses', async () => {

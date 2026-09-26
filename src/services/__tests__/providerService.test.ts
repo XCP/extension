@@ -40,16 +40,18 @@ import { AddressFormat } from '@/core/bitcoin/address';
 import { signPSBT } from '@/core/bitcoin/psbt';
 import { POLICY_OFFER_VECTORS } from '@/core/counterparty/__tests__/policyOfferVectors';
 import * as replayPrevention from '@/core/replayPrevention';
+import { classifyProviderError } from '@/core/rpcErrors';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import * as signFlow from '@/platform/provider/signFlow';
+import { keychainExists } from '@/platform/storage/walletStorage';
 import { walletManager } from '@/platform/walletManager';
 import * as updateService from '@/services/updateService';
 import * as approvalService from '../approvalService';
 import * as connectionService from '../connectionService';
 import { eventEmitterService } from '../eventEmitterService';
-import { createProviderService } from '../providerService';
+import { createProviderService, SIGN_FLOW_RECOVERY_POLL_MS } from '../providerService';
 import * as walletService from '../walletService';
 
 const VALID_PSBT_HEX = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa3008f14ff8f13fc840164715cbb2b925874190000000000ffffffff98f9e476f918cc143cf8a6bd09042d1f2ee7c46bfd29c906166613b2d9c516c90000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e75c12000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011f8813000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
@@ -1459,6 +1461,40 @@ describe('ProviderService', () => {
         expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
 
+      it.each([
+        ['xcp_signPsbt', false],
+        ['xcp_signPsbts', true],
+      ] as const)('refuses hardware exact-offer acceptance through %s with a clear reason', async (method, bundle) => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        const seller = 'bc1qtest123';
+        const wallet = vi.mocked(walletService.getWalletService)();
+        wallet.getActiveWallet = vi.fn().mockResolvedValue({
+          id: 'wallet1',
+          name: 'Trezor',
+          type: 'hardware',
+          addressFormat: 'p2wpkh',
+          addresses: [{ address: seller, path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }],
+        } as never);
+        wallet.getActiveAddress = vi.fn().mockResolvedValue({ address: seller } as never);
+        const acceptIntent = { ...MARKETPLACE_EXACT_INTENT, action: 'accept_exact_offer', seller };
+        const parent = { hex: VALID_PSBT_HEX, signInputs: { [seller]: [1] }, sighashTypes: [0x01, 0x01] };
+
+        await expect(providerService.handleRequest(
+          'https://digirare.com',
+          method,
+          bundle
+            ? [{ requests: [
+              { ...parent, intent: acceptIntent },
+              { hex: VALID_PSBT_HEX, signInputs: { [seller]: [0] }, sighashTypes: [0x01],
+                intent: { ...MARKETPLACE_CPFP_INTENT, seller } },
+            ] }]
+            : [{ ...parent, intent: acceptIntent }],
+        )).rejects.toThrow(/cannot accept offers: the market adds the buyer's signature only after the seller signs/);
+
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
       it('rejects an unsupported hardware address format before opening approval', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
         connection.hasPermission = vi.fn().mockResolvedValue(true);
@@ -2145,6 +2181,79 @@ describe('ProviderService', () => {
             })
           );
         });
+
+        // A commit whose reveal the site holds is a Counterparty transaction, whatever it pays.
+        it('refuses a Counterparty reveal and names the method that takes one', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          await expect(providerService.handleRequest(
+            'https://counterwallet.example',
+            'xcp_signBitcoinPsbt',
+            [{ ...paymentParams, reveal: 'ab'.repeat(80) }]
+          )).rejects.toMatchObject({
+            code: -32602, message: expect.stringContaining('request it with xcp_signPsbt'),
+          });
+
+          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('xcp_signPsbt with a Counterparty reveal', () => {
+        it('stores the reveal for the review to prove', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          providerService.handleRequest(
+            'https://counterwallet.example',
+            'xcp_signPsbt',
+            [{ hex: VALID_PSBT_HEX, reveal: 'AB'.repeat(80) }]
+          ).catch(() => {});
+
+          await new Promise(resolve => setTimeout(resolve, 10));
+
+          expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+            expect.objectContaining({
+              psbtHex: VALID_PSBT_HEX,
+              signingPurpose: 'counterparty',
+              reveal: 'ab'.repeat(80),
+            })
+          );
+        });
+
+        it.each([
+          ['a non-string', 42],
+          ['odd-length hex', 'abc'],
+          ['non-hex text', 'zz'.repeat(40)],
+        ])('rejects %s', async (_label, reveal) => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          await expect(providerService.handleRequest(
+            'https://counterwallet.example',
+            'xcp_signPsbt',
+            [{ hex: VALID_PSBT_HEX, reveal }]
+          )).rejects.toMatchObject({
+            code: -32602, message: expect.stringContaining('reveal must be the signed reveal transaction'),
+          });
+
+          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        });
+
+        it('rejects a reveal alongside an inscription context', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          await expect(providerService.handleRequest(
+            'https://counterwallet.example',
+            'xcp_signPsbt',
+            [{
+              hex: VALID_PSBT_HEX,
+              reveal: 'ab'.repeat(80),
+              inscription: { revealScript: 'ab', tapInternalKey: 'cd'.repeat(32) },
+            }]
+          )).rejects.toMatchObject({ code: -32602, message: expect.stringContaining('either inscription or reveal') });
+        });
       });
     });
 
@@ -2251,7 +2360,7 @@ describe('ProviderService', () => {
             await persistence;
             if (mode === 'live') {
               eventEmitterService.emit(`sign-message-complete-${id}`, { signature: 'event-payload-is-not-authoritative' });
-            } else if (mode === 'poll') await vi.advanceTimersByTimeAsync(1500);
+            } else if (mode === 'poll') await vi.advanceTimersByTimeAsync(SIGN_FLOW_RECOVERY_POLL_MS);
             const outcome = await delivery;
             if (state === 'connected') expect(outcome).toEqual({ ok: true, value: storedResult.signature });
             else expect(outcome).toMatchObject({ ok: false, error: expect.any(Error) });
@@ -2286,6 +2395,23 @@ describe('ProviderService', () => {
           expect(await signFlow.getSignFlow('completed-recovery')).toMatchObject({ status: 'completed' });
         } else await expect(call).rejects.toThrow();
         expect(wallet.signMessage).not.toHaveBeenCalled();
+      });
+
+      it('re-reads the stored outcome of a waiting request at most every few seconds', async () => {
+        vi.useFakeTimers();
+        try {
+          vi.mocked(connectionService.getConnectionService)().hasPermission = vi.fn().mockResolvedValue(true);
+          const reads = vi.spyOn(signFlow.signFlowStorage, 'get');
+          providerService.handleRequest('https://test.com', 'xcp_signPsbt', [{ hex: VALID_PSBT_HEX }]).catch(() => {});
+          await vi.waitFor(() => expect(updateService.getUpdateService().registerCriticalOperation).toHaveBeenCalled());
+          reads.mockClear();
+          await vi.advanceTimersByTimeAsync(60_000);
+          // Was one read every 1.5s: 40 a minute for as long as the popup stayed open.
+          expect(reads.mock.calls.length).toBeGreaterThan(0);
+          expect(reads.mock.calls.length).toBeLessThanOrEqual(60_000 / SIGN_FLOW_RECOVERY_POLL_MS);
+        } finally {
+          vi.useRealTimers();
+        }
       });
 
       it('should register critical operations during signing', async () => {
@@ -2354,5 +2480,180 @@ describe('ProviderService', () => {
       });
     });
 
+  });
+
+  describe('what a dApp is told when a request fails', () => {
+    // content.ts answers the page with classifyProviderError(error), so that is what a site sees.
+    const origin = 'https://test.com';
+    const seen = async (request: Promise<unknown>) => {
+      const error = await request.then(() => { throw new Error('expected the request to fail'); }, (e: unknown) => e);
+      return classifyProviderError(error);
+    };
+    const connect = () => {
+      vi.mocked(connectionService.getConnectionService)().hasPermission = vi.fn().mockResolvedValue(true);
+    };
+    type Limiter = typeof rateLimiter.apiRateLimiter;
+    const limiters: Limiter[] = [
+      rateLimiter.connectionRateLimiter, rateLimiter.transactionRateLimiter,
+      rateLimiter.apiRateLimiter, rateLimiter.signPopupRateLimiter,
+    ];
+    // The auto-mocked limiters share one prototype mock, so give each its own for these tests.
+    const saved = limiters.map(limiter => ({ limiter, isAllowed: limiter.isAllowed, getResetTime: limiter.getResetTime }));
+    const refuse = (limiter: Limiter) => {
+      for (const other of limiters) {
+        Object.assign(other, {
+          isAllowed: vi.fn().mockReturnValue(other !== limiter),
+          getResetTime: vi.fn().mockReturnValue(30_000),
+        });
+      }
+    };
+    afterEach(() => {
+      for (const { limiter, isAllowed, getResetTime } of saved) Object.assign(limiter, { isAllowed, getResetTime });
+    });
+
+    it.each<[string, Limiter, string, unknown[], RegExp]>([
+      ['connection', rateLimiter.connectionRateLimiter, 'xcp_requestAccounts', [], /^Rate limit exceeded\. Please wait 30 seconds/],
+      ['broadcast', rateLimiter.transactionRateLimiter, 'xcp_broadcastTransaction', ['00'], /^Transaction rate limit exceeded\. Please wait 30 seconds/],
+      ['general API', rateLimiter.apiRateLimiter, 'xcp_chainId', [], /^API rate limit exceeded\. Please wait 30 seconds/],
+    ])('surfaces the %s rate limit as -32005 with its wait', async (_label, limiter, method, params, message) => {
+      refuse(limiter);
+      const answer = await seen(providerService.handleRequest(origin, method, params));
+      expect(answer.code).toBe(-32005);
+      expect(answer.message).toMatch(message);
+    });
+
+    it('surfaces the signing popup rate limit as -32005', async () => {
+      connect();
+      refuse(rateLimiter.signPopupRateLimiter);
+      const answer = await seen(providerService.handleRequest(origin, 'xcp_signMessage', ['Hello']));
+      expect(answer).toEqual({ code: -32005, message: 'Signing request rate limit exceeded. Please wait 30 seconds.' });
+    });
+
+    it('surfaces the cap on signing requests waiting for approval as -32005', async () => {
+      connect();
+      for (let index = 0; index < signFlow.MAX_OPEN_SIGN_FLOWS_PER_ORIGIN; index++) {
+        await signFlow.signFlowStorage.insert({
+          id: `open-${index}`, origin, requestKey: `key-${index}`, kind: 'sign-message', message: `m${index}`,
+          address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty', walletId: 'wallet1',
+          timestamp: Date.now(), status: 'pending',
+        });
+      }
+      const answer = await seen(providerService.handleRequest(origin, 'xcp_signMessage', ['one more']));
+      expect(answer.code).toBe(-32005);
+      expect(answer.message).toMatch(/Too many signing requests are waiting for approval/);
+    });
+
+    it.each<[string, string, unknown[], string | RegExp]>([
+      ['a payload over 1MB', 'xcp_signMessage', ['x'.repeat(1024 * 1024 + 1)], 'Request parameters too large (max 1MB)'],
+      ['a missing message', 'xcp_signMessage', [], 'Message is required'],
+      ['PSBT params that are not an object', 'xcp_signPsbt', [null], 'PSBT parameters must be an object with hex property'],
+      ['a lone fund_policy_offer', 'xcp_signPsbt', [{ hex: VALID_PSBT_HEX, intent: POLICY_OFFER_VECTORS.fund.wpkh.claim }],
+        'fund_policy_offer must be requested through xcp_signPsbts'],
+      ['signInputs that is not an object', 'xcp_signPsbt', [{ hex: VALID_PSBT_HEX, signInputs: [0] }],
+        'signInputs must be an address-to-input-indices object'],
+      ['an unsupported sighash', 'xcp_signPsbt', [{ hex: VALID_PSBT_HEX, sighashTypes: [0x02] }],
+        'Only SIGHASH_ALL, ALL|ANYONECANPAY, and SINGLE|ANYONECANPAY are supported'],
+      ['more sighash entries than inputs', 'xcp_signPsbt', [{
+        hex: VALID_PSBT_HEX,
+        signInputs: { bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty: [1] },
+        sighashTypes: [0x01, 0x01, 0x01],
+      }], 'sighashTypes contains more entries than the PSBT has inputs'],
+      ['signInputs naming an address outside the wallet', 'xcp_signPsbt', [{
+        hex: VALID_PSBT_HEX, signInputs: { '1BoatSLRHtKNngkdXEeobR76b6hrLPUnoP': [1] },
+      }], /is not in this wallet/],
+      ['a malformed PSBT bundle', 'xcp_signPsbts', [{ requests: [{ hex: VALID_PSBT_HEX }] }],
+        'PSBT bundle request 0 requires explicit signInputs'],
+      ['a non-string broadcast', 'xcp_broadcastTransaction', [42], 'Signed transaction must be a hex string'],
+    ])('surfaces %s as -32602 with its reason', async (_label, method, params, message) => {
+      connect();
+      const answer = await seen(providerService.handleRequest(origin, method, params));
+      expect(answer.code).toBe(-32602);
+      if (typeof message === 'string') expect(answer.message).toBe(message);
+      else expect(answer.message).toMatch(message);
+    });
+
+    it('still masks an internal failure', async () => {
+      connect();
+      vi.mocked(walletService.getWalletService)().getActiveAddress = vi.fn().mockResolvedValue(null);
+      const answer = await seen(providerService.handleRequest(origin, 'xcp_signPsbt', [{ hex: VALID_PSBT_HEX }]));
+      expect(answer).toEqual({ code: -32603, message: 'Request failed' });
+    });
+
+    it('tells the site the request expired (4001) when nobody unlocks in time', async () => {
+      vi.useFakeTimers();
+      vi.mocked(walletService.getWalletService)().isKeychainUnlocked = vi.fn().mockResolvedValue(false);
+      const answer = seen(providerService.handleRequest(origin, 'xcp_requestAccounts', []));
+      await vi.waitFor(() => expect(chrome.windows.onRemoved.addListener).toHaveBeenCalled());
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+      expect(await answer).toEqual({ code: 4001, message: 'Unlock timeout - please try again' });
+    });
+
+    it('tells the site the request expired (4001) when a signing approval times out', async () => {
+      vi.useFakeTimers();
+      connect();
+      const answer = seen(providerService.handleRequest(origin, 'xcp_signMessage', ['Hello']));
+      await vi.waitFor(() => expect(signFlow.beginSignFlow).toHaveBeenCalled());
+      await vi.advanceTimersByTimeAsync(signFlow.SIGN_FLOW_TTL_MS + 1);
+      expect(await answer).toEqual({ code: 4001, message: 'Sign message request timeout' });
+    });
+  });
+
+  describe('closing the window a connect request opened', () => {
+    const origin = 'https://test.com';
+    const onRemoved = () => vi.mocked(chrome.windows.onRemoved);
+    const closeWindow = (windowId: number) => {
+      for (const [listener] of onRemoved().addListener.mock.calls) (listener as (id: number) => void)(windowId);
+    };
+
+    it('rejects a locked connect with 4001 as soon as the unlock window closes', async () => {
+      const wallet = vi.mocked(walletService.getWalletService)();
+      wallet.isKeychainUnlocked = vi.fn().mockResolvedValue(false);
+      (chrome.windows.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 77 });
+      const pending = providerService.handleRequest(origin, 'xcp_requestAccounts', []);
+      const settled = vi.fn();
+      pending.then(settled, settled);
+      await vi.waitFor(() => expect(onRemoved().addListener).toHaveBeenCalledTimes(1));
+
+      closeWindow(78); // another window
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(settled).not.toHaveBeenCalled();
+
+      closeWindow(77);
+      const error = await pending.catch((e: unknown) => e);
+      expect(classifyProviderError(error)).toEqual({ code: 4001, message: 'User closed the unlock window' });
+      const [listener] = onRemoved().addListener.mock.calls[0]!;
+      expect(onRemoved().removeListener).toHaveBeenCalledWith(listener);
+
+      // A later unlock no longer continues the abandoned request.
+      wallet.isKeychainUnlocked = vi.fn().mockResolvedValue(true);
+      eventEmitterService.emit('wallet-unlocked', {});
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(vi.mocked(connectionService.getConnectionService)().connect).not.toHaveBeenCalled();
+    });
+
+    it('stops watching the unlock window once the wallet is unlocked', async () => {
+      const wallet = vi.mocked(walletService.getWalletService)();
+      wallet.isKeychainUnlocked = vi.fn().mockResolvedValue(false);
+      (chrome.windows.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 77 });
+      const pending = providerService.handleRequest(origin, 'xcp_requestAccounts', []);
+      await vi.waitFor(() => expect(onRemoved().addListener).toHaveBeenCalledTimes(1));
+      wallet.isKeychainUnlocked = vi.fn().mockResolvedValue(true);
+      eventEmitterService.emit('wallet-unlocked', {});
+      await pending.catch(() => { /* how the connection ends is covered above; the watch is what matters */ });
+      const [listener] = onRemoved().addListener.mock.calls[0]!;
+      expect(onRemoved().removeListener).toHaveBeenCalledWith(listener);
+    });
+
+    it('rejects a connect waiting on wallet setup with 4001 when the setup window closes', async () => {
+      vi.mocked(keychainExists).mockResolvedValueOnce(false);
+      (chrome.windows.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 55 });
+      const pending = providerService.handleRequest(origin, 'xcp_requestAccounts', []);
+      await vi.waitFor(() => expect(onRemoved().addListener).toHaveBeenCalledTimes(1));
+      closeWindow(55);
+      const error = await pending.catch((e: unknown) => e);
+      expect(classifyProviderError(error)).toEqual({ code: 4001, message: 'User closed the wallet setup window' });
+      const [listener] = onRemoved().addListener.mock.calls[0]!;
+      expect(onRemoved().removeListener).toHaveBeenCalledWith(listener);
+    });
   });
 });

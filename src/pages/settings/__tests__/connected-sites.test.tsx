@@ -21,8 +21,8 @@ vi.mock('@/contexts/settings-context', () => ({
   }),
 }));
 
-vi.mock('@/services/providerService', () => ({
-  getProviderService: () => ({ disconnect: mockDisconnect }),
+vi.mock('@/services/providerServiceClient', () => ({
+  getProviderServiceClient: () => ({ disconnect: mockDisconnect }),
 }));
 
 vi.mock('@/contexts/header-context', () => ({

@@ -12,8 +12,8 @@
  * - Loading state during search
  */
 
-import { walletTest, expect } from '../fixtures';
 import { enableValidationBypass } from '../compose-test-helpers';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('AssetSelectInput Component', () => {
   // AssetSelectInput is used on asset-specific pages

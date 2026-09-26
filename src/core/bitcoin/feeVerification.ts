@@ -14,7 +14,7 @@
  * 2020 by mixing signatures across two confirmation rounds to burn funds as fees; both vendors
  * responded by resolving amounts from the previous transactions instead of trusting the host. The
  * check is cheap — signing already fetches these prevouts — so the assumption is deleted rather than
- * reasoned about. See ADR-019.
+ * reasoned about. See the design note in `unpack/verify.ts`.
  */
 
 import { bytesToHex } from '@noble/hashes/utils.js';

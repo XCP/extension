@@ -356,12 +356,6 @@
   "appName": {
     "message": "XCP Wallet"
   },
-  "approval_approval_attention_about_sat_vb": {
-    "message": "（約 $1 sat/vB）"
-  },
-  "approval_approval_attention_confirm_that_this_fee_is": {
-    "message": "請確認此費用是有意設置的。"
-  },
   "approval_approval_attention_review_this_exception_before_signing": {
     "message": "$1 簽名前請檢查此例外情況。"
   },
@@ -371,8 +365,11 @@
   "approval_approval_attention_the_wallet_could_not_reproduce": {
     "message": "錢包無法復現交易的每個字段"
   },
-  "approval_approval_attention_this_transaction_pays_sats": {
-    "message": "此交易支付 $1 sats"
+  "approval_approval_attention_high_fee_with_rate": {
+    "message": "此交易支付 $1 sats（約 $2 sat/vB）。請確認此費用是有意設置的。"
+  },
+  "approval_approval_attention_high_fee": {
+    "message": "此交易支付 $1 sats。請確認此費用是有意設置的。"
   },
   "approval_approval_attention_unusually_high_network_fee": {
     "message": "網絡費用異常高"
@@ -431,8 +428,8 @@
   "approval_approval_transaction_details_outputs": {
     "message": "輸出 ($1)"
   },
-  "approval_approval_warnings_a_memo_description_or_asset": {
-    "message": "備註、描述或資產標籤中包含可能重排或隱藏文本的字符。"
+  "approval_approval_warnings_hidden_characters_description": {
+    "message": "備註、描述或資產標籤中包含可能重排或隱藏文本的字符。請仔細核對解碼後的數量和接收地址。"
   },
   "approval_approval_warnings_a_memo_description_or_asset_2": {
     "message": "備註、描述或資產標籤中包含不會顯示的字符。"
@@ -451,9 +448,6 @@
   },
   "approval_approval_warnings_attached_assets_move_to_your": {
     "message": "附加的資產將移動到你自己的輸出"
-  },
-  "approval_approval_warnings_check_the_decoded_amounts_and": {
-    "message": "請仔細核對解碼後的數量和接收地址。"
   },
   "approval_approval_warnings_couldn_t_verify_asset_status": {
     "message": "無法驗證資產狀態"
@@ -3074,9 +3068,6 @@
   "marketplace_batch_xcp_fee": {
     "message": "XCP 費用"
   },
-  "marketplace_batch_sats": {
-    "message": "$1 sats"
-  },
   "marketplace_batch_seller_wallet": {
     "message": "賣家錢包"
   },
@@ -3148,9 +3139,6 @@
   },
   "marketplace_bundle_sat_vb": {
     "message": "$1 sat/vB"
-  },
-  "marketplace_bundle_sats": {
-    "message": "$1 sats"
   },
   "marketplace_bundle_the_parent_completes_the_exact": {
     "message": "父交易完成這筆精確的出售，子交易僅將你在父交易中的收益花回給你。在請求任一簽名之前，兩筆交易都已通過驗證。"
@@ -3261,7 +3249,7 @@
     "message": "暫不廣播"
   },
   "marketplace_intent_notice_accept_exact_offer": {
-    "message": "你的簽名即可按此條件完成這筆出售，無需買家再次確認。如果買家已經花費了共用的出資 UTXO，廣播會失敗，你的資產仍歸你所有。"
+    "message": "你只簽署自己的輸入。市場會使用其持有的買家授權按此條件完成這筆出售，無需買家再次確認。如果買家已經花費了共用的出資 UTXO，廣播會失敗，你的資產仍歸你所有。"
   },
   "marketplace_intent_notice_authorize_exact_offer": {
     "message": "簽名後，該賣家無需再次批准即可按此條件完成交易。以同一出資 UTXO 為支撐的其他報價互為備選：最先確認的那筆花費生效，其餘全部作廢。"
@@ -4042,6 +4030,114 @@
   },
   "safety_this_funds_an_inscription": {
     "message": "這筆交易為銘文提供資金：$1 BTC 將發送到 $2，該地址由銘文本身推導而來，只有你的私鑰能夠花費。隨後的揭示交易會發佈內容，請另行核對它的接收地址和手續費。"
+  },
+  "safety_counterparty_reveal_commit": {
+    "message": "Counterparty 提交交易"
+  },
+  "safety_counterparty_reveal_commit_detail": {
+    "message": "$1 BTC 將發送到 $2，用於支付該網站的揭示交易；該揭示交易會以你的地址發佈上方顯示的消息。此輸出的密鑰由網站持有，因此請把這筆 BTC 視為已花費。"
+  },
+  "safety_blocked_reveal_did_not_verify": {
+    "message": "已阻止：揭示交易未通過驗證"
+  },
+  "safety_reveal_unreadable": {
+    "message": "無法讀取網站提供的揭示交易，因此無法知道它會發佈甚麼。"
+  },
+  "safety_reveal_not_this_transaction": {
+    "message": "網站的揭示交易沒有用第一個輸入花費此交易的輸出，因此無法說明此交易為甚麼提供資金。"
+  },
+  "safety_reveal_script_not_committed": {
+    "message": "揭示交易所花費的輸出並非只承諾它所發佈的那一個腳本，因此網站可能發佈另一條消息。"
+  },
+  "safety_reveal_not_counterparty": {
+    "message": "網站的揭示交易沒有發佈此錢包可以讀取的 Counterparty 消息。"
+  },
+  "safety_reveal_source_not_signer": {
+    "message": "揭示交易的消息將從不屬於你的地址發佈。"
+  },
+  "safety_reveal_two_messages": {
+    "message": "此交易除了揭示交易的消息外，還帶有自己的 Counterparty 消息，因此無法作為單一操作說明。"
+  },
+  "safety_unproven_script_output": {
+    "message": "向腳本地址付款"
+  },
+  "safety_unproven_script_output_one": {
+    "message": "$1 BTC 將發送到腳本地址 $2。向腳本地址付款可能讓其擁有者從 $3 轉走你的 Counterparty 資產。只有在你信任收款方時才繼續。"
+  },
+  "safety_unproven_script_output_many": {
+    "message": "$1 BTC 將發送到腳本地址：$2。向腳本地址付款可能讓其擁有者從 $3 轉走你的 Counterparty 資產。只有在你信任收款方時才繼續。"
+  },
+  "safety_reveal_site_builds_title": {
+    "message": "第二筆交易由網站建立"
+  },
+  "safety_reveal_control_send_recipient": {
+    "message": "舊版發送會發往第二筆交易在數據之前支付的地址。第二筆交易由網站建立，收款方也由網站選擇。"
+  },
+  "safety_reveal_control_issuance_transfer": {
+    "message": "網站還可以把 $1 的所有權轉移到它選擇的地址：第二筆交易在數據之前支付的地址會成為新的擁有者。"
+  },
+  "safety_reveal_control_attach_output": {
+    "message": "這會把你的 $1 附加到第二筆交易的一個輸出上。該交易及其輸出由網站選擇，因此資產會去往網站決定的地方。"
+  },
+  "safety_reveal_control_dispense_payment": {
+    "message": "從售賣機購買時，會向第二筆交易支付的售賣機購買。該交易由網站建立，支付哪些售賣機以及支付多少都由網站決定。"
+  },
+  "safety_reveal_control_btcpay_payment": {
+    "message": "只有當第二筆交易向你的訂單撮合付款時，BTCPay 才會結算。該交易由網站建立，因此是否付款由網站決定。"
+  },
+  "safety_reveal_control_detach_inputs": {
+    "message": "分離會從第二筆交易花費的 UTXO 中釋放資產。第二筆交易花費的是此交易的輸出；要花費你的 UTXO，需要本次請求並未提供的簽名。"
+  },
+  "safety_reveal_control_not_executed": {
+    "message": "Counterparty 已不再執行這種舊版 UTXO 消息，因此發佈它不會改變任何東西。"
+  },
+  "safety_reveal_control_outputs_unknown": {
+    "message": "第二筆交易由網站建立，錢包無法判斷其輸出是否會改變這條 $1 消息的作用。"
+  },
+  "safety_reveal_supplied_recipient": {
+    "message": "依網站提供的內容，收款方是 $1。"
+  },
+  "safety_reveal_supplied_no_recipient": {
+    "message": "依網站提供的內容，沒有指定收款方，因此 Counterparty 會拒絕這次發送。"
+  },
+  "safety_reveal_supplied_new_owner": {
+    "message": "依網站提供的內容，所有權將轉給 $1。"
+  },
+  "safety_reveal_supplied_no_transfer": {
+    "message": "依網站提供的內容，不會轉移所有權。"
+  },
+  "safety_reveal_supplied_attach_output": {
+    "message": "依網站提供的內容，由輸出 #$1 接收：$2。"
+  },
+  "safety_reveal_supplied_attach_missing": {
+    "message": "依網站提供的內容，沒有可附加的輸出，因此 Counterparty 會拒絕這次附加。"
+  },
+  "safety_reveal_address_yours": {
+    "message": "$1（你的地址）"
+  },
+  "safety_reveal_address_not_yours": {
+    "message": "$1（不是你的地址）"
+  },
+  "safety_reveal_address_none": {
+    "message": "沒有地址的輸出"
+  },
+  "safety_reveal_outputs_title": {
+    "message": "第二筆交易"
+  },
+  "safety_reveal_outputs_pays_other_title": {
+    "message": "第二筆交易向其他地址付款"
+  },
+  "safety_reveal_outputs_data_only": {
+    "message": "第二筆交易：僅包含數據，沒有付款。"
+  },
+  "safety_reveal_outputs_pays": {
+    "message": "網站提供的第二筆交易付款給："
+  },
+  "safety_reveal_output_item": {
+    "message": "$1 sats → $2"
+  },
+  "safety_reveal_outputs_resign_note": {
+    "message": "持有第二筆交易密鑰的網站可以用不同的輸出重新簽署。由 Counterparty 自身服務建立的交易無法重新簽署，但錢包無法分辨這是哪一種。"
   },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "這會把 $1 BTC 發送到 $2，與該網站聲明的支付輸出一致。請確認地址正是你想要的那個。"
@@ -6347,7 +6443,7 @@
     "message": "花費任一資金 UTXO 即在鏈上取消所有備選出價"
   },
   "marketplace_intent_notice_policy_offer_market_key": {
-    "message": "在資金 UTXO 被花費之前，$1 的簽署密鑰最多可以 $2 完成此出價。現在不會廣播任何內容。"
+    "message": "長期有效的出價。在 $1 之前或你取消之前，可無需再次詢問你即被成交。現在不會廣播任何內容。"
   },
   "marketplace_intent_pays_for_two_transactions": {
     "message": "支付 2 筆交易，$1 vB"
@@ -6372,6 +6468,12 @@
   },
   "trezor_access_notice_body": {
     "message": "Trezor 現在透過 Trezor Suite 連接。請允許一次存取，以便繼續使用。"
+  },
+  "trezor_access_notice_title": {
+    "message": "需要 Trezor Suite 存取權限"
+  },
+  "trezor_access_notice_failed": {
+    "message": "無法要求 Trezor 存取權限。請重試。"
   },
   "trezor_access_notice_allow": {
     "message": "允許存取 Trezor"
