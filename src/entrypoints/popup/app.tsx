@@ -8,15 +8,22 @@ import { KeychainLockedOnly } from '@/components/router/keychain-locked-only';
 import { KeychainOpenOrNew } from '@/components/router/keychain-open-or-new';
 import { NoKeychainOnly } from '@/components/router/no-keychain-only';
 import { useWallet } from '@/contexts/wallet-context';
-import { lazyPage, preloadPages } from '@/entrypoints/popup/lazy-page';
+import { lazyPage, preloadPages, retryFailedPages } from '@/entrypoints/popup/lazy-page';
 import HomePage from '@/pages/index';
 import OnboardingPage from '@/pages/keychain/onboarding';
 import UnlockPage from '@/pages/keychain/unlock';
 import NotFoundPage from '@/pages/not-found';
+import ApproveConnectionPage from '@/pages/requests/connect/approve';
+import ApproveMessagePage from '@/pages/requests/message/approve';
+import ApprovePsbtPage from '@/pages/requests/psbt/approve';
+import ApprovePsbtsPage from '@/pages/requests/psbts/approve';
+import ApproveTransactionPage from '@/pages/requests/transaction/approve';
 import { analytics, sanitizePath } from '@/platform/fathom';
 
-// Pages a popup can open on stay in the entry chunk: home, unlock, onboarding and not-found.
-// Everything else is split per route and preloaded when the browser is idle after first render.
+// Pages a popup can open on stay in the entry chunk: home, unlock, onboarding, not-found, and the
+// five /requests/*/approve pages the provider's approval windows open on, so a site's request is
+// shown without waiting on a chunk. Everything else is split per route and preloaded when the
+// browser is idle after first render.
 const ActionsPage = lazyPage(() => import('@/pages/actions'));
 const ConsolidatePage = lazyPage(() => import('@/pages/actions/consolidate'));
 const ConsolidateStatusPage = lazyPage(() => import('@/pages/actions/consolidate/status'));
@@ -77,11 +84,6 @@ const AssetOrdersPage = lazyPage(() => import('@/pages/market/orders/[baseAsset]
 const XcpPricePage = lazyPage(() => import('@/pages/market/xcp'));
 const PoolPage = lazyPage(() => import('@/pages/pools/[assetA]/[assetB]'));
 const PoolPositionPage = lazyPage(() => import('@/pages/pools/[lpAsset]'));
-const ApproveConnectionPage = lazyPage(() => import('@/pages/requests/connect/approve'));
-const ApproveMessagePage = lazyPage(() => import('@/pages/requests/message/approve'));
-const ApprovePsbtPage = lazyPage(() => import('@/pages/requests/psbt/approve'));
-const ApprovePsbtsPage = lazyPage(() => import('@/pages/requests/psbts/approve'));
-const ApproveTransactionPage = lazyPage(() => import('@/pages/requests/transaction/approve'));
 const SettingsPage = lazyPage(() => import('@/pages/settings'));
 const AddressTypesPage = lazyPage(() => import('@/pages/settings/address-types'));
 const AdvancedSettingsPage = lazyPage(() => import('@/pages/settings/advanced'));
@@ -112,7 +114,7 @@ export default function App() {
   if (isLoading) return <FullscreenLoading />;
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary onReset={retryFailedPages}>
       <Routes>
         <Route
           path="/"

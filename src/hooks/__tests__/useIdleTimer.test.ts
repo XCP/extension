@@ -143,6 +143,47 @@ describe('useIdleTimer', () => {
 
     expect(onActive).toHaveBeenCalledTimes(1);
   });
+
+  // A burst of activity leaves a throttled trailing call pending. A hardware confirmation then
+  // disables the timer; that trailing call must not start an idle timeout nothing clears.
+  it('drops a throttled activity call pending when the timer is disabled', () => {
+    const onIdle = vi.fn();
+    const onAction = vi.fn();
+    const { rerender } = renderHook(
+      ({ disabled }) => useIdleTimer({ timeout: 1000, onIdle, onAction, disabled, eventsThrottle: 200 }),
+      { initialProps: { disabled: false } },
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event('mousemove')); // runs at once
+      vi.advanceTimersByTime(50);
+      window.dispatchEvent(new Event('mousemove')); // trailing, due in 150ms
+    });
+    expect(onAction).toHaveBeenCalledTimes(1);
+
+    rerender({ disabled: true });
+    act(() => { vi.advanceTimersByTime(10_000); });
+
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(onIdle).not.toHaveBeenCalled();
+  });
+
+  it('drops a throttled activity call pending at unmount', () => {
+    const onIdle = vi.fn();
+    const onAction = vi.fn();
+    const { unmount } = renderHook(() => useIdleTimer({ timeout: 1000, onIdle, onAction, eventsThrottle: 200 }));
+
+    act(() => {
+      window.dispatchEvent(new Event('keydown'));
+      vi.advanceTimersByTime(50);
+      window.dispatchEvent(new Event('keydown'));
+    });
+    unmount();
+    act(() => { vi.advanceTimersByTime(10_000); });
+
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(onIdle).not.toHaveBeenCalled();
+  });
 });
 
 describe('createActivityReporter', () => {

@@ -31,6 +31,27 @@ function pageHasMore(page: { result: TokenBalance[]; result_count: number | null
   return page.result_count !== null ? nextOffset < page.result_count : page.result.length === PAGE_SIZE;
 }
 
+/**
+ * How a pin names an asset: a subasset by its case-kept long name (normalizeAssetQuery), anything
+ * else upper-cased.
+ */
+const pinKey = (name: string): string => normalizeAssetQuery(name);
+
+/**
+ * The names a balance row answers to. The node lists a subasset under its numeric `A…` name with
+ * the long name in `asset_info`, while a pin, and the per-asset read made for it, use the long name.
+ */
+function balanceNames(balance: TokenBalance): string[] {
+  const longname = balance.asset_info?.asset_longname;
+  return longname ? [pinKey(balance.asset), longname] : [pinKey(balance.asset)];
+}
+
+/** Whether two rows are the same asset, whichever of its names each carries. */
+function sameAsset(a: TokenBalance, b: TokenBalance): boolean {
+  const names = balanceNames(b);
+  return balanceNames(a).some((name) => names.includes(name));
+}
+
 interface BalanceListProps {
   /**
    * Changes to ask for a fresh load. A counter rather than a boolean so two presses are two
@@ -101,7 +122,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
     cacheBalances([balance]);
 
     setAllBalances((prev) => {
-      const idx = prev.findIndex((b) => b.asset.toUpperCase() === balance.asset.toUpperCase());
+      const idx = prev.findIndex((b) => sameAsset(b, balance));
       if (idx > -1) {
         const newBalances = [...prev];
         newBalances[idx] = balance;
@@ -176,13 +197,13 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           // Pinned assets are read from the page. When the node's count says the page is the whole
           // list, an asset missing from it is held at zero — the same row the per-asset read answers
           // with. Otherwise it may simply be further down, and only then is it asked for by name.
-          // A subasset is pinned by its long name, which the rows do not carry as `asset`, so it is
-          // always asked for by name.
-          const listed = new Set(page.result.map((balance) => balance.asset.toUpperCase()));
+          // A subasset is pinned by its long name and listed under its numeric name, so the page
+          // is matched on both.
+          const listed = new Set(page.result.flatMap(balanceNames));
           const complete = page.result_count !== null && page.result_count <= page.result.length;
-          const missing = nonBTCAssets.filter((asset) => asset.includes(".") || !listed.has(asset.toUpperCase()));
+          const missing = nonBTCAssets.filter((asset) => !listed.has(pinKey(asset)));
           const lookups = await Promise.allSettled(missing.map((asset) =>
-            complete && !asset.includes(".")
+            complete
               ? Promise.resolve(emptyTokenBalance(asset))
               : fetchTokenBalance(session.address, asset, { type: "address" })));
           if (sessionRef.current !== session) return;
@@ -270,20 +291,22 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   }, [inView, initialLoaded, hasMore, isFetchingMore, error, isSearchActive, loadMore]);
 
   // BTC is always pinned, then ZELD, then the user's pinned assets
-  const pinnedAssets = ["BTC", ZELD_WALLET_ASSET.toUpperCase()]
-    .concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
+  const pinnedAssets = ["BTC", ZELD_WALLET_ASSET, ...(settings?.pinnedAssets || [])].map(pinKey);
+  /** Where a row sits among the pins, by any of its names; -1 when it is not pinned. */
+  const pinIndex = (balance: TokenBalance) => {
+    const found = balanceNames(balance).map((name) => pinnedAssets.indexOf(name)).filter((index) => index >= 0);
+    return found.length ? Math.min(...found) : -1;
+  };
 
   const balancesWithZeld = [...allBalances];
   if (zeldBalance) balancesWithZeld.splice(allBalances.findIndex(balance => balance.asset === "BTC") + 1, 0, zeldBalance);
 
   // In the order the user pinned them, not the order the node listed them.
   const pinnedBalances = balancesWithZeld
-    .filter((balance) => pinnedAssets.includes(balance.asset.toUpperCase()))
-    .sort((a, b) => pinnedAssets.indexOf(a.asset.toUpperCase()) - pinnedAssets.indexOf(b.asset.toUpperCase()));
+    .filter((balance) => pinIndex(balance) >= 0)
+    .sort((a, b) => pinIndex(a) - pinIndex(b));
 
-  const otherBalances = balancesWithZeld.filter((balance) =>
-    !pinnedAssets.includes(balance.asset.toUpperCase())
-  );
+  const otherBalances = balancesWithZeld.filter((balance) => pinIndex(balance) < 0);
 
   // A spendable balance of zero is not worth a row: once the debit confirms, the ledger drops the
   // row itself, so skipping it now just gets there early. The zero test runs on the figure the

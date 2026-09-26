@@ -50,7 +50,7 @@ import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
-import { getWalletServiceClient as getWalletService } from "@/services/walletServiceClient";
+import { getWalletServiceClient } from "@/services/walletServiceClient";
 import type { Address, SignTransactionOptions, Wallet } from "@/types/wallet";
 
 /**
@@ -249,7 +249,9 @@ const withRefresh = <T extends (...args: any[]) => Promise<any>>(
  * @returns {ReactElement} Context provider
  */
 export function WalletProvider({ children }: { children: ReactNode }): ReactElement {
-  const walletService = getWalletService();
+  // Read once: every callback, the mount effect's subscriptions and the context value depend on
+  // this, so a new identity per render would re-subscribe and refresh on every render.
+  const [walletService] = useState(getWalletServiceClient);
   const [walletState, setWalletState] = useState<WalletState>({
     authState: AuthState.Onboarding,
     keychainExists: false,
