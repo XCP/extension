@@ -23,4 +23,4 @@ code comment is the original.
 Numbers 004, 006, 007, 009, 011 and 012 are not recorded anywhere in the code and are not listed.
 
 To add a record, write it where the decision is implemented, give it the next number, and copy it
-here. `docs/` is listed in `.gitignore`, so add a new file with `git add -f`.
+here. `docs/adr/` is whitelisted in `.gitignore`; any other new page under `docs/` needs its own `!docs/...` line there.
