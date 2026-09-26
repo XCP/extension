@@ -25,7 +25,7 @@ vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({ activeWallet: mocks.wallet, activeAddress: mocks.address, isLoading: false }),
 }));
 vi.mock('@/contexts/header-context', () => ({ useHeader: () => ({ setHeaderProps: mocks.setHeaderProps }) }));
-vi.mock('@/services/approvalService', () => ({ getApprovalService: () => mocks }));
+vi.mock('@/services/approvalServiceClient', () => ({ getApprovalServiceClient: () => mocks }));
 vi.mock('@/services/walletServiceClient', () => ({ getWalletServiceClient: () => mocks }));
 
 function selectIdentity(name: string) {
