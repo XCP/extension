@@ -117,7 +117,9 @@ connected on the Legacy account keeps its paired access after the user switches 
 account to the SegWit sibling, and vice versa. It only permits address disclosure and signing requests;
 every transaction still requires approval. Connection and paired-address grants are rechecked
 immediately before signing, so disconnecting the site invalidates an open request. Paired
-addresses are available for mnemonic wallets whose address type has a Legacy/SegWit pair.
+addresses are available for mnemonic wallets whose address type has a Legacy/SegWit pair. A
+wallet without one (Taproot, hardware) is not asked for the capability: the site connects
+normally without it, and `xcp_getAddresses` returns the active address alone.
 
 This capability has a privacy cost: the site can associate the Legacy and SegWit addresses as
 belonging to the same wallet. It can request signatures for explicitly identified inputs from
@@ -582,7 +584,8 @@ always `0`, and `total` always equals `confirmed`; do not read either as a mempo
 #### `xcp_getAddresses`
 
 Returns the active address for ordinary connections. When paired-address access was granted,
-it returns the corresponding P2PKH and P2WPKH addresses and public keys.
+it returns the corresponding P2PKH and P2WPKH addresses and public keys. While the wallet is
+locked it rejects with `4100`, as `xcp_getBalances` and the signing methods do.
 
 ```js
 const addresses = await xcpwallet.request({ method: 'xcp_getAddresses' });
@@ -702,7 +705,7 @@ try {
 | `4200` | Method not supported | Stop calling it |
 | `4900` | Wallet background was momentarily unavailable, or is still starting up (no `data`) | Transient — retry (the SDK retries a plain `4900` once; it never replays a signing request) |
 | `4900` + `data.reloadRequired: true` | This page's link to the extension is gone (the wallet was updated or reloaded) | Retrying cannot help: ask the user to reload the page. See [Liveness](#liveness) |
-| `-32602` | Invalid params: the request's shape or content is wrong (missing or mistyped fields, unsupported sighash, `signInputs` naming an input or address it cannot, parameters over 1MB, `fund_policy_offer` sent to `xcp_signPsbt`, a message signer outside the active pair, a PSBT whose transaction header or funding does not fit its intent, a marketplace action the active wallet cannot sign) | Fix the request; resending it unchanged fails the same way. The message says what is wrong |
+| `-32602` | Invalid params: the request's shape or content is wrong (missing or mistyped fields, unsupported sighash, `signInputs` naming an input or address it cannot, parameters over 1MB, `fund_policy_offer` sent to `xcp_signPsbt`, a message signer outside the active pair, a PSBT that cannot be parsed, a malformed `intent`, a bundle over its request limit, a PSBT with no input owned by the active address, a sighash the active wallet cannot sign, a PSBT whose transaction header or funding does not fit its intent, a marketplace action the active wallet cannot sign) | Fix the request; resending it unchanged fails the same way. The message says what is wrong |
 | `-32005` | Limit exceeded ([EIP-1474](https://eips.ethereum.org/EIPS/eip-1474#error-codes)): a per-origin rate limit, too many signing requests already waiting for approval, or a connection request from the site already waiting | Wait and retry; the message says how long, or to finish an open request first |
 | `-32603` | Internal error | Generic failure; internal details are intentionally masked |
 

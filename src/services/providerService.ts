@@ -127,6 +127,48 @@ const limitExceeded = (message: string) => new ProviderError(JSON_RPC_ERROR_CODE
 const expired = (message: string) => new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, message);
 
 /**
+ * Connected, but the wallet has no active address to act for: it is locked (a locked wallet keeps
+ * its identity and drops its addresses) or not set up. The contract's 4100, so a site prompts the
+ * user to unlock instead of treating it as an internal failure.
+ */
+const walletLocked = () => new ProviderError(
+  PROVIDER_ERROR_CODES.UNAUTHORIZED,
+  'Wallet is locked or not set up. Unlock XCP Wallet and try again.',
+);
+
+/**
+ * Run a validator over what the site sent and report its refusal as -32602. The wallet's own
+ * validators (intent parsers, signing-request checks) throw plain Errors whose fixed text names
+ * the problem in terms of the request, so that text is surfaced. Only a plain Error is converted:
+ * a ProviderError keeps its own code, and anything else (a TypeError from a bug, a library's own
+ * error class) stays masked as -32603 so its text never reaches the site.
+ */
+function asInvalidParams<T>(validate: () => T, prefix = ''): T {
+  try {
+    return validate();
+  } catch (error) {
+    if (error instanceof Error && error.constructor === Error) throw invalidParams(`${prefix}${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Parse a site's PSBT. The parser's own errors carry library internals, so any failure is reported
+ * with one fixed message instead.
+ */
+function parseSitePsbt(psbtHex: string, prefix = ''): ReturnType<typeof extractPsbtDetails> {
+  try {
+    return extractPsbtDetails(psbtHex);
+  } catch {
+    throw invalidParams(`${prefix}PSBT could not be parsed`);
+  }
+}
+
+/** Whether the wallet can derive the active index's Legacy/SegWit sibling pair. */
+const walletSupportsPair = (wallet: { type: string; addressFormat: AddressFormat }) =>
+  wallet.type === 'mnemonic' && Boolean(getPairedAddressFormats(wallet.addressFormat));
+
+/**
  * Call `onClosed` when the user closes a window this request opened for them (unlock or wallet
  * setup), so the site hears 4001 at once instead of waiting out the whole timeout for a window
  * that is gone. Returns the function that stops watching; every exit path must call it.
@@ -449,12 +491,17 @@ export function createProviderService(): ProviderService {
         walletId: activeWallet.id, address: activeAddress.address },
       sessionGeneration,
       hardware: activeWallet.type === 'hardware',
-      pairedSupported: activeWallet.type === 'mnemonic' && Boolean(getPairedAddressFormats(activeWallet.addressFormat)),
+      pairedSupported: walletSupportsPair(activeWallet),
       format: activeWallet.addressFormat,
     };
+    // A wallet with no sibling pair (Taproot, hardware, a single key) has nothing to grant: asking
+    // would show the user an empty pair and leave the site a grant xcp_getAddresses cannot serve.
+    // The capability is optional, so the site connects normally without it and reads its absence
+    // from xcp_getAddresses.
+    const requestPair = pairedAddresses && context.pairedSupported;
 
     if (await connectionService.hasPermission(origin)) {
-      if (pairedAddresses) {
+      if (requestPair) {
         await connectionService.requestPairedAddressPermission(
           origin,
           activeAddress.address,
@@ -471,7 +518,7 @@ export function createProviderService(): ProviderService {
       origin,
       activeAddress.address,
       activeWallet.id,
-      pairedAddresses,
+      requestPair,
       placement
     );
     return buildConnectResponse(accounts, context);
@@ -546,7 +593,7 @@ export function createProviderService(): ProviderService {
             const setupWindow = await openExtensionPopup();
 
             // Wait for wallet creation, then continue with connection flow
-            return new Promise((resolve, reject) => {
+            return await new Promise((resolve, reject) => {
               let settled = false;
               let timeout: ReturnType<typeof setTimeout>;
 
@@ -598,7 +645,7 @@ export function createProviderService(): ProviderService {
             const unlockWindow = await openExtensionPopup(continuationUnlockPath(requestId));
 
             // Wait for unlock and then continue with connection
-            return new Promise((resolve, reject) => {
+            return await new Promise((resolve, reject) => {
               let settled = false;
               let timeout: ReturnType<typeof setTimeout>;
 
@@ -654,12 +701,12 @@ export function createProviderService(): ProviderService {
             });
           }
 
-          return completeConnection(origin, pairedAddresses);
+          return await completeConnection(origin, pairedAddresses);
 
         }
         
         case 'xcp_accounts': {
-          return getAccounts(origin);
+          return await getAccounts(origin);
         }
         
         case 'xcp_getAddresses': {
@@ -668,8 +715,11 @@ export function createProviderService(): ProviderService {
           }
           const activeAddress = await walletService.getActiveAddress();
           const activeWallet = await walletService.getActiveWallet();
-          if (!activeAddress || !activeWallet) throw new Error('No active address');
-          const paired = await connectionService.hasPairedAddressPermission(
+          if (!activeAddress || !activeWallet) throw walletLocked();
+          // A wallet with no sibling pair can still hold a paired grant stored before connect stopped
+          // offering the capability to such wallets. It has no pair to serve: return the active
+          // address alone rather than failing.
+          const paired = walletSupportsPair(activeWallet) && await connectionService.hasPairedAddressPermission(
             origin,
             activeWallet.id,
             activeAddress.address
@@ -742,7 +792,7 @@ export function createProviderService(): ProviderService {
           const activeAddress = await walletService.getActiveAddress();
           const activeWallet = await walletService.getActiveWallet();
           if (!activeAddress || !activeWallet) {
-            throw new Error('No active address');
+            throw walletLocked();
           }
 
           let signingAddress = activeAddress.address;
@@ -778,7 +828,7 @@ export function createProviderService(): ProviderService {
             signingAddress = target.address;
           }
 
-          return runSignFlow({
+          return await runSignFlow({
             origin,
             method,
             params: { message, signingAddress },
@@ -819,6 +869,11 @@ export function createProviderService(): ProviderService {
           if (!rawTxHex) {
             throw invalidParams('Transaction hex is required');
           }
+          // Checked here, before the grant, the sign-popup limiter and the flow, as the other
+          // signing methods check their params: a mistyped hex is the site's error to hear as such.
+          if (typeof rawTxHex !== 'string') {
+            throw invalidParams('Transaction hex must be a string');
+          }
 
           // Check if connected
           if (!await connectionService.hasPermission(origin)) {
@@ -829,10 +884,10 @@ export function createProviderService(): ProviderService {
           const activeAddress = await walletService.getActiveAddress();
           const activeWallet = await walletService.getActiveWallet();
           if (!activeAddress || !activeWallet) {
-            throw new Error('No active address');
+            throw walletLocked();
           }
 
-          return runSignFlow({
+          return await runSignFlow({
             origin,
             method,
             params: { rawTxHex },
@@ -917,7 +972,9 @@ export function createProviderService(): ProviderService {
             && typeof firstIntent === 'object'
             && !Array.isArray(firstIntent)
             && (firstIntent as { action?: unknown }).action === 'accept_exact_offer';
-          const parsedBundle = exactCpfp
+          // The intents are the site's claims; a malformed one, or a bundle over its phase's limit, is
+          // the site's error (-32602) with the parser's reason.
+          const parsedBundle = asInvalidParams(() => exactCpfp
             ? (() => {
                 const pair = parseAcceptanceCpfpBundleIntents(
                   parsedRequests[0]!.intent,
@@ -928,7 +985,7 @@ export function createProviderService(): ProviderService {
                   intents: [pair.parent, pair.child],
                 };
               })()
-            : parseMarketplaceBatchIntents(parsedRequests.map(request => request.intent));
+            : parseMarketplaceBatchIntents(parsedRequests.map(request => request.intent)));
 
           if (!await connectionService.hasPermission(origin)) {
             throw new ProviderError(
@@ -938,7 +995,7 @@ export function createProviderService(): ProviderService {
           }
           const activeAddress = await walletService.getActiveAddress();
           const activeWallet = await walletService.getActiveWallet();
-          if (!activeAddress || !activeWallet) throw new Error('No active address');
+          if (!activeAddress || !activeWallet) throw walletLocked();
 
           const supportsPairedAddresses = Boolean(
             getPairedAddressFormats(activeWallet.addressFormat),
@@ -964,7 +1021,7 @@ export function createProviderService(): ProviderService {
           let usesPairedAddress = false;
 
           for (const [requestIndex, request] of parsedRequests.entries()) {
-            const details = extractPsbtDetails(request.psbtHex);
+            const details = parseSitePsbt(request.psbtHex, `PSBT bundle request ${requestIndex}: `);
             const marketplaceIntent = parsedBundle.intents[requestIndex]!;
             const headerProblem = marketplaceTransactionHeaderProblem(
               marketplaceIntent,
@@ -1010,7 +1067,7 @@ export function createProviderService(): ProviderService {
                 `PSBT bundle request ${requestIndex} is missing absolute sighash entries for inputs: ${missing.join(', ')}`,
               );
             }
-            assertProviderPsbtSigningRequest(signing, {
+            asInvalidParams(() => assertProviderPsbtSigningRequest(signing, {
               inputCount: details.inputs.length,
               requestedInputIndices,
               // An unselected input's entry describes a signature someone else made. Only the
@@ -1025,7 +1082,7 @@ export function createProviderService(): ProviderService {
               presignedInputIndices: details.inputs
                 .filter(input => input.hasSignatures)
                 .map(input => input.index),
-            });
+            }), `PSBT bundle request ${requestIndex}: `);
             usesPairedAddress ||= Object.keys(request.signInputs).some(address => {
               const normalizedAddress = normalizeAddressForComparison(address);
               return normalizedAddress !== normalizedActiveAddress
@@ -1046,7 +1103,7 @@ export function createProviderService(): ProviderService {
             );
           }
 
-          return runSignFlow({
+          return await runSignFlow({
             origin,
             method,
             params: { requests: parsedRequests, bundle: parsedBundle },
@@ -1107,11 +1164,14 @@ export function createProviderService(): ProviderService {
           if (typeof psbtHex !== 'string') {
             throw invalidParams('PSBT hex must be a string');
           }
+          // The intent is the site's claim, checked here with the rest of the request's shape (every
+          // signing method validates what it can without the wallet before the grant). A malformed
+          // one is the site's error, -32602 with the parser's reason.
           const bitcoinPaymentIntent = isBitcoinPayment
-            ? parseBitcoinPaymentIntent(intent)
+            ? asInvalidParams(() => parseBitcoinPaymentIntent(intent))
             : undefined;
           const marketplaceIntent = !isBitcoinPayment && intent !== undefined
-            ? parseMarketplaceIntent(intent)
+            ? asInvalidParams(() => parseMarketplaceIntent(intent))
             : undefined;
           // Its funding inputs must be proven confirmed once for the whole funding set, which only
           // the linked review does; a lone parent would also hide its sibling alternatives.
@@ -1178,14 +1238,25 @@ export function createProviderService(): ProviderService {
           const activeAddress = await walletService.getActiveAddress();
           const activeWallet = await walletService.getActiveWallet();
           if (!activeAddress || !activeWallet) {
-            throw new Error('No active address');
+            throw walletLocked();
           }
 
-          const psbtDetails = extractPsbtDetails(psbtHex);
+          const psbtDetails = parseSitePsbt(psbtHex);
+          // The explicit entries are checked against the PSBT first, so these reasons are the ones a
+          // site hears; resolveProviderSignInputs below also covers sighashes embedded in the PSBT.
+          if (sighashTypes && sighashTypes.length > psbtDetails.inputs.length) {
+            throw invalidParams('sighashTypes contains more entries than the PSBT has inputs');
+          }
+          if (sighashTypes?.some(
+            (value, index) => value === 0x83 && index >= psbtDetails.outputs.length
+          )) {
+            throw invalidParams('SIGHASH_SINGLE requires an output at the same index');
+          }
           if (activeWallet.type === 'hardware' && signInputs === undefined) {
             throw invalidParams('The active wallet requires PSBT inputs to be selected explicitly');
           }
-          signInputs = resolveProviderSignInputs(psbtDetails, activeAddress.address, signInputs, sighashTypes);
+          signInputs = asInvalidParams(() =>
+            resolveProviderSignInputs(psbtDetails, activeAddress.address, signInputs, sighashTypes));
           const requestedInputIndices = signInputs === undefined
             ? undefined
             : Object.values(signInputs).flat();
@@ -1195,7 +1266,7 @@ export function createProviderService(): ProviderService {
             marketplaceIntent?.action,
           );
           if (unsupportedAction) throw invalidParams(unsupportedAction);
-          assertProviderPsbtSigningRequest(
+          asInvalidParams(() => assertProviderPsbtSigningRequest(
             providerPsbtSigningCapabilities(activeWallet).psbt,
             {
               inputCount: psbtDetails.inputs.length,
@@ -1211,7 +1282,7 @@ export function createProviderService(): ProviderService {
                 .filter(input => input.hasSignatures)
                 .map(input => input.index),
             },
-          );
+          ));
           if (marketplaceIntent) {
             const headerProblem = marketplaceTransactionHeaderProblem(
               marketplaceIntent,
@@ -1227,14 +1298,6 @@ export function createProviderService(): ProviderService {
             throw invalidParams(
               'Plain Bitcoin payment requests must be fully funded with authenticated prevout amounts before review'
             );
-          }
-          if (sighashTypes && sighashTypes.length > psbtDetails.inputs.length) {
-            throw invalidParams('sighashTypes contains more entries than the PSBT has inputs');
-          }
-          if (sighashTypes?.some(
-            (value, index) => value === 0x83 && index >= psbtDetails.outputs.length
-          )) {
-            throw invalidParams('SIGHASH_SINGLE requires an output at the same index');
           }
 
           if (signInputs !== undefined) {
@@ -1294,7 +1357,7 @@ export function createProviderService(): ProviderService {
               );
             }
           }
-          return runSignFlow({
+          return await runSignFlow({
             origin,
             method,
             params: { psbtHex, signInputs, sighashTypes, inscription, reveal, bitcoinPaymentIntent, marketplaceIntent },
@@ -1345,7 +1408,7 @@ export function createProviderService(): ProviderService {
           
           const activeAddress = await walletService.getActiveAddress();
           if (!activeAddress) {
-            throw new Error('No active address');
+            throw walletLocked();
           }
           
           try {
@@ -1485,6 +1548,17 @@ export function createProviderService(): ProviderService {
       }
       
     } catch (error) {
+      // 4001 is the user's answer (declined, closed or let an approval lapse), not a failure. A
+      // declined connection is already counted as request_rejected by the approval service, and the
+      // documented site handling (PROVIDER.md) skips 4001 the same way. Counting it here would make
+      // provider_error track how often users say no. An approval window that could not be opened
+      // is also sent as 4001, but nobody answered it: that one is a failure and is counted.
+      if (
+        error instanceof ProviderError
+        && error.code === PROVIDER_ERROR_CODES.USER_REJECTED
+        && error.message !== APPROVAL_WINDOW_FAILED_MESSAGE
+      ) throw error;
+
       // Log error for debugging (safely extract hostname)
       let hostname = origin;
       try { hostname = new URL(origin).hostname; } catch { /* use raw origin */ }

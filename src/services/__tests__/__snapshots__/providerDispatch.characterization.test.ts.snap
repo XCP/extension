@@ -1128,7 +1128,9 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
     ],
   },
   "signPopup refuses": {
-    "analytics": [],
+    "analytics": [
+      "provider_error",
+    ],
     "limiterCharges": {
       "api": 1,
       "signPopup": 1,
@@ -1248,7 +1250,9 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
     ],
   },
   "signPopup refuses": {
-    "analytics": [],
+    "analytics": [
+      "provider_error",
+    ],
     "limiterCharges": {
       "api": 1,
       "signPopup": 1,
@@ -1364,7 +1368,9 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
     ],
   },
   "signPopup refuses": {
-    "analytics": [],
+    "analytics": [
+      "provider_error",
+    ],
     "limiterCharges": {
       "api": 1,
       "signPopup": 1,
@@ -1505,7 +1511,9 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
     ],
   },
   "signPopup refuses": {
-    "analytics": [],
+    "analytics": [
+      "provider_error",
+    ],
     "limiterCharges": {
       "api": 1,
       "signPopup": 1,
@@ -1639,7 +1647,9 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
     ],
   },
   "signPopup refuses": {
-    "analytics": [],
+    "analytics": [
+      "provider_error",
+    ],
     "limiterCharges": {
       "api": 1,
       "signPopup": 1,
@@ -4592,13 +4602,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -4659,10 +4670,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -4724,29 +4734,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -4833,13 +4820,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -4900,10 +4888,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -4965,29 +4952,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -5074,13 +5038,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -5141,10 +5106,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -5206,29 +5170,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -5315,13 +5256,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -5382,10 +5324,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -5447,29 +5388,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -5556,13 +5474,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -5623,10 +5542,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -5688,29 +5606,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -5797,13 +5692,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -5864,10 +5760,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -5929,29 +5824,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -6106,13 +5978,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -6173,10 +6046,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -6238,29 +6110,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -6381,13 +6230,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -6448,10 +6298,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -6513,29 +6362,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -6622,13 +6448,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -6689,10 +6516,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -6754,29 +6580,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -6863,13 +6666,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -6930,10 +6734,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -6995,29 +6798,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -7104,13 +6884,14 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
     "analytics": [],
     "environments": [
       "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
     ],
     "limiterCharges": {
       "api": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 1,
+      "hasPairedAddressPermission": 0,
       "hasPermission": 1,
     },
     "outcome": {
@@ -7171,10 +6952,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -7236,29 +7016,6 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
           },
         },
       },
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 1,
-      "hasPairedAddressPermission": 1,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: The active address format has no paired Legacy/SegWit format",
     },
   },
 ]
@@ -7847,10 +7604,9 @@ exports[`provider dispatch characterization > xcp_getBalances > empty params 1`]
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -7952,10 +7708,9 @@ exports[`provider dispatch characterization > xcp_getBalances > junk [[]] 1`] = 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -8057,10 +7812,9 @@ exports[`provider dispatch characterization > xcp_getBalances > junk [{}] 1`] = 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -8162,10 +7916,9 @@ exports[`provider dispatch characterization > xcp_getBalances > junk [1,2,3,4,5]
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -8267,10 +8020,9 @@ exports[`provider dispatch characterization > xcp_getBalances > junk [null] 1`] 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -8372,10 +8124,9 @@ exports[`provider dispatch characterization > xcp_getBalances > junk 10k-char st
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -8545,10 +8296,9 @@ exports[`provider dispatch characterization > xcp_getBalances > params omitted 1
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -8684,10 +8434,9 @@ exports[`provider dispatch characterization > xcp_getBalances > wrong type: { he
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -8789,10 +8538,9 @@ exports[`provider dispatch characterization > xcp_getBalances > wrong type: bool
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -8894,10 +8642,9 @@ exports[`provider dispatch characterization > xcp_getBalances > wrong type: numb
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -8999,10 +8746,9 @@ exports[`provider dispatch characterization > xcp_getBalances > wrong type: obje
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -12149,7 +11895,6 @@ issued:1767225600",
   },
   {
     "actions": {
-      "requestPairedAddressPermission": 1,
       "signMessage": 1,
     },
     "analytics": [],
@@ -13720,10 +13465,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > SINGLE witho
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -13756,10 +13500,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > bad header: 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -13792,10 +13535,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > bad header: 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -13890,10 +13632,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > bitcoin paym
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -14060,10 +13801,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > bitcoin paym
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -14096,10 +13836,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > duplicate in
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -14132,10 +13871,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > embedded NON
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -14273,10 +14011,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > hex not hex 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -14309,10 +14046,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > input index 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -14345,10 +14081,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > inscription:
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -14556,10 +14291,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > marketplace:
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must use xcp-wallet/bitcoin-payment version 1",
       },
-      "thrown": "Error: intent must use xcp-wallet/bitcoin-payment version 1",
     },
   },
 ]
@@ -14592,10 +14326,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > marketplace:
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must use xcp-wallet/bitcoin-payment version 1",
       },
-      "thrown": "Error: intent must use xcp-wallet/bitcoin-payment version 1",
     },
   },
 ]
@@ -14628,10 +14361,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > marketplace:
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must use xcp-wallet/bitcoin-payment version 1",
       },
-      "thrown": "Error: intent must use xcp-wallet/bitcoin-payment version 1",
     },
   },
 ]
@@ -14664,10 +14396,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > missing sigh
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -14700,10 +14431,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > more sighash
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -14736,10 +14466,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > multi-fault:
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -14772,10 +14501,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > multi-fault:
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -14808,10 +14536,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > multi-fault:
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must use xcp-wallet/bitcoin-payment version 1",
       },
-      "thrown": "Error: intent must use xcp-wallet/bitcoin-payment version 1",
     },
   },
 ]
@@ -14912,10 +14639,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > paired: lega
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -14948,10 +14674,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > paired: lega
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15019,10 +14744,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > reveal + ins
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15055,10 +14779,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > reveal: odd-
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15091,10 +14814,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > sighashTypes
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15127,10 +14849,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > signInputs i
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15163,10 +14884,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > signInputs n
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15199,10 +14919,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > stranger add
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15235,10 +14954,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > unfunded inp
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15271,10 +14989,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > unowned inpu
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15341,10 +15058,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > unsupported 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15377,10 +15093,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > valid: SegWi
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15413,10 +15128,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > valid: SegWi
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15449,10 +15163,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > valid: Tapro
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15485,10 +15198,9 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > valid: Tapro
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "intent must be an object",
       },
-      "thrown": "Error: intent must be an object",
     },
   },
 ]
@@ -15999,10 +15711,9 @@ exports[`provider dispatch characterization > xcp_signMessage > junk 10k-char st
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -16166,10 +15877,9 @@ exports[`provider dispatch characterization > xcp_signMessage > paired: legacy s
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -16264,10 +15974,9 @@ exports[`provider dispatch characterization > xcp_signMessage > paired: message 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -16470,10 +16179,9 @@ exports[`provider dispatch characterization > xcp_signMessage > stranger signer 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -16618,10 +16326,9 @@ exports[`provider dispatch characterization > xcp_signMessage > valid: message +
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -16732,10 +16439,9 @@ exports[`provider dispatch characterization > xcp_signMessage > valid: message +
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -16861,10 +16567,9 @@ exports[`provider dispatch characterization > xcp_signMessage > valid: message o
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -17056,10 +16761,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > SINGLE without a pa
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "SIGHASH_SINGLE requires an output at the same index",
       },
-      "thrown": "Error: SIGHASH_SINGLE requires an output at the same index",
     },
   },
   {
@@ -17080,10 +16784,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > SINGLE without a pa
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -17135,10 +16838,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > bad header: PSBT ma
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "PSBT could not be parsed",
       },
-      "thrown": "ValidationError: Failed to parse PSBT: Reader(magic): TypeError: The encoded data was not valid for encoding utf-8",
     },
   },
   {
@@ -17159,10 +16861,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > bad header: PSBT ma
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -17214,10 +16915,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > bad header: magic t
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "PSBT could not be parsed",
       },
-      "thrown": "ValidationError: Failed to parse PSBT: Reader(global): PSBTv0: missing unsignedTx",
     },
   },
   {
@@ -17238,10 +16938,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > bad header: magic t
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -17274,10 +16973,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > bitcoin payment: le
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "marketplace intent must use counterparty-marketplace version 1",
       },
-      "thrown": "Error: marketplace intent must use counterparty-marketplace version 1",
     },
   },
 ]
@@ -17310,10 +17008,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > bitcoin payment: se
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "marketplace intent must use counterparty-marketplace version 1",
       },
-      "thrown": "Error: marketplace intent must use counterparty-marketplace version 1",
     },
   },
 ]
@@ -17365,10 +17062,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > duplicate input ind
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "PSBT signing request must select at least one input, with valid non-duplicate selections",
       },
-      "thrown": "Error: PSBT signing request must select at least one input, with valid non-duplicate selections",
     },
   },
   {
@@ -17389,10 +17085,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > duplicate input ind
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -17444,10 +17139,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > embedded NONE sigha
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "Input 0 uses an unsupported sighash type",
       },
-      "thrown": "Error: Input 0 uses an unsupported sighash type",
     },
   },
   {
@@ -17468,10 +17162,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > embedded NONE sigha
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -17628,10 +17321,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > hex not hex 1`] = `
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "PSBT could not be parsed",
       },
-      "thrown": "ValidationError: Failed to parse PSBT: PSBT must be in hex or base64 format",
     },
   },
   {
@@ -17652,10 +17344,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > hex not hex 1`] = `
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -17707,10 +17398,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > input index out of 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "PSBT signing request must select at least one input, with valid non-duplicate selections",
       },
-      "thrown": "Error: PSBT signing request must select at least one input, with valid non-duplicate selections",
     },
   },
   {
@@ -17731,10 +17421,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > input index out of 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -18019,10 +17708,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > marketplace: exact-
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -18090,10 +17778,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > marketplace: malfor
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "marketplace intent must use counterparty-marketplace version 1",
       },
-      "thrown": "Error: marketplace intent must use counterparty-marketplace version 1",
     },
   },
 ]
@@ -18189,10 +17876,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > missing sighash ent
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -18267,10 +17953,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > more sighash entrie
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -18401,10 +18086,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > multi-fault: unfund
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -18479,10 +18163,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > multi-fault: v3 hea
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -18645,10 +18328,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > paired: legacy [0] 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -18792,10 +18474,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > paired: legacy sibl
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -19146,10 +18827,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > stranger address in
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -19245,10 +18925,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > unfunded input (no 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -19344,10 +19023,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > unowned input: acti
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -19535,10 +19213,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > valid: SegWit PSBT,
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -19632,10 +19309,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > valid: SegWit PSBT,
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "The PSBT has no inputs belonging to the active address",
       },
-      "thrown": "Error: The PSBT has no inputs belonging to the active address",
     },
   },
   {
@@ -19656,10 +19332,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > valid: SegWit PSBT,
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -19709,10 +19384,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > valid: Taproot PSBT
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "The active wallet cannot sign input 0 with sighash 0x0",
       },
-      "thrown": "Error: The active wallet cannot sign input 0 with sighash 0x0",
     },
   },
   {
@@ -19779,10 +19453,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > valid: Taproot PSBT
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -19832,10 +19505,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > valid: Taproot PSBT
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "The PSBT has no inputs belonging to the active address",
       },
-      "thrown": "Error: The PSBT has no inputs belonging to the active address",
     },
   },
   {
@@ -19900,10 +19572,9 @@ exports[`provider dispatch characterization > xcp_signPsbt > valid: Taproot PSBT
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -20139,10 +19810,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > active segwit sign
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -20192,10 +19862,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > bad header: junk P
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "PSBT bundle request 0: PSBT could not be parsed",
       },
-      "thrown": "ValidationError: Failed to parse PSBT: Reader(global): PSBTv0: missing unsignedTx",
     },
   },
   {
@@ -20216,10 +19885,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > bad header: junk P
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "PSBT bundle request 0: PSBT could not be parsed",
       },
-      "thrown": "ValidationError: Failed to parse PSBT: Reader(global): PSBTv0: missing unsignedTx",
     },
   },
   {
@@ -20240,10 +19908,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > bad header: junk P
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -20339,10 +20006,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > bad header: v3 par
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -20410,10 +20076,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > fan-out: 9 request
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "marketplace batch must contain 1..8 requests",
       },
-      "thrown": "Error: marketplace batch must contain 1..8 requests",
     },
   },
 ]
@@ -20684,10 +20349,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > multi-fault: v3 pa
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -20921,10 +20585,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > policy offer: 9 al
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -21062,10 +20725,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > request without in
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "marketplace intent must be an object",
       },
-      "thrown": "Error: marketplace intent must be an object",
     },
   },
 ]
@@ -21266,10 +20928,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > unfunded parent 1`
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -21398,10 +21059,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > valid: bulk fan-ou
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -21546,10 +21206,9 @@ exports[`provider dispatch characterization > xcp_signPsbts > valid: exact accep
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
   {
@@ -22085,10 +21744,9 @@ exports[`provider dispatch characterization > xcp_signTransaction > junk 10k-cha
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -22212,10 +21870,9 @@ exports[`provider dispatch characterization > xcp_signTransaction > not hex 1`] 
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -22476,10 +22133,9 @@ exports[`provider dispatch characterization > xcp_signTransaction > valid: { hex
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -22603,10 +22259,9 @@ exports[`provider dispatch characterization > xcp_signTransaction > valid: raw h
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
@@ -22622,98 +22277,11 @@ exports[`provider dispatch characterization > xcp_signTransaction > wrong type: 
       "not connected · unlocked P2WPKH",
       "not connected · unlocked P2TR",
       "not connected · locked",
-    ],
-    "limiterCharges": {
-      "api": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 0,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": 4100,
-        "message": "Unauthorized - not connected to wallet",
-      },
-    },
-  },
-  {
-    "analytics": [],
-    "beginSignFlow": [
-      {
-        "address": "bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty",
-        "id": "sign-tx-<ts>-<rand>",
-        "kind": "sign-transaction",
-        "origin": "https://dapp.example",
-        "rawTxHex": 42,
-        "requestKey": "xcp_signTransaction:<sha256>",
-        "timestamp": "<now>",
-        "walletId": "wallet1",
-      },
-    ],
-    "environments": [
       "connected · unlocked P2WPKH",
-      "connected + paired grant · unlocked P2WPKH",
-    ],
-    "limiterCharges": {
-      "api": 1,
-      "signPopup": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 0,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: Invalid signing request",
-    },
-  },
-  {
-    "analytics": [],
-    "beginSignFlow": [
-      {
-        "address": "bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9",
-        "id": "sign-tx-<ts>-<rand>",
-        "kind": "sign-transaction",
-        "origin": "https://dapp.example",
-        "rawTxHex": 42,
-        "requestKey": "xcp_signTransaction:<sha256>",
-        "timestamp": "<now>",
-        "walletId": "wallet1",
-      },
-    ],
-    "environments": [
       "connected · unlocked P2TR",
-      "connected + paired grant · unlocked P2TR",
-    ],
-    "limiterCharges": {
-      "api": 1,
-      "signPopup": 1,
-    },
-    "lookups": {
-      "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 0,
-      "hasPermission": 1,
-    },
-    "outcome": {
-      "error": {
-        "code": -32603,
-        "message": "Request failed",
-      },
-      "thrown": "Error: Invalid signing request",
-    },
-  },
-  {
-    "analytics": [
-      "provider_error",
-    ],
-    "environments": [
       "connected · locked",
+      "connected + paired grant · unlocked P2WPKH",
+      "connected + paired grant · unlocked P2TR",
       "connected + paired grant · locked",
     ],
     "limiterCharges": {
@@ -22722,14 +22290,13 @@ exports[`provider dispatch characterization > xcp_signTransaction > wrong type: 
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 1,
+      "hasPermission": 0,
     },
     "outcome": {
       "error": {
-        "code": -32603,
-        "message": "Request failed",
+        "code": -32602,
+        "message": "Transaction hex must be a string",
       },
-      "thrown": "Error: No active address",
     },
   },
 ]
