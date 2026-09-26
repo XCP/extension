@@ -14,7 +14,7 @@ import {
   consolidateBareMultisigBatch,
 } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
-import { registerSessionExpiredHandler } from '@/platform/auth/sessionManager';
+import { registerSessionExpiredHandler, setLastActiveTime } from '@/platform/auth/sessionManager';
 import { defineProxyService } from '@/platform/proxy';
 import { walletManager } from '@/platform/walletManager';
 import { MessageBus } from '@/services/core/MessageBus';
@@ -83,7 +83,8 @@ export interface WalletService {
   signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
   getLastActiveAddress: () => Promise<string | undefined>;
   setLastActiveAddress: (address: string) => Promise<void>;
-  setLastActiveTime: () => Promise<void>;
+  /** Record user activity; `activityTime` is when it happened, for activity the UI reports late. */
+  setLastActiveTime: (activityTime?: number) => Promise<void>;
   consolidateBareMultisig: (
     sourceAddress: string,
     batchData: ConsolidationData,
@@ -160,13 +161,13 @@ function createWalletService(): WalletService {
       // The connected sites live in the keychain's settings, which locking discards; read them first.
       const connected = [...walletManager.getSettings().connectedWebsites];
       await walletManager.lockKeychain();
-      // Notify popup of keychain lock event (if it's open)
-      try {
-        await MessageBus.notifyKeychainLocked(true);
-      } catch (error) {
-        // Popup might not be open, which is fine
+      // Tell an open popup, without waiting on it. webext-bridge holds a message for 'popup' until
+      // one connects, so awaiting this stalled every lock (and so every cold start that locked) for
+      // its ~5s timeout when no popup was open. The UI does not depend on it arriving: it also
+      // watches the master key's removal from session storage.
+      void MessageBus.notifyKeychainLocked(true).catch((error: unknown) => {
         console.debug('[WalletService] Could not notify popup of keychain lock event:', error);
-      }
+      });
       // Tell connected dApps the accounts are gone — per-origin, and without a
       // terminal disconnect, so unlock can restore them via accountsChanged.
       emitAccountsChangedToConnected([], connected);
@@ -247,7 +248,12 @@ function createWalletService(): WalletService {
       // Don't emit accountsChanged here - it's handled in wallet-context
       // which emits to all connected sites
     },
-    setLastActiveTime: async () => await walletManager.setLastActiveTime(),
+    setLastActiveTime: async (activityTime) => {
+      if (activityTime !== undefined && (typeof activityTime !== 'number' || !Number.isFinite(activityTime))) {
+        throw new Error('Invalid activity time');
+      }
+      await setLastActiveTime(activityTime);
+    },
     emitProviderEvent: async (origin, event, data) => {
       if (typeof origin !== 'string' || event !== 'accountsChanged' ||
           !Array.isArray(data) || !data.every(address => typeof address === 'string')) {

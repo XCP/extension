@@ -115,6 +115,23 @@ export default function AssetDispensersPage(): ReactElement {
 
   // Debounce timer ref for saving preference
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The unit waiting to be saved, and the one stored. A save re-encrypts the whole keychain, so a
+  // toggle that ends where it started saves nothing.
+  const pendingUnitRef = useRef<PriceUnit | null>(null);
+  const savedUnitRef = useRef<PriceUnit>(settings.priceUnit);
+  useEffect(() => { savedUnitRef.current = settings.priceUnit; }, [settings.priceUnit]);
+  const savePriceUnit = useCallback(() => {
+    saveTimeoutRef.current = null;
+    const unit = pendingUnitRef.current;
+    pendingUnitRef.current = null;
+    if (unit === null || unit === savedUnitRef.current) return;
+    savedUnitRef.current = unit;
+    // A call, not a bare `console.error` reference: the production build drops console calls
+    // (wxt.config dropConsole) but cannot strip a reference, so the reference shipped.
+    updateSettings({ priceUnit: unit }).catch((error) => {
+      console.error('Failed to save price unit:', error);
+    });
+  }, [updateSettings]);
   // Track last refresh time to prevent spam
   const lastRefreshRef = useRef<number>(0);
 
@@ -124,26 +141,22 @@ export default function AssetDispensersPage(): ReactElement {
     setPriceUnit(nextUnit);
 
     // Debounce saving to settings
+    pendingUnitRef.current = nextUnit;
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    saveTimeoutRef.current = setTimeout(() => {
-      // A call, not a bare `console.error` reference: the production build drops console calls
-      // (wxt.config dropConsole) but cannot strip a reference, so the reference shipped.
-      updateSettings({ priceUnit: nextUnit }).catch((error) => {
-        console.error('Failed to save price unit:', error);
-      });
-    }, DEBOUNCE_MS);
-  }, [priceUnit, btcPrice, updateSettings]);
+    saveTimeoutRef.current = setTimeout(savePriceUnit, DEBOUNCE_MS);
+  }, [priceUnit, btcPrice, savePriceUnit]);
 
-  // Cleanup debounce timer on unmount
+  // On unmount, save a toggle still inside its debounce rather than dropping it
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+        savePriceUnit();
       }
     };
-  }, []);
+  }, [savePriceUnit]);
 
   const { refresh: refreshInfo } = infoPage;
   const { refresh: refreshDispensers } = dispenserPage;

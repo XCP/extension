@@ -368,17 +368,26 @@ export async function getKeychainMasterKey(): Promise<CryptoKey | null> {
  * Updates the last active time to mark user activity.
  * Also updates the persisted session metadata and reschedules the expiry alarm.
  *
+ * `activityTime` is when the activity happened, for a caller that reports it late: the popup
+ * batches its reports (at most one per 30 seconds) and sends the time of the last activity in the
+ * batch, so the deadline is the configured idle timeout after the user really stopped, not after
+ * the report arrived. It can only ever move the deadline back to a moment that has passed: a time
+ * in the future is clamped to now, and one older than the recorded activity changes nothing.
+ * Omitted, it is now.
+ *
  * Serialized with timeout changes and lock cleanup. An activity write already in progress when
  * locking starts is followed by cleanup; a queued one is discarded by the generation check.
  */
-export async function setLastActiveTime(): Promise<void> {
+export async function setLastActiveTime(activityTime?: number): Promise<void> {
   const generation = sessionGeneration;
-  lastActiveTime = Date.now();
-  const activityTime = lastActiveTime;
+  const now = Date.now();
+  const at = activityTime !== undefined && Number.isFinite(activityTime) ? Math.min(activityTime, now) : now;
+  lastActiveTime = Math.max(lastActiveTime, at);
   await withSessionWriteLock(async () => {
     const metadata = await getSessionMetadata();
     if (!metadata || generation !== sessionGeneration || sessionInvalidated || metadataExpired(metadata)) return;
-    metadata.lastActiveTime = Math.max(metadata.lastActiveTime, activityTime);
+    if (at < metadata.lastActiveTime) return; // older than what is recorded: changes nothing
+    metadata.lastActiveTime = at;
     await persistSessionMetadata(metadata);
     if (generation !== sessionGeneration || sessionInvalidated) return;
     await scheduleSessionExpiry(sessionDeadline(metadata) - Date.now());

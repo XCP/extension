@@ -63,19 +63,9 @@ const mockSessionStorage = {
   set: vi.fn(),
 };
 
-// Helper to reset BaseService static state for test isolation
-function resetBaseServiceStatics(): void {
-  // Access private static members for test reset
-  (BaseService as any).alarmHandlers?.clear?.();
-  (BaseService as any).listenerRegistered = false;
-}
-
 // Setup global mocks
 beforeEach(() => {
   vi.clearAllMocks();
-
-  // Reset static state between tests
-  resetBaseServiceStatics();
 
   global.chrome = {
     storage: {
@@ -201,7 +191,7 @@ describe('BaseService', () => {
   });
 
   describe('state persistence', () => {
-    it('should persist state periodically', async () => {
+    it('saves state when a service asks', async () => {
       await testService.initialize();
       testService.setTestValue(456);
       
@@ -230,61 +220,28 @@ describe('BaseService', () => {
       mockSessionStorage.set.mockResolvedValue(undefined);
     });
 
-    it('persists state without repeatedly waking an idle worker', async () => {
+    it('never schedules an alarm, so an idle worker is left asleep', async () => {
       await testService.initialize();
-      
-      expect(chrome.alarms.create).toHaveBeenCalledWith(
-        'TestService-persist',
-        { periodInMinutes: 5 }
-      );
-      expect(chrome.alarms.create).toHaveBeenCalledTimes(1);
+
+      expect(chrome.alarms.create).not.toHaveBeenCalled();
+      expect(chrome.alarms.onAlarm.addListener).not.toHaveBeenCalled();
+    });
+
+    it('clears the periodic alarms earlier versions left behind', async () => {
+      await testService.initialize();
+
+      expect(chrome.alarms.clear).toHaveBeenCalledWith('TestService-persist');
       expect(chrome.alarms.clear).toHaveBeenCalledWith('TestService-keepalive');
     });
 
-    it('should handle alarm events', async () => {
+    it('still saves state on destroy', async () => {
       await testService.initialize();
+      testService.setTestValue(7);
+      await testService.destroy();
 
-      // Verify addListener was called (static, happens once)
-      expect(chrome.alarms.onAlarm.addListener).toHaveBeenCalled();
-
-      // Get the alarm listener from the static registration
-      const addListenerCalls = vi.mocked(chrome.alarms.onAlarm.addListener).mock.calls;
-      expect(addListenerCalls.length).toBeGreaterThan(0);
-      const alarmListener = addListenerCalls[addListenerCalls.length - 1]![0];
-
-      // Simulate alarm event for this service
-      const alarm = {
-        name: 'TestService-persist',
-        scheduledTime: Date.now(),
-        periodInMinutes: 0.4,
-        persistAcrossSessions: false,
-      };
-      const writesBefore = mockSessionStorage.set.mock.calls.length;
-      alarmListener(alarm);
-      await vi.waitFor(() => expect(mockSessionStorage.set.mock.calls.length).toBeGreaterThan(writesBefore));
-    });
-
-    it('should ignore alarm events for other services', async () => {
-      await testService.initialize();
-
-      const initialStorageCalls = vi.mocked(mockLocalStorage.get).mock.calls.length;
-
-      // Get the alarm listener from the static registration
-      const addListenerCalls = vi.mocked(chrome.alarms.onAlarm.addListener).mock.calls;
-      expect(addListenerCalls.length).toBeGreaterThan(0);
-      const alarmListener = addListenerCalls[addListenerCalls.length - 1]![0];
-
-      // Simulate alarm event for different service
-      const alarm = {
-        name: 'OtherService-keepalive',
-        scheduledTime: Date.now(),
-        periodInMinutes: 0.4,
-        persistAcrossSessions: false,
-      };
-      alarmListener(alarm);
-
-      // Should not trigger additional storage calls
-      expect(mockLocalStorage.get).toHaveBeenCalledTimes(initialStorageCalls);
+      expect(mockSessionStorage.set).toHaveBeenCalledWith({
+        'TestService_state': expect.objectContaining({ data: { testData: { value: 7 } } }),
+      });
     });
   });
 

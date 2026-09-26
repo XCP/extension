@@ -3,7 +3,6 @@
  *
  * Services can persist state to survive service worker restarts.
  * State is stored in session storage (cleared on browser close).
- * Keep-alive pings use local storage.
  */
 
 interface ServiceStateRecord {
@@ -94,22 +93,5 @@ export async function setServiceState(
   } catch (err) {
     console.error(`Failed to save state for ${serviceName}:`, err);
     throw new Error('Failed to save service state');
-  }
-}
-
-/**
- * Performs a keep-alive ping for a service.
- * This prevents service worker termination by accessing storage.
- */
-export async function serviceKeepAlive(serviceName: string): Promise<void> {
-  if (!chrome?.storage?.local) {
-    return;
-  }
-
-  try {
-    await chrome.storage.local.get(`${serviceName}-keepalive`);
-  } catch (err) {
-    // Keep-alive failures are non-critical, just log
-    console.warn(`Keep-alive ping failed for ${serviceName}:`, err);
   }
 }

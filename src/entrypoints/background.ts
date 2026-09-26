@@ -2,8 +2,9 @@
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 import { checkSessionRecovery, expireSessionIfNeeded, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { markSessionRecovery } from '@/platform/auth/sessionReady';
-import { broadcastToTabs } from '@/platform/browser';
-import { registerApprovalService } from '@/services/approvalService';
+import { deliverProviderEvent, wereAccountsAnnounced } from '@/platform/browser';
+import { getCachedKeychainMasterKey } from '@/platform/storage/keyStorage';
+import { getApprovalService, registerApprovalService } from '@/services/approvalService';
 import { getConnectionService, registerConnectionService } from '@/services/connectionService';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { getReadinessState, markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
@@ -13,14 +14,6 @@ import { getProviderService, registerProviderService } from '@/services/provider
 import { registerProviderSigningService } from '@/services/providerSigningService';
 import { getUpdateService } from '@/services/updateService';
 import { getWalletService, registerWalletService } from '@/services/walletService';
-
-// Track which tabs have content scripts ready
-const readyTabs = new Set<number>();
-
-// Export for use in browser.ts
-export function isTabReady(tabId: number): boolean {
-  return readyTabs.has(tabId);
-}
 
 export default defineBackground(() => {
   /**
@@ -51,21 +44,13 @@ export default defineBackground(() => {
       return false;
     }
 
-    // 3. Track content script readiness (internal signal, no response needed)
-    //    Content scripts have sender.tab set
-    if (message && message.__xcp_cs_ready && sender.tab?.id) {
-      readyTabs.add(sender.tab.id);
-      console.log(`[Background] Content script ready on tab ${sender.tab.id}:`, message.tabUrl);
-      return false; // Don't respond - this is just a signal
-    }
-
-    // 4. Debug logging in development only
+    // 3. Debug logging in development only
     if (process.env.NODE_ENV === 'development') {
       const messageType = message?.type || message?.action || (message?.serviceName ? `${message.serviceName}.${message.methodName}` : 'unknown');
       console.log('[Background] Received message:', messageType, 'from:', sender.tab?.url || sender.url || 'extension');
     }
 
-    // 5. Handle ping requests immediately (allowed from content scripts and extension pages)
+    // 4. Handle ping requests immediately (allowed from content scripts and extension pages)
     if (message?.action === 'ping' || message?.type === 'startup-health-check') {
       sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
       return true;
@@ -101,29 +86,9 @@ export default defineBackground(() => {
     });
   });
 
-  console.log('[Background] Core message listener registered');
-
-  // Track tab lifecycle - remove from ready set when tabs navigate or close
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status === 'loading') {
-      // Tab is navigating, content script will reload
-      readyTabs.delete(tabId);
-    }
-  });
-
-  chrome.tabs.onRemoved.addListener((tabId) => {
-    // Tab closed, remove from ready set
-    readyTabs.delete(tabId);
-  });
-
-  // Clear ready tabs on extension install/update
-  chrome.runtime.onInstalled.addListener(() => {
-    readyTabs.clear();
-    console.log('[Background] Extension installed/updated - cleared ready tabs');
-  });
-
-  // Note: Port connection handling is consolidated in the early onConnect handler above
-  // to prevent duplicate listeners being added per port
+  // No tab listeners here on purpose: every one of them wakes this worker on every page load in
+  // the browser. Which tabs a provider event concerns is learned from provider ports instead
+  // (see platform/browser.ts).
 
   console.log('[Background] Core listeners registered');
 
@@ -149,8 +114,21 @@ export default defineBackground(() => {
       await serviceRegistry.register(eventEmitterService);
       console.log('[Background] EventEmitterService initialized');
 
-      // 3. Initialize update service
-      await getUpdateService().initialize();
+      // 2b. Initialize the approval and connection services. Registering a proxy only answers
+      //     calls; initializing is what resumes an approval left pending by the previous worker
+      //     and installs the handler that completes a connect approval nobody is waiting on any
+      //     more. Approval first: the connection service registers its handler on it.
+      //     Deliberately not in the registry, whose onSuspend teardown would reject the very
+      //     approval this exists to carry across a restart.
+      await getApprovalService().initialize();
+      await getConnectionService().initialize();
+      console.log('[Background] ApprovalService and ConnectionService initialized');
+
+      // 3. Initialize update service. An update never reloads the extension out from under an
+      //    approval waiting on the user.
+      const updateService = getUpdateService();
+      updateService.addBusyCheck(() => getApprovalService().hasPendingApproval());
+      await updateService.initialize();
       console.log('[Background] UpdateService initialized');
 
       // 4. Initialize popup monitor service
@@ -162,9 +140,15 @@ export default defineBackground(() => {
       const recoveryState = await checkSessionRecovery();
       markSessionRecovery(recoveryState);
       if (recoveryState === SessionRecoveryState.LOCKED) {
-        const walletService = getWalletService();
-        await walletService.lockKeychain();
-        console.log('[Background] Wallets locked due to session recovery state');
+        // A fresh worker holds no decrypted state, and recovery has already cleared an expired
+        // session. The one thing a wake can still find is a master key left without its session
+        // (a crash between the two removals); only then is there anything to lock. Locking an
+        // already-locked wallet on every wake cost a storage round trip each time and, while the
+        // popup notification was awaited, held every waiting dApp request for ~5s.
+        if (await getCachedKeychainMasterKey()) {
+          await getWalletService().lockKeychain();
+          console.log('[Background] Wallets locked due to session recovery state');
+        }
       } else if (recoveryState === SessionRecoveryState.NEEDS_REAUTH) {
         console.log('[Background] Session valid; wallet secrets will be re-derived from the session master key');
       }
@@ -206,6 +190,9 @@ export default defineBackground(() => {
    *
    * Deliberately last: the accounts are only true once recovery has decided whether this session
    * is still valid.
+   *
+   * Only origins whose pages were last told something else are sent anything: a wake that changes
+   * nothing, the usual kind, sends nothing.
    */
   async function announceReadinessToConnectedTabs(): Promise<void> {
     try {
@@ -219,14 +206,17 @@ export default defineBackground(() => {
       const activeAddress = await walletService.getActiveAddress();
       const accounts = activeAddress ? [activeAddress.address] : [];
 
+      let announced = 0;
       for (const { origin } of connections) {
+        if (await wereAccountsAnnounced(origin, accounts)) continue;
         eventEmitterService.emit('emit-provider-event', {
           origin,
           event: 'accountsChanged',
           data: accounts,
         });
+        announced++;
       }
-      console.log('[Background] Re-announced accounts to', connections.length, 'origin(s)');
+      if (announced > 0) console.log('[Background] Re-announced accounts to', announced, 'origin(s)');
     } catch (error) {
       // A page that misses this falls back to asking, which now answers correctly anyway.
       console.warn('[Background] Could not announce readiness:', error);
@@ -242,10 +232,6 @@ export default defineBackground(() => {
 
   // Initialize webext-bridge handlers at top level of defineBackground
   // This ensures they're registered when the service worker starts
-  webextBridgeOnMessage('webext-bridge-keep-alive', () => {
-    return { alive: true };
-  });
-
   webextBridgeOnMessage('startup-health-check', async () => {
     // Wait for services to be ready before reporting healthy
     if (!getReadinessState().ready) {
@@ -264,6 +250,9 @@ export default defineBackground(() => {
   
   // Session expiry is authoritative in persisted metadata; idle workers may suspend.
   const SESSION_EXPIRY_ALARM_NAME = 'session-expiry';
+  // Alarms outlive the version that created them, and a periodic one wakes the worker whether or
+  // not anything still listens for it. The per-service persist and update-check alarms are cleared
+  // by their owners as they initialize.
   chrome.alarms.clear('keep-alive').catch(error => console.warn('[Background] Could not clear legacy alarm:', error));
 
   // Consolidated alarm handler to avoid multiple listeners
@@ -279,21 +268,14 @@ export default defineBackground(() => {
 
 
   /**
-   * Deliver a provider event to the pages of one origin.
-   *
-   * It goes to every tab, tagged with the origin it is for, and the content script drops any event
-   * whose origin is not its own page's. The worker cannot pick the tabs itself: it holds neither
-   * the `tabs` permission nor host permissions for sites, so `tab.url` is empty and filtering on it
-   * silently dropped every event. The content script is the extension's own code in an isolated
-   * world, so a page of another origin never sees the event.
+   * Deliver a provider event to the pages of one origin: only to the tabs that origin's pages were
+   * seen using the provider from, never to every tab. The worker cannot read `tab.url` (it holds
+   * neither the `tabs` permission nor host permissions), so the tabs are the ones recorded from
+   * provider ports; the content script still drops any event not addressed to its own page.
    */
-  async function emitProviderEventToOrigin(origin: string, event: string, eventData: unknown): Promise<void> {
-    await broadcastToTabs({ type: 'PROVIDER_EVENT', origin, event, data: eventData });
-  }
-
   // Internal events have a typed contract; the emitter observes asynchronous delivery failures.
   eventEmitterService.on('emit-provider-event', async ({ origin, event, data }) => {
-    await emitProviderEventToOrigin(origin, event, data);
+    await deliverProviderEvent(origin, event, data);
   });
   
 

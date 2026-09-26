@@ -49,7 +49,7 @@ import * as updateService from '@/services/updateService';
 import * as approvalService from '../approvalService';
 import * as connectionService from '../connectionService';
 import { eventEmitterService } from '../eventEmitterService';
-import { createProviderService } from '../providerService';
+import { createProviderService, SIGN_FLOW_RECOVERY_POLL_MS } from '../providerService';
 import * as walletService from '../walletService';
 
 const VALID_PSBT_HEX = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa3008f14ff8f13fc840164715cbb2b925874190000000000ffffffff98f9e476f918cc143cf8a6bd09042d1f2ee7c46bfd29c906166613b2d9c516c90000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e75c12000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011f8813000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
@@ -2251,7 +2251,7 @@ describe('ProviderService', () => {
             await persistence;
             if (mode === 'live') {
               eventEmitterService.emit(`sign-message-complete-${id}`, { signature: 'event-payload-is-not-authoritative' });
-            } else if (mode === 'poll') await vi.advanceTimersByTimeAsync(1500);
+            } else if (mode === 'poll') await vi.advanceTimersByTimeAsync(SIGN_FLOW_RECOVERY_POLL_MS);
             const outcome = await delivery;
             if (state === 'connected') expect(outcome).toEqual({ ok: true, value: storedResult.signature });
             else expect(outcome).toMatchObject({ ok: false, error: expect.any(Error) });
@@ -2286,6 +2286,23 @@ describe('ProviderService', () => {
           expect(await signFlow.getSignFlow('completed-recovery')).toMatchObject({ status: 'completed' });
         } else await expect(call).rejects.toThrow();
         expect(wallet.signMessage).not.toHaveBeenCalled();
+      });
+
+      it('re-reads the stored outcome of a waiting request at most every few seconds', async () => {
+        vi.useFakeTimers();
+        try {
+          vi.mocked(connectionService.getConnectionService)().hasPermission = vi.fn().mockResolvedValue(true);
+          const reads = vi.spyOn(signFlow.signFlowStorage, 'get');
+          providerService.handleRequest('https://test.com', 'xcp_signPsbt', [{ hex: VALID_PSBT_HEX }]).catch(() => {});
+          await vi.waitFor(() => expect(updateService.getUpdateService().registerCriticalOperation).toHaveBeenCalled());
+          reads.mockClear();
+          await vi.advanceTimersByTimeAsync(60_000);
+          // Was one read every 1.5s: 40 a minute for as long as the popup stayed open.
+          expect(reads.mock.calls.length).toBeGreaterThan(0);
+          expect(reads.mock.calls.length).toBeLessThanOrEqual(60_000 / SIGN_FLOW_RECOVERY_POLL_MS);
+        } finally {
+          vi.useRealTimers();
+        }
       });
 
       it('should register critical operations during signing', async () => {

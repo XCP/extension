@@ -9,7 +9,6 @@ import { FaCog, LuArrowDownUp } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { useSettings } from "@/contexts/settings-context";
 import { parseAmountDraft } from "@/core/amount-contract/amounts";
 import type { PoolQuote } from "@/core/counterparty/api";
 import type { OrderOptions } from "@/core/counterparty/compose";
@@ -32,6 +31,7 @@ import { usePoolSwapQuote } from "@/hooks/usePoolQuotes";
 import { t } from '@/i18n';
 import { isValidSlippageDraft } from "@/pages/compose/pool/slippage-draft";
 import { SlippageInput } from "@/pages/compose/pool/slippage-input";
+import { useSlippageDefaultSaver } from "@/pages/compose/pool/use-slippage-default";
 
 interface SwapFormProps {
   formAction: (formData: FormData) => void;
@@ -112,7 +112,7 @@ export function SwapForm({
   initialGetAsset,
 }: SwapFormProps): ReactElement {
   const { activeAddress, activeWallet, showHelpText, feeRate, setFeeRate, settings } = useComposer<OrderOptions>();
-  const { updateSettings } = useSettings();
+  const saveSlippageDefault = useSlippageDefaultSaver();
   const { pending } = useFormStatus();
 
   // ---- Form state (restored from initialFormData when returning from review) ----
@@ -267,12 +267,12 @@ export function SwapForm({
     setGetAsset(asset);
   };
 
-  // Edits apply to this swap immediately and persist as the user's default,
+  // Edits apply to this swap immediately and persist as the user's default once editing pauses,
   // same as the pool deposit/withdraw settings panel.
   const handleSlippageChange = (next: string) => {
     setSlippageSetting(next);
     if (next === POOL_SLIPPAGE_AUTO || isValidSlippageDraft(next)) {
-      void updateSettings({ defaultPoolSlippage: next });
+      saveSlippageDefault(next);
     }
   };
 

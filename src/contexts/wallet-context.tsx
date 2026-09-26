@@ -154,8 +154,8 @@ interface WalletContextType {
   // ─── Wallet Selection ──────────────────────────────────────────────────────
   /** Set the active address within the current wallet */
   setActiveAddress: (address: Address | null) => Promise<void>;
-  /** Update last activity timestamp (for auto-lock) */
-  setLastActiveTime: () => Promise<void>;
+  /** Update last activity timestamp (for auto-lock); `activityTime` is when it happened, if earlier */
+  setLastActiveTime: (activityTime?: number) => Promise<void>;
   /** Check if keychain is currently locked */
   isKeychainLocked: () => Promise<boolean>;
 
@@ -539,8 +539,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     [emitAccountsChanged, walletService]
   );
 
-  const setLastActiveTime = useCallback(async () => {
-    await walletService.setLastActiveTime();
+  const setLastActiveTime = useCallback(async (activityTime?: number) => {
+    await walletService.setLastActiveTime(activityTime);
   }, [walletService]);
 
   const setHardwareOperationInProgress = useCallback((inProgress: boolean) => {

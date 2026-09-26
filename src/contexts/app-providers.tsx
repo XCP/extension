@@ -5,7 +5,7 @@ import { HeaderProvider, useHeader } from '@/contexts/header-context';
 import { SettingsProvider, useSettings } from '@/contexts/settings-context';
 import { useWallet, WalletProvider } from '@/contexts/wallet-context';
 import { getAutoLockTimeoutMs } from '@/core/settings';
-import { useIdleTimer } from '@/hooks/useIdleTimer';
+import { type ActivityReporter, createActivityReporter, useIdleTimer } from '@/hooks/useIdleTimer';
 
 import { t } from '@/i18n';
 
@@ -71,19 +71,45 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
     }
   }, [authState, lockKeychain]);
 
+  // Activity reaches the background in batches (see createActivityReporter): the local idle timer
+  // below still resets on every event, and the background's deadline still follows the last one.
+  const reporterRef = useRef<ActivityReporter | null>(null);
+  useEffect(() => {
+    if (authState !== 'UNLOCKED') return;
+    const reporter = createActivityReporter((activityTime) => {
+      setLastActiveTime(activityTime).catch((error: unknown) => {
+        console.error('[IdleTimer] Failed to report activity:', error);
+      });
+    });
+    reporterRef.current = reporter;
+    // A popup closes without unmounting React; this is the last moment it reliably runs code.
+    const flushWhenHidden = () => {
+      if (document.visibilityState === 'hidden') reporter.flush();
+    };
+    document.addEventListener('visibilitychange', flushWhenHidden);
+    window.addEventListener('pagehide', reporter.flush);
+    return () => {
+      document.removeEventListener('visibilitychange', flushWhenHidden);
+      window.removeEventListener('pagehide', reporter.flush);
+      reporter.flush();
+      reporter.dispose();
+      if (reporterRef.current === reporter) reporterRef.current = null;
+    };
+  }, [authState, setLastActiveTime]);
+
   const handleAction = useCallback(() => {
     // Only update last active time if we're unlocked
     if (authState === 'UNLOCKED') {
-      setLastActiveTime();
+      reporterRef.current?.activity();
     }
-  }, [authState, setLastActiveTime]);
+  }, [authState]);
 
   const handleActive = useCallback(() => {
     // This only triggers when transitioning from idle back to active
     if (authState === 'UNLOCKED') {
-      setLastActiveTime();
+      reporterRef.current?.activity();
     }
-  }, [authState, setLastActiveTime]);
+  }, [authState]);
 
   // Compute timeout from timer setting
   const autoLockTimeout = settings?.autoLockTimer ? getAutoLockTimeoutMs(settings.autoLockTimer) : 0;

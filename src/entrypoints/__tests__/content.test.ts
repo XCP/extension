@@ -530,14 +530,36 @@ describe('Content Script', () => {
       expect(mockWindow.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ id: 2 }), expect.anything());
     });
 
-    it('tells the page its bridge is gone without waiting for a request', async () => {
+    it('tells a page that has used the provider that its bridge is gone, without waiting for its next request', async () => {
       vi.useFakeTimers();
       try {
         const contentScript = await import('../content');
         await contentScript.default.main(mockContext as any);
+        const messageListener = mockWindow.addEventListener.mock.calls.find(call => call[0] === 'message')?.[1];
+        mockProviderService.handleRequest.mockResolvedValueOnce([]);
+        await messageListener({
+          source: window, origin: mockWindow.location.origin,
+          data: { target: 'xcp-wallet-content', type: 'XCP_WALLET_REQUEST', id: 1, data: { method: 'xcp_accounts', params: [] } },
+        });
+        mockWindow.postMessage.mockClear();
         setContextValid(false);
         await vi.advanceTimersByTimeAsync(2_000);
         expect(mockWindow.postMessage).toHaveBeenCalledExactlyOnceWith(disconnectEvent, mockWindow.location.origin);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('runs no timer and sends nothing to the background in a page that never uses the provider', async () => {
+      vi.useFakeTimers();
+      try {
+        const contentScript = await import('../content');
+        await contentScript.default.main(mockContext as any);
+        expect(vi.getTimerCount()).toBe(0);
+        expect(fakeBrowser.runtime.sendMessage).not.toHaveBeenCalled();
+        setContextValid(false);
+        await vi.advanceTimersByTimeAsync(10_000);
+        expect(mockWindow.postMessage).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
       }
