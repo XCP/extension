@@ -1,7 +1,7 @@
 import { act, render, renderHook, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { type ReactNode, StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HeaderProvider } from '@/contexts/header-context';
+import { HeaderProvider, useHeader } from '@/contexts/header-context';
 import type { AssetInfo } from '@/core/counterparty/api';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { useAssetBalance } from '../useAssetBalance';
@@ -16,7 +16,10 @@ import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
  * being trusted, unrevalidated, for another.
  */
 
-vi.mock('../utils/fetchAssetData', () => ({ fetchAssetDetailsAndBalance: vi.fn() }));
+vi.mock('../utils/fetchAssetData', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../utils/fetchAssetData')>()),
+  fetchAssetDetailsAndBalance: vi.fn(),
+}));
 vi.mock('@/core/bitcoin/balance', () => ({ fetchBTCBalance: vi.fn() }));
 vi.mock('@/hooks/usePendingStatus', () => ({
   usePendingDeltas: () => ({ byAsset: new Map(), byUtxo: new Map() }),
@@ -143,6 +146,46 @@ describe('useAssetBalance and the shared balance cache', () => {
 
     await act(async () => { lateA.resolve({ isDivisible: true, assetInfo: info('XCP'), availableBalance: '100.00000000' }); });
     expect(result.current.balance).toBe('5.00000000');
+  });
+
+  it('settles under StrictMode, where effects run twice on mount', async () => {
+    const { result } = renderHook(() => useAssetBalance('XCP'), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <StrictMode><HeaderProvider>{children}</HeaderProvider></StrictMode>
+      ),
+    });
+
+    await waitFor(() => expect(result.current.balance).toBe('100.00000000'));
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('reads again after the app clears the balance cache (a broadcast)', async () => {
+    const { result } = renderHook(() => ({ balance: useAssetBalance('XCP'), header: useHeader() }), {
+      wrapper: ({ children }: { children: ReactNode }) => <HeaderProvider>{children}</HeaderProvider>,
+    });
+    await waitFor(() => expect(result.current.balance.balance).toBe('100.00000000'));
+    const calls = vi.mocked(fetchAssetDetailsAndBalance).mock.calls.length;
+
+    balances[ADDRESS_A] = '40.00000000';
+    act(() => { result.current.header.clearBalances(); });
+
+    await waitFor(() => expect(result.current.balance.balance).toBe('40.00000000'));
+    expect(vi.mocked(fetchAssetDetailsAndBalance).mock.calls.length).toBe(calls + 1);
+  });
+
+  it('refetches for a wallet switch that lands on the same address string', async () => {
+    const { result, rerender } = renderHook(() => useAssetBalance('XCP'), {
+      wrapper: ({ children }: { children: ReactNode }) => <HeaderProvider>{children}</HeaderProvider>,
+    });
+    await waitFor(() => expect(result.current.balance).toBe('100.00000000'));
+    const calls = vi.mocked(fetchAssetDetailsAndBalance).mock.calls.length;
+
+    wallet.current = { activeAddress: { address: ADDRESS_A }, activeWallet: { id: 'wallet-2' } };
+    rerender();
+
+    // Same address, so the cached figure is still that address's and stays on screen meanwhile.
+    expect(result.current.balance).toBe('100.00000000');
+    await waitFor(() => expect(vi.mocked(fetchAssetDetailsAndBalance).mock.calls.length).toBe(calls + 1));
   });
 });
 
