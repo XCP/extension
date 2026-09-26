@@ -1,8 +1,8 @@
 # Wallet architecture
 
 XCP Wallet uses WXT, React, and TypeScript. The background context owns decrypted wallet state
-and signing; popup and side-panel pages call explicit service methods. Chrome uses a service
-worker, while the current Firefox build uses a background page. Chrome may suspend idle workers.
+and signing; popup and side-panel pages call explicit service methods. The background is a
+Chrome MV3 service worker, which Chrome may suspend when idle.
 Session metadata and request records support recovery without relying on timers or in-memory
 promises surviving.
 
