@@ -1,15 +1,12 @@
 /**
  * Fuzz tests for session validation functions
- * Tests wallet ID, secret, timeout, and rate limiting validation
+ * Tests wallet ID, secret, timeout, and secret-count validation
  */
 
 import fc from 'fast-check';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  assertRateLimit,
   assertSecretLimit,
-  clearAllRateLimits,
-  clearRateLimit,
   MAX_SECRET_LENGTH,
   MAX_STORED_SECRETS,
   MAX_TIMEOUT_MS,
@@ -26,10 +23,6 @@ const hexCharArb = fc.constantFrom(...'0123456789abcdef'.split(''));
 const validWalletIdArb: fc.Arbitrary<string> = fc.array(hexCharArb, { minLength: 64, maxLength: 64 }).map(arr => arr.join(''));
 
 describe('Session Validation Fuzz Tests', () => {
-  beforeEach(() => {
-    clearAllRateLimits();
-  });
-
   describe('validateWalletId', () => {
     it('should accept valid SHA-256 wallet IDs', () => {
       fc.assert(
@@ -345,91 +338,6 @@ describe('Session Validation Fuzz Tests', () => {
         timeout: MIN_TIMEOUT_MS - 1,
       };
       expect(() => validateSessionMetadata(metadata)).toThrow();
-    });
-  });
-
-  describe('assertRateLimit', () => {
-    it('should allow operations within limit', () => {
-      const walletId = 'a'.repeat(64);
-
-      // Should allow up to MAX_OPERATIONS_PER_WINDOW
-      for (let i = 0; i < 10; i++) {
-        expect(() => assertRateLimit(walletId)).not.toThrow();
-      }
-    });
-
-    it('should reject operations exceeding limit', () => {
-      const walletId = 'b'.repeat(64);
-
-      // First 10 should succeed
-      for (let i = 0; i < 10; i++) {
-        assertRateLimit(walletId);
-      }
-
-      // 11th should fail
-      expect(() => assertRateLimit(walletId)).toThrow('Rate limit exceeded');
-    });
-
-    it('should track limits separately per wallet', () => {
-      fc.assert(
-        fc.property(
-          fc.array(validWalletIdArb, { minLength: 2, maxLength: 5 }),
-          (walletIds) => {
-            clearAllRateLimits();
-
-            // Each wallet should have its own limit
-            walletIds.forEach((walletId) => {
-              expect(() => assertRateLimit(walletId)).not.toThrow();
-            });
-          }
-        ),
-        { numRuns: 50 }
-      );
-    });
-
-    it('should handle rapid calls', () => {
-      const walletId = 'c'.repeat(64);
-
-      const start = performance.now();
-      for (let i = 0; i < 10; i++) {
-        assertRateLimit(walletId);
-      }
-      const elapsed = performance.now() - start;
-
-      expect(elapsed).toBeLessThan(100);
-    });
-  });
-
-  describe('clearRateLimit', () => {
-    it('should clear rate limit for specific wallet', () => {
-      const walletId = 'd'.repeat(64);
-
-      // Use up the limit
-      for (let i = 0; i < 10; i++) {
-        assertRateLimit(walletId);
-      }
-      expect(() => assertRateLimit(walletId)).toThrow();
-
-      // Clear and try again
-      clearRateLimit(walletId);
-      expect(() => assertRateLimit(walletId)).not.toThrow();
-    });
-
-    it('should not affect other wallets', () => {
-      const walletId1 = 'e'.repeat(64);
-      const walletId2 = 'f'.repeat(64);
-
-      // Use up limit for both
-      for (let i = 0; i < 10; i++) {
-        assertRateLimit(walletId1);
-        assertRateLimit(walletId2);
-      }
-
-      // Clear only first
-      clearRateLimit(walletId1);
-
-      expect(() => assertRateLimit(walletId1)).not.toThrow();
-      expect(() => assertRateLimit(walletId2)).toThrow();
     });
   });
 

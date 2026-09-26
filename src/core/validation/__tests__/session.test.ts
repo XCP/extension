@@ -1,16 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  assertRateLimit,
   assertSecretLimit,
-  clearAllRateLimits,
-  clearRateLimit,
-  MAX_OPERATIONS_PER_WINDOW, 
   MAX_SECRET_LENGTH,
   MAX_STORED_SECRETS,
   MAX_TIMEOUT_MS,
   MAX_WALLET_ID_LENGTH,
   MIN_TIMEOUT_MS,
-  RATE_LIMIT_WINDOW_MS,
   validateSecret,
   validateSessionMetadata,
   validateTimeout,
@@ -22,9 +17,6 @@ describe('Session Validation Utilities', () => {
   let mockDateNow: any;
 
   beforeEach(() => {
-    // Clear all rate limits before each test
-    clearAllRateLimits();
-
     // Mock Date.now for consistent time-based testing
     mockDateNow = vi.spyOn(Date, 'now');
     mockDateNow.mockReturnValue(1000000); // Fixed timestamp
@@ -32,7 +24,6 @@ describe('Session Validation Utilities', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    clearAllRateLimits();
   });
 
   describe('validateWalletId', () => {
@@ -371,200 +362,6 @@ describe('Session Validation Utilities', () => {
     });
   });
 
-  describe('assertRateLimit', () => {
-    const testWalletId = 'a'.repeat(64);
-
-    describe('normal rate limiting', () => {
-      it('should allow operations within limit', () => {
-        // Should allow up to MAX_OPERATIONS_PER_WINDOW operations
-        for (let i = 0; i < MAX_OPERATIONS_PER_WINDOW; i++) {
-          expect(() => assertRateLimit(testWalletId)).not.toThrow();
-        }
-      });
-
-      it('should block operations exceeding limit', () => {
-        // Fill up to the limit
-        for (let i = 0; i < MAX_OPERATIONS_PER_WINDOW; i++) {
-          assertRateLimit(testWalletId);
-        }
-
-        // The next operation should be blocked
-        expect(() => assertRateLimit(testWalletId)).toThrow('Rate limit exceeded for secret storage operations');
-      });
-
-      it('should track different wallets separately', () => {
-        const wallet1 = 'a'.repeat(64);
-        const wallet2 = 'b'.repeat(64);
-
-        // Fill up wallet1 to the limit
-        for (let i = 0; i < MAX_OPERATIONS_PER_WINDOW; i++) {
-          assertRateLimit(wallet1);
-        }
-
-        // wallet1 should be blocked
-        expect(() => assertRateLimit(wallet1)).toThrow('Rate limit exceeded');
-
-        // wallet2 should still work
-        expect(() => assertRateLimit(wallet2)).not.toThrow();
-      });
-    });
-
-    describe('time-based rate limiting', () => {
-      it('should reset rate limit after time window', () => {
-        // Fill up to the limit
-        for (let i = 0; i < MAX_OPERATIONS_PER_WINDOW; i++) {
-          assertRateLimit(testWalletId);
-        }
-
-        // Should be blocked
-        expect(() => assertRateLimit(testWalletId)).toThrow('Rate limit exceeded');
-
-        // Move time forward past the window
-        mockDateNow.mockReturnValue(1000000 + RATE_LIMIT_WINDOW_MS + 1);
-
-        // Should work again
-        expect(() => assertRateLimit(testWalletId)).not.toThrow();
-      });
-
-      it('should handle partial window expiry', () => {
-        const baseTime = 1000000;
-
-        // Add operations at different times
-        mockDateNow.mockReturnValue(baseTime);
-        for (let i = 0; i < 5; i++) {
-          assertRateLimit(testWalletId);
-        }
-
-        // Move time forward but not past the window
-        mockDateNow.mockReturnValue(baseTime + RATE_LIMIT_WINDOW_MS / 2);
-        for (let i = 0; i < 5; i++) {
-          assertRateLimit(testWalletId);
-        }
-
-        // Should be at limit now
-        expect(() => assertRateLimit(testWalletId)).toThrow('Rate limit exceeded');
-
-        // Move time forward to expire the first batch
-        mockDateNow.mockReturnValue(baseTime + RATE_LIMIT_WINDOW_MS + 1);
-
-        // Should allow 5 more operations (since first 5 expired)
-        for (let i = 0; i < 5; i++) {
-          expect(() => assertRateLimit(testWalletId)).not.toThrow();
-        }
-      });
-    });
-
-    describe('cleanup behavior', () => {
-      it('should trigger cleanup when map gets large', () => {
-        // Create many different wallet IDs to trigger cleanup
-        for (let i = 0; i < 1001; i++) {
-          const walletId = i.toString().padStart(64, '0');
-          assertRateLimit(walletId);
-        }
-
-        // The cleanup should have been triggered, but we can't easily test the internal state
-        // Just verify it doesn't crash
-        expect(() => assertRateLimit('test')).not.toThrow();
-      });
-    });
-
-    describe('security scenarios', () => {
-      it('should handle rapid successive calls', () => {
-        const startTime = 1000000;
-        mockDateNow.mockReturnValue(startTime);
-
-        // Rapid fire operations
-        for (let i = 0; i < MAX_OPERATIONS_PER_WINDOW; i++) {
-          mockDateNow.mockReturnValue(startTime + i); // Each operation 1ms apart
-          assertRateLimit(testWalletId);
-        }
-
-        expect(() => assertRateLimit(testWalletId)).toThrow('Rate limit exceeded');
-      });
-
-      it('should handle malicious wallet IDs in rate limiting', () => {
-        const maliciousIds = [
-          'malicious-injection-attempt' + 'a'.repeat(38),
-          '../../../attack' + 'a'.repeat(47),
-          '<script>alert(1)</script>' + 'a'.repeat(39)
-        ];
-
-        // These should be handled gracefully (though they would fail wallet ID validation elsewhere)
-        maliciousIds.forEach(id => {
-          expect(() => assertRateLimit(id)).not.toThrow();
-        });
-      });
-    });
-  });
-
-  describe('rate limit management', () => {
-    const testWalletId = 'a'.repeat(64);
-
-    describe('clearRateLimit', () => {
-      it('should clear rate limit for specific wallet', () => {
-        // Fill up to the limit
-        for (let i = 0; i < MAX_OPERATIONS_PER_WINDOW; i++) {
-          assertRateLimit(testWalletId);
-        }
-
-        // Should be blocked
-        expect(() => assertRateLimit(testWalletId)).toThrow('Rate limit exceeded');
-
-        // Clear the rate limit
-        clearRateLimit(testWalletId);
-
-        // Should work again
-        expect(() => assertRateLimit(testWalletId)).not.toThrow();
-      });
-
-      it('should not affect other wallets when clearing specific wallet', () => {
-        const wallet1 = 'a'.repeat(64);
-        const wallet2 = 'b'.repeat(64);
-
-        // Fill both wallets to limit
-        for (let i = 0; i < MAX_OPERATIONS_PER_WINDOW; i++) {
-          assertRateLimit(wallet1);
-          assertRateLimit(wallet2);
-        }
-
-        // Both should be blocked
-        expect(() => assertRateLimit(wallet1)).toThrow('Rate limit exceeded');
-        expect(() => assertRateLimit(wallet2)).toThrow('Rate limit exceeded');
-
-        // Clear only wallet1
-        clearRateLimit(wallet1);
-
-        // wallet1 should work, wallet2 should still be blocked
-        expect(() => assertRateLimit(wallet1)).not.toThrow();
-        expect(() => assertRateLimit(wallet2)).toThrow('Rate limit exceeded');
-      });
-    });
-
-    describe('clearAllRateLimits', () => {
-      it('should clear all rate limits', () => {
-        const wallet1 = 'a'.repeat(64);
-        const wallet2 = 'b'.repeat(64);
-
-        // Fill both wallets to limit
-        for (let i = 0; i < MAX_OPERATIONS_PER_WINDOW; i++) {
-          assertRateLimit(wallet1);
-          assertRateLimit(wallet2);
-        }
-
-        // Both should be blocked
-        expect(() => assertRateLimit(wallet1)).toThrow('Rate limit exceeded');
-        expect(() => assertRateLimit(wallet2)).toThrow('Rate limit exceeded');
-
-        // Clear all rate limits
-        clearAllRateLimits();
-
-        // Both should work again
-        expect(() => assertRateLimit(wallet1)).not.toThrow();
-        expect(() => assertRateLimit(wallet2)).not.toThrow();
-      });
-    });
-  });
-
   describe('assertSecretLimit', () => {
     const testWalletId = 'a'.repeat(64);
 
@@ -690,8 +487,7 @@ describe('Session Validation Utilities', () => {
       expect(() => validateTimeout(timeout)).not.toThrow();
       expect(() => validateSessionMetadata(metadata)).not.toThrow();
 
-      // Check rate limits and secret limits
-      expect(() => assertRateLimit(walletId)).not.toThrow();
+      // Check the secret limit
       expect(() => assertSecretLimit(0, walletId, {})).not.toThrow();
     });
 
@@ -703,18 +499,9 @@ describe('Session Validation Utilities', () => {
         // Validate
         expect(() => validateWalletId(walletId)).not.toThrow();
 
-        // Rate limit (should work for all since different wallets)
-        expect(() => assertRateLimit(walletId)).not.toThrow();
-
         // Secret limit (use a count that stays under the limit)
         expect(() => assertSecretLimit(i, walletId, {})).not.toThrow();
       }
-
-      // Clear everything
-      clearAllRateLimits();
-
-      // Should still work
-      expect(() => assertRateLimit('a'.repeat(64))).not.toThrow();
     });
   });
 
@@ -725,8 +512,6 @@ describe('Session Validation Utilities', () => {
       expect(MAX_STORED_SECRETS).toBe(20);
       expect(MIN_TIMEOUT_MS).toBe(60000); // 1 minute
       expect(MAX_TIMEOUT_MS).toBe(86400000); // 24 hours
-      expect(RATE_LIMIT_WINDOW_MS).toBe(60000); // 1 minute
-      expect(MAX_OPERATIONS_PER_WINDOW).toBe(10);
     });
 
     it('should have valid regex pattern', () => {

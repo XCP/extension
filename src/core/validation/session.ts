@@ -2,7 +2,7 @@
  * Session validation utilities
  *
  * Provides validation for session-related operations including
- * wallet IDs, secrets, timeouts, and rate limiting.
+ * wallet IDs, secrets, timeouts, and the number of stored secrets.
  */
 
 // Import from constants.ts to avoid circular dependency with walletManager
@@ -15,13 +15,6 @@ export const MAX_STORED_SECRETS = MAX_WALLETS; // One secret per wallet (mnemoni
 export const MIN_TIMEOUT_MS = 60000; // 1 minute minimum
 export const MAX_TIMEOUT_MS = 86400000; // 24 hours maximum
 export const WALLET_ID_REGEX = /^[a-f0-9]{64}$/; // SHA-256 hash format
-
-// Rate limiting configuration
-export const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute window
-export const MAX_OPERATIONS_PER_WINDOW = 10;
-
-// Rate limiting state (module-scoped for persistence)
-const rateLimitMap = new Map<string, number[]>();
 
 /**
  * Validates wallet ID format and length
@@ -98,65 +91,6 @@ export function validateSessionMetadata(metadata: unknown): void {
     throw new Error('Invalid lastActiveTime timestamp');
   }
   validateTimeout(obj.timeout as number);
-}
-
-/**
- * Asserts that an operation is not rate limited.
- * @param walletId - The wallet ID to check
- * @throws Error if rate limit is exceeded
- */
-export function assertRateLimit(walletId: string): void {
-  const now = Date.now();
-  const operations = rateLimitMap.get(walletId) || [];
-  
-  // Clean up old entries outside the window
-  const recentOperations = operations.filter(
-    timestamp => now - timestamp < RATE_LIMIT_WINDOW_MS
-  );
-  
-  if (recentOperations.length >= MAX_OPERATIONS_PER_WINDOW) {
-    throw new Error('Rate limit exceeded for secret storage operations');
-  }
-  
-  // Add current operation
-  recentOperations.push(now);
-  rateLimitMap.set(walletId, recentOperations);
-  
-  // Clean up rate limit map if it gets too large
-  if (rateLimitMap.size > 1000) {
-    cleanupRateLimitMap();
-  }
-}
-
-/**
- * Clears rate limit data for a specific wallet
- * @param walletId - The wallet ID to clear
- */
-export function clearRateLimit(walletId: string): void {
-  rateLimitMap.delete(walletId);
-}
-
-/**
- * Clears all rate limit data
- */
-export function clearAllRateLimits(): void {
-  rateLimitMap.clear();
-}
-
-/**
- * Cleans up old entries from the rate limit map
- */
-function cleanupRateLimitMap(): void {
-  const entries = Array.from(rateLimitMap.entries());
-  // Sort by the most recent operation time
-  entries.sort((a, b) => {
-    const aMax = Math.max(...a[1]) || 0;
-    const bMax = Math.max(...b[1]) || 0;
-    return aMax - bMax;
-  });
-  // Remove the oldest half
-  const toRemove = Math.floor(entries.length / 2);
-  entries.slice(0, toRemove).forEach(([key]) => { rateLimitMap.delete(key); });
 }
 
 /**

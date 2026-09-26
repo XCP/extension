@@ -50,10 +50,7 @@
 import type { HDKey } from '@scure/bip32';
 import { exportKey, importKey } from '@/core/encryption/encryption';
 import {
-  assertRateLimit,
   assertSecretLimit,
-  clearAllRateLimits,
-  clearRateLimit,
   validateSecret,
   validateSessionMetadata,
   validateTimeout,
@@ -222,10 +219,10 @@ export function storeUnlockedSecret(walletId: string, secret: string): void {
   // Validate inputs
   validateWalletId(walletId);
   validateSecret(secret);
-  
-  // Check rate limiting
-  assertRateLimit(walletId);
-  
+
+  // No rate limit: only background code that has just decrypted the secret stores one, so a limit
+  // here protected nothing and only failed a repeated re-selection of the active wallet.
+
   // Check total number of stored secrets to prevent memory exhaustion
   const currentSecretCount = Object.keys(unlockedSecrets).length;
   assertSecretLimit(currentSecretCount, walletId, unlockedSecrets);
@@ -327,9 +324,6 @@ export function clearUnlockedSecret(walletId: string): void {
       unlockedSecrets[walletId] = '0'.repeat(secretLength);
     }
     delete unlockedSecrets[walletId];
-    
-    // Clean up rate limit entries for this wallet
-    clearRateLimit(walletId);
   }
 }
 
@@ -341,9 +335,6 @@ export async function clearAllUnlockedSecrets(): Promise<void> {
   sessionInvalidated = true;
   Object.keys(unlockedSecrets).forEach((walletId) => { clearUnlockedSecret(walletId); });
   [...unlockedHdNodes.keys()].forEach(clearUnlockedHdNodes);
-
-  // Clear all rate limiting data
-  clearAllRateLimits();
 
   // Invalidate metadata first so an expiry-aware reader cannot use a cached key even if its
   // removal fails. Attempt both removals and surface the first error only after both ran.
