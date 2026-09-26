@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode, StrictMode, useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { onMessage } from 'webext-bridge/popup';
 import { apiClient } from '@/core/api/client';
 import { clearApiCache, fetchPoolQuote } from '@/core/counterparty/api';
 import { type AppSettings, DEFAULT_SETTINGS, getActiveSettings, setSettingsProvider } from '@/core/settings';
+import { watchKeychainLock } from '@/platform/storage/keyStorage';
 import { watchKeychainRecord } from '@/platform/storage/walletStorage';
 import { SettingsProvider, useSettings } from '../settings-context';
 
@@ -12,7 +12,7 @@ const service = vi.hoisted(() => ({ getSettings: vi.fn(), updateSettings: vi.fn(
 vi.mock('@/services/walletServiceClient', () => ({ getWalletServiceClient: () => service }));
 vi.mock('@/platform/fathom', () => ({ analytics: { track: vi.fn() } }));
 vi.mock('@/platform/storage/walletStorage', () => ({ watchKeychainRecord: vi.fn(() => () => {}) }));
-vi.mock('webext-bridge/popup', () => ({ onMessage: vi.fn(() => () => {}) }));
+vi.mock('@/platform/storage/keyStorage', () => ({ watchKeychainLock: vi.fn(() => () => {}) }));
 vi.mock('@/core/api/client', () => ({ apiClient: { get: vi.fn() } }));
 
 const nodeA = 'https://node-a.example';
@@ -33,14 +33,9 @@ async function quoteAt(base: string) {
 }
 
 function lock() {
-  const callback = vi.mocked(onMessage).mock.calls.find(([name]) => name === 'keychainLocked')?.[1];
+  const callback = vi.mocked(watchKeychainLock).mock.calls.at(-1)?.[0];
   if (!callback) throw new Error('Missing lock listener');
-  callback({
-    sender: { context: 'background', tabId: -1 },
-    id: 'keychainLocked',
-    timestamp: Date.now(),
-    data: { locked: true },
-  });
+  callback();
 }
 
 beforeEach(() => {

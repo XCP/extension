@@ -5,9 +5,9 @@ import { HeaderProvider, useHeader } from '@/contexts/header-context';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 
 /**
- * The wiring lives in app-providers so header-context stays free of wallet-context (which imports
- * webext-bridge and cannot load under jsdom). That means the effect is reproduced here rather than
- * imported: this pins the behaviour — a lock empties the caches — not the import graph.
+ * The wiring lives in app-providers so header-context stays free of wallet-context. The effect is
+ * reproduced here rather than imported: this pins the behaviour — a lock empties the caches — not
+ * the import graph.
  */
 function ClearOnLock({ locked }: { locked: boolean }) {
   const { clearAllCaches } = useHeader();

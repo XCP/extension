@@ -108,15 +108,9 @@ export default defineUnlistedScript(() => {
   // ---------------------------------------------------------------------------
 
   function formatErrorMessage(error: unknown): string {
-    const message = error instanceof Error
+    return error instanceof Error
       ? error.message
       : String(error || 'Unknown error');
-
-    // Handle webext-bridge fingerprint errors
-    if (message.includes('fingerprint')) {
-      return 'Extension services not available. Please try reloading the extension.';
-    }
-    return message;
   }
 
   function updateAccounts(newAccounts: string[]): void {

@@ -18,12 +18,6 @@ const approvalMocks = vi.hoisted(() => ({
   rejectApproval: vi.fn(),
 }));
 
-// Mock webext-bridge before any imports that might use it
-vi.mock('webext-bridge/popup', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn(),
-}));
-
 // Mock the wallet context
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: vi.fn(),

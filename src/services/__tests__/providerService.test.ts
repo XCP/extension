@@ -11,24 +11,6 @@ vi.mock('@/platform/auth/sessionManager', () => ({
   },
 }));
 
-// Mock webext-bridge completely before any imports that use it
-vi.mock('webext-bridge/background', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn()
-}));
-
-// Mock webext-bridge popup module that might be imported
-vi.mock('webext-bridge/popup', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn()
-}));
-
-// Mock webext-bridge content-script module
-vi.mock('webext-bridge/content-script', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn()
-}));
-
 // Mock hardware wallet module to avoid @trezor/connect-webextension import side effects
 vi.mock('@/core/hardware/trezorAdapter', () => ({
   getTrezorAdapter: vi.fn(),
@@ -460,7 +442,6 @@ describe('ProviderService', () => {
       getApprovalStats: vi.fn().mockReturnValue({ pendingCount: 0, requestsByOrigin: {} })
     };
     vi.mocked(approvalService.getApprovalService).mockReturnValue(mockApprovalService as any);
-
 
     // Mock update service
     const mockUpdateService = {

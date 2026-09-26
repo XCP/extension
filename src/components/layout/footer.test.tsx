@@ -25,12 +25,6 @@ vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({ activeWallet: null }),
 }));
 
-// Mock webext-bridge (required by settings-context)
-vi.mock('webext-bridge/popup', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn().mockReturnValue(() => {}), // Return unsubscribe function
-}));
-
 // Mock React Router
 const mockNavigate = vi.fn();
 const mockLocation = { pathname: '/index' };

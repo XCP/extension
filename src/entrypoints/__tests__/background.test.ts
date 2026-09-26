@@ -36,16 +36,13 @@ const h = vi.hoisted(() => {
     recovery: 'LOCKED' as string,
     cachedKey: null as string | null,
     markServicesReady: vi.fn(() => { order.push('markServicesReady'); }),
-    bridgeHandlers: [] as string[],
     emit: vi.fn(),
     wereAccountsAnnounced: vi.fn(async (_origin: string, _accounts: string[]) => false),
   };
 });
 
-vi.mock('webext-bridge/background', () => ({
-  onMessage: vi.fn((name: string) => { h.bridgeHandlers.push(name); }),
-}));
 vi.mock('@/platform/auth/sessionManager', () => ({
+  SESSION_EXPIRY_ALARM: 'session-expiry',
   SessionRecoveryState: { LOCKED: 'LOCKED', NEEDS_REAUTH: 'NEEDS_REAUTH', VALID: 'VALID' },
   checkSessionRecovery: vi.fn(async () => h.recovery),
   expireSessionIfNeeded: vi.fn(async () => false),
@@ -65,7 +62,6 @@ vi.mock('@/services/core/ServiceRegistry', () => ({
 vi.mock('@/services/core/serviceReadiness', () => ({
   markServicesReady: h.markServicesReady,
   whenServicesReady: vi.fn(async () => {}),
-  getReadinessState: vi.fn(() => ({ ready: true })),
 }));
 vi.mock('@/services/eventEmitterService', () => ({ eventEmitterService: { on: vi.fn(), emit: h.emit } }));
 vi.mock('@/services/popupMonitorService', () => ({ getPopupMonitorService: () => h.popupMonitor }));
@@ -76,7 +72,11 @@ vi.mock('@/services/walletService', () => ({ getWalletService: () => h.wallet, r
 
 const listener = () => ({ addListener: vi.fn() });
 let chromeStub: {
-  runtime: Record<string, unknown> & { onMessage: { addListener: ReturnType<typeof vi.fn> } };
+  runtime: Record<string, unknown> & {
+    onMessage: ReturnType<typeof listener>;
+    onConnect: ReturnType<typeof listener>;
+    onInstalled: ReturnType<typeof listener>;
+  };
   tabs: { onUpdated: ReturnType<typeof listener>; onRemoved: ReturnType<typeof listener> };
   alarms: { clear: ReturnType<typeof vi.fn>; onAlarm: ReturnType<typeof listener> };
 };
@@ -93,7 +93,6 @@ beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
   h.order.length = 0;
-  h.bridgeHandlers.length = 0;
   h.recovery = 'LOCKED';
   h.cachedKey = null;
   h.wallet.isKeychainUnlocked.mockResolvedValue(false);
@@ -122,29 +121,70 @@ describe('background wakes', () => {
     await startBackground();
     expect(chromeStub.tabs.onUpdated.addListener).not.toHaveBeenCalled();
     expect(chromeStub.tabs.onRemoved.addListener).not.toHaveBeenCalled();
-    expect((chromeStub.runtime.onInstalled as ReturnType<typeof listener>).addListener).not.toHaveBeenCalled();
-    expect(h.bridgeHandlers).not.toContain('webext-bridge-keep-alive');
   });
 
-  it('does not treat the old content-script ready signal as anything', async () => {
+  it('listens for no one-off messages or ports of its own; proxy ports are handled in proxy.ts', async () => {
     await startBackground();
-    const [handler] = chromeStub.runtime.onMessage.addListener.mock.calls[0]!;
-    const sendResponse = vi.fn();
-    const keepOpen = handler({ __xcp_cs_ready: true, tabUrl: 'https://a.example/' },
-      { id: 'test-extension-id', tab: { id: 1 } }, sendResponse);
-    expect(keepOpen).toBe(false);
-    expect(sendResponse).not.toHaveBeenCalled();
+    expect(chromeStub.runtime.onMessage.addListener).not.toHaveBeenCalled();
+    expect(chromeStub.runtime.onConnect.addListener).not.toHaveBeenCalled();
+  });
+
+  it('checks a session-expiry alarm, and ignores any other', async () => {
+    const { expireSessionIfNeeded } = await import('@/platform/auth/sessionManager');
+    await startBackground();
+    const [onAlarm] = chromeStub.alarms.onAlarm.addListener.mock.calls[0]!;
+    onAlarm({ name: 'keep-alive' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(expireSessionIfNeeded).not.toHaveBeenCalled();
+    onAlarm({ name: 'session-expiry' });
+    await vi.waitFor(() => expect(expireSessionIfNeeded).toHaveBeenCalledOnce());
+  });
+});
+
+describe('legacy alarms', () => {
+  async function installedListener() {
+    await startBackground();
+    expect(chromeStub.runtime.onInstalled.addListener).toHaveBeenCalledOnce();
+    return chromeStub.runtime.onInstalled.addListener.mock.calls[0]![0] as (details: { reason: string }) => void;
+  }
+
+  it('are not touched on an ordinary wake', async () => {
+    await startBackground();
+    expect(chromeStub.alarms.clear).not.toHaveBeenCalled();
+  });
+
+  it('are cleared once, when an update installs', async () => {
+    const onInstalled = await installedListener();
+    onInstalled({ reason: 'update' });
+    const cleared = chromeStub.alarms.clear.mock.calls.map(([name]) => name);
+    expect(cleared).toEqual(expect.arrayContaining([
+      'keep-alive',
+      'update-service-periodic-check',
+      'EventEmitterService-persist',
+      'EventEmitterService-keepalive',
+      'ApprovalService-persist',
+      'ConnectionService-persist',
+    ]));
+    expect(cleared).not.toContain('session-expiry');
+  });
+
+  it('are left alone on a fresh install, which has none', async () => {
+    const onInstalled = await installedListener();
+    onInstalled({ reason: 'install' });
+    expect(chromeStub.alarms.clear).not.toHaveBeenCalled();
   });
 });
 
 describe('background startup', () => {
-  it('registers the popup-lifecycle and update listeners in the first turn, before any await', async () => {
+  it('registers the popup-lifecycle, update, install and alarm listeners in the first turn, before any await', async () => {
     // MV3 delivers the event that woke the worker only to listeners registered by the end of the
     // first turn; initialisation awaits storage long before it would get to them.
     const background = await import('../background');
     (background.default as unknown as { main: () => void }).main();
     expect(h.popupMonitor.initialize).toHaveBeenCalledOnce();
     expect(h.update.listen).toHaveBeenCalledOnce();
+    expect(chromeStub.runtime.onInstalled.addListener).toHaveBeenCalledOnce();
+    expect(chromeStub.alarms.onAlarm.addListener).toHaveBeenCalledOnce();
     expect(h.order).toEqual(['popupMonitor.initialize', 'update.listen']);
     await vi.waitFor(() => expect(h.markServicesReady).toHaveBeenCalled());
   });

@@ -39,12 +39,6 @@ function encodeEnhancedSendCbor(
   ];
 }
 
-// Mock webext-bridge before any imports that might use it
-vi.mock('webext-bridge/background', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn(),
-}));
-
 import { useComposer } from '@/contexts/composer-context-object';
 import { Composer } from './composer';
 

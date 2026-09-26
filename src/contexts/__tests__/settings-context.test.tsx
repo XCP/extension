@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import type { AppSettings } from '@/core/settings';
 import { DEFAULT_SETTINGS } from '@/core/settings';
+import { clearCachedKeychainMasterKey, setCachedKeychainMasterKey } from '@/platform/storage/keyStorage';
 import { saveKeychainRecord } from '@/platform/storage/walletStorage';
 import { SettingsProvider, useSettings } from '../settings-context';
 
@@ -15,11 +16,6 @@ vi.mock('@/services/walletServiceClient', () => ({
     getSettings: () => mockGetSettings(),
     updateSettings: (updates: Partial<AppSettings>) => mockUpdateSettings(updates),
   }),
-}));
-
-vi.mock('webext-bridge/popup', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn().mockReturnValue(() => {}), // Return unsubscribe function
 }));
 
 describe('SettingsContext', () => {
@@ -450,5 +446,26 @@ describe('SettingsContext — settings changed in another surface', () => {
     });
 
     expect(mockGetSettings.mock.calls.length).toBe(callsBefore);
+  });
+});
+
+describe('SettingsContext — keychain locked outside this surface', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    fakeBrowser.reset();
+    mockGetSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, connectedWebsites: ['https://site.example'] });
+    await setCachedKeychainMasterKey('master-key');
+  });
+
+  it('drops to the defaults when the background removes the master key', async () => {
+    const { result } = renderHook(() => useSettings(), { wrapper: SettingsProvider });
+    await waitFor(() => expect(result.current.settings.connectedWebsites).toEqual(['https://site.example']));
+
+    // Auto-lock or session expiry in the background, or a lock from another surface.
+    await act(async () => {
+      await clearCachedKeychainMasterKey();
+    });
+
+    await waitFor(() => expect(result.current.settings).toEqual(DEFAULT_SETTINGS));
   });
 });

@@ -3,12 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { Layout } from './layout';
 
-// Mock webext-bridge before any imports that might use it
-vi.mock('webext-bridge/popup', () => ({
-  onMessage: vi.fn(),
-  sendMessage: vi.fn(),
-}));
-
 // Mock React Router
 vi.mock('react-router', () => ({
   Outlet: () => <div data-testid="outlet">Page Content</div>
@@ -136,7 +130,6 @@ describe('Layout', () => {
     expect(children[1]).toHaveAttribute('data-testid', 'api-status-banner');
     expect(children[2]!.tagName.toLowerCase()).toBe('main');
   });
-
 
   it('should handle footer prop changes', () => {
     const { rerender } = render(<Layout showFooter={false} />);

@@ -3,12 +3,6 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
-// Mock webext-bridge before any imports that might use it
-vi.mock('webext-bridge', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn(),
-}));
-
 // Mock the dependencies before importing the component
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: vi.fn(),

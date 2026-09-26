@@ -24,15 +24,6 @@ vi.mock('#imports', () => ({
   injectScript: mockInjectScript
 }));
 
-// Mock MessageBus
-const mockMessageBus = {
-  send: vi.fn()
-};
-
-vi.mock('@/services/core/MessageBus', () => ({
-  MessageBus: mockMessageBus
-}));
-
 // Mock provider service
 const mockProviderService = {
   handleRequest: vi.fn()
@@ -107,9 +98,6 @@ describe('Content Script', () => {
     (fakeBrowser.runtime.onConnect.removeListener as any).mockClear();
     (fakeBrowser.runtime.connect as any).mockClear();
     mockInjectScript.mockClear();
-    
-    // Reset MessageBus mock
-    mockMessageBus.send.mockClear();
     
     // Clear mock context
     mockContext.onInvalidated.mockClear();
@@ -431,7 +419,7 @@ describe('Content Script', () => {
       };
 
       // The content script should set up listener for provider events
-      // This would typically come from webext-bridge
+      // In the extension this comes from the background as a PROVIDER_EVENT runtime message
       mockWindow.postMessage(
         {
           type: 'XCP_PROVIDER_EVENT',
