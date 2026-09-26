@@ -486,6 +486,18 @@ describe('accept_policy_offer proof', () => {
     expect(review.paymentSummary).toBeUndefined();
   });
 
+  it('does not treat two overflowing sums as conserved', () => {
+    // Unsafe on both sides of the conservation check: each sum is null, and null === null.
+    const intent = parsedTr();
+    intent.offerValueSats = Number.MAX_SAFE_INTEGER;
+    intent.utxoValueSats = Number.MAX_SAFE_INTEGER;
+    intent.sellerProceedsSats = Number.MAX_SAFE_INTEGER;
+    intent.networkFeeSats = Number.MAX_SAFE_INTEGER;
+    const review = analyzeMarketplaceIntent(acceptInput(trSeller, { intent }));
+    expect(review.status).toBe('blocked');
+    expect(review.blockers).toContain('the offer and asset UTXO do not equal the proceeds, marketplace fee, and network fee');
+  });
+
   it('asks for a retry when the asset lookup fails', () => {
     const review = analyzeMarketplaceIntent(acceptInput(trSeller, {
       attachedAssets: [{ inputIndex: 1, utxo: 'x:0', assets: [], lookupFailed: true }],

@@ -1,6 +1,10 @@
 /** Atomic wallet proof for an exact-offer acceptance parent and its seller-funded CPFP child. */
 
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { SigHash } from '@scure/btc-signer';
+import { sameAddress } from '@/core/bitcoin/address';
+import { grouped, satsValue } from '@/core/counterparty/marketplace/format';
+import type { InputLike, OutputLike } from '@/core/counterparty/marketplace/intentTypes';
+import { boundedString, hex32, positiveRawQuantity, safeInteger } from '@/core/counterparty/marketplace/wire';
 import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import {
   type AcceptExactOfferIntentClaim,
@@ -8,7 +12,7 @@ import {
   type MarketplaceAssetClaim,
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
-import { formatAmount } from '@/core/format';
+import { isRecord } from '@/core/isRecord';
 import { toFiniteNumber } from '@/core/numeric';
 import { t } from '@/i18n';
 
@@ -32,22 +36,6 @@ export interface BumpAcceptanceFeeIntentClaim {
   finalSellerProceedsSats: number;
 }
 
-interface InputLike {
-  index: number;
-  txid: string;
-  vout: number;
-  address?: string;
-  value?: number;
-  hasSignatures?: boolean;
-}
-
-interface OutputLike {
-  index: number;
-  type: string;
-  address?: string;
-  value: number;
-}
-
 export interface AcceptanceCpfpBundleAnalysisInput {
   parentIntent: AcceptExactOfferIntentClaim;
   parentReview: MarketplaceApprovalReview;
@@ -60,22 +48,8 @@ export interface AcceptanceCpfpBundleAnalysisInput {
   childHasCounterpartyPayload: boolean;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const boundedString = (value: unknown, label: string, max = 160): string => {
-  if (typeof value !== 'string' || value.length < 1 || value.length > max) {
-    throw new Error(`${label} must be a non-empty string of at most ${max} characters`);
-  }
-  return value;
-};
-
-const positiveInteger = (value: unknown, label: string): number => {
-  if (!Number.isSafeInteger(value) || Number(value) <= 0) {
-    throw new Error(`${label} must be a positive safe integer`);
-  }
-  return Number(value);
-};
+const positiveInteger = (value: unknown, label: string): number =>
+  safeInteger(value, label, { positive: true });
 
 const nonNegativeInteger = (value: unknown, label: string): number => {
   if (!Number.isSafeInteger(value) || Number(value) < 0) {
@@ -84,26 +58,17 @@ const nonNegativeInteger = (value: unknown, label: string): number => {
   return Number(value);
 };
 
-const txid = (value: unknown, label: string): string => {
-  const parsed = boundedString(value, label, 64).toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(parsed)) throw new Error(`${label} must be 32-byte hex`);
-  return parsed;
-};
-
 const parseAsset = (value: unknown): MarketplaceAssetClaim => {
   if (!isRecord(value) || !isRecord(value.sourceOutpoint)) {
     throw new Error('bumpAcceptanceFee.assets[0] must carry a source outpoint');
   }
-  const quantityRaw = boundedString(value.quantityRaw, 'quantityRaw', 24);
-  if (!/^[1-9][0-9]*$/.test(quantityRaw)) {
-    throw new Error('quantityRaw must be a positive base-unit integer string');
-  }
+  const quantityRaw = positiveRawQuantity(value.quantityRaw, 'quantityRaw');
   const vout = nonNegativeInteger(value.sourceOutpoint.vout, 'sourceOutpoint.vout');
   return {
     asset: boundedString(value.asset, 'asset', 250),
     quantityRaw,
     sourceOutpoint: {
-      txid: txid(value.sourceOutpoint.txid, 'sourceOutpoint.txid'),
+      txid: hex32(value.sourceOutpoint.txid, 'sourceOutpoint.txid'),
       vout,
     },
   };
@@ -152,8 +117,8 @@ export function parseAcceptanceCpfpBundleIntents(
       assets: [parseAsset(childValue.assets[0])],
       authorizationId: boundedString(childValue.authorizationId, 'authorizationId'),
       seller: boundedString(childValue.seller, 'seller', 128),
-      parentExpectedTxid: txid(childValue.parentExpectedTxid, 'parentExpectedTxid'),
-      childExpectedTxid: txid(childValue.childExpectedTxid, 'childExpectedTxid'),
+      parentExpectedTxid: hex32(childValue.parentExpectedTxid, 'parentExpectedTxid'),
+      childExpectedTxid: hex32(childValue.childExpectedTxid, 'childExpectedTxid'),
       parentSellerProceedsVout: 1,
       parentSellerProceedsSats: positiveInteger(
         childValue.parentSellerProceedsSats,
@@ -176,14 +141,6 @@ export function parseAcceptanceCpfpBundleIntents(
     },
   };
 }
-
-/** Satoshi amounts, in the language the wallet is read in. */
-const sats = (value: number): string =>
-  t('marketplace_bundle_sats', formatAmount({ value, maximumFractionDigits: 0 }));
-
-const sameAddress = (left: string | undefined, right: string): boolean =>
-  left !== undefined
-  && normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
 
 const sameAsset = (left: MarketplaceAssetClaim, right: MarketplaceAssetClaim): boolean =>
   left.asset === right.asset
@@ -247,7 +204,7 @@ export function analyzeAcceptanceCpfpBundle(
   if (
     input.childSignedInputs.length !== 1
     || input.childSignedInputs[0]?.index !== 0
-    || input.childSignedInputs[0]?.sighashType !== 0x01
+    || input.childSignedInputs[0]?.sighashType !== SigHash.ALL
   ) {
     blockers.push('the wallet must sign only child input 0 with ALL (0x01)');
   }
@@ -323,14 +280,14 @@ export function analyzeAcceptanceCpfpBundle(
     ...(blockKind ? { blockKind } : {}),
     family: 'accept_exact_offer_with_cpfp',
     title: t('marketplace_bundle_accept_price_for_with_fee_bump', [
-      sats(parentIntent.priceSats),
+      satsValue(parentIntent.priceSats),
       claim.asset,
     ]),
     ...(status === 'proved' ? {
       bundleSummary: {
         outcome: {
           kind: 'amount' as const, label: t('marketplace_bundle_you_receive'),
-          value: sats(childIntent.finalSellerProceedsSats), emphasis: 'primary' as const,
+          value: satsValue(childIntent.finalSellerProceedsSats), emphasis: 'primary' as const,
         },
         action: t(
           'marketplace_bundle_accept_offer_for',
@@ -339,15 +296,15 @@ export function analyzeAcceptanceCpfpBundle(
         amounts: [
           {
             kind: 'amount' as const, label: t('marketplace_bundle_offer_price'),
-            value: sats(parentIntent.priceSats),
+            value: satsValue(parentIntent.priceSats),
           },
           {
             kind: 'amount' as const, label: t('marketplace_bundle_utxo_returned'),
-            value: sats(parentIntent.utxoValueSats),
+            value: satsValue(parentIntent.utxoValueSats),
           },
           {
             kind: 'amount' as const, label: t('marketplace_bundle_network_fees'),
-            value: sats(childIntent.packageFeeSats),
+            value: satsValue(childIntent.packageFeeSats),
           },
         ],
         timing: t('marketplace_bundle_both_network_fees_are_already'),
@@ -356,29 +313,29 @@ export function analyzeAcceptanceCpfpBundle(
     facts: [
       {
         kind: 'amount', label: t('marketplace_bundle_your_proceeds_after_fee_bump'),
-        value: sats(childIntent.finalSellerProceedsSats),
+        value: satsValue(childIntent.finalSellerProceedsSats),
         emphasis: 'primary',
       },
       {
         kind: 'amount' as const, label: t('marketplace_bundle_offer_price'),
-        value: sats(parentIntent.priceSats),
+        value: satsValue(parentIntent.priceSats),
       },
       // The buyer-paid platform fee is not the seller's cost and is not listed here.
       {
         kind: 'amount' as const, label: t('marketplace_bundle_utxo_returned'),
-        value: sats(parentIntent.utxoValueSats),
+        value: satsValue(parentIntent.utxoValueSats),
       },
       {
         kind: 'amount' as const, label: t('marketplace_bundle_sale_proceeds'),
-        value: sats(childIntent.parentSellerProceedsSats),
+        value: satsValue(childIntent.parentSellerProceedsSats),
       },
       {
         kind: 'amount' as const, label: t('marketplace_bundle_parent_fee'),
-        value: sats(childIntent.parentNetworkFeeSats),
+        value: satsValue(childIntent.parentNetworkFeeSats),
       },
       {
         kind: 'amount' as const, label: t('marketplace_bundle_added_child_fee'),
-        value: sats(childIntent.childNetworkFeeSats),
+        value: satsValue(childIntent.childNetworkFeeSats),
       },
       // The package total is the "Network fees" amount in the summary above; not repeated here.
       {
@@ -391,7 +348,7 @@ export function analyzeAcceptanceCpfpBundle(
         description: parentIntent.delivery.mode === 'attached'
           ? t(
               'marketplace_bundle_asset_stays_attached_to_a',
-              formatAmount({ value: parentIntent.delivery.utxoValueSats, maximumFractionDigits: 0 }),
+              grouped(parentIntent.delivery.utxoValueSats),
             )
           : t('marketplace_bundle_asset_detaches_to_this_address'),
       },

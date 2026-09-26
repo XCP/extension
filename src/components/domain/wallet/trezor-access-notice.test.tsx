@@ -31,6 +31,22 @@ describe('TrezorAccessNotice', () => {
     expect(screen.getByRole('status')).toHaveTextContent(t('trezor_access_notice_body'));
   });
 
+  it('says so when Chrome cannot ask, and asks again on the next click', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    permissions().contains.mockResolvedValue(false);
+    permissions().request.mockRejectedValueOnce(new Error('This function must be called during a user gesture'));
+    render(<TrezorAccessNotice />);
+    const allow = await screen.findByRole('button', { name: t('trezor_access_notice_allow') });
+
+    fireEvent.click(allow);
+    expect(await screen.findByRole('alert')).toHaveTextContent(t('trezor_access_notice_failed'));
+
+    permissions().request.mockResolvedValueOnce(true);
+    fireEvent.click(allow);
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+    error.mockRestore();
+  });
+
   it.each([
     ['a Trezor wallet that already has access', { type: 'hardware' }, true],
     ['a seed wallet', { type: 'mnemonic' }, false],

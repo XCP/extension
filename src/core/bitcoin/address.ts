@@ -24,6 +24,11 @@ export function normalizeAddressForComparison(address: string): string {
     : address;
 }
 
+/** Two addresses name the same script; a missing left side (an unresolved owner) never matches. */
+export const sameAddress = (left: string | undefined, right: string): boolean =>
+  left !== undefined
+  && normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
+
 /**
  * Human-readable label for an address format, shown wherever the UI names a
  * wallet's address type (settings, address list).

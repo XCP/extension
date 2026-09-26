@@ -19,7 +19,9 @@
  * output rather than swept into change.
  */
 
+import { SigHash } from '@scure/btc-signer';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { sighashBase } from '@/core/bitcoin/psbt';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 
 export interface AttachedAssetDestination {
@@ -104,7 +106,7 @@ export function resolveAttachedAssetDestination(
   // ALL and ALL|ANYONECANPAY both bind every output and therefore also bind the absence of an
   // overriding detach message. A missing effective sighash is unknown, never optimistically ALL.
   const destinationCommitted = sourceInputs.every(inputIndex =>
-    ((sighashByInput.get(inputIndex) ?? -1) & 0x1f) === 0x01
+    sighashBase(sighashByInput.get(inputIndex) ?? -1) === SigHash.ALL
   );
 
   const explicitDestination = detachDestination(counterpartyMessage);

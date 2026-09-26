@@ -44,8 +44,8 @@ vi.mock('@/services/walletServiceClient', () => ({
 }));
 
 // Mock the approval service
-vi.mock('@/services/approvalService', () => ({
-  getApprovalService: () => ({
+vi.mock('@/services/approvalServiceClient', () => ({
+  getApprovalServiceClient: () => ({
     resolveApproval: approvalMocks.resolveApproval,
     rejectApproval: approvalMocks.rejectApproval,
     getCurrentApproval: approvalMocks.getCurrentApproval,

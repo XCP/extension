@@ -10,7 +10,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getPairedAddressFormats } from "@/core/wallet/addressDeriver";
 import { t } from '@/i18n';
-import { getApprovalService } from "@/services/approvalService";
+import { getApprovalServiceClient } from "@/services/approvalServiceClient";
 import { getWalletServiceClient } from "@/services/walletServiceClient";
 import type { ApprovalRequest } from "@/types/provider";
 import type { Address, PairedAddresses, Wallet } from "@/types/wallet";
@@ -99,7 +99,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
     let cancelled = false;
     const load = async () => {
       try {
-        const approval = await getApprovalService().getCurrentApproval();
+        const approval = await getApprovalServiceClient().getCurrentApproval();
         if (cancelled) return;
         const identityError = getApprovalIdentityError(
           approval, requestId, address, walletId,
@@ -156,7 +156,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
     setIsProcessing(true);
     try {
       // Resolve approval via ApprovalService proxy
-      const approvalService = getApprovalService();
+      const approvalService = getApprovalServiceClient();
       const approval = await Promise.resolve(approvalService.getCurrentApproval());
       if (!mounted.current) return;
       const identityError = getApprovalIdentityError(
@@ -197,7 +197,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
     setIsProcessing(true);
     try {
       // Reject approval via ApprovalService proxy
-      const approvalService = getApprovalService();
+      const approvalService = getApprovalServiceClient();
       await approvalService.rejectApproval(requestId, t('connect_approve_user_denied_the_request'));
       if (!mounted.current) return;
       // Close the popup

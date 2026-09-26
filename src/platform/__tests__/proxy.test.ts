@@ -426,6 +426,15 @@ describe('defineProxyService', () => {
       expect(typeof service.getValue).toBe('function');
     });
 
+    it('returns one client with stable method functions, so React dependencies hold', () => {
+      const first = getService();
+      const second = getService();
+      expect(second).toBe(first);
+      expect(second.getValue).toBe(first.getValue);
+      expect(first.getAsync).toBe(first.getAsync);
+      expect(first.getAsync).not.toBe(first.getValue);
+    });
+
     it('should connect port and send message on method call', async () => {
       const service = getService();
 

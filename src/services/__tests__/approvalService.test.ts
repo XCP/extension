@@ -6,6 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { classifyProviderError } from '@/core/rpcErrors';
 
 // No RequestManager mock needed - new ApprovalService manages pending approval directly
 
@@ -170,6 +171,9 @@ describe('ApprovalService', () => {
       const listener = vi.mocked(chrome.windows.onRemoved.addListener).mock.calls.at(-1)![0];
       listener(77);
       await expect(approval).rejects.toThrow('User closed the window');
+      // ...and the site hears it as a rejection, not a masked -32603.
+      expect(classifyProviderError(await approval.catch((error: unknown) => error)))
+        .toEqual({ code: 4001, message: 'User closed the window' });
     });
 
     it('reports the reuse to the caller', async () => {
@@ -285,6 +289,23 @@ describe('ApprovalService', () => {
       approvalService.rejectApproval('test-reject', 'User denied');
 
       await expect(approvalPromise).rejects.toThrow('User denied');
+    });
+
+    it('tells the site 4001, with the reason, however an approval ends unapproved', async () => {
+      // A plain Error reached the page masked as -32603 "Request failed".
+      const ended = async (end: (id: string) => void, id: string) => {
+        const approval = approvalService.requestApproval({
+          id, origin: 'https://dapp.com', method: 'xcp_requestAccounts', params: [], type: 'connection',
+          metadata: { domain: 'dapp.com', title: 'Connect', description: 'Connect request' },
+        });
+        await whenPending(approvalService);
+        end(id);
+        return classifyProviderError(await approval.catch((error: unknown) => error));
+      };
+      expect(await ended(id => approvalService.rejectApproval(id, 'User denied the request'), 'deny'))
+        .toEqual({ code: 4001, message: 'User denied the request' });
+      expect(await ended(id => { void approvalService.resolveApproval(id, { approved: false }); }, 'resolve-denied'))
+        .toEqual({ code: 4001, message: 'User denied the request' });
     });
 
     it('should supersede existing pending approval with new request', async () => {

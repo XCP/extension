@@ -13,7 +13,11 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
-import { type MarketplaceBatchKind, maxMarketplaceBatchRequests } from '@/core/counterparty/marketplaceBatch';
+import {
+  MARKETPLACE_BATCH_KINDS,
+  type MarketplaceBatchKind,
+  maxMarketplaceBatchRequests,
+} from '@/core/counterparty/marketplaceBatch';
 import type { BumpAcceptanceFeeIntentClaim } from '@/core/counterparty/marketplaceBundle';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
 import { type AuthorizedRequest, RequestStorage } from '@/platform/storage/requestStorage';
@@ -175,6 +179,10 @@ export async function recordSignOutcome(
 }
 
 /** Session storage is a serialization boundary; generic BaseRequest validation is insufficient. */
+/** A stored `sign-psbts` entry's bundle kind, checked against the kinds this wallet signs. */
+const isSignPsbtsBundleKind = (value: unknown): value is SignFlowParameters['sign-psbts']['bundleKind'] =>
+  value === 'acceptance-cpfp' || (MARKETPLACE_BATCH_KINDS as readonly unknown[]).includes(value);
+
 function isValidSignFlow(value: unknown): value is SignFlowEntry {
   if (!value || typeof value !== 'object') return false;
   const entry = value as Record<string, unknown>;
@@ -202,9 +210,8 @@ function isValidSignFlow(value: unknown): value is SignFlowEntry {
   };
   if (entry.kind === 'sign-psbt') return validPsbt(entry)
     && (entry.signingPurpose === undefined || entry.signingPurpose === 'counterparty' || entry.signingPurpose === 'bitcoin-payment');
-  return ['acceptance-cpfp', 'attach-and-list', 'bulk-fanout', 'prepare-assets', 'bulk-attach', 'bulk-listing',
-    'authorize-offers', 'fund-policy-offer'].includes(entry.bundleKind as string) && Array.isArray(entry.items)
-    && entry.items.length > 0 && entry.items.length <= maxMarketplaceBatchRequests(entry.bundleKind as string)
+  return isSignPsbtsBundleKind(entry.bundleKind) && Array.isArray(entry.items)
+    && entry.items.length > 0 && entry.items.length <= maxMarketplaceBatchRequests(entry.bundleKind)
     && entry.items.every(item => validPsbt(item)
       && item.signInputs && Object.keys(item.signInputs).length > 0 && Array.isArray(item.sighashTypes)
       && item.marketplaceIntent && typeof item.marketplaceIntent.action === 'string');

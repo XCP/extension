@@ -33,7 +33,8 @@ const INPUT_VBYTES: Record<DecodedOutput['type'], number> = {
   op_return: 105,
 };
 
-const compactSizeLength = (length: number) => (length < 0xfd ? 1 : length <= 0xffff ? 3 : 5);
+/** Bytes a Bitcoin CompactSize length prefix takes for `length`. */
+export const compactSizeLength = (length: number): number => (length < 0xfd ? 1 : length <= 0xffff ? 3 : 5);
 
 function inputVbytes(input: Pick<DecodedInput, 'scriptType' | 'tapLeafScripts'>): number {
   const leaf = input.tapLeafScripts?.[0];
@@ -66,7 +67,7 @@ export function estimateSignedPsbtVsize(details: {
 }
 
 /** Absolute fee above which a site-built transaction always needs a second look: 0.1 BTC. */
-const HIGH_ABSOLUTE_FEE_SATS = 10_000_000;
+export const HIGH_ABSOLUTE_FEE_SATS = 10_000_000;
 
 /**
  * Whether a PSBT's fee needs acknowledgement: over 0.1 BTC, or a rate far above the network's.
