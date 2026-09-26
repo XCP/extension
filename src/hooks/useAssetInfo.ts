@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import type { AssetInfo } from "@/core/counterparty/api";
-import { asDisplayUnits } from '@/core/numeric';
-import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
+import { BTC_ASSET_INFO, fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
 
 interface AssetInfoState {
   isLoading: boolean;
@@ -10,144 +9,70 @@ interface AssetInfoState {
   data: AssetInfo | null;
 }
 
-// Define BTC asset info as a constant outside the component to prevent recreation
-const BTC_ASSET_INFO: AssetInfo = {
-  asset: 'BTC',
-  asset_longname: null,
-  description: 'Bitcoin',
-  divisible: true,
-  locked: true,
-  supply: '2100000000000000',
-  supply_normalized: asDisplayUnits('21000000'),
-  issuer: '',
-  fair_minting: false,
-};
+/** A finished read, tagged with the name it was asked for — not the name the node answered with. */
+interface FetchedInfo {
+  asset: string;
+  error: Error | null;
+  data: AssetInfo | null;
+}
+
+const EMPTY: AssetInfoState = { isLoading: false, error: null, data: null };
+const LOADING: AssetInfoState = { isLoading: true, error: null, data: null };
+const BTC_STATE: AssetInfoState = { isLoading: false, error: null, data: BTC_ASSET_INFO };
 
 /**
  * Fetches basic asset metadata information.
  * This is a focused hook that only handles asset info, not balances or UTXOs.
- * 
+ *
+ * Answers only for the asset asked about on this render: while a new asset loads, the previous
+ * one's info is not returned under its name. Results are matched by the name requested, because a
+ * subasset asked for by long name comes back under its numeric name; matching on the answer's name
+ * never matched, and refetched in a loop.
+ *
  * @param asset - The asset symbol (e.g., 'BTC', 'XCP')
  * @returns Object containing asset info, loading state, and error
- * 
+ *
  * @example
  * const { data: assetInfo, isLoading, error } = useAssetInfo('XCP');
  * if (assetInfo) {
  *   console.log(`Asset ${assetInfo.asset} is ${assetInfo.divisible ? 'divisible' : 'indivisible'}`);
  * }
  */
-export function useAssetInfo(asset: string) {
+export function useAssetInfo(asset: string): AssetInfoState {
   const { activeAddress } = useWallet();
-  
-  // Initialize state with proper typing
-  const [state, setState] = useState<AssetInfoState>({
-    isLoading: false,
-    error: null,
-    data: null,
-  });
-
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const prevAssetRef = useRef<string | undefined>(undefined);
-
-  // Check if this is BTC
+  const address = activeAddress?.address;
+  const valid = Boolean(asset && asset.trim() !== '' && address);
   const isBTC = asset === 'BTC';
 
+  const [fetched, setFetched] = useState<FetchedInfo | null>(null);
+  // Asset info does not depend on the address; it is only needed for the request. A switch of
+  // address therefore does not re-read an asset already loaded.
+  const loadedRef = useRef<string | null>(null);
+
   useEffect(() => {
-    // Early return for invalid inputs
-    if (!asset || asset.trim() === '' || !activeAddress?.address) {
-      // Only update state if it's different to prevent unnecessary re-renders
-      setState(prev => {
-        if (prev.data !== null || prev.isLoading || prev.error) {
-          return {
-            isLoading: false,
-            error: null,
-            data: null,
-          };
-        }
-        return prev;
-      });
-      return;
-    }
+    if (!valid || isBTC || !address) return;
+    if (loadedRef.current === asset) return;
+    let cancelled = false;
 
-    // Handle BTC special case
-    if (isBTC) {
-      setState(prev => {
-        // Only update if data is different
-        if (prev.data !== BTC_ASSET_INFO || prev.isLoading || prev.error) {
-          return {
-            isLoading: false,
-            error: null,
-            data: BTC_ASSET_INFO,
-          };
-        }
-        return prev;
-      });
-      return;
-    }
+    fetchAssetDetailsAndBalance(asset, address).then(
+      (result) => {
+        if (cancelled) return;
+        loadedRef.current = asset;
+        setFetched({ asset, error: null, data: result.assetInfo });
+      },
+      (err: unknown) => {
+        if (cancelled) return;
+        setFetched({ asset, error: err instanceof Error ? err : new Error(String(err)), data: null });
+      },
+    );
 
-    // Check if asset changed
-    const assetChanged = prevAssetRef.current !== undefined && prevAssetRef.current !== asset;
-    prevAssetRef.current = asset;
+    return () => { cancelled = true; };
+  }, [asset, address, valid, isBTC]);
 
-    // Skip fetch if asset hasn't changed and we already have data
-    if (!assetChanged && state.data && state.data.asset === asset) {
-      return;
-    }
-
-    // Cancel previous request if it exists
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-    const currentAbortController = abortControllerRef.current;
-
-    async function fetchData() {
-      // Single state update for loading
-      setState(prev => ({
-        ...prev,
-        isLoading: true,
-        error: null,
-      }));
-
-      try {
-        const result = await fetchAssetDetailsAndBalance(asset, activeAddress!.address);
-        
-        // Check if request was aborted
-        if (currentAbortController.signal.aborted) {
-          return;
-        }
-
-        // Single state update for success
-        setState({
-          isLoading: false,
-          error: null,
-          data: result.assetInfo,
-        });
-      } catch (err) {
-        // Don't update state if request was aborted
-        if (!currentAbortController.signal.aborted) {
-          // Single state update for error
-          setState({
-            isLoading: false,
-            error: err instanceof Error ? err : new Error(String(err)),
-            data: null,
-          });
-        }
-      }
-    }
-
-    fetchData();
-
-    // Cleanup function
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-    };
-  }, [asset, activeAddress?.address, state.data, isBTC]);
-
-  return state;
+  return useMemo((): AssetInfoState => {
+    if (!valid) return EMPTY;
+    if (isBTC) return BTC_STATE;
+    if (fetched?.asset !== asset) return LOADING;
+    return { isLoading: false, error: fetched.error, data: fetched.data };
+  }, [valid, isBTC, asset, fetched]);
 }
