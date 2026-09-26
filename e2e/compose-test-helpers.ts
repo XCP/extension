@@ -5,8 +5,8 @@
  * E2E tests stop at the review page - signing and broadcast are covered by unit tests.
  */
 
-import { Page, expect } from '@playwright/test';
-import { FIXTURE_INPUT_VALUE, buildFixtureTransaction } from './compose-fixture-tx';
+import { expect, type Page } from '@playwright/test';
+import { buildFixtureTransaction, FIXTURE_INPUT_VALUE } from './compose-fixture-tx';
 import { TEST_ADDRESSES } from './test-data';
 
 /**
@@ -162,7 +162,7 @@ export async function enableValidationBypass(page: Page): Promise<void> {
     if (url.includes('/compose/')) {
       // Parse compose type and params from URL
       const composeTypeMatch = url.match(/\/compose\/([^/?]+)/);
-      const composeType = composeTypeMatch ? composeTypeMatch[1] : 'send';
+      const composeType = composeTypeMatch?.[1] ? composeTypeMatch[1] : 'send';
 
       // Parse URL query params
       const urlParams = new URL(url).searchParams;
@@ -278,7 +278,7 @@ export async function enableValidationBypass(page: Page): Promise<void> {
     // Handle asset details endpoints
     if (url.includes('/v2/assets/')) {
       const assetMatch = url.match(/\/v2\/assets\/([^/?]+)/);
-      const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
+      const assetName = assetMatch?.[1] ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
 
       // Return proper details for known assets (needed for order forms, etc.)
       const knownAssets: Record<string, { divisible: boolean; supply: number; locked: boolean }> = {
@@ -324,7 +324,7 @@ export async function enableValidationBypass(page: Page): Promise<void> {
     // API returns PaginatedResponse<TokenBalance> with result as an array
     if (url.includes('/balances/')) {
       const assetMatch = url.match(/\/balances\/([^/?]+)/);
-      const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
+      const assetName = assetMatch?.[1] ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
       console.log(`[E2E Mock] Balance for ${assetName} - returning mock balance`);
 
       // Return a mock balance as array (API returns paginated response)

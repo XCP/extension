@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { useWallet } from '@/contexts/wallet-context';
 import type { AddressFormat } from '@/core/bitcoin/address';
 import { addressIndexKeptBySwitch, selectableAddressFormats } from '@/core/wallet/addressFormatChoices';
@@ -61,7 +62,9 @@ export function useAddressFormatSwitch(): AddressFormatSwitch {
       }
       setIsLoadingPreviews(true);
       const loaded: Partial<Record<AddressFormat, string>> = {};
-      for (const format of formatsKey.split(',') as AddressFormat[]) {
+      // ''.split(',') is [''], which would ask for a preview of a format named ''.
+      const offered = (formatsKey ? formatsKey.split(',') : []) as AddressFormat[];
+      for (const format of offered) {
         try {
           loaded[format] = await getPreviewAddressForFormat(walletId, format, addressIndex);
         } catch (err) {
@@ -97,7 +100,10 @@ export function useAddressFormatSwitch(): AddressFormatSwitch {
       return true;
     } catch (err) {
       console.error('Error updating address type:', err);
-      setError(err instanceof Error ? err.message : t('settings_address_types_failed_to_update_address_type'));
+      // A device failure has a translated message; other errors keep their text, as the repo's
+      // i18n policy has unknown diagnostics do, and a non-Error gets the translated fallback.
+      setError(hardwareErrorMessage(err)
+        ?? (err instanceof Error && err.message ? err.message : t('settings_address_types_failed_to_update_address_type')));
       setSelectedFormat(activeWallet.addressFormat);
       return false;
     } finally {

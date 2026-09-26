@@ -4,7 +4,7 @@
  * Tests for the wallet selection page that allows switching between wallets.
  */
 
-import { walletTest, expect } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
 import { header, selectWallet } from '@e2e/selectors';
 
 walletTest.describe('Select Wallet Page (/keychain/wallets)', () => {

@@ -15,8 +15,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { composeAttach, composeIssuance, composeUtxoTransaction } from '@/core/counterparty/compose';
-import { assertUtxoCarriesNoZeld, withDetachZeldKept } from '@/core/zeld/composeGuard';
 import { DEFAULT_SETTINGS, setSettingsProvider } from '@/core/settings';
+import { assertUtxoCarriesNoZeld, withDetachZeldKept } from '@/core/zeld/composeGuard';
 import {
   broadcastAndMine,
   compose,

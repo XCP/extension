@@ -9,8 +9,8 @@ const baselinePath = new URL('../lint-baseline.json', import.meta.url);
 const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
 const diagnostics = [];
 for (const args of [
-  ['src', '--format=json'],
-  ['src', '--type-aware', '-A', 'all', '-W', 'typescript/no-floating-promises', '-W', 'typescript/no-misused-promises', '--format=json'],
+  ['src', 'e2e', '--format=json'],
+  ['src', 'e2e', '--type-aware', '-A', 'all', '-W', 'typescript/no-floating-promises', '-W', 'typescript/no-misused-promises', '--format=json'],
 ]) {
   const result = spawnSync(process.execPath, [executable, ...args], { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
   if (result.error || result.signal || ![0, 1].includes(result.status)) {

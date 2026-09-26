@@ -7,8 +7,8 @@
  * - /market/orders/:baseAsset/:quoteAsset
  */
 
-import { walletTest, expect, navigateTo } from '../fixtures';
-import { market, compose } from '../selectors';
+import { expect, walletTest } from '../fixtures';
+import { compose, market } from '../selectors';
 
 walletTest.describe('BTC Price Page (/market/btc)', () => {
   walletTest('can navigate to BTC price page', async ({ page }) => {

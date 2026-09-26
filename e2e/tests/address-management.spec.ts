@@ -4,7 +4,7 @@
  * Tests for address operations: copy, navigation, adding, switching addresses.
  */
 
-import { walletTest, expect, getCurrentAddress } from '../fixtures';
+import { expect, getCurrentAddress, walletTest } from '../fixtures';
 import { index, selectAddress } from '../selectors';
 
 walletTest.describe('Address Management', () => {

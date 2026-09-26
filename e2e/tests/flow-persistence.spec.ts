@@ -4,8 +4,8 @@
  * Tests verifying wallet state persists correctly across lock/unlock cycles and navigation.
  */
 
-import { test, walletTest, expect, createWallet, lockWallet, unlockWallet, navigateTo, TEST_PASSWORD } from '../fixtures';
-import { header, settings, index, selectWallet, onboarding, createWallet as createWalletSelectors } from '../selectors';
+import { createWallet, expect, lockWallet, navigateTo, TEST_PASSWORD, test, unlockWallet, walletTest } from '../fixtures';
+import { createWallet as createWalletSelectors, header, index, onboarding, selectWallet, settings } from '../selectors';
 
 test.describe('State Persistence - Lock/Unlock Cycle', () => {
   test('selected wallet persists after lock/unlock', async ({ extensionPage }) => {

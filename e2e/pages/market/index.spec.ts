@@ -5,9 +5,9 @@
  */
 
 import {
-  walletTest,
   expect,
-  navigateTo
+  navigateTo,
+  walletTest
 } from '../../fixtures';
 import { footer, market } from '../../selectors';
 
@@ -138,13 +138,13 @@ walletTest.describe('Market Page', () => {
 
     // Now set up routes that will fail for refresh/subsequent requests
     await page.route('**/*counterparty*/**', route => {
-      route.abort('failed');
+      void route.abort('failed');
     });
     await page.route('**/api/**', route => {
       if (route.request().url().includes('counterparty') || route.request().url().includes('dispens')) {
-        route.abort('failed');
+        void route.abort('failed');
       } else {
-        route.continue();
+        void route.continue();
       }
     });
 

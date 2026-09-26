@@ -8,14 +8,14 @@
  */
 
 import {
-  test,
-  walletTest,
-  expect,
   createWallet,
+  expect,
   navigateTo,
-  TEST_PASSWORD
+  TEST_PASSWORD,
+  test,
+  walletTest
 } from '../fixtures';
-import { header, settings, createWallet as createWalletSelectors, selectWallet, common, index, unlock, securitySettings, onboarding } from '../selectors';
+import { common, createWallet as createWalletSelectors, header, index, onboarding, selectWallet, settings, unlock } from '../selectors';
 import { TEST_PASSWORDS } from '../test-data';
 
 /**

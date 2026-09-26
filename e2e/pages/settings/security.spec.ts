@@ -4,8 +4,8 @@
  * Tests for /settings/security route - change wallet password
  */
 
-import { walletTest, expect, TEST_PASSWORD } from '../../fixtures';
-import { securitySettings, common } from '../../selectors';
+import { expect, TEST_PASSWORD, walletTest } from '../../fixtures';
+import { common, securitySettings } from '../../selectors';
 import { TEST_PASSWORDS } from '../../test-data';
 
 walletTest.describe('Security Settings Page (/settings/security)', () => {

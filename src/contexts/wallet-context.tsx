@@ -50,7 +50,7 @@ import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
-import { getWalletServiceClient as getWalletService } from "@/services/walletServiceClient";
+import { getWalletServiceClient } from "@/services/walletServiceClient";
 import type { Address, SignTransactionOptions, Wallet } from "@/types/wallet";
 
 /**
@@ -249,7 +249,9 @@ const withRefresh = <T extends (...args: any[]) => Promise<any>>(
  * @returns {ReactElement} Context provider
  */
 export function WalletProvider({ children }: { children: ReactNode }): ReactElement {
-  const walletService = getWalletService();
+  // Read once: every callback, the mount effect's subscriptions and the context value depend on
+  // this, so a new identity per render would re-subscribe and refresh on every render.
+  const [walletService] = useState(getWalletServiceClient);
   const [walletState, setWalletState] = useState<WalletState>({
     authState: AuthState.Onboarding,
     keychainExists: false,
@@ -488,21 +490,11 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     };
   }, [refreshWalletState, walletService]); // Removed walletState.authState to prevent re-runs
 
-  const emitAccountsChanged = useCallback(async (address?: string) => {
-    const settings = await walletService.getSettings();
-    for (const origin of settings.connectedWebsites) {
-      await walletService.emitProviderEvent(
-        origin,
-        'accountsChanged',
-        address ? [address] : []
-      );
-    }
-  }, [walletService]);
-
+  // Connected sites hear about an active-address change from the background (walletService),
+  // which decides it from the same state that answers them; nothing here emits provider events.
   const withIdentityRefresh = useCallback(
     async <T,>(lockKey: string, operation: () => Promise<T>): Promise<T> => {
       return withStateLock(lockKey, async () => {
-        const previousAddress = walletStateRef.current.activeAddress?.address;
         const result = await operation();
 
         await refreshWalletState();
@@ -514,29 +506,21 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         ) {
           await walletService.setLastActiveAddress(nextAddress);
         }
-        if (previousAddress !== nextAddress) {
-          await emitAccountsChanged(nextAddress);
-        }
 
         return result;
       });
     },
-    [emitAccountsChanged, refreshWalletState, walletService]
+    [refreshWalletState, walletService]
   );
 
   const setActiveAddress = useCallback(
     async (address: Address | null) => {
       return withStateLock('wallet-set-address', async () => {
-        // Use ref to get current address without stale closure
-        const oldAddress = walletStateRef.current.activeAddress?.address;
-        const newAddress = address?.address;
-
         setWalletState((prev) => ({ ...prev, activeAddress: address }));
         if (address) await walletService.setLastActiveAddress(address.address);
-        if (oldAddress !== newAddress) await emitAccountsChanged(newAddress);
       });
     },
-    [emitAccountsChanged, walletService]
+    [walletService]
   );
 
   const setLastActiveTime = useCallback(async (activityTime?: number) => {

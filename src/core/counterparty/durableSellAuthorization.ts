@@ -18,13 +18,15 @@
  * function, so the screen and the signer cannot disagree.
  */
 
+import { SigHash } from '@scure/btc-signer';
+import { sighashBase } from '@/core/bitcoin/psbt';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
 
 /** True when the sighash does not commit every output. Taproot's 0x00 default is ALL. */
 export function leavesOutputsUncommitted(sighashType: number): boolean {
-  const base = sighashType & 0x1f;
-  return base !== 0x00 && base !== 0x01;
+  const base = sighashBase(sighashType);
+  return base !== SigHash.DEFAULT && base !== SigHash.ALL;
 }
 
 /**

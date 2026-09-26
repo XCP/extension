@@ -5,7 +5,7 @@
  * This feature is only available when NODE_ENV=development.
  */
 
-import { walletTest, expect } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
 import { common } from '@e2e/selectors';
 import { TEST_ADDRESSES } from '@e2e/test-data';
 

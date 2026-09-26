@@ -8,7 +8,7 @@
  * but the page structure (header, back button) is consistent regardless.
  */
 
-import { walletTest, expect } from '../../fixtures';
+import { expect, walletTest } from '../../fixtures';
 import { common } from '../../selectors';
 
 walletTest.describe('Transaction Pages', () => {

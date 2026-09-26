@@ -27,7 +27,7 @@ export async function captureExpanded(page: Page, file: string, width = 350) {
   await page.setViewportSize({ width, height: 600 });
   const content = page.getByTestId('approval-content');
   await content.evaluate(element => {
-    for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+    for (let node: HTMLElement | SVGElement | null = element; node; node = node.parentElement) {
       node.dataset.galleryStyle = node.getAttribute('style') ?? '';
       node.style.setProperty('height', 'auto', 'important');
       node.style.setProperty('max-height', 'none', 'important');
@@ -39,7 +39,7 @@ export async function captureExpanded(page: Page, file: string, width = 350) {
   await assertFactLabelsFit(page, path.basename(file), width);
   await page.screenshot({ path: file, fullPage: true });
   await content.evaluate(element => {
-    for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+    for (let node: HTMLElement | SVGElement | null = element; node; node = node.parentElement) {
       const style = node.dataset.galleryStyle ?? '';
       if (style) node.setAttribute('style', style); else node.removeAttribute('style');
       delete node.dataset.galleryStyle;

@@ -16,7 +16,7 @@
  * - Other settings pages
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('SettingSwitch Component', () => {
   // Navigate to advanced settings which uses SettingSwitch
@@ -67,7 +67,8 @@ walletTest.describe('SettingSwitch Component', () => {
 
       // Get initial state
       const initialChecked = await switchElement.getAttribute('aria-checked');
-      const initialClasses = await switchElement.getAttribute('class') || '';
+      expect(initialChecked).toMatch(/^(true|false)$/);
+      await expect(switchElement).toHaveClass(initialChecked === 'true' ? /bg-blue-600/ : /bg-gray-200/);
 
       // Click to toggle
       await switchElement.click();

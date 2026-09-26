@@ -4,8 +4,8 @@
  * Tests for /market/orders/:baseAsset/:quoteAsset route - trading pair order book
  */
 
-import { walletTest, expect } from '../../../../fixtures';
-import { market, common } from '../../../../selectors';
+import { expect, walletTest } from '../../../../fixtures';
+import { common, market } from '../../../../selectors';
 
 walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)', () => {
   walletTest('asset orders page loads', async ({ page }) => {

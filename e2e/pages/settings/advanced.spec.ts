@@ -4,8 +4,8 @@
  * Tests for the Advanced settings page: auto-lock timer, API URL, toggle switches.
  */
 
-import { walletTest, expect, navigateTo } from '../../fixtures';
-import { settings, common } from '../../selectors';
+import { expect, navigateTo, walletTest } from '../../fixtures';
+import { common, settings } from '../../selectors';
 
 walletTest.describe('Advanced Settings', () => {
   walletTest('can navigate to advanced settings', async ({ page }) => {

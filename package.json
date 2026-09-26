@@ -26,12 +26,12 @@
     "test:unit": "vitest run src",
     "test:e2e": "npm run build:e2e && playwright test",
     "test:emulator": "vitest run e2e/hardware/trezor-node-integration.test.ts --reporter=verbose",
-    "compile": "tsc --noEmit",
-    "lint": "biome check src && node scripts/lint.mjs && npm run lint:i18n",
+    "compile": "tsc --noEmit && tsc -p e2e --noEmit",
+    "lint": "biome check src e2e && node scripts/lint.mjs && npm run lint:i18n",
     "lint:i18n": "node scripts/i18n.mjs check",
     "lint:prune": "node scripts/lint.mjs --prune",
     "check:lockfile": "npm ci --dry-run",
-    "lint:fix": "biome check src --write && oxlint src --fix",
+    "lint:fix": "biome check src e2e --write && oxlint src e2e --fix",
     "postinstall": "wxt prepare"
   },
   "dependencies": {

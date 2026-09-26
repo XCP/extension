@@ -1942,8 +1942,8 @@ export class WalletManager {
    * It returns a signed PSBT hex (not finalized) that can be combined with other signatures.
    *
    * Trezor provider signing is supported for explicit Native SegWit SIGHASH_ALL inputs. Any
-   * unselected input must already carry a verifiable Native SegWit SIGHASH_ALL signature. This
-   * permits unilateral exact-offer acceptance without weakening the device's safety checks.
+   * unselected input must already carry a verifiable Native SegWit SIGHASH_ALL signature. Exact-offer
+   * acceptance does not qualify: the market serves it with the buyer's input unsigned.
    *
    * @param psbtHex - PSBT in hex format
    * @param signInputs - Optional map of address → input indices to sign

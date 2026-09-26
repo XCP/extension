@@ -8,7 +8,7 @@
  * state. Full signing flow is tested in e2e/tests/provider-message-signing.spec.ts
  */
 
-import { walletTest, expect } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
 
 walletTest.describe('Approve Message Page (/requests/message/approve)', () => {
   walletTest('page loads without crashing', async ({ page }) => {
@@ -21,7 +21,7 @@ walletTest.describe('Approve Message Page (/requests/message/approve)', () => {
   });
 
   walletTest('page is accessible (no 404)', async ({ page }) => {
-    const response = await page.goto(page.url().replace(/\/index.*/, '/requests/message/approve'));
+    await page.goto(page.url().replace(/\/index.*/, '/requests/message/approve'));
     // Extension pages may not return standard HTTP status codes
     // Just verify the page didn't crash
     const content = await page.content();

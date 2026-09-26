@@ -5,6 +5,7 @@
 
 import { AddressFormat } from '@/core/bitcoin/address';
 import { decryptJsonWithKey, encryptJsonWithKey } from '@/core/encryption/encryption';
+import { isRecord } from '@/core/isRecord';
 import { type AppSettings, DEFAULT_SETTINGS, MAX_ORDER_EXPIRATION, VALID_AUTO_LOCK_TIMERS } from '@/core/settings';
 import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
 import { isValidZeldHuntSeconds } from '@/core/zeld/protocol';
@@ -12,10 +13,6 @@ import type { Keychain, KeychainRecord, WalletRecord } from '@/types/wallet';
 
 /** Keychain blob schema version. */
 export const KEYCHAIN_VERSION = 1;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
 
 function invalidKeychain(): never {
   // Never include decrypted values in an error message.

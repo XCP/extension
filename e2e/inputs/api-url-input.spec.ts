@@ -15,7 +15,7 @@
  * - Advanced settings (Counterparty API base URL)
  */
 
-import { walletTest, expect } from '../fixtures';
+import { expect, walletTest } from '../fixtures';
 
 walletTest.describe('ApiUrlInput Component', () => {
   // Navigate to advanced settings which uses ApiUrlInput

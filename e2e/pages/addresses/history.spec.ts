@@ -4,7 +4,7 @@
  * Tests for /addresses/history route - transaction history for current address
  */
 
-import { walletTest, expect } from '../../fixtures';
+import { expect, walletTest } from '../../fixtures';
 import { addressHistory, common } from '../../selectors';
 
 walletTest.describe('Address History Page (/addresses/history)', () => {

@@ -4,7 +4,7 @@
  * Tests verifying address preview display and cache behavior.
  */
 
-import { walletTest, expect, navigateTo, lockWallet, unlockWallet, TEST_PASSWORD } from '../fixtures';
+import { expect, lockWallet, navigateTo, TEST_PASSWORD, unlockWallet, walletTest } from '../fixtures';
 import { settings, unlock } from '../selectors';
 
 walletTest.describe('Address Preview Display', () => {

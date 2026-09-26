@@ -7,11 +7,11 @@
  */
 
 import {
-  walletTest,
   expect,
-  TEST_PASSWORD
+  TEST_PASSWORD,
+  walletTest
 } from '../fixtures';
-import { header, selectAddress, unlock, secrets } from '../selectors';
+import { header, secrets, selectAddress, unlock } from '../selectors';
 
 walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
   walletTest.beforeEach(async ({ page }) => {

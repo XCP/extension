@@ -4,8 +4,8 @@
  * Tests for /settings/connected-sites route - manage website connections
  */
 
-import { walletTest, expect } from '../../fixtures';
-import { connectedSites, common } from '../../selectors';
+import { expect, walletTest } from '../../fixtures';
+import { common, connectedSites } from '../../selectors';
 
 walletTest.describe('Connected Sites Page (/settings/connected-sites)', () => {
   walletTest('connected sites page loads', async ({ page }) => {
