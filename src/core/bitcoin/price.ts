@@ -61,7 +61,7 @@ export interface PriceData {
  * @throws {DataFetchError} If the API response is invalid.
  */
 export async function fetchFromCoinbase(): Promise<PriceData> {
-  const response = await apiClient.get<{ data?: { amount?: string } }>("https://api.coinbase.com/v2/prices/spot?currency=USD", { retries: 0 });
+  const response = await apiClient.get<{ data?: { amount?: string } }>("https://api.coinbase.com/v2/prices/spot?currency=USD", { retries: 0, timeout: SPOT_SOURCE_TIMEOUT_MS });
   const data = response.data;
   if (!data || !data.data || !data.data.amount) {
     throw new DataFetchError("Invalid response data", "coinbase.com", {
@@ -83,7 +83,7 @@ export async function fetchFromCoinbase(): Promise<PriceData> {
  * @throws {DataFetchError} If the API response is invalid.
  */
 export async function fetchFromKraken(): Promise<PriceData> {
-  const response = await apiClient.get<{ result?: { XXBTZUSD?: { c?: string[] } } }>("https://api.kraken.com/0/public/Ticker?pair=XBTUSD", { retries: 0 });
+  const response = await apiClient.get<{ result?: { XXBTZUSD?: { c?: string[] } } }>("https://api.kraken.com/0/public/Ticker?pair=XBTUSD", { retries: 0, timeout: SPOT_SOURCE_TIMEOUT_MS });
   const data = response.data;
   if (!data.result || !data.result.XXBTZUSD || !data.result.XXBTZUSD.c) {
     throw new DataFetchError("Invalid response data", "kraken.com", {
@@ -105,7 +105,7 @@ export async function fetchFromKraken(): Promise<PriceData> {
  * @throws {DataFetchError} If the API response is invalid.
  */
 export async function fetchFromMempool(): Promise<PriceData> {
-  const response = await apiClient.get<{ USD?: number }>("https://mempool.space/api/v1/prices", { retries: 0 });
+  const response = await apiClient.get<{ USD?: number }>("https://mempool.space/api/v1/prices", { retries: 0, timeout: SPOT_SOURCE_TIMEOUT_MS });
   const data = response.data;
   if (!data || typeof data.USD !== "number") {
     throw new DataFetchError("Invalid response data", "mempool.space", {
@@ -122,32 +122,65 @@ const priceFetchers = [
   fetchFromMempool,
 ];
 
+/**
+ * How long one spot source may take before the next is asked. The sources are tried in order
+ * rather than raced, so a source that hangs must not hold the price for the client's default
+ * thirty seconds.
+ */
+const SPOT_SOURCE_TIMEOUT_MS = 5_000;
+
+/** How long a spot quote is reused. A review screen mounts several price consumers at once. */
+const SPOT_PRICE_TTL_MS = 60_000;
+
+let spotQuote: { price: number; at: number } | null = null;
+let spotInflight: Promise<number | null> | null = null;
+
 function isUsablePrice(price: unknown): price is number {
   return typeof price === 'number' && Number.isFinite(price) && price > 0;
 }
 
+async function firstUsablePrice(fetchers: Array<() => Promise<PriceData>>): Promise<number | null> {
+  for (const fetcher of fetchers) {
+    try {
+      const data = await fetcher();
+      const price = data.bitcoin?.usd;
+      if (isUsablePrice(price)) return price;
+    } catch {
+      // Try the next source.
+    }
+  }
+  console.error("All BTC price fetchers failed");
+  return null;
+}
+
 /**
- * Fetches Bitcoin price concurrently from multiple APIs, returning the first successful result.
- * No prior quote is reused when the providers fail.
- * @param fetchers - List of price fetcher functions.
+ * Bitcoin price in USD from the first source, in order, that answers with a usable quote.
+ *
+ * In order rather than raced: racing sent three requests for every quote to use one. Quotes from
+ * the default sources are kept for a minute and concurrent callers share one request, so a screen
+ * that asks several times costs one round trip. A failure is never cached, and no quote older than
+ * the minute is reused when the sources fail.
+ * @param fetchers - Price sources in preference order. Custom lists bypass the shared cache.
  * @returns Bitcoin price in USD or null if all fail.
  */
 export async function getBtcPrice(
   fetchers: Array<() => Promise<PriceData>> = priceFetchers
 ): Promise<number | null> {
-  const promises = fetchers.map(async (fetcher) => {
-    const data = await fetcher();
-    const price = data.bitcoin?.usd;
-    if (!isUsablePrice(price)) {
-      throw new DataFetchError(`${fetcher.name} returned invalid price`, "price-fetcher");
-    }
+  if (fetchers !== priceFetchers) return firstUsablePrice(fetchers);
+
+  if (spotQuote && Date.now() - spotQuote.at < SPOT_PRICE_TTL_MS) return spotQuote.price;
+  if (spotInflight) return spotInflight;
+
+  const request = firstUsablePrice(fetchers).then((price) => {
+    if (price !== null) spotQuote = { price, at: Date.now() };
     return price;
   });
-
-  return Promise.any(promises).catch(() => {
-    console.error("All BTC price fetchers failed");
-    return null;
-  });
+  spotInflight = request;
+  try {
+    return await request;
+  } finally {
+    if (spotInflight === request) spotInflight = null;
+  }
 }
 
 /**

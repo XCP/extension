@@ -23,6 +23,17 @@ export interface RateLimitRefusal {
   retryAfterMs?: number;
 }
 
+/** How one request takes its turn. */
+export interface RequestGateRunOptions {
+  /**
+   * Take the next free slot ahead of every ordinary request already waiting. For the few requests
+   * a user is watching a spinner for (compose, decode, broadcast): a home screen can queue a dozen
+   * reads, and a compose sent behind them would wait for all of them. Priority never skips the
+   * in-flight limit or a cooldown; it only changes the order of the queue.
+   */
+  priority?: boolean;
+}
+
 export interface RequestGateOptions {
   /** Requests allowed in flight at once. */
   maxInFlight?: number;
@@ -55,6 +66,7 @@ export class RequestGate {
 
   private inFlight = 0;
   private readonly waiting: Array<() => void> = [];
+  private readonly priorityWaiting: Array<() => void> = [];
   private holdUntil = 0;
   private refusalsInARow = 0;
 
@@ -79,11 +91,15 @@ export class RequestGate {
    * Perform one request under the gate: take a slot, wait out any cooldown,
    * send, and on a refusal note the cooldown and send again after it.
    */
-  async run<T>(request: () => Promise<T>, refusal: (error: unknown) => RateLimitRefusal | null): Promise<T> {
+  async run<T>(
+    request: () => Promise<T>,
+    refusal: (error: unknown) => RateLimitRefusal | null,
+    options: RequestGateRunOptions = {},
+  ): Promise<T> {
     for (let attempt = 0; ; attempt += 1) {
       // The slot is taken before the cooldown wait, so a burst that arrives during a cooldown
       // is still released a few at a time once it ends, never all at once.
-      await this.acquire();
+      await this.acquire(options.priority === true);
       try {
         await this.waitForCooldown();
         const result = await request();
@@ -129,13 +145,13 @@ export class RequestGate {
     }
   }
 
-  private acquire(): Promise<void> {
+  private acquire(priority: boolean): Promise<void> {
     if (this.inFlight < this.maxInFlight) {
       this.inFlight += 1;
       return Promise.resolve();
     }
     return new Promise((resolve) => {
-      this.waiting.push(() => {
+      (priority ? this.priorityWaiting : this.waiting).push(() => {
         this.inFlight += 1;
         resolve();
       });
@@ -144,7 +160,7 @@ export class RequestGate {
 
   private release(): void {
     this.inFlight -= 1;
-    const next = this.waiting.shift();
+    const next = this.priorityWaiting.shift() ?? this.waiting.shift();
     if (next) next();
   }
 }

@@ -9,7 +9,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { spendableBalance, tracksPendingLedgerDebits } from "@/core/balances/spendable";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { TokenBalance } from "@/core/counterparty/api";
-import { fetchTokenBalance, fetchTokenBalances } from "@/core/counterparty/api";
+import { emptyTokenBalance, fetchTokenBalance, fetchTokenBalancesPage } from "@/core/counterparty/api";
 import { normalizeAssetQuery } from "@/core/format";
 import { asDisplayUnits, fromSatoshis, isGreaterThan } from '@/core/numeric';
 import { fetchZeldBalance, ZELD_WALLET_ASSET, zeldBaseUnitsToDisplay } from '@/core/zeld/api';
@@ -18,7 +18,18 @@ import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 import { t } from '@/i18n';
 
+/**
+ * Balance rows per request. The node answers a page of 100 as fast as a page of 20, and most
+ * wallets fit in one, so the first page is usually the whole list and also answers every pinned
+ * asset without a request of its own.
+ */
+const PAGE_SIZE = 100;
 
+/** Whether the list continues past what has been read, by the node's count when it gave one. */
+function pageHasMore(page: { result: TokenBalance[]; result_count: number | null }, nextOffset: number): boolean {
+  if (page.result.length === 0) return false;
+  return page.result_count !== null ? nextOffset < page.result_count : page.result.length === PAGE_SIZE;
+}
 
 interface BalanceListProps {
   /**
@@ -152,19 +163,42 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         }).catch(() => {
           // Leave the optional row absent; the ZELD page explains an unavailable balance.
         });
-        const results = await Promise.allSettled([
-          btcPromise,
-          ...nonBTCAssets.map((asset) => fetchTokenBalance(session.address, asset, { type: "address" })),
-        ]);
+        const firstPage = fetchTokenBalancesPage(session.address, { type: "address", limit: PAGE_SIZE, offset: 0 });
+        const [btcResult, pageResult] = await Promise.allSettled([btcPromise, firstPage]);
         if (sessionRef.current !== session) return;
-        const balances = results.flatMap((result) => result.status === "fulfilled" && result.value ? [result.value] : []);
+        const balances: TokenBalance[] = btcResult.status === "fulfilled" ? [btcResult.value] : [];
+        let failure: unknown = btcResult.status === "rejected" ? btcResult.reason : undefined;
+        if (pageResult.status === "fulfilled") {
+          const page = pageResult.value;
+          balances.push(...page.result);
+          session.offset = page.result.length;
+          session.hasMore = pageHasMore(page, session.offset);
+          // Pinned assets are read from the page. When the node's count says the page is the whole
+          // list, an asset missing from it is held at zero — the same row the per-asset read answers
+          // with. Otherwise it may simply be further down, and only then is it asked for by name.
+          // A subasset is pinned by its long name, which the rows do not carry as `asset`, so it is
+          // always asked for by name.
+          const listed = new Set(page.result.map((balance) => balance.asset.toUpperCase()));
+          const complete = page.result_count !== null && page.result_count <= page.result.length;
+          const missing = nonBTCAssets.filter((asset) => asset.includes(".") || !listed.has(asset.toUpperCase()));
+          const lookups = await Promise.allSettled(missing.map((asset) =>
+            complete && !asset.includes(".")
+              ? Promise.resolve(emptyTokenBalance(asset))
+              : fetchTokenBalance(session.address, asset, { type: "address" })));
+          if (sessionRef.current !== session) return;
+          for (const lookup of lookups) {
+            if (lookup.status === "rejected") failure ??= lookup.reason;
+            else if (lookup.value) balances.push(lookup.value);
+          }
+        } else {
+          failure ??= pageResult.reason;
+        }
         setAllBalances(balances);
         cacheBalances(balances);
-        const failure = results.find((result) => result.status === "rejected");
-        if (failure?.status === "rejected") throw failure.reason;
+        if (failure !== undefined) throw failure;
         session.loaded = true;
         setInitialLoaded(true);
-        setHasMore(true);
+        setHasMore(session.hasMore);
       } catch (error) {
         if (sessionRef.current === session) {
           console.error("Error in loadInitialBalances:", error);
@@ -209,12 +243,11 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
     setIsFetchingMore(true);
     setError(null);
     try {
-      const limit = 20;
-      const fetchedBalances = await fetchTokenBalances(session.address, { type: 'address', limit, offset: session.offset });
+      const page = await fetchTokenBalancesPage(session.address, { type: 'address', limit: PAGE_SIZE, offset: session.offset });
       if (sessionRef.current !== session) return;
-      fetchedBalances.forEach(upsertBalance);
-      session.offset += limit;
-      session.hasMore = fetchedBalances.length === limit;
+      page.result.forEach(upsertBalance);
+      session.offset += page.result.length;
+      session.hasMore = pageHasMore(page, session.offset);
       setHasMore(session.hasMore);
     } catch (error) {
       if (sessionRef.current === session) {
@@ -243,9 +276,10 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   const balancesWithZeld = [...allBalances];
   if (zeldBalance) balancesWithZeld.splice(allBalances.findIndex(balance => balance.asset === "BTC") + 1, 0, zeldBalance);
 
-  const pinnedBalances = balancesWithZeld.filter((balance) =>
-    pinnedAssets.includes(balance.asset.toUpperCase())
-  );
+  // In the order the user pinned them, not the order the node listed them.
+  const pinnedBalances = balancesWithZeld
+    .filter((balance) => pinnedAssets.includes(balance.asset.toUpperCase()))
+    .sort((a, b) => pinnedAssets.indexOf(a.asset.toUpperCase()) - pinnedAssets.indexOf(b.asset.toUpperCase()));
 
   const otherBalances = balancesWithZeld.filter((balance) =>
     !pinnedAssets.includes(balance.asset.toUpperCase())

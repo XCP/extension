@@ -1,6 +1,5 @@
 import { CacheTTL, cachedFetch, KeyedTTLCache } from '@/core/api/cache';
 import { apiClient } from '@/core/api/client';
-import { toNumber, toSatoshis } from '@/core/numeric';
 
 // Balance can change with each block but short cache prevents API spam
 const balanceCache = new KeyedTTLCache<string, number>(CacheTTL.MEDIUM);
@@ -41,19 +40,10 @@ interface BlockstreamAddressResponse {
 }
 
 /**
- * Response format from BlockCypher and Blockchain.info APIs.
+ * Response format from the BlockCypher API.
  */
 interface BlockcypherAddressResponse {
   final_balance: number;
-}
-
-/**
- * Response format from SoChain API.
- */
-interface SochainAddressResponse {
-  data: {
-    confirmed_balance: string;
-  };
 }
 
 /**
@@ -70,7 +60,7 @@ function isBlockstreamResponse(data: unknown): data is BlockstreamAddressRespons
 }
 
 /**
- * Type guard for BlockCypher/Blockchain.info response format.
+ * Type guard for BlockCypher response format.
  */
 function isBlockcypherResponse(data: unknown): data is BlockcypherAddressResponse {
   return (
@@ -78,18 +68,6 @@ function isBlockcypherResponse(data: unknown): data is BlockcypherAddressRespons
     data !== null &&
     'final_balance' in data &&
     typeof (data as BlockcypherAddressResponse).final_balance === 'number'
-  );
-}
-
-/**
- * Type guard for SoChain response format.
- */
-function isSochainResponse(data: unknown): data is SochainAddressResponse {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'data' in data &&
-    typeof (data as SochainAddressResponse).data?.confirmed_balance === 'string'
   );
 }
 
@@ -176,8 +154,8 @@ export async function fetchBTCBalance(address: string, timeoutMs = 5000): Promis
         `https://blockstream.info/api/address/${address}`,
         `https://mempool.space/api/address/${address}`,
         `https://api.blockcypher.com/v1/btc/main/addrs/${address}/balance`,
-        `https://blockchain.info/rawaddr/${address}?cors=true`,
-        `https://sochain.com/api/v2/get_address_balance/BTC/${address}`,
+        // Not blockchain.info/rawaddr: it answers a balance question with the address's whole
+        // transaction history. Not SoChain: its v2 API no longer answers (v3 needs a key).
       ];
 
       for (const endpoint of endpoints) {
@@ -218,21 +196,12 @@ function parseBTCBalance(endpoint: string, data: unknown): number | null {
       const memSpent = BigInt(data.mempool_stats.spent_txo_sum);
       return Number(funded - spent + memFunded - memSpent);
     }
-    // Format from blockcypher.com or blockchain.info.
-    if (hostname === 'api.blockcypher.com' || hostname === 'blockchain.info') {
+    // Format from blockcypher.com.
+    if (hostname === 'api.blockcypher.com') {
       if (!isBlockcypherResponse(data)) {
         return null;
       }
       return data.final_balance;
-    }
-    // Format from sochain.com.
-    if (hostname === 'sochain.com') {
-      if (!isSochainResponse(data)) {
-        return null;
-      }
-      // toSatoshis takes the decimal string directly; the inner Number() was rounding a BTC
-      // amount to a float before it was scaled.
-      return toNumber(toSatoshis(data.data.confirmed_balance));
     }
   } catch (err) {
     console.warn(`Error parsing response from ${endpoint}:`, err);

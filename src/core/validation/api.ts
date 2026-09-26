@@ -49,7 +49,7 @@ export async function validateCounterpartyApi(url: string): Promise<ApiValidatio
     // Test the API endpoint
     const response = await fetch(`${url}/v2`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      // No Content-Type: the GET has no body, and declaring one would add a CORS preflight.
       signal: controller.signal,
     });
 

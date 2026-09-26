@@ -40,20 +40,24 @@ export const useMarketPrices = (currency: FiatCurrency = 'usd') => {
       let btcPrice: number | null = null;
       let xcpPrice: number | null = null;
 
-      if (currency === 'usd') {
-        // For USD: Use multi-source fallback (most reliable)
-        btcPrice = await getBtcPrice();
-        // XCP price in USD directly
-        xcpPrice = await getXCPPrice(btcPrice);
-      } else {
-        // For non-USD: Fetch BTC price in target currency from CoinGecko
-        const btcStats = await getBtc24hStats(currency);
-        btcPrice = btcStats?.price ?? null;
+      // Every request starts at once. The BTC/USD quote is handed to the XCP lookup as a pending
+      // promise because only its last-resort source needs it; xcp.io does not wait for BTC. Both
+      // quotes are cached for a minute and shared, so a screen calling this hook twice costs one
+      // request per source.
+      const btcUsdRequest = getBtcPrice();
+      const xcpUsdRequest = getXCPPrice(btcUsdRequest);
 
-        // XCP: Get USD prices first, then convert
-        // XCP APIs only return USD, so we need to convert
-        const btcPriceUsd = await getBtcPrice();
-        const xcpPriceUsd = await getXCPPrice(btcPriceUsd);
+      if (currency === 'usd') {
+        [btcPrice, xcpPrice] = await Promise.all([btcUsdRequest, xcpUsdRequest]);
+      } else {
+        // For non-USD: BTC in the target currency comes from CoinGecko (the only source for
+        // other currencies). XCP APIs only return USD, so XCP is converted through the BTC ratio.
+        const [btcStats, btcPriceUsd, xcpPriceUsd] = await Promise.all([
+          getBtc24hStats(currency),
+          btcUsdRequest,
+          xcpUsdRequest,
+        ]);
+        btcPrice = btcStats?.price ?? null;
 
         if (xcpPriceUsd && btcPriceUsd && btcPrice) {
           // Convert XCP/USD to XCP/fiat using exchange rate derived from BTC

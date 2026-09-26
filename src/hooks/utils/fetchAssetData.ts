@@ -32,15 +32,20 @@ export async function fetchAssetDetailsAndBalance(
     return { isDivisible: true, assetInfo, availableBalance };
   }
 
+  // Both reads start together. The balance is only used once the asset is known to exist, and its
+  // rejection is observed here so an asset-not-found error is not joined by an unhandled one.
+  const balanceRequest = fetchTokenBalance(address, asset, {
+    type: 'address',
+    verbose: options.verbose,
+  });
+  balanceRequest.catch(() => {});
+
   const assetInfo = await fetchAssetDetails(asset, { verbose: options.verbose });
   if (!assetInfo) {
     throw new Error(`Asset not found: ${asset}`);
   }
 
-  const balance = await fetchTokenBalance(address, asset, {
-    type: 'address',
-    verbose: options.verbose,
-  });
+  const balance = await balanceRequest;
 
   return {
     isDivisible: assetInfo.divisible,

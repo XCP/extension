@@ -1,5 +1,6 @@
 import { CacheTTL, cachedFetch, KeyedTTLCache } from '@/core/api/cache';
 import { apiClient, isCancel } from '@/core/api/client';
+import { runCounterpartyRequest } from '@/core/counterparty/api';
 import { getActiveSettings } from '@/core/settings';
 
 // UTXOs can change with each block but short cache prevents API spam
@@ -192,7 +193,10 @@ export function getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): UTXO |
 
 /**
  * Fetches the raw transaction hex for a given txid.
- * Tries Counterparty API first, falls back to mempool.space for unconfirmed txs.
+ * Tries mempool.space first — a bare hex answer, far smaller than the node's decoded transaction,
+ * and not queued behind the wallet's other Counterparty reads — then falls back to the Counterparty
+ * API, paced by its gate. Neither source is trusted for more than bytes: callers that depend on the
+ * parent check it against the txid they asked for, whichever source answered.
  * Results are cached for 10 minutes (transactions are immutable once fetched).
  *
  * @param txid - Transaction ID in hex.
@@ -204,26 +208,25 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
     inflightRawTxRequests,
     txid,
     async () => {
-      // Try Counterparty API first
+      try {
+        const response = await apiClient.get<string>(`https://mempool.space/api/tx/${txid}/hex`, { retries: 0 });
+        const data = typeof response.data === 'string' ? response.data.trim() : '';
+        if (/^[0-9a-f]+$/i.test(data)) {
+          return data;
+        }
+      } catch {
+        // Fall through to the Counterparty API
+      }
+
       try {
         const settings = getActiveSettings();
-        const response = await apiClient.get<{ result: BitcoinTransaction }>(
-          `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
-        );
+        const response = await runCounterpartyRequest(() => apiClient.get<{ result: BitcoinTransaction }>(
+          `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`,
+          { retries: 1 }
+        ));
 
         if (typeof response.data?.result?.hex === 'string') {
           return response.data.result.hex;
-        }
-      } catch {
-        // Fall through to mempool.space
-      }
-
-      // Fallback to mempool.space (handles unconfirmed txs better)
-      try {
-        const response = await apiClient.get<string>(`https://mempool.space/api/tx/${txid}/hex`, { retries: 0 });
-        const data = String(response.data).trim();
-        if (data.length > 0) {
-          return data;
         }
       } catch {
         // Both sources failed
@@ -274,9 +277,10 @@ export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTran
 
         // Fetch from both Counterparty API and mempool.space in parallel
         const [counterpartyResponse, mempoolResponse] = await Promise.all([
-          apiClient.get<{ result: BitcoinTransaction }>(
-            `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
-          ),
+          runCounterpartyRequest(() => apiClient.get<{ result: BitcoinTransaction }>(
+            `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`,
+            { retries: 1 }
+          )),
           apiClient.get<MempoolTxStatus>(`https://mempool.space/api/tx/${txid}/status`, { retries: 0 })
             .then(r => r.data)
             .catch(() => null) // Don't fail if mempool.space is unavailable

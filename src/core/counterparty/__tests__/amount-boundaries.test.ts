@@ -7,7 +7,10 @@ import { composeMPMA, composeSend, composeTransaction } from '../compose';
 import { normalizeFormData, verifiedReviewParams } from '../normalize';
 
 vi.mock('@/core/api/client', () => ({ apiClient: { get: vi.fn() } }));
-vi.mock('../api', () => ({ fetchAssetDetails: vi.fn() }));
+vi.mock('../api', () => ({
+  fetchAssetDetails: vi.fn(),
+  runCounterpartyRequest: (request: () => Promise<unknown>) => request(),
+}));
 vi.mock('@/core/counterparty/sourcePubkey', () => ({ getSourcePubkey: () => null }));
 vi.mock('@/core/counterparty/utxoSelection', () => ({ selectUtxosForTransaction: vi.fn().mockRejectedValue(new Error('unavailable')) }));
 vi.mock('@/core/settings', () => ({ getActiveSettings: () => ({ counterpartyApiBase: 'https://api.example', allowUnconfirmedTxs: false }) }));
