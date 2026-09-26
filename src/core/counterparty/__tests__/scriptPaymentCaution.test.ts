@@ -73,6 +73,10 @@ describe('composedTransactionOutputs', () => {
     expect(outputs[1]!.address).toBeUndefined();
     expect(outputs[2]).toMatchObject({ address: PAYER, value: 50_000 });
   });
+
+  it('reads no outputs from bytes that do not parse, leaving the error to signing', () => {
+    expect(composedTransactionOutputs('0200000001abcdef', [PAYER])).toEqual([]);
+  });
 });
 
 describe('BTC send', () => {

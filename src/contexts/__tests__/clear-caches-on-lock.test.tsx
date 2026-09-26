@@ -28,7 +28,7 @@ function Harness({ onCaches }: { onCaches: (n: number) => void }) {
   const { cacheBalances, subheadings } = useHeader();
   const [locked, setLocked] = useState(false);
 
-  useEffect(() => { cacheBalances([BALANCE]); }, [cacheBalances]);
+  useEffect(() => { cacheBalances('bc1qholder', [BALANCE]); }, [cacheBalances]);
   useEffect(() => { onCaches(Object.keys(subheadings.balances).length); }, [subheadings, onCaches]);
 
   return (
@@ -66,7 +66,7 @@ describe('locking the keychain', () => {
     render(<HeaderProvider><Probe /></HeaderProvider>);
 
     act(() => {
-      api!.cacheBalances([BALANCE]);
+      api!.cacheBalances('bc1qholder', [BALANCE]);
       api!.setAddressHeader('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', 'Wallet 1');
       api!.cacheOwnedAssets([{
         asset: 'MYTOKEN', asset_longname: null, supply_normalized: asDisplayUnits('1'), description: '', locked: false,

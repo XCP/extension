@@ -410,10 +410,29 @@ describe('HeaderContext', () => {
       };
 
       act(() => {
-        result.current.setBalanceHeader('XCP', balance);
+        result.current.setBalanceHeader('bc1qholder', 'XCP', balance);
       });
 
-      expect(result.current.subheadings.balances['XCP']).toEqual(balance);
+      expect(result.current.subheadings.balances['bc1qholder']?.['XCP']).toEqual(balance);
+      expect(result.current.getCachedBalance('bc1qholder', 'XCP')).toEqual(balance);
+    });
+
+    it('keeps each address its own balances', () => {
+      const { result } = renderHook(() => useHeader(), {
+        wrapper: HeaderProvider
+      });
+
+      act(() => {
+        result.current.setBalanceHeader('bc1qfirst', 'XCP', { asset: 'XCP', quantity_normalized: asDisplayUnits('100') });
+        result.current.cacheBalances('bc1qsecond', [{ asset: 'PEPECASH', quantity_normalized: asDisplayUnits('7') }]);
+      });
+
+      expect(result.current.getCachedBalance('bc1qfirst', 'XCP')?.quantity_normalized).toBe('100');
+      // A balance read for one address is never handed out for another.
+      expect(result.current.getCachedBalance('bc1qsecond', 'XCP')).toBeUndefined();
+      expect(result.current.getCachedBalance('bc1qfirst', 'PEPECASH')).toBeUndefined();
+      expect(result.current.getCachedBalance('bc1qsecond', 'PEPECASH')?.quantity_normalized).toBe('7');
+      expect(result.current.getCachedBalance(undefined, 'XCP')).toBeUndefined();
     });
 
     it('should clear balances', () => {
@@ -423,17 +442,17 @@ describe('HeaderContext', () => {
 
       // Set some balances
       act(() => {
-        result.current.setBalanceHeader('XCP', {
+        result.current.setBalanceHeader('bc1qholder', 'XCP', {
           asset: 'XCP',
           quantity_normalized: asDisplayUnits('100')
         });
-        result.current.setBalanceHeader('TEST', {
+        result.current.setBalanceHeader('bc1qholder', 'TEST', {
           asset: 'TEST',
           quantity_normalized: asDisplayUnits('50')
         });
       });
 
-      expect(Object.keys(result.current.subheadings.balances).length).toBe(2);
+      expect(Object.keys(result.current.subheadings.balances['bc1qholder'] ?? {}).length).toBe(2);
 
       // Clear balances
       act(() => {

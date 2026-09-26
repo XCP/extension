@@ -11,7 +11,7 @@
  * by answering anyone; see registerCompletionHandler.
  */
 
-import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { APPROVAL_WINDOW_FAILED_MESSAGE, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
 import { openPopupWindow, type PopupWindow, reusePopupWindow } from '@/platform/popup';
 import {
@@ -115,8 +115,32 @@ export class ApprovalService extends BaseService {
       }
     }, timeout);
 
-    // Open approval popup
-    await this.openApprovalPopup(type, id, origin, placement);
+    // Open approval popup. If no window can be opened (chrome.windows.getCurrent rejects when the
+    // browser has no window to report, and create can fail), nobody can ever answer this request:
+    // end it now rather than leave it pending — holding the badge, blocking an update reload and
+    // later timing out into a rejection nobody is waiting for.
+    try {
+      await this.openApprovalPopup(type, id, origin, placement);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      promise.catch(() => {}); // Settled below; the caller hears the error thrown here instead.
+      console.error('[ApprovalService] Could not open the approval window:', error);
+      // Only while this is still the current request: one that superseded it owns the listener now.
+      if (this.pendingApproval?.id === id) {
+        this.removeWindowCloseListener();
+        const approval = this.pendingApproval;
+        this.pendingApproval = null;
+        this.updateBadge();
+        approval.waiter?.reject(new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, APPROVAL_WINDOW_FAILED_MESSAGE));
+        // Awaited, unlike rejectCurrentApproval: the caller is still here, and a restarted worker
+        // must not resume a request nobody can see.
+        await recordApprovalOutcome(id, 'cancelled').catch((recordError) => {
+          console.error('[ApprovalService] Failed to record approval outcome:', recordError);
+        });
+      }
+      await this.trackApprovalResult(options, false);
+      throw new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, APPROVAL_WINDOW_FAILED_MESSAGE);
+    }
 
     // Update badge
     this.updateBadge();
