@@ -11,6 +11,11 @@ import { DUST_LIMIT_SATS } from '@/core/bitcoin/constants';
 import { publicKeyPointId } from '@/core/bitcoin/publicKeyIdentity';
 import type { MarketplaceBlockKind } from '@/core/counterparty/marketplaceIntent';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
+import type {
+  RevealControlFacts,
+  RevealOutputsFacts,
+  RevealRefusal,
+} from '@/core/counterparty/providerReveal';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import {
   bareMultisigRecoveryPubkey,
@@ -34,6 +39,19 @@ export type SecurityWarning = SecurityWarningText & (
   | { code?: 'bitcoin_payment_gate' | 'counterparty_only_gate' | 'detach_all' | 'sweep' | 'destroy' | 'unrecognized_payload'; data?: never }
   | { code: 'unknown_message_type'; data: { messageType: string } }
   | { code: 'inscription_commit'; data: { totalSats: number; address: string } }
+  /** A commit whose site-held reveal was proved: the BTC funds the reveal that publishes the message. */
+  | { code: 'counterparty_reveal_commit'; data: { totalSats: number; address: string } }
+  /** A site-supplied reveal that did not prove out, by why (providerReveal.ts). */
+  | { code: 'counterparty_reveal_refused'; data: { reason: RevealRefusal } }
+  /** What the site decides about a proved reveal's message, through the outputs it builds. */
+  | { code: 'counterparty_reveal_site_control'; data: RevealControlFacts }
+  /** The outputs of the reveal the site supplied, as proved facts. */
+  | { code: 'counterparty_reveal_outputs'; data: RevealOutputsFacts }
+  /**
+   * Payments to script addresses the wallet does not control, from `source`, this wallet's
+   * address, which holds Counterparty assets (or could not be shown not to).
+   */
+  | { code: 'unproven_script_output'; data: { totalSats: number; addresses: string[]; source: string } }
   | { code: 'misdirected_recovery_key'; data: { count: number } }
   | { code: 'zeld_would_leave'; data: { count: number } }
   | { code: 'durable_sell_authorization'; data: { inputs: number[] } }
@@ -48,6 +66,17 @@ export type SecurityWarning = SecurityWarningText & (
 
 /** Stable identifiers for warnings that another presentation layer may describe more precisely. */
 export type SecurityWarningCode = Exclude<SecurityWarning['code'], undefined>;
+
+/**
+ * A commit output the caller has proved: an inscription commit whose keys are the signer's
+ * (`providerInscriptions.ts`), or a Counterparty commit whose site-held reveal was checked
+ * against it (`providerReveal.ts`).
+ */
+export interface VerifiedCommit {
+  address: string;
+  value: number;
+  kind?: 'inscription' | 'reveal';
+}
 
 /** Full safety analysis result */
 export interface SafetyAnalysis {
@@ -195,9 +224,10 @@ export function analyzeTransactionSafety(
      * An inscription commit output the caller has already verified — address re-derived from the
      * declared envelope, keys proven to be the signer's (`providerInscriptions.ts`). Reported as
      * information rather than flagged: the coins stay under the signer's key, which is the fact
-     * the external-address warning exists to check.
+     * the external-address warning exists to check. A proved reveal commit (`kind: 'reveal'`)
+     * is reported too, differently: its coins fund the reveal whose message the screen shows.
      */
-    verifiedCommit?: { address: string; value: number };
+    verifiedCommit?: VerifiedCommit;
     /** A separate provider capability identified this as an explicit Bitcoin payment request. */
     plainBitcoinPayment?: boolean;
   } = {}
@@ -310,7 +340,18 @@ export function analyzeTransactionSafety(
     }
   }
 
-  if (options.verifiedCommit) {
+  if (options.verifiedCommit?.kind === 'reveal') {
+    // Not "spendable only by your key": the site holds the reveal's key. The message the reveal
+    // publishes is the transaction's subject; this states where the BTC goes and why.
+    const { address, value } = options.verifiedCommit;
+    warnings.push({
+      code: 'counterparty_reveal_commit',
+      data: { totalSats: value, address },
+      severity: 'info',
+      title: t('safety_counterparty_reveal_commit'),
+      message: t('safety_counterparty_reveal_commit_detail', [(value / 100_000_000).toFixed(8), address]),
+    });
+  } else if (options.verifiedCommit) {
     const btcAmount = (options.verifiedCommit.value / 100_000_000).toFixed(8);
     warnings.push({
       code: 'inscription_commit',

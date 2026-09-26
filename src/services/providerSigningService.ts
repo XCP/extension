@@ -205,7 +205,7 @@ export function createProviderSigningService(): ProviderSigningService {
           signers.length ? signers : [request.address], Object.values(request.signInputs ?? {}).flat(),
           request.sighashTypes, request.inscription, request.signingPurpose,
           request.bitcoinPaymentIntent, request.marketplaceIntent, ownedAddresses,
-          { resolveTrustedPrevout: getTrustedBroadcastPrevout });
+          { resolveTrustedPrevout: getTrustedBroadcastPrevout, counterpartyReveal: request.reveal });
         review = { kind: request.kind, request, decodedInfo, fastestFee,
           policy: getPsbtApprovalPolicy(request, decodedInfo, strictMode, fastestFee) };
         break;

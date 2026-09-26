@@ -4022,6 +4022,114 @@
   "safety_this_funds_an_inscription": {
     "message": "これはインスクリプションへの資金供給です。$1 BTC が $2 に送られます。これはインスクリプション自体から導出されたアドレスで、あなたの秘密鍵でのみ使用できます。続くリビールトランザクションがコンテンツを公開します。その送信先と手数料は別途確認してください。"
   },
+  "safety_counterparty_reveal_commit": {
+    "message": "Counterparty のコミット"
+  },
+  "safety_counterparty_reveal_commit_detail": {
+    "message": "$1 BTC が $2 に送られ、サイトのリビールトランザクションの資金になります。このリビールが、上に表示されたメッセージをあなたのアドレスから公開します。この出力の鍵はサイトが持っているため、この BTC は使われたものと考えてください。"
+  },
+  "safety_blocked_reveal_did_not_verify": {
+    "message": "ブロック: リビールを検証できませんでした"
+  },
+  "safety_reveal_unreadable": {
+    "message": "サイトが提供したリビールトランザクションを読み取れないため、何が公開されるかわかりません。"
+  },
+  "safety_reveal_not_this_transaction": {
+    "message": "サイトのリビールは、最初の入力でこのトランザクションの出力を使用していないため、このトランザクションが何の資金になるかを示していません。"
+  },
+  "safety_reveal_script_not_committed": {
+    "message": "リビールが使用する出力は、リビールが公開するただ一つのスクリプトにコミットしていません。そのため、サイトは別のメッセージを公開できます。"
+  },
+  "safety_reveal_not_counterparty": {
+    "message": "サイトのリビールは、このウォレットが読み取れる Counterparty メッセージを公開しません。"
+  },
+  "safety_reveal_source_not_signer": {
+    "message": "リビールのメッセージは、あなたのものではないアドレスから公開されます。"
+  },
+  "safety_reveal_two_messages": {
+    "message": "このトランザクションはリビールのメッセージに加えて独自の Counterparty メッセージも含んでいるため、一つの操作として説明できません。"
+  },
+  "safety_unproven_script_output": {
+    "message": "スクリプトアドレスへの支払い"
+  },
+  "safety_unproven_script_output_one": {
+    "message": "$1 BTC がスクリプトアドレス $2 に送られます。スクリプトアドレスへの支払いは、その所有者があなたの Counterparty アセットを $3 から移動できるようにする場合があります。受取人を信頼できる場合にのみ続行してください。"
+  },
+  "safety_unproven_script_output_many": {
+    "message": "$1 BTC がスクリプトアドレス（$2）に送られます。スクリプトアドレスへの支払いは、その所有者があなたの Counterparty アセットを $3 から移動できるようにする場合があります。受取人を信頼できる場合にのみ続行してください。"
+  },
+  "safety_reveal_site_builds_title": {
+    "message": "2 つ目のトランザクションはサイトが作成します"
+  },
+  "safety_reveal_control_send_recipient": {
+    "message": "旧形式の送信は、2 つ目のトランザクションがデータより前に支払うアドレスに届きます。2 つ目のトランザクションはサイトが作成し、受取人もサイトが決めます。"
+  },
+  "safety_reveal_control_issuance_transfer": {
+    "message": "サイトは $1 の所有権を、サイトが選ぶアドレスに移転することもできます。2 つ目のトランザクションがデータより前に支払うアドレスが新しい所有者になります。"
+  },
+  "safety_reveal_control_attach_output": {
+    "message": "これはあなたの $1 を 2 つ目のトランザクションの出力にアタッチします。そのトランザクションと出力はサイトが決めるため、アセットはサイトが決めた場所に移ります。"
+  },
+  "safety_reveal_control_dispense_payment": {
+    "message": "ディスペンスは、2 つ目のトランザクションが支払う自販機から購入します。そのトランザクションはサイトが作成し、どの自販機にいくら支払うかもサイトが決めます。"
+  },
+  "safety_reveal_control_btcpay_payment": {
+    "message": "BTCPay は、2 つ目のトランザクションがあなたの注文マッチに支払った場合にのみ決済されます。そのトランザクションはサイトが作成するため、支払うかどうかはサイトが決めます。"
+  },
+  "safety_reveal_control_detach_inputs": {
+    "message": "デタッチは、2 つ目のトランザクションが使用する UTXO からアセットを解放します。2 つ目のトランザクションが使用するのはこのトランザクションの出力で、あなたの UTXO を使用するには、このリクエストでは行わない署名が必要です。"
+  },
+  "safety_reveal_control_not_executed": {
+    "message": "Counterparty はこの旧形式の UTXO メッセージをもう実行しないため、公開しても何も変わりません。"
+  },
+  "safety_reveal_control_outputs_unknown": {
+    "message": "2 つ目のトランザクションはサイトが作成します。その出力がこの $1 メッセージの内容を変えるかどうか、ウォレットには判断できません。"
+  },
+  "safety_reveal_supplied_recipient": {
+    "message": "提供された内容では、受取人は $1 です。"
+  },
+  "safety_reveal_supplied_no_recipient": {
+    "message": "提供された内容では受取人が指定されていないため、Counterparty はこの送信を拒否します。"
+  },
+  "safety_reveal_supplied_new_owner": {
+    "message": "提供された内容では、所有権は $1 に移ります。"
+  },
+  "safety_reveal_supplied_no_transfer": {
+    "message": "提供された内容では、所有権は移転しません。"
+  },
+  "safety_reveal_supplied_attach_output": {
+    "message": "提供された内容では、出力 #$1 が受け取ります: $2。"
+  },
+  "safety_reveal_supplied_attach_missing": {
+    "message": "提供された内容にはアタッチ先の出力がないため、Counterparty はこのアタッチを拒否します。"
+  },
+  "safety_reveal_address_yours": {
+    "message": "$1（あなたのアドレス）"
+  },
+  "safety_reveal_address_not_yours": {
+    "message": "$1（あなたのアドレスではありません）"
+  },
+  "safety_reveal_address_none": {
+    "message": "アドレスのない出力"
+  },
+  "safety_reveal_outputs_title": {
+    "message": "2 つ目のトランザクション"
+  },
+  "safety_reveal_outputs_pays_other_title": {
+    "message": "2 つ目のトランザクションが別のアドレスに支払います"
+  },
+  "safety_reveal_outputs_data_only": {
+    "message": "2 つ目のトランザクション: データのみで、支払いはありません。"
+  },
+  "safety_reveal_outputs_pays": {
+    "message": "サイトが提供した 2 つ目のトランザクションの支払い先:"
+  },
+  "safety_reveal_output_item": {
+    "message": "$1 sats → $2"
+  },
+  "safety_reveal_outputs_resign_note": {
+    "message": "2 つ目のトランザクションの鍵を持つサイトは、別の出力で署名し直せます。Counterparty 自身のサービスが作成したものは署名し直せませんが、どちらなのかウォレットには判断できません。"
+  },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "これは $1 BTC を $2 に送金します。サイトが申告した支払い出力と一致しています。アドレスが意図したものかどうか確認してください。"
   },

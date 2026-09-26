@@ -36,7 +36,7 @@ type Instruction = { op: number } | { push: Uint8Array };
  * needs nothing more. Returns null on a malformed push (truncated data), as bitcoin's own
  * instruction iterator yields an error there.
  */
-function parseInstructions(script: Uint8Array): Instruction[] | null {
+export function parseInstructions(script: Uint8Array): Instruction[] | null {
   const instructions: Instruction[] = [];
   let i = 0;
   while (i < script.length) {

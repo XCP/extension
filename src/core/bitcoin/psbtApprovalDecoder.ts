@@ -53,6 +53,8 @@ export async function decodePsbtForApproval(
     sharedAttachedAssets?: { outpoints: string[]; assets: InputAttachedAssets[] };
     /** Wallet-supplied policy-offer facts; see PolicyOfferWalletContext. */
     policyOffer?: PolicyOfferWalletContext;
+    /** The site's signed reveal for a Counterparty Taproot commit; proved in analyzeSignRequest. */
+    counterpartyReveal?: string;
   } = {},
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
@@ -104,6 +106,7 @@ export async function decodePsbtForApproval(
     transactionId: txid,
     attachedAssets: attachedAssetsPromise,
     inscriptionContext,
+    counterpartyReveal: options.counterpartyReveal,
     signingPurpose,
     bitcoinPaymentIntent,
     marketplaceIntent,

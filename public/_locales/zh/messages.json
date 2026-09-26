@@ -4022,6 +4022,114 @@
   "safety_this_funds_an_inscription": {
     "message": "这笔交易为铭文提供资金：$1 BTC 将发送到 $2，该地址由铭文本身推导而来，只有你的私钥能够花费。随后的揭示交易会发布内容，请另行核对它的接收地址和手续费。"
   },
+  "safety_counterparty_reveal_commit": {
+    "message": "Counterparty 提交交易"
+  },
+  "safety_counterparty_reveal_commit_detail": {
+    "message": "$1 BTC 将发送到 $2，用于支付该网站的揭示交易；该揭示交易会以你的地址发布上方显示的消息。此输出的密钥由网站持有，因此请把这笔 BTC 视为已花费。"
+  },
+  "safety_blocked_reveal_did_not_verify": {
+    "message": "已阻止：揭示交易未通过验证"
+  },
+  "safety_reveal_unreadable": {
+    "message": "无法读取网站提供的揭示交易，因此无法知道它会发布什么。"
+  },
+  "safety_reveal_not_this_transaction": {
+    "message": "网站的揭示交易没有用第一个输入花费此交易的输出，因此无法说明此交易为什么提供资金。"
+  },
+  "safety_reveal_script_not_committed": {
+    "message": "揭示交易所花费的输出并非只承诺它所发布的那一个脚本，因此网站可能发布另一条消息。"
+  },
+  "safety_reveal_not_counterparty": {
+    "message": "网站的揭示交易没有发布此钱包可以读取的 Counterparty 消息。"
+  },
+  "safety_reveal_source_not_signer": {
+    "message": "揭示交易的消息将从不属于你的地址发布。"
+  },
+  "safety_reveal_two_messages": {
+    "message": "此交易除了揭示交易的消息外，还带有自己的 Counterparty 消息，因此无法作为单一操作说明。"
+  },
+  "safety_unproven_script_output": {
+    "message": "向脚本地址付款"
+  },
+  "safety_unproven_script_output_one": {
+    "message": "$1 BTC 将发送到脚本地址 $2。向脚本地址付款可能让其所有者从 $3 转走你的 Counterparty 资产。只有在你信任收款方时才继续。"
+  },
+  "safety_unproven_script_output_many": {
+    "message": "$1 BTC 将发送到脚本地址：$2。向脚本地址付款可能让其所有者从 $3 转走你的 Counterparty 资产。只有在你信任收款方时才继续。"
+  },
+  "safety_reveal_site_builds_title": {
+    "message": "第二笔交易由网站构建"
+  },
+  "safety_reveal_control_send_recipient": {
+    "message": "旧版发送会发往第二笔交易在数据之前支付的地址。第二笔交易由网站构建，收款方也由网站选择。"
+  },
+  "safety_reveal_control_issuance_transfer": {
+    "message": "网站还可以把 $1 的所有权转移到它选择的地址：第二笔交易在数据之前支付的地址会成为新的所有者。"
+  },
+  "safety_reveal_control_attach_output": {
+    "message": "这会把你的 $1 附加到第二笔交易的一个输出上。该交易及其输出由网站选择，因此资产会去往网站决定的地方。"
+  },
+  "safety_reveal_control_dispense_payment": {
+    "message": "从售货机购买时，会向第二笔交易支付的售货机购买。该交易由网站构建，支付哪些售货机以及支付多少都由网站决定。"
+  },
+  "safety_reveal_control_btcpay_payment": {
+    "message": "只有当第二笔交易向你的订单撮合付款时，BTCPay 才会结算。该交易由网站构建，因此是否付款由网站决定。"
+  },
+  "safety_reveal_control_detach_inputs": {
+    "message": "分离会从第二笔交易花费的 UTXO 中释放资产。第二笔交易花费的是此交易的输出；要花费你的 UTXO，需要本次请求并未提供的签名。"
+  },
+  "safety_reveal_control_not_executed": {
+    "message": "Counterparty 已不再执行这种旧版 UTXO 消息，因此发布它不会改变任何东西。"
+  },
+  "safety_reveal_control_outputs_unknown": {
+    "message": "第二笔交易由网站构建，钱包无法判断其输出是否会改变这条 $1 消息的作用。"
+  },
+  "safety_reveal_supplied_recipient": {
+    "message": "按网站提供的内容，收款方是 $1。"
+  },
+  "safety_reveal_supplied_no_recipient": {
+    "message": "按网站提供的内容，没有指定收款方，因此 Counterparty 会拒绝这次发送。"
+  },
+  "safety_reveal_supplied_new_owner": {
+    "message": "按网站提供的内容，所有权将转给 $1。"
+  },
+  "safety_reveal_supplied_no_transfer": {
+    "message": "按网站提供的内容，不会转移所有权。"
+  },
+  "safety_reveal_supplied_attach_output": {
+    "message": "按网站提供的内容，由输出 #$1 接收：$2。"
+  },
+  "safety_reveal_supplied_attach_missing": {
+    "message": "按网站提供的内容，没有可附加的输出，因此 Counterparty 会拒绝这次附加。"
+  },
+  "safety_reveal_address_yours": {
+    "message": "$1（你的地址）"
+  },
+  "safety_reveal_address_not_yours": {
+    "message": "$1（不是你的地址）"
+  },
+  "safety_reveal_address_none": {
+    "message": "没有地址的输出"
+  },
+  "safety_reveal_outputs_title": {
+    "message": "第二笔交易"
+  },
+  "safety_reveal_outputs_pays_other_title": {
+    "message": "第二笔交易向其他地址付款"
+  },
+  "safety_reveal_outputs_data_only": {
+    "message": "第二笔交易：仅包含数据，没有付款。"
+  },
+  "safety_reveal_outputs_pays": {
+    "message": "网站提供的第二笔交易付款给："
+  },
+  "safety_reveal_output_item": {
+    "message": "$1 sats → $2"
+  },
+  "safety_reveal_outputs_resign_note": {
+    "message": "持有第二笔交易密钥的网站可以用不同的输出重新签名。由 Counterparty 自身服务构建的交易无法重新签名，但钱包无法分辨这是哪一种。"
+  },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "这会把 $1 BTC 发送到 $2，与该网站声明的支付输出一致。请确认地址正是你想要的那个。"
   },
