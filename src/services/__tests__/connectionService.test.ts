@@ -683,6 +683,10 @@ describe('ConnectionService', () => {
     // The provider service charges the connect limit once per xcp_requestAccounts. Charging it here
     // as well made one connect cost two slots, and its refusal reached the site masked as -32603.
     it('does not charge the connect rate limit a second time', async () => {
+      // Grants are written to the vault and read back from it, as in the background.
+      let settings = { ...(mockGetSettings() as Partial<AppSettings>) };
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async (updates) => { settings = { ...settings, ...updates }; });
       vi.mocked(connectionRateLimiter.isAllowed).mockReturnValue(false);
 
       await expect(connectionService.connect(
