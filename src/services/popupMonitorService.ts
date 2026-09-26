@@ -1,7 +1,7 @@
 /** Request-scoped popup lifecycle tracking. Closing one window cannot cancel another request. */
 import { cancelPendingSignFlow, getSignFlow, getSignFlowEventPrefix, type SignFlowKind } from '@/platform/provider/signFlow';
 import { isExtensionPageSender } from '@/platform/proxy';
-import { whenServicesReady } from '@/services/core/serviceReadiness';
+import { whenServicesReady } from '@/platform/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 
 const kinds = new Set<SignFlowKind>(['sign-message', 'sign-transaction', 'sign-psbt', 'sign-psbts']);
@@ -93,12 +93,6 @@ class PopupMonitorService {
         eventEmitterService.emit(`${getSignFlowEventPrefix(record.type)}-cancel-${requestId}`, { reason: 'Request expired' });
         this.markRequestComplete(requestId);
       }
-    }
-  }
-
-  registerActiveRequest(requestId: string, type: SignFlowKind): void {
-    if (!this.activeRequests.has(requestId)) {
-      this.activeRequests.set(requestId, { type, timestamp: Date.now(), ports: new Set() });
     }
   }
 

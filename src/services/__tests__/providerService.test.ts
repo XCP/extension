@@ -401,8 +401,6 @@ describe('ProviderService', () => {
       setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
       setLastActiveTime: vi.fn(),
       isKeychainUnlocked: vi.fn().mockResolvedValue(true),
-      // Additional methods used by provider service
-      getAuthState: vi.fn().mockResolvedValue('unlocked'),
       getActiveAddress: vi.fn().mockResolvedValue({
         id: 'addr1',
         address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
@@ -422,12 +420,8 @@ describe('ProviderService', () => {
       hasPairedAddressPermission: vi.fn().mockResolvedValue(false),
       requestPairedAddressPermission: vi.fn().mockResolvedValue(undefined),
       requestPermission: vi.fn().mockResolvedValue(true),
-      revokePermission: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn().mockResolvedValue(undefined),
       connect: vi.fn().mockResolvedValue(['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']),
-      getConnectedSites: vi.fn().mockResolvedValue([]),
-      initialize: vi.fn().mockResolvedValue(undefined),
-      destroy: vi.fn().mockResolvedValue(undefined)
     };
     vi.mocked(connectionService.getConnectionService).mockReturnValue(mockConnectionService as any);
 
@@ -435,11 +429,6 @@ describe('ProviderService', () => {
     const mockApprovalService = {
       requestApproval: vi.fn().mockResolvedValue(true),
       resolveApproval: vi.fn().mockReturnValue(true),
-      getApprovalQueue: vi.fn().mockResolvedValue([]),
-      removeApprovalRequest: vi.fn().mockResolvedValue(true),
-      initialize: vi.fn().mockResolvedValue(undefined),
-      destroy: vi.fn().mockResolvedValue(undefined),
-      getApprovalStats: vi.fn().mockReturnValue({ pendingCount: 0, requestsByOrigin: {} })
     };
     vi.mocked(approvalService.getApprovalService).mockReturnValue(mockApprovalService as any);
 
@@ -447,8 +436,6 @@ describe('ProviderService', () => {
     const mockUpdateService = {
       registerCriticalOperation: vi.fn(),
       unregisterCriticalOperation: vi.fn(),
-      checkForUpdate: vi.fn().mockResolvedValue(false),
-      applyUpdate: vi.fn().mockResolvedValue(undefined)
     };
     vi.mocked(updateService.getUpdateService).mockReturnValue(mockUpdateService as any);
 
@@ -468,7 +455,6 @@ describe('ProviderService', () => {
     
     // Setup security mocks  
     vi.mocked(replayPrevention.checkReplayAttempt).mockResolvedValue({ isReplay: false });
-    vi.mocked(replayPrevention.withReplayPrevention).mockImplementation(async (fn: any) => fn());
     
     // Analytics mocked in module setup
     

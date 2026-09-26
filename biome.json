@@ -84,6 +84,81 @@
           }
         }
       }
+    },
+    {
+      "includes": [
+        "src/contexts/**",
+        "src/hooks/**",
+        "src/components/**",
+        "src/pages/**",
+        "src/entrypoints/popup/**",
+        "src/entrypoints/sidepanel/**",
+        "src/entrypoints/content.ts",
+        "src/entrypoints/injected.ts",
+        "!**/__tests__/**",
+        "!**/*.test.ts",
+        "!**/*.test.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/platform/walletManager",
+                      "@/platform/auth/**",
+                      "@/platform/provider/**",
+                      "@/platform/storage/requestStorage",
+                      "@/platform/storage/sessionMetadataStorage",
+                      "@/platform/storage/updateStorage",
+                      "@/platform/storage/keyStorage"
+                    ],
+                    "message": "Background-only module. Extension pages and content scripts reach the background through a service client (services/*Client), never by importing its implementation. A pure helper they need belongs in core/."
+                  },
+                  {
+                    "group": ["@/services/*Service", "@/services/signDelivery"],
+                    "message": "Background service implementation. Import its client (services/*ServiceClient) instead: the implementation would run in this context, against its own copy of wallet state."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/contexts/settings-context.tsx", "src/contexts/wallet-context.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/platform/walletManager",
+                      "@/platform/auth/**",
+                      "@/platform/provider/**",
+                      "@/platform/storage/requestStorage",
+                      "@/platform/storage/sessionMetadataStorage",
+                      "@/platform/storage/updateStorage"
+                    ],
+                    "message": "Background-only module. Extension pages and content scripts reach the background through a service client (services/*Client), never by importing its implementation. A pure helper they need belongs in core/."
+                  },
+                  {
+                    "group": ["@/services/*Service", "@/services/signDelivery"],
+                    "message": "Background service implementation. Import its client (services/*ServiceClient) instead: the implementation would run in this context, against its own copy of wallet state."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

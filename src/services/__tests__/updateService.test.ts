@@ -9,7 +9,7 @@ vi.mock('@/platform/storage/updateStorage', () => ({
   getUpdateState: vi.fn(async () => h.stored),
   setUpdateState: vi.fn(async (state: Record<string, unknown>) => { h.stored = { ...state }; }),
 }));
-vi.mock('@/services/core/serviceReadiness', () => ({ whenServicesReady: h.whenServicesReady }));
+vi.mock('@/platform/serviceReadiness', () => ({ whenServicesReady: h.whenServicesReady }));
 
 type UpdateListener = (details: { version: string }) => void;
 

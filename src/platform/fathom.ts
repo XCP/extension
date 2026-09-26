@@ -343,22 +343,3 @@ export const analytics = {
     // Fathom doesn't support user identification
   },
 };
-
-// Legacy exports for backward compatibility
-export const trackEvent = async (eventId: string, opts?: { _value?: number }) => {
-  await analytics.track(eventId, opts?._value);
-};
-
-export const trackPageview = async (opts?: { url?: string; referrer?: string }) => {
-  await analytics.page(opts?.url || '/');
-};
-
-// Export a no-op version for non-extension contexts
-export const noopAnalytics = {
-  page: async () => {},
-  track: async () => {},
-  identify: async () => {},
-};
-
-// Default export based on context
-export default isExtensionContext() ? analytics : noopAnalytics;

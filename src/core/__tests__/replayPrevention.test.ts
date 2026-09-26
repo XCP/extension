@@ -15,11 +15,6 @@ import {
   withReplayPrevention
 } from '../replayPrevention';
 
-// Mock fathom tracking
-vi.mock('@/platform/fathom', () => ({
-  trackEvent: vi.fn()
-}));
-
 describe('replayPrevention', () => {
   beforeEach(() => {
     vi.clearAllMocks();

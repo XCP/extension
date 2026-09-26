@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   whenServicesReady: vi.fn(async () => {}),
 }));
 
-vi.mock('@/services/core/serviceReadiness', () => ({ whenServicesReady: mocks.whenServicesReady }));
+vi.mock('@/platform/serviceReadiness', () => ({ whenServicesReady: mocks.whenServicesReady }));
 
 vi.mock('@/platform/provider/signFlow', () => ({
   getSignFlow: mocks.getSignFlow,

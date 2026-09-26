@@ -8,7 +8,6 @@
  */
 
 import type { SignFlowEventPrefix, SignFlowResults } from '@/platform/provider/signFlow';
-import { BaseService } from '@/services/core/BaseService';
 
 export interface ProviderEvents {
   accountsChanged: string[];
@@ -32,12 +31,8 @@ export type WalletEvents = CompletedEvents & CancelledEvents & {
 
 type EventCallback<T = unknown> = (data: T) => void | Promise<void>;
 
-export class EventEmitterService<Events extends object> extends BaseService {
+export class EventEmitterService<Events extends object> {
   private listeners = new Map<string, Set<EventCallback>>();
-
-  constructor() {
-    super('EventEmitterService');
-  }
 
   /**
    * Register an event listener
@@ -93,26 +88,6 @@ export class EventEmitterService<Events extends object> extends BaseService {
    */
   clear(): void {
     this.listeners.clear();
-  }
-
-  // BaseService implementation methods
-
-  protected async onInitialize(): Promise<void> {}
-
-  protected async onDestroy(): Promise<void> {
-    this.clear();
-  }
-
-  /** Nothing to persist: callbacks cannot outlive the worker, and listeners re-register on start. */
-  protected getSerializableState(): null {
-    return null;
-  }
-
-  /** State stored by earlier versions held only listener names, and is ignored. */
-  protected hydrateState(): void {}
-
-  protected getStateVersion(): number {
-    return 1;
   }
 }
 

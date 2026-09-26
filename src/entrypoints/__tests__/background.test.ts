@@ -12,7 +12,7 @@ const h = vi.hoisted(() => {
     hasPendingApproval: vi.fn(() => false),
   };
   const connection = {
-    initialize: vi.fn(async () => { order.push('connection.initialize'); }),
+    initialize: vi.fn(() => { order.push('connection.initialize'); }),
     getConnectedWebsites: vi.fn(async () => [] as { origin: string }[]),
   };
   const wallet = {
@@ -55,11 +55,8 @@ vi.mock('@/platform/browser', () => ({
 }));
 vi.mock('@/platform/storage/keyStorage', () => ({ getCachedKeychainMasterKey: vi.fn(async () => h.cachedKey) }));
 vi.mock('@/services/approvalService', () => ({ getApprovalService: () => h.approval, registerApprovalService: vi.fn() }));
-vi.mock('@/services/connectionService', () => ({ getConnectionService: () => h.connection, registerConnectionService: vi.fn() }));
-vi.mock('@/services/core/ServiceRegistry', () => ({
-  ServiceRegistry: { getInstance: () => ({ register: vi.fn(async () => {}), destroyAll: vi.fn(async () => {}) }) },
-}));
-vi.mock('@/services/core/serviceReadiness', () => ({
+vi.mock('@/services/connectionService', () => ({ getConnectionService: () => h.connection }));
+vi.mock('@/platform/serviceReadiness', () => ({
   markServicesReady: h.markServicesReady,
   whenServicesReady: vi.fn(async () => {}),
 }));
@@ -185,7 +182,9 @@ describe('background startup', () => {
     expect(h.update.listen).toHaveBeenCalledOnce();
     expect(chromeStub.runtime.onInstalled.addListener).toHaveBeenCalledOnce();
     expect(chromeStub.alarms.onAlarm.addListener).toHaveBeenCalledOnce();
-    expect(h.order).toEqual(['popupMonitor.initialize', 'update.listen']);
+    // Initialisation may begin in this same turn (its first storage read is issued here), but only
+    // after these listeners exist.
+    expect(h.order.slice(0, 2)).toEqual(['popupMonitor.initialize', 'update.listen']);
     await vi.waitFor(() => expect(h.markServicesReady).toHaveBeenCalled());
   });
 

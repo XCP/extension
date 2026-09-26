@@ -19,34 +19,20 @@ import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 const READY_TIMEOUT_MS = 10_000;
 
 let resolveReady: (() => void) | null = null;
-let settled = false;
-let failure: string | undefined;
 
 const ready = new Promise<void>((resolve) => {
   resolveReady = resolve;
 });
 
 /**
- * Open the barrier. Called once, by the background, after initialisation completes.
- *
- * @param error - what went wrong, when initialisation failed. The barrier opens either way, since
- *   a call that fails is recoverable and a call that hangs is not.
+ * Open the barrier. Called once, by the background, when initialisation has finished — whether or
+ * not it succeeded, since a call that fails is recoverable and a call that hangs is not. A failed
+ * initialisation has already told the session gate "locked" (see background.ts), so what the
+ * waiting calls then read is the safe answer.
  */
-export function markServicesReady(error?: Error): void {
-  settled = true;
-  failure = error?.message;
+export function markServicesReady(): void {
   resolveReady?.();
   resolveReady = null;
-}
-
-/**
- * Whether initialisation has finished, and how it went.
- *
- * Synchronous, for the health check that has to answer *about* initialisation and so cannot wait
- * on it. Reads the same state the barrier does, rather than a second flag kept alongside it.
- */
-export function getReadinessState(): { ready: boolean; error?: string } {
-  return { ready: settled, error: failure };
 }
 
 /**

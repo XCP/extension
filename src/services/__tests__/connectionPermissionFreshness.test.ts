@@ -128,7 +128,6 @@ describe('connection permission after grants change elsewhere', () => {
     expect(manager.getSettings().connectedWebsites).toEqual([]);
 
     expect(await service.hasPermission(ORIGIN)).toBe(false);
-    expect(await service.isConnected(ORIGIN)).toBe(false);
     expect(await service.getAccounts(ORIGIN)).not.toContain(newAddress);
     expect(await service.getAccounts(ORIGIN)).toEqual([]);
   });

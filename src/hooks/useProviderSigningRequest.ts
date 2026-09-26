@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { useWallet } from '@/contexts/wallet-context';
 import { ProviderReviewError } from '@/core/providerReviewErrors';
-import { getIdentityMismatchCode } from '@/platform/provider/requestIdentity';
+import { getIdentityMismatchCode } from '@/core/requestIdentity';
 import { getProviderSigningServiceClient, type ProviderSigningReview } from '@/services/providerSigningServiceClient';
 
 /** The popup reads a background review and sends only its bound decision. */

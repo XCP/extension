@@ -10,22 +10,23 @@ import { type DecodedPsbtInfo, decodePsbtForApproval } from '@/core/bitcoin/psbt
 import { type DecodedPsbtBundleInfo, decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { PrevoutMismatchError } from '@/core/bitcoin/psbtPrevouts';
 import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
+import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { maxMarketplaceBatchRequests } from '@/core/counterparty/marketplaceBatch';
 import { SigningError } from '@/core/errors';
+import type { PairedGrant } from '@/core/pairedGrant';
 import { ProviderReviewError, providerReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
+import { getConnectionRevokedCode, getIdentityMismatchCode, getMessagePermissionCode, getPsbtPermissionCode, supportsPairedContinuity } from '@/core/requestIdentity';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import type { SigningIdentity } from '@/platform/auth/signingIdentity';
-import type { PairedGrant } from '@/platform/provider/pairedGrant';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
-import { getConnectionRevokedCode, getIdentityMismatchCode, getMessagePermissionCode, getPsbtPermissionCode, supportsPairedContinuity } from '@/platform/provider/requestIdentity';
-import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/platform/provider/signDelivery';
 import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignMessageRequest, type SignPsbtRequest, type SignPsbtsRequest, type SignTransactionRequest } from '@/platform/provider/signFlow';
 import { signAttachAndListingForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
 import { defineProxyService } from '@/platform/proxy';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY } from '@/services/providerSigningServiceClient';
+import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/services/signDelivery';
 import { getWalletService } from '@/services/walletService';
 
 interface ReviewBase {
@@ -188,7 +189,7 @@ export function createProviderSigningService(): ProviderSigningService {
     };
     switch (request.kind) {
       case 'sign-message':
-        if (!request.message || typeof request.message !== 'string' || request.message.startsWith('xcp-wallet\n')) {
+        if (!request.message || typeof request.message !== 'string' || request.message.startsWith(CONNECTION_PROOF_PREFIX)) {
           throw new ProviderReviewError('invalid_message');
         }
         review = { kind: request.kind, request, policy: ordinaryPolicy };

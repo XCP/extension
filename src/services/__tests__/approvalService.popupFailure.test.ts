@@ -62,7 +62,8 @@ describe('ApprovalService when the approval window cannot be opened', () => {
   });
 
   afterEach(async () => {
-    await service.destroy();
+    const pending = service.getCurrentApproval();
+    if (pending) service.rejectApproval(pending.id, 'Test finished');
     process.off('unhandledRejection', onUnhandled);
     vi.useRealTimers();
   });
