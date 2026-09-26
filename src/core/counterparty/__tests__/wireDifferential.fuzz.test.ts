@@ -24,13 +24,18 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { bytesToHex } from '@/core/counterparty/unpack/binary';
 import { verifyProviderTransaction } from '@/core/counterparty/unpack/providerVerify';
+import { fetchLiveApi, LiveApiRateLimitError } from './liveApi';
 
 const API = 'https://api.counterparty.io:4000';
 const CASES_PER_TYPE = Number(process.env.FUZZ_CASES ?? 3);
-/** Spacing between calls. The endpoint is shared infrastructure and rate-limits; a fuzz run has
- *  no claim on it, and a 429 is indistinguishable from a decode failure to the comparator. */
-const REQUEST_SPACING_MS = 400;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/**
+ * The endpoint is shared infrastructure and rate-limits per client. In the nightly this file runs
+ * seconds after the compose oracle has made its own few dozen calls from the same runner, so pacing
+ * alone was not enough: the first burst here drew a 429 and failed the run. Calls go through the
+ * shared live-API queue, which spaces them and retries a 429/5xx after Retry-After or an exponential
+ * backoff; one that stays limited past the budget fails with a message naming the rate limit.
+ */
+const LIVE_API = { spacingMs: 500, maxAttempts: 6, baseDelayMs: 2_000, maxDelayMs: 30_000, maxTotalWaitMs: 90_000 };
 
 /** Deterministic PRNG so a failure can be reproduced from its seed. */
 function rng(seed: number) {
@@ -106,14 +111,26 @@ const GENERATORS: Record<string, (r: () => number) => Record<string, unknown>> =
  */
 const EXPECTED_DIVERGENCE = new Set<string>(['mpma']);
 
-async function apiUnpack(datahex: string): Promise<{
+type Unpacked = {
   message_type: string; message_type_id: number; message_data: Record<string, unknown>;
-} | null> {
-  await sleep(REQUEST_SPACING_MS);
-  const res = await fetch(`${API}/v2/transactions/unpack?datahex=${datahex}&verbose=true`);
-  // A 429 is the harness's own fault, not a decode disagreement — surface it rather than
-  // silently counting the payload as unbuildable.
-  if (res.status === 429) throw new Error('rate limited by the counterparty API — slow the run down');
+} | null;
+
+/** Identical payloads (e.g. every `dispense`, which takes no params) are asked about once. */
+const unpackCache = new Map<string, Promise<Unpacked>>();
+
+function apiUnpack(datahex: string): Promise<Unpacked> {
+  let pending = unpackCache.get(datahex);
+  if (!pending) {
+    pending = requestUnpack(datahex);
+    unpackCache.set(datahex, pending);
+  }
+  return pending;
+}
+
+async function requestUnpack(datahex: string): Promise<Unpacked> {
+  // A persistent 429 throws LiveApiRateLimitError: the harness's own problem, not a decode
+  // disagreement, so it fails the run by name rather than counting the payload as unbuildable.
+  const res = await fetchLiveApi(`${API}/v2/transactions/unpack?datahex=${datahex}&verbose=true`, LIVE_API);
   if (!res.ok) return null;
   const json = await res.json();
   return json?.result ?? null;
@@ -123,13 +140,17 @@ let reachable = false;
 
 describe('local decoder vs counterparty-core, same bytes', () => {
   beforeAll(async () => {
+    // Only a network failure counts as unreachable. Any HTTP answer — including a 429 or 5xx that
+    // outlasted the retries — means the API is there, so the run goes ahead and a rate limit fails
+    // it by name instead of skipping it quietly.
     try {
-      const res = await fetch(`${API}/v2/blocks/last`);
-      reachable = res.ok;
-    } catch {
+      await fetchLiveApi(`${API}/v2/blocks/last`, LIVE_API);
+      reachable = true;
+    } catch (error) {
+      if (error instanceof LiveApiRateLimitError) throw error;
       reachable = false;
     }
-  }, 20000);
+  }, 120000);
 
   it('agrees with core on every generated payload', async () => {
     if (!reachable) {
@@ -192,5 +213,5 @@ describe('local decoder vs counterparty-core, same bytes', () => {
     // shrinking quietly is the failure mode this harness exists to prevent.
     const expected = Object.keys(GENERATORS).filter((t) => !EXPECTED_DIVERGENCE.has(t)).sort();
     expect([...new Set(compared)].sort(), `not built: ${unbuildable.join(', ')}`).toEqual(expected);
-  }, 300000);
+  }, 600000);
 });
