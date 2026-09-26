@@ -309,7 +309,15 @@ describe('ConnectionService', () => {
   });
 
   describe('connect', () => {
+    /** Grants are written to the vault and read back from it, as in the background. */
+    function persistGrants() {
+      let settings = { ...(mockGetSettings() as Partial<AppSettings>) };
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async (updates) => { settings = { ...settings, ...updates }; });
+    }
+
     it('should successfully connect a new origin with user approval', async () => {
+      persistGrants();
       // mockApprovalService.requestApproval already returns { approved: true } by default
 
       const result = await connectionService.connect(
@@ -434,6 +442,7 @@ describe('ConnectionService', () => {
     });
 
     it('should validate address format', async () => {
+      persistGrants();
       // The actual ConnectionService doesn't validate Bitcoin addresses in connect method
       // So this test should pass - the address parameter is just stored for metadata
       const result = await connectionService.connect(
