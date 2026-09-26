@@ -10,19 +10,23 @@
 import { type AddressFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
+import {
+  checkSignInputOwners,
+  hasAuthenticatedFunding,
+  hasExcessSighashEntries,
+  missingSighashEntries,
+  psbtHeaderProblem,
+  psbtSigningRequestShape,
+  usesSingleWithoutOutput,
+} from '@/core/bitcoin/providerPsbtIntake';
 import { signerScope, walletSupportsPair } from '@/core/bitcoin/providerSignerScope';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
-import {
-  extractPsbtDetails, resolvePsbtSighashType, spendsTaprootOutput, tapLeafOwnerAddress, validateSignInputs,
-} from '@/core/bitcoin/psbt';
+import { extractPsbtDetails } from '@/core/bitcoin/psbt';
 import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { fetchTokenBalance } from '@/core/counterparty/api';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
-import {
-  marketplaceTransactionHeaderProblem,
-  parseMarketplaceIntent,
-} from '@/core/counterparty/marketplaceIntent';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import { MAX_REVEAL_HEX_LENGTH } from '@/core/counterparty/providerReveal';
 import { generateRequestId } from '@/core/id';
@@ -1010,66 +1014,40 @@ export function createProviderService(): ProviderService {
           for (const [requestIndex, request] of parsedRequests.entries()) {
             const details = parseSitePsbt(request.psbtHex, `PSBT bundle request ${requestIndex}: `);
             const marketplaceIntent = parsedBundle.intents[requestIndex]!;
-            const headerProblem = marketplaceTransactionHeaderProblem(
-              marketplaceIntent,
-              details.transactionVersion,
-              details.lockTime,
-            );
+            const headerProblem = psbtHeaderProblem(marketplaceIntent, details);
             if (headerProblem) {
               throw invalidParams(`PSBT bundle request ${requestIndex}: ${headerProblem}`);
             }
-            const permitsNullBuyerPlaceholder = marketplaceIntent.action === 'create_listing';
-            const missingAuthenticatedPrevout = details.inputs.some((input, inputIndex) =>
-              input.value === undefined && !(permitsNullBuyerPlaceholder && inputIndex === 0));
-            if ((!permitsNullBuyerPlaceholder && details.unfunded) || missingAuthenticatedPrevout) {
+            if (!hasAuthenticatedFunding(details, {
+              nullBuyerPlaceholder: marketplaceIntent.action === 'create_listing',
+            })) {
               throw invalidParams(
                 `PSBT bundle request ${requestIndex} must be fully funded with authenticated prevouts`,
               );
             }
-            if (request.sighashTypes.length > details.inputs.length) {
+            if (hasExcessSighashEntries(request.sighashTypes, details)) {
               throw invalidParams(`PSBT bundle request ${requestIndex} has too many sighash entries`);
             }
-            if (request.sighashTypes.some(
-              (value, index) => value === 0x83 && index >= details.outputs.length,
-            )) {
+            if (usesSingleWithoutOutput(request.sighashTypes, details)) {
               throw invalidParams(
                 `PSBT bundle request ${requestIndex} uses SINGLE without a paired output`,
               );
             }
-            const validation = validateSignInputs(
-              request.signInputs,
-              scope.allowed,
-              details.inputs.length,
-              details.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address),
-            );
+            const validation = checkSignInputOwners(request.signInputs, scope.allowed, details);
             if (!validation.valid) {
               throw invalidParams(`PSBT bundle request ${requestIndex}: ${validation.error}`);
             }
             const requestedInputIndices = Object.values(request.signInputs).flat();
-            const missing = requestedInputIndices.filter(
-              inputIndex => request.sighashTypes[inputIndex] === undefined,
-            );
+            const missing = missingSighashEntries(requestedInputIndices, request.sighashTypes);
             if (missing.length > 0) {
               throw invalidParams(
                 `PSBT bundle request ${requestIndex} is missing absolute sighash entries for inputs: ${missing.join(', ')}`,
               );
             }
-            asInvalidParams(() => assertProviderPsbtSigningRequest(signing, {
-              inputCount: details.inputs.length,
-              requestedInputIndices,
-              // An unselected input's entry describes a signature someone else made. Only the
-              // hardware contract checks it, so it keeps the ALL fallback that contract expects.
-              sighashTypes: details.inputs.map((input, inputIndex) =>
-                requestedInputIndices.includes(inputIndex)
-                  ? resolvePsbtSighashType(
-                    request.sighashTypes[inputIndex], input.sighashType, spendsTaprootOutput(input),
-                  )
-                  : resolvePsbtSighashType(undefined, input.sighashType)
-              ),
-              presignedInputIndices: details.inputs
-                .filter(input => input.hasSignatures)
-                .map(input => input.index),
-            }), `PSBT bundle request ${requestIndex}: `);
+            asInvalidParams(() => assertProviderPsbtSigningRequest(
+              signing,
+              psbtSigningRequestShape(details, requestedInputIndices, request.sighashTypes),
+            ), `PSBT bundle request ${requestIndex}: `);
             usesPairedAddress ||= scope.usesPairedSigner(request.signInputs);
           }
           if (usesPairedAddress) {
@@ -1218,12 +1196,10 @@ export function createProviderService(): ProviderService {
           const psbtDetails = parseSitePsbt(psbtHex);
           // The explicit entries are checked against the PSBT first, so these reasons are the ones a
           // site hears; resolveProviderSignInputs below also covers sighashes embedded in the PSBT.
-          if (sighashTypes && sighashTypes.length > psbtDetails.inputs.length) {
+          if (sighashTypes && hasExcessSighashEntries(sighashTypes, psbtDetails)) {
             throw invalidParams('sighashTypes contains more entries than the PSBT has inputs');
           }
-          if (sighashTypes?.some(
-            (value, index) => value === 0x83 && index >= psbtDetails.outputs.length
-          )) {
+          if (sighashTypes && usesSingleWithoutOutput(sighashTypes, psbtDetails)) {
             throw invalidParams('SIGHASH_SINGLE requires an output at the same index');
           }
           if (activeWallet.type === 'hardware' && signInputs === undefined) {
@@ -1234,7 +1210,6 @@ export function createProviderService(): ProviderService {
           const requestedInputIndices = signInputs === undefined
             ? undefined
             : Object.values(signInputs).flat();
-          const requestedInputSet = new Set(requestedInputIndices ?? []);
           const unsupportedAction = unsupportedMarketplaceActionReason(
             providerPsbtSigningCapabilities(activeWallet).psbt,
             marketplaceIntent?.action,
@@ -1242,33 +1217,13 @@ export function createProviderService(): ProviderService {
           if (unsupportedAction) throw invalidParams(unsupportedAction);
           asInvalidParams(() => assertProviderPsbtSigningRequest(
             providerPsbtSigningCapabilities(activeWallet).psbt,
-            {
-              inputCount: psbtDetails.inputs.length,
-              requestedInputIndices,
-              // An unselected input's entry describes a signature someone else made. Only the
-              // hardware contract checks it, so it keeps the ALL fallback that contract expects.
-              sighashTypes: psbtDetails.inputs.map((input, inputIndex) =>
-                requestedInputSet.has(inputIndex)
-                  ? resolvePsbtSighashType(sighashTypes?.[inputIndex], input.sighashType, spendsTaprootOutput(input))
-                  : resolvePsbtSighashType(undefined, input.sighashType)
-              ),
-              presignedInputIndices: psbtDetails.inputs
-                .filter(input => input.hasSignatures)
-                .map(input => input.index),
-            },
+            psbtSigningRequestShape(psbtDetails, requestedInputIndices, sighashTypes),
           ));
           if (marketplaceIntent) {
-            const headerProblem = marketplaceTransactionHeaderProblem(
-              marketplaceIntent,
-              psbtDetails.transactionVersion,
-              psbtDetails.lockTime,
-            );
+            const headerProblem = psbtHeaderProblem(marketplaceIntent, psbtDetails);
             if (headerProblem) throw invalidParams(headerProblem);
           }
-          if (isBitcoinPayment && (
-            psbtDetails.unfunded
-            || psbtDetails.inputs.some(input => input.value === undefined)
-          )) {
+          if (isBitcoinPayment && !hasAuthenticatedFunding(psbtDetails)) {
             throw invalidParams(
               'Plain Bitcoin payment requests must be fully funded with authenticated prevout amounts before review'
             );
@@ -1277,15 +1232,7 @@ export function createProviderService(): ProviderService {
           if (signInputs !== undefined) {
             const scope = signerScope(
               activeAddress.address, await loadPairedAddresses(walletService, activeWallet));
-            // Ownership per input: normally the prevout's own address, but an inscription
-            // reveal spends a commit output whose address belongs to nobody — there the input is
-            // owned by whoever the declared leaf's checksig key encodes to (tapLeafOwnerAddress).
-            const validation = validateSignInputs(
-              signInputs,
-              scope.allowed,
-              psbtDetails.inputs.length,
-              psbtDetails.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address)
-            );
+            const validation = checkSignInputOwners(signInputs, scope.allowed, psbtDetails);
             if (!validation.valid) throw invalidParams(validation.error ?? 'Invalid signInputs');
             if (scope.usesPairedSigner(signInputs)) {
               await assertPairedAddressGrant(
@@ -1296,9 +1243,7 @@ export function createProviderService(): ProviderService {
             const requestedInputIndices = signInputs === undefined
               ? Array.from({ length: psbtDetails.inputs.length }, (_, index) => index)
               : Object.values(signInputs).flat();
-            const missingInputIndices = requestedInputIndices.filter(
-              index => sighashTypes[index] === undefined
-            );
+            const missingInputIndices = missingSighashEntries(requestedInputIndices, sighashTypes);
             if (missingInputIndices.length > 0) {
               throw invalidParams(
                 `sighashTypes is indexed by absolute PSBT input index and is missing entries for inputs: ${missingInputIndices.join(', ')}`
