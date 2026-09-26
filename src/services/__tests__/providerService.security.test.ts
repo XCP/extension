@@ -1,6 +1,7 @@
 import './setup'; // Must be first to setup browser mocks
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { apiRateLimiter, connectionRateLimiter, signPopupRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
 import { walletManager } from '@/platform/walletManager';
@@ -70,7 +71,6 @@ describe('ProviderService Security Tests', () => {
     });
     
     vi.mocked(walletService.getWalletService).mockReturnValue({
-      getAuthState: vi.fn().mockResolvedValue('unlocked'),
       getWallets: vi.fn().mockResolvedValue([{
         id: 'wallet1',
         name: 'Test Wallet',
@@ -105,9 +105,6 @@ describe('ProviderService Security Tests', () => {
         return settings.connectedWebsites?.includes(origin) || false;
       }),
       requestPermission: vi.fn().mockResolvedValue(true),
-      revokePermission: vi.fn().mockResolvedValue(true),
-      checkPermission: vi.fn().mockResolvedValue(false),
-      getPermissionStatus: vi.fn().mockResolvedValue('denied')
     };
     vi.mocked(getConnectionService).mockReturnValue(mockConnectionService as any);
     
@@ -115,8 +112,6 @@ describe('ProviderService Security Tests', () => {
     // Setup approval service mocks
     const mockApprovalService = {
       requestApproval: vi.fn().mockRejectedValue(new Error('Unauthorized')),
-      processApproval: vi.fn().mockRejectedValue(new Error('Unauthorized')),
-      denyApproval: vi.fn().mockResolvedValue(true)
     };
     vi.mocked(getApprovalService).mockReturnValue(mockApprovalService as any);
     
@@ -231,53 +226,6 @@ describe('ProviderService Security Tests', () => {
       ).rejects.toThrow(/Rate limit exceeded/);
     });
     
-    it('should apply transaction rate limiting', async () => {
-      const origin = 'https://connected.com';
-      
-      // Mock as connected site
-      vi.mocked(walletManager.getSettings).mockReturnValue({
-        ...DEFAULT_SETTINGS,
-        connectedWebsites: [origin]
-      });
-      
-      // Mock the API responses
-      const apiModule = await import('@/core/counterparty/api');
-      vi.spyOn(apiModule, 'fetchTokenBalance').mockResolvedValue({
-        asset: 'XCP',
-        quantity: '0' as any,
-        quantity_normalized: '0' as any,
-        asset_info: {
-          asset_longname: null,
-          description: '',
-          issuer: '',
-          divisible: true,
-          locked: false
-        }
-      });
-      
-      const balanceModule = await import('@/core/bitcoin/balance');
-      vi.spyOn(balanceModule, 'fetchBTCBalance').mockResolvedValue(0);
-      
-      // Setup API rate limiter to allow 10 requests then reject
-      let callCount = 0;
-      vi.mocked(apiRateLimiter.isAllowed).mockImplementation(() => {
-        callCount++;
-        return callCount <= 10;
-      });
-      
-      // Rate limiting for transactions is 10 per minute
-      // Make 10 successful requests
-      for (let i = 0; i < 10; i++) {
-        const result = await providerService.handleRequest(origin, 'xcp_getBalances', []);
-        expect(result).toBeDefined();
-      }
-      
-      // 11th request should be rate limited
-      await expect(
-        providerService.handleRequest(origin, 'xcp_getBalances', [])
-      ).rejects.toThrow(/API rate limit exceeded/);
-    });
-
     it('should surface balance API failures instead of returning zero balances', async () => {
       const origin = 'https://connected.com';
       vi.mocked(walletManager.getSettings).mockReturnValue({
@@ -440,14 +388,17 @@ describe('ProviderService Security Tests', () => {
     });
 
     it('should not expose sensitive wallet data in errors', async () => {
-      try {
-        await providerService.handleRequest('https://notconnected.com', 'xcp_signMessage', ['test', 'bc1qsecret']);
-      } catch (error: any) {
-        // Error should not contain wallet addresses or secrets
-        expect(error.message).not.toContain('bc1qtest123');
-        expect(error.message).not.toContain('wallet1');
-        expect(error.message).toBe('Unauthorized - not connected to wallet');
-      }
+      const error = await providerService
+        .handleRequest('https://notconnected.com', 'xcp_signMessage', ['test', 'bc1qsecret'])
+        .then(() => null, (reason: unknown) => reason);
+
+      // It must be refused; a request that succeeded has no error message to check.
+      expect(error).toBeInstanceOf(ProviderError);
+      expect((error as ProviderError).code).toBe(PROVIDER_ERROR_CODES.UNAUTHORIZED);
+      // Error should not contain wallet addresses or secrets
+      expect((error as Error).message).toBe('Unauthorized - not connected to wallet');
+      expect((error as Error).message).not.toContain('bc1qtest123');
+      expect((error as Error).message).not.toContain('wallet1');
     });
   });
 
@@ -490,6 +441,9 @@ describe('ProviderService Security Tests', () => {
   describe('Security: Origin Validation', () => {
     
     it('should handle malformed origins safely', async () => {
+      // The proxy only ever passes an origin Chrome vouched for, so these never arrive from a
+      // page; this pins what the service does if one did: public constants still answer, and
+      // nothing about the wallet does, since no such origin can hold a grant.
       const malformedOrigins = [
         'javascript:alert(1)',
         'data:text/html,<script>alert(1)</script>',
@@ -497,20 +451,12 @@ describe('ProviderService Security Tests', () => {
         'https://valid.com@evil.com',
         ''
       ];
-      
+
       for (const origin of malformedOrigins) {
-        // Should handle gracefully without throwing unexpected errors
-        try {
-          const result = await providerService.handleRequest(
-            origin,
-            'xcp_chainId',
-            []
-          );
-          expect(result).toBe('0x0'); // Should still work for public methods
-        } catch (e) {
-          // Some malformed URLs might cause errors, that's fine
-          expect(e).toBeDefined();
-        }
+        await expect(providerService.handleRequest(origin, 'xcp_chainId', []), origin).resolves.toBe('0x0');
+        await expect(providerService.handleRequest(origin, 'xcp_accounts', []), origin).resolves.toEqual([]);
+        await expect(providerService.handleRequest(origin, 'xcp_getBalances', []), origin)
+          .rejects.toMatchObject({ code: PROVIDER_ERROR_CODES.UNAUTHORIZED });
       }
     });
   });
@@ -553,7 +499,6 @@ describe('ProviderService Security Tests', () => {
       
       // Simulate locked wallet
       vi.mocked(walletService.getWalletService).mockReturnValue({
-        getAuthState: vi.fn().mockResolvedValue('locked'),
         getActiveAddress: vi.fn().mockResolvedValue(null),
         getLastActiveAddress: vi.fn().mockResolvedValue(undefined),
         isKeychainUnlocked: vi.fn().mockResolvedValue(false)

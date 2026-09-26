@@ -8,7 +8,7 @@ import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, PROVIDE
 import { recordProviderTab } from '@/platform/browser';
 import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
 import { decodeProxyResult, encodeProxyResult } from '@/platform/proxySerialization';
-import { whenServicesReady } from '@/services/core/serviceReadiness';
+import { whenServicesReady } from '@/platform/serviceReadiness';
 
 type MethodName<T> = Extract<{
   [K in keyof T]-?: T[K] extends (...args: never[]) => unknown ? K : never;
@@ -413,14 +413,12 @@ export function defineProxyService<T extends object>(
   return [register, getService];
 }
 
+/**
+ * The MV3 background is a service worker: extension APIs and no window. Every document (popup,
+ * side panel, content script) has a window. The wallet builds for Chrome MV3 only, so there is no
+ * background document to recognise.
+ */
 export function isBackgroundScript(): boolean {
   if (typeof chrome === 'undefined' || !chrome.runtime?.id) return false;
-  if (typeof window === 'undefined') return typeof self !== 'undefined';
-  // Firefox's MV2 target runs in a background document. A popup also has a window
-  // and extension APIs, so only the actual background page's object identity qualifies.
-  try {
-    return chrome.extension?.getBackgroundPage?.() === window;
-  } catch {
-    return false;
-  }
+  return typeof window === 'undefined' && typeof self !== 'undefined';
 }

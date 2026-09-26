@@ -702,7 +702,6 @@ describe('WalletManager', () => {
       mocks.keyBased.decryptWithKey.mockResolvedValue('test mnemonic');
       mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('bc1qtest');
       mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/84'/0'/0'");
-      mocks.settingsStorage.getSettings.mockResolvedValue({ autoLockTimer: '5m' });
 
       await walletManager.unlockKeychain('test-password');
 
@@ -740,7 +739,6 @@ describe('WalletManager', () => {
       mocks.keyBased.decryptWithKey.mockResolvedValue('test mnemonic');
       mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('bc1qtest');
       mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/84'/0'/0'");
-      mocks.settingsStorage.getSettings.mockResolvedValue({ autoLockTimer: '5m' });
 
       await walletManager.unlockKeychain('test-password');
 
@@ -770,8 +768,6 @@ describe('WalletManager', () => {
       mocks.keyBased.decryptWithKey.mockResolvedValue('test mnemonic');
       mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('bc1qtest');
       mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/84'/0'/0'");
-      // Return empty settings (no autoLockTimer)
-      mocks.settingsStorage.getSettings.mockResolvedValue({});
 
       await walletManager.unlockKeychain('test-password');
 

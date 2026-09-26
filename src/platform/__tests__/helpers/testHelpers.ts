@@ -43,14 +43,6 @@ export const defaultMocks = {
     storeKeychainMasterKey: vi.fn().mockResolvedValue(undefined),
     clearKeychainMasterKey: vi.fn().mockResolvedValue(undefined),
   },
-  settingsStorage: {
-    getSettings: vi.fn().mockResolvedValue({
-      lastActiveWalletId: null,
-      autoLockTimer: '5m',
-    }),
-    updateSettings: vi.fn().mockResolvedValue(undefined),
-    invalidateSettingsCache: vi.fn(),
-  },
   walletStorage: {
     getKeychainRecord: vi.fn().mockResolvedValue(null),
     saveKeychainRecord: vi.fn().mockResolvedValue(undefined),
@@ -93,7 +85,6 @@ export const defaultMocks = {
 export const setupMocks = () => {
   const mocks = {
     sessionManager: vi.mocked(defaultMocks.sessionManager),
-    settingsStorage: vi.mocked(defaultMocks.settingsStorage),
     walletStorage: vi.mocked(defaultMocks.walletStorage),
     keyBased: vi.mocked(defaultMocks.keyBased),
     bitcoin: vi.mocked(defaultMocks.bitcoin),

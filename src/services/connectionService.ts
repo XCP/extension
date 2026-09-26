@@ -11,13 +11,12 @@
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { generateRequestId } from '@/core/id';
+import { pairedGrantCovers } from '@/core/pairedGrant';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
-import { pairedGrantCovers } from '@/platform/provider/pairedGrant';
 import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
 import { createWriteLock } from '@/platform/storage/mutex';
 import { type ApprovalPlacement, type ApprovalResult, getApprovalService } from '@/services/approvalService';
-import { BaseService } from '@/services/core/BaseService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getWalletService } from '@/services/walletService';
 
@@ -36,15 +35,7 @@ interface ConnectionServiceState {
   pendingPermissionRequests: Set<string>;
 }
 
-interface SerializedConnectionState {
-  /** Legacy field — no longer restored (see hydrateState) */
-  connections?: Array<{ origin: string; status: ConnectionStatus }>;
-  securityChecks: Array<{ origin: string; timestamp: number }>;
-  /** Legacy field — no longer restored (see hydrateState) */
-  pendingRequests?: string[];
-}
-
-export class ConnectionService extends BaseService {
+export class ConnectionService {
   private readonly withConnectionWriteLock = createWriteLock();
   private state: ConnectionServiceState = {
     connectionCache: new Map(),
@@ -52,13 +43,8 @@ export class ConnectionService extends BaseService {
     pendingPermissionRequests: new Set(),
   };
 
-  private static readonly STATE_VERSION = 1;
   private static readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   private static readonly SECURITY_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
-
-  constructor() {
-    super('ConnectionService');
-  }
 
   /**
    * Check if an origin has permission to access wallet
@@ -390,13 +376,6 @@ export class ConnectionService extends BaseService {
   }
 
   /**
-   * Check if origin is connected
-   */
-  async isConnected(origin: string): Promise<boolean> {
-    return this.hasPermission(origin);
-  }
-
-  /**
    * Get all connected websites
    */
   async getConnectedWebsites(): Promise<ConnectionStatus[]> {
@@ -419,42 +398,6 @@ export class ConnectionService extends BaseService {
   }
 
   /**
-   * Disconnect all websites
-   */
-  async disconnectAll(): Promise<void> {
-    return this.withConnectionWriteLock(() => this.disconnectAllInternal());
-  }
-
-  private async disconnectAllInternal(): Promise<void> {
-    const connectedSites = [...(await getWalletService().getSettings()).connectedWebsites];
-
-    // Update settings
-    await getWalletService().clearConnectedWebsites();
-
-    // Clear cache
-    this.state.connectionCache.clear();
-
-    // Emit disconnect events to all sites
-    for (const origin of connectedSites) {
-      eventEmitterService.emit('emit-provider-event', {
-        origin,
-        event: 'accountsChanged',
-        data: []
-      });
-      eventEmitterService.emit('emit-provider-event', {
-        origin,
-        event: 'disconnect',
-        data: {}
-      });
-    }
-
-    // Track bulk disconnect with count
-    await analytics.track('connection_disconnect_all', connectedSites.length);
-
-    console.debug('[ConnectionService] Disconnected all websites:', connectedSites.length);
-  }
-
-  /**
    * Perform security checks on origin
    */
   private async performSecurityChecks(origin: string): Promise<void> {
@@ -470,9 +413,11 @@ export class ConnectionService extends BaseService {
     this.state.lastSecurityCheck.set(origin, now);
   }
 
-  // BaseService implementation methods
-
-  protected async onInitialize(): Promise<void> {
+  /**
+   * Install the handler that completes a connect approval whose caller is gone. Called once by the
+   * background, after the approval service has initialized; registering again replaces the handler.
+   */
+  initialize(): void {
     // A connect approval can outlive the worker that asked for it, and the grant still means what
     // it meant: the site reads it from accountsChanged or from its next request.
     getApprovalService().registerCompletionHandler(async (request, result) => {
@@ -493,84 +438,14 @@ export class ConnectionService extends BaseService {
 
     console.log('[ConnectionService] Initialized');
   }
-
-  protected async onDestroy(): Promise<void> {
-    this.state.connectionCache.clear();
-    this.state.lastSecurityCheck.clear();
-    this.state.pendingPermissionRequests.clear();
-    console.log('[ConnectionService] Destroyed');
-  }
-
-  protected getSerializableState(): SerializedConnectionState | null {
-    if (this.state.lastSecurityCheck.size === 0) {
-      return null;
-    }
-
-    // Only security-check timestamps survive restarts. A persisted
-    // connection cache could fail open for a just-revoked origin, and
-    // restored pending-request keys would outlive their resolvers and
-    // block the origin from reconnecting.
-    return {
-      securityChecks: Array.from(this.state.lastSecurityCheck.entries()).map(
-        ([origin, timestamp]) => ({ origin, timestamp })
-      ),
-    };
-  }
-
-  protected hydrateState(state: SerializedConnectionState): void {
-    // connections and pendingRequests are deliberately not restored;
-    // see getSerializableState
-    for (const { origin, timestamp } of state.securityChecks ?? []) {
-      this.state.lastSecurityCheck.set(origin, timestamp);
-    }
-
-    console.log('[ConnectionService] State restored', {
-      securityChecks: this.state.lastSecurityCheck.size,
-    });
-  }
-
-  protected getStateVersion(): number {
-    return ConnectionService.STATE_VERSION;
-  }
-
-
-  /**
-   * Get connection statistics
-   */
-  getStats(): {
-    totalConnections: number;
-    activeConnections: number;
-    pendingRequests: number;
-    cacheHitRate: number;
-  } {
-    const now = Date.now();
-    let activeConnections = 0;
-    
-    for (const status of this.state.connectionCache.values()) {
-      if (status.isConnected && status.lastActive && 
-          now - status.lastActive < ConnectionService.CACHE_TTL) {
-        activeConnections++;
-      }
-    }
-
-    return {
-      totalConnections: this.state.connectionCache.size,
-      activeConnections,
-      pendingRequests: this.state.pendingPermissionRequests.size,
-      cacheHitRate: 0, // Would need to track cache hits/misses
-    };
-  }
 }
 
-// Proxy for cross-context communication
-import { defineProxyService } from '@/platform/proxy';
-
-export const [registerConnectionService, getConnectionService] = defineProxyService(
-  'ConnectionService',
-  () => new ConnectionService(),
-  { methods: {
-    hasPermission: 'read', hasPairedAddressPermission: 'read', getAccounts: 'read',
-    isConnected: 'read', getConnectedWebsites: 'read', getStats: 'read',
-    disconnect: 'command', disconnectAll: 'command',
-  } },
-);
+/**
+ * Background-only. Nothing outside the worker calls this service: the provider service and the
+ * signing service reach it in-process, and extension pages go through the provider service. So it
+ * is a plain singleton rather than a proxy service, and exposes no port.
+ */
+let instance: ConnectionService | null = null;
+export function getConnectionService(): ConnectionService {
+  return instance ??= new ConnectionService();
+}
