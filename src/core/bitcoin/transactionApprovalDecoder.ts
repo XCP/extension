@@ -45,7 +45,7 @@ export async function decodeTransactionForApproval(
   resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout,
 ): Promise<DecodedTransactionInfo> {
   // The screen must describe the bytes being signed, not a remote party's account of them
-  // (ADR-019). A parse failure is reported as such rather than deferring to the API's version.
+  // (see `unpack/verify.ts`). A parse failure is reported as such rather than deferring to the API's version.
   const parsed = parseRawTransactionLocally(rawTxHex);
   if (!parsed) {
     throw new Error('This transaction could not be decoded, so it was not shown for signing.');

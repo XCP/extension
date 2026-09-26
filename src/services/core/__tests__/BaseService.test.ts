@@ -213,7 +213,7 @@ describe('BaseService', () => {
       await testService.initialize();
       mockSessionStorage.set.mockRejectedValue(new Error('Storage full'));
 
-      // Should throw per ADR-008 - SET operations throw on error
+      // Should throw - SET operations throw on error
       await expect((testService as any).saveState()).rejects.toThrow('Failed to save service state');
 
       // Reset mock so afterEach destroy() works

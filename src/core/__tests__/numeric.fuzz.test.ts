@@ -130,7 +130,7 @@ describe('Numeric Utilities Fuzz Tests', () => {
         (positiveNum) => {
           const str = positiveNum.toString();
           // Skip scientific notation in edge cases for this test
-          if (str.includes('e-')) return true;
+          if (str.includes('e-')) return;
           
           // The function correctly validates decimal places (default max is 8)
           // We need to check how many decimal places the number string has

@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from '@/core/settings';
 import type { Keychain } from '@/types/wallet';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION, parseKeychain } from '../keychainCrypto';
 
-const ITERATIONS = 500000; // deriveKey enforces a 500k minimum (ADR-014)
+const ITERATIONS = 500000; // deriveKey enforces a 500k minimum (see encryption.ts)
 
 const sampleKeychain = (): Keychain => ({
   version: KEYCHAIN_VERSION,

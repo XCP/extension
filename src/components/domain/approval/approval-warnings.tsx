@@ -18,6 +18,7 @@ import { getMessageSigningRisks } from '@/core/bitcoin/messageRisk';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
 import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
+import type { MarketplaceBlockKind } from '@/core/counterparty/marketplaceIntent';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import { revealControlText, revealOutputsText, revealRefusalText } from '@/core/counterparty/providerReveal';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
@@ -39,7 +40,7 @@ export function WarningDetails({ details }: { details: string[] }) {
 }
 
 /** Headline for a marketplace proof that did not pass, by what the user can do about it. */
-export function marketplaceBlockText(kind: 'retry' | 'ledger' | 'transaction' | 'input_limit'): { title: string; description: string } {
+export function marketplaceBlockText(kind: 'retry' | 'transaction' | MarketplaceBlockKind): { title: string; description: string } {
   switch (kind) {
     case 'retry':
       return { title: t('approval_marketplace_retry_title'), description: t('approval_marketplace_retry_description') };
@@ -228,8 +229,7 @@ export function buildApprovalWarnings({
           ? t('approval_approval_warnings_transaction_details_contain_hidden_characters')
           : t('approval_approval_warnings_transaction_details_contain_control_characters'),
         description: risk.key === 'deceptive-characters'
-          ? t('approval_approval_warnings_a_memo_description_or_asset')
-            + t('approval_approval_warnings_check_the_decoded_amounts_and')
+          ? t('approval_approval_warnings_hidden_characters_description')
           : t('approval_approval_warnings_a_memo_description_or_asset_2'),
       });
     }

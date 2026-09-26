@@ -9,7 +9,7 @@
  * - Write lock protection for concurrent operations
  * - Session storage (cleared on browser close)
  *
- * ### ADR-010: Storage Pattern Decisions
+ * ### Design note: Storage Pattern Decisions
  *
  * This module uses a class pattern rather than the function pattern used by
  * other storage modules. The class is justified because:
@@ -110,7 +110,7 @@ export class RequestStorage<T extends BaseRequest> {
   /**
    * Store a request.
    * Automatically cleans up expired requests.
-   * Throws if session storage API is unavailable (per ADR-008).
+   * Throws if session storage API is unavailable; storage writes must throw rather than fail silently.
    */
   async store(request: T): Promise<void> {
     return this.write(request, true);
@@ -210,7 +210,7 @@ export class RequestStorage<T extends BaseRequest> {
 
   /**
    * Remove a request by ID.
-   * Throws if session storage API is unavailable (per ADR-008).
+   * Throws if session storage API is unavailable; storage writes must throw rather than fail silently.
    */
   async remove(id: string): Promise<void> {
     if (!chrome?.storage?.session) {
@@ -234,7 +234,7 @@ export class RequestStorage<T extends BaseRequest> {
 
   /**
    * Clear all requests.
-   * Throws if session storage API is unavailable (per ADR-008).
+   * Throws if session storage API is unavailable; storage writes must throw rather than fail silently.
    */
   async clear(): Promise<void> {
     if (!chrome?.storage?.session) {

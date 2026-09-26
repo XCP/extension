@@ -10,7 +10,7 @@ import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { getReadinessState, markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
-import { getProviderService, registerProviderService } from '@/services/providerService';
+import { registerProviderService } from '@/services/providerService';
 import { registerProviderSigningService } from '@/services/providerSigningService';
 import { getUpdateService } from '@/services/updateService';
 import { getWalletService, registerWalletService } from '@/services/walletService';
@@ -90,6 +90,14 @@ export default defineBackground(() => {
   // the browser. Which tabs a provider event concerns is learned from provider ports instead
   // (see platform/browser.ts).
 
+  // These wake the worker too, so they are registered here, in the first turn, like the ones above:
+  // Chrome delivers the waking event only to listeners that exist by the end of it. Each handler
+  // waits for initialisation (whenServicesReady) before acting on wallet state.
+  //  - The popup-lifecycle port, which cancels a signing request whose approval window closed.
+  //  - onUpdateAvailable, which Chrome may fire once, on the very wake it causes.
+  getPopupMonitorService().initialize();
+  getUpdateService().listen();
+
   console.log('[Background] Core listeners registered');
 
   // ============================================================
@@ -118,22 +126,18 @@ export default defineBackground(() => {
       //     calls; initializing is what resumes an approval left pending by the previous worker
       //     and installs the handler that completes a connect approval nobody is waiting on any
       //     more. Approval first: the connection service registers its handler on it.
-      //     Deliberately not in the registry, whose onSuspend teardown would reject the very
-      //     approval this exists to carry across a restart.
+      //     Deliberately not in the registry: its destroy() rejects the pending approval, which
+      //     is the very thing this exists to carry across a restart.
       await getApprovalService().initialize();
       await getConnectionService().initialize();
       console.log('[Background] ApprovalService and ConnectionService initialized');
 
-      // 3. Initialize update service. An update never reloads the extension out from under an
-      //    approval waiting on the user.
+      // 3. Initialize update service (its listener was registered in the first turn). An update
+      //    never reloads the extension out from under an approval waiting on the user.
       const updateService = getUpdateService();
       updateService.addBusyCheck(() => getApprovalService().hasPendingApproval());
       await updateService.initialize();
       console.log('[Background] UpdateService initialized');
-
-      // 4. Initialize popup monitor service
-      getPopupMonitorService().initialize();
-      console.log('[Background] PopupMonitorService initialized');
 
       // 6. Check session recovery state (may lock wallets if session expired). Anything that
       //    re-derives from the session master key waits on the outcome of this — see sessionReady.
@@ -277,45 +281,12 @@ export default defineBackground(() => {
   eventEmitterService.on('emit-provider-event', async ({ origin, event, data }) => {
     await deliverProviderEvent(origin, event, data);
   });
-  
 
-  // Add cleanup handlers for service worker termination
-  if ('onSuspend' in chrome.runtime) {
-    chrome.runtime.onSuspend.addListener(() => {
-      console.log('[Background] Service worker suspending, cleaning up all services...');
-      
-      // Destroy all services via registry
-      serviceRegistry.destroyAll().catch((error) => {
-        console.error('[Background] Failed to destroy services:', error);
-      });
-      
-      // Also cleanup provider service (until it's migrated to BaseService)
-      const providerService = getProviderService();
-      if (providerService.destroy) {
-        providerService.destroy().catch((error) => {
-          console.error('[Background] Failed to destroy provider service:', error);
-        });
-      }
 
-      // Cleanup update service
-      const updateService = getUpdateService();
-      updateService.destroy();
+  // No onSuspend teardown, on purpose. Nothing needs saving there: every service persists its
+  // state as it changes, and the worker's memory goes with it. Tearing down was harmful instead:
+  // on an event-page browser a suspend can be canceled, and the torn-down worker kept running with
+  // the provider-event forwarder above, the update listener and the popup monitor all gone.
 
-      // Cleanup popup monitor service
-      const popupMonitor = getPopupMonitorService();
-      popupMonitor.destroy();
-    });
-  }
-  
-  // Alternative cleanup for when service worker is about to be terminated
-  if ('onSuspendCanceled' in chrome.runtime) {
-    chrome.runtime.onSuspendCanceled.addListener(() => {
-      console.log('[Background] Service worker suspension canceled');
-    });
-  }
-  
-  // Note: chrome.runtime.onShutdown is not available in all browsers
-  // The onSuspend handler above will handle most cleanup scenarios
-
-  console.debug('Background script initialized with ServiceRegistry and cleanup handlers');
+  console.debug('Background script initialized');
 });

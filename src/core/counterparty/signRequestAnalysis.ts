@@ -9,7 +9,7 @@
  * about whether the same transaction is safe, so they share this instead.
  *
  * Everything here reads the transaction's own bytes. Nothing decides safety from a remote party's
- * account of them (ADR-019).
+ * account of them (see `unpack/verify.ts`).
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
@@ -18,6 +18,7 @@ import {
   type BitcoinPaymentProof,
   proveBitcoinPaymentIntent,
 } from '@/core/bitcoin/providerPayment';
+import type { DecodedOutput } from '@/core/bitcoin/psbt';
 import { scriptPaymentCandidates, scriptPaymentRisk } from '@/core/bitcoin/scriptPaymentRisk';
 import { addressHoldsCounterpartyAssets } from '@/core/counterparty/assetHoldings';
 import {
@@ -74,7 +75,7 @@ export interface AnalyzedInput {
   value?: number;
   sequence?: number;
   /** Script type of the spent prevout. */
-  scriptType?: string;
+  scriptType?: DecodedOutput['type'];
 }
 
 /**
@@ -160,12 +161,6 @@ export interface SignRequestAnalysis {
 }
 
 /**
- * Run every safety check that applies to a transaction a website has asked this wallet to sign.
- *
- * @param input - the transaction, already parsed, with its Counterparty payload resolved
- * @returns the analysis both approval screens render, including any blocking warnings
- */
-/**
  * The block a failed marketplace proof raises, led by what the user can do about it. The wallet's
  * internal reasons stay attached as details, never as the headline.
  */
@@ -188,6 +183,12 @@ function marketplaceBlockWarning(review: MarketplaceApprovalReview): SecurityWar
   };
 }
 
+/**
+ * Run every safety check that applies to a transaction a website has asked this wallet to sign.
+ *
+ * @param input - the transaction, already parsed, with its Counterparty payload resolved
+ * @returns the analysis both approval screens render, including any blocking warnings
+ */
 export async function analyzeSignRequest(
   input: SignRequestAnalysisInput
 ): Promise<SignRequestAnalysis> {

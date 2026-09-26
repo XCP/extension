@@ -5,9 +5,8 @@
  */
 
 import {
-  walletTest,
   expect,
-  navigateTo
+  walletTest
 } from '../fixtures';
 import { settings } from '../selectors';
 

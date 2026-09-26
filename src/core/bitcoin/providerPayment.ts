@@ -1,4 +1,5 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { isRecord } from '@/core/isRecord';
 
 export const BITCOIN_PAYMENT_INTENT_STANDARD = 'xcp-wallet/bitcoin-payment' as const;
 export const BITCOIN_PAYMENT_INTENT_VERSION = 1 as const;
@@ -27,9 +28,6 @@ export interface BitcoinPaymentProof {
   outputs: Array<{ index: number; address: string; amountSats: number }>;
   totalSats: number;
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
  * Validate the provider wire shape before persisting it. The result is still an

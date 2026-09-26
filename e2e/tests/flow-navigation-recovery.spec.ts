@@ -6,16 +6,16 @@
  */
 
 import {
-  test,
-  walletTest,
-  expect,
   createWallet,
+  expect,
   lockWallet,
   navigateTo,
-  TEST_PASSWORD
+  TEST_PASSWORD,
+  test,
+  walletTest
 } from '../fixtures';
+import { common, createWallet as createWalletSelectors, header, importWallet, index, onboarding, selectWallet, send, settings, unlock } from '../selectors';
 import { TEST_ADDRESSES } from '../test-data';
-import { index, settings, send, header, viewAddress, onboarding, unlock, common, selectWallet, importWallet, createWallet as createWalletSelectors } from '../selectors';
 
 test.describe('Navigation Recovery - Cancel Flows', () => {
   test('can cancel create wallet and return to onboarding', async ({ extensionPage }) => {

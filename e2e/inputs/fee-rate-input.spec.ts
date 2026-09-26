@@ -11,7 +11,7 @@
  * - Validation (minimum 0.1 sat/vB)
  */
 
-import { walletTest, expect, navigateTo } from '../fixtures';
+import { expect, navigateTo, walletTest } from '../fixtures';
 import { index } from '../selectors';
 
 walletTest.describe('FeeRateInput Component', () => {

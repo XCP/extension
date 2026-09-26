@@ -1013,6 +1013,33 @@ describe('WalletManager', () => {
         true,
       );
     });
+
+    // The manual sign-message page used to sign in the popup with the wallet's format and the key's
+    // own compression flag; signing in the background must produce the same signature for each.
+    it.each([
+      { type: 'mnemonic' as const, format: AddressFormat.P2WPKH, compressed: true, paired: true },
+      { type: 'mnemonic' as const, format: AddressFormat.P2PKH, compressed: true, paired: true },
+      { type: 'mnemonic' as const, format: AddressFormat.P2TR, compressed: true, paired: false },
+      { type: 'privateKey' as const, format: AddressFormat.P2PKH, compressed: false, paired: false },
+      { type: 'privateKey' as const, format: AddressFormat.P2SH_P2WPKH, compressed: true, paired: false },
+    ])('signs a $type $format address with its wallet format and key compression', async ({ type, format, compressed, paired }) => {
+      const own = { name: 'Address 1', address: 'own-address', path: "m/0'/0/0", pubKey: '02aa' };
+      const wallet = createTestWallet({ type, addressFormat: format, addresses: [own] });
+      walletManager['wallets'] = [wallet];
+      walletManager['activeWalletId'] = wallet.id;
+      const pairedSpy = vi.spyOn(walletManager, 'getPairedAddresses').mockResolvedValue({
+        legacy: { ...own, address: format === AddressFormat.P2PKH ? 'own-address' : '1other', format: AddressFormat.P2PKH, type: 'p2pkh' },
+        segwit: { ...own, address: format === AddressFormat.P2WPKH ? 'own-address' : 'bc1qother', format: AddressFormat.P2WPKH, type: 'p2wpkh' },
+      });
+      const privateKeySpy = vi.spyOn(walletManager, 'getPrivateKey').mockResolvedValue({ hex: '22'.repeat(32), wif: 'wif', compressed });
+      vi.mocked(signMessage).mockResolvedValue({ signature: 'sig', address: 'own-address' });
+
+      await walletManager.signMessage('hello', 'own-address', { walletId: wallet.id, address: 'own-address' });
+
+      expect(pairedSpy).toHaveBeenCalledTimes(paired ? 1 : 0);
+      expect(privateKeySpy).toHaveBeenCalledWith(wallet.id, own.path);
+      expect(signMessage).toHaveBeenCalledWith('hello', '22'.repeat(32), format, compressed);
+    });
   });
   describe('Mnemonic Access', () => {
     it('should get unencrypted mnemonic for unlocked wallet', async () => {

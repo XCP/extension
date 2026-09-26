@@ -56,6 +56,8 @@ describe('buildApprovalWarnings', () => {
       key: 'display-deceptive-characters',
       severity: 'warning',
       title: 'Transaction details contain hidden characters',
+      description: 'A memo, description, or asset label uses characters that can reorder or hide text. '
+        + 'Check the decoded amounts and destinations carefully.',
     }));
   });
 

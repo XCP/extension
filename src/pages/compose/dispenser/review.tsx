@@ -39,7 +39,7 @@ export function ReviewDispenser({
   // A dispenser has no local packer, so its params were an unverified echo. The asset and the
   // BTC price per dispense are stated by the transaction itself, so they are read from the decoded
   // message: a composer that opened a dispenser on a different asset, or at a different price,
-  // cannot then display the requested one (ADR-019). Quantities keep using the response's
+  // cannot then display the requested one (see `unpack/verify.ts`). Quantities keep using the response's
   // normalized strings, since converting the decoded base units needs the asset's divisibility —
   // a ledger fact rather than a property of this transaction.
   const decoded = useComposerOptional()?.state.decodedMessage?.data as

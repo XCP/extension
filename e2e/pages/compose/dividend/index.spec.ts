@@ -10,7 +10,7 @@
  * - Quantity per unit input
  */
 
-import { walletTest, expect, navigateTo } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
 import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Dividend Page (/compose/dividend)', () => {

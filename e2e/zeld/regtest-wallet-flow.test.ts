@@ -36,7 +36,7 @@ describe('production wallet transaction flow on regtest', () => {
     const evidence: unknown[] = [];
     for (const key of keys) {
       const params = { sourceAddress: key.address, text: `Wallet ${key.addressFormat} hunt`, value: '0', fee_fraction: '0',
-        timestamp: String(Math.floor(Date.now() / 1000)), sat_per_vbyte: 2, encoding: 'opreturn' };
+        timestamp: String(Math.floor(Date.now() / 1000)), sat_per_vbyte: 2, encoding: 'opreturn' as const };
       const composed = await composeBroadcast(params);
       expect(verifyTransaction(composed.result.data, 'broadcast', params).valid).toBe(true);
       const reviewed = Transaction.fromRaw(hexToBytes(composed.result.rawtransaction), { allowUnknownOutputs: true });
@@ -70,7 +70,7 @@ describe('production wallet transaction flow on regtest', () => {
     const recipient = keyFor('wallet-recipient');
     await ensureXcp(sender, miner);
     const params = { sourceAddress: sender.address, destination: recipient.address, asset: 'XCP', quantity: '100000000',
-      sat_per_vbyte: 2, encoding: 'opreturn' };
+      sat_per_vbyte: 2, encoding: 'opreturn' as const };
     const sent = await composeSend(params);
     // The wallet renders witness addresses on mainnet; the protocol payload stores only the
     // witness program. Compare the same program using that production address representation.

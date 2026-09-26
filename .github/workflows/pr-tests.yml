@@ -7,7 +7,7 @@ permissions:
 # receives squashes of PRs that passed here. A newer push to the same PR cancels the older run.
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
     types: [ opened, synchronize, reopened, ready_for_review ]
   workflow_dispatch:
 
@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
 
@@ -70,10 +70,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -84,6 +84,8 @@ jobs:
       - name: Run TypeScript type checking
         run: npm run compile
 
+      # With CI set, scripts/lint.mjs also fails when lint-baseline.json allows more warnings than
+      # remain, so the budget cannot keep slack a later change could spend.
       - name: Lint
         run: npm run lint
 
@@ -93,51 +95,40 @@ jobs:
   unit-tests:
     name: Unit Tests (Shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [check-pinned-dependencies, lint-and-type-check]
     if: needs.check-pinned-dependencies.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
-        # Each job pays for install and build, and a shard ran ~1 minute of tests, so two is enough.
+        # Each job pays for install, and a shard ran ~1 minute of tests, so two is enough.
         shard: [1, 2]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
+      # `npm ci` runs `wxt prepare`, which is all the unit suite needs; no test reads .output.
       - name: Install dependencies
         run: npm ci
 
-      - name: Build extension
-        run: npm run build
-
-      - name: Run unit tests (Shard ${{ matrix.shard }}/10)
+      - name: Run unit tests (Shard ${{ matrix.shard }}/2)
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npx vitest run src --shard=${{ matrix.shard }}/2
 
-      - name: Upload unit test results
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: unit-test-results-shard-${{ matrix.shard }}
-          path: test-results.json
-          if-no-files-found: ignore
-
   e2e-tests:
-    name: E2E Tests (Batch ${{ matrix.batch }})
+    name: E2E Tests (Shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    # The official Playwright image ships Chromium and every system library it needs, so the
-    # browser-install and `install-deps` steps below are gone. `playwright install-deps` ran apt
-    # against the runner's Ubuntu mirror on every job and routinely stalled there, timing out
-    # 4-6 batches per run; the retry loop could not help, because the whole loop shared one
-    # `timeout-minutes` budget that a single stalled attempt exhausted.
+    # The official Playwright image ships Chromium and every system library it needs, so there is
+    # no browser-install or `install-deps` step. `playwright install-deps` ran apt against the
+    # runner's Ubuntu mirror on every job and routinely stalled there.
     #
     # The tag MUST track the `@playwright/test` version in package.json. The image's browsers are
     # built for that exact release, and Playwright refuses to launch a build it did not expect.
@@ -146,23 +137,24 @@ jobs:
     # `--no-sandbox` and `--disable-dev-shm-usage`, so no user remapping is needed.
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
-    timeout-minutes: 45  # Hard backstop so a stalled setup can't burn the 6h job cap
+    timeout-minutes: 60  # Hard backstop so a stalled setup can't burn the 6h job cap
     needs: [check-pinned-dependencies, lint-and-type-check]
     # Drafts are still being written; the suite runs once they are marked ready.
     if: github.event.pull_request.draft != true && needs.check-pinned-dependencies.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
-        # Five batches: each job spends ~3 minutes on container, install and build before any
-        # test runs, so twenty batches spent more on setup than on tests.
-        batch: [1, 2, 3, 4, 5]
+        # The whole suite is ~110 minutes serial with one retry. Six shards keep each around
+        # 20 minutes, well inside the step limit, while each job still spends ~3 minutes on
+        # container, install and build before any test runs.
+        shard: [1, 2, 3, 4, 5, 6]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -173,58 +165,36 @@ jobs:
       - name: Build extension
         run: npm run build:e2e  # grants the optional Trezor Suite permission up front
 
-      - name: Configure Xvfb (MetaMask style)
+      # Extension tests launch Chromium headed so MV3 service workers and extension pages exist.
+      - name: Start Xvfb
         run: |
-          # Start Xvfb in the background with MetaMask's exact configuration
           Xvfb -ac :99 -screen 0 1280x1024x16 &
-          # Give it a moment to start
           sleep 2
 
-      - name: Run E2E tests (Batch ${{ matrix.batch }})
-        timeout-minutes: 35  # Set a reasonable timeout per batch
-        run: |
-          # Dynamically discover all test files and distribute them across batches
-          TOTAL_BATCHES=5
-          CURRENT_BATCH=${{ matrix.batch }}
-
-          # Get all test files, sorted for consistency
-          ALL_FILES=$(find e2e -name "*.spec.ts" -type f | sort)
-
-          # Count total files
-          TOTAL_FILES=$(echo "$ALL_FILES" | wc -l)
-          FILES_PER_BATCH=$(( (TOTAL_FILES + TOTAL_BATCHES - 1) / TOTAL_BATCHES ))
-          START_LINE=$(( (CURRENT_BATCH - 1) * FILES_PER_BATCH + 1 ))
-          END_LINE=$(( START_LINE + FILES_PER_BATCH - 1 ))
-
-          # Get files for this batch using sed
-          BATCH_FILES=$(echo "$ALL_FILES" | sed -n "${START_LINE},${END_LINE}p" | tr '\n' ' ')
-
-          # Run tests for this batch
-          if [ -n "$BATCH_FILES" ]; then
-            echo "Running tests for batch $CURRENT_BATCH (lines $START_LINE-$END_LINE of $TOTAL_FILES):"
-            echo "$BATCH_FILES"
-            npx playwright test $BATCH_FILES --workers=1 --retries=1
-          else
-            echo "No tests to run for batch $CURRENT_BATCH"
-          fi
+      # Playwright's own sharding splits by test count (whole files, since the config is not
+      # fullyParallel), where the old split by file count gave the first batch the heaviest specs.
+      # The shard total here must match the matrix above.
+      - name: Run E2E tests (Shard ${{ matrix.shard }}/6)
+        timeout-minutes: 45
+        run: npx playwright test --shard=${{ matrix.shard }}/6 --workers=1 --retries=1
         env:
           CI: true
           DISPLAY: ':99'
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: e2e-test-results-batch-${{ matrix.batch }}
+          name: e2e-test-results-shard-${{ matrix.shard }}
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
 
       - name: Upload playwright report
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: playwright-report-batch-${{ matrix.batch }}
+          name: playwright-report-shard-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore
@@ -280,25 +250,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run security audit
-        run: |
-          # Only audit production dependencies (not devDependencies)
-          # Trezor testing packages have known vulnerabilities in transitive deps we can't fix
-          npm audit --omit=dev --audit-level=high
-        continue-on-error: true  # Don't fail on low/medium vulnerabilities
-
-      - name: Check for known vulnerabilities
+      # npm audit reads package-lock.json alone, so there is nothing to install.
+      - name: Audit production dependencies
         run: |
           # Production dependencies must be clean at high/critical. The @trezor/* exemption for
           # the elliptic chain (GHSA-848j-6mx2-7j84) ended with Connect 10, which dropped it.

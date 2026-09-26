@@ -25,6 +25,7 @@ import { generateRequestId } from '@/core/id';
 import {
   assertProviderPsbtSigningRequest,
   providerPsbtSigningCapabilities,
+  unsupportedMarketplaceActionReason,
 } from '@/core/providerCapabilities';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
@@ -131,6 +132,36 @@ export interface ProviderService {
 export const SIGN_FLOW_RECOVERY_POLL_MS = 5_000;
 
 /**
+ * dApp-facing failures. A plain Error is masked to -32603 "Request failed" at the page boundary
+ * (classifyProviderError), so anything a site should be able to read or branch on is thrown as a
+ * ProviderError. Only fixed, deliberately user-facing text goes in these, never internal state.
+ *
+ * - invalidParams (-32602): the request's own shape or content is wrong; resending it unchanged fails.
+ * - limitExceeded (-32005, EIP-1474): a per-origin limit; the message says when to try again.
+ * - expired (4001): nobody approved within the request's window. EIP-1193 has no timeout code, and
+ *   the outcome is the same as a rejection: nothing was approved and the site should not assume
+ *   anything happened. 4001 is the code sites already handle as "the user did not go ahead".
+ */
+const invalidParams = (message: string) => new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, message);
+const limitExceeded = (message: string) => new ProviderError(JSON_RPC_ERROR_CODES.LIMIT_EXCEEDED, message);
+const expired = (message: string) => new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, message);
+
+/**
+ * Call `onClosed` when the user closes a window this request opened for them (unlock or wallet
+ * setup), so the site hears 4001 at once instead of waiting out the whole timeout for a window
+ * that is gone. Returns the function that stops watching; every exit path must call it.
+ */
+function watchWindowClosed(windowId: number, onClosed: () => void): () => void {
+  const onRemoved = chrome.windows?.onRemoved;
+  if (!onRemoved) return () => {};
+  const listener = (removedWindowId: number) => {
+    if (removedWindowId === windowId) onClosed();
+  };
+  onRemoved.addListener(listener);
+  return () => onRemoved.removeListener(listener);
+}
+
+/**
  * Drives the popup approval lifecycle for a dApp signing request: registers the
  * critical operation, resolves/rejects on the popup's complete/cancel events,
  * times out after 10 minutes, and cleans up listeners (and any per-request
@@ -208,7 +239,7 @@ function awaitSignApproval<T>(opts: {
       if (settled) return;
       settled = true;
       cleanup();
-      reject(new Error(opts.timeoutMessage));
+      reject(expired(opts.timeoutMessage));
     }, Math.max(0, opts.expiresAt - Date.now()));
 
     eventEmitterService.on(`${opts.eventPrefix}-complete-${opts.requestId}`, handleComplete);
@@ -257,13 +288,13 @@ async function runSignFlow<T>(args: {
     if (existing) return existing;
     // Only a request that is about to open a popup is charged, and after all validation.
     if (await countOpenSignFlows(args.origin) >= MAX_OPEN_SIGN_FLOWS_PER_ORIGIN) {
-      throw new Error(
+      throw limitExceeded(
         `Too many signing requests are waiting for approval. Finish or cancel one before sending another (limit ${MAX_OPEN_SIGN_FLOWS_PER_ORIGIN}).`,
       );
     }
     if (!signPopupRateLimiter.isAllowed(args.origin)) {
       const resetTime = signPopupRateLimiter.getResetTime(args.origin);
-      throw new Error(`Signing request rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds.`);
+      throw limitExceeded(`Signing request rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds.`);
     }
     const requestId = generateRequestId(args.approval.eventPrefix);
     await args.createAndOpen(requestId, requestKey);
@@ -389,7 +420,7 @@ export function createProviderService(): ProviderService {
   }
 
   /**
-   * ADR-018: Paired-address provider capability
+   * Design note: Paired-address provider capability
    *
    * A connection authorizes only its active address. A dApp may opt in to the
    * active derivation index's Legacy/SegWit sibling pair through explicit
@@ -478,7 +509,7 @@ export function createProviderService(): ProviderService {
       } catch {
         // If params can't be serialized (circular refs), reject the request
         await analytics.track('request_rejected');
-        throw new Error('Request parameters cannot be serialized');
+        throw invalidParams('Request parameters cannot be serialized');
       }
       if (paramSize > MAX_PARAM_SIZE) {
         await analytics.track('request_rejected');
@@ -490,7 +521,7 @@ export function createProviderService(): ProviderService {
           paramSize,
           maxSize: MAX_PARAM_SIZE
         });
-        throw new Error('Request parameters too large (max 1MB)');
+        throw invalidParams('Request parameters too large (max 1MB)');
       }
       
       // Apply rate limiting based on method type
@@ -501,18 +532,18 @@ export function createProviderService(): ProviderService {
       
       if (isConnectionMethod && !connectionRateLimiter.isAllowed(origin)) {
         const resetTime = connectionRateLimiter.getResetTime(origin);
-        throw new Error(`Rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds before trying again.`);
+        throw limitExceeded(`Rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds before trying again.`);
       }
       
       if (isTransactionMethod && !transactionRateLimiter.isAllowed(origin)) {
         const resetTime = transactionRateLimiter.getResetTime(origin);
-        throw new Error(`Transaction rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds.`);
+        throw limitExceeded(`Transaction rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds.`);
       }
       
       // General API rate limit
       if (!apiRateLimiter.isAllowed(origin)) {
         const resetTime = apiRateLimiter.getResetTime(origin);
-        throw new Error(`API rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds.`);
+        throw limitExceeded(`API rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds.`);
       }
       
       // Get services
@@ -531,7 +562,7 @@ export function createProviderService(): ProviderService {
           // Check if keychain exists in storage (works even when locked)
           if (!await keychainExists()) {
             // Open popup for wallet setup and wait for onboarding to complete
-            await openExtensionPopup();
+            const setupWindow = await openExtensionPopup();
 
             // Wait for wallet creation, then continue with connection flow
             return new Promise((resolve, reject) => {
@@ -541,6 +572,7 @@ export function createProviderService(): ProviderService {
               // Centralized cleanup - called on any exit path
               const cleanup = () => {
                 if (timeout) clearTimeout(timeout);
+                stopWatchingWindow();
                 eventEmitterService.off('wallet-created', handleWalletCreated);
               };
 
@@ -564,6 +596,12 @@ export function createProviderService(): ProviderService {
                 reject(new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Wallet setup timeout - please try again'));
               }, 10 * 60 * 1000); // 10 minute timeout for onboarding
 
+              const stopWatchingWindow = watchWindowClosed(setupWindow.id, () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, 'User closed the wallet setup window'));
+              });
               eventEmitterService.on('wallet-created', handleWalletCreated);
             });
           }
@@ -571,16 +609,7 @@ export function createProviderService(): ProviderService {
           // Check if wallet is locked
           const isUnlocked = await walletService.isKeychainUnlocked();
           if (!isUnlocked) {
-            // Open popup for unlock and store the pending request
-            const _approvalService = getApprovalService();
             const requestId = generateRequestId(`${origin}-unlock`);
-
-            // Store the pending connection request
-            eventEmitterService.emit('pending-unlock-connection', {
-              requestId,
-              origin,
-              method: 'xcp_requestAccounts'
-            });
 
             // Open the regular popup - it shows the unlock screen. After unlock the connection
             // approval continues in this same window rather than opening a second one; the marked
@@ -595,6 +624,7 @@ export function createProviderService(): ProviderService {
               // Centralized cleanup - called on any exit path
               const cleanup = () => {
                 if (timeout) clearTimeout(timeout);
+                stopWatchingWindow();
                 eventEmitterService.off('wallet-unlocked', handleUnlock);
               };
 
@@ -630,9 +660,15 @@ export function createProviderService(): ProviderService {
                 if (settled) return;
                 settled = true;
                 cleanup();
-                reject(new Error('Unlock timeout - please try again'));
+                reject(expired('Unlock timeout - please try again'));
               }, 5 * 60 * 1000); // 5 minute timeout
 
+              const stopWatchingWindow = watchWindowClosed(unlockWindow.id, () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, 'User closed the unlock window'));
+              });
               eventEmitterService.on('wallet-unlocked', handleUnlock);
             });
           }
@@ -702,18 +738,18 @@ export function createProviderService(): ProviderService {
 
           // Validate message type and presence
           if (!message) {
-            throw new Error('Message is required');
+            throw invalidParams('Message is required');
           }
           if (typeof message !== 'string') {
-            throw new Error('Message must be a string');
+            throw invalidParams('Message must be a string');
           }
           if (message.startsWith(CONNECTION_PROOF_PREFIX)) {
-            throw new Error('Messages in the connection-proof namespace are reserved');
+            throw invalidParams('Messages in the connection-proof namespace are reserved');
           }
 
           // Validate address type if provided
           if (address !== undefined && typeof address !== 'string') {
-            throw new Error('Address must be a string');
+            throw invalidParams('Address must be a string');
           }
 
           // Check if connected
@@ -800,7 +836,7 @@ export function createProviderService(): ProviderService {
           const rawTxHex = typeof txParams === 'string' ? txParams : txParams?.hex;
 
           if (!rawTxHex) {
-            throw new Error('Transaction hex is required');
+            throw invalidParams('Transaction hex is required');
           }
 
           // Check if connected
@@ -848,17 +884,17 @@ export function createProviderService(): ProviderService {
         case 'xcp_signPsbts': {
           const bundleParams = params?.[0];
           if (!bundleParams || typeof bundleParams !== 'object' || Array.isArray(bundleParams)) {
-            throw new Error('PSBT bundle parameters must be an object with requests');
+            throw invalidParams('PSBT bundle parameters must be an object with requests');
           }
           const requests = (bundleParams as { requests?: unknown }).requests;
           // Each phase kind bounds its own count below (maxMarketplaceBatchRequests): 8, or 100
           // alternatives of one policy-offer funding set.
           if (!Array.isArray(requests) || requests.length < 1 || requests.length > MAX_POLICY_ALTERNATIVES) {
-            throw new Error(`This wallet version supports 1..${MAX_POLICY_ALTERNATIVES} linked PSBT requests`);
+            throw invalidParams(`This wallet version supports 1..${MAX_POLICY_ALTERNATIVES} linked PSBT requests`);
           }
           const parsedRequests = requests.map((request, requestIndex) => {
             if (!request || typeof request !== 'object' || Array.isArray(request)) {
-              throw new Error(`PSBT bundle request ${requestIndex} must be an object`);
+              throw invalidParams(`PSBT bundle request ${requestIndex} must be an object`);
             }
             const candidate = request as {
               hex?: unknown;
@@ -867,7 +903,7 @@ export function createProviderService(): ProviderService {
               intent?: unknown;
             };
             if (typeof candidate.hex !== 'string' || candidate.hex.length === 0) {
-              throw new Error(`PSBT bundle request ${requestIndex} requires hex`);
+              throw invalidParams(`PSBT bundle request ${requestIndex} requires hex`);
             }
             if (
               !candidate.signInputs
@@ -875,7 +911,7 @@ export function createProviderService(): ProviderService {
               || Array.isArray(candidate.signInputs)
               || Object.keys(candidate.signInputs).length === 0
             ) {
-              throw new Error(`PSBT bundle request ${requestIndex} requires explicit signInputs`);
+              throw invalidParams(`PSBT bundle request ${requestIndex} requires explicit signInputs`);
             }
             // DEFAULT (0x00) is the Taproot form of ALL, which a policy offer's P2TR bidder signs
             // with. Each family's proof still names the exact sighash it admits per input.
@@ -883,7 +919,7 @@ export function createProviderService(): ProviderService {
               !Array.isArray(candidate.sighashTypes)
               || candidate.sighashTypes.some(value => ![0x00, 0x01, 0x83].includes(value as number))
             ) {
-              throw new Error(
+              throw invalidParams(
                 `PSBT bundle request ${requestIndex} supports only DEFAULT, ALL, or SINGLE|ANYONECANPAY`,
               );
             }
@@ -940,6 +976,10 @@ export function createProviderService(): ProviderService {
           );
           const normalizedActiveAddress = normalizeAddressForComparison(activeAddress.address);
           const signing = providerPsbtSigningCapabilities(activeWallet).psbtBatch;
+          for (const bundleIntent of parsedBundle.intents) {
+            const unsupported = unsupportedMarketplaceActionReason(signing, bundleIntent.action);
+            if (unsupported) throw new Error(unsupported);
+          }
           let usesPairedAddress = false;
 
           for (const [requestIndex, request] of parsedRequests.entries()) {
@@ -962,12 +1002,12 @@ export function createProviderService(): ProviderService {
               );
             }
             if (request.sighashTypes.length > details.inputs.length) {
-              throw new Error(`PSBT bundle request ${requestIndex} has too many sighash entries`);
+              throw invalidParams(`PSBT bundle request ${requestIndex} has too many sighash entries`);
             }
             if (request.sighashTypes.some(
               (value, index) => value === 0x83 && index >= details.outputs.length,
             )) {
-              throw new Error(
+              throw invalidParams(
                 `PSBT bundle request ${requestIndex} uses SINGLE without a paired output`,
               );
             }
@@ -978,14 +1018,14 @@ export function createProviderService(): ProviderService {
               details.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address),
             );
             if (!validation.valid) {
-              throw new Error(`PSBT bundle request ${requestIndex}: ${validation.error}`);
+              throw invalidParams(`PSBT bundle request ${requestIndex}: ${validation.error}`);
             }
             const requestedInputIndices = Object.values(request.signInputs).flat();
             const missing = requestedInputIndices.filter(
               inputIndex => request.sighashTypes[inputIndex] === undefined,
             );
             if (missing.length > 0) {
-              throw new Error(
+              throw invalidParams(
                 `PSBT bundle request ${requestIndex} is missing absolute sighash entries for inputs: ${missing.join(', ')}`,
               );
             }
@@ -1063,7 +1103,7 @@ export function createProviderService(): ProviderService {
 
           // Validate params structure
           if (!psbtParams || typeof psbtParams !== 'object') {
-            throw new Error('PSBT parameters must be an object with hex property');
+            throw invalidParams('PSBT parameters must be an object with hex property');
           }
 
           const { hex: psbtHex, signInputs: requestedSignInputs, sighashTypes, inscription, reveal, intent } = psbtParams as {
@@ -1077,10 +1117,10 @@ export function createProviderService(): ProviderService {
           let signInputs = requestedSignInputs;
 
           if (!psbtHex) {
-            throw new Error('PSBT hex is required');
+            throw invalidParams('PSBT hex is required');
           }
           if (typeof psbtHex !== 'string') {
-            throw new Error('PSBT hex must be a string');
+            throw invalidParams('PSBT hex must be a string');
           }
           const bitcoinPaymentIntent = isBitcoinPayment
             ? parseBitcoinPaymentIntent(intent)
@@ -1091,10 +1131,10 @@ export function createProviderService(): ProviderService {
           // Its funding inputs must be proven confirmed once for the whole funding set, which only
           // the linked review does; a lone parent would also hide its sibling alternatives.
           if (marketplaceIntent?.action === 'fund_policy_offer') {
-            throw new Error('fund_policy_offer must be requested through xcp_signPsbts');
+            throw invalidParams('fund_policy_offer must be requested through xcp_signPsbts');
           }
           if (isBitcoinPayment && inscription !== undefined) {
-            throw new Error('Plain Bitcoin payment requests cannot carry inscription context');
+            throw invalidParams('Plain Bitcoin payment requests cannot carry inscription context');
           }
           // Shape-checked here, verified on the approval screen: the context is a claim the site
           // makes about what the commit funds, and every field of it gets recomputed there.
@@ -1105,7 +1145,7 @@ export function createProviderService(): ProviderService {
             || !/^[0-9a-fA-F]+$/.test(inscription.revealScript)
             || !/^[0-9a-fA-F]{64}$/.test(inscription.tapInternalKey)
           )) {
-            throw new Error('inscription must carry revealScript and tapInternalKey as hex strings');
+            throw invalidParams('inscription must carry revealScript and tapInternalKey as hex strings');
           }
           // A Counterparty Taproot commit's reveal. Its message is what signing the commit really
           // authorizes, so it is a Counterparty request, never a plain Bitcoin payment. Shape
@@ -1126,22 +1166,22 @@ export function createProviderService(): ProviderService {
           if (signInputs !== undefined && (
             signInputs === null || typeof signInputs !== 'object' || Array.isArray(signInputs)
           )) {
-            throw new Error('signInputs must be an address-to-input-indices object');
+            throw invalidParams('signInputs must be an address-to-input-indices object');
           }
           if (isBitcoinPayment && (!signInputs || Object.keys(signInputs).length === 0)) {
-            throw new Error('Plain Bitcoin payment requests require explicit signInputs');
+            throw invalidParams('Plain Bitcoin payment requests require explicit signInputs');
           }
           if (sighashTypes !== undefined) {
             if (!Array.isArray(sighashTypes) || sighashTypes.some(
               value => !(isBitcoinPayment ? [0x01] : [0x00, 0x01, 0x81, 0x83]).includes(value)
             )) {
-              throw new Error(isBitcoinPayment
+              throw invalidParams(isBitcoinPayment
                 ? 'Plain Bitcoin payment requests support only SIGHASH_ALL'
                 : 'Only SIGHASH_ALL, ALL|ANYONECANPAY, and SINGLE|ANYONECANPAY are supported');
             }
           }
           if (isBitcoinPayment && sighashTypes === undefined) {
-            throw new Error('Plain Bitcoin payment requests require explicit SIGHASH_ALL entries');
+            throw invalidParams('Plain Bitcoin payment requests require explicit SIGHASH_ALL entries');
           }
 
           // Check if connected
@@ -1158,13 +1198,18 @@ export function createProviderService(): ProviderService {
 
           const psbtDetails = extractPsbtDetails(psbtHex);
           if (activeWallet.type === 'hardware' && signInputs === undefined) {
-            throw new Error('The active wallet requires PSBT inputs to be selected explicitly');
+            throw invalidParams('The active wallet requires PSBT inputs to be selected explicitly');
           }
           signInputs = resolveProviderSignInputs(psbtDetails, activeAddress.address, signInputs, sighashTypes);
           const requestedInputIndices = signInputs === undefined
             ? undefined
             : Object.values(signInputs).flat();
           const requestedInputSet = new Set(requestedInputIndices ?? []);
+          const unsupportedAction = unsupportedMarketplaceActionReason(
+            providerPsbtSigningCapabilities(activeWallet).psbt,
+            marketplaceIntent?.action,
+          );
+          if (unsupportedAction) throw new Error(unsupportedAction);
           assertProviderPsbtSigningRequest(
             providerPsbtSigningCapabilities(activeWallet).psbt,
             {
@@ -1197,12 +1242,12 @@ export function createProviderService(): ProviderService {
             );
           }
           if (sighashTypes && sighashTypes.length > psbtDetails.inputs.length) {
-            throw new Error('sighashTypes contains more entries than the PSBT has inputs');
+            throw invalidParams('sighashTypes contains more entries than the PSBT has inputs');
           }
           if (sighashTypes?.some(
             (value, index) => value === 0x83 && index >= psbtDetails.outputs.length
           )) {
-            throw new Error('SIGHASH_SINGLE requires an output at the same index');
+            throw invalidParams('SIGHASH_SINGLE requires an output at the same index');
           }
 
           if (signInputs !== undefined) {
@@ -1225,7 +1270,7 @@ export function createProviderService(): ProviderService {
               psbtDetails.inputs.length,
               psbtDetails.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address)
             );
-            if (!validation.valid) throw new Error(validation.error);
+            if (!validation.valid) throw invalidParams(validation.error ?? 'Invalid signInputs');
 
             const pairedAddressSet = new Set(
               paired
@@ -1257,7 +1302,7 @@ export function createProviderService(): ProviderService {
               index => sighashTypes[index] === undefined
             );
             if (missingInputIndices.length > 0) {
-              throw new Error(
+              throw invalidParams(
                 `sighashTypes is indexed by absolute PSBT input index and is missing entries for inputs: ${missingInputIndices.join(', ')}`
               );
             }
@@ -1368,10 +1413,10 @@ export function createProviderService(): ProviderService {
 
           const signedTx = params?.[0];
           if (!signedTx) {
-            throw new Error('Signed transaction is required');
+            throw invalidParams('Signed transaction is required');
           }
           if (typeof signedTx !== 'string') {
-            throw new Error('Signed transaction must be a hex string');
+            throw invalidParams('Signed transaction must be a hex string');
           }
 
           // Broadcasting is intentionally open to any signed transaction, so broadcasting alone

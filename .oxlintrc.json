@@ -12,5 +12,13 @@
     "no-unused-vars": "off",
     "no-control-regex": "off",
     "no-loss-of-precision": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["e2e/**"],
+      "rules": {
+        "no-empty-pattern": "off"
+      }
+    }
+  ]
 }

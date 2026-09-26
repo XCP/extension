@@ -106,15 +106,13 @@ export default function AddressHistoryPage(): ReactElement {
   useEffect(() => {
     // Check if there are any unconfirmed transactions
     const hasUnconfirmed = transactions.some(tx => tx.confirmed === false);
-    
-    if (hasUnconfirmed) {
-      // Set up interval to refresh every 30 seconds
-      const interval = setInterval(() => {
-        loadTransactions({ fresh: true });
-      }, 30000); // 30 seconds
-      
-      return () => clearInterval(interval);
-    }
+    if (!hasUnconfirmed) return;
+
+    // Set up interval to refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadTransactions({ fresh: true });
+    }, 30000); // 30 seconds
+    return () => clearInterval(interval);
   }, [transactions]);
 
   // Configure header. loadTransactions omitted (see above).

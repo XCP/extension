@@ -110,14 +110,15 @@ export function partitionApprovalItems(items: WarningItem[]) {
 /** Keep the fee consequence and its wording identical on raw-transaction and PSBT approvals. */
 export function highFeeAttentionItem(feeSats: number, vsize?: number): WarningItem {
   const feeRate = vsize && vsize > 0 ? roundUp(divide(feeSats, vsize)).toFixed(0) : null;
+  const fee = formatAmount({ value: feeSats, maximumFractionDigits: 0 });
   return {
     key: 'high-fee',
     severity: 'warning',
     title: t('approval_approval_attention_unusually_high_network_fee'),
-    description:
-      t('approval_approval_attention_this_transaction_pays_sats', [formatAmount({ value: feeSats, maximumFractionDigits: 0 })]) +
-      `${feeRate === null ? '' : t('approval_approval_attention_about_sat_vb', [String(feeRate)])}. ` +
-      t('approval_approval_attention_confirm_that_this_fee_is'),
+    // Whole sentences, so each language places the rate and its own punctuation.
+    description: feeRate === null
+      ? t('approval_approval_attention_high_fee', [fee])
+      : t('approval_approval_attention_high_fee_with_rate', [fee, feeRate]),
   };
 }
 

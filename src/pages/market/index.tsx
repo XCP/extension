@@ -328,10 +328,9 @@ export default function MarketPage(): ReactElement {
 
   // Address copy feedback timer
   useEffect(() => {
-    if (addressCopied) {
-      const timer = setTimeout(() => setAddressCopied(false), COPY_FEEDBACK_MS);
-      return () => clearTimeout(timer);
-    }
+    if (!addressCopied) return;
+    const timer = setTimeout(() => setAddressCopied(false), COPY_FEEDBACK_MS);
+    return () => clearTimeout(timer);
   }, [addressCopied]);
 
   // Handlers

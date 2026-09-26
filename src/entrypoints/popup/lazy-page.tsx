@@ -3,6 +3,19 @@ import { type ComponentType, lazy, type ReactElement, useState } from 'react';
 type PageModule = { default: ComponentType };
 
 const preloaders: Array<() => Promise<unknown>> = [];
+const retries: Array<() => void> = [];
+
+/**
+ * Let pages whose chunk failed to load try again on their next mount. React.lazy keeps a
+ * rejection for good, so each failed page gets a fresh lazy component.
+ *
+ * Called by the error boundary's "Try again" rather than on the failure itself: React renders a
+ * failed page again before the error reaches a boundary, and a fresh component there would
+ * suspend on a new load instead, and while offline fail and load again without end.
+ */
+export function retryFailedPages(): void {
+  for (const retry of retries) retry();
+}
 
 /**
  * A route page loaded on demand, so opening the popup parses only the pages it can land on.
@@ -25,8 +38,18 @@ export function lazyPage(load: () => Promise<PageModule>): ComponentType {
     });
     return pending;
   };
-  const Lazy = lazy(preload);
+  let failed = false;
+  const attempt = () => lazy(() => preload().catch((error: unknown) => {
+    failed = true;
+    throw error;
+  }));
+  let Lazy = attempt();
   preloaders.push(preload);
+  retries.push(() => {
+    if (!failed) return;
+    failed = false;
+    Lazy = attempt();
+  });
 
   return function LazyPage(): ReactElement {
     const [Page] = useState<ComponentType>(() => loaded ?? Lazy);

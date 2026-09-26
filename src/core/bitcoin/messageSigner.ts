@@ -145,7 +145,7 @@ export async function signMessage(
     return { signature, address };
   } finally {
     // Zero out private key bytes after use (defense in depth)
-    // See ADR-001 in sessionManager.ts for JS memory limitation context
+    // See the memory-clearing note in sessionManager.ts for JS memory limitation context
     privateKey.fill(0);
   }
 }

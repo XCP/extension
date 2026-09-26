@@ -7,7 +7,9 @@
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { DUST_LIMIT_SATS } from '@/core/bitcoin/constants';
 import { publicKeyPointId } from '@/core/bitcoin/publicKeyIdentity';
+import type { MarketplaceBlockKind } from '@/core/counterparty/marketplaceIntent';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import type {
   RevealControlFacts,
@@ -56,7 +58,7 @@ export type SecurityWarning = SecurityWarningText & (
   /** A marketplace proof that could not finish: `details` are the wallet's internal reasons. */
   | { code: 'marketplace_retry'; data: { details: string[] } }
   /** A marketplace proof that failed, by why (MarketplaceApprovalReview.blockKind). */
-  | { code: 'marketplace_blocked'; data: { kind: 'ledger' | 'transaction' | 'input_limit'; details: string[] } }
+  | { code: 'marketplace_blocked'; data: { kind: MarketplaceBlockKind | 'transaction'; details: string[] } }
   | { code: 'expected_btc_payment'; data: { totalSats: number; addresses: string[]; plainBitcoinPayment: boolean } }
   | { code: 'external_btc_output'; data: { totalSats: number; addresses: string[] } }
   | { code: 'counterparty_data_outputs' | 'unattributable_outputs'; data: { totalSats: number; count: number } }
@@ -180,7 +182,7 @@ const SAFE_MESSAGE_TYPES = new Set([
  * and are normal for Counterparty transactions (e.g., multisig encoding,
  * dispenser triggers).
  */
-const DUST_THRESHOLD = 546;
+const DUST_THRESHOLD = DUST_LIMIT_SATS;
 
 /**
  * Output script types that can carry a Counterparty payload. Reaching one of these without a
