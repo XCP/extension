@@ -3252,7 +3252,7 @@
     "message": "暂不广播"
   },
   "marketplace_intent_notice_accept_exact_offer": {
-    "message": "你的签名即可按此条件完成这笔出售，无需买家再次确认。如果买家已经花费了共用的出资 UTXO，广播会失败，你的资产仍归你所有。"
+    "message": "你只签署自己的输入。市场会使用其持有的买家授权按此条件完成这笔出售，无需买家再次确认。如果买家已经花费了共用的出资 UTXO，广播会失败，你的资产仍归你所有。"
   },
   "marketplace_intent_notice_authorize_exact_offer": {
     "message": "签名后，该卖家无需再次批准即可按此条件完成交易。以同一出资 UTXO 为支撑的其他报价互为备选：最先确认的那笔花费生效，其余全部作废。"

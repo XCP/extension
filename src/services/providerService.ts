@@ -24,6 +24,7 @@ import { generateRequestId } from '@/core/id';
 import {
   assertProviderPsbtSigningRequest,
   providerPsbtSigningCapabilities,
+  unsupportedMarketplaceActionReason,
 } from '@/core/providerCapabilities';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
@@ -939,6 +940,10 @@ export function createProviderService(): ProviderService {
           );
           const normalizedActiveAddress = normalizeAddressForComparison(activeAddress.address);
           const signing = providerPsbtSigningCapabilities(activeWallet).psbtBatch;
+          for (const bundleIntent of parsedBundle.intents) {
+            const unsupported = unsupportedMarketplaceActionReason(signing, bundleIntent.action);
+            if (unsupported) throw new Error(unsupported);
+          }
           let usesPairedAddress = false;
 
           for (const [requestIndex, request] of parsedRequests.entries()) {
@@ -1147,6 +1152,11 @@ export function createProviderService(): ProviderService {
             ? undefined
             : Object.values(signInputs).flat();
           const requestedInputSet = new Set(requestedInputIndices ?? []);
+          const unsupportedAction = unsupportedMarketplaceActionReason(
+            providerPsbtSigningCapabilities(activeWallet).psbt,
+            marketplaceIntent?.action,
+          );
+          if (unsupportedAction) throw new Error(unsupportedAction);
           assertProviderPsbtSigningRequest(
             providerPsbtSigningCapabilities(activeWallet).psbt,
             {
