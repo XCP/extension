@@ -35,6 +35,7 @@ import {
 import { addressIndexKeptBySwitch } from '@/core/wallet/addressFormatChoices';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
 import { detectUtxoAddress, isUtxoAddressPath, parseUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
+import { knownScriptRecipients, MAX_RECIPIENTS_PER_RECORD, withScriptRecipients } from '@/core/wallet/scriptRecipients';
 import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS } from '@/core/zeld/protocol';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { SessionRecoveryState } from '@/platform/auth/sessionManager';
@@ -59,7 +60,7 @@ import { huntInBackground } from '@/platform/zeldHunt';
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
 // Import types from centralized types module
-import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
+import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, RevealSecretRequest, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
 
 // Re-export types for backwards compatibility
 export type { Address, Wallet };
@@ -400,12 +401,6 @@ export class WalletManager {
     return false;
   }
 
-  public async getUnencryptedMnemonic(walletId: string): Promise<string> {
-    const secret = await sessionManager.getUnlockedSecret(walletId);
-    if (!secret) throw new Error("Wallet secret not found or locked");
-    return secret;
-  }
-
   public async createMnemonicWallet(
     mnemonic: string,
     password: string,
@@ -464,8 +459,7 @@ export class WalletManager {
     if (!this.keychain) {
       throw new Error('Keychain not initialized');
     }
-    this.keychain.wallets.push(walletRecord);
-    await this.mutationStep(this.persistKeychain());
+    await this.commitKeychain((draft) => { draft.wallets.push(walletRecord); });
 
     // Add to runtime wallet list
     const wallet: Wallet = {
@@ -554,8 +548,7 @@ export class WalletManager {
     if (!this.keychain) {
       throw new Error('Keychain not initialized');
     }
-    this.keychain.wallets.push(walletRecord);
-    await this.mutationStep(this.persistKeychain());
+    await this.commitKeychain((draft) => { draft.wallets.push(walletRecord); });
 
     // Add to runtime wallet list
     const wallet: Wallet = {
@@ -650,39 +643,24 @@ export class WalletManager {
     };
 
     // Add to keychain
-    this.keychain.wallets.push(walletRecord);
-    await this.mutationStep(this.persistKeychain());
+    await this.commitKeychain((draft) => { draft.wallets.push(walletRecord); });
 
-    // Create wallet object with the test address
+    // Create the runtime wallet; activating it derives the test address from the stored marker.
     const wallet: Wallet = {
       id,
       name: walletName,
       type: 'privateKey',
       addressFormat,
       addressCount: 1,
-      addresses: [{
-        name: "Test Address",
-        path: "m/test",
-        address: address,
-        pubKey: ''
-      }],
+      addresses: [],
       isTestOnly: true,
       previewAddress: address,
     };
 
     this.wallets.push(wallet);
 
-    // Set as active wallet
-    this.activeWalletId = id;
-
-    // Set the test address as the last active address
-    await this.mutationStep(this.updateSettingsInternal({
-      lastActiveWalletId: id,
-      lastActiveAddress: address
-    }));
-
-    // Store test marker as "unlocked" secret
-    sessionManager.storeUnlockedSecret(id, testMarker);
+    // Activate it the way every wallet is activated, with the test address as the active address
+    await this.mutationStep(this.selectWalletInternal(id, address));
 
     return wallet;
   }
@@ -764,37 +742,25 @@ export class WalletManager {
       createdAt: Date.now(),
     };
 
-    this.keychain.wallets.push(walletRecord);
-    await this.mutationStep(this.persistKeychain());
+    await this.commitKeychain((draft) => { draft.wallets.push(walletRecord); });
 
-    // Create runtime wallet object
+    // Create the runtime wallet; activating it derives Address 1 from the record, exactly as every
+    // later unlock or switch does.
     const wallet: Wallet = {
       id,
       name: walletName,
       type: 'hardware',
       addressFormat: account.addressFormat,
       addressCount: 1,
-      addresses: [{
-        // Use "Address 1" to match software wallet UX (1-indexed for users)
-        name: 'Address 1',
-        path: account.derivationPath,
-        address: account.address,
-        pubKey: account.publicKey,
-      }],
+      addresses: [],
       previewAddress: account.address,
     };
 
     this.wallets.push(wallet);
-    this.activeWalletId = id;
 
-    // Store secret as "unlocked" (contains no private keys, just metadata)
-    sessionManager.storeUnlockedSecret(id, hardwareSecretJson);
-
-    // Update settings
-    await this.mutationStep(this.updateSettingsInternal({
-      lastActiveWalletId: id,
-      lastActiveAddress: account.address,
-    }));
+    // Activate it the way every wallet is activated: the previously active wallet's secret and HD
+    // nodes are cleared, and the device's address becomes the active address.
+    await this.mutationStep(this.selectWalletInternal(id, account.address));
 
     return wallet;
   }
@@ -939,7 +905,11 @@ export class WalletManager {
     return this.mutateVault(() => this.selectWalletInternal(walletId));
   }
 
-  private async selectWalletInternal(walletId: string): Promise<void> {
+  /**
+   * The one way a wallet becomes active: selection, unlock, worker recovery, and every create or
+   * connect. `lastActiveAddress`, when given, is saved as the active address in the same write.
+   */
+  private async selectWalletInternal(walletId: string, lastActiveAddress?: string): Promise<void> {
     const masterKey = await this.mutationStep(sessionManager.getKeychainMasterKey());
     if (!masterKey) {
       throw new Error('Keychain not unlocked');
@@ -980,8 +950,14 @@ export class WalletManager {
     this.activeWalletId = walletId;
 
     // Persist lastActiveWalletId in settings (only on explicit selection)
-    if (this.getSettings().lastActiveWalletId !== walletId) {
-      await this.mutationStep(this.updateSettingsInternal({ lastActiveWalletId: walletId }));
+    const settings = this.getSettings();
+    const updates: Partial<AppSettings> = {};
+    if (settings.lastActiveWalletId !== walletId) updates.lastActiveWalletId = walletId;
+    if (lastActiveAddress !== undefined && settings.lastActiveAddress !== lastActiveAddress) {
+      updates.lastActiveAddress = lastActiveAddress;
+    }
+    if (Object.keys(updates).length > 0) {
+      await this.mutationStep(this.updateSettingsInternal(updates));
     }
   }
 
@@ -1042,27 +1018,11 @@ export class WalletManager {
       throw new Error(`ZELD hunt time must be a whole number of seconds from 0 to ${MAX_ZELD_HUNT_SECONDS}`);
     }
 
-    const keychain = this.keychain;
-    const previousSettings = keychain.settings;
-    const generation = this.vaultGeneration;
-    const nextSettings = {
-      ...previousSettings,
-      ...updates,
-    };
-    keychain.settings = nextSettings;
-
-    try {
-      await this.mutationStep(this.persistKeychain());
-    } catch (error) {
-      // getSettings() is also the foreground's rollback source. A failed write must not leave
-      // the rejected node/security settings in that live view. Other mutations are serialized;
-      // a lock/session change, however, must never have its cleared state restored here.
-      if (this.keychain === keychain && this.vaultGeneration === generation
-        && keychain.settings === nextSettings) {
-        keychain.settings = previousSettings;
-      }
-      throw error;
-    }
+    // getSettings() is also the foreground's rollback source, so a failed write must never show
+    // in it: the change is published only once it is saved.
+    await this.commitKeychain((draft) => {
+      draft.settings = { ...draft.settings, ...updates };
+    });
 
     // Persist the new idle limit in session metadata too, so activity and worker recovery keep it.
     // This follows the committed keychain write: a session-metadata failure must not roll it back.
@@ -1072,62 +1032,161 @@ export class WalletManager {
     }
   }
 
-  /** Persist a connection and its optional paired-address grant in one keychain write. */
-  public addConnectedWebsite(origin: string, pairedIdentity?: { walletId: string; address: string; pairedAddress?: string }): Promise<void> {
-    return this.mutateVault(async () => {
-      const settings = this.getSettings();
-      const providerCapabilities = { ...settings.providerCapabilities };
-      if (pairedIdentity) providerCapabilities[origin] = { pairedAddresses: true, ...pairedIdentity };
-      else delete providerCapabilities[origin];
-      await this.updateSettingsInternal({
-        connectedWebsites: [...new Set([...settings.connectedWebsites, origin])],
-        providerCapabilities,
-      });
-    });
+  /**
+   * The script addresses `payer` has already paid from the wallet's own flows (see
+   * core/wallet/scriptRecipients). Empty while locked.
+   */
+  public getKnownScriptRecipients(payer: string): string[] {
+    if (typeof payer !== 'string' || !this.keychain) return [];
+    return knownScriptRecipients(this.keychain.scriptPaymentRecipients ?? [], payer);
   }
 
-  public removeConnectedWebsite(origin: string): Promise<void> {
+  /**
+   * Remember that `payer` paid the script addresses `recipients`, in the encrypted keychain. Writes
+   * nothing when every one is already recorded, so paying a known recipient again costs nothing.
+   */
+  public async recordScriptRecipients(payer: string, recipients: string[]): Promise<void> {
+    if (typeof payer !== 'string' || !Array.isArray(recipients)
+      || recipients.length > MAX_RECIPIENTS_PER_RECORD
+      || !recipients.every((recipient) => typeof recipient === 'string')) {
+      throw new Error('Invalid script payment recipients');
+    }
+    if (recipients.length === 0) return;
     return this.mutateVault(async () => {
-      const settings = this.getSettings();
-      const providerCapabilities = { ...settings.providerCapabilities };
-      delete providerCapabilities[origin];
-      await this.updateSettingsInternal({
-        connectedWebsites: settings.connectedWebsites.filter(site => site !== origin),
-        providerCapabilities,
-      });
-    });
-  }
-
-  public clearConnectedWebsites(): Promise<void> {
-    return this.updateSettings({ connectedWebsites: [], providerCapabilities: {} });
-  }
-
-  /** A revoked connection cannot be recreated by an in-flight capability approval. */
-  public setPairedAddressPermission(origin: string, identity: { walletId: string; address: string; pairedAddress?: string } | null): Promise<void> {
-    return this.mutateVault(async () => {
-      const settings = this.getSettings();
-      if (identity && !settings.connectedWebsites.includes(origin)) {
-        throw new Error('Site disconnected before paired address access was granted');
-      }
-      const providerCapabilities = { ...settings.providerCapabilities };
-      if (identity) providerCapabilities[origin] = { pairedAddresses: true, ...identity };
-      else delete providerCapabilities[origin];
-      await this.updateSettingsInternal({ providerCapabilities });
+      if (!this.keychain) throw new Error('Keychain not loaded');
+      const next = withScriptRecipients(this.keychain.scriptPaymentRecipients ?? [], payer, recipients);
+      if (!next) return;
+      await this.commitKeychain((draft) => { draft.scriptPaymentRecipients = next; });
     });
   }
 
   /**
-   * Persists the current keychain state to storage.
-   * Called after keychain modifications (wallet add/remove, settings changes).
+   * Persist a connection and its optional paired-address grant in one keychain write.
+   *
+   * A paired grant this replaces or drops is withdrawn from memory before the write (see
+   * `revokeInMemory`); the new connection and grant take effect only once saved.
    */
-  private async persistKeychain(): Promise<void> {
-    if (!this.keychain) {
-      throw new Error('No keychain to persist');
-    }
+  public addConnectedWebsite(origin: string, pairedIdentity?: { walletId: string; address: string; pairedAddress?: string }): Promise<void> {
+    return this.mutateVault(async () => {
+      const capability = pairedIdentity ? { pairedAddresses: true, ...pairedIdentity } : undefined;
+      this.withdrawReplacedCapability(origin, capability);
+      await this.commitKeychain((draft) => {
+        draft.settings = { ...draft.settings, connectedWebsites: [...new Set([...draft.settings.connectedWebsites, origin])] };
+        WalletManager.setCapability(draft, origin, capability);
+      });
+    });
+  }
 
-    // Snapshot before yielding: locking clears the live view, and no async crypto operation may
-    // serialize that cleared view (or metadata from a subsequent session).
-    const keychain = structuredClone(this.keychain);
+  /** Revokes a connection and its paired grant. Refused in memory at once, then saved. */
+  public removeConnectedWebsite(origin: string): Promise<void> {
+    return this.mutateVault(() => this.commitKeychain((draft) => {
+      draft.settings = {
+        ...draft.settings,
+        connectedWebsites: draft.settings.connectedWebsites.filter(site => site !== origin),
+      };
+      WalletManager.setCapability(draft, origin, undefined);
+    }, { restrictive: true }));
+  }
+
+  /** Revokes every connection and paired grant. Refused in memory at once, then saved. */
+  public clearConnectedWebsites(): Promise<void> {
+    return this.mutateVault(() => this.commitKeychain((draft) => {
+      draft.settings = { ...draft.settings, connectedWebsites: [], providerCapabilities: {} };
+    }, { restrictive: true }));
+  }
+
+  /**
+   * Grants (`identity`) or revokes (null) a site's paired-address access. A revocation, or the grant a
+   * new one replaces, is withdrawn from memory before the write; a grant takes effect once saved.
+   * A revoked connection cannot be recreated by an in-flight capability approval.
+   */
+  public setPairedAddressPermission(origin: string, identity: { walletId: string; address: string; pairedAddress?: string } | null): Promise<void> {
+    return this.mutateVault(async () => {
+      if (!identity) {
+        await this.commitKeychain((draft) => { WalletManager.setCapability(draft, origin, undefined); }, { restrictive: true });
+        return;
+      }
+      if (!this.getSettings().connectedWebsites.includes(origin)) {
+        throw new Error('Site disconnected before paired address access was granted');
+      }
+      const capability = { pairedAddresses: true, ...identity };
+      this.withdrawReplacedCapability(origin, capability);
+      await this.commitKeychain((draft) => { WalletManager.setCapability(draft, origin, capability); });
+    });
+  }
+
+  private static setCapability(keychain: Keychain, origin: string, capability: NonNullable<AppSettings['providerCapabilities']>[string] | undefined): void {
+    const providerCapabilities = { ...keychain.settings.providerCapabilities };
+    if (capability) providerCapabilities[origin] = capability;
+    else delete providerCapabilities[origin];
+    keychain.settings = { ...keychain.settings, providerCapabilities };
+  }
+
+  /** Withdraws the origin's current paired grant from memory now if `next` would not keep it as is. */
+  private withdrawReplacedCapability(origin: string, next: NonNullable<AppSettings['providerCapabilities']>[string] | undefined): void {
+    const current = this.keychain?.settings.providerCapabilities?.[origin];
+    if (!current || JSON.stringify(current) === JSON.stringify(next)) return;
+    this.revokeInMemory((draft) => { WalletManager.setCapability(draft, origin, undefined); });
+  }
+
+  /**
+   * Applies a change that only removes access (a connection, a paired grant) to the live keychain
+   * immediately, before anything is written. Permission and delivery checks read the live keychain
+   * synchronously, so they refuse from this moment rather than once the write completes. Memory
+   * more restrictive than disk is safe: if the write then fails, the revocation stays in memory and
+   * the next successful write saves it. Never use it for a change that grants anything.
+   */
+  private revokeInMemory(change: (draft: Keychain) => void): void {
+    const current = this.keychain;
+    if (!current) throw new Error('Keychain not loaded');
+    const draft = structuredClone(current);
+    change(draft);
+    this.keychain = draft;
+  }
+
+  /**
+   * The only way the keychain changes: apply `change` to a copy, persist the copy, and publish it
+   * as the live keychain only once it is on disk under the session that made it.
+   *
+   * Changing the live keychain first and persisting after left a failed write in memory, where the
+   * next unrelated write committed it, and let a retried create add a second record with the same
+   * ID. Here a failure (encryption, storage, or a lock while the write was pending) leaves memory
+   * exactly as the disk has it. Callers update their runtime state (wallet list, active wallet,
+   * unlocked secrets) after this returns, never before, so that follows the disk too.
+   *
+   * `change` runs synchronously on the copy and may throw to abandon the change.
+   *
+   * `restrictive` is for a change that only removes access: it fails closed instead. The change is
+   * published before the write (`revokeInMemory`) and kept in memory if the write fails, so no check
+   * can still pass on the grant while it is being revoked.
+   */
+  private async commitKeychain<T>(change: (draft: Keychain) => T, options: { restrictive?: boolean } = {}): Promise<T> {
+    if (options.restrictive) {
+      let result!: T;
+      this.revokeInMemory((draft) => { result = change(draft); });
+      await this.mutationStep(this.persistKeychain(this.keychain!));
+      return result;
+    }
+    const current = this.keychain;
+    if (!current) throw new Error('Keychain not loaded');
+    const draft = structuredClone(current);
+    const result = change(draft);
+    await this.mutationStep(this.persistKeychain(draft));
+    // mutationStep has checked the vault generation; this also refuses a keychain that was
+    // replaced another way while the write was pending.
+    if (this.keychain !== current) throw new Error('Wallet session changed; please try again.');
+    this.keychain = draft;
+    return result;
+  }
+
+  /**
+   * Encrypts and saves `keychain`. Only `commitKeychain` calls this: it decides when the saved
+   * keychain becomes the live one.
+   */
+  private async persistKeychain(next: Keychain): Promise<void> {
+    // Snapshot before yielding: no async crypto operation may serialize a view that changes
+    // underneath it (or metadata from a subsequent session).
+    const keychain = structuredClone(next);
 
     const masterKey = await this.mutationStep(sessionManager.getKeychainMasterKey());
     if (!masterKey) {
@@ -1274,14 +1333,21 @@ export class WalletManager {
       ? deriveHardwareAddress(secret, keychainRecord, index)
       : deriveMnemonicAddress(secret, wallet.addressFormat, index, WalletManager.nodeCache(walletId, secret));
     if (!newAddr) throw new Error('Cannot derive another address for this hardware wallet.');
-    wallet.addresses.push(newAddr);
-    wallet.addressCount++;
 
-    // Update keychain record
-    keychainRecord.addressCount = wallet.addressCount;
-    await this.mutationStep(this.persistKeychain());
+    await this.commitKeychain((draft) => {
+      WalletManager.recordIn(draft, walletId).addressCount = index + 1;
+    });
+    wallet.addresses.push(newAddr);
+    wallet.addressCount = index + 1;
 
     return newAddr;
+  }
+
+  /** The keychain's record for `walletId`, for changing it inside `commitKeychain`. */
+  private static recordIn(keychain: Keychain, walletId: string): WalletRecord {
+    const record = keychain.wallets.find((r) => r.id === walletId);
+    if (!record) throw new Error('Missing keychain record.');
+    return record;
   }
 
   public async removeWallet(walletId: string): Promise<void> {
@@ -1289,42 +1355,37 @@ export class WalletManager {
   }
 
   private async removeWalletInternal(walletId: string): Promise<void> {
-    const idx = this.wallets.findIndex((w) => w.id === walletId);
-    if (idx === -1) throw new Error('Wallet not found in memory.');
+    if (!this.wallets.some((w) => w.id === walletId)) throw new Error('Wallet not found in memory.');
+    if (!this.keychain) throw new Error('Keychain not loaded');
 
-    // Remove from memory
-    this.wallets.splice(idx, 1);
+    // Remove from the keychain first; memory follows only once the removal is saved, so a failed
+    // write leaves the wallet listed, unlocked if it was, and on disk.
+    await this.commitKeychain((draft) => {
+      draft.wallets = draft.wallets.filter((record) => record.id !== walletId);
+      WalletManager.renumberWallets(draft.wallets);
+    });
+
+    const idx = this.wallets.findIndex((w) => w.id === walletId);
+    if (idx !== -1) this.wallets.splice(idx, 1);
     sessionManager.clearUnlockedSecret(walletId);
     this.clearDerivedAddressCaches();
-
-    // Remove from keychain
-    if (!this.keychain) throw new Error('Keychain not loaded');
-    const keychainIdx = this.keychain.wallets.findIndex((w) => w.id === walletId);
-    if (keychainIdx !== -1) {
-      this.keychain.wallets.splice(keychainIdx, 1);
-    }
 
     if (this.activeWalletId === walletId) {
       this.activeWalletId = null;
     }
 
-    this.renumberWallets();
-    await this.mutationStep(this.persistKeychain());
+    const records = new Map(this.keychain.wallets.map((record) => [record.id, record]));
+    for (const wallet of this.wallets) {
+      const record = records.get(wallet.id);
+      if (record) wallet.name = record.name;
+    }
   }
 
-  private renumberWallets(): void {
-    if (!this.keychain) return;
-
-    for (let i = 0; i < this.wallets.length; i++) {
-      const wallet = this.wallets[i]!;
-      if (!wallet.name.match(/^Wallet \d+$/)) continue;
-
-      const newName = `Wallet ${i + 1}`;
-      wallet.name = newName;
-
-      const keychainRecord = this.keychain.wallets.find((r) => r.id === wallet.id);
-      if (keychainRecord) keychainRecord.name = newName;
-    }
+  /** Default names ("Wallet N") follow list position; renamed wallets keep their names. */
+  private static renumberWallets(records: WalletRecord[]): void {
+    records.forEach((record, i) => {
+      if (/^Wallet \d+$/.test(record.name)) record.name = `Wallet ${i + 1}`;
+    });
   }
 
   public async verifyPassword(password: string): Promise<boolean> {
@@ -1332,23 +1393,69 @@ export class WalletManager {
   }
 
   private async verifyPasswordInternal(password: string): Promise<boolean> {
-    // Shares the unlock failure window: verifyPassword is the same oracle
+    return (await this.mutationStep(this.openVaultWithPassword(password))) !== null;
+  }
+
+  /**
+   * The saved vault opened with the key `password` derives, or null when the password is wrong.
+   * Shares the unlock failure window: checking a password is the same oracle as unlocking.
+   */
+  private async openVaultWithPassword(password: string): Promise<{ key: CryptoKey; keychain: Keychain } | null> {
     await this.mutationStep(assertUnlockAllowed());
 
     const keychainRecord = await this.mutationStep(getKeychainRecord());
-    if (!keychainRecord) return false;
+    if (!keychainRecord) return null;
 
     // Try to decrypt the keychain with the given password
     try {
       const salt = base64ToBuffer(keychainRecord.salt);
-      const masterKey = await this.mutationStep(deriveKey(password, salt, keychainRecord.kdf.iterations));
-      await this.mutationStep(decryptKeychain(keychainRecord, masterKey));
+      const key = await this.mutationStep(deriveKey(password, salt, keychainRecord.kdf.iterations));
+      const keychain = await this.mutationStep(decryptKeychain(keychainRecord, key));
       await this.mutationStep(clearUnlockAttempts());
-      return true;
+      return { key, keychain };
     } catch {
       await this.mutationStep(recordFailedUnlockAttempt());
-      return false;
+      return null;
     }
+  }
+
+  /**
+   * One of a wallet's secrets, for the reveal screens: its recovery phrase, or a private key in
+   * WIF (a private-key wallet's own, or a mnemonic wallet's at `path`).
+   *
+   * The password is checked here, in the background, before anything is decrypted, and a wrong one
+   * counts against the same limit as unlocking. Returns null for a wrong password. The wallet need
+   * not be the active one, and revealing it does not make it so.
+   */
+  public async revealSecret(request: RevealSecretRequest): Promise<string | null> {
+    return this.mutateVault(() => this.revealSecretInternal(request));
+  }
+
+  private async revealSecretInternal({ walletId, password, kind, path }: RevealSecretRequest): Promise<string | null> {
+    if (kind !== 'mnemonic' && kind !== 'privateKey') throw new Error('Unknown kind of secret');
+    if (path !== undefined && typeof path !== 'string') throw new Error('Invalid derivation path');
+    // Only for an unlocked session, as the reveal screens are.
+    if (!this.keychain) throw new Error('Wallet is locked. Please unlock first.');
+
+    const vault = await this.mutationStep(this.openVaultWithPassword(password));
+    if (!vault) return null;
+
+    const record = vault.keychain.wallets.find((r) => r.id === walletId);
+    if (!record) throw new Error('Wallet not found');
+    if (record.type === 'hardware' || record.isTestOnly) {
+      throw new Error('This wallet has no secret to reveal');
+    }
+    if (kind === 'mnemonic' && record.type !== 'mnemonic') {
+      throw new Error('Only a mnemonic wallet has a recovery phrase');
+    }
+    if (kind === 'privateKey' && record.type === 'mnemonic' && !path) {
+      throw new Error('The address derivation path is missing');
+    }
+
+    const secret = await this.mutationStep(decryptWithKey(record.encryptedSecret, vault.key));
+    if (kind === 'mnemonic') return secret;
+    if (record.type === 'privateKey') return (JSON.parse(secret) as { wif: string }).wif;
+    return encodeWIF(mnemonicPrivateKeyAt(secret, record.addressFormat, path!), true);
   }
 
   public async resetKeychain(password: string): Promise<void> {
@@ -1359,6 +1466,13 @@ export class WalletManager {
     const valid = await this.mutationStep(this.verifyPasswordInternal(password));
     if (!valid) throw new Error('Invalid password');
 
+    // Every site loses access now, not once the vault is deleted: a reset revokes all grants, and
+    // fails closed like any other revocation if the delete does not complete.
+    if (this.keychain) {
+      this.revokeInMemory((draft) => {
+        draft.settings = { ...draft.settings, connectedWebsites: [], providerCapabilities: {} };
+      });
+    }
     await this.mutationStep(deleteKeychain());
     await this.lockKeychain();
 
@@ -1427,28 +1541,26 @@ export class WalletManager {
     // address-type previews derive at this same index.
     const selectedIndex = addressIndexKeptBySwitch(wallet, this.getSettings().lastActiveAddress);
 
-    wallet.addressFormat = newType;
-    wallet.addresses = deriveMnemonicAddresses(
+    const addresses = deriveMnemonicAddresses(
       mnemonic,
       newType,
       Math.max(wallet.addressCount, 1),
       WalletManager.nodeCache(walletId, mnemonic),
     );
-    wallet.previewAddress = wallet.addresses[0]!.address;
+    const previewAddress = addresses[0]!.address;
 
-    // Update keychain record
     if (!this.keychain) throw new Error('Keychain not loaded');
-    const keychainRecord = this.keychain.wallets.find((r) => r.id === walletId);
-    if (!keychainRecord) throw new Error('Missing keychain record.');
+    const isActive = this.activeWalletId === walletId;
+    await this.commitKeychain((draft) => {
+      const record = WalletManager.recordIn(draft, walletId);
+      record.addressFormat = newType;
+      record.previewAddress = previewAddress;
+      if (isActive) draft.settings.lastActiveAddress = addresses[selectedIndex]!.address;
+    });
 
-    keychainRecord.addressFormat = newType;
-    keychainRecord.previewAddress = wallet.previewAddress;
-
-    if (this.activeWalletId === walletId) {
-      this.keychain.settings.lastActiveAddress = wallet.addresses[selectedIndex]!.address;
-    }
-
-    await this.mutationStep(this.persistKeychain());
+    wallet.addressFormat = newType;
+    wallet.addresses = addresses;
+    wallet.previewAddress = previewAddress;
   }
 
   /**
@@ -1510,10 +1622,15 @@ export class WalletManager {
     const keychainRecord = this.keychain.wallets.find((r) => r.id === walletId);
     if (!keychainRecord) throw new Error('Missing keychain record.');
 
-    keychainRecord.extraPaths = [...(keychainRecord.extraPaths ?? []), ...discovered];
-    wallet.extraPaths = keychainRecord.extraPaths;
-    wallet.addresses = this.addressesFor(mnemonic, keychainRecord, undefined, WalletManager.nodeCache(walletId, mnemonic));
-    await this.mutationStep(this.persistKeychain());
+    const extraPaths = [...(keychainRecord.extraPaths ?? []), ...discovered];
+    const addresses = this.addressesFor(
+      mnemonic, { ...keychainRecord, extraPaths }, undefined, WalletManager.nodeCache(walletId, mnemonic),
+    );
+    await this.commitKeychain((draft) => {
+      WalletManager.recordIn(draft, walletId).extraPaths = [...extraPaths];
+    });
+    wallet.extraPaths = [...extraPaths];
+    wallet.addresses = addresses;
 
     return wallet.addresses.filter((address) => discovered.includes(address.path));
   }
@@ -1575,26 +1692,17 @@ export class WalletManager {
     const remaining = (keychainRecord.extraPaths ?? []).filter((kept) => kept !== path);
     if (remaining.length === (keychainRecord.extraPaths ?? []).length) return;
 
-    keychainRecord.extraPaths = remaining;
-    wallet.extraPaths = remaining;
-
     const mnemonic = await this.mutationStep(sessionManager.getUnlockedSecret(walletId));
-    if (mnemonic) {
-      wallet.addresses = this.addressesFor(mnemonic, keychainRecord, undefined, WalletManager.nodeCache(walletId, mnemonic));
-    } else {
-      wallet.addresses = wallet.addresses.filter((address) => address.path !== path);
-    }
-    await this.mutationStep(this.persistKeychain());
-  }
-
-  /**
-   * Updates the pinned assets in the global settings.
-   * This method is kept for backward compatibility.
-   *
-   * @param pinnedAssets - Array of asset IDs to pin
-   */
-  public async updateWalletPinnedAssets(pinnedAssets: string[]): Promise<void> {
-    await this.updateSettings({ pinnedAssets });
+    const addresses = mnemonic
+      ? this.addressesFor(
+        mnemonic, { ...keychainRecord, extraPaths: remaining }, undefined, WalletManager.nodeCache(walletId, mnemonic),
+      )
+      : wallet.addresses.filter((address) => address.path !== path);
+    await this.commitKeychain((draft) => {
+      WalletManager.recordIn(draft, walletId).extraPaths = [...remaining];
+    });
+    wallet.extraPaths = [...remaining];
+    wallet.addresses = addresses;
   }
 
   public async getPrivateKey(walletId: string, derivationPath?: string): Promise<{ wif: string; hex: string; compressed: boolean }> {

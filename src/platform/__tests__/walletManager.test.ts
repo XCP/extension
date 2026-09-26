@@ -371,9 +371,11 @@ describe('WalletManager', () => {
         'taproot-1',
         'taproot-2',
       ]);
-      expect(keychain.wallets[0]!.addressCount).toBe(3);
-      expect(keychain.wallets[0]!.addressFormat).toBe(AddressFormat.P2TR);
-      expect(keychain.settings.lastActiveAddress).toBe('taproot-2');
+      // The saved keychain replaces the live one, so read it back rather than the object passed in.
+      const saved = walletManager['keychain']!;
+      expect(saved.wallets[0]!.addressCount).toBe(3);
+      expect(saved.wallets[0]!.addressFormat).toBe(AddressFormat.P2TR);
+      expect(saved.settings.lastActiveAddress).toBe('taproot-2');
     });
   });
 
@@ -412,6 +414,8 @@ describe('WalletManager', () => {
 
   describe('UTXO Addresses', () => {
     const MNEMONIC = 'test mnemonic phrase';
+    /** The live keychain record: a saved change replaces the keychain rather than editing it. */
+    const liveRecord = () => walletManager['keychain']!.wallets[0]!;
 
     /** An unlocked Counterwallet mnemonic wallet with two sequential addresses. */
     function setupCounterwalletWallet() {
@@ -433,7 +437,7 @@ describe('WalletManager', () => {
       mocks.sessionManager.getUnlockedSecret.mockResolvedValue(MNEMONIC);
       mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
       vi.mocked(isCounterwalletFormat).mockReturnValue(true);
-      return { wallet, record };
+      return { wallet };
     }
 
     beforeEach(() => {
@@ -441,43 +445,43 @@ describe('WalletManager', () => {
     });
 
     it('keeps a funded UTXO address on the record, so it survives the next unlock', async () => {
-      const { wallet, record } = setupCounterwalletWallet();
+      const { wallet } = setupCounterwalletWallet();
       mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
 
       const added = await walletManager.addUtxoAddress(wallet.id, 1);
 
       expect(added).toMatchObject({ name: 'UTXO Address 2', path: "m/0'/1/1" });
-      expect(record.extraPaths).toEqual(["m/0'/1/1"]);
+      expect(liveRecord().extraPaths).toEqual(["m/0'/1/1"]);
       expect(mocks.walletStorage.saveKeychainRecord).toHaveBeenCalled();
     });
 
     it('reports an empty change address as nothing found, and keeps nothing', async () => {
-      const { wallet, record } = setupCounterwalletWallet();
+      const { wallet } = setupCounterwalletWallet();
 
       await expect(walletManager.addUtxoAddress(wallet.id, 0)).resolves.toBeNull();
-      expect(record.extraPaths).toBeUndefined();
+      expect(liveRecord().extraPaths).toBeUndefined();
       expect(mocks.walletStorage.saveKeychainRecord).not.toHaveBeenCalled();
     });
 
     it('refuses to call an unreachable lookup an empty address', async () => {
-      const { wallet, record } = setupCounterwalletWallet();
+      const { wallet } = setupCounterwalletWallet();
       mockDetectUtxoAddress.mockResolvedValue({ status: 'unavailable' });
 
       await expect(walletManager.addUtxoAddress(wallet.id, 0)).rejects.toThrow(
         'Could not check for a UTXO address'
       );
-      expect(record.extraPaths).toBeUndefined();
+      expect(liveRecord().extraPaths).toBeUndefined();
     });
 
     it('does not add the same path twice', async () => {
-      const { wallet, record } = setupCounterwalletWallet();
+      const { wallet } = setupCounterwalletWallet();
       mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
 
       await walletManager.addUtxoAddress(wallet.id, 1);
       mockDetectUtxoAddress.mockClear();
       await walletManager.addUtxoAddress(wallet.id, 1);
 
-      expect(record.extraPaths).toEqual(["m/0'/1/1"]);
+      expect(liveRecord().extraPaths).toEqual(["m/0'/1/1"]);
       expect(mockDetectUtxoAddress).not.toHaveBeenCalled();
     });
 
@@ -493,25 +497,25 @@ describe('WalletManager', () => {
     });
 
     it('forgets a kept UTXO address on request', async () => {
-      const { wallet, record } = setupCounterwalletWallet();
+      const { wallet } = setupCounterwalletWallet();
       mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
       await walletManager.addUtxoAddress(wallet.id, 1);
 
       await walletManager.removeUtxoAddress(wallet.id, "m/0'/1/1");
 
-      expect(record.extraPaths).toEqual([]);
+      expect(liveRecord().extraPaths).toEqual([]);
       expect(wallet.addresses).toHaveLength(2);
       expect(wallet.addresses.some((address) => address.path === "m/0'/1/1")).toBe(false);
     });
 
     it('sweeps every address in one pass, writing the keychain once', async () => {
-      const { wallet, record } = setupCounterwalletWallet();
+      const { wallet } = setupCounterwalletWallet();
       mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
 
       const found = await walletManager.sweepUtxoAddresses(wallet.id);
 
       expect(found).toHaveLength(2);
-      expect(record.extraPaths).toEqual(["m/0'/1/0", "m/0'/1/1"]);
+      expect(liveRecord().extraPaths).toEqual(["m/0'/1/0", "m/0'/1/1"]);
       expect(mockDetectUtxoAddress).toHaveBeenCalledTimes(2);
       // One persist for the pass, not one per address.
       expect(mocks.walletStorage.saveKeychainRecord).toHaveBeenCalledTimes(1);
@@ -539,10 +543,10 @@ describe('WalletManager', () => {
     });
 
     it('writes nothing and stays quiet when a sweep finds nothing', async () => {
-      const { wallet, record } = setupCounterwalletWallet();
+      const { wallet } = setupCounterwalletWallet();
 
       await expect(walletManager.sweepUtxoAddresses(wallet.id)).resolves.toEqual([]);
-      expect(record.extraPaths).toBeUndefined();
+      expect(liveRecord().extraPaths).toBeUndefined();
       expect(mocks.walletStorage.saveKeychainRecord).not.toHaveBeenCalled();
     });
 
@@ -1041,43 +1045,6 @@ describe('WalletManager', () => {
       expect(signMessage).toHaveBeenCalledWith('hello', '22'.repeat(32), format, compressed);
     });
   });
-  describe('Mnemonic Access', () => {
-    it('should get unencrypted mnemonic for unlocked wallet', async () => {
-      const wallet = createTestWallet({ type: 'mnemonic' });
-      walletManager['wallets'] = [wallet];
-
-      const mnemonic = 'test mnemonic phrase';
-      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(mnemonic);
-
-      const result = await walletManager.getUnencryptedMnemonic(wallet.id);
-
-      expect(result).toBe(mnemonic);
-    });
-
-    it('should throw error for locked wallet', async () => {
-      const wallet = createTestWallet();
-      walletManager['wallets'] = [wallet];
-
-      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
-
-      await expect(
-        walletManager.getUnencryptedMnemonic(wallet.id)
-      ).rejects.toThrow('Wallet secret not found or locked');
-    });
-
-    it('should get secret for private key wallet', async () => {
-      const wallet = createPrivateKeyWallet();
-      walletManager['wallets'] = [wallet];
-
-      const privateKeyData = JSON.stringify({ key: 'private-key-hex', compressed: true });
-      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(privateKeyData);
-
-      const result = await walletManager.getUnencryptedMnemonic(wallet.id);
-
-      expect(result).toBe(privateKeyData);
-    });
-  });
-
   describe('Keychain Status', () => {
     it('should return true when keychain is unlocked', async () => {
       const keychain = createTestKeychain([]);

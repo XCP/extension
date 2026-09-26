@@ -96,7 +96,7 @@ import { huntZeldForCompose } from "@/core/zeld/composeHunt";
 import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility";
 import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
-import { getKnownScriptRecipients, recordScriptRecipients } from "@/platform/storage/scriptRecipientStorage";
+import { getKnownScriptRecipients, recordScriptRecipients } from "@/services/scriptRecipientsClient";
 
 /**
  * Maximum age for a composed transaction before requiring recomposition (5 minutes).

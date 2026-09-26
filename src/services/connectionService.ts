@@ -68,40 +68,14 @@ export class ConnectionService extends BaseService {
   }
 
   private async hasPermissionInternal(origin: string): Promise<boolean> {
-    // Check cache first (fast path)
-    const cached = this.state.connectionCache.get(origin);
-    const now = Date.now();
-    if (cached && now - (cached.lastActive || 0) < ConnectionService.CACHE_TTL) {
-      return cached.isConnected;
-    }
-
-    // The connection queue serializes this read with grants and revocations, so an old
-    // storage result cannot repopulate the cache after a disconnect has completed.
-    return this.doPermissionLookup(origin);
-  }
-
-  /**
-   * Perform the actual permission lookup from storage
-   */
-  private async doPermissionLookup(origin: string): Promise<boolean> {
+    // Read from the vault every time; nothing is cached. The grants are an in-memory read in the
+    // background, and they change in places that never pass through this service: a wallet reset
+    // replaces the whole keychain, and grant writes can be made on the wallet service directly. A
+    // cached yes outlived those, so a site connected before a reset kept receiving the new
+    // wallet's address for five minutes. The connection queue still serializes this read with
+    // grants and revocations.
     const settings = await getWalletService().getSettings();
-    const isConnected = settings.connectedWebsites.includes(origin);
-
-    // Only a positive answer is cached. A negative one is indistinguishable from "the keychain was
-    // not loaded when I asked", and caching that for the full TTL locked an approved origin out for
-    // five minutes — including after the wallet had finished waking up. Re-reading settings is
-    // cheap; being wrong for five minutes is not.
-    if (isConnected) {
-      this.state.connectionCache.set(origin, {
-        origin,
-        isConnected: true,
-        lastActive: Date.now(),
-      });
-    } else {
-      this.state.connectionCache.delete(origin);
-    }
-
-    return isConnected;
+    return settings.connectedWebsites.includes(origin);
   }
 
   /**

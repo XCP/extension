@@ -529,7 +529,6 @@ describe('ProviderService', () => {
         const wallet = vi.mocked(walletService.getWalletService)();
         expect(wallet.signMessage).toHaveBeenCalledWith(expect.any(String), activeAddress,
           { walletId: 'wallet1', address: activeAddress });
-        expect(wallet.getPrivateKey).not.toHaveBeenCalled();
         expect(wallet.getPairedAddresses).not.toHaveBeenCalled();
       });
 
@@ -547,7 +546,6 @@ describe('ProviderService', () => {
         expect(new Set(result.proofs.map((proof: { message: string }) => proof.message)).size).toBe(2);
         expect(wallet.signMessage).toHaveBeenCalledWith(expect.any(String), siblingAddress,
           { walletId: 'wallet1', address: activeAddress });
-        expect(wallet.getPrivateKey).not.toHaveBeenCalled();
       });
 
       it.each(['success', 'wrong address', 'declined'] as const)(
@@ -569,7 +567,6 @@ describe('ProviderService', () => {
           expect(wallet.signMessage).toHaveBeenCalledWith(
             expect.stringMatching(/^xcp-wallet\norigin:https:\/\/test\.com\nnonce:[0-9a-f]{16}\nissued:\d+$/),
             activeAddress, { walletId: 'trezor1', address: activeAddress });
-          expect(wallet.getPrivateKey).not.toHaveBeenCalled();
           expect(wallet.getPairedAddresses).not.toHaveBeenCalled();
         },
       );

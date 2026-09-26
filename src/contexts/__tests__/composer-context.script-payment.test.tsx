@@ -7,11 +7,10 @@ import * as btc from '@scure/btc-signer';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { arc4, hexToBytes } from '@/core/counterparty/unpack/binary';
-import { getKnownScriptRecipients, recordScriptRecipients } from '@/platform/storage/scriptRecipientStorage';
+import { getKnownScriptRecipients, recordScriptRecipients } from '@/services/scriptRecipientsClient';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
 
@@ -21,6 +20,20 @@ const P2SH = decodeAddressFromScript(`a914${'33'.repeat(20)}87`)!;
 const P2WPKH = decodeAddressFromScript(`0014${'55'.repeat(20)}`)!;
 /** A Taproot address in another of this wallet's wallets. */
 const OTHER_WALLET_TAPROOT = decodeAddressFromScript(`5120${'44'.repeat(32)}`)!;
+
+// The wallet keeps the paid recipients in its encrypted keychain; this stands in for it.
+const recipients = vi.hoisted(() => ({ pairs: [] as string[] }));
+vi.mock('@/services/walletServiceClient', async () => {
+  const { knownScriptRecipients, withScriptRecipients } = await import('@/core/wallet/scriptRecipients');
+  return {
+    getWalletServiceClient: () => ({
+      getKnownScriptRecipients: async (payer: string) => knownScriptRecipients(recipients.pairs, payer),
+      recordScriptRecipients: async (payer: string, paid: string[]) => {
+        recipients.pairs = withScriptRecipients(recipients.pairs, payer, paid) ?? recipients.pairs;
+      },
+    }),
+  };
+});
 
 const wallet = vi.hoisted(() => ({
   signTransaction: vi.fn(),
@@ -120,7 +133,7 @@ const sendBtc = (destination: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  fakeBrowser.reset();
+  recipients.pairs = [];
   api.fetchAssetDetails.mockResolvedValue(null);
   api.fetchTokenBalances.mockResolvedValue([{ asset: 'XCP' }]);
   api.fetchOwnedAssets.mockResolvedValue([]);

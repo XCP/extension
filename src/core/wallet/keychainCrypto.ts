@@ -8,6 +8,7 @@ import { decryptJsonWithKey, encryptJsonWithKey } from '@/core/encryption/encryp
 import { isRecord } from '@/core/isRecord';
 import { type AppSettings, DEFAULT_SETTINGS, MAX_ORDER_EXPIRATION, VALID_AUTO_LOCK_TIMERS } from '@/core/settings';
 import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
+import { sanitizeScriptRecipientPairs } from '@/core/wallet/scriptRecipients';
 import { isValidZeldHuntSeconds } from '@/core/zeld/protocol';
 import type { Keychain, KeychainRecord, WalletRecord } from '@/types/wallet';
 
@@ -89,7 +90,12 @@ export function parseKeychain(value: unknown): Keychain {
   if (!Array.isArray(value.wallets) || value.wallets.length > MAX_WALLETS) return invalidKeychain();
   const wallets = value.wallets.map(parseWallet);
   if (new Set(wallets.map(wallet => wallet.id)).size !== wallets.length) return invalidKeychain();
-  return { version: KEYCHAIN_VERSION, wallets, settings: parseSettings(value.settings) };
+  const keychain: Keychain = { version: KEYCHAIN_VERSION, wallets, settings: parseSettings(value.settings) };
+  // Only a cue for which notices to skip: a malformed list is dropped rather than locking anyone out.
+  if (value.scriptPaymentRecipients !== undefined) {
+    keychain.scriptPaymentRecipients = sanitizeScriptRecipientPairs(value.scriptPaymentRecipients);
+  }
+  return keychain;
 }
 
 /** Encrypt a keychain into a storable record. */
