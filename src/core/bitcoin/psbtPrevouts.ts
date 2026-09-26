@@ -48,6 +48,11 @@ export class PrevoutMismatchError extends ValidationError {
   }
 }
 
+interface ResolvedParent {
+  rawTransaction: Uint8Array;
+  transaction: ReturnType<typeof parseConsensusTransaction>;
+}
+
 const sameBytes = (left: Uint8Array, right: Uint8Array): boolean =>
   left.length === right.length && left.every((byte, index) => byte === right[index]);
 
@@ -63,7 +68,10 @@ export async function verifyPsbtPrevouts(
   const transaction = parsePSBT(psbt);
   const resolveTrustedPrevout = options.resolveTrustedPrevout ?? noTrustedPrevout;
   const fetchRawTransaction = options.fetchRawTransaction ?? fetchPreviousRawTransaction;
-  const rawCache = new Map<string, Uint8Array>();
+  // One resolution per parent txid, shared by every input spending it. Stored as the promise, before
+  // its first await, so concurrent inputs from one parent join a single lookup and a single parse
+  // instead of each finding the cache empty and fetching and parsing on their own.
+  const parents = new Map<string, Promise<ResolvedParent>>();
   const inputIndices = options.inputIndices
     ?? Array.from({ length: transaction.inputsLength }, (_, index) => index);
   if (
@@ -83,29 +91,36 @@ export async function verifyPsbtPrevouts(
       }
 
       const txid = bytesToHex(input.txid).toLowerCase();
-      let rawTransaction = rawCache.get(txid);
-      if (!rawTransaction) {
-        if (input.nonWitnessUtxo) {
-          rawTransaction = RawTx.encode(input.nonWitnessUtxo);
-        } else {
-          const packaged = options.packageTransactions?.get(txid);
-          const trusted = packaged ? null : await resolveTrustedPrevout(txid, input.index);
-          const rawHex = packaged ?? trusted?.rawTxHex ?? await fetchRawTransaction(txid);
-          if (!rawHex) {
-            throw new ValidationError(
-              'INVALID_PSBT',
-              `Could not independently verify previous transaction ${txid}`,
-            );
+      let parent = parents.get(txid);
+      if (!parent) {
+        const vout = input.index;
+        const nonWitnessUtxo = input.nonWitnessUtxo;
+        parent = (async (): Promise<ResolvedParent> => {
+          let rawTransaction: Uint8Array;
+          if (nonWitnessUtxo) {
+            rawTransaction = RawTx.encode(nonWitnessUtxo);
+          } else {
+            const packaged = options.packageTransactions?.get(txid);
+            const trusted = packaged ? null : await resolveTrustedPrevout(txid, vout);
+            const rawHex = packaged ?? trusted?.rawTxHex ?? await fetchRawTransaction(txid);
+            if (!rawHex) {
+              throw new ValidationError(
+                'INVALID_PSBT',
+                `Could not independently verify previous transaction ${txid}`,
+              );
+            }
+            // Keep the exact transaction bytes. Re-serializing here can change whether witness data
+            // is included even though the txid is unchanged.
+            rawTransaction = decodeRawTransaction(rawHex);
           }
-          // Validate before caching, but preserve the exact transaction bytes. Re-serializing here
-          // can change whether witness data is included even though the txid is unchanged.
-          parseConsensusTransaction(rawHex);
-          rawTransaction = decodeRawTransaction(rawHex);
-        }
-        rawCache.set(txid, rawTransaction);
+          // Parsed once per parent: the parse validates the bytes and yields the id and outputs
+          // every input below checks against.
+          return { rawTransaction, transaction: parseConsensusTransaction(rawTransaction) };
+        })();
+        parents.set(txid, parent);
       }
+      const { rawTransaction, transaction: previous } = await parent;
 
-      const previous = parseConsensusTransaction(rawTransaction);
       if (previous.id !== txid) {
         throw new PrevoutMismatchError(`Previous transaction data does not match PSBT input ${index}`);
       }

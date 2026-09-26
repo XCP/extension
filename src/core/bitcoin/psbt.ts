@@ -610,6 +610,12 @@ export function signPSBT(
     return inputAddress != null && normalizeAddressForComparison(inputAddress) === ownScopeAddress;
   };
 
+  // The signer's own taproot address, for completing tapInternalKey below. Encoding it tweaks the
+  // key (a point multiplication), and it is the same for every input, so it is computed once.
+  const ownTaprootAddress = addressFormat === AddressFormat.P2TR
+    ? normalizeAddressForComparison(encodeAddress(pubkeyBytes, addressFormat))
+    : null;
+
   let signedCount = 0;
 
   try {
@@ -641,10 +647,9 @@ export function signPSBT(
         const prevoutAddress = prevout?.script
           ? decodeAddressFromScript(bytesToHex(prevout.script))
           : undefined;
-        const ownAddress = encodeAddress(pubkeyBytes, addressFormat);
         if (
           input && !input.tapInternalKey && prevoutAddress
-          && normalizeAddressForComparison(prevoutAddress) === normalizeAddressForComparison(ownAddress)
+          && normalizeAddressForComparison(prevoutAddress) === ownTaprootAddress
         ) {
           tx.updateInput(inputIdx, { tapInternalKey: pubkeyBytes.slice(1, 33) });
         }

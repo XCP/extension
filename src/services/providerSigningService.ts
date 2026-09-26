@@ -5,7 +5,7 @@
 import { getFeeRates } from '@/core/bitcoin/feeRate';
 import { getPsbtApprovalPolicy, getPsbtBundleApprovalPolicy, getTransactionApprovalPolicy, type ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
-import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
+import { extractPsbtDetails, type PsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { type DecodedPsbtInfo, decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
 import { type DecodedPsbtBundleInfo, decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { PrevoutMismatchError } from '@/core/bitcoin/psbtPrevouts';
@@ -61,6 +61,18 @@ export interface ProviderSigningService {
   reject(requestId: string): Promise<void>;
 }
 
+/** Parsed PSBT structure by PSBT hex, shared by the authorization checks of one signing flow. */
+type PsbtDetailsCache = Map<string, PsbtDetails>;
+
+function parsedDetails(parsed: PsbtDetailsCache, psbtHex: string): PsbtDetails {
+  let details = parsed.get(psbtHex);
+  if (!details) {
+    details = extractPsbtDetails(psbtHex);
+    parsed.set(psbtHex, details);
+  }
+  return details;
+}
+
 /** A signer failure caused by the site's transaction bytes, not by the wallet or the network. */
 function isTransactionDataMismatch(error: unknown): error is Error {
   return !providerReviewCode(error)
@@ -101,7 +113,11 @@ export function createProviderSigningService(): ProviderSigningService {
    *   the whole bundle's structure was already validated at the start of execution, so repeating
    *   it for every signature would cost the square of the bundle size (100 policy alternatives).
    */
-  async function assertAuthorization(request: ProviderSigningRequest, onlyItem?: SignPsbtsRequest['items'][number]): Promise<{
+  async function assertAuthorization(
+    request: ProviderSigningRequest,
+    onlyItem?: SignPsbtsRequest['items'][number],
+    parsed: PsbtDetailsCache = new Map(),
+  ): Promise<{
     ownedAddresses: string[];
     identity: SigningIdentity;
   }> {
@@ -136,7 +152,7 @@ export function createProviderSigningService(): ProviderSigningService {
       const allowed = [request.address, ...(paired ? [paired.legacy.address, paired.segwit.address] : [])];
       const items = request.kind === 'sign-psbt' ? [request] : onlyItem ? [onlyItem] : request.items;
       for (const item of items) {
-        const details = extractPsbtDetails(item.psbtHex);
+        const details = parsedDetails(parsed, item.psbtHex);
         if (item.signInputs !== undefined) {
           const ownership = validateSignInputs(item.signInputs, allowed, details.inputs.length,
             details.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address));
@@ -156,9 +172,13 @@ export function createProviderSigningService(): ProviderSigningService {
   }
 
   async function getReview(requestId: string): Promise<ProviderSigningReview> {
+    return buildReview(requestId, new Map());
+  }
+
+  async function buildReview(requestId: string, parsed: PsbtDetailsCache): Promise<ProviderSigningReview> {
     const request = await getRequest(requestId);
     if (!request) throw new ProviderReviewError('unavailable');
-    const { ownedAddresses } = await assertAuthorization(request);
+    const { ownedAddresses } = await assertAuthorization(request, undefined, parsed);
     const strictMode = (await getWalletService().getSettings()).strictTransactionVerification !== false;
     const fastestFee = request.kind === 'sign-message' ? undefined
       : await getFeeRates().then(rates => rates.fastestFee).catch(() => undefined);
@@ -216,7 +236,10 @@ export function createProviderSigningService(): ProviderSigningService {
     if (!decision || typeof decision.reviewKey !== 'string' || typeof decision.risksAcknowledged !== 'boolean') {
       throw new ProviderReviewError('invalid_decision');
     }
-    const review = await getReview(requestId);
+    // Parsed PSBT structure is pure in the bytes, which the claimed request pins, so one parse per
+    // PSBT serves the whole flow. Chain and ledger facts are still re-read below at the click.
+    const parsed: PsbtDetailsCache = new Map();
+    const review = await buildReview(requestId, parsed);
     // Re-reviewed at the click, so a lookup that fails just now blocks. Say retry for that, not
     // "did not pass verification": nothing was disproved, and Retry is the fix.
     if (review.policy.blocked) {
@@ -230,7 +253,7 @@ export function createProviderSigningService(): ProviderSigningService {
     }
     const request = effectiveRequest(await claimSignFlow(requestId));
     try {
-      const { identity } = await assertAuthorization(request);
+      const { identity } = await assertAuthorization(request, undefined, parsed);
       const wallet = getWalletService();
       let result: SignFlowResult;
       switch (request.kind) {
@@ -248,7 +271,7 @@ export function createProviderSigningService(): ProviderSigningService {
           break;
         case 'sign-psbts': {
           const sign = async (item: (typeof request.items)[number]) => {
-            await assertAuthorization(request, item);
+            await assertAuthorization(request, item, parsed);
             return wallet.signPsbt(item.psbtHex, item.signInputs, item.sighashTypes, identity);
           };
           const attach = request.items[0]?.marketplaceIntent;
@@ -263,7 +286,7 @@ export function createProviderSigningService(): ProviderSigningService {
       }
       // A user may revoke a site while a device or key operation is outstanding.
       // Do not disclose the result after revocation, cancellation, or expiration.
-      await assertAuthorization(request);
+      await assertAuthorization(request, undefined, parsed);
       const current = await getSignFlow(requestId);
       if (current?.status !== 'signing') throw new ProviderReviewError('interrupted');
       await recordSignOutcome(requestId, 'completed', result);
