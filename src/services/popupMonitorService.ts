@@ -96,12 +96,6 @@ class PopupMonitorService {
     }
   }
 
-  registerActiveRequest(requestId: string, type: SignFlowKind): void {
-    if (!this.activeRequests.has(requestId)) {
-      this.activeRequests.set(requestId, { type, timestamp: Date.now(), ports: new Set() });
-    }
-  }
-
   markRequestComplete(requestId: string): void {
     const timer = this.abandonmentTimers.get(requestId);
     if (timer) clearTimeout(timer);

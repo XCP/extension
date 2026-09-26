@@ -1,11 +1,12 @@
 /**
  * A gate that holds anything depending on lock state until session recovery has run.
  *
- * On expiry `checkSessionRecovery` clears the session *metadata*, but the master key is cleared
- * separately, by the lock that follows it. So on every cold start there is a window where an
- * expired session still has a usable key in session storage, and anything re-deriving from it
- * before recovery has run would revive a session that had already timed out — turning auto-lock
- * into a no-op.
+ * A cold start can find the master key still in session storage after its session expired. The
+ * key itself cannot revive that session: `getKeychainMasterKey` refuses a key whose session
+ * metadata is expired or missing, and `checkSessionRecovery` removes an expired session's metadata
+ * and key together. What this gate adds is order: the first keychain load waits for recovery's
+ * verdict instead of racing it, and does not re-derive at all when the verdict is LOCKED —
+ * including when initialisation failed, which the background reports as LOCKED.
  *
  * Hence a gate rather than a flag: a caller that arrives first waits, instead of reading a value
  * that is not yet true.

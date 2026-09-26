@@ -58,17 +58,8 @@ import { huntInBackground } from '@/platform/zeldHunt';
 // Note: getTrezorAdapter is dynamically imported in createHardwareWalletWithDiscovery to avoid
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
-// Import types from centralized types module
-import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
-
-// Re-export types for backwards compatibility
-export type { Address, Wallet };
-
-// Import from constants for internal use
 import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
-
-// Re-export from constants to maintain backwards compatibility
-export { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS };
+import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
 
 /** How long a keychain load waits for session recovery before declining to load this time. */
 const RECOVERY_WAIT_MS = 5_000;
@@ -100,7 +91,9 @@ const RECOVERY_WAIT_MS = 5_000;
  *
  * ## State Invariants
  *
- * - When locked: keychain=null, wallets=[], masterKey not in session
+ * - When locked: keychain=null and no wallet secret is in memory; the master key and session
+ *   metadata are gone from session storage. A worker that locked keeps its wallet list (ids, names,
+ *   types) with every wallet's addresses=[]; a worker that never loaded the keychain has wallets=[].
  * - When unlocked: keychain!=null, wallets synced with keychain.wallets, masterKey in session
  * - Only one wallet's secret is decrypted at a time (the active wallet)
  *

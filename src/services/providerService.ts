@@ -12,6 +12,7 @@ import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import { extractPsbtDetails, resolvePsbtSighashType, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
+import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { fetchTokenBalance } from '@/core/counterparty/api';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
@@ -68,10 +69,7 @@ import { getWalletService } from '@/services/walletService';
 
 // Define proper types for provider requests and responses
 export type ProviderRequestParams = unknown[];
-export type ProviderMetadata = Record<string, unknown>;
 export type ProviderResponse = unknown;
-
-const CONNECTION_PROOF_PREFIX = 'xcp-wallet\n';
 
 type ProviderConnectionProof = {
   address: string;
@@ -94,7 +92,7 @@ export interface ProviderService {
   /**
    * Handle provider requests from dApps
    */
-  handleRequest: (origin: string, method: string, params?: ProviderRequestParams, metadata?: ProviderMetadata) => Promise<ProviderResponse>;
+  handleRequest: (origin: string, method: string, params?: ProviderRequestParams) => Promise<ProviderResponse>;
 
   /**
    * Disconnect an origin (the connected-sites settings page)
@@ -312,7 +310,7 @@ export function createProviderService(): ProviderService {
         .map(b => b.toString(16).padStart(2, '0')).join('');
       const issued = Math.floor(Date.now() / 1000);
 
-      const message = `xcp-wallet\norigin:${context.request.origin}\nnonce:${nonce}\nissued:${issued}`;
+      const message = `${CONNECTION_PROOF_PREFIX}origin:${context.request.origin}\nnonce:${nonce}\nissued:${issued}`;
 
       const result = await walletService.signMessage(
         message,
@@ -461,24 +459,13 @@ export function createProviderService(): ProviderService {
       pairedAddresses,
       placement
     );
-    await analytics.track('connection_established');
     return buildConnectResponse(accounts, context);
   }
 
   /**
    * Handle provider requests from dApps
    */
-  async function handleRequest(origin: string, method: string, params: ProviderRequestParams = [], metadata?: ProviderMetadata): Promise<ProviderResponse> {
-    
-    // Log request signing information if available
-    if (metadata?.signature) {
-      console.debug('[ProviderService] Request signed with metadata:', {
-        hasSignature: !!metadata.signature,
-        hasPublicKey: !!metadata.publicKey,
-        timestamp: metadata.timestamp
-      });
-    }
-    
+  async function handleRequest(origin: string, method: string, params: ProviderRequestParams = []): Promise<ProviderResponse> {
     try {
       // Validate parameter size to prevent memory exhaustion
       const MAX_PARAM_SIZE = 1024 * 1024; // 1MB limit

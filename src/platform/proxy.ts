@@ -413,14 +413,12 @@ export function defineProxyService<T extends object>(
   return [register, getService];
 }
 
+/**
+ * The MV3 background is a service worker: extension APIs and no window. Every document (popup,
+ * side panel, content script) has a window. The wallet builds for Chrome MV3 only, so there is no
+ * background document to recognise.
+ */
 export function isBackgroundScript(): boolean {
   if (typeof chrome === 'undefined' || !chrome.runtime?.id) return false;
-  if (typeof window === 'undefined') return typeof self !== 'undefined';
-  // Firefox's MV2 target runs in a background document. A popup also has a window
-  // and extension APIs, so only the actual background page's object identity qualifies.
-  try {
-    return chrome.extension?.getBackgroundPage?.() === window;
-  } catch {
-    return false;
-  }
+  return typeof window === 'undefined' && typeof self !== 'undefined';
 }

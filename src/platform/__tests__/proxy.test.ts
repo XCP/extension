@@ -101,22 +101,11 @@ describe('isBackgroundScript', () => {
     expect(isBackgroundScript()).toBe(false);
   });
 
-  it('recognizes the actual Firefox MV2 background document', () => {
-    const backgroundWindow = {};
-    Object.defineProperty(global, 'window', { value: backgroundWindow, writable: true });
-    mockChrome.extension.getBackgroundPage.mockReturnValue(backgroundWindow);
-    expect(isBackgroundScript()).toBe(true);
-  });
-
-  it('does not treat an extension popup with access to the background page as the background', () => {
-    Object.defineProperty(global, 'window', { value: {}, writable: true });
-    mockChrome.extension.getBackgroundPage.mockReturnValue({});
-    expect(isBackgroundScript()).toBe(false);
-  });
-
-  it('fails closed when a content context cannot access the background page', () => {
-    Object.defineProperty(global, 'window', { value: {}, writable: true });
-    mockChrome.extension.getBackgroundPage.mockImplementation(() => { throw new Error('API unavailable'); });
+  it('treats every document as not the background, even one getBackgroundPage would name', () => {
+    // Chrome MV3 has no background document; a window means a popup, side panel or content script.
+    const documentWindow = {};
+    Object.defineProperty(global, 'window', { value: documentWindow, writable: true });
+    mockChrome.extension.getBackgroundPage.mockReturnValue(documentWindow);
     expect(isBackgroundScript()).toBe(false);
   });
 });
@@ -181,15 +170,6 @@ describe('defineProxyService', () => {
     it('should register service and add onConnect listener', () => {
       const service = register();
       expect(service).toBe(testServiceInstance);
-      expect(mockChrome.runtime.onConnect.addListener).toHaveBeenCalledWith(expect.any(Function));
-    });
-
-    it('registers and directly retrieves the service in a Firefox MV2 background document', () => {
-      const backgroundWindow = {};
-      Object.defineProperty(global, 'window', { value: backgroundWindow, writable: true });
-      mockChrome.extension.getBackgroundPage.mockReturnValue(backgroundWindow);
-      expect(register()).toBe(testServiceInstance);
-      expect(getService()).toBe(testServiceInstance);
       expect(mockChrome.runtime.onConnect.addListener).toHaveBeenCalledWith(expect.any(Function));
     });
 

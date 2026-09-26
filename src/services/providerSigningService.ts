@@ -10,6 +10,7 @@ import { type DecodedPsbtInfo, decodePsbtForApproval } from '@/core/bitcoin/psbt
 import { type DecodedPsbtBundleInfo, decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { PrevoutMismatchError } from '@/core/bitcoin/psbtPrevouts';
 import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
+import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { maxMarketplaceBatchRequests } from '@/core/counterparty/marketplaceBatch';
 import { SigningError } from '@/core/errors';
 import type { PairedGrant } from '@/core/pairedGrant';
@@ -188,7 +189,7 @@ export function createProviderSigningService(): ProviderSigningService {
     };
     switch (request.kind) {
       case 'sign-message':
-        if (!request.message || typeof request.message !== 'string' || request.message.startsWith('xcp-wallet\n')) {
+        if (!request.message || typeof request.message !== 'string' || request.message.startsWith(CONNECTION_PROOF_PREFIX)) {
           throw new ProviderReviewError('invalid_message');
         }
         review = { kind: request.kind, request, policy: ordinaryPolicy };
