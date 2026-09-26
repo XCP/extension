@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
+import { fetchTradingPair, type TradingPairData } from "@/core/counterparty/price";
 
-/**
- * Trading pair data from the canonical xcp.io API.
- */
-export interface TradingPairData {
-  last_trade_price: string | null;
-  name: string;
+export type { TradingPairData };
+
+/** A finished read, tagged with the pair it answers for. */
+interface TradingPairResult {
+  key: string;
+  data: TradingPairData | null;
+  error: Error | null;
 }
 
 /**
  * Hook for fetching trading pair data from api.xcp.io
+ *
+ * Answers only for the pair asked about on this render. Switching asset or side (buy/sell) used to
+ * leave the previous pair's price in place while the new one loaded, and let a late answer for the
+ * old pair replace the new one — so the price input's "suggest" could fill in another pair's price.
  *
  * @param giveAsset - The asset being given/sold
  * @param getAsset - The asset being received/bought
@@ -26,61 +32,35 @@ export function useTradingPair(
   giveAsset: string | undefined,
   getAsset: string | undefined,
 ) {
-  const [data, setData] = useState<TradingPairData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const key = giveAsset && getAsset ? JSON.stringify([giveAsset, getAsset]) : null;
+  const [result, setResult] = useState<TradingPairResult | null>(null);
 
   useEffect(() => {
-    if (!giveAsset || !getAsset) {
-      setData(null);
-      return;
-    }
+    if (!key || !giveAsset || !getAsset) return;
+    const controller = new AbortController();
 
-    const fetchTradingPair = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch(
-          `https://api.xcp.io/v2/markets/${encodeURIComponent(giveAsset)}/${encodeURIComponent(getAsset)}`,
-        );
-        if (!response.ok) {
-          throw new Error(`Failed to fetch trading pair: ${response.status}`);
-        }
-        const json = await response.json();
-        const lastTradePrice =
-          json?.result?.lastPrice != null
-            ? String(json.result.lastPrice)
-            : null;
-        const tradingPairName = json?.result
-          ? `${json.result.baseAsset}/${json.result.quoteAsset}`
-          : "";
-
-        setData((prev) => {
-          // Only update if data changed to prevent unnecessary re-renders
-          if (
-            prev?.last_trade_price === lastTradePrice &&
-            prev?.name === tradingPairName
-          ) {
-            return prev;
-          }
-          return { last_trade_price: lastTradePrice, name: tradingPairName };
-        });
-      } catch (err) {
+    fetchTradingPair(giveAsset, getAsset, controller.signal).then(
+      (data) => {
+        if (!controller.signal.aborted) setResult({ key, data, error: null });
+      },
+      (err: unknown) => {
+        if (controller.signal.aborted) return;
         console.error("Failed to fetch trading pair data:", err);
-        setError(
-          err instanceof Error
-            ? err
-            : new Error("Failed to fetch trading pair"),
-        );
-        setData(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        setResult({
+          key,
+          data: null,
+          error: err instanceof Error ? err : new Error("Failed to fetch trading pair"),
+        });
+      },
+    );
 
-    fetchTradingPair();
-  }, [giveAsset, getAsset]);
+    return () => controller.abort();
+  }, [key, giveAsset, getAsset]);
 
-  return { data, isLoading, error };
+  const own = key && result?.key === key ? result : null;
+  return {
+    data: own?.data ?? null,
+    isLoading: key !== null && own === null,
+    error: own?.error ?? null,
+  };
 }

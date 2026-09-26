@@ -129,7 +129,7 @@ describe("BalanceList ZELD row", () => {
     expect(await screen.findByText('ZELD')).toBeInTheDocument();
     await act(async () => finish({ baseUnits: 409_600_000_000n, utxos: [] }));
     expect(screen.queryByText('4,096.00000000')).not.toBeInTheDocument();
-    expect(cacheBalances.mock.calls.flatMap(call => call[0]).filter(balance => balance.asset === 'zeldhash:ZELD'))
+    expect(cacheBalances.mock.calls.flatMap(call => call[1]).filter(balance => balance.asset === 'zeldhash:ZELD'))
       .toEqual([expect.objectContaining({ quantity_normalized: '0.00000000' })]);
   });
 });

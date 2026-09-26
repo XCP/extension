@@ -2537,6 +2537,64 @@ describe('ProviderService', () => {
       else expect(answer.message).toMatch(message);
     });
 
+    describe('site-caused refusals that used to be masked as -32603', () => {
+      const seller = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+      const acceptIntent = { ...MARKETPLACE_EXACT_INTENT, action: 'accept_exact_offer', seller };
+      const cpfp = { hex: VALID_PSBT_HEX, signInputs: { [seller]: [0] }, sighashTypes: [0x01], intent: MARKETPLACE_CPFP_INTENT };
+      /** A PSBT whose only input carries no prevout, so its amount is not authenticated. */
+      const missingPrevoutPsbtHex = () => {
+        const source = Transaction.fromPSBT(hex.decode(VALID_PSBT_HEX), { allowUnknownInputs: true, allowUnknownOutputs: true });
+        const tx = new Transaction({ allowUnknownInputs: true, allowUnknownOutputs: true });
+        tx.addInput({ txid: new Uint8Array(32).fill(1), index: 0 });
+        tx.addOutput(source.getOutput(0));
+        return hex.encode(tx.toPSBT());
+      };
+
+      it.each<[string, string, () => unknown[], string]>([
+        ['a message signer outside the active pair', 'xcp_signMessage',
+          () => ['Hello Bitcoin', '1BoatSLRHtKNngkdXEeobR76b53LETtpyT'],
+          'Specified address is not the active address or its paired sibling'],
+        ['an exact-offer PSBT with the wrong transaction header', 'xcp_signPsbt',
+          () => [{ hex: V3_PSBT_HEX, signInputs: { [seller]: [0] }, sighashTypes: [0x01], intent: MARKETPLACE_EXACT_INTENT }],
+          'exact_offer_v1 requires Bitcoin transaction version 2 with locktime 0'],
+        ['a bundle PSBT with the wrong transaction header', 'xcp_signPsbts',
+          () => [{ requests: [{ hex: V3_PSBT_HEX, signInputs: { [seller]: [0] }, sighashTypes: [0x01], intent: acceptIntent }, cpfp] }],
+          'PSBT bundle request 0: exact_offer_v1 requires Bitcoin transaction version 2 with locktime 0'],
+        ['a bundle PSBT without authenticated prevouts', 'xcp_signPsbts',
+          () => [{ requests: [{ hex: missingPrevoutPsbtHex(), signInputs: { [seller]: [0] }, sighashTypes: [0x01], intent: acceptIntent }, cpfp] }],
+          'PSBT bundle request 0 must be fully funded with authenticated prevouts'],
+        ['a Bitcoin payment PSBT without authenticated prevouts', 'xcp_signBitcoinPsbt',
+          () => [{ hex: missingPrevoutPsbtHex(), signInputs: { bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty: [0] },
+            sighashTypes: [0x01], intent: BITCOIN_PAYMENT_INTENT }],
+          'Plain Bitcoin payment requests must be fully funded with authenticated prevout amounts before review'],
+      ])('surfaces %s as -32602 with its reason', async (_label, method, params, message) => {
+        connect();
+        const answer = await seen(providerService.handleRequest(origin, method, params()));
+        expect(answer).toEqual({ code: -32602, message });
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
+      it.each(['xcp_signPsbt', 'xcp_signPsbts'])('surfaces a hardware wallet asked to accept an offer through %s as -32602', async (method) => {
+        connect();
+        const wallet = vi.mocked(walletService.getWalletService)();
+        wallet.getActiveWallet = vi.fn().mockResolvedValue({
+          id: 'wallet1', name: 'Trezor', type: 'hardware', addressFormat: 'p2wpkh',
+          addresses: [{ address: 'bc1qtest123', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }],
+        } as never);
+        wallet.getActiveAddress = vi.fn().mockResolvedValue({ address: 'bc1qtest123' } as never);
+        const intent = { ...acceptIntent, seller: 'bc1qtest123' };
+        const parent = { hex: VALID_PSBT_HEX, signInputs: { bc1qtest123: [1] }, sighashTypes: [0x01, 0x01], intent };
+        const params = method === 'xcp_signPsbts'
+          ? [{ requests: [parent, { ...cpfp, signInputs: { bc1qtest123: [0] }, intent: { ...MARKETPLACE_CPFP_INTENT, seller: 'bc1qtest123' } }] }]
+          : [parent];
+
+        const answer = await seen(providerService.handleRequest(origin, method, params));
+
+        expect(answer.code).toBe(-32602);
+        expect(answer.message).toMatch(/^The active wallet cannot accept offers/);
+      });
+    });
+
     it('still masks an internal failure', async () => {
       connect();
       vi.mocked(walletService.getWalletService)().getActiveAddress = vi.fn().mockResolvedValue(null);

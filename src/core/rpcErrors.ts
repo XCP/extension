@@ -172,6 +172,13 @@ export const EXTENSION_RELOAD_REQUIRED_MESSAGE = 'XCP Wallet was updated or rest
 /** The wallet's background restarted mid-request; the bridge itself is fine, so a retry works. */
 export const EXTENSION_RESTARTED_MESSAGE = 'XCP Wallet restarted while handling this request. Please try again.';
 
+/**
+ * An approval window could not be opened, so nobody could answer the request. Sent as 4001, like an
+ * expiry: nothing was approved and the site should not assume anything happened. Resending works
+ * once the browser has a window to open it from.
+ */
+export const APPROVAL_WINDOW_FAILED_MESSAGE = 'The approval window could not be opened. Please try again.';
+
 export interface ReloadRequiredError {
   code: typeof PROVIDER_ERROR_CODES.DISCONNECTED;
   message: string;

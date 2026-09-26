@@ -6,6 +6,7 @@ import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
+import { useWallet } from "@/contexts/wallet-context";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { asDisplayUnits, divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from '@/core/numeric';
@@ -44,7 +45,11 @@ export default function AssetBalancePage(): ReactElement {
   const { data: lpPool } = useLpAssetPool(asset);
 
   // Get cached data for instant display
-  const cachedBalance = useMemo(() => getCachedBalance(asset || ""), [getCachedBalance, asset]);
+  const { activeAddress } = useWallet();
+  const cachedBalance = useMemo(
+    () => getCachedBalance(activeAddress?.address, asset || ""),
+    [getCachedBalance, activeAddress?.address, asset]
+  );
 
   // Configure header
   useEffect(() => {

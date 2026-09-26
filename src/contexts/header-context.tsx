@@ -65,7 +65,11 @@ interface HeaderState {
   subheadings: {
     addresses: Record<string, AddressData>;
     assets: Record<string, AssetInfo>;
-    balances: Record<string, TokenBalance>;
+    /**
+     * Balances by holding address, then asset. A balance belongs to an address: keyed by asset
+     * alone, a form opened after an address switch was handed the previous address's figure.
+     */
+    balances: Record<string, Record<string, TokenBalance>>;
     ownedAssets: Record<string, OwnedAssetCache>;
   };
 }
@@ -79,11 +83,11 @@ interface HeaderContextType {
   subheadings: HeaderState["subheadings"];
   setAddressHeader: (address: string, walletName?: string) => void;
   setAssetHeader: (asset: string, info: AssetInfo) => void;
-  setBalanceHeader: (asset: string, balance: TokenBalance) => void;
+  setBalanceHeader: (address: string, asset: string, balance: TokenBalance) => void;
   setOwnedAsset: (asset: OwnedAssetCache) => void;
-  cacheBalances: (balances: TokenBalance[]) => void;
+  cacheBalances: (address: string, balances: TokenBalance[]) => void;
   cacheOwnedAssets: (assets: OwnedAssetCache[]) => void;
-  getCachedBalance: (asset: string) => TokenBalance | undefined;
+  getCachedBalance: (address: string | undefined, asset: string) => TokenBalance | undefined;
   getCachedOwnedAsset: (asset: string) => OwnedAssetCache | undefined;
   clearBalances: () => void;
   clearAllCaches: () => void;
@@ -102,9 +106,9 @@ type HeaderAction =
   | { type: "RESET_MAIN" }
   | { type: "SET_ADDRESS"; payload: { address: string; walletName?: string; formatted: string } }
   | { type: "SET_ASSET"; payload: AssetInfo }
-  | { type: "SET_BALANCE"; payload: TokenBalance }
+  | { type: "SET_BALANCE"; address: string; payload: TokenBalance }
   | { type: "SET_OWNED_ASSET"; payload: OwnedAssetCache }
-  | { type: "CACHE_BALANCES"; payload: TokenBalance[] }
+  | { type: "CACHE_BALANCES"; address: string; payload: TokenBalance[] }
   | { type: "CACHE_OWNED_ASSETS"; payload: OwnedAssetCache[] }
   | { type: "CLEAR_BALANCES" }
   | { type: "CLEAR_ALL_CACHES" };
@@ -228,14 +232,18 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
     }
     case "SET_BALANCE": {
       const balanceAsset = action.payload.asset;
-      if (areBalancesEqual(state.subheadings.balances[balanceAsset], action.payload)) {
+      const forAddress = state.subheadings.balances[action.address] ?? {};
+      if (areBalancesEqual(forAddress[balanceAsset], action.payload)) {
         return state;
       }
       return {
         ...state,
         subheadings: {
           ...state.subheadings,
-          balances: { ...state.subheadings.balances, [balanceAsset]: action.payload },
+          balances: {
+            ...state.subheadings.balances,
+            [action.address]: { ...forAddress, [balanceAsset]: action.payload },
+          },
         },
       };
     }
@@ -253,7 +261,7 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
       };
     }
     case "CACHE_BALANCES": {
-      const newBalances = { ...state.subheadings.balances };
+      const newBalances = { ...state.subheadings.balances[action.address] };
       let hasChanges = false;
       for (const balance of action.payload) {
         if (!areBalancesEqual(newBalances[balance.asset], balance)) {
@@ -264,7 +272,10 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
       if (!hasChanges) return state;
       return {
         ...state,
-        subheadings: { ...state.subheadings, balances: newBalances },
+        subheadings: {
+          ...state.subheadings,
+          balances: { ...state.subheadings.balances, [action.address]: newBalances },
+        },
       };
     }
     case "CACHE_OWNED_ASSETS": {
@@ -335,24 +346,24 @@ export function HeaderProvider({ children }: HeaderProviderProps): ReactElement 
     dispatch({ type: "SET_ASSET", payload: { ...info, asset } });
   }, []);
 
-  const setBalanceHeader = useCallback((asset: string, balance: TokenBalance) => {
-    dispatch({ type: "SET_BALANCE", payload: { ...balance, asset } });
+  const setBalanceHeader = useCallback((address: string, asset: string, balance: TokenBalance) => {
+    dispatch({ type: "SET_BALANCE", address, payload: { ...balance, asset } });
   }, []);
 
   const setOwnedAsset = useCallback((asset: OwnedAssetCache) => {
     dispatch({ type: "SET_OWNED_ASSET", payload: asset });
   }, []);
 
-  const cacheBalances = useCallback((balances: TokenBalance[]) => {
-    dispatch({ type: "CACHE_BALANCES", payload: balances });
+  const cacheBalances = useCallback((address: string, balances: TokenBalance[]) => {
+    dispatch({ type: "CACHE_BALANCES", address, payload: balances });
   }, []);
 
   const cacheOwnedAssets = useCallback((assets: OwnedAssetCache[]) => {
     dispatch({ type: "CACHE_OWNED_ASSETS", payload: assets });
   }, []);
 
-  const getCachedBalance = useCallback((asset: string): TokenBalance | undefined => {
-    return state.subheadings.balances[asset];
+  const getCachedBalance = useCallback((address: string | undefined, asset: string): TokenBalance | undefined => {
+    return address ? state.subheadings.balances[address]?.[asset] : undefined;
   }, [state.subheadings.balances]);
 
   const getCachedOwnedAsset = useCallback((asset: string): OwnedAssetCache | undefined => {

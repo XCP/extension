@@ -16,6 +16,7 @@ import { fetchZeldBalance, ZELD_WALLET_ASSET, zeldBaseUnitsToDisplay } from '@/c
 import { useInView } from "@/hooks/useInView";
 import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
+import { BTC_ASSET_INFO } from "@/hooks/utils/fetchAssetData";
 import { t } from '@/i18n';
 
 /**
@@ -113,13 +114,13 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
 
   const pendingByAssetLabel = useMemo(() => labelsFromDeltas(pendingDeltas), [pendingDeltas]);
 
-  const upsertBalance = useCallback((balance: TokenBalance) => {
+  const upsertBalance = useCallback((holder: string, balance: TokenBalance) => {
     if (!balance?.asset || balance?.quantity_normalized === undefined) {
       return;
     }
 
     // Cache balance for instant display on detail pages
-    cacheBalances([balance]);
+    cacheBalances(holder, [balance]);
 
     setAllBalances((prev) => {
       const idx = prev.findIndex((b) => sameAsset(b, balance));
@@ -160,7 +161,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
             issuer: "",
             divisible: true,
             locked: true,
-            supply: "21000000"
+            supply: BTC_ASSET_INFO.supply,
           },
         }));
         const nonBTCAssets = [...new Set(pinnedAssetKey.split("\n").filter((asset) => asset && asset !== "BTC"))];
@@ -180,7 +181,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
             },
           };
           setZeldBalance(balance);
-          cacheBalances([balance]);
+          cacheBalances(session.address, [balance]);
         }).catch(() => {
           // Leave the optional row absent; the ZELD page explains an unavailable balance.
         });
@@ -215,7 +216,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           failure ??= pageResult.reason;
         }
         setAllBalances(balances);
-        cacheBalances(balances);
+        cacheBalances(session.address, balances);
         if (failure !== undefined) throw failure;
         session.loaded = true;
         setInitialLoaded(true);
@@ -266,7 +267,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
     try {
       const page = await fetchTokenBalancesPage(session.address, { type: 'address', limit: PAGE_SIZE, offset: session.offset });
       if (sessionRef.current !== session) return;
-      page.result.forEach(upsertBalance);
+      for (const balance of page.result) upsertBalance(session.address, balance);
       session.offset += page.result.length;
       session.hasMore = pageHasMore(page, session.offset);
       setHasMore(session.hasMore);
