@@ -2,8 +2,9 @@
  * Tests for PSBT utilities
  */
 
+import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
+import { getPublicKey, hashes, schnorr, verify as verifyEcdsa } from '@noble/secp256k1';
 import { Address, p2pkh, p2tr, p2wpkh, SigHash, Transaction, taprootNumsKey } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '../address';
@@ -17,9 +18,23 @@ import {
   parsePSBT,
   resolvePsbtSighashType,
   signPSBT,
+  spendsTaprootOutput,
   tapLeafOwnerAddress,
   validateSignInputs,
 } from '../psbt';
+
+if (!hashes.sha256) hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
+
+/** A DER ECDSA signature as 64-byte compact r||s. */
+function derToCompact(der: Uint8Array): Uint8Array {
+  const rLength = der[3]!;
+  const r = der.slice(4, 4 + rLength);
+  const s = der.slice(6 + rLength, 6 + rLength + der[5 + rLength]!);
+  const compact = new Uint8Array(64);
+  compact.set(r.slice(-32), 32 - Math.min(32, r.length));
+  compact.set(s.slice(-32), 64 - Math.min(32, s.length));
+  return compact;
+}
 
 // Test private key (DO NOT USE IN PRODUCTION)
 const TEST_PRIVATE_KEY = 'e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35';
@@ -527,6 +542,27 @@ describe('signPSBT taproot inscription shapes', () => {
     expect(reparsed.getInput(0).finalScriptWitness?.length).toBe(3);
   });
 
+  it('signs a reveal with no sighash in the request or the PSBT, with SIGHASH_DEFAULT', () => {
+    const tx = new Transaction({ allowUnknownOutputs: true });
+    tx.addInput({
+      txid: hexToBytes('22'.repeat(32)),
+      index: 0,
+      witnessUtxo: { script: commitP2tr.script, amount: 60_000n },
+      tapLeafScript: commitP2tr.tapLeafScript,
+    });
+    tx.addOutput({ script: hexToBytes('6a08434e545250525459'), amount: 0n });
+    tx.addOutputAddress(addrP2tr.address!, 546n);
+
+    const signed = Transaction.fromPSBT(hexToBytes(signPSBT(bytesToHex(tx.toPSBT()), privKey, [0], AddressFormat.P2TR)), {
+      allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true,
+    });
+    const [{ leafHash }, signature] = signed.getInput(0).tapScriptSig![0]!;
+    expect(signature).toHaveLength(64);
+    const message = signed.preimageWitnessV1(0, [commitP2tr.script], SigHash.DEFAULT, [60_000n], undefined, leaf, 0xc0);
+    expect(leafHash).toBeDefined();
+    expect(schnorr.verify(signature, message, outputKey)).toBe(true);
+  });
+
   it('does not sign a foreign taproot input in best-effort mode', () => {
     const strangerScript = p2tr(
       hexToBytes('c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5'),
@@ -552,6 +588,19 @@ describe('signPSBT', () => {
     expect(resolvePsbtSighashType(0x81, 0x83)).toBe(0x81);
     expect(resolvePsbtSighashType(undefined, 0x83)).toBe(0x83);
     expect(resolvePsbtSighashType()).toBe(0x01);
+  });
+  it('defaults a Taproot input to SIGHASH_DEFAULT and every other input to ALL', () => {
+    expect(resolvePsbtSighashType(undefined, undefined, true)).toBe(SigHash.DEFAULT);
+    expect(resolvePsbtSighashType(undefined, undefined, false)).toBe(SigHash.ALL);
+    // The default is only the last resort: an explicit or embedded type still wins.
+    expect(resolvePsbtSighashType(SigHash.ALL, undefined, true)).toBe(SigHash.ALL);
+    expect(resolvePsbtSighashType(undefined, SigHash.SINGLE_ANYONECANPAY, true)).toBe(SigHash.SINGLE_ANYONECANPAY);
+    expect(resolvePsbtSighashType(SigHash.ALL_ANYONECANPAY, SigHash.ALL, true)).toBe(SigHash.ALL_ANYONECANPAY);
+    expect(spendsTaprootOutput({ scriptType: 'p2tr' })).toBe(true);
+    for (const scriptType of ['p2wpkh', 'p2pkh', 'p2sh', 'unknown', undefined]) {
+      expect(spendsTaprootOutput({ scriptType })).toBe(false);
+    }
+    expect(spendsTaprootOutput(undefined)).toBe(false);
   });
   it('should sign a PSBT input', () => {
     const psbtHex = createTestPsbt();
@@ -1191,5 +1240,138 @@ describe('unfunded PSBTs', () => {
 
     expect(details.unfunded).toBe(false);
     expect(details.fee).toBe(1000);
+  });
+});
+
+describe('signPSBT with no sighash in the request or the PSBT', () => {
+  const privKey = TEST_PRIVATE_KEY;
+  const internalKey = getPublicKey(hexToBytes(privKey), true).slice(1, 33);
+  const ownP2tr = p2tr(internalKey, undefined, undefined, true);
+  const outputKey = ownP2tr.script.slice(2);
+
+  /** Two key-path inputs of the signer's own address, BIP 371 style: no PSBT_IN_SIGHASH_TYPE. */
+  function taprootPsbt() {
+    const tx = new Transaction();
+    for (const index of [0, 1]) {
+      tx.addInput({
+        txid: hexToBytes('44'.repeat(32)), index,
+        witnessUtxo: { script: ownP2tr.script, amount: 50_000n },
+      });
+    }
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', 99_000n);
+    return tx;
+  }
+
+  it.each([
+    ['explicit indices', [0, 1]],
+    ['best effort', []],
+  ])('signs a Taproot key-path input with SIGHASH_DEFAULT (%s)', (_label, indices) => {
+    const unsigned = taprootPsbt();
+    const signed = Transaction.fromPSBT(hexToBytes(signPSBT(bytesToHex(unsigned.toPSBT()), privKey, indices, AddressFormat.P2TR)));
+    const scripts = [ownP2tr.script, ownP2tr.script];
+    const amounts = [50_000n, 50_000n];
+    for (const index of [0, 1]) {
+      const input = signed.getInput(index);
+      // BIP 341: a 64-byte signature is SIGHASH_DEFAULT; no sighash field is written into the PSBT.
+      expect(input.tapKeySig).toHaveLength(64);
+      expect(input.sighashType).toBeUndefined();
+      const message = signed.preimageWitnessV1(index, scripts, SigHash.DEFAULT, amounts);
+      expect(schnorr.verify(input.tapKeySig!, message, outputKey)).toBe(true);
+    }
+    signed.finalize();
+  });
+
+  it('still signs a P2WPKH input with SIGHASH_ALL', () => {
+    const pub = getPublicKey(hexToBytes(privKey), true);
+    const tx = new Transaction();
+    tx.addInput({ txid: hexToBytes('55'.repeat(32)), index: 0, witnessUtxo: { script: p2wpkh(pub).script, amount: 50_000n } });
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', 49_000n);
+    const signed = Transaction.fromPSBT(hexToBytes(signPSBT(bytesToHex(tx.toPSBT()), privKey, [0], AddressFormat.P2WPKH)));
+    const [, signature] = signed.getInput(0).partialSig![0]!;
+    expect(signature.at(-1)).toBe(SigHash.ALL);
+    expect(signed.getInput(0).sighashType).toBeUndefined();
+  });
+});
+
+describe('signPSBT with an uncompressed key', () => {
+  const privKey = TEST_PRIVATE_KEY;
+  const uncompressed = getPublicKey(hexToBytes(privKey), false);
+  const compressed = getPublicKey(hexToBytes(privKey), true);
+  const ownP2pkh = p2pkh(uncompressed);
+  type PsbtOptions = { witnessOnly?: boolean };
+
+  /** A parent paying `script` twice, and a PSBT spending both outputs with the full parent attached. */
+  function legacyPsbt(script: Uint8Array, { witnessOnly = false }: PsbtOptions = {}): string {
+    const parent = new Transaction({ allowUnknownOutputs: true });
+    parent.addInput({ txid: hexToBytes('66'.repeat(32)), index: 0 });
+    parent.addOutput({ script, amount: 60_000n });
+    parent.addOutput({ script, amount: 40_000n });
+    const tx = new Transaction({ allowLegacyWitnessUtxo: true });
+    for (const index of [0, 1]) {
+      tx.addInput({
+        txid: parent.id, index,
+        ...(witnessOnly
+          ? { witnessUtxo: { script, amount: index === 0 ? 60_000n : 40_000n } }
+          : { nonWitnessUtxo: parent.unsignedTx }),
+      });
+    }
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', 99_000n);
+    return bytesToHex(tx.toPSBT());
+  }
+
+  it.each([
+    ['explicit indices', [0, 1]],
+    ['best effort', []],
+  ])('signs its own P2PKH inputs with the uncompressed public key (%s)', (_label, indices) => {
+    const signed = Transaction.fromPSBT(hexToBytes(
+      signPSBT(legacyPsbt(ownP2pkh.script), privKey, indices, AddressFormat.P2PKH, undefined, false),
+    ));
+    for (const index of [0, 1]) {
+      const [pubkey, signature] = signed.getInput(index).partialSig![0]!;
+      expect(pubkey).toStrictEqual(uncompressed);
+      expect(signature.at(-1)).toBe(SigHash.ALL);
+      const digest = (signed as unknown as { preimageLegacy: (i: number, s: Uint8Array, h: number) => Uint8Array })
+        .preimageLegacy(index, ownP2pkh.script, SigHash.ALL);
+      expect(verifyEcdsa(derToCompact(signature.slice(0, -1)), digest, uncompressed, { prehash: false })).toBe(true);
+    }
+    signed.finalize();
+  });
+
+  it('signs a requested SINGLE|ANYONECANPAY and writes it into the input', () => {
+    const signed = Transaction.fromPSBT(hexToBytes(signPSBT(
+      legacyPsbt(ownP2pkh.script), privKey, [0], AddressFormat.P2PKH, [SigHash.SINGLE_ANYONECANPAY], false,
+    )));
+    expect(signed.getInput(0).sighashType).toBe(SigHash.SINGLE_ANYONECANPAY);
+    expect(signed.getInput(0).partialSig![0]![1].at(-1)).toBe(SigHash.SINGLE_ANYONECANPAY);
+    expect(signed.getInput(1).partialSig).toBeUndefined();
+  });
+
+  it('refuses what the compressed signer refuses on a legacy input', () => {
+    // SIGHASH_DEFAULT is Taproot-only.
+    expect(() => signPSBT(legacyPsbt(ownP2pkh.script), privKey, [0], AddressFormat.P2PKH, [SigHash.DEFAULT], false))
+      .toThrow(/not allowed sigHash/);
+    // A legacy input must carry its full previous transaction.
+    expect(() => signPSBT(legacyPsbt(ownP2pkh.script, { witnessOnly: true }), privKey, [0], AddressFormat.P2PKH, undefined, false))
+      .toThrow(/legacy input without nonWitnessUtxo/);
+    // SINGLE needs an output at its own index; input 1 has none.
+    expect(() => signPSBT(legacyPsbt(ownP2pkh.script), privKey, [1], AddressFormat.P2PKH, [SigHash.ALL, SigHash.SINGLE_ANYONECANPAY], false))
+      .toThrow(/no output with corresponding index=1/);
+  });
+
+  it('signs nothing but the P2PKH output of its own uncompressed key', () => {
+    // The same key's compressed P2PKH and P2WPKH outputs are addresses this wallet does not own.
+    for (const script of [p2pkh(compressed).script, p2wpkh(compressed).script]) {
+      expect(() => signPSBT(legacyPsbt(script), privKey, [0], AddressFormat.P2PKH, undefined, false)).toThrow(/doesn't have pubKey/);
+      expect(() => signPSBT(legacyPsbt(script), privKey, [], AddressFormat.P2PKH, undefined, false)).toThrow(/No inputs could be signed/);
+    }
+    // An uncompressed key has no SegWit or Taproot address, so any other format is refused outright.
+    expect(() => signPSBT(legacyPsbt(ownP2pkh.script), privKey, [0], AddressFormat.P2WPKH, undefined, false))
+      .toThrow('An uncompressed key can sign only P2PKH inputs');
+  });
+
+  it('leaves a compressed key signing exactly as before', () => {
+    const psbt = legacyPsbt(p2pkh(compressed).script);
+    expect(signPSBT(psbt, privKey, [0, 1], AddressFormat.P2PKH, undefined, true))
+      .toBe(signPSBT(psbt, privKey, [0, 1], AddressFormat.P2PKH));
   });
 });
