@@ -1,13 +1,95 @@
 # E2E Testing Guide
 
-A cheatsheet for writing reliable, maintainable Playwright tests.
+How this repository's Playwright tests are built and run, and the mistakes that make a test pass
+without testing anything. Unit tests are Vitest files next to the code under `src`; everything
+here is about the browser tests under `e2e/`. Setup, CI and the other test environments are in
+[CONTRIBUTING.md](../CONTRIBUTING.md#testing).
 
-## Core Principles
+## Running tests
+
+The tests load the unpacked extension from `.output/chrome-mv3`, so build it first. Use the e2e
+build, which grants the optional Trezor Suite host permission up front (automation cannot answer
+Chrome's permission prompt):
+
+```bash
+npm run build:e2e
+npx playwright test e2e/tests/provider-message-signing.spec.ts
+```
+
+Rebuild after every source change; Playwright does not rebuild for you. Run the specs your change
+affects, not the whole suite: the full suite runs in CI.
+
+**Run one Playwright job at a time.** Each test launches its own persistent Chromium profile with
+the extension loaded, and `playwright.config.ts` already uses a single worker. Two Playwright
+processes at once compete for the same build output and `test-results/` directory (each run wipes
+it) and fail in ways that look like flaky tests.
+
+Every page runs at the popup's size, a 350x600 viewport (`playwright.config.ts`). A screen that
+only works in a larger viewport is broken for users.
+
+## Principles
 
 1. **Test user-visible behavior** - Test what users see, not implementation details
 2. **Tests must be able to fail** - If a test can't fail, it's not testing anything
 3. **Use web-first assertions** - Let Playwright handle waiting and retrying
 4. **Prefer semantic locators** - Use `getByRole`, `getByLabel`, `getByText` over CSS selectors
+5. **An approval test must complete the approval** - see below
+
+## Fixtures
+
+Import `test`, `walletTest` and `expect` from [`e2e/fixtures.ts`](fixtures.ts), never from
+`@playwright/test` directly:
+
+| Fixture | Gives you |
+|---|---|
+| `test` | `extensionContext`, `extensionPage` and `extensionId`: the extension loaded with no wallet, on the unlock or onboarding screen |
+| `walletTest` | `context`, `page` and `extensionId`: a wallet already imported from `TEST_MNEMONIC` with `TEST_PASSWORD`, on the dashboard |
+| `walletTest` + `browserLocale` | The same wallet in a Chromium launched with that UI language (`'ja'`, `'zh-CN'`, `'zh-TW'`, `'zh-HK'`); onboarding is driven with that locale's catalog text |
+
+```typescript
+import { walletTest, expect, navigateTo } from '../fixtures';
+
+walletTest('opens settings from the footer', async ({ page }) => {
+  await navigateTo(page, 'settings');
+  await expect(page).toHaveURL(/settings/);
+});
+```
+
+```typescript
+import { walletTest, expect } from '../fixtures';
+
+walletTest.use({ browserLocale: 'ja' });
+
+walletTest('dashboard renders in Japanese', async ({ page }) => {
+  // Look up expected text in public/_locales/ja/messages.json rather than hard-coding it.
+});
+```
+
+`fixtures.ts` also exports helpers for the common flows (`createWallet`, `importMnemonic`,
+`importPrivateKey`, `unlockWallet`, `lockWallet`, `navigateTo`, `getCurrentAddress`,
+`grantClipboardPermissions`) and the test credentials (`TEST_PASSWORD`, `TEST_MNEMONIC`,
+`TEST_PRIVATE_KEY`). Shared selectors are in [`e2e/selectors.ts`](selectors.ts), and test data in
+[`e2e/test-data.ts`](test-data.ts). `sleep()` is deliberately not exported.
+
+## Approval tests
+
+Browser approval tests must initialize the wallet fixture, require a successful decision and
+result, and run with normal browser security enabled. Merely observing a popup or an error does
+not demonstrate a working approval flow ([ARCHITECTURE.md](../ARCHITECTURE.md#reviewing-changes)).
+
+The approval galleries (`e2e/tests/approval-gallery.spec.ts`, `e2e/tests/marketplace-gallery.spec.ts`)
+render every approval state for review; how to read them is in
+[Approval screens](../docs/approval-screens.md#review-the-galleries-screen-by-screen).
+
+## Other environments
+
+- **Trezor**: `e2e/hardware/` runs against the Trezor emulator and is skipped unless
+  `TREZOR_EMULATOR_AVAILABLE=1`. Hardware wallet pages need the side panel
+  (`launchExtension(testId, { useSidepanel: true })`). Setup is in
+  [CONTRIBUTING.md](../CONTRIBUTING.md#trezor-emulator).
+- **ZELD regtest**: `e2e/zeld/` holds Vitest proofs against Bitcoin Core and Counterparty Core on
+  regtest, skipped unless `ZELD_REGTEST=1`. Setup is in
+  [CONTRIBUTING.md](../CONTRIBUTING.md#zeld-regtest).
 
 ---
 
@@ -126,104 +208,6 @@ await page.waitForLoadState('networkidle');
 
 ---
 
-## Good Patterns to Follow
-
-### 1. Web-First Assertions
-
-```typescript
-// These auto-wait and retry until timeout
-await expect(page.getByRole('button')).toBeVisible();
-await expect(page.getByRole('button')).toBeEnabled();
-await expect(page.getByRole('textbox')).toHaveValue('expected');
-await expect(page).toHaveURL(/dashboard/);
-await expect(page).toHaveTitle('Home');
-```
-
-### 2. Semantic Locators (Priority Order)
-
-```typescript
-// 1. Role (best)
-page.getByRole('button', { name: 'Submit' });
-page.getByRole('textbox', { name: 'Email' });
-page.getByRole('checkbox', { name: 'Remember me' });
-
-// 2. Label
-page.getByLabel('Password');
-
-// 3. Placeholder
-page.getByPlaceholder('Enter your email');
-
-// 4. Text
-page.getByText('Welcome back');
-
-// 5. Test ID (when semantic locators aren't possible)
-page.getByTestId('custom-component');
-```
-
-### 3. Chaining and Filtering
-
-```typescript
-// Narrow down to specific elements
-const productCard = page.getByRole('listitem').filter({ hasText: 'Product A' });
-await productCard.getByRole('button', { name: 'Add to cart' }).click();
-
-// Filter by another locator
-page.getByRole('listitem').filter({ has: page.getByRole('img') });
-```
-
-### 4. Proper Test Isolation
-
-```typescript
-// Use beforeEach for common setup
-test.beforeEach(async ({ page }) => {
-  await page.goto('/login');
-  await page.getByLabel('Email').fill('test@example.com');
-  await page.getByLabel('Password').fill('password');
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/dashboard/);
-});
-
-test('can view profile', async ({ page }) => {
-  // Page is already logged in
-  await page.getByRole('link', { name: 'Profile' }).click();
-});
-```
-
-### 5. Soft Assertions for Non-Critical Checks
-
-```typescript
-// Continue test even if these fail, report all failures at end
-await expect.soft(page.getByTestId('status')).toHaveText('Active');
-await expect.soft(page.getByTestId('count')).toHaveText('5');
-
-// Critical assertion - stops test if fails
-await page.getByRole('button', { name: 'Submit' }).click();
-```
-
-### 6. Testing One Thing Per Test
-
-```typescript
-// ❌ BAD - Testing multiple unrelated things
-test('page works', async ({ page }) => {
-  await expect(page.getByRole('heading')).toBeVisible();
-  await expect(page.getByRole('button')).toBeEnabled();
-  await expect(page.getByRole('link')).toHaveCount(5);
-  // ... 20 more assertions
-});
-
-// ✅ GOOD - Focused tests
-test('displays page heading', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-});
-
-test('submit button is enabled when form is valid', async ({ page }) => {
-  await page.getByLabel('Email').fill('test@example.com');
-  await expect(page.getByRole('button', { name: 'Submit' })).toBeEnabled();
-});
-```
-
----
-
 ## Quick Reference
 
 | Instead of... | Use... |
@@ -239,10 +223,10 @@ test('submit button is enabled when form is valid', async ({ page }) => {
 
 ## Debugging Tips
 
-1. **Use `--debug` flag**: `npx playwright test --debug`
-2. **Use VS Code extension**: Set breakpoints, step through tests
-3. **Use trace viewer**: `npx playwright test --trace on`
-4. **Use `page.pause()`**: Pause test execution for debugging
+1. **Use `--debug` flag**: `npx playwright test e2e/tests/<spec>.ts --debug`
+2. **Use trace viewer**: `npx playwright test e2e/tests/<spec>.ts --trace on`
+3. **Use `page.pause()`**: Pause test execution for debugging
+4. **Read `test-results/`** before the next run: each run replaces it
 
 ---
 

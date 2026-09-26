@@ -5,7 +5,6 @@ Browser extension wallet for Counterparty on Bitcoin.
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/nicpjdbehgcjbjfjkobcidnfmfpijohg?label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/xcp-wallet/nicpjdbehgcjbjfjkobcidnfmfpijohg)
 [![Chrome Web Store Users](https://img.shields.io/chrome-web-store/users/nicpjdbehgcjbjfjkobcidnfmfpijohg)](https://chromewebstore.google.com/detail/xcp-wallet/nicpjdbehgcjbjfjkobcidnfmfpijohg)
 [![Chrome Web Store Rating](https://img.shields.io/chrome-web-store/rating/nicpjdbehgcjbjfjkobcidnfmfpijohg)](https://chromewebstore.google.com/detail/xcp-wallet/nicpjdbehgcjbjfjkobcidnfmfpijohg)
-[![CI](https://github.com/XCP/extension/actions/workflows/pr-tests.yml/badge.svg)](https://github.com/XCP/extension/actions/workflows/pr-tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Features
@@ -16,13 +15,25 @@ Browser extension wallet for Counterparty on Bitcoin.
 - Provide liquidity to AMM pools (deposit/withdraw)
 - UTXO consolidation
 - Issue and manage assets
+- ZELD balances and sends, and an optional, time-limited ZELD hunt when you sign a transaction
 - Connect to dApps via [provider API](PROVIDER.md)
+- Marketplace signing for connected sites: listings, offers and purchases, each proved against the
+  transaction before it is shown for approval
 - BIP-322 message signing
 - Hardware wallet support (Trezor)
+
+XCP Wallet is built for Chrome (Chromium).
 
 ## Install
 
 [**Chrome Web Store**](https://chromewebstore.google.com/detail/xcp-wallet/nicpjdbehgcjbjfjkobcidnfmfpijohg)
+
+### Trezor
+
+Trezor support uses Trezor Connect, which shows every device approval in Trezor Suite Web
+(`suite.trezor.io`). The first time you use a Trezor, Chrome asks you to allow the wallet to access
+`suite.trezor.io`. The wallet does not ask for it at install or update, and works without it if
+you never use a Trezor.
 
 ## Security
 
@@ -37,41 +48,29 @@ Not yet independently audited. See [AUDIT.md](AUDIT.md) for our self-reported se
 
 **Does not protect against:** compromised OS, malicious extensions with higher privileges, physical access to unlocked device.
 
-Report vulnerabilities via [GitHub Security Advisories](../../security/advisories/new) or see our [bug bounty](SECURITY.md).
+Report vulnerabilities privately through
+[GitHub Security Advisories](https://github.com/XCP/extension/security/advisories/new). The bug
+bounty is currently paused; see [SECURITY.md](SECURITY.md) for scope and what to send as an issue
+or pull request instead.
 
 ## Dependencies
 
-The wallet has 13 direct runtime dependencies, pinned to exact versions in `package.json`.
+The wallet has 14 direct runtime dependencies, pinned to exact versions in `package.json`.
 
 | Package | Purpose |
 |---------|---------|
 | [@noble/secp256k1](https://github.com/paulmillr/noble-secp256k1), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [@scure/*](https://github.com/paulmillr/scure-bip32) | Cryptography and Bitcoin serialization |
 | [@trezor/connect-webextension](https://github.com/trezor/trezor-suite) | Hardware wallet connection |
+| [events](https://github.com/browserify/events) | Node's `EventEmitter` for the browser, required by Trezor Connect 10 |
 | [bignumber.js](https://github.com/MikeMcl/bignumber.js) | Arbitrary precision arithmetic |
-| [react](https://react.dev/), [react-router](https://reactrouter.com/) | UI framework |
+| [react](https://react.dev/), [react-dom](https://react.dev/), [react-router](https://reactrouter.com/) | UI framework |
 | [@headlessui/react](https://headlessui.com/) | Accessible components |
-| [webext-bridge](https://github.com/nickytonline/webext-bridge) | Extension messaging |
+| [webext-bridge](https://github.com/serversideup/webext-bridge) | Extension messaging |
 
 ## Development
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the code map, trust boundaries, and signing lifecycle.
-
-```bash
-npm install        # plain install — never --legacy-peer-deps, it prunes @testing-library/dom
-npm run dev        # Chrome
-npm run dev:firefox
-```
-
-After changing `package.json` or `package-lock.json`, run:
-
-```bash
-npm run check:lockfile
-```
-
-CI installs with `npm ci`, which builds from the lockfile alone and fails if it
-does not record everything the tree needs. `lint`, `compile` and the test suite
-all run against your existing `node_modules`, so they pass either way — this is
-the only local check that catches a lockfile drift before CI does.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, building, testing, translations and releases,
+and [ARCHITECTURE.md](ARCHITECTURE.md) for the code map, trust boundaries, and signing lifecycle.
 
 ## Languages
 
@@ -80,67 +79,8 @@ Traditional Chinese (Taiwan and Hong Kong). There is no language setting in the 
 change Chrome's language to switch. Anything missing falls back to English.
 
 The Japanese and Chinese text is machine-translated and has not yet been reviewed by
-native speakers. Corrections are welcome.
-
-### Adding or changing text
-
-1. Write the English in `public/_locales/en/messages.json`. Give each entry a
-   `description` saying where the text appears and what each `$1` stands for. That is
-   all a translator sees.
-2. Use it in code with `t('key')` from `@/i18n`. Keys are typed, so a misspelled key
-   fails to compile.
-3. Run `node scripts/i18n.mjs build` to regenerate those types.
-4. Add the key to every other `public/_locales/<locale>/messages.json` (a `message`
-   only), and list it under `machine` in `src/i18n/status/<locale>.json` until a native
-   speaker has checked it.
-5. `npm run lint` checks the catalogs. It fails on keys that are missing, unused, or have
-   different placeholders than the English, and on approval-screen labels too long to fit
-   on one line.
-
-### Reviewing a translation
-
-`node scripts/i18n.mjs review ja --machine > review-ja.md` writes the unchecked strings
-as a table: the English, the translation, and where each appears. Once a native speaker has checked a string,
-remove it from `machine` in `src/i18n/status/ja.json`.
-
-`zh_TW` and `zh_HK` are generated from `zh_CN` (OpenCC regional phrases plus a shared
-glossary) by `scripts/i18n-derive-zh.mjs` in the launchpad repository. Change `zh_CN`
-and regenerate them rather than editing them by hand.
-
-## Build
-
-```bash
-npm run build      # Production build
-npm run zip        # Create extension ZIP
-```
-
-## Release
-
-```bash
-npm version X.Y.Z --no-git-tag-version   # bumps package.json AND package-lock.json
-npm run zip                              # .output/xcp-wallet-X.Y.Z-chrome.zip
-```
-
-Bump with `npm version`, not by editing `package.json`. The lockfile records the version
-too, and CI builds from the lockfile alone.
-
-The Chrome Web Store package is uploaded manually through the developer dashboard. Note
-that a new submission replaces any pending review rather than queueing behind it, so check
-that the previous version has published before uploading the next one.
-
-## Test
-
-```bash
-npm run compile
-npm run lint
-npx vitest run src/platform/__tests__/proxy.test.ts --retry=0
-npx playwright test e2e/tests/provider-message-signing.spec.ts
-```
-
-Full-suite commands (`npm test`, `test:unit`, `test:e2e`) are restricted to CI.
-Locally, select the tests affected by the change. `npm run lint` includes type-aware
-promise checks and rejects increases in the existing per-file/rule warning budgets.
-After fixing warnings, run `npm run lint:prune` to reduce those budgets; it cannot add allowances.
+native speakers. Corrections are welcome; see
+[CONTRIBUTING.md](CONTRIBUTING.md#languages) for how to change or review a translation.
 
 ## Community
 
