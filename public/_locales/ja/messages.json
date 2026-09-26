@@ -3065,9 +3065,6 @@
   "marketplace_batch_xcp_fee": {
     "message": "XCP 手数料"
   },
-  "marketplace_batch_sats": {
-    "message": "$1 sats"
-  },
   "marketplace_batch_seller_wallet": {
     "message": "出品者のウォレット"
   },
@@ -3139,9 +3136,6 @@
   },
   "marketplace_bundle_sat_vb": {
     "message": "$1 sat/vB"
-  },
-  "marketplace_bundle_sats": {
-    "message": "$1 sats"
   },
   "marketplace_bundle_the_parent_completes_the_exact": {
     "message": "親トランザクションが正確な売却を完了し、子トランザクションは親の受取額のみをあなた宛てに使用します。いずれの署名を要求する前にも、両方のトランザクションは検証済みです。"
