@@ -13,17 +13,18 @@ import HomePage from '@/pages/index';
 import OnboardingPage from '@/pages/keychain/onboarding';
 import UnlockPage from '@/pages/keychain/unlock';
 import NotFoundPage from '@/pages/not-found';
-import ApproveConnectionPage from '@/pages/requests/connect/approve';
-import ApproveMessagePage from '@/pages/requests/message/approve';
-import ApprovePsbtPage from '@/pages/requests/psbt/approve';
-import ApprovePsbtsPage from '@/pages/requests/psbts/approve';
-import ApproveTransactionPage from '@/pages/requests/transaction/approve';
 import { analytics, sanitizePath } from '@/platform/fathom';
 
-// Pages a popup can open on stay in the entry chunk: home, unlock, onboarding, not-found, and the
-// five /requests/*/approve pages the provider's approval windows open on, so a site's request is
-// shown without waiting on a chunk. Everything else is split per route and preloaded when the
-// browser is idle after first render.
+// Pages a popup can open on stay in the entry chunk: home, unlock, onboarding and not-found.
+// Everything else is split per route and preloaded when the browser is idle after first render,
+// in the order declared here. The provider approval windows open on the /requests/*/approve
+// pages, which are lazy too (a chunk from the extension package loads in milliseconds, and
+// bundling them would add to every popup open), so they are declared first and preloaded first.
+const ApproveConnectionPage = lazyPage(() => import('@/pages/requests/connect/approve'));
+const ApproveMessagePage = lazyPage(() => import('@/pages/requests/message/approve'));
+const ApprovePsbtPage = lazyPage(() => import('@/pages/requests/psbt/approve'));
+const ApprovePsbtsPage = lazyPage(() => import('@/pages/requests/psbts/approve'));
+const ApproveTransactionPage = lazyPage(() => import('@/pages/requests/transaction/approve'));
 const ActionsPage = lazyPage(() => import('@/pages/actions'));
 const ConsolidatePage = lazyPage(() => import('@/pages/actions/consolidate'));
 const ConsolidateStatusPage = lazyPage(() => import('@/pages/actions/consolidate/status'));
