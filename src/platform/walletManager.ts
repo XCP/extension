@@ -59,6 +59,7 @@ import { huntInBackground } from '@/platform/zeldHunt';
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
 import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
+// Import types from centralized types module
 import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
 
 /** How long a keychain load waits for session recovery before declining to load this time. */

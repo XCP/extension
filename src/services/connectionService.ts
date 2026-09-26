@@ -43,7 +43,6 @@ export class ConnectionService {
     pendingPermissionRequests: new Set(),
   };
 
-  private static readonly STATE_VERSION = 1;
   private static readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   private static readonly SECURITY_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
 
