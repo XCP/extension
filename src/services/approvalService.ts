@@ -124,11 +124,11 @@ export class ApprovalService {
     try {
       const result = await promise;
       clearTimeout(timeoutId);
-      await this.trackApprovalResult(true);
+      await this.trackApprovalResult(options, true);
       return result;
     } catch (error) {
       clearTimeout(timeoutId);
-      await this.trackApprovalResult(false);
+      await this.trackApprovalResult(options, false);
       throw error;
     } finally {
       this.updateBadge();
@@ -337,7 +337,10 @@ export class ApprovalService {
     }
   }
 
-  private async trackApprovalResult(approved: boolean): Promise<void> {
+  private async trackApprovalResult(
+    options: ApprovalRequestOptions,
+    approved: boolean
+  ): Promise<void> {
     const eventName = approved ? 'request_approved' : 'request_rejected';
     await analytics.track(eventName);
   }

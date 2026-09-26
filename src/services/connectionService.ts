@@ -265,7 +265,7 @@ export class ConnectionService {
   /**
    * Get accounts for connected origin
    */
-  private async getAccounts(origin: string): Promise<string[]> {
+  async getAccounts(origin: string): Promise<string[]> {
     console.debug('[ConnectionService] getAccounts called for origin:', origin);
     
     const walletService = getWalletService();
