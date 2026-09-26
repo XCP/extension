@@ -228,6 +228,30 @@ describe('WalletContext', () => {
         expect(result.current.authState).toBe('UNLOCKED');
       });
     });
+
+    it('subscribes once and keeps its value across re-renders, whatever the service getter returns', async () => {
+      const { getWalletServiceClient } = await import('@/services/walletServiceClient');
+      // A getter that hands out a fresh object each call, as the proxy once did.
+      vi.mocked(getWalletServiceClient).mockImplementation(() => ({ ...mockWalletService }) as any);
+      const { onMessage } = await import('webext-bridge/popup');
+      try {
+        const { result, rerender } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+        await waitFor(() => { expect(result.current.authState).toBe('LOCKED'); });
+        const subscriptions = vi.mocked(onMessage).mock.calls.length;
+        const refreshes = mockWalletService.refreshWallets.mock.calls.length;
+        const value = result.current;
+
+        rerender();
+        rerender();
+        rerender();
+
+        expect(vi.mocked(onMessage).mock.calls.length).toBe(subscriptions);
+        expect(mockWalletService.refreshWallets.mock.calls.length).toBe(refreshes);
+        expect(result.current).toBe(value);
+      } finally {
+        vi.mocked(getWalletServiceClient).mockImplementation(() => mockWalletService as any);
+      }
+    });
   });
 
   describe('Wallet Creation', () => {

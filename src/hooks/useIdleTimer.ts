@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 export interface UseIdleTimerOptions {
   timeout: number;
@@ -22,28 +22,37 @@ const DEFAULT_EVENTS = [
   'resize',
 ];
 
-// Throttle function similar to react-idle-timer
-function throttle<T extends (...args: any[]) => any>(
-  func: T,
-  delay: number
-): T {
-  let timeoutId: NodeJS.Timeout | null = null;
+type Throttled<A extends unknown[]> = ((...args: A) => void) & { cancel: () => void };
+
+/**
+ * Throttle function similar to react-idle-timer's: at most one call per `delay`, with a trailing
+ * call for activity inside the window. `cancel` drops a pending trailing call, which would
+ * otherwise run after its listener is gone.
+ */
+function throttle<A extends unknown[]>(func: (...args: A) => void, delay: number): Throttled<A> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   let lastExecTime = 0;
 
-  return ((...args: Parameters<T>) => {
+  const throttled = (...args: A) => {
     const currentTime = Date.now();
 
     if (currentTime - lastExecTime > delay) {
       func(...args);
       lastExecTime = currentTime;
     } else {
-      if (timeoutId) clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
+        timeoutId = undefined;
         func(...args);
         lastExecTime = Date.now();
       }, delay - (currentTime - lastExecTime));
     }
-  }) as T;
+  };
+  throttled.cancel = () => {
+    clearTimeout(timeoutId);
+    timeoutId = undefined;
+  };
+  return throttled;
 }
 
 export function useIdleTimer(options: UseIdleTimerOptions) {
@@ -94,7 +103,7 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
     }, timeout);
   }, [timeout, disabled]);
 
-  const handleActivity = useCallback((event?: Event) => {
+  const handleActivity = useCallback(() => {
     if (disabled) {
       return;
     }
@@ -109,15 +118,13 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
     reset();
   }, [reset, disabled, stopOnIdle]);
 
-  // Create throttled activity handler
-  const throttledActivity = useRef(
-    eventsThrottle > 0 ? throttle(handleActivity, eventsThrottle) : handleActivity
-  );
-
-  // Update throttled handler when eventsThrottle changes
-  useEffect(() => {
-    throttledActivity.current = eventsThrottle > 0 ? throttle(handleActivity, eventsThrottle) : handleActivity;
-  }, [handleActivity, eventsThrottle]);
+  // Listeners call whatever handler is current, so a call that lands after `disabled` flips (a
+  // hardware operation starting) sees the new value rather than a closure from before it. Updated
+  // in a layout effect so no timer can run between the render and the update.
+  const handleActivityRef = useRef(handleActivity);
+  useLayoutEffect(() => {
+    handleActivityRef.current = handleActivity;
+  }, [handleActivity]);
 
   // Single effect for managing the idle timer and event listeners
   useEffect(() => {
@@ -140,9 +147,15 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
     // Start the timer
     reset();
 
-    // Add event listeners with proper cleanup tracking
+    // Add event listeners with proper cleanup tracking. The throttle is this effect's own, so its
+    // pending trailing call is cancelled with the listeners: left to run, it would start an idle
+    // timeout that nothing clears, and lock the wallet in the middle of a device confirmation.
+    const activity = () => { handleActivityRef.current(); };
+    const handler: Throttled<[]> = eventsThrottle > 0
+      ? throttle(activity, eventsThrottle)
+      : Object.assign(activity, { cancel: () => {} });
+    eventsListenersRef.current.push(() => { handler.cancel(); });
     events.forEach(event => {
-      const handler = throttledActivity.current;
       window.addEventListener(event, handler, { passive: true });
 
       // Store cleanup function
@@ -157,7 +170,7 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
       eventsListenersRef.current.forEach(cleanup => { cleanup(); });
       eventsListenersRef.current = [];
     };
-  }, [disabled, timeout, events, reset]);
+  }, [disabled, timeout, events, reset, eventsThrottle]);
 
   return {
     isIdle,
