@@ -8433,8 +8433,8 @@
     "description": "Cancellation row on the policy-offer funding approval: spending one of the coins that back the offers makes all of them impossible."
   },
   "marketplace_intent_notice_policy_offer_market_key": {
-    "message": "$1’s signing key can complete this offer for up to $2 until a funding UTXO is spent. Nothing is broadcast now.",
-    "description": "Caution on the policy-offer funding approval, naming the one trust the signature adds. $1 is the holder of the pinned market key (a company name), $2 is the largest offer amount in sats."
+    "message": "Standing offer. Can be filled without asking you again until $1, or until you cancel. Nothing is broadcast now.",
+    "description": "Caution on the policy-offer funding approval: the signed offer stays usable without another prompt. $1 is the offer expiry as a short date and time (for several alternatives, the latest expiry)."
   },
   "marketplace_intent_pays_for_two_transactions": {
     "message": "Pays for 2 transactions, $1 vB",

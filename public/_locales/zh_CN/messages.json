@@ -6335,7 +6335,7 @@
     "message": "花费任一资金 UTXO 即在链上取消所有备选出价"
   },
   "marketplace_intent_notice_policy_offer_market_key": {
-    "message": "在资金 UTXO 被花费之前，$1 的签名密钥最多可以 $2 完成此出价。现在不会广播任何内容。"
+    "message": "长期有效的出价。在 $1 之前或你取消之前，可无需再次询问你即被成交。现在不会广播任何内容。"
   },
   "marketplace_intent_pays_for_two_transactions": {
     "message": "支付 2 笔交易，$1 vB"

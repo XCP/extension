@@ -17,7 +17,7 @@ import { decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
-import { type AcceptPolicyOfferIntentClaim, parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
+import { type AcceptPolicyOfferIntentClaim, formatExpiry, parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import {
   type CanonicalPolicy,
   encodePolicyLeaf,
@@ -34,7 +34,7 @@ type Balance = { asset: string; quantity: string; quantity_normalized: string };
 
 const state = vi.hoisted(() => ({
   address: '',
-  /** The market key the test build pins: x-only of the private key 0x0b…0b. */
+  /** The market key the site names: x-only of the private key 0x0b…0b. The wallet pins no keys. */
   marketKey: '552c630b64b54bf50210c9e253d38bd4949c72e22873500f6285c2bede312a84',
   assets: new Map<string, Balance[] | 'fail'>(),
   txStatus: new Map<string, { confirmed: boolean; block_height?: number } | 'missing' | 'fail'>(),
@@ -45,9 +45,6 @@ const state = vi.hoisted(() => ({
     getActiveAddress: vi.fn(), getSettings: vi.fn(async () => ({ strictTransactionVerification: true })),
     signPsbt: vi.fn(), getPairedAddresses: vi.fn(),
   },
-}));
-vi.mock('@/core/counterparty/policyOfferKeys', () => ({
-  PINNED_POLICY_OFFER_MARKET_KEYS: [{ xOnlyKey: state.marketKey, operator: 'Digirare' }],
 }));
 vi.mock('@/services/walletService', () => ({ getWalletService: () => state.wallet }));
 vi.mock('@/platform/auth/sessionManager', () => ({ getSessionGeneration: () => 0, assertSessionGeneration: () => {} }));
@@ -302,10 +299,15 @@ describe('fund-policy-offer bundle', () => {
 
       expect(result.decodedInfo.review.blockers).toEqual([]);
       expect(result.decodedInfo.review.status).toBe('caution');
-      expect(result.decodedInfo.review.notices[0]?.message).toContain('Digirare');
+      // One standing-offer notice for the set, to the latest alternative's expiry.
+      const latest = Math.max(...(offer.claim.alternatives as Array<{ expiresAt: number }>).map(a => a.expiresAt));
+      expect(result.decodedInfo.review.notices).toEqual([{
+        severity: 'warning',
+        message: `Standing offer. Can be filled without asking you again until ${formatExpiry(latest)}, or until you cancel. Nothing is broadcast now.`,
+      }]);
       expect(result.decodedInfo.policyWarnings?.filter(warning => warning.severity === 'block')).toEqual([]);
       expect(result.policy.blocked).toBe(false);
-      // A routine caution: the card states the key holder's authority; no second confirmation.
+      // A routine caution: the card states the market key's authority; no second confirmation.
       expect(result.policy.requiresAcknowledgement).toBe(false);
       for (const item of result.decodedInfo.items) {
         expect(item.marketplaceReview).toMatchObject({ status: 'caution', family: 'fund_policy_offer' });
@@ -339,7 +341,7 @@ describe('fund-policy-offer bundle', () => {
     expect(result.policy.blocked).toBe(true);
   });
 
-  it('blocks the whole set when one alternative names an unpinned market key', async () => {
+  it('refuses a set whose alternatives name different market keys', async () => {
     const offer = policyOffer('wpkh', [90_000, 80_000], 92);
     const other = { ...(offer.items[1]!.marketplaceIntent as unknown as Record<string, unknown>), marketKey: INTERNAL_KEY };
     offer.items[1] = { ...offer.items[1]!, marketplaceIntent: other as never };

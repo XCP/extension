@@ -246,7 +246,7 @@ export async function decodePsbtBundleForApproval(
   stored: PsbtBundleApprovalInput,
   ownedAddresses?: string[],
   chain: LinkedAttachChainSource = liveLinkedAttachChainSource,
-  /** Pinned keys and clock for policy offers; the wallet's compiled-in defaults unless a test sets them. */
+  /** The verified requesting origin and clock for policy offers; the wallet clock unless a test sets it. */
   policyOfferContext: Omit<PolicyOfferWalletContext, 'fundingSettlement'> = {},
 ): Promise<DecodedPsbtBundleInfo> {
   if (stored.bundleKind === 'acceptance-cpfp') {
