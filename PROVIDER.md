@@ -509,6 +509,13 @@ software wallet and `[]` for a hardware wallet, whose batch contract accepts onl
 with every external input pre-signed). Send a linked bundle only when its kind is listed; an older
 wallet proves each item alone and blocks the listing below.
 
+**`accept_exact_offer` is served unsigned.** One party's signature is never served to another: the
+seller receives the acceptance template with the buyer's input 0 *unsigned*, signs only input 1
+with `SIGHASH_ALL`, and the market merges the buyer's stored input 0 signature server-side. The
+wallet blocks an acceptance whose input 0 already carries signature material. A wallet whose
+contract requires every external input to be pre-signed (hardware) therefore cannot accept exact
+offers; it refuses the request before any approval opens, with a reason the site can show.
+
 **`attach-and-list`.** The listing's asset input is the attach's output, which is not broadcast
 yet, so no Counterparty ledger can report its balance. The wallet uses the attach instead, read from
 its own bytes and never from the intent: the outpoint is the attach PSBT's unsigned txid and the

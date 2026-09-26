@@ -1461,6 +1461,40 @@ describe('ProviderService', () => {
         expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
 
+      it.each([
+        ['xcp_signPsbt', false],
+        ['xcp_signPsbts', true],
+      ] as const)('refuses hardware exact-offer acceptance through %s with a clear reason', async (method, bundle) => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        const seller = 'bc1qtest123';
+        const wallet = vi.mocked(walletService.getWalletService)();
+        wallet.getActiveWallet = vi.fn().mockResolvedValue({
+          id: 'wallet1',
+          name: 'Trezor',
+          type: 'hardware',
+          addressFormat: 'p2wpkh',
+          addresses: [{ address: seller, path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }],
+        } as never);
+        wallet.getActiveAddress = vi.fn().mockResolvedValue({ address: seller } as never);
+        const acceptIntent = { ...MARKETPLACE_EXACT_INTENT, action: 'accept_exact_offer', seller };
+        const parent = { hex: VALID_PSBT_HEX, signInputs: { [seller]: [1] }, sighashTypes: [0x01, 0x01] };
+
+        await expect(providerService.handleRequest(
+          'https://digirare.com',
+          method,
+          bundle
+            ? [{ requests: [
+              { ...parent, intent: acceptIntent },
+              { hex: VALID_PSBT_HEX, signInputs: { [seller]: [0] }, sighashTypes: [0x01],
+                intent: { ...MARKETPLACE_CPFP_INTENT, seller } },
+            ] }]
+            : [{ ...parent, intent: acceptIntent }],
+        )).rejects.toThrow(/cannot accept offers: the market adds the buyer's signature only after the seller signs/);
+
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
       it('rejects an unsupported hardware address format before opening approval', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
         connection.hasPermission = vi.fn().mockResolvedValue(true);

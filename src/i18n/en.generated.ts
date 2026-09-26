@@ -1203,7 +1203,7 @@ export const EN = {
   "marketplace_intent_none_now": "None now",
   "marketplace_intent_none_requested": "None requested",
   "marketplace_intent_not_now": "Not now",
-  "marketplace_intent_notice_accept_exact_offer": "Your signature completes this exact sale without a buyer callback. If the buyer already spent the shared funding UTXO, broadcast fails and your asset remains yours.",
+  "marketplace_intent_notice_accept_exact_offer": "You sign only your own input. The market completes this exact sale with the buyer's authorization it holds; no buyer callback is needed. If the buyer already spent the shared funding UTXO, broadcast fails and your asset remains yours.",
   "marketplace_intent_notice_accept_policy_offer": "Your signature completes this sale once the marketplace co-signs the buyer’s offer. If the offer is gone, nothing is broadcast and your asset stays yours.",
   "marketplace_intent_notice_authorize_exact_offer": "After signing, this seller can complete this exact trade without another approval. Other exact offers backed by the same funding UTXO are alternatives: the first confirmed spend wins and invalidates its siblings.",
   "marketplace_intent_notice_bulk_fanout_outputs_stay_in_wallet": "Every output remains controlled by this wallet. These plain-Bitcoin UTXOs fund later Counterparty attach transactions; no asset moves in this phase.",
