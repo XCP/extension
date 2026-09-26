@@ -5,16 +5,15 @@
  * - dApp connection/disconnection lifecycle
  * - Permission management and validation
  * - Connected websites tracking
- * - Connection-related rate limiting
+ * - One pending connection approval per origin (the connect rate limit lives in ProviderService)
  * - Connection security analysis
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { generateRequestId } from '@/core/id';
 import { pairedGrantCovers } from '@/core/pairedGrant';
-import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
-import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
 import { createWriteLock } from '@/platform/storage/mutex';
 import { type ApprovalPlacement, type ApprovalResult, getApprovalService } from '@/services/approvalService';
 import { eventEmitterService } from '@/services/eventEmitterService';
@@ -54,40 +53,14 @@ export class ConnectionService {
   }
 
   private async hasPermissionInternal(origin: string): Promise<boolean> {
-    // Check cache first (fast path)
-    const cached = this.state.connectionCache.get(origin);
-    const now = Date.now();
-    if (cached && now - (cached.lastActive || 0) < ConnectionService.CACHE_TTL) {
-      return cached.isConnected;
-    }
-
-    // The connection queue serializes this read with grants and revocations, so an old
-    // storage result cannot repopulate the cache after a disconnect has completed.
-    return this.doPermissionLookup(origin);
-  }
-
-  /**
-   * Perform the actual permission lookup from storage
-   */
-  private async doPermissionLookup(origin: string): Promise<boolean> {
+    // Read from the vault every time; nothing is cached. The grants are an in-memory read in the
+    // background, and they change in places that never pass through this service: a wallet reset
+    // replaces the whole keychain, and grant writes can be made on the wallet service directly. A
+    // cached yes outlived those, so a site connected before a reset kept receiving the new
+    // wallet's address for five minutes. The connection queue still serializes this read with
+    // grants and revocations.
     const settings = await getWalletService().getSettings();
-    const isConnected = settings.connectedWebsites.includes(origin);
-
-    // Only a positive answer is cached. A negative one is indistinguishable from "the keychain was
-    // not loaded when I asked", and caching that for the full TTL locked an approved origin out for
-    // five minutes — including after the wallet had finished waking up. Re-reading settings is
-    // cheap; being wrong for five minutes is not.
-    if (isConnected) {
-      this.state.connectionCache.set(origin, {
-        origin,
-        isConnected: true,
-        lastActive: Date.now(),
-      });
-    } else {
-      this.state.connectionCache.delete(origin);
-    }
-
-    return isConnected;
+    return settings.connectedWebsites.includes(origin);
   }
 
   /**
@@ -100,33 +73,29 @@ export class ConnectionService {
     pairedAddresses = false,
     placement: ApprovalPlacement = {}
   ): Promise<ApprovalResult> {
-    // Prevent duplicate requests for the same origin
+    // One approval per origin at a time. The key is claimed before the first await, so two
+    // concurrent requests cannot both pass the check. A site asking again while one waits is told
+    // so as -32005 (the same answer as the cap on waiting signing requests), not a masked -32603.
+    // The connect rate limit is charged once, by the provider service, for every
+    // xcp_requestAccounts — charging it here again made each connect cost two slots.
     const dedupeKey = `${origin}-pending`;
     if (this.state.pendingPermissionRequests.has(dedupeKey)) {
-      throw new Error('Connection request already pending for this origin');
-    }
-
-    // Check rate limiting
-    if (!connectionRateLimiter.isAllowed(origin)) {
-      const resetTime = connectionRateLimiter.getResetTime(origin);
-      throw new Error(
-        `Rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds before trying again.`
+      throw new ProviderError(
+        JSON_RPC_ERROR_CODES.LIMIT_EXCEEDED,
+        'A connection request from this site is already waiting for approval. Finish it before sending another.'
       );
     }
-
-    // Security checks before showing permission UI
-    await this.performSecurityChecks(origin);
-
-    // Track the connection request
-    await analytics.track('connection_request');
-
     const requestId = generateRequestId(origin);
-
-    // Add both dedupe key and request ID to pending set
     this.state.pendingPermissionRequests.add(dedupeKey);
     this.state.pendingPermissionRequests.add(requestId);
 
     try {
+      // Security checks before showing permission UI
+      await this.performSecurityChecks(origin);
+
+      // Track the connection request
+      await analytics.track('connection_request');
+
       // Use ApprovalService for unified approval handling
       const approvalService = getApprovalService();
 

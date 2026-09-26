@@ -291,7 +291,15 @@ describe('ConnectionService', () => {
   });
 
   describe('connect', () => {
+    /** Grants are written to the vault and read back from it, as in the background. */
+    function persistGrants() {
+      let settings = { ...(mockGetSettings() as Partial<AppSettings>) };
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async (updates) => { settings = { ...settings, ...updates }; });
+    }
+
     it('should successfully connect a new origin with user approval', async () => {
+      persistGrants();
       // mockApprovalService.requestApproval already returns { approved: true } by default
 
       const result = await connectionService.connect(
@@ -416,6 +424,7 @@ describe('ConnectionService', () => {
     });
 
     it('should validate address format', async () => {
+      persistGrants();
       // The actual ConnectionService doesn't validate Bitcoin addresses in connect method
       // So this test should pass - the address parameter is just stored for metadata
       const result = await connectionService.connect(
@@ -620,17 +629,21 @@ describe('ConnectionService', () => {
   });
 
   describe('rate limiting', () => {
-    it('should enforce connection rate limits', async () => {
-      // Mock rate limiter to reject requests immediately
+    // The provider service charges the connect limit once per xcp_requestAccounts. Charging it here
+    // as well made one connect cost two slots, and its refusal reached the site masked as -32603.
+    it('does not charge the connect rate limit a second time', async () => {
+      // Grants are written to the vault and read back from it, as in the background.
+      let settings = { ...(mockGetSettings() as Partial<AppSettings>) };
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async (updates) => { settings = { ...settings, ...updates }; });
       vi.mocked(connectionRateLimiter.isAllowed).mockReturnValue(false);
-      vi.mocked(connectionRateLimiter.getResetTime).mockReturnValue(30000); // 30 seconds
-      
-      // Should throw rate limit error immediately
+
       await expect(connectionService.connect(
         'https://rate-limited.com',
         '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
         'wallet-123'
-      )).rejects.toThrow('Rate limit exceeded. Please wait 30 seconds before trying again.');
+      )).resolves.toEqual(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']);
+      expect(connectionRateLimiter.isAllowed).not.toHaveBeenCalled();
     });
   });
 });

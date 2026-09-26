@@ -5664,10 +5664,6 @@
     "message": "Copy the private key shown here",
     "description": "pages/keychain/secrets/show-private-key.tsx"
   },
-  "secrets_show_private_key_failed_to_retrieve_private_key": {
-    "message": "Failed to retrieve private key",
-    "description": "pages/keychain/secrets/show-private-key.tsx"
-  },
   "secrets_show_private_key_failed_to_reveal_private_key": {
     "message": "Failed to reveal private key.",
     "description": "pages/keychain/secrets/show-private-key.tsx"

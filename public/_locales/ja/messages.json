@@ -4256,9 +4256,6 @@
   "secrets_show_private_key_copy_the_private_key_shown": {
     "message": "ここに表示された秘密鍵をコピー"
   },
-  "secrets_show_private_key_failed_to_retrieve_private_key": {
-    "message": "秘密鍵を取得できませんでした"
-  },
   "secrets_show_private_key_failed_to_reveal_private_key": {
     "message": "秘密鍵を表示できませんでした。"
   },

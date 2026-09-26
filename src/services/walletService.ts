@@ -19,11 +19,12 @@ import { defineProxyService } from '@/platform/proxy';
 import { walletManager } from '@/platform/walletManager';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { WALLET_SERVICE_NAME, WALLET_SERVICE_POLICY } from '@/services/walletServiceClient';
-import type { Address, PairedAddresses, SignTransactionOptions, Wallet } from '@/types/wallet';
+import type { Address, PairedAddresses, RevealSecretRequest, SignTransactionOptions, Wallet } from '@/types/wallet';
 
 export interface WalletService {
   refreshWallets: () => Promise<void>;
   getSettings: () => Promise<import('@/core/settings').AppSettings>;
+  /** Everything but the connection grants, which change only through the connection flow. */
   updateSettings: (updates: Partial<import('@/core/settings').AppSettings>) => Promise<void>;
   addConnectedWebsite: (origin: string, pairedIdentity?: { walletId: string; address: string; pairedAddress?: string }) => Promise<void>;
   removeConnectedWebsite: (origin: string) => Promise<void>;
@@ -67,9 +68,11 @@ export interface WalletService {
   resetKeychain: (password: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;
-  updateWalletPinnedAssets: (pinnedAssets: string[]) => Promise<void>;
-  getUnencryptedMnemonic: (walletId: string) => Promise<string>;
-  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
+  /**
+   * A recovery phrase or WIF private key for the reveal screens, once the password is checked here.
+   * Null for a wrong password, which counts as a failed unlock attempt.
+   */
+  revealSecret: (request: RevealSecretRequest) => Promise<string | null>;
   removeWallet: (walletId: string) => Promise<void>;
   /** The address a format gives at a derivation index (default 0). */
   getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat, addressIndex?: number) => Promise<string>;
@@ -80,6 +83,10 @@ export interface WalletService {
   signMessage: (message: string, address: string, expectedIdentity?: { walletId: string; address: string }) => Promise<{ signature: string; address: string }>;
   signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
   getLastActiveAddress: () => Promise<string | undefined>;
+  /** Script addresses `payer` has already paid, so the notice for them is not repeated. */
+  getKnownScriptRecipients: (payer: string) => Promise<string[]>;
+  /** Remember, in the encrypted keychain, that `payer` paid these script addresses. */
+  recordScriptRecipients: (payer: string, recipients: string[]) => Promise<void>;
   setLastActiveAddress: (address: string) => Promise<void>;
   /** Record user activity; `activityTime` is when it happened, for activity the UI reports late. */
   setLastActiveTime: (activityTime?: number) => Promise<void>;
@@ -128,6 +135,12 @@ function createWalletService(): WalletService {
     },
     getSettings: async () => walletManager.getSettings(),
     updateSettings: async (updates) => {
+      // Grants are written only by the connection flow (ConnectionService), which asks the user
+      // first. A settings write that carried them could re-grant a revoked site or overwrite a
+      // grant made meanwhile from a stale copy.
+      if (Object.hasOwn(updates, 'connectedWebsites') || Object.hasOwn(updates, 'providerCapabilities')) {
+        throw new Error('Connected sites change only through the connection flow');
+      }
       await walletManager.updateSettings(updates);
     },
     addConnectedWebsite: async (origin, pairedIdentity) => walletManager.addConnectedWebsite(origin, pairedIdentity),
@@ -215,15 +228,7 @@ function createWalletService(): WalletService {
     },
     updateWalletAddressFormat: async (walletId, newType) => withActiveAddressChange(
       () => walletManager.updateWalletAddressFormat(walletId, newType)),
-    updateWalletPinnedAssets: async (pinnedAssets) => {
-      await walletManager.updateWalletPinnedAssets(pinnedAssets);
-    },
-    getUnencryptedMnemonic: async (walletId) => {
-      return await walletManager.getUnencryptedMnemonic(walletId);
-    },
-    getPrivateKey: async (walletId, derivationPath) => {
-      return walletManager.getPrivateKey(walletId, derivationPath);
-    },
+    revealSecret: async (request) => walletManager.revealSecret(request),
     removeWallet: async (walletId) => withActiveAddressChange(() => walletManager.removeWallet(walletId)),
     getPreviewAddressForFormat: async (walletId, addressFormat, addressIndex) => {
       return await walletManager.getPreviewAddressForFormat(walletId, addressFormat, addressIndex);
@@ -244,6 +249,8 @@ function createWalletService(): WalletService {
     signPsbt: async (psbtHex, signInputs, sighashTypes, expectedIdentity) => {
       return walletManager.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity);
     },
+    getKnownScriptRecipients: async (payer) => walletManager.getKnownScriptRecipients(payer),
+    recordScriptRecipients: async (payer, recipients) => walletManager.recordScriptRecipients(payer, recipients),
     getLastActiveAddress: async () => {
       const settings = walletManager.getSettings();
       return settings?.lastActiveAddress;

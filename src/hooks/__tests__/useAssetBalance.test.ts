@@ -10,7 +10,8 @@ vi.mock('@/core/bitcoin/balance', () => ({
   fetchBTCBalance: vi.fn()
 }));
 
-vi.mock('../utils/fetchAssetData', () => ({
+vi.mock('../utils/fetchAssetData', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../utils/fetchAssetData')>()),
   fetchAssetDetailsAndBalance: vi.fn()
 }));
 
@@ -23,8 +24,9 @@ vi.mock('@/contexts/wallet-context', () => ({
 }));
 
 // The balance cache is shared app-wide, so the mock has to be mutable: a test needs to be able to
-// write into it the way a second mounted component would.
-const headerCache = vi.hoisted(() => ({ balances: {} as Record<string, any> }));
+// write into it the way a second mounted component would. It is keyed by address, then asset.
+const headerCache = vi.hoisted(() => ({ balances: {} as Record<string, Record<string, any>> }));
+const cacheFor = (entries: Record<string, any>) => ({ bc1qtest123: entries });
 
 vi.mock('@/contexts/header-context', () => ({
   useHeader: () => ({
@@ -56,32 +58,69 @@ describe('useAssetBalance', () => {
   // refreshes the same asset it writes the new balance into the shared header cache — this hook
   // has to notice, or the form goes on showing the number it read when it mounted.
   it('picks up a balance another component wrote into the shared cache', async () => {
-    headerCache.balances = {
+    // The mount's own revalidation is still in flight throughout: only the cache is moving.
+    vi.mocked(fetchAssetDetailsAndBalance).mockReturnValue(new Promise(() => {}));
+    headerCache.balances = cacheFor({
       XCP: {
         asset: 'XCP',
         quantity_normalized: asDisplayUnits('10.00000000'),
         asset_info: { divisible: true },
       },
-    };
+    });
 
     const { result, rerender } = renderHook(() => useAssetBalance('XCP'));
 
-    await waitFor(() => expect(result.current.balance).toBe('10.00000000'));
-    expect(fetchAssetDetailsAndBalance).not.toHaveBeenCalled();
+    // Shown from the cache at once, without waiting for the read.
+    expect(result.current.balance).toBe('10.00000000');
+    expect(result.current.isLoading).toBe(false);
+    expect(fetchAssetDetailsAndBalance).toHaveBeenCalledTimes(1);
 
     // Someone else refreshes XCP and writes the fresher figure into the shared cache.
-    headerCache.balances = {
+    headerCache.balances = cacheFor({
       XCP: {
         asset: 'XCP',
         quantity_normalized: asDisplayUnits('42.00000000'),
         asset_info: { divisible: true },
       },
-    };
+    });
     rerender();
 
     await waitFor(() => expect(result.current.balance).toBe('42.00000000'));
-    // Reading the cache must not trigger a network fetch.
-    expect(fetchAssetDetailsAndBalance).not.toHaveBeenCalled();
+    // Reading the cache must not trigger another network fetch.
+    expect(fetchAssetDetailsAndBalance).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads again when the cache entry is cleared, as it is after a broadcast', async () => {
+    vi.mocked(fetchAssetDetailsAndBalance)
+      .mockResolvedValueOnce({ availableBalance: '100.00000000', isDivisible: true, assetInfo: mockXCPAssetInfo })
+      .mockResolvedValueOnce({ availableBalance: '60.00000000', isDivisible: true, assetInfo: mockXCPAssetInfo });
+    headerCache.balances = cacheFor({
+      XCP: { asset: 'XCP', quantity_normalized: asDisplayUnits('100.00000000'), asset_info: { divisible: true } },
+    });
+
+    const { result, rerender } = renderHook(() => useAssetBalance('XCP'));
+    await waitFor(() => expect(fetchAssetDetailsAndBalance).toHaveBeenCalledTimes(1));
+
+    headerCache.balances = {};
+    rerender();
+
+    await waitFor(() => expect(fetchAssetDetailsAndBalance).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.balance).toBe('60.00000000'));
+  });
+
+  it('never answers with a balance cached for another address', async () => {
+    vi.mocked(fetchAssetDetailsAndBalance).mockReturnValue(new Promise(() => {}));
+    headerCache.balances = {
+      bc1qsomeoneelse: {
+        XCP: { asset: 'XCP', quantity_normalized: asDisplayUnits('999.00000000'), asset_info: { divisible: true } },
+      },
+    };
+
+    const { result } = renderHook(() => useAssetBalance('XCP'));
+
+    expect(result.current.balance).toBeNull();
+    expect(result.current.isLoading).toBe(true);
+    expect(fetchAssetDetailsAndBalance).toHaveBeenCalledWith('XCP', 'bc1qtest123');
   });
 
   /**
@@ -100,9 +139,9 @@ describe('useAssetBalance', () => {
     await waitFor(() => expect(fetchAssetDetailsAndBalance).toHaveBeenCalledTimes(1));
 
     for (const amount of ['0.00000000', '100.00000000', '0.00000000', '7.00000000']) {
-      headerCache.balances = {
+      headerCache.balances = cacheFor({
         XCP: { asset: 'XCP', quantity_normalized: asDisplayUnits(amount), asset_info: { divisible: true } },
-      };
+      });
       rerender();
     }
 
@@ -110,25 +149,26 @@ describe('useAssetBalance', () => {
   });
 
   it('picks up a divisibility correction from the shared cache', async () => {
-    headerCache.balances = {
+    vi.mocked(fetchAssetDetailsAndBalance).mockReturnValue(new Promise(() => {}));
+    headerCache.balances = cacheFor({
       RAREPEPE: {
         asset: 'RAREPEPE',
         quantity_normalized: asDisplayUnits('5'),
         asset_info: { divisible: true },
       },
-    };
+    });
 
     const { result, rerender } = renderHook(() => useAssetBalance('RAREPEPE'));
 
     await waitFor(() => expect(result.current.isDivisible).toBe(true));
 
-    headerCache.balances = {
+    headerCache.balances = cacheFor({
       RAREPEPE: {
         asset: 'RAREPEPE',
         quantity_normalized: asDisplayUnits('5'),
         asset_info: { divisible: false },
       },
-    };
+    });
     rerender();
 
     await waitFor(() => expect(result.current.isDivisible).toBe(false));

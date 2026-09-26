@@ -21,7 +21,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
   const { walletId, addressPath } = useParams<{ walletId: string; addressPath?: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { selectWallet, getPrivateKey, verifyPassword, wallets } = useWallet();
+  const { selectWallet, revealSecret, wallets } = useWallet();
   const { pending } = useFormStatus();
 
   const [privateKey, setPrivateKey] = useState("");
@@ -37,31 +37,40 @@ export default function ShowPrivateKeyPage(): ReactElement {
     formAction: handleFormAction,
   } = useSecretReveal({
     walletId,
-    verifyPassword,
-    onVerified: async () => {
-      // Checked after the password, as it was before: a missing path is not a
-      // reason to tell someone whether their password was right.
-      if (walletType === "mnemonic" && !addressPath) {
-        throw new Error(t('secrets_show_private_key_address_derivation_path_is_missing'));
-      }
+    reveal: async (password) => {
+      let wif: string | null;
       try {
-        // Load the wallet to decrypt its secret
+        // The background checks the password before it decrypts anything; null means it was wrong.
+        wif = await revealSecret({
+          walletId: walletId!,
+          password,
+          kind: 'privateKey',
+          ...(walletType === "privateKey" ? {} : { path: addressPath }),
+        });
+      } catch (err) {
+        console.error("Error revealing private key:", err);
+        // The background asks for the path only once the password is right, as this page did: a
+        // missing path is not a reason to tell someone whether their password was right.
+        if (walletType === "mnemonic" && !addressPath) {
+          throw new Error(t('secrets_show_private_key_address_derivation_path_is_missing'));
+        }
+        throw new Error(
+          err instanceof Error ? err.message : t('secrets_show_private_key_failed_to_reveal_private_key')
+        );
+      }
+      if (wif === null) return false;
+      if (!wif) throw new Error(t('secrets_show_private_key_private_key_wif_format_not'));
+      try {
+        // Revealing a wallet's key has always made it the active wallet.
         await selectWallet(walletId!);
-        const privKeyData =
-          walletType === "privateKey"
-            ? await getPrivateKey(walletId!)
-            : await getPrivateKey(walletId!, addressPath);
-
-        if (!privKeyData) throw new Error(t('secrets_show_private_key_failed_to_retrieve_private_key'));
-        if (!privKeyData.wif) throw new Error(t('secrets_show_private_key_private_key_wif_format_not'));
-
-        setPrivateKey(privKeyData.wif);
       } catch (err) {
         console.error("Error revealing private key:", err);
         throw new Error(
           err instanceof Error ? err.message : t('secrets_show_private_key_failed_to_reveal_private_key')
         );
       }
+      setPrivateKey(wif);
+      return true;
     },
   });
 

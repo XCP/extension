@@ -1,9 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fakeBrowser } from 'wxt/testing/fake-browser';
 import '@testing-library/jest-dom/vitest';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
-import { getKnownScriptRecipients, recordScriptRecipients } from '@/platform/storage/scriptRecipientStorage';
+import { getKnownScriptRecipients, recordScriptRecipients } from '@/services/scriptRecipientsClient';
 import { ConsolidationReview } from './review';
 
 const api = vi.hoisted(() => ({
@@ -11,6 +10,20 @@ const api = vi.hoisted(() => ({
   fetchOwnedAssets: vi.fn(),
 }));
 vi.mock('@/core/counterparty/api', () => api);
+
+// The wallet keeps the paid recipients in its encrypted keychain; this stands in for it.
+const recipients = vi.hoisted(() => ({ pairs: [] as string[] }));
+vi.mock('@/services/walletServiceClient', async () => {
+  const { knownScriptRecipients, withScriptRecipients } = await import('@/core/wallet/scriptRecipients');
+  return {
+    getWalletServiceClient: () => ({
+      getKnownScriptRecipients: async (payer: string) => knownScriptRecipients(recipients.pairs, payer),
+      recordScriptRecipients: async (payer: string, paid: string[]) => {
+        recipients.pairs = withScriptRecipients(recipients.pairs, payer, paid) ?? recipients.pairs;
+      },
+    }),
+  };
+});
 
 const SOURCE = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
 const P2TR = 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr';
@@ -53,7 +66,7 @@ async function signWhenReady(name: string) {
 describe('ConsolidationReview script-address caution', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fakeBrowser.reset();
+    recipients.pairs = [];
     api.fetchTokenBalances.mockResolvedValue([{ asset: 'XCP' }]);
     api.fetchOwnedAssets.mockResolvedValue([]);
   });

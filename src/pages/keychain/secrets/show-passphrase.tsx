@@ -20,7 +20,7 @@ export default function ShowPassphrasePage(): ReactElement {
   const { walletId } = useParams<{ walletId: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { selectWallet, getUnencryptedMnemonic, verifyPassword } = useWallet();
+  const { selectWallet, revealSecret } = useWallet();
   const { pending } = useFormStatus();
 
   const [passphrase, setPassphrase] = useState("");
@@ -33,13 +33,14 @@ export default function ShowPassphrasePage(): ReactElement {
     formAction: handleFormAction,
   } = useSecretReveal({
     walletId,
-    verifyPassword,
-    onVerified: async () => {
+    reveal: async (password) => {
       let mnemonic: string | null;
       try {
-        // Load the wallet to decrypt its secret
+        // The background checks the password before it decrypts anything; null means it was wrong.
+        mnemonic = await revealSecret({ walletId: walletId!, password, kind: 'mnemonic' });
+        if (mnemonic === null) return false;
+        // Revealing a wallet's phrase has always made it the active wallet.
         await selectWallet(walletId!);
-        mnemonic = await getUnencryptedMnemonic(walletId!);
       } catch (err) {
         console.error("Error revealing passphrase:", err);
         throw new Error(t('secrets_show_passphrase_incorrect_password_or_failed_to'));
@@ -48,6 +49,7 @@ export default function ShowPassphrasePage(): ReactElement {
       // as the retrieval throwing, and the two said different things before.
       if (!mnemonic) throw new Error(t('secrets_show_passphrase_unable_to_retrieve_recovery_phrase'));
       setPassphrase(mnemonic);
+      return true;
     },
   });
 

@@ -113,6 +113,12 @@ export interface Keychain {
   wallets: WalletRecord[];
   /** Application settings (encrypted with keychain) */
   settings: AppSettings;
+  /**
+   * Script addresses this wallet's addresses have already paid, as "payer recipient" pairs, so
+   * the script-address notice is not repeated (see core/wallet/scriptRecipients). Absent until the
+   * first is recorded.
+   */
+  scriptPaymentRecipients?: string[];
 }
 
 /**
@@ -130,6 +136,19 @@ export interface KeychainRecord {
   salt: string;
   /** Encrypted keychain blob (base64, IV + ciphertext) */
   encryptedKeychain: string;
+}
+
+/**
+ * A request to show the user one of a wallet's secrets. The password is checked in the
+ * background before anything is decrypted.
+ */
+export interface RevealSecretRequest {
+  walletId: string;
+  password: string;
+  /** The recovery phrase of a mnemonic wallet, or a private key in WIF. */
+  kind: 'mnemonic' | 'privateKey';
+  /** For a mnemonic wallet's private key: the address's derivation path. */
+  path?: string;
 }
 
 // ============================================================================

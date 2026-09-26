@@ -11,25 +11,24 @@ const form = (password?: string) => {
 describe('useSecretReveal', () => {
   // Typed rather than ReturnType<typeof vi.fn>, which infers Mock<Constructable | Procedure> and
   // matches no call signature the hook accepts.
-  let verifyPassword: Mock<(password: string) => Promise<boolean>>;
-  let onVerified: Mock<() => Promise<void>>;
+  let reveal: Mock<(password: string) => Promise<boolean>>;
 
   beforeEach(() => {
-    verifyPassword = vi.fn<(password: string) => Promise<boolean>>().mockResolvedValue(true);
-    onVerified = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    reveal = vi.fn<(password: string) => Promise<boolean>>().mockResolvedValue(true);
   });
 
   // Takes walletId explicitly: a default parameter would swallow the `undefined`
   // that the no-wallet case is specifically about.
   const setup = (walletId: string | undefined) =>
-    renderHook(() => useSecretReveal({ walletId, verifyPassword, onVerified }));
+    renderHook(() => useSecretReveal({ walletId, reveal }));
 
-  it('reveals once the password verifies', async () => {
+  it('reveals once the background accepts the password', async () => {
     const { result } = setup('wallet-1');
     await act(() => result.current.formAction(form('correct horse battery')));
 
     await waitFor(() => expect(result.current.isRevealed).toBe(true));
-    expect(onVerified).toHaveBeenCalledTimes(1);
+    expect(reveal).toHaveBeenCalledTimes(1);
+    expect(reveal).toHaveBeenCalledWith('correct horse battery');
     expect(result.current.submissionError).toBe('');
   });
 
@@ -38,18 +37,16 @@ describe('useSecretReveal', () => {
     await act(() => result.current.formAction(form('correct horse battery')));
 
     expect(result.current.submissionError).toBe('Invalid wallet.');
-    expect(verifyPassword).not.toHaveBeenCalled();
-    expect(onVerified).not.toHaveBeenCalled();
+    expect(reveal).not.toHaveBeenCalled();
     expect(result.current.isRevealed).toBe(false);
   });
 
-  it('rejects a short password without asking the verifier', async () => {
+  it('rejects a short password without asking the background', async () => {
     const { result } = setup('wallet-1');
     await act(() => result.current.formAction(form('short')));
 
     expect(result.current.submissionError).toMatch(/at least \d+ characters/);
-    expect(verifyPassword).not.toHaveBeenCalled();
-    expect(onVerified).not.toHaveBeenCalled();
+    expect(reveal).not.toHaveBeenCalled();
   });
 
   it('requires a password', async () => {
@@ -57,33 +54,22 @@ describe('useSecretReveal', () => {
     await act(() => result.current.formAction(form()));
 
     expect(result.current.submissionError).toBe('Password is required.');
-    expect(verifyPassword).not.toHaveBeenCalled();
+    expect(reveal).not.toHaveBeenCalled();
   });
 
   // The secret must stay unreachable on every failing path, including the one
-  // where the verifier itself blows up rather than returning false.
+  // where the reveal itself blows up rather than reporting a wrong password.
   it('does not reveal when the password is wrong', async () => {
-    verifyPassword.mockResolvedValue(false);
+    reveal.mockResolvedValue(false);
     const { result } = setup('wallet-1');
     await act(() => result.current.formAction(form('correct horse battery')));
 
     expect(result.current.submissionError).toBe('Incorrect password.');
-    expect(onVerified).not.toHaveBeenCalled();
     expect(result.current.isRevealed).toBe(false);
   });
 
-  it('treats a throwing verifier as a failed verification, not a passing one', async () => {
-    verifyPassword.mockRejectedValue(new Error('storage exploded'));
-    const { result } = setup('wallet-1');
-    await act(() => result.current.formAction(form('correct horse battery')));
-
-    expect(result.current.submissionError).toBe('Incorrect password.');
-    expect(onVerified).not.toHaveBeenCalled();
-    expect(result.current.isRevealed).toBe(false);
-  });
-
-  it('stays unrevealed and shows the thrown message when retrieval fails', async () => {
-    onVerified.mockRejectedValue(new Error('Unable to retrieve recovery phrase.'));
+  it('stays unrevealed and shows the thrown message when the reveal fails', async () => {
+    reveal.mockRejectedValue(new Error('Unable to retrieve recovery phrase.'));
     const { result } = setup('wallet-1');
     await act(() => result.current.formAction(form('correct horse battery')));
 
@@ -92,7 +78,7 @@ describe('useSecretReveal', () => {
   });
 
   it('clears a previous error on the next attempt', async () => {
-    verifyPassword.mockResolvedValueOnce(false);
+    reveal.mockResolvedValueOnce(false);
     const { result } = setup('wallet-1');
     await act(() => result.current.formAction(form('correct horse battery')));
     expect(result.current.submissionError).toBe('Incorrect password.');

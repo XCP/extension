@@ -874,7 +874,15 @@ describe("BalanceList", () => {
     await waitFor(() => expect(mockFetchTokenBalances).toHaveBeenCalledTimes(2));
     await act(async () => resolvePage([{ ...mockTokenBalances[0]!, asset: "STALE" }]));
     expect(screen.queryByText("STALE")).not.toBeInTheDocument();
-    expect(mockCacheBalances).not.toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ asset: "STALE" })]));
+    expect(mockCacheBalances).not.toHaveBeenCalledWith(expect.anything(), expect.arrayContaining([expect.objectContaining({ asset: "STALE" })]));
+    // Each address's balances are cached under that address, never under the one it replaced.
+    for (const [holder, balances] of mockCacheBalances.mock.calls) {
+      expect(typeof holder).toBe("string");
+      expect(Array.isArray(balances)).toBe(true);
+    }
+    if (change === "address") {
+      expect(mockCacheBalances).toHaveBeenLastCalledWith("bc1qsecond", expect.any(Array));
+    }
     expect(mockFetchTokenBalances).toHaveBeenLastCalledWith(change === "address" ? "bc1qsecond" : "bc1qtest123", { type: "address", limit: 100, offset: 0 });
     expect(onRefreshed).toHaveBeenCalledTimes(change === "refresh" ? 1 : 0);
   });
