@@ -6,12 +6,10 @@ const eventEmitterService = new EventEmitterService<Record<string, unknown>>();
 
 describe('EventEmitterService', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     eventEmitterService.clear();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     eventEmitterService.clear();
   });
 
@@ -118,188 +116,7 @@ describe('EventEmitterService', () => {
       eventEmitterService.on('test-event', callback);
       eventEmitterService.off('test-event', callback);
 
-      const stats = eventEmitterService.getStats();
-      expect(stats.listenersByEvent['test-event']).toBeUndefined();
-    });
-  });
-
-  describe('emitProviderEvent', () => {
-    it('should emit to origin-specific listeners', () => {
-      const callback = vi.fn();
-
-      eventEmitterService.on('accountsChanged', callback, 'https://example.com');
-      eventEmitterService.emitProviderEvent('https://example.com', 'accountsChanged', ['0x123']);
-
-      expect(callback).toHaveBeenCalledWith(['0x123']);
-    });
-
-    it('should not emit to listeners for different origins', () => {
-      const callback = vi.fn();
-
-      eventEmitterService.on('accountsChanged', callback, 'https://other.com');
-      eventEmitterService.emitProviderEvent('https://example.com', 'accountsChanged', ['0x123']);
-
-      expect(callback).not.toHaveBeenCalled();
-    });
-
-    it('should emit to wildcard listeners along with origin', () => {
-      const wildcardCallback = vi.fn();
-
-      eventEmitterService.on('accountsChanged', wildcardCallback);
-      eventEmitterService.emitProviderEvent('https://example.com', 'accountsChanged', ['0x123']);
-
-      expect(wildcardCallback).toHaveBeenCalledWith(['0x123'], 'https://example.com');
-    });
-
-    it('should emit to both origin-specific and wildcard listeners', () => {
-      const originCallback = vi.fn();
-      const wildcardCallback = vi.fn();
-
-      eventEmitterService.on('accountsChanged', originCallback, 'https://example.com');
-      eventEmitterService.on('accountsChanged', wildcardCallback);
-      eventEmitterService.emitProviderEvent('https://example.com', 'accountsChanged', ['0x123']);
-
-      expect(originCallback).toHaveBeenCalledWith(['0x123']);
-      expect(wildcardCallback).toHaveBeenCalledWith(['0x123'], 'https://example.com');
-    });
-
-    it('should emit to all listeners when origin is null', () => {
-      const callback = vi.fn();
-
-      eventEmitterService.on('globalEvent', callback);
-      eventEmitterService.emitProviderEvent(null, 'globalEvent', 'data');
-
-      expect(callback).toHaveBeenCalledWith('data');
-    });
-
-    it('observes rejections from both origin-specific and wildcard listeners', async () => {
-      const failure = new Error('Provider forwarding failed');
-      const report = vi.spyOn(console, 'error').mockImplementation(() => {});
-      eventEmitterService.on('accountsChanged', async () => { throw failure; }, 'https://example.com');
-      eventEmitterService.on('accountsChanged', async () => { throw failure; });
-
-      eventEmitterService.emitProviderEvent('https://example.com', 'accountsChanged', []);
-      await Promise.resolve();
-      expect(report).toHaveBeenCalledWith(
-        '[EventEmitter] Error in event listener for https://example.com:accountsChanged:', failure,
-      );
-      expect(report).toHaveBeenCalledWith(
-        '[EventEmitter] Error in event listener for accountsChanged:', failure,
-      );
-      report.mockRestore();
-    });
-  });
-
-  describe('onWithTimeout', () => {
-    it('should register a listener with timeout', () => {
-      const callback = vi.fn();
-
-      eventEmitterService.onWithTimeout('test-event', callback, 1000);
-      eventEmitterService.emit('test-event', 'data');
-
-      expect(callback).toHaveBeenCalledWith('data');
-    });
-
-    it('should auto-cleanup listener after timeout', () => {
-      const callback = vi.fn();
-
-      eventEmitterService.onWithTimeout('test-event', callback, 1000);
-
-      // Advance past timeout
-      vi.advanceTimersByTime(1001);
-
-      // Listener should be removed
-      eventEmitterService.emit('test-event', 'data');
-
-      expect(callback).not.toHaveBeenCalled();
-    });
-
-    it('should not auto-cleanup before timeout', () => {
-      const callback = vi.fn();
-
-      eventEmitterService.onWithTimeout('test-event', callback, 1000);
-
-      // Advance but not past timeout
-      vi.advanceTimersByTime(999);
-
-      eventEmitterService.emit('test-event', 'data');
-
-      expect(callback).toHaveBeenCalled();
-    });
-
-    it('should clear timeout when manually removed', () => {
-      const callback = vi.fn();
-
-      eventEmitterService.onWithTimeout('test-event', callback, 1000);
-      eventEmitterService.off('test-event', callback);
-
-      // Advance past original timeout
-      vi.advanceTimersByTime(1001);
-
-      // Should have no effect since we already removed it
-      eventEmitterService.emit('test-event', 'data');
-      expect(callback).not.toHaveBeenCalled();
-    });
-
-    it('should track timed listeners in stats', () => {
-      const callback = vi.fn();
-
-      eventEmitterService.onWithTimeout('test-event', callback, 1000);
-
-      const stats = eventEmitterService.getStats();
-      expect(stats.timedListenerCount).toBe(1);
-    });
-  });
-
-  describe('pendingRequests', () => {
-    it('should store and resolve pending requests', () => {
-      const resolver = vi.fn();
-
-      eventEmitterService.setPendingRequest('req-1', resolver);
-      const resolved = eventEmitterService.resolvePendingRequest('req-1', { result: 'success' });
-
-      expect(resolved).toBe(true);
-      expect(resolver).toHaveBeenCalledWith({ result: 'success' });
-    });
-
-    it('should return false for non-existent request', () => {
-      const resolved = eventEmitterService.resolvePendingRequest('non-existent', 'value');
-
-      expect(resolved).toBe(false);
-    });
-
-    it('should remove request after resolving', () => {
-      const resolver = vi.fn();
-
-      eventEmitterService.setPendingRequest('req-1', resolver);
-      eventEmitterService.resolvePendingRequest('req-1', 'value');
-
-      // Second resolve should fail
-      const resolved = eventEmitterService.resolvePendingRequest('req-1', 'value2');
-      expect(resolved).toBe(false);
-      expect(resolver).toHaveBeenCalledTimes(1);
-    });
-
-    it('should clear pending request without resolving', () => {
-      const resolver = vi.fn();
-
-      eventEmitterService.setPendingRequest('req-1', resolver);
-      eventEmitterService.clearPendingRequest('req-1');
-
-      const resolved = eventEmitterService.resolvePendingRequest('req-1', 'value');
-      expect(resolved).toBe(false);
-      expect(resolver).not.toHaveBeenCalled();
-    });
-
-    it('should track pending request count', () => {
-      eventEmitterService.setPendingRequest('req-1', vi.fn());
-      eventEmitterService.setPendingRequest('req-2', vi.fn());
-      eventEmitterService.setPendingRequest('req-3', vi.fn());
-
-      expect(eventEmitterService.getPendingRequestCount()).toBe(3);
-
-      eventEmitterService.resolvePendingRequest('req-2', 'value');
-      expect(eventEmitterService.getPendingRequestCount()).toBe(2);
+      expect((eventEmitterService as unknown as { listeners: Map<string, unknown> }).listeners.has('test-event')).toBe(false);
     });
   });
 
@@ -318,58 +135,13 @@ describe('EventEmitterService', () => {
       expect(callback1).not.toHaveBeenCalled();
       expect(callback2).not.toHaveBeenCalled();
     });
-
-    it('should clear all pending requests', () => {
-      eventEmitterService.setPendingRequest('req-1', vi.fn());
-      eventEmitterService.setPendingRequest('req-2', vi.fn());
-
-      eventEmitterService.clear();
-
-      expect(eventEmitterService.getPendingRequestCount()).toBe(0);
-    });
-
-    it('should clear timed listener timeouts', () => {
-      const callback = vi.fn();
-
-      eventEmitterService.onWithTimeout('test-event', callback, 1000);
-      eventEmitterService.clear();
-
-      const stats = eventEmitterService.getStats();
-      expect(stats.timedListenerCount).toBe(0);
-    });
-  });
-
-  describe('getStats', () => {
-    it('should return correct statistics', () => {
-      eventEmitterService.on('event-1', vi.fn());
-      eventEmitterService.on('event-1', vi.fn());
-      eventEmitterService.on('event-2', vi.fn());
-      eventEmitterService.onWithTimeout('event-3', vi.fn(), 1000);
-      eventEmitterService.setPendingRequest('req-1', vi.fn());
-
-      const stats = eventEmitterService.getStats();
-
-      expect(stats.listenerCount).toBe(3); // 3 event keys
-      expect(stats.pendingRequestCount).toBe(1);
-      expect(stats.timedListenerCount).toBe(1);
-      expect(stats.listenersByEvent['event-1']).toBe(2);
-      expect(stats.listenersByEvent['event-2']).toBe(1);
-      expect(stats.listenersByEvent['event-3']).toBe(1);
-    });
-
   });
 
   describe('BaseService implementation', () => {
-    it('should return serializable state', () => {
+    it('persists nothing, since callbacks cannot outlive the worker', () => {
       eventEmitterService.on('event-1', vi.fn());
-      eventEmitterService.setPendingRequest('req-1', vi.fn());
 
-      const state = (eventEmitterService as any).getSerializableState();
-
-      expect(state).toEqual({
-        listenerKeys: ['event-1'],
-        pendingRequestIds: ['req-1'],
-      });
+      expect((eventEmitterService as any).getSerializableState()).toBeNull();
     });
 
   });
