@@ -37,12 +37,18 @@ for (const diagnostic of diagnostics) {
   }
 }
 
+// Never adds allowances: fixes reduce the committed budget, including deleted files.
+const pruned = Object.fromEntries(Object.entries(baseline.warnings)
+  .map(([key, count]) => [key, Math.min(count, counts.get(key) ?? 0)])
+  .filter(([, count]) => count > 0));
 if (process.argv.includes('--prune')) {
-  // Never adds allowances: fixes reduce the committed budget, including deleted files.
-  baseline.warnings = Object.fromEntries(Object.entries(baseline.warnings)
-    .map(([key, count]) => [key, Math.min(count, counts.get(key) ?? 0)])
-    .filter(([, count]) => count > 0));
+  baseline.warnings = pruned;
   writeFileSync(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`);
+} else if (process.env.CI && JSON.stringify(pruned) !== JSON.stringify(baseline.warnings)) {
+  // In CI, a budget above the current count is slack a later change could spend on new
+  // warnings, so the committed baseline must already be pruned.
+  console.error('lint-baseline.json allows more warnings than remain; run `npm run lint:prune` and commit it.');
+  failed = true;
 }
 console.log(`${diagnostics.length} lint warnings/errors; ${failed ? 'new violations detected' : 'all within the existing per-file/rule budgets'}.`);
 process.exitCode = failed ? 1 : 0;
