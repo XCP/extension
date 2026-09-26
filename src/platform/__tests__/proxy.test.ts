@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HardwareWalletError } from '@/core/hardware/types';
 import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, ProviderError } from '@/core/rpcErrors';
 import { recordProviderTab } from '@/platform/browser';
-import { markServicesReady } from '@/services/core/serviceReadiness';
+import { markServicesReady } from '@/platform/serviceReadiness';
 import {
   defineProxyService, disconnectAllPorts, isBackgroundScript, PORT_ACK_TIMEOUT_MS, PORT_HEARTBEAT_INTERVAL_MS,
   PORT_IDLE_RECONNECT_MS,

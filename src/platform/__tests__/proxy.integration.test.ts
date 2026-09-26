@@ -65,7 +65,7 @@ describe('Proxy Service Integration', () => {
     onConnectListeners = [];
     // resetModules gives each case a fresh barrier, so each must open it: these stand in for a
     // background that has finished initialising, which is what the barrier waits for.
-    const { markServicesReady } = await import('@/services/core/serviceReadiness');
+    const { markServicesReady } = await import('@/platform/serviceReadiness');
     markServicesReady();
 
     const { defineProxyService } = await import('../proxy');

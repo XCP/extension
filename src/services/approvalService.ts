@@ -19,7 +19,6 @@ import {
   findPendingApproval,
   recordApprovalOutcome,
 } from '@/platform/provider/approvalFlow';
-import { BaseService } from '@/services/core/BaseService';
 import type { ApprovalRequest, ApprovalRequestOptions, ApprovalResult } from '@/types/provider';
 
 /** The screen every approval opens. Signing requests have their own screens and their own flow. */
@@ -33,10 +32,6 @@ interface PendingApproval extends ApprovalRequest {
     resolve: (value: any) => void;
     reject: (reason: Error) => void;
   };
-}
-
-interface ApprovalServiceState {
-  currentWindow: number | null;
 }
 
 /** Finishes a request whose caller is gone, doing the work that caller would have done. */
@@ -56,20 +51,25 @@ export interface ApprovalPlacement {
   onReused?: () => void;
 }
 
-export class ApprovalService extends BaseService {
+export class ApprovalService {
   private pendingApproval: PendingApproval | null = null;
   private completeOrphaned: CompletionHandler | null = null;
   private popup: PopupWindow | null = null;
-  private state: ApprovalServiceState = {
-    currentWindow: null,
-  };
   private windowRemovedListener: ((windowId: number) => void) | null = null;
+  private initialization: Promise<void> | null = null;
 
-  private static readonly STATE_VERSION = 3;
   private static readonly REQUEST_TIMEOUT = 5 * 60 * 1000; // 5 minutes fallback
 
-  constructor() {
-    super('ApprovalService');
+  /**
+   * Pick up a request left behind by a previous worker. Called once by the background before it
+   * serves anything; repeated calls share the first, and a failed one may be retried.
+   */
+  initialize(): Promise<void> {
+    this.initialization ??= this.resumePendingApproval().catch((error: unknown) => {
+      this.initialization = null;
+      throw error;
+    });
+    return this.initialization;
   }
 
   /**
@@ -124,11 +124,11 @@ export class ApprovalService extends BaseService {
     try {
       const result = await promise;
       clearTimeout(timeoutId);
-      await this.trackApprovalResult(options, true);
+      await this.trackApprovalResult(true);
       return result;
     } catch (error) {
       clearTimeout(timeoutId);
-      await this.trackApprovalResult(options, false);
+      await this.trackApprovalResult(false);
       throw error;
     } finally {
       this.updateBadge();
@@ -228,16 +228,6 @@ export class ApprovalService extends BaseService {
     return this.pendingApproval !== null;
   }
 
-  /**
-   * Clear any pending approval
-   */
-  async clearAllRequests(reason: string = 'Service shutdown'): Promise<void> {
-    if (this.pendingApproval) {
-      this.rejectCurrentApproval(reason);
-    }
-    await this.closePopup();
-  }
-
   // Private methods
 
   /**
@@ -288,7 +278,6 @@ export class ApprovalService extends BaseService {
       const reused = await reusePopupWindow(placement.reuseWindowId, path);
       if (reused) {
         this.popup = reused;
-        this.state.currentWindow = reused.id;
         placement.onReused?.();
         return;
       }
@@ -299,7 +288,6 @@ export class ApprovalService extends BaseService {
 
     // Open centered popup window
     this.popup = await openPopupWindow(path);
-    this.state.currentWindow = this.popup.id;
 
     // Listen for window close to auto-reject
     this.setupWindowCloseListener(this.popup.id);
@@ -316,7 +304,6 @@ export class ApprovalService extends BaseService {
         this.rejectCurrentApproval('User closed the window');
         this.removeWindowCloseListener();
         this.popup = null;
-        this.state.currentWindow = null;
       }
     };
 
@@ -337,8 +324,6 @@ export class ApprovalService extends BaseService {
       await this.popup.close();
       this.popup = null;
     }
-
-    this.state.currentWindow = null;
   }
 
   private updateBadge(): void {
@@ -352,19 +337,14 @@ export class ApprovalService extends BaseService {
     }
   }
 
-  private async trackApprovalResult(
-    options: ApprovalRequestOptions,
-    approved: boolean
-  ): Promise<void> {
+  private async trackApprovalResult(approved: boolean): Promise<void> {
     const eventName = approved ? 'request_approved' : 'request_rejected';
     await analytics.track(eventName);
   }
 
-  // BaseService implementation
-
-  protected async onInitialize(): Promise<void> {
-    // Pick up a request left behind by a previous worker. It has no waiter, so it can only be
-    // finished by a completion handler; the store has already dropped it if its window passed.
+  private async resumePendingApproval(): Promise<void> {
+    // It has no waiter, so it can only be finished by a completion handler; the store has already
+    // dropped it if its window passed.
     const pending = await findPendingApproval();
     if (pending) {
       const { status, result, ...request } = pending;
@@ -374,29 +354,6 @@ export class ApprovalService extends BaseService {
     }
 
     console.log('[ApprovalService] Initialized (single-request mode)');
-  }
-
-  protected async onDestroy(): Promise<void> {
-    // Clear pending approval
-    await this.clearAllRequests('Service shutting down');
-
-    // Remove window listener
-    this.removeWindowCloseListener();
-
-    console.log('[ApprovalService] Destroyed');
-  }
-
-  // Nothing here outlives the worker usefully: the popup's window id is stale by the time anyone
-  // could read it, and the request itself lives in approvalFlow. Persisting either would be a
-  // write nothing reads.
-  protected getSerializableState(): null {
-    return null;
-  }
-
-  protected hydrateState(): void {}
-
-  protected getStateVersion(): number {
-    return ApprovalService.STATE_VERSION;
   }
 }
 

@@ -110,18 +110,6 @@ vi.mock('@/platform/fathom', () => ({
   },
 }));
 
-// Mock approval queue
-vi.mock('@/platform/provider/approvalQueue', async () => {
-  const mockApprovalQueue = {
-    add: vi.fn(),
-    remove: vi.fn(),
-    getCurrentWindow: vi.fn().mockReturnValue(null),
-    setCurrentWindow: vi.fn(),
-  };
-
-  return { approvalQueue: mockApprovalQueue };
-});
-
 // Mock approval service to avoid chrome.runtime.sendMessage usage
 const mockApprovalService = vi.hoisted(() => ({
   requestApproval: vi.fn().mockResolvedValue({ approved: true }),
@@ -135,14 +123,12 @@ vi.mock('@/services/approvalService', () => ({
 }));
 
 import { walletManager } from '@/platform/walletManager';
-import { eventEmitterService } from '@/services/eventEmitterService';
 import { ConnectionService } from '../connectionService';
 
 // Type the mocked functions
 // A delayed value models the asynchronous wallet-service read used by ConnectionService.
 const mockGetSettings = walletManager.getSettings as Mock<() => Partial<AppSettings> | Promise<Partial<AppSettings>>>;
 const mockUpdateSettings = vi.mocked(walletManager.updateSettings);
-const mockEventEmitterService = eventEmitterService as any;
 
 // Get access to rate limiter mock
 import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
@@ -166,7 +152,7 @@ fakeBrowser.runtime.connect = vi.fn(() => ({
   disconnect: vi.fn(),
 })) as any;
 
-// Mock chrome storage for BaseService
+// Mock chrome storage
 const mockStorage = {
   get: vi.fn(),
   set: vi.fn(),
@@ -249,11 +235,7 @@ describe('ConnectionService', () => {
     mockUpdateSettings.mockResolvedValue(undefined);
     
     connectionService = new ConnectionService();
-    await connectionService.initialize();
-  });
-
-  afterEach(async () => {
-    await connectionService.destroy();
+    connectionService.initialize();
   });
 
   describe('hasPermission', () => {
@@ -411,7 +393,7 @@ describe('ConnectionService', () => {
       
       expect(result).toEqual(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']);
       // Should not trigger approval process for existing connections
-      expect(mockEventEmitterService.on).not.toHaveBeenCalled();
+      expect(mockApprovalService.requestApproval).not.toHaveBeenCalled();
     });
 
     it('should reject connection when user denies approval', async () => {
@@ -433,18 +415,21 @@ describe('ConnectionService', () => {
       )).rejects.toThrow('Invalid URL');
     });
 
-    it('should validate address format', async () => {
-      // The actual ConnectionService doesn't validate Bitcoin addresses in connect method
-      // So this test should pass - the address parameter is just stored for metadata
+    it("answers with the wallet's active address, not the address it was handed", async () => {
+      // The address argument only labels the approval and the grant; what the site is told comes
+      // from the wallet itself, so a caller cannot put an address of its choosing in the answer.
+      let settings: any = { connectedWebsites: [] };
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async (updates) => { settings = { ...settings, ...updates }; });
+
       const result = await connectionService.connect(
         'https://valid.com',
-        'invalid-address',
+        'bc1qsomeoneelse',
         'wallet-123'
       );
-      
-      // Connection should succeed since there's no address validation
+
       expect(result).toEqual(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']);
-    }, 10000); // Increase timeout
+    });
   });
 
   describe('paired grant covers the whole derivation pair', () => {
@@ -617,56 +602,23 @@ describe('ConnectionService', () => {
   });
 
   describe('state persistence', () => {
-    it('should persist connections across service restarts', async () => {
-      // mockApprovalService.requestApproval already returns { approved: true } by default
+    it('keeps a grant across a restart because it lives in settings, not in the service', async () => {
+      // Settings as a store: connect writes the grant, and nothing below seeds it by hand.
+      let settings: any = { connectedWebsites: [] };
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async (updates) => { settings = { ...settings, ...updates }; });
 
-      // Connect a site
       await connectionService.connect(
         'https://persistent.com',
         '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
         'wallet-123'
       );
-      
-      // Simulate service restart
-      await connectionService.destroy();
-      
-      // Mock storage to return saved connections
-      mockGetSettings.mockReturnValue({
-        connectedWebsites: ['https://persistent.com'],
-          showHelpText: false,
-        analyticsAllowed: true,
-        allowUnconfirmedTxs: true,
-        autoLockTimer: '5m',
-        enableMPMA: false,
-        enableAdvancedBroadcasts: false,
-            transactionDryRun: false,
-        pinnedAssets: [],
-        counterpartyApiBase: 'https://api.counterparty.io',
-        defaultOrderExpiration: 8064,
-      });
-      
-      connectionService = new ConnectionService();
-      await connectionService.initialize();
-      
-      // Should still have connection
-      const hasPermission = await connectionService.hasPermission('https://persistent.com');
-      expect(hasPermission).toBe(true);
-    });
 
-    it('should ignore connections and pending keys from a persisted snapshot', async () => {
-      // A stale snapshot taken before a disconnect must not fail open
-      (connectionService as any).hydrateState({
-        connections: [{
-          origin: 'https://revoked.com',
-          status: { origin: 'https://revoked.com', isConnected: true, lastActive: Date.now() },
-        }],
-        securityChecks: [],
-        pendingRequests: ['https://revoked.com-pending'],
-      });
-
-      // Keychain settings (no connected sites) stay authoritative
-      expect(await connectionService.hasPermission('https://revoked.com')).toBe(false);
-      expect((connectionService as any).state.pendingPermissionRequests.size).toBe(0);
+      // A new worker: a fresh instance with an empty cache, reading the same settings.
+      const restarted = new ConnectionService();
+      restarted.initialize();
+      expect(await restarted.hasPermission('https://persistent.com')).toBe(true);
+      expect(await restarted.hasPermission('https://other.com')).toBe(false);
     });
   });
 

@@ -147,8 +147,10 @@ describe('ApprovalService', () => {
     await approvalService.initialize();
   });
 
-  afterEach(async () => {
-    await approvalService.destroy();
+  afterEach(() => {
+    // Settle whatever a test left pending, so its rejection and timeout end with the test.
+    const pending = approvalService.getCurrentApproval();
+    if (pending) approvalService.rejectApproval(pending.id, 'Test finished');
   });
 
   describe('requestApproval', () => {
@@ -457,14 +459,25 @@ describe('ApprovalService', () => {
 
   describe('state persistence', () => {
     it('should initialize fresh on restart (no state persistence for in-flight requests)', async () => {
-      // Reinitialize service
-      await approvalService.destroy();
+      // A new worker: fresh instance, same (empty) storage
       approvalService = new ApprovalService();
       await approvalService.initialize();
 
       // Should have no pending approval after restart
       expect(approvalService.hasPendingApproval()).toBe(false);
       expect(approvalService.getCurrentApproval()).toBeNull();
+    });
+
+    it('reads the stored request once however often initialize is called', async () => {
+      const service = new ApprovalService();
+      mockStorage.get.mockClear();
+
+      await Promise.all([service.initialize(), service.initialize()]);
+      const reads = mockStorage.get.mock.calls.length;
+      expect(reads).toBeGreaterThan(0);
+
+      await service.initialize();
+      expect(mockStorage.get).toHaveBeenCalledTimes(reads);
     });
   });
 

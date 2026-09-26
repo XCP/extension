@@ -9,9 +9,8 @@ import { markSessionRecovery } from '@/platform/auth/sessionReady';
 import { deliverProviderEvent, wereAccountsAnnounced } from '@/platform/browser';
 import { getCachedKeychainMasterKey } from '@/platform/storage/keyStorage';
 import { getApprovalService, registerApprovalService } from '@/services/approvalService';
-import { getConnectionService, registerConnectionService } from '@/services/connectionService';
-import { ServiceRegistry } from '@/services/core/ServiceRegistry';
-import { markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
+import { getConnectionService } from '@/services/connectionService';
+import { markServicesReady, whenServicesReady } from '@/platform/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { registerProviderService } from '@/services/providerService';
@@ -28,7 +27,7 @@ const LEGACY_ALARMS = [
   'keep-alive',
   'notification-poll',
   'update-service-periodic-check',
-  // BaseService's per-service keep-alive and persistence alarms.
+  // Per-service keep-alive and persistence alarms from the old service base class.
   ...['ApprovalService', 'BlockchainService', 'ConnectionService', 'EventEmitterService', 'TransactionService']
     .flatMap(service => [`${service}-keepalive`, `${service}-persist`]),
 ];
@@ -61,42 +60,32 @@ export default defineBackground(() => {
   // SERVICE INITIALIZATION
   // ============================================================
 
-  // Initialize service registry
-  const serviceRegistry = ServiceRegistry.getInstance();
-
   // Sequential initialization to ensure proper ordering
   async function initializeServices(): Promise<void> {
     try {
       // 1. Register proxy services first (synchronous, sets up message listeners)
       registerWalletService();
       registerProviderService();
-      registerConnectionService();
       registerApprovalService();
       registerProviderSigningService();
       console.log('[Background] Proxy services registered');
 
-      // 2. Initialize event emitter via registry (for lifecycle management)
-      await serviceRegistry.register(eventEmitterService);
-      console.log('[Background] EventEmitterService initialized');
-
-      // 3. Initialize the approval and connection services. Registering a proxy only answers
+      // 2. Initialize the approval and connection services. Registering a proxy only answers
       //    calls; initializing is what resumes an approval left pending by the previous worker
       //    and installs the handler that completes a connect approval nobody is waiting on any
       //    more. Approval first: the connection service registers its handler on it.
-      //    Deliberately not in the registry: its destroy() rejects the pending approval, which
-      //    is the very thing this exists to carry across a restart.
       await getApprovalService().initialize();
-      await getConnectionService().initialize();
+      getConnectionService().initialize();
       console.log('[Background] ApprovalService and ConnectionService initialized');
 
-      // 4. Initialize update service (its listener was registered in the first turn). An update
+      // 3. Initialize update service (its listener was registered in the first turn). An update
       //    never reloads the extension out from under an approval waiting on the user.
       const updateService = getUpdateService();
       updateService.addBusyCheck(() => getApprovalService().hasPendingApproval());
       await updateService.initialize();
       console.log('[Background] UpdateService initialized');
 
-      // 5. Check session recovery state (may lock wallets if session expired). Anything that
+      // 4. Check session recovery state (may lock wallets if session expired). Anything that
       //    re-derives from the session master key waits on the outcome of this — see sessionReady.
       const recoveryState = await checkSessionRecovery();
       markSessionRecovery(recoveryState);
@@ -119,15 +108,15 @@ export default defineBackground(() => {
         await rearmSessionExpiry();
       }
 
-      // 6. Load the keychain before anything is served. The master key outlives the worker but the
+      // 5. Load the keychain before anything is served. The master key outlives the worker but the
       //    decrypted keychain does not, and every answer about accounts, permissions or lock state
       //    reads from it — so it is loaded once, here, rather than checked for on each call.
       await getWalletService().ensureKeychainLoaded();
 
-      // 7. Open the barrier proxied calls have been waiting at — see serviceReadiness.
+      // 6. Open the barrier proxied calls have been waiting at — see serviceReadiness.
       markServicesReady();
 
-      // 8. Tell tabs that were already open that the worker is back.
+      // 7. Tell tabs that were already open that the worker is back.
       await announceReadinessToConnectedTabs();
 
       console.log('[Background] All services initialized successfully');
@@ -137,7 +126,7 @@ export default defineBackground(() => {
       // told locked rather than left hanging. The barrier then opens on that verdict: a call that
       // fails is recoverable, a call that hangs is not.
       markSessionRecovery(SessionRecoveryState.LOCKED);
-      markServicesReady(error instanceof Error ? error : new Error(String(error)));
+      markServicesReady();
     }
   }
 

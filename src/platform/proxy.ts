@@ -8,7 +8,7 @@ import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, PROVIDE
 import { recordProviderTab } from '@/platform/browser';
 import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
 import { decodeProxyResult, encodeProxyResult } from '@/platform/proxySerialization';
-import { whenServicesReady } from '@/services/core/serviceReadiness';
+import { whenServicesReady } from '@/platform/serviceReadiness';
 
 type MethodName<T> = Extract<{
   [K in keyof T]-?: T[K] extends (...args: never[]) => unknown ? K : never;

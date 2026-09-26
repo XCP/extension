@@ -137,15 +137,6 @@ describe('EventEmitterService', () => {
     });
   });
 
-  describe('BaseService implementation', () => {
-    it('persists nothing, since callbacks cannot outlive the worker', () => {
-      eventEmitterService.on('event-1', vi.fn());
-
-      expect((eventEmitterService as any).getSerializableState()).toBeNull();
-    });
-
-  });
-
   describe('edge cases', () => {
     it('should handle same callback for multiple events', () => {
       const callback = vi.fn();
