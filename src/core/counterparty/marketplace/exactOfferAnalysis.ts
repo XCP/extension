@@ -279,7 +279,7 @@ export function analyzeExactOfferIntent(
         label: authorizing
           ? t('marketplace_intent_offer_to_buy')
           : t('marketplace_intent_accept_offer'),
-        description: `${provedQuantity} ${claim.asset}`,
+        description: offerAsset,
       },
     } : {}),
     title: authorizing

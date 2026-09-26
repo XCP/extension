@@ -265,8 +265,9 @@ export function analyzeFundOffersIntent(
     }
   }
 
-  const slotTotal = safeSum(Array.from({ length: intent.slotCount }, () => intent.slotValueSats));
-  const outputTotal = slotTotal === null ? null : safeSum([slotTotal, intent.changeSats]);
+  // Also the "set aside" total the review shows.
+  const setAsideSats = safeSum(Array.from({ length: intent.slotCount }, () => intent.slotValueSats));
+  const outputTotal = setAsideSats === null ? null : safeSum([setAsideSats, intent.changeSats]);
   const claimedFee = outputTotal === null ? null : intent.fundingValueSats - outputTotal;
   if (claimedFee === null || claimedFee < 0 || claimedFee !== intent.networkFeeSats) {
     blockers.push('the claimed offer funding fee does not equal funding minus outputs');
@@ -278,7 +279,6 @@ export function analyzeFundOffersIntent(
 
   const allProblems = [...retry, ...blockers];
   const each = (label: string) => t('marketplace_intent_each_label', label);
-  const setAsideSats = safeSum(Array.from({ length: intent.slotCount }, () => intent.slotValueSats));
   // Per-edition amounts are marked "each"; the one total is what leaves spendable balance.
   const paymentSummary: ProtocolField[] = [
     {
