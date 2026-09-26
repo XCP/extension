@@ -17,7 +17,7 @@
  * covers that for the types core can compose, and the mainnet fixtures in `messages.test.ts` cover
  * send and issuance directly.
  *
- * Skipped unless `COUNTERPARTY_API_URL` is set. Runs nightly — see nightly-tests.yml.
+ * Skipped unless `COUNTERPARTY_API_URL` is set. Runs weekly — see nightly-tests.yml.
  */
 
 import { describe, expect, it } from 'vitest';

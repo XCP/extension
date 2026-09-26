@@ -2,6 +2,18 @@ import { defineConfig } from '@playwright/test';
 
 const isCI = !!process.env.CI;
 
+function globalTimeoutMs(): number | undefined {
+  const override = process.env.PLAYWRIGHT_GLOBAL_TIMEOUT_MINUTES;
+  if (override !== undefined && override !== '') {
+    const minutes = Number(override);
+    if (!Number.isFinite(minutes) || minutes < 0) {
+      throw new Error(`PLAYWRIGHT_GLOBAL_TIMEOUT_MINUTES must be a non-negative number, got "${override}"`);
+    }
+    return minutes === 0 ? undefined : minutes * 60 * 1000;
+  }
+  return isCI ? 40 * 60 * 1000 : undefined;
+}
+
 export default defineConfig({
   testDir: './e2e',
   // Only Playwright specs. The directory also holds a vitest file
@@ -24,9 +36,11 @@ export default defineConfig({
   
   // Timeout settings
   timeout: 120000,
-  // PR batches have their own 15-minute job limit. The nightly runs every file serially in one
-  // invocation, so its global budget must cover the complete suite rather than stopping halfway.
-  globalTimeout: isCI ? 100 * 60 * 1000 : undefined,
+  // CI runs the suite as six shards (PR and weekly workflows), each a fraction of the whole, so
+  // this budget is per shard and sits just under the workflows' 45-minute step limit: a stuck
+  // shard stops here and still writes its report. PLAYWRIGHT_GLOBAL_TIMEOUT_MINUTES overrides it,
+  // for example for a serial run of the full suite; 0 disables it.
+  globalTimeout: globalTimeoutMs(),
   
   expect: {
     timeout: 10000,
