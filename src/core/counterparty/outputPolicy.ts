@@ -16,7 +16,7 @@
  * This is the pattern BitGo uses to verify its own server's "prebuild" before signing (every output
  * must be a known recipient, provable change, or a bounded fee output, or the transaction is
  * rejected), and the pattern Ledger's BIP-388 wallet policies apply to change recognition: an output
- * is change only if it can be re-derived, otherwise it is displayed as money leaving. See ADR-019.
+ * is change only if it can be re-derived, otherwise it is displayed as money leaving. See the design note in `unpack/verify.ts`.
  *
  * Scope: this checks *where value goes*. It deliberately says nothing about the Counterparty message
  * body, which is verified separately.

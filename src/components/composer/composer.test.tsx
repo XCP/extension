@@ -58,7 +58,7 @@ vi.mock('react-router', async () => {
   };
 });
 
-// Fee verification always resolves input values independently of the compose response (ADR-019),
+// Fee verification always resolves input values independently of the compose response (see `unpack/verify.ts`),
 // so every compose consults this resolver. Stub it rather than reaching the network.
 vi.mock('@/core/counterparty/transaction', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/counterparty/transaction')>()),
@@ -78,7 +78,7 @@ vi.mock('@/core/bitcoin/feeRate', () => ({
 }));
 
 // Both composed fixtures below pay their change to this P2PKH script, so the mock wallet must own
-// that address — output accounting (ADR-019) rejects outputs it cannot attribute.
+// that address — output accounting (see `unpack/verify.ts`) rejects outputs it cannot attribute.
 const OWN_ADDRESS = decodeAddressFromScript('76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac')!;
 
 const mockActiveWallet = { id: 'wallet1', name: 'Test Wallet', addressFormat: AddressFormat.P2WPKH };
@@ -434,7 +434,7 @@ describe('Composer', () => {
       // The echoed params claim a 999 PEPECASH send; the transaction encodes 1 XCP. The review
       // screen must show what the transaction says. Sweep-style types aside, this is the property
       // that keeps a verification gap visible instead of silent: even if a check missed, the user
-      // is reading the bytes (ADR-019).
+      // is reading the bytes (see `unpack/verify.ts`).
       const sweepBody = encodeCbor([
         packAddress(DESTINATION),
         3n,
@@ -565,7 +565,7 @@ describe('Composer', () => {
 
     it('blocks a response that pays an address the request never named', async () => {
       // No field-level check covers this: the enhanced send's payload is exactly what was asked
-      // for, and the extra payment rides along as a plain output. Output accounting (ADR-019) is
+      // for, and the extra payment rides along as a plain output. Output accounting (see `unpack/verify.ts`) is
       // what catches it, because the address is neither ours nor named anywhere in the request.
       const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
       tx.addInput({

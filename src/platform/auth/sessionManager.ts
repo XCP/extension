@@ -3,7 +3,7 @@
  *
  * ## Architecture Decision Records
  *
- * ### ADR-001: JavaScript Memory Clearing Limitation (Acceptable)
+ * ### Design note: JavaScript Memory Clearing Limitation (Acceptable)
  *
  * **Context**: When clearing secrets from memory, we overwrite with zeros before deletion.
  * However, JavaScript/V8 does not guarantee that the original string data is immediately
@@ -27,7 +27,7 @@
  * - Native messaging host: Requires separate install, poor UX
  * - Accept and document: Chosen approach
  *
- * ### ADR-002: No Automatic Key Refresh During Session (Acceptable)
+ * ### Design note: No Automatic Key Refresh During Session (Acceptable)
  *
  * **Context**: Some systems rotate encryption keys periodically during active sessions
  * to limit the window of exposure if a key is compromised.
@@ -321,7 +321,7 @@ export function clearUnlockedSecret(walletId: string): void {
   }
   
   if (walletId in unlockedSecrets) {
-    // Best-effort memory clearing - see ADR-001 for JS memory limitation details
+    // Best-effort memory clearing - see the memory-clearing note above for JS memory limitation details
     const secretLength = unlockedSecrets[walletId]!.length;
     if (secretLength > 0) {
       unlockedSecrets[walletId] = '0'.repeat(secretLength);

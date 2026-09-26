@@ -74,7 +74,7 @@ export { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS };
 const RECOVERY_WAIT_MS = 5_000;
 
 /**
- * WalletManager - Core wallet state management (ADR-015)
+ * WalletManager - Core wallet state management
  *
  * ## Architecture: Unified Keychain
  *

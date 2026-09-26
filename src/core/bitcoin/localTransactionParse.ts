@@ -4,7 +4,7 @@
  * A dapp hands over finished bytes to sign, and the approval screen must describe them. Rendering
  * the Counterparty API's decode instead describes what an untrusted party says the bytes are,
  * while the signature commits to the bytes themselves — so a hostile API could show one
- * transaction while another is signed. ADR-019 requires the display to derive from the
+ * transaction while another is signed. The untrusted-composer note in `unpack/verify.ts` requires the display to derive from the
  * transaction, which is what this makes possible on the provider paths.
  *
  * The API decode remains useful as the second opinion in `providerVerify.ts`, and for facts only a

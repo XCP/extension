@@ -41,7 +41,8 @@ door, and the reward is what points at that door.
 If your finding is any of the following, open an [issue](https://github.com/XCP/extension/issues) or
 a pull request. It will be read sooner, discussed in the open, and credited the same:
 
-- a limitation this repository documents in a comment, an [ADR](docs/adr/README.md), or a header;
+- a limitation this repository documents in a comment or a header, including the
+  [accepted risks](#accepted-risks) below;
 - a hardening suggestion, a missing check, or a defence-in-depth improvement;
 - anything you could have fixed yourself in the time it took to write it up.
 
@@ -78,10 +79,28 @@ Three things will be true of it:
 - Attacks requiring physical access to an unlocked device
 - Social engineering or phishing attacks
 - Denial of service without security impact
-- Limitations already documented in the code, in an [ADR](docs/adr/README.md), in
+- Limitations already documented in the code, in [accepted risks](#accepted-risks), in
   [the signing policy](docs/signing-policy.md#what-the-wallet-cannot-see), or in this file
 - Theoretical vulnerabilities without demonstrated impact
 - Behaviour already fixed on `main` at the time of the report
+
+## Accepted risks
+
+These are known and accepted. Each links to the source comment that explains why.
+
+- **Secrets in JavaScript memory cannot be reliably cleared.** String immutability, garbage
+  collection and JIT copies may retain key material after use; clearing is best effort
+  ([sessionManager.ts](src/platform/auth/sessionManager.ts)).
+- **Keys are not rotated during an unlocked session.** Session timeouts bound the exposure
+  instead ([sessionManager.ts](src/platform/auth/sessionManager.ts)).
+- **The master key is held in session storage while unlocked.** It is equivalent to the password
+  until the wallet locks, which lets the user switch wallets without re-entering it
+  ([walletManager.ts](src/platform/walletManager.ts)).
+- **Some compose values come from the ledger, not the request.** A reissuance's divisibility and
+  description, and a newly created pool's LP asset, cannot be predicted from the request and are
+  checked only for presence ([unpack/verify.ts](src/core/counterparty/unpack/verify.ts)).
+- **Trezor Connect brings a large dependency tree.** It is accepted for hardware signing and
+  reduced by build-time tree shaking ([trezorAdapter.ts](src/core/hardware/trezorAdapter.ts)).
 
 ## Severity
 

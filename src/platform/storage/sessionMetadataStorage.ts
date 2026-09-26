@@ -58,7 +58,7 @@ export async function getSessionMetadata(): Promise<SessionMetadata | null> {
 
 /**
  * Stores session metadata in session storage.
- * Throws if session storage API is unavailable (per ADR-008: writes must throw).
+ * Throws if session storage API is unavailable (storage writes must throw).
  */
 export async function setSessionMetadata(metadata: SessionMetadata): Promise<void> {
   if (!chrome?.storage?.session) {
@@ -75,7 +75,7 @@ export async function setSessionMetadata(metadata: SessionMetadata): Promise<voi
 
 /**
  * Clears session metadata from session storage.
- * Throws if session storage API is unavailable (per ADR-008: writes must throw).
+ * Throws if session storage API is unavailable (storage writes must throw).
  */
 export async function clearSessionMetadata(): Promise<void> {
   if (!chrome?.storage?.session) {

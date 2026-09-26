@@ -301,7 +301,6 @@ showing a figure that cannot be known yet.
 Counterparty's Taproot encoding is two transactions. The *commit* pays a P2TR output whose script
 tree holds one leaf: an envelope carrying the Counterparty message, ending in a key and
 `OP_CHECKSIG`. The *reveal* spends that output by the leaf, which publishes the message.
-Counterparty credits the message to the address that funded the commit's first input.
 
 The commit's own bytes show only a payment to a P2TR address; the message is hidden in a script
 the transaction never contains. The `inscription` option names that script, so the wallet can read

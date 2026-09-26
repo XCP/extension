@@ -47,7 +47,7 @@ export function ReviewSend({
     const assetDestQuantList = result.params.asset_dest_quant_list || [];
 
     // Prefer the recipients the transaction actually encodes over the API's echoed list, so a
-    // substituted recipient cannot hide behind a correct-looking echo (ADR-019).
+    // substituted recipient cannot hide behind a correct-looking echo (see `unpack/verify.ts`).
     const decodedSends = (decodedMessage?.data as
       | { sends?: Array<{ asset: string; destination: string; quantity: bigint }> }
       | undefined)?.sends;
@@ -108,7 +108,7 @@ export function ReviewSend({
   } else {
     // Single send. Asset, amount, destination and memo are read from the transaction's own message
     // rather than from result.params, which is the API's echo of the request and so cannot testify
-    // about the API (ADR-019). A response that composed something other than what it echoed shows
+    // about the API (see `unpack/verify.ts`). A response that composed something other than what it echoed shows
     // the truth here. Divisibility still comes from asset_info — it is a ledger fact rather than a
     // property of this transaction — so only the decimal point retains an echo dependency.
     const decoded = decodedMessage?.data as

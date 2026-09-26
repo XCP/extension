@@ -5,12 +5,12 @@
  * normalized form data (the user's intent), never against `response.result.params` — the API's echo
  * of the request cannot testify about the API.
  *
- * ### ADR-019: The composer is untrusted, and verification is structural
+ * ### Design note: The composer is untrusted, and verification is structural
  *
  * **Context.** Counterparty transactions are not built locally. The user's form input is sent to a
  * counterparty-core API which *composes* the transaction and returns raw bytes to sign. That makes
  * the composer a party to every transaction, and the trust boundary diagram in AUDIT.md previously
- * did not name it. This ADR settles the question the rest of this module depends on.
+ * did not name it. This note settles the question the rest of this module depends on.
  *
  * **Decision.** The composer is **untrusted**. The API endpoint is user-configurable and may be
  * infrastructure this project does not run, so a response is treated as an adversarial input in the

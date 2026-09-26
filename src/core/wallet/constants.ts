@@ -5,7 +5,7 @@
  * These values are imported by walletManager.ts, session.ts, and other modules.
  *
  * ---
- * ADR-013: Constants Organization Strategy
+ * Design note: Constants Organization Strategy
  * ---
  *
  * PRINCIPLE: Colocate constants by default, extract only for circular deps.

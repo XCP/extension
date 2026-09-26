@@ -112,9 +112,8 @@ listing per PSBT to keep the no-extra-prompt path.
 
 Counterparty's Taproot encoding is a commit, which pays a P2TR output whose script tree holds an
 envelope carrying the message, and a reveal, which spends that output by the envelope's leaf and so
-publishes the message. Counterparty credits the message to whoever funded the commit's first
-input, so signing a commit is signing its message, although nothing in the commit's bytes says so. The wallet supports
-two ways to show that message before the user funds the commit:
+publishes the message. Nothing in the commit's own bytes shows that message. The wallet supports
+two ways to show it before the user funds the commit:
 
 - **`inscription`: the user signs the reveal.** The site names the reveal leaf and internal key.
   The wallet requires the unspendable (NUMS) internal key and the user's own Taproot output key in
@@ -137,18 +136,11 @@ The checks above read the transaction's bytes. Some things a transaction does ar
 bytes, and some facts come from services the wallet does not control.
 
 - **What a script address commits to.** A P2TR, P2WSH or P2SH address hides its script until the
-  output is spent. Counterparty Core credits a reveal's message to whoever funded the first input
-  of the transaction the reveal spends, and it does not require that transaction to signal anything.
-  So a payment to a script address that someone else controls can later be used by that address's
-  owner to publish a Counterparty message credited to the payer.
-
-  Without the script, the wallet cannot tell such a payment from an ordinary payment to a Taproot
-  wallet, a multisig or a vault, and refusing every payment to a script address would refuse
-  ordinary ones too. The wallet mitigates the risk instead: when an address that holds Counterparty
-  assets pays a script address the wallet does not own, the approval shows a caution naming the
-  amount and the address. A site that is funding a real commit should send it with `inscription` or
-  `reveal` ([Taproot commits](#taproot-commits)), so the wallet can show the message it pays for.
-  Only a change in Counterparty Core can close this fully.
+  output is spent, so the wallet cannot tell what a payment to one is for. Payments to script
+  addresses you don't control can carry risk for addresses that hold Counterparty assets; the
+  wallet shows a caution in that case. A site funding a Counterparty Taproot commit should send it
+  with `inscription` or `reveal` ([Taproot commits](#taproot-commits)), so the wallet can show the
+  message it pays for.
 - **Ledger facts.** Attached balances, asset divisibility and metadata, order and dispenser state
   come from the configured Counterparty node. Divisibility moves the decimal point the screen shows.
   An unavailable or inconsistent answer is shown as unknown or asks for a retry; it never reads as
@@ -160,4 +152,4 @@ bytes, and some facts come from services the wallet does not control.
   without an approval; the review happens when a transaction is signed.
 
 The trust boundaries behind these limits are described in [AUDIT.md](../AUDIT.md#threat-model) and
-[ADR-019](adr/ADR-019.md).
+in the design note in [`unpack/verify.ts`](../src/core/counterparty/unpack/verify.ts).

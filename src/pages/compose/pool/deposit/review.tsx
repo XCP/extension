@@ -24,7 +24,7 @@ export function ReviewPoolDeposit({
   const params = result.params;
   // Pool deposits have no local packer, so these params were an unverified echo. Which pool is
   // being deposited into is stated by the transaction, so the pair is read from the decoded
-  // message (ADR-019). Quantities keep the response's normalized strings, since converting the
+  // message (see `unpack/verify.ts`). Quantities keep the response's normalized strings, since converting the
   // decoded base units needs each asset's divisibility — a ledger fact, not a property of this
   // transaction.
   const decoded = useComposerOptional()?.state.decodedMessage?.data as

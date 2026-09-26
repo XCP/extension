@@ -388,7 +388,7 @@ export function createProviderService(): ProviderService {
   }
 
   /**
-   * ADR-018: Paired-address provider capability
+   * Design note: Paired-address provider capability
    *
    * A connection authorizes only its active address. A dApp may opt in to the
    * active derivation index's Legacy/SegWit sibling pair through explicit

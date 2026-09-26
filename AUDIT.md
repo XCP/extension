@@ -53,18 +53,18 @@ August 2026 — review of the transaction construction, verification and signing
 | **Compromised browser/OS** | Platform trust required; no defense possible |
 | **Physical access while unlocked** | User responsibility; we provide auto-lock |
 | **Screenshots** | Browser API limitation; cannot prevent |
-| **Advanced memory forensics** | JavaScript limitation (see [ADR-001](docs/adr/ADR-001.md)) |
+| **Advanced memory forensics** | JavaScript limitation (see [sessionManager.ts](src/platform/auth/sessionManager.ts)) |
 
 ### Trust Boundaries
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  UNTRUSTED: dApps, user input, stored encrypted data,       │
-│             the Counterparty compose API (ADR-019)          │
+│             the Counterparty compose API (verify.ts)        │
 └──────────────────────────┬──────────────────────────────────┘
                            │ Validation + Origin checks
                            │ Structural verification of composed
-                           │ transactions (ADR-019)
+                           │ transactions (verify.ts)
                            v
 ┌─────────────────────────────────────────────────────────────┐
 │  EXTENSION: Background service worker, popup UI             │
@@ -79,7 +79,7 @@ August 2026 — review of the transaction construction, verification and signing
 The compose API is inside the untrusted band deliberately. Counterparty transactions are composed
 remotely, so the composer is a party to every transaction; the endpoint is user-configurable and may
 be infrastructure this project does not run. Verification is therefore structural rather than
-field-enumerated — see [ADR-019](docs/adr/ADR-019.md) (recorded in [verify.ts](src/core/counterparty/unpack/verify.ts)).
+field-enumerated — see the design note in [verify.ts](src/core/counterparty/unpack/verify.ts).
 
 ---
 
@@ -102,16 +102,16 @@ field-enumerated — see [ADR-019](docs/adr/ADR-019.md) (recorded in [verify.ts]
 | ✅ | Use CSPRNG for all randomness | `crypto.getRandomValues()` for salts, IVs, keys |
 | ✅ | High iteration key derivation | PBKDF2 with 600,000 iterations |
 | ✅ | Use audited crypto libraries | Noble/Scure family (Cure53 audited) |
-| ⚪ | HKDF domain separation | Superseded by the unified keychain (ADR-015): one master key, doubly-encrypted wallet secrets |
+| ⚪ | HKDF domain separation | Superseded by the unified keychain ([walletManager.ts](src/platform/walletManager.ts)): one master key, doubly-encrypted wallet secrets |
 | ✅ | Random salt per password | 16-byte random salt at keychain creation and password change |
 | ✅ | Random IV per encryption | 12-byte random IV for each operation |
 | ✅ | Timing attack mitigation | Random delays (0-10ms) on decryption |
 | ✅ | Key buffers zeroed after use | Password and signing key bytes zeroed in finally blocks |
-| ⚠️ | Memory clearing | JS limitation—V8 may retain copies (ADR-001) |
+| ⚠️ | Memory clearing | JS limitation—V8 may retain copies ([sessionManager.ts](src/platform/auth/sessionManager.ts)) |
 | ⚪ | HSM/hardware key storage | Not applicable—browser extension |
 | ⚪ | Key rotation | Not applicable—user controls keys |
 
-### Input Validation Thresholds ([ADR-014](docs/adr/ADR-014.md))
+### Input Validation Thresholds
 
 The encryption module enforces minimum security thresholds at the API boundary:
 
@@ -193,9 +193,9 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 
 | Status | Item | Implementation |
 |--------|------|----------------|
-| ✅ | Local message verification | On every compose carrying a Counterparty OP_RETURN, the payload is decrypted (ARC4, first-input-txid key) and the message the request should produce is rebuilt locally and required to match byte for byte — sends, broadcasts, issuances, subasset issuances, ownership transfers, reissuances and MPMA batches. Where a field cannot be predicted from the request (a reissuance's divisibility, a server-drawn subasset asset id, a wallet-stamped broadcast timestamp) it is borrowed from the decoded message and the comparison drops to field level for that type, which is reported as a weaker check rather than presented as byte equality. Verified against a live node by `coreOracle.test.ts` and against real on-chain messages by `onchainRoundTrip.test.ts` (ADR-019) |
+| ✅ | Local message verification | On every compose carrying a Counterparty OP_RETURN, the payload is decrypted (ARC4, first-input-txid key) and the message the request should produce is rebuilt locally and required to match byte for byte — sends, broadcasts, issuances, subasset issuances, ownership transfers, reissuances and MPMA batches. Where a field cannot be predicted from the request (a reissuance's divisibility, a server-drawn subasset asset id, a wallet-stamped broadcast timestamp) it is borrowed from the decoded message and the comparison drops to field level for that type, which is reported as a weaker check rather than presented as byte equality. Verified against a live node by `coreOracle.test.ts` and against real on-chain messages by `onchainRoundTrip.test.ts` (design note in [verify.ts](src/core/counterparty/unpack/verify.ts)) |
 | ✅ | Signed-transaction integrity | The signer rebuilds the transaction rather than signing the parsed bytes, because it needs per-input prevout data the raw bytes do not carry. Version, lock time, per-input txid/index/sequence and per-output script/amount are compared against the parsed source before signing; a difference refuses to sign rather than producing a signature over bytes the user did not review (`transactionSigner.ts`) |
-| ✅ | Display derived from decoded bytes | Amounts, assets, destinations, memos and fees on the compose review and dapp approval screens are decoded from the transaction's own bytes rather than read back from the API's echo of the request, which cannot testify about the API. The fee shown is resolved independently of the compose response. Asset divisibility remains a ledger fact read from `asset_info`, so the decimal point retains that dependency (ADR-019) |
+| ✅ | Display derived from decoded bytes | Amounts, assets, destinations, memos and fees on the compose review and dapp approval screens are decoded from the transaction's own bytes rather than read back from the API's echo of the request, which cannot testify about the API. The fee shown is resolved independently of the compose response. Asset divisibility remains a ledger fact read from `asset_info`, so the decimal point retains that dependency (design note in [verify.ts](src/core/counterparty/unpack/verify.ts)) |
 | ✅ | Address display integrity | Output addresses on dapp approval screens are shown in full rather than abbreviated, so a lookalike address cannot match on a truncated prefix and suffix |
 | ✅ | Fee bounding | Miner fee recomputed locally (inputs − outputs) and rejected before signing if it exceeds the user's selected rate or an absolute ceiling, or if outputs exceed inputs |
 | ✅ | Broadcast txid integrity | Reported txid computed locally from the signed bytes, not the broadcast endpoint's echo |
@@ -203,7 +203,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Race condition prevention | Mutex locks, `isComposing`/`isSigning` guards |
 | ✅ | Stale transaction detection | 5-minute timeout on composed transactions |
 | ✅ | Address checksum validation | Base58check (double-SHA256) and Bech32 checksums verified client-side |
-| ✅ | Bitcoin output verification | Deny-by-default accounting: every output must be the Counterparty data output, an address the request names, or change to an address the signer controls — anything else rejects the transaction before the review screen, so an added recipient fails closed without any field-level check covering it. BTCPay is exempt (its payee is derived from the order match, not the request). Verified by `outputPolicy.test.ts` and `composer.test.tsx` (ADR-019) |
+| ✅ | Bitcoin output verification | Deny-by-default accounting: every output must be the Counterparty data output, an address the request names, or change to an address the signer controls — anything else rejects the transaction before the review screen, so an added recipient fails closed without any field-level check covering it. BTCPay is exempt (its payee is derived from the order match, not the request). Verified by `outputPolicy.test.ts` and `composer.test.tsx` (design note in [verify.ts](src/core/counterparty/unpack/verify.ts)) |
 
 ## Input Validation
 
@@ -235,7 +235,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Stack traces hidden | Never exposed to external callers |
 | ✅ | Logging stripped in prod | console.* removed by the production minifier |
 
-## Privacy & Analytics ([ADR-016](docs/adr/ADR-016.md))
+## Privacy & Analytics
 
 | Status | Item | Implementation |
 |--------|------|----------------|
@@ -306,7 +306,7 @@ are never sent.
 
 ## Known Limitations
 
-### JavaScript Memory Clearing ([ADR-001](docs/adr/ADR-001.md))
+### JavaScript Memory Clearing
 
 Browser JavaScript cannot guarantee secure memory clearing:
 - String immutability may retain original data
@@ -341,28 +341,6 @@ The random delay (0-10ms) on decryption is a basic mitigation appropriate for br
 - AES-GCM provides authenticated encryption
 
 This is not true constant-time code. For higher-security applications, constant-time comparison would be preferred.
-
----
-
-## Architecture Decision Records
-
-Each record is a comment beside the code it governs, copied to [docs/adr](docs/adr/README.md).
-
-| ADR | Decision | Code |
-|-----|----------|------|
-| [ADR-001](docs/adr/ADR-001.md) | JavaScript memory clearing limitations | [sessionManager.ts](src/platform/auth/sessionManager.ts) |
-| [ADR-002](docs/adr/ADR-002.md) | No automatic key refresh during session | [sessionManager.ts](src/platform/auth/sessionManager.ts) |
-| [ADR-003](docs/adr/ADR-003.md) | No distributed tracing (future enhancement) | [MessageBus.ts](src/services/core/MessageBus.ts) |
-| [ADR-005](docs/adr/ADR-005.md) | Explicit service dependency ordering | [BaseService.ts](src/services/core/BaseService.ts) |
-| [ADR-008](docs/adr/ADR-008.md) | Storage error handling pattern (cited in code; no standalone record) | [requestStorage.ts](src/platform/storage/requestStorage.ts), [sessionMetadataStorage.ts](src/platform/storage/sessionMetadataStorage.ts) |
-| [ADR-010](docs/adr/ADR-010.md) | Storage pattern decisions (class vs function) | [requestStorage.ts](src/platform/storage/requestStorage.ts) |
-| [ADR-013](docs/adr/ADR-013.md) | Constants organization strategy | [wallet/constants.ts](src/core/wallet/constants.ts) |
-| [ADR-014](docs/adr/ADR-014.md) | Input validation thresholds for encryption | [encryption.ts](src/core/encryption/encryption.ts) |
-| [ADR-015](docs/adr/ADR-015.md) | Unified keychain architecture | [walletManager.ts](src/platform/walletManager.ts) |
-| [ADR-016](docs/adr/ADR-016.md) | Privacy-focused analytics with Fathom | [fathom.ts](src/platform/fathom.ts) |
-| [ADR-017](docs/adr/ADR-017.md) | Hardware wallet integration architecture | [trezorAdapter.ts](src/core/hardware/trezorAdapter.ts) |
-| [ADR-018](docs/adr/ADR-018.md) | Explicit, identity-bound paired-address provider capability | [providerService.ts](src/services/providerService.ts) |
-| [ADR-019](docs/adr/ADR-019.md) | Untrusted compose API; structural (deny-by-default) transaction verification | [verify.ts](src/core/counterparty/unpack/verify.ts) |
 
 ---
 
