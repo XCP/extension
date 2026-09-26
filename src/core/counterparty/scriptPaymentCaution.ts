@@ -44,7 +44,14 @@ export function composedTransactionOutputs(rawTransaction: string, ownedAddresse
     const script = scriptHexForAddress(address);
     if (script) ownedByScript.set(script, address);
   }
-  const tx = parseTransactionForSigning(rawTransaction);
+  let tx: ReturnType<typeof parseTransactionForSigning>;
+  try {
+    tx = parseTransactionForSigning(rawTransaction);
+  } catch {
+    // As in checkOutputPolicy: bytes that do not parse cannot be signed either (the signer uses the
+    // same parser), so they pay no one. Signing surfaces the real error.
+    return [];
+  }
   const outputs: PaymentOutput[] = [];
   for (let index = 0; index < tx.outputsLength; index += 1) {
     const output = tx.getOutput(index);
