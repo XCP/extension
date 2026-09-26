@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   },
   permissions: { hasPermission: vi.fn(), hasPairedAddressPermission: vi.fn() },
   emit: vi.fn(), decodePsbt: vi.fn(), decodeTransaction: vi.fn(), decodeBundle: vi.fn(),
+  extractPsbtDetails: vi.fn(),
 }));
 vi.mock('@/platform/auth/sessionManager', () => ({
   getSessionGeneration: () => mocks.sessionGeneration,
@@ -33,7 +34,7 @@ vi.mock('@/core/bitcoin/transactionApprovalDecoder', () => ({ decodeTransactionF
 vi.mock('@/core/bitcoin/psbtBundleApprovalDecoder', () => ({ decodePsbtBundleForApproval: mocks.decodeBundle }));
 vi.mock('@/core/bitcoin/psbt', async importOriginal => ({
   ...await importOriginal<typeof import('@/core/bitcoin/psbt')>(),
-  extractPsbtDetails: () => ({ inputs: [{ index: 0, address: 'bc1qauthorized' }], outputs: [] }),
+  extractPsbtDetails: mocks.extractPsbtDetails,
 }));
 
 import { PrevoutMismatchError } from '@/core/bitcoin/psbtPrevouts';
@@ -67,6 +68,7 @@ describe('background provider signing execution', () => {
       'https://example.test': { pairedAddresses: true, ...identity },
     } });
     mocks.currentWallet.mockReturnValue({ id: identity.walletId, addresses: [{ address: identity.address }] });
+    mocks.extractPsbtDetails.mockImplementation(() => ({ inputs: [{ index: 0, address: 'bc1qauthorized' }], outputs: [] }));
     mocks.wallet.isKeychainUnlocked.mockResolvedValue(true);
     mocks.wallet.getActiveAddress.mockResolvedValue({ address: identity.address });
     mocks.wallet.getActiveWallet.mockResolvedValue({ id: identity.walletId, type: 'privateKey', addressFormat: 'p2wpkh' });
@@ -127,6 +129,20 @@ describe('background provider signing execution', () => {
       .rejects.toMatchObject({ reviewCode: 'retry_required' });
     expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
     expect(await getSignFlow('req-1')).toMatchObject({ status: 'pending' });
+  });
+
+  it('parses a PSBT once per signing flow while re-checking authorization at every step', async () => {
+    await beginSignFlow(request({ kind: 'sign-psbt', psbtHex: 'original-psbt', signInputs: { [identity.address]: [0] } }));
+    const review = await service.getReview('req-1');
+    mocks.extractPsbtDetails.mockClear();
+    mocks.wallet.isKeychainUnlocked.mockClear();
+    await service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: false });
+    expect(mocks.wallet.signPsbt).toHaveBeenCalledTimes(1);
+    // Review at the click, authorization before signing, authorization before delivery: each one
+    // re-reads the live wallet state, and all of them share one parse of the immutable bytes.
+    expect(mocks.wallet.isKeychainUnlocked.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(mocks.extractPsbtDetails).toHaveBeenCalledTimes(1);
+    expect(mocks.extractPsbtDetails).toHaveBeenCalledWith('original-psbt');
   });
 
   it('keeps verification_failed when a fresh block is not a lookup failure', async () => {

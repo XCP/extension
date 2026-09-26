@@ -17,6 +17,7 @@ import {
   policyTapLeafHash,
   unsignedPolicyParentVsize,
   validateCanonicalPolicy,
+  xOnlyKey,
 } from '@/core/counterparty/policyOffer';
 import { POLICY_OFFER_VECTORS } from './policyOfferVectors';
 
@@ -186,4 +187,31 @@ describe('platformFeeSats', () => {
       expect(platformFeeSats(price)).toBe(fee);
     },
   );
+});
+
+/** Key checks are remembered by hex; the answers, and the refusals, must not change. */
+describe('remembered key checks', () => {
+  // x = 5 is not the x coordinate of any secp256k1 point; x = G.x is.
+  const OFF_CURVE = '0000000000000000000000000000000000000000000000000000000000000005';
+  const GENERATOR_X = '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
+
+  it('keeps refusing a key off the curve, before and after a valid key is remembered', () => {
+    expect(() => xOnlyKey(OFF_CURVE, 'internal key')).toThrow(/not a valid x-only public key/);
+    expect(xOnlyKey(GENERATOR_X, 'internal key')).toEqual(hexToBytes(GENERATOR_X));
+    expect(() => xOnlyKey(OFF_CURVE, 'internal key')).toThrow(/not a valid x-only public key/);
+    expect(() => policyInternalKeyAddresses(OFF_CURVE)).toThrow(/not a valid x-only public key/);
+    expect(() => xOnlyKey(GENERATOR_X.toUpperCase(), 'internal key')).toThrow(/lowercase hex/);
+  });
+
+  it('hands out fresh bytes and fresh address lists, so a caller cannot alter the remembered answer', () => {
+    const bytes = xOnlyKey(GENERATOR_X, 'market key');
+    bytes.fill(0);
+    expect(xOnlyKey(GENERATOR_X, 'market key')).toEqual(hexToBytes(GENERATOR_X));
+
+    const first = policyInternalKeyAddresses(GENERATOR_X);
+    expect(first).toHaveLength(3);
+    first.pop();
+    expect(policyInternalKeyAddresses(GENERATOR_X)).toHaveLength(3);
+    expect(policyInternalKeyAddresses(GENERATOR_X)).toEqual(policyInternalKeyAddresses(GENERATOR_X));
+  });
 });

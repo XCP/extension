@@ -21,21 +21,9 @@ export default defineContentScript({
   matches,
   runAt: 'document_start',
   async main(ctx) {
-    /**
-     * CRITICAL: Send "ready" signal to background immediately
-     * This tells the background which tabs have content scripts loaded,
-     * preventing "Receiving end does not exist" errors when broadcasting.
-     */
-    try {
-      chrome.runtime.sendMessage({ __xcp_cs_ready: true, tabUrl: window.location.href }, () => {
-        // Always consume lastError to prevent console warnings
-        if (chrome.runtime.lastError) {
-          // Expected during extension startup - background might not be ready yet
-        }
-      });
-    } catch (_e) {
-      // Ignore errors during initial handshake
-    }
+    // Nothing is sent to the background on load. This script runs in every https page, and any
+    // message would wake the service worker on every page load in the browser; it only needs to
+    // hear from this page once the page uses the provider.
     /**
      * Main message handler for background → content script communication
      * We register this EARLY to consume any Chrome runtime errors
@@ -111,6 +99,7 @@ export default defineContentScript({
     const ownership = {};
     Reflect.set(globalThis, BRIDGE_OWNER_KEY, ownership);
     const isOwner = () => Reflect.get(globalThis, BRIDGE_OWNER_KEY) === ownership;
+    let contextWatch: ReturnType<typeof setInterval> | undefined;
     const closeBridge = () => {
       if (bridgeClosed) return;
       bridgeClosed = true;
@@ -121,6 +110,23 @@ export default defineContentScript({
         target: MESSAGE_TARGETS.INJECTED, type: MESSAGE_TYPES.EVENT, event: 'disconnect', data: error,
       }, window.location.origin);
       try { browser.runtime.onMessage.removeListener(runtimeMessageHandler); } catch { /* context gone */ }
+      clearInterval(contextWatch);
+    };
+
+    /**
+     * Tell the page as soon as the extension goes away, not at its next request. A property read,
+     * no messaging, but still a timer, so it runs only in pages that have used the provider: a page
+     * that never asked has no provider state to invalidate and learns at its first request anyway.
+     */
+    const startContextWatch = () => {
+      if (contextWatch !== undefined || bridgeClosed) return;
+      contextWatch = setInterval(() => {
+        if (!isOwner() || bridgeClosed) { clearInterval(contextWatch); return; }
+        if (!isExtensionContextValid()) {
+          clearInterval(contextWatch);
+          closeBridge();
+        }
+      }, CONTEXT_WATCH_INTERVAL_MS);
     };
 
     // The page controls the payload. The background independently validates the
@@ -140,6 +146,7 @@ export default defineContentScript({
         closeBridge();
         return;
       }
+      startContextWatch();
       const key = {};
       inFlight.set(key, envelope);
       try {
@@ -178,14 +185,7 @@ export default defineContentScript({
       if ((event as PageTransitionEvent).persisted) disconnectAllPorts();
     });
     window.addEventListener('pageshow', (event) => {
-      if ((event as PageTransitionEvent).persisted) {
-        disconnectAllPorts();
-        try {
-          chrome.runtime.sendMessage({ __xcp_cs_ready: true, tabUrl: window.location.href }, () => {
-            if (chrome.runtime.lastError) { /* consumed */ }
-          });
-        } catch {}
-      }
+      if ((event as PageTransitionEvent).persisted) disconnectAllPorts();
     });
 
     // The window listener deliberately outlives the context: an orphaned script that stopped
@@ -195,15 +195,5 @@ export default defineContentScript({
     ctx.onInvalidated(() => {
       if (!isExtensionContextValid()) closeBridge();
     });
-
-    // Tell the page as soon as the extension goes away, not at its next request. A property read,
-    // no messaging: cheap enough to run for the life of the page.
-    const contextWatch = setInterval(() => {
-      if (!isOwner() || bridgeClosed) { clearInterval(contextWatch); return; }
-      if (!isExtensionContextValid()) {
-        clearInterval(contextWatch);
-        closeBridge();
-      }
-    }, CONTEXT_WATCH_INTERVAL_MS);
   },
 });

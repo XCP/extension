@@ -123,6 +123,14 @@ export interface ProviderService {
 }
 
 /**
+ * How often a waiting signing request re-reads its stored outcome. Only a fallback: the popup's
+ * decision normally arrives as an event, and the stored outcome matters only when that event was
+ * emitted in a worker that has since stopped. Each read is a storage call, so at the old 1.5s a
+ * request left open for its full ten minutes made ~400 of them.
+ */
+export const SIGN_FLOW_RECOVERY_POLL_MS = 5_000;
+
+/**
  * Drives the popup approval lifecycle for a dApp signing request: registers the
  * critical operation, resolves/rejects on the popup's complete/cancel events,
  * times out after 10 minutes, and cleans up listeners (and any per-request
@@ -215,7 +223,7 @@ function awaitSignApproval<T>(opts: {
         if (flow.status === 'completed') await handleComplete();
         else if (flow.status === 'cancelled') handleCancel();
       }).catch(handleFailure);
-    }, 1500);
+    }, SIGN_FLOW_RECOVERY_POLL_MS);
   });
 }
 

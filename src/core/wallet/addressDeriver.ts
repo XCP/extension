@@ -11,9 +11,11 @@ import {
   encodeAddress,
   getDerivationPathForAddressFormat,
   getSeedFromMnemonic,
+  isCounterwalletFormat,
+  isFreewalletBIP39Format,
 } from '@/core/bitcoin/address';
 import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/core/bitcoin/privateKey';
-import { derivePubkeyFromAccountKey } from '@/core/wallet/hardwarePubkey';
+import { derivePubkeyFromAccountKey, pubkeyDeriverFromAccountKey } from '@/core/wallet/hardwarePubkey';
 import { parseUtxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import type { Address, HardwareWalletSecret, WalletRecord } from '@/types/wallet';
 
@@ -61,19 +63,84 @@ export async function generateWalletIdFromPrivateKey(privateKeyHex: string, addr
 }
 
 /**
- * One address from an already-derived master key.
+ * Somewhere to keep HD nodes a caller will want again, keyed by what they are.
+ *
+ * The session passes one that holds the unlocked wallet's nodes until its secret is cleared, so a
+ * signing flow stops re-running the seed for every key it asks for. Without one, nothing is kept.
+ */
+export type HdNodeCache = (key: string, derive: () => HDKey) => HDKey;
+
+const noCache: HdNodeCache = (_key, derive) => derive();
+
+/**
+ * Which seed a format reads from a mnemonic. The BIP-44/49/84/86 formats all use the same BIP-39
+ * seed, and each Counterwallet and Freewallet pair shares one, so a key names the seed rather than
+ * the format: a paired Legacy/SegWit lookup then pays for one seed, not two.
+ */
+function seedFamily(addressFormat: AddressFormat): string {
+  if (isCounterwalletFormat(addressFormat)) return 'counterwallet';
+  if (isFreewalletBIP39Format(addressFormat)) return 'freewallet-bip39';
+  return 'bip39';
+}
+
+/** The master key for a mnemonic under a format. The expensive step; derive it once per batch. */
+function hdRootFor(mnemonic: string, addressFormat: AddressFormat, cache: HdNodeCache = noCache): HDKey {
+  return cache(`seed:${seedFamily(addressFormat)}`, () =>
+    HDKey.fromMasterSeed(getSeedFromMnemonic(mnemonic, addressFormat)));
+}
+
+/**
+ * The node at `path` for a mnemonic, equal to `HDKey.fromMasterSeed(seed).derive(path)`.
+ *
+ * `derive` is a sequence of `deriveChild` steps, so reaching the parent once and taking the last
+ * step from there is the same arithmetic. What it saves is the seed and the hardened steps above
+ * the parent, which every key under one account shares.
+ */
+function mnemonicNodeAt(
+  mnemonic: string,
+  addressFormat: AddressFormat,
+  path: string,
+  cache: HdNodeCache = noCache,
+): HDKey {
+  const root = hdRootFor(mnemonic, addressFormat, cache);
+  const cut = path.lastIndexOf('/');
+  if (cut <= 0) return root.derive(path);
+  const parentPath = path.slice(0, cut);
+  const parent = /^[mM]'?$/.test(parentPath)
+    ? root
+    : cache(`node:${seedFamily(addressFormat)}:${parentPath}`, () => root.derive(parentPath));
+  return parent.derive(`m/${path.slice(cut + 1)}`);
+}
+
+/** The private key at `path`, exactly as `getPrivateKeyFromMnemonic` returns it. */
+export function mnemonicPrivateKeyAt(
+  mnemonic: string,
+  addressFormat: AddressFormat,
+  path: string,
+  cache: HdNodeCache = noCache,
+): string {
+  const child = mnemonicNodeAt(mnemonic, addressFormat, path, cache);
+  if (!child.privateKey) {
+    throw new Error('Unable to derive private key');
+  }
+  return bytesToHex(child.privateKey);
+}
+
+/**
+ * One address from the node of its chain (`m/…/0`), taking only the last step.
  *
  * Split out so the single and batch entry points below share one definition of what an address at
- * an index *is*. Both previously spelled it out, and the encoding step differed: one called
- * `getAddressFromMnemonic`, which derives the seed all over again to reach the same public key.
+ * an index *is*. Deriving from the chain node rather than the master key is the same arithmetic —
+ * `derive(path)` is a run of `deriveChild` steps — minus the hardened steps every index shares;
+ * `addressDeriver.equivalence.test.ts` holds it to byte equality against the original routine.
  */
 function addressAtIndex(
-  root: HDKey,
+  chain: HDKey,
   addressFormat: AddressFormat,
   index: number
 ): Address {
   const path = `${getDerivationPathForAddressFormat(addressFormat)}/${index}`;
-  const child = root.derive(path);
+  const child = chain.derive(`m/${index}`);
   if (!child.publicKey) {
     throw new Error('Unable to derive public key');
   }
@@ -85,9 +152,20 @@ function addressAtIndex(
   };
 }
 
-export function deriveMnemonicAddress(mnemonic: string, addressFormat: AddressFormat, index: number): Address {
-  const root = HDKey.fromMasterSeed(getSeedFromMnemonic(mnemonic, addressFormat));
-  return addressAtIndex(root, addressFormat, index);
+/** The node every sequential address of a format hangs from. */
+function chainNode(root: HDKey, addressFormat: AddressFormat, cache: HdNodeCache): HDKey {
+  const chainPath = getDerivationPathForAddressFormat(addressFormat);
+  return cache(`node:${seedFamily(addressFormat)}:${chainPath}`, () => root.derive(chainPath));
+}
+
+export function deriveMnemonicAddress(
+  mnemonic: string,
+  addressFormat: AddressFormat,
+  index: number,
+  cache: HdNodeCache = noCache,
+): Address {
+  const root = hdRootFor(mnemonic, addressFormat, cache);
+  return addressAtIndex(chainNode(root, addressFormat, cache), addressFormat, index);
 }
 
 /**
@@ -100,27 +178,30 @@ export function deriveMnemonicAddress(mnemonic: string, addressFormat: AddressFo
  * that draws the UI. Selecting such a wallet froze the popup, and because the state lock queues,
  * every impatient click during the freeze added another full pass.
  *
- * Hoisting the seed and the master key out of the loop takes the same wallet to about 43ms. The
- * per-index derivation is untouched, so the addresses are the ones this wallet has always had —
+ * Hoisting the seed and the master key out of the loop takes the same wallet to about 43ms, and
+ * hoisting the chain node (`m/…/0`) as well leaves one child step per address. The per-index
+ * arithmetic is untouched, so the addresses are the ones this wallet has always had —
  * `addressDeriver.equivalence.test.ts` holds that to byte equality against the original routine.
  */
 export function deriveMnemonicAddresses(
   mnemonic: string,
   addressFormat: AddressFormat,
-  count: number
+  count: number,
+  cache: HdNodeCache = noCache,
 ): Address[] {
   if (count <= 0) return [];
-  return sequentialAddresses(hdRootFor(mnemonic, addressFormat), addressFormat, count);
-}
-
-/** The master key for a mnemonic under a format. The expensive step; derive it once per batch. */
-function hdRootFor(mnemonic: string, addressFormat: AddressFormat): HDKey {
-  return HDKey.fromMasterSeed(getSeedFromMnemonic(mnemonic, addressFormat));
+  return sequentialAddresses(hdRootFor(mnemonic, addressFormat, cache), addressFormat, count, cache);
 }
 
 /** The wallet's ordinary run of addresses, indexes 0 through count - 1. */
-function sequentialAddresses(root: HDKey, addressFormat: AddressFormat, count: number): Address[] {
-  return Array.from({ length: count }, (_, index) => addressAtIndex(root, addressFormat, index));
+function sequentialAddresses(
+  root: HDKey,
+  addressFormat: AddressFormat,
+  count: number,
+  cache: HdNodeCache,
+): Address[] {
+  const chain = chainNode(root, addressFormat, cache);
+  return Array.from({ length: count }, (_, index) => addressAtIndex(chain, addressFormat, index));
 }
 
 export function deriveAddressFromPrivateKey(privKeyData: string, addressFormat: AddressFormat): Address {
@@ -189,13 +270,16 @@ function hardwarePubKey(hardwareData: HardwareWalletSecret): string {
 }
 
 /**
- * A hardware wallet's receive address at `index` (…/0/index), derived from the stored account
- * xpub. Null when it cannot be derived, or when the xpub does not reproduce the address the device
- * reported for index 0: an account key that disagrees with the device must never name an address
- * whose funds the device would then be asked to sign for.
+ * A hardware wallet's receive addresses (…/0/index), derived from the stored account xpub.
+ *
+ * Returns a lookup rather than one address so a batch parses the secret and the account key, and
+ * checks index 0 against the device, once — not once per index. The lookup gives null when an
+ * address cannot be derived; the whole thing is null when the xpub does not reproduce the address
+ * the device reported for index 0: an account key that disagrees with the device must never name
+ * an address whose funds the device would then be asked to sign for.
  */
-export function deriveHardwareAddress(secret: string, record: WalletRecord, index: number): Address | null {
-  if (record.type !== 'hardware' || !Number.isSafeInteger(index) || index < 0) return null;
+function hardwareReceiveAddresses(secret: string, record: WalletRecord): ((index: number) => Address | null) | null {
+  if (record.type !== 'hardware') return null;
   let hardwareData: HardwareWalletSecret;
   try {
     hardwareData = JSON.parse(secret);
@@ -205,10 +289,12 @@ export function deriveHardwareAddress(secret: string, record: WalletRecord, inde
   const accountKey = hardwareData.xpub;
   const firstPath = hardwareData.derivationPath;
   if (!accountKey || !firstPath?.endsWith('/0/0')) return null;
-  const receivePath = (i: number) => `${firstPath.slice(0, -'/0'.length)}/${i}`;
+  const chainPath = firstPath.slice(0, -'/0'.length);
+  const receivePath = (i: number) => `${chainPath}/${i}`;
+  const pubkeyAt = pubkeyDeriverFromAccountKey(accountKey, chainPath);
 
   const at = (i: number): Address | null => {
-    const pubKey = derivePubkeyFromAccountKey(accountKey, receivePath(i));
+    const pubKey = pubkeyAt(i);
     if (!pubKey) return null;
     return {
       name: `Address ${i + 1}`,
@@ -220,16 +306,30 @@ export function deriveHardwareAddress(secret: string, record: WalletRecord, inde
 
   const first = at(0);
   if (!first || first.address !== record.previewAddress) return null;
-  return index === 0 ? first : at(index);
+  return (index) => (index === 0 ? first : at(index));
+}
+
+/**
+ * A hardware wallet's receive address at `index` (…/0/index), derived from the stored account
+ * xpub. Null when it cannot be derived, or when the xpub does not reproduce the address the device
+ * reported for index 0 (see `hardwareReceiveAddresses`).
+ */
+export function deriveHardwareAddress(secret: string, record: WalletRecord, index: number): Address | null {
+  if (record.type !== 'hardware' || !Number.isSafeInteger(index) || index < 0) return null;
+  return hardwareReceiveAddresses(secret, record)?.(index) ?? null;
 }
 
 /** Derives addresses from a decrypted secret based on wallet type */
-export function deriveAddressesFromSecret(secret: string, record: WalletRecord): Address[] {
+export function deriveAddressesFromSecret(
+  secret: string,
+  record: WalletRecord,
+  cache: HdNodeCache = noCache,
+): Address[] {
   if (record.type === 'mnemonic') {
     // One master key for both runs. Deriving it again for the extras would pay the seed cost
     // twice on every unlock — the exact expense `deriveMnemonicAddresses` exists to avoid.
-    const root = hdRootFor(secret, record.addressFormat);
-    const addresses = sequentialAddresses(root, record.addressFormat, record.addressCount || 1);
+    const root = hdRootFor(secret, record.addressFormat, cache);
+    const addresses = sequentialAddresses(root, record.addressFormat, record.addressCount || 1, cache);
     if (!record.extraPaths?.length) return addresses;
     return [...addresses, ...deriveExtraAddresses(root, record.addressFormat, record.extraPaths)];
   }
@@ -247,8 +347,9 @@ export function deriveAddressesFromSecret(secret: string, record: WalletRecord):
         pubKey: hardwarePubKey(hardwareData),
       };
       const rest: Address[] = [];
+      const receiveAddress = (record.addressCount || 1) > 1 ? hardwareReceiveAddresses(secret, record) : null;
       for (let index = 1; index < (record.addressCount || 1); index++) {
-        const address = deriveHardwareAddress(secret, record, index);
+        const address = receiveAddress?.(index) ?? null;
         if (!address) break;
         rest.push(address);
       }

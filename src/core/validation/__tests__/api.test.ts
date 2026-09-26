@@ -99,7 +99,7 @@ describe('validateCounterpartyApi', () => {
       isValid: false, error: 'API returned error: 429', diagnostic: { code: 'http_error', status: 429 },
     });
     expect(global.fetch).toHaveBeenCalledExactlyOnceWith('https://api.example.com/v2', {
-      method: 'GET', headers: { 'Content-Type': 'application/json' }, signal: expect.any(AbortSignal),
+      method: 'GET', signal: expect.any(AbortSignal),
     });
     expect(json).not.toHaveBeenCalled();
   });

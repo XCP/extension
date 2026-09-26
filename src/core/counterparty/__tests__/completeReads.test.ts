@@ -118,14 +118,16 @@ describe('complete wallet reads through the real API client wrapper', () => {
     get.mockImplementation(async (url, config) => {
       expect(url).toBe('https://node.test/v2/utxos/withbalances');
       const batch = String(config?.params?.utxos).split(',');
-      expect(batch.length).toBeLessThanOrEqual(20);
+      // Below Core's 100-row default, and a request line that proxies reliably accept.
+      expect(batch.length).toBeLessThanOrEqual(80);
+      expect(`${url}?${new URLSearchParams({ utxos: batch.join(','), verbose: 'false' })}`.length).toBeLessThan(6_000);
       return reply({ result: Object.fromEntries(batch.map(utxo => [utxo, utxo === held])) });
     });
     const selected = await selectUtxosForTransaction('address');
     expect(selected.excludedWithAssets).toBe(1);
     expect(selected.inputsSet).not.toContain(held);
     expect(selected.utxos[0]?.txid).toBe(utxos[119]?.txid);
-    expect(get).toHaveBeenCalledTimes(7);
+    expect(get).toHaveBeenCalledTimes(2);
   });
 
   it('never assumes an omitted membership result means no attached assets', async () => {

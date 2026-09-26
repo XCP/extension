@@ -249,10 +249,40 @@ const xcpPriceFetchers = [fetchFromXCPIO];
  *
  * Dex-Trade stays as a genuine last resort, reached only if every canonical
  * source has failed, because a stale cross-rate beats no price at all. It
- * needs BTC/USD to convert its XCP/BTC quote, so it is skipped without one.
+ * needs BTC/USD to convert its XCP/BTC quote, so it is skipped without one. The BTC quote may be
+ * passed as a pending promise; it is awaited only if the fallback is reached.
+ *
+ * Quotes are kept for a minute and concurrent callers share one request.
  */
 export async function getXCPPrice(
-  btcPriceUsd?: number | null,
+  btcPriceUsd?: number | null | Promise<number | null>,
+): Promise<number | null> {
+  if (xcpQuote && Date.now() - xcpQuote.at < XCP_PRICE_TTL_MS) return xcpQuote.price;
+  if (xcpInflight) return xcpInflight;
+
+  const request = findXCPPrice(btcPriceUsd).then((price) => {
+    if (price !== null) xcpQuote = { price, at: Date.now() };
+    return price;
+  });
+  xcpInflight = request;
+  try {
+    return await request;
+  } finally {
+    if (xcpInflight === request) xcpInflight = null;
+  }
+}
+
+/**
+ * How long an XCP quote is reused. Concurrent callers share one request; a failure is never
+ * cached, and nothing older than this is returned when the sources fail.
+ */
+const XCP_PRICE_TTL_MS = 60_000;
+
+let xcpQuote: { price: number; at: number } | null = null;
+let xcpInflight: Promise<number | null> | null = null;
+
+async function findXCPPrice(
+  btcPriceUsd?: number | null | Promise<number | null>,
 ): Promise<number | null> {
   const usable = (price: unknown): price is number =>
     typeof price === "number" && Number.isFinite(price) && price > 0;
@@ -266,9 +296,12 @@ export async function getXCPPrice(
     }
   }
 
-  if (usable(btcPriceUsd)) {
+  // Awaited only here: the BTC quote is needed for the last resort alone, so a caller can pass the
+  // pending BTC request and fetch both prices at once.
+  const btcUsd = await Promise.resolve(btcPriceUsd).catch(() => null);
+  if (usable(btcUsd)) {
     try {
-      const { xcp } = await fetchFromDexTrade(btcPriceUsd);
+      const { xcp } = await fetchFromDexTrade(btcUsd);
       if (usable(xcp?.usd)) return xcp.usd;
     } catch {
       // Nothing left to try.

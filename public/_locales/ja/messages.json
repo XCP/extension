@@ -6374,7 +6374,7 @@
     "message": "いずれかの資金 UTXO を使用すると、すべての代替オファーがオンチェーンで取り消されます"
   },
   "marketplace_intent_notice_policy_offer_market_key": {
-    "message": "資金 UTXO が使用されるまで、$1 の署名鍵は最大 $2 でこのオファーを成立させることができます。現時点では何もブロードキャストされません。"
+    "message": "有効なオファーです。$1 まで、またはキャンセルするまで、再度確認することなく成立する場合があります。現時点では何もブロードキャストされません。"
   },
   "marketplace_intent_pays_for_two_transactions": {
     "message": "2 件のトランザクション分、$1 vB"

@@ -37,8 +37,8 @@ vi.mock('@/contexts/header-context', () => ({
 }));
 
 // Mock wallet service imported by the optional paired-address consent path.
-vi.mock('@/services/walletService', () => ({
-  getWalletService: () => ({
+vi.mock('@/services/walletServiceClient', () => ({
+  getWalletServiceClient: () => ({
     getPairedAddresses: approvalMocks.getPairedAddresses,
   }),
 }));

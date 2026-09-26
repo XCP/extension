@@ -6374,7 +6374,7 @@
     "message": "花費任一資金 UTXO 即在鏈上取消所有備選出價"
   },
   "marketplace_intent_notice_policy_offer_market_key": {
-    "message": "在資金 UTXO 被花費之前，$1 的簽署金鑰最多可以 $2 完成此出價。現在不會廣播任何內容。"
+    "message": "長期有效的出價。在 $1 之前或你取消之前，可無需再次詢問你即被成交。現在不會廣播任何內容。"
   },
   "marketplace_intent_pays_for_two_transactions": {
     "message": "支付 2 筆交易，$1 vB"

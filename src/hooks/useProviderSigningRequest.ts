@@ -4,7 +4,7 @@ import { providerReviewErrorMessage } from '@/components/domain/approval/provide
 import { useWallet } from '@/contexts/wallet-context';
 import { ProviderReviewError } from '@/core/providerReviewErrors';
 import { getIdentityMismatchCode } from '@/platform/provider/requestIdentity';
-import { getProviderSigningService, type ProviderSigningReview } from '@/services/providerSigningService';
+import { getProviderSigningServiceClient, type ProviderSigningReview } from '@/services/providerSigningServiceClient';
 
 /** The popup reads a background review and sends only its bound decision. */
 export function useProviderSigningRequest<K extends ProviderSigningReview['kind']>(kind: K) {
@@ -59,7 +59,7 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
     try {
       // Re-run background verification. Failed evidence lookups are retried; successful
       // ledger, block-height and fee facts retain their existing short-lived caches.
-      const result = await getProviderSigningService().getReview(scope.requestId);
+      const result = await getProviderSigningServiceClient().getReview(scope.requestId);
       if (result.kind !== scope.kind) throw new ProviderReviewError('wrong_screen');
       if (scope.cancelled || scopeRef.current !== scope) return;
       scope.pending = false;
@@ -112,7 +112,7 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
       || scope.reviewKey !== review.reviewKey) {
       throw new ProviderReviewError('retry_required');
     }
-    await getProviderSigningService().approveAndSign(requestId, {
+    await getProviderSigningServiceClient().approveAndSign(requestId, {
       reviewKey: review.reviewKey, risksAcknowledged,
     });
   }, [requestId, kind, review, identityError]);
@@ -120,7 +120,7 @@ export function useProviderSigningRequest<K extends ProviderSigningReview['kind'
   const handleCancel = useCallback(async () => {
     if (!requestId) return;
     const scope = scopeRef.current;
-    await getProviderSigningService().reject(requestId);
+    await getProviderSigningServiceClient().reject(requestId);
     if (!scope || scopeRef.current !== scope) return;
     scope.cancelled = true;
     scope.pending = false;

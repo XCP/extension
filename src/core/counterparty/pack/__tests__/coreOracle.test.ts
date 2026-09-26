@@ -418,5 +418,5 @@ describe.skipIf(!API_URL)('local packing matches counterparty-core', () => {
     const packed = packComposeMessage(testCase.composeType, testCase.params, observed);
     expect(packed, 'this case should be packable locally').not.toBeNull();
     expect(bytesToHex(packed!.bytes).toLowerCase()).toBe(fromCore);
-  }, 30_000);
+  }, 60_000);
 });

@@ -418,7 +418,7 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
       ).toBe(transactions.length);
       return;
     }
-  }, 30_000);
+  }, 60_000);
 });
 
 describe('on-chain fairminter sample classification', () => {

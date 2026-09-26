@@ -1,4 +1,6 @@
-import { EN, type MessageKey } from '@/i18n/en.generated';
+// Type only: the English catalog value is 138 KB, and the browser already carries it as
+// public/_locales/en/messages.json, the default locale every other catalog falls back to.
+import type { MessageKey } from '@/i18n/en.generated';
 
 export type { MessageKey } from '@/i18n/en.generated';
 
@@ -7,15 +9,15 @@ export function t(key: MessageKey, substitutions?: string | readonly string[]): 
   const subs = substitutions === undefined
     ? undefined
     : typeof substitutions === 'string' ? substitutions : [...substitutions];
-  const message = fromRuntime(key, subs);
-  return message || substitute(EN[key], subs);
+  return fromRuntime(key, subs) || key;
 }
 
 /**
- * The browser's answer, or nothing. Empty means "no such message in the active
- * locale", which Chrome reports as an empty string; a thrown error means there
- * is no real extension runtime at all (unit tests run against a fake browser
- * whose `i18n.getMessage` is a stub that throws). Both fall back to English.
+ * The browser's answer, or nothing. Chrome resolves a key missing from the
+ * active locale from the default (English) catalog itself, so every key in
+ * `MessageKey` gets text in a real extension. Empty or thrown means there is no
+ * extension runtime at all; the key itself is shown then. Unit tests install an
+ * English `getMessage` in vitest.setup.ts.
  */
 function fromRuntime(key: MessageKey, subs?: string | string[]): string {
   try {
@@ -23,12 +25,6 @@ function fromRuntime(key: MessageKey, subs?: string | string[]): string {
   } catch {
     return '';
   }
-}
-
-function substitute(message: string, subs?: string | string[]): string {
-  if (subs === undefined) return message;
-  const list = typeof subs === 'string' ? [subs] : subs;
-  return message.replace(/\$(\d)/g, (_, index: string) => list[Number(index) - 1] ?? '');
 }
 
 /**
@@ -39,7 +35,9 @@ function substitute(message: string, subs?: string | string[]): string {
  * and unsupported languages fall back to the wallet's English catalog.
  */
 export function currentLocale(): string {
-  return t('appLocale');
+  const tag = t('appLocale');
+  // Without an extension runtime t() answers with the key, which is not a language tag.
+  return tag === 'appLocale' ? 'en' : tag;
 }
 
 /**

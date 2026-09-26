@@ -16,7 +16,7 @@ vi.mock('@/contexts/header-context', () => ({ useHeader: () => stable.header }))
 vi.mock('@/contexts/wallet-context', () => ({ useWallet: () => stable.wallet }));
 vi.mock('@/platform/fathom', () => ({ analytics: { track: vi.fn() } }));
 vi.mock('@/core/bitcoin/messageSigner', () => ({ getSigningCapabilities: () => ({ canSign: true, method: 'BIP-137' }), signMessage: vi.fn() }));
-vi.mock('@/services/walletService', () => ({ getWalletService: () => stable.walletService }));
+vi.mock('@/services/walletServiceClient', () => ({ getWalletServiceClient: () => stable.walletService }));
 vi.mock('@/core/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => stable.adapter }));
 
 beforeEach(() => {

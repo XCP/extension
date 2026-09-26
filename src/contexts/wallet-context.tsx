@@ -47,11 +47,10 @@ import {
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { type AddressFormat, DEFAULT_ADDRESS_FORMAT } from '@/core/bitcoin/address';
 import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
-import { recordOwnChangeFromRawTx } from '@/core/counterparty/pendingChange';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
-import { getWalletService } from "@/services/walletService";
+import { getWalletServiceClient as getWalletService } from "@/services/walletServiceClient";
 import type { Address, SignTransactionOptions, Wallet } from "@/types/wallet";
 
 /**
@@ -155,8 +154,8 @@ interface WalletContextType {
   // ─── Wallet Selection ──────────────────────────────────────────────────────
   /** Set the active address within the current wallet */
   setActiveAddress: (address: Address | null) => Promise<void>;
-  /** Update last activity timestamp (for auto-lock) */
-  setLastActiveTime: () => Promise<void>;
+  /** Update last activity timestamp (for auto-lock); `activityTime` is when it happened, if earlier */
+  setLastActiveTime: (activityTime?: number) => Promise<void>;
   /** Check if keychain is currently locked */
   isKeychainLocked: () => Promise<boolean>;
 
@@ -540,8 +539,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     [emitAccountsChanged, walletService]
   );
 
-  const setLastActiveTime = useCallback(async () => {
-    await walletService.setLastActiveTime();
+  const setLastActiveTime = useCallback(async (activityTime?: number) => {
+    await walletService.setLastActiveTime(activityTime);
   }, [walletService]);
 
   const setHardwareOperationInProgress = useCallback((inProgress: boolean) => {
@@ -665,8 +664,11 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       recordSpentInputsFromRawTx(signedTxHex);
       // The symmetric half: our own change becomes spendable immediately, so an address whose
       // only UTXO was just consumed can chain without waiting for the indexer. pendingChange
-      // owns the safety judgment about which outputs qualify.
-      recordOwnChangeFromRawTx(
+      // owns the safety judgment about which outputs qualify. Loaded here, after a broadcast,
+      // because its transaction parser is not needed to open the popup; awaited so the change is
+      // recorded before the caller composes again. A failed chunk load only skips the shortcut.
+      const pendingChange = await import('@/core/counterparty/pendingChange').catch(() => null);
+      pendingChange?.recordOwnChangeFromRawTx(
         signedTxHex,
         walletStateRef.current.wallets.flatMap((wallet) => wallet.addresses.map((a) => a.address))
       );

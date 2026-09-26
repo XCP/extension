@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchFromXCPIO, getXCPPrice, getXcpStats } from "./price";
 
 describe("canonical XCP price", () => {
@@ -52,7 +52,17 @@ describe("canonical XCP price", () => {
 });
 
 describe("XCP price source preference", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  // Quotes are shared for a minute. Each case runs on a clock past the previous case's quote.
+  let minutesLater = 0;
+  beforeEach(() => {
+    minutesLater += 2;
+    const now = Date.now() + minutesLater * 60_000;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   /** xcp.io answers slowly; Dex-Trade answers at once. The old Promise.any race
    *  returned whichever landed first, so this ordering is what is under test. */
@@ -130,5 +140,46 @@ describe("XCP price source preference", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(getXCPPrice(79_000)).resolves.toBeNull();
+  });
+
+  it("fetches the ticker without waiting for the BTC quote, which only the exchange needs", async () => {
+    const fetch = stub({ ticker: () => Response.json({ result: { xcp: { usd: 2.87 } } }), dexTrade: () => Response.json(EXCHANGE) });
+    vi.stubGlobal("fetch", fetch);
+    const neverSettles = new Promise<number | null>(() => {});
+
+    await expect(getXCPPrice(neverSettles)).resolves.toBe(2.87);
+  });
+
+  it("reaches the exchange through a pending BTC quote once the ticker fails", async () => {
+    vi.stubGlobal("fetch", stub({
+      ticker: () => new Response("", { status: 503 }),
+      dexTrade: () => Response.json(EXCHANGE),
+    }));
+    await expect(getXCPPrice(Promise.resolve(79_000))).resolves.toBeCloseTo(1.817, 3);
+  });
+
+  it("shares one request among concurrent callers and reuses the quote for a minute", async () => {
+    const fetch = stub({ ticker: () => Response.json({ result: { xcp: { usd: 2.87 } } }), dexTrade: () => Response.json(EXCHANGE) });
+    vi.stubGlobal("fetch", fetch);
+
+    const [first, second] = await Promise.all([getXCPPrice(), getXCPPrice()]);
+    expect([first, second]).toEqual([2.87, 2.87]);
+    await expect(getXCPPrice()).resolves.toBe(2.87);
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    const later = Date.now() + 60_000;
+    vi.spyOn(Date, "now").mockReturnValue(later);
+    await expect(getXCPPrice()).resolves.toBe(2.87);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not remember a failure", async () => {
+    const failing = stub({ ticker: () => new Response("", { status: 503 }), dexTrade: () => Response.json(EXCHANGE) });
+    vi.stubGlobal("fetch", failing);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(getXCPPrice(null)).resolves.toBeNull();
+
+    vi.stubGlobal("fetch", stub({ ticker: () => Response.json({ result: { xcp: { usd: 3 } } }), dexTrade: () => Response.json(EXCHANGE) }));
+    await expect(getXCPPrice(null)).resolves.toBe(3);
   });
 });

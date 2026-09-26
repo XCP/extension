@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getWalletService } from '@/services/walletService';
 
@@ -45,5 +46,22 @@ describe('wallet provider notification boundary', () => {
       { origin: 'https://a.example', event: 'accountsChanged', data: [] });
     expect(eventEmitterService.emit).toHaveBeenCalledWith('emit-provider-event',
       { origin: 'https://b.example', event: 'accountsChanged', data: [] });
+  });
+
+  it('does not wait for a popup to hear about the lock', async () => {
+    // webext-bridge holds a 'popup' message until one connects; with none open this took ~5s.
+    vi.mocked(MessageBus.notifyKeychainLocked).mockReturnValueOnce(new Promise(() => {}));
+    manager.connected = ['https://a.example'];
+    manager.locked = false;
+    await getWalletService().lockKeychain();
+    expect(MessageBus.notifyKeychainLocked).toHaveBeenCalledWith(true);
+    expect(eventEmitterService.emit).toHaveBeenCalledWith('emit-provider-event',
+      { origin: 'https://a.example', event: 'accountsChanged', data: [] });
+  });
+
+  it('survives a failed popup notification', async () => {
+    vi.mocked(MessageBus.notifyKeychainLocked).mockRejectedValueOnce(new Error('No popup'));
+    manager.locked = false;
+    await expect(getWalletService().lockKeychain()).resolves.toBeUndefined();
   });
 });

@@ -57,6 +57,41 @@ describe('RequestGate', () => {
     await expect(results).resolves.toEqual([1, 2, 3, 4, 5]);
   });
 
+  it('lets a priority request take the next free slot ahead of queued reads, in its own order', async () => {
+    const clock = fakeClock();
+    const gate = new RequestGate({ maxInFlight: 2, now: clock.now, sleep: clock.sleep });
+    const started: string[] = [];
+    const finish = new Map<string, () => void>();
+    const request = (id: string) => () =>
+      new Promise<string>((resolve) => {
+        started.push(id);
+        finish.set(id, () => resolve(id));
+      });
+
+    const reads = ['r1', 'r2', 'r3', 'r4', 'r5'].map((id) => gate.run(request(id), refused));
+    const composes = ['c1', 'c2'].map((id) => gate.run(request(id), refused, { priority: true }));
+    await flush();
+    // The in-flight limit still holds: priority changes the order of the queue, not its size.
+    expect(started).toEqual(['r1', 'r2']);
+
+    finish.get('r1')!();
+    await flush();
+    expect(started).toEqual(['r1', 'r2', 'c1']);
+
+    finish.get('r2')!();
+    await flush();
+    expect(started).toEqual(['r1', 'r2', 'c1', 'c2']);
+
+    finish.get('c1')!();
+    await flush();
+    expect(started).toEqual(['r1', 'r2', 'c1', 'c2', 'r3']);
+
+    for (const id of ['c2', 'r3']) finish.get(id)!();
+    await flush();
+    for (const id of ['r4', 'r5']) finish.get(id)!();
+    await expect(Promise.all([...reads, ...composes])).resolves.toEqual(['r1', 'r2', 'r3', 'r4', 'r5', 'c1', 'c2']);
+  });
+
   it('waits out Retry-After after a refusal, then sends the refused request again', async () => {
     const clock = fakeClock();
     const gate = new RequestGate({ now: clock.now, sleep: clock.sleep, random: () => 0 });

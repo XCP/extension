@@ -133,7 +133,7 @@ export interface SignRequestAnalysisInput {
   /** Bitcoin transaction header, decoded from the bytes; protocols that pin it prove it. */
   transactionVersion?: number;
   lockTime?: number;
-  /** Wallet-supplied policy-offer facts (pinned keys, clock, funding settlement). Never a site's. */
+  /** Wallet-supplied policy-offer facts (verified origin, clock, funding settlement). Never a site's. */
   policyOffer?: PolicyOfferWalletContext;
 }
 
@@ -535,9 +535,10 @@ export async function analyzeSignRequest(
     ) {
       // A proved policy-offer parent carries no Counterparty message by design, and its two
       // outputs that are not the bidder's — the offer output rebuilt from the bidder's own key and
-      // the pinned market key's leaf, and the anchor returned to itself — are exactly what the
+      // the named market key's leaf, and the anchor returned to itself — are exactly what the
       // review states. Those findings are exempt; every other block (ZELD included) survives.
-      // The offer output is a script address, but its one leaf is rebuilt byte for byte, so the
+      // The offer output is a script address, but its one leaf is rebuilt byte for byte and
+      // opens with the fixed protocol tag, which no Counterparty message decodes from, so the
       // script-address caution has nothing left to say about what a spend of it could publish.
       safety.warnings = safety.warnings.filter(
         warning => warning.code !== 'counterparty_only_gate' && warning.code !== 'external_btc_output'

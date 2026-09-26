@@ -283,3 +283,33 @@ describe('dispenser price and opening order', () => {
     });
   });
 });
+
+describe('price unit preference', () => {
+  beforeEach(() => {
+    mocks.settings = { fiat: 'usd', priceUnit: 'sats' };
+    mocks.updateSettings.mockResolvedValue(undefined);
+    vi.mocked(api.fetchAssetDispensers).mockResolvedValue(response([dispenser('fixed')]));
+  });
+
+  it('saves nothing when the toggle ends on the stored unit', async () => {
+    render(<AssetDispensersPage />);
+    await screen.findByTestId('listing');
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Switch price display to BTC' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Switch price display to SATS' }));
+      await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+      expect(mocks.updateSettings).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('saves a changed unit once, even when the page is left inside the debounce', async () => {
+    const { unmount } = render(<AssetDispensersPage />);
+    await screen.findByTestId('listing');
+    fireEvent.click(screen.getByRole('button', { name: 'Switch price display to BTC' }));
+    unmount();
+    expect(mocks.updateSettings).toHaveBeenCalledExactlyOnceWith({ priceUnit: 'btc' });
+  });
+});

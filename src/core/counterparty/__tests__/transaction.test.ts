@@ -30,6 +30,7 @@ vi.mock('@/core/settings', async (importOriginal) => ({
   }),
 }));
 vi.mock('../api', () => ({
+  runCounterpartyRequest: (request: () => Promise<unknown>) => request(),
   fetchAssetDetails: vi.fn().mockImplementation(async (asset: string) => {
     if (asset === 'BTC' || asset === 'XCP') return { divisible: true };
     if (asset === 'PEPECASH') return { divisible: false };

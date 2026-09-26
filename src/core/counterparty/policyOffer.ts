@@ -183,16 +183,33 @@ const readU64le = (bytes: Uint8Array, offset: number): number => {
   return value;
 };
 
+/**
+ * Pure results by key hex, bounded. A bundle's items name the same market and bidder keys over
+ * and over, and each check costs curve arithmetic; the answers depend on nothing but the hex.
+ */
+const MEMO_LIMIT = 256;
+function remember<T>(memo: Map<string, T>, key: string, value: T): T {
+  if (memo.size >= MEMO_LIMIT) memo.delete(memo.keys().next().value as string);
+  memo.set(key, value);
+  return value;
+}
+
+/** Hex strings already shown to lift to a curve point. Public keys, not secrets. */
+const liftedKeys = new Map<string, true>();
+
 /** 32 bytes of lowercase hex naming a valid BIP340 x-only key (lift_x must succeed). */
 export function xOnlyKey(hex: string, label: string): Uint8Array {
   if (!/^[0-9a-f]{64}$/.test(hex)) throw new Error(`${label} must be 32 bytes of lowercase hex`);
+  // Fresh bytes every call: callers may hold or reuse the array.
   const key = hexToBytes(hex);
+  if (liftedKeys.has(hex)) return key;
   try {
     // Tweaking by the empty root lifts the key; an x coordinate off the curve throws.
     taprootTweakPubkey(key, new Uint8Array(0));
   } catch {
     throw new Error(`${label} is not a valid x-only public key`);
   }
+  remember(liftedKeys, hex, true);
   return key;
 }
 
@@ -318,18 +335,24 @@ export function policyOfferTaproot(internalKeyHex: string, leaf: Uint8Array): Po
   };
 }
 
+/** `policyInternalKeyAddresses` by key hex; only keys that passed `xOnlyKey` are stored. */
+const internalKeyAddresses = new Map<string, string[]>();
+
 /**
  * Every signing address K_b can own: its BIP86 P2TR address, and the P2WPKH address of either
  * parity (the x-only form drops the parity of a compressed ECDSA key). A bidder address among
  * these proves the site's internal key is the bidder's own key, not one it chose.
  */
 export function policyInternalKeyAddresses(internalKeyHex: string): string[] {
+  const known = internalKeyAddresses.get(internalKeyHex);
+  if (known) return [...known];
   const internalKey = xOnlyKey(internalKeyHex, 'internal key');
-  return [
+  const addresses = [
     p2tr(internalKey).script,
     p2wpkh(concat(Uint8Array.of(0x02), internalKey)).script,
     p2wpkh(concat(Uint8Array.of(0x03), internalKey)).script,
   ].map(script => decodeAddressFromScript(bytesToHex(script))).filter((address): address is string => !!address);
+  return [...remember(internalKeyAddresses, internalKeyHex, addresses)];
 }
 
 // ---------------------------------------------------------------------------------------------

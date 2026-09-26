@@ -2,8 +2,12 @@
 
 The wallet uses Chrome's native extension catalog selection throughout onboarding,
 unlocking, popup, sidepanel, and transaction approvals. There is no saved interface
-language or number-format preference. `t()` reads `chrome.i18n.getMessage()` and
-falls back to the generated English catalog outside an extension runtime.
+language or number-format preference. `t()` reads `chrome.i18n.getMessage()`, which
+resolves a key missing from the active locale from the English default catalog, so no
+English is bundled into the scripts: `src/i18n/en.generated.ts` is imported only as the
+`MessageKey` type. Outside an extension runtime `t()` returns the key itself; unit tests
+get English because `vitest.setup.ts` answers `getMessage` from
+`public/_locales/en/messages.json` the way Chrome does.
 
 Each catalog's `appLocale` identifies the language actually selected. It controls
 the document's `lang` attribute and automatic number/date formatting, including

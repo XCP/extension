@@ -10,7 +10,7 @@ import { serializeRawInteger } from "@/core/amount-contract/amounts";
 
 import { apiClient } from '@/core/api/client';
 import { collectPages } from '@/core/counterparty/pagination';
-import { type RateLimitRefusal, RequestGate } from '@/core/counterparty/requestGate';
+import { type RateLimitRefusal, RequestGate, type RequestGateRunOptions } from '@/core/counterparty/requestGate';
 import { CounterpartyApiError } from '@/core/errors';
 import { asBaseUnits, asDisplayUnits, type BaseUnits, type DisplayUnits, toBigNumber } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
@@ -52,6 +52,19 @@ function rateLimitRefusal(error: unknown): RateLimitRefusal | null {
   return {
     retryAfterMs: typeof retryAfter === 'number' && Number.isFinite(retryAfter) ? retryAfter * 1000 : undefined,
   };
+}
+
+/**
+ * Send one Counterparty request that does not go through `cpApiGet` — compose, decode, unpack,
+ * broadcast, raw-transaction lookups — under the same gate, so it is paced with every other
+ * request to the node and a 429 is waited out and sent again instead of surfacing as a failure.
+ * The request function is the whole request: this adds no caching and no error translation.
+ */
+export function runCounterpartyRequest<T>(
+  request: () => Promise<T>,
+  options: RequestGateRunOptions = {},
+): Promise<T> {
+  return requestGate.run(request, rateLimitRefusal, options);
 }
 
 /**
@@ -621,7 +634,9 @@ async function cpApiGet<T = unknown>(
 
   const started = (async () => {
     const response = await requestGate.run(
-      () => apiClient.get<T | { error: string }>(url, { params: filteredParams }),
+      // One retry, not the client's three. The retry holds a gate slot while it backs off, and a
+      // read that failed twice is better reported than queued ahead of everything behind it.
+      () => apiClient.get<T | { error: string }>(url, { params: filteredParams, retries: 1 }),
       rateLimitRefusal
     );
 
@@ -695,6 +710,18 @@ export async function fetchTokenBalances(
   address: string,
   options: PaginationOptions & { sort?: string; type?: 'all' | 'utxo' | 'address' } = {}
 ): Promise<TokenBalance[]> {
+  return (await fetchTokenBalancesPage(address, options)).result;
+}
+
+/**
+ * One page of token balances with the node's total row count, so a caller can tell a complete
+ * list (and therefore that an asset missing from it has no balance) from a first page.
+ * `result_count` is null when the node did not report a usable count.
+ */
+export async function fetchTokenBalancesPage(
+  address: string,
+  options: PaginationOptions & { sort?: string; type?: 'all' | 'utxo' | 'address' } = {}
+): Promise<{ result: TokenBalance[]; result_count: number | null }> {
   const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
     `/v2/addresses/${encodePath(address)}/balances`,
     {
@@ -705,7 +732,21 @@ export async function fetchTokenBalances(
       ...(options.type && { type: options.type }),
     }
   );
-  return data.result ?? [];
+  const count = data.result_count;
+  return {
+    result: data.result ?? [],
+    result_count: typeof count === 'number' && Number.isSafeInteger(count) && count >= 0 ? count : null,
+  };
+}
+
+/** The row `fetchTokenBalance` answers with when the address holds none of the asset. */
+export function emptyTokenBalance(asset: string): TokenBalance {
+  return {
+    asset,
+    quantity: asBaseUnits(0),
+    quantity_normalized: asDisplayUnits('0'),
+    asset_info: { asset_longname: null, description: '', issuer: '', divisible: true, locked: false },
+  };
 }
 
 /**
@@ -728,12 +769,7 @@ export async function fetchTokenBalance(
     }
   );
 
-  const emptyBalance: TokenBalance = {
-    asset,
-    quantity: asBaseUnits(0),
-    quantity_normalized: asDisplayUnits('0'),
-    asset_info: { asset_longname: null, description: '', issuer: '', divisible: true, locked: false },
-  };
+  const emptyBalance = emptyTokenBalance(asset);
 
   if (!data.result?.length) return emptyBalance;
 
@@ -884,21 +920,33 @@ export async function fetchLedgerHeights(): Promise<{ backendHeight: number; cou
   return { backendHeight, counterpartyHeight };
 }
 
+/**
+ * UTXOs per `/v2/utxos/withbalances` request. Core's membership query has a 100-row default, so a
+ * batch must stay below it, and each outpoint costs about 72 URL characters once `:` and `,` are
+ * percent-encoded: 80 keeps the request line under ~6 KB, inside what proxies reliably accept.
+ */
+const UTXOS_WITH_BALANCES_BATCH = 80;
+
 /** Check candidates, not an arbitrarily capped list of an address's asset balances. */
 export async function fetchUtxosWithBalances(utxos: string[]): Promise<Set<string>> {
   const unique = [...new Set(utxos)];
+  const batches: string[][] = [];
+  for (let offset = 0; offset < unique.length; offset += UTXOS_WITH_BALANCES_BATCH) {
+    batches.push(unique.slice(offset, offset + UTXOS_WITH_BALANCES_BATCH));
+  }
+  // Sent together and paced by the gate, rather than one after another: the answers are
+  // independent, and every batch must still answer for every one of its UTXOs below.
+  const answers = await Promise.all(batches.map(batch =>
+    cpApiGet<{ result: Record<string, boolean> }>('/v2/utxos/withbalances',
+      { utxos: batch.join(','), verbose: false }, { skipCache: true })));
   const withBalances = new Set<string>();
-  // Core's membership query itself has a 100-row default. Keep each batch below that
-  // and the URL comfortably short, even when every candidate holds assets.
-  for (let offset = 0; offset < unique.length; offset += 20) {
-    const batch = unique.slice(offset, offset + 20);
-    const data = await cpApiGet<{ result: Record<string, boolean> }>('/v2/utxos/withbalances',
-      { utxos: batch.join(','), verbose: false }, { skipCache: true });
+  batches.forEach((batch, index) => {
+    const data = answers[index];
     for (const utxo of batch) {
-      if (typeof data.result?.[utxo] !== 'boolean') throw new Error('Unable to verify assets on transaction inputs.');
+      if (typeof data?.result?.[utxo] !== 'boolean') throw new Error('Unable to verify assets on transaction inputs.');
       if (data.result[utxo]) withBalances.add(utxo);
     }
-  }
+  });
   return withBalances;
 }
 
