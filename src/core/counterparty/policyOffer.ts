@@ -16,14 +16,16 @@
  */
 
 import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { bytesToHex, concatBytes, hexToBytes } from '@noble/hashes/utils.js';
 import { p2tr, p2wpkh } from '@scure/btc-signer';
 import { tagSchnorr, taprootTweakPubkey } from '@scure/btc-signer/utils.js';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
-import { DUST_LIMIT_SATS, RBF_SEQUENCE } from '@/core/bitcoin/constants';
+import { DUST_LIMIT_SATS, MAX_OP_RETURN_DATA_BYTES, RBF_SEQUENCE } from '@/core/bitcoin/constants';
 import type { DecodedOutput } from '@/core/bitcoin/psbt';
 import { parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
-import { arc4 } from '@/core/counterparty/unpack/binary';
+import { compactSizeLength } from '@/core/bitcoin/signedVsize';
+import { arc4, bytesEqual } from '@/core/counterparty/unpack/binary';
+import { COUNTERPARTY_PREFIX } from '@/core/counterparty/unpack/messageTypes';
 import { toSafeInteger } from '@/core/numeric';
 
 export const POLICY_OFFER_PROTOCOL_VERSION = 'funded_policy_offer_v1' as const;
@@ -160,19 +162,6 @@ export function policyHashHex(policy: CanonicalPolicy): string {
 // Keys, leaf, and Taproot (spec §4.4)
 // ---------------------------------------------------------------------------------------------
 
-const concat = (...parts: Uint8Array[]): Uint8Array => {
-  const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
-  let offset = 0;
-  for (const part of parts) {
-    out.set(part, offset);
-    offset += part.length;
-  }
-  return out;
-};
-
-const sameBytes = (a: Uint8Array, b: Uint8Array): boolean =>
-  a.length === b.length && a.every((value, index) => value === b[index]);
-
 const u64le = (value: number): Uint8Array => {
   const out = new Uint8Array(8);
   new DataView(out.buffer).setBigUint64(0, BigInt(value), true);
@@ -244,7 +233,7 @@ export function encodePolicyLeaf(terms: PolicyLeafTerms): Uint8Array {
   if (delivery.length < 1 || delivery.length > MAX_POLICY_DETACH_ADDRESS_BYTES) {
     throw new Error(`the detach address must be 1..${MAX_POLICY_DETACH_ADDRESS_BYTES} bytes`);
   }
-  return concat(
+  return concatBytes(
     Uint8Array.of(OP_0, OP_IF, POLICY_OFFER_TAG_BYTES.length),
     POLICY_OFFER_TAG_BYTES,
     Uint8Array.of(TERMS_BYTES),
@@ -280,7 +269,7 @@ export function decodePolicyLeaf(leaf: Uint8Array): PolicyLeafTerms {
   };
   const [op0, opIf] = take(2);
   if (op0 !== OP_0 || opIf !== OP_IF) bad('must open with OP_0 OP_IF');
-  if (!sameBytes(push('tag'), POLICY_OFFER_TAG_BYTES)) bad(`tag is not ${POLICY_OFFER_TAG}`);
+  if (!bytesEqual(push('tag'), POLICY_OFFER_TAG_BYTES)) bad(`tag is not ${POLICY_OFFER_TAG}`);
   const terms = push('terms');
   if (terms.length !== TERMS_BYTES) bad(`terms must be ${TERMS_BYTES} bytes`);
   const priceSats = readU64le(terms, 0);
@@ -305,7 +294,7 @@ export function decodePolicyLeaf(leaf: Uint8Array): PolicyLeafTerms {
     priceSats, expiresAt, deliveryAddress,
     policyHash: bytesToHex(policyHash), marketKey: bytesToHex(marketKey),
   };
-  if (!sameBytes(encodePolicyLeaf(decoded), leaf)) bad('is not canonical');
+  if (!bytesEqual(encodePolicyLeaf(decoded), leaf)) bad('is not canonical');
   return decoded;
 }
 
@@ -333,7 +322,7 @@ export function policyOfferTaproot(internalKeyHex: string, leaf: Uint8Array): Po
   const [outputKey, parity] = taprootTweakPubkey(internalKey, leafHash);
   return {
     leafHash, outputKey, parity: parity === 1 ? 1 : 0,
-    scriptPubKeyHex: bytesToHex(concat(Uint8Array.of(0x51, 0x20), outputKey)),
+    scriptPubKeyHex: bytesToHex(concatBytes(Uint8Array.of(0x51, 0x20), outputKey)),
   };
 }
 
@@ -351,8 +340,8 @@ export function policyInternalKeyAddresses(internalKeyHex: string): string[] {
   const internalKey = xOnlyKey(internalKeyHex, 'internal key');
   const addresses = [
     p2tr(internalKey).script,
-    p2wpkh(concat(Uint8Array.of(0x02), internalKey)).script,
-    p2wpkh(concat(Uint8Array.of(0x03), internalKey)).script,
+    p2wpkh(concatBytes(Uint8Array.of(0x02), internalKey)).script,
+    p2wpkh(concatBytes(Uint8Array.of(0x03), internalKey)).script,
   ].map(script => decodeAddressFromScript(bytesToHex(script))).filter((address): address is string => !!address);
   return [...remember(internalKeyAddresses, internalKeyHex, addresses)];
 }
@@ -361,7 +350,8 @@ export function policyInternalKeyAddresses(internalKeyHex: string): string[] {
 // The detach output keyed by the parent txid (spec §4.2)
 // ---------------------------------------------------------------------------------------------
 
-const DETACH_PREFIX = new Uint8Array([...new TextEncoder().encode('CNTRPRTY'), 0x66]);
+/** The Counterparty prefix and the detach message id. */
+const DETACH_PREFIX = new Uint8Array([...COUNTERPARTY_PREFIX, 0x66]);
 
 const txidBytes = (txid: string): Uint8Array => {
   if (!/^[0-9a-f]{64}$/.test(txid)) throw new Error('parent txid must be 32 bytes of lowercase hex');
@@ -371,11 +361,13 @@ const txidBytes = (txid: string): Uint8Array => {
 
 /** Child output 0: `OP_RETURN ARC4(parent txid, "CNTRPRTY" ‖ 0x66 ‖ utf8(D))`, hex. */
 export function policyDetachScriptHex(address: string, parentTxid: string): string {
-  const plain = concat(DETACH_PREFIX, new TextEncoder().encode(address));
-  if (plain.length > 80) throw new Error('detach data exceeds 80 bytes');
+  const plain = concatBytes(DETACH_PREFIX, new TextEncoder().encode(address));
+  if (plain.length > MAX_OP_RETURN_DATA_BYTES) {
+    throw new Error(`detach data exceeds ${MAX_OP_RETURN_DATA_BYTES} bytes`);
+  }
   const data = arc4(txidBytes(parentTxid), plain);
   const push = data.length <= 75 ? Uint8Array.of(data.length) : Uint8Array.of(0x4c, data.length);
-  return bytesToHex(concat(Uint8Array.of(0x6a), push, data));
+  return bytesToHex(concatBytes(Uint8Array.of(0x6a), push, data));
 }
 
 /** The destination a detach OP_RETURN credits when keyed by `parentTxid`, or null if it is not one. */
@@ -394,7 +386,7 @@ export function decodePolicyDetachScript(scriptHex: string, parentTxid: string):
   else if (script[1] === 0x4c && script.length >= 3 && script.length === 3 + script[2]!) data = script.subarray(3);
   else return null;
   const plain = arc4(key, data);
-  if (plain.length <= DETACH_PREFIX.length || !sameBytes(plain.subarray(0, DETACH_PREFIX.length), DETACH_PREFIX)) return null;
+  if (plain.length <= DETACH_PREFIX.length || !bytesEqual(plain.subarray(0, DETACH_PREFIX.length), DETACH_PREFIX)) return null;
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(plain.subarray(DETACH_PREFIX.length));
   } catch {
@@ -405,8 +397,6 @@ export function decodePolicyDetachScript(scriptHex: string, parentTxid: string):
 // ---------------------------------------------------------------------------------------------
 // Parent size and bytes
 // ---------------------------------------------------------------------------------------------
-
-const compactSizeLength = (n: number): number => (n < 0xfd ? 1 : n <= 0xffff ? 3 : 5);
 
 /**
  * vP of an UNSIGNED parent, as the marketplace quotes it: worst-case bidder witnesses (65-byte

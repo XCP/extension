@@ -33,7 +33,8 @@ const INPUT_VBYTES: Record<DecodedOutput['type'], number> = {
   op_return: 105,
 };
 
-const compactSizeLength = (length: number) => (length < 0xfd ? 1 : length <= 0xffff ? 3 : 5);
+/** Bytes a Bitcoin CompactSize length prefix takes for `length`. */
+export const compactSizeLength = (length: number): number => (length < 0xfd ? 1 : length <= 0xffff ? 3 : 5);
 
 function inputVbytes(input: Pick<DecodedInput, 'scriptType' | 'tapLeafScripts'>): number {
   const leaf = input.tapLeafScripts?.[0];
