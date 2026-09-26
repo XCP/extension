@@ -13,6 +13,8 @@ interface MPMAData {
   memos?: string;
   memos_are_hex?: string;
   sat_per_vbyte: number;
+  /** Set by the composer when Taproot encoding is cheaper (`core/counterparty/taprootEncoding.ts`). */
+  encoding?: MPMAOptions['encoding'];
 }
 
 function ComposeMpmaPage() {
@@ -38,6 +40,7 @@ function ComposeMpmaPage() {
       destinations,
       quantities,
       sat_per_vbyte: data.sat_per_vbyte,
+      ...(data.encoding && { encoding: data.encoding }),
       ...(memos && { memos }),
       ...(memosAreHex && { memos_are_hex: memosAreHex })
     };

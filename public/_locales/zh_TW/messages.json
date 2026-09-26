@@ -1799,11 +1799,20 @@
   "composer_context_no_active_address_available": {
     "message": "沒有可用的活動地址"
   },
-  "composer_context_the_composer_did_not_return": {
-    "message": "構建器沒有返回此銘文的揭示交易。"
-  },
   "composer_context_the_inscription_s_commit_transaction": {
     "message": "銘文的提交交易已廣播，但釋出內容的揭示交易未被接受（$1）。內容尚未上鍊。揭示交易: $2"
+  },
+  "composer_context_the_reveal_was_not_accepted": {
+    "message": "提交交易已廣播，但其揭示交易未被接受（$1）。該交易尚未生效。揭示交易: $2"
+  },
+  "composer_context_reveal_no_longer_matches": {
+    "message": "已簽名的交易與其揭示交易不再匹配，因此未廣播任何內容。請重新構建。"
+  },
+  "composer_context_taproot_half_returned": {
+    "message": "交易驗證失敗：構建器只返回了所需兩筆交易中的一筆。"
+  },
+  "composer_context_taproot_unexpected_envelope": {
+    "message": "交易驗證失敗：構建器返回的 Taproot 信封與此請求不符。"
   },
   "composer_context_this_transaction_pays_a_sat": {
     "message": "此交易支付 $1 sat 礦工費，但構建器報告為 $2。顯示的金額是交易實際支付的金額。"
@@ -4177,6 +4186,9 @@
   },
   "screens_review_screen_sats_vb": {
     "message": "($1 sats/vB)"
+  },
+  "screens_review_screen_commit_then_reveal": {
+    "message": "分兩筆交易發送：先提交，後揭示。總費用 $1 BTC"
   },
   "screens_review_screen_sign_and_broadcast_transaction": {
     "message": "簽名並廣播交易"
