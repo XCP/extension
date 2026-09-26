@@ -1,7 +1,8 @@
-import type { ReactElement } from 'react';
+import { type ReactElement, Suspense } from 'react';
 import { Outlet } from 'react-router';
 import { ApiStatusBanner } from '@/components/layout/api-status-banner';
 import { Footer } from '@/components/layout/footer';
+import { FullscreenLoading } from '@/components/layout/fullscreen-loading';
 import { Header } from '@/components/layout/header';
 import { useHeader } from '@/contexts/header-context';
 
@@ -23,7 +24,10 @@ export function Layout({ showFooter = false }: LayoutProps): ReactElement {
       <Header {...headerProps} />
       <ApiStatusBanner />
       <main className="relative min-h-0 flex-1 overflow-y-auto no-scrollbar">
-        <Outlet />
+        {/* Most pages are code-split (entrypoints/popup/app.tsx); one boundary covers them all. */}
+        <Suspense fallback={<FullscreenLoading />}>
+          <Outlet />
+        </Suspense>
       </main>
       {showFooter && <Footer />}
     </div>

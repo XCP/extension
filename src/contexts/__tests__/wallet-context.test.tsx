@@ -111,8 +111,8 @@ const mockWalletService = {
   removeWallet: vi.fn().mockResolvedValue(undefined),
 };
 
-vi.mock('@/services/walletService', () => ({
-  getWalletService: vi.fn(() => mockWalletService),
+vi.mock('@/services/walletServiceClient', () => ({
+  getWalletServiceClient: vi.fn(() => mockWalletService),
 }));
 
 describe('WalletContext', () => {
@@ -885,7 +885,7 @@ describe('WalletContext', () => {
       await act(async () => {
         // This would normally be triggered by an external event
         // We're testing that the comparison functions detect the change
-        const service = (await import('@/services/walletService')).getWalletService();
+        const service = (await import('@/services/walletServiceClient')).getWalletServiceClient();
         await service.refreshWallets();
       });
 

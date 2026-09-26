@@ -4,9 +4,9 @@ import '@testing-library/jest-dom/vitest';
 import { SettingsProvider } from '@/contexts/settings-context';
 import { Footer } from './footer';
 
-// Mock walletService (required by settings-context)
-vi.mock('@/services/walletService', () => ({
-  getWalletService: () => ({
+// Mock the wallet service client (required by settings-context)
+vi.mock('@/services/walletServiceClient', () => ({
+  getWalletServiceClient: () => ({
     getSettings: vi.fn().mockResolvedValue({
       autoLockTimer: '5m',
       analyticsAllowed: true,

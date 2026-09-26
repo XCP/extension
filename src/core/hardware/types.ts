@@ -4,7 +4,7 @@
  * Common types used across all hardware wallet integrations.
  */
 
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 
 /**
  * Supported hardware wallet vendors

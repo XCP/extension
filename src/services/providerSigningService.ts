@@ -25,6 +25,7 @@ import { signAttachAndListingForDelivery, signPsbtPhaseForDelivery } from '@/pla
 import { defineProxyService } from '@/platform/proxy';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY } from '@/services/providerSigningServiceClient';
 import { getWalletService } from '@/services/walletService';
 
 interface ReviewBase {
@@ -306,6 +307,5 @@ export function createProviderSigningService(): ProviderSigningService {
 }
 
 export const [registerProviderSigningService, getProviderSigningService] = defineProxyService(
-  'ProviderSigningService', createProviderSigningService,
-  { methods: { getRequest: 'read', getReview: 'read', approveAndSign: 'command', reject: 'command' } },
+  PROVIDER_SIGNING_SERVICE_NAME, createProviderSigningService, PROVIDER_SIGNING_SERVICE_POLICY,
 );

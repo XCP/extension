@@ -1,110 +1,97 @@
 import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router';
-import { FaSpinner } from '@/components/icons';
 import { ErrorBoundary } from '@/components/layout/error-boundary';
+import { FullscreenLoading } from '@/components/layout/fullscreen-loading';
 import { Layout } from '@/components/layout/layout';
 import { AuthRequired } from '@/components/router/auth-required';
 import { KeychainLockedOnly } from '@/components/router/keychain-locked-only';
 import { KeychainOpenOrNew } from '@/components/router/keychain-open-or-new';
 import { NoKeychainOnly } from '@/components/router/no-keychain-only';
 import { useWallet } from '@/contexts/wallet-context';
-import { t } from '@/i18n';
-import ActionsPage from '@/pages/actions';
-// Actions
-import ConsolidatePage from '@/pages/actions/consolidate';
-import ConsolidateStatusPage from '@/pages/actions/consolidate/status';
-import ConsolidateSuccessPage from '@/pages/actions/consolidate/success';
-import SignMessagePage from '@/pages/actions/sign-message';
-import VerifyMessagePage from '@/pages/actions/verify-message';
-// Viewing
-import AddressesPage from '@/pages/addresses';
-import AddressDetailsPage from '@/pages/addresses/details';
-import AddressHistoryPage from '@/pages/addresses/history';
-import AssetsPage from '@/pages/assets';
-import AssetPage from '@/pages/assets/[asset]';
-import AssetBalancePage from '@/pages/assets/[asset]/balance';
-import UtxoPage from '@/pages/assets/utxos/[txHash]';
-import ComposeBroadcastPage from '@/pages/compose/broadcast';
-import ComposeBroadcastAddressOptionsPage from '@/pages/compose/broadcast/address-options';
-import ComposeDispenserPage from '@/pages/compose/dispenser';
-import ComposeDispenserClosePage from '@/pages/compose/dispenser/close';
-import ComposeDispenserCloseByHashPage from '@/pages/compose/dispenser/close-by-hash';
-import ComposeDispensePage from '@/pages/compose/dispenser/dispense';
-import ComposeDividendPage from '@/pages/compose/dividend';
-import ComposeFairminterPage from '@/pages/compose/fairminter';
-import ComposeFairmintPage from '@/pages/compose/fairminter/fairmint';
-import ComposeIssuancePage from '@/pages/compose/issuance';
-import ComposeDestroySupplyPage from '@/pages/compose/issuance/destroy-supply';
-import ComposeIssueSupplyPage from '@/pages/compose/issuance/issue-supply';
-import ComposeLockDescriptionPage from '@/pages/compose/issuance/lock-description';
-import ComposeLockSupplyPage from '@/pages/compose/issuance/lock-supply';
-import ComposeResetSupplyPage from '@/pages/compose/issuance/reset-supply';
-import ComposeTransferOwnershipPage from '@/pages/compose/issuance/transfer-ownership';
-import ComposeUpdateDescriptionPage from '@/pages/compose/issuance/update-description';
-import ComposeOrderPage from '@/pages/compose/order';
-import ComposeOrderBtcPayPage from '@/pages/compose/order/btcpay';
-import ComposeOrderCancelPage from '@/pages/compose/order/cancel';
-import ComposePoolDepositPage from '@/pages/compose/pool/deposit';
-import ComposePoolWithdrawPage from '@/pages/compose/pool/withdraw';
-// Compose
-import ComposeSendPage from '@/pages/compose/send';
-import ComposeMpmaPage from '@/pages/compose/send/mpma';
-import ComposeSwapPage from '@/pages/compose/swap';
-import ComposeSweepPage from '@/pages/compose/sweep';
-import ComposeUtxoAttachPage from '@/pages/compose/utxo/attach';
-import ComposeUtxoDetachPage from '@/pages/compose/utxo/detach';
-import ComposeUtxoMovePage from '@/pages/compose/utxo/move';
-// Main sections
+import { lazyPage, preloadPages } from '@/entrypoints/popup/lazy-page';
 import HomePage from '@/pages/index';
-// Keychain + Requests (public-ish)
 import OnboardingPage from '@/pages/keychain/onboarding';
-import ShowPassphrasePage from '@/pages/keychain/secrets/show-passphrase';
-import ShowPrivateKeyPage from '@/pages/keychain/secrets/show-private-key';
-import CreateMnemonicPage from '@/pages/keychain/setup/create-mnemonic';
-import ImportMnemonicPage from '@/pages/keychain/setup/import-mnemonic';
-// Keychain (protected)
-import ImportPrivateKeyPage from '@/pages/keychain/setup/import-private-key';
-import ImportTestAddressPage from '@/pages/keychain/setup/import-test-address';
 import UnlockPage from '@/pages/keychain/unlock';
-import WalletsPage from '@/pages/keychain/wallets';
-import AddWalletPage from '@/pages/keychain/wallets/add';
-import ConnectHardwarePage from '@/pages/keychain/wallets/connect-hardware';
-import RemoveWalletPage from '@/pages/keychain/wallets/remove';
-import ResetWalletPage from '@/pages/keychain/wallets/reset';
-import MarketPage from '@/pages/market';
-// Market
-import BtcPricePage from '@/pages/market/btc';
-import AssetDispensersPage from '@/pages/market/dispensers/[asset]';
-import AssetOrdersPage from '@/pages/market/orders/[baseAsset]/[quoteAsset]';
-import XcpPricePage from '@/pages/market/xcp';
 import NotFoundPage from '@/pages/not-found';
-import PoolPage from '@/pages/pools/[assetA]/[assetB]';
-import PoolPositionPage from '@/pages/pools/[lpAsset]';
-import ApproveConnectionPage from '@/pages/requests/connect/approve';
-import ApproveMessagePage from '@/pages/requests/message/approve';
-import ApprovePsbtPage from '@/pages/requests/psbt/approve';
-import ApprovePsbtsPage from '@/pages/requests/psbts/approve';
-import ApproveTransactionPage from '@/pages/requests/transaction/approve';
-import SettingsPage from '@/pages/settings';
-// Settings
-import AddressTypesPage from '@/pages/settings/address-types';
-import AdvancedSettingsPage from '@/pages/settings/advanced';
-import ConnectedSitesPage from '@/pages/settings/connected-sites';
-import PinnedAssetsPage from '@/pages/settings/pinned-assets';
-import SecuritySettingsPage from '@/pages/settings/security';
-import TransactionPage from '@/pages/transactions/[txHash]';
-import ZeldPage from '@/pages/zeld';
-import ZeldParkPage from '@/pages/zeld/park';
-import ZeldSendPage from '@/pages/zeld/send';
 import { analytics, sanitizePath } from '@/platform/fathom';
 
-function FullscreenLoading() {
-  return (
-    <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
-      <FaSpinner className="text-4xl text-primary-600 animate-spin" aria-label={t('common_loading')} />
-    </div>
-  );
-}
+// Pages a popup can open on stay in the entry chunk: home, unlock, onboarding and not-found.
+// Everything else is split per route and preloaded when the browser is idle after first render.
+const ActionsPage = lazyPage(() => import('@/pages/actions'));
+const ConsolidatePage = lazyPage(() => import('@/pages/actions/consolidate'));
+const ConsolidateStatusPage = lazyPage(() => import('@/pages/actions/consolidate/status'));
+const ConsolidateSuccessPage = lazyPage(() => import('@/pages/actions/consolidate/success'));
+const SignMessagePage = lazyPage(() => import('@/pages/actions/sign-message'));
+const VerifyMessagePage = lazyPage(() => import('@/pages/actions/verify-message'));
+const AddressesPage = lazyPage(() => import('@/pages/addresses'));
+const AddressDetailsPage = lazyPage(() => import('@/pages/addresses/details'));
+const AddressHistoryPage = lazyPage(() => import('@/pages/addresses/history'));
+const AssetsPage = lazyPage(() => import('@/pages/assets'));
+const AssetPage = lazyPage(() => import('@/pages/assets/[asset]'));
+const AssetBalancePage = lazyPage(() => import('@/pages/assets/[asset]/balance'));
+const UtxoPage = lazyPage(() => import('@/pages/assets/utxos/[txHash]'));
+const ComposeBroadcastPage = lazyPage(() => import('@/pages/compose/broadcast'));
+const ComposeBroadcastAddressOptionsPage = lazyPage(() => import('@/pages/compose/broadcast/address-options'));
+const ComposeDispenserPage = lazyPage(() => import('@/pages/compose/dispenser'));
+const ComposeDispenserClosePage = lazyPage(() => import('@/pages/compose/dispenser/close'));
+const ComposeDispenserCloseByHashPage = lazyPage(() => import('@/pages/compose/dispenser/close-by-hash'));
+const ComposeDispensePage = lazyPage(() => import('@/pages/compose/dispenser/dispense'));
+const ComposeDividendPage = lazyPage(() => import('@/pages/compose/dividend'));
+const ComposeFairminterPage = lazyPage(() => import('@/pages/compose/fairminter'));
+const ComposeFairmintPage = lazyPage(() => import('@/pages/compose/fairminter/fairmint'));
+const ComposeIssuancePage = lazyPage(() => import('@/pages/compose/issuance'));
+const ComposeDestroySupplyPage = lazyPage(() => import('@/pages/compose/issuance/destroy-supply'));
+const ComposeIssueSupplyPage = lazyPage(() => import('@/pages/compose/issuance/issue-supply'));
+const ComposeLockDescriptionPage = lazyPage(() => import('@/pages/compose/issuance/lock-description'));
+const ComposeLockSupplyPage = lazyPage(() => import('@/pages/compose/issuance/lock-supply'));
+const ComposeResetSupplyPage = lazyPage(() => import('@/pages/compose/issuance/reset-supply'));
+const ComposeTransferOwnershipPage = lazyPage(() => import('@/pages/compose/issuance/transfer-ownership'));
+const ComposeUpdateDescriptionPage = lazyPage(() => import('@/pages/compose/issuance/update-description'));
+const ComposeOrderPage = lazyPage(() => import('@/pages/compose/order'));
+const ComposeOrderBtcPayPage = lazyPage(() => import('@/pages/compose/order/btcpay'));
+const ComposeOrderCancelPage = lazyPage(() => import('@/pages/compose/order/cancel'));
+const ComposePoolDepositPage = lazyPage(() => import('@/pages/compose/pool/deposit'));
+const ComposePoolWithdrawPage = lazyPage(() => import('@/pages/compose/pool/withdraw'));
+const ComposeSendPage = lazyPage(() => import('@/pages/compose/send'));
+const ComposeMpmaPage = lazyPage(() => import('@/pages/compose/send/mpma'));
+const ComposeSwapPage = lazyPage(() => import('@/pages/compose/swap'));
+const ComposeSweepPage = lazyPage(() => import('@/pages/compose/sweep'));
+const ComposeUtxoAttachPage = lazyPage(() => import('@/pages/compose/utxo/attach'));
+const ComposeUtxoDetachPage = lazyPage(() => import('@/pages/compose/utxo/detach'));
+const ComposeUtxoMovePage = lazyPage(() => import('@/pages/compose/utxo/move'));
+const ShowPassphrasePage = lazyPage(() => import('@/pages/keychain/secrets/show-passphrase'));
+const ShowPrivateKeyPage = lazyPage(() => import('@/pages/keychain/secrets/show-private-key'));
+const CreateMnemonicPage = lazyPage(() => import('@/pages/keychain/setup/create-mnemonic'));
+const ImportMnemonicPage = lazyPage(() => import('@/pages/keychain/setup/import-mnemonic'));
+const ImportPrivateKeyPage = lazyPage(() => import('@/pages/keychain/setup/import-private-key'));
+const ImportTestAddressPage = lazyPage(() => import('@/pages/keychain/setup/import-test-address'));
+const WalletsPage = lazyPage(() => import('@/pages/keychain/wallets'));
+const AddWalletPage = lazyPage(() => import('@/pages/keychain/wallets/add'));
+const ConnectHardwarePage = lazyPage(() => import('@/pages/keychain/wallets/connect-hardware'));
+const RemoveWalletPage = lazyPage(() => import('@/pages/keychain/wallets/remove'));
+const ResetWalletPage = lazyPage(() => import('@/pages/keychain/wallets/reset'));
+const MarketPage = lazyPage(() => import('@/pages/market'));
+const BtcPricePage = lazyPage(() => import('@/pages/market/btc'));
+const AssetDispensersPage = lazyPage(() => import('@/pages/market/dispensers/[asset]'));
+const AssetOrdersPage = lazyPage(() => import('@/pages/market/orders/[baseAsset]/[quoteAsset]'));
+const XcpPricePage = lazyPage(() => import('@/pages/market/xcp'));
+const PoolPage = lazyPage(() => import('@/pages/pools/[assetA]/[assetB]'));
+const PoolPositionPage = lazyPage(() => import('@/pages/pools/[lpAsset]'));
+const ApproveConnectionPage = lazyPage(() => import('@/pages/requests/connect/approve'));
+const ApproveMessagePage = lazyPage(() => import('@/pages/requests/message/approve'));
+const ApprovePsbtPage = lazyPage(() => import('@/pages/requests/psbt/approve'));
+const ApprovePsbtsPage = lazyPage(() => import('@/pages/requests/psbts/approve'));
+const ApproveTransactionPage = lazyPage(() => import('@/pages/requests/transaction/approve'));
+const SettingsPage = lazyPage(() => import('@/pages/settings'));
+const AddressTypesPage = lazyPage(() => import('@/pages/settings/address-types'));
+const AdvancedSettingsPage = lazyPage(() => import('@/pages/settings/advanced'));
+const ConnectedSitesPage = lazyPage(() => import('@/pages/settings/connected-sites'));
+const PinnedAssetsPage = lazyPage(() => import('@/pages/settings/pinned-assets'));
+const SecuritySettingsPage = lazyPage(() => import('@/pages/settings/security'));
+const TransactionPage = lazyPage(() => import('@/pages/transactions/[txHash]'));
+const ZeldPage = lazyPage(() => import('@/pages/zeld'));
+const ZeldParkPage = lazyPage(() => import('@/pages/zeld/park'));
+const ZeldSendPage = lazyPage(() => import('@/pages/zeld/send'));
 
 export default function App() {
   const { keychainExists, keychainLocked, isLoading } = useWallet();
@@ -117,6 +104,10 @@ export default function App() {
       analytics.page(sanitizePath(location.pathname));
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isLoading) return preloadPages();
+  }, [isLoading]);
 
   if (isLoading) return <FullscreenLoading />;
 

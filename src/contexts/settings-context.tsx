@@ -36,7 +36,7 @@ import { type AppSettings, DEFAULT_SETTINGS, setSettingsProvider } from "@/core/
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { analytics } from "@/platform/fathom";
 import { watchKeychainRecord } from "@/platform/storage/walletStorage";
-import { getWalletService } from "@/services/walletService";
+import { getWalletServiceClient } from "@/services/walletServiceClient";
 
 /**
  * Public API for settings management.
@@ -93,7 +93,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
     const read = ++latestRead.current;
     try {
       if (showLoading) setIsLoading(true);
-      const walletService = getWalletService();
+      const walletService = getWalletServiceClient();
       const storedSettings = await walletService.getSettings();
       if (!mounted.current || generation.current !== startedGeneration
         || read !== latestRead.current || revision.current !== startedRevision) return;
@@ -146,7 +146,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       setSettings(prev => ({ ...prev, ...newSettings }));
 
       // Persist to storage via background service
-      const walletService = getWalletService();
+      const walletService = getWalletServiceClient();
       await walletService.updateSettings(newSettings);
       if (!mounted.current || generation.current !== startedGeneration) return;
       persistedSettings.current = { ...persistedSettings.current, ...newSettings };

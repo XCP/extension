@@ -19,9 +19,10 @@ import { defineProxyService } from '@/platform/proxy';
 import { walletManager } from '@/platform/walletManager';
 import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { WALLET_SERVICE_NAME, WALLET_SERVICE_POLICY } from '@/services/walletServiceClient';
 import type { Address, PairedAddresses, SignTransactionOptions, Wallet } from '@/types/wallet';
 
-interface WalletService {
+export interface WalletService {
   refreshWallets: () => Promise<void>;
   getSettings: () => Promise<import('@/core/settings').AppSettings>;
   updateSettings: (updates: Partial<import('@/core/settings').AppSettings>) => Promise<void>;
@@ -287,25 +288,9 @@ function createWalletService(): WalletService {
 
 // Create the proxy service
 const [registerWalletService, getWalletServiceRaw] = defineProxyService(
-  'WalletService',
+  WALLET_SERVICE_NAME,
   createWalletService,
-  { methods: {
-    refreshWallets: 'command', getSettings: 'read', updateSettings: 'command',
-    addConnectedWebsite: 'command', removeConnectedWebsite: 'command', clearConnectedWebsites: 'command',
-    setPairedAddressPermission: 'command',
-    getWallets: 'read', getActiveWallet: 'read', getActiveAddress: 'read',
-    unlockKeychain: 'command', selectWallet: 'command', isKeychainUnlocked: 'read',
-    ensureKeychainLoaded: 'command', lockKeychain: 'command', emitProviderEvent: 'command',
-    createMnemonicWallet: 'command', createPrivateKeyWallet: 'command', importTestAddress: 'command',
-    createHardwareWalletWithDiscovery: 'command', addAddress: 'command', addUtxoAddress: 'command',
-    removeUtxoAddress: 'command', sweepUtxoAddresses: 'command', verifyPassword: 'command',
-    resetKeychain: 'command', updatePassword: 'command', updateWalletAddressFormat: 'command',
-    updateWalletPinnedAssets: 'command', getUnencryptedMnemonic: 'command', getPrivateKey: 'command',
-    removeWallet: 'command', getPreviewAddressForFormat: 'read', getPairedAddresses: 'read',
-    isAddressInAnyWallet: 'read', signTransaction: 'command', broadcastTransaction: 'command',
-    signMessage: 'command', signPsbt: 'command', getLastActiveAddress: 'read',
-    setLastActiveAddress: 'command', setLastActiveTime: 'command', consolidateBareMultisig: 'command',
-  } },
+  WALLET_SERVICE_POLICY,
 );
 
 // Get the wallet service directly from the proxy
