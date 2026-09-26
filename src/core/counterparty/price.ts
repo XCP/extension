@@ -311,3 +311,39 @@ async function findXCPPrice(
   console.error("All XCP price fetchers failed");
   return null;
 }
+
+/**
+ * The last trade on a Counterparty DEX pair, from the canonical xcp.io API.
+ */
+export interface TradingPairData {
+  last_trade_price: string | null;
+  name: string;
+}
+
+/**
+ * Read one pair's last trade price.
+ *
+ * @param giveAsset - The asset being given/sold
+ * @param getAsset - The asset being received/bought
+ * @param signal - Aborts the request when the caller no longer wants this pair
+ * @throws {DataFetchError} On a non-OK response
+ */
+export async function fetchTradingPair(
+  giveAsset: string,
+  getAsset: string,
+  signal?: AbortSignal,
+): Promise<TradingPairData> {
+  const endpoint = `/v2/markets/${encodeURIComponent(giveAsset)}/${encodeURIComponent(getAsset)}`;
+  const response = await fetch(`https://api.xcp.io${endpoint}`, { signal });
+  if (!response.ok) {
+    throw new DataFetchError(`Failed to fetch trading pair: ${response.status}`, "xcp.io", {
+      endpoint,
+      statusCode: response.status,
+    });
+  }
+  const json = await response.json();
+  return {
+    last_trade_price: json?.result?.lastPrice != null ? String(json.result.lastPrice) : null,
+    name: json?.result ? `${json.result.baseAsset}/${json.result.quoteAsset}` : "",
+  };
+}
