@@ -3093,9 +3093,10 @@ function analyzeAcceptPolicyOfferIntent(
   if (!feeOutput || feeOutput.type === 'op_return' || !feeOutput.address || feeOutput.value !== intent.platformFeeSats) {
     blockers.push('output 2 is not the claimed marketplace fee');
   }
-  const conserved = safeSum([intent.offerValueSats, intent.utxoValueSats]) === safeSum([
-    intent.sellerProceedsSats, intent.platformFeeSats, intent.networkFeeSats,
-  ]);
+  // Both sides must be exact: safeSum is null on overflow, and null === null would pass.
+  const suppliedSats = safeSum([intent.offerValueSats, intent.utxoValueSats]);
+  const allocatedSats = safeSum([intent.sellerProceedsSats, intent.platformFeeSats, intent.networkFeeSats]);
+  const conserved = suppliedSats !== null && allocatedSats !== null && suppliedSats === allocatedSats;
   if (!conserved) blockers.push('the offer and asset UTXO do not equal the proceeds, marketplace fee, and network fee');
   const inputValues = inputs.map(transactionInput => transactionInput.value);
   if (!inputValues.some(value => value === undefined)) {

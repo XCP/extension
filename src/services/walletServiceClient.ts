@@ -20,7 +20,7 @@ export const WALLET_SERVICE_POLICY: ProxyServicePolicy<WalletService> = {
     setPairedAddressPermission: 'command',
     getWallets: 'read', getActiveWallet: 'read', getActiveAddress: 'read',
     unlockKeychain: 'command', selectWallet: 'command', isKeychainUnlocked: 'read',
-    ensureKeychainLoaded: 'command', lockKeychain: 'command', emitProviderEvent: 'command',
+    ensureKeychainLoaded: 'command', lockKeychain: 'command',
     createMnemonicWallet: 'command', createPrivateKeyWallet: 'command', importTestAddress: 'command',
     createHardwareWalletWithDiscovery: 'command', addAddress: 'command', addUtxoAddress: 'command',
     removeUtxoAddress: 'command', sweepUtxoAddresses: 'command', verifyPassword: 'command',

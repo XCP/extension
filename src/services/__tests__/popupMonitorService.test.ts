@@ -4,7 +4,10 @@ const mocks = vi.hoisted(() => ({
   emit: vi.fn(),
   getSignFlow: vi.fn(),
   cancelPendingSignFlow: vi.fn(),
+  whenServicesReady: vi.fn(async () => {}),
 }));
+
+vi.mock('@/services/core/serviceReadiness', () => ({ whenServicesReady: mocks.whenServicesReady }));
 
 vi.mock('@/platform/provider/signFlow', () => ({
   getSignFlow: mocks.getSignFlow,
@@ -59,6 +62,7 @@ describe('PopupMonitorService', () => {
     vi.clearAllMocks();
     mocks.getSignFlow.mockResolvedValue({ status: 'pending', kind: 'sign-transaction' });
     mocks.cancelPendingSignFlow.mockResolvedValue(true);
+    mocks.whenServicesReady.mockImplementation(async () => {});
 
     connectListener = undefined;
     vi.stubGlobal('chrome', {
@@ -152,6 +156,19 @@ describe('PopupMonitorService', () => {
     popup.disconnect();
     await vi.advanceTimersByTimeAsync(5_000);
     expect(mocks.cancelPendingSignFlow).not.toHaveBeenCalled();
+  });
+
+  it('tracks a port at once but cancels only after the waking worker has initialised', async () => {
+    let ready!: () => void;
+    mocks.whenServicesReady.mockImplementation(() => new Promise<void>(resolve => { ready = resolve; }));
+    const popup = createPort(); connectListener?.(popup.port);
+    popup.message({ type: 'request-active', requestId: 'early', requestType: 'sign-message' });
+    popup.disconnect();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(mocks.cancelPendingSignFlow).not.toHaveBeenCalled();
+    ready();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mocks.cancelPendingSignFlow).toHaveBeenCalledWith('early');
   });
 
   it('refuses lifecycle ports from content scripts even with this extension ID', () => {
