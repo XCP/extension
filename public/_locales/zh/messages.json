@@ -4034,6 +4034,45 @@
   "safety_this_funds_an_inscription": {
     "message": "这笔交易为铭文提供资金：$1 BTC 将发送到 $2，该地址由铭文本身推导而来，只有你的私钥能够花费。随后的揭示交易会发布内容，请另行核对它的接收地址和手续费。"
   },
+  "safety_counterparty_reveal_commit": {
+    "message": "Counterparty 提交交易"
+  },
+  "safety_counterparty_reveal_commit_detail": {
+    "message": "$1 BTC 将发送到 $2，用于支付该网站的揭示交易；该揭示交易会以你的地址发布上方显示的消息。此输出的密钥由网站持有，因此请把这笔 BTC 视为已花费。"
+  },
+  "safety_blocked_reveal_did_not_verify": {
+    "message": "已阻止：揭示交易未通过验证"
+  },
+  "safety_reveal_unreadable": {
+    "message": "无法读取网站提供的揭示交易，因此无法知道它会发布什么。"
+  },
+  "safety_reveal_not_this_transaction": {
+    "message": "网站的揭示交易没有用第一个输入花费此交易的输出，因此无法说明此交易为什么提供资金。"
+  },
+  "safety_reveal_script_not_committed": {
+    "message": "揭示交易所花费的输出并非只承诺它所发布的那一个脚本，因此网站可能发布另一条消息。"
+  },
+  "safety_reveal_not_counterparty": {
+    "message": "网站的揭示交易没有发布此钱包可以读取的 Counterparty 消息。"
+  },
+  "safety_reveal_outputs_decide": {
+    "message": "$1 消息的部分含义取决于揭示交易的输出，而网站可以在你签名后更改这些输出。只有内容完全写在揭示交易中的消息才能以这种方式签名。"
+  },
+  "safety_reveal_source_not_signer": {
+    "message": "Counterparty 会把这条消息记在为此交易第一个输入提供资金的一方名下，而该输入不属于你。"
+  },
+  "safety_reveal_two_messages": {
+    "message": "此交易除了揭示交易的消息外，还带有自己的 Counterparty 消息，因此无法作为单一操作说明。"
+  },
+  "safety_unproven_script_output": {
+    "message": "向脚本地址付款"
+  },
+  "safety_unproven_script_output_one": {
+    "message": "$1 BTC 将发送到 $2，这是一个可以隐藏脚本的地址。如果它是 Counterparty 提交交易，网站之后可以发布一条 Counterparty 记在你地址名下的消息，例如发送或销毁你的资产。只有在你知道谁控制此地址时才继续。网站可以附上揭示交易来说明这笔付款的用途。"
+  },
+  "safety_unproven_script_output_many": {
+    "message": "$1 BTC 将发送到 $2 个可以隐藏脚本的地址: $3。如果其中之一是 Counterparty 提交交易，网站之后可以发布一条 Counterparty 记在你地址名下的消息，例如发送或销毁你的资产。只有在你知道谁控制这些地址时才继续。网站可以附上揭示交易来说明付款的用途。"
+  },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "这会把 $1 BTC 发送到 $2，与该网站声明的支付输出一致。请确认地址正是你想要的那个。"
   },

@@ -413,3 +413,43 @@ describe('durable sell authorization', () => {
     expect(item?.description).toContain('#0, #2');
   });
 });
+
+describe('Counterparty commits and script addresses', () => {
+  const COMMIT = 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr';
+
+  it.each(['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const)('translates each finding from its facts (%s)', language => {
+    mockBrowserLocale({ language });
+    const safetyWarnings: SecurityWarning[] = [
+      { code: 'counterparty_reveal_refused', data: { reason: 'outputs_decide', messageType: 'issuance' },
+        severity: 'block', title: 'English', message: 'English' },
+      { code: 'unproven_script_output', data: { totalSats: 600, addresses: [COMMIT] },
+        severity: 'warning', title: 'English', message: 'English' },
+      { code: 'unproven_script_output', data: { totalSats: 1_200, addresses: [COMMIT, COMMIT] },
+        severity: 'warning', title: 'English', message: 'English' },
+      ...analyzeTransactionSafety('mpma_send', [], 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', {
+        verifiedCommit: { address: COMMIT, value: 600, kind: 'reveal' },
+      }).warnings,
+    ];
+    const items = buildApprovalWarnings({ ...EMPTY, safetyWarnings });
+
+    expect(items[0]).toMatchObject({
+      blocking: true,
+      title: t('safety_blocked_reveal_did_not_verify'),
+      description: t('safety_reveal_outputs_decide', 'issuance'),
+    });
+    expect(items[1]).toMatchObject({
+      severity: 'warning',
+      title: t('safety_unproven_script_output'),
+      description: t('safety_unproven_script_output_one', ['0.00000600', COMMIT]),
+    });
+    expect(items[2]?.description).toBe(
+      t('safety_unproven_script_output_many', ['0.00001200', '2', `${COMMIT}, ${COMMIT}`]));
+    expect(items[3]).toMatchObject({
+      severity: 'info',
+      title: t('safety_counterparty_reveal_commit'),
+      description: t('safety_counterparty_reveal_commit_detail', ['0.00000600', COMMIT]),
+    });
+    // Not the inscription wording: this commit's key is the site's, not the user's.
+    expect(items[3]?.title).not.toBe(t('safety_inscription_commit'));
+  });
+});

@@ -4034,6 +4034,45 @@
   "safety_this_funds_an_inscription": {
     "message": "これはインスクリプションへの資金供給です。$1 BTC が $2 に送られます。これはインスクリプション自体から導出されたアドレスで、あなたの秘密鍵でのみ使用できます。続くリビールトランザクションがコンテンツを公開します。その送信先と手数料は別途確認してください。"
   },
+  "safety_counterparty_reveal_commit": {
+    "message": "Counterparty のコミット"
+  },
+  "safety_counterparty_reveal_commit_detail": {
+    "message": "$1 BTC が $2 に送られ、サイトのリビールトランザクションの資金になります。このリビールが、上に表示されたメッセージをあなたのアドレスから公開します。この出力の鍵はサイトが持っているため、この BTC は使われたものと考えてください。"
+  },
+  "safety_blocked_reveal_did_not_verify": {
+    "message": "ブロック: リビールを検証できませんでした"
+  },
+  "safety_reveal_unreadable": {
+    "message": "サイトが提供したリビールトランザクションを読み取れないため、何が公開されるかわかりません。"
+  },
+  "safety_reveal_not_this_transaction": {
+    "message": "サイトのリビールは、最初の入力でこのトランザクションの出力を使用していないため、このトランザクションが何の資金になるかを示していません。"
+  },
+  "safety_reveal_script_not_committed": {
+    "message": "リビールが使用する出力は、リビールが公開するただ一つのスクリプトにコミットしていません。そのため、サイトは別のメッセージを公開できます。"
+  },
+  "safety_reveal_not_counterparty": {
+    "message": "サイトのリビールは、このウォレットが読み取れる Counterparty メッセージを公開しません。"
+  },
+  "safety_reveal_outputs_decide": {
+    "message": "$1 メッセージの意味の一部はリビールの出力で決まり、サイトはあなたの署名後にそれを変更できます。この方法で署名できるのは、内容がすべてリビール内に記されたメッセージだけです。"
+  },
+  "safety_reveal_source_not_signer": {
+    "message": "Counterparty はこのメッセージを、このトランザクションの最初の入力の資金提供者によるものとして扱いますが、その入力はあなたのものではありません。"
+  },
+  "safety_reveal_two_messages": {
+    "message": "このトランザクションはリビールのメッセージに加えて独自の Counterparty メッセージも含んでいるため、一つの操作として説明できません。"
+  },
+  "safety_unproven_script_output": {
+    "message": "スクリプトアドレスへの支払い"
+  },
+  "safety_unproven_script_output_one": {
+    "message": "$1 BTC が $2 に送られます。これはスクリプトを隠せるアドレスです。これが Counterparty のコミットである場合、サイトはその後、Counterparty があなたのアドレスによるものとして扱うメッセージ（あなたの資産の送信や破棄など）を公開できます。このアドレスを誰が管理しているか分かっている場合にのみ続行してください。サイトはリビールを添えることで、この支払いの目的を示せます。"
+  },
+  "safety_unproven_script_output_many": {
+    "message": "$1 BTC が、スクリプトを隠せる $2 件のアドレスに送られます: $3。いずれかが Counterparty のコミットである場合、サイトはその後、Counterparty があなたのアドレスによるものとして扱うメッセージ（あなたの資産の送信や破棄など）を公開できます。これらのアドレスを誰が管理しているか分かっている場合にのみ続行してください。サイトはリビールを添えることで、支払いの目的を示せます。"
+  },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "これは $1 BTC を $2 に送金します。サイトが申告した支払い出力と一致しています。アドレスが意図したものかどうか確認してください。"
   },

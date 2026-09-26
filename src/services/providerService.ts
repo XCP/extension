@@ -20,6 +20,7 @@ import {
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
+import { MAX_REVEAL_HEX_LENGTH } from '@/core/counterparty/providerReveal';
 import { generateRequestId } from '@/core/id';
 import {
   assertProviderPsbtSigningRequest,
@@ -1057,11 +1058,12 @@ export function createProviderService(): ProviderService {
             throw new Error('PSBT parameters must be an object with hex property');
           }
 
-          const { hex: psbtHex, signInputs: requestedSignInputs, sighashTypes, inscription, intent } = psbtParams as {
+          const { hex: psbtHex, signInputs: requestedSignInputs, sighashTypes, inscription, reveal, intent } = psbtParams as {
             hex?: string;
             signInputs?: Record<string, number[]>;
             sighashTypes?: number[];
             inscription?: { revealScript?: string; tapInternalKey?: string };
+            reveal?: unknown;
             intent?: unknown;
           };
           let signInputs = requestedSignInputs;
@@ -1096,6 +1098,21 @@ export function createProviderService(): ProviderService {
             || !/^[0-9a-fA-F]{64}$/.test(inscription.tapInternalKey)
           )) {
             throw new Error('inscription must carry revealScript and tapInternalKey as hex strings');
+          }
+          // A Counterparty Taproot commit's reveal. Its message is what signing the commit really
+          // authorizes, so it is a Counterparty request, never a plain Bitcoin payment. Shape
+          // only here; the review proves the commit output commits to exactly its script.
+          if (reveal !== undefined) {
+            if (isBitcoinPayment) {
+              throw new Error('A Counterparty reveal makes this a Counterparty transaction; request it with xcp_signPsbt');
+            }
+            if (inscription !== undefined) {
+              throw new Error('Pass either inscription or reveal, not both');
+            }
+            if (typeof reveal !== 'string' || reveal.length === 0 || reveal.length % 2 !== 0
+              || reveal.length > MAX_REVEAL_HEX_LENGTH || !/^[0-9a-fA-F]+$/.test(reveal)) {
+              throw new Error('reveal must be the signed reveal transaction as a hex string');
+            }
           }
           if (signInputs !== undefined && (
             signInputs === null || typeof signInputs !== 'object' || Array.isArray(signInputs)
@@ -1239,7 +1256,7 @@ export function createProviderService(): ProviderService {
           return runSignFlow({
             origin,
             method,
-            params: { psbtHex, signInputs, sighashTypes, inscription, bitcoinPaymentIntent, marketplaceIntent },
+            params: { psbtHex, signInputs, sighashTypes, inscription, reveal, bitcoinPaymentIntent, marketplaceIntent },
             identity: { walletId: activeWallet.id, address: activeAddress.address },
             pairedAddresses: Object.keys(signInputs ?? {}).some(address => normalizeAddressForComparison(address) !== normalizeAddressForComparison(activeAddress.address)),
             approval: {
@@ -1267,6 +1284,7 @@ export function createProviderService(): ProviderService {
                     tapInternalKey: inscription.tapInternalKey!,
                   },
                 } : {}),
+                ...(typeof reveal === 'string' ? { reveal: reveal.toLowerCase() } : {}),
                 address: activeAddress.address,
                 walletId: activeWallet.id,
                 timestamp: Date.now(),

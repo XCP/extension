@@ -2145,6 +2145,75 @@ describe('ProviderService', () => {
             })
           );
         });
+
+        // A commit whose reveal the site holds is a Counterparty transaction, whatever it pays.
+        it('refuses a Counterparty reveal and names the method that takes one', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          await expect(providerService.handleRequest(
+            'https://counterwallet.example',
+            'xcp_signBitcoinPsbt',
+            [{ ...paymentParams, reveal: 'ab'.repeat(80) }]
+          )).rejects.toThrow('request it with xcp_signPsbt');
+
+          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('xcp_signPsbt with a Counterparty reveal', () => {
+        it('stores the reveal for the review to prove', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          providerService.handleRequest(
+            'https://counterwallet.example',
+            'xcp_signPsbt',
+            [{ hex: VALID_PSBT_HEX, reveal: 'AB'.repeat(80) }]
+          ).catch(() => {});
+
+          await new Promise(resolve => setTimeout(resolve, 10));
+
+          expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+            expect.objectContaining({
+              psbtHex: VALID_PSBT_HEX,
+              signingPurpose: 'counterparty',
+              reveal: 'ab'.repeat(80),
+            })
+          );
+        });
+
+        it.each([
+          ['a non-string', 42],
+          ['odd-length hex', 'abc'],
+          ['non-hex text', 'zz'.repeat(40)],
+        ])('rejects %s', async (_label, reveal) => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          await expect(providerService.handleRequest(
+            'https://counterwallet.example',
+            'xcp_signPsbt',
+            [{ hex: VALID_PSBT_HEX, reveal }]
+          )).rejects.toThrow('reveal must be the signed reveal transaction');
+
+          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        });
+
+        it('rejects a reveal alongside an inscription context', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          await expect(providerService.handleRequest(
+            'https://counterwallet.example',
+            'xcp_signPsbt',
+            [{
+              hex: VALID_PSBT_HEX,
+              reveal: 'ab'.repeat(80),
+              inscription: { revealScript: 'ab', tapInternalKey: 'cd'.repeat(32) },
+            }]
+          )).rejects.toThrow('either inscription or reveal');
+        });
       });
     });
 

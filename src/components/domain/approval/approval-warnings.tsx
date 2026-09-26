@@ -19,6 +19,7 @@ import type { AttachedAssetDestination } from '@/core/counterparty/attachedAsset
 import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
+import { revealRefusalText } from '@/core/counterparty/providerReveal';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { formatAmount } from '@/core/format';
 
@@ -82,6 +83,28 @@ function safetyWarningText(warning: SecurityWarning): { title: string; descripti
           (warning.data.totalSats / 100_000_000).toFixed(8), warning.data.address,
         ]),
       };
+    case 'counterparty_reveal_commit':
+      return {
+        title: t('safety_counterparty_reveal_commit'),
+        description: t('safety_counterparty_reveal_commit_detail', [
+          (warning.data.totalSats / 100_000_000).toFixed(8), warning.data.address,
+        ]),
+      };
+    case 'counterparty_reveal_refused':
+      return {
+        title: t('safety_blocked_reveal_did_not_verify'),
+        description: revealRefusalText(warning.data.reason, warning.data.messageType),
+      };
+    case 'unproven_script_output': {
+      const btcAmount = (warning.data.totalSats / 100_000_000).toFixed(8);
+      const { addresses } = warning.data;
+      return {
+        title: t('safety_unproven_script_output'),
+        description: addresses.length === 1
+          ? t('safety_unproven_script_output_one', [btcAmount, addresses[0]!])
+          : t('safety_unproven_script_output_many', [btcAmount, String(addresses.length), addresses.join(', ')]),
+      };
+    }
     case 'durable_sell_authorization':
       return {
         title: t('safety_blocked_durable_sell_authorization'),

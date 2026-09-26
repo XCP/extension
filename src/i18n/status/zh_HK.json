@@ -2106,6 +2106,19 @@
     "hardware_error_suite_access_required",
     "hardware_error_suite_access_denied",
     "trezor_access_notice_body",
-    "trezor_access_notice_allow"
+    "trezor_access_notice_allow",
+    "safety_counterparty_reveal_commit",
+    "safety_counterparty_reveal_commit_detail",
+    "safety_blocked_reveal_did_not_verify",
+    "safety_reveal_unreadable",
+    "safety_reveal_not_this_transaction",
+    "safety_reveal_script_not_committed",
+    "safety_reveal_not_counterparty",
+    "safety_reveal_outputs_decide",
+    "safety_reveal_source_not_signer",
+    "safety_reveal_two_messages",
+    "safety_unproven_script_output",
+    "safety_unproven_script_output_one",
+    "safety_unproven_script_output_many"
   ]
 }

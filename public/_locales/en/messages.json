@@ -5368,6 +5368,58 @@
     "message": "This funds an inscription: $1 BTC goes to $2, an address derived from the inscription itself and spendable only by your key. The follow-up reveal transaction publishes the content. Review its destination and fees separately.",
     "description": "Approval screen information body (core/counterparty/transactionSafety.ts) under \"Inscription Commit\". $1 = BTC amount, 8 decimals; $2 = the commit address, in full."
   },
+  "safety_counterparty_reveal_commit": {
+    "message": "Counterparty Commit",
+    "description": "Approval screen information title (core/counterparty/transactionSafety.ts, components/domain/approval/approval-warnings.tsx), shown when an output funds a Counterparty commit whose reveal transaction the site supplied and the wallet verified."
+  },
+  "safety_counterparty_reveal_commit_detail": {
+    "message": "$1 BTC goes to $2 to fund the site's reveal transaction, which publishes the message shown above from your address. The site holds the key to this output, so count this BTC as spent.",
+    "description": "Approval screen information body (core/counterparty/transactionSafety.ts, components/domain/approval/approval-warnings.tsx) under \"Counterparty Commit\". $1 = BTC amount, 8 decimals; $2 = the commit address, in full."
+  },
+  "safety_blocked_reveal_did_not_verify": {
+    "message": "Blocked: Reveal Did Not Verify",
+    "description": "Approval screen block title (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx): the site supplied the reveal transaction for a Counterparty commit and it did not prove out against the transaction being signed."
+  },
+  "safety_reveal_unreadable": {
+    "message": "The reveal transaction the site supplied could not be read, so what it publishes is unknown.",
+    "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\"."
+  },
+  "safety_reveal_not_this_transaction": {
+    "message": "The site's reveal does not spend an output of this transaction with its first input, so it does not show what this transaction funds.",
+    "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\"."
+  },
+  "safety_reveal_script_not_committed": {
+    "message": "The output the reveal spends does not commit to exactly the one script the reveal publishes, so the site could publish a different message.",
+    "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\". A Taproot output commits to its scripts; here it commits to another script, or to more than one."
+  },
+  "safety_reveal_not_counterparty": {
+    "message": "The site's reveal does not publish a Counterparty message this wallet can read.",
+    "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\"."
+  },
+  "safety_reveal_outputs_decide": {
+    "message": "A $1 message takes part of its meaning from the reveal's outputs, which the site could change after you sign. Only messages stated entirely in the reveal can be signed this way.",
+    "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\". $1 = the raw Counterparty message type name, e.g. \"issuance\"."
+  },
+  "safety_reveal_source_not_signer": {
+    "message": "Counterparty credits this message to whoever funds this transaction's first input, and that input is not yours.",
+    "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\"."
+  },
+  "safety_reveal_two_messages": {
+    "message": "This transaction carries its own Counterparty message as well as the reveal's, so it cannot be described as one action.",
+    "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\"."
+  },
+  "safety_unproven_script_output": {
+    "message": "Payment to a Script Address",
+    "description": "Approval screen warning title (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx): the transaction is funded from your address and pays an address that could be a Counterparty commit (P2TR, P2WSH, P2SH or another witness program), with no reveal supplied to show what it would publish."
+  },
+  "safety_unproven_script_output_one": {
+    "message": "$1 BTC goes to $2, an address that can hide a script. If it is a Counterparty commit, the site can then publish a message that Counterparty credits to your address, such as sending or destroying your assets. Continue only if you know who controls this address. A site can show what the payment is for by including its reveal.",
+    "description": "Approval screen warning body (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx) under \"Payment to a Script Address\", for exactly one address. $1 = BTC amount, 8 decimals; $2 = the full address, never truncated."
+  },
+  "safety_unproven_script_output_many": {
+    "message": "$1 BTC goes to $2 addresses that can hide a script: $3. If one is a Counterparty commit, the site can then publish a message that Counterparty credits to your address, such as sending or destroying your assets. Continue only if you know who controls these addresses. A site can show what a payment is for by including its reveal.",
+    "description": "Approval screen warning body (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx) under \"Payment to a Script Address\", for two or more addresses. $1 = BTC amount, 8 decimals; $2 = how many addresses; $3 = the comma-separated addresses, each in full, never truncated."
+  },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "This sends $1 BTC to $2, matching the payment outputs the site declared. Check the address is the one you mean.",
     "description": "Approval screen information body (core/counterparty/transactionSafety.ts) under \"Bitcoin Payment\". $1 = BTC amount, 8 decimals; $2 = comma-separated recipient addresses, each the full address, never truncated (a same-prefix look-alike must stay distinguishable)."
