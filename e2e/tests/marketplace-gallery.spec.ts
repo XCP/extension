@@ -893,8 +893,10 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
     const offer = (accepting: boolean, target = { txid: ASSET_TXID, vout: 7 }, index = 1) => {
       const buyerAddr = accepting ? BUYER_EXT : wallet;
       const sellerAddr = accepting ? wallet : SELLER_A;
+      // The market serves the seller the acceptance template with the buyer's input 0 unsigned and
+      // merges the stored buyer signature itself (#460), so input 0 is unsigned in both roles.
       const inputs: BuiltInput[] = [
-        { txid: BID_TXID, vout: 4, address: buyerAddr, value: 256_250 + (attached ? 330 : 0), signed: accepting },
+        { txid: BID_TXID, vout: 4, address: buyerAddr, value: 256_250 + (attached ? 330 : 0) },
         { txid: target.txid, vout: target.vout, address: sellerAddr, value: 546 },
       ];
       const outputs: BuiltOutput[] = [
