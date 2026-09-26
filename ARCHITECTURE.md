@@ -94,7 +94,10 @@ Decryption validates the versioned keychain schema before exposing settings or w
 Session metadata writes are serialized, and timeout changes update the persisted inactivity
 deadline as well as the alarm. The eight-hour absolute cap remains independent of user activity.
 Alarms recheck the current generation and deadline, so an old alarm cannot lock a renewed session.
-Idle keep-alive alarms are removed; restoration and persisted deadlines handle suspension.
+Idle keep-alive, periodic state-persist and periodic update-check alarms are removed; restoration
+and persisted deadlines handle suspension, and the only alarm is the session deadline. The popup
+reports activity at most every 30 seconds, carrying the time of the last input, so the persisted
+deadline still follows the user's last input rather than the report.
 
 ## Type and lint contracts
 

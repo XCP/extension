@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
   getServiceState,
-  serviceKeepAlive,
   setServiceState,
 } from '../serviceStateStorage';
 
@@ -101,18 +100,6 @@ describe('serviceStateStorage.ts', () => {
 
       expect(await getServiceState('ServiceA', 1)).toEqual({ value: 'updated' });
       expect(await getServiceState('ServiceB', 1)).toEqual({ value: 'keep' });
-    });
-  });
-
-  describe('serviceKeepAlive', () => {
-    it('should complete without error', async () => {
-      await expect(serviceKeepAlive('TestService')).resolves.not.toThrow();
-    });
-
-    it('should work for any service name', async () => {
-      await expect(serviceKeepAlive('Service1')).resolves.not.toThrow();
-      await expect(serviceKeepAlive('Service2')).resolves.not.toThrow();
-      await expect(serviceKeepAlive('LongServiceName')).resolves.not.toThrow();
     });
   });
 

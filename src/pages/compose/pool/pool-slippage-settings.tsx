@@ -1,8 +1,8 @@
 import type { ReactElement } from "react";
-import { useSettings } from "@/contexts/settings-context";
 import { t } from '@/i18n';
 import { SlippageInput } from "@/pages/compose/pool/slippage-input";
 import { isValidSlippageDraft } from './slippage-draft';
+import { useSlippageDefaultSaver } from './use-slippage-default';
 
 interface PoolSlippageSettingsProps {
   value: string;
@@ -14,7 +14,7 @@ interface PoolSlippageSettingsProps {
 /**
  * Gear-panel for pool slippage, shown in place of the deposit/withdraw form.
  * Edits the per-transaction value and persists it as the user's default so it
- * sticks across transactions.
+ * sticks across transactions (saved once editing pauses, not per keystroke).
  */
 export function PoolSlippageSettings({
   value,
@@ -22,11 +22,11 @@ export function PoolSlippageSettings({
   onBack,
   showHelpText = false,
 }: PoolSlippageSettingsProps): ReactElement {
-  const { updateSettings } = useSettings();
+  const saveDefault = useSlippageDefaultSaver();
 
   const handleChange = (next: string) => {
     onChange(next);
-    if (isValidSlippageDraft(next)) void updateSettings({ defaultPoolSlippage: next });
+    if (isValidSlippageDraft(next)) saveDefault(next);
   };
 
   return (

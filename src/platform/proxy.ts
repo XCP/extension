@@ -4,6 +4,7 @@ import { type HardwareErrorMetadata, parseHardwareErrorMetadata, withHardwareErr
 import { HardwareWalletError } from '@/core/hardware/types';
 import { isProviderReviewCode, type ProviderReviewCode, providerReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
 import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { recordProviderTab } from '@/platform/browser';
 import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
 import { decodeProxyResult, encodeProxyResult } from '@/platform/proxySerialization';
 import { whenServicesReady } from '@/services/core/serviceReadiness';
@@ -164,6 +165,12 @@ export function defineProxyService<T extends object>(
       const trustedUI = isExtensionPageSender(incoming.sender);
       const origin = policy.contentScript === 'provider' ? contentOrigin(incoming.sender) : null;
       if (!trustedUI && !origin) { incoming.disconnect(); return; }
+      // The one place the worker learns, from Chrome rather than the page, which tab shows which
+      // origin; provider events are addressed with it (see platform/browser.ts).
+      const tabId = incoming.sender?.tab?.id;
+      if (origin && tabId !== undefined && tabId >= 0) {
+        void recordProviderTab(tabId, origin).catch(() => { /* events fall back to not reaching this tab */ });
+      }
 
       let disconnected = false;
       const reply = (response: PortResponse | PortAck | PortHeartbeat) => {

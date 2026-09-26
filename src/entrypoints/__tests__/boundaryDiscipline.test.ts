@@ -37,16 +37,12 @@ interface Door {
 const DOORS: Record<string, Door> = {
   "background.ts chrome.runtime.onMessage#1": {
     gated: false,
-    reason: 'Liveness ping and content-script-ready signal. Answers nothing about ' +
-      'wallet state, and the ping must respond while still initialising.',
+    reason: 'Liveness ping only. Answers nothing about wallet state, and the ping ' +
+      'must respond while still initialising.',
   },
   "background.ts chrome.runtime.onConnect#1": {
     gated: false,
     reason: 'Port liveness ping only; proxy ports are handed off to proxy.ts.',
-  },
-  "background.ts webext-bridge-keep-alive": {
-    gated: false,
-    reason: 'Keep-alive. Waiting on initialisation would defeat what it is for.',
   },
   "background.ts startup-health-check": {
     gated: false,
