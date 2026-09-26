@@ -33,7 +33,7 @@ export function isScriptAddressOutput(scriptHex: string | undefined): boolean {
   return !(version === 0x00 && length === 20);
 }
 
-interface PaymentOutput {
+export interface PaymentOutput {
   value: number;
   address?: string;
   script?: string;

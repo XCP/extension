@@ -46,6 +46,7 @@ import {
   revealRefusalText,
   verifyCounterpartyReveal,
 } from '@/core/counterparty/providerReveal';
+import { scriptPaymentRiskText } from '@/core/counterparty/scriptPaymentCaution';
 import {
   type CounterpartyMessage,
   decodeCounterpartyMessage,
@@ -360,18 +361,10 @@ export async function analyzeSignRequest(
     const inputsCarryAssets = attachedAssets.some(entry => entry.assets.length > 0 || entry.lookupFailed);
     const risk = scriptPaymentRisk(scriptPaymentInput, inputsCarryAssets || await payerHoldsAssets);
     if (risk) {
-      const btcAmount = (risk.totalSats / 100_000_000).toFixed(8);
+      const text = scriptPaymentRiskText(risk);
       safety.warnings = [
         ...safety.warnings,
-        {
-          code: 'unproven_script_output',
-          data: risk,
-          severity: 'warning',
-          title: t('safety_unproven_script_output'),
-          message: risk.addresses.length === 1
-            ? t('safety_unproven_script_output_one', [btcAmount, risk.addresses[0]!, risk.source])
-            : t('safety_unproven_script_output_many', [btcAmount, risk.addresses.join(', '), risk.source]),
-        },
+        { code: 'unproven_script_output', data: risk, severity: 'warning', title: text.title, message: text.description },
       ];
     }
   }

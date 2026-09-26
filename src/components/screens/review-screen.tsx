@@ -1,10 +1,12 @@
 import type { ReactElement, ReactNode } from "react";
 import { ZeldField } from "@/components/domain/zeld/zeld-field";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
+import { scriptPaymentRiskText } from "@/core/counterparty/scriptPaymentCaution";
 import { formatAddress, formatAmount, formatFiatEstimate } from "@/core/format";
 import { add, formatFeeRate, fromSatoshis } from "@/core/numeric";
 import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
@@ -114,9 +116,15 @@ export function ReviewScreen({
   // where an unenumerated difference could hide, and they all render through here.
   //
   // Optional context because this component is also rendered outside a compose flow.
-  const decoded = useComposerOptional()?.state.decodedMessage?.data as
+  const composer = useComposerOptional();
+  const decoded = composer?.state.decodedMessage?.data as
     | { destination?: string; source?: string }
     | undefined;
+
+  // A payment to someone else's script address from an address holding Counterparty assets: a
+  // notice beside the sign button, which signs as usual.
+  const scriptPaymentRisk = composer?.state.scriptPaymentRisk ?? null;
+  const scriptPaymentCaution = scriptPaymentRisk ? scriptPaymentRiskText(scriptPaymentRisk) : null;
 
   const sourceAddress = result.name === "dispense" ? result.params.address : result.params.source;
   const destinationAddress = result.name === "dispense"
@@ -255,6 +263,10 @@ export function ReviewScreen({
         </pre>
       </Collapsible>
       
+      {scriptPaymentCaution && (
+        <Banner severity="warning" title={scriptPaymentCaution.title} description={scriptPaymentCaution.description} />
+      )}
+
       {/* Action Buttons */}
       <div className="flex space-x-4">
         {!hideBackButton && (

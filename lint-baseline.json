@@ -97,7 +97,6 @@
     "src/pages/actions/consolidate/index.tsx | react-hooks(exhaustive-deps)": 1,
     "src/pages/actions/consolidate/index.tsx | typescript(no-floating-promises)": 1,
     "src/pages/actions/consolidate/index.tsx | typescript(no-misused-promises)": 3,
-    "src/pages/actions/consolidate/review.tsx | typescript(no-misused-promises)": 1,
     "src/pages/actions/consolidate/status.tsx | react-hooks(exhaustive-deps)": 1,
     "src/pages/actions/consolidate/status.tsx | react(set-state-in-effect)": 1,
     "src/pages/actions/consolidate/status.tsx | typescript(no-floating-promises)": 2,

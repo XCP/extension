@@ -1,12 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import type { ConsolidationData } from "@/core/bitcoin/consolidationApi";
+import type { ScriptPaymentRisk } from "@/core/bitcoin/scriptPaymentRisk";
+import {
+  assessOwnScriptPayments,
+  ownScriptRecipients,
+  plannedPaymentOutputs,
+  scriptPaymentRiskText,
+} from "@/core/counterparty/scriptPaymentCaution";
 import { formatAddress, formatAmount } from "@/core/format";
 import { add, divide, fromSatoshis, multiply, roundDown, roundUp, toNumber, toSatoshis } from '@/core/numeric';
 import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
 
 import { t } from '@/i18n';
+import { getKnownScriptRecipients, recordScriptRecipients } from "@/platform/storage/scriptRecipientStorage";
 
 interface ConsolidationReviewProps {
   apiResponse: {
@@ -22,6 +31,8 @@ interface ConsolidationReviewProps {
   onBack: () => void;
   error: string | null;
   setError: (error: string | null) => void;
+  /** Every address this wallet controls: consolidating to one of them pays no one else. */
+  ownedAddresses: string[];
   isProcessing?: boolean;
   currentBatch?: number;
   results?: ConsolidationResult[];
@@ -36,10 +47,13 @@ function calculateBatchFees(
   totalServiceFee: number;
   totalInput: number;
   totalOutput: number;
+  /** The service fee each fee address receives across all batches. */
+  serviceFeeByAddress: Map<string, number>;
 } {
   let totalNetworkFee = 0;
   let totalServiceFee = 0;
   let totalInput = 0;
+  const serviceFeeByAddress = new Map<string, number>();
   
   batches.forEach(batch => {
     // Use actual total from API
@@ -65,9 +79,12 @@ function calculateBatchFees(
     if (batch.fee_config && batch.fee_config.fee_percent > 0) {
       const afterNetworkFee = inputSats - networkFee;
       if (afterNetworkFee > batch.fee_config.exemption_threshold) {
-        totalServiceFee += toNumber(roundDown(
+        const serviceFee = toNumber(roundDown(
           divide(multiply(afterNetworkFee, batch.fee_config.fee_percent), 100)
         ));
+        totalServiceFee += serviceFee;
+        const feeAddress = batch.fee_config.fee_address;
+        if (feeAddress) serviceFeeByAddress.set(feeAddress, (serviceFeeByAddress.get(feeAddress) ?? 0) + serviceFee);
       }
     }
   });
@@ -78,7 +95,8 @@ function calculateBatchFees(
     totalNetworkFee,
     totalServiceFee,
     totalInput,
-    totalOutput
+    totalOutput,
+    serviceFeeByAddress,
   };
 }
 
@@ -88,12 +106,41 @@ export const ConsolidationReview = ({
   onBack,
   error,
   setError,
+  ownedAddresses,
   isProcessing = false,
   currentBatch = 0,
   results = []
 }: ConsolidationReviewProps) => {
   const [isSigning, setIsSigning] = useState(false);
   const { params, consolidationData, allBatches } = apiResponse;
+
+  // The payments these batches will make, by address, for the script-address caution: the
+  // recovered BTC to the destination and each service fee to its address. Keyed so a result is
+  // used only for the payments it was computed for; signing waits for the answer, which is local
+  // unless a script address this address has not paid before is involved.
+  const fees = calculateBatchFees(allBatches, params.feeRateSatPerVByte);
+  const plannedPayments = [
+    { address: params.destination, value: fees.totalOutput },
+    ...[...fees.serviceFeeByAddress].map(([address, value]) => ({ address, value })),
+  ];
+  const paymentsKey = JSON.stringify([params.source, plannedPayments, ownedAddresses]);
+  const [scriptPaymentCheck, setScriptPaymentCheck] = useState<{ key: string; risk: ScriptPaymentRisk | null } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const [source, payments, owned] = JSON.parse(paymentsKey) as [string, { address: string; value: number }[], string[]];
+    const check = async () => {
+      const knownRecipients = await getKnownScriptRecipients(source);
+      const risk = await assessOwnScriptPayments({
+        outputs: plannedPaymentOutputs(payments), payerAddress: source, ownedAddresses: owned, knownRecipients,
+      });
+      if (!cancelled) setScriptPaymentCheck({ key: paymentsKey, risk });
+    };
+    void check();
+    return () => { cancelled = true; };
+  }, [paymentsKey]);
+  const scriptPaymentChecking = scriptPaymentCheck?.key !== paymentsKey;
+  const scriptPaymentRisk = scriptPaymentChecking ? null : scriptPaymentCheck.risk;
+  const scriptPaymentCaution = scriptPaymentRisk ? scriptPaymentRiskText(scriptPaymentRisk) : null;
 
   if (!consolidationData) {
     return (
@@ -106,8 +153,6 @@ export const ConsolidationReview = ({
     );
   }
 
-  // Calculate fees for all batches
-  const fees = calculateBatchFees(allBatches, params.feeRateSatPerVByte);
   const totalBtc = consolidationData.summary.total_btc;
   const totalUtxos = consolidationData.summary.total_utxos;
   const numBatches = consolidationData.summary.batches_required;
@@ -117,6 +162,10 @@ export const ConsolidationReview = ({
     setIsSigning(true);
     try {
       await onSign();
+      // Remember the script addresses paid, so the notice is not repeated for them.
+      await recordScriptRecipients(params.source, ownScriptRecipients({
+        outputs: plannedPaymentOutputs(plannedPayments), payerAddress: params.source, ownedAddresses,
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -129,6 +178,7 @@ export const ConsolidationReview = ({
       <h2 className="text-lg font-bold">{t('consolidate_review_review_consolidation')}</h2>
 
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+
 
       {/* Progress indicator for multi-batch processing */}
       {isProcessing && currentBatch > 0 && numBatches > 1 && (
@@ -285,11 +335,20 @@ export const ConsolidationReview = ({
         </div>
       </div>
 
+      {scriptPaymentCaution && (
+        <Banner severity="warning" title={scriptPaymentCaution.title} description={scriptPaymentCaution.description} />
+      )}
+
       <div className="flex space-x-4">
         <Button onClick={onBack} color="gray">
           {t('common_back')}
         </Button>
-        <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning || isProcessing}>
+        <Button
+          onClick={() => { void handleSignClick(); }}
+          color="blue"
+          fullWidth
+          disabled={isSigning || isProcessing || scriptPaymentChecking}
+        >
           {isProcessing
             ? t('consolidate_review_processing_batch_of', [String(currentBatch), String(numBatches)])
             : isSigning
