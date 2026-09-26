@@ -4,7 +4,7 @@ import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
-import { CounterpartyApiError } from '@/core/errors';
+import { CounterpartyApiError, UnofferedInputsError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
 import { TransactionInputError } from '@/core/validation/transaction-input-error';
 import {
@@ -16,15 +16,6 @@ import {
   zeldAttachParams,
 } from '@/core/zeld/composeGuard';
 import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from '@/core/zeld/types';
-
-/**
- * A composed transaction spent a UTXO the request never offered.
- *
- * Its own type so the UTXO fallback below cannot mistake it for the composer rejecting a selection
- * and retry — the last retry sends no `inputs_set` at all, which would answer a composer that
- * ignored the set by letting it choose freely.
- */
-class UnofferedInputsError extends CounterpartyApiError {}
 
 /**
  * Type guard to check if an error has a response with data
@@ -141,13 +132,19 @@ export interface ComposeResult {
   signed_tx_estimated_size: SignedTxEstimatedSize;
   psbt: string;
   /**
-   * Present only for `encoding=taproot` composes. The ord envelope script carrying the message,
-   * and the reveal transaction — already signed by the composer's ephemeral key — that spends the
-   * commit output and publishes the content. `rawtransaction` is only the commit, so an
-   * inscription is not complete until the reveal is broadcast too.
+   * Present only for `encoding=taproot` composes. The envelope script carrying the message (an ord
+   * envelope for an inscription, a plain data envelope otherwise), and the reveal transaction —
+   * already signed by the composer's ephemeral key — that spends the commit output and publishes
+   * it. `rawtransaction` is only the commit, so the message takes effect only once the reveal is
+   * broadcast too.
    */
   envelope_script?: string;
   signed_reveal_rawtransaction?: string;
+  /**
+   * Added by the wallet, never by the composer: the reveal's miner fee, computed from the commit
+   * output it spends and its own outputs once both were verified. `btc_fee` is the commit's alone.
+   */
+  reveal_fee?: number;
   /**
    * Added by the wallet, never by the composer: what the ZELD hunt did to this transaction.
    * Present only when hunting is enabled; `rawtransaction` and `psbt` already reflect it.
@@ -644,17 +641,23 @@ export async function composeTransaction<T extends Record<string, unknown>>(
     return composed;
   };
 
+  // A Taproot compose is never rearranged: its reveal is already signed over the commit's txid and
+  // spends output 0, so moving change ahead of the commit output would strand the reveal.
+  const arrange = (response: ApiResponse): ApiResponse =>
+    layout.changeFirst && !response.result?.signed_reveal_rawtransaction
+      ? withComposedChangeFirst(response, sourceAddress, layout)
+      : response;
+
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
   const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
-  const arranged = layout.changeFirst ? withComposedChangeFirst(composed, sourceAddress, layout) : composed;
-  return guardZeldExposure(arranged, sourceAddress, endpoint, async (excludeUtxos) => {
+  return guardZeldExposure(arrange(composed), sourceAddress, endpoint, async (excludeUtxos) => {
     const recomposed = await executeWithUtxoFallback(
       (options) => makeRequest({ ...options, excludeUtxos }),
       inputsSet ? removeUtxosFromInputsSet(inputsSet, excludeUtxos) : undefined,
       settings.allowUnconfirmedTxs,
       endpoint,
     );
-    return layout.changeFirst ? withComposedChangeFirst(recomposed, sourceAddress, layout) : recomposed;
+    return arrange(recomposed);
   });
 }
 
@@ -1139,6 +1142,7 @@ export async function composeSendOrMPMA(options: SendOrMPMAOptions): Promise<Api
       destinations: destArray,
       quantities: destArray.map(() => serializeRawInteger(options.quantity)),
       sat_per_vbyte: options.sat_per_vbyte,
+      ...(options.encoding && { encoding: options.encoding }),
       ...(options.memo && {
         memo: options.memo,
         memo_is_hex: options.memo_is_hex ?? false,

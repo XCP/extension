@@ -2407,13 +2407,25 @@
     "message": "No active address available",
     "description": "contexts/composer-context.tsx"
   },
-  "composer_context_the_composer_did_not_return": {
-    "message": "The composer did not return the reveal transaction for this inscription.",
-    "description": "contexts/composer-context.tsx"
-  },
   "composer_context_the_inscription_s_commit_transaction": {
     "message": "The inscription's commit transaction was broadcast, but the reveal that publishes the content was not accepted ($1). The content is not on chain yet. Reveal transaction: $2",
     "description": "contexts/composer-context.tsx. $1 = detail; $2 = revealHex"
+  },
+  "composer_context_the_reveal_was_not_accepted": {
+    "message": "The commit transaction was broadcast, but its reveal was not accepted ($1). The transaction has not taken effect yet. Reveal transaction: $2",
+    "description": "contexts/composer-context.tsx. Shown after a Taproot-encoded (commit + reveal) transaction whose reveal failed to broadcast. $1 = error detail; $2 = the reveal transaction hex, so it can be broadcast later"
+  },
+  "composer_context_reveal_no_longer_matches": {
+    "message": "The signed transaction no longer matches its reveal, so nothing was broadcast. Please compose it again.",
+    "description": "contexts/composer-context.tsx. A Taproot-encoded transaction changed between compose and signature, so neither half was broadcast"
+  },
+  "composer_context_taproot_half_returned": {
+    "message": "Transaction verification failed: the composer returned only one of the two transactions this needs.",
+    "description": "contexts/composer-context.tsx. A Taproot-encoded compose came back with an envelope but no reveal, or a reveal but no envelope"
+  },
+  "composer_context_taproot_unexpected_envelope": {
+    "message": "Transaction verification failed: the composer's Taproot envelope is not the one this request produces.",
+    "description": "contexts/composer-context.tsx. The data envelope of a Taproot-encoded compose is malformed or of the wrong kind"
   },
   "composer_context_this_transaction_pays_a_sat": {
     "message": "This transaction pays a $1 sat miner fee, though the composer reported $2. The amount shown is the one the transaction pays.",
@@ -5431,6 +5443,10 @@
   "screens_review_screen_sats_vb": {
     "message": "($1 sats/vB)",
     "description": "components/screens/review-screen.tsx. $1 = formatFeeRate(result.btc_fee, result.signed_tx_estimated_size.adjusted_vsize)"
+  },
+  "screens_review_screen_commit_then_reveal": {
+    "message": "Sent as two transactions, commit then reveal. Total fee $1 BTC",
+    "description": "components/screens/review-screen.tsx. One line under the fee for a Taproot-encoded transaction. $1 = the total fee of both transactions in BTC, 8 decimals"
   },
   "screens_review_screen_sign_and_broadcast_transaction": {
     "message": "Sign and broadcast transaction",

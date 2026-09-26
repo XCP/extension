@@ -29,14 +29,14 @@ import { type CborValue, decodeCbor } from '@/core/counterparty/unpack/cbor';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
 
 /** One parsed script instruction: an opcode byte, or the bytes a push pushed. */
-type Instruction = { op: number } | { push: Uint8Array };
+export type Instruction = { op: number } | { push: Uint8Array };
 
 /**
  * Parse a script into instructions. Only push encodings and bare opcodes — the envelope grammar
  * needs nothing more. Returns null on a malformed push (truncated data), as bitcoin's own
  * instruction iterator yields an error there.
  */
-function parseInstructions(script: Uint8Array): Instruction[] | null {
+export function parseInstructions(script: Uint8Array): Instruction[] | null {
   const instructions: Instruction[] = [];
   let i = 0;
   while (i < script.length) {

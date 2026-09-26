@@ -61,6 +61,9 @@ import { fetchOrderMatch } from "@/core/counterparty/api";
 import { btcPayPayment } from "@/core/counterparty/btcpayPayment";
 import type { ApiResponse } from "@/core/counterparty/compose";
 import {
+  envelopeKind,
+  readDataEnvelope,
+  revealSpendsTransaction,
   verifyInscriptionEnvelope,
   verifyRevealTransaction,
 } from "@/core/counterparty/inscriptionEnvelope";
@@ -74,13 +77,14 @@ import {
 } from "@/core/counterparty/outputPolicy";
 import { packComposeMessage } from "@/core/counterparty/pack/messages";
 import { getSourcePubkey } from "@/core/counterparty/sourcePubkey";
+import { chooseComposeEncoding, composeWithEncoding } from "@/core/counterparty/taprootEncoding";
 import { fetchInputValues } from "@/core/counterparty/transaction";
 import { unpackCounterpartyMessage } from "@/core/counterparty/unpack";
 import { packAddress } from "@/core/counterparty/unpack/address";
 import { bytesToHex } from "@/core/counterparty/unpack/binary";
 import { extractCounterpartyPayload } from "@/core/counterparty/unpack/opReturn";
 import { verifyTransaction } from "@/core/counterparty/unpack/verify";
-import { fromSatoshis } from '@/core/numeric';
+import { fromSatoshis, toFiniteNumber } from '@/core/numeric';
 import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
 import { ComposeVerificationError } from '@/core/validation/compose-verification-error';
 import { huntZeldForCompose } from "@/core/zeld/composeHunt";
@@ -283,9 +287,14 @@ export function ComposerProvider<T>({
       // Check if aborted before API call
       if (signal.aborted) return;
 
-      // Call compose API (UTXO selection is handled internally by compose functions)
+      // Call compose API (UTXO selection is handled internally by compose functions). A message too
+      // long for an OP_RETURN goes out Taproot-encoded where core allows it, since the multisig
+      // fallback costs several times more; the user is never asked to choose, and a composer that
+      // will not build it that way is asked once more for the default. Verification below compares
+      // against `dataForApi`, which the encoding does not change.
       // Reassigned below if verification finds the reported fee differs from the real one.
-      let response = await composeApi(dataForApi);
+      const encoding = chooseComposeEncoding(composeType, dataForApi, activeAddress.address);
+      let response = await composeWithEncoding(composeApi, dataForApi, encoding, signal);
 
       // Check if aborted after API call
       if (signal.aborted) return;
@@ -306,38 +315,69 @@ export function ComposerProvider<T>({
 
       // Verify the transaction locally before showing review screen
       // This protects against a compromised API returning malicious transactions
-      const counterpartyData = extractCounterpartyPayload(response.result.rawtransaction);
+      let counterpartyData = extractCounterpartyPayload(response.result.rawtransaction);
       let verificationWarnings: string[] = [];
       let decodedMessage: DecodedMessage | null = null;
 
-      // An inscription compose carries its message in an ord envelope rather than an OP_RETURN, so
-      // the transaction being signed is a commit paying a P2TR address derived from that envelope.
-      // Rebuild the envelope from the message this request should produce and require the composed
-      // one to match, then let the derived address explain the commit output. Verified here rather
-      // than exempted, so a substituted inscription still fails (`inscriptionEnvelope.ts`).
-      let inscriptionCommitAddress: string | null = null;
+      // A Taproot compose carries its message in an envelope rather than an OP_RETURN, so the
+      // transaction being signed is a commit paying a P2TR address derived from that envelope, and
+      // a reveal the composer already signed publishes it. A plain data envelope is read — its
+      // message then goes through every check below exactly as an OP_RETURN payload would — and an
+      // inscription's ord envelope is rebuilt from the message this request should produce. Either
+      // way the derived address explains the commit output, and the reveal is held to core's
+      // construction. Verified here rather than exempted (`inscriptionEnvelope.ts`).
+      let taprootCommitAddress: string | null = null;
+      let revealFee: number | undefined;
       const envelopeScript = response.result.envelope_script;
-      if (typeof envelopeScript === 'string' && envelopeScript.length > 0) {
-        const expectedMessage = packComposeMessage(composeType, dataForApi);
-        if (!expectedMessage) {
-          throw new Error(
-            t('composer_context_transaction_verification_failed_this_inscription')
-          );
+      const revealHex = response.result.signed_reveal_rawtransaction;
+      const hasEnvelope = typeof envelopeScript === 'string' && envelopeScript.length > 0;
+      const hasReveal = typeof revealHex === 'string' && revealHex.length > 0;
+      if (hasEnvelope !== hasReveal) {
+        // One half alone is either a reveal that would be broadcast unchecked or a commit whose
+        // message never lands.
+        throw new Error(t('composer_context_taproot_half_returned'));
+      }
+      if (hasEnvelope && hasReveal) {
+        const kind = envelopeKind(envelopeScript);
+        // A commit also carrying a data output, or an ord envelope nobody asked for, is not what
+        // core builds for this request.
+        if (!kind || counterpartyData || (kind === 'ord' && !dataForApi.inscription)) {
+          throw new Error(t('composer_context_taproot_unexpected_envelope'));
         }
-        const envelopeCheck = verifyInscriptionEnvelope(envelopeScript, expectedMessage.bytes);
-        if (!envelopeCheck.ok || !envelopeCheck.commitAddress) {
-          throw new Error(envelopeCheck.error || t('composer_context_transaction_verification_failed_bad_inscription'));
+        if (kind === 'ord') {
+          const expectedMessage = packComposeMessage(composeType, dataForApi);
+          if (!expectedMessage) {
+            throw new Error(
+              t('composer_context_transaction_verification_failed_this_inscription')
+            );
+          }
+          const envelopeCheck = verifyInscriptionEnvelope(envelopeScript, expectedMessage.bytes);
+          if (!envelopeCheck.ok || !envelopeCheck.commitAddress) {
+            throw new Error(envelopeCheck.error || t('composer_context_transaction_verification_failed_bad_inscription'));
+          }
+          taprootCommitAddress = envelopeCheck.commitAddress;
+        } else {
+          const envelope = readDataEnvelope(envelopeScript);
+          if (!envelope.ok || !envelope.commitAddress || !envelope.messageHex) {
+            throw new Error(envelope.error || t('composer_context_taproot_unexpected_envelope'));
+          }
+          taprootCommitAddress = envelope.commitAddress;
+          counterpartyData = envelope.messageHex;
         }
-        // The reveal is signed by the composer, so its outputs are checked rather than trusted.
-        const revealHex = response.result.signed_reveal_rawtransaction;
-        if (typeof revealHex !== 'string' || revealHex.length === 0) {
-          throw new Error(t('composer_context_the_composer_did_not_return'));
-        }
-        const revealCheck = verifyRevealTransaction(revealHex, [activeAddress.address]);
+        // The reveal is signed by the composer, so its input, outputs and fee are checked rather
+        // than trusted.
+        const revealCheck = verifyRevealTransaction(revealHex, {
+          kind,
+          ownAddresses: [activeAddress.address],
+          commitTxHex: response.result.rawtransaction,
+          commitAddress: taprootCommitAddress,
+          envelopeScriptHex: envelopeScript,
+          feeRate: toFiniteNumber(dataForApi.sat_per_vbyte) ?? 0,
+        });
         if (!revealCheck.ok) {
           throw new Error(revealCheck.error || t('composer_context_transaction_verification_failed_bad_reveal'));
         }
-        inscriptionCommitAddress = envelopeCheck.commitAddress;
+        revealFee = revealCheck.revealFee;
       }
 
       if (counterpartyData) {
@@ -380,7 +420,7 @@ export function ComposerProvider<T>({
           // Differences too minor to block, shown on the review screen so the user can still see them.
           verificationWarnings = verification.warnings;
         }
-      } else if (!inscriptionCommitAddress && packComposeMessage(composeType, dataForApi)) {
+      } else if (!taprootCommitAddress && packComposeMessage(composeType, dataForApi)) {
         // No payload, but this request's message can be built — so the transaction carries none of
         // it and cannot do what was asked. Signing it would spend the fee to no effect. Types that
         // legitimately carry no message (a BTC send, a burn) cannot be built and do not reach here,
@@ -451,11 +491,11 @@ export function ComposerProvider<T>({
           }
           intendedDestinations.push({ address: payment.address, value: payment.quantity });
         }
-        // The inscription commit output pays an address the request cannot name, but one that was
-        // just derived from an envelope verified to carry this request's message — so it is
-        // explained by proof rather than by exemption.
-        if (inscriptionCommitAddress) {
-          intendedDestinations.push({ address: inscriptionCommitAddress });
+        // A Taproot commit output pays an address the request cannot name, but one that was just
+        // derived from an envelope verified to carry this request's message — so it is explained
+        // by proof rather than by exemption.
+        if (taprootCommitAddress) {
+          intendedDestinations.push({ address: taprootCommitAddress });
         }
         if (composeType === 'burn') {
           // A burn carries no Counterparty message at all, so the outputs are the only thing that
@@ -499,6 +539,9 @@ export function ComposerProvider<T>({
         result: {
           ...response.result,
           params: { ...response.result.params, ...verifiedReviewParams(composeType, dataForApi, assetInfoCache) },
+          // The review states what a two-transaction compose costs in total, so the reveal's share
+          // is the one verified above, not anything the response says.
+          ...(revealFee !== undefined ? { reveal_fee: revealFee } : {}),
         },
       };
 
@@ -578,6 +621,8 @@ export function ComposerProvider<T>({
     }
 
     const rawTxHex = state.apiResponse.result.rawtransaction;
+    const revealHex = state.apiResponse.result.signed_reveal_rawtransaction;
+    const hasReveal = typeof revealHex === 'string' && revealHex.length > 0;
     // PSBT is available for hardware wallet signing
     const psbtHex = state.apiResponse.result.psbt;
     // Input values and lock scripts are needed to complete PSBT for hardware wallets
@@ -610,7 +655,9 @@ export function ComposerProvider<T>({
       // Signing, including a legacy hunt, stays behind the background session guard.
       signedTxHex = await signTransaction(rawTxHex, activeAddress.address, {
         psbtHex, inputValues, lockScripts,
-        ...(activeWallet && huntsWhileSigning(activeWallet.addressFormat, activeWallet.type)
+        // Never hunt over a commit whose reveal is already signed: the nonce would change the txid
+        // the reveal spends.
+        ...(!hasReveal && activeWallet && huntsWhileSigning(activeWallet.addressFormat, activeWallet.type)
           && state.apiResponse.result.zeld_hunt?.reason === HUNTS_WHILE_SIGNING
           ? { zeldHuntSeconds: state.apiResponse.result.zeld_hunt?.seconds ?? 0 }
           : {}),
@@ -620,6 +667,12 @@ export function ComposerProvider<T>({
     }
     // Navigating away or changing identity while a hunt/signature is pending must not broadcast.
     signal?.throwIfAborted();
+    // The reveal spends the commit by txid. If anything between compose and signature changed the
+    // commit, the reveal spends nothing and the commit alone would strand its value, so neither
+    // goes out.
+    if (hasReveal && !revealSpendsTransaction(revealHex, signedTxHex)) {
+      throw new Error(t('composer_context_reveal_no_longer_matches'));
+    }
     // Record transaction before broadcast to prevent double-broadcast
     // Use timestamp + random suffix to avoid any collision risk
     const placeholderTxid = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -645,26 +698,25 @@ export function ComposerProvider<T>({
       );
     }
 
-    // An inscription is two transactions: the commit just went out, and the reveal publishes the
-    // content. The reveal is already signed by the composer and was checked at compose time to pay
-    // only us. Broadcasting it immediately is safe because it spends the commit's output, whose
-    // txid is fixed before signing — its inputs are segwit, which is why taproot encoding requires
-    // a segwit source. Without this the content never lands and the committed sats are stranded.
-    const revealHex = state.apiResponse.result.signed_reveal_rawtransaction;
+    // A Taproot compose is two transactions: the commit just went out, and the reveal publishes the
+    // message. The reveal is already signed by the composer and was checked at compose time
+    // against core's construction, and again above against the signed commit. It goes out only
+    // now, after the commit was accepted, because it spends the commit's output. Without it the
+    // message never lands and the committed sats are stranded.
     let revealBroadcast: { txid?: string } | undefined;
-    if (typeof revealHex === 'string' && revealHex.length > 0) {
+    if (hasReveal) {
       try {
         revealBroadcast = await broadcastTransaction(revealHex);
       } catch (error) {
         // The commit is already on the network and cannot be recalled, so this must not throw:
-        // surface it as a warning with the reveal hex so the inscription can still be completed.
+        // surface it as a warning with the reveal hex so the transaction can still be completed.
         const detail = error instanceof Error ? error.message : String(error);
+        const warning = envelopeKind(state.apiResponse.result.envelope_script ?? '') === 'ord'
+          ? t('composer_context_the_inscription_s_commit_transaction', [String(detail), String(revealHex)])
+          : t('composer_context_the_reveal_was_not_accepted', [String(detail), String(revealHex)]);
         setState(prev => ({
           ...prev,
-          verificationWarnings: [
-            ...prev.verificationWarnings,
-            t('composer_context_the_inscription_s_commit_transaction', [String(detail), String(revealHex)]),
-          ],
+          verificationWarnings: [...prev.verificationWarnings, warning],
         }));
       }
     }

@@ -114,6 +114,32 @@ walletTest.describe('Broadcast Flow - Full Compose Flow', () => {
     const pageContent = await page.content();
     expect(pageContent).toContain(testMessage);
   });
+
+  walletTest('a broadcast too long for an OP_RETURN goes out Taproot-encoded, unprompted', async ({ page }) => {
+    const composeUrls: string[] = [];
+    page.context().on('request', (request) => {
+      if (request.url().includes('/compose/broadcast')) composeUrls.push(request.url());
+    });
+
+    await navigateTo(page, 'actions');
+    await actions.broadcastOption(page).click();
+    await page.waitForURL('**/compose/broadcast', { timeout: 10000 });
+
+    // 88 characters: past the 72 bytes an OP_RETURN holds, so core would fall back to multisig.
+    const testMessage = 'A long broadcast that no longer fits in one OP_RETURN output, sent as commit and reveal.';
+    await compose.broadcast.messageInput(page).fill(testMessage);
+    // Nothing about encoding is offered to the user: the form carries no encoding field at all.
+    await expect(page.locator('[name="encoding"]')).toHaveCount(0);
+
+    await compose.common.submitButton(page).click();
+    await waitForReview(page);
+
+    // The mock composed a real data envelope and reveal, and the review passed their verification.
+    expect(new URL(composeUrls.at(-1)!).searchParams.get('encoding')).toBe('taproot');
+    await expect(page.locator('text=/Sent as two transactions, commit then reveal\\. Total fee/')).toBeVisible();
+    await expect(page.locator(`text=${testMessage}`).first()).toBeVisible();
+    await page.screenshot({ path: 'test-results/taproot-broadcast-review.png', fullPage: true });
+  });
 });
 
 walletTest.describe('Broadcast Inscription (File Upload)', () => {

@@ -199,3 +199,14 @@ export class CounterpartyApiError extends BlockchainError {
     this.statusCode = options?.statusCode;
   }
 }
+
+/**
+ * A composed transaction spent a UTXO the request never offered.
+ *
+ * Its own type so a caller that retries composer rejections — the UTXO fallback in
+ * `counterparty/compose.ts`, the encoding fallback in `counterparty/taprootEncoding.ts` — cannot
+ * mistake it for the composer rejecting a request and retry. The last UTXO retry sends no
+ * `inputs_set` at all, which would answer a composer that ignored the set by letting it choose
+ * freely.
+ */
+export class UnofferedInputsError extends CounterpartyApiError {}

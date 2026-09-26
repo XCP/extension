@@ -61,7 +61,7 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
   const rawTxHex = response.result.rawtransaction;
   if (response.result.signed_reveal_rawtransaction) {
     return withMetadata(response, { ...base, status: 'skipped', elapsed_ms: 0, attempts: 0,
-      reason: 'A signed inscription reveal already spends this transaction ID.' });
+      reason: 'A signed reveal already spends this transaction ID.' });
   }
   if (huntsWhileSigning(context.addressFormat, context.walletType)) {
     return withMetadata(response, { ...base, status: 'skipped', elapsed_ms: 0, attempts: 0, reason: HUNTS_WHILE_SIGNING });

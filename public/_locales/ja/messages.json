@@ -1805,11 +1805,20 @@
   "composer_context_no_active_address_available": {
     "message": "利用できるアクティブなアドレスがありません"
   },
-  "composer_context_the_composer_did_not_return": {
-    "message": "コンポーザーがこのインスクリプションのリビールトランザクションを返しませんでした。"
-  },
   "composer_context_the_inscription_s_commit_transaction": {
     "message": "インスクリプションのコミットトランザクションはブロードキャストされましたが、コンテンツを公開するリビールは受け付けられませんでした（$1）。コンテンツはまだオンチェーンにありません。リビールトランザクション: $2"
+  },
+  "composer_context_the_reveal_was_not_accepted": {
+    "message": "コミットトランザクションはブロードキャストされましたが、リビールは受け付けられませんでした（$1）。トランザクションはまだ反映されていません。リビールトランザクション: $2"
+  },
+  "composer_context_reveal_no_longer_matches": {
+    "message": "署名済みトランザクションがリビールと一致しなくなったため、何もブロードキャストされませんでした。もう一度作成してください。"
+  },
+  "composer_context_taproot_half_returned": {
+    "message": "トランザクションの検証に失敗しました: コンポーザーは必要な2つのトランザクションのうち1つしか返しませんでした。"
+  },
+  "composer_context_taproot_unexpected_envelope": {
+    "message": "トランザクションの検証に失敗しました: コンポーザーのTaprootエンベロープはこのリクエストが生成するものではありません。"
   },
   "composer_context_this_transaction_pays_a_sat": {
     "message": "このトランザクションのマイナー手数料は $1 sat ですが、コンポーザーは $2 と報告しました。表示されている額がトランザクションが実際に支払う額です。"
@@ -4081,6 +4090,9 @@
   },
   "screens_review_screen_sats_vb": {
     "message": "($1 sats/vB)"
+  },
+  "screens_review_screen_commit_then_reveal": {
+    "message": "コミットとリビールの2つのトランザクションで送信します。合計手数料 $1 BTC"
   },
   "screens_review_screen_sign_and_broadcast_transaction": {
     "message": "トランザクションに署名してブロードキャスト"

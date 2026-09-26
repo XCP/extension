@@ -16,7 +16,7 @@
  * draw) return null here and keep the placeholder, which is what the composer already tolerates.
  */
 
-import { Address, OutScript, Transaction } from '@scure/btc-signer';
+import { Address, OutScript, p2tr, Transaction } from '@scure/btc-signer';
 import { packComposeMessage } from '../src/core/counterparty/pack/messages';
 import { arc4, bytesToHex, hexToBytes } from '../src/core/counterparty/unpack/binary';
 
@@ -36,6 +36,9 @@ const FALLBACK_VOUT = 1;
 
 export interface FixtureTransaction {
   rawtransaction: string;
+  /** Present for a Taproot-encoded compose: the data envelope and the reveal spending the commit. */
+  envelope_script?: string;
+  signed_reveal_rawtransaction?: string;
   /** The unobfuscated payload, as the API reports it in `data`. */
   data: string;
   btc_in: number;
@@ -132,6 +135,9 @@ function composeFixture(composeType: string, requestUrl: string): FixtureTransac
   if (!packed) return null;
 
   const input = firstOfferedInput(url);
+  if (url.searchParams.get('encoding') === 'taproot') {
+    return composeTaprootFixture(source, input, packed.bytes, Number(url.searchParams.get('sat_per_vbyte') ?? '1'));
+  }
 
   // Counterparty keys the stream with the first input's txid in display order, which is the order
   // @scure/btc-signer both accepts and returns (`unpack/opReturn.ts`).
@@ -159,6 +165,72 @@ function composeFixture(composeType: string, requestUrl: string): FixtureTransac
     data: bytesToHex(packed.bytes),
     btc_in: INPUT_VALUE,
     btc_out: paidOut,
+    btc_change: change,
+    btc_fee: FIXTURE_FEE,
+  };
+}
+
+/** Any valid x-only key serves as the reveal key; core draws a random one. This is G's x. */
+const REVEAL_KEY = hexToBytes('79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798');
+const CNTRPRTY_HEX = '434e545250525459';
+
+/** python-bitcoin-utils' push encoding, which core's envelope uses (bounds are exclusive). */
+function push(data: Uint8Array): string {
+  const hex = bytesToHex(data);
+  if (data.length < 0x4c) return data.length.toString(16).padStart(2, '0') + hex;
+  if (data.length < 0xff) return '4c' + data.length.toString(16).padStart(2, '0') + hex;
+  return '4d' + (data.length & 0xff).toString(16).padStart(2, '0') + (data.length >> 8).toString(16).padStart(2, '0') + hex;
+}
+
+function varint(n: number): string {
+  if (n < 0xfd) return n.toString(16).padStart(2, '0');
+  return 'fd' + (n & 0xff).toString(16).padStart(2, '0') + (n >> 8).toString(16).padStart(2, '0');
+}
+
+function reverseHex(hex: string): string {
+  return hex.match(/../g)!.reverse().join('');
+}
+
+/**
+ * A Taproot compose the way core builds one (`prepare_taproot_output`): the message without its
+ * prefix in a plain data envelope, a commit whose output 0 pays the envelope's P2TR address with
+ * the reveal's fee, and a reveal spending it to the bare CNTRPRTY marker alone. The reveal's
+ * signature is a placeholder — the wallet never reads it, and nothing here is broadcast.
+ */
+function composeTaprootFixture(
+  source: string,
+  input: { txid: string; vout: number },
+  packed: Uint8Array,
+  feeRate: number,
+): FixtureTransaction {
+  const message = packed.slice(8);
+  let chunks = '';
+  for (let i = 0; i < message.length; i += 520) chunks += push(message.slice(i, i + 520));
+  const envelope = `0063${chunks}68${push(REVEAL_KEY)}ac`;
+  const commitScript = p2tr(REVEAL_KEY, { script: hexToBytes(envelope) }, undefined, true).script;
+
+  const reveal = (commitTxid: string) => '02000000' + '0001' + '01' + reverseHex(commitTxid) + '00000000' + '00' + 'ffffffff'
+    + '01' + '0000000000000000' + `0a6a08${CNTRPRTY_HEX}`
+    + '03' + '40' + '11'.repeat(64) + varint(envelope.length / 2) + envelope + '21' + 'c0' + bytesToHex(REVEAL_KEY)
+    + '00000000';
+  const revealVsize = Transaction.fromRaw(hexToBytes(reveal('00'.repeat(32))), {
+    allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true,
+  }).vsize;
+  const commitValue = Math.max(330, Math.ceil(revealVsize * feeRate));
+
+  const tx = new Transaction({ allowUnknownOutputs: true, disableScriptCheck: true });
+  tx.addInput({ txid: hexToBytes(input.txid), index: input.vout });
+  tx.addOutput({ script: commitScript, amount: BigInt(commitValue) });
+  const change = INPUT_VALUE - commitValue - FIXTURE_FEE;
+  tx.addOutput({ script: scriptForAddress(source), amount: BigInt(change) });
+
+  return {
+    rawtransaction: bytesToHex(tx.toBytes(true, false)),
+    envelope_script: envelope,
+    signed_reveal_rawtransaction: reveal(tx.id),
+    data: bytesToHex(packed),
+    btc_in: INPUT_VALUE,
+    btc_out: commitValue,
     btc_change: change,
     btc_fee: FIXTURE_FEE,
   };
