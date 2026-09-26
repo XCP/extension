@@ -41,7 +41,10 @@ tmpclaude-*-cwd
 
 # Local reference folders (not part of repo)
 counterparty-core/
-docs/
+docs/*
+!docs/signing-policy.md
+!docs/marketplace-intents.md
+!docs/approval-screens.md
 scripts/ralph/
 e2e-notes.local.md
 MANUAL_TEST_PLAN.txt

@@ -4,7 +4,7 @@
  *
  * ## Architecture Decision Records
  *
- * ### ADR-016: Privacy-Focused Analytics with Fathom
+ * ### Design note: Privacy-Focused Analytics with Fathom
  *
  * **Context**: We need usage analytics to understand feature usage and error rates,
  * but as a cryptocurrency wallet, user privacy is paramount. Traditional analytics

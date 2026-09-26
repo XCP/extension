@@ -5,7 +5,7 @@
  * Uses @trezor/connect-webextension for browser extension service worker communication.
  *
  * ---
- * ADR-017: Hardware Wallet Integration Architecture
+ * Design note: Hardware Wallet Integration Architecture
  * ---
  *
  * **Context**: Users need hardware wallet support (Trezor, Ledger) for secure key storage

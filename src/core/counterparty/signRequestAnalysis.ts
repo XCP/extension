@@ -9,7 +9,7 @@
  * about whether the same transaction is safe, so they share this instead.
  *
  * Everything here reads the transaction's own bytes. Nothing decides safety from a remote party's
- * account of them (ADR-019).
+ * account of them (see `unpack/verify.ts`).
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';

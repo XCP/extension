@@ -84,7 +84,7 @@ export interface SigningDecisionInput {
  *
  * A safety block is absolute. A verification failure blocks only in strict mode, and only while the
  * rebuild has not proved our reading of the payload complete — past that point a disagreement is the
- * decode API's to explain, and ADR-019 treats that endpoint as untrusted and user-configurable, so
+ * decode API's to explain, and `unpack/verify.ts` treats that endpoint as untrusted and user-configurable, so
  * letting it veto a signature would hand an untrusted party a way to block sound transactions.
  */
 export function shouldBlockSigning(input: SigningDecisionInput): boolean {

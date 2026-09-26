@@ -25,7 +25,7 @@ export function ReviewPoolWithdraw({
   const params = result.params;
   // Pool withdrawals have no local packer, so these params were an unverified echo. Which pool is
   // being withdrawn from is stated by the transaction, so the pair comes from the decoded message
-  // (ADR-019). Quantities keep the response's normalized strings, since converting decoded base
+  // (see `unpack/verify.ts`). Quantities keep the response's normalized strings, since converting decoded base
   // units needs each asset's divisibility — a ledger fact rather than part of this transaction.
   const decoded = useComposerOptional()?.state.decodedMessage?.data as
     | { assetA?: string; assetB?: string }
