@@ -105,7 +105,9 @@ uses the same invariant. Device adapters reject script forms they cannot represe
 
 The background wallet manager serializes vault mutations. Persistence encrypts an immutable
 keychain snapshot, and asynchronous mutation steps check the generation before continuing.
-Locking invalidates pending work immediately. Password rotation shares this serialization with settings and wallet
+Locking invalidates pending work immediately and removes the session master key; every open popup
+and side panel watches that removal, so a lock made anywhere (auto-lock, session expiry, another
+surface) reaches them without a message. Password rotation shares this serialization with settings and wallet
 changes, preventing writes using an old key from overwriting the newly encrypted vault.
 Decryption validates the versioned keychain schema before exposing settings or wallet records.
 
@@ -113,7 +115,8 @@ Session metadata writes are serialized, and timeout changes update the persisted
 deadline as well as the alarm. The eight-hour absolute cap remains independent of user activity.
 Alarms recheck the current generation and deadline, so an old alarm cannot lock a renewed session.
 The only alarm is the session deadline: there are no keep-alive, periodic state-persist or
-periodic update-check alarms, and restoration and persisted deadlines handle suspension. The popup
+periodic update-check alarms (those older versions left are cleared once, when an update installs),
+and restoration and persisted deadlines handle suspension. The popup
 reports activity at most every 30 seconds, carrying the time of the last input, so the persisted
 deadline still follows the user's last input rather than the report.
 

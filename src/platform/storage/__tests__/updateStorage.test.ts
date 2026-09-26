@@ -24,7 +24,6 @@ describe('updateStorage.ts', () => {
       const state: UpdateState = {
         updateAvailable: false,
         currentVersion: '1.0.0',
-        lastCheckTime: 1000000,
         reloadScheduled: false,
       };
 
@@ -39,7 +38,6 @@ describe('updateStorage.ts', () => {
         updateAvailable: true,
         currentVersion: '1.0.0',
         pendingVersion: '1.1.0',
-        lastCheckTime: 1000000,
         reloadScheduled: true,
       };
 
@@ -54,7 +52,6 @@ describe('updateStorage.ts', () => {
       const original: UpdateState = {
         updateAvailable: false,
         currentVersion: '1.0.0',
-        lastCheckTime: 1000000,
         reloadScheduled: false,
       };
 
@@ -62,7 +59,6 @@ describe('updateStorage.ts', () => {
         updateAvailable: true,
         currentVersion: '1.0.0',
         pendingVersion: '1.1.0',
-        lastCheckTime: 2000000,
         reloadScheduled: true,
       };
 
@@ -79,7 +75,6 @@ describe('updateStorage.ts', () => {
       const state: UpdateState = {
         updateAvailable: true,
         currentVersion: '1.0.0',
-        lastCheckTime: 1000000,
         reloadScheduled: false,
       };
 
@@ -102,7 +97,6 @@ describe('updateStorage.ts', () => {
       const initialState: UpdateState = {
         updateAvailable: false,
         currentVersion: '1.0.0',
-        lastCheckTime: Date.now(),
         reloadScheduled: false,
       };
       await setUpdateState(initialState);
@@ -112,7 +106,6 @@ describe('updateStorage.ts', () => {
         updateAvailable: true,
         currentVersion: '1.0.0',
         pendingVersion: '1.1.0',
-        lastCheckTime: Date.now(),
         reloadScheduled: false,
       };
       await setUpdateState(updateDetected);
@@ -135,7 +128,6 @@ describe('updateStorage.ts', () => {
       const afterUpdate: UpdateState = {
         updateAvailable: false,
         currentVersion: '1.1.0',
-        lastCheckTime: Date.now(),
         reloadScheduled: false,
       };
       await setUpdateState(afterUpdate);
@@ -153,7 +145,6 @@ describe('updateStorage.ts', () => {
         updateAvailable: true,
         currentVersion: '2.1.3',
         pendingVersion: '2.2.0',
-        lastCheckTime: 1000000,
         reloadScheduled: false,
       };
 
@@ -169,7 +160,6 @@ describe('updateStorage.ts', () => {
         updateAvailable: true,
         currentVersion: '1.0.0-beta.1',
         pendingVersion: '1.0.0-beta.2',
-        lastCheckTime: 1000000,
         reloadScheduled: false,
       };
 
@@ -180,40 +170,23 @@ describe('updateStorage.ts', () => {
     });
   });
 
-  describe('timestamp handling', () => {
-    it('should preserve lastCheckTime accurately', async () => {
-      const checkTime = 1609459200000; // Fixed timestamp
+  describe('records from earlier versions', () => {
+    it('loads a record that still carries lastCheckTime, without it', async () => {
+      await fakeBrowser.storage.local.set({
+        updateServiceState: {
+          updateAvailable: true,
+          currentVersion: '1.0.0',
+          pendingVersion: '1.1.0',
+          reloadScheduled: true,
+        },
+      });
 
-      const state: UpdateState = {
-        updateAvailable: false,
+      expect(await getUpdateState()).toEqual({
+        updateAvailable: true,
         currentVersion: '1.0.0',
-        lastCheckTime: checkTime,
-        reloadScheduled: false,
-      };
-
-      await setUpdateState(state);
-      const result = await getUpdateState();
-
-      expect(result!.lastCheckTime).toBe(checkTime);
-    });
-
-    it('should update lastCheckTime on periodic checks', async () => {
-      const firstCheck: UpdateState = {
-        updateAvailable: false,
-        currentVersion: '1.0.0',
-        lastCheckTime: 1000000,
-        reloadScheduled: false,
-      };
-      await setUpdateState(firstCheck);
-
-      const secondCheck: UpdateState = {
-        ...firstCheck,
-        lastCheckTime: 2000000,
-      };
-      await setUpdateState(secondCheck);
-
-      const result = await getUpdateState();
-      expect(result!.lastCheckTime).toBe(2000000);
+        pendingVersion: '1.1.0',
+        reloadScheduled: true,
+      });
     });
   });
 });

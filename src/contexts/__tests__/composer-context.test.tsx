@@ -24,7 +24,7 @@ const VALID_BTC_ONLY_TX =
 // address — output accounting (see `unpack/verify.ts`) rejects a transaction whose outputs it cannot attribute.
 const OWN_ADDRESS = decodeAddressFromScript('76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac')!;
 
-// Mock wallet context to avoid webext-bridge dependency in tests
+// Mock wallet context
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
     activeAddress: { address: OWN_ADDRESS },

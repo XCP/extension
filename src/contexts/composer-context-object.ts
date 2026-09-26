@@ -1,7 +1,7 @@
 /**
  * Separate from `composer-context.tsx` so that reading the context does not pull in building it:
- * the provider imports the wallet, which imports `webext-bridge`, which calls
- * `chrome.runtime.connect` at module load and fails under jsdom. Keep every import here type-only.
+ * the provider imports the wallet and settings contexts and, through them, the background proxy.
+ * Keep every import here type-only.
  */
 
 import { createContext, use } from "react";

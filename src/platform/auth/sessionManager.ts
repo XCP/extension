@@ -462,9 +462,9 @@ export async function updateSessionTimeout(timeout: number): Promise<void> {
 }
 
 /**
- * Session expiry alarm name - single source of truth
+ * Session expiry alarm name - single source of truth (the background's onAlarm listener imports it).
  */
-const SESSION_EXPIRY_ALARM = 'session-expiry';
+export const SESSION_EXPIRY_ALARM = 'session-expiry';
 
 /**
  * Schedules (or reschedules) the session expiry alarm.

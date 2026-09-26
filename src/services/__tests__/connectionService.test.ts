@@ -8,12 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vite
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import type { AppSettings } from '@/core/settings';
 
-// Mock webext-bridge to prevent browser API issues  
-vi.mock('webext-bridge/background', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn(),
-}));
-
 // Mock wallet manager
 vi.mock('@/platform/walletManager', () => ({
   walletManager: {
@@ -675,7 +669,6 @@ describe('ConnectionService', () => {
       expect((connectionService as any).state.pendingPermissionRequests.size).toBe(0);
     });
   });
-
 
   describe('rate limiting', () => {
     it('should enforce connection rate limits', async () => {

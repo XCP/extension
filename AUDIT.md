@@ -279,7 +279,7 @@ are never sent.
 | ✅ | Exact version pinning | No wildcards in package.json |
 | ✅ | Lockfile integrity | package-lock.json with hashes |
 | ✅ | npm audit CI | Runs on every PR |
-| ✅ | Minimal dependencies | 14 direct runtime deps (most wallets have 50+) |
+| ✅ | Minimal dependencies | 13 direct runtime deps (most wallets have 50+) |
 | ⚪ | Dependency confusion | Not applicable—no private packages |
 
 ## Hardware Wallet Security

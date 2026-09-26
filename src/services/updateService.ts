@@ -10,7 +10,8 @@
  * There is deliberately no periodic check. It was a 15-minute alarm, re-created on every cold
  * start (so its clock reset and it rarely fired), that woke an idle worker for nothing, and when it
  * did fire on a fresh install it could reload the extension mid-use: its "last check" started at 0,
- * so the first check always looked four hours stale.
+ * so the first check always looked four hours stale. The alarm itself is cleared on update by the
+ * background (see LEGACY_ALARMS in entrypoints/background.ts).
  */
 
 import {
@@ -23,9 +24,6 @@ import { whenServicesReady } from '@/services/core/serviceReadiness';
 /** Extension documents whose presence means someone is using the wallet right now. */
 const UI_CONTEXT_TYPES = ['POPUP', 'TAB', 'SIDE_PANEL'] as const;
 
-/** The alarm earlier versions created. Alarms outlive updates, so it is cleared on start. */
-const LEGACY_ALARM_NAME = 'update-service-periodic-check';
-
 class UpdateService {
   /** Grace before reloading, and the interval between re-checks while the wallet is in use. */
   private readonly RELOAD_DELAY = 1000 * 30; // 30 seconds
@@ -33,7 +31,6 @@ class UpdateService {
   private state: UpdateState = {
     updateAvailable: false,
     currentVersion: chrome.runtime.getManifest().version,
-    lastCheckTime: 0,
     reloadScheduled: false
   };
 
@@ -70,10 +67,6 @@ class UpdateService {
 
     // Normally already registered by the background's first turn; idempotent.
     this.listen();
-
-    chrome.alarms?.clear(LEGACY_ALARM_NAME).catch(error => {
-      console.warn('[UpdateService] Could not clear legacy alarm:', error);
-    });
 
     // Check for version changes after reload
     await this.checkVersionAfterReload();
@@ -202,13 +195,6 @@ class UpdateService {
       this.state.currentVersion = currentVersion;
       await this.saveState();
     }
-  }
-
-  /**
-   * Get current update status
-   */
-  getStatus(): Readonly<UpdateState> {
-    return { ...this.state };
   }
 
   /**

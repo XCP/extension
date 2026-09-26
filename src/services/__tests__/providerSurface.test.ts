@@ -18,10 +18,6 @@ import { createProviderService } from '../providerService';
  * method needs a grant.
  */
 
-vi.mock('webext-bridge/background', () => ({
-  sendMessage: vi.fn().mockResolvedValue({ success: true, data: {} }),
-  onMessage: vi.fn(),
-}));
 vi.mock('../walletService');
 vi.mock('@/platform/walletManager', () => ({
   walletManager: {

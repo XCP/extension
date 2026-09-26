@@ -68,12 +68,28 @@ describe('keychainCrypto', () => {
     expect(parsed.settings.fiat).toBe('usd');
   });
 
+  it.each([true, false, 'true'])('loads a keychain that still carries the retired trezorEmulatorMode (%j), without it', mode => {
+    const parsed = parseKeychain({ version: 1, wallets: [], settings: { autoLockTimer: '15m', trezorEmulatorMode: mode } });
+    expect(parsed.settings.autoLockTimer).toBe('15m');
+    expect(parsed.settings).not.toHaveProperty('trezorEmulatorMode');
+  });
+
+  it('decrypts a stored keychain whose settings carry trezorEmulatorMode', async () => {
+    const salt = generateRandomBytes(16);
+    const key = await deriveKey('emulator-era-keychain', salt, ITERATIONS);
+    const encryptedKeychain = await encryptJsonWithKey(
+      { version: 1, wallets: [], settings: { ...DEFAULT_SETTINGS, trezorEmulatorMode: true } }, key);
+    const keychain = await decryptKeychain({
+      version: 1, salt: bufferToBase64(salt), kdf: { iterations: ITERATIONS }, encryptedKeychain,
+    }, key);
+    expect(keychain.settings).toEqual(DEFAULT_SETTINGS);
+  });
+
   it.each([
     null,
     { version: 1, wallets: {}, settings: {} },
     { version: 1, wallets: [], settings: { autoLockTimer: 'forever' } },
     { version: 1, wallets: [], settings: { strictTransactionVerification: 'false' } },
-    { version: 1, wallets: [], settings: { trezorEmulatorMode: 'true' } },
     { version: 1, wallets: [], settings: { zeldHuntSeconds: 61 } },
     { version: 1, wallets: [], settings: { zeldHuntSeconds: -1 } },
     { version: 1, wallets: [], settings: { zeldHuntSeconds: 1.5 } },

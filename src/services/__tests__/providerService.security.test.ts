@@ -10,10 +10,6 @@ import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 
 // Mock the dependencies
-vi.mock('webext-bridge/background', () => ({
-  sendMessage: vi.fn().mockResolvedValue({ success: true, data: {} }),
-  onMessage: vi.fn()
-}));
 
 vi.mock('../walletService');
 vi.mock('@/platform/walletManager', () => ({

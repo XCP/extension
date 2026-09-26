@@ -85,7 +85,7 @@ beforeAll(() => {
     global.chrome = {} as any;
   }
   
-  // Add missing runtime API mocks needed by webext-bridge
+  // Runtime listener stubs for modules that register listeners at import
   global.chrome.runtime = global.chrome.runtime || {};
   if (!global.chrome.runtime.onConnect) {
     Object.defineProperty(global.chrome.runtime, 'onConnect', {

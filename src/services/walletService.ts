@@ -17,7 +17,6 @@ import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { registerSessionExpiredHandler, setLastActiveTime } from '@/platform/auth/sessionManager';
 import { defineProxyService } from '@/platform/proxy';
 import { walletManager } from '@/platform/walletManager';
-import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { WALLET_SERVICE_NAME, WALLET_SERVICE_POLICY } from '@/services/walletServiceClient';
 import type { Address, PairedAddresses, SignTransactionOptions, Wallet } from '@/types/wallet';
@@ -171,14 +170,9 @@ function createWalletService(): WalletService {
     lockKeychain: async () => {
       // The connected sites live in the keychain's settings, which locking discards; read them first.
       const connected = [...walletManager.getSettings().connectedWebsites];
+      // Locking removes the master key from session storage, which is what every open popup and
+      // side panel watches (see watchKeychainLock); nothing is sent to them.
       await walletManager.lockKeychain();
-      // Tell an open popup, without waiting on it. webext-bridge holds a message for 'popup' until
-      // one connects, so awaiting this stalled every lock (and so every cold start that locked) for
-      // its ~5s timeout when no popup was open. The UI does not depend on it arriving: it also
-      // watches the master key's removal from session storage.
-      void MessageBus.notifyKeychainLocked(true).catch((error: unknown) => {
-        console.debug('[WalletService] Could not notify popup of keychain lock event:', error);
-      });
       // Tell connected dApps the accounts are gone — per-origin, and without a
       // terminal disconnect, so unlock can restore them via accountsChanged.
       emitAccountsChangedToConnected([], connected);

@@ -200,14 +200,9 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
    * @param options Debug logging options
    */
   async init(options?: TrezorAdapterOptions): Promise<void> {
-    console.log('[TrezorAdapter] init called, already initialized:', this.initialized);
-    if (this.initialized) {
-      console.log('[TrezorAdapter] Already initialized, returning early');
-      return;
-    }
+    if (this.initialized) return;
 
     this.options = options ?? {};
-    console.log('[TrezorAdapter] Starting initialization...');
 
     try {
       this.connectionStatus = 'connecting';
@@ -226,9 +221,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         env: 'webextension',
       };
 
-      console.log('[TrezorAdapter] Calling TrezorConnect.init with config:', JSON.stringify(initConfig, null, 2));
       await TrezorConnect.init(initConfig);
-      console.log('[TrezorAdapter] TrezorConnect.init completed successfully');
 
       this.initialized = true;
       // Connect 10 removed the device event stream, so there is nothing to subscribe to.
@@ -461,19 +454,16 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     xpub: string;
   }> {
     this.ensureInitialized();
-    console.log('[TrezorAdapter] discoverAccount called, usePassphrase:', usePassphrase);
 
     // getAccountInfo no longer discovers - it rejects a request with neither path nor
     // descriptor. selectAccount is the replacement, and it returns the address and xpub
     // directly, so the descriptor no longer has to be parsed for the xpub.
-    console.log('[TrezorAdapter] Calling TrezorConnect.selectAccount...');
     const result = await TrezorConnect.selectAccount({
       coin: 'btc',
       selectionType: 'single',
       addressSelection: 'fullAccount',
       device: { useEmptyPassphrase: !usePassphrase },
     });
-    console.log('[TrezorAdapter] selectAccount success:', result.success);
 
     if (!result.success) {
       const errorMsg = result.error.message?.toLowerCase() || '';

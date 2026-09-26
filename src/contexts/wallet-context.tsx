@@ -13,8 +13,8 @@
  * ## Architecture
  *
  * The context wraps `walletService` which communicates with the background
- * script via message passing. State is refreshed after each operation and
- * synchronized across popup instances via `webext-bridge`.
+ * script via message passing. State is refreshed after each operation; other surfaces'
+ * changes arrive as storage writes (the keychain record, and the session master key for locks).
  *
  * ## Concurrency
  *
@@ -44,11 +44,11 @@ import {
   useRef,
   useState
 } from "react";
-import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { type AddressFormat, DEFAULT_ADDRESS_FORMAT } from '@/core/bitcoin/address';
 import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
 import { withStateLock } from "@/core/wallet/stateLockManager";
+import { watchKeychainLock } from "@/platform/storage/keyStorage";
 import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
 import { getWalletServiceClient } from "@/services/walletServiceClient";
 import type { Address, SignTransactionOptions, Wallet } from "@/types/wallet";
@@ -430,42 +430,26 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     };
     loadWithRetry();
 
-    // Listen for wallet lock events from background
-    // This MUST use the same lock key to prevent race with refreshWalletState
-    const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
-      if (data.locked) {
-        // Use withStateLock to serialize with refreshWalletState
-        withStateLock('wallet-refresh', async () => {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[WalletContext] Lock event received from background');
-          }
-          // Increment version to invalidate any concurrent refresh
-          lockStateVersionRef.current++;
-          // Update state to trigger navigation
-          setWalletState((prev) => ({
-            ...prev,
-            authState: AuthState.Locked,
-            keychainLocked: true,
-            activeWallet: null,
-            activeAddress: null,
-          }));
-        });
-      }
-    };
-    const unsubscribe = onMessage('keychainLocked', handleLockMessage);
-
-    // The keychainLocked message reaches only one webext-bridge 'popup'
-    // endpoint, and the popup and side panel share that name. Master key
-    // removal from session storage signals the lock to every UI surface.
-    const handleSessionStorageChange = (
-      changes: Record<string, chrome.storage.StorageChange>
-    ) => {
-      const masterKeyChange = changes['keychainMasterKey'];
-      if (masterKeyChange && masterKeyChange.oldValue != null && masterKeyChange.newValue == null) {
-        handleLockMessage({ data: { locked: true } });
-      }
-    };
-    chrome.storage?.session?.onChanged?.addListener(handleSessionStorageChange);
+    // A lock made anywhere (this surface, another one, or the background's auto-lock) removes the
+    // master key from session storage, and every open surface sees that removal.
+    // This MUST use the same lock key as refreshWalletState so the two cannot race.
+    const stopWatchingLock = watchKeychainLock(() => {
+      withStateLock('wallet-refresh', async () => {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[WalletContext] Keychain locked');
+        }
+        // Increment version to invalidate any concurrent refresh
+        lockStateVersionRef.current++;
+        // Update state to trigger navigation
+        setWalletState((prev) => ({
+          ...prev,
+          authState: AuthState.Locked,
+          keychainLocked: true,
+          activeWallet: null,
+          activeAddress: null,
+        }));
+      });
+    });
 
     // Wallets and their addresses live in the keychain record, so adding a wallet or deriving an
     // address in one surface lands as a write here. The popup and the side panel are separate
@@ -483,9 +467,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     });
 
     return () => {
-      // Properly cleanup the message listener
-      unsubscribe();
-      chrome.storage?.session?.onChanged?.removeListener(handleSessionStorageChange);
+      stopWatchingLock();
       stopWatchingKeychain();
     };
   }, [refreshWalletState, walletService]); // Removed walletState.authState to prevent re-runs

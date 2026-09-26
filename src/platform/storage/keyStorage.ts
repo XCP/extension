@@ -60,3 +60,15 @@ export async function clearCachedKeychainMasterKey(): Promise<void> {
   }
 }
 
+
+/**
+ * Calls `onLock` whenever the cached master key is removed, which is what locking does. This is
+ * the lock signal for every extension page: the popup and the side panel each see it, including a
+ * lock made by the background (auto-lock, session expiry) or by another surface, and a page opened
+ * later never receives a stale one. Returns the unsubscribe function.
+ */
+export function watchKeychainLock(onLock: () => void): () => void {
+  return keychainMasterKeyItem.watch((newValue, oldValue) => {
+    if (oldValue != null && newValue == null) onLock();
+  });
+}

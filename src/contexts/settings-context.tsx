@@ -31,10 +31,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { onMessage } from 'webext-bridge/popup';
 import { type AppSettings, DEFAULT_SETTINGS, setSettingsProvider } from "@/core/settings";
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { analytics } from "@/platform/fathom";
+import { watchKeychainLock } from "@/platform/storage/keyStorage";
 import { watchKeychainRecord } from "@/platform/storage/walletStorage";
 import { getWalletServiceClient } from "@/services/walletServiceClient";
 
@@ -108,20 +108,17 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   useEffect(() => {
     loadSettings();
 
-    // Listen for wallet lock events from background
-    // When locked, settings encryption key is cleared, so reset to defaults
-    // Invalidate pending replies immediately; a pre-lock read/save must not restore settings.
-    const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
-      if (data.locked) {
-        generation.current += 1;
-        persistedSettings.current = DEFAULT_SETTINGS;
-        // This synchronous reset must not wait behind a watcher read: a new unlocked refresh
-        // could otherwise finish first and then be erased when that old read releases the queue.
-        setSettings({ ...DEFAULT_SETTINGS });
-        setIsLoading(false);
-      }
-    };
-    const unsubscribe = onMessage('keychainLocked', handleLockMessage);
+    // A lock made anywhere removes the master key from session storage. The settings live in the
+    // encrypted keychain, so they reset to defaults. Invalidate pending replies immediately; a
+    // pre-lock read/save must not restore settings.
+    const stopWatchingLock = watchKeychainLock(() => {
+      generation.current += 1;
+      persistedSettings.current = DEFAULT_SETTINGS;
+      // This synchronous reset must not wait behind a watcher read: a new unlocked refresh
+      // could otherwise finish first and then be erased when that old read releases the queue.
+      setSettings({ ...DEFAULT_SETTINGS });
+      setIsLoading(false);
+    });
 
     // Settings live inside the keychain record — one blob, one key derivation (#147) — so a change
     // made in any surface lands as a write to it. The popup and the side panel are separate
@@ -134,7 +131,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
     });
 
     return () => {
-      unsubscribe();
+      stopWatchingLock();
       stopWatching();
     };
   }, [loadSettings]);

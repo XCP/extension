@@ -24,7 +24,6 @@ class TestService extends BaseService {
     return this.testData.value;
   }
 
-
   // Implement abstract methods
   protected async onInitialize(): Promise<void> {
     // Test-specific initialization
@@ -225,13 +224,8 @@ describe('BaseService', () => {
 
       expect(chrome.alarms.create).not.toHaveBeenCalled();
       expect(chrome.alarms.onAlarm.addListener).not.toHaveBeenCalled();
-    });
-
-    it('clears the periodic alarms earlier versions left behind', async () => {
-      await testService.initialize();
-
-      expect(chrome.alarms.clear).toHaveBeenCalledWith('TestService-persist');
-      expect(chrome.alarms.clear).toHaveBeenCalledWith('TestService-keepalive');
+      // Nor touches alarms on every start: legacy ones are cleared once, on update (background.ts).
+      expect(chrome.alarms.clear).not.toHaveBeenCalled();
     });
 
     it('still saves state on destroy', async () => {
@@ -244,7 +238,6 @@ describe('BaseService', () => {
       });
     });
   });
-
 
   describe('service metadata', () => {
     it('should track service name and start time', async () => {

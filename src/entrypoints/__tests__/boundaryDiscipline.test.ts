@@ -25,7 +25,7 @@ const BOUNDARY_FILES = [
 ] as const;
 
 const REGISTRATION =
-  /chrome\.runtime\.onConnect\.addListener|chrome\.runtime\.onMessage\.addListener|MessageBus\.onMessage\('([^']+)'|webextBridgeOnMessage\('([^']+)'/g;
+  /chrome\.runtime\.onConnect\.addListener|chrome\.runtime\.onMessage\.addListener|chrome\.runtime\.onInstalled\.addListener|chrome\.alarms\.onAlarm\.addListener/g;
 
 interface Door {
   /** Why it waits, or why it must not. */
@@ -36,22 +36,16 @@ interface Door {
 /**
  * Every entry point, and the decision made about it.
  *
- * Exempt means the barrier would defeat the purpose: liveness and readiness probes exist to be
- * answerable *while* initialising, and gating one would either deadlock it or make it lie.
+ * Exempt means the barrier would defeat the purpose, or there is no wallet state to wait for.
  */
 const DOORS: Record<string, Door> = {
-  "background.ts chrome.runtime.onMessage#1": {
+  "background.ts chrome.runtime.onInstalled#1": {
     gated: false,
-    reason: 'Liveness ping only. Answers nothing about wallet state, and the ping ' +
-      'must respond while still initialising.',
+    reason: 'Clears alarms older versions left behind, once per update. Reads and changes no wallet state.',
   },
-  "background.ts chrome.runtime.onConnect#1": {
-    gated: false,
-    reason: 'Port liveness ping only; proxy ports are handed off to proxy.ts.',
-  },
-  "background.ts startup-health-check": {
-    gated: false,
-    reason: 'Reports whether initialisation finished. Gating it would deadlock the question.',
+  "background.ts chrome.alarms.onAlarm#1": {
+    gated: true,
+    reason: 'Session expiry locks the wallet, so it acts only once recovery has decided the session.',
   },
   "popupMonitorService.ts chrome.runtime.onConnect#1": {
     gated: true,
@@ -73,16 +67,9 @@ function findDoors(file: string): { label: string; body: string }[] {
   const counts: Record<string, number> = {};
 
   for (const match of source.matchAll(REGISTRATION)) {
-    const channel = match[1] ?? match[2];
-    let label: string;
-    if (channel) {
-      label = `${name} ${channel}`;
-    } else {
-      const kind = match[0].replace('.addListener', '');
-      counts[kind] = (counts[kind] ?? 0) + 1;
-      label = `${name} ${kind}#${counts[kind]}`;
-    }
-    found.push({ label, index: match.index });
+    const kind = match[0].replace('.addListener', '');
+    counts[kind] = (counts[kind] ?? 0) + 1;
+    found.push({ label: `${name} ${kind}#${counts[kind]}`, index: match.index });
   }
 
   // A handler runs from its registration to the next one, which is close enough to read for a

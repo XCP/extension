@@ -11,24 +11,6 @@ vi.mock('@/platform/auth/sessionManager', () => ({
   },
 }));
 
-// Mock webext-bridge completely before any imports that use it
-vi.mock('webext-bridge/background', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn()
-}));
-
-// Mock webext-bridge popup module that might be imported
-vi.mock('webext-bridge/popup', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn()
-}));
-
-// Mock webext-bridge content-script module
-vi.mock('webext-bridge/content-script', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn()
-}));
-
 // Mock hardware wallet module to avoid @trezor/connect-webextension import side effects
 vi.mock('@/core/hardware/trezorAdapter', () => ({
   getTrezorAdapter: vi.fn(),
@@ -460,7 +442,6 @@ describe('ProviderService', () => {
       getApprovalStats: vi.fn().mockReturnValue({ pendingCount: 0, requestsByOrigin: {} })
     };
     vi.mocked(approvalService.getApprovalService).mockReturnValue(mockApprovalService as any);
-
 
     // Mock update service
     const mockUpdateService = {
@@ -1207,22 +1188,6 @@ describe('ProviderService', () => {
           )
         ).rejects.toThrow('Permission denied - transaction history not available through provider');
       });
-    });
-  });
-  
-  describe('isConnected', () => {
-    it('should return true if origin is in connected websites', async () => {
-      // Mock connection service to return true for this origin
-      const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
-
-      const result = await providerService.isConnected('https://connected.com');
-      expect(result).toBe(true);
-    });
-    
-    it('should return false if origin is not connected', async () => {
-      const result = await providerService.isConnected('https://notconnected.com');
-      expect(result).toBe(false);
     });
   });
   

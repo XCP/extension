@@ -45,7 +45,7 @@ describe('core does not depend on the extension runtime', () => {
   // extension's own module graph directly, which would make it unportable without importing
   // anything from platform at all.
   it('never touches extension globals or extension-only modules', () => {
-    const banned = /\bchrome\.\w|from\s*['"]#imports['"]|from\s*['"]webext-bridge|from\s*['"]wxt\//;
+    const banned = /\bchrome\.\w|from\s*['"]#imports['"]|from\s*['"]wxt\//;
     const offenders = files.filter((f) => banned.test(readFileSync(f, 'utf8')));
     expect(offenders.map((f) => f.slice(SRC.length + 1))).toEqual([]);
   });

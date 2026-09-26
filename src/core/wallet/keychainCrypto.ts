@@ -23,11 +23,20 @@ function stringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string');
 }
 
+/**
+ * Settings older keychains may still carry that nothing reads any more. They are dropped on load,
+ * whatever their value, so the next save removes them; they never make a keychain unreadable.
+ * - trezorEmulatorMode: unused since Trezor Connect 10.
+ */
+const RETIRED_SETTINGS = ['trezorEmulatorMode'] as const;
+
 function parseSettings(value: unknown): AppSettings {
   if (!isRecord(value)) return invalidKeychain();
+  const stored = { ...value };
+  for (const key of RETIRED_SETTINGS) delete stored[key];
   // A field absent from an older keychain gets its current default. An explicitly malformed
   // security setting must fail closed rather than acquire JavaScript's truthiness semantics.
-  const settings = { ...DEFAULT_SETTINGS, ...value };
+  const settings = { ...DEFAULT_SETTINGS, ...stored };
   for (const [key, defaultValue] of Object.entries(DEFAULT_SETTINGS)) {
     if (typeof defaultValue === 'boolean' || typeof defaultValue === 'string') {
       if (typeof settings[key as keyof typeof settings] !== typeof defaultValue) return invalidKeychain();
@@ -43,7 +52,6 @@ function parseSettings(value: unknown): AppSettings {
   for (const key of ['lastActiveWalletId', 'lastActiveAddress', 'defaultPoolSlippage'] as const) {
     if (settings[key] !== undefined && typeof settings[key] !== 'string') return invalidKeychain();
   }
-  if (settings.trezorEmulatorMode !== undefined && typeof settings.trezorEmulatorMode !== 'boolean') return invalidKeychain();
   if (settings.version !== undefined && (!Number.isSafeInteger(settings.version) || settings.version < 1)) return invalidKeychain();
   if (settings.providerCapabilities !== undefined) {
     if (!isRecord(settings.providerCapabilities)) return invalidKeychain();

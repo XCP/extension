@@ -25,8 +25,7 @@ interface AppProvidersProps {
  * would otherwise stay in memory across an explicit lock.
  *
  * This lives here rather than inside HeaderProvider so that header-context stays independent of
- * wallet-context: the wallet imports webext-bridge, which opens a runtime port at module load and
- * cannot be imported under jsdom.
+ * wallet-context.
  */
 function ClearHeaderCachesOnLock(): null {
   const { keychainLocked } = useWallet();

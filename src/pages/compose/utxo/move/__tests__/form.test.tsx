@@ -19,12 +19,6 @@ vi.mock('@/platform/walletManager', () => ({
   }
 }));
 
-// Mock Browser.runtime.connect to fix webext-bridge error
-vi.mock('webext-bridge/popup', () => ({
-  sendMessage: vi.fn(),
-  onMessage: vi.fn(),
-}));
-
 // Mock fetch for fee rate API calls
 global.fetch = vi.fn();
 

@@ -66,7 +66,6 @@ export abstract class BaseService {
   /**
    * Initialize the service
    * - Restores persisted state
-   * - Clears the alarms earlier versions created, which would otherwise keep waking the worker
    */
   async initialize(): Promise<void> {
     // Already initialized
@@ -96,15 +95,6 @@ export abstract class BaseService {
 
       // Restore any persisted state
       await this.restoreState();
-
-      // Alarms survive extension updates. Clear the ones earlier versions left behind: a periodic
-      // alarm wakes the worker even with no listener for it.
-      if (chrome?.alarms) {
-        await Promise.all([
-          chrome.alarms.clear(`${this.serviceName}-keepalive`),
-          chrome.alarms.clear(`${this.serviceName}-persist`),
-        ]);
-      }
 
       // Call service-specific initialization
       await this.onInitialize();

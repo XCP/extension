@@ -1,13 +1,17 @@
-// Import onMessage directly from webext-bridge/background to prevent runtime.lastError
-import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
-import { checkSessionRecovery, expireSessionIfNeeded, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
+import {
+  checkSessionRecovery,
+  expireSessionIfNeeded,
+  rearmSessionExpiry,
+  SESSION_EXPIRY_ALARM,
+  SessionRecoveryState,
+} from '@/platform/auth/sessionManager';
 import { markSessionRecovery } from '@/platform/auth/sessionReady';
 import { deliverProviderEvent, wereAccountsAnnounced } from '@/platform/browser';
 import { getCachedKeychainMasterKey } from '@/platform/storage/keyStorage';
 import { getApprovalService, registerApprovalService } from '@/services/approvalService';
 import { getConnectionService, registerConnectionService } from '@/services/connectionService';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
-import { getReadinessState, markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
+import { markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { registerProviderService } from '@/services/providerService';
@@ -15,88 +19,41 @@ import { registerProviderSigningService } from '@/services/providerSigningServic
 import { getUpdateService } from '@/services/updateService';
 import { getWalletService, registerWalletService } from '@/services/walletService';
 
+/**
+ * Alarms earlier versions created. Alarms outlive the version that created them, and a periodic one
+ * wakes the worker whether or not anything still listens for it, so an update clears them once.
+ * Clearing one that does not exist is a no-op.
+ */
+const LEGACY_ALARMS = [
+  'keep-alive',
+  'notification-poll',
+  'update-service-periodic-check',
+  // BaseService's per-service keep-alive and persistence alarms.
+  ...['ApprovalService', 'BlockchainService', 'ConnectionService', 'EventEmitterService', 'TransactionService']
+    .flatMap(service => [`${service}-keepalive`, `${service}-persist`]),
+];
+
 export default defineBackground(() => {
-  /**
-   * CRITICAL: Chrome Runtime Error Prevention
-   *
-   * Chrome fires connection attempts immediately when the extension loads/updates,
-   * often before our service worker is fully initialized. If these errors aren't
-   * consumed, Chrome logs "Unchecked runtime.lastError" warnings to the console.
-   *
-   * This listener MUST be the first thing registered to consume errors immediately.
-   * It runs synchronously before any async operations or other initialization.
-   */
-
-  // Single consolidated message handler for error consumption AND message handling
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    // 1. IMMEDIATELY check and consume lastError to prevent console warnings
-    //    This must happen before any other logic
-    if (chrome.runtime.lastError) {
-      // Error consumed - prevents "Unchecked runtime.lastError" spam
-      // Common during extension startup when Chrome tries to reconnect to tabs
-    }
-
-    // 2. SECURITY: Validate sender is from our own extension
-    //    This prevents malicious web pages from sending messages to our background
-    //    See: OWASP Browser Extension Vulnerabilities - Insecure Message Passing
-    if (sender.id !== chrome.runtime.id) {
-      console.warn('[Background] Rejected message from unknown sender:', sender.id);
-      return false;
-    }
-
-    // 3. Debug logging in development only
-    if (process.env.NODE_ENV === 'development') {
-      const messageType = message?.type || message?.action || (message?.serviceName ? `${message.serviceName}.${message.methodName}` : 'unknown');
-      console.log('[Background] Received message:', messageType, 'from:', sender.tab?.url || sender.url || 'extension');
-    }
-
-    // 4. Handle ping requests immediately (allowed from content scripts and extension pages)
-    if (message?.action === 'ping' || message?.type === 'startup-health-check') {
-      sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
-      return true;
-    }
-
-    // Let other handlers (like proxy.ts service handlers) process the message
-    return false;
-  });
-
-  // Single consolidated port handler for error consumption and message handling
-  // This prevents duplicate listeners being added per port
-  chrome.runtime.onConnect.addListener((port) => {
-    if (chrome.runtime.lastError) { /* consumed */ }
-
-    // SECURITY: Validate port sender is from our own extension
-    if (port.sender?.id !== chrome.runtime.id) {
-      console.warn('[Background] Rejected port connection from unknown sender:', port.sender?.id);
-      port.disconnect();
-      return;
-    }
-
-    // Proxy service ports are handled by their own onConnect listeners in proxy.ts
-    if (port.name.startsWith('proxy:')) return;
-
-    port.onMessage.addListener((msg) => {
-      if (msg?.action === 'ping') {
-        port.postMessage({ status: 'ready', timestamp: Date.now() });
-      }
-    });
-
-    port.onDisconnect.addListener(() => {
-      if (chrome.runtime.lastError) { /* consumed */ }
-    });
-  });
-
   // No tab listeners here on purpose: every one of them wakes this worker on every page load in
   // the browser. Which tabs a provider event concerns is learned from provider ports instead
-  // (see platform/browser.ts).
+  // (see platform/browser.ts). Nor a runtime.onMessage one: nothing sends the worker one-off
+  // messages; extension pages and content scripts reach it over proxy ports (platform/proxy.ts).
 
-  // These wake the worker too, so they are registered here, in the first turn, like the ones above:
-  // Chrome delivers the waking event only to listeners that exist by the end of it. Each handler
-  // waits for initialisation (whenServicesReady) before acting on wallet state.
+  // Everything that can wake the worker is registered here, in the first turn: Chrome delivers the
+  // waking event only to listeners that exist by the end of it. Each handler waits for
+  // initialisation (whenServicesReady) before acting on wallet state.
   //  - The popup-lifecycle port, which cancels a signing request whose approval window closed.
   //  - onUpdateAvailable, which Chrome may fire once, on the very wake it causes.
+  //  - onInstalled, which fires once after an update and clears the alarms older versions left.
+  //  - onAlarm, for the session-expiry alarm (below).
   getPopupMonitorService().initialize();
   getUpdateService().listen();
+  chrome.runtime.onInstalled.addListener(({ reason }) => {
+    if (reason !== 'update') return;
+    for (const name of LEGACY_ALARMS) {
+      chrome.alarms.clear(name).catch(error => console.warn('[Background] Could not clear legacy alarm:', name, error));
+    }
+  });
 
   console.log('[Background] Core listeners registered');
 
@@ -122,24 +79,24 @@ export default defineBackground(() => {
       await serviceRegistry.register(eventEmitterService);
       console.log('[Background] EventEmitterService initialized');
 
-      // 2b. Initialize the approval and connection services. Registering a proxy only answers
-      //     calls; initializing is what resumes an approval left pending by the previous worker
-      //     and installs the handler that completes a connect approval nobody is waiting on any
-      //     more. Approval first: the connection service registers its handler on it.
-      //     Deliberately not in the registry: its destroy() rejects the pending approval, which
-      //     is the very thing this exists to carry across a restart.
+      // 3. Initialize the approval and connection services. Registering a proxy only answers
+      //    calls; initializing is what resumes an approval left pending by the previous worker
+      //    and installs the handler that completes a connect approval nobody is waiting on any
+      //    more. Approval first: the connection service registers its handler on it.
+      //    Deliberately not in the registry: its destroy() rejects the pending approval, which
+      //    is the very thing this exists to carry across a restart.
       await getApprovalService().initialize();
       await getConnectionService().initialize();
       console.log('[Background] ApprovalService and ConnectionService initialized');
 
-      // 3. Initialize update service (its listener was registered in the first turn). An update
+      // 4. Initialize update service (its listener was registered in the first turn). An update
       //    never reloads the extension out from under an approval waiting on the user.
       const updateService = getUpdateService();
       updateService.addBusyCheck(() => getApprovalService().hasPendingApproval());
       await updateService.initialize();
       console.log('[Background] UpdateService initialized');
 
-      // 6. Check session recovery state (may lock wallets if session expired). Anything that
+      // 5. Check session recovery state (may lock wallets if session expired). Anything that
       //    re-derives from the session master key waits on the outcome of this — see sessionReady.
       const recoveryState = await checkSessionRecovery();
       markSessionRecovery(recoveryState);
@@ -162,15 +119,15 @@ export default defineBackground(() => {
         await rearmSessionExpiry();
       }
 
-      // 7. Load the keychain before anything is served. The master key outlives the worker but the
+      // 6. Load the keychain before anything is served. The master key outlives the worker but the
       //    decrypted keychain does not, and every answer about accounts, permissions or lock state
       //    reads from it — so it is loaded once, here, rather than checked for on each call.
       await getWalletService().ensureKeychainLoaded();
 
-      // 8. Open the barrier proxied calls have been waiting at — see serviceReadiness.
+      // 7. Open the barrier proxied calls have been waiting at — see serviceReadiness.
       markServicesReady();
 
-      // 9. Tell tabs that were already open that the worker is back.
+      // 8. Tell tabs that were already open that the worker is back.
       await announceReadinessToConnectedTabs();
 
       console.log('[Background] All services initialized successfully');
@@ -228,41 +185,13 @@ export default defineBackground(() => {
   }
 
   // Start initialization (non-blocking to avoid Chrome timeout)
-  const initPromise = initializeServices();
+  void initializeServices();
 
-  // ============================================================
-  // WEBEXT-BRIDGE HANDLERS
-  // ============================================================
-
-  // Initialize webext-bridge handlers at top level of defineBackground
-  // This ensures they're registered when the service worker starts
-  webextBridgeOnMessage('startup-health-check', async () => {
-    // Wait for services to be ready before reporting healthy
-    if (!getReadinessState().ready) {
-      await initPromise;
-    }
-    const status = getReadinessState();
-    return {
-      status: status.ready ? 'ready' : 'initializing',
-      timestamp: Date.now(),
-      services: status.ready ? 'ready' : 'initializing',
-      error: status.error
-    };
-  });
-
-  console.log('[Background] webext-bridge handlers registered');
-  
-  // Session expiry is authoritative in persisted metadata; idle workers may suspend.
-  const SESSION_EXPIRY_ALARM_NAME = 'session-expiry';
-  // Alarms outlive the version that created them, and a periodic one wakes the worker whether or
-  // not anything still listens for it. The per-service persist and update-check alarms are cleared
-  // by their owners as they initialize.
-  chrome.alarms.clear('keep-alive').catch(error => console.warn('[Background] Could not clear legacy alarm:', error));
-
-  // Consolidated alarm handler to avoid multiple listeners
+  // Session expiry is authoritative in persisted metadata; idle workers may suspend. The one alarm
+  // this version uses, so the one listener.
   if (chrome?.alarms?.onAlarm) {
     chrome.alarms.onAlarm.addListener((alarm) => {
-      if (alarm.name !== SESSION_EXPIRY_ALARM_NAME) return;
+      if (alarm.name !== SESSION_EXPIRY_ALARM) return;
       // A delayed alarm for an earlier deadline must not lock a renewed session.
       whenServicesReady().then(() => expireSessionIfNeeded()).catch(error => {
         console.error('[Background] Session expiry check failed:', error);

@@ -1,25 +1,13 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { sendMessage } from 'webext-bridge/popup';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/address';
 import * as sessionManager from '@/platform/auth/sessionManager';
+import { clearCachedKeychainMasterKey, setCachedKeychainMasterKey } from '@/platform/storage/keyStorage';
 import { saveKeychainRecord } from '@/platform/storage/walletStorage';
 import { walletManager } from '@/platform/walletManager';
 import type { Wallet } from '@/types/wallet';
 import { useWallet, WalletProvider } from '../wallet-context';
-
-// Mock webext-bridge first with comprehensive mocking
-vi.mock('webext-bridge/popup', () => ({
-  sendMessage: vi.fn().mockResolvedValue({ success: true }),
-  onMessage: vi.fn().mockReturnValue(() => {}), // Return cleanup function
-}));
-
-vi.mock('webext-bridge/background', () => ({
-  sendMessage: vi.fn().mockResolvedValue({ success: true }),
-  onMessage: vi.fn().mockReturnValue(() => {}), // Return cleanup function
-}));
-
 
 // Mock withStateLock to execute functions immediately without locking
 vi.mock('@/core/wallet/stateLockManager', async () => {
@@ -70,6 +58,13 @@ vi.mock('@/platform/auth/sessionManager', () => ({
   clearUnlockedSecret: vi.fn()
 }));
 
+// The lock watch stays real (it reads fakeBrowser's session storage); it is wrapped only to count
+// subscriptions.
+vi.mock('@/platform/storage/keyStorage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/platform/storage/keyStorage')>();
+  return { ...actual, watchKeychainLock: vi.fn(actual.watchKeychainLock) };
+});
+
 // Mock keychainExists from walletStorage - defaults to true (wallets exist)
 const mockKeychainExists = vi.fn().mockResolvedValue(true);
 // Spread the real module so the mock does not go stale as walletStorage gains exports; only the
@@ -79,7 +74,7 @@ vi.mock('@/platform/storage/walletStorage', async (importOriginal) => ({
   keychainExists: () => mockKeychainExists(),
 }));
 
-// Mock the wallet service that uses webext-bridge
+// Mock the wallet service client (the background proxy)
 const mockWalletService = {
   refreshWallets: vi.fn().mockResolvedValue(undefined),
   getWallets: vi.fn().mockResolvedValue([]),
@@ -233,11 +228,11 @@ describe('WalletContext', () => {
       const { getWalletServiceClient } = await import('@/services/walletServiceClient');
       // A getter that hands out a fresh object each call, as the proxy once did.
       vi.mocked(getWalletServiceClient).mockImplementation(() => ({ ...mockWalletService }) as any);
-      const { onMessage } = await import('webext-bridge/popup');
+      const { watchKeychainLock } = await import('@/platform/storage/keyStorage');
       try {
         const { result, rerender } = renderHook(() => useWallet(), { wrapper: WalletProvider });
         await waitFor(() => { expect(result.current.authState).toBe('LOCKED'); });
-        const subscriptions = vi.mocked(onMessage).mock.calls.length;
+        const subscriptions = vi.mocked(watchKeychainLock).mock.calls.length;
         const refreshes = mockWalletService.refreshWallets.mock.calls.length;
         const value = result.current;
 
@@ -245,7 +240,7 @@ describe('WalletContext', () => {
         rerender();
         rerender();
 
-        expect(vi.mocked(onMessage).mock.calls.length).toBe(subscriptions);
+        expect(vi.mocked(watchKeychainLock).mock.calls.length).toBe(subscriptions);
         expect(mockWalletService.refreshWallets.mock.calls.length).toBe(refreshes);
         expect(result.current).toBe(value);
       } finally {
@@ -435,11 +430,6 @@ describe('WalletContext', () => {
     });
 
     it('should check if keychain is locked', async () => {
-      vi.mocked(sendMessage).mockResolvedValue({
-        success: true,
-        isLocked: true
-      });
-
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
       });
@@ -453,11 +443,6 @@ describe('WalletContext', () => {
 
   describe('Transaction Operations', () => {
     it('should sign transaction', async () => {
-      vi.mocked(sendMessage).mockResolvedValue({
-        success: true,
-        signedTransaction: '0x123signed'
-      });
-
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
       });
@@ -472,11 +457,6 @@ describe('WalletContext', () => {
     });
 
     it('should broadcast transaction', async () => {
-      vi.mocked(sendMessage).mockResolvedValue({
-        success: true,
-        broadcast: { txid: 'abc123' }
-      });
-
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
       });
@@ -1058,5 +1038,62 @@ describe('WalletContext — wallets changed in another surface', () => {
     });
 
     expect(mockWalletService.getWallets.mock.calls.length).toBe(callsBefore);
+  });
+});
+
+describe('WalletContext — keychain locked outside this surface', () => {
+  /**
+   * The background locks on auto-lock and session expiry, and another surface can lock too. Every
+   * lock removes the master key from session storage, and that removal is the only signal an open
+   * popup or side panel gets; nothing is messaged to it.
+   */
+  const wallet = {
+    id: 'wallet1',
+    name: 'Wallet 1',
+    encryptedMnemonic: 'encrypted1',
+    encryptedPrivateKey: null,
+    type: 'mnemonic' as const,
+    addressFormat: 'P2WPKH' as const,
+    addressCount: 1,
+    addresses: [{ name: 'Address 1', address: 'bc1qtest', path: "m/84'/0'/0'/0/0" }],
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    fakeBrowser.reset();
+    mockKeychainExists.mockResolvedValue(true);
+    mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
+    mockWalletService.getWallets.mockResolvedValue([wallet]);
+    mockWalletService.getActiveWallet.mockResolvedValue(wallet);
+    mockWalletService.getActiveAddress.mockResolvedValue(wallet.addresses[0]);
+    mockWalletService.getLastActiveAddress.mockResolvedValue(wallet.addresses[0]?.address);
+    await setCachedKeychainMasterKey('master-key');
+  });
+
+  it('goes to the locked state when the background removes the master key', async () => {
+    const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+    await waitFor(() => expect(result.current.authState).toBe('UNLOCKED'));
+    await waitFor(() => expect(result.current.activeWallet?.id).toBe('wallet1'));
+
+    await act(async () => {
+      await clearCachedKeychainMasterKey();
+    });
+
+    await waitFor(() => expect(result.current.authState).toBe('LOCKED'));
+    expect(result.current.keychainLocked).toBe(true);
+    expect(result.current.activeWallet).toBeNull();
+    expect(result.current.activeAddress).toBeNull();
+  });
+
+  it('does not treat the key being written (an unlock) as a lock', async () => {
+    const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+    await waitFor(() => expect(result.current.authState).toBe('UNLOCKED'));
+
+    await act(async () => {
+      await setCachedKeychainMasterKey('rotated-key');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.authState).toBe('UNLOCKED');
   });
 });

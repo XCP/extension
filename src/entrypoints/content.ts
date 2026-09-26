@@ -22,30 +22,15 @@ export default defineContentScript({
     // message would wake the service worker on every page load in the browser; it only needs to
     // hear from this page once the page uses the provider.
     /**
-     * Main message handler for background → content script communication
-     * We register this EARLY to consume any Chrome runtime errors
-     *
-     * Handles:
-     * - Health checks/pings from background
-     * - Provider events to relay to the injected script
+     * Main message handler for background → content script communication: provider events to
+     * relay to the injected script.
      *
      * IMPORTANT: Always returns true for async responses to prevent
      * "The message port closed before a response was received" errors
      */
     const runtimeMessageHandler = (message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => {
-      // ALWAYS check lastError first to consume any errors
-      if (chrome.runtime?.lastError) {
-        // Error consumed - prevents "Unchecked runtime.lastError" spam
-      }
-
       // Type guard for message object
       const msg = isRecord(message) ? message : undefined;
-
-      // Handle startup health checks
-      if (msg?.type === 'startup-health-check' || msg?.action === 'ping') {
-        sendResponse({ status: 'ready', timestamp: Date.now(), context: 'content-script' });
-        return true; // Keep channel open for async response
-      }
 
       // Handle provider events (accountsChanged, disconnect, etc.)
       if (msg?.type === 'PROVIDER_EVENT') {
