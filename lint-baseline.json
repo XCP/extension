@@ -80,7 +80,6 @@
     "src/hooks/useBlockHeight.ts | typescript(no-floating-promises)": 2,
     "src/hooks/useCopyToClipboard.ts | typescript(no-floating-promises)": 1,
     "src/hooks/useFeeRates.ts | react(set-state-in-effect)": 1,
-    "src/hooks/useIdleTimer.ts | react(refs)": 1,
     "src/hooks/useLpAssetPool.ts | react(set-state-in-effect)": 1,
     "src/hooks/useMarketPrices.ts | react(set-state-in-effect)": 1,
     "src/hooks/useMultiBatchConsolidation.ts | typescript(no-floating-promises)": 5,
