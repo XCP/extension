@@ -320,10 +320,7 @@ const parseFundPolicyOfferIntent = (value: Record<string, unknown>): FundPolicyO
     || value.marketplaceFee.bps !== PLATFORM_FEE_BPS
     || value.marketplaceFee.minSats !== PLATFORM_FEE_MIN_SATS
   ) {
-    throw new Error(
-      `marketplaceFee must be the published seller-paid ${PLATFORM_FEE_BPS} bps, `
-      + `${PLATFORM_FEE_MIN_SATS.toLocaleString('en-US')}-sat minimum`,
-    );
+    throw new Error('marketplaceFee must be the published seller-paid 250 bps, 1,000-sat minimum');
   }
   const alternatives = value.alternatives.map(parseFundPolicyOfferAlternative);
   if (new Set(alternatives.map(alternative => alternative.expectedParentTxid)).size !== alternatives.length) {
