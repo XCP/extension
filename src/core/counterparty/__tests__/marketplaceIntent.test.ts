@@ -303,7 +303,8 @@ const exactBase = (accepting = false) => ({
       vout: 4,
       address: BUYER,
       value: 250_000,
-      hasSignatures: accepting,
+      // The market serves both roles the unsigned template; it merges the buyer signature itself.
+      hasSignatures: false,
     },
     {
       index: 1,
@@ -1282,7 +1283,7 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
     }).status).toBe('blocked');
   });
 
-  it('proves that the seller signature completes the exact sale without a buyer callback', () => {
+  it('proves that the seller signs only input 1 and the market completes the sale with the held buyer authorization', () => {
     const review = analyzeMarketplaceIntent(exactBase(true));
 
     expect(review).toMatchObject({
@@ -1290,7 +1291,7 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
       family: 'accept_exact_offer',
       blockers: [],
     });
-    expect(review.notices[0]?.message).toMatch(/without a buyer callback/i);
+    expect(review.notices[0]?.message).toMatch(/buyer's authorization it holds/i);
     expect(review.notices[0]?.message).toMatch(/asset remains yours/i);
   });
 
@@ -1347,9 +1348,14 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
   });
 
   it.each([
-    ['missing buyer authorization', {
+    ['served buyer signature', {
       inputs: exactBase(true).inputs.map(transactionInput => transactionInput.index === 0
-        ? { ...transactionInput, hasSignatures: false }
+        ? { ...transactionInput, hasSignatures: true }
+        : transactionInput),
+    }],
+    ['unproven buyer input', {
+      inputs: exactBase(true).inputs.map(transactionInput => transactionInput.index === 0
+        ? { ...transactionInput, hasSignatures: undefined }
         : transactionInput),
     }],
     ['already-signed seller input', {

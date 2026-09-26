@@ -509,6 +509,13 @@ software wallet and `[]` for a hardware wallet, whose batch contract accepts onl
 with every external input pre-signed). Send a linked bundle only when its kind is listed; an older
 wallet proves each item alone and blocks the listing below.
 
+**`accept_exact_offer` is served unsigned.** One party's signature is never served to another: the
+seller receives the acceptance template with the buyer's input 0 *unsigned*, signs only input 1
+with `SIGHASH_ALL`, and the market merges the buyer's stored input 0 signature server-side. The
+wallet blocks an acceptance whose input 0 already carries signature material. A wallet whose
+contract requires every external input to be pre-signed (hardware) therefore cannot accept exact
+offers; it refuses the request before any approval opens, with a reason the site can show.
+
 **`attach-and-list`.** The listing's asset input is the attach's output, which is not broadcast
 yet, so no Counterparty ledger can report its balance. The wallet uses the attach instead, read from
 its own bytes and never from the intent: the outpoint is the attach PSBT's unsigned txid and the
@@ -684,11 +691,13 @@ try {
 
 | Code | Meaning | What to do |
 |------|---------|------------|
-| `4001` | User rejected the request (declined or closed the popup) | Treat as a cancellation |
+| `4001` | User rejected the request: declined it, closed the approval, unlock or setup window, or let it expire without answering (the unlock wait and every approval time out) | Treat as a cancellation |
 | `4100` | Not connected, or the wallet is locked / not set up | Call `xcp_requestAccounts`, or prompt to unlock |
 | `4200` | Method not supported | Stop calling it |
-| `4900` | Wallet background was momentarily unavailable (no `data`) | Transient — retry (the SDK retries connecting and signing automatically) |
+| `4900` | Wallet background was momentarily unavailable, or is still starting up (no `data`) | Transient — retry (the SDK retries connecting and signing automatically) |
 | `4900` + `data.reloadRequired: true` | This page's link to the extension is gone (the wallet was updated or reloaded) | Retrying cannot help: ask the user to reload the page. See [Liveness](#liveness) |
+| `-32602` | Invalid params: the request's shape or content is wrong (missing or mistyped fields, unsupported sighash, `signInputs` naming an input or address it cannot, parameters over 1MB, `fund_policy_offer` sent to `xcp_signPsbt`) | Fix the request; resending it unchanged fails the same way. The message says what is wrong |
+| `-32005` | Limit exceeded ([EIP-1474](https://eips.ethereum.org/EIPS/eip-1474#error-codes)): a per-origin rate limit, or too many signing requests already waiting for approval | Wait and retry; the message says how long, or to finish an open request first |
 | `-32603` | Internal error | Generic failure; internal details are intentionally masked |
 
 Only these codes carry a meaningful message; any other failure surfaces as `-32603` with `"Request failed"`.
@@ -757,9 +766,11 @@ const result = await validateProof(proof, origin, address, {
 - **Connection proof**: BIP-322 signature proving address ownership, message format controlled by extension
 - **Rate limiting**: Connection, broadcast, and API requests are rate-limited per origin. A signing
   request is limited only when it would open an approval popup: at most 3 may be open per origin
-  at once, so send the next request after the user answers the last
+  at once, so send the next request after the user answers the last. Every limit rejects with
+  `-32005` and a message saying how long to wait
 - **Replay protection**: Broadcast transactions are tracked to prevent double-submission
-- **Parameter validation**: All inputs are type-checked and size-limited (max 1MB)
+- **Parameter validation**: All inputs are type-checked and size-limited (max 1MB); a request that
+  fails validation rejects with `-32602` and the reason
 - **CSP analysis**: Sites without Content Security Policy generate console warnings
 - **Signature-scoped pricing**: The approval summary values a request by what the signature commits
   to, so a flag that leaves outputs free cannot make a large outflow read as a small one

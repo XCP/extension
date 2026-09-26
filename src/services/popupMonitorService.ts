@@ -1,6 +1,7 @@
 /** Request-scoped popup lifecycle tracking. Closing one window cannot cancel another request. */
 import { cancelPendingSignFlow, getSignFlow, getSignFlowEventPrefix, type SignFlowKind } from '@/platform/provider/signFlow';
 import { isExtensionPageSender } from '@/platform/proxy';
+import { whenServicesReady } from '@/services/core/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 
 const kinds = new Set<SignFlowKind>(['sign-message', 'sign-transaction', 'sign-psbt', 'sign-psbts']);
@@ -14,6 +15,12 @@ class PopupMonitorService {
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
   private connectListener: ((port: chrome.runtime.Port) => void) | null = null;
 
+  /**
+   * Registers the popup-lifecycle port listener. Synchronous, and called by the background in its
+   * first turn: a port connecting is what wakes the worker, and Chrome delivers that only to
+   * listeners registered by then. Tracking a port is in-memory and safe at once; acting on a
+   * request (cancelling or expiring it) waits for initialisation.
+   */
   initialize(): void {
     if (this.connectListener) return;
     this.connectListener = port => {
@@ -66,6 +73,7 @@ class PopupMonitorService {
   }
 
   private async cancelRequest(requestId: string): Promise<void> {
+    await whenServicesReady();
     const flow = await getSignFlow(requestId);
     // Closing the UI while an approved hardware command runs is not a second
     // decision. Execution still checks expiry and revocation before delivery.
@@ -76,6 +84,7 @@ class PopupMonitorService {
   }
 
   private async expireRequests(): Promise<void> {
+    await whenServicesReady();
     for (const [requestId, record] of this.activeRequests) {
       const flow = await getSignFlow(requestId);
       // Storage is authoritative: a request registered after a restart retains

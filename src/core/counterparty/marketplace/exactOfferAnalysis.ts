@@ -134,8 +134,11 @@ export function analyzeExactOfferIntent(
       blockers.push('both exact-offer inputs must be proven unsigned before buyer authorization');
     }
   } else {
-    if (inputs[0]?.hasSignatures !== true) {
-      blockers.push('seller acceptance requires the stored buyer authorization on input 0');
+    // The market never serves one party's signature to another: it holds the buyer's input 0
+    // authorization and merges it only after this seller signature arrives. The seller's ALL
+    // signature on input 1 commits to input 0's outpoint and amount, not to its witness.
+    if (inputs[0]?.hasSignatures !== false) {
+      blockers.push('buyer input 0 must be proven unsigned; the market merges the buyer authorization it holds');
     }
     if (inputs[1]?.hasSignatures !== false) {
       blockers.push('seller input 1 must be proven unsigned before acceptance');

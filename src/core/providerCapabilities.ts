@@ -57,6 +57,27 @@ export interface ProviderPsbtSigningRequestShape {
 }
 
 /**
+ * Name, in words a site can show its user, a marketplace action this signing method can never
+ * complete, before the generic input checks would refuse it with a lower-level reason.
+ *
+ * Exact-offer acceptance is served unsigned: the market keeps the buyer's input 0 signature and
+ * merges it only after the seller signs input 1. A method that requires every other input to be
+ * pre-signed (the hardware contract) therefore cannot accept exact offers, as it cannot accept
+ * collection offers either.
+ */
+export function unsupportedMarketplaceActionReason(
+  method: ProviderPsbtSigningMethodCapabilities,
+  action: string | undefined,
+): string | null {
+  if (action === 'accept_exact_offer' && method.externalInputs === 'presigned') {
+    return 'The active wallet cannot accept offers: the market adds the buyer\'s signature only '
+      + 'after the seller signs, and this wallet signs only when every other input is already '
+      + 'signed. Accept this offer from a software wallet instead.';
+  }
+  return null;
+}
+
+/**
  * Enforce one advertised method contract before an approval or hardware prompt opens.
  * The ordinary provider validators still prove ownership, intent, and PSBT semantics.
  */

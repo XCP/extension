@@ -4317,8 +4317,8 @@
     "description": "Value beside \"Broadcast\" on the listing screen: signing a listing does not broadcast anything; a buyer completes it later."
   },
   "marketplace_intent_notice_accept_exact_offer": {
-    "message": "Your signature completes this exact sale without a buyer callback. If the buyer already spent the shared funding UTXO, broadcast fails and your asset remains yours.",
-    "description": "Info notice on the exact-offer approval screen shown to the seller: signing finishes the sale on its own, and a buyer who already withdrew simply makes the broadcast fail."
+    "message": "You sign only your own input. The market completes this exact sale with the buyer's authorization it holds; no buyer callback is needed. If the buyer already spent the shared funding UTXO, broadcast fails and your asset remains yours.",
+    "description": "Info notice on the exact-offer approval screen shown to the seller: they sign only their own input, the marketplace adds the buyer's stored authorization to finish the sale, and a buyer who already withdrew simply makes the broadcast fail."
   },
   "marketplace_intent_notice_authorize_exact_offer": {
     "message": "After signing, this seller can complete this exact trade without another approval. Other exact offers backed by the same funding UTXO are alternatives: the first confirmed spend wins and invalidates its siblings.",
