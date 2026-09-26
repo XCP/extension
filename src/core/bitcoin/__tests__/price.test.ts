@@ -34,7 +34,7 @@ describe('Bitcoin Price Utilities', () => {
       expect(data.bitcoin.usd).toBe(45000.50);
       expect(mockedGet).toHaveBeenCalledWith(
         'https://api.coinbase.com/v2/prices/spot?currency=USD',
-        { retries: 0 }
+        { retries: 0, timeout: 5000 }
       );
     });
 
@@ -130,7 +130,7 @@ describe('Bitcoin Price Utilities', () => {
       expect(data.bitcoin.usd).toBe(45000.50);
       expect(mockedGet).toHaveBeenCalledWith(
         'https://api.kraken.com/0/public/Ticker?pair=XBTUSD',
-        { retries: 0 }
+        { retries: 0, timeout: 5000 }
       );
     });
 
@@ -211,7 +211,7 @@ describe('Bitcoin Price Utilities', () => {
       expect(data.bitcoin.usd).toBe(45000.75);
       expect(mockedGet).toHaveBeenCalledWith(
         'https://mempool.space/api/v1/prices',
-        { retries: 0 }
+        { retries: 0, timeout: 5000 }
       );
     });
 
@@ -282,7 +282,7 @@ describe('Bitcoin Price Utilities', () => {
 
       expect(price).toBe(45000);
       expect(mockFetcher1).toHaveBeenCalled();
-      // Promise.any returns the first fulfilled promise, so other fetchers might not be called
+      expect(mockFetcher2).not.toHaveBeenCalled();
     });
 
     it('should return price from second fetcher if first fails', async () => {
@@ -367,26 +367,20 @@ describe('Bitcoin Price Utilities', () => {
       expect(price).toBeNull();
     });
 
-    it('should handle concurrent execution correctly', async () => {
-      // Create fetchers with different delays to test concurrency
+    it('asks sources in order and stops at the first usable answer', async () => {
+      // A faster later source does not win: the first in the list that answers is the price, and
+      // later sources are never asked once it has.
       const mockFetcher1 = vi.fn().mockImplementation(() =>
-        new Promise(resolve => setTimeout(() => resolve({ bitcoin: { usd: 45000 } }), 100))
+        new Promise(resolve => setTimeout(() => resolve({ bitcoin: { usd: 45000 } }), 50))
       );
-      const mockFetcher2 = vi.fn().mockImplementation(() =>
-        new Promise(resolve => setTimeout(() => resolve({ bitcoin: { usd: 46000 } }), 50))
-      );
-      const mockFetcher3 = vi.fn().mockImplementation(() =>
-        new Promise(resolve => setTimeout(() => resolve({ bitcoin: { usd: 47000 } }), 200))
-      );
+      const mockFetcher2 = vi.fn().mockResolvedValue({ bitcoin: { usd: 46000 } });
+      const mockFetcher3 = vi.fn().mockResolvedValue({ bitcoin: { usd: 47000 } });
 
-      const startTime = Date.now();
       const price = await getBtcPrice([mockFetcher1, mockFetcher2, mockFetcher3]);
-      const endTime = Date.now();
 
-      // Should return the fastest successful result (46000 with 50ms delay)
-      expect(price).toBe(46000);
-      // Should complete in less than 150ms (faster than the slowest, with some margin for test environment variations)
-      expect(endTime - startTime).toBeLessThan(150);
+      expect(price).toBe(45000);
+      expect(mockFetcher2).not.toHaveBeenCalled();
+      expect(mockFetcher3).not.toHaveBeenCalled();
     });
 
     it('should validate price is a number', async () => {

@@ -5,7 +5,7 @@ import { isAlreadyKnownError } from '@/core/bitcoin/broadcastErrors';
 import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { recordSpentUtxos } from '@/core/bitcoin/spentUtxoCache';
 import { clearBitcoinCaches } from '@/core/bitcoin/utxo';
-import { clearApiCache } from '@/core/counterparty/api';
+import { clearApiCache, runCounterpartyRequest } from '@/core/counterparty/api';
 import { getActiveSettings } from '@/core/settings';
 
 export interface TransactionResponse {
@@ -41,7 +41,8 @@ const broadcastEndpoints: BroadcastEndpoint[] = [
       return `${settings.counterpartyApiBase}/v2/bitcoin/transactions?signedhex=${encoded}`;
     },
     getData: () => null,
-    headers: { 'Content-Type': 'application/json' },
+    // No Content-Type: there is no body, and declaring one would add a CORS preflight to the send.
+    headers: {},
   },
   {
     name: 'blockstream',
@@ -104,11 +105,17 @@ type Attempt =
  */
 async function attempt(endpoint: BroadcastEndpoint, signedTxHex: string, timeout: number): Promise<Attempt> {
   try {
-    const response = await apiClient.post(
+    const send = () => apiClient.post(
       endpoint.getUrl(signedTxHex),
       endpoint.getData(signedTxHex),
       { headers: endpoint.headers, timeout, retries: 0 },
     );
+    // The Counterparty node is paced with the wallet's other requests to it, at priority. The
+    // gate re-sends only after a 429, which is the node declining the request unread, so the
+    // bytes were never accepted and sending them again is not a repeat.
+    const response = endpoint.name === 'counterparty'
+      ? await runCounterpartyRequest(send, { priority: true })
+      : await send();
     if (response && response.status >= 200 && response.status < 300) {
       const txid = echoedTxid(endpoint, response);
       if (txid) return { accepted: true, txid };

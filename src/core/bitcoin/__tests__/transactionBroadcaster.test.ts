@@ -147,7 +147,8 @@ describe('Transaction Broadcaster Utilities', () => {
         1,
         expect.stringContaining('api.counterparty.io'),
         null,
-        { headers: { 'Content-Type': 'application/json' }, timeout: 45000, retries: 0 },
+        // No Content-Type without a body: declaring one would cost a CORS preflight per send.
+        { headers: {}, timeout: 45000, retries: 0 },
       );
       expect(mockApiClient.post).toHaveBeenNthCalledWith(
         2,

@@ -20,7 +20,8 @@ describe('current fiat quotes retain their currency identity', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current).toMatchObject({ btc: 700000, xcp: 14, currency: 'cny' });
     expect(getBtc24hStats).toHaveBeenCalledWith('cny');
-    expect(getXCPPrice).toHaveBeenCalledWith(100000);
+    // XCP is asked for at once, with the BTC quote still pending; only its fallback awaits it.
+    await expect(vi.mocked(getXCPPrice).mock.calls[0]![0]).resolves.toBe(100000);
   });
 
   it('hides a loaded USD quote immediately when CNY is selected', async () => {
@@ -57,6 +58,13 @@ describe('current fiat quotes retain their currency identity', () => {
     await act(async () => { await result.current.refetch(); });
 
     expect(result.current).toMatchObject({ btc: null, xcp: null, currency: 'cny', loading: false });
-    expect(getXCPPrice).toHaveBeenLastCalledWith(200000);
+    await expect(vi.mocked(getXCPPrice).mock.lastCall![0]).resolves.toBe(200000);
+  });
+
+  it('asks for BTC and XCP together rather than XCP after BTC', async () => {
+    vi.mocked(getBtcPrice).mockReturnValue(new Promise(() => {}));
+    renderHook(() => useMarketPrices('usd'));
+    await waitFor(() => expect(getXCPPrice).toHaveBeenCalledTimes(1));
+    expect(getBtcPrice).toHaveBeenCalledTimes(1);
   });
 });

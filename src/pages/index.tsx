@@ -121,7 +121,8 @@ export default function HomePage(): ReactElement {
     }
     let isCancelled = false;
     setUtxoCheckDone(false);
-    fetchTokenBalances(activeAddress.address, { type: 'utxo', limit: 1 })
+    // Only whether a row exists matters, so skip the verbose asset join.
+    fetchTokenBalances(activeAddress.address, { type: 'utxo', limit: 1, verbose: false })
       .then((result) => {
         if (!isCancelled) {
           setHasUtxos(result.length > 0);

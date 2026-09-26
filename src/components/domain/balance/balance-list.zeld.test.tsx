@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { fetchTokenBalances } from '@/core/counterparty/api';
+import { fetchTokenBalancesPage } from '@/core/counterparty/api';
 import { asDisplayUnits } from '@/core/numeric';
 import { BalanceList } from "./balance-list";
 
@@ -30,7 +30,8 @@ vi.mock("@/core/bitcoin/balance", () => ({ fetchBTCBalance: vi.fn(async () => 10
 
 vi.mock("@/core/counterparty/api", () => ({
   fetchTokenBalance: vi.fn(async (_address: string, asset: string) => ({ asset, quantity_normalized: asDisplayUnits('0'), asset_info: { divisible: true } })),
-  fetchTokenBalances: vi.fn(async () => []),
+  emptyTokenBalance: (asset: string) => ({ asset, quantity_normalized: asDisplayUnits('0'), asset_info: { divisible: true } }),
+  fetchTokenBalancesPage: vi.fn(async () => ({ result: [], result_count: null })),
   fetchMempoolLedgerEvents: vi.fn(async () => []),
 }));
 
@@ -106,7 +107,7 @@ describe("BalanceList ZELD row", () => {
     const { rerender } = render(<BalanceList refreshNonce={0} onRefreshed={onRefreshed} />);
     expect(await screen.findAllByText('BTC')).not.toHaveLength(0);
     expect(screen.getAllByText('XCP')).not.toHaveLength(0);
-    await waitFor(() => expect(fetchTokenBalances).toHaveBeenCalled());
+    await waitFor(() => expect(fetchTokenBalancesPage).toHaveBeenCalled());
     expect(screen.queryByText('Loading balances…')).not.toBeInTheDocument();
     expect(screen.queryByText('ZELD')).not.toBeInTheDocument();
     rerender(<BalanceList refreshNonce={1} onRefreshed={onRefreshed} />);

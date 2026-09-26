@@ -159,8 +159,8 @@ export const assertComposeUrlCalled = (
       expect(url.searchParams.get(key)).toBe(String(value));
     });
     
-    // Check headers
-    expect(actualOptions?.headers?.['Content-Type']).toBe('application/json');
+    // A GET has no body, so it declares no Content-Type: one would force a CORS preflight.
+    expect(actualOptions?.headers?.['Content-Type']).toBeUndefined();
   } else if (postCall) {
     const actualUrl = postCall[0];
     const actualParams = postCall[1];
