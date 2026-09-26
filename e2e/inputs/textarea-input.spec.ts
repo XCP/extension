@@ -170,6 +170,10 @@ walletTest.describe('TextAreaInput Component', () => {
   walletTest.describe('Accessibility', () => {
     walletTest('textarea has accessible name', async ({ page }) => {
       const textarea = getMessageTextarea(page);
+      // The label is associated with the textarea by for/id
+      const label = page.locator('label:has-text("Message")');
+      await expect(label).toHaveAttribute('for', /.+/);
+      await expect(textarea).toHaveAttribute('id', (await label.getAttribute('for')) ?? '');
       const name = await textarea.getAttribute('name');
 
       // Should have a name attribute for form submission

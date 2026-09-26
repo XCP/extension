@@ -67,6 +67,8 @@ walletTest.describe('SettingSwitch Component', () => {
 
       // Get initial state
       const initialChecked = await switchElement.getAttribute('aria-checked');
+      expect(initialChecked).toMatch(/^(true|false)$/);
+      await expect(switchElement).toHaveClass(initialChecked === 'true' ? /bg-blue-600/ : /bg-gray-200/);
 
       // Click to toggle
       await switchElement.click();

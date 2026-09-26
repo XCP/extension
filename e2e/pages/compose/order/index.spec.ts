@@ -81,6 +81,10 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
     await expect(amountInput).toBeVisible({ timeout: 5000 });
     await expect(priceInput).toBeVisible({ timeout: 5000 });
 
+    // Price is a native required input; amount marks itself required in its label
+    await expect(priceInput).toHaveAttribute('required', '');
+    await expect(page.locator('label[for="amount"]')).toContainText('*');
+
     // Both inputs should start empty (requiring user input)
     await expect(amountInput).toHaveValue('');
     await expect(priceInput).toHaveValue('');
