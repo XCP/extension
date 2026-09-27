@@ -30,4 +30,9 @@ export const MESSAGE_TYPES = {
   PROBE: 'XCP_WALLET_PROBE',
   /** Event broadcast from wallet to dApp */
   EVENT: 'XCP_WALLET_EVENT',
+  /**
+   * Background to content script (a runtime message, not a window one): a provider event for one
+   * origin, which the content script relays to its page as EVENT.
+   */
+  PROVIDER_EVENT: 'PROVIDER_EVENT',
 } as const;
