@@ -18,7 +18,8 @@ import { ApprovalIdentifier } from "@/components/domain/approval/approval-identi
 import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
 import { ApprovalSummaryCard } from "@/components/domain/approval/approval-summary-card";
 import { ApprovalTransactionDetails } from "@/components/domain/approval/approval-transaction-details";
-import { buildApprovalWarnings } from "@/components/domain/approval/approval-warnings";
+import { buildApprovalWarnings, zeldReviewNotes } from "@/components/domain/approval/approval-warnings";
+import { ApprovalZeldNotes } from "@/components/domain/approval/approval-zeld-notes";
 import { BitcoinPaymentCard } from "@/components/domain/approval/bitcoin-payment-card";
 import { CounterpartyDetailsCard } from "@/components/domain/approval/counterparty-details-card";
 import { MarketplaceReviewCard, provedReviewNotes } from "@/components/domain/approval/marketplace-review-card";
@@ -348,7 +349,8 @@ export default function ApprovePsbtPage() {
   ], approvalPolicy?.requiresAcknowledgement);
   // An input past the lookup cap stays unknown however often it is retried.
   const retryAvailable =
-    marketplaceReview?.status === "retry" || signedInputsUnknownStatus.some((entry) => !entry.overLimit);
+    marketplaceReview?.status === "retry" || signedInputsUnknownStatus.some((entry) => !entry.overLimit)
+    || safetyWarnings.some((warning) => warning.code === "dispenser_lookup_retry");
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
   const attentionTitle =
     counterpartyMessage?.messageType === "destroy" && txAction
@@ -558,6 +560,8 @@ export default function ApprovePsbtPage() {
           }
         />
       )}
+
+      <ApprovalZeldNotes notes={zeldReviewNotes(safetyWarnings)} />
 
       <CounterpartyDetailsCard
         fields={detailFields}

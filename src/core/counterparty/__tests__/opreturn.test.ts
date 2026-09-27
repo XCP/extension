@@ -3,11 +3,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  COUNTERPARTY_PREFIX_HEX,
-  hasCounterpartyPrefix,
-} from '../transaction';
+import { hasCounterpartyPrefix } from '../transaction';
 import { arc4, bytesToHex, hexToBytes } from '../unpack/binary';
+import { COUNTERPARTY_PREFIX_HEX } from '../unpack/messageTypes';
 import { decryptOpReturnData, extractOpReturnPayload } from '../unpack/opReturn';
 
 // ── ARC4 cipher ──────────────────────────────────────────────────────

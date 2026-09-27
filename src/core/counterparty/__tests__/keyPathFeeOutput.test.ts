@@ -1,9 +1,8 @@
 /**
  * The platform fee output of a buy or exact-offer transaction and the script-address caution.
  *
- * A Taproot fee address hides its script tree, and a Counterparty reveal publishes its message
- * from whoever funded the commit, so an unproven P2TR fee output paid from an address holding
- * assets keeps its caution. When the site declares the output's BIP86 internal key and the output
+ * A Taproot fee address hides its script tree, so an unproven P2TR fee output paid from an
+ * address holding assets keeps its caution. When the site declares the output's BIP86 internal key and the output
  * script is exactly that key's key-path output (no script tree), the output has no script path:
  * the wallet labels it "Marketplace fee" and drops the caution for that output, and only for it.
  *

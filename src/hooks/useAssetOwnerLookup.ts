@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { lookupAssetOwner, shouldTriggerAssetLookup } from '@/core/validation/assetOwner';
+import { type AssetOwnerLookupResult, lookupAssetOwner, shouldTriggerAssetLookup } from '@/core/validation/assetOwner';
 import { isValidBitcoinAddress } from '@/core/validation/bitcoin';
+import { t } from '@/i18n';
+
+/** A known lookup failure in the reader's language; anything else keeps its diagnostic. */
+function lookupFailureMessage(result: AssetOwnerLookupResult): string {
+  switch (result.reason) {
+    case 'invalid_name': return t('asset_owner_lookup_invalid_name');
+    case 'not_found': return t('asset_owner_lookup_not_found');
+    case 'lookup_failed': return t('asset_owner_lookup_failed');
+    default: return result.error || t('asset_owner_lookup_not_found');
+  }
+}
 
 // =============================================================================
 // Types
@@ -125,7 +136,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
           } else {
             setLookupStates((prev) => ({
               ...prev,
-              [destinationId]: { isLookingUp: false, error: result.error || 'Asset not found' },
+              [destinationId]: { isLookingUp: false, error: lookupFailureMessage(result) },
             }));
           }
         } catch {
@@ -133,7 +144,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
 
           setLookupStates((prev) => ({
             ...prev,
-            [destinationId]: { isLookingUp: false, error: 'Failed to lookup asset owner' },
+            [destinationId]: { isLookingUp: false, error: t('asset_owner_lookup_failed') },
           }));
         } finally {
           if (abortControllers.current[destinationId] === controller) {

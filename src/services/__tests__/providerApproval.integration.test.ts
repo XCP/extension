@@ -61,7 +61,8 @@ vi.mock('@/core/counterparty/transaction', () => ({decodeCounterpartyMessage: as
 vi.mock('@/core/counterparty/sourcePubkey', () => ({getSourcePubkey: () => undefined}));
 vi.mock('@/core/bitcoin/feeRate', () => ({getFeeRates: async () => ({fastestFee: 2})}));
 vi.mock('@/core/zeld/protection', () => ({classifyZeldOutpoints: async (inputs: unknown[]) => ({
-  bearing: state.zeld ? inputs : [], unknown: [], clean: state.zeld ? [] : inputs,
+  bearing: state.zeld ? (inputs as Array<{txid: string; vout: number}>).map(input => `${input.txid.toLowerCase()}:${input.vout}`) : [],
+  unknown: [], clean: state.zeld ? [] : inputs,
 })}));
 
 /** A confirmed-looking coin, created by a transaction the tests never need to fetch. */

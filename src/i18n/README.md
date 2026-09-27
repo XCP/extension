@@ -1,5 +1,13 @@
 # Browser-driven localization
 
+Localization lives in three places:
+
+| Path | What it is |
+|---|---|
+| `public/_locales/<locale>/messages.json` | The catalogs Chrome ships; English is the source of truth |
+| `src/i18n/` | The runtime: `t()` and the locale helpers the wallet imports |
+| `scripts/i18n.mjs` | The tool that checks catalogs, exports a locale for review and syncs `zh` (tested by `src/i18n/__tests__/i18nScript.test.ts`) |
+
 The wallet uses Chrome's native extension catalog selection throughout onboarding,
 unlocking, popup, sidepanel, and transaction approvals. There is no saved interface
 language or number-format preference. `t()` reads `chrome.i18n.getMessage()`, which
@@ -60,9 +68,7 @@ and translate at the UI boundary. Unknown diagnostics preserve their raw text.
 Translation never changes RPC codes, retry decisions, authorization or signing.
 
 How to add, translate and review strings, and how the Chinese catalogs relate to one
-another, is in [CONTRIBUTING.md](../../CONTRIBUTING.md#languages). Strings a native speaker
-has checked are listed under `reviewed` in `i18n/reviewed/<locale>.json`; every other string
-is a machine draft.
+another, is in [CONTRIBUTING.md](../../CONTRIBUTING.md#languages).
 
 ### Default wallet and address names
 
@@ -100,7 +106,7 @@ details, checks control overflow, and verifies that blocked payment actions stay
 disabled. Popup galleries with larger browser viewports still render a 350px body;
 they are not evidence of a wide sidepanel layout.
 
-`src/i18n/test-utils.tsx` is imported only by unit tests. It mocks browser catalogs
+`src/i18n/__tests__/helpers/locale.tsx` is imported only by unit tests. It mocks browser catalogs
 and rerenders test roots for retained-state coverage. Optional formatter mocks
 stress hypothetical comma-decimal locales; they are not application preferences
 and do not ship in the extension. Amount-safety tests also exercise explicit

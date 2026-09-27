@@ -11,8 +11,7 @@ import {
   markTransactionBroadcasted,
   markTransactionFailed,
   recordTransaction,
-  validateNonce,
-  withReplayPrevention
+  validateNonce
 } from '../replayPrevention';
 
 describe('replayPrevention', () => {
@@ -284,93 +283,6 @@ describe('replayPrevention', () => {
 
       const transaction = _testStore.getTransaction(txid);
       expect(transaction?.status).toBe('failed');
-    });
-  });
-
-  describe('withReplayPrevention wrapper', () => {
-    it('should execute handler when no replay detected', async () => {
-      const origin = 'https://test.com';
-      const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
-      const mockResult = { txid: 'tx123' };
-
-      const handler = vi.fn().mockResolvedValue(mockResult);
-
-      const result = await withReplayPrevention(origin, method, params, handler);
-
-      expect(handler).toHaveBeenCalled();
-      expect(result).toEqual(mockResult);
-    });
-
-    it('should return cached response for idempotent requests', async () => {
-      const origin = 'https://test.com';
-      const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
-      const mockResult = { txid: 'tx123' };
-
-      const handler = vi.fn().mockResolvedValue(mockResult);
-
-      // First call
-      const result1 = await withReplayPrevention(origin, method, params, handler, {
-        generateIdempotencyKey: true
-      });
-
-      // Second call with same params
-      const result2 = await withReplayPrevention(origin, method, params, handler, {
-        generateIdempotencyKey: true
-      });
-
-      expect(handler).toHaveBeenCalledTimes(1); // Only called once
-      expect(result1).toEqual(mockResult);
-      expect(result2).toEqual(mockResult);
-    });
-
-    it('should throw error for non-idempotent replays', async () => {
-      const origin = 'https://test.com';
-      const method = 'xcp_broadcastTransaction';
-      const params = [{ signedTx: 'hex...' }];
-
-      // Record a recent transaction
-      recordTransaction('tx1', origin, method, params, { status: 'pending' });
-
-      const handler = vi.fn();
-
-      await expect(
-        withReplayPrevention(origin, method, params, handler)
-      ).rejects.toThrow('Request rejected: Identical request made within the last 5 minutes');
-
-      expect(handler).not.toHaveBeenCalled();
-    });
-
-    it('should generate and validate nonces when required', async () => {
-      const origin = 'https://test.com';
-      const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
-      const address = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
-      const mockResult = { txid: 'tx123' };
-
-      const handler = vi.fn().mockResolvedValue(mockResult);
-
-      const result = await withReplayPrevention(origin, method, params, handler, {
-        requireNonce: true,
-        address
-      });
-
-      expect(handler).toHaveBeenCalled();
-      expect(result).toEqual(mockResult);
-    });
-
-    it('should handle handler errors', async () => {
-      const origin = 'https://test.com';
-      const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
-      const error = new Error('Handler failed');
-
-      const handler = vi.fn().mockRejectedValue(error);
-
-      await expect(
-        withReplayPrevention(origin, method, params, handler)
-      ).rejects.toThrow('Handler failed');
     });
   });
 

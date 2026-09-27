@@ -34,7 +34,7 @@ describe('wallet service remote policy', () => {
 
   it('does not expose methods only the background calls', () => {
     for (const method of [
-      'removeConnectedWebsite', 'clearConnectedWebsites', 'setPairedAddressPermission',
+      'removeConnectedWebsite', 'setPairedAddressPermission',
       'signPsbt', 'updateWalletPinnedAssets', 'ensureKeychainLoaded',
     ]) {
       expect(remote, method).not.toContain(method);

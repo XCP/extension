@@ -833,6 +833,15 @@
   "asset_fairminter_select_input_select_an_open_fairminter_asset": {
     "message": "選擇一個開放的公平鑄造資產進行鑄造"
   },
+  "asset_owner_lookup_failed": {
+    "message": "查找資產所有者失敗"
+  },
+  "asset_owner_lookup_invalid_name": {
+    "message": "資產名稱格式無效"
+  },
+  "asset_owner_lookup_not_found": {
+    "message": "找不到資產或資產沒有所有者"
+  },
   "asset_pinnable_asset_card_move_down": {
     "message": "將 $1 下移"
   },
@@ -1033,6 +1042,9 @@
   },
   "baseasset_quoteasset_spread": {
     "message": "價差"
+  },
+  "block_height_unable_to_fetch": {
+    "message": "無法獲取當前區塊高度。"
   },
   "broadcast_form_enter_the_message_you_want": {
     "message": "輸入要廣播的消息。"
@@ -2193,6 +2205,9 @@
   "consolidate_success_your_transactions_are_now_in": {
     "message": "你的交易已進入記憶池，將在接下來的區塊中確認。合併後的比特幣將在交易確認後可用。"
   },
+  "consolidate_wallet_not_ready": {
+    "message": "錢包未正確初始化"
+  },
   "deposit_form_asset_a": {
     "message": "資產 A"
   },
@@ -2932,6 +2947,9 @@
   },
   "market_no_pools_matching": {
     "message": "沒有與“$1”匹配的流動性池"
+  },
+  "market_prices_unavailable": {
+    "message": "獲取市場價格失敗"
   },
   "market_search_asset_dispensers": {
     "message": "搜尋資產售賣機..."
@@ -4990,6 +5008,9 @@
   "utxo_move_move_utxo": {
     "message": "移動 UTXO"
   },
+  "utxo_source_balances_unavailable": {
+    "message": "無法加載此 UTXO 的餘額。"
+  },
   "utxo_utxo_list_loading_utxo_balances": {
     "message": "正在加載 UTXO 餘額…"
   },
@@ -6013,6 +6034,15 @@
   "search_error_timeout": {
     "message": "搜尋請求逾時，請重試。"
   },
+  "secret_reveal_failed": {
+    "message": "顯示機密信息失敗。"
+  },
+  "secret_reveal_incorrect_password": {
+    "message": "密碼錯誤。"
+  },
+  "secret_reveal_invalid_wallet": {
+    "message": "錢包無效。"
+  },
   "search_error_invalid_response": {
     "message": "搜尋結果的回應格式無效。"
   },
@@ -6051,6 +6081,12 @@
   },
   "zeld_hunt_description": {
     "message": "進行符合條件的交易時搜尋 ZELD。不額外收取 BTC 手續費。即使沒有找到結果，交易也會正常繼續。"
+  },
+  "zeld_hunt_sites": {
+    "message": "適合不在網站上使用的錢包。"
+  },
+  "zeld_hunt_sites_help": {
+    "message": "開啟期間，會轉移你的 ZELD 的網站交易將被阻止，直到你將 ZELD 移到小額輸出。"
   },
   "zeld_hunt_invalid_seconds": {
     "message": "請輸入 0 到 $1 之間的整數秒數。"
@@ -6323,10 +6359,72 @@
     "message": "ZELD 將被轉出"
   },
   "zeld_safety_blocked_detail": {
-    "message": "網站要求花費的輸出中有 $1 個持有 ZELD。此交易首先支付給他人，因此 ZELD 也會轉給對方。請先在 ZELD 頁面將 ZELD 移到小額輸出，再讓網站重試。"
+    "message": "請先在 ZELD 頁面將 ZELD 移到小額輸出，再讓網站重試。"
   },
   "zeld_safety_warning_detail": {
-    "message": "網站要求花費的輸出中有 $1 個持有 ZELD。此交易首先支付給他人，因此 ZELD 也會轉給對方。如要保留 ZELD，請先在 ZELD 頁面將其移到小額輸出。"
+    "message": "如要保留 ZELD，請先在 ZELD 頁面將其移到小額輸出。"
+  },
+  "zeld_safety_blocked_asset": {
+    "message": "已阻止：ZELD 將隨資產轉出"
+  },
+  "zeld_safety_blocked_destroyed": {
+    "message": "已阻止：ZELD 將被銷毀"
+  },
+  "zeld_safety_detach_first": {
+    "message": "請先在錢包中分離該資產：ZELD 會留在你這裡，新的附加將使用不含 ZELD 的輸出。"
+  },
+  "zeld_sentence_pair": {
+    "message": "$p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "zeld_approval_leaves": {
+    "message": "$1 ZELD 將轉給 $2。"
+  },
+  "zeld_approval_leaves_unknown": {
+    "message": "你簽名的輸入上的 ZELD 將轉給 $1。"
+  },
+  "zeld_approval_leaves_open": {
+    "message": "$1 ZELD 將轉到完成後的交易中排在首位的輸出。"
+  },
+  "zeld_approval_leaves_open_unknown": {
+    "message": "你簽名的輸入上的 ZELD 將轉到完成後的交易中排在首位的輸出。"
+  },
+  "zeld_approval_destroyed_title": {
+    "message": "ZELD 將被銷毀"
+  },
+  "zeld_approval_destroyed": {
+    "message": "$1 ZELD 將被銷毀：此交易沒有可以接收它的輸出。"
+  },
+  "zeld_approval_destroyed_unknown": {
+    "message": "你簽名的輸入上的 ZELD 將被銷毀：此交易沒有可以接收它的輸出。"
+  },
+  "zeld_approval_asset_output": {
+    "message": "$1 ZELD 將留在持有 $2 的輸出上，如果該資產被出售或轉移，ZELD 也會隨之轉出。"
+  },
+  "zeld_approval_asset_output_unknown": {
+    "message": "你簽名的輸入上的 ZELD 將留在持有 $1 的輸出上，如果該資產被出售或轉移，ZELD 也會隨之轉出。"
+  },
+  "zeld_approval_listed": {
+    "message": "此輸出還持有 $1 ZELD，如果售出將轉給買家。"
+  },
+  "zeld_approval_listed_unknown": {
+    "message": "此輸出還持有 ZELD，如果售出將轉給買家。"
+  },
+  "zeld_approval_unchecked": {
+    "message": "無法檢查此地址上的 ZELD；如果某個輸入持有 ZELD，它將隨此交易的第一個輸出轉移。"
+  },
+  "zeld_approval_items_one": {
+    "message": "交易 $1：$2"
+  },
+  "zeld_approval_items_many": {
+    "message": "交易 $1：$2"
   },
   "default_wallet_name": {
     "message": "錢包 $1"

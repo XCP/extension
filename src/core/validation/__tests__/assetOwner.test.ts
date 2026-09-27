@@ -178,6 +178,7 @@ describe('Asset Owner Validation', () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Asset not found or has no owner');
+      expect(result.reason).toBe('not_found');
     });
 
     it('should return error for asset without issuer', async () => {
@@ -203,6 +204,7 @@ describe('Asset Owner Validation', () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Invalid asset name format');
+      expect(result.reason).toBe('invalid_name');
       expect(mockFetchAssetDetails).not.toHaveBeenCalled();
     });
 
@@ -213,6 +215,7 @@ describe('Asset Owner Validation', () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Failed to lookup asset owner');
+      expect(result.reason).toBe('lookup_failed');
     });
   });
 });

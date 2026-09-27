@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { type ComposeVerificationDiagnostic, ComposeVerificationError } from '@/core/validation/compose-verification-error';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import { transactionErrorMessage } from './transaction-error-message';
 
 const ADDRESS = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';

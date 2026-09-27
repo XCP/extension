@@ -172,6 +172,20 @@ export function createProviderSigningService(): ProviderSigningService {
     return { ownedAddresses: [request.address], identity };
   }
 
+  /** The active mnemonic wallet's Legacy/SegWit pair when `address` is one of them, else none. */
+  async function pairedSiblings(address: string): Promise<string[]> {
+    try {
+      const wallet = getWalletService();
+      const activeWallet = await wallet.getActiveWallet();
+      if (activeWallet?.type !== 'mnemonic' || !getPairedAddressFormats(activeWallet.addressFormat)) return [];
+      const paired = await wallet.getPairedAddresses();
+      const pair = [paired.legacy.address, paired.segwit.address];
+      return pair.includes(address) ? pair : [];
+    } catch {
+      return [];
+    }
+  }
+
   async function getReview(requestId: string): Promise<ProviderSigningReview> {
     return buildReview(requestId, new Map());
   }
@@ -195,7 +209,11 @@ export function createProviderSigningService(): ProviderSigningService {
         review = { kind: request.kind, request, policy: ordinaryPolicy };
         break;
       case 'sign-transaction': {
-        const decodedInfo = await decodeTransactionForApproval(request.rawTxHex, request.address, getTrustedBroadcastPrevout);
+        // The signer's paired sibling counts as this wallet's for saying where outputs go (an
+        // attach to the SegWit sibling is not a payment to someone else). Display only: the raw
+        // transaction is still signed by request.address alone.
+        const decodedInfo = await decodeTransactionForApproval(request.rawTxHex, request.address,
+          getTrustedBroadcastPrevout, await pairedSiblings(request.address));
         review = { kind: request.kind, request, decodedInfo, fastestFee,
           policy: getTransactionApprovalPolicy(request, decodedInfo, strictMode, fastestFee) };
         break;

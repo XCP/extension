@@ -759,9 +759,10 @@ describe('WalletManager', () => {
       expect(sessionManager.clearSessionExpiry).toHaveBeenCalled();
     });
 
-    it('should use default timeout if settings unavailable', async () => {
+    it("takes the session timeout from the keychain's saved auto-lock timer", async () => {
       const testWallet = createTestWallet();
       const keychain = createTestKeychain([testWallet]);
+      keychain.settings.autoLockTimer = '15m';
       const keychainRecord = createTestKeychainRecord();
       const mockMasterKey = {} as CryptoKey;
 
@@ -775,8 +776,9 @@ describe('WalletManager', () => {
 
       await walletManager.unlockKeychain('test-password');
 
-      // Should use default 5 minute timeout
-      expect(mocks.sessionManager.initializeSession).toHaveBeenCalledWith(5 * 60 * 1000);
+      // Settings live inside the decrypted keychain, so unlock always has a saved timer to read
+      expect(mocks.sessionManager.initializeSession).toHaveBeenCalledWith(15 * 60 * 1000);
+      expect(sessionManager.scheduleSessionExpiry).toHaveBeenCalledWith(15 * 60 * 1000);
     });
   });
 

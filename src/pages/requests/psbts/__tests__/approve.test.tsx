@@ -121,3 +121,14 @@ it('names the request signer in the header after a switch to the paired sibling'
   expect(screen.getByText('bc1qrequest')).toBeInTheDocument();
   expect(screen.queryByText('1Sibling')).not.toBeInTheDocument();
 });
+
+it('states a ZELD note once for the batch, naming the items it concerns', () => {
+  state.decoded.policyWarnings = [{
+    code: 'zeld_movement', severity: 'info', title: 'Transactions 1, 3: ZELD', message: 'raw',
+    data: {kind: 'asset_output', amount: '409600000000', asset: 'RARESHADILAY', vout: 0, items: [1, 3]},
+  }];
+  render(<ApprovePsbtsPage />);
+  expect(screen.getByTestId('approval-zeld-notes')).toHaveTextContent(
+    'Transactions 1, 3: 4,096 ZELD will sit on the output holding RARESHADILAY');
+  expect(screen.queryByTestId('approval-notice')).not.toBeInTheDocument();
+});

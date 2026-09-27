@@ -203,8 +203,8 @@ export function proveAttachedAsset(
 /**
  * Prove the platform fee output is the BIP86 key-path Taproot output of the declared internal key:
  * `p2tr(internalKey)` with no script tree, byte for byte. A Taproot output key commits to its one
- * script tree, and here that tree is empty, so the output has no script path and no Counterparty
- * envelope can ever be revealed from it (whoever holds the key can only key-path spend it).
+ * script tree, and here that tree is empty, so the output has no script path (whoever holds the
+ * key can only key-path spend it).
  *
  * Returns the proved output, or null. No declared key: null with nothing logged (the output stays
  * an ordinary unproven payment). A declared key that is not a curve point or does not produce the

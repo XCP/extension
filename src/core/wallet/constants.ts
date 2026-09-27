@@ -32,12 +32,13 @@
  * 2. API/protocol constants
  *    - Constants that define an API contract (status codes, message types)
  *      belong with that API's implementation.
- *    - Example: OrderStatus, DispenserStatus in counterparty/api.ts
+ *    - Example: OrderStatus in counterparty/api.ts; DispenserStatus and the
+ *      other wire-format constants in counterparty/unpack/messageTypes.ts
  *
  * 3. Const + type combos
  *    - When a const object is used to derive a type
  *      (`type X = typeof X[keyof typeof X]`), keep them together.
- *    - Example: AddressFormat const and type in bitcoin/address.ts
+ *    - Example: AddressFormat const and type in bitcoin/addressFormat.ts
  *
  * 4. Configuration with defaults
  *    - Constants that serve as defaults for configurable values belong
@@ -51,10 +52,14 @@
  * CURRENT EXTRACTIONS:
  *   - MAX_WALLETS, MAX_ADDRESSES_PER_WALLET: Circular dep with session.ts
  *   - src/constants/messaging.ts: Cross-layer message type definitions
+ *   - core/bitcoin/constants.ts: Bitcoin numbers (SATS_PER_BTC, dust, nSequence
+ *     values) shared across transaction builders, checks and display
  *
  * NOT EXTRACTED (by design):
- *   - AddressFormat: Const + type combo in bitcoin/address.ts
- *   - OrderStatus, DispenserStatus: API constants in counterparty/api.ts
+ *   - AddressFormat: Const + type combo in bitcoin/addressFormat.ts
+ *   - OrderStatus: API constant in counterparty/api.ts
+ *   - COUNTERPARTY_PREFIX_HEX, DispenserStatus, SUBASSET_DIGITS, MAX_MEMO_LENGTH:
+ *     wire-format constants in counterparty/unpack/messageTypes.ts
  *   - DEFAULT_LIMIT: Local to api.ts, not exported
  */
 

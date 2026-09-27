@@ -119,6 +119,12 @@ export interface Keychain {
    * first is recorded.
    */
   scriptPaymentRecipients?: string[];
+  /**
+   * Outputs this wallet's addresses were last known to hold ZELD on, as "address txid:vout amount"
+   * entries, for approvals to fall back on while the ZELD indexer is down (see
+   * core/zeld/knownOutpoints). Absent until the first is recorded.
+   */
+  zeldOutpoints?: string[];
 }
 
 /**

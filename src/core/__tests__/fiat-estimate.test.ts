@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { formatFiatEstimate, formatForInput } from '@/core/format';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 
 describe('fiat estimates are secondary and unambiguous', () => {
   afterEach(() => mockBrowserLocale({ language: 'auto', numberLocale: 'auto' }));

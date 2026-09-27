@@ -28,6 +28,7 @@ import type { ProtocolContext } from '@/core/counterparty/describe';
 import { describePayout, resolveDispensersAt } from '@/core/counterparty/dispenseOutcome';
 import { readFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
 import {
+  dispenserLookupRetryWarning,
   oracleDispenserWarning,
   oracleDispenseWarning,
 } from '@/core/counterparty/oraclePolicy';
@@ -200,9 +201,14 @@ export async function resolveProtocolContext(
       const mine = new Set(input.signerAddresses ?? []);
       const payouts: string[] = [];
       const oracleAssets: string[] = [];
+      const unchecked: string[] = [];
       for (const output of input.outputs) {
         if (!output.address || mine.has(output.address) || output.value <= 0) continue;
         const resolved = await resolveDispensersAt(output.address, output.value);
+        if (resolved === null) {
+          unchecked.push(output.address);
+          continue;
+        }
         for (const payout of resolved) {
           if (payout.oraclePriced) oracleAssets.push(payout.asset);
         }
@@ -211,6 +217,10 @@ export async function resolveProtocolContext(
       if (payouts.length > 0) context.dispensePayouts = payouts;
       const warning = oracleDispenseWarning(oracleAssets);
       if (warning) warnings.push(warning);
+      // Unlike the detail rows, this lookup gates signing: an unread dispenser could be one this
+      // wallet refuses, so the dispense waits for a retry rather than passing unchecked.
+      const retry = dispenserLookupRetryWarning(unchecked);
+      if (retry) warnings.push(retry);
     }
   } catch {
     // A lookup that fails leaves the field absent; the screen says less rather than nothing.

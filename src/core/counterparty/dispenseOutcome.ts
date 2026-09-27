@@ -54,20 +54,19 @@ export function describePayout(p: DispensePayout): string {
 /**
  * Every open dispenser at an address, and what each pays for this many satoshis.
  *
- * Shared by the compose review screen and the provider approval screen.
+ * Returns null when the lookup fails. That is not evidence the address has no dispenser — nor that
+ * none is oracle-priced — so the caller decides what an unknown inventory means for it.
  */
 export async function resolveDispensersAt(
   address: string,
   satoshis: number
-): Promise<DispensePayout[]> {
+): Promise<DispensePayout[] | null> {
   let dispensers: DispenserDetails[];
   try {
     const response = await fetchAllAddressDispensers(address, { status: 'open,closing' });
     dispensers = response.result ?? [];
   } catch {
-    // A lookup failure is not evidence of anything; the caller says nothing rather than implying
-    // the address has no dispenser.
-    return [];
+    return null;
   }
 
   return calculateDispensePayouts(dispensers, satoshis);

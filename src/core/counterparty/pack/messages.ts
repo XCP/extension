@@ -16,7 +16,7 @@ import { type CborEncodable, encodeCbor } from '@/core/counterparty/pack/cbor';
 import { packAddress, packAddressLegacy } from '@/core/counterparty/unpack/address';
 import { assetNameToId } from '@/core/counterparty/unpack/assetId';
 import { hexToBytes } from '@/core/counterparty/unpack/binary';
-import { COUNTERPARTY_PREFIX_HEX, MessageTypeId } from '@/core/counterparty/unpack/messageTypes';
+import { COUNTERPARTY_PREFIX_HEX, MessageTypeId, SUBASSET_DIGITS } from '@/core/counterparty/unpack/messageTypes';
 
 /** The message types this module can construct. */
 export type PackableComposeType =
@@ -201,13 +201,6 @@ function packStandardIssuanceBody(
   ];
   return withPrefix(MessageTypeId.LR_ISSUANCE, encodeCbor(body));
 }
-
-/**
- * The subasset name charset, in digit order: digit d encodes SUBASSET_DIGITS[d-1], and the digits
- * run 1..68 with no zero (core `assetnames.py`, SUBASSET_REVERSE). The decoder in
- * `unpack/messages/issuance.ts` is the inverse of this.
- */
-const SUBASSET_DIGITS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_@!';
 
 /**
  * Compact a subasset longname to core's wire form: the name read as a base-68 big-endian integer,

@@ -10,7 +10,8 @@ import {
 import { ApprovalIdentifier } from "@/components/domain/approval/approval-identifier";
 import { ApprovalList } from "@/components/domain/approval/approval-list";
 import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
-import { marketplaceBlockText, WarningDetails } from "@/components/domain/approval/approval-warnings";
+import { marketplaceBlockText, WarningDetails, zeldNoticeText, zeldReviewNotes } from "@/components/domain/approval/approval-warnings";
+import { ApprovalZeldNotes } from "@/components/domain/approval/approval-zeld-notes";
 import { BundleReviewCard } from "@/components/domain/approval/bundle-review-card";
 import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { Button } from "@/components/ui/button";
@@ -101,10 +102,14 @@ export default function ApprovePsbtsPage() {
   const headerAddress = signers.length === 1 ? signers[0]! : request.address;
   const blocked = !approvalPolicy || approvalPolicy.blocked
     || decodedInfo.review.status === "blocked" || decodedInfo.review.status === "retry";
-  const policyItems: WarningItem[] = (decodedInfo.policyWarnings ?? []).map((warning, index) => ({
-    key: `policy-${index}`, severity: warning.severity === "block" ? "danger" : warning.severity,
-    title: warning.title, description: warning.message,
-  }));
+  // ZELD that stays with an asset is a note under the summary, not an item to confirm.
+  const policyItems: WarningItem[] = (decodedInfo.policyWarnings ?? []).flatMap((warning, index) =>
+    warning.code === "zeld_movement" && warning.severity === "info" ? [] : [{
+      key: `policy-${index}`, severity: warning.severity === "block" ? "danger" as const : warning.severity,
+      ...(warning.code === "zeld_movement"
+        ? zeldNoticeText(warning.data, warning.severity)
+        : { title: warning.title, description: warning.message }),
+    }]);
   const requiresAttention = !blocked && !isRefreshing && !refreshError && approvalPolicy?.requiresAcknowledgement;
   // A proved bulk-listing batch is a one-screen decision like the single listing: the review
   // facts carry the durable-signature boundary, and the footer names what signing authorizes —
@@ -213,6 +218,7 @@ export default function ApprovePsbtsPage() {
         </Button>
       )}
       <BundleReviewCard review={decodedInfo.review} />
+      <ApprovalZeldNotes notes={zeldReviewNotes(decodedInfo.policyWarnings ?? [])} />
       <Collapsible compact variant="card" title={t('common_transactions')}>
         <div className="text-xs">
           <ApprovalList

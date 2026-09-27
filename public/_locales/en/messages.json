@@ -1111,6 +1111,18 @@
     "message": "Select an open fairminter asset to mint",
     "description": "components/domain/asset/fairminter-select-input.tsx"
   },
+  "asset_owner_lookup_failed": {
+    "message": "Failed to lookup asset owner",
+    "description": "hooks/useAssetOwnerLookup.ts: help text under a destination typed as ASSET.xcp when the lookup request failed."
+  },
+  "asset_owner_lookup_invalid_name": {
+    "message": "Invalid asset name format",
+    "description": "hooks/useAssetOwnerLookup.ts: help text under a destination typed as ASSET.xcp that is not a valid asset name."
+  },
+  "asset_owner_lookup_not_found": {
+    "message": "Asset not found or has no owner",
+    "description": "hooks/useAssetOwnerLookup.ts: help text under a destination typed as ASSET.xcp when no owner address was found."
+  },
   "asset_pinnable_asset_card_move_down": {
     "message": "Move $1 down",
     "description": "components/domain/asset/pinnable-asset-card.tsx. $1 = symbol"
@@ -1378,6 +1390,10 @@
   "baseasset_quoteasset_spread": {
     "message": "Spread",
     "description": "pages/market/orders/[baseAsset]/[quoteAsset].tsx"
+  },
+  "block_height_unable_to_fetch": {
+    "message": "Unable to fetch current block height.",
+    "description": "hooks/useBlockHeight.ts: the current block height could not be fetched; shown by block height inputs."
   },
   "broadcast_form_enter_the_message_you_want": {
     "message": "Enter the message you want to broadcast.",
@@ -2021,11 +2037,11 @@
   },
   "common_password_is_required": {
     "message": "Password is required.",
-    "description": "pages/keychain/setup/create-mnemonic.tsx, pages/keychain/setup/import-mnemonic.tsx, pages/keychain/setup/import-private-key.tsx"
+    "description": "pages/keychain/setup/create-mnemonic.tsx, pages/keychain/setup/import-mnemonic.tsx, pages/keychain/setup/import-private-key.tsx, hooks/useSecretReveal.ts"
   },
   "common_password_must_be_at_least": {
     "message": "Password must be at least $1 characters.",
-    "description": "pages/keychain/unlock.tsx, pages/keychain/wallets/remove.tsx, pages/keychain/wallets/reset.tsx. $1 = MIN_PASSWORD_LENGTH"
+    "description": "pages/keychain/unlock.tsx, pages/keychain/wallets/remove.tsx, pages/keychain/wallets/reset.tsx, hooks/useSecretReveal.ts. $1 = MIN_PASSWORD_LENGTH"
   },
   "common_password_verification_failed": {
     "message": "Password verification failed.",
@@ -2915,6 +2931,10 @@
   "consolidate_success_your_transactions_are_now_in": {
     "message": "Your transactions are now in the mempool and will be confirmed in the next blocks. The consolidated Bitcoin will be available once the transactions are confirmed.",
     "description": "pages/actions/consolidate/success.tsx"
+  },
+  "consolidate_wallet_not_ready": {
+    "message": "Wallet not properly initialized",
+    "description": "hooks/useMultiBatchConsolidation.ts: recovery started before a wallet and address were active."
   },
   "deposit_form_asset_a": {
     "message": "Asset A",
@@ -3899,6 +3919,10 @@
   "market_no_pools_matching": {
     "message": "No pools matching \"$1\"",
     "description": "pages/market/index.tsx. $1 = searchQuery"
+  },
+  "market_prices_unavailable": {
+    "message": "Failed to fetch market prices",
+    "description": "hooks/useMarketPrices.ts: BTC/XCP price quotes could not be fetched."
   },
   "market_search_asset_dispensers": {
     "message": "Search asset dispensers...",
@@ -6640,6 +6664,10 @@
     "message": "Move UTXO",
     "description": "pages/compose/utxo/move/index.tsx"
   },
+  "utxo_source_balances_unavailable": {
+    "message": "Could not load balances for this UTXO.",
+    "description": "hooks/useUtxoSource.ts: the assets held by the UTXO being detached or moved could not be loaded."
+  },
   "utxo_utxo_list_loading_utxo_balances": {
     "message": "Loading UTXO balances…",
     "description": "components/domain/utxo/utxo-list.tsx"
@@ -8004,6 +8032,18 @@
     "message": "Failed to load search results: Search request timed out. Please try again.",
     "description": "Existing search deadline expired, including response-body time. No network-outage diagnosis is implied."
   },
+  "secret_reveal_failed": {
+    "message": "Failed to reveal the secret.",
+    "description": "hooks/useSecretReveal.ts: fallback when revealing a recovery phrase or private key fails without a message."
+  },
+  "secret_reveal_incorrect_password": {
+    "message": "Incorrect password.",
+    "description": "hooks/useSecretReveal.ts: wrong password on the show recovery phrase / show private key screens."
+  },
+  "secret_reveal_invalid_wallet": {
+    "message": "Invalid wallet.",
+    "description": "hooks/useSecretReveal.ts: show recovery phrase / show private key opened without a wallet."
+  },
   "search_error_invalid_response": {
     "message": "Failed to load search results: Invalid search response",
     "description": "Search response lacked the accepted results arrays. Acceptance criteria are unchanged."
@@ -8055,6 +8095,14 @@
   "zeld_hunt_description": {
     "message": "Look for ZELD while making eligible transactions. No extra BTC fee. If no result is found, your transaction continues normally.",
     "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+  },
+  "zeld_hunt_sites": {
+    "message": "Best for wallets you don’t use with websites.",
+    "description": "ZELD hunt setting (components/domain/zeld/hunt-settings.tsx), one always-visible line under the switch on Advanced settings and the ZELD page. Must fit one line at popup width."
+  },
+  "zeld_hunt_sites_help": {
+    "message": "While it’s on, a site transaction that would move your ZELD is blocked until you move the ZELD to a small output.",
+    "description": "ZELD hunt setting help text (components/domain/zeld/hunt-settings.tsx), after the hunting description."
   },
   "zeld_hunt_invalid_seconds": {
     "message": "Enter a whole number of seconds from 0 to $1.",
@@ -8410,19 +8458,99 @@
   },
   "zeld_safety_blocked": {
     "message": "Blocked: ZELD Would Leave",
-    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. Blocking title while ZELD hunting is on: the ZELD would go to someone else."
   },
   "zeld_safety_warning": {
     "message": "ZELD Would Leave",
-    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. Warning title while ZELD hunting is off: the ZELD would go to someone else."
   },
   "zeld_safety_blocked_detail": {
-    "message": "ZELD is held by $1 of the outputs this site asks you to spend. This transaction pays someone else first, so the ZELD would go to them. Move your ZELD to a small output on the ZELD page, then have the site try again.",
-    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+    "message": "Move your ZELD to a small output on the ZELD page, then have the site try again.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. The fix, after the sentence saying where the ZELD goes, while hunting blocks the request."
   },
   "zeld_safety_warning_detail": {
-    "message": "ZELD is held by $1 of the outputs this site asks you to spend. This transaction pays someone else first, so the ZELD would go to them. To keep it, move your ZELD to a small output on the ZELD page first.",
-    "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
+    "message": "To keep it, move your ZELD to a small output on the ZELD page first.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. The fix, after the sentence saying where the ZELD goes, when hunting is off."
+  },
+  "zeld_safety_blocked_asset": {
+    "message": "Blocked: ZELD Would Go With an Asset",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. Blocking title while ZELD hunting is on: the ZELD would sit on an asset's output and leave when the asset is sold or moved."
+  },
+  "zeld_safety_blocked_destroyed": {
+    "message": "Blocked: ZELD Would Be Destroyed",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. Blocking title while ZELD hunting is on: the transaction has only OP_RETURN outputs."
+  },
+  "zeld_safety_detach_first": {
+    "message": "Detach the asset in the wallet first: the ZELD stays with you, and a new attach uses a clean output.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. The fix when a listed asset output holds ZELD while hunting blocks the listing."
+  },
+  "zeld_sentence_pair": {
+    "message": "$p1$ $p2$",
+    "description": "Joins two ZELD sentences: $1 then $2 (on approval screens, where the ZELD goes and what to do about it; in the hunt setting, its description and the note about websites). Keep the space only if the language separates sentences with one.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "zeld_approval_leaves": {
+    "message": "$1 ZELD goes to $2.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. $1 is the ZELD amount; $2 is the full address that receives it, or \"#n\" for an output with no address."
+  },
+  "zeld_approval_leaves_unknown": {
+    "message": "The ZELD on the inputs you sign goes to $1.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. Used when the amount is unknown. $1 is the full address that receives it, or \"#n\" for an output with no address."
+  },
+  "zeld_approval_leaves_open": {
+    "message": "$1 ZELD goes to whichever output the finished transaction puts first.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. The signature leaves the outputs open, so whoever completes the transaction decides. $1 is the ZELD amount."
+  },
+  "zeld_approval_leaves_open_unknown": {
+    "message": "The ZELD on the inputs you sign goes to whichever output the finished transaction puts first.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. As zeld_approval_leaves_open, when the amount is unknown."
+  },
+  "zeld_approval_destroyed_title": {
+    "message": "ZELD Would Be Destroyed",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. Warning title: the transaction has only OP_RETURN outputs."
+  },
+  "zeld_approval_destroyed": {
+    "message": "$1 ZELD is destroyed: this transaction has no output for it to land on.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. $1 is the ZELD amount."
+  },
+  "zeld_approval_destroyed_unknown": {
+    "message": "The ZELD on the inputs you sign is destroyed: this transaction has no output for it to land on.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. As zeld_approval_destroyed, when the amount is unknown."
+  },
+  "zeld_approval_asset_output": {
+    "message": "$1 ZELD will sit on the output holding $2 and leave with it if that asset is sold or moved.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. $1 is the ZELD amount; $2 is the Counterparty asset name attached to the same output."
+  },
+  "zeld_approval_asset_output_unknown": {
+    "message": "The ZELD on the inputs you sign will sit on the output holding $1 and leave with it if that asset is sold or moved.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. As zeld_approval_asset_output, when the amount is unknown. $1 is the Counterparty asset name."
+  },
+  "zeld_approval_listed": {
+    "message": "This output also holds $1 ZELD, which goes to the buyer if it sells.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. On a listing of an asset output. $1 is the ZELD amount."
+  },
+  "zeld_approval_listed_unknown": {
+    "message": "This output also holds ZELD, which goes to the buyer if it sells.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. As zeld_approval_listed, when the amount is unknown."
+  },
+  "zeld_approval_unchecked": {
+    "message": "ZELD on this address couldn’t be checked; if an input holds ZELD it moves with this transaction’s first output.",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. Shown when the ZELD indexer is down and this address is known to have held ZELD."
+  },
+  "zeld_approval_items_one": {
+    "message": "Transaction $1: $2",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. Prefix on a batch approval. $1 is the transaction number; $2 is the ZELD sentence."
+  },
+  "zeld_approval_items_many": {
+    "message": "Transactions $1: $2",
+    "description": "Approval screen ZELD notice (components/domain/approval/approval-warnings.tsx): where the ZELD on the inputs a site asks the wallet to sign ends up. Prefix on a batch approval. $1 lists the transaction numbers, such as \"1, 3\"; $2 is the ZELD sentence."
   },
   "default_wallet_name": {
     "message": "Wallet $1",

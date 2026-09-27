@@ -12,7 +12,6 @@
  * account of them (see `unpack/verify.ts`).
  */
 
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import {
   type BitcoinPaymentIntentV1,
   type BitcoinPaymentProof,
@@ -63,7 +62,8 @@ import {
 import { type ProviderVerificationResult, verifyProviderTransaction } from '@/core/counterparty/unpack';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import { getActiveSettings } from '@/core/settings';
-import { classifyZeldOutpoints } from '@/core/zeld/protection';
+import type { KnownZeldOutpoint } from '@/core/zeld/knownOutpoints';
+import { analyzeSignRequestZeld, type ZeldNotice } from '@/core/zeld/signRequestZeld';
 import { t } from '@/i18n';
 
 /** An input being signed, identified by the outpoint it spends. */
@@ -139,6 +139,8 @@ export interface SignRequestAnalysisInput {
   lockTime?: number;
   /** Wallet-supplied policy-offer facts (verified origin, clock, funding settlement). Never a site's. */
   policyOffer?: PolicyOfferWalletContext;
+  /** The wallet's own record of its ZELD outputs, read only when the ZELD indexer is down. */
+  knownZeldOutpoints?: (address: string) => KnownZeldOutpoint[] | Promise<KnownZeldOutpoint[]>;
 }
 
 export interface SignRequestAnalysis {
@@ -182,6 +184,103 @@ function marketplaceBlockWarning(review: MarketplaceApprovalReview): SecurityWar
         : 'Blocked: The Site Described a Different Transaction',
     message: details.join('; '),
   };
+}
+
+/** Names an input's attached assets for a sentence: "RAREPEPE", or "RAREPEPE, PEPECASH". */
+function assetLabel(entry: InputAttachedAssets | undefined): string | undefined {
+  const names = entry?.assets.map(asset => asset.asset_longname ?? asset.asset) ?? [];
+  return names.length > 0 ? [...new Set(names)].join(', ') : undefined;
+}
+
+/**
+ * Outputs this transaction puts a Counterparty asset on: an attach's destination (its named vout,
+ * or Core's default, the first non-OP_RETURN output), and where the attached assets of a spent
+ * input are credited when the signatures fix that output.
+ */
+function zeldAssetOutputs(
+  localUnpack: { messageType?: string; data?: unknown } | undefined,
+  counterpartyMessage: CounterpartyMessage | undefined,
+  outputs: AnalyzedOutput[],
+  attachedAssets: InputAttachedAssets[],
+  destination: AttachedAssetDestination | null,
+): Map<number, string> {
+  const assetOutputs = new Map<number, string>();
+  if (localUnpack?.messageType === 'attach' && localUnpack.data) {
+    const data = localUnpack.data as { asset?: string; destinationVout?: number };
+    const vout = data.destinationVout ?? outputs.find(output => output.type !== 'op_return')?.index;
+    const apiData = counterpartyMessage?.messageType === 'attach' ? counterpartyMessage.messageData : undefined;
+    const apiAsset = apiData?.asset_longname ?? apiData?.asset;
+    const asset = typeof apiAsset === 'string' && apiAsset ? apiAsset : data.asset;
+    if (vout !== undefined && asset) assetOutputs.set(vout, asset);
+  }
+  if (destination?.destinationVout != null && destination.destinationCommitted) {
+    const names = destination.sourceInputs
+      .map(index => assetLabel(attachedAssets.find(entry => entry.inputIndex === index)))
+      .filter((name): name is string => !!name);
+    const existing = assetOutputs.get(destination.destinationVout);
+    const label = [...new Set([...(existing ? [existing] : []), ...names])].join(', ');
+    if (label) assetOutputs.set(destination.destinationVout, label);
+  }
+  return assetOutputs;
+}
+
+/**
+ * Signed inputs holding assets whose signature leaves the output list open (SINGLE or NONE): a
+ * listing, which whoever buys completes. Durable-sell rules decide whether that may be signed at
+ * all; this only names the asset for the ZELD sentence.
+ */
+function zeldListedInputs(
+  attachedAssets: InputAttachedAssets[],
+  signedInputs: Array<{ index: number; sighashType: number }>,
+): Map<number, string> {
+  const listed = new Map<number, string>();
+  for (const { index, sighashType } of signedInputs) {
+    const base = sighashType === 0 ? 1 : sighashType & 0x1f;
+    if (base === 1) continue;
+    const label = assetLabel(attachedAssets.find(entry => entry.inputIndex === index));
+    if (label) listed.set(index, label);
+  }
+  return listed;
+}
+
+/**
+ * A ZELD notice as the analysis carries it; the approval screens word it from `data`.
+ *
+ * The severity follows Dan's 2026-09-14 rule for the provider path: while the user hunts ZELD,
+ * a site's transaction that would take ZELD away (to someone else, into nothing, or onto an asset
+ * that carries it off later) is refused with the fix; once hunting is off it is only pointed out.
+ * ZELD leaving the wallet then takes the review step; ZELD staying on an asset of the wallet's
+ * own is a quiet note. An input that could not be checked is never more than a note.
+ */
+export function zeldWarning(notice: ZeldNotice, hunting: boolean): SecurityWarning {
+  const amount = notice.kind !== 'unchecked' && notice.amount ? `${notice.amount} base units of ZELD` : 'ZELD';
+  const leaveRemedy = hunting
+    ? ' Move your ZELD to a small output on the ZELD page, then have the site try again.'
+    : ' To keep it, move your ZELD to a small output on the ZELD page first.';
+  switch (notice.kind) {
+    case 'leaves':
+      return { code: 'zeld_movement', data: notice, severity: hunting ? 'block' : 'warning',
+        title: hunting ? 'Blocked: ZELD Would Leave' : 'ZELD Would Leave',
+        message: (notice.destination ? `${amount} goes to ${notice.destination}.`
+          : `${amount} goes to whichever output the finished transaction puts first.`) + leaveRemedy };
+    case 'destroyed':
+      return { code: 'zeld_movement', data: notice, severity: hunting ? 'block' : 'warning',
+        title: hunting ? 'Blocked: ZELD Would Be Destroyed' : 'ZELD Would Be Destroyed',
+        message: `${amount} is destroyed: this transaction has no output for it to land on.` + leaveRemedy };
+    case 'asset_output':
+      return { code: 'zeld_movement', data: notice, severity: hunting ? 'block' : 'info',
+        title: hunting ? 'Blocked: ZELD Would Go With an Asset' : 'ZELD',
+        message: `${amount} will sit on the output holding ${notice.asset} and leave with it if that asset is sold or moved.`
+          + (hunting ? ' Move your ZELD to a small output on the ZELD page, then have the site try again.' : '') };
+    case 'listed':
+      return { code: 'zeld_movement', data: notice, severity: hunting ? 'block' : 'info',
+        title: hunting ? 'Blocked: ZELD Would Go With an Asset' : 'ZELD',
+        message: `This output also holds ${amount}, which goes to the buyer if it sells.`
+          + (hunting ? ' Detach the asset in the wallet first: the ZELD stays with you, and a new attach uses a clean output.' : '') };
+    case 'unchecked':
+      return { code: 'zeld_movement', data: notice, severity: 'info', title: 'ZELD',
+        message: 'ZELD on this address couldn’t be checked; if an input holds ZELD it moves with this transaction’s first output.' };
+  }
 }
 
 /**
@@ -369,40 +468,6 @@ export async function analyzeSignRequest(
     }
   }
 
-  // ZELD rides on the first spendable output. A site's transaction that spends this wallet's
-  // ZELD-bearing outputs and pays someone else first would hand them the ZELD. The composer's
-  // guard cannot recompose a site's bytes, so while the user hunts ZELD the request is refused
-  // with the fix, and once hunting is off it is only pointed out.
-  const firstSpendable = outputs.find((output) => output.type !== 'op_return');
-  const signerSet = new Set(signerAddresses.map(normalizeAddressForComparison));
-  const paysSigner = !!firstSpendable?.address && signerSet.has(normalizeAddressForComparison(firstSpendable.address));
-  if (!paysSigner && signerAddresses.length > 0) {
-    const signedInputs = signedInputIndices
-      .map((index) => inputs[index])
-      .filter((entry): entry is AnalyzedInput => !!entry);
-    const zeld = await classifyZeldOutpoints(signedInputs, signerAddresses[0]!);
-    if (zeld.bearing.length > 0) {
-      const count = zeld.bearing.length;
-      const hunting = (getActiveSettings().zeldHuntSeconds ?? 0) > 0;
-      safety.warnings = [
-        ...safety.warnings,
-        {
-          severity: hunting ? 'block' : 'warning',
-          code: 'zeld_would_leave',
-          data: { count },
-          title: hunting ? 'Blocked: ZELD Would Leave' : 'ZELD Would Leave',
-          message:
-            `${count} of the outputs this site asks you to spend ${count === 1 ? 'holds' : 'hold'} ZELD, `
-            + 'and the transaction pays someone else first, so the ZELD would go to them. '
-            + (hunting
-              ? 'Move your ZELD to a small output on the ZELD page, then have the site try again.'
-              : 'To keep it, move your ZELD to a small output on the ZELD page first.'),
-        },
-      ];
-      if (hunting) safety.blocked = true;
-    }
-  }
-
   let bitcoinPaymentProof: BitcoinPaymentProof | undefined;
   let bitcoinPaymentBlockers: string[] | undefined;
   if (signingPurpose === 'bitcoin-payment') {
@@ -495,6 +560,28 @@ export async function analyzeSignRequest(
         }
       : undefined
   );
+
+  // Where the ZELD on the signed inputs goes. The protocol moves it all to the first spendable
+  // output (or as a ZELD split directs), so the question is whose output that is and what else
+  // sits on it: a plain output of this wallet needs no word, an output this transaction attaches
+  // an asset to or an asset listed for sale takes the ZELD with the asset later, and anyone
+  // else's output takes it now. While the user hunts, any of those but a plain note blocks.
+  const zeldNotices = await analyzeSignRequestZeld({
+    inputs,
+    signedInputs: input.signedInputs,
+    outputs,
+    ownedAddresses,
+    defaultAddress: signerAddresses[0],
+    assetOutputs: zeldAssetOutputs(
+      verification.localUnpack?.success ? verification.localUnpack : undefined,
+      counterpartyMessage, outputs, attachedAssets, attachedAssetDestination,
+    ),
+    listedInputs: zeldListedInputs(attachedAssets, input.signedInputs),
+  }, { knownOutpoints: input.knownZeldOutpoints });
+  const hunting = (getActiveSettings().zeldHuntSeconds ?? 0) > 0;
+  const zeldWarnings = zeldNotices.map(notice => zeldWarning(notice, hunting));
+  safety.warnings = [...safety.warnings, ...zeldWarnings];
+  if (zeldWarnings.some(warning => warning.severity === 'block')) safety.blocked = true;
 
   let marketplaceReview: MarketplaceApprovalReview | undefined;
   if (input.marketplaceIntent) {
@@ -593,7 +680,7 @@ export async function analyzeSignRequest(
       && safety.warnings.some(warning => warning.code === 'unproven_script_output')
     ) {
       // The proof rebuilt the fee output from its declared BIP86 key with no script tree: it has no
-      // script path, so no envelope can be revealed from it. Drop it from the caution, and only it;
+      // script path. Drop it from the caution, and only it;
       // any other script address this transaction pays is still named (the payer's holdings were
       // already found to warrant the caution, or it would not be here).
       const rest = scriptPaymentRisk({

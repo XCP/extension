@@ -5,6 +5,7 @@
  * concern.
  */
 
+import { MESSAGE_TYPES } from '@/constants/messaging';
 import { createWriteLock } from '@/platform/storage/mutex';
 
 /**
@@ -203,7 +204,7 @@ export async function wereAccountsAnnounced(origin: string, accounts: string[]):
  * another site.
  */
 export async function deliverProviderEvent(origin: string, event: string, data: unknown): Promise<void> {
-  await sendToOriginTabs(origin, { type: 'PROVIDER_EVENT', origin, event, data: data as ChromeMessage });
+  await sendToOriginTabs(origin, { type: MESSAGE_TYPES.PROVIDER_EVENT, origin, event, data: data as ChromeMessage });
   try {
     if (event === 'accountsChanged' && Array.isArray(data) && data.every((a) => typeof a === 'string')) {
       await recordAnnounced(origin, data);

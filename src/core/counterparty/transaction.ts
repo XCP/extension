@@ -9,6 +9,7 @@ import { API_TIMEOUTS, apiClient } from '@/core/api/client';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchAssetDetails, runCounterpartyRequest } from '@/core/counterparty/api';
 import { type DescribableMessage, describeMessage } from '@/core/counterparty/describe';
+import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
@@ -57,9 +58,6 @@ export interface UnpackedCounterpartyData {
   message_type_id: number;
   message_data: Record<string, unknown>;
 }
-
-/** The hex encoding of "CNTRPRTY" prefix used in OP_RETURN */
-export const COUNTERPARTY_PREFIX_HEX = '434e545250525459';
 
 /**
  * Call Counterparty API to decode a raw transaction

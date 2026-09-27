@@ -6,7 +6,7 @@ import { HardwareWalletError } from '@/core/hardware/types';
 import { withProviderReviewCode } from '@/core/providerReviewErrors';
 import { ProviderError } from '@/core/rpcErrors';
 import { t } from '@/i18n';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import { hardwareErrorMessage } from './hardware-error-message';
 
 afterEach(() => mockBrowserLocale({}));
