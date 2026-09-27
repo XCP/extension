@@ -1,11 +1,11 @@
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render } from '@/i18n/test-utils';
+import { render } from '@/i18n/__tests__/helpers/locale';
 import "@testing-library/jest-dom/vitest";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { t } from '@/i18n';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import { BalanceList } from "./balance-list";
 
 // Mock dependencies

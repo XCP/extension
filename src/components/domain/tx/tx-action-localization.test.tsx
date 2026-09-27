@@ -4,7 +4,7 @@ import { ApprovalSummaryCard } from '@/components/domain/approval/approval-summa
 import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import { describeMessage, protocolFields } from '@/core/counterparty/describe';
 import { t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import { getTxActionInfo } from './tx-action-info';
 
 const address = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';

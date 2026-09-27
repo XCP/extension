@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { displayAccountName } from '@/components/domain/account-name';
 import { ApprovalWalletHeader } from '@/components/domain/approval/approval-chrome';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 
 afterEach(() => { cleanup(); mockBrowserLocale({ language: 'en' }); });
 

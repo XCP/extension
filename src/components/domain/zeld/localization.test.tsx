@@ -6,7 +6,7 @@ import { buildApprovalWarnings } from '@/components/domain/approval/approval-war
 import { CounterpartyApiError } from '@/core/errors';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { t } from '@/i18n';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import { HuntProgress } from './hunt-progress';
 import { HuntSettings } from './hunt-settings';
 import { zeldReviewLine } from './zeld-field';

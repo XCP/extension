@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PoolQuote } from '@/core/counterparty/api';
 import type { OrderOptions } from '@/core/counterparty/compose';
 import { t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import { SwapForm } from '../form';
 
 const fixture = vi.hoisted(() => ({ quote: {} as PoolQuote, readQuote: vi.fn(), action: vi.fn() }));

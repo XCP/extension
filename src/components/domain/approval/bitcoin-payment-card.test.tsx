@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import { BitcoinPaymentCard } from './bitcoin-payment-card';
 
 const ADDRESS = 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq';
