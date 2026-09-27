@@ -80,6 +80,18 @@ export interface AnalyzedInput {
 }
 
 /**
+ * Whether the id computed from these unsigned bytes is the id the signed transaction will have.
+ *
+ * Signing a P2PKH or P2SH input fills its scriptSig, which the id covers, so the id changes; a
+ * native SegWit or Taproot input is signed in the witness, which the id does not cover. Only
+ * P2WPKH and P2TR inputs are treated as final: an input whose script type is unknown could be
+ * either, so an outpoint built from the unsigned id would be a guess.
+ */
+export function transactionIdIsFinal(inputs: ReadonlyArray<{ scriptType?: DecodedOutput['type'] }>): boolean {
+  return inputs.length > 0 && inputs.every(input => input.scriptType === 'p2wpkh' || input.scriptType === 'p2tr');
+}
+
+/**
  * An output, in the shape every check below needs. Both approval paths already produce this — the
  * PSBT parser and the raw-transaction parser agree on these fields.
  */
@@ -444,7 +456,8 @@ export async function analyzeSignRequest(
   const { context: protocolContext, warnings: policyWarnings } = await resolveProtocolContext({
     messageType: verification.localUnpack?.messageType,
     data: verification.localUnpack?.data,
-    transactionId,
+    // An outpoint in this transaction is named only when signing leaves its id unchanged.
+    transactionId: transactionIdIsFinal(inputs) ? transactionId : undefined,
     apiMessageData: counterpartyMessage?.messageData,
     outputs,
     signerAddresses,

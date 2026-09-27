@@ -24,6 +24,7 @@ import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/cor
 import { clearApiCache, fetchAllAddressDispensers, fetchAssetFairminter, fetchOrderMatch } from '@/core/counterparty/api';
 import { btcPayPayment } from '@/core/counterparty/btcpayPayment';
 import type { ApiResponse } from '@/core/counterparty/compose';
+import { composerChosenMessageFields } from '@/core/counterparty/composerChoices';
 import { calculateDispensePayouts, describePayout } from '@/core/counterparty/dispenseOutcome';
 import { describeFairminterPaymentModel, getFairmintCost, isPaidFairminter, readFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
 import { normalizeFormData, verifiedReviewParams } from '@/core/counterparty/normalize';
@@ -101,6 +102,8 @@ export async function composeAsWallet(
   if (encoding === 'taproot') throw new Error(`${composeType} chose Taproot encoding; this suite covers OP_RETURN composes only`);
   let response = await composeWithEncoding(composeApi, dataForApi, encoding);
   if (!response?.result?.rawtransaction) throw new Error(`${composeType}: the composer returned no transaction`);
+  // The request as sent: the form's data plus any message field the compose function chose itself.
+  const requestedData: Record<string, unknown> = { ...dataForApi, ...composerChosenMessageFields(response) };
 
   const counterpartyData = extractCounterpartyPayload(response.result.rawtransaction);
   let decodedMessage: WalletCompose['decodedMessage'] = null;
@@ -110,18 +113,18 @@ export async function composeAsWallet(
     if (unpacked.success && unpacked.messageType && unpacked.data) {
       decodedMessage = { messageType: unpacked.messageType, data: unpacked.data as Record<string, unknown> };
     }
-    const expected = packComposeMessage(composeType, dataForApi, decodedMessage?.data);
+    const expected = packComposeMessage(composeType, requestedData, decodedMessage?.data);
     if (expected) {
       if (bytesToHex(expected.bytes).toLowerCase() !== counterpartyData.toLowerCase()) {
         throw new Error(`${composeType}: the composed message differs from the one this request should produce `
           + `(expected ${bytesToHex(expected.bytes)}, composed ${counterpartyData})`);
       }
     } else {
-      const verification = verifyTransaction(counterpartyData, composeType, dataForApi);
+      const verification = verifyTransaction(counterpartyData, composeType, requestedData);
       if (!verification.valid) throw new Error(`${composeType}: verification failed: ${verification.errors.join('; ')}`);
       verificationWarnings.push(...verification.warnings);
     }
-  } else if (packComposeMessage(composeType, dataForApi)) {
+  } else if (packComposeMessage(composeType, requestedData)) {
     throw new Error(`${composeType}: the composed transaction carries no message`);
   }
 
@@ -159,7 +162,7 @@ export async function composeAsWallet(
     ...response,
     result: {
       ...response.result,
-      params: { ...response.result.params, ...verifiedReviewParams(composeType, dataForApi, assetInfoCache) } as ApiResponse['result']['params'],
+      params: { ...response.result.params, ...verifiedReviewParams(composeType, requestedData, assetInfoCache) } as ApiResponse['result']['params'],
     },
   };
   return { composeType, response, dataForApi, decodedMessage, verificationWarnings };

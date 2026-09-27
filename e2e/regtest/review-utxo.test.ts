@@ -9,6 +9,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { serializeRawInteger } from '@/core/amount-contract/amounts';
 import { type AttachOptions, composeAttach, composeDetach, composeMove, composeTransaction } from '@/core/counterparty/compose';
+import { t } from '@/i18n';
 import { credits, debits, minedFee, parsedTransaction, sameAmount, totalFor, txEvents, utxoBalances } from './ledger';
 import { REGTEST_ENABLED, type RegtestKey } from './regtestHarness';
 import { broadcastBatch, burnAll, FORMATS, type Format, fundAll, keyOf, signAll, startWallet } from './suite';
@@ -32,18 +33,16 @@ describe.runIf(REGTEST_ENABLED)('attach, detach and move: review matches ledger'
     await burnAll(miner, holders.map(entry => entry.key));
   }, 900_000);
 
-  // TODO(review-vs-ledger): the attach form submits no output, so `composeAttach` recomposes with
-  // the ZELD layout (`zeldAttachParams`, destination_vout 2) whenever there is change. The message
-  // then ends "|2", while the composer context rebuilds the expected message from the form's data,
-  // which has no vout, and ends "|". Byte equality fails and the wallet refuses its own attach
-  // ("the composed transaction differs"). Nothing is signed, so nothing is lost, but attaching from
-  // the compose page cannot succeed. Remove `.fails` once the expected message is built with the
-  // vout `composeAttach` chose.
-  it.fails("attach as the form submits it passes the wallet's own verification", async () => {
-    const error = await composeAsWallet('attach', composeAttach, { asset: 'XCP', quantity: '0.5' }, holders[0]!.key).then(() => null, e => e);
-    // Any other failure makes this pass, so `.fails` reports it rather than hiding a new problem.
-    if (error && !/differs from the one this request should produce/.test(String(error))) return;
+  // The attach form submits no output, so `composeAttach` recomposes with the ZELD layout
+  // (`zeldAttachParams`, destination_vout 2) whenever there is change. It records the output it
+  // asked for (`composerChoices.ts`), and the expected message is rebuilt with it, so the message
+  // ending "|2" verifies and the review page names output 2.
+  it("attach as the form submits it passes the wallet's own verification", async () => {
+    let composed: WalletCompose | undefined;
+    const error = await composeAsWallet('attach', composeAttach, { asset: 'XCP', quantity: '0.5' }, holders[0]!.key)
+      .then(wc => { composed = wc; return null; }, e => e);
     expect(error).toBeNull();
+    expect((await reviewPageFacts('attach', composed!)).fields.destinationOutput).toBe('2');
   }, 120_000);
 
   /** The ZELD-layout attaches below, by format: the approval screen's "New UTXO" and the ledger's. */
@@ -71,14 +70,13 @@ describe.runIf(REGTEST_ENABLED)('attach, detach and move: review matches ledger'
     expect(named.get(format)?.reviewed).toEqual([named.get(format)?.created]);
   });
 
-  // TODO(review-vs-ledger): the approval screen names the attached UTXO as `<txid>:<vout>` using
-  // the id of the transaction it was handed (`resolveProtocolContext` `transactionId`, from
-  // `parseRawTransactionLocally` of the unsigned bytes). For a P2PKH or P2SH-P2WPKH source, signing
-  // fills the scriptSig and the mined id is different, so the row names an outpoint that will never
-  // exist. Only native SegWit and Taproot inputs leave the id unchanged. Remove `.fails` when the
-  // row is withheld (or computed after signing) for inputs whose signatures change the id.
-  it.fails.each(['P2PKH', 'P2SH-P2WPKH'] as const)('approval "New UTXO" is the UTXO the ledger created (%s source)', format => {
-    expect(named.get(format)?.reviewed).toEqual([named.get(format)?.created]);
+  // For a P2PKH or P2SH-P2WPKH source, signing fills the scriptSig and the mined id differs from
+  // the id of the unsigned bytes, so no outpoint can be named before signing. The approval screen
+  // names the output by its index in this transaction instead (`transactionIdIsFinal`), and that
+  // index is the one the ledger attached to.
+  it.each(['P2PKH', 'P2SH-P2WPKH'] as const)('approval "New UTXO" is the UTXO the ledger created (%s source)', format => {
+    const created = named.get(format)?.created;
+    expect(named.get(format)?.reviewed).toEqual([t('tx_action_output_of_this_transaction', [created!.split(':')[1]!])]);
   });
 
   it('attach from each address format puts exactly the reviewed amount on the reviewed output', async () => {

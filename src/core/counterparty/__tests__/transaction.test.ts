@@ -451,7 +451,7 @@ describe('fetchInputPrevouts', () => {
       mockedGetTrustedBroadcastPrevout
     );
 
-    expect(result.get('tx1:0')).toEqual({ value: 50000, address: 'bc1qowner' });
+    expect(result.get('tx1:0')).toEqual({ value: 50000, address: 'bc1qowner', scriptPubKey: '0014' + '11'.repeat(20) });
     expect(mockedApiClient.get).not.toHaveBeenCalled();
   });
 
