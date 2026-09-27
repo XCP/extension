@@ -335,6 +335,9 @@ export function verifiedReviewParams(
 ): Record<string, unknown> {
   const params: Record<string, unknown> = { ...normalizedData };
   if (normalizedData.sourceAddress) params.source = normalizedData.sourceAddress;
+  // The output an attach lands on is the one the request named, or none (Core's default). Stated
+  // either way, so the review never shows an output only the response claims.
+  if (composeType === 'attach') params.destination_vout = normalizedData.destination_vout ?? null;
   const config = NORMALIZATION_CONFIG[composeType];
   if (!config) throw new Error(`Unsupported compose type: ${composeType}`);
   for (const field of config.quantityFields) {

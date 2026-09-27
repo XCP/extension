@@ -346,7 +346,7 @@ export function parsePSBT(psbt: string): Transaction {
 /**
  * Determine output script type from script hex
  */
-function getScriptType(scriptHex: string): DecodedOutput['type'] {
+export function getScriptType(scriptHex: string): DecodedOutput['type'] {
   if (scriptHex.startsWith('6a')) {
     return 'op_return';
   } else if (scriptHex.startsWith('76a914') && scriptHex.endsWith('88ac')) {

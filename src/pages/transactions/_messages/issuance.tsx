@@ -81,7 +81,7 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
   if (lock !== undefined) {
     fields.push({
       label: t('messages_issuance_supply_locked'),
-      value: lock ? "🔒 Yes" : "🔓 No",
+      value: lock ? '🔒 ' + t('tx_action_yes') : '🔓 ' + t('tx_action_no'),
     });
   }
   
@@ -122,7 +122,7 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
   if (params.callable !== undefined && params.callable) {
     fields.push({
       label: t('messages_issuance_callable'),
-      value: "Yes",
+      value: t('tx_action_yes'),
     });
     
     if (params.call_date) {

@@ -33,11 +33,11 @@ export function dividend(tx: Transaction): Array<{ label: string; value: string 
     },
     {
       label: t('messages_dividend_quantity_per_unit'),
-      value: `${formatAmount({
+      value: t('messages_dividend_amount_per', [formatAmount({
         value: params.quantity_per_unit_normalized,
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
-      })} ${dividendAsset} per ${asset}`,
+      }), String(dividendAsset), String(asset)]),
     },
   ];
 

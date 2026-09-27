@@ -42,6 +42,7 @@ import {
   isRoutineAttachFamily,
   marketplaceReviewRequiresAcknowledgement,
 } from "@/core/counterparty/marketplaceReviewPolicy";
+import { transactionIdIsFinal } from "@/core/counterparty/signRequestAnalysis";
 import { shouldBlockSigning } from "@/core/counterparty/unpack/providerVerify";
 import { formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
@@ -580,7 +581,8 @@ export default function ApprovePsbtPage() {
 
 
       <ApprovalTransactionDetails
-        txid={txid}
+        // Signing a P2PKH or nested SegWit input changes the id, so it is shown only when final.
+        txid={transactionIdIsFinal(psbtDetails.inputs) ? txid : undefined}
         inputs={psbtDetails.inputs}
         outputs={psbtDetails.outputs}
         attachedAssets={attachedAssets}

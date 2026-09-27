@@ -380,7 +380,9 @@ export interface ProtocolContext {
   /**
    * The transaction's own id, so an attach can name the UTXO it creates. Core builds that
    * destination as `f"{tx_hash}:{destination_vout}"`, which is the one thing an attach produces
-   * and the thing worth checking — the asset and amount are already in the headline above.
+   * and the thing worth checking — the asset and amount are already in the headline above. Set
+   * only when signing cannot change the id (`transactionIdIsFinal`); otherwise the attach names
+   * the output by its index in this transaction.
    */
   transactionId?: string;
   /**
@@ -779,13 +781,12 @@ export function protocolFields(
       // The XCP fee is a cost; the UTXO is an identifier, so it comes second. Asset and amount are
       // already stated in the headline.
       addXcpFee();
-      add(
-        'New UTXO',
-        context.transactionId !== undefined && m.destinationVout !== undefined
-          ? `${context.transactionId}:${m.destinationVout}`
-          : undefined,
-        'outpoint'
-      );
+      if (m.destinationVout !== undefined) {
+        // Without a final id (a P2PKH or nested SegWit input changes it when signed), the output
+        // is named by its index: an outpoint built from the unsigned id would never exist.
+        if (context.transactionId !== undefined) add('New UTXO', `${context.transactionId}:${m.destinationVout}`, 'outpoint');
+        else add('New UTXO', text('Output $1 of this transaction', [String(m.destinationVout)]));
+      }
       break;
 
     case 'detach':

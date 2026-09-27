@@ -117,6 +117,8 @@ export interface InputPrevout {
   value: number;
   /** Owning address, when the source API could attribute the script. */
   address?: string;
+  /** The output script, hex, when the source supplied it. */
+  scriptPubKey?: string;
 }
 
 /**
@@ -151,6 +153,7 @@ export async function fetchInputPrevouts(
     values.set(`${input.txid}:${input.vout}`, {
       value: prevout.value,
       address: prevout.address,
+      ...(prevout.scriptPubKey ? { scriptPubKey: prevout.scriptPubKey } : {}),
     });
   }));
 
@@ -167,7 +170,7 @@ export async function fetchInputPrevouts(
     for (const url of endpoints) {
       try {
         const response = await apiClient.get<{
-          vout: Array<{ value: number; scriptpubkey_address?: string }>;
+          vout: Array<{ value: number; scriptpubkey?: string; scriptpubkey_address?: string }>;
         }>(url, { retries: 0 });
         if (response.data?.vout) {
           // Store all vout values for this txid
@@ -179,6 +182,7 @@ export async function fetchInputPrevouts(
                 ...(prevout.scriptpubkey_address
                   ? { address: prevout.scriptpubkey_address }
                   : {}),
+                ...(prevout.scriptpubkey ? { scriptPubKey: prevout.scriptpubkey } : {}),
               });
             }
           }
