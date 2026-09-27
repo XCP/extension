@@ -40,7 +40,7 @@ interface TransactionCardProps {
  * ```tsx
  * <TransactionCard 
  *   transaction={tx}
- *   onClick={() => navigate(`/transaction/${tx.tx_hash}`)}
+ *   onClick={() => navigate(`/transactions/${tx.tx_hash}`)}
  *   showFullHash={false}
  * />
  * ```
