@@ -31,9 +31,9 @@ and [Chromium locale selection](https://chromium.googlesource.com/chromium/src/+
 
 ## Prices and transaction inputs
 
-Settings exposes only **Price currency** for display customization. It remains an
-independent encrypted keychain preference, defaulting to USD regardless of browser
-language. It is restored after unlocking, as before. Changing currency in another
+Settings exposes only **Price currency** (Advanced → Privacy & Display) for display
+customization. It remains an independent encrypted keychain preference, defaulting to
+USD regardless of browser language. It is restored after unlocking, as before. Changing currency in another
 wallet surface must preserve the current page and any unsaved transaction draft.
 
 Transaction inputs and compose serialization never consult display formatting.

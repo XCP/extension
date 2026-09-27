@@ -4373,6 +4373,9 @@
   "settings_advanced_enable_this_to_chain_transactions": {
     "message": "允许花费尚未确认交易的输出，继续发起交易。"
   },
+  "settings_advanced_price_currency_description": {
+    "message": "钱包中估算金额所使用的币种。"
+  },
   "settings_advanced_privacy_display": {
     "message": "隐私与显示"
   },
@@ -6530,6 +6533,9 @@
   },
   "hardware_error_suite_access_denied": {
     "message": "Trezor 需要访问 Trezor Suite 的权限。请重新连接，并在 Chrome 询问时选择“允许”。"
+  },
+  "hardware_error_suite_handshake_timeout": {
+    "message": "Trezor Suite 未及时响应。请等待 Suite 标签页加载完成，关闭其他 Trezor Suite 标签页，然后重试。"
   },
   "trezor_access_notice_body": {
     "message": "Trezor 现在通过 Trezor Suite 连接。请允许一次访问，以便继续使用。"

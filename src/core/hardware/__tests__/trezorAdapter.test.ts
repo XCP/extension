@@ -42,7 +42,9 @@ vi.mock('@trezor/connect-webextension', () => ({
 }));
 
 // Import after mocking
-import { getTrezorAdapter, resetTrezorAdapter, TrezorAdapter } from '../trezorAdapter';
+import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
+import { t } from '@/i18n';
+import { getTrezorAdapter, isSuiteHandshakeFailure, resetTrezorAdapter, TrezorAdapter } from '../trezorAdapter';
 
 describe('TrezorAdapter', () => {
   let adapter: TrezorAdapter;
@@ -891,6 +893,97 @@ describe('TrezorAdapter', () => {
       );
     });
   });
+
+  describe('Suite Web handshake retry', () => {
+    // What CoreInSuiteWeb.call returns when AbstractMessageChannel gives up on the Suite tab.
+    const handshakeFailed = { success: false, error: { message: 'handshake failed', code: 'Failure_UnknownCode' } };
+    const account = {
+      success: true,
+      payload: [{ symbol: 'btc', path: "m/84'/0'/0'", address: 'bc1qlater', xpub: 'xpub6CUGRUonZSQ4TWtT' }],
+    };
+
+    beforeEach(async () => {
+      mockGetAddress.mockResolvedValue({ success: true, payload: { address: 'bc1qzero', publicKey: '02...' } });
+      mockInit.mockResolvedValue(undefined);
+      await adapter.init();
+      mockInit.mockClear();
+    });
+
+    it('repeats discovery once in the same Connect session and succeeds', async () => {
+      mockSelectAccount.mockResolvedValueOnce(handshakeFailed).mockResolvedValueOnce(account);
+
+      const result = await adapter.discoverAccount(false);
+
+      expect(result.xpub).toBe('xpub6CUGRUonZSQ4TWtT');
+      expect(mockSelectAccount).toHaveBeenCalledTimes(2);
+      expect(mockSelectAccount.mock.calls[1]).toEqual(mockSelectAccount.mock.calls[0]);
+      // No dispose or re-init between attempts: Connect keeps its Suite tab, so the retry
+      // focuses that tab rather than opening a second one.
+      expect(mockDispose).not.toHaveBeenCalled();
+      expect(mockInit).not.toHaveBeenCalled();
+      expect(adapter.isInitialized()).toBe(true);
+    });
+
+    it('explains a second handshake failure in the user language instead of "handshake failed"', async () => {
+      mockSelectAccount.mockResolvedValue(handshakeFailed);
+
+      const error = await adapter.discoverAccount(false).catch((e: unknown) => e);
+
+      expect(mockSelectAccount).toHaveBeenCalledTimes(2);
+      expect(error).toBeInstanceOf(HardwareWalletError);
+      expect(error).toMatchObject({ code: 'SUITE_HANDSHAKE_TIMEOUT', vendor: 'trezor' });
+      expect((error as Error).message).not.toContain('handshake failed');
+      expect(hardwareErrorMessage(error)).toBe(t('hardware_error_suite_handshake_timeout'));
+      expect(t('hardware_error_suite_handshake_timeout')).toBe(
+        "Trezor Suite didn't respond in time. Let the Suite tab finish loading, close any other Trezor Suite tabs, then try again.",
+      );
+      expect(mockDispose).not.toHaveBeenCalled();
+      expect(mockInit).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['a user cancel', { message: 'User cancelled the action', code: 'Failure_ActionCancelled' }, 'USER_CANCELLED'],
+      ['a closed Suite tab', { message: 'Popup closed', code: 'Failure_UnknownCode' }, 'Failure_UnknownCode'],
+      ['an aborted handshake', { message: 'Handshake aborted', code: 'Failure_UnknownCode' }, 'Failure_UnknownCode'],
+      ['a device error', { message: 'Session not found', code: 'Device_SessionNotFound' }, 'DEVICE_DISCONNECTED'],
+      ['a permission denial', { message: 'Permissions not granted', code: 'Method_PermissionsNotGranted' }, 'PERMISSION_DENIED'],
+      ['the same text under another code', { message: 'handshake failed', code: 'Method_Interrupted' }, 'Method_Interrupted'],
+    ])('does not retry %s', async (_label, failure, code) => {
+      mockSelectAccount.mockResolvedValue({ success: false, error: failure });
+
+      await expect(adapter.discoverAccount(false)).rejects.toMatchObject({ code });
+      expect(mockSelectAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('repeats a signing request only when Suite never received it', async () => {
+      mockSignTransaction.mockResolvedValueOnce(handshakeFailed).mockResolvedValueOnce({
+        success: true,
+        payload: { serializedTx: '0200', txid: 'ab' },
+      });
+
+      await expect(adapter.signTransaction({ inputs: [], outputs: [] }))
+        .resolves.toEqual({ signedTxHex: '0200', txid: 'ab' });
+      expect(mockSignTransaction).toHaveBeenCalledTimes(2);
+      expect(mockDispose).not.toHaveBeenCalled();
+    });
+
+    it('does not repeat a declined signature', async () => {
+      mockSignTransaction.mockResolvedValue({ success: false, error: { message: 'Cancelled', code: 'Failure_ActionCancelled' } });
+
+      await expect(adapter.signTransaction({ inputs: [], outputs: [] })).rejects.toMatchObject({ code: 'Failure_ActionCancelled' });
+      expect(mockSignTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('matches only the exact Connect handshake failure', () => {
+      expect(isSuiteHandshakeFailure(handshakeFailed)).toBe(true);
+      expect(isSuiteHandshakeFailure({ success: false, error: { message: 'handshake failed' } })).toBe(true);
+      expect(isSuiteHandshakeFailure({ success: false, error: { message: 'Handshake failed', code: 'Failure_UnknownCode' } })).toBe(false);
+      expect(isSuiteHandshakeFailure({ success: false, error: { message: 'Channel handshake failed: x', code: 'Failure_UnknownCode' } })).toBe(false);
+      expect(isSuiteHandshakeFailure({ success: true, error: { message: 'handshake failed' } })).toBe(false);
+      expect(isSuiteHandshakeFailure(null)).toBe(false);
+    });
+  });
+
   describe('getTrezorAdapter (singleton)', () => {
     it('should return same instance', () => {
       const adapter1 = getTrezorAdapter();

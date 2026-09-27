@@ -1,6 +1,7 @@
-import { act, cleanup, fireEvent, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FIAT_CURRENCIES } from '@/core/bitcoin/price';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { t } from '@/i18n';
 import { mockBrowserLocale, render } from '@/i18n/test-utils';
@@ -56,4 +57,47 @@ it('updates auto-lock labels in place while preserving the selection and unsaved
   act(() => mockBrowserLocale({ language: 'ja' }));
   fireEvent.click(screen.getByRole('radio', { name: t('settings_advanced_30_minutes') }));
   expect(mockUpdateSettings).toHaveBeenCalledExactlyOnceWith({ autoLockTimer: '30m' });
+});
+
+describe('price currency', () => {
+  const currencySelect = () => screen.getByRole('combobox', { name: t('display_preferences_fiat') });
+
+  it('lives in Privacy & Display and shows the stored currency', () => {
+    render(<MemoryRouter><AdvancedSettingsPage /></MemoryRouter>);
+    const section = screen.getByRole('heading', { name: t('settings_advanced_privacy_display') }).closest('section')!;
+    expect(within(section).getByRole('combobox', { name: t('display_preferences_fiat') })).toBe(currencySelect());
+    expect(currencySelect()).toHaveValue(DEFAULT_SETTINGS.fiat);
+    expect(within(currencySelect()).getAllByRole('option').map(option => (option as HTMLOptionElement).value))
+      .toEqual([...FIAT_CURRENCIES]);
+  });
+
+  it('follows the help-text toggle like the other Advanced controls', () => {
+    render(<MemoryRouter><AdvancedSettingsPage /></MemoryRouter>);
+    const help = screen.getByText(t('settings_advanced_price_currency_description'));
+    expect(currencySelect()).toHaveAccessibleDescription(t('settings_advanced_price_currency_description'));
+    expect(help).toHaveClass('hidden');
+    const header = mockSetHeaderProps.mock.lastCall![0] as { rightButton: { onClick: () => void } };
+    act(() => header.rightButton.onClick());
+    expect(help).not.toHaveClass('hidden');
+  });
+
+  it('saves the chosen currency and is disabled while saving', async () => {
+    let finish!: () => void;
+    mockUpdateSettings.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    render(<MemoryRouter><AdvancedSettingsPage /></MemoryRouter>);
+    fireEvent.change(currencySelect(), { target: { value: 'eur' } });
+    expect(mockUpdateSettings).toHaveBeenCalledExactlyOnceWith({ fiat: 'eur' });
+    expect(currencySelect()).toBeDisabled();
+    await act(async () => finish());
+    expect(currencySelect()).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('says so when the save fails', async () => {
+    mockUpdateSettings.mockRejectedValueOnce(new Error('storage unavailable'));
+    render(<MemoryRouter><AdvancedSettingsPage /></MemoryRouter>);
+    fireEvent.change(currencySelect(), { target: { value: 'jpy' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent(t('display_preferences_save_failed'));
+    expect(currencySelect()).toBeEnabled();
+  });
 });

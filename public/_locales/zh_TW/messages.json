@@ -4373,6 +4373,9 @@
   "settings_advanced_enable_this_to_chain_transactions": {
     "message": "允許使用尚未確認交易的輸出，繼續發送交易。"
   },
+  "settings_advanced_price_currency_description": {
+    "message": "錢包中估算金額所使用的幣別。"
+  },
   "settings_advanced_privacy_display": {
     "message": "隱私與顯示"
   },
@@ -6530,6 +6533,9 @@
   },
   "hardware_error_suite_access_denied": {
     "message": "Trezor 需要存取 Trezor Suite 的權限。請重新連線，並在 Chrome 詢問時選擇「允許」。"
+  },
+  "hardware_error_suite_handshake_timeout": {
+    "message": "Trezor Suite 未及時回應。請等待 Suite 標籤頁載入完成，關閉其他 Trezor Suite 標籤頁，然後重試。"
   },
   "trezor_access_notice_body": {
     "message": "Trezor 現在透過 Trezor Suite 連接。請允許一次存取，以便繼續使用。"

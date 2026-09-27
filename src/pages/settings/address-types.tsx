@@ -14,6 +14,7 @@ import { isAddressFormatLocked } from '@/core/wallet/addressFormatChoices';
 import { useAddressFormatSwitch } from "@/hooks/useAddressFormatSwitch";
 
 import { t } from '@/i18n';
+import { analytics } from '@/platform/fathom';
 
 /**
  * Constants for navigation paths and address type options.
@@ -94,7 +95,12 @@ export default function AddressTypesPage(): ReactElement {
     // in between must still leave for home, where the new address is about to appear.
     const before = hasChangedType.current;
     hasChangedType.current = newType !== originalAddressFormat.current;
-    if (!(await switchFormat(newType))) hasChangedType.current = before;
+    if (!(await switchFormat(newType))) {
+      hasChangedType.current = before;
+      return;
+    }
+    // Same event as the home header shortcut, suffixed by surface so the two can be compared.
+    void analytics.track('address_type_switched_settings');
   };
 
   if (isLoadingPreviews) {

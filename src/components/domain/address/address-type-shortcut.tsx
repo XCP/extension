@@ -11,6 +11,7 @@ import { formatAddress } from '@/core/format';
 import { canSwitchAddressFormat, selectableAddressFormats } from '@/core/wallet/addressFormatChoices';
 import { useAddressFormatSwitch } from '@/hooks/useAddressFormatSwitch';
 import { t } from '@/i18n';
+import { analytics } from '@/platform/fathom';
 
 /**
  * A header shortcut to Settings → Address type.
@@ -62,7 +63,11 @@ function AddressTypeOptions({ onDone }: { onDone: () => void }): ReactElement {
       return;
     }
     void switchFormat(format).then((switched) => {
-      if (switched) onDone();
+      if (!switched) return;
+      // Same event as Settings > Address type, suffixed by surface so the two can be compared.
+      // Never the format, wallet or address.
+      void analytics.track('address_type_switched_header');
+      onDone();
     });
   };
 

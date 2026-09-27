@@ -87,8 +87,8 @@ for (const locale of cases) {
       await page.locator('input[name="password"]').fill(TEST_PASSWORDS.valid);
       await page.getByRole('button', { name: message('common_continue'), exact: true }).click();
       await expect(page).toHaveURL(/#\/index$/);
-      await page.goto(`${base}#/settings`);
-      const controls = page.locator('section[aria-label] select');
+      await page.goto(`${base}#/settings/advanced`);
+      const controls = page.locator('section[aria-labelledby="adv-privacy"] select');
       await expect(controls).toHaveCount(1);
       await expect(controls.first()).toHaveValue('usd');
       await controls.first().selectOption('jpy');
@@ -117,7 +117,7 @@ for (const locale of cases) {
       await unlock.click();
       await expect(page).toHaveURL(/#\/index$/);
       await expect(page.locator('html')).toHaveAttribute('lang', locale.catalog);
-      await page.goto(`${base}#/settings`);
+      await page.goto(`${base}#/settings/advanced`);
       await expect(controls).toHaveCount(1);
       await expect(controls.first()).toHaveValue('jpy');
     } finally {

@@ -4373,6 +4373,9 @@
   "settings_advanced_enable_this_to_chain_transactions": {
     "message": "未承認のトランザクションの出力を、次のトランザクションで使用する場合に有効にします。"
   },
+  "settings_advanced_price_currency_description": {
+    "message": "ウォレット全体で概算額の表示に使う通貨です。"
+  },
   "settings_advanced_privacy_display": {
     "message": "プライバシーと表示"
   },
@@ -6530,6 +6533,9 @@
   },
   "hardware_error_suite_access_denied": {
     "message": "TrezorにはTrezor Suiteへのアクセス許可が必要です。もう一度接続し、Chromeの確認で「許可」を選んでください。"
+  },
+  "hardware_error_suite_handshake_timeout": {
+    "message": "Trezor Suiteが時間内に応答しませんでした。Suiteのタブの読み込みが終わるのを待ち、ほかのTrezor Suiteのタブを閉じてから、もう一度お試しください。"
   },
   "trezor_access_notice_body": {
     "message": "TrezorはTrezor Suite経由で接続するようになりました。引き続き使うには、一度だけアクセスを許可してください。"

@@ -1,7 +1,7 @@
 /**
  * Advanced Settings Tests
  *
- * Tests for the Advanced settings page: auto-lock timer, API URL, toggle switches.
+ * Tests for the Advanced settings page: auto-lock timer, API URL, toggle switches, price currency.
  */
 
 import { expect, navigateTo, walletTest } from '../../fixtures';
@@ -137,6 +137,27 @@ walletTest.describe('Advanced Settings', () => {
 
     const switches = page.locator('[role="switch"]');
     expect(await switches.count()).toBeGreaterThan(0);
+  });
+
+  walletTest('price currency lives under Privacy & Display and saves', async ({ page }) => {
+    await navigateTo(page, 'settings');
+    await settings.advancedOption(page).click();
+    await expect(page).toHaveURL(/advanced/);
+
+    const privacyDisplay = page.getByRole('region', { name: 'Privacy & Display', exact: true });
+    const currency = privacyDisplay.getByRole('combobox', { name: 'Price currency', exact: true });
+    await expect(currency).toBeVisible();
+    await expect(currency).toHaveValue('usd');
+
+    await currency.selectOption('eur');
+    await expect(currency).toBeEnabled();
+    await expect(currency).toHaveValue('eur');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+
+    await page.reload();
+    await expect(currency).toHaveValue('eur');
+    await currency.selectOption('usd');
+    await expect(currency).toBeEnabled();
   });
 
   walletTest('settings persist after navigating away', async ({ page }) => {

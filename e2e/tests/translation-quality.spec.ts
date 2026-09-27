@@ -121,8 +121,8 @@ for (const language of LANGUAGES) qualityTest.describe(language, () => {
       await expect(page.getByRole('status')).toContainText("m/0'/0/500");
       await expect(page.getByRole('button', { name: message('setup_import_mnemonic_import_gift_card'), exact: true })).toBeDisabled();
       await captureFlow(page, info, `${label}-gift-card`);
-      await goto('/settings');
-      await expect(page.locator('section[aria-label] select')).toHaveCount(1);
+      await goto('/settings/advanced');
+      await expect(page.locator('section[aria-labelledby="adv-privacy"] select')).toHaveCount(1);
       await captureFlow(page, info, `${label}-settings`);
       await goto('/compose/order/BTC?type=buy&quote=XCP');
       await page.getByRole('button', { name: message('order_form_order_settings'), exact: true }).click();

@@ -84,7 +84,10 @@ walletTest.describe('Settings with Headless UI Components', () => {
 
   walletTest('currency selection persists without changing the browser language', async ({ page }) => {
     await navigateTo(page, 'settings');
-    const currency = page.getByRole('combobox', { name: 'Price currency', exact: true });
+    await settings.advancedOption(page).click();
+    await expect(page).toHaveURL(/settings\/advanced/);
+    const currency = page.getByRole('region', { name: 'Privacy & Display', exact: true })
+      .getByRole('combobox', { name: 'Price currency', exact: true });
     await expect(page.getByRole('combobox')).toHaveCount(1);
     await expect(currency).toHaveValue('usd');
     await currency.selectOption('eur');
