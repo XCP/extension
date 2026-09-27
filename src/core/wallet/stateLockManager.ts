@@ -4,77 +4,45 @@
  */
 
 interface QueuedWaiter {
-  resolve: (release: () => void) => void;
+  grant: () => void;
   reject: (error: Error) => void;
 }
 
 interface Lock {
   id: string;
-  acquired: boolean;
+  /**
+   * Token of the acquisition that holds the lock. Every acquisition gets a fresh one, and a
+   * release or timeout only acts while its token still matches.
+   */
+  holder: number;
   queue: QueuedWaiter[];
-  timeout?: NodeJS.Timeout;
+  timeout?: ReturnType<typeof setTimeout>;
 }
 
 class StateLockManager {
   private locks: Map<string, Lock> = new Map();
+  private nextToken = 0;
   private readonly DEFAULT_TIMEOUT = 30000; // 30 seconds timeout for locks
 
   /**
    * Acquire a lock for a specific resource
    * @param resource - The resource identifier to lock
    * @param timeout - Optional timeout in milliseconds (default: 30 seconds)
-   * @returns Promise that resolves when lock is acquired
+   * @returns Promise that resolves with a release function bound to this acquisition
    */
   async acquire(resource: string, timeout: number = this.DEFAULT_TIMEOUT): Promise<() => void> {
     return new Promise((resolve, reject) => {
-      let lock = this.locks.get(resource);
-      
+      const lock = this.locks.get(resource);
+
       if (!lock) {
         // Create new lock and acquire immediately
-        lock = {
-          id: resource,
-          acquired: true,
-          queue: [],
-        };
-        this.locks.set(resource, lock);
-        
-        // Set timeout for lock
-        const timeoutId = setTimeout(() => {
-          console.warn(`Lock timeout for resource: ${resource}`);
-          this.forceRelease(resource);
-        }, timeout);
-        
-        lock.timeout = timeoutId;
-        
-        // Return release function
-        resolve(() => this.release(resource));
-      } else if (!lock.acquired) {
-        // Lock exists but not acquired (shouldn't happen)
-        lock.acquired = true;
-        
-        // Set new timeout
-        if (lock.timeout) clearTimeout(lock.timeout);
-        lock.timeout = setTimeout(() => {
-          console.warn(`Lock timeout for resource: ${resource}`);
-          this.forceRelease(resource);
-        }, timeout);
-        
-        resolve(() => this.release(resource));
+        const newLock: Lock = { id: resource, holder: 0, queue: [] };
+        this.locks.set(resource, newLock);
+        resolve(this.grant(newLock, timeout));
       } else {
-        // Lock is acquired, add to queue with both resolve and reject
+        // Lock is held, wait in line
         lock.queue.push({
-          resolve: (releaseFn) => {
-            lock!.acquired = true;
-
-            // Set timeout for this lock acquisition
-            if (lock!.timeout) clearTimeout(lock!.timeout);
-            lock!.timeout = setTimeout(() => {
-              console.warn(`Lock timeout for resource: ${resource}`);
-              this.forceRelease(resource);
-            }, timeout);
-
-            resolve(releaseFn);
-          },
+          grant: () => resolve(this.grant(lock, timeout)),
           reject,
         });
       }
@@ -82,29 +50,53 @@ class StateLockManager {
   }
 
   /**
+   * Hand the lock to a new acquisition: give it a fresh token, start its timeout, and return a
+   * release function bound to that token.
+   */
+  private grant(lock: Lock, timeout: number): () => void {
+    const token = ++this.nextToken;
+    lock.holder = token;
+
+    if (lock.timeout) clearTimeout(lock.timeout);
+    lock.timeout = setTimeout(() => {
+      console.warn(`Lock timeout for resource: ${lock.id}`);
+      this.forceRelease(lock.id, token);
+    }, timeout);
+
+    return () => this.release(lock.id, token);
+  }
+
+  /**
    * Release a lock for a specific resource
    * @param resource - The resource identifier to release
+   * @param token - The token of the acquisition releasing it
    */
-  private release(resource: string): void {
+  private release(resource: string, token: number): void {
     const lock = this.locks.get(resource);
-    
+
     if (!lock) {
       console.warn(`Attempting to release non-existent lock: ${resource}`);
       return;
     }
-    
+
+    // A holder that was force-released on timeout, or that already released, no longer owns the
+    // lock. Acting on its release would free whoever holds the lock now and let the next waiter
+    // run alongside them.
+    if (lock.holder !== token) {
+      console.warn(`Ignoring stale release for resource: ${resource}`);
+      return;
+    }
+
     // Clear timeout
     if (lock.timeout) {
       clearTimeout(lock.timeout);
       lock.timeout = undefined;
     }
-    
-    if (lock.queue.length > 0) {
+
+    const next = lock.queue.shift();
+    if (next) {
       // Pass lock to next in queue
-      const next = lock.queue.shift();
-      if (next) {
-        next.resolve(() => this.release(resource));
-      }
+      next.grant();
     } else {
       // No one waiting, remove lock
       this.locks.delete(resource);
@@ -114,11 +106,12 @@ class StateLockManager {
   /**
    * Force release a lock (used for timeout scenarios)
    * @param resource - The resource identifier to force release
+   * @param token - The token of the acquisition that timed out
    */
-  private forceRelease(resource: string): void {
+  private forceRelease(resource: string, token: number): void {
     const lock = this.locks.get(resource);
 
-    if (!lock) return;
+    if (!lock || lock.holder !== token) return;
 
     // Clear timeout
     if (lock.timeout) {
@@ -136,66 +129,14 @@ class StateLockManager {
       console.error(`Lock queue cleared due to timeout: ${resource} (${lock.queue.length} waiters rejected)`);
     }
 
-    // Remove the lock entirely
+    // Remove the lock entirely. The timed-out holder may still be running; its release is now
+    // stale and is ignored.
     this.locks.delete(resource);
-  }
-
-  /**
-   * Check if a resource is currently locked
-   * @param resource - The resource identifier to check
-   */
-  isLocked(resource: string): boolean {
-    const lock = this.locks.get(resource);
-    return lock ? lock.acquired : false;
-  }
-
-  /**
-   * Get the number of waiters for a resource
-   * @param resource - The resource identifier
-   */
-  getQueueLength(resource: string): number {
-    const lock = this.locks.get(resource);
-    return lock ? lock.queue.length : 0;
-  }
-
-  /**
-   * Clear all locks (use with caution)
-   */
-  clearAll(): void {
-    this.locks.forEach(lock => {
-      if (lock.timeout) {
-        clearTimeout(lock.timeout);
-      }
-    });
-    this.locks.clear();
   }
 }
 
 // Export singleton instance
 export const stateLockManager = new StateLockManager();
-
-/**
- * Decorator for methods that need state locking
- * @param lockKey - The key to use for locking (can be a function that returns a key)
- */
-export function withLock(lockKey: string | ((this: any, ...args: any[]) => string)) {
-  return function (target: any, propertyName: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
-    
-    descriptor.value = async function (...args: any[]) {
-      const key = typeof lockKey === 'function' ? lockKey.call(this, ...args) : lockKey;
-      const release = await stateLockManager.acquire(key);
-      
-      try {
-        return await originalMethod.apply(this, args);
-      } finally {
-        release();
-      }
-    };
-    
-    return descriptor;
-  };
-}
 
 /**
  * Helper function to run code with a lock
@@ -207,7 +148,7 @@ export async function withStateLock<T>(
   fn: () => Promise<T>
 ): Promise<T> {
   const release = await stateLockManager.acquire(lockKey);
-  
+
   try {
     return await fn();
   } finally {

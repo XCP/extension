@@ -97,7 +97,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
   }, [cleanupAll]);
 
   const performLookup = useCallback(
-    async (destinationId: number, assetName: string) => {
+    (destinationId: number, assetName: string) => {
       cleanupDestination(destinationId);
 
       setLookupStates((prev) => ({
@@ -113,7 +113,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
         return;
       }
 
-      debounceTimeouts.current[destinationId] = setTimeout(async () => {
+      const lookup = async () => {
         setLookupStates((prev) => ({
           ...prev,
           [destinationId]: { isLookingUp: true, error: undefined },
@@ -151,7 +151,8 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
             delete abortControllers.current[destinationId];
           }
         }
-      }, debounceMs);
+      };
+      debounceTimeouts.current[destinationId] = setTimeout(() => void lookup(), debounceMs);
     },
     [debounceMs, onResolve, cleanupDestination]
   );

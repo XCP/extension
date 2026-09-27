@@ -160,7 +160,7 @@ export function InscriptionUploadInput(props: Omit<FileUploadInputProps, 'label'
   return (
     <FileUploadInput
       {...props}
-      label={props.label || "Inscription"}
+      label={props.label || t('inputs_file_upload_input_inscription')}
       uploadButtonText={props.uploadButtonText || t('inputs_file_upload_input_choose_file')}
     />
   );

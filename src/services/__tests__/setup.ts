@@ -55,12 +55,6 @@ fakeBrowser.tabs.onUpdated = {
 fakeBrowser.action.setBadgeText = vi.fn().mockResolvedValue(undefined);
 fakeBrowser.action.setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined);
 
-// Setup onMessage handlers for fakeBrowser
-fakeBrowser.runtime.onMessage.addListener((message: any, sender: any) => {
-  // Default response for tests - just return a promise
-  return Promise.resolve({ success: true, data: {} });
-});
-
 // Assign to global browser
 (global as any).browser = fakeBrowser;
 (global as any).chrome = fakeBrowser;

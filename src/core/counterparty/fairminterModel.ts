@@ -20,6 +20,7 @@ import {
   roundDown,
   subtract,
 } from "@/core/numeric";
+import { t } from '@/i18n';
 
 export type FairminterPaymentModel =
   /** price 0: the miner fee is the whole cost. */
@@ -93,15 +94,13 @@ export function readFairminterPaymentModel(
   });
 }
 
-const LABELS: Record<FairminterPaymentModel, string> = {
-  free: "BTC Fee Only (to miners)",
-  burned: "XCP Fee (burned)",
-  pool: "XCP Fee (to liquidity pool)",
-  issuer: "XCP Fee (to issuer)",
-};
-
 export function describeFairminterPaymentModel(model: FairminterPaymentModel): string {
-  return LABELS[model];
+  switch (model) {
+    case "free": return t('fairminter_payment_model_free');
+    case "burned": return t('fairminter_payment_model_burned');
+    case "pool": return t('fairminter_payment_model_pool');
+    case "issuer": return t('fairminter_payment_model_issuer');
+  }
 }
 
 /** Whether this model charges XCP at all, i.e. whether a price and lot size are worth showing. */

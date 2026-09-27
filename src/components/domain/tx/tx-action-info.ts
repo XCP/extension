@@ -9,6 +9,7 @@ import {
   type ProtocolContext,
   type ProtocolField,
   protocolFields,
+  sweepFlagsContents,
 } from '@/core/counterparty/describe';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
@@ -155,6 +156,7 @@ const localizeAction: DescriptionLocalizer = (source, substitutions) => {
     case "XCP fee": return t('tx_action_xcp_fee', substitutions);
     case "The XCP fee may change at confirmation.": return t('common_xcp_fee_may_change', substitutions);
     case "New UTXO": return t('tx_action_new_utxo', substitutions);
+    case "Output $1 of this transaction": return t('tx_action_output_of_this_transaction', substitutions);
     case "Detached": return t('tx_action_detached', substitutions);
     case "From UTXO": return t('tx_action_from_utxo', substitutions);
     case "To": return t('tx_action_to', substitutions);
@@ -330,6 +332,14 @@ export function getTxActionInfo(
 }
 
 /**
+ * What a sweep's flags move, worded and translated as the approval screen's "Includes" row, so the
+ * wallet's own sweep review says the same thing. Undefined when the flags move nothing.
+ */
+export function sweepIncludes(flags: unknown): string | undefined {
+  return sweepFlagsContents(flags, localizeAction);
+}
+
+/**
  * The output index an attach targets, so the details list can mark which output becomes the new
  * asset-bearing UTXO. Undefined for non-attach messages and for an attach that leaves the index
  * to core's default.
@@ -407,8 +417,10 @@ function fromLocalUnpack(
     sweepBalances: data.sweepBalances as boolean | undefined,
     sweepOwnership: data.sweepOwnership as boolean | undefined,
     divisible: data.divisible as boolean | undefined,
-    lock: data.lock as boolean | undefined,
-    reset: data.reset as boolean | undefined,
+    // The issuance unpack names its switches `isLock` and `isReset` (unpack/messages/issuance.ts).
+    // Reading `lock`/`reset` here left both undefined, so an irreversible lock was never stated.
+    lock: data.isLock as boolean | undefined,
+    reset: data.isReset as boolean | undefined,
     // A utxo move names the outpoint it empties in `source`.
     sourceUtxo: typeof data.source === 'string' && data.source.includes(':')
       ? (data.source as string)
@@ -456,8 +468,12 @@ function fromLocalUnpack(
   };
 }
 
-/** Keep the locally decoded bytes authoritative; a hex-looking text memo is still text. */
-function memoForDisplay(data: Record<string, unknown>): Pick<DescribableMessage, 'memo' | 'memoEncoding'> {
+/**
+ * Keep the locally decoded bytes authoritative; a hex-looking text memo is still text.
+ * Shared by the dapp approval screens and the wallet's own send review, so both show one memo
+ * the same way.
+ */
+export function memoForDisplay(data: Record<string, unknown>): Pick<DescribableMessage, 'memo' | 'memoEncoding'> {
   const bytes = data.memoBytes;
   if (!(bytes instanceof Uint8Array)) {
     return typeof data.memo === 'string' ? { memo: data.memo,

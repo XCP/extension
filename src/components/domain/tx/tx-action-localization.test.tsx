@@ -65,7 +65,7 @@ describe.each(locales)('localized Counterparty approval: %s', (language) => {
     });
     const text = 'No limit $1 <script>CounterWallet / FreeWallet</script> 日本語';
     const issuance = getTxActionInfo(decoded('issuance', {
-      asset: 'PEPECASH', quantity: 1n, divisible: false, lock: true, reset: true, description: text, destination: address,
+      asset: 'PEPECASH', quantity: 1n, divisible: false, isLock: true, isReset: true, description: text, destination: address,
     }));
     expect(issuance?.protocol).toContainEqual({ label: t('tx_action_description'), value: text, kind: 'paragraph' });
     expect(issuance?.protocol).toContainEqual({ label: t('tx_action_new_owner'), value: address, kind: 'address' });

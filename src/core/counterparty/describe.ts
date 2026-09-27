@@ -380,7 +380,9 @@ export interface ProtocolContext {
   /**
    * The transaction's own id, so an attach can name the UTXO it creates. Core builds that
    * destination as `f"{tx_hash}:{destination_vout}"`, which is the one thing an attach produces
-   * and the thing worth checking — the asset and amount are already in the headline above.
+   * and the thing worth checking — the asset and amount are already in the headline above. Set
+   * only when signing cannot change the id (`transactionIdIsFinal`); otherwise the attach names
+   * the output by its index in this transaction.
    */
   transactionId?: string;
   /**
@@ -472,11 +474,22 @@ function dispensesAvailable(m: DescribableMessage): string | undefined {
 }
 
 /** What a sweep carries, from its flags - balances, ownership, or both. */
-function sweepContents(m: DescribableMessage, text: DescriptionLocalizer): string | undefined {
+function sweepContents(m: Pick<DescribableMessage, 'sweepBalances' | 'sweepOwnership'>, text: DescriptionLocalizer): string | undefined {
   if (m.sweepBalances && m.sweepOwnership) return text('All balances and asset ownership');
   if (m.sweepOwnership) return text('Asset ownership only');
   if (m.sweepBalances) return text('All balances');
   return undefined;
+}
+
+/**
+ * What a sweep's flags carry, in the words the approval screen uses, for the compose review.
+ * Core's sweep flags (`messages/sweep.py`): 1 moves every balance, 2 hands over asset ownership, and
+ * 4 only says the memo is binary, so it moves nothing and is left out here.
+ */
+export function sweepFlagsContents(flags: unknown, text: DescriptionLocalizer = englishDescription): string | undefined {
+  const value = typeof flags === 'number' ? flags : typeof flags === 'string' && /^\d+$/.test(flags.trim()) ? Number(flags) : NaN;
+  if (!Number.isSafeInteger(value)) return undefined;
+  return sweepContents({ sweepBalances: (value & 1) !== 0, sweepOwnership: (value & 2) !== 0 }, text);
 }
 
 /** A destroy's share of the asset's total supply, so the amount has a scale. */
@@ -768,13 +781,12 @@ export function protocolFields(
       // The XCP fee is a cost; the UTXO is an identifier, so it comes second. Asset and amount are
       // already stated in the headline.
       addXcpFee();
-      add(
-        'New UTXO',
-        context.transactionId !== undefined && m.destinationVout !== undefined
-          ? `${context.transactionId}:${m.destinationVout}`
-          : undefined,
-        'outpoint'
-      );
+      if (m.destinationVout !== undefined) {
+        // Without a final id (a P2PKH or nested SegWit input changes it when signed), the output
+        // is named by its index: an outpoint built from the unsigned id would never exist.
+        if (context.transactionId !== undefined) add('New UTXO', `${context.transactionId}:${m.destinationVout}`, 'outpoint');
+        else add('New UTXO', text('Output $1 of this transaction', [String(m.destinationVout)]));
+      }
       break;
 
     case 'detach':

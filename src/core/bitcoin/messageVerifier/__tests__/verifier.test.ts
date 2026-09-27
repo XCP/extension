@@ -3,7 +3,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { getVerificationReport, isSpecCompliant, verifyMessage } from '../verifier';
+import { verifyMessage } from '../verifier';
+
+const strictlyValid = async (message: string, signature: string, address: string) =>
+  (await verifyMessage(message, signature, address, { strict: true })).valid;
 
 describe('Clean Architecture Verifier', () => {
   // FreeWallet signature - header 31 over a P2PKH address, which is textbook
@@ -24,23 +27,16 @@ describe('Clean Architecture Verifier', () => {
 
   describe('Spec Compliance vs Compatibility', () => {
     it('should distinguish between spec-compliant and compatibility mode', async () => {
-      const specReport = await getVerificationReport(
-        freewalletFixture.message,
-        freewalletFixture.signature,
-        freewalletFixture.address
-      );
-
-      const compatReport = await getVerificationReport(
-        taprootFixture.message,
-        taprootFixture.signature,
-        taprootFixture.address
-      );
+      const spec = await verifyMessage(freewalletFixture.message, freewalletFixture.signature, freewalletFixture.address, { strict: true });
+      const compatStrict = await verifyMessage(taprootFixture.message, taprootFixture.signature, taprootFixture.address, { strict: true });
+      const compat = await verifyMessage(taprootFixture.message, taprootFixture.signature, taprootFixture.address);
 
       // The distinction this module exists to draw: one signature satisfies the
       // spec outright, the other only verifies through the compatibility layer.
-      expect(specReport.specCompliant).toBe(true);
-      expect(compatReport.specCompliant).toBe(false);
-      expect(compatReport.compatibilityMode).toBe(true);
+      expect(spec.valid).toBe(true);
+      expect(compatStrict.valid).toBe(false);
+      expect(compat.valid).toBe(true);
+      expect(compat.method).toBe('Loose BIP-137');
     });
 
     it('should verify in strict mode only if spec-compliant', async () => {
@@ -90,11 +86,7 @@ describe('Clean Architecture Verifier', () => {
 
     for (const testCase of testCases) {
       it(`should handle ${testCase.name}`, async () => {
-        const specCompliant = await isSpecCompliant(
-          testCase.message,
-          testCase.signature,
-          testCase.address
-        );
+        const specCompliant = await strictlyValid(testCase.message, testCase.signature, testCase.address);
 
         const compatResult = await verifyMessage(
           testCase.message,

@@ -50,7 +50,7 @@ export function useMultiBatchConsolidation() {
       } catch (error) {
         if (attempt === REPORT_ATTEMPTS) {
           console.error("Broadcast succeeded but the recovery could not be reported:", error);
-          analytics.track("consolidate_report_failed");
+          void analytics.track("consolidate_report_failed");
           return false;
         }
         await delay(REPORT_RETRY_MS * attempt);
@@ -117,7 +117,7 @@ export function useMultiBatchConsolidation() {
         } catch (batchError) {
           const message = batchError instanceof Error ? batchError.message : String(batchError);
           console.error(`Error processing batch ${batchNumber}:`, batchError);
-          analytics.track(`consolidate_error_${classifyTransactionError(message)}`);
+          void analytics.track(`consolidate_error_${classifyTransactionError(message)}`);
           return {
             batchNumber,
             txid: "",
@@ -144,7 +144,7 @@ export function useMultiBatchConsolidation() {
       );
       if (staleFailure) {
         try {
-          analytics.track("consolidate_stale_retry");
+          void analytics.track("consolidate_stale_retry");
           const refreshed = await consolidationApi.fetchAllBatches(
             activeAddress.address,
             includeProtectedStamps,
@@ -161,7 +161,7 @@ export function useMultiBatchConsolidation() {
       }
 
       if (batchResults.some((result) => result.status === "success")) {
-        analytics.track("consolidate", getBtcBucket(fromSatoshis(totalOutputSats, { asNumber: true })));
+        void analytics.track("consolidate", getBtcBucket(fromSatoshis(totalOutputSats, { asNumber: true })));
       }
 
       // Report every batch, successful or not; the results screen breaks them down.
@@ -170,7 +170,7 @@ export function useMultiBatchConsolidation() {
       // spent (or failed) and "back" into it invites re-submitting the same UTXOs. Leaving it on
       // the stack was also half of a navigation loop: results-back pushed a fresh recovery page,
       // whose back popped to results, forever.
-      navigate("/actions/consolidate/success", {
+      void navigate("/actions/consolidate/success", {
         replace: true,
         state: {
           results: batchResults,

@@ -24,9 +24,11 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { t } from '@/i18n';
 
 // Define sweep type options
-// Note: FLAG_BINARY_MEMO (4) is handled automatically by normalize.ts based on memo content
+// Note: FLAG_BINARY_MEMO (4) is handled automatically by normalize.ts based on memo content.
 const FLAG_BALANCES = 1;
 const FLAG_OWNERSHIP = 2;
+/** The flags that choose what a sweep moves; the binary-memo flag is not one of them. */
+const SWEEP_TYPE_MASK = FLAG_BALANCES | FLAG_OWNERSHIP;
 
 const sweepTypeOptions = [
   { id: 1, name: t('sweep_form_asset_balances_only'), value: FLAG_BALANCES },
@@ -59,8 +61,11 @@ export function SweepForm({
   const [memoValid, setMemoValid] = useState(true);
   const [showBtcOutput, setShowBtcOutput] = useState(false);
   const [btcAmount, setBtcAmount] = useState("");
+  // A form restored after review holds `flags` as the string it submitted ("2"), which never
+  // strictly equalled an option's number, so going back always reset the choice to balances and
+  // ownership. `&` reads the string as a number and drops any binary-memo bit.
   const [selectedSweepType, setSelectedSweepType] = useState(
-    sweepTypeOptions.find(opt => opt.value === (initialFormData?.flags || (FLAG_BALANCES | FLAG_OWNERSHIP))) || sweepTypeOptions[2]!
+    sweepTypeOptions.find(opt => opt.value === (((initialFormData?.flags ?? 0) & SWEEP_TYPE_MASK) || SWEEP_TYPE_MASK)) || sweepTypeOptions[2]!
   );
   
   // Refs

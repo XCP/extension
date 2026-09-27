@@ -16,7 +16,10 @@ vi.mock('@/core/bitcoin/blockHeight', () => ({
   getCurrentBlockHeight: vi.fn(async () => 0),
 }));
 
-import { fetchAssetDetails, fetchAssetFairminter, fetchAssetHolderCount } from '@/core/counterparty/api';
+import { getCurrentBlockHeight } from '@/core/bitcoin/blockHeight';
+import { fetchAssetDetails, fetchAssetFairminter, fetchAssetHolderCount, fetchOrderMatch } from '@/core/counterparty/api';
+import { packComposeMessage } from '@/core/counterparty/pack/messages';
+import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
 import { resolveProtocolContext } from '../protocolContext';
 
 /** A fairmint of `quantity` base units of `asset`, the shape the approval screen resolves context from. */
@@ -119,6 +122,21 @@ describe('resolveProtocolContext', () => {
       expect(context).toEqual({});
       expect(fetchAssetDetails).not.toHaveBeenCalled();
       expect(fetchAssetHolderCount).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('BTCPay time left', () => {
+    it('reads the match the signed BTCPay names, as the local unpack names it', async () => {
+      const matchId = `${'a'.repeat(64)}_${'b'.repeat(64)}`;
+      const packed = packComposeMessage('btcpay', { order_match_id: matchId });
+      const unpacked = unpackCounterpartyMessage(packed!.bytes);
+      expect(unpacked.messageType).toBe('btcpay');
+      vi.mocked(fetchOrderMatch).mockResolvedValueOnce({ id: matchId, match_expire_index: 900_020 } as any);
+      vi.mocked(getCurrentBlockHeight).mockResolvedValueOnce(900_000);
+
+      const { context } = await resolveProtocolContext({ messageType: 'btcpay', data: unpacked.data });
+      expect(fetchOrderMatch).toHaveBeenCalledWith(matchId);
+      expect(context.btcpayBlocksLeft).toBe(20);
     });
   });
 });

@@ -518,6 +518,39 @@
   "approval_too_many_inputs_description": {
     "message": "この取引は $1 個を超える入力を使用しており、ウォレットがアタッチされたアセットを確認できる数を超えています。入力を減らすようサイトに依頼してください。"
   },
+  "file_validation_invalid_file": {
+    "message": "ファイルを読み込めませんでした。"
+  },
+  "file_validation_empty": {
+    "message": "ファイルが空です。"
+  },
+  "file_validation_safety_limit": {
+    "message": "ファイルが安全上限の50 MBを超えています。"
+  },
+  "file_validation_too_large": {
+    "message": "ファイルが大きすぎます。上限: $1 KB、実際: $2 KB。"
+  },
+  "file_validation_invalid_name": {
+    "message": "無効なファイル名です。"
+  },
+  "file_validation_name_too_long": {
+    "message": "ファイル名が長すぎます。"
+  },
+  "file_validation_control_characters": {
+    "message": "ファイル名に制御文字が含まれています。"
+  },
+  "file_validation_reserved_name": {
+    "message": "予約済みのファイル名です。"
+  },
+  "file_validation_no_extension": {
+    "message": "ファイルに拡張子がありません。"
+  },
+  "file_validation_extension_not_allowed": {
+    "message": "許可されていない拡張子です。使用可能: $1"
+  },
+  "file_validation_double_extension": {
+    "message": "不審な二重拡張子が検出されました。"
+  },
   "provider_review_transaction_data_mismatch": {
     "message": "サイトの取引データがブロックチェーンと一致しません。取引を作り直すようサイトに依頼してください。"
   },
@@ -745,6 +778,9 @@
   },
   "asset_asset_menu_change_description": {
     "message": "説明文を変更"
+  },
+  "asset_asset_menu_fair_mint_open": {
+    "message": "フェアミント実施中は利用できません。"
   },
   "asset_asset_name_input_asset_name_already_taken": {
     "message": "このアセット名はすでに使用されています"
@@ -1435,6 +1471,9 @@
   },
   "common_memo_2": {
     "message": "メモ: $1"
+  },
+  "common_not_available": {
+    "message": "なし"
   },
   "common_message": {
     "message": "メッセージ"
@@ -2477,6 +2516,18 @@
   "fairminter_fairmint_fairmint": {
     "message": "フェアミント"
   },
+  "fairminter_payment_model_free": {
+    "message": "BTC手数料のみ（マイナーへ）"
+  },
+  "fairminter_payment_model_burned": {
+    "message": "XCP手数料（バーン）"
+  },
+  "fairminter_payment_model_pool": {
+    "message": "XCP手数料（流動性プールへ）"
+  },
+  "fairminter_payment_model_issuer": {
+    "message": "XCP手数料（発行者へ）"
+  },
   "fairminter_form_a_textual_description_for_the": {
     "message": "アセットのテキスト説明文。オンチェーンにインスクライブされます。"
   },
@@ -2633,6 +2684,9 @@
   "inputs_file_upload_input_choose_file": {
     "message": "ファイルを選択"
   },
+  "inputs_file_upload_input_inscription": {
+    "message": "インスクリプション"
+  },
   "inputs_file_upload_input_max_file_size_kb": {
     "message": "最大ファイルサイズ: $1KB"
   },
@@ -2671,6 +2725,12 @@
   },
   "inputs_memo_input_optional_memo_to_include": {
     "message": "添付するメモ（任意）。"
+  },
+  "inputs_memo_input_sent_as_hex": {
+    "message": "0xで始まるため、16進数のバイトとして送信されます。"
+  },
+  "inputs_memo_input_hex_help": {
+    "message": "16進数のバイトを送るには0xで始めてください。それ以外はテキストとして送信されます。"
   },
   "inputs_password_input_enter_password": {
     "message": "パスワードを入力"
@@ -3527,6 +3587,9 @@
   "messages_dividend_quantity_per_unit": {
     "message": "1 単位あたりの数量"
   },
+  "messages_dividend_amount_per": {
+    "message": "$3 1単位あたり $1 $2"
+  },
   "messages_dividend_total_distributed": {
     "message": "分配合計"
   },
@@ -3541,6 +3604,9 @@
   },
   "messages_fairmint_quantity_minted": {
     "message": "ミントした数量"
+  },
+  "messages_fairmint_quantity_requested": {
+    "message": "要求数量"
   },
   "messages_fairmint_still_open": {
     "message": "まだ受付中"
@@ -3577,6 +3643,15 @@
   },
   "messages_fairminter_quantity_per_price": {
     "message": "1ロットの数量"
+  },
+  "messages_fairminter_status_open": {
+    "message": "受付中"
+  },
+  "messages_fairminter_status_closed": {
+    "message": "終了"
+  },
+  "messages_fairminter_status_pending": {
+    "message": "開始前"
   },
   "messages_fairminter_yes_8_decimals": {
     "message": "はい（小数点以下 8 桁）"
@@ -3626,14 +3701,8 @@
   "messages_issuance_yes_8_decimal_places": {
     "message": "はい（小数点以下 8 桁）"
   },
-  "messages_move_utxo_same_as_source_consolidation": {
-    "message": "送信元と同じ（統合）"
-  },
   "messages_move_utxo_utxo_move": {
     "message": "UTXO 移動"
-  },
-  "messages_move_utxo_utxos_moved": {
-    "message": "移動した UTXO"
   },
   "messages_mpma_multi_send_to": {
     "message": "マルチ送金（$1 を $2 へ）"
@@ -3677,9 +3746,6 @@
   "messages_sweep_assets_swept": {
     "message": "スイープしたアセット"
   },
-  "messages_sweep_close_dispensers": {
-    "message": "自販機を閉鎖"
-  },
   "messages_sweep_flags": {
     "message": "フラグ"
   },
@@ -3688,6 +3754,9 @@
   },
   "messages_sweep_include_ownership": {
     "message": "所有権を含む"
+  },
+  "messages_sweep_ownership": {
+    "message": "所有権"
   },
   "messages_sweep_raw_value": {
     "message": "生の値: $1"
@@ -4837,9 +4906,6 @@
   "sweep_review_btc_to": {
     "message": "$1 BTC を $2 へ"
   },
-  "sweep_review_flag": {
-    "message": "フラグ"
-  },
   "time_compact_days": {
     "message": "$1日前"
   },
@@ -5172,6 +5238,9 @@
   },
   "safety_fee_invalid": {
     "message": "半角数字と小数点のみ（小数8桁まで）。カンマ不可。"
+  },
+  "safety_memo_hex_invalid": {
+    "message": "0xで始まるメモは16進数として送信されるため、0xの後は2桁ずつの16進数（0-9、a-f）にしてください。"
   },
   "safety_fee_minimum": {
     "message": "手数料率が低すぎます（最小: $1 sat/vB）"
@@ -5760,6 +5829,9 @@
   },
   "tx_action_new_utxo": {
     "message": "新しいUTXO"
+  },
+  "tx_action_output_of_this_transaction": {
+    "message": "この取引の出力 $1"
   },
   "tx_action_detached": {
     "message": "切り離す数量"

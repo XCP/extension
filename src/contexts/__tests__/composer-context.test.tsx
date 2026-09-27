@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
+import { recordComposerChoices } from '@/core/counterparty/composerChoices';
 import { fetchInputValues } from '@/core/counterparty/transaction';
 import { arc4, hexToBytes } from '@/core/counterparty/unpack/binary';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
@@ -179,7 +180,7 @@ describe('ComposerContext', () => {
       });
 
       await act(async () => {
-        result.current.composeTransaction(formData);
+        await result.current.composeTransaction(formData);
       });
 
       await waitFor(() => {
@@ -222,7 +223,7 @@ describe('ComposerContext', () => {
       });
 
       await act(async () => {
-        result.current.composeTransaction(formData);
+        await result.current.composeTransaction(formData);
       });
 
       await waitFor(() => {
@@ -250,7 +251,7 @@ describe('ComposerContext', () => {
       });
 
       await act(async () => {
-        result.current.composeTransaction(formData);
+        await result.current.composeTransaction(formData);
       });
 
       await waitFor(() => {
@@ -387,7 +388,7 @@ describe('ComposerContext', () => {
 
       // Move to review step
       await act(async () => {
-        result.current.composeTransaction(formData);
+        await result.current.composeTransaction(formData);
       });
 
       await waitFor(() => {
@@ -509,7 +510,7 @@ describe('ComposerContext', () => {
 
       // Move to review step
       await act(async () => {
-        result.current.composeTransaction(formData);
+        await result.current.composeTransaction(formData);
       });
 
       await waitFor(() => {
@@ -591,7 +592,7 @@ describe('ComposerContext', () => {
       expect(result.current.state.isComposing).toBe(false);
 
       act(() => {
-        result.current.composeTransaction(formData);
+        void result.current.composeTransaction(formData);
       });
 
       // Should be composing during async operation
@@ -647,7 +648,7 @@ describe('a compose whose message is missing entirely', () => {
     }));
 
     await act(async () => {
-      result.current.composeTransaction(formData);
+      await result.current.composeTransaction(formData);
     });
 
     await waitFor(() => {
@@ -669,7 +670,7 @@ describe('a compose whose message is missing entirely', () => {
     }));
 
     await act(async () => {
-      result.current.composeTransaction(formData);
+      await result.current.composeTransaction(formData);
     });
 
     await waitFor(() => {
@@ -689,7 +690,7 @@ describe('a compose whose message is missing entirely', () => {
     const { result } = composeWith('move', messagelessResponse({ destination: OWN_ADDRESS }));
 
     await act(async () => {
-      result.current.composeTransaction(formData);
+      await result.current.composeTransaction(formData);
     });
 
     await waitFor(() => {
@@ -822,5 +823,74 @@ describe('BTC send to a dispenser through the composer', () => {
       expect(result.current.state.step).toBe('form');
       expect(result.current.state.error).toBeTruthy();
     }
+  });
+});
+
+describe('an attach from the form, composed onto the output after the change', () => {
+  // `composeAttach` asks Core for output 2 (after the change) whenever there is change, so the
+  // ZELD rides the change rather than the asset's UTXO. The form names no output.
+  const inputTxid = 'cd'.repeat(32);
+  const own = () => btc.OutScript.encode(btc.Address().decode(OWN_ADDRESS));
+
+  function attachTransaction(message: string): string {
+    const tx = new btc.Transaction({ allowUnknownOutputs: true });
+    tx.addInput({ txid: inputTxid, index: 0 });
+    const payload = arc4(hexToBytes(inputTxid), new Uint8Array([
+      ...hexToBytes('434e545250525459'), 101, ...new TextEncoder().encode(message),
+    ]));
+    tx.addOutput({ script: btc.Script.encode(['RETURN', payload]), amount: 0n });
+    tx.addOutput({ script: own(), amount: 100_000n - 546n - 400n });
+    tx.addOutput({ script: own(), amount: 546n });
+    return tx.hex;
+  }
+
+  /** A compose function that returns `message`, recording `requested` as `composeAttach` does. */
+  function composeApi(message: string, requested?: Record<string, string>) {
+    return vi.fn(async () => {
+      const response = { result: {
+        rawtransaction: attachTransaction(message), btc_fee: 400, name: 'attach',
+        // What Core echoes is never what the review shows for the output.
+        params: { asset: 'XCP', quantity: 150000000, destination_vout: '7' },
+      } } as unknown as ApiResponse;
+      if (requested) recordComposerChoices(response, requested);
+      return response;
+    });
+  }
+
+  async function compose(api: ReturnType<typeof composeApi>) {
+    const { result } = renderHook(() => useComposer(), {
+      wrapper: ({ children }) => <MemoryRouter>
+        <ComposerProvider composeApi={api} initialTitle="Attach" composeType="attach">{children}</ComposerProvider>
+      </MemoryRouter>,
+    });
+    const form = new FormData();
+    form.set('asset', 'XCP');
+    form.set('quantity', '1.5');
+    form.set('sat_per_vbyte', '1.6');
+    await act(async () => { await result.current.composeTransaction(form); });
+    return result;
+  }
+
+  it('passes verification and reviews the output the wallet asked for', async () => {
+    const result = await compose(composeApi('XCP|150000000|2', { destination_vout: '2' }));
+    expect(result.current.state.error).toBeNull();
+    expect(result.current.state.step).toBe('review');
+    expect((result.current.state.apiResponse?.result.params as Record<string, unknown> | undefined)?.destination_vout).toBe('2');
+  });
+
+  it.each([
+    ['names a different output than the wallet asked for', 'XCP|150000000|3', { destination_vout: '2' }],
+    ['names an output when the wallet asked for Core\'s default', 'XCP|150000000|2', undefined],
+    ['names none when the wallet asked for output 2', 'XCP|150000000|', { destination_vout: '2' }],
+  ])('refuses a message that %s', async (_name, message, requested) => {
+    const result = await compose(composeApi(message, requested));
+    expect(result.current.state.step).toBe('form');
+    expect(result.current.state.error).toBe(t('composer_context_transaction_verification_failed_the_composed'));
+  });
+
+  it('reviews no output for Core\'s default, whatever the response echoes', async () => {
+    const result = await compose(composeApi('XCP|150000000|'));
+    expect(result.current.state.error).toBeNull();
+    expect((result.current.state.apiResponse?.result.params as Record<string, unknown> | undefined)?.destination_vout).toBeNull();
   });
 });

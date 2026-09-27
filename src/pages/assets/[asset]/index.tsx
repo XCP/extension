@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
+import { reissueActions } from "@/components/domain/asset/reissue-actions";
 import { FaChevronRight, FaHistory, FiChevronDown } from "@/components/icons";
 import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
@@ -181,6 +182,8 @@ export default function AssetPage(): ReactElement {
     // state reads as "not minting" and blocks nothing; see `useAssetLatestIssuance`.
     const isFairMinting = latestIssuance?.fair_minting === true;
     const canReissue = canAct && !isFairMinting;
+    // The lock and fairminter rules below, shared with the owned-asset menu.
+    const reissue = reissueActions({ locked: isLocked, descriptionLocked: isDescriptionLocked, fairMinting: isFairMinting });
 
     // Start Mint — `fairminter.validate`: the asset must exist, be unlocked, be issued by the
     // source, and have no fairminter already open.
@@ -195,7 +198,7 @@ export default function AssetPage(): ReactElement {
 
     // A locked supply is exactly what these two change, so both go once `locked` is set —
     // core: "locked asset and non‐zero quantity" for the first, and a second lock is a no-op.
-    if (canReissue && !isLocked) {
+    if (canAct && reissue.supply) {
       actions.push(
         {
           id: "issue-supply",
@@ -267,7 +270,7 @@ export default function AssetPage(): ReactElement {
 
     // Both write a description, which core refuses once `description_locked` is set: "Cannot
     // update a locked description". A second lock would be refused for the same reason.
-    if (canReissue && !isDescriptionLocked) {
+    if (canAct && reissue.description) {
       actions.push(
         {
           id: "lock-description",
@@ -286,7 +289,7 @@ export default function AssetPage(): ReactElement {
 
     // A transfer carries no description and no quantity, so neither lock blocks it — only
     // ownership and the fairminter do.
-    if (canReissue) {
+    if (canAct && reissue.transfer) {
       actions.push({
         id: "transfer-ownership",
         title: t('common_transfer_ownership'),

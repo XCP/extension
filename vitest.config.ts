@@ -12,8 +12,9 @@ export default defineConfig({
 
     // Unit tests live in src. The e2e directory holds Playwright specs (*.spec.ts), which vitest
     // must never collect, plus a few vitest suites that need a live service and skip without
-    // their env flag: the Trezor emulator suite (`npm run test:emulator`) and the ZELD regtest
-    // suites (`ZELD_REGTEST=1 npx vitest run e2e/zeld/...`).
+    // their env flag: the Trezor emulator suite (`npm run test:emulator`), the ZELD regtest
+    // suites (`ZELD_REGTEST=1 npx vitest run e2e/zeld/...`) and the review-versus-ledger suite
+    // (`REGTEST=1 npx vitest run e2e/regtest`, see e2e/TESTING-GUIDE.md).
     include: ['src/**/*.test.{ts,tsx}', 'e2e/**/*.test.ts'],
     // Fuzz tests run separately in the weekly workflow (vitest.fuzz.config.ts).
     exclude: [

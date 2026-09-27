@@ -7,14 +7,20 @@ import {
 } from "@/core/counterparty/fairminterModel";
 import { formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
-
 import { t } from '@/i18n';
+import { eventParams, messageData } from "@/pages/transactions/_messages/facts";
+
 /**
  * Renders detailed information for fairminter creation transactions
  */
 export function fairminter(tx: Transaction): Array<{ label: string; value: string | ReactNode }> {
-  const params = tx.unpacked_data?.params;
-  if (!params) return [];
+  // The message holds the terms; its state is on the NEW_FAIRMINTER event (the message's own
+  // `status` would be the parse result).
+  const message = messageData(tx);
+  const created = eventParams(tx, 'NEW_FAIRMINTER')[0];
+  if (!message && !created) return [];
+  const params = { ...message, ...created };
+  const status = created?.status ?? message?.status;
   
   const isDivisible = params.divisible ?? true;
   
@@ -29,9 +35,9 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     },
     {
       label: t('common_status'),
-      value: params.status === 0 ? "🟢 Open" : 
-             params.status === 1 ? "🔴 Closed" : 
-             params.status === 2 ? "⚠️ Pending" : "Unknown",
+      value: status === 'open' || status === 0 ? '🟢 ' + t('messages_fairminter_status_open') :
+             status === 'closed' || status === 1 ? '🔴 ' + t('messages_fairminter_status_closed') :
+             status === 'pending' || status === 2 ? '⚠️ ' + t('messages_fairminter_status_pending') : t('messages_order_status_unknown'),
     },
   ];
 
@@ -173,14 +179,14 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   if (params.lock_description !== undefined) {
     fields.push({
       label: t('common_description_locked'),
-      value: params.lock_description ? "🔒 Yes" : "🔓 No",
+      value: params.lock_description ? '🔒 ' + t('tx_action_yes') : '🔓 ' + t('tx_action_no'),
     });
   }
   
   if (params.lock_quantity !== undefined) {
     fields.push({
       label: t('messages_fairminter_quantity_locked'),
-      value: params.lock_quantity ? "🔒 Yes" : "🔓 No",
+      value: params.lock_quantity ? '🔒 ' + t('tx_action_yes') : '🔓 ' + t('tx_action_no'),
     });
   }
 

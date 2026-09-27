@@ -780,17 +780,38 @@ describe('normalize.ts', () => {
           expect(result.normalizedData.memo_is_hex).toBe(true);
         });
 
-        it('should set memo_is_hex=true for pure hex memo (no prefix)', async () => {
+        it('should set memo_is_hex=true and strip an uppercase 0X prefix', async () => {
           const formData = new FormData();
           formData.set('quantity', '100');
           formData.set('asset', 'BTC');
-          formData.set('memo', 'cafebabe');
-
+          formData.set('memo', '0XCAFEBABE');
 
           const result = await normalizeFormData(formData, 'send');
 
-          expect(result.normalizedData.memo).toBe('cafebabe');
+          expect(result.normalizedData.memo).toBe('CAFEBABE');
           expect(result.normalizedData.memo_is_hex).toBe(true);
+        });
+
+        // An exchange deposit ID is text. Sent as hex, `123456` became the bytes 12 34 56.
+        it.each(['123456', 'cafebabe', 'DEADBEEF'])('sends the unprefixed memo %s as text', async (memo) => {
+          const formData = new FormData();
+          formData.set('quantity', '100');
+          formData.set('asset', 'BTC');
+          formData.set('memo', memo);
+
+          const result = await normalizeFormData(formData, 'send');
+
+          expect(result.normalizedData.memo).toBe(memo);
+          expect(result.normalizedData.memo_is_hex).toBeUndefined();
+        });
+
+        it('rejects a 0x memo that is not whole bytes of hex', async () => {
+          const formData = new FormData();
+          formData.set('quantity', '100');
+          formData.set('asset', 'BTC');
+          formData.set('memo', '0x123');
+
+          await expect(normalizeFormData(formData, 'send')).rejects.toThrow(/hex/);
         });
 
         it('should NOT set memo_is_hex for text memo', async () => {
@@ -853,12 +874,24 @@ describe('normalize.ts', () => {
           const formData = new FormData();
           formData.set('flags', String(FLAG_BALANCES)); // 1
           formData.set('destination', 'address123');
-          formData.set('memo', 'aabbccdd');
+          formData.set('memo', '0xaabbccdd');
 
           const result = await normalizeFormData(formData, 'sweep');
 
           expect(result.normalizedData.memo).toBe('aabbccdd');
           expect(result.normalizedData.flags).toBe(FLAG_BALANCES | FLAG_BINARY_MEMO); // 5
+        });
+
+        it('should NOT modify flags for an unprefixed hex-looking memo', async () => {
+          const formData = new FormData();
+          formData.set('flags', String(FLAG_BALANCES));
+          formData.set('destination', 'address123');
+          formData.set('memo', '123456');
+
+          const result = await normalizeFormData(formData, 'sweep');
+
+          expect(result.normalizedData.memo).toBe('123456');
+          expect(result.normalizedData.flags).toBe('1');
         });
 
         it('should handle sweep without memo field', async () => {

@@ -56,13 +56,16 @@ export function validateMessage(message: string): {
 }
 
 /**
- * Format message according to Bitcoin standard
- * This is the CORRECT implementation per Bitcoin Core
+ * The Bitcoin Signed Message preimage: magic, CompactSize length, message.
+ *
+ * The message goes in byte for byte, as Bitcoin Core's `signmessage` and `verifymessage` hash it.
+ * This used to rewrite CRLF to LF first, which broke both directions: a genuine Core
+ * signature over a CRLF message was checked against the wrong bytes and refused, and a signature
+ * over the LF text verified for the CRLF text even in strict mode. Line-ending tolerance belongs
+ * to `verifyMessage`'s non-strict retry, which reports it as `(normalized)`.
  */
-export function formatMessageForSigning(message: string): Uint8Array {
-  // Normalize the message first for cross-platform compatibility
-  const normalizedMessage = normalizeMessage(message);
-  const messageBytes = new TextEncoder().encode(normalizedMessage);
+function formatMessageForSigning(message: string): Uint8Array {
+  const messageBytes = new TextEncoder().encode(message);
 
   // Magic bytes including the length prefix
   const magicBytes = new TextEncoder().encode('\x18Bitcoin Signed Message:\n');
@@ -133,11 +136,6 @@ export function getAddressType(address: string): AddressType {
   // P2WPKH - Native SegWit v0
   if (address.startsWith('bc1q') || address.startsWith('tb1q')) {
     return 'P2WPKH';
-  }
-
-  // P2WSH - Native SegWit v0 (longer addresses)
-  if ((address.startsWith('bc1q') || address.startsWith('tb1q')) && address.length > 42) {
-    return 'P2WSH';
   }
 
   // P2TR - Taproot
@@ -215,59 +213,6 @@ export function detectAndNormalizeSignature(signature: string): {
       error: 'Invalid base64 encoding'
     };
   }
-}
-
-/**
- * Validate signature format for different Bitcoin signing methods
- */
-export function validateSignatureFormat(signature: string): {
-  valid: boolean;
-  format: 'legacy' | 'bip322' | 'unknown';
-  length?: number;
-  issues: string[];
-} {
-  const issues: string[] = [];
-  const detection = detectAndNormalizeSignature(signature);
-
-  if (!detection.valid) {
-    issues.push(detection.error || 'Invalid signature encoding');
-  }
-
-  // BIP-322 validation
-  if (detection.format === 'bip322') {
-    return {
-      valid: true,
-      format: 'bip322',
-      issues
-    };
-  }
-
-  // Legacy/BIP-137 validation (should be 65 bytes when decoded)
-  if (detection.format === 'base64' || detection.format === 'hex') {
-    try {
-      const decoded = atob(detection.normalized);
-      const length = decoded.length;
-
-      if (length === 65) {
-        return {
-          valid: issues.length === 0,
-          format: 'legacy',
-          length,
-          issues
-        };
-      } else {
-        issues.push(`Invalid signature length: ${length} bytes (expected 65)`);
-      }
-    } catch (_error) {
-      issues.push('Failed to decode signature');
-    }
-  }
-
-  return {
-    valid: false,
-    format: 'unknown',
-    issues
-  };
 }
 
 /**

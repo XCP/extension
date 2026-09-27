@@ -16,7 +16,7 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
     return [
       {
         label: t('messages_dispense_dispenser_address'),
-        value: tx.destination || "N/A",
+        value: tx.destination || t('common_not_available'),
       },
       {
         label: t('messages_dispense_btc_paid'),
@@ -45,11 +45,11 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
         <span className="text-xs break-all font-mono">
           {params.dispenser_tx_hash}
         </span>
-      ) : "N/A",
+      ) : t('common_not_available'),
     },
     {
       label: t('messages_dispense_asset_received'),
-      value: params.asset || "N/A",
+      value: params.asset || t('common_not_available'),
     },
     {
       label: t('messages_dispense_quantity_received'),
@@ -73,13 +73,13 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
         value: pricePerUnit,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
-      })), String(params.asset)]) : "N/A",
+      })), String(params.asset)]) : t('common_not_available'),
     },
     {
       label: t('messages_dispense_from_dispenser'),
       value: (
         <span className="text-xs break-all">
-          {params.source || "N/A"}
+          {params.source || t('common_not_available')}
         </span>
       ),
     },
@@ -87,14 +87,14 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
       label: t('messages_dispense_to_address'),
       value: (
         <span className="text-xs break-all">
-          {params.destination || "N/A"}
+          {params.destination || t('common_not_available')}
         </span>
       ),
     },
     {
       label: t('messages_dispense_dispense_index'),
       value: params.dispense_index !== undefined ? 
-        `#${params.dispense_index}` : "N/A",
+        `#${params.dispense_index}` : t('common_not_available'),
     },
   ];
 }

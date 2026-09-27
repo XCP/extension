@@ -1,7 +1,7 @@
 /**
  * QR Code Generation Module
  *
- * Provides utilities for generating QR codes for Bitcoin addresses and URIs.
+ * Provides QR code matrix generation.
  * Uses Nayuki's QR Code generator (MIT licensed) internally.
  */
 

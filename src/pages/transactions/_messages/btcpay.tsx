@@ -1,18 +1,21 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
-
 import { t } from '@/i18n';
+import { eventParams, messageData } from "@/pages/transactions/_messages/facts";
+
 /**
  * Renders detailed information for btcpay transactions
  */
 export function btcpay(tx: Transaction): Array<{ label: string; value: string | ReactNode }> {
-  const params = tx.unpacked_data?.params;
+  const payment = eventParams(tx, 'BTC_PAY')[0];
+  const params = messageData(tx) ?? payment;
   if (!params) return [];
 
-  // Use API-provided normalized values (verbose=true always returns these)
-  const btcAmount = params.btc_amount_normalized;
-  
+  // The message names the match; the amount paid is in the BTC_PAY event, and is the BTC this
+  // transaction sent to its destination.
+  const btcAmount = payment?.btc_amount_normalized ?? params.btc_amount_normalized ?? tx.btc_amount_normalized;
+
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
       label: t('common_type'),
@@ -35,7 +38,7 @@ export function btcpay(tx: Transaction): Array<{ label: string; value: string | 
       })} BTC`,
     },
   ];
-  
+
   // Status
   if (params.status) {
     fields.push({
@@ -43,6 +46,6 @@ export function btcpay(tx: Transaction): Array<{ label: string; value: string | 
       value: params.status === "valid" ? t('messages_btcpay_valid_payment') : params.status,
     });
   }
-  
+
   return fields;
 }

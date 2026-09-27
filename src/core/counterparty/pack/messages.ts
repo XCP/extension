@@ -12,6 +12,7 @@
  */
 
 import { isTextualMimeType } from '@/core/counterparty/inscriptionEnvelope';
+import { decodeMemoList } from '@/core/counterparty/memo';
 import { type CborEncodable, encodeCbor } from '@/core/counterparty/pack/cbor';
 import { packAddress, packAddressLegacy } from '@/core/counterparty/unpack/address';
 import { assetNameToId } from '@/core/counterparty/unpack/assetId';
@@ -728,7 +729,8 @@ function packMpma(sends: MpmaSend[], globalMemo: string | null, globalMemoIsHex:
 
 /**
  * Parse MPMA params as the wallet's forms produce them: parallel comma-separated `assets`,
- * `destinations` and `quantities`, optional per-send `memos` (empty entries mean none) with a
+ * `destinations` and `quantities`, optional per-send `memos` (a list, see `decodeMemoList`;
+ * empty entries mean none) with a
  * `memos_are_hex` flag, and an optional whole-send `memo`/`memo_is_hex` used when no per-send
  * memos are given. Quantities must be whole base units; a non-integral value means divisibility
  * was not resolved and equality must not be attempted.
@@ -747,9 +749,7 @@ function packMpmaFromParams(params: Params): PackedMessage | null {
   const quantities = quantitiesCsv.split(',');
   if (assets.length !== destinations.length || assets.length !== quantities.length) return null;
 
-  const memosCsv = typeof params.memos === 'string' && params.memos !== ''
-    ? params.memos.split(',')
-    : null;
+  const memosCsv = decodeMemoList(params.memos);
   if (memosCsv && memosCsv.length !== assets.length) return null;
 
   let memosAreHex = false;
