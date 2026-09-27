@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { t } from '@/i18n';
-import { render } from '@/i18n/test-utils';
+import { render } from '@/i18n/__tests__/helpers/locale';
 import { TrezorAccessNotice } from './trezor-access-notice';
 
 const wallet = vi.hoisted(() => ({ activeWallet: { type: 'hardware' } as { type: string } | null }));

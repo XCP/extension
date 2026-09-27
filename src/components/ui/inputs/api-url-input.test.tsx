@@ -3,7 +3,7 @@ import type { InputHTMLAttributes } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiValidation from '@/core/validation/api';
 import { t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import { ApiUrlInput } from './api-url-input';
 
 const captured = vi.hoisted(() => ({ blur: null as Promise<unknown> | null }));

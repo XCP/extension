@@ -1,7 +1,7 @@
 import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { asBaseUnits } from '@/core/numeric';
-import { mockBrowserLocale, renderHook } from '@/i18n/test-utils';
+import { mockBrowserLocale, renderHook } from '@/i18n/__tests__/helpers/locale';
 import { useSearchQuery } from "../useSearchQuery";
 
 // Mock fetch

@@ -2,7 +2,7 @@ import { act, cleanup, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Transaction } from '@/core/counterparty/api';
 import { t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import { getMessageHandler } from './index';
 import { mpma } from './mpma';
 

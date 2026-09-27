@@ -5,6 +5,8 @@
  * Stored in session storage (cleared on browser close).
  */
 
+import { MAX_TIMEOUT_MS, MIN_TIMEOUT_MS } from '@/core/validation/session';
+
 const SESSION_METADATA_KEY = 'sessionMetadata';
 
 export interface SessionMetadata {
@@ -24,7 +26,7 @@ function isValidSessionMetadata(value: unknown): value is SessionMetadata {
   const obj = value as Record<string, unknown>;
   return (
     typeof obj.unlockedAt === 'number' && Number.isFinite(obj.unlockedAt) && obj.unlockedAt > 0 &&
-    typeof obj.timeout === 'number' && Number.isFinite(obj.timeout) && obj.timeout >= 60_000 && obj.timeout <= 86_400_000 &&
+    typeof obj.timeout === 'number' && Number.isFinite(obj.timeout) && obj.timeout >= MIN_TIMEOUT_MS && obj.timeout <= MAX_TIMEOUT_MS &&
     typeof obj.lastActiveTime === 'number' && Number.isFinite(obj.lastActiveTime) && obj.lastActiveTime >= obj.unlockedAt
   );
 }

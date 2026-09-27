@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
+import { SATS_PER_BTC } from "@/core/bitcoin/constants";
 import {
   type AssetInfo,
   type Dispense,
@@ -34,7 +35,6 @@ import { t } from '@/i18n';
 // Constants
 const FETCH_LIMIT = 20;
 const dispenserKey = (row: DispenserDetails) => row.tx_hash;
-const SATS_PER_BTC = 100_000_000;
 const DEBOUNCE_MS = 1000;
 const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
 

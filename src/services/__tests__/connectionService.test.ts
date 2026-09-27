@@ -60,9 +60,6 @@ vi.mock('@/services/walletService', () => ({
         providerCapabilities,
       });
     },
-    clearConnectedWebsites: async () => {
-      await walletManager.updateSettings({ connectedWebsites: [], providerCapabilities: {} });
-    },
     setPairedAddressPermission: async (origin: string, identity: { walletId: string; address: string } | null) => {
       const s = walletManager.getSettings();
       const providerCapabilities = { ...s.providerCapabilities };

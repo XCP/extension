@@ -28,7 +28,7 @@ import { compactSubassetLongname } from '@/core/counterparty/pack/messages';
 import { assetIdToName } from '@/core/counterparty/unpack/assetId';
 import { BinaryReader, bytesToTextOrHex } from '@/core/counterparty/unpack/binary';
 import { type CborValue, tryDecodeCborArray } from '@/core/counterparty/unpack/cbor';
-import { MessageTypeId } from '@/core/counterparty/unpack/messageTypes';
+import { MessageTypeId, SUBASSET_DIGITS } from '@/core/counterparty/unpack/messageTypes';
 
 /** Minimum length of issuance (FORMAT_1) */
 const MIN_ISSUANCE_LENGTH = 17;
@@ -86,7 +86,6 @@ function decodeCompactedSubasset(bytes: Uint8Array): string {
   // Compacted subasset names are a base-68 big-endian integer over the
   // SUBASSET_DIGITS charset, where digit value d maps to SUBASSET_DIGITS[d-1]
   // and d === 0 maps to the final character (Python's DIGITS[-1]).
-  const SUBASSET_DIGITS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_@!';
 
   let integer = 0n;
   for (const byte of bytes) {

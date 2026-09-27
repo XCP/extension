@@ -161,19 +161,16 @@ translation of it:
    `node scripts/i18n.mjs sync-zh` to copy `zh_CN` into `zh`. Write `zh_TW` and `zh_HK` as the
    regional conversion of that `zh_CN` text, not as separate translations. Change Chinese wording
    in `zh_CN` first and carry it to the others.
-4. A new string is a machine draft until a native speaker checks it; there is no status file to
-   update.
-5. `npm run lint` checks the catalogs (`lint:i18n`). It fails on keys that are missing, unused, or
+4. `npm run lint` checks the catalogs (`lint:i18n`). It fails on keys that are missing, unused, or
    have different placeholders than the English; on a `zh` that differs from `zh_CN`; on numbers
    formatted in a fixed locale; and on approval-screen labels too long to fit on one line (see
    [Approval screens](ARCHITECTURE.md#approval-screens)).
 
 ### Reviewing a translation
 
-`node scripts/i18n.mjs review ja --machine > review-ja.md` writes the unchecked strings as a
-table: the English, the translation, and where each appears. Once a native speaker has checked a
-string, add its key to `reviewed` in `i18n/ja.json`. The check fails if that list names
-a key that no longer exists.
+`node scripts/i18n.mjs review ja > review-ja.md` writes a locale as a table for a native speaker:
+the English, the translation, where each string appears and what it means. Apply their
+corrections to the catalog.
 
 ## Releasing
 

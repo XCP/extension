@@ -14,6 +14,7 @@ import {
   consolidateBareMultisigBatch,
 } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import type { KnownZeldOutpoint, ZeldOutpointUpdate } from '@/core/zeld/knownOutpoints';
 import { registerSessionExpiredHandler, setLastActiveTime } from '@/platform/auth/sessionManager';
 import { defineProxyService } from '@/platform/proxy';
 import { walletManager } from '@/platform/walletManager';
@@ -28,7 +29,6 @@ export interface WalletService {
   updateSettings: (updates: Partial<import('@/core/settings').AppSettings>) => Promise<void>;
   addConnectedWebsite: (origin: string, pairedIdentity?: { walletId: string; address: string; pairedAddress?: string }) => Promise<void>;
   removeConnectedWebsite: (origin: string) => Promise<void>;
-  clearConnectedWebsites: () => Promise<void>;
   setPairedAddressPermission: (origin: string, identity: { walletId: string; address: string; pairedAddress?: string } | null) => Promise<void>;
   getWallets: () => Promise<Wallet[]>;
   getActiveWallet: () => Promise<Wallet | undefined>;
@@ -87,6 +87,10 @@ export interface WalletService {
   getKnownScriptRecipients: (payer: string) => Promise<string[]>;
   /** Remember, in the encrypted keychain, that `payer` paid these script addresses. */
   recordScriptRecipients: (payer: string, recipients: string[]) => Promise<void>;
+  /** Outputs `address` was last known to hold ZELD on, for approvals while the indexer is down. */
+  getKnownZeldOutpoints: (address: string) => Promise<KnownZeldOutpoint[]>;
+  /** Update, in the encrypted keychain, the record of `address`'s ZELD outputs. */
+  recordZeldOutpoints: (address: string, update: ZeldOutpointUpdate) => Promise<void>;
   setLastActiveAddress: (address: string) => Promise<void>;
   /** Record user activity; `activityTime` is when it happened, for activity the UI reports late. */
   setLastActiveTime: (activityTime?: number) => Promise<void>;
@@ -145,7 +149,6 @@ function createWalletService(): WalletService {
     },
     addConnectedWebsite: async (origin, pairedIdentity) => walletManager.addConnectedWebsite(origin, pairedIdentity),
     removeConnectedWebsite: async (origin) => walletManager.removeConnectedWebsite(origin),
-    clearConnectedWebsites: async () => walletManager.clearConnectedWebsites(),
     setPairedAddressPermission: async (origin, identity) => walletManager.setPairedAddressPermission(origin, identity),
     getWallets: async () => walletManager.getWallets(),
     getActiveWallet: async () => walletManager.getActiveWallet(),
@@ -251,6 +254,8 @@ function createWalletService(): WalletService {
     },
     getKnownScriptRecipients: async (payer) => walletManager.getKnownScriptRecipients(payer),
     recordScriptRecipients: async (payer, recipients) => walletManager.recordScriptRecipients(payer, recipients),
+    getKnownZeldOutpoints: async (address) => walletManager.getKnownZeldOutpoints(address),
+    recordZeldOutpoints: async (address, update) => walletManager.recordZeldOutpoints(address, update),
     getLastActiveAddress: async () => {
       const settings = walletManager.getSettings();
       return settings?.lastActiveAddress;

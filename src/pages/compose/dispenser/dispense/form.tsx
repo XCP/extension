@@ -7,6 +7,7 @@ import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-
 import { DispenserInput, type DispenserOption } from "@/components/domain/dispenser/dispenser-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
+import { SATS_PER_BTC } from "@/core/bitcoin/constants";
 import { estimateVsize } from "@/core/bitcoin/feeEstimation";
 import type { DispenseOptions } from "@/core/counterparty/compose";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
@@ -24,12 +25,6 @@ interface DispenseFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DispenseOptions | null;
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const SATOSHIS_PER_BTC = 1e8;
 
 // ============================================================================
 // Utility Functions
@@ -307,7 +302,7 @@ export function DispenseForm({
         const estimatedVbytes = estimateVsize(spendableBtc.utxoCount || 1, 1, activeAddress?.address || "");
         const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, feeRate)));
         const requiredSatoshis = selectedDispenser.satoshirate + estimatedFee;
-        const requiredBTC = requiredSatoshis / SATOSHIS_PER_BTC;
+        const requiredBTC = requiredSatoshis / SATS_PER_BTC;
         setValidationError(t('dispense_form_insufficient_btc_balance_you_need', [String(formatAmount({
             value: requiredBTC,
             minimumFractionDigits: 8,

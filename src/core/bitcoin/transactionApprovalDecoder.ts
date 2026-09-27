@@ -43,6 +43,8 @@ export async function decodeTransactionForApproval(
   rawTxHex: string,
   signerAddress?: string,
   resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout,
+  /** This wallet's other addresses (the signer's paired sibling), for saying whose outputs are whose. */
+  ownedAddresses?: string[],
 ): Promise<DecodedTransactionInfo> {
   // The screen must describe the bytes being signed, not a remote party's account of them
   // (see `unpack/verify.ts`). A parse failure is reported as such rather than deferring to the API's version.
@@ -120,6 +122,7 @@ export async function decodeTransactionForApproval(
     inputs,
     outputs,
     signerAddresses: signerAddress ? [signerAddress] : [],
+    ownedAddresses,
     signedInputIndices: inputs.map((_, index) => index),
     signedInputs: inputs.map((_, index) => ({ index, sighashType: 0x01 })),
     transactionId: parsed.txid,

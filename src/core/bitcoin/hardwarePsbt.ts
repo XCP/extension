@@ -3,6 +3,7 @@ import * as secp256k1 from '@noble/secp256k1';
 import { RawWitness, SigHash, Transaction } from '@scure/btc-signer';
 import { getPrevOut } from '@scure/btc-signer/transaction.js';
 import { hash160 } from '@scure/btc-signer/utils.js';
+import { DEFAULT_SEQUENCE } from '@/core/bitcoin/constants';
 import { parsePSBT } from '@/core/bitcoin/psbt';
 
 const PSBT_OPTIONS = {
@@ -11,8 +12,6 @@ const PSBT_OPTIONS = {
   allowLegacyWitnessUtxo: true,
   disableScriptCheck: true,
 } as const;
-
-const DEFAULT_SEQUENCE = 0xffffffff;
 
 const equalBytes = (left: Uint8Array, right: Uint8Array): boolean =>
   left.length === right.length && left.every((byte, index) => byte === right[index]);

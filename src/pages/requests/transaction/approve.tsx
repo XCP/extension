@@ -17,7 +17,8 @@ import {
 import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
 import { ApprovalSummaryCard } from "@/components/domain/approval/approval-summary-card";
 import { ApprovalTransactionDetails } from "@/components/domain/approval/approval-transaction-details";
-import { buildApprovalWarnings } from "@/components/domain/approval/approval-warnings";
+import { buildApprovalWarnings, zeldReviewNotes } from "@/components/domain/approval/approval-warnings";
+import { ApprovalZeldNotes } from "@/components/domain/approval/approval-zeld-notes";
 import { CounterpartyDetailsCard } from "@/components/domain/approval/counterparty-details-card";
 import { computeMoneyMovement } from "@/components/domain/approval/money-movement";
 import { buildOrderAction, type OrderAction } from "@/components/domain/approval/order-card";
@@ -207,7 +208,8 @@ export default function ApproveTransactionPage() {
   ], approvalPolicy?.requiresAcknowledgement);
   // An input past the lookup cap stays unknown however often it is retried.
   const retryAvailable = signedInputsUnknownStatus.some(entry => !entry.overLimit)
-    || decodedInfo.inputs.some(input => input.value === undefined || !input.address);
+    || decodedInfo.inputs.some(input => input.value === undefined || !input.address)
+    || safetyWarnings.some(warning => warning.code === "dispenser_lookup_retry");
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
   const blockingItems: WarningItem[] = [
     ...attention.filter(item => item.blocking),
@@ -285,6 +287,8 @@ export default function ApproveTransactionPage() {
         deferCautions={requiresAttention}
         protocolFeeXcp={decodedInfo.counterpartyMessage?.messageData?.fee}
       />
+
+      <ApprovalZeldNotes notes={zeldReviewNotes(safetyWarnings)} />
 
       <CounterpartyDetailsCard
         fields={txAction && "protocol" in txAction ? txAction.protocol : []}

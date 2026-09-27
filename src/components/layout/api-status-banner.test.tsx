@@ -1,6 +1,6 @@
 import { cleanup, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import { ApiStatusBanner } from './api-status-banner';
 
 const status = vi.hoisted(() => ({ value: { status: 'rate-limited', statusCode: 429, message: 'API rate limited. Requests may be slow.', dismiss: vi.fn() } }));

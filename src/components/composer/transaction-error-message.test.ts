@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from '@/core/settings';
 import { exactQuantity } from '@/core/validation/transaction-amount';
 import { TransactionInputError } from '@/core/validation/transaction-input-error';
 import { currentNumberLocale, t } from '@/i18n';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import { feeErrorMessage, transactionErrorMessage } from './transaction-error-message';
 
 afterEach(() => mockBrowserLocale({}));

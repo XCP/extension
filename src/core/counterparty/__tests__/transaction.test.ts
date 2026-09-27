@@ -10,7 +10,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/core/api/client';
 import { getActiveSettings } from '@/core/settings';
 import {
-  COUNTERPARTY_PREFIX_HEX,
   type DecodedBitcoinTransaction,
   decodeCounterpartyMessage,
   decodeRawTransaction,
@@ -20,6 +19,7 @@ import {
   hasCounterpartyPrefix,
   type UnpackedCounterpartyData,
 } from '../transaction';
+import { COUNTERPARTY_PREFIX_HEX } from '../unpack/messageTypes';
 
 // Mock dependencies
 vi.mock('@/core/api/client');

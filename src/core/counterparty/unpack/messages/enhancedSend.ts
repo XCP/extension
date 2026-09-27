@@ -18,11 +18,10 @@ import { PACKED_ADDRESS_LENGTH, unpackAddress } from '@/core/counterparty/unpack
 import { assetIdToName } from '@/core/counterparty/unpack/assetId';
 import { BinaryReader, bytesToTextOrHex } from '@/core/counterparty/unpack/binary';
 import { tryDecodeCborArray } from '@/core/counterparty/unpack/cbor';
+import { MAX_MEMO_LENGTH } from '@/core/counterparty/unpack/messageTypes';
 
 /** Minimum length of legacy enhanced send (without memo) */
 const MIN_LEGACY_LENGTH = 8 + 8 + 21; // 37 bytes
-/** Maximum memo length */
-const MAX_MEMO_LENGTH = 34;
 
 /**
  * Unpacked enhanced send data

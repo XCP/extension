@@ -2,7 +2,7 @@ import { act, cleanup, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchMempoolLedgerEvents } from '@/core/counterparty/api';
 import { usePendingStatus } from '@/hooks/usePendingStatus';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import { PendingStatus } from './pending-status';
 
 vi.mock('@/core/counterparty/api', () => ({
