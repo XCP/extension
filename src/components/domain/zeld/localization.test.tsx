@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { transactionErrorMessage } from '@/components/composer/transaction-error-message';
-import { buildApprovalWarnings } from '@/components/domain/approval/approval-warnings';
+import { buildApprovalWarnings, zeldNoticeText, zeldReviewNotes } from '@/components/domain/approval/approval-warnings';
 import { CounterpartyApiError } from '@/core/errors';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { t } from '@/i18n';
@@ -54,19 +54,24 @@ describe.each(['ja', 'zh-CN', 'zh-TW', 'zh-HK'])('ZELD presentation in %s', lang
     expect(transactionErrorMessage(new Error('unknown vendor ZELD diagnostic: 123'))).toBeUndefined();
   });
 
-  it.each(['block', 'warning'] as const)('retains the %s decision and output count across serialized approval evidence', severity => {
+  it('words ZELD notices from serialized approval evidence, keeping the exact amount and destination', () => {
     mockBrowserLocale({ language });
-    const warning = { severity, code: 'zeld_would_leave' as const, data: { count: 2 }, title: 'fallback', message: 'raw evidence' };
+    const leaves = { severity: 'warning' as const, code: 'zeld_movement' as const,
+      data: { kind: 'leaves' as const, amount: '409600000001', destination: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh' },
+      title: 'fallback', message: 'raw evidence' };
+    const asset = { severity: 'info' as const, code: 'zeld_movement' as const,
+      data: { kind: 'asset_output' as const, amount: '409600000000', asset: 'RARESHADILAY', vout: 0 },
+      title: 'fallback', message: 'raw evidence' };
     const items = buildApprovalWarnings({
-      safetyWarnings: [JSON.parse(JSON.stringify(warning))], displayedText: [], attachedAssetDestination: null,
+      safetyWarnings: JSON.parse(JSON.stringify([leaves, asset])), displayedText: [], attachedAssetDestination: null,
       structureFindings: [], signedInputsWithAssets: [], signedInputsUnknownStatus: [],
     });
-    expect(items[0]).toMatchObject({
-      severity: severity === 'block' ? 'danger' : 'warning', blocking: severity === 'block',
-      title: severity === 'block' ? t('zeld_safety_blocked') : t('zeld_safety_warning'),
-      description: severity === 'block' ? t('zeld_safety_blocked_detail', ['2']) : t('zeld_safety_warning_detail', ['2']),
-    });
-    expect(warning.data.count).toBe(2);
-    expect(warning.message).toBe('raw evidence');
+    expect(items[0]).toMatchObject({ severity: 'warning', blocking: false, title: t('zeld_safety_warning') });
+    expect(items[0]!.description).toContain('4,096.00000001');
+    expect(items[0]!.description).toContain(leaves.data.destination);
+    expect(zeldReviewNotes([asset])).toEqual([t('zeld_approval_asset_output', ['4,096', 'RARESHADILAY'])]);
+    expect(zeldNoticeText({ kind: 'unchecked', items: [1, 3] }).description)
+      .toBe(t('zeld_approval_items_many', ['1, 3', t('zeld_approval_unchecked')]));
+    expect(leaves.message).toBe('raw evidence');
   });
 });

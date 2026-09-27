@@ -152,10 +152,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultOrderExpiration: DEFAULT_ORDER_EXPIRATION,
   defaultPoolSlippage: POOL_SLIPPAGE_AUTO,
   strictTransactionVerification: true,
-  // On by default. At the popup's worker count a six-zero txid usually turns up in a few
-  // seconds and the hunt then goes on for a seven-zero one, which takes about half a minute on
-  // average; 30 seconds finds one more often than not, and the spinner offers to stop early.
-  // Zero turns it off.
+  // Off by default (zero is off). Hunting blocks a site's transaction that would move ZELD, so it
+  // suits wallets not used with websites. When turned on, at the popup's worker count a six-zero
+  // txid usually turns up in a few seconds and the hunt then goes on for a seven-zero one, which
+  // takes about half a minute on average; the spinner offers to stop early.
   zeldHuntSeconds: 0,
   connectedWebsites: [],
   providerCapabilities: {},

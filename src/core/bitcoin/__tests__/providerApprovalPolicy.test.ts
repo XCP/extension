@@ -7,6 +7,7 @@ import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
 import { marketplaceReviewRequiresAcknowledgement } from '@/core/counterparty/marketplaceReviewPolicy';
+import { zeldWarning } from '@/core/counterparty/signRequestAnalysis';
 import { asDisplayUnits } from '@/core/numeric';
 
 const ADDRESS = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
@@ -123,6 +124,48 @@ describe('getPsbtBundleApprovalPolicy for routine marketplace cautions', () => {
     const { policy, warnings } = getPsbtBundleApprovalPolicy(input, info, true, 10);
     expect(policy.requiresAcknowledgement).toBe(true);
     expect(warnings.some(warning => warning.title.includes('Review transaction risks'))).toBe(true);
+  });
+});
+
+describe('ZELD notices on a batch', () => {
+  const zeldOn = (info: DecodedPsbtInfo, notice: Parameters<typeof zeldWarning>[0]) => {
+    info.safety.warnings = [zeldWarning(notice, false)];
+    return info;
+  };
+  function batch(items: DecodedPsbtInfo[]) {
+    const input: PsbtBundleApprovalInput & { address: string } = {
+      address: ADDRESS, bundleKind: 'bulk-attach',
+      items: items.map(() => ({
+        psbtHex: '', signInputs: { [ADDRESS]: [0] }, sighashTypes: [0x01],
+        marketplaceIntent: {} as PsbtBundleApprovalInput['items'][number]['marketplaceIntent'],
+      })),
+    };
+    return getPsbtBundleApprovalPolicy(input, { items, review: { ...review('marketplace_batch'), status: 'caution' } }, true, 10);
+  }
+  const leaves = { kind: 'leaves' as const, amount: '5', destination: 'bc1qstranger' };
+
+  it('states a shared notice once, naming the items it concerns', () => {
+    const { policy, warnings } = batch([
+      zeldOn(decoded(review('attach_for_listing')), leaves),
+      decoded(review('attach_for_listing')),
+      zeldOn(decoded(review('attach_for_listing')), leaves),
+    ]);
+    const zeld = warnings.filter(warning => warning.code === 'zeld_movement');
+    expect(zeld).toHaveLength(1);
+    expect(zeld[0]).toMatchObject({ severity: 'warning', data: { ...leaves, items: [1, 3] } });
+    expect(policy.requiresAcknowledgement).toBe(true);
+    // The ZELD warning is the reason for the review step; no generic item is added beside it.
+    expect(warnings.some(warning => warning.title.includes('Review transaction risks'))).toBe(false);
+  });
+
+  it('names no items when every item raises it, and keeps an asset note out of the review step', () => {
+    const note = { kind: 'asset_output' as const, amount: '5', asset: 'RAREPEPE', vout: 0 };
+    const { policy, warnings } = batch([
+      zeldOn(decoded(review('attach_for_listing')), note),
+      zeldOn(decoded(review('attach_for_listing')), note),
+    ]);
+    expect(warnings).toEqual([expect.objectContaining({ severity: 'info', data: note })]);
+    expect(policy.requiresAcknowledgement).toBe(false);
   });
 });
 
