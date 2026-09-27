@@ -2,7 +2,7 @@
  * Where the wallet context registers the lookup behind `getSourcePubkey` (`sourcePubkey.ts`).
  *
  * A leaf module so the wallet context, which the popup loads on its first screen, can register
- * the provider without importing the curve-point check (@noble/secp256k1) that reading it needs.
+ * the provider without importing the curve-point check (@noble/curves secp256k1) that reading it needs.
  */
 
 export type SourcePubkeyProvider = (address: string) => string | null;

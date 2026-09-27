@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
@@ -328,7 +328,7 @@ describe('Composer', () => {
       tx.addInput({
         txid: hexToBytes(FIRST_INPUT_TXID),
         index: 0,
-        witnessUtxo: { script: p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 100_000n },
+        witnessUtxo: { script: p2wpkh(secp256k1.getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 100_000n },
       });
       tx.addOutput({ script: new Uint8Array([0x6a, payload.length, ...payload]), amount: 0n });
       tx.addOutputAddress(OWN_ADDRESS, 98_000n); // change, back to the signer
@@ -494,7 +494,7 @@ describe('Composer', () => {
       tx.addInput({
         txid: hexToBytes(FIRST_INPUT_TXID),
         index: 0,
-        witnessUtxo: { script: p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 200_000n },
+        witnessUtxo: { script: p2wpkh(secp256k1.getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 200_000n },
       });
       tx.addOutputAddress(BURN_ADDRESS, 50_000n);
       tx.addOutputAddress(OWN_ADDRESS, 40_000n); // change; the stubbed resolver funds 100k
@@ -530,7 +530,7 @@ describe('Composer', () => {
       tx.addInput({
         txid: hexToBytes(FIRST_INPUT_TXID),
         index: 0,
-        witnessUtxo: { script: p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 200_000n },
+        witnessUtxo: { script: p2wpkh(secp256k1.getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 200_000n },
       });
       tx.addOutputAddress(BURN_ADDRESS, 80_000n); // more than was asked
       tx.addOutputAddress(OWN_ADDRESS, 10_000n);
@@ -566,7 +566,7 @@ describe('Composer', () => {
       tx.addInput({
         txid: hexToBytes('33'.repeat(32)),
         index: 0,
-        witnessUtxo: { script: p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 200_000n },
+        witnessUtxo: { script: p2wpkh(secp256k1.getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 200_000n },
       });
       const payload = arc4(
         hexToBytes(FIRST_INPUT_TXID),

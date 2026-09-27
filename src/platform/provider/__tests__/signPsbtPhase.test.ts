@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2pkh, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
@@ -57,7 +57,7 @@ describe('signPsbtPhaseForDelivery', () => {
 const PRIVATE_KEY = 'e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35';
 
 function legacyAttachAndDependentListing() {
-  const publicKey = getPublicKey(hexToBytes(PRIVATE_KEY), true);
+  const publicKey = secp256k1.getPublicKey(hexToBytes(PRIVATE_KEY), true);
   const legacy = p2pkh(publicKey);
   const segwit = p2wpkh(publicKey);
 

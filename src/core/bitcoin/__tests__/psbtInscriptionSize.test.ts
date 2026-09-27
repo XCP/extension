@@ -1,13 +1,13 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { Address, p2tr, SigHash, Transaction, taprootNumsKey } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '../address';
 import { extractPsbtDetails, parsePSBT, signPSBT } from '../psbt';
 
 const PRIVATE_KEY = '01'.repeat(32);
-const owner = p2tr(getPublicKey(hexToBytes(PRIVATE_KEY)).slice(1, 33));
+const owner = p2tr(secp256k1.getPublicKey(hexToBytes(PRIVATE_KEY)).slice(1, 33));
 const decodedOwner = Address().decode(owner.address!);
 if (decodedOwner.type !== 'tr') throw new Error('Expected Taproot fixture');
 const ownerOutputKey = decodedOwner.pubkey;

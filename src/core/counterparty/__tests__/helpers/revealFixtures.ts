@@ -5,8 +5,8 @@
  * leaf with the bare CNTRPRTY marker as its only output (plus any `leading`/`trailing` outputs).
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2tr, p2wpkh, TaprootControlBlock, Transaction, utils } from '@scure/btc-signer';
 import { encodeCbor } from '@/core/counterparty/pack/cbor';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
@@ -14,8 +14,8 @@ import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes
 const key = (fill: number) => new Uint8Array(32).fill(fill);
 
 export const USER_KEY = key(1);
-export const USER_ADDRESS = p2wpkh(getPublicKey(USER_KEY, true)).address!;
-export const OTHER_ADDRESS = p2wpkh(getPublicKey(key(2), true)).address!;
+export const USER_ADDRESS = p2wpkh(secp256k1.getPublicKey(USER_KEY, true)).address!;
+export const OTHER_ADDRESS = p2wpkh(secp256k1.getPublicKey(key(2), true)).address!;
 /** The site's throwaway key: it signs the reveal, and nothing about it is the user's. */
 export const EPHEMERAL_KEY = key(3);
 export const EPHEMERAL_PUBKEY = utils.pubSchnorr(EPHEMERAL_KEY);
@@ -75,7 +75,7 @@ export interface RevealOutputSpec {
 /** A P2WPKH output script for an address the fixtures know: the user's or the other party's. */
 export function payTo(address: string, amount: bigint): RevealOutputSpec {
   const secret = address === USER_ADDRESS ? USER_KEY : key(2);
-  return { script: p2wpkh(getPublicKey(secret, true)).script, amount };
+  return { script: p2wpkh(secp256k1.getPublicKey(secret, true)).script, amount };
 }
 
 export interface CommitFixture {
@@ -101,8 +101,8 @@ export function buildCommit(leaf: Uint8Array, options: {
   const payment = p2tr(EPHEMERAL_PUBKEY, tree, undefined, true);
   const funder = options.funder ?? USER_ADDRESS;
   const funderScript = funder === USER_ADDRESS
-    ? p2wpkh(getPublicKey(USER_KEY, true)).script
-    : p2wpkh(getPublicKey(key(2), true)).script;
+    ? p2wpkh(secp256k1.getPublicKey(USER_KEY, true)).script
+    : p2wpkh(secp256k1.getPublicKey(key(2), true)).script;
   const tx = new Transaction();
   tx.addInput({
     txid: options.prevTxid ?? '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0',

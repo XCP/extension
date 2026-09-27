@@ -7,15 +7,15 @@
  * deliberately held back.
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
 import { checkInputPolicy } from '../inputPolicy';
 
 const OWNER_KEY = hexToBytes('11'.repeat(32));
-const OWNER_PUBKEY = getPublicKey(OWNER_KEY, true);
+const OWNER_PUBKEY = secp256k1.getPublicKey(OWNER_KEY, true);
 const OWNER = encodeAddress(OWNER_PUBKEY, AddressFormat.P2WPKH);
 
 const OFFERED_A = 'aa'.repeat(32);

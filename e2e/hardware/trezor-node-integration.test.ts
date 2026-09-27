@@ -15,8 +15,8 @@
  * Run with: npx vitest run e2e/hardware/trezor-node-integration.test.ts
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { Address, OutScript, p2wpkh, RawWitness, SigHash, Transaction } from '@scure/btc-signer';
 import TrezorConnect, { UI_EVENTS } from '@trezor/connect';
 import { BridgeTransport } from '@trezor/transport-common';
@@ -564,7 +564,7 @@ describe('Trezor Node.js Integration Tests', () => {
 
       const deviceScript = OutScript.encode(Address().decode(EXPECTED_ADDRESSES.NATIVE_SEGWIT));
       const externalPrivateKey = hexToBytes('22'.repeat(32));
-      const externalPayment = p2wpkh(getPublicKey(externalPrivateKey, true));
+      const externalPayment = p2wpkh(secp256k1.getPublicKey(externalPrivateKey, true));
       if (!externalPayment.address) throw new Error('Failed to derive external test address');
 
       const deviceFunding = syntheticFundingTransaction(0x42, 100_000n, deviceScript);
@@ -653,7 +653,7 @@ describe('Trezor Node.js Integration Tests', () => {
 
       const sellerScript = OutScript.encode(Address().decode(EXPECTED_ADDRESSES.NATIVE_SEGWIT));
       const buyerPrivateKey = hexToBytes('33'.repeat(32));
-      const buyerPayment = p2wpkh(getPublicKey(buyerPrivateKey, true));
+      const buyerPayment = p2wpkh(secp256k1.getPublicKey(buyerPrivateKey, true));
       if (!buyerPayment.address) throw new Error('Failed to derive buyer test address');
 
       const buyerFunding = syntheticFundingTransaction(0x51, 110_000n, buyerPayment.script);
@@ -746,7 +746,7 @@ describe('Trezor Node.js Integration Tests', () => {
 
       const buyerScript = OutScript.encode(Address().decode(EXPECTED_ADDRESSES.NATIVE_SEGWIT));
       const sellerPrivateKey = hexToBytes('44'.repeat(32));
-      const sellerPayment = p2wpkh(getPublicKey(sellerPrivateKey, true));
+      const sellerPayment = p2wpkh(secp256k1.getPublicKey(sellerPrivateKey, true));
       const buyerFunding = syntheticFundingTransaction(0x61, 110_000n, buyerScript);
       const sellerFunding = syntheticFundingTransaction(0x62, 330n, sellerPayment.script);
       const buyerInput = buyerFunding.getInput(0);

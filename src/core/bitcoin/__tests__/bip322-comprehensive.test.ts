@@ -2,7 +2,7 @@
  * Comprehensive BIP-322 test to ensure no cheating
  */
 
-import * as secp256k1 from '@noble/secp256k1';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { hex } from '@scure/base';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
