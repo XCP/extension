@@ -18,6 +18,7 @@ import {
   newProofLog,
   proveActualFee,
   proveAttachedAsset,
+  proveKeyPathFeeOutput,
   proveTxidClaim,
   reviewStatus,
   safeSum,
@@ -538,6 +539,7 @@ export function analyzeBuyListingsIntent(
   }
 
   let trailingIndex = itemCount + 1;
+  let keyPathFee: { index: number; address: string } | null = null;
   if (intent.platformFeeSats > 0) {
     const platformOutput = outputs[trailingIndex];
     if (
@@ -549,7 +551,10 @@ export function analyzeBuyListingsIntent(
     ) {
       blockers.push(`output ${trailingIndex} is not the claimed external platform fee`);
     }
+    keyPathFee = proveKeyPathFeeOutput(log, platformOutput, intent.platformFeeInternalKey);
     trailingIndex += 1;
+  } else if (intent.platformFeeInternalKey !== undefined) {
+    blockers.push('the checkout names a platform fee key but pays no platform fee');
   }
   const changeOutput = outputs[trailingIndex];
   if (changeOutput && (!sameAddress(changeOutput.address, intent.buyer) || changeOutput.value <= 0)) {
@@ -599,10 +604,12 @@ export function analyzeBuyListingsIntent(
   const collectibles = itemCount === 1
     ? t('marketplace_intent_one_collectible')
     : t('marketplace_intent_collectibles_count', grouped(itemCount));
+  const provedFee = status === 'proved' ? keyPathFee : null;
   return {
     status,
     family: 'buy_listings',
     ...ledgerBlockKind(blockers, log.ledger),
+    ...(provedFee ? { keyPathFeeOutput: provedFee } : {}),
     ...(status === 'proved' ? {
       paymentSummary,
       summary: {
@@ -621,6 +628,10 @@ export function analyzeBuyListingsIntent(
             value: `${receivedAsset.quantity_normalized} ${receivedAsset.asset}`,
           }]
         : []),
+      ...(provedFee ? [{
+        kind: 'address' as const, label: t('marketplace_intent_marketplace_fee'), value: provedFee.address,
+        description: t('marketplace_intent_key_path_fee_output'),
+      }] : []),
       // Per-item rows already name each asset; this row only adds the distinct-asset count when it
       // differs from the item count.
       {

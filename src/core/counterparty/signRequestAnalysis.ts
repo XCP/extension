@@ -586,6 +586,27 @@ export async function analyzeSignRequest(
       }
       safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
     }
+    const keyPathFee = marketplaceReview.keyPathFeeOutput;
+    if (
+      keyPathFee
+      && (marketplaceReview.status === 'proved' || marketplaceReview.status === 'caution')
+      && safety.warnings.some(warning => warning.code === 'unproven_script_output')
+    ) {
+      // The proof rebuilt the fee output from its declared BIP86 key with no script tree: it has no
+      // script path, so no envelope can be revealed from it. Drop it from the caution, and only it;
+      // any other script address this transaction pays is still named (the payer's holdings were
+      // already found to warrant the caution, or it would not be here).
+      const rest = scriptPaymentRisk({
+        ...scriptPaymentInput,
+        provenAddresses: [...scriptPaymentInput.provenAddresses, keyPathFee.address],
+      }, true);
+      safety.warnings = safety.warnings.flatMap((warning): SecurityWarning[] => {
+        if (warning.code !== 'unproven_script_output') return [warning];
+        if (!rest) return [];
+        const text = scriptPaymentRiskText(rest);
+        return [{ ...warning, data: rest, title: text.title, message: text.description }];
+      });
+    }
   }
 
   // Last, so no marketplace family's warning filter can remove it: a SINGLE/NONE signature over

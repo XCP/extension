@@ -1,10 +1,13 @@
 /** Checks shared by every marketplace intent analyzer. */
 
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { p2tr } from '@scure/btc-signer';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import type {
   InputLike,
   MarketplaceBlockKind,
   MarketplaceOutpointClaim,
+  OutputLike,
 } from '@/core/counterparty/marketplace/intentTypes';
 import {
   POLICY_OFFER_LOCKTIME,
@@ -195,4 +198,38 @@ export function proveAttachedAsset(
     return null;
   }
   return actual.quantity_normalized;
+}
+
+/**
+ * Prove the platform fee output is the BIP86 key-path Taproot output of the declared internal key:
+ * `p2tr(internalKey)` with no script tree, byte for byte. A Taproot output key commits to its one
+ * script tree, and here that tree is empty, so the output has no script path and no Counterparty
+ * envelope can ever be revealed from it (whoever holds the key can only key-path spend it).
+ *
+ * Returns the proved output, or null. No declared key: null with nothing logged (the output stays
+ * an ordinary unproven payment). A declared key that is not a curve point or does not produce the
+ * output script: the site described a different output, which blocks.
+ */
+export function proveKeyPathFeeOutput(
+  log: ProofLog,
+  output: OutputLike | undefined,
+  internalKey: string | undefined,
+): { index: number; address: string } | null {
+  if (internalKey === undefined) return null;
+  let expected: string | undefined;
+  try {
+    expected = bytesToHex(p2tr(hexToBytes(internalKey)).script);
+  } catch {
+    expected = undefined;
+  }
+  if (
+    expected === undefined
+    || !output?.address
+    || output.type === 'op_return'
+    || output.script?.toLowerCase() !== expected
+  ) {
+    log.blockers.push('the platform fee output is not the key-path Taproot output of the declared internal key');
+    return null;
+  }
+  return { index: output.index, address: output.address };
 }

@@ -148,6 +148,33 @@ take a slot only through a later `authorize_exact_offer` signature, which is its
   `target.collection` and `target.policy` are cleaned of control and bidi characters, collapsed to
   one line, shortened, and shown in quotation marks as the website's own words.
 
+## Marketplace fee output (`platformFeeInternalKey`)
+
+`buy_listings`, `authorize_exact_offer` and `accept_exact_offer` may carry an optional
+`platformFeeInternalKey`: the 32-byte x-only internal key (64 hex characters) of the platform fee
+output, when that output is a BIP86 key-path Taproot address.
+
+A Taproot address hides its script tree, and a Counterparty reveal publishes its message from the
+address that funded the commit, so a payment to an unproven script address from an address holding
+Counterparty assets carries the "Payment to a Script Address" caution (and, with it, a second
+confirmation). With the key, the wallet rebuilds `p2tr(internalKey)` with no script tree and requires
+it to equal the fee output's script byte for byte (the fee output being the one the proof already
+matched by position and amount). Such an output has no script path, so no envelope can ever be
+revealed from it: the review labels it **Marketplace fee** and the caution is dropped for that output
+and no other. A key that does not produce the fee output, or a key on a transaction with no fee
+output, blocks. Without the key nothing changes: the caution stays.
+
+```js
+intent: {
+  // ...the buy_listings / exact-offer claim...
+  platformFeeSats: 1000,
+  platformFeeInternalKey: '<x-only internal key of the fee address, 64 hex chars>',
+}
+```
+
+For an address derived from a BIP86 account xpub at `0/i`, the internal key is the child public key
+without its first (parity) byte.
+
 ## Linked bundles
 
 `xcp_signPsbts` signs 1..8 linked requests (1..100 for `fund-policy-offer`) in one approval,

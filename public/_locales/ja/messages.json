@@ -3221,6 +3221,9 @@
   "marketplace_intent_items_with_asset_count": {
     "message": "$1（アセット $2 種類）"
   },
+  "marketplace_intent_key_path_fee_output": {
+    "message": "スクリプトのないキーパス Taproot アドレス：支払っても、あなたのアドレスから Counterparty メッセージが発行されることはありません"
+  },
   "marketplace_intent_list_for_sale": {
     "message": "出品する"
   },
@@ -3229,6 +3232,9 @@
   },
   "marketplace_intent_expires": {
     "message": "有効期限"
+  },
+  "marketplace_intent_marketplace_fee": {
+    "message": "マーケットプレイス手数料"
   },
   "marketplace_intent_network_fee": {
     "message": "ネットワーク手数料"

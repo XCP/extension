@@ -113,6 +113,13 @@ export interface BuyListingsIntentClaim {
   subtotalSats: number;
   networkFeeSats: number;
   platformFeeSats: number;
+  /**
+   * Optional: the x-only internal key of the platform fee output, when that output is a BIP86
+   * key-path Taproot address (the marketplace derives its fee addresses that way). With it the
+   * wallet proves the output commits to no script, so no Counterparty envelope can ever be
+   * revealed from it, and it drops the script-address caution for exactly that output.
+   */
+  platformFeeInternalKey?: string;
   totalSats: number;
   expectedTxid: string;
   delivery: MarketplaceSettlementDelivery;
@@ -143,6 +150,13 @@ export interface ExactOfferIntentBase<Action extends 'authorize_exact_offer' | '
    * and an absent value means the bidder funded the whole fee.
    */
   sellerPaidFeeSats?: number;
+  /**
+   * Optional: the x-only internal key of the platform fee output, when that output is a BIP86
+   * key-path Taproot address (the marketplace derives its fee addresses that way). With it the
+   * wallet proves the output commits to no script, so no Counterparty envelope can ever be
+   * revealed from it, and it drops the script-address caution for exactly that output.
+   */
+  platformFeeInternalKey?: string;
   expectedTxid: string;
   delivery: MarketplaceSettlementDelivery;
   marketplaceExpiresAt: number;
@@ -328,6 +342,13 @@ export interface MarketplaceApprovalReview {
    * wallet checks. Presentation only; any blocked review refuses signing the same way.
    */
   blockKind?: MarketplaceBlockKind;
+  /**
+   * The platform fee output, set only on a proved (or routine-caution) review whose intent named
+   * its BIP86 internal key and whose output script is exactly that key's key-path Taproot output.
+   * Such an output commits to no script, so paying it cannot let anyone reveal a Counterparty
+   * message from the payer; the script-address caution is dropped for it and for nothing else.
+   */
+  keyPathFeeOutput?: { index: number; address: string };
 }
 
 export interface InputLike {
