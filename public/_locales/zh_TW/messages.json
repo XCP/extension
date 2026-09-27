@@ -935,36 +935,6 @@
   "assets_asset_view_dividend_transaction": {
     "message": "檢視分紅交易 $1"
   },
-  "assets_failed_to_add_asset": {
-    "message": "新增資產失敗。"
-  },
-  "assets_failed_to_remove_asset": {
-    "message": "移除資產失敗。"
-  },
-  "assets_failed_to_search_assets": {
-    "message": "搜尋資產失敗。"
-  },
-  "assets_no_active_wallet_selected": {
-    "message": "未選擇活動錢包"
-  },
-  "assets_pin_up_to_assets_to": {
-    "message": "最多可將 $1 個資產置頂到主螢幕。"
-  },
-  "assets_remove_from_pinned": {
-    "message": "取消置頂 $1"
-  },
-  "assets_search_assets": {
-    "message": "搜尋資產"
-  },
-  "assets_search_assets_2": {
-    "message": "搜尋資產"
-  },
-  "assets_searching": {
-    "message": "搜尋中…"
-  },
-  "assets_you_can_only_pin_up": {
-    "message": "最多只能置頂 $1 個資產。"
-  },
   "attach_form_could_not_load_details_for": {
     "message": "無法載入此資產的詳情。"
   },
