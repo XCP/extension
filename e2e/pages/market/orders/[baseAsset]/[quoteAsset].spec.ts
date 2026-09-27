@@ -4,8 +4,23 @@
  * Tests for /market/orders/:baseAsset/:quoteAsset route - trading pair order book
  */
 
+import type { Locator, Page } from '@playwright/test';
 import { expect, walletTest } from '../../../../fixtures';
 import { common, market } from '../../../../selectors';
+
+/**
+ * Open a side of the XCP/BTC book and wait for it to settle: either its first price level or its
+ * empty state. Reading the rows right after the tab click could find the previous side's rows.
+ */
+async function firstPriceLevel(page: Page, side: 'buy' | 'sell'): Promise<Locator | null> {
+  const tab = side === 'buy' ? market.buyTab(page) : market.sellTab(page);
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  const level = market.orderCards(page);
+  const empty = page.getByText(side === 'buy' ? 'No buy orders for XCP/BTC' : 'No sell orders for XCP/BTC');
+  await expect(level.or(empty).first()).toBeVisible({ timeout: 15000 });
+  return (await level.isVisible()) ? level : null;
+}
 
 walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)', () => {
   walletTest('asset orders page loads', async ({ page }) => {
@@ -25,10 +40,8 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await page.goto(page.url().replace(/\/index.*/, '/market/orders/XCP/BTC'));
     await page.waitForLoadState('networkidle');
 
-    // Should show asset icon/name or pair name
-    const assetHeader = page.locator('[class*="icon"], img[alt*="XCP"]')
-      .or(page.locator('text=/XCP\\/BTC|XCP \\/ BTC/i'));
-    await expect(assetHeader.first()).toBeVisible({ timeout: 5000 });
+    // The asset card names the base asset once the asset loads from the API.
+    await expect(page.getByRole('heading', { level: 2, name: 'XCP' })).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('shows Buy, Sell, and Matched tabs or loading', async ({ page }) => {
@@ -176,22 +189,8 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await page.goto(page.url().replace(/\/index.*/, '/market/orders/XCP/BTC'));
     await page.waitForLoadState('networkidle');
 
-    // Click on Sell tab to see sell orders
-    const sellTab = market.sellTab(page);
-    const sellTabCount = await sellTab.count();
-    if (sellTabCount > 0) {
-      await sellTab.click();
-      await page.waitForLoadState('networkidle');
-    }
-
-    // Find and click first order card
-    const orderCard = market.orderCards(page);
-    const cardCount = await orderCard.count();
-
-    if (cardCount === 0) {
-      // No orders available, skip test
-      return;
-    }
+    const orderCard = await firstPriceLevel(page, 'sell');
+    if (!orderCard) return; // no sell orders on the live book
 
     await orderCard.click();
 
@@ -211,22 +210,8 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await page.goto(page.url().replace(/\/index.*/, '/market/orders/XCP/BTC'));
     await page.waitForLoadState('networkidle');
 
-    // Click on Buy tab to see buy orders
-    const buyTab = market.buyTab(page);
-    const buyTabCount = await buyTab.count();
-    if (buyTabCount > 0) {
-      await buyTab.click();
-      await page.waitForLoadState('networkidle');
-    }
-
-    // Find and click first order card
-    const orderCard = market.orderCards(page);
-    const cardCount = await orderCard.count();
-
-    if (cardCount === 0) {
-      // No orders available, skip test
-      return;
-    }
+    const orderCard = await firstPriceLevel(page, 'buy');
+    if (!orderCard) return; // no buy orders on the live book
 
     await orderCard.click();
 

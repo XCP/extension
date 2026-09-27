@@ -472,7 +472,8 @@ export const market = {
   loadingState: (page: Page) => page.getByText(/Loading/i).first(),
   retryButton: (page: Page) => page.getByRole('button', { name: /Retry|Try Again/i }),
   // Order/dispenser cards in list views
-  orderCards: (page: Page) => page.getByRole('listitem').or(page.getByRole('button').filter({ hasText: /BTC|XCP/ })).first(),
+  // An order book price level: a role="button" row titled with its average price and totals.
+  orderCards: (page: Page) => page.locator('main div[role="button"][title]').first(),
 
   // Pools tab
   poolsTab: (page: Page) => page.getByRole('tab', { name: 'Pools' }),
