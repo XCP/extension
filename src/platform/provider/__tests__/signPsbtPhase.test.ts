@@ -148,7 +148,7 @@ describe('dependent attach and listing signing', () => {
 
 describe('signFundAndAuthorizationsForDelivery', () => {
   const key = hexToBytes(PRIVATE_KEY);
-  const owner = p2wpkh(getPublicKey(key, true));
+  const owner = p2wpkh(secp256k1.getPublicKey(key, true));
   function fundAndAuthorization() {
     const fund = new Transaction({ version: 2, lockTime: 0 });
     fund.addInput({ txid: new Uint8Array(32).fill(1), index: 0, witnessUtxo: { script: owner.script, amount: 20_000n } });
