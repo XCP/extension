@@ -354,8 +354,9 @@ export class ApprovalService {
     const text = this.pendingApproval ? '1' : '';
 
     if (chrome.action) {
-      chrome.action.setBadgeText({ text });
-      chrome.action.setBadgeBackgroundColor({
+      // Cosmetic: a badge that fails to update changes nothing about the approval itself.
+      void chrome.action.setBadgeText({ text });
+      void chrome.action.setBadgeBackgroundColor({
         color: text ? '#3B82F6' : '#000000'
       });
     }

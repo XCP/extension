@@ -621,7 +621,7 @@ export function ComposerProvider<T>({
       if (signal.aborted) return;
 
       // Track successful compose (form → review)
-      analytics.track('compose');
+      void analytics.track('compose');
 
       // Update state to review step with API response
       setState(prev => ({
@@ -652,7 +652,7 @@ export function ComposerProvider<T>({
         errorMessage = transactionErrorMessage(error) ?? error.message;
       }
 
-      analytics.track(`compose_error_${classifyTransactionError(errorMessage)}`);
+      void analytics.track(`compose_error_${classifyTransactionError(errorMessage)}`);
 
       // Don't update state if aborted
       if (signal.aborted) return;
@@ -821,7 +821,7 @@ export function ComposerProvider<T>({
       // Track successful broadcast with fee bucket
       const btcFee = apiResponseWithBroadcast?.result?.btc_fee || 0;
       const btcFeeAmount = fromSatoshis(btcFee, { asNumber: true });
-      analytics.track('broadcast', getBtcBucket(btcFeeAmount));
+      void analytics.track('broadcast', getBtcBucket(btcFeeAmount));
 
       // Only skip state update if aborted (user navigated away)
       if (signal.aborted) return;
@@ -848,7 +848,7 @@ export function ComposerProvider<T>({
         errorMessage = transactionErrorMessage(error) ?? error.message;
       }
 
-      analytics.track(`broadcast_error_${classifyTransactionError(errorMessage)}`);
+      void analytics.track(`broadcast_error_${classifyTransactionError(errorMessage)}`);
 
       // Don't update state if aborted
       if (signal.aborted) return;
@@ -883,7 +883,7 @@ export function ComposerProvider<T>({
       }));
     } else if (state.step === "success") {
       reset();
-      navigate("/index");
+      void navigate("/index");
     }
   }, [state.step, navigate, reset]);
   
