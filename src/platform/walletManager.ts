@@ -3,6 +3,8 @@ import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { AddressFormat, DEFAULT_ADDRESS_FORMAT, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat } from '@/core/bitcoin/address';
+import type { ConsolidationResult } from '@/core/bitcoin/consolidateBatch';
+import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
 import { isValidCounterwalletMnemonic } from '@/core/counterwallet';
@@ -1854,6 +1856,16 @@ export class WalletManager {
     options?: SignPsbtOptions,
   ): Promise<string> {
     return this.signer.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity, options);
+  }
+
+  /** Build and sign one bare-multisig consolidation batch in the background (see WalletSigner). */
+  public async consolidateBareMultisig(
+    sourceAddress: string,
+    batchData: ConsolidationData,
+    feeRateSatPerVByte: number,
+    destinationAddress?: string,
+  ): Promise<ConsolidationResult> {
+    return this.signer.signConsolidationBatch(sourceAddress, batchData, feeRateSatPerVByte, destinationAddress);
   }
 
 }

@@ -101,6 +101,7 @@ function verifyUtxoAgainstPrevTx(
  * @param batchData - Consolidation data from the recovery API
  * @param feeRateSatPerVByte - Fee rate in satoshis per vByte
  * @param destinationAddress - Optional destination address (defaults to source)
+ * @param assertStillAuthorized - Rechecked after each yield while signing; throw to stop the batch
  * @returns Consolidation result with signed tx and fee details
  */
 export async function consolidateBareMultisigBatch(
@@ -108,7 +109,8 @@ export async function consolidateBareMultisigBatch(
   sourceAddress: string,
   batchData: ConsolidationData,
   feeRateSatPerVByte: number,
-  destinationAddress?: string
+  destinationAddress?: string,
+  assertStillAuthorized?: () => void
 ): Promise<ConsolidationResult> {
   const utxos = batchData.utxos;
   if (!utxos || utxos.length === 0) {
@@ -189,7 +191,7 @@ export async function consolidateBareMultisigBatch(
       tx.addOutputAddress(serviceFeeAddress, serviceFeeSats);
     }
 
-    await signAndFinalizeBareMultisig(tx, privateKeyBytes, scripts);
+    await signAndFinalizeBareMultisig(tx, privateKeyBytes, scripts, assertStillAuthorized);
 
     const signedTxHex = tx.hex;
     return {

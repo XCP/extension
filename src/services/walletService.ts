@@ -9,10 +9,7 @@
  */
 
 import type { AddressFormat } from '@/core/bitcoin/address';
-import {
-  type ConsolidationResult as BatchConsolidationResult,
-  consolidateBareMultisigBatch,
-} from '@/core/bitcoin/consolidateBatch';
+import type { ConsolidationResult as BatchConsolidationResult } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import type { KnownZeldOutpoint, ZeldOutpointUpdate } from '@/core/zeld/knownOutpoints';
 import { registerSessionExpiredHandler, setLastActiveTime } from '@/platform/auth/sessionManager';
@@ -268,24 +265,10 @@ function createWalletService(): WalletService {
       }
       await setLastActiveTime(activityTime);
     },
-    consolidateBareMultisig: async (sourceAddress, batchData, feeRateSatPerVByte, destinationAddress) => {
-      // Sign in the background so the private key never reaches the popup
-      const activeWallet = walletManager.getActiveWallet();
-      const address = activeWallet?.addresses.find((a) => a.address === sourceAddress);
-      if (!activeWallet || !address) {
-        throw new Error('Source address is not part of the active wallet');
-      }
-      const privateKey = activeWallet.type === 'privateKey'
-        ? await walletManager.getPrivateKey(activeWallet.id)
-        : await walletManager.getPrivateKey(activeWallet.id, address.path);
-      return consolidateBareMultisigBatch(
-        privateKey.hex,
-        sourceAddress,
-        batchData,
-        feeRateSatPerVByte,
-        destinationAddress
-      );
-    },
+    // Sign in the background so the private key never reaches the popup. The signer holds the
+    // key and stops the batch if the wallet locks or the active identity changes mid-batch.
+    consolidateBareMultisig: async (sourceAddress, batchData, feeRateSatPerVByte, destinationAddress) =>
+      walletManager.consolidateBareMultisig(sourceAddress, batchData, feeRateSatPerVByte, destinationAddress),
   };
 
   // Lazy expiry detection performs a full lock instead of a bare secret wipe

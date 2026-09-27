@@ -100,11 +100,13 @@ export function assertSignableBareMultisig(
  * @param tx - Transaction with all inputs and outputs already added
  * @param privateKey - Private key bytes
  * @param scripts - scriptPubKey of the output each input spends, by input index
+ * @param afterYield - Called after each yield, before the next signature; throw to stop signing
  */
 export async function signAndFinalizeBareMultisig(
   tx: Transaction,
   privateKey: Uint8Array,
-  scripts: Uint8Array[]
+  scripts: Uint8Array[],
+  afterYield?: () => void
 ): Promise<void> {
   if (tx.inputsLength !== scripts.length) {
     throw new Error(`Input count mismatch: tx has ${tx.inputsLength}, provided ${scripts.length} scripts`);
@@ -113,6 +115,7 @@ export async function signAndFinalizeBareMultisig(
   for (let i = 0; i < scripts.length; i++) {
     if (i > 0 && i % 25 === 0) {
       await new Promise((resolve) => setTimeout(resolve, 0));
+      afterYield?.();
     }
     const hash = getLegacySighash(tx, i, scripts[i]!, SigHash.ALL);
     const signature = signECDSA(hash, privateKey, getLowRPreference(tx));
