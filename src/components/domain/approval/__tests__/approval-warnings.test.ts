@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { checkMessageStructure } from '@/core/counterparty/messageStructure';
 import { analyzeTransactionSafety, type SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { t } from '@/i18n';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import type { ApprovalWarningInput } from '../approval-warnings';
 import { buildApprovalWarnings } from '../approval-warnings';
 

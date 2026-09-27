@@ -7,11 +7,11 @@ import { render as rtlRender, renderHook as rtlRenderHook } from '@testing-libra
 import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { afterEach, vi } from 'vitest';
 import * as i18n from '@/i18n';
-import en from '../../public/_locales/en/messages.json';
-import ja from '../../public/_locales/ja/messages.json';
-import zhCN from '../../public/_locales/zh_CN/messages.json';
-import zhHK from '../../public/_locales/zh_HK/messages.json';
-import zhTW from '../../public/_locales/zh_TW/messages.json';
+import en from '../../../../public/_locales/en/messages.json';
+import ja from '../../../../public/_locales/ja/messages.json';
+import zhCN from '../../../../public/_locales/zh_CN/messages.json';
+import zhHK from '../../../../public/_locales/zh_HK/messages.json';
+import zhTW from '../../../../public/_locales/zh_TW/messages.json';
 
 const catalogs: Record<string, typeof en | typeof ja> = { en, ja, 'zh-CN': zhCN, 'zh-TW': zhTW, 'zh-HK': zhHK };
 const renders = new Set<() => void>();

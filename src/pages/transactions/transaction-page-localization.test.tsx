@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchTransaction, type Transaction } from '@/core/counterparty/api';
 import { type MessageKey, t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import TransactionPage from './[txHash]';
 
 const fixture = vi.hoisted(() => ({

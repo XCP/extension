@@ -1,7 +1,7 @@
 import { cleanup, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { render } from '@/i18n/test-utils';
+import { render } from '@/i18n/__tests__/helpers/locale';
 import { BalanceList } from './balance-list';
 
 /**

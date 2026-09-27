@@ -1,10 +1,10 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import * as fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@/i18n/test-utils';
+import { render } from '@/i18n/__tests__/helpers/locale';
 import '@testing-library/jest-dom/vitest';
 import { t } from '@/i18n';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import { ErrorAlert } from './error-alert';
 
 beforeEach(() => { mockBrowserLocale({ language: 'en' }); });

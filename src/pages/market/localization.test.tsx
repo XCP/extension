@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { getBtc24hStats, getBtcPriceHistory } from '@/core/bitcoin/price';
 import { getXcpPriceHistory, getXcpStats } from '@/core/counterparty/price';
 import { t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import BtcPricePage from './btc';
 import XcpPricePage from './xcp';
 

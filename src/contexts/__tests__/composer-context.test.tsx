@@ -8,7 +8,7 @@ import { fetchInputValues } from '@/core/counterparty/transaction';
 import { arc4, hexToBytes } from '@/core/counterparty/unpack/binary';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { t } from '@/i18n';
-import { mockBrowserLocale, renderHook } from '@/i18n/test-utils';
+import { mockBrowserLocale, renderHook } from '@/i18n/__tests__/helpers/locale';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
 

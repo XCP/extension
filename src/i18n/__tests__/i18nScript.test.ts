@@ -42,27 +42,19 @@ it('rejects placeholders that differ from the English', () => {
   expect(run('check').status).toBe(1);
 });
 
-it('treats every key as a machine draft until it is listed as reviewed', () => {
+it('exports a locale as a review table with the English, where it appears and what it means', () => {
   const locale = join(fixtureRoot, 'public/_locales/ja');
   mkdirSync(locale);
   writeFileSync(join(locale, 'messages.json'), JSON.stringify({
     appName: { message: 'Example' }, appDescription: { message: 'Example' }, appLocale: { message: 'ja' }, common_example: { message: '元 $1' },
   }));
-  expect(run('check').stdout).toContain('ja: 4 messages, missing 0, stale 0, placeholder mismatches 0, 4 awaiting review');
-  expect(run('review', 'ja', '--machine').stdout).toContain('# ja: 4 strings awaiting review');
-
-  mkdirSync(join(fixtureRoot, 'i18n'), { recursive: true });
-  const reviewedPath = join(fixtureRoot, 'i18n/ja.json');
-  writeFileSync(reviewedPath, JSON.stringify({ reviewed: ['common_example'] }));
-  expect(run('check').stdout).toContain('3 awaiting review');
-  const review = run('review', 'ja', '--machine').stdout;
-  expect(review).toContain('# ja: 3 strings awaiting review');
-  expect(review).not.toContain('common_example');
-
-  writeFileSync(reviewedPath, JSON.stringify({ reviewed: ['common_removed'] }));
-  const stale = run('check');
-  expect(stale.status).toBe(1);
-  expect(stale.stdout).toContain('i18n/ja.json lists a key that no longer exists: common_removed');
+  const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'));
+  catalog.common_example.description = 'Shown on the example screen';
+  writeFileSync(catalogPath, JSON.stringify(catalog));
+  expect(run('check').stdout).toContain('ja: 4 messages, missing 0, stale 0, placeholder mismatches 0');
+  const review = run('review', 'ja').stdout;
+  expect(review).toContain('# ja: 4 strings');
+  expect(review).toContain('| Original $amount$ | 元 $1 | example | Shown on the example screen |');
 });
 
 it('keeps zh an exact copy of zh_CN', () => {

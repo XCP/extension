@@ -2,7 +2,7 @@ import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { t } from '@/i18n';
-import { render } from '@/i18n/test-utils';
+import { render } from '@/i18n/__tests__/helpers/locale';
 import UnlockPage from '../unlock';
 
 const fixture = vi.hoisted(() => ({ navigate: vi.fn(), unlock: vi.fn() }));
