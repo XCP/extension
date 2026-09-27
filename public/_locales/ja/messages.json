@@ -752,6 +752,9 @@
   "asset_asset_name_input_asset_name_is_available": {
     "message": "このアセット名は利用可能です"
   },
+  "asset_asset_name_input_availability_check_failed": {
+    "message": "この名前が利用可能か確認できませんでした。接続を確認してから、名前を編集してもう一度お試しください。"
+  },
   "asset_asset_name_input_checking_availability": {
     "message": "利用可能か確認中…"
   },

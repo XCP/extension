@@ -1,5 +1,5 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
-import { type ReactElement, useEffect, useRef, useState } from "react";
+import { type ReactElement, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FiMinus, FiPlus } from "@/components/icons";
 import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/core/validation/assetOwner";
 import { validateBitcoinAddress } from "@/core/validation/bitcoin";
@@ -38,14 +38,22 @@ export function DestinationsInput({
 }: DestinationsInputProps): ReactElement {
   const firstInputRef = useRef<HTMLInputElement>(null);
   const [validationErrors, setValidationErrors] = useState<{ [key: number]: boolean }>({});
-  
+  // A lookup answers after its debounce and a network read, by which time the other rows may have
+  // been edited, added or removed. Its callback was made on the keystroke that started it, so it
+  // reads the rows through this ref rather than the array it closed over.
+  const destinationsRef = useRef(destinations);
+  useLayoutEffect(() => {
+    destinationsRef.current = destinations;
+  }, [destinations]);
+
   const { performLookup, getLookupState } = useMultiAssetOwnerLookup({
     onResolve: (destinationId, assetName, ownerAddress) => {
-      // Update the destination with the resolved address
-      const updatedDestinations = destinations.map(dest =>
+      const current = destinationsRef.current;
+      // Replace the row only while it still holds the name that was looked up.
+      if (!current.some(dest => dest.id === destinationId && dest.address === assetName)) return;
+      onChange(current.map(dest =>
         dest.id === destinationId ? { ...dest, address: ownerAddress } : dest
-      );
-      onChange(updatedDestinations);
+      ));
     }
   });
 
