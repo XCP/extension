@@ -50,7 +50,7 @@ let inflightRequest: Promise<FeeRates> | null = null;
  * }
  */
 export async function fetchFromMempoolSpace(): Promise<FeeRates> {
-  const response = await apiClient.get<Record<string, number>>('https://mempool.space/api/v1/fees/precise', { retries: 0 });
+  const response = await apiClient.get<Record<string, number>>('https://mempool.space/api/v1/fees/precise', { retries: 0, reportStatus: false });
   const data = response.data;
   if (
     typeof data.fastestFee !== 'number' || Number.isNaN(data.fastestFee) ||
@@ -78,7 +78,7 @@ export async function fetchFromMempoolSpace(): Promise<FeeRates> {
  *   - hourFee: confirmation within 6 blocks (data["6"])
  */
 export async function fetchFromBlockstream(): Promise<FeeRates> {
-  const response = await apiClient.get<Record<string, number>>('https://blockstream.info/api/fee-estimates', { retries: 0 });
+  const response = await apiClient.get<Record<string, number>>('https://blockstream.info/api/fee-estimates', { retries: 0, reportStatus: false });
   const data = response.data;
   const fastestFee = data["2"];
   const halfHourFee = data["3"];

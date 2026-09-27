@@ -32,6 +32,12 @@ export interface RequestConfig {
    * second clock once will usually do so again, and re-sending it only multiplies the wait.
    */
   retryOnTimeout?: boolean;
+  /**
+   * Whether a 429 or 5xx raises the app-wide API status banner. Defaults to true. False for
+   * optional services and for one source among fallbacks: their callers already degrade quietly,
+   * and one source's outage is not the wallet's.
+   */
+  reportStatus?: boolean;
 }
 
 /**
@@ -168,7 +174,7 @@ function parseRetryAfter(value: string | null, now: number): number | undefined 
  */
 async function fetchWithTimeout<T>(
   url: string,
-  options: RequestInit & { timeout?: number },
+  { reportStatus = true, ...options }: RequestInit & { timeout?: number; reportStatus?: boolean },
   externalSignal?: AbortSignal
 ): Promise<ApiResponse<T>> {
   const timeout = options.timeout || API_TIMEOUTS.DEFAULT;
@@ -219,7 +225,7 @@ async function fetchWithTimeout<T>(
       const retryAfter = parseRetryAfter(response.headers.get('Retry-After'), Date.now());
       // Emit API status for rate limiting or server errors
       const statusType = getStatusTypeFromCode(response.status);
-      if (statusType) {
+      if (statusType && reportStatus) {
         emitApiStatus({
           type: statusType,
           statusCode: response.status,
@@ -349,6 +355,7 @@ export const apiClient = {
       method: 'GET',
       headers: config?.headers ? { ...config.headers } : undefined,
       timeout,
+      reportStatus: config?.reportStatus,
     }, config?.signal), config?.retries, config?.retryOnTimeout);
   },
 

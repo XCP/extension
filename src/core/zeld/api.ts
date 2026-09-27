@@ -103,7 +103,7 @@ export function fetchZeldUtxos(address: string, signal?: AbortSignal): Promise<Z
   const promise = (async () => {
     const response = await apiClient.get<unknown>(
       `${ZELD_API_BASE}/addresses/${encodeURIComponent(address)}/utxos`,
-      { retries: 0, signal },
+      { retries: 0, signal, reportStatus: false },
     );
     return parseZeldUtxos(response.data);
   })();
@@ -121,7 +121,7 @@ export async function fetchZeldBalance(address: string, signal?: AbortSignal): P
 export async function fetchZeldOutpointBalance(txid: string, vout: number, signal?: AbortSignal): Promise<bigint> {
   const response = await apiClient.get<unknown>(
     `${ZELD_API_BASE}/utxos/${encodeURIComponent(`${txid}:${vout}`)}`,
-    { retries: 0, signal },
+    { retries: 0, signal, reportStatus: false },
   );
   const data = response.data;
   if (!isRecord(data)) return 0n;
@@ -134,7 +134,7 @@ export async function fetchZeldRewards(address: string, limit = 10, signal?: Abo
     // The indexer defaults to newest first. Its optional sort accepts only "zero_count".
     const response = await apiClient.get<unknown>(
       `${ZELD_API_BASE}/addresses/${encodeURIComponent(address)}/rewards?limit=${limit}&offset=0`,
-      { retries: 0, signal },
+      { retries: 0, signal, reportStatus: false },
     );
     return parseZeldRewards(response.data).sort((a, b) => b.block_index - a.block_index);
   } catch (error) {

@@ -27,7 +27,7 @@ export function clearBlockHeightCache(): void {
  * Fetch block height from Blockstream API
  */
 export async function fetchFromBlockstream(): Promise<number> {
-  const response = await apiClient.get<string>('https://blockstream.info/api/blocks/tip/height', { retries: 0 });
+  const response = await apiClient.get<string>('https://blockstream.info/api/blocks/tip/height', { retries: 0, reportStatus: false });
   const data = String(response.data);
   const height = parseInt(data, 10);
   if (Number.isNaN(height)) {
@@ -42,7 +42,7 @@ export async function fetchFromBlockstream(): Promise<number> {
  * Fetch block height from Mempool.space API
  */
 export async function fetchFromMempoolSpace(): Promise<number> {
-  const response = await apiClient.get<string>('https://mempool.space/api/blocks/tip/height', { retries: 0 });
+  const response = await apiClient.get<string>('https://mempool.space/api/blocks/tip/height', { retries: 0, reportStatus: false });
   const data = String(response.data);
   const height = parseInt(data, 10);
   if (Number.isNaN(height)) {
@@ -57,7 +57,7 @@ export async function fetchFromMempoolSpace(): Promise<number> {
  * Fetch block height from Blockchain.info API
  */
 export async function fetchFromBlockchainInfo(): Promise<number> {
-  const response = await apiClient.get<string>('https://blockchain.info/q/getblockcount', { retries: 0 });
+  const response = await apiClient.get<string>('https://blockchain.info/q/getblockcount', { retries: 0, reportStatus: false });
   const data = String(response.data);
   const height = parseInt(data, 10);
   if (Number.isNaN(height)) {

@@ -35,7 +35,7 @@ describe('Block Height Utilities', () => {
       expect(height).toBe(mockBlockHeight);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         'https://blockstream.info/api/blocks/tip/height',
-        { retries: 0 }
+        { retries: 0, reportStatus: false }
       );
     });
 
@@ -93,7 +93,7 @@ describe('Block Height Utilities', () => {
       expect(height).toBe(mockBlockHeight);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         'https://mempool.space/api/blocks/tip/height',
-        { retries: 0 }
+        { retries: 0, reportStatus: false }
       );
     });
 
@@ -132,7 +132,7 @@ describe('Block Height Utilities', () => {
       expect(height).toBe(mockBlockHeight);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         'https://blockchain.info/q/getblockcount',
-        { retries: 0 }
+        { retries: 0, reportStatus: false }
       );
     });
 

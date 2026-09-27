@@ -34,7 +34,7 @@ describe('Bitcoin Price Utilities', () => {
       expect(data.bitcoin.usd).toBe(45000.50);
       expect(mockedGet).toHaveBeenCalledWith(
         'https://api.coinbase.com/v2/prices/spot?currency=USD',
-        { retries: 0, timeout: 5000 }
+        { retries: 0, reportStatus: false, timeout: 5000 }
       );
     });
 
@@ -130,7 +130,7 @@ describe('Bitcoin Price Utilities', () => {
       expect(data.bitcoin.usd).toBe(45000.50);
       expect(mockedGet).toHaveBeenCalledWith(
         'https://api.kraken.com/0/public/Ticker?pair=XBTUSD',
-        { retries: 0, timeout: 5000 }
+        { retries: 0, reportStatus: false, timeout: 5000 }
       );
     });
 
@@ -211,7 +211,7 @@ describe('Bitcoin Price Utilities', () => {
       expect(data.bitcoin.usd).toBe(45000.75);
       expect(mockedGet).toHaveBeenCalledWith(
         'https://mempool.space/api/v1/prices',
-        { retries: 0, timeout: 5000 }
+        { retries: 0, reportStatus: false, timeout: 5000 }
       );
     });
 

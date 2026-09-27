@@ -41,7 +41,7 @@ describe('Fee Rate Utilities', () => {
       expect(feeRates).toEqual(mockFeeRates);
       expect(apiClient.get).toHaveBeenCalledWith(
         'https://mempool.space/api/v1/fees/precise',
-        { retries: 0 }
+        { retries: 0, reportStatus: false }
       );
     });
 
@@ -163,7 +163,7 @@ describe('Fee Rate Utilities', () => {
       expect(feeRates).toEqual(mockFeeRates);
       expect(apiClient.get).toHaveBeenCalledWith(
         'https://blockstream.info/api/fee-estimates',
-        { retries: 0 }
+        { retries: 0, reportStatus: false }
       );
     });
 
