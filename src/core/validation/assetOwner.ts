@@ -9,7 +9,10 @@ import { validateParentAsset, } from '@/core/validation/asset';
 export interface AssetOwnerLookupResult {
   isValid: boolean;
   ownerAddress?: string;
+  /** English diagnostic; screens translate from `reason`. */
   error?: string;
+  /** Why the lookup failed, for the UI to put into the reader's language. */
+  reason?: 'invalid_name' | 'not_found' | 'lookup_failed';
   assetName?: string;
 }
 
@@ -61,7 +64,8 @@ export async function lookupAssetOwner(assetName: string): Promise<AssetOwnerLoo
     if (!looksLikeAssetName(assetName)) {
       return {
         isValid: false,
-        error: 'Invalid asset name format'
+        error: 'Invalid asset name format',
+        reason: 'invalid_name'
       };
     }
 
@@ -90,7 +94,8 @@ export async function lookupAssetOwner(assetName: string): Promise<AssetOwnerLoo
     if (!ownerAddress) {
       return {
         isValid: false,
-        error: 'Asset not found or has no owner'
+        error: 'Asset not found or has no owner',
+        reason: 'not_found'
       };
     }
 
@@ -103,7 +108,8 @@ export async function lookupAssetOwner(assetName: string): Promise<AssetOwnerLoo
   } catch (_error) {
     return {
       isValid: false,
-      error: 'Failed to lookup asset owner'
+      error: 'Failed to lookup asset owner',
+      reason: 'lookup_failed'
     };
   }
 }

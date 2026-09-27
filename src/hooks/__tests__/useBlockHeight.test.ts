@@ -14,6 +14,8 @@ describe('useBlockHeight', () => {
   });
 
   afterEach(() => {
+    // Spies first: restoring a spy on a faked timer after useRealTimers would reinstall the fake.
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -51,31 +53,77 @@ describe('useBlockHeight', () => {
     expect(result.current.error).toBe('Unable to fetch current block height.');
   });
 
-  it('should auto-refresh block height when interval is set', async () => {
+  it('refreshes on the interval without tearing the interval down each tick', async () => {
+    vi.useFakeTimers();
+    const setIntervalSpy = vi.spyOn(global, 'setInterval');
     let blockHeight = 820000;
-    (getCurrentBlockHeight as any).mockImplementation(() => 
-      Promise.resolve(blockHeight++)
-    );
+    (getCurrentBlockHeight as any).mockImplementation(() => Promise.resolve(blockHeight++));
 
-    // Use a shorter interval for testing
-    const { result } = renderHook(() => useBlockHeight({ refreshInterval: 100 }));
+    const { result, unmount } = renderHook(() => useBlockHeight({ refreshInterval: 100 }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.blockHeight).toBe(820000);
 
-    // Wait for initial fetch
-    await waitFor(() => {
+    for (let tick = 1; tick <= 3; tick++) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+      expect(result.current.blockHeight).toBe(820000 + tick);
+    }
+
+    expect(getCurrentBlockHeight).toHaveBeenCalledTimes(4);
+    expect(getCurrentBlockHeight).toHaveBeenLastCalledWith(true);
+    // One interval for the life of the hook, not one per height change.
+    expect(setIntervalSpy.mock.calls.filter(([, ms]) => ms === 100)).toHaveLength(1);
+    unmount();
+  });
+
+  // The popup renders under StrictMode, which mounts, unmounts and remounts every component once.
+  describe('under StrictMode', () => {
+    // renderHook's own option: a <StrictMode> wrapper does not double-invoke the hook's effects.
+    const strict = { reactStrictMode: true };
+
+    it('loads the height on mount', async () => {
+      (getCurrentBlockHeight as any).mockResolvedValue(820000);
+
+      const { result } = renderHook(() => useBlockHeight(), strict);
+
+      await waitFor(() => expect(result.current.blockHeight).toBe(820000));
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+    });
+
+    it('reports a failed mount fetch instead of loading forever', async () => {
+      (getCurrentBlockHeight as any).mockRejectedValue(new Error('Network error'));
+
+      const { result } = renderHook(() => useBlockHeight(), strict);
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.error).toBe('Unable to fetch current block height.');
+    });
+
+    it('settles a manual refresh', async () => {
+      (getCurrentBlockHeight as any).mockResolvedValue(820000);
+      const { result } = renderHook(() => useBlockHeight({ autoFetch: false }), strict);
+
+      let returned: number | null = null;
+      await act(async () => { returned = await result.current.refresh(); });
+
+      expect(returned).toBe(820000);
       expect(result.current.blockHeight).toBe(820000);
+      expect(result.current.isLoading).toBe(false);
     });
+  });
 
-    expect(getCurrentBlockHeight).toHaveBeenCalledTimes(1);
+  it('drops a response that arrives after unmount', async () => {
+    let resolve: (height: number) => void = () => {};
+    (getCurrentBlockHeight as any).mockImplementation(() => new Promise<number>((r) => { resolve = r; }));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    // Wait for the interval to trigger (using real timers for simplicity)
-    await waitFor(() => {
-      expect(getCurrentBlockHeight).toHaveBeenCalledTimes(2);
-    }, { timeout: 200 });
+    const { result, unmount } = renderHook(() => useBlockHeight());
+    unmount();
+    await act(async () => { resolve(820000); });
 
-    // Check that the block height was updated
-    await waitFor(() => {
-      expect(result.current.blockHeight).toBe(820001);
-    });
+    expect(result.current.blockHeight).toBeNull();
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   it('should provide manual refresh function', async () => {

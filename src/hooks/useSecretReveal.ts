@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
+import { t } from "@/i18n";
 
 interface UseSecretRevealOptions {
   /** The wallet whose secret is being revealed; absent means the route was malformed. */
@@ -51,15 +52,15 @@ export function useSecretReveal({
 
     const password = formData.get("password") as string;
     if (!walletId) {
-      setSubmissionError("Invalid wallet.");
+      setSubmissionError(t('secret_reveal_invalid_wallet'));
       return;
     }
     if (!password) {
-      setSubmissionError("Password is required.");
+      setSubmissionError(t('common_password_is_required'));
       return;
     }
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setSubmissionError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      setSubmissionError(t('common_password_must_be_at_least', [String(MIN_PASSWORD_LENGTH)]));
       return;
     }
 
@@ -69,12 +70,12 @@ export function useSecretReveal({
     } catch (err) {
       // A failed reveal is never a revealed secret, whatever failed.
       setSubmissionError(
-        err instanceof Error ? err.message : "Failed to reveal the secret."
+        err instanceof Error ? err.message : t('secret_reveal_failed')
       );
       return;
     }
     if (!revealed) {
-      setSubmissionError("Incorrect password.");
+      setSubmissionError(t('secret_reveal_incorrect_password'));
       return;
     }
     setIsRevealed(true);

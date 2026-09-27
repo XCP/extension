@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type FiatCurrency, getBtc24hStats, getBtcPrice } from '@/core/bitcoin/price';
 import { getXCPPrice } from '@/core/counterparty/price';
+import { t } from '@/i18n';
 
 interface MarketPrices {
   btc: number | null;
@@ -79,7 +80,7 @@ export const useMarketPrices = (currency: FiatCurrency = 'usd') => {
       setState(prev => ({
         ...prev,
         loading: false,
-        error: 'Failed to fetch market prices',
+        error: t('market_prices_unavailable'),
       }));
     }
   }, [currency]);

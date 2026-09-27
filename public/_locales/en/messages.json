@@ -1111,6 +1111,18 @@
     "message": "Select an open fairminter asset to mint",
     "description": "components/domain/asset/fairminter-select-input.tsx"
   },
+  "asset_owner_lookup_failed": {
+    "message": "Failed to lookup asset owner",
+    "description": "hooks/useAssetOwnerLookup.ts: help text under a destination typed as ASSET.xcp when the lookup request failed."
+  },
+  "asset_owner_lookup_invalid_name": {
+    "message": "Invalid asset name format",
+    "description": "hooks/useAssetOwnerLookup.ts: help text under a destination typed as ASSET.xcp that is not a valid asset name."
+  },
+  "asset_owner_lookup_not_found": {
+    "message": "Asset not found or has no owner",
+    "description": "hooks/useAssetOwnerLookup.ts: help text under a destination typed as ASSET.xcp when no owner address was found."
+  },
   "asset_pinnable_asset_card_move_down": {
     "message": "Move $1 down",
     "description": "components/domain/asset/pinnable-asset-card.tsx. $1 = symbol"
@@ -1378,6 +1390,10 @@
   "baseasset_quoteasset_spread": {
     "message": "Spread",
     "description": "pages/market/orders/[baseAsset]/[quoteAsset].tsx"
+  },
+  "block_height_unable_to_fetch": {
+    "message": "Unable to fetch current block height.",
+    "description": "hooks/useBlockHeight.ts: the current block height could not be fetched; shown by block height inputs."
   },
   "broadcast_form_enter_the_message_you_want": {
     "message": "Enter the message you want to broadcast.",
@@ -2021,11 +2037,11 @@
   },
   "common_password_is_required": {
     "message": "Password is required.",
-    "description": "pages/keychain/setup/create-mnemonic.tsx, pages/keychain/setup/import-mnemonic.tsx, pages/keychain/setup/import-private-key.tsx"
+    "description": "pages/keychain/setup/create-mnemonic.tsx, pages/keychain/setup/import-mnemonic.tsx, pages/keychain/setup/import-private-key.tsx, hooks/useSecretReveal.ts"
   },
   "common_password_must_be_at_least": {
     "message": "Password must be at least $1 characters.",
-    "description": "pages/keychain/unlock.tsx, pages/keychain/wallets/remove.tsx, pages/keychain/wallets/reset.tsx. $1 = MIN_PASSWORD_LENGTH"
+    "description": "pages/keychain/unlock.tsx, pages/keychain/wallets/remove.tsx, pages/keychain/wallets/reset.tsx, hooks/useSecretReveal.ts. $1 = MIN_PASSWORD_LENGTH"
   },
   "common_password_verification_failed": {
     "message": "Password verification failed.",
@@ -2915,6 +2931,10 @@
   "consolidate_success_your_transactions_are_now_in": {
     "message": "Your transactions are now in the mempool and will be confirmed in the next blocks. The consolidated Bitcoin will be available once the transactions are confirmed.",
     "description": "pages/actions/consolidate/success.tsx"
+  },
+  "consolidate_wallet_not_ready": {
+    "message": "Wallet not properly initialized",
+    "description": "hooks/useMultiBatchConsolidation.ts: recovery started before a wallet and address were active."
   },
   "deposit_form_asset_a": {
     "message": "Asset A",
@@ -3899,6 +3919,10 @@
   "market_no_pools_matching": {
     "message": "No pools matching \"$1\"",
     "description": "pages/market/index.tsx. $1 = searchQuery"
+  },
+  "market_prices_unavailable": {
+    "message": "Failed to fetch market prices",
+    "description": "hooks/useMarketPrices.ts: BTC/XCP price quotes could not be fetched."
   },
   "market_search_asset_dispensers": {
     "message": "Search asset dispensers...",
@@ -6620,6 +6644,10 @@
     "message": "Move UTXO",
     "description": "pages/compose/utxo/move/index.tsx"
   },
+  "utxo_source_balances_unavailable": {
+    "message": "Could not load balances for this UTXO.",
+    "description": "hooks/useUtxoSource.ts: the assets held by the UTXO being detached or moved could not be loaded."
+  },
   "utxo_utxo_list_loading_utxo_balances": {
     "message": "Loading UTXO balances…",
     "description": "components/domain/utxo/utxo-list.tsx"
@@ -7983,6 +8011,18 @@
   "search_error_timeout": {
     "message": "Failed to load search results: Search request timed out. Please try again.",
     "description": "Existing search deadline expired, including response-body time. No network-outage diagnosis is implied."
+  },
+  "secret_reveal_failed": {
+    "message": "Failed to reveal the secret.",
+    "description": "hooks/useSecretReveal.ts: fallback when revealing a recovery phrase or private key fails without a message."
+  },
+  "secret_reveal_incorrect_password": {
+    "message": "Incorrect password.",
+    "description": "hooks/useSecretReveal.ts: wrong password on the show recovery phrase / show private key screens."
+  },
+  "secret_reveal_invalid_wallet": {
+    "message": "Invalid wallet.",
+    "description": "hooks/useSecretReveal.ts: show recovery phrase / show private key opened without a wallet."
   },
   "search_error_invalid_response": {
     "message": "Failed to load search results: Invalid search response",
