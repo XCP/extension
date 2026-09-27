@@ -2,6 +2,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
+import { verifiedReviewParams } from '@/core/counterparty/normalize';
+import { packComposeMessage } from '@/core/counterparty/pack/messages';
+import { unpackMPMA } from '@/core/counterparty/unpack/messages/mpma';
 import { MPMAForm } from '../form';
 
 // Mock the counterparty API functions
@@ -279,14 +282,38 @@ describe('MPMAForm', () => {
     // An exchange deposit ID is text. Read as hex it reached the chain as the bytes 12 34 56.
     it('sends an unprefixed hex-looking memo as text', async () => {
       const formData = await submitted('123456');
-      expect(formData.get('memos')).toBe('123456');
+      expect(formData.get('memos')).toBe('["123456"]');
       expect(formData.get('memos_are_hex')).toBe('false');
     });
 
     it('sends a 0X-prefixed memo as hex without the prefix', async () => {
       const formData = await submitted('0XDEADBEEF');
-      expect(formData.get('memos')).toBe('DEADBEEF');
+      expect(formData.get('memos')).toBe('["DEADBEEF"]');
       expect(formData.get('memos_are_hex')).toBe('true');
+    });
+
+    // A quoted CSV memo can hold a comma. Joined and split on commas, two memos became three, and
+    // the request no longer had one memo per send: the message check could not rebuild it and the
+    // review listed the wrong memo against each recipient.
+    it('keeps a memo containing a comma as one memo through compose and review', async () => {
+      renderWithProvider();
+      fireEvent.paste(screen.getByPlaceholderText('Paste CSV data here…'), {
+        clipboardData: { getData: () => [
+          'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1,"Invoice 12, part 2"',
+          'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4,XCP,2,thanks',
+        ].join('\n') }
+      });
+      const submit = await screen.findByRole('button', { name: 'Continue' });
+      await waitFor(() => expect(submit).not.toBeDisabled());
+      fireEvent.submit(submit.closest('form')!);
+      await waitFor(() => expect(mockFormAction).toHaveBeenCalled());
+      const data = Object.fromEntries(mockFormAction.mock.calls[0]![0] as FormData);
+
+      expect(verifiedReviewParams('mpma', data).memos).toEqual(['Invoice 12, part 2', 'thanks']);
+      const packed = packComposeMessage('mpma', data);
+      expect(packed).not.toBeNull();
+      // The payload follows the 8-byte CNTRPRTY prefix and the one-byte message type.
+      expect(unpackMPMA(packed!.bytes.slice(9)).sends.map(send => send.memo)).toEqual(['Invoice 12, part 2', 'thanks']);
     });
 
     it('names the line of a 0x memo that is not whole bytes of hex', async () => {

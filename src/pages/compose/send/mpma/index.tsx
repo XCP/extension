@@ -1,6 +1,7 @@
 import { Composer } from "@/components/composer/composer";
 import type { ApiResponse, MPMAOptions } from "@/core/counterparty/compose";
 import { composeMPMA } from "@/core/counterparty/compose";
+import { decodeMemoList } from "@/core/counterparty/memo";
 import { t } from '@/i18n';
 import { MPMAForm } from "@/pages/compose/send/mpma/form";
 import { ReviewMPMA } from "@/pages/compose/send/mpma/review";
@@ -25,7 +26,8 @@ function ComposeMpmaPage() {
     const assets = data.assets.split(',');
     const destinations = data.destinations.split(',');
     const quantities = data.quantities.split(',');
-    const memos = data.memos ? data.memos.split(',') : undefined;
+    // A memo may hold a comma, so the form sends the list as JSON (`encodeMemoList`).
+    const memos = decodeMemoList(data.memos) ?? undefined;
     const memosAreHex = data.memos_are_hex ? data.memos_are_hex.split(',').map(v => v === 'true') : undefined;
 
     // The three lists are parallel by construction in the MPMA form; a

@@ -2,14 +2,18 @@ import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
-
 import { t } from '@/i18n';
+import { eventParams, messageData } from "@/pages/transactions/_messages/facts";
+
 /**
  * Renders detailed information for fairmint transactions
  */
 export function fairmint(tx: Transaction): Array<{ label: string; value: string | ReactNode }> {
-  const params = tx.unpacked_data?.params;
-  if (!params) return [];
+  // The message asks for a quantity; its NEW_FAIRMINT event records the commission and the XCP paid.
+  const message = messageData(tx);
+  const minted = eventParams(tx, 'NEW_FAIRMINT')[0];
+  if (!message && !minted) return [];
+  const params = { ...minted, ...message };
 
   // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.asset_info?.divisible ?? true;
