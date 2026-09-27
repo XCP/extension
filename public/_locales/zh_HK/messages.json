@@ -833,6 +833,15 @@
   "asset_fairminter_select_input_select_an_open_fairminter_asset": {
     "message": "選擇一個開放的公平鑄造資產進行鑄造"
   },
+  "asset_owner_lookup_failed": {
+    "message": "查找資產所有者失敗"
+  },
+  "asset_owner_lookup_invalid_name": {
+    "message": "資產名稱格式無效"
+  },
+  "asset_owner_lookup_not_found": {
+    "message": "找不到資產或資產沒有所有者"
+  },
   "asset_pinnable_asset_card_move_down": {
     "message": "將 $1 下移"
   },
@@ -1033,6 +1042,9 @@
   },
   "baseasset_quoteasset_spread": {
     "message": "價差"
+  },
+  "block_height_unable_to_fetch": {
+    "message": "無法獲取當前區塊高度。"
   },
   "broadcast_form_enter_the_message_you_want": {
     "message": "輸入要廣播的消息。"
@@ -2193,6 +2205,9 @@
   "consolidate_success_your_transactions_are_now_in": {
     "message": "你的交易已進入記憶池，將在接下來的區塊中確認。合併後的比特幣將在交易確認後可用。"
   },
+  "consolidate_wallet_not_ready": {
+    "message": "錢包未正確初始化"
+  },
   "deposit_form_asset_a": {
     "message": "資產 A"
   },
@@ -2932,6 +2947,9 @@
   },
   "market_no_pools_matching": {
     "message": "沒有與“$1”匹配的流動性池"
+  },
+  "market_prices_unavailable": {
+    "message": "獲取市場價格失敗"
   },
   "market_search_asset_dispensers": {
     "message": "搜尋資產售賣機..."
@@ -4975,6 +4993,9 @@
   "utxo_move_move_utxo": {
     "message": "移動 UTXO"
   },
+  "utxo_source_balances_unavailable": {
+    "message": "無法加載此 UTXO 的餘額。"
+  },
   "utxo_utxo_list_loading_utxo_balances": {
     "message": "正在加載 UTXO 餘額…"
   },
@@ -5997,6 +6018,15 @@
   },
   "search_error_timeout": {
     "message": "搜尋請求逾時，請重試。"
+  },
+  "secret_reveal_failed": {
+    "message": "顯示機密信息失敗。"
+  },
+  "secret_reveal_incorrect_password": {
+    "message": "密碼錯誤。"
+  },
+  "secret_reveal_invalid_wallet": {
+    "message": "錢包無效。"
   },
   "search_error_invalid_response": {
     "message": "搜尋結果的回應格式無效。"

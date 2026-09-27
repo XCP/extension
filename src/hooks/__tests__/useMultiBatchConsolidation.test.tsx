@@ -1,6 +1,8 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import { mockBrowserLocale } from '@/i18n/test-utils';
+import ja from '../../../public/_locales/ja/messages.json';
 import { useMultiBatchConsolidation } from '../useMultiBatchConsolidation';
 
 const ADDRESS = '1BareMultisigOwnerAddress';
@@ -228,5 +230,14 @@ describe('useMultiBatchConsolidation', () => {
     expect(fixture.report).toHaveBeenCalledTimes(2);
     expect(fixture.navigate).toHaveBeenCalledTimes(1);
     expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("says why it refused in the reader's language", async () => {
+    mockBrowserLocale({ language: 'ja' });
+    fixture.wallet = null;
+    const { result } = renderHook(() => useMultiBatchConsolidation());
+
+    await expect(result.current.consolidateAllBatches([batch(1)], 5)).rejects.toThrow(ja.consolidate_wallet_not_ready.message);
+    mockBrowserLocale({ language: 'en' });
   });
 });

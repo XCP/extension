@@ -833,6 +833,15 @@
   "asset_fairminter_select_input_select_an_open_fairminter_asset": {
     "message": "ミントする稼働中のフェアミンターのアセットを選択"
   },
+  "asset_owner_lookup_failed": {
+    "message": "アセットの所有者を検索できませんでした"
+  },
+  "asset_owner_lookup_invalid_name": {
+    "message": "アセット名の形式が無効です"
+  },
+  "asset_owner_lookup_not_found": {
+    "message": "アセットが見つからないか、所有者がいません"
+  },
   "asset_pinnable_asset_card_move_down": {
     "message": "$1 を下へ移動"
   },
@@ -1033,6 +1042,9 @@
   },
   "baseasset_quoteasset_spread": {
     "message": "スプレッド"
+  },
+  "block_height_unable_to_fetch": {
+    "message": "現在のブロック高を取得できませんでした。"
   },
   "broadcast_form_enter_the_message_you_want": {
     "message": "ブロードキャストするメッセージを入力してください。"
@@ -2193,6 +2205,9 @@
   "consolidate_success_your_transactions_are_now_in": {
     "message": "トランザクションはメンプールに入り、次のブロック以降で承認されます。統合された Bitcoin はトランザクションの承認後に利用できるようになります。"
   },
+  "consolidate_wallet_not_ready": {
+    "message": "ウォレットが正しく初期化されていません"
+  },
   "deposit_form_asset_a": {
     "message": "アセット A"
   },
@@ -2932,6 +2947,9 @@
   },
   "market_no_pools_matching": {
     "message": "「$1」に一致するプールはありません"
+  },
+  "market_prices_unavailable": {
+    "message": "市場価格を取得できませんでした"
   },
   "market_search_asset_dispensers": {
     "message": "アセットの自販機を検索..."
@@ -4975,6 +4993,9 @@
   "utxo_move_move_utxo": {
     "message": "UTXO を移動"
   },
+  "utxo_source_balances_unavailable": {
+    "message": "この UTXO の残高を読み込めませんでした。"
+  },
   "utxo_utxo_list_loading_utxo_balances": {
     "message": "UTXO 残高を読み込み中…"
   },
@@ -5997,6 +6018,15 @@
   },
   "search_error_timeout": {
     "message": "検索がタイムアウトしました。もう一度お試しください。"
+  },
+  "secret_reveal_failed": {
+    "message": "シークレットを表示できませんでした。"
+  },
+  "secret_reveal_incorrect_password": {
+    "message": "パスワードが正しくありません。"
+  },
+  "secret_reveal_invalid_wallet": {
+    "message": "ウォレットが無効です。"
   },
   "search_error_invalid_response": {
     "message": "検索結果の応答形式が正しくありません。"
