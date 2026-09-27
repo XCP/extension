@@ -1681,3 +1681,132 @@ describe('offer funding proof', () => {
     expect(review.status).toBe('retry');
   });
 });
+
+// Every exact-offer check is a separate proof. Most failures also trip a second one (a changed
+// value moves the miner fee too), so a status check alone cannot tell whether each check still
+// runs: mutation testing deleted most of them without a test noticing. Each case below changes one
+// fact and names the check that must catch it.
+describe('exact-offer proof: each check names its own failure', () => {
+  type ExactRequest = Parameters<typeof analyzeMarketplaceIntent>[0];
+  const withInput = (request: ExactRequest, index: number, change: Record<string, unknown>) => ({
+    ...request, inputs: request.inputs.map(entry => entry.index === index ? { ...entry, ...change } : entry),
+  });
+  const withOutput = (request: ExactRequest, index: number, change: Record<string, unknown>) => ({
+    ...request, outputs: request.outputs.map(entry => entry.index === index ? { ...entry, ...change } : entry),
+  });
+  const withIntent = (request: ExactRequest, change: Record<string, unknown>) => ({
+    ...request, intent: { ...request.intent, ...change },
+  });
+
+  it.each<[string, () => ExactRequest, string]>([
+    ['delivery to a third party', () => ({
+      ...withIntent(exactBase(), { delivery: { mode: 'detached', address: SELLER_TWO } }),
+      localCounterpartyMessage: { messageType: 'detach', data: { destination: SELLER_TWO } },
+    }), 'the delivery address differs from the bidder'],
+    ['a detached offer with no Counterparty payload', () => ({ ...exactBase(), hasCounterpartyPayload: false }),
+      'the exact offer carries no Counterparty payload'],
+    ['a payload that did not decode locally', () => ({ ...exactBase(), localCounterpartyMessage: undefined }),
+      'the Counterparty payload is not a locally decoded detach'],
+    ['a payload that is not a detach', () => ({
+      ...exactBase(), localCounterpartyMessage: { messageType: 'send', data: { destination: BUYER } },
+    }), 'the Counterparty payload is not a locally decoded detach'],
+    ['a detach output 0 that is not an OP_RETURN', () => withOutput(exactBase(), 0, { type: 'p2wpkh', address: BUYER }),
+      'output 0 is not the zero-value Counterparty detach output'],
+    ['a platform fee key with no platform fee', () => withIntent(exactBase(), { platformFeeInternalKey: FEE_INTERNAL_KEY }),
+      'the exact offer names a platform fee key but pays no platform fee'],
+    ['an extra zero-value OP_RETURN output', () => ({
+      ...exactBase(), outputs: [...exactBase().outputs, { index: 2, type: 'op_return', value: 0 }],
+    }), 'expected exactly 2 inputs and 2 outputs, got 2/3'],
+    ['an extra zero-value input', () => ({
+      ...exactBase(),
+      inputs: [...exactBase().inputs, { index: 2, txid: TXID_TWO, vout: 0, address: BUYER, value: 0, hasSignatures: false }],
+    }), 'expected exactly 2 inputs and 2 outputs, got 3/2'],
+    ['the same outpoint spent twice', () => ({
+      ...withIntent(exactBase(), { bitcoinInvalidation: { type: 'spend_funding_outpoint', outpoint: { txid: TXID, vout: 7 } } }),
+      inputs: exactBase().inputs.map(entry => entry.index === 0 ? { ...entry, txid: TXID.toUpperCase(), vout: 7 } : entry),
+    }), 'the exact offer contains a duplicate input outpoint'],
+    ['a second signer', () => ({ ...exactBase(), signerAddresses: [BUYER, SELLER] }),
+      'the requested signer is not exactly the claimed bidder'],
+    ['a buyer input already signed', () => withInput(exactBase(), 0, { hasSignatures: true }),
+      'both exact-offer inputs must be proven unsigned before buyer authorization'],
+    ['a seller input not proven unsigned', () => withInput(exactBase(), 1, { hasSignatures: undefined }),
+      'both exact-offer inputs must be proven unsigned before buyer authorization'],
+    ['a funding input someone else controls', () => withInput(exactBase(), 0, { address: SELLER_TWO }),
+      'input 0 is not controlled by the claimed bidder'],
+    ['an asset input someone else controls', () => withInput(exactBase(), 1, { address: SELLER_TWO }),
+      'input 1 is not controlled by the claimed seller'],
+    ['seller proceeds paid to someone else', () => withOutput(exactBase(), 1, { address: SELLER_TWO }),
+      'output 1 does not pay the claimed seller'],
+    ['a different transaction', () => ({ ...exactBase(), transactionId: TXID_TWO }),
+      'the unsigned transaction id differs from the exact authorization'],
+  ])('blocks %s, and only for that reason', (_label, build, blocker) => {
+    const review = analyzeMarketplaceIntent(build());
+    expect(review.status).toBe('blocked');
+    expect(review.blockers).toEqual([blocker]);
+  });
+
+  it.each<[string, () => ExactRequest, string]>([
+    ['a detach output 0 that carries value', () => withOutput(exactBase(), 0, { value: 1 }),
+      'output 0 is not the zero-value Counterparty detach output'],
+    ['a funding value that differs', () => withInput(exactBase(), 0, { value: 249_999 }),
+      'buyer funding input 0 does not equal the offer price plus platform fee and selected delivery UTXO value'],
+    ['an asset UTXO value that differs', () => withInput(exactBase(), 1, { value: 545 }),
+      'seller input 1 UTXO value differs from the claim'],
+    ['seller proceeds that differ', () => withOutput(exactBase(), 1, { value: 250_045 }),
+      'output 1 differs from the claimed seller proceeds'],
+    ['seller proceeds that differ', () => withOutput(exactBase(), 1, { value: 250_045 }),
+      'the actual miner fee differs from the exact-offer claim'],
+    ['a proceeds claim that does not add up', () => ({
+      ...withIntent(exactBase(), { sellerProceedsSats: 250_045 }), outputs: [exactBase().outputs[0]!, { ...exactBase().outputs[1]!, value: 250_045 }],
+    }), 'claimed seller proceeds do not equal the price plus the asset UTXO value minus the miner fee'],
+    ['missing inputs', () => ({ ...exactBase(), inputs: [] }), 'buyer funding input 0 is missing'],
+    ['missing inputs', () => ({ ...exactBase(), inputs: [] }), 'seller asset input 1 is missing'],
+    ['a missing proceeds output', () => ({ ...exactBase(), outputs: [exactBase().outputs[0]!] }),
+      'seller proceeds output 1 is missing'],
+    ['an attached offer carrying a protocol message', () => ({ ...attachedExactBase(), hasCounterpartyPayload: true }),
+      'attached exact offer must use ordinary Counterparty UTXO movement, not a protocol message'],
+    ['an attached delivery UTXO of another size', () => withOutput(attachedExactBase(), 0, { value: 331 }),
+      'output 0 is not the claimed bidder-owned attached asset UTXO'],
+    ['an attached delivery output that is an OP_RETURN', () => withOutput(attachedExactBase(), 0, { type: 'op_return' }),
+      'output 0 is not the claimed bidder-owned attached asset UTXO'],
+    ['an acceptance whose seller input is already signed', () => withInput(exactBase(true), 1, { hasSignatures: true }),
+      'seller input 1 must be proven unsigned before acceptance'],
+    ['an acceptance served a buyer signature', () => withInput(exactBase(true), 0, { hasSignatures: true }),
+      'buyer input 0 must be proven unsigned; the market merges the buyer authorization it holds'],
+    ['an acceptance by another signer', () => ({ ...exactBase(true), signerAddresses: [BUYER] }),
+      'the requested signer is not exactly the claimed seller'],
+  ])('blocks %s, naming the check', (_label, build, blocker) => {
+    const review = analyzeMarketplaceIntent(build());
+    expect(review.status).toBe('blocked');
+    expect(review.blockers).toContain(blocker);
+  });
+
+  it('blocks a platform fee output of another amount, naming the check', () => {
+    const request = feeExactBase();
+    request.outputs[2]!.value -= 1;
+    expect(analyzeMarketplaceIntent(request).blockers).toContain('output 2 is not the claimed external platform fee');
+  });
+
+  it.each<[string, () => ExactRequest, string]>([
+    ['the unsigned transaction id', () => ({ ...exactBase(), transactionId: undefined }),
+      'the wallet could not establish the unsigned transaction id'],
+    ['the funding value', () => withInput(exactBase(), 0, { value: undefined }), 'buyer funding input 0 has no authenticated value'],
+    ['the asset UTXO value', () => withInput(exactBase(), 1, { value: undefined }), 'seller input 1 has no authenticated UTXO value'],
+    ['the funding value', () => withInput(exactBase(), 0, { value: undefined }),
+      'the wallet could not authenticate every input value needed to prove the miner fee'],
+    ['the funding input assets', () => ({
+      ...exactBase(), attachedAssets: [...exactBase().attachedAssets, { inputIndex: 0, utxo: `${BID_TXID}:4`, assets: [], lookupFailed: true }],
+    }), 'the attached-asset lookup for buyer funding input 0 failed'],
+  ])('asks for a retry when %s is unknown, naming it', (_label, build, problem) => {
+    const review = analyzeMarketplaceIntent(build());
+    expect(review.status).toBe('retry');
+    expect(review.blockers).toContain(problem);
+  });
+
+  it('proves a funding input the ledger shows holds no assets', () => {
+    const review = analyzeMarketplaceIntent({
+      ...exactBase(), attachedAssets: [...exactBase().attachedAssets, { inputIndex: 0, utxo: `${BID_TXID}:4`, assets: [] }],
+    });
+    expect(review).toMatchObject({ status: 'caution', blockers: [] });
+  });
+});

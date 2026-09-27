@@ -38,6 +38,7 @@ vi.mock('@/core/counterparty/api', () => ({
 }));
 
 const api = await import('@/core/counterparty/api');
+const { resolveProtocolContext } = await import('@/core/counterparty/protocolContext');
 
 // The bidder holds Counterparty assets, which is when the caution applies at all.
 beforeEach(() => {
@@ -170,6 +171,18 @@ describe('the fee output on an exact-offer authorization', () => {
     expect(codes(analysis)).not.toContain('unproven_script_output');
     expect(analysis.safety.warnings.some(warning => warning.severity === 'warning')).toBe(false);
     expect(analysis.safety.blocked).toBe(false);
+  });
+
+  // Mutation testing: the filter that drops the proved output's caution could drop everything else.
+  it("keeps every other warning when it drops the proved output's caution", async () => {
+    vi.mocked(resolveProtocolContext).mockResolvedValueOnce({
+      context: {} as ProtocolContext,
+      warnings: [{ severity: 'warning', title: 'Priced by an oracle', message: 'x' }],
+    });
+    const analysis = await authorization({ internalKey: FEE_KEY });
+    expect(codes(analysis)).not.toContain('unproven_script_output');
+    expect(analysis.safety.warnings).toContainEqual(expect.objectContaining({ severity: 'warning', title: 'Priced by an oracle' }));
+    expect(analysis.safety.warnings.every(warning => typeof warning.title === 'string')).toBe(true);
   });
 
   it('blocks a fee output that hides a script behind the declared key', async () => {

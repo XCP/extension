@@ -13,8 +13,9 @@
  * Real WalletManager, session manager, vault encryption, derivation and signing, as in
  * signingGolden.test.ts. Only browser storage, the network and the Trezor adapter are replaced.
  */
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { signMessage as signMessageWithKey } from '@/core/bitcoin/messageSigner';
 import { finalizePSBT, signPSBT } from '@/core/bitcoin/psbt';
@@ -335,5 +336,146 @@ describe('identity guard: a request bound to another identity reads no secret', 
       await expect(requestsFor(address, fixture, false).signPsbt(identity)).resolves.toMatch(/^70736274ff/);
       expect(signIdx).toHaveBeenCalled();
     }
+  });
+});
+
+// Mutation testing found these rechecks and refusals untested: deleting any one of them left the
+// suite green. Each test below parks or feeds one path so that exactly that check decides it.
+describe('identity guard: an address switch while a request is parked stops it', () => {
+  // These tests add an address and switch to it; the vault record is shared, so put it back.
+  let saved: KeychainRecord | null = null;
+  beforeEach(() => { saved = structuredClone(state.record); });
+  afterEach(() => { state.record = saved; });
+
+  /** Park the next key read until released, after the request has passed its first checks. */
+  function parkGetPrivateKey(): Barrier {
+    const pending = barrier();
+    const original = manager.getPrivateKey.bind(manager);
+    vi.spyOn(manager, 'getPrivateKey').mockImplementationOnce(async (...args) => {
+      pending.enter();
+      await pending.released;
+      return original(...args);
+    });
+    return pending;
+  }
+  /** Switch the active address to a second one of the same wallet while `pending` is parked. */
+  async function switchWhileParked(signing: Promise<unknown>, pending: Barrier, second: string): Promise<void> {
+    const rejected = expect(signing).rejects.toThrow(IDENTITY_CHANGED);
+    await pending.entered;
+    await manager.updateSettings({ lastActiveAddress: second });
+    pending.release();
+    await rejected;
+  }
+
+  it.each(['signTransaction', 'signPsbt', 'signMessage'] as const)('%s: parked reading the key, signs nothing', async (method) => {
+    const address = await use('p2wpkh');
+    const fixture = register(address);
+    const second = (await manager.addAddress(walletId('p2wpkh'))).address;
+    const pending = parkGetPrivateKey();
+    const requests = {
+      signTransaction: () => manager.signTransaction(fixture.rawTx, address),
+      signPsbt: () => manager.signPsbt(fixture.witnessPsbt, { [address]: [0, 1] }),
+      signMessage: () => manager.signMessage(MESSAGE, address),
+    };
+    await switchWhileParked(requests[method](), pending, second);
+    expect(signIdx).not.toHaveBeenCalled();
+    expect(signMessageWithKey).not.toHaveBeenCalled();
+    // The transaction path stops before its UTXO reads, not only before the signature.
+    expect(fetchUTXOs).not.toHaveBeenCalled();
+  });
+
+  it('signMessage: a signature made while the address switched is withheld', async () => {
+    const address = await use('p2wpkh');
+    const second = (await manager.addAddress(walletId('p2wpkh'))).address;
+    const actual = await vi.importActual<typeof import('@/core/bitcoin/messageSigner')>('@/core/bitcoin/messageSigner');
+    const pending = barrier();
+    vi.mocked(signMessageWithKey).mockImplementationOnce(async (...args) => {
+      pending.enter();
+      await pending.released;
+      return actual.signMessage(...args);
+    });
+    await switchWhileParked(manager.signMessage(MESSAGE, address), pending, second);
+    expect(signMessageWithKey).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('requests the signer refuses outright', () => {
+  const OTHER = deriveMnemonicAddresses(BIP39_MNEMONIC, AddressFormat.P2WPKH, 6)[5]!.address;
+
+  it('signTransaction: a source address outside the wallet, before reading any key', async () => {
+    const address = await use('p2wpkh');
+    const fixture = register(address);
+    const getPrivateKey = vi.spyOn(manager, 'getPrivateKey');
+    await expect(manager.signTransaction(fixture.rawTx, OTHER)).rejects.toThrow('Source address not found in wallet');
+    expect(getPrivateKey).not.toHaveBeenCalled();
+    expect(signIdx).not.toHaveBeenCalled();
+  });
+
+  it('signMessage: an address outside the wallet', async () => {
+    await use('p2wpkh');
+    await expect(manager.signMessage(MESSAGE, OTHER)).rejects.toThrow('Address not found in wallet');
+    expect(signMessageWithKey).not.toHaveBeenCalled();
+  });
+
+  it('signPsbt: a signInputs address outside the wallet', async () => {
+    const address = await use('p2wpkh');
+    const fixture = register(address);
+    await expect(manager.signPsbt(fixture.witnessPsbt, { [OTHER]: [0, 1] })).rejects.toThrow(`Address ${OTHER} not found in wallet`);
+    expect(signIdx).not.toHaveBeenCalled();
+  });
+
+  it('signPsbt: an empty signInputs still verifies every prevout, then signs best effort', async () => {
+    const address = await use('p2wpkh');
+    const fixture = register(address);
+    await expect(manager.signPsbt(fixture.witnessPsbt, {})).resolves.toMatch(/^70736274ff/);
+    expect(signIdx).toHaveBeenCalled();
+    signIdx.mockClear();
+    const forged = Transaction.fromPSBT(hexToBytes(fixture.witnessPsbt));
+    forged.updateInput(1, { witnessUtxo: { script: fixture.script, amount: 60_000n } }, true);
+    await expect(manager.signPsbt(bytesToHex(forged.toPSBT()), {})).rejects.toThrow('does not match its real previous output');
+    expect(signIdx).not.toHaveBeenCalled();
+  });
+
+  describe('on a Trezor', () => {
+    let address: string;
+    let fixture: SpendFixture;
+    beforeEach(async () => {
+      address = await use('trezor');
+      fixture = register(address);
+    });
+
+    it.each<[string, { inputValues?: number[]; lockScripts?: string[] }, string]>([
+      ['an input value that differs', { inputValues: [100_000, 50_001] }, 'input values'],
+      ['a missing input value', { inputValues: [100_000] }, 'input values'],
+      ['a lock script that differs', { lockScripts: ['first', '00'.repeat(22)] }, 'lock scripts'],
+      ['a missing lock script', { lockScripts: ['first'] }, 'lock scripts'],
+    ])('signTransaction: %s from the compose API, before the device', async (_label, hints, what) => {
+      // 'first' stands for the real first lock script, so only the named difference remains.
+      const lockScripts = hints.lockScripts?.map(script => script === 'first' ? fixture.lockScripts[0]! : script);
+      const options = {
+        psbtHex: fixture.barePsbt, inputValues: hints.inputValues ?? fixture.inputValues, lockScripts: lockScripts ?? fixture.lockScripts,
+      };
+      await expect(manager.signTransaction(fixture.rawTx, address, options))
+        .rejects.toThrow(`Counterparty ${what} do not match the real previous outputs`);
+      expect(hardware.init).not.toHaveBeenCalled();
+    });
+
+    it('signTransaction: no PSBT to show the device', async () => {
+      await expect(manager.signTransaction(fixture.rawTx, address)).rejects.toThrow('Hardware wallet signing requires a PSBT');
+      expect(fetchPreviousRawTransaction).not.toHaveBeenCalled();
+      expect(hardware.init).not.toHaveBeenCalled();
+    });
+
+    it('signPsbt: an input index the PSBT does not have, before any network read', async () => {
+      await expect(manager.signPsbt(fixture.witnessPsbt, { [address]: [0, 5] })).rejects.toThrow('Invalid input index 5');
+      expect(fetchPreviousRawTransaction).not.toHaveBeenCalled();
+      expect(hardware.init).not.toHaveBeenCalled();
+    });
+
+    it('signPsbt: a device answer that carries no signed PSBT', async () => {
+      hardware.signPsbt.mockResolvedValueOnce({ signedTxHex: '00' });
+      await expect(manager.signPsbt(fixture.witnessPsbt, { [address]: [0, 1] }))
+        .rejects.toThrow('Hardware wallet did not return a signed PSBT');
+    });
   });
 });

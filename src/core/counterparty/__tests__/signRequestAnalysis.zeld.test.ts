@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { InputAttachedAssets } from '../inputAssets';
 import type { ProtocolContext } from '../protocolContext';
-import { type AnalyzedOutput, analyzeSignRequest } from '../signRequestAnalysis';
+import { type AnalyzedOutput, analyzeSignRequest, zeldWarning } from '../signRequestAnalysis';
 
 vi.mock('@/core/counterparty/transaction', () => ({
   decodeCounterpartyMessage: vi.fn(async () => null),
@@ -62,11 +62,12 @@ function analyze(
     sighashType?: number;
     attachedAssets?: InputAttachedAssets[];
     knownZeldOutpoints?: (address: string) => Array<{ outpoint: string; balance?: string }>;
+    counterpartyDataHex?: string;
   } = {},
 ) {
   const inputs = options.inputs ?? [{ txid: HUNTED, vout: 1, address: LEGACY }];
   return analyzeSignRequest({
-    counterpartyDataHex: undefined,
+    counterpartyDataHex: options.counterpartyDataHex,
     inputs,
     outputs,
     signerAddresses: [LEGACY],
@@ -254,4 +255,101 @@ describe("ZELD on a site's transaction while hunting", () => {
       expect(zeldWarnings(analysis.safety.warnings)).toEqual([expect.objectContaining({ severity: 'info' })]);
     },
   ));
+});
+
+// The fixtures above carry no Counterparty payload, so every one of them is already blocked by the
+// Counterparty-only gate; mutation testing showed the ZELD block itself could be deleted unseen.
+// These carry a payload, so the ZELD is the only thing deciding.
+describe('ZELD as the only reason to block', () => {
+  const PAYLOAD = '434e5452505254590a00';
+
+  it.each([
+    [true, 'block', true],
+    [false, 'warning', false],
+  ] as const)('hunting=%s: ZELD leaving is a %s', (hunting, severity, blocked) => scenario(
+    { hunting, utxos: [{ txid: HUNTED, vout: 1, balance: ZELD }] },
+    async () => {
+      const analysis = await analyze([out(0, STRANGER, 10_000), out(1, LEGACY, 50_000)], { counterpartyDataHex: PAYLOAD });
+      expect(zeldWarnings(analysis.safety.warnings)).toEqual([expect.objectContaining({ severity })]);
+      expect(analysis.safety.warnings.filter(warning => warning.severity === 'block').map(warning => warning.code))
+        .toEqual(hunting ? ['zeld_movement'] : []);
+      expect(analysis.safety.blocked).toBe(blocked);
+    },
+  )());
+});
+
+describe('which output holds an asset', () => {
+  it('follows Core past a leading OP_RETURN to the attach it defaults to', scenario(
+    { utxos: [{ txid: HUNTED, vout: 1, balance: ZELD }], localUnpack: ATTACH },
+    async () => {
+      const analysis = await analyze([{ ...OP_RETURN, index: 0 }, out(1, SEGWIT), out(2, LEGACY, 50_000)]);
+      expect(zeldWarnings(analysis.safety.warnings)).toEqual([expect.objectContaining({
+        data: { kind: 'asset_output', asset: 'RARESHADILAY', vout: 1, amount: ZELD.toString() },
+      })]);
+    },
+  ));
+
+  it('names the asset a spent input carries onto the output the ZELD lands on', scenario(
+    { utxos: [{ txid: HUNTED, vout: 1, balance: ZELD }] },
+    async () => {
+      const analysis = await analyze([out(0, SEGWIT), out(1, LEGACY, 50_000)], {
+        attachedAssets: [{
+          inputIndex: 0, utxo: `${HUNTED}:1`,
+          assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+        } as unknown as InputAttachedAssets],
+      });
+      expect(zeldWarnings(analysis.safety.warnings)).toEqual([expect.objectContaining({
+        data: { kind: 'asset_output', asset: 'RAREPEPE', vout: 0, amount: ZELD.toString() },
+      })]);
+    },
+  ));
+
+  it('does not call ZELD listed when the asset sits on another input', scenario(
+    { utxos: [{ txid: HUNTED, vout: 1, balance: ZELD }] },
+    async () => {
+      // Input 0 carries the asset under ALL; input 1 carries the ZELD under SINGLE|ANYONECANPAY.
+      const analysis = await analyzeSignRequest({
+        counterpartyDataHex: undefined,
+        inputs: [{ txid: CLEAN, vout: 0, address: LEGACY }, { txid: HUNTED, vout: 1, address: LEGACY }],
+        outputs: [out(0, LEGACY, 60_000), out(1, LEGACY, 50_000)],
+        signerAddresses: [LEGACY],
+        ownedAddresses: [LEGACY, SEGWIT],
+        signedInputIndices: [0, 1],
+        signedInputs: [{ index: 0, sighashType: 0x01 }, { index: 1, sighashType: 0x83 }],
+        transactionId: undefined,
+        attachedAssets: Promise.resolve([{
+          inputIndex: 0, utxo: `${CLEAN}:0`,
+          assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+        } as unknown as InputAttachedAssets]),
+      });
+      expect(zeldWarnings(analysis.safety.warnings)).toEqual([expect.objectContaining({
+        data: { kind: 'leaves', amount: ZELD.toString() },
+      })]);
+    },
+  ));
+});
+
+describe('zeldWarning', () => {
+  it.each([
+    ['leaves', { kind: 'leaves', amount: '5', destination: STRANGER }, 'Blocked: ZELD Would Leave', 'warning', 'ZELD Would Leave'],
+    ['destroyed', { kind: 'destroyed', amount: '5' }, 'Blocked: ZELD Would Be Destroyed', 'warning', 'ZELD Would Be Destroyed'],
+    ['asset_output', { kind: 'asset_output', amount: '5', asset: 'RAREPEPE', vout: 0 }, 'Blocked: ZELD Would Go With an Asset', 'info', 'ZELD'],
+    ['listed', { kind: 'listed', amount: '5', asset: 'RAREPEPE' }, 'Blocked: ZELD Would Go With an Asset', 'info', 'ZELD'],
+  ] as const)('%s blocks while hunting and is otherwise a %s', (_kind, notice, huntingTitle, severity, title) => {
+    expect(zeldWarning(notice, true)).toMatchObject({ code: 'zeld_movement', severity: 'block', title: huntingTitle, data: notice });
+    expect(zeldWarning(notice, false)).toMatchObject({ severity, title, data: notice });
+    expect(zeldWarning(notice, false).message).toContain('5 base units of ZELD');
+  });
+
+  it('says what happens to the ZELD for each kind', () => {
+    expect(zeldWarning({ kind: 'destroyed' }, false).message).toMatch(/^ZELD is destroyed/);
+    expect(zeldWarning({ kind: 'asset_output', asset: 'RAREPEPE', vout: 0 }, false).message)
+      .toBe('ZELD will sit on the output holding RAREPEPE and leave with it if that asset is sold or moved.');
+    expect(zeldWarning({ kind: 'listed', asset: 'RAREPEPE' }, false).message)
+      .toBe('This output also holds ZELD, which goes to the buyer if it sells.');
+  });
+
+  it('never blocks on an unchecked input, even while hunting', () => {
+    expect(zeldWarning({ kind: 'unchecked' }, true)).toMatchObject({ severity: 'info', title: 'ZELD' });
+  });
 });
