@@ -1,3 +1,5 @@
+import { recordZeldReads } from '@/core/zeld/recordReads';
+import { setKnownZeldOutpointSource } from '@/core/zeld/signRequestZeld';
 import {
   checkSessionRecovery,
   expireSessionIfNeeded,
@@ -68,6 +70,9 @@ export default defineBackground(() => {
       registerProviderService();
       registerApprovalService();
       registerProviderSigningService();
+      // Approvals fall back on the wallet's own record of its ZELD outputs when the indexer is down.
+      recordZeldReads((address, update) => getWalletService().recordZeldOutpoints(address, update));
+      setKnownZeldOutpointSource(address => getWalletService().getKnownZeldOutpoints(address));
       console.log('[Background] Proxy services registered');
 
       // 2. Initialize the approval and connection services. Registering a proxy only answers

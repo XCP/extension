@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { getPsbtApprovalPolicy, type ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
 import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import { zeldWarning } from '@/core/counterparty/signRequestAnalysis';
 import ApprovePsbtPage from '../approve';
 
 const ADDRESS = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
@@ -102,4 +103,30 @@ it('reviews a request as its own signer after a switch to the paired sibling', a
   expect(screen.queryByText(/Signing addresses/i)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Prepare asset' }));
   await waitFor(() => expect(state.approve).toHaveBeenCalledWith(false));
+});
+
+it('states where ZELD stays with an attached asset without adding a review step', async () => {
+  state.decoded = decoded('attach_for_listing');
+  state.decoded.safety.warnings = [zeldWarning({ kind: 'asset_output', amount: '409600000000', asset: 'RARESHADILAY', vout: 0 }, false)];
+  state.policy = getPsbtApprovalPolicy(request, state.decoded, true, 10);
+  expect(state.policy.requiresAcknowledgement).toBe(false);
+  render(<ApprovePsbtPage />);
+  expect(screen.getByTestId('approval-zeld-notes')).toHaveTextContent(
+    '4,096 ZELD will sit on the output holding RARESHADILAY and leave with it if that asset is sold or moved.');
+  fireEvent.click(screen.getByRole('button', { name: 'Sign transaction' }));
+  await waitFor(() => expect(state.approve).toHaveBeenCalledWith(false));
+});
+
+it('sends ZELD leaving the wallet through the review step, and shows no ZELD card without ZELD', async () => {
+  state.decoded = decoded('attach_for_listing');
+  render(<ApprovePsbtPage />);
+  expect(screen.queryByTestId('approval-zeld-notes')).not.toBeInTheDocument();
+  cleanup();
+  state.decoded.safety.warnings = [zeldWarning({ kind: 'leaves', amount: '409600000000', destination: SIBLING }, false)];
+  state.policy = getPsbtApprovalPolicy(request, state.decoded, true, 10);
+  expect(state.policy.requiresAcknowledgement).toBe(true);
+  render(<ApprovePsbtPage />);
+  fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+  expect(await screen.findByRole('dialog')).toHaveTextContent(`4,096 ZELD goes to ${SIBLING}.`);
+  expect(state.approve).not.toHaveBeenCalled();
 });
