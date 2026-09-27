@@ -100,24 +100,25 @@ docker compose -f docker-compose.trezor.yml down
 ### ZELD regtest
 
 `e2e/zeld/` holds Vitest proofs that run the wallet's ZELD code against Bitcoin Core and
-Counterparty Core on regtest. They are skipped unless `ZELD_REGTEST=1`. `e2e/zeld/docker-compose.yml`
+Counterparty Core on regtest. They are skipped unless `ZELD_REGTEST=1`. `e2e/regtest/docker-compose.yml`
 starts both, publishing Bitcoin Core's RPC on port 28443 and the Counterparty API on 34000; the
-harness defaults to 18443 and 24000, so point it at the containers:
+harness (`e2e/regtest/regtestHarness.ts`) defaults to 18443 and 24000, so point it at the containers:
 
 ```bash
-docker compose -f e2e/zeld/docker-compose.yml up -d
+docker compose -f e2e/regtest/docker-compose.yml up -d
 
-ZELD_REGTEST=1 \
-ZELD_REGTEST_BITCOIND=http://127.0.0.1:28443 \
-ZELD_REGTEST_COUNTERPARTY=http://127.0.0.1:34000 \
-  npx vitest run e2e/zeld --no-file-parallelism
+ZELD_REGTEST=1 ZELD_REGTEST_BITCOIND=http://127.0.0.1:28443 ZELD_REGTEST_COUNTERPARTY=http://127.0.0.1:34000   npx vitest run e2e/zeld --no-file-parallelism
 
-docker compose -f e2e/zeld/docker-compose.yml down
+docker compose -f e2e/regtest/docker-compose.yml down
 ```
 
 The files share one chain, so run them without file parallelism. Some files take further
 variables (for example `ZELD_REGTEST_ZEROS` in `regtest-hunt.test.ts`); each file's header says
 which.
+
+The same stack runs the review-versus-ledger suite in `e2e/regtest/`, which proves that what each
+review screen states is what Counterparty Core's ledger records. How to run it is in
+[e2e/TESTING-GUIDE.md](e2e/TESTING-GUIDE.md#review-versus-ledger-regtest).
 
 ## CI
 
