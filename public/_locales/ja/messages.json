@@ -6406,6 +6406,15 @@
   "psbts_approve_authorize_offers_2": {
     "message": "$1 件のオファーを承認"
   },
+  "psbts_approve_fund_and_authorize_offers": {
+    "message": "オファーに資金を用意して承認"
+  },
+  "psbts_approve_fund_and_authorize_1_offer": {
+    "message": "1 件のオファーに資金を用意して承認"
+  },
+  "psbts_approve_fund_and_authorize_offers_2": {
+    "message": "$1 件のオファーに資金を用意して承認"
+  },
   "marketplace_batch_latest_expiry": {
     "message": "最終有効期限"
   },

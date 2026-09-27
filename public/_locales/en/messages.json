@@ -8528,6 +8528,18 @@
     "message": "Authorize $1 offers",
     "description": "pages/requests/psbts/approve.tsx. Sign button for a batch of exact offers. $1 = request.items.length"
   },
+  "psbts_approve_fund_and_authorize_offers": {
+    "message": "Fund and Authorize Offers",
+    "description": "pages/requests/psbts/approve.tsx. Header title of the batch screen where the bidder sets aside offer funding (paid now) and signs exact offers backed by it, in one review."
+  },
+  "psbts_approve_fund_and_authorize_1_offer": {
+    "message": "Fund and authorize 1 offer",
+    "description": "pages/requests/psbts/approve.tsx. Sign button for a fund-and-authorize batch holding one exact offer; signing also funds it now."
+  },
+  "psbts_approve_fund_and_authorize_offers_2": {
+    "message": "Fund and authorize $1 offers",
+    "description": "pages/requests/psbts/approve.tsx. Sign button for a fund-and-authorize batch of exact offers; signing also funds them now. $1 = the number of offers (the funding is not counted)."
+  },
   "marketplace_batch_latest_expiry": {
     "message": "Latest expiry",
     "description": "Row label on a multi-offer screen when the offers expire at different times: the latest of those dates."
