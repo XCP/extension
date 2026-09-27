@@ -34,7 +34,6 @@ const VerifyMessagePage = lazyPage(() => import('@/pages/actions/verify-message'
 const AddressesPage = lazyPage(() => import('@/pages/addresses'));
 const AddressDetailsPage = lazyPage(() => import('@/pages/addresses/details'));
 const AddressHistoryPage = lazyPage(() => import('@/pages/addresses/history'));
-const AssetsPage = lazyPage(() => import('@/pages/assets'));
 const AssetPage = lazyPage(() => import('@/pages/assets/[asset]'));
 const AssetBalancePage = lazyPage(() => import('@/pages/assets/[asset]/balance'));
 const UtxoPage = lazyPage(() => import('@/pages/assets/utxos/[txHash]'));
@@ -197,7 +196,6 @@ export default function App() {
             <Route path="/addresses/details" element={<AddressDetailsPage />} />
             <Route path="/addresses/history" element={<AddressHistoryPage />} />
 
-            <Route path="/assets" element={<AssetsPage />} />
             <Route path="/assets/utxos/:txHash" element={<UtxoPage />} />
             <Route path="/assets/:asset/balance" element={<AssetBalancePage />} />
             <Route path="/assets/:asset" element={<AssetPage />} />

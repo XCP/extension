@@ -1,8 +1,8 @@
 /** Real PSBT decoding, background execution, prevout verification and software signing.
  * Only wallet/session state and remote ledger responses are simulated. No broadcast. */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2pkh, p2wpkh, Script, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
@@ -74,10 +74,10 @@ function funding(script: Uint8Array, amount: bigint, seed: number) {
 }
 
 const walletKey = new Uint8Array(32).fill(7);
-const wallet = p2pkh(getPublicKey(walletKey));
-const paired = p2wpkh(getPublicKey(walletKey));
+const wallet = p2pkh(secp256k1.getPublicKey(walletKey));
+const paired = p2wpkh(secp256k1.getPublicKey(walletKey));
 const outsiderKey = new Uint8Array(32).fill(9);
-const outsider = p2wpkh(getPublicKey(outsiderKey));
+const outsider = p2wpkh(secp256k1.getPublicKey(outsiderKey));
 
 /** Make a transaction known to the simulated node, confirmed unless said otherwise. */
 function known<T extends Transaction>(tx: T, confirmations = 6): T {

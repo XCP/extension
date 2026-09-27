@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import {
@@ -9,7 +9,7 @@ import {
 import { finalizePSBT, parsePSBT } from '@/core/bitcoin/psbt';
 
 const privateKey = hexToBytes('11'.repeat(32));
-const publicKey = getPublicKey(privateKey, true);
+const publicKey = secp256k1.getPublicKey(privateKey, true);
 const payment = p2wpkh(publicKey);
 
 interface TransactionShape {
@@ -34,7 +34,7 @@ const transaction = (shape: TransactionShape = {}): Transaction => {
   });
   tx.addOutput({
     amount: shape.outputAmount ?? 90_000n,
-    script: p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true)).script,
+    script: p2wpkh(secp256k1.getPublicKey(hexToBytes('33'.repeat(32)), true)).script,
   });
   return tx;
 };
@@ -47,7 +47,7 @@ const signedRaw = (shape: TransactionShape = {}): string => {
 };
 
 const externalPrivateKey = hexToBytes('22'.repeat(32));
-const externalPayment = p2wpkh(getPublicKey(externalPrivateKey, true));
+const externalPayment = p2wpkh(secp256k1.getPublicKey(externalPrivateKey, true));
 
 const exactOfferAcceptance = (): { psbt: string; raw: string } => {
   const tx = new Transaction({ version: 2, lockTime: 840_000 });

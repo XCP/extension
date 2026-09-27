@@ -8,7 +8,8 @@ import {
   sanitizeZeldOutpointEntries,
   withZeldOutpoints,
 } from '@/core/zeld/knownOutpoints';
-import { zeldRecordAfterBroadcast, zeldRecordFromIndexer } from '@/core/zeld/recordReads';
+import { zeldRecordAfterBroadcast } from '@/core/zeld/recordAfterBroadcast';
+import { zeldRecordFromIndexer } from '@/core/zeld/recordReads';
 import { opReturnScript, PREV_TXID, SOURCE_ADDRESS, SOURCE_P2WPKH, unsignedRawTx } from './fixtures';
 
 const ADDRESS = 'bc1qtsenny4t24882u7l854yzt0h2znq686mwhf2mt';

@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2pkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
@@ -26,7 +26,7 @@ vi.mock('@/platform/provider/recentBroadcasts', () => ({
 }));
 
 const key = '02'.padStart(64, '0');
-const own = p2pkh(getPublicKey(hexToBytes(key)));
+const own = p2pkh(secp256k1.getPublicKey(hexToBytes(key)));
 const parent = new Transaction();
 parent.addInput({ txid: '11'.repeat(32), index: 0 });
 parent.addOutput({ script: own.script, amount: 100_000n });
@@ -34,7 +34,7 @@ const tx = new Transaction();
 tx.addInput({ txid: parent.id, index: 0 });
 tx.addOutput({ script: own.script, amount: 99_000n });
 const wallet: Wallet = { id: 'legacy', name: 'Legacy', type: 'privateKey', addressFormat: AddressFormat.P2PKH,
-  addressCount: 1, addresses: [{ address: own.address, name: 'Account', path: '', pubKey: bytesToHex(getPublicKey(hexToBytes(key))) }] };
+  addressCount: 1, addresses: [{ address: own.address, name: 'Account', path: '', pubKey: bytesToHex(secp256k1.getPublicKey(hexToBytes(key))) }] };
 const realHunt = signingHunt.huntZeldWhileSigning;
 
 describe('background ZELD signing', () => {

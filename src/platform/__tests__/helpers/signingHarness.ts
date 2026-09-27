@@ -5,9 +5,10 @@
  * function of the code under test. The suites build a real encrypted keychain from these, unlock
  * it with the real WalletManager, and replace only browser storage and the network.
  */
+
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { Address as BtcAddress, OutScript, p2wpkh, Transaction } from '@scure/btc-signer';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemonic } from '@/core/bitcoin/privateKey';
@@ -54,7 +55,7 @@ const privateKeySpec = (compressed: boolean): WalletSpec => ({
   secret: JSON.stringify({ wif: encodeWIF(WIKI_PRIVATE_KEY, compressed), hex: WIKI_PRIVATE_KEY, compressed }),
   previewAddress: getAddressFromPrivateKey(WIKI_PRIVATE_KEY, AddressFormat.P2PKH, compressed),
 });
-const hardwarePublicKey = bytesToHex(getPublicKey(hexToBytes(HARDWARE_PRIVATE_KEY), true));
+const hardwarePublicKey = bytesToHex(secp256k1.getPublicKey(hexToBytes(HARDWARE_PRIVATE_KEY), true));
 
 /** Every wallet the signing suites exercise, all in one vault. */
 export const WALLET_SPECS: Record<WalletKey, WalletSpec> = {
@@ -136,7 +137,7 @@ export function barrier(): Barrier {
 export const scriptOf = (address: string): Uint8Array => OutScript.encode(BtcAddress().decode(address));
 
 /** Payee of every fixture spend: P2WPKH of private key 0x00...02. */
-export const RECIPIENT = p2wpkh(getPublicKey(hexToBytes('02'.padStart(64, '0')), true));
+export const RECIPIENT = p2wpkh(secp256k1.getPublicKey(hexToBytes('02'.padStart(64, '0')), true));
 
 /**
  * One fixed spend from `address`: a parent paying it 100 000 and 50 000 sats (outputs 0 and 1),

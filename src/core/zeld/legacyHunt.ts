@@ -26,18 +26,15 @@
  * matching the ordinary wallet signer's low-R policy.
  */
 
-import { hmac } from '@noble/hashes/hmac.js';
+import { invert, mod } from '@noble/curves/abstract/modular.js';
+import { secp256k1 as secp } from '@noble/curves/secp256k1.js';
+import { numberToBytesBE } from '@noble/curves/utils.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import * as secp from '@noble/secp256k1';
 import { locateInputSequences } from '@/core/zeld/huntTemplate';
 import { legacySighashPreimage, preimageLockTimeOffset, SIGHASH_ALL } from '@/core/zeld/legacySighash';
 import type { MineRangeFound, MineRangeResult } from '@/core/zeld/mineRange';
 import { FINAL_SEQUENCE } from '@/core/zeld/protocol';
 import { MutableSha256d } from '@/core/zeld/sha256d';
-
-// The synchronous noble API needs its hashes wired once; bip322.ts does the same.
-if (!secp.hashes.sha256) secp.hashes.sha256 = (message) => new Uint8Array(sha256(message));
-if (!secp.hashes.hmacSha256) secp.hashes.hmacSha256 = (key, message) => new Uint8Array(hmac(sha256, key, message));
 
 /** secp256k1 group order. */
 const N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
@@ -124,11 +121,11 @@ export function prepareLegacyHunt(
     let rBytes: Uint8Array;
     do {
       k = bytesToBigInt(secp.utils.randomSecretKey());
-      r = secp.etc.mod(secp.Point.BASE.multiply(k).x, N);
-      rBytes = secp.etc.numberToBytesBE(r);
+      r = mod(secp.Point.BASE.multiply(k).x, N);
+      rBytes = numberToBytesBE(r, 32);
     } while (r === 0n || rBytes[0] === 0 || (rBytes[0]! & 0x80) !== 0);
-    const a = secp.etc.invert(k, N);
-    const b = secp.etc.mod(a * secp.etc.mod(r * d, N), N);
+    const a = invert(k, N);
+    const b = mod(a * mod(r * d, N), N);
     constants.push({ r, a, b });
 
     // DER: 30 len 02 20 r 02 20 s, then the hash type. Low-R needs no leading padding byte.

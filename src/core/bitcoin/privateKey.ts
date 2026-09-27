@@ -1,6 +1,6 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { generateMnemonic } from '@scure/bip39';
@@ -86,7 +86,7 @@ export function isWIF(key: string): boolean {
 export function getPublicKeyFromPrivateKey(privateKeyHex: string, compressed = true): string {
   try {
     const privBytes = hexToBytes(privateKeyHex);
-    const pubKey = getPublicKey(privBytes, compressed);
+    const pubKey = secp256k1.getPublicKey(privBytes, compressed);
     return bytesToHex(pubKey);
   } catch {
     throw new Error('Invalid private key');

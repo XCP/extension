@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -194,6 +194,65 @@ describe('DispenseForm', () => {
     renderWithProvider({ dispenser: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr', ...initial });
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Select dispenser for ASSET43' })).toBeChecked());
     expect(mockFetchAddressDispensers).toHaveBeenCalledTimes(3);
+  });
+
+  describe('replacing a prefilled dispenser address', () => {
+    const addressA = '1CounterpartyXXXXXXXXXXXXXXXUWLpVr';
+    const addressB = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+
+    beforeEach(() => {
+      mockFetchAddressDispensers.mockImplementation(async address => ({
+        result: address === addressA
+          ? [createMockDispenser({ asset: 'ALPHA', tx_hash: 'tx-a', source: addressA })]
+          : [createMockDispenser({
+              asset: 'BRAVO',
+              tx_hash: 'tx-b',
+              source: addressB,
+              satoshirate: asBaseUnits(100000),
+              satoshirate_normalized: asDisplayUnits('0.00100000'),
+            })],
+        result_count: 1,
+      }));
+    });
+
+    const hidden = (name: string) =>
+      document.querySelector<HTMLInputElement>(`input[type="hidden"][name="${name}"]`);
+
+    it('prices against the new address, not the dispenser picked from the link', async () => {
+      renderWithProvider({ dispenser: addressA, initialAsset: 'ALPHA' });
+
+      await waitFor(() => expect(screen.getByRole('radio', { name: 'Select dispenser for ALPHA' })).toBeChecked());
+      await waitFor(() => expect(hidden('quantity')).toHaveValue('5000'));
+
+      // One edit, as a paste over the prefilled address would be.
+      const addressInput = screen.getByLabelText(/Dispenser Address/i);
+      await waitFor(() => expect(addressInput).toBeEnabled());
+      fireEvent.change(addressInput, { target: { value: addressB } });
+
+      await waitFor(() => expect(screen.getByRole('radio', { name: 'Select dispenser for BRAVO' })).toBeChecked());
+      await waitFor(() => expect(hidden('quantity')).toBeInTheDocument());
+      expect(hidden('dispenser')).toHaveValue(addressB);
+      expect(hidden('satoshirate')).toHaveValue('100000');
+      expect(hidden('quantity')).toHaveValue('100000');
+    });
+
+    it('restores the previous dispenser and count when returning from review', async () => {
+      // What Composer hands back on Back: the submitted fields, as FormData strings.
+      renderWithProvider({
+        dispenserAddress: addressA,
+        dispenser: addressA,
+        selectedDispenserIndex: '0',
+        satoshirate: '5000',
+        numberOfDispenses: '3',
+        quantity: '15000',
+        sat_per_vbyte: '10',
+      });
+
+      await waitFor(() => expect(screen.getByRole('radio', { name: 'Select dispenser for ALPHA' })).toBeChecked());
+      await waitFor(() => expect(screen.getByLabelText(/Times to Dispense/i)).toHaveValue('3'));
+      expect(hidden('dispenser')).toHaveValue(addressA);
+      expect(hidden('quantity')).toHaveValue('15000');
+    });
   });
 
   it('offers no purchase when the address only has oracle dispensers', async () => {

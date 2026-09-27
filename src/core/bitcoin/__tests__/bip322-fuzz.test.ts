@@ -3,12 +3,9 @@
  * Generates random mnemonics, creates addresses of all types, signs with BIP-322, and verifies
  */
 
-import { hmac } from '@noble/hashes/hmac.js';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { randomBytes } from '@noble/hashes/utils.js';
-import * as secp256k1 from '@noble/secp256k1';
-// Required initialization for @noble/secp256k1 v3
-import { hashes } from '@noble/secp256k1';
 import { base64, hex } from '@scure/base';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
@@ -19,15 +16,6 @@ import {
   signBIP322P2WPKH,
   verifyBIP322Signature
 } from '../bip322';
-
-if (!hashes.sha256) {
-  hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
-}
-if (!hashes.hmacSha256) {
-  hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
-  hashes.hmacSha256Async = async (key, msg) => new Uint8Array(hmac(sha256, key, msg));
-  hashes.sha256Async = async (msg) => new Uint8Array(sha256(msg));
-}
 
 /**
  * Check if a value is a valid private key
