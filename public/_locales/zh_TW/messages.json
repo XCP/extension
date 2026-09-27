@@ -752,6 +752,9 @@
   "asset_asset_name_input_asset_name_is_available": {
     "message": "資產名稱可用"
   },
+  "asset_asset_name_input_availability_check_failed": {
+    "message": "無法檢查此名稱是否可用。請檢查網路連線，然後修改名稱再試一次。"
+  },
   "asset_asset_name_input_checking_availability": {
     "message": "正在檢查可用性…"
   },

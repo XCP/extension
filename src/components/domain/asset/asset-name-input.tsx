@@ -3,9 +3,24 @@ import { forwardRef, useEffect, useRef, useState } from "react";
 import { FiRefreshCw } from "@/components/icons";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchAssetDetails } from "@/core/counterparty/api";
+import { CounterpartyApiError } from "@/core/errors";
 import { generateRandomNumericAsset, validateAssetName } from "@/core/validation/asset";
 
 import { t } from '@/i18n';
+
+/**
+ * The asset, or null when the node says there is none. The API answers an unknown asset with
+ * HTTP 404; any other failure (offline, timeout, 5xx, rate limit) is rethrown, because it says
+ * nothing about whether the name is taken.
+ */
+async function fetchAssetOrNull(name: string) {
+  try {
+    return await fetchAssetDetails(name);
+  } catch (error) {
+    if (error instanceof CounterpartyApiError && error.statusCode === 404) return null;
+    throw error;
+  }
+}
 
 interface AssetNameInputProps {
   value: string;
@@ -76,12 +91,18 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
         return;
       }
 
+      // A check answers after its debounce and a network read. Once the value (or anything else
+      // this effect reads) has changed, its answer is about a name no longer in the field, and it
+      // must not report on the current one.
+      let cancelled = false;
+
       // Set up new debounced check
       debounceTimeout.current = setTimeout(async () => {
         // Only check availability if the format is valid
         const validation = validateAssetName(value, isSubasset);
         if (!validation.isValid) {
           setAvailabilityError(undefined);
+          setIsChecking(false);
           setIsValid(false);
           return;
         }
@@ -93,7 +114,8 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
             const [parentName] = value.split('.');
 
             // Check if parent asset exists and get its details
-            const parentAssetInfo = await fetchAssetDetails(parentName!);
+            const parentAssetInfo = await fetchAssetOrNull(parentName!);
+            if (cancelled) return;
             if (!parentAssetInfo || !parentAssetInfo.asset) {
               setAvailabilityError(t('asset_asset_name_input_parent_asset_does_not_exist'));
               setIsValid(false);
@@ -122,7 +144,8 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
           }
 
           // Check if asset already exists
-          const assetInfo = await fetchAssetDetails(value);
+          const assetInfo = await fetchAssetOrNull(value);
+          if (cancelled) return;
           // If we get asset info back, it exists
           if (assetInfo && assetInfo.asset) {
             setAvailabilityError(t('asset_asset_name_input_asset_name_already_taken'));
@@ -138,26 +161,34 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
             }
           }
         } catch (_error) {
-          // Expected behavior: fetchAssetDetails returns null and logs a 404 error
-          // when the asset doesn't exist, which means the name is available.
-          // The console error is expected and indicates the asset name can be used.
-          setAvailabilityError(undefined);
-          setIsValid(true);
+          // Not a "no such asset" answer (those come back as null above): the node could not be
+          // asked, so nothing is known about the name, and it must not be called available.
+          if (cancelled) return;
+          setAvailabilityError(t('asset_asset_name_input_availability_check_failed'));
+          setIsValid(false);
           if (onValidationChange) {
-            onValidationChange(true);
+            onValidationChange(false, t('asset_asset_name_input_availability_check_failed'));
           }
         } finally {
-          setIsChecking(false);
+          if (!cancelled) setIsChecking(false);
         }
       }, 500); // 500ms debounce
 
       // Cleanup function
       return () => {
+        cancelled = true;
         if (debounceTimeout.current) {
           clearTimeout(debounceTimeout.current);
         }
       };
     }, [value, isSubasset, onValidationChange, activeAddress]);
+
+    // A new name has not been checked yet: until its check answers, the previous name's
+    // "available" must not stand for it, here or in the parent's submit gate.
+    const withdrawAvailability = () => {
+      setIsValid(false);
+      onValidationChange?.(false);
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let newValue = e.target.value;
@@ -189,6 +220,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
       }
 
       onChange(newValue);
+      if (newValue !== value) withdrawAvailability();
 
       // Immediate format validation
       if (onValidationChange) {
@@ -259,6 +291,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
     const handleRandomNumeric = () => {
       const randomAsset = generateRandomNumericAsset();
       onChange(randomAsset);
+      withdrawAvailability();
       inputRef.current?.focus();
     };
 

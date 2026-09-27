@@ -92,6 +92,11 @@ export function FeeRateInput({
         setSelectedOption("fast");
         onFeeRateChangeRef.current?.(defaultValue);
       }
+
+      // The preset effect below runs in this same commit with the selection from before
+      // initialization (still "fast" when rates arrive after mount, as on Back from review).
+      // Skip that run so it cannot overwrite the value just restored.
+      hasRunPresetEffect.current = false;
     }
   }, [feeRates, validInitialValue, uniquePresetOptions]);
 
