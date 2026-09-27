@@ -601,3 +601,150 @@ describe('acceptance-cpfp: the child spends its unbroadcast parent from the same
     expect(state.wallet.signPsbt).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// fund-and-authorize-offers
+// ---------------------------------------------------------------------------------------------
+
+describe('fund-and-authorize-offers: one review funds the offer and authorizes it', () => {
+  const OFFER = 5_000;
+  const TAKER_FEE = 1_000;
+  const FUNDING = 20_000;
+  const FUND_FEE = 500;
+  const ASSET_UTXO = 546;
+
+  function fundAndAuthorize(options: {
+    owner?: typeof segwit | typeof legacy;
+    spends?: (fundId: string) => { txid: string; index: number; amount: bigint };
+    targets?: number;
+  } = {}) {
+    const owner = options.owner ?? segwit;
+    const coin = funding(owner.script, BigInt(FUNDING), 61);
+    const fund = new Transaction({ version: 2, lockTime: 0 });
+    fund.addInput(owner === legacy
+      ? { txid: coin.id, index: 0, nonWitnessUtxo: coin.toBytes(true, false), sighashType: 1 }
+      : { txid: coin.id, index: 0, witnessUtxo: { script: owner.script, amount: BigInt(FUNDING) }, sighashType: 1 });
+    fund.addOutput({ script: owner.script, amount: BigInt(OFFER) });
+    fund.addOutput({ script: owner.script, amount: BigInt(FUNDING - OFFER - FUND_FEE) });
+    // Never broadcast: nobody but this review has seen the funding.
+    const fundIntent = {
+      standard: 'counterparty-marketplace', version: 1, action: 'fund_offers',
+      operationId: `offer-funding:${fund.id}`, protocolVersion: 'exact_offer_v1', assets: [],
+      bidder: owner.address, target: { scope: 'asset', asset: 'RAREPEPE' },
+      priceSats: OFFER, platformFeeSats: 0, delivery: { mode: 'detached' },
+      fundingInputs: [{ txid: coin.id, vout: 0, valueSats: FUNDING }], fundingValueSats: FUNDING,
+      slotCount: 1, slotValueSats: OFFER, networkFeeSats: FUND_FEE, changeSats: FUNDING - OFFER - FUND_FEE,
+      expectedTxid: fund.id, marketplaceExpiresAt: 2_000_003_600,
+    };
+    const authorizations = Array.from({ length: options.targets ?? 1 }, (_, index) => {
+      const target = funding(outsider.script, BigInt(ASSET_UTXO), 70 + index);
+      state.assets.set(`${target.id}:0`, [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }]);
+      const spends = options.spends?.(fund.id) ?? { txid: fund.id, index: 0, amount: BigInt(OFFER) };
+      const tx = new Transaction({ version: 2, lockTime: 0, allowUnknownOutputs: true });
+      tx.addInput(owner === legacy
+        ? { txid: spends.txid, index: spends.index, nonWitnessUtxo: fund.toBytes(true, false), sighashType: 1 }
+        : { txid: spends.txid, index: spends.index, witnessUtxo: { script: owner.script, amount: spends.amount }, sighashType: 1 });
+      tx.addInput({ txid: target.id, index: 0, witnessUtxo: { script: outsider.script, amount: BigInt(ASSET_UTXO) }, sighashType: 1 });
+      tx.addOutput({ script: opReturn(spends.txid, 102, owner.address!), amount: 0n });
+      tx.addOutput({ script: outsider.script, amount: BigInt(OFFER - TAKER_FEE + ASSET_UTXO - NETWORK_FEE) });
+      tx.addOutput({ script: platform.script, amount: BigInt(TAKER_FEE) });
+      return {
+        psbtHex: bytesToHex(tx.toPSBT()), signInputs: { [owner.address!]: [0] }, sighashTypes: [1, 1],
+        intent: {
+          standard: 'counterparty-marketplace', version: 1, action: 'authorize_exact_offer',
+          operationId: `auth-fund-${index}`, protocolVersion: 'exact_offer_v1',
+          assets: [{ asset: 'RAREPEPE', quantityRaw: '1', sourceOutpoint: { txid: target.id, vout: 0 } }],
+          authorizationId: `auth-fund-${index}`, bidder: owner.address, seller: outsider.address,
+          priceSats: OFFER - TAKER_FEE, utxoValueSats: ASSET_UTXO,
+          sellerProceedsSats: OFFER - TAKER_FEE + ASSET_UTXO - NETWORK_FEE, networkFeeSats: NETWORK_FEE,
+          platformFeeSats: TAKER_FEE, sellerPaidFeeSats: TAKER_FEE, expectedTxid: tx.id,
+          delivery: { mode: 'detached', address: owner.address },
+          marketplaceExpiresAt: 2_000_003_600, bitcoinExpiresAt: null,
+          bitcoinInvalidation: { type: 'spend_funding_outpoint', outpoint: { txid: fund.id, vout: 0 } },
+        },
+      };
+    });
+    const parsed = parseMarketplaceBatchIntents([fundIntent, ...authorizations.map(item => item.intent)]);
+    expect(parsed.kind).toBe('fund-and-authorize-offers');
+    const items: PsbtBundleApprovalInput['items'] = [
+      {
+        psbtHex: bytesToHex(fund.toPSBT()), signInputs: { [owner.address!]: [0] }, sighashTypes: [1],
+        marketplaceIntent: parsed.intents[0]!,
+      },
+      ...authorizations.map((item, index) => ({
+        psbtHex: item.psbtHex, signInputs: item.signInputs, sighashTypes: item.sighashTypes,
+        marketplaceIntent: parsed.intents[index + 1]!,
+      })),
+    ];
+    return { items, fund };
+  }
+
+  it.each([1, 3])('proves the funding and %i authorization(s) together, then signs the funding first', async targets => {
+    const { items, fund } = fundAndAuthorize({ targets });
+    const result = await review(items, 'fund-and-authorize-offers');
+    expect(result.decodedInfo.review).toMatchObject({
+      status: 'caution', family: 'marketplace_batch', blockers: [],
+      title: targets === 1 ? 'Fund and authorize 1 exact offer' : `Fund and authorize ${targets} exact offers`,
+    });
+    expect(result.decodedInfo.review.facts).toContainEqual({ kind: 'amount', label: 'Offer price', value: '5,000 sats' });
+    expect(result.decodedInfo.items[0]!.marketplaceReview?.status).toBe('proved');
+    expect(result.policy.blocked).toBe(false);
+
+    const signed = await approve(result, result.policy.requiresAcknowledgement);
+    expect(signed).toHaveLength(targets + 1);
+    expect(computeTxid(finalizePSBT(signed[0]!))).toBe(fund.id);
+    for (const hex of signed.slice(1)) {
+      const authorization = parsePSBT(hex);
+      expect(bytesToHex(authorization.getInput(0).txid!)).toBe(fund.id);
+      expect(authorization.getInput(0).partialSig).toHaveLength(1);
+      expect(authorization.getInput(1).partialSig).toBeUndefined();
+    }
+    const calls = state.wallet.signPsbt.mock.calls as unknown[][];
+    expect(calls[0]![4]).toBeUndefined();
+    for (const call of calls.slice(1)) {
+      expect(call[4]).toEqual({ packageTransactions: { [fund.id]: bytesToHex(fund.toBytes(true, false)) } });
+    }
+  });
+
+  it('cannot authorize the unbroadcast slot on its own: that is why the funding travels with it', async () => {
+    const { items } = fundAndAuthorize();
+    const result = await review([items[1]!], 'authorize-offers');
+    expect(result.decodedInfo.review.status).toBe('retry');
+    expect(result.policy.blocked).toBe(true);
+  });
+
+  it('blocks an authorization whose input 0 value differs from the funding output it spends', async () => {
+    const { items } = fundAndAuthorize({ spends: id => ({ txid: id, index: 0, amount: BigInt(OFFER + 1) }) });
+    const result = await review(items, 'fund-and-authorize-offers');
+    expect(result.decodedInfo.review.status).toBe('blocked');
+    expect(result.decodedInfo.review.blockers).toContain(
+      'item 2: authorization input 0 differs from the offer funding output it spends',
+    );
+    await expect(approve(result, true)).rejects.toThrow();
+    expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+
+  it('blocks an authorization that spends something other than the funding in this review', async () => {
+    const { items } = fundAndAuthorize({ spends: () => ({ txid: 'ee'.repeat(32), index: 0, amount: BigInt(OFFER) }) });
+    // The claims still name the funding, so the parser admits the bundle; the bytes do not.
+    const result = await review(items, 'fund-and-authorize-offers');
+    expect(result.decodedInfo.review.status).toBe('blocked');
+    expect(result.decodedInfo.review.blockers).toContain(
+      'item 2: authorization input 0 does not spend the offer funding in this review',
+    );
+    await expect(approve(result, true)).rejects.toThrow();
+    expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+
+  it('blocks a funding whose Legacy input would change the txid the authorizations spend', async () => {
+    state.address = legacy.address!;
+    state.wallet.getActiveAddress.mockResolvedValue({ address: legacy.address });
+    const { items } = fundAndAuthorize({ owner: legacy });
+    const result = await review(items, 'fund-and-authorize-offers');
+    expect(result.decodedInfo.review.status).toBe('blocked');
+    expect(result.decodedInfo.review.blockers.some(problem =>
+      problem.includes('offer funding spends an input other than P2WPKH or P2TR'))).toBe(true);
+    await expect(approve(result, true)).rejects.toThrow();
+    expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+});

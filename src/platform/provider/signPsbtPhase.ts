@@ -41,7 +41,36 @@ const unsignedTransactionHex = (psbtHex: string): string =>
  * listing is rebound to the signed attach, which then travels as the input's nonWitnessUtxo.)
  */
 export const bundleSpendsItsParent = (kind: 'acceptance-cpfp' | MarketplaceBatchKind): boolean =>
-  kind === 'acceptance-cpfp';
+  kind === 'acceptance-cpfp' || kind === 'fund-and-authorize-offers';
+
+/**
+ * Sign an offer funding and then the authorizations that spend one of its outputs, in one approved
+ * decision. The authorizations commit to the funding's txid, so the funding is signed first and
+ * must finalize to exactly the reviewed txid (the review admitted only P2WPKH and P2TR funding
+ * inputs, whose signatures are witness data); any difference stops before a single authorization
+ * is signed. Results are disclosed only as a complete set.
+ */
+export async function signFundAndAuthorizationsForDelivery<T extends { psbtHex: string }>(
+  items: T[],
+  sign: (item: T, index: number) => Promise<string>,
+): Promise<string[]> {
+  if (items.length < 2 || items.length > MAX_MARKETPLACE_BATCH_REQUESTS) {
+    throw new Error(`fund-and-authorize-offers must contain 2..${MAX_MARKETPLACE_BATCH_REQUESTS} transactions`);
+  }
+  const [fund, ...authorizations] = items as [T, ...T[]];
+  const signedFund = await sign(fund, 0);
+  if (unsignedTransactionHex(signedFund) !== unsignedTransactionHex(fund.psbtHex)) {
+    throw new Error('offer funding signer changed the reviewed transaction');
+  }
+  if (computeTxid(finalizePSBT(signedFund)) !== parsePSBT(fund.psbtHex).id) {
+    throw new Error('the signed offer funding does not have the txid its authorizations spend');
+  }
+  const results = [signedFund];
+  for (const [index, authorization] of authorizations.entries()) {
+    results.push(await sign(authorization, index + 1));
+  }
+  return results;
+}
 
 /**
  * The unsigned bytes of a bundle's first transaction, keyed by its txid, for the later items that

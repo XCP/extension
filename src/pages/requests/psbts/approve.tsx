@@ -61,6 +61,7 @@ export default function ApprovePsbtsPage() {
                 : request?.bundleKind === "bulk-listing"
                   ? t('psbts_approve_authorize_listings')
                   : request?.bundleKind === "authorize-offers" || request?.bundleKind === "fund-policy-offer"
+                    || request?.bundleKind === "fund-and-authorize-offers"
                     ? t('psbts_approve_authorize_offers')
                     : t('psbts_approve_review_transaction_batch');
     setHeaderProps({ title });
@@ -129,6 +130,11 @@ export default function ApprovePsbtsPage() {
               ? request.items.length === 1
                 ? t('psbts_approve_authorize_1_offer')
                 : t('psbts_approve_authorize_offers_2', [String(request.items.length)])
+              // The first item funds the offers; the count is of the offers it authorizes.
+              : request.bundleKind === "fund-and-authorize-offers"
+                ? request.items.length === 2
+                  ? t('psbts_approve_authorize_1_offer')
+                  : t('psbts_approve_authorize_offers_2', [String(request.items.length - 1)])
               : t('psbts_approve_sign_transactions');
   const retry = decodedInfo.review.status === "retry" || Boolean(approvalPolicy?.retry) || Boolean(refreshError);
   // A blocked bundle leads with what the user can do — retry, refresh the site, or not sign — and

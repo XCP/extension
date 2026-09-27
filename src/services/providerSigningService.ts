@@ -21,7 +21,7 @@ import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import type { SigningIdentity } from '@/platform/auth/signingIdentity';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
 import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignMessageRequest, type SignPsbtRequest, type SignPsbtsRequest, type SignTransactionRequest } from '@/platform/provider/signFlow';
-import { bundleSpendsItsParent, packageParentOf, signAttachAndListingForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
+import { bundleSpendsItsParent, packageParentOf, signAttachAndListingForDelivery, signFundAndAuthorizationsForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
 import { defineProxyService } from '@/platform/proxy';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
@@ -290,7 +290,9 @@ export function createProviderSigningService(): ProviderSigningService {
             ? await signAttachAndListingForDelivery(request.items,
               attach?.action === 'attach_for_listing' ? attach.expectedAttachedOutpoint
                 : (() => { throw new ProviderReviewError('missing_attachment'); })(), sign)
-            : await signPsbtPhaseForDelivery(request.items, sign, maxMarketplaceBatchRequests(request.bundleKind));
+            : request.bundleKind === 'fund-and-authorize-offers'
+              ? await signFundAndAuthorizationsForDelivery(request.items, sign)
+              : await signPsbtPhaseForDelivery(request.items, sign, maxMarketplaceBatchRequests(request.bundleKind));
           result = { signedPsbtHexes };
           break;
         }

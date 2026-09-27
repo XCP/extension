@@ -21,7 +21,7 @@ Every intent is an object with `standard: 'counterparty-marketplace'`, `version:
 | `prepare_bulk_fanout` | `xcp_signPsbt`, bundles | Split funding into UTXOs for a bulk operation |
 | `create_listing` | `xcp_signPsbt`, bundles | A seller's `SINGLE\|ANYONECANPAY` listing signature; `listingContext: { mode: 'reprice' }` marks a reprice of an existing listing |
 | `buy_listings` | `xcp_signPsbt` | A buyer completes 1..20 listings |
-| `fund_offers` | `xcp_signPsbt` | A clean-Bitcoin self-send that sets aside offer-backing outputs |
+| `fund_offers` | `xcp_signPsbt`, `fund-and-authorize-offers` bundle | A clean-Bitcoin self-send that sets aside offer-backing outputs |
 | `authorize_exact_offer` | `xcp_signPsbt`, bundles | A bidder's offer on one exact asset UTXO |
 | `accept_exact_offer` | `xcp_signPsbt`, bundles | A seller completes an exact offer |
 | `bump_acceptance_fee` | `acceptance-cpfp` bundle only | A CPFP child that pays the fee for an accepted exact offer |
@@ -228,6 +228,32 @@ the funding outpoint. Because every signature spends the same input 0, at most o
 the review states this once, with every target under its ledger-proved quantity, and labels the
 expiry "Latest marketplace expiry" when the targets' expiries differ. The acknowledgement policy is
 the single authorization's, applied per item.
+
+### `fund-and-authorize-offers`
+
+An offer funding and the exact-offer authorizations it backs, in one review instead of two:
+`[fund_offers, authorize_exact_offer, ...]` with 1..7 authorizations. Send it only when
+`marketplaceBundles` lists `fund-and-authorize-offers`; otherwise send the `fund_offers` request and,
+after it, the `authorize-offers` bundle as before.
+
+The funding is proved exactly as a single `fund_offers` request, and the authorizations exactly as an
+`authorize-offers` bundle (one bidder, one funding outpoint, delivery, price, fee and seller-paid fee;
+distinct targets). The pair adds:
+
+- the shared funding outpoint is `fund_offers.expectedTxid` at a vout below `slotCount`, the same
+  bidder, the same delivery, and `slotValueSats` equals `priceSats + platformFeeSats` (plus the
+  attached-delivery UTXO) of the authorizations;
+- each authorization's input 0 spends the funding's locally computed txid, and its value and owner
+  equal that funding output, read from the funding PSBT's own bytes (not the network, which has not
+  seen it);
+- the asset lookup of that input reads the funding as an unbroadcast parent: it carries no
+  Counterparty message, so its output can carry only what its own funding inputs (proved asset-free)
+  move to its first output;
+- every funding input is P2WPKH or P2TR, so signing cannot change the txid the authorizations spend.
+  At signing the funding is signed first and must finalize to exactly the reviewed txid, or nothing
+  is returned; each authorization's prevout is then verified from the funding's unsigned bytes.
+
+The site broadcasts the signed funding and stores the authorizations as it would after two reviews.
 
 ### `acceptance-cpfp`
 

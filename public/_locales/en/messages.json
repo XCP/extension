@@ -4024,6 +4024,18 @@
     "message": "Broadcast",
     "description": "Label on the listing batch approval screen, beside whether the signed transactions go to the network now."
   },
+  "marketplace_batch_fund_and_authorize_1_exact_offer": {
+    "message": "Fund and authorize 1 exact offer",
+    "description": "Title of the batch approval screen where the bidder sets aside the offer's funding and signs an exact offer on one specific collectible in the same review."
+  },
+  "marketplace_batch_fund_and_authorize_exact_offers": {
+    "message": "Fund and authorize $1 exact offers",
+    "description": "Title of the batch approval screen where the bidder sets aside the offer's funding and signs exact offers on several specific collectibles, all backed by that one funding output, in the same review. $1 is the number of offers (2 or more)."
+  },
+  "marketplace_batch_funding_is_broadcast_now": {
+    "message": "Paid now, to set the offer funding aside",
+    "description": "Note under the 'Network fee' row on the fund-and-authorize approval screen: this miner fee is for the funding transaction, which the site broadcasts right away; the offers themselves cost nothing until accepted."
+  },
   "marketplace_batch_sent_now": {
     "message": "Sent now",
     "description": "Row label on the Attach and List screen, beside what signing broadcasts right away (only the attach; the listing is not broadcast)."

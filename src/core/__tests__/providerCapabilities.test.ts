@@ -23,7 +23,7 @@ describe('providerPsbtSigningCapabilities', () => {
           externalInputs: 'any',
           maxRequests: 8,
           maxPolicyOfferAlternatives: 100,
-          marketplaceBundles: ['attach-and-list', 'authorize-offers', 'fund-policy-offer'],
+          marketplaceBundles: ['attach-and-list', 'authorize-offers', 'fund-and-authorize-offers', 'fund-policy-offer'],
         },
       });
   });

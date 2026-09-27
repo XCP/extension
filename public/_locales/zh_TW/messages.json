@@ -3026,6 +3026,15 @@
   "marketplace_batch_broadcast": {
     "message": "廣播"
   },
+  "marketplace_batch_fund_and_authorize_1_exact_offer": {
+    "message": "為 1 個指定出價準備資金並授權"
+  },
+  "marketplace_batch_fund_and_authorize_exact_offers": {
+    "message": "為 $1 個指定出價準備資金並授權"
+  },
+  "marketplace_batch_funding_is_broadcast_now": {
+    "message": "現在支付，用於預留出價資金"
+  },
   "marketplace_batch_sent_now": {
     "message": "立即發送"
   },

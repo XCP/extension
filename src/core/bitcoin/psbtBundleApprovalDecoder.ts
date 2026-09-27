@@ -1,6 +1,7 @@
 /** Semantic proof of every item in an atomic provider signing phase. */
 
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { sameAddress } from '@/core/bitcoin/address';
 import { extractPsbtDetails, parsePSBT, resolvePsbtSighashType, spendsTaprootOutput } from '@/core/bitcoin/psbt';
 import {
   type DecodedPsbtInfo,
@@ -168,14 +169,15 @@ async function linkedDisplayQuantity(
   return `${proved.quantityRaw} (base units)`;
 }
 
-/** Add a link problem to the listing's review. A retry never softens an existing block. */
+/** Add a link problem to a dependent item's review. A retry never softens an existing block. */
 const withLinkProblem = (
   review: MarketplaceApprovalReview | undefined,
   problem: string,
   severity: 'retry' | 'blocked',
+  family: MarketplaceApprovalReview['family'] = 'create_listing',
 ): MarketplaceApprovalReview => {
   const base: MarketplaceApprovalReview = review
-    ?? missingReview('create_listing', 'marketplace semantic proof 2 is missing');
+    ?? missingReview(family, 'the dependent marketplace semantic proof is missing');
   const { paymentSummary: _payment, summary: _summary, blockKind, ...rest } = base;
   const status = severity === 'blocked' || base.status === 'blocked' ? 'blocked' : 'retry';
   // A broken link between the two transactions is the site's contradiction, whatever else held.
@@ -251,6 +253,59 @@ async function decodeAttachAndList(
     listing.marketplaceReview = withLinkProblem(listing.marketplaceReview, problem, severity);
   }
   return [attach, listing];
+}
+
+/**
+ * Decode an offer funding first, then every authorization against it. Each authorization's input 0
+ * is a set-aside output of the funding, which is not broadcast yet: its value and owner are read
+ * from the funding's own proved bytes, and its asset lookup reads the funding as an unbroadcast
+ * parent (no Counterparty message, so the output carries only what the funding's own asset-free
+ * inputs could move to its first output). Only P2WPKH and P2TR funding inputs are admitted: any
+ * other input's signature changes the txid the authorizations spend.
+ */
+async function decodeFundAndAuthorize(
+  items: StoredItem[],
+  intents: MarketplaceIntentClaimV1[],
+  ownedAddresses: string[] | undefined,
+): Promise<DecodedPsbtInfo[]> {
+  const [fundItem, ...authorizationItems] = items;
+  if (!fundItem || authorizationItems.length === 0 || intents.length !== items.length) {
+    throw new Error('fund-and-authorize-offers must pair one funding with its authorizations');
+  }
+  const fund = await decodeItem(fundItem, intents[0]!, ownedAddresses);
+  const fundTxid = fund.psbtDetails.transactionId.toLowerCase();
+  const shared: string[] = [];
+  if (!fund.marketplaceReview || fund.marketplaceReview.status === 'blocked') {
+    shared.push('the authorization depends on an offer funding that did not prove');
+  }
+  if (fund.psbtDetails.inputs.some(input => input.scriptType !== 'p2wpkh' && input.scriptType !== 'p2tr')) {
+    shared.push('the offer funding spends an input other than P2WPKH or P2TR, so its final txid is not the one the authorizations spend');
+  }
+  const packageParents = new Map([[fundTxid, unsignedTransactionHex(fundItem.psbtHex)]]);
+  const authorizations = await Promise.all(authorizationItems.map(async (item, index) => {
+    const authorization = await decodeItem(item, intents[index + 1]!, ownedAddresses, undefined, { packageParents });
+    const input = authorization.psbtDetails.inputs[0];
+    const spent = input ? fund.psbtDetails.outputs.find(output => output.index === input.vout) : undefined;
+    const problems = [...shared];
+    if (!input || input.txid.toLowerCase() !== fundTxid) {
+      problems.push('authorization input 0 does not spend the offer funding in this review');
+    } else if (
+      !spent
+      || spent.type === 'op_return'
+      || !spent.address
+      || spent.value !== input.value
+      || !sameAddress(input.address, spent.address)
+    ) {
+      problems.push('authorization input 0 differs from the offer funding output it spends');
+    }
+    for (const problem of problems) {
+      authorization.marketplaceReview = withLinkProblem(
+        authorization.marketplaceReview, problem, 'blocked', 'authorize_exact_offer',
+      );
+    }
+    return authorization;
+  }));
+  return [fund, ...authorizations];
 }
 
 export async function decodePsbtBundleForApproval(
@@ -330,6 +385,8 @@ export async function decodePsbtBundleForApproval(
   }
   const decoded: DecodedPsbtInfo[] = parsed.kind === 'attach-and-list'
     ? await decodeAttachAndList(stored.items, parsed.intents, ownedAddresses, chain)
+    : parsed.kind === 'fund-and-authorize-offers'
+      ? await decodeFundAndAuthorize(stored.items, parsed.intents, ownedAddresses)
     : parsed.kind === 'fund-policy-offer'
       ? await decodeFundPolicyOffers(
           stored.items, parsed.intents as FundPolicyOfferIntentClaim[], ownedAddresses, chain, policyOfferContext,

@@ -3026,6 +3026,15 @@
   "marketplace_batch_broadcast": {
     "message": "ブロードキャスト"
   },
+  "marketplace_batch_fund_and_authorize_1_exact_offer": {
+    "message": "1 件の指定オファーに資金を用意して承認"
+  },
+  "marketplace_batch_fund_and_authorize_exact_offers": {
+    "message": "$1 件の指定オファーに資金を用意して承認"
+  },
+  "marketplace_batch_funding_is_broadcast_now": {
+    "message": "オファー資金を確保するため今すぐ支払われます"
+  },
   "marketplace_batch_sent_now": {
     "message": "今すぐ送信"
   },

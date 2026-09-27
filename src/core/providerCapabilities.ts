@@ -33,19 +33,21 @@ export interface ProviderPsbtSigningCapabilities {
 /**
  * `attach-and-list`: [attach_for_listing, create_listing], the listing proved from the attach.
  * `authorize-offers`: 1..8 authorize_exact_offer items sharing one bidder funding outpoint.
+ * `fund-and-authorize-offers`: one fund_offers then 1..7 authorize_exact_offer items that spend one
+ * of its set-aside outputs, proved from the funding's own bytes before it is broadcast.
  * `fund-policy-offer`: 1..100 fund_policy_offer alternatives sharing one funding set; the one
  * kind allowed more than `maxRequests`, bounded by `maxPolicyOfferAlternatives`.
  */
 export type MarketplaceBundleCapability = Extract<
   MarketplaceBatchKind,
-  'attach-and-list' | 'authorize-offers' | 'fund-policy-offer'
+  'attach-and-list' | 'authorize-offers' | 'fund-and-authorize-offers' | 'fund-policy-offer'
 >;
 
 /** All need a software signer: the listing signs SINGLE|ANYONECANPAY over an unsigned buyer
  * placeholder, an exact offer leaves the seller's input unsigned for the seller, and a policy-offer
  * parent leaves the market anchor unsigned. */
 const SOFTWARE_MARKETPLACE_BUNDLES = [
-  'attach-and-list', 'authorize-offers', 'fund-policy-offer',
+  'attach-and-list', 'authorize-offers', 'fund-and-authorize-offers', 'fund-policy-offer',
 ] as const satisfies readonly MarketplaceBundleCapability[];
 
 export interface ProviderPsbtSigningRequestShape {

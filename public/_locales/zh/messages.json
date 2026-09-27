@@ -3026,6 +3026,15 @@
   "marketplace_batch_broadcast": {
     "message": "广播"
   },
+  "marketplace_batch_fund_and_authorize_1_exact_offer": {
+    "message": "为 1 个指定出价准备资金并授权"
+  },
+  "marketplace_batch_fund_and_authorize_exact_offers": {
+    "message": "为 $1 个指定出价准备资金并授权"
+  },
+  "marketplace_batch_funding_is_broadcast_now": {
+    "message": "现在支付，用于预留出价资金"
+  },
   "marketplace_batch_sent_now": {
     "message": "立即发送"
   },

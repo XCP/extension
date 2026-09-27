@@ -527,6 +527,7 @@ const result = await xcpwallet.request({
 |---|---|---|
 | `attach-and-list` | `[attach_for_listing, create_listing]` | The listing spends exactly the attach's new asset output. |
 | `authorize-offers` | 1..8 `authorize_exact_offer` | One bidder, funding outpoint, delivery, price, and fee; distinct targets. |
+| `fund-and-authorize-offers` | `[fund_offers, authorize_exact_offer × 1..7]` | As `authorize-offers`, and the shared funding outpoint is a set-aside output of the unbroadcast funding in the same review, read from its bytes. |
 | `acceptance-cpfp` | `[accept_exact_offer, bump_acceptance_fee]` | The child spends exactly the proved parent's seller output 1. |
 | `fund-policy-offer` | 1..100 `fund_policy_offer` alternatives | One bidder, keys, delivery, funding set, and anchor; distinct parent transactions, at most one of which can confirm. |
 | `bulk-listing`, `bulk-attach`, `prepare-assets` | 1..8 of one action | One seller identity; distinct targets. |
@@ -537,7 +538,7 @@ The proofs behind each kind are described in
 
 **Advertised bundles.** `xcp_getAddresses` reports the linked kinds this wallet can prove at
 `signing.psbtBatch.marketplaceBundles`: currently `["attach-and-list", "authorize-offers",
-"fund-policy-offer"]` for a software wallet and `[]` for a hardware wallet, whose batch contract
+"fund-and-authorize-offers", "fund-policy-offer"]` for a software wallet and `[]` for a hardware wallet, whose batch contract
 accepts only `SIGHASH_ALL` with every external input pre-signed.
 `signing.psbtBatch.maxPolicyOfferAlternatives` gives the largest `fund-policy-offer` set (100 for a
 software wallet, 0 when unsupported). Send a linked bundle only when its kind is listed; an older
