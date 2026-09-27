@@ -95,9 +95,60 @@ the screenshots is in [ARCHITECTURE.md](../ARCHITECTURE.md#approval-screens).
   `TREZOR_EMULATOR_AVAILABLE=1`. Hardware wallet pages need the side panel
   (`launchExtension(testId, { useSidepanel: true })`). Setup is in
   [CONTRIBUTING.md](../CONTRIBUTING.md#trezor-emulator).
+- **Review versus ledger (regtest)**: `e2e/regtest/` composes each transaction type through the
+  wallet's own compose, verification and review code, signs it with the production signer, mines it
+  on regtest, and asserts that what the review states is what Counterparty Core's ledger records.
+  Skipped unless `REGTEST=1`; see [below](#review-versus-ledger-regtest).
 - **ZELD regtest**: `e2e/zeld/` holds Vitest proofs against Bitcoin Core and Counterparty Core on
   regtest, skipped unless `ZELD_REGTEST=1`. Setup is in
   [CONTRIBUTING.md](../CONTRIBUTING.md#zeld-regtest).
+
+## Review versus ledger (regtest)
+
+One stack, one command, then tear down:
+
+```bash
+docker compose -p xcp-regtest -f e2e/regtest/docker-compose.yml up -d
+
+REGTEST=1 REGTEST_BITCOIND=http://127.0.0.1:28443 REGTEST_COUNTERPARTY=http://127.0.0.1:34000   npx vitest run e2e/regtest --no-file-parallelism
+
+docker compose -p xcp-regtest -f e2e/regtest/docker-compose.yml down -v
+```
+
+The stack is Bitcoin Core 30 and Counterparty Core 11.3 (`e2e/regtest/docker-compose.yml`). The
+files share one chain, so they run one after another. A run takes about three minutes while Core
+follows new blocks over ZMQ; when Core on regtest falls back to catching up block by block
+("Previous block is missing" in its log) each block costs ten seconds or more and a run can take
+fifteen. Without `REGTEST=1` every test is skipped, so `npx vitest run` and CI are unaffected.
+
+What each file covers:
+
+| File | Types | Address formats |
+|------|-------|-----------------|
+| `review-send.test.ts` | enhanced send, MPMA | send from and to all four; MPMA to P2WPKH, P2PKH, P2SH-P2WPKH |
+| `review-dex.test.ts` | dispenser open, dispense (two dispensers, partial fill), close; order, match, cancel; BTC order and BTCPay | dispense from all four |
+| `review-utxo.test.ts` | attach (both layouts), detach, move | attach from all four; detach and move from two each |
+| `review-issuance.test.ts` | issuance, issue more, description, lock, transfer ownership, dividend, destroy, broadcast, sweep | P2WPKH, P2PKH, P2TR |
+| `review-fairminter.test.ts` | fairminter, fairmint | fairmint from all four |
+
+How it works:
+
+- `walletReview.ts` computes what the wallet shows. `composeAsWallet` follows
+  `composer-context.tsx`'s compose step (normalize the form, compose, read the message back out of
+  the bytes, rebuild or field-check it, bound the fee, account for every output, overlay the
+  verified review params); `reviewPageFacts` reads the result the way each
+  `pages/compose/.../review.tsx` does; `approvalReview` runs the approval path a site's request
+  takes (`decodeTransactionForApproval`, `getTxActionInfo`), which carries the describer, the
+  protocol context and the MPMA recipients.
+- `ledger.ts` reads what Core recorded: the transaction's events (credits, debits, dispenses,
+  attaches, moves), balances, assets, orders, dispensers and fairminters.
+- `walletTransport.ts` is the only thing that differs from production. The wallet runs as the
+  mainnet spelling of each throwaway key, as it does in production, and requests are translated to
+  regtest spellings on the way to Core; Esplora reads and the Electrs lookup Core makes for a
+  detach or move are answered from Bitcoin Core. Addresses are compared by script.
+- A mismatch between the review and the ledger is a finding, not a flaky test: it is kept as
+  `it.fails` with a `TODO(review-vs-ledger)` comment saying what differs and when to remove the
+  marker. `grep -rn "TODO(review-vs-ledger)" e2e/regtest` lists them.
 
 ---
 
