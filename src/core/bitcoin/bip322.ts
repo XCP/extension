@@ -944,7 +944,7 @@ function parseDERSignature(der: Uint8Array): Uint8Array | null {
 export { serializeToSignUnsigned as createToSignTransaction, serializeToSpend as createToSpendTransaction };
 
 
-// Simple verification (just delegates to main)
+/** BIP-322 simple verification: `verifyBIP322Signature` checks only the simple format. */
 export async function verifySimpleBIP322(
   message: string,
   signature: string,

@@ -9,12 +9,8 @@ export interface VerificationResult {
 }
 
 export interface VerificationOptions {
-  // Whether to try platform-specific workarounds
-  tryPlatformQuirks?: boolean;
-  // Whether to use strict spec compliance
+  /** Only the spec verifiers, on the exact message and signature: no compatibility layer, no normalization. */
   strict?: boolean;
-  // Specific platform to assume (if known)
-  platform?: 'bitcoin-core' | 'bitcore' | 'freewallet' | 'sparrow' | 'ledger' | 'electrum';
 }
 
 export type AddressType = 'P2PKH' | 'P2SH' | 'P2WPKH' | 'P2WSH' | 'P2TR' | 'Unknown';
