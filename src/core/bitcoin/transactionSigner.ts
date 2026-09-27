@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { OutScript, p2tr, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { checkScript } from '@scure/btc-signer/payment.js';
 import { AddressFormat } from '@/core/bitcoin/address';
@@ -131,7 +131,7 @@ export async function signTransaction(
   const privateKeyBytes = hexToBytes(privateKeyHex);
 
   try {
-    const pubkeyBytes = getPublicKey(privateKeyBytes, compressed);
+    const pubkeyBytes = secp256k1.getPublicKey(privateKeyBytes, compressed);
 
     // Determine if this is a legacy (non-SegWit) wallet
     const isLegacy = wallet.addressFormat === AddressFormat.P2PKH ||
@@ -360,7 +360,7 @@ export async function signTransaction(
       }
       if (!compressed && (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet || wallet.addressFormat === AddressFormat.FreewalletBIP39)) {
         // Uncompressed P2PKH - use hybrid signing approach
-        const compressedPubkey = getPublicKey(privateKeyBytes, true);
+        const compressedPubkey = secp256k1.getPublicKey(privateKeyBytes, true);
         hybridSignTransaction(
           tx,
           privateKeyBytes,

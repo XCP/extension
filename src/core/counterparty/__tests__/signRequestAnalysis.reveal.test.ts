@@ -10,8 +10,8 @@
  * Network lookups are mocked; the transaction bytes, the envelope and the local decode are real.
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
@@ -60,7 +60,7 @@ const holdsAssets = () =>
   vi.mocked(api.fetchTokenBalances).mockResolvedValue([{ asset: 'PEPECASH' }] as never);
 
 const RECIPIENTS = Array.from({ length: 3 }, (_, i) =>
-  p2wpkh(getPublicKey(new Uint8Array(32).fill(10 + i), true)).address!);
+  p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(10 + i), true)).address!);
 const MPMA_HEX = bytesToHex(packComposeMessage('mpma', {
   assets: 'PEPECASH,PEPECASH,PEPECASH',
   destinations: RECIPIENTS.join(','),
@@ -244,7 +244,7 @@ describe('a script-address output without a reveal', () => {
     const tx = extractPsbtDetails(buildCommit(dataEnvelope(MPMA_HEX)).psbtHex);
     const outputs = tx.outputs.map((output, index) => index === 0
       ? { ...output, type: 'p2wpkh' as const, address: OTHER_ADDRESS,
-          script: bytesToHex(p2wpkh(getPublicKey(new Uint8Array(32).fill(2), true)).script) }
+          script: bytesToHex(p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(2), true)).script) }
       : output);
     const analysis = await analyzeSignRequest({
       counterpartyDataHex: undefined,

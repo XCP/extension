@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { historyTransactionTypeLabel } from '@/components/domain/tx/tx-action-info';
 import { FaChevronLeft, FaExternalLinkAlt } from "@/components/icons";
@@ -38,8 +38,13 @@ export default function TransactionPage(): ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<TransactionLoadError | null>(null);
 
-  // Get the page number from location state to return to the correct history page
-  const savedPage = location.state?.page || 1;
+  // Address history passes its page so Back returns to it; any other screen (an asset's dividends)
+  // passes nothing, and Back returns there instead.
+  const savedPage: number | undefined = location.state?.page;
+  const goBack = useCallback(() => {
+    if (savedPage !== undefined) void navigate(`/addresses/history?page=${savedPage}`);
+    else void navigate(-1);
+  }, [navigate, savedPage]);
 
   useEffect(() => {
     const loadTransaction = async () => {
@@ -63,13 +68,13 @@ export default function TransactionPage(): ReactElement {
       }
     };
 
-    loadTransaction();
+    void loadTransaction();
   }, [txHash]);
 
   useEffect(() => {
     setHeaderProps({
       title: t('common_transaction'),
-      onBack: () => navigate(`/addresses/history?page=${savedPage}`),
+      onBack: goBack,
       rightButton: {
         icon: <FaExternalLinkAlt className="size-4" aria-hidden="true" />,
         onClick: () => window.open(`https://www.xcp.io/tx/${txHash}`, "_blank"),
@@ -77,7 +82,7 @@ export default function TransactionPage(): ReactElement {
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, txHash, savedPage, locale]);
+  }, [setHeaderProps, goBack, txHash, locale]);
 
   if (isLoading) return <Spinner message={t('transactions_txhash_loading_transaction')} />;
   if (error) return <ErrorAlert message={loadErrorMessage(error)} onClose={() => setError(null)} />;
@@ -218,20 +223,17 @@ export default function TransactionPage(): ReactElement {
         </div>
       </div>
 
-      {/* Footer with Back to History button */}
-      <div className="p-4">
-        <Button 
-          onClick={() => navigate(`/addresses/history?page=${savedPage}`)} 
-          color="blue"
-          fullWidth
-        >
-          <div className="flex items-center justify-center gap-2">
-            <FaChevronLeft className="size-4" aria-hidden="true" />
-            
-            {t('transactions_txhash_back_to_history')}
-          </div>
-        </Button>
-      </div>
+      {/* Footer with Back to History button, when the transaction was opened from history */}
+      {savedPage !== undefined && (
+        <div className="p-4">
+          <Button onClick={goBack} color="blue" fullWidth>
+            <div className="flex items-center justify-center gap-2">
+              <FaChevronLeft className="size-4" aria-hidden="true" />
+              {t('transactions_txhash_back_to_history')}
+            </div>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

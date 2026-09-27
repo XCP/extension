@@ -2,19 +2,9 @@
  * Utility functions for message verification
  */
 
-import { hmac } from '@noble/hashes/hmac.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-// Initialize secp256k1
-import { hashes } from '@noble/secp256k1';
 import { recoverPublicKeyFromSignature } from '@/core/bitcoin/messageVerifier/secp-recovery';
 import type { AddressType, SignatureInfo } from '@/core/bitcoin/messageVerifier/types';
-
-if (!hashes.hmacSha256) {
-  hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
-  hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
-  hashes.hmacSha256Async = async (key, msg) => new Uint8Array(hmac(sha256, key, msg));
-  hashes.sha256Async = async (msg) => new Uint8Array(sha256(msg));
-}
 
 /**
  * Normalize message for cross-platform compatibility

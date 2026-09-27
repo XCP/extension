@@ -1003,6 +1003,10 @@
     "message": "Asset name is available",
     "description": "components/domain/asset/asset-name-input.tsx"
   },
+  "asset_asset_name_input_availability_check_failed": {
+    "message": "Couldn't check whether this name is available. Check your connection, then edit the name to try again.",
+    "description": "components/domain/asset/asset-name-input.tsx: shown under the asset name when the availability check could not reach the Counterparty API (offline, timeout, server error); the name is treated as unchecked, not available."
+  },
   "asset_asset_name_input_checking_availability": {
     "message": "Checking availability…",
     "description": "components/domain/asset/asset-name-input.tsx"
@@ -1242,46 +1246,6 @@
   "assets_asset_view_dividend_transaction": {
     "message": "View dividend transaction $1",
     "description": "pages/assets/[asset]/index.tsx. $1 = dividend.tx_hash"
-  },
-  "assets_failed_to_add_asset": {
-    "message": "Failed to add asset.",
-    "description": "pages/assets/index.tsx"
-  },
-  "assets_failed_to_remove_asset": {
-    "message": "Failed to remove asset.",
-    "description": "pages/assets/index.tsx"
-  },
-  "assets_failed_to_search_assets": {
-    "message": "Failed to search assets.",
-    "description": "pages/assets/index.tsx"
-  },
-  "assets_no_active_wallet_selected": {
-    "message": "No active wallet selected",
-    "description": "pages/assets/index.tsx"
-  },
-  "assets_pin_up_to_assets_to": {
-    "message": "Pin up to $1 assets to the top of your main screen.",
-    "description": "pages/assets/index.tsx. $1 = MAX_PINNED_ASSETS"
-  },
-  "assets_remove_from_pinned": {
-    "message": "Remove $1 from pinned",
-    "description": "pages/assets/index.tsx. $1 = asset"
-  },
-  "assets_search_assets": {
-    "message": "Search Assets",
-    "description": "pages/assets/index.tsx"
-  },
-  "assets_search_assets_2": {
-    "message": "Search assets",
-    "description": "pages/assets/index.tsx"
-  },
-  "assets_searching": {
-    "message": "Searching…",
-    "description": "pages/assets/index.tsx"
-  },
-  "assets_you_can_only_pin_up": {
-    "message": "You can only pin up to $1 assets.",
-    "description": "pages/assets/index.tsx. $1 = MAX_PINNED_ASSETS"
   },
   "attach_form_could_not_load_details_for": {
     "message": "Could not load details for this asset.",

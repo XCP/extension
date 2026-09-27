@@ -1,8 +1,18 @@
+import net from 'node:net';
 import { expect, walletTest } from '../fixtures';
+
+/** Suite Desktop's Connect endpoint. Connect's `auto` mode tries it first and uses Suite Web only when it is closed. */
+const suiteDesktopListening = (): Promise<boolean> => new Promise(resolve => {
+  const socket = net.connect(21335, '127.0.0.1');
+  socket.once('connect', () => { socket.destroy(); resolve(true); });
+  socket.once('error', () => resolve(false));
+});
 
 // Exercise the built SDK, service worker and Chrome's external messaging permission.
 // Only Suite's approval UI is replaced; this does not claim physical-device coverage.
 walletTest('Connect 10 reaches Suite Web and surfaces cancellation through the wallet', async ({ page, context }) => {
+  // With Suite Desktop running, the request goes to the real desktop app and no Suite Web tab opens.
+  walletTest.skip(await suiteDesktopListening(), 'Trezor Suite Desktop is running on this machine, so Connect uses it instead of Suite Web');
   await context.route('https://suite.trezor.io/**', route => route.fulfill({
     contentType: 'text/html',
     body: `<!doctype html><title>Suite test approval</title><script>

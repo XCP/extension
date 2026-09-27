@@ -5,12 +5,7 @@
  * and simplified Taproot signing
  */
 
-import { hmac } from '@noble/hashes/hmac.js';
-import { sha256 } from '@noble/hashes/sha2.js';
-import * as secp256k1 from '@noble/secp256k1';
-// Required initialization for @noble/secp256k1 v3
-// Set up the HMAC and SHA256 functions needed for deterministic signatures
-import { hashes } from '@noble/secp256k1';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { hex } from '@scure/base';
 import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
 import {
@@ -19,15 +14,6 @@ import {
   signBIP322P2TR,
   signBIP322P2WPKH,
 } from '@/core/bitcoin/bip322';
-
-if (!hashes.hmacSha256) {
-  hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
-  hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
-  
-  // Also set async versions if needed
-  hashes.hmacSha256Async = async (key, msg) => new Uint8Array(hmac(sha256, key, msg));
-  hashes.sha256Async = async (msg) => new Uint8Array(sha256(msg));
-}
 
 /**
  * Magic bytes for Bitcoin Signed Message

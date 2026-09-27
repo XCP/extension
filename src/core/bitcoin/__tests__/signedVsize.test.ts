@@ -1,4 +1,4 @@
-import * as secp256k1 from '@noble/secp256k1';
+import { schnorr, secp256k1 } from '@noble/curves/secp256k1.js';
 import { hex } from '@scure/base';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
@@ -8,7 +8,7 @@ import { estimateSignedPsbtVsize, hasHighPsbtFee } from '@/core/bitcoin/signedVs
 const PRIVATE_KEY = hex.decode('0101010101010101010101010101010101010101010101010101010101010101');
 const PUBLIC_KEY = secp256k1.getPublicKey(PRIVATE_KEY, true);
 const P2WPKH = btc.p2wpkh(PUBLIC_KEY);
-const P2TR = btc.p2tr(secp256k1.schnorr.getPublicKey(PRIVATE_KEY));
+const P2TR = btc.p2tr(schnorr.getPublicKey(PRIVATE_KEY));
 const PAYEE = btc.p2wpkh(secp256k1.getPublicKey(hex.decode('02'.repeat(32)), true));
 const INPUT_VALUE = 1_000_000n;
 

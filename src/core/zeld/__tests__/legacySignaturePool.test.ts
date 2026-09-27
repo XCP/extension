@@ -1,4 +1,4 @@
-import { getPublicKey } from '@noble/secp256k1';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { p2pkh, Transaction } from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
 import { huntTxid } from '@/core/zeld/hunt';
@@ -7,7 +7,7 @@ import { createLegacySignaturePoolJob } from '@/core/zeld/legacySignaturePool';
 
 function fixture() {
   const key = new Uint8Array(32).fill(17);
-  const script = p2pkh(getPublicKey(key)).script;
+  const script = p2pkh(secp256k1.getPublicKey(key)).script;
   const tx = new Transaction();
   for (let i = 0; i < 2; i++) tx.addInput({ txid: new Uint8Array(32).fill(18), index: i });
   tx.addOutput({ script, amount: 90_000n });

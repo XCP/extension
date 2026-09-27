@@ -3,8 +3,8 @@
  * unbroadcast output) and a batch of exact-offer authorizations sharing one funding outpoint.
  * Only wallet/session state and remote ledger responses are simulated. No broadcast. */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2pkh, p2wpkh, Script, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
@@ -114,10 +114,10 @@ vi.mock('@/core/zeld/protection', () => ({
 }));
 
 const walletKey = new Uint8Array(32).fill(7);
-const legacy = p2pkh(getPublicKey(walletKey));
-const segwit = p2wpkh(getPublicKey(walletKey));
-const outsider = p2wpkh(getPublicKey(new Uint8Array(32).fill(9)));
-const platform = p2wpkh(getPublicKey(new Uint8Array(32).fill(11)));
+const legacy = p2pkh(secp256k1.getPublicKey(walletKey));
+const segwit = p2wpkh(secp256k1.getPublicKey(walletKey));
+const outsider = p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(9)));
+const platform = p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(11)));
 
 const CNTRPRTY = hexToBytes('434e545250525459');
 const opReturn = (key: string, typeId: number, body: string) => Script.encode([

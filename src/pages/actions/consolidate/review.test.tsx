@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import type { ConsolidationResult } from '@/hooks/useMultiBatchConsolidation';
 import { getKnownScriptRecipients, recordScriptRecipients } from '@/services/scriptRecipientsClient';
 import { ConsolidationReview } from './review';
 
@@ -40,8 +41,15 @@ function batch(feeAddress: string): ConsolidationData {
   } as unknown as ConsolidationData;
 }
 
-function renderReview(destination: string, feeAddress: string, ownedAddresses: string[] = [SOURCE]) {
-  const onSign = vi.fn();
+const BROADCAST: ConsolidationResult[] = [{ batchNumber: 1, txid: 'ab'.repeat(32), utxosConsolidated: 10, status: 'success' }];
+
+function renderReview(
+  destination: string,
+  feeAddress: string,
+  ownedAddresses: string[] = [SOURCE],
+  outcome: { results: ConsolidationResult[] | undefined } = { results: BROADCAST },
+) {
+  const onSign = vi.fn(async () => outcome.results);
   const data = batch(feeAddress);
   render(
     <ConsolidationReview
@@ -100,6 +108,33 @@ describe('ConsolidationReview script-address caution', () => {
     await signWhenReady('Sign & Broadcast Transaction');
     expect(onSign).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Payment to a Script Address')).not.toBeInTheDocument();
+  });
+
+  it('does not remember a script address when every batch failed, so the notice shows on retry', async () => {
+    const failed: ConsolidationResult[] = [{ batchNumber: 1, txid: '', utxosConsolidated: 10, status: 'error', error: 'rejected' }];
+    const onSign = renderReview(P2TR, SOURCE, [SOURCE], { results: failed });
+    await signWhenReady('Sign & Broadcast Transaction');
+    await waitFor(() => expect(onSign).toHaveReturned());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sign & Broadcast Transaction' })).toBeEnabled());
+    expect(await getKnownScriptRecipients(SOURCE)).toEqual([]);
+  });
+
+  it('does not remember a script address when the sign trigger ran nothing', async () => {
+    const onSign = renderReview(P2TR, SOURCE, [SOURCE], { results: undefined });
+    await signWhenReady('Sign & Broadcast Transaction');
+    await waitFor(() => expect(onSign).toHaveReturned());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sign & Broadcast Transaction' })).toBeEnabled());
+    expect(await getKnownScriptRecipients(SOURCE)).toEqual([]);
+  });
+
+  it('remembers a script address when some batches broadcast and others failed', async () => {
+    const mixed: ConsolidationResult[] = [
+      { batchNumber: 1, txid: '', utxosConsolidated: 10, status: 'error', error: 'rejected' },
+      { batchNumber: 2, txid: 'cd'.repeat(32), utxosConsolidated: 10, status: 'success' },
+    ];
+    renderReview(P2TR, SOURCE, [SOURCE], { results: mixed });
+    await signWhenReady('Sign & Broadcast Transaction');
+    await waitFor(async () => expect(await getKnownScriptRecipients(SOURCE)).toEqual([P2TR]));
   });
 
   it('does not caution recovering to the wallet\'s own addresses', async () => {

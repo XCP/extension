@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Point } from '@noble/secp256k1';
 import {
   AddressFormat,
   encodeAddress,
@@ -27,7 +27,7 @@ export function parseSecPublicKey(value: string): SecPublicKeyIdentity | null {
 
   try {
     const bytes = hexToBytes(normalized);
-    const point = Point.fromBytes(bytes);
+    const point = secp256k1.Point.fromBytes(bytes);
     return {
       bytes,
       hex: normalized,
