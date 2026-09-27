@@ -6,8 +6,8 @@
 import BigNumber from 'bignumber.js';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { fromSatoshis } from '@/core/numeric';
 import { SATS_PER_BTC } from '@/core/bitcoin/constants';
+import { fromSatoshis } from '@/core/numeric';
 import {
   btcToSatoshis,
   DUST_LIMIT,

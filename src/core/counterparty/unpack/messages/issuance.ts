@@ -28,8 +28,7 @@ import { compactSubassetLongname } from '@/core/counterparty/pack/messages';
 import { assetIdToName } from '@/core/counterparty/unpack/assetId';
 import { BinaryReader, bytesToTextOrHex } from '@/core/counterparty/unpack/binary';
 import { type CborValue, tryDecodeCborArray } from '@/core/counterparty/unpack/cbor';
-import { SUBASSET_DIGITS } from '@/core/counterparty/unpack/messageTypes';
-import { MessageTypeId } from '@/core/counterparty/unpack/messageTypes';
+import { MessageTypeId, SUBASSET_DIGITS } from '@/core/counterparty/unpack/messageTypes';
 
 /** Minimum length of issuance (FORMAT_1) */
 const MIN_ISSUANCE_LENGTH = 17;
