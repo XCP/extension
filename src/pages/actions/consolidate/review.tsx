@@ -27,7 +27,8 @@ interface ConsolidationReviewProps {
     consolidationData: ConsolidationData | null;
     allBatches: ConsolidationData[];
   };
-  onSign: () => void;
+  /** Resolves to the batch results, or undefined when nothing was run (not ready, or already running). */
+  onSign: () => Promise<ConsolidationResult[] | undefined>;
   onBack: () => void;
   error: string | null;
   setError: (error: string | null) => void;
@@ -161,8 +162,10 @@ export const ConsolidationReview = ({
   const handleSignClick = async () => {
     setIsSigning(true);
     try {
-      await onSign();
-      // Remember the script addresses paid, so the notice is not repeated for them.
+      const results = await onSign();
+      // Remember the script addresses paid, so the notice is not repeated for them. Only a batch
+      // that reached the network paid anyone; a run where every batch failed paid no one.
+      if (!results?.some(result => result.status === 'success')) return;
       await recordScriptRecipients(params.source, ownScriptRecipients({
         outputs: plannedPaymentOutputs(plannedPayments), payerAddress: params.source, ownedAddresses,
       }));

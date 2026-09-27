@@ -1,4 +1,4 @@
-import { AddressFormat, isCounterwalletFormat, isFreewalletBIP39Format } from '@/core/bitcoin/address';
+import { AddressFormat, isCounterwalletFormat, isFreewalletBIP39Format } from '@/core/bitcoin/addressFormat';
 import type { Wallet } from '@/types/wallet';
 
 /**
