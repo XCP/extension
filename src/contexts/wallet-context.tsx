@@ -44,9 +44,8 @@ import {
   useRef,
   useState
 } from "react";
-import { type AddressFormat, DEFAULT_ADDRESS_FORMAT } from '@/core/bitcoin/address';
-import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
-import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
+import { type AddressFormat, DEFAULT_ADDRESS_FORMAT } from '@/core/bitcoin/addressFormat';
+import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { watchKeychainLock } from "@/platform/storage/keyStorage";
 import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
@@ -627,7 +626,12 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     // this context's copy empty, so quick back-to-back transactions re-picked just-spent inputs.
     broadcastTransaction: async (signedTxHex: string) => {
       const result = await walletService.broadcastTransaction(signedTxHex);
-      recordSpentInputsFromRawTx(signedTxHex);
+      // Loaded here, like pendingChange below, because recording parses the transaction and the
+      // parser (@scure/btc-signer) is not needed to open the popup. Compose has already loaded it
+      // by the time anything is broadcast, so this resolves from the module cache; a failed load
+      // only skips the record, as it does for pending change.
+      const spentUtxoCache = await import('@/core/bitcoin/spentUtxoCache').catch(() => null);
+      spentUtxoCache?.recordSpentInputsFromRawTx(signedTxHex);
       // The symmetric half: our own change becomes spendable immediately, so an address whose
       // only UTXO was just consumed can chain without waiting for the indexer. pendingChange
       // owns the safety judgment about which outputs qualify. Loaded here, after a broadcast,

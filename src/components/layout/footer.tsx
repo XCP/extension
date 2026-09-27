@@ -4,7 +4,7 @@ import { FaCog, FaTools, FaUniversity, FaWallet } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/contexts/settings-context';
 import { useWallet } from '@/contexts/wallet-context';
-import { isSegwitFormat } from '@/core/bitcoin/address';
+import { isSegwitFormat } from '@/core/bitcoin/addressFormat';
 
 import { t } from '@/i18n';
 /**
