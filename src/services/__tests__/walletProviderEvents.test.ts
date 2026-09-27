@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getWalletService } from '@/services/walletService';
 
-vi.mock('@/platform/proxy', () => ({
-  defineProxyService: (_name: string, factory: () => unknown) => [factory, factory],
+vi.mock('@/platform/proxy/server', () => ({
+  defineProxyServer: (_name: string, factory: () => unknown) => [factory, factory],
 }));
 type FakeWallet = { id: string; addresses: { address: string }[] };
 const { manager } = vi.hoisted(() => ({ manager: {

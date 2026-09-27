@@ -58,6 +58,7 @@ describe('Proxy Service Integration', () => {
   let mockWalletService: TestWalletService;
   let registerService: () => TestWalletService;
   let getService: () => TestWalletService;
+  let getClient: () => TestWalletService;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -68,7 +69,8 @@ describe('Proxy Service Integration', () => {
     const { markServicesReady } = await import('@/platform/serviceReadiness');
     markServicesReady();
 
-    const { defineProxyService } = await import('../proxy');
+    const { defineProxyServer } = await import('../server');
+    const { defineProxyClient } = await import('../client');
 
     mockWalletService = {
       getBalance: vi.fn().mockResolvedValue(100000000),
@@ -76,11 +78,9 @@ describe('Proxy Service Integration', () => {
       getReview: vi.fn().mockResolvedValue({}),
     };
 
-    [registerService, getService] = defineProxyService(
-      'WalletService',
-      () => mockWalletService,
-      { methods: { getBalance: 'read', sendTransaction: 'command', getReview: 'read' } },
-    );
+    const policy = { methods: { getBalance: 'read', sendTransaction: 'command', getReview: 'read' } } as const;
+    [registerService, getService] = defineProxyServer('WalletService', () => mockWalletService, policy);
+    getClient = defineProxyClient<TestWalletService>('WalletService', policy);
   });
 
   it('should work end-to-end like our actual services', async () => {
@@ -138,7 +138,7 @@ describe('Proxy Service Integration', () => {
   it('should work from popup context with port messaging', async () => {
     setupIntegration();
 
-    const popupService = getService();
+    const popupService = getClient();
     expect(popupService).not.toBe(mockWalletService);
 
     const balance = await popupService.getBalance('bc1q456...');
@@ -149,7 +149,7 @@ describe('Proxy Service Integration', () => {
   it('should handle method with multiple parameters', async () => {
     setupIntegration();
 
-    const popupService = getService();
+    const popupService = getClient();
     const txHash = await popupService.sendTransaction('bc1q789...', 50000000);
 
     expect(txHash).toBe('abc123txhash');
@@ -165,7 +165,7 @@ describe('Proxy Service Integration', () => {
     vi.mocked(mockWalletService.getReview).mockResolvedValue(review);
     setupIntegration();
 
-    const received = await getService().getReview();
+    const received = await getClient().getReview();
     expect(received).toEqual(review);
     const receivedData = (received.verification as typeof facts.verification).localUnpack.data;
     expect(typeof receivedData.quantity).toBe('bigint');
@@ -183,13 +183,13 @@ describe('Proxy Service Integration', () => {
     };
     vi.mocked(mockWalletService.getReview).mockResolvedValue(review);
     setupIntegration();
-    expect(await getService().getReview()).toEqual(review);
+    expect(await getClient().getReview()).toEqual(review);
   });
 
   it('reports unsupported result values instead of swallowing a serialization failure', async () => {
     vi.mocked(mockWalletService.getReview).mockResolvedValue({ invalid: () => 'function' });
     setupIntegration();
-    await expect(getService().getReview()).rejects.toThrow('unsupported value');
+    await expect(getClient().getReview()).rejects.toThrow('unsupported value');
   });
 
   it('preserves a review diagnostic, original message and public RPC code through Chrome JSON messaging', async () => {
@@ -198,7 +198,7 @@ describe('Proxy Service Integration', () => {
     const failure = withProviderReviewCode(new ProviderError(4100, 'Original permission evidence'), 'paired_revoked');
     vi.mocked(mockWalletService.getReview).mockRejectedValue(failure);
     setupIntegration();
-    const received = await getService().getReview().catch(error => error);
+    const received = await getClient().getReview().catch(error => error);
     expect(received).toBeInstanceOf(ProviderError);
     expect(received.code).toBe(4100);
     expect(received.message).toBe('Original permission evidence');
@@ -212,7 +212,7 @@ describe('Proxy Service Integration', () => {
       reviewCode: '__proto__', code: 4100,
     }));
     setupIntegration();
-    const received = await getService().getReview().catch(error => error);
+    const received = await getClient().getReview().catch(error => error);
     expect(received.message).toBe('Wallet is locked');
     expect(received.code).toBeUndefined();
     expect(providerReviewCode(received)).toBeUndefined();
@@ -225,7 +225,7 @@ describe('Proxy Service Integration', () => {
     const failure = new HardwareWalletError('Exact device error / input 7 / 0x83', code, 'trezor', 'Existing English user message');
     vi.mocked(mockWalletService.sendTransaction).mockRejectedValue(failure);
     setupIntegration();
-    const received = await getService().sendTransaction('bc1qEXACT', 12345678).catch(error => error);
+    const received = await getClient().sendTransaction('bc1qEXACT', 12345678).catch(error => error);
     expect(received.message).toBe(failure.message);
     expect(received.code).toBeUndefined();
     expect(hardwareErrorMetadata(received)).toEqual({ vendor: 'trezor', code });
@@ -240,7 +240,7 @@ describe('Proxy Service Integration', () => {
       hardware: { vendor: 'trezor', code: 'DEVICE_BUSY' }, code: 'DEVICE_BUSY', vendor: 'trezor',
     }));
     setupIntegration();
-    const received = await getService().getReview().catch(error => error);
+    const received = await getClient().getReview().catch(error => error);
     expect(received.message).toBe('API diagnostic with Trezor');
     expect(hardwareErrorMetadata(received)).toBeUndefined();
   });

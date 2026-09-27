@@ -10,8 +10,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getWalletService } from '@/services/walletService';
 import { WALLET_SERVICE_POLICY } from '@/services/walletServiceClient';
 
-vi.mock('@/platform/proxy', () => ({
-  defineProxyService: (_name: string, factory: () => unknown) => [factory, factory],
+vi.mock('@/platform/proxy/server', () => ({
+  defineProxyServer: (_name: string, factory: () => unknown) => [factory, factory],
 }));
 const { manager } = vi.hoisted(() => ({ manager: {
   getSettings: vi.fn(() => ({ connectedWebsites: [] as string[] })),

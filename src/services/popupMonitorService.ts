@@ -1,6 +1,6 @@
 /** Request-scoped popup lifecycle tracking. Closing one window cannot cancel another request. */
 import { cancelPendingSignFlow, getSignFlow, getSignFlowEventPrefix, type SignFlowKind } from '@/platform/provider/signFlow';
-import { isExtensionPageSender } from '@/platform/proxy';
+import { isExtensionPageSender } from '@/platform/proxy/server';
 import { whenServicesReady } from '@/platform/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 

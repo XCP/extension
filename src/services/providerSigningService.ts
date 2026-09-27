@@ -22,7 +22,7 @@ import type { SigningIdentity } from '@/platform/auth/signingIdentity';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
 import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignMessageRequest, type SignPsbtRequest, type SignPsbtsRequest, type SignTransactionRequest } from '@/platform/provider/signFlow';
 import { bundleSpendsItsParent, packageParentOf, signAttachAndListingForDelivery, signFundAndAuthorizationsForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
-import { defineProxyService } from '@/platform/proxy';
+import { defineProxyServer } from '@/platform/proxy/server';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY } from '@/services/providerSigningServiceClient';
@@ -360,6 +360,6 @@ export function createProviderSigningService(): ProviderSigningService {
   return { getRequest, getReview, approveAndSign, reject };
 }
 
-export const [registerProviderSigningService, getProviderSigningService] = defineProxyService(
+export const [registerProviderSigningService, getProviderSigningService] = defineProxyServer(
   PROVIDER_SIGNING_SERVICE_NAME, createProviderSigningService, PROVIDER_SIGNING_SERVICE_POLICY,
 );

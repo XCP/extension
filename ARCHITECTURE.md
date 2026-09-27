@@ -13,7 +13,7 @@ promises surviving.
 | --- | --- |
 | `src/entrypoints` | Injected provider, isolated content bridge, background startup, popup and side-panel entry points |
 | `src/services` | Wallet, connection, approval, and provider operations |
-| `src/platform/proxy.ts` | Sender-scoped RPC method exposure and read-only reconnect policy |
+| `src/platform/proxy` | Service RPC: `server.ts` (sender-scoped method exposure, background only), `client.ts` (page-side proxy and read-only reconnect policy), `protocol.ts` (what both agree on) |
 | `src/platform/walletManager.ts` | Serialized vault mutations, wallet selection, final signing identity checks |
 | `src/platform/auth` | Session generations, inactivity and absolute deadlines, secret lifetime |
 | `src/platform/provider` | Typed signing lifecycle, identity permissions, request correlation |

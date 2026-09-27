@@ -16,7 +16,7 @@ import {
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import type { KnownZeldOutpoint, ZeldOutpointUpdate } from '@/core/zeld/knownOutpoints';
 import { registerSessionExpiredHandler, setLastActiveTime } from '@/platform/auth/sessionManager';
-import { defineProxyService } from '@/platform/proxy';
+import { defineProxyServer } from '@/platform/proxy/server';
 import { walletManager } from '@/platform/walletManager';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { WALLET_SERVICE_NAME, WALLET_SERVICE_POLICY } from '@/services/walletServiceClient';
@@ -295,7 +295,7 @@ function createWalletService(): WalletService {
 }
 
 // Create the proxy service
-const [registerWalletService, getWalletServiceRaw] = defineProxyService(
+const [registerWalletService, getWalletServiceRaw] = defineProxyServer(
   WALLET_SERVICE_NAME,
   createWalletService,
   WALLET_SERVICE_POLICY,
