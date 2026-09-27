@@ -11,7 +11,7 @@
  * fixtures, because the point is the encoding, not any wallet's behaviour.
  */
 
-import * as secp from '@noble/secp256k1';
+import { secp256k1 as secp } from '@noble/curves/secp256k1.js';
 import { base64 } from '@scure/base';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';

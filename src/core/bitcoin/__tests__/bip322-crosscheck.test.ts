@@ -21,10 +21,8 @@
  * ourselves is not evidence.
  */
 
-import { hmac } from '@noble/hashes/hmac.js';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import * as secp256k1 from '@noble/secp256k1';
-import { hashes } from '@noble/secp256k1';
 import { base64, hex } from '@scure/base';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
@@ -35,9 +33,6 @@ import {
   signBIP322P2SH_P2WPKH,
   verifyBIP322Signature,
 } from '../bip322';
-
-if (!hashes.sha256) hashes.sha256 = (m) => new Uint8Array(sha256(m));
-if (!hashes.hmacSha256) hashes.hmacSha256 = (k, m) => new Uint8Array(hmac(sha256, k, m));
 
 const PRIV = hex.decode('55d7c5a9ce3d2b15a62434d01205f3e59077d51316f5c20628b3a4b8b2a76f4c');
 const PUBKEY = secp256k1.getPublicKey(PRIV, true);

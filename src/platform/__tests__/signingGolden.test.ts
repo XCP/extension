@@ -11,18 +11,19 @@
  * Trezor adapter are replaced.
  *
  * Taproot: BIP340 signing mixes 32 bytes of auxiliary randomness into the nonce. Both signers the
- * wallet reaches (@scure/btc-signer via @noble/curves for transactions, @noble/secp256k1 for
- * BIP322 messages) draw it from `crypto.getRandomValues`, so every case runs with that call pinned
- * to a fixed pattern for the duration of the signing call. That makes the Taproot bytes goldenable;
- * the ECDSA paths are RFC 6979 deterministic and need no pin. @noble/curves also draws 16-byte
- * blinding values for secret scalar multiplications; they cannot change any output, and the pin
- * covers them too. Each case counts the 32-byte (aux) draws: exactly one per Schnorr signature and
+ * wallet reaches (@scure/btc-signer for transactions, bip322.ts for BIP322 messages) use
+ * @noble/curves, which draws it from `crypto.getRandomValues`, so every case runs with that call
+ * pinned to a fixed pattern for the duration of the signing call. That makes the Taproot bytes
+ * goldenable; the ECDSA paths are RFC 6979 deterministic and need no pin. @noble/curves also draws
+ * blinding values (never 32 bytes) for secret scalar arithmetic; they cannot change any output,
+ * and the pin covers them too. Each case counts the 32-byte (aux) draws: exactly one per Schnorr signature and
  * none on any ECDSA path. Independently of the golden, every Schnorr signature is verified against
  * a BIP341 sighash computed here and the prevout's output key, so a recorded golden cannot hide a
  * signature that does not verify.
  */
+
+import { schnorr } from '@noble/curves/secp256k1.js';
 import { hexToBytes } from '@noble/hashes/utils.js';
-import { schnorr } from '@noble/secp256k1';
 import { SigHash, Transaction } from '@scure/btc-signer';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';

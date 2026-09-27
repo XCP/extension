@@ -4,9 +4,8 @@
  * remote chain and ledger responses are simulated. The offer bytes are built here with the wallet's
  * own port; `policyOffer.test.ts` pins that port to the marketplace reference. No broadcast. */
 
-import { sha256 } from '@noble/hashes/sha2.js';
+import { schnorr, secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import * as secp256k1 from '@noble/secp256k1';
 import { p2pkh, p2tr, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
@@ -104,19 +103,16 @@ vi.mock('@/core/zeld/protection', () => ({ classifyZeldOutpoints: async (inputs:
   bearing: [], unknown: [], clean: inputs,
 }) }));
 
-// Schnorr verification below needs noble's hash; the wallet sets it the same way (bip322.ts).
-if (!secp256k1.hashes.sha256) secp256k1.hashes.sha256 = msg => new Uint8Array(sha256(msg));
-
 const walletKey = new Uint8Array(32).fill(7);
 const publicKey = secp256k1.getPublicKey(walletKey);
 const legacy = p2pkh(publicKey);
 const segwit = p2wpkh(publicKey);
 const taproot = p2tr(publicKey.slice(1));
 const INTERNAL_KEY = bytesToHex(publicKey.slice(1));
-const anchorScript = p2tr(secp256k1.schnorr.getPublicKey(new Uint8Array(32).fill(12))).script;
+const anchorScript = p2tr(schnorr.getPublicKey(new Uint8Array(32).fill(12))).script;
 const feeScript = p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(11))).script;
 const sellerKey = new Uint8Array(32).fill(8);
-const seller = p2tr(secp256k1.schnorr.getPublicKey(sellerKey));
+const seller = p2tr(schnorr.getPublicKey(sellerKey));
 
 const POLICY: CanonicalPolicy = {
   scope: 'collection', asset: null, collection: 'rare-pepe', max_supply_units: null,
@@ -240,7 +236,7 @@ function expectSignedFundingOnly(signedHex: string, kind: Bidder) {
     // DEFAULT is the 64-byte encoding; a 65-byte ALL would carry its flag.
     expect(signature.length).toBe(64);
     const sighash = tx.preimageWitnessV1(0, scripts, SigHash.DEFAULT, amounts);
-    expect(secp256k1.schnorr.verify(signature, sighash, taproot.tweakedPubkey)).toBe(true);
+    expect(schnorr.verify(signature, sighash, taproot.tweakedPubkey)).toBe(true);
   } else {
     const [pubkey, der] = tx.getInput(0).partialSig![0]!;
     expect(bytesToHex(pubkey!)).toBe(bytesToHex(publicKey));
@@ -402,7 +398,7 @@ describe('accept_policy_offer', () => {
     const amounts = [0, 1].map(index => signed.getInput(index).witnessUtxo!.amount);
     const signature = signed.getInput(1).tapKeySig!;
     expect(signature.length).toBe(64);
-    expect(secp256k1.schnorr.verify(signature, signed.preimageWitnessV1(1, scripts, SigHash.DEFAULT, amounts), seller.tweakedPubkey)).toBe(true);
+    expect(schnorr.verify(signature, signed.preimageWitnessV1(1, scripts, SigHash.DEFAULT, amounts), seller.tweakedPubkey)).toBe(true);
     expect(signed.getInput(0).tapKeySig).toBeUndefined();
     expect(signed.id).toBe(child.id);
   });

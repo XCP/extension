@@ -59,7 +59,7 @@ The wallet has 13 direct runtime dependencies, pinned to exact versions in `pack
 
 | Package | Purpose |
 |---------|---------|
-| [@noble/secp256k1](https://github.com/paulmillr/noble-secp256k1), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [@scure/*](https://github.com/paulmillr/scure-bip32) | Cryptography and Bitcoin serialization |
+| [@noble/curves](https://github.com/paulmillr/noble-curves), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [@scure/*](https://github.com/paulmillr/scure-bip32) | Cryptography and Bitcoin serialization |
 | [@trezor/connect-webextension](https://github.com/trezor/trezor-suite) | Hardware wallet connection |
 | [events](https://github.com/browserify/events) | Node's `EventEmitter` for the browser, required by Trezor Connect 10 |
 | [bignumber.js](https://github.com/MikeMcl/bignumber.js) | Arbitrary precision arithmetic |

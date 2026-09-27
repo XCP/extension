@@ -8,8 +8,9 @@
  * never posted to a worker. Noble generates fresh randomized, low-S signatures; there is no
  * custom nonce arithmetic here. Preparation and timer yields count against the same deadline.
  */
+
+import { secp256k1 as secp } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import * as secp from '@noble/secp256k1';
 import type { HuntTxidOptions, HuntTxidResult } from '@/core/zeld/hunt';
 import { type LegacyHuntTemplate, legacySignedTransaction } from '@/core/zeld/legacyHunt';
 import { MutableSha256d } from '@/core/zeld/sha256d';

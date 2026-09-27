@@ -2,9 +2,8 @@
  * Tests for PSBT utilities
  */
 
-import { sha256 } from '@noble/hashes/sha2.js';
+import { schnorr, secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey, hashes, schnorr, verify as verifyEcdsa } from '@noble/secp256k1';
 import { Address, p2pkh, p2tr, p2wpkh, SigHash, Transaction, taprootNumsKey } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '../address';
@@ -23,7 +22,6 @@ import {
   validateSignInputs,
 } from '../psbt';
 
-if (!hashes.sha256) hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
 
 /** A DER ECDSA signature as 64-byte compact r||s. */
 function derToCompact(der: Uint8Array): Uint8Array {
@@ -125,8 +123,8 @@ describe('normalizePsbtToHex', () => {
 describe('untrusted PSBT policy', () => {
   it('rejects Taproot metadata that does not commit to the previous output', () => {
     const privateKey = hexToBytes(TEST_PRIVATE_KEY);
-    const internalKey = getPublicKey(privateKey, true).slice(1, 33);
-    const unrelatedKey = getPublicKey(hexToBytes('11'.repeat(32)), true).slice(1, 33);
+    const internalKey = secp256k1.getPublicKey(privateKey, true).slice(1, 33);
+    const unrelatedKey = secp256k1.getPublicKey(hexToBytes('11'.repeat(32)), true).slice(1, 33);
     const payment = p2tr(internalKey);
 
     // disableScriptCheck is used only to manufacture the malformed PSBT. The wallet parser must
@@ -145,7 +143,7 @@ describe('untrusted PSBT policy', () => {
   });
 
   it('round-trips PSBTv2 locktime and transaction-modifiable metadata', () => {
-    const internalKey = getPublicKey(hexToBytes(TEST_PRIVATE_KEY), true).slice(1, 33);
+    const internalKey = secp256k1.getPublicKey(hexToBytes(TEST_PRIVATE_KEY), true).slice(1, 33);
     const payment = p2tr(internalKey);
     const original = new Transaction({ PSBTVersion: 2, version: 2, lockTime: 840_000 });
     original.addInput({
@@ -174,7 +172,7 @@ describe('untrusted PSBT policy', () => {
  */
 function createTestPsbt(): string {
   const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
-  const pubkey = getPublicKey(privateKeyBytes, true);
+  const pubkey = secp256k1.getPublicKey(privateKeyBytes, true);
   const payment = p2wpkh(pubkey);
 
   const tx = new Transaction({ allowUnknownOutputs: true });
@@ -297,7 +295,7 @@ describe('extractPsbtDetails', () => {
 
   it('should handle PSBT without OP_RETURN', () => {
     const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
-    const pubkey = getPublicKey(privateKeyBytes, true);
+    const pubkey = secp256k1.getPublicKey(privateKeyBytes, true);
     const payment = p2wpkh(pubkey);
 
     const tx = new Transaction();
@@ -449,7 +447,7 @@ describe('validateSignInputs', () => {
 
 describe('tapLeafOwnerAddress', () => {
   const privKey = TEST_PRIVATE_KEY;
-  const internalKey = getPublicKey(hexToBytes(privKey), true).slice(1, 33);
+  const internalKey = secp256k1.getPublicKey(hexToBytes(privKey), true).slice(1, 33);
   const addr = p2tr(internalKey, undefined, undefined, true);
   const outputKey = (Address().decode(addr.address!) as { type: 'tr'; pubkey: Uint8Array }).pubkey;
   const leaf = new Uint8Array([0x00, 0x63, 0x03, 0x6f, 0x72, 0x64, 0x68, 0x20, ...outputKey, 0xac]);
@@ -483,7 +481,7 @@ describe('tapLeafOwnerAddress', () => {
 
 describe('signPSBT taproot inscription shapes', () => {
   const privKey = TEST_PRIVATE_KEY;
-  const internalKey = getPublicKey(hexToBytes(privKey), true).slice(1, 33);
+  const internalKey = secp256k1.getPublicKey(hexToBytes(privKey), true).slice(1, 33);
   const addrP2tr = p2tr(internalKey, undefined, undefined, true);
   const outputKey = (Address().decode(addrP2tr.address!) as { type: 'tr'; pubkey: Uint8Array }).pubkey;
 
@@ -693,7 +691,7 @@ describe('signPSBT', () => {
   it('rejects a PSBT-embedded SIGHASH_NONE with no explicit sighash', () => {
     // The bypass: no sighashTypes parameter, but the input embeds NONE (0x02)
     const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
-    const payment = p2wpkh(getPublicKey(privateKeyBytes, true));
+    const payment = p2wpkh(secp256k1.getPublicKey(privateKeyBytes, true));
     const tx = new Transaction({ allowUnknownOutputs: true });
     tx.addInput({
       txid: hexToBytes('0'.repeat(64)),
@@ -718,7 +716,7 @@ describe('signPSBT', () => {
     // Two inputs: index 0 signable with ALL, index 1 embeds NONE. In
     // best-effort mode (no explicit indices) the bad-sighash input must be
     // skipped, not abort signing of input 0.
-    const payment = p2wpkh(getPublicKey(hexToBytes(TEST_PRIVATE_KEY), true));
+    const payment = p2wpkh(secp256k1.getPublicKey(hexToBytes(TEST_PRIVATE_KEY), true));
     const tx = new Transaction({ allowUnknownOutputs: true });
     tx.addInput({
       txid: hexToBytes('0'.repeat(64)),
@@ -747,7 +745,7 @@ describe('signPSBT', () => {
     // P2WPKH and input#1 is a P2PKH output of the SAME key — without address scoping best-effort
     // would sign it, draining an address the approval screen never priced.
     const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
-    const pubkey = getPublicKey(privateKeyBytes, true);
+    const pubkey = secp256k1.getPublicKey(privateKeyBytes, true);
 
     // A prior tx whose output 0 pays the paired P2PKH (legacy) address, used as nonWitnessUtxo so
     // the legacy input parses under allowLegacyWitnessUtxo:false.
@@ -779,7 +777,7 @@ describe('signPSBT', () => {
     // A P2PKH input with a witnessUtxo declaring an arbitrary amount but no
     // previous transaction — the forged-amount vector.
     const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
-    const pubkey = getPublicKey(privateKeyBytes, true);
+    const pubkey = secp256k1.getPublicKey(privateKeyBytes, true);
     const p2pkhScript = p2pkh(pubkey).script;
     const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
     tx.addInput({
@@ -827,7 +825,7 @@ describe('OP_RETURN data extraction', () => {
   it('should extract raw data without push opcode (direct push)', () => {
     // Create PSBT with OP_RETURN using direct push (data < 76 bytes)
     const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
-    const pubkey = getPublicKey(privateKeyBytes, true);
+    const pubkey = secp256k1.getPublicKey(privateKeyBytes, true);
     const payment = p2wpkh(pubkey);
 
     const tx = new Transaction({ allowUnknownOutputs: true });
@@ -871,7 +869,7 @@ describe('OP_RETURN data extraction', () => {
     // Create a Counterparty-style OP_RETURN with 51 bytes of data
     // The push opcode 0x33 (51 decimal) should be stripped
     const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
-    const pubkey = getPublicKey(privateKeyBytes, true);
+    const pubkey = secp256k1.getPublicKey(privateKeyBytes, true);
     const payment = p2wpkh(pubkey);
 
     const tx = new Transaction({ allowUnknownOutputs: true });
@@ -917,7 +915,7 @@ describe('OP_RETURN data extraction', () => {
   it('should handle OP_PUSHDATA1 (data >= 76 bytes)', () => {
     // OP_PUSHDATA1 uses 4c followed by 1-byte length
     const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
-    const pubkey = getPublicKey(privateKeyBytes, true);
+    const pubkey = secp256k1.getPublicKey(privateKeyBytes, true);
     const payment = p2wpkh(pubkey);
 
     const tx = new Transaction({ allowUnknownOutputs: true });
@@ -962,7 +960,7 @@ describe('Script type detection', () => {
   it('should detect different output types via extractPsbtDetails', () => {
     // Create PSBT with different output types
     const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
-    const pubkey = getPublicKey(privateKeyBytes, true);
+    const pubkey = secp256k1.getPublicKey(privateKeyBytes, true);
     const payment = p2wpkh(pubkey);
 
     const tx = new Transaction();
@@ -1218,7 +1216,7 @@ describe('committedOutputIndices', () => {
 
 describe('unfunded PSBTs', () => {
   it('reports no fee for a listing whose outputs exceed its inputs', () => {
-    const pub = getPublicKey(hexToBytes(TEST_PRIVATE_KEY), true);
+    const pub = secp256k1.getPublicKey(hexToBytes(TEST_PRIVATE_KEY), true);
     const payment = p2wpkh(pub);
     const tx = new Transaction({ allowUnknownOutputs: true, allowUnknownInputs: true });
     // A seller's dust UTXO offered against an asking price the buyer has yet to fund.
@@ -1245,7 +1243,7 @@ describe('unfunded PSBTs', () => {
 
 describe('signPSBT with no sighash in the request or the PSBT', () => {
   const privKey = TEST_PRIVATE_KEY;
-  const internalKey = getPublicKey(hexToBytes(privKey), true).slice(1, 33);
+  const internalKey = secp256k1.getPublicKey(hexToBytes(privKey), true).slice(1, 33);
   const ownP2tr = p2tr(internalKey, undefined, undefined, true);
   const outputKey = ownP2tr.script.slice(2);
 
@@ -1282,7 +1280,7 @@ describe('signPSBT with no sighash in the request or the PSBT', () => {
   });
 
   it('still signs a P2WPKH input with SIGHASH_ALL', () => {
-    const pub = getPublicKey(hexToBytes(privKey), true);
+    const pub = secp256k1.getPublicKey(hexToBytes(privKey), true);
     const tx = new Transaction();
     tx.addInput({ txid: hexToBytes('55'.repeat(32)), index: 0, witnessUtxo: { script: p2wpkh(pub).script, amount: 50_000n } });
     tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', 49_000n);
@@ -1295,8 +1293,8 @@ describe('signPSBT with no sighash in the request or the PSBT', () => {
 
 describe('signPSBT with an uncompressed key', () => {
   const privKey = TEST_PRIVATE_KEY;
-  const uncompressed = getPublicKey(hexToBytes(privKey), false);
-  const compressed = getPublicKey(hexToBytes(privKey), true);
+  const uncompressed = secp256k1.getPublicKey(hexToBytes(privKey), false);
+  const compressed = secp256k1.getPublicKey(hexToBytes(privKey), true);
   const ownP2pkh = p2pkh(uncompressed);
   type PsbtOptions = { witnessOnly?: boolean };
 
@@ -1332,7 +1330,7 @@ describe('signPSBT with an uncompressed key', () => {
       expect(signature.at(-1)).toBe(SigHash.ALL);
       const digest = (signed as unknown as { preimageLegacy: (i: number, s: Uint8Array, h: number) => Uint8Array })
         .preimageLegacy(index, ownP2pkh.script, SigHash.ALL);
-      expect(verifyEcdsa(derToCompact(signature.slice(0, -1)), digest, uncompressed, { prehash: false })).toBe(true);
+      expect(secp256k1.verify(derToCompact(signature.slice(0, -1)), digest, uncompressed, { prehash: false })).toBe(true);
     }
     signed.finalize();
   });

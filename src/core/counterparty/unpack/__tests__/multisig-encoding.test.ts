@@ -8,7 +8,7 @@
  * and classified, so the block applies regardless of encoding.
  */
 
-import { getPublicKey } from '@noble/secp256k1';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
 import { setSourcePubkeyProvider } from '../../sourcePubkey';
@@ -353,9 +353,9 @@ describe('unclassified transactions fail toward unknown', () => {
 describe('the recovery key rides in the third slot', () => {
   const signerPrivateKey = hexToBytes('01'.padStart(64, '0'));
   const strangerPrivateKey = hexToBytes('02'.padStart(64, '0'));
-  const signerPubkey = bytesToHex(getPublicKey(signerPrivateKey, true));
-  const uncompressedSignerPubkey = bytesToHex(getPublicKey(signerPrivateKey, false));
-  const strangerPubkey = bytesToHex(getPublicKey(strangerPrivateKey, true));
+  const signerPubkey = bytesToHex(secp256k1.getPublicKey(signerPrivateKey, true));
+  const uncompressedSignerPubkey = bytesToHex(secp256k1.getPublicKey(signerPrivateKey, false));
+  const strangerPubkey = bytesToHex(secp256k1.getPublicKey(strangerPrivateKey, true));
   const signerAddress = encodeAddress(hexToBytes(signerPubkey), AddressFormat.P2PKH);
 
   /** A data script embedding `recovery` where core puts the source pubkey. */
@@ -414,8 +414,8 @@ describe('the recovery key rides in the third slot', () => {
 
   it('recognizes compressed and uncompressed encodings of the same recovery key', () => {
     const privateKey = hexToBytes('01'.repeat(32));
-    const compressed = bytesToHex(getPublicKey(privateKey, true));
-    const uncompressed = bytesToHex(getPublicKey(privateKey, false));
+    const compressed = bytesToHex(secp256k1.getPublicKey(privateKey, true));
+    const uncompressed = bytesToHex(secp256k1.getPublicKey(privateKey, false));
     const uncompressedAddress = encodeAddress(hexToBytes(uncompressed), AddressFormat.P2PKH);
     setSourcePubkeyProvider(() => uncompressed);
 

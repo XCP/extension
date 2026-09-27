@@ -16,8 +16,8 @@
  * never signs a transaction with an input it does not own and never trusts a scriptCode.
  */
 
+import { secp256k1 as secp } from '@noble/curves/secp256k1.js';
 import { hexToBytes } from '@noble/hashes/utils.js';
-import * as secp from '@noble/secp256k1';
 import * as btc from '@scure/btc-signer';
 import { parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
 import { bytesToHex } from '@/core/counterparty/unpack/binary';

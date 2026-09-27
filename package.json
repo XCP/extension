@@ -36,8 +36,8 @@
   },
   "dependencies": {
     "@headlessui/react": "2.2.10",
+    "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
-    "@noble/secp256k1": "3.2.0",
     "@scure/base": "2.4.0",
     "@scure/bip32": "2.4.0",
     "@scure/bip39": "2.4.0",

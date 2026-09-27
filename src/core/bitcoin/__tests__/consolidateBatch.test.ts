@@ -6,10 +6,9 @@
  * cryptographic verification of the produced signatures.
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import * as secp from '@noble/secp256k1';
-import { getPublicKey } from '@noble/secp256k1';
 import { base58check } from '@scure/base';
 import { describe, expect, it } from 'vitest';
 import { consolidateBareMultisigBatch } from '../consolidateBatch';
@@ -36,9 +35,9 @@ const TAPROOT_FEE_ADDRESS = 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjw
 const TAPROOT_FEE_SCRIPT_HEX = '5120a60869f0dbcf1dc659c9cecbaf8050135ea9e8cdc487053f1dc6880949dc684c';
 
 const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
-const compressedPubkey = getPublicKey(privateKeyBytes, true);
-const uncompressedPubkey = getPublicKey(privateKeyBytes, false);
-const otherKey = getPublicKey(hexToBytes('11'.repeat(32)), true);
+const compressedPubkey = secp256k1.getPublicKey(privateKeyBytes, true);
+const uncompressedPubkey = secp256k1.getPublicKey(privateKeyBytes, false);
+const otherKey = secp256k1.getPublicKey(hexToBytes('11'.repeat(32)), true);
 
 const historicalScript = bareMultisigScript(1, [compressedPubkey, counterpartyDataKey()]);
 const currentScript = bareMultisigScript(1, [offCurveFakeKey(0x02), offCurveFakeKey(0x03), uncompressedPubkey]);
@@ -408,7 +407,7 @@ describe('consolidateBareMultisigBatch', () => {
         expect(scriptSig[scriptSig.length - 1]).toBe(0x01);
         const sighash = legacySighashAll(wire, index, spec.script);
         expect(
-          secp.verify(derToCompact(scriptSig.slice(2, -1)), sighash, spec.signer, { prehash: false })
+          secp256k1.verify(derToCompact(scriptSig.slice(2, -1)), sighash, spec.signer, { prehash: false })
         ).toBe(true);
       }
     });
@@ -442,7 +441,7 @@ describe('consolidateBareMultisigBatch', () => {
       for (const index of [0, 252]) {
         const sighash = legacySighashAll(wire, index, historicalScript);
         expect(
-          secp.verify(derToCompact(wire.inputs[index]!.script.slice(2, -1)), sighash, compressedPubkey, { prehash: false })
+          secp256k1.verify(derToCompact(wire.inputs[index]!.script.slice(2, -1)), sighash, compressedPubkey, { prehash: false })
         ).toBe(true);
       }
     });

@@ -5,8 +5,8 @@
  * For Counterparty message decoding, see counterparty/transaction.ts
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { Address, getInputType, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { hash160, taprootTweakPrivKey } from '@scure/btc-signer/utils.js';
 import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddressForComparison } from '@/core/bitcoin/address';
@@ -632,7 +632,7 @@ export function signPSBT(
     throw new ValidationError('INVALID_PSBT', 'An uncompressed key can sign only P2PKH inputs');
   }
   // The key's own public key: an uncompressed key's P2PKH address hashes the 65-byte encoding.
-  const pubkeyBytes = getPublicKey(privateKeyBytes, compressed);
+  const pubkeyBytes = secp256k1.getPublicKey(privateKeyBytes, compressed);
 
   // If no specific indices provided, try to sign all inputs
   const indicesToSign = inputIndices.length > 0

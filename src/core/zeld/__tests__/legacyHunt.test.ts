@@ -1,6 +1,7 @@
+import type { ECDSASignature } from '@noble/curves/abstract/weierstrass.js';
+import { secp256k1 as secp } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import * as secp from '@noble/secp256k1';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { assertOnlyNonceChanged } from '@/core/zeld/huntTemplate';
@@ -127,7 +128,7 @@ describe('legacy hunt', () => {
 });
 
 /** Minimal DER decoder: 30 len 02 rlen r 02 slen s. */
-function signatureFromDer(der: Uint8Array): secp.Signature {
+function signatureFromDer(der: Uint8Array): ECDSASignature {
   expect(der[0]).toBe(0x30);
   const rLength = der[3]!;
   const r = BigInt('0x' + bytesToHex(der.subarray(4, 4 + rLength)));

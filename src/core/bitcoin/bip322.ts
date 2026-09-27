@@ -4,30 +4,18 @@
  * No dependency on btc-signer's transaction handling
  */
 
-import { hmac } from '@noble/hashes/hmac.js';
+import { schnorr, secp256k1 } from '@noble/curves/secp256k1.js';
+import { bytesToNumberBE, numberToBytesBE } from '@noble/curves/utils.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import * as secp256k1 from '@noble/secp256k1';
-// Required initialization for @noble/secp256k1 v3
-import { hashes } from '@noble/secp256k1';
 import { base64, bech32m, hex } from '@scure/base';
 import * as btc from '@scure/btc-signer';
-
-// Ensure secp256k1 hashes are properly initialized
-if (!hashes.sha256) {
-  hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
-}
-if (!hashes.hmacSha256) {
-  hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
-  hashes.hmacSha256Async = async (key, msg) => new Uint8Array(hmac(sha256, key, msg));
-  hashes.sha256Async = async (msg) => new Uint8Array(sha256(msg));
-}
 
 // BIP-322 tagged hash prefix
 const BIP322_TAG = 'BIP0322-signed-message';
 
 /**
- * `@noble/secp256k1` v3 hashes the message before signing **by default** — `prehash: opts.prehash
- * ?? true`. A Bitcoin sighash is already a digest, so signing it under that default signs
+ * `@noble/curves` ECDSA hashes the message before signing **by default** — `prehash: true`
+ * unless told otherwise. A Bitcoin sighash is already a digest, so signing it under that default signs
  * `sha256(sighash)` instead, and verifying under the same default checks the same wrong value.
  *
  * That is self-consistent, which is exactly why it went unnoticed: this wallet's ECDSA signatures
@@ -219,7 +207,6 @@ function taprootSigningKey(privateKey: Uint8Array): {
   outputKey: Uint8Array;
 } {
   const { n } = secp256k1.Point.CURVE();
-  const { bytesToNumberBE, numberToBytesBE } = secp256k1.etc;
 
   const secret = bytesToNumberBE(privateKey);
   if (secret <= 0n || secret >= n) throw new Error('Invalid private key for Taproot');
@@ -227,7 +214,7 @@ function taprootSigningKey(privateKey: Uint8Array): {
   const internalPoint = secp256k1.Point.BASE.multiply(secret).toAffine();
   // BIP-340 keys are x-only, so the secret is negated when it would give an odd Y.
   const evenSecret = internalPoint.y % 2n === 0n ? secret : n - secret;
-  const internalKey = numberToBytesBE(internalPoint.x);
+  const internalKey = numberToBytesBE(internalPoint.x, 32);
 
   const tweak = bytesToNumberBE(taggedHash('TapTweak', internalKey));
   if (tweak >= n) throw new Error('Invalid TapTweak');
@@ -235,10 +222,10 @@ function taprootSigningKey(privateKey: Uint8Array): {
   const tweakedSecret = (evenSecret + tweak) % n;
   if (tweakedSecret === 0n) throw new Error('Invalid tweaked key');
 
-  const tweakedPrivateKey = numberToBytesBE(tweakedSecret);
+  const tweakedPrivateKey = numberToBytesBE(tweakedSecret, 32);
   const outputPoint = secp256k1.Point.BASE.multiply(tweakedSecret).toAffine();
 
-  return { tweakedPrivateKey, outputKey: numberToBytesBE(outputPoint.x) };
+  return { tweakedPrivateKey, outputKey: numberToBytesBE(outputPoint.x, 32) };
 }
 
 /**
@@ -335,7 +322,7 @@ function verifyBIP322TaprootWitness(
   const toSpendBytes = serializeToSpend(bip322MessageHash(message), scriptPubKey);
   const sighash = taprootKeyPathSighash(toSpendBytes, scriptPubKey, hashType);
 
-  return secp256k1.schnorr.verify(signature, sighash, outputKey);
+  return schnorr.verify(signature, sighash, outputKey);
 }
 
 /**
@@ -737,7 +724,7 @@ export async function signBIP322P2TR(
   const toSpendBytes = serializeToSpend(bip322MessageHash(message), scriptPubKey);
 
   // SIGHASH_DEFAULT, which BIP-341 requires be encoded as a bare 64-byte signature.
-  const signature = secp256k1.schnorr.sign(
+  const signature = schnorr.sign(
     taprootKeyPathSighash(toSpendBytes, scriptPubKey, 0x00),
     tweakedPrivateKey
   );

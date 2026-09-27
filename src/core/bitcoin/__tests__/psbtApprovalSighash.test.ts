@@ -3,8 +3,9 @@
  * sighash in the request or the PSBT, a Taproot input signs SIGHASH_DEFAULT (0x00), so that is what
  * the review, its marketplace proofs and its pricing must see; every other input signs ALL.
  */
+
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2tr, p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getPsbtApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
@@ -28,7 +29,7 @@ vi.mock('@/core/counterparty/inputAssets', async (original) => ({
   fetchInputsAttachedAssets: vi.fn(async () => []),
 }));
 
-const PUBKEY = getPublicKey(hexToBytes('11'.repeat(32)), true);
+const PUBKEY = secp256k1.getPublicKey(hexToBytes('11'.repeat(32)), true);
 const P2TR = p2tr(PUBKEY.slice(1), undefined, undefined, true);
 const P2WPKH = p2wpkh(PUBKEY);
 
