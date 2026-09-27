@@ -94,7 +94,7 @@ import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
 import { ComposeVerificationError } from '@/core/validation/compose-verification-error';
 import { huntZeldForCompose } from "@/core/zeld/composeHunt";
 import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility";
-import { zeldRecordAfterBroadcast } from "@/core/zeld/recordReads";
+import { zeldRecordAfterBroadcast } from "@/core/zeld/recordAfterBroadcast";
 import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 import { getKnownScriptRecipients, recordScriptRecipients } from "@/services/scriptRecipientsClient";
