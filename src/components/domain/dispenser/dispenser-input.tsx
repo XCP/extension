@@ -96,6 +96,10 @@ export function DispenserInput({
         onSelectionChange(0, dispenserOptions[0]!);
       } else if (selectedIndex >= dispenserOptions.length) {
         onSelectionChange(0, dispenserOptions[0]!);
+      } else {
+        // A restored index (Back from review) arrives without its option; report the
+        // listed one so the parent prices against the dispenser this index points to.
+        onSelectionChange(selectedIndex, dispenserOptions[selectedIndex]!);
       }
     } else if (dispenserOptions.length === 0) {
       onSelectionChange(null, null);
@@ -117,7 +121,12 @@ export function DispenserInput({
           name="dispenserAddress"
           type="text"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            onChange(e.target.value);
+            // The selection is an index into this address's dispensers; it means nothing at a
+            // new address, so drop it and let auto-select choose from the new list.
+            onSelectionChange(null, null);
+          }}
           className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 ${
             showInvalidBorder ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500" : "border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500"
           }`}
