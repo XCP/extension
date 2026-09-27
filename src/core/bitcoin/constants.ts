@@ -1,5 +1,8 @@
 /** Bitcoin consensus and relay-policy numbers shared across transaction builders and checks. */
 
+/** nSequence an input takes when it does not set one: final, no BIP125 replaceability. */
+export const DEFAULT_SEQUENCE = 0xffffffff;
+
 /** nSequence that signals BIP125 replaceability and keeps nLockTime enforced. */
 export const RBF_SEQUENCE = 0xfffffffd;
 

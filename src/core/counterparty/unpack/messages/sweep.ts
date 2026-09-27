@@ -19,11 +19,10 @@
 import { PACKED_ADDRESS_LENGTH, unpackAddress } from '@/core/counterparty/unpack/address';
 import { BinaryReader, bytesToHex } from '@/core/counterparty/unpack/binary';
 import { tryDecodeCborArray } from '@/core/counterparty/unpack/cbor';
+import { MAX_MEMO_LENGTH } from '@/core/counterparty/unpack/messageTypes';
 
 /** Minimum length of sweep message (destination + flags) */
 const SWEEP_MIN_LENGTH = 22;
-/** Maximum memo length */
-const MAX_MEMO_LENGTH = 34;
 
 /** Sweep flags */
 export const SweepFlags = {
