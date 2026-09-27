@@ -8,6 +8,7 @@ import {
   consolidationApi,
 } from "@/core/bitcoin/consolidationApi";
 import { fromSatoshis } from '@/core/numeric';
+import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 import { getWalletServiceClient } from "@/services/walletServiceClient";
 
@@ -67,7 +68,7 @@ export function useMultiBatchConsolidation() {
     // A second trigger while a run is in flight is ignored, not queued.
     if (isRunningRef.current) return undefined;
     if (!activeWallet || !activeAddress) {
-      throw new Error("Wallet not properly initialized");
+      throw new Error(t('consolidate_wallet_not_ready'));
     }
 
     isRunningRef.current = true;

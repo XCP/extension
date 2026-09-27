@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCurrentBlockHeight } from '@/core/bitcoin/blockHeight';
+import { t } from '@/i18n';
 
 interface UseBlockHeightOptions {
   autoFetch?: boolean;
@@ -54,7 +55,7 @@ export function useBlockHeight(options: UseBlockHeightOptions = {}) {
       if (!isCancelled()) {
         console.error('Error fetching block height:', err);
         // Use generic error to prevent leaking internal details
-        setError('Unable to fetch current block height.');
+        setError(t('block_height_unable_to_fetch'));
         setIsLoading(false);
       }
       return null;

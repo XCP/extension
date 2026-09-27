@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchUtxoBalances, type UtxoBalance } from "@/core/counterparty/api";
+import { t } from "@/i18n";
 
 /**
  * The UTXO a compose form spends from, and what it holds.
@@ -49,7 +50,7 @@ export function useUtxoSource(
         console.error("Failed to fetch UTXO balances:", err);
         // Without this the form silently shows "0 Balances", which reads as an
         // empty UTXO rather than as a lookup that failed.
-        setError("Could not load balances for this UTXO.");
+        setError(t('utxo_source_balances_unavailable'));
         setBalances([]);
       })
       .finally(() => {
