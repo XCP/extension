@@ -154,8 +154,11 @@ export async function resolveProtocolContext(
       }
     }
 
-    if (messageType === 'btcpay' && typeof fields.offerHash === 'string') {
-      const match = await fetchOrderMatch(fields.offerHash);
+    // The local unpack names a BTCPay's match `orderMatchId` (unpack/messages/btcpay.ts); reading
+    // `offerHash`, a cancel's field, meant the lookup never ran and "Time left" was never shown.
+    const orderMatchId = fields.orderMatchId ?? fields.offerHash;
+    if (messageType === 'btcpay' && typeof orderMatchId === 'string') {
+      const match = await fetchOrderMatch(orderMatchId);
       if (match?.match_expire_index) {
         const height = await getCurrentBlockHeight();
         if (height > 0) context.btcpayBlocksLeft = match.match_expire_index - height;

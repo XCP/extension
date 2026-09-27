@@ -1076,18 +1076,32 @@ export async function fetchAllOrderMatches(
   });
 }
 
+/** An order match id: the two order hashes, `tx0Hash_tx1Hash`. */
+const ORDER_MATCH_ID = /^([0-9a-f]{64})_([0-9a-f]{64})$/;
+
 /**
- * Fetch a single order match by its id (`tx0Hash_tx1Hash`).
+ * Fetch a single order match by its id (`tx0Hash_tx1Hash`), or null when the node has no such match.
  *
  * Used by the approval screen for a BTCPay: the match carries `match_expire_index`, and a payment
- * landing after it does nothing at all — the match is gone and the BTC is spent for no effect.
+ * landing after it does nothing at all — the match is gone and the BTC is spent for no effect. The
+ * in-wallet BTCPay composer also reads it, to hold the payment to the payee and amount it names.
+ *
+ * Core has no route for one match by id (`/v2/order_matches/<id>` answers "Not found"), so this
+ * reads every match of the first order (`/v2/orders/<tx0_hash>/matches`, which lists matches on
+ * either side) and picks the one whose id and both hashes agree. A failed read throws; only a
+ * complete list without the match gives null.
  */
 export async function fetchOrderMatch(matchId: string): Promise<OrderMatch | null> {
-  const data = await cpApiGet<{ result: OrderMatch | null }>(
-    `/v2/order_matches/${encodePath(matchId)}`,
-    { verbose: true }
-  );
-  return data.result ?? null;
+  const id = matchId.trim().toLowerCase();
+  const parts = ORDER_MATCH_ID.exec(id);
+  if (!parts) return null;
+  const [, tx0Hash, tx1Hash] = parts as unknown as [string, string, string];
+  const matches = await cpApiGetAll<OrderMatch>(`/v2/orders/${encodePath(tx0Hash)}/matches`, { verbose: true });
+  return matches.result.find(match =>
+    String(match.id).toLowerCase() === id
+    && String(match.tx0_hash).toLowerCase() === tx0Hash
+    && String(match.tx1_hash).toLowerCase() === tx1Hash
+  ) ?? null;
 }
 
 /**

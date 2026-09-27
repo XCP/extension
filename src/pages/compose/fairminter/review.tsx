@@ -30,12 +30,21 @@ export function ReviewFairminter({
 
   const customFields = [
     { label: t('common_asset'), value: result.params.asset },
-    { label: t('fairminter_review_lot_price'), value: result.params.lot_price },
-    { label: t('fairminter_review_lot_size'), value: result.params.lot_size },
+    // Display units from the verified params, not the base units the composer was sent: the price
+    // at XCP's 8 places, the lot size and caps at the new asset's divisibility (`verifiedReviewParams`).
+    // A miner-fee-only launch names no price or lot, so those rows are left out rather than empty.
+    ...(result.params.lot_price_normalized != null
+      ? [{ label: t('fairminter_review_lot_price'), value: `${result.params.lot_price_normalized} ${result.params.lot_price_asset || 'XCP'}` }]
+      : []),
+    ...(result.params.lot_size_normalized != null
+      ? [{ label: t('fairminter_review_lot_size'), value: String(result.params.lot_size_normalized) }]
+      : []),
     ...(Number(result.params.max_mint_per_address_normalized ?? 0) > 0
       ? [{ label: t('common_mint_per_address'), value: result.params.max_mint_per_address_normalized }]
       : []),
-    { label: t('common_hard_cap'), value: result.params.hard_cap },
+    ...(result.params.hard_cap_normalized != null
+      ? [{ label: t('common_hard_cap'), value: String(result.params.hard_cap_normalized) }]
+      : []),
     // The three fields that make a pooled launch what it is were composed but never shown here,
     // so the pool terms were signed from a screen that did not mention them. The soft cap decides
     // whether anything is credited at all, and the window decides when.
@@ -48,7 +57,7 @@ export function ReviewFairminter({
         ]
       : []),
     ...(isGreaterThan(result.params.soft_cap ?? 0, 0)
-      ? [{ label: t('common_soft_cap'), value: String(result.params.soft_cap) }]
+      ? [{ label: t('common_soft_cap'), value: String(result.params.soft_cap_normalized) }]
       : []),
     ...(Number(result.params.start_block ?? 0) > 0
       ? [

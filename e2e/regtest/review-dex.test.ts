@@ -236,22 +236,17 @@ describe.runIf(REGTEST_ENABLED)('dispensers and orders: review matches ledger', 
     btcpay = { matchId: match!.id, sellTxid, buyPage };
   }, 600_000);
 
-  // TODO(review-vs-ledger): the wallet cannot compose a BTCPay. `composer-context.tsx` refuses a
-  // BTCPay unless `fetchOrderMatch` reads the match, and `fetchOrderMatch` asks for
-  // `/v2/order_matches/<id>`, a route Counterparty Core 11.3 does not serve (its routes are
-  // `/v2/order_matches` and `/v2/orders/<hash>/matches`), so every in-wallet BTCPay fails before
-  // review (Core answers "Not found"). The approval screen's "Time left" row reads the same
-  // route and is silently absent. Remove `.fails` once the match is read from a route Core serves.
-  it.fails('the wallet composes a BTCPay for the pending match', async () => {
+  // `composer-context.tsx` refuses a BTCPay unless `fetchOrderMatch` reads the match. It once asked
+  // for `/v2/order_matches/<id>`, a route Core 11.3 does not serve, so every in-wallet BTCPay
+  // failed before review; it now reads `/v2/orders/<tx0_hash>/matches` and picks the match by id.
+  it('the wallet composes a BTCPay for the pending match', async () => {
     const error = await composeAsWallet('btcpay', composeBTCPay, { order_match_id: btcpay!.matchId }, taker).then(() => null, e => e);
-    // Any other failure makes this pass, so `.fails` reports it rather than hiding a new problem.
-    if (error && !/order match could not be read|not found/i.test(String(error))) return;
     expect(error).toBeNull();
   }, 120_000);
 
   it('a BTCPay, as composed, pays the maker what the ledger asks and settles the match the review names', async () => {
     const { matchId, sellTxid, buyPage } = btcpay!;
-    // The production composer, without the in-wallet match lookup that fails above.
+    // The production composer on its own, so this settles the match whatever the wallet check says.
     const response = await composeBTCPay({ sourceAddress: walletAddress(taker), order_match_id: matchId, sat_per_vbyte: 2 });
     const approval = await approvalReview(response.result.rawtransaction, taker);
     const [txid] = await broadcastBatch(await signAll([{ response, key: taker }]), miner);

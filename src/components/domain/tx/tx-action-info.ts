@@ -9,6 +9,7 @@ import {
   type ProtocolContext,
   type ProtocolField,
   protocolFields,
+  sweepFlagsContents,
 } from '@/core/counterparty/describe';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
@@ -330,6 +331,14 @@ export function getTxActionInfo(
 }
 
 /**
+ * What a sweep's flags move, worded and translated as the approval screen's "Includes" row, so the
+ * wallet's own sweep review says the same thing. Undefined when the flags move nothing.
+ */
+export function sweepIncludes(flags: unknown): string | undefined {
+  return sweepFlagsContents(flags, localizeAction);
+}
+
+/**
  * The output index an attach targets, so the details list can mark which output becomes the new
  * asset-bearing UTXO. Undefined for non-attach messages and for an attach that leaves the index
  * to core's default.
@@ -407,8 +416,10 @@ function fromLocalUnpack(
     sweepBalances: data.sweepBalances as boolean | undefined,
     sweepOwnership: data.sweepOwnership as boolean | undefined,
     divisible: data.divisible as boolean | undefined,
-    lock: data.lock as boolean | undefined,
-    reset: data.reset as boolean | undefined,
+    // The issuance unpack names its switches `isLock` and `isReset` (unpack/messages/issuance.ts).
+    // Reading `lock`/`reset` here left both undefined, so an irreversible lock was never stated.
+    lock: data.isLock as boolean | undefined,
+    reset: data.isReset as boolean | undefined,
     // A utxo move names the outpoint it empties in `source`.
     sourceUtxo: typeof data.source === 'string' && data.source.includes(':')
       ? (data.source as string)

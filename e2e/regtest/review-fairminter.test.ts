@@ -63,14 +63,10 @@ describe.runIf(REGTEST_ENABLED)('fairminter and fairmint: review matches ledger'
     expect.soft(sameAmount(approval.protocol['Per-tx limit']?.[0], ledger.max_mint_per_tx_normalized)).toBe(true);
   }, 600_000);
 
-  // TODO(review-vs-ledger): the compose review page (`fairminter/review.tsx`) renders `lot_price`,
-  // `lot_size`, `hard_cap` and `soft_cap` straight from the params, which `verifiedReviewParams`
-  // fills with the normalized form data: base units. A 0.5 XCP price for lots of 10 reads
-  // "Lot price: 50000000", "Lot size: 1000000000", "Hard cap: 100000000000" while the ledger's
-  // fairminter is 0.5 XCP a lot, lots of 10, and a cap of 1,000. The `*_normalized` params exist beside them (the page
-  // already uses `max_mint_per_address_normalized` and `pool_quantity_normalized`). Remove `.fails`
-  // once the page reads the normalized values.
-  it.fails.each([
+  // The compose review page (`fairminter/review.tsx`) once rendered `lot_price`, `lot_size` and
+  // `hard_cap` straight from the params, which hold base units ("Lot price: 50000000" for 0.5 XCP);
+  // it now reads the `*_normalized` values `verifiedReviewParams` puts beside them.
+  it.each([
     ['lotPrice', () => ledger.price / 1e8],
     ['lotSize', () => ledger.quantity_by_price_normalized],
     ['hardCap', () => ledger.hard_cap_normalized],

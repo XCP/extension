@@ -472,11 +472,22 @@ function dispensesAvailable(m: DescribableMessage): string | undefined {
 }
 
 /** What a sweep carries, from its flags - balances, ownership, or both. */
-function sweepContents(m: DescribableMessage, text: DescriptionLocalizer): string | undefined {
+function sweepContents(m: Pick<DescribableMessage, 'sweepBalances' | 'sweepOwnership'>, text: DescriptionLocalizer): string | undefined {
   if (m.sweepBalances && m.sweepOwnership) return text('All balances and asset ownership');
   if (m.sweepOwnership) return text('Asset ownership only');
   if (m.sweepBalances) return text('All balances');
   return undefined;
+}
+
+/**
+ * What a sweep's flags carry, in the words the approval screen uses, for the compose review.
+ * Core's sweep flags (`messages/sweep.py`): 1 moves every balance, 2 hands over asset ownership, and
+ * 4 only says the memo is binary, so it moves nothing and is left out here.
+ */
+export function sweepFlagsContents(flags: unknown, text: DescriptionLocalizer = englishDescription): string | undefined {
+  const value = typeof flags === 'number' ? flags : typeof flags === 'string' && /^\d+$/.test(flags.trim()) ? Number(flags) : NaN;
+  if (!Number.isSafeInteger(value)) return undefined;
+  return sweepContents({ sweepBalances: (value & 1) !== 0, sweepOwnership: (value & 2) !== 0 }, text);
 }
 
 /** A destroy's share of the asset's total supply, so the amount has a scale. */

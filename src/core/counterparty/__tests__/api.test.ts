@@ -19,6 +19,7 @@ import {
   fetchDispenserByHash,
   fetchMempoolDispenses,
   fetchOrder,
+  fetchOrderMatch,
   fetchOrderMatches,
   fetchOrders,
   fetchOrdersByPair,
@@ -1297,6 +1298,53 @@ describe('counterparty/api.ts', () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchOrdersByPair('XCP', 'BTC')).rejects.toThrow(CounterpartyApiError);
+    });
+  });
+
+  describe('fetchOrderMatch', () => {
+    const tx0 = 'a'.repeat(64);
+    const tx1 = 'b'.repeat(64);
+    const matchId = `${tx0}_${tx1}`;
+    const matchOf = (a: string, b: string) => ({ id: `${a}_${b}`, tx0_hash: a, tx1_hash: b, match_expire_index: 900_020, status: 'pending' });
+    const reply = (data: unknown) => ({ data, status: 200, statusText: 'OK', headers: {}, config: {} }) as any;
+
+    it("reads the match from its first order's matches, a route Core serves, not /v2/order_matches/<id>", async () => {
+      mockedApiClient.get.mockResolvedValueOnce(reply({
+        result: [matchOf(tx0, 'c'.repeat(64)), matchOf(tx0, tx1)], result_count: 2, next_cursor: null,
+      }));
+
+      const match = await fetchOrderMatch(matchId);
+
+      expect(match?.id).toBe(matchId);
+      expect(mockedApiClient.get).toHaveBeenCalledTimes(1);
+      const [url, config] = mockedApiClient.get.mock.calls[0]!;
+      expect(url).toBe(`${mockApiBase}/v2/orders/${tx0}/matches`);
+      expect((config as any).params).toEqual(expect.objectContaining({ verbose: true }));
+      expect(String(url)).not.toContain('/v2/order_matches/');
+    });
+
+    it('follows the cursor until the match turns up', async () => {
+      mockedApiClient.get
+        .mockResolvedValueOnce(reply({ result: [matchOf(tx0, 'c'.repeat(64))], result_count: 2, next_cursor: 7 }))
+        .mockResolvedValueOnce(reply({ result: [matchOf(tx0, tx1)], result_count: 2, next_cursor: null }));
+
+      expect((await fetchOrderMatch(matchId))?.id).toBe(matchId);
+      expect((mockedApiClient.get.mock.calls[1]![1] as any).params).toEqual(expect.objectContaining({ cursor: 7 }));
+    });
+
+    it('is null when the order has no such match', async () => {
+      mockedApiClient.get.mockResolvedValueOnce(reply({ result: [matchOf(tx0, 'c'.repeat(64))], result_count: 1, next_cursor: null }));
+      expect(await fetchOrderMatch(matchId)).toBeNull();
+    });
+
+    it('is null for an id that is not two order hashes, without asking the node', async () => {
+      expect(await fetchOrderMatch('not-a-match')).toBeNull();
+      expect(mockedApiClient.get).not.toHaveBeenCalled();
+    });
+
+    it('throws when the node cannot be read, so a BTCPay is refused rather than let through unchecked', async () => {
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
+      await expect(fetchOrderMatch(matchId)).rejects.toThrow(CounterpartyApiError);
     });
   });
 

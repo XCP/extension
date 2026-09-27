@@ -4879,9 +4879,6 @@
   "sweep_review_btc_to": {
     "message": "$1 BTC 發往 $2"
   },
-  "sweep_review_flag": {
-    "message": "標誌"
-  },
   "time_compact_days": {
     "message": "$1天前"
   },

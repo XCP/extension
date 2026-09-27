@@ -130,13 +130,10 @@ describe.runIf(REGTEST_ENABLED)('issuance family, dividend, destroy, sweep, broa
     lockApproval = approval;
   }, 600_000);
 
-  // TODO(review-vs-ledger): the ledger locks the supply for good, and the approval screen never
-  // says so. `describe.ts` adds a "Lock" row when the message view's `lock` is set, but
-  // `fromLocalUnpack` (tx-action-info.ts) reads `data.lock` and `data.reset` while the local issuance
-  // unpack (unpack/messages/issuance.ts) names them `isLock` and `isReset`, so both are always
-  // undefined and neither the irreversible lock nor a reset is ever stated. Remove `.fails` once the
-  // adapter reads the unpack's field names.
-  it.fails('the approval screen states that the supply will be locked', () => {
+  // The ledger locks the supply for good, so the approval screen must say so. `fromLocalUnpack`
+  // (tx-action-info.ts) once read `data.lock`/`data.reset` while the local issuance unpack names
+  // them `isLock`/`isReset`, so neither the lock nor a reset was ever stated.
+  it('the approval screen states that the supply will be locked', () => {
     expect(lockApproval?.protocol.Lock).toEqual(['Yes - supply can never be increased again']);
   });
 
@@ -181,13 +178,12 @@ describe.runIf(REGTEST_ENABLED)('issuance family, dividend, destroy, sweep, broa
     expect(sameScript(ledger.owner ?? ledger.issuer, sweepTo.address)).toBe(true);
   }, 600_000);
 
-  // TODO(review-vs-ledger): the sweep above handed asset ownership to the destination (the ledger's
-  // owner changed), and the compose review page never says so. `sweep/review.tsx` has a row for
-  // the flags, but it reads `params.flag`, while the form, the verified params and Core all name
-  // the field `flags`, so the row never renders and the page shows only the destination. (The
-  // approval screen does state it: "Includes: All balances and asset ownership".) Remove `.fails`
-  // once the page reads `flags` and says what they carry.
-  it.fails('the compose sweep review states that ownership goes with the balances', () => {
+  // The sweep above handed asset ownership to the destination (the ledger's owner changed), so the
+  // compose review page must say so. `sweep/review.tsx` once read `params.flag` while the form, the
+  // verified params and Core all name the field `flags`, so its row never rendered; it now states
+  // what the flags move in the approval screen's words.
+  it('the compose sweep review states that ownership goes with the balances', () => {
     expect(sweepPage?.fields.flag).toBe('3');
+    expect(sweepPage?.fields.includes).toBe('All balances and asset ownership');
   });
 });

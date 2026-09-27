@@ -6492,10 +6492,6 @@
     "message": "$1 BTC to $2",
     "description": "pages/compose/sweep/review.tsx. $1 = moreOutput.btc; $2 = moreOutput.destination"
   },
-  "sweep_review_flag": {
-    "message": "Flag",
-    "description": "pages/compose/sweep/review.tsx"
-  },
   "time_compact_days": {
     "message": "$1d ago",
     "description": "Compact relative time in a tight row. $1 is a whole number of days."
@@ -7642,7 +7638,7 @@
   },
   "tx_action_includes": {
     "message": "Includes",
-    "description": "Counterparty approval includes. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
+    "description": "Counterparty approval includes, and the sweep compose review (pages/compose/sweep/review.tsx): what a sweep moves. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
   },
   "tx_action_sweep_balances_ownership": {
     "message": "All balances and asset ownership",
