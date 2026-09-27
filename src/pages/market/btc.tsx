@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { FaBitcoin, FiRefreshCw } from "@/components/icons";
 import { chartRangeLabel } from '@/components/ui/charts/chart-range-label';
@@ -76,18 +76,24 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
   }, []);
 
   // Load chart data
+  // Only the latest chart request may update state, so a slow response for a
+  // range the user has since left cannot overwrite the selected range's data.
+  const chartRequestId = useRef(0);
   const loadChartData = useCallback(async (timeRange: TimeRange, curr: FiatCurrency) => {
+    const requestId = ++chartRequestId.current;
     setChartLoading(true);
     setChartError(false);
     try {
       const history = await getBtcPriceHistory(timeRange, curr);
+      if (requestId !== chartRequestId.current) return;
       setPriceHistory(history);
     } catch (err) {
+      if (requestId !== chartRequestId.current) return;
       console.error("Failed to load BTC price history:", err);
       setPriceHistory([]);
       setChartError(true);
     } finally {
-      setChartLoading(false);
+      if (requestId === chartRequestId.current) setChartLoading(false);
     }
   }, []);
 
