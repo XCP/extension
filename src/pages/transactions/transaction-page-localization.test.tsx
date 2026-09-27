@@ -9,11 +9,12 @@ const fixture = vi.hoisted(() => ({
   txHash: 'a'.repeat(64) as string | undefined,
   navigate: vi.fn(),
   setHeaderProps: vi.fn(),
+  locationState: { page: 3 } as { page?: number } | null,
 }));
 vi.mock('react-router', () => ({
   useParams: () => ({ txHash: fixture.txHash }),
   useNavigate: () => fixture.navigate,
-  useLocation: () => ({ state: { page: 3 } }),
+  useLocation: () => ({ state: fixture.locationState }),
 }));
 vi.mock('@/contexts/header-context', () => ({ useHeader: () => ({ setHeaderProps: fixture.setHeaderProps }) }));
 vi.mock('@/core/counterparty/api', () => ({ fetchTransaction: vi.fn() }));
@@ -29,12 +30,36 @@ function tx(type = 'order', confirmed = true): Transaction {
 
 beforeEach(() => {
   fixture.txHash = 'a'.repeat(64);
+  fixture.locationState = { page: 3 };
   vi.clearAllMocks();
   mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
 });
 afterEach(() => {
   cleanup();
   mockBrowserLocale({ language: 'en', numberLocale: 'en-US' });
+});
+
+describe('transaction page back navigation', () => {
+  const headerBack = () => fixture.setHeaderProps.mock.calls.at(-1)![0].onBack as () => void;
+
+  it('returns to the history page it was opened from', async () => {
+    vi.mocked(fetchTransaction).mockResolvedValue(tx());
+    render(<TransactionPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /Back to History/i }));
+    expect(fixture.navigate).toHaveBeenLastCalledWith('/addresses/history?page=3');
+    headerBack()();
+    expect(fixture.navigate).toHaveBeenLastCalledWith('/addresses/history?page=3');
+  });
+
+  it('returns to the screen it came from, such as an asset\'s dividends, and offers no history button', async () => {
+    fixture.locationState = null;
+    vi.mocked(fetchTransaction).mockResolvedValue(tx());
+    render(<TransactionPage />);
+    await screen.findByRole('heading', { level: 2 });
+    expect(screen.queryByRole('button', { name: /Back to History/i })).not.toBeInTheDocument();
+    headerBack()();
+    expect(fixture.navigate).toHaveBeenLastCalledWith(-1);
+  });
 });
 
 describe('actual transaction page localization', () => {

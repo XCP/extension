@@ -172,7 +172,7 @@ export default function AddressesPage(): ReactElement {
         activeWallet?.type === "mnemonic"
           ? {
               icon: <FaCog aria-hidden="true" />,
-              onClick: () => navigate("/settings/address-types", { state: { returnTo: PATHS.SELECT } }),
+              onClick: () => navigate("/settings/address-types", { state: { returnTo: PATHS.SELECT, returnState: { returnTo } } }),
               ariaLabel: t('addresses_change_address_type'),
             }
           : undefined,
