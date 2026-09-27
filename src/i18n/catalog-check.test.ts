@@ -51,8 +51,8 @@ it('treats every key as a machine draft until it is listed as reviewed', () => {
   expect(run('check').stdout).toContain('ja: 4 messages, missing 0, stale 0, placeholder mismatches 0, 4 awaiting review');
   expect(run('review', 'ja', '--machine').stdout).toContain('# ja: 4 strings awaiting review');
 
-  mkdirSync(join(fixtureRoot, 'i18n/reviewed'), { recursive: true });
-  const reviewedPath = join(fixtureRoot, 'i18n/reviewed/ja.json');
+  mkdirSync(join(fixtureRoot, 'i18n'), { recursive: true });
+  const reviewedPath = join(fixtureRoot, 'i18n/ja.json');
   writeFileSync(reviewedPath, JSON.stringify({ reviewed: ['common_example'] }));
   expect(run('check').stdout).toContain('3 awaiting review');
   const review = run('review', 'ja', '--machine').stdout;
@@ -62,7 +62,7 @@ it('treats every key as a machine draft until it is listed as reviewed', () => {
   writeFileSync(reviewedPath, JSON.stringify({ reviewed: ['common_removed'] }));
   const stale = run('check');
   expect(stale.status).toBe(1);
-  expect(stale.stdout).toContain('i18n/reviewed/ja.json lists a key that no longer exists: common_removed');
+  expect(stale.stdout).toContain('i18n/ja.json lists a key that no longer exists: common_removed');
 });
 
 it('keeps zh an exact copy of zh_CN', () => {

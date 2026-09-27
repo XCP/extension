@@ -172,7 +172,7 @@ translation of it:
 
 `node scripts/i18n.mjs review ja --machine > review-ja.md` writes the unchecked strings as a
 table: the English, the translation, and where each appears. Once a native speaker has checked a
-string, add its key to `reviewed` in `i18n/reviewed/ja.json`. The check fails if that list names
+string, add its key to `reviewed` in `i18n/ja.json`. The check fails if that list names
 a key that no longer exists.
 
 ## Releasing
