@@ -274,7 +274,11 @@ function receivers(
   committed: BearingInput[],
 ): Array<{ position: number; amount?: bigint }> {
   const total = sum(committed);
-  const distribution = zeldDistribution(input.outputs);
+  // The indexer takes one value per spendable output and ignores any beyond them (zeldhash-protocol
+  // `protocol.rs`, `values.get(i)` per output). Counting the extras would let an oversized extra
+  // entry make a split look invalid here while the indexer applies it.
+  const spendableCount = input.outputs.filter(output => output.type !== 'op_return').length;
+  const distribution = zeldDistribution(input.outputs)?.slice(0, spendableCount) ?? null;
   // A split needs every input signed SIGHASH_ALL; the wallet knows only its own signatures.
   const ours = new Map(input.signedInputs.map(signed => [signed.index, signed.sighashType]));
   const oursAllAll = [...ours.values()].every(type => type === 0 || type === 1);
