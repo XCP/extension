@@ -7,7 +7,7 @@ import { TransactionInputError } from '@/core/validation/transaction-input-error
 import { parseRawInteger, rawToInput, serializeDecimal } from "@/core/amount-contract/amounts";
 import type { AssetInfo } from "@/core/counterparty/api";
 import { fetchAssetDetails } from "@/core/counterparty/api";
-import { hasHexPrefix, isHexMemo, stripHexPrefix } from "@/core/counterparty/memo";
+import { decodeMemoList, hasHexPrefix, isHexMemo, stripHexPrefix } from "@/core/counterparty/memo";
 import { CounterpartyApiError } from "@/core/errors";
 import { validateFeeRate } from "@/core/validation/fee";
 import { exactQuantity } from "@/core/validation/transaction-amount";
@@ -361,7 +361,8 @@ export function verifiedReviewParams(
       ...assetInfoCache.get(asset),
       divisible: asset === 'BTC' || asset === 'XCP' ? true : assetInfoCache.get(asset)?.divisible,
     }]));
-    if (typeof normalizedData.memos === 'string') params.memos = normalizedData.memos.split(',');
+    const memos = decodeMemoList(normalizedData.memos);
+    if (memos) params.memos = memos;
   }
   return params;
 }

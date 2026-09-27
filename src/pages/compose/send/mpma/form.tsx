@@ -5,7 +5,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { fetchAssetDetails } from "@/core/counterparty/api";
-import { hasHexPrefix, isHexMemo, isValidMemoLength, stripHexPrefix } from "@/core/counterparty/memo";
+import { encodeMemoList, hasHexPrefix, isHexMemo, isValidMemoLength, stripHexPrefix } from "@/core/counterparty/memo";
 import { validateBitcoinAddress } from "@/core/validation/bitcoin";
 import { parseCSV } from "@/core/validation/csv";
 import { validateFile } from "@/core/validation/file";
@@ -198,7 +198,8 @@ export function MPMAForm({
     formData.set('destinations', csvData.map(r => r.address).join(','));
     formData.set('quantities', csvData.map(r => r.quantity).join(','));
     
-    // Send memos as comma-separated (will be converted to array in page.tsx)
+    // Memos travel as a JSON list: a quoted CSV memo can hold a comma, so joining them on commas
+    // would change how many there are. The hex flags are booleans and stay comma-separated.
     const memos = csvData.map(r => r.memo || '');
     const hasAnyMemo = memos.some(m => m !== '');
     
@@ -211,7 +212,7 @@ export function MPMAForm({
         return r.memo || '';
       });
       
-      formData.set('memos', processedMemos.join(','));
+      formData.set('memos', encodeMemoList(processedMemos));
       formData.set('memos_are_hex', csvData.map(r => isHexMemo(r.memo || '')).map(b => b.toString()).join(','));
     }
     
