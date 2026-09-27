@@ -15,10 +15,11 @@ interface QRCanvasProps {
    */
   size?: number;
   /**
-   * Error correction level
+   * Error correction level. When a logo is drawn it is raised to at least 'Q', since the logo
+   * hides modules that error correction has to rebuild.
    * @default 'M'
    */
-  errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
+  errorCorrectionLevel?: ErrorCorrectionLevel;
   /**
    * QR code foreground color
    * @default '#000000'
@@ -48,6 +49,21 @@ interface QRCanvasProps {
   className?: string;
 }
 
+const ECC_ORDER = ['L', 'M', 'Q', 'H'] as const;
+type ErrorCorrectionLevel = typeof ECC_ORDER[number];
+
+/**
+ * The logo and its white disc cover the centre of the code. At 'M' that is close enough to the
+ * correction capacity of the shorter codes (legacy and native SegWit addresses) that some of them
+ * don't scan; 'Q' leaves room to spare.
+ */
+const LOGO_MIN_ECC: ErrorCorrectionLevel = 'Q';
+
+function eccForLogo(level: ErrorCorrectionLevel, hasLogo: boolean): ErrorCorrectionLevel {
+  if (!hasLogo) return level;
+  return ECC_ORDER.indexOf(level) >= ECC_ORDER.indexOf(LOGO_MIN_ECC) ? level : LOGO_MIN_ECC;
+}
+
 export const QRCanvas = memo(({
   text,
   size = 200,
@@ -68,8 +84,8 @@ export const QRCanvas = memo(({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Generate QR code matrix with specified error correction level
-    const matrix = generateQR(text, errorCorrectionLevel);
+    // Generate QR code matrix, with enough error correction to survive the logo
+    const matrix = generateQR(text, eccForLogo(errorCorrectionLevel, Boolean(logo?.src)));
     const matrixSize = matrix.length;
     const totalSize = matrixSize + margin * 2;
     // Use the requested size directly for the canvas
@@ -211,7 +227,6 @@ export const QRCode = memo(({
       <QRCanvas
         text={text}
         size={width}
-        errorCorrectionLevel="M"
         margin={2}
         logo={{
           src: logoConfig.src,

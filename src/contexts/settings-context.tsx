@@ -54,6 +54,9 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+/** A read nobody awaits keeps the settings it had; the failure still belongs in the console. */
+const logFailedRead = (error: unknown) => console.error('Failed to load settings:', error);
+
 /**
  * Provides settings context to the application using React 19's <Context>.
  * @param {Object} props - Component props
@@ -106,7 +109,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   }, []);
 
   useEffect(() => {
-    loadSettings();
+    loadSettings().catch(logFailedRead);
 
     // A lock made anywhere removes the master key from session storage. The settings live in the
     // encrypted keychain, so they reset to defaults. Invalidate pending replies immediately; a
@@ -127,7 +130,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
     const stopWatching = watchKeychainRecord(() => {
       withStateLock('settings-lock', async () => {
         await loadSettings(false);
-      });
+      }).catch(logFailedRead);
     });
 
     return () => {
@@ -148,7 +151,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       if (!mounted.current || generation.current !== startedGeneration) return;
       persistedSettings.current = { ...persistedSettings.current, ...newSettings };
       revision.current += 1;
-      analytics.track('settings_changed');
+      void analytics.track('settings_changed');
     } catch (error) {
       console.error('Failed to persist settings:', error);
       // On error, reload from storage to get the authoritative state.

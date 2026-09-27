@@ -39,25 +39,37 @@ export async function verifyMessage(
     return originalResult;
   }
 
-  // If original failed and we're not in strict mode, try with normalization
+  // If original failed and we're not in strict mode, retry with normalized inputs. Every signing
+  // scheme here hashes the message's exact bytes, so a line-ending change is a different message;
+  // it is tolerated only here, and the result says so.
   if (!strict) {
-    const messageValidation = validateMessage(message);
     const signatureValidation = detectAndNormalizeSignature(signature);
-
-    // Only try normalization if we have actual normalization to apply
-    const hasMessageNormalization = messageValidation.normalized !== message;
     const hasSignatureNormalization = signatureValidation.normalized !== signature && signatureValidation.valid;
+    const normalizedSignature = hasSignatureNormalization ? signatureValidation.normalized : signature;
 
-    if (hasMessageNormalization || hasSignatureNormalization) {
-      const normalizedMessage = messageValidation.normalized;
-      const normalizedSignature = hasSignatureNormalization ? signatureValidation.normalized : signature;
+    // CRLF -> LF for text signed on Unix and pasted from Windows, and LF -> CRLF for the reverse:
+    // a browser textarea hands back LF only, so a signature made over CRLF text can only be
+    // checked by putting the CRs back.
+    const messageVariants = [...new Set([
+      validateMessage(message).normalized,
+      message.replace(/\r?\n/g, '\r\n'),
+    ])].filter(variant => variant !== message);
 
-      const normalizedResult = await tryVerificationSequence(normalizedMessage, normalizedSignature, address, strict);
+    const attempts: { message: string; normalizedMessage: boolean }[] =
+      messageVariants.map(variant => ({ message: variant, normalizedMessage: true }));
+    if (hasSignatureNormalization) attempts.unshift({ message, normalizedMessage: false });
+
+    for (const attempt of attempts) {
+      const normalizedResult = await tryVerificationSequence(attempt.message, normalizedSignature, address, strict);
       if (normalizedResult.valid) {
+        const what = [
+          attempt.normalizedMessage ? 'message' : '',
+          hasSignatureNormalization ? 'signature' : '',
+        ].filter(Boolean).join('+');
         return {
           ...normalizedResult,
           method: `${normalizedResult.method} (normalized)`,
-          details: `Succeeded with normalization: ${hasMessageNormalization ? 'message' : ''}${hasMessageNormalization && hasSignatureNormalization ? '+' : ''}${hasSignatureNormalization ? 'signature' : ''}`
+          details: `Succeeded with normalization: ${what}`
         };
       }
     }
@@ -129,43 +141,4 @@ export async function verifyMessageWithMethod(
   options: VerificationOptions = {}
 ): Promise<VerificationResult> {
   return verifyMessage(message, signature, address, options);
-}
-
-/**
- * Test if a signature is spec-compliant
- */
-export async function isSpecCompliant(
-  message: string,
-  signature: string,
-  address: string
-): Promise<boolean> {
-  const result = await verifyMessage(message, signature, address, { strict: true });
-  return result.valid;
-}
-
-/**
- * Get detailed verification report
- */
-export async function getVerificationReport(
-  message: string,
-  signature: string,
-  address: string
-): Promise<{
-  specCompliant: boolean;
-  compatibilityMode: boolean;
-  method?: string;
-  details?: string;
-}> {
-  // Check spec compliance
-  const strictResult = await verifyMessage(message, signature, address, { strict: true });
-
-  // Check with compatibility
-  const compatResult = await verifyMessage(message, signature, address, { strict: false });
-
-  return {
-    specCompliant: strictResult.valid,
-    compatibilityMode: !strictResult.valid && compatResult.valid,
-    method: compatResult.method,
-    details: compatResult.details
-  };
 }
