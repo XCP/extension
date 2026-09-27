@@ -36,6 +36,7 @@ import { addressIndexKeptBySwitch } from '@/core/wallet/addressFormatChoices';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
 import { detectUtxoAddress, isUtxoAddressPath, parseUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import { knownScriptRecipients, MAX_RECIPIENTS_PER_RECORD, withScriptRecipients } from '@/core/wallet/scriptRecipients';
+import { type KnownZeldOutpoint, knownZeldOutpoints, parseZeldOutpointUpdate, withZeldOutpoints } from '@/core/zeld/knownOutpoints';
 import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS } from '@/core/zeld/protocol';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { SessionRecoveryState } from '@/platform/auth/sessionManager';
@@ -1051,6 +1052,35 @@ export class WalletManager {
       const next = withScriptRecipients(this.keychain.scriptPaymentRecipients ?? [], payer, recipients);
       if (!next) return;
       await this.commitKeychain((draft) => { draft.scriptPaymentRecipients = next; });
+    });
+  }
+
+  /**
+   * The outputs `address` was last known to hold ZELD on (see core/zeld/knownOutpoints). Read
+   * only when the indexer cannot be. Empty while locked.
+   */
+  public getKnownZeldOutpoints(address: string): KnownZeldOutpoint[] {
+    if (typeof address !== 'string' || !this.keychain) return [];
+    return knownZeldOutpoints(this.keychain.zeldOutpoints ?? [], address);
+  }
+
+  /**
+   * Update the record of `address`'s ZELD outputs in the encrypted keychain: the indexer's latest
+   * answer, or what one of the wallet's own transactions spent and left. Writes nothing when the
+   * record already says the same, so a repeated balance read costs nothing. A locked wallet
+   * records nothing.
+   */
+  public async recordZeldOutpoints(address: string, update: unknown): Promise<void> {
+    if (typeof address !== 'string' || address.length === 0 || address.length > 128) {
+      throw new Error('Invalid ZELD outpoint address');
+    }
+    const parsed = parseZeldOutpointUpdate(update);
+    if (!this.keychain) return;
+    return this.mutateVault(async () => {
+      if (!this.keychain) return;
+      const next = withZeldOutpoints(this.keychain.zeldOutpoints ?? [], address, parsed);
+      if (!next) return;
+      await this.commitKeychain((draft) => { draft.zeldOutpoints = next; });
     });
   }
 

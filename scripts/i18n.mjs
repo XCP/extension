@@ -11,7 +11,7 @@
 // `description` naming where it appears and what any `$1` stands for, which is
 // what a translator reads. A locale file has the same keys and only `message`
 // (Chrome reads nothing else). The keys a native speaker has checked are listed
-// in `i18n/reviewed/<locale>.json` under "reviewed"; every other key is a
+// in `i18n/<locale>.json` under "reviewed"; every other key is a
 // machine draft, so a new string needs no bookkeeping. That list lives outside
 // `public/` so it is never packaged.
 import { copyFileSync, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -20,7 +20,7 @@ import { join, relative } from 'node:path';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const LOCALES_DIR = join(ROOT, 'public', '_locales');
 const SRC = join(ROOT, 'src');
-const REVIEWED_DIR = join(ROOT, 'i18n', 'reviewed');
+const REVIEWED_DIR = join(ROOT, 'i18n');
 const [command, locale, ...flags] = process.argv.slice(2);
 
 const readJson = (path, fallback) => (existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : fallback);
@@ -264,7 +264,7 @@ function check() {
     const awaiting = Object.keys(messages).filter((key) => !reviewed.has(key)).length;
     if (missing.length || extra.length || badPlaceholders.length || staleReviewed.length) failed = true;
     console.log(`${name}: ${Object.keys(messages).length} messages, missing ${missing.length}, stale ${extra.length}, placeholder mismatches ${badPlaceholders.length}, ${awaiting} awaiting review`);
-    for (const key of staleReviewed) console.log(`  i18n/reviewed/${name}.json lists a key that no longer exists: ${key}`);
+    for (const key of staleReviewed) console.log(`  i18n/${name}.json lists a key that no longer exists: ${key}`);
     for (const key of missing.slice(0, 20)) console.log(`  missing ${key}`);
     for (const key of extra) console.log(`  stale ${key}`);
     for (const key of badPlaceholders) console.log(`  placeholders ${key}: en "${en[key].message}" vs "${messages[key].message}"`);

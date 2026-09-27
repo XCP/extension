@@ -9,6 +9,7 @@ import { isRecord } from '@/core/isRecord';
 import { type AppSettings, DEFAULT_SETTINGS, MAX_ORDER_EXPIRATION, VALID_AUTO_LOCK_TIMERS } from '@/core/settings';
 import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
 import { sanitizeScriptRecipientPairs } from '@/core/wallet/scriptRecipients';
+import { sanitizeZeldOutpointEntries } from '@/core/zeld/knownOutpoints';
 import { isValidZeldHuntSeconds } from '@/core/zeld/protocol';
 import type { Keychain, KeychainRecord, WalletRecord } from '@/types/wallet';
 
@@ -94,6 +95,10 @@ export function parseKeychain(value: unknown): Keychain {
   // Only a cue for which notices to skip: a malformed list is dropped rather than locking anyone out.
   if (value.scriptPaymentRecipients !== undefined) {
     keychain.scriptPaymentRecipients = sanitizeScriptRecipientPairs(value.scriptPaymentRecipients);
+  }
+  // Likewise only a fallback for notices: a malformed record is dropped, never a lockout.
+  if (value.zeldOutpoints !== undefined) {
+    keychain.zeldOutpoints = sanitizeZeldOutpointEntries(value.zeldOutpoints);
   }
   return keychain;
 }
