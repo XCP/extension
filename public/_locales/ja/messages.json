@@ -4906,9 +4906,6 @@
   "sweep_review_btc_to": {
     "message": "$1 BTC を $2 へ"
   },
-  "sweep_review_flag": {
-    "message": "フラグ"
-  },
   "time_compact_days": {
     "message": "$1日前"
   },

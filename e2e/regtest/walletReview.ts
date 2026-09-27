@@ -18,7 +18,7 @@
  * script-payment caution, replay records) changes no fact this suite compares.
  */
 
-import { getTxActionInfo, normalizeQuantity } from '@/components/domain/tx/tx-action-info';
+import { getTxActionInfo, normalizeQuantity, sweepIncludes } from '@/components/domain/tx/tx-action-info';
 import { checkTransactionFee } from '@/core/bitcoin/feeVerification';
 import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
 import { clearApiCache, fetchAllAddressDispensers, fetchAssetFairminter, fetchOrderMatch } from '@/core/counterparty/api';
@@ -292,7 +292,9 @@ export async function reviewPageFacts(page: ReviewPage, composed: WalletCompose)
     case 'sweep': // sweep/review.tsx
       f.destination = params.destination;
       if (params.memo) f.memo = params.memo;
-      if (params.flag !== undefined) f.flag = String(params.flag);
+      // The page's "Includes" row is worded from `flags`; `flag` keeps the value it was read from.
+      if (params.flags !== undefined) f.flag = String(params.flags);
+      if (sweepIncludes(params.flags)) f.includes = sweepIncludes(params.flags)!;
       break;
     case 'broadcast': // broadcast/review.tsx
       f.message = params.text;
@@ -310,11 +312,11 @@ export async function reviewPageFacts(page: ReviewPage, composed: WalletCompose)
       break;
     case 'fairminter': // fairminter/review.tsx
       f.asset = params.asset;
-      f.lotPrice = String(params.lot_price);
-      f.lotSize = String(params.lot_size);
+      if (params.lot_price_normalized != null) f.lotPrice = `${params.lot_price_normalized} ${params.lot_price_asset || 'XCP'}`;
+      if (params.lot_size_normalized != null) f.lotSize = String(params.lot_size_normalized);
       if (Number(params.max_mint_per_address_normalized ?? 0) > 0) f.mintPerAddress = String(params.max_mint_per_address_normalized);
-      f.hardCap = String(params.hard_cap);
-      if (Number(params.soft_cap ?? 0) > 0) f.softCap = String(params.soft_cap);
+      if (params.hard_cap_normalized != null) f.hardCap = String(params.hard_cap_normalized);
+      if (Number(params.soft_cap ?? 0) > 0) f.softCap = String(params.soft_cap_normalized);
       if (params.description) f.description = params.description;
       break;
     case 'fairmint': { // fairminter/fairmint/review.tsx
