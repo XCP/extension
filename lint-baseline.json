@@ -111,8 +111,6 @@
     "src/pages/assets/[asset]/index.tsx | react(set-state-in-effect)": 1,
     "src/pages/assets/[asset]/index.tsx | typescript(no-floating-promises)": 2,
     "src/pages/assets/[asset]/index.tsx | typescript(no-misused-promises)": 2,
-    "src/pages/assets/index.tsx | react(set-state-in-effect)": 3,
-    "src/pages/assets/index.tsx | typescript(no-misused-promises)": 4,
     "src/pages/assets/utxos/[txHash].tsx | react-hooks(exhaustive-deps)": 1,
     "src/pages/assets/utxos/[txHash].tsx | react(set-state-in-effect)": 1,
     "src/pages/assets/utxos/[txHash].tsx | typescript(no-floating-promises)": 1,
