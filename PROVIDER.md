@@ -85,8 +85,9 @@ A software BIP-322 signature is the simple format: the base64 witness stack of t
 spend. For P2WPKH, P2SH-P2WPKH and P2TR that is standard and any BIP-322 verifier reads it. For
 P2PKH (`format: 'p2pkh'`, which also covers Counterwallet and FreeWallet legacy addresses) it is a
 two-item `[signature, pubkey]` stack over the legacy sighash of `to_sign`. BIP-322 itself directs
-P2PKH to the classic 65-byte signed-message format, so Bitcoin Core's `verifymessage` and strict
-BIP-322 libraries do not accept these; verify them as the XCP wallet SDK's `verifyBip322` does.
+P2PKH to the classic 65-byte signed-message format, so Bitcoin Core's `verifymessage` does not
+accept these, and a verifier that follows that rule may not either; verify them as the XCP wallet
+SDK's `verifyBip322` does.
 
 **Proof verification (server-side):**
 
