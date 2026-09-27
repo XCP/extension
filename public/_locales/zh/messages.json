@@ -1835,6 +1835,9 @@
   "composer_context_taproot_half_returned": {
     "message": "交易验证失败：构建器只返回了所需两笔交易中的一笔。"
   },
+  "composer_context_taproot_reveal_needs_newer_wallet": {
+    "message": "此 Counterparty 服务器需要更新版本的钱包才能使用铭文等 Taproot 功能。请更新钱包，或不带铭文构建此交易。"
+  },
   "composer_context_taproot_unexpected_envelope": {
     "message": "交易验证失败：构建器返回的 Taproot 信封与此请求不符。"
   },

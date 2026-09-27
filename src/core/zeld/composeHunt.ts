@@ -11,6 +11,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import type { AddressFormat } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
+import { carriesTaprootReveal } from '@/core/counterparty/taprootEncoding';
 import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from '@/core/zeld/eligibility';
 import { huntTxid } from '@/core/zeld/hunt';
 import { assertOnlyNonceChanged, assessZeldHunt, messageWithNonce, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
@@ -59,9 +60,13 @@ export async function huntZeldForCompose(response: ApiResponse, context: Compose
   const base = { target_zeros: targetZeros, seconds };
 
   const rawTxHex = response.result.rawtransaction;
-  if (response.result.signed_reveal_rawtransaction) {
+  // Any Taproot commit, whether its reveal came signed or (Core 11.5) unsigned: the reveal spends
+  // this txid, so a nonce would strand it.
+  if (carriesTaprootReveal(response.result)) {
     return withMetadata(response, { ...base, status: 'skipped', elapsed_ms: 0, attempts: 0,
-      reason: 'A signed reveal already spends this transaction ID.' });
+      reason: response.result.signed_reveal_rawtransaction
+        ? 'A signed reveal already spends this transaction ID.'
+        : 'A Taproot reveal spends this transaction ID.' });
   }
   if (huntsWhileSigning(context.addressFormat, context.walletType)) {
     return withMetadata(response, { ...base, status: 'skipped', elapsed_ms: 0, attempts: 0, reason: HUNTS_WHILE_SIGNING });

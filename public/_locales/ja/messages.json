@@ -1835,6 +1835,9 @@
   "composer_context_taproot_half_returned": {
     "message": "トランザクションの検証に失敗しました: コンポーザーは必要な2つのトランザクションのうち1つしか返しませんでした。"
   },
+  "composer_context_taproot_reveal_needs_newer_wallet": {
+    "message": "このCounterpartyサーバーでインスクリプションなどのTaproot機能を使うには、新しいバージョンのウォレットが必要です。ウォレットを更新するか、インスクリプションなしで作成してください。"
+  },
   "composer_context_taproot_unexpected_envelope": {
     "message": "トランザクションの検証に失敗しました: コンポーザーのTaprootエンベロープはこのリクエストが生成するものではありません。"
   },

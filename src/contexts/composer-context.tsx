@@ -83,7 +83,7 @@ import {
   ownScriptRecipients,
 } from "@/core/counterparty/scriptPaymentCaution";
 import { getSourcePubkey } from "@/core/counterparty/sourcePubkey";
-import { chooseComposeEncoding, composeWithEncoding } from "@/core/counterparty/taprootEncoding";
+import { chooseComposeEncoding, composeWithEncoding, hasUnsignedTaprootReveal } from "@/core/counterparty/taprootEncoding";
 import { fetchInputValues } from "@/core/counterparty/transaction";
 import { unpackCounterpartyMessage } from "@/core/counterparty/unpack";
 import { packAddress } from "@/core/counterparty/unpack/address";
@@ -356,6 +356,13 @@ export function ComposerProvider<T>({
       const revealHex = response.result.signed_reveal_rawtransaction;
       const hasEnvelope = typeof envelopeScript === 'string' && envelopeScript.length > 0;
       const hasReveal = typeof revealHex === 'string' && revealHex.length > 0;
+      // Core 11.5 returns an unsigned reveal for Taproot composes, which this wallet does not sign
+      // yet. Where the wallet chose Taproot itself, `composeWithEncoding` already composed the
+      // default way instead; reaching here means the request asked for Taproot (an inscription),
+      // so it is refused rather than quietly built as something else.
+      if (hasUnsignedTaprootReveal(response.result)) {
+        throw new Error(t('composer_context_taproot_reveal_needs_newer_wallet'));
+      }
       if (hasEnvelope !== hasReveal) {
         // One half alone is either a reveal that would be broadcast unchecked or a commit whose
         // message never lands.
