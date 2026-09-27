@@ -1,5 +1,7 @@
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { AddressFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { type ConsolidationResult, consolidateBareMultisigBatch } from '@/core/bitcoin/consolidateBatch';
+import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails, parsePSBT, resolvePsbtSighashType, validateSignInputs } from '@/core/bitcoin/psbt';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
@@ -34,7 +36,7 @@ export interface SigningWalletState {
 
 /**
  * Transaction, PSBT and message signing for the active wallet: software keys, Trezor, paired
- * Legacy/SegWit addresses and the ZELD hunt.
+ * Legacy/SegWit addresses, the ZELD hunt and bare-multisig consolidation batches.
  *
  * Every request is bound to the session and signing identity it started under
  * (`createSigningGuard`) and rechecks them after each await, before a key is used and before a
@@ -210,6 +212,40 @@ export class WalletSigner {
     );
     assertStillAuthorized();
     return signedTxHex;
+  }
+
+  /**
+   * Build and sign one bare-multisig consolidation batch with the key of `sourceAddress`, which
+   * must belong to the active wallet. A private-key wallet signs with its one key; a mnemonic
+   * wallet with the key at the address's path. The batch signs in chunks with yields between
+   * them, and the guard is rechecked after each, so a lock or switch mid-batch stops it.
+   */
+  public async signConsolidationBatch(
+    sourceAddress: string,
+    batchData: ConsolidationData,
+    feeRateSatPerVByte: number,
+    destinationAddress?: string,
+  ): Promise<ConsolidationResult> {
+    const wallet = this.state.getActiveWallet();
+    const address = wallet?.addresses.find(candidate => candidate.address === sourceAddress);
+    if (!wallet || !address) {
+      throw new Error('Source address is not part of the active wallet');
+    }
+    const assertStillAuthorized = this.createSigningGuard();
+    const privateKeyResult = wallet.type === 'privateKey'
+      ? await this.state.getPrivateKey(wallet.id)
+      : await this.state.getPrivateKey(wallet.id, address.path);
+    assertStillAuthorized();
+    const result = await consolidateBareMultisigBatch(
+      privateKeyResult.hex,
+      sourceAddress,
+      batchData,
+      feeRateSatPerVByte,
+      destinationAddress,
+      assertStillAuthorized,
+    );
+    assertStillAuthorized();
+    return result;
   }
 
   /**
