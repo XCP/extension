@@ -243,6 +243,8 @@ distinct targets). The pair adds:
 - the shared funding outpoint is `fund_offers.expectedTxid` at a vout below `slotCount`, the same
   bidder, the same delivery, and `slotValueSats` equals `priceSats + platformFeeSats` (plus the
   attached-delivery UTXO) of the authorizations;
+- every authorization has the funding's `marketplaceExpiresAt`, and, when the funding's `target` is
+  an asset, targets that asset (a collection target cannot be checked against an asset);
 - each authorization's input 0 spends the funding's locally computed txid, and its value and owner
   equal that funding output, read from the funding PSBT's own bytes (not the network, which has not
   seen it);

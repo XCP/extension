@@ -150,6 +150,16 @@ function parseFundAndAuthorize(
   if (authorized.some(offer => offer.operationId === fund.operationId)) {
     throw new Error('marketplace batch contains a duplicate operation id');
   }
+  // The funding's target is display context, but the two claims must describe one offer: an
+  // asset-scoped funding backs only offers on that asset (a collection target cannot be checked
+  // here), and the funding expires with the offers it backs.
+  const target = fund.target;
+  if (target.scope === 'asset' && authorized.some(offer => offer.assets[0].asset !== target.asset)) {
+    throw new Error('the authorizations must target the asset the offer funding names');
+  }
+  if (authorized.some(offer => offer.marketplaceExpiresAt !== fund.marketplaceExpiresAt)) {
+    throw new Error('the offer funding and its authorizations must share one marketplace expiry');
+  }
   return [fund, ...authorized];
 }
 
@@ -324,6 +334,24 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
   };
 }
 
+/**
+ * The platform fee as the bidder sees it, split by who pays: the part the accepting seller pays out
+ * of proceeds (taker-pays) and the part the bidder pre-funded (a slot funded before taker-pays).
+ */
+export function platformFeeRows(platformFeeSats: number, sellerPaidFeeSats: number): MarketplaceApprovalReview['facts'] {
+  const bidderPaidSats = platformFeeSats - sellerPaidFeeSats;
+  return [
+    ...(sellerPaidFeeSats > 0 ? [{
+      kind: 'amount' as const, label: t('marketplace_intent_platform_fee'), value: satsValue(sellerPaidFeeSats),
+      description: t('marketplace_intent_deducted_from_seller_proceeds'),
+    }] : []),
+    ...(bidderPaidSats > 0 ? [{
+      kind: 'amount' as const, label: t('marketplace_intent_platform_fee'), value: satsValue(bidderPaidSats),
+      description: t('marketplace_intent_paid_by_the_buyer'),
+    }] : []),
+  ];
+}
+
 const exactSafeSum = (values: number[], label: string): number => {
   const total = toSafeInteger(sum(values).toFixed(0));
   if (total === undefined) throw new Error(`${label} exceeds the safe integer range`);
@@ -458,13 +486,7 @@ export function analyzeMarketplaceBatch(
         value: satsValue(buyerCost), emphasis: 'primary',
       },
       { kind: 'amount' as const, label: t('marketplace_intent_offer_price'), value: satsValue(offerPriceSats) },
-      ...(first.platformFeeSats > 0 ? [{
-        kind: 'amount' as const, label: t('marketplace_intent_platform_fee'),
-        value: satsValue(first.platformFeeSats),
-        description: sellerPaidFeeSats > 0
-          ? t('marketplace_intent_deducted_from_seller_proceeds')
-          : t('marketplace_intent_paid_by_the_buyer'),
-      }] : []),
+      ...platformFeeRows(first.platformFeeSats, sellerPaidFeeSats),
       ...(deliveryUtxoSats > 0 ? [{
         kind: 'amount' as const, label: t('marketplace_intent_asset_utxo'),
         value: satsValue(deliveryUtxoSats),

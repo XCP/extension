@@ -1262,6 +1262,31 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
           }
         });
 
+        it('splits a fee the bidder partly pre-funded from the part the seller pays', () => {
+          const base = takerExactBase(accepting, attached, 6_250);
+          // A slot funded before taker-pays pre-funds 1,000 sats of the fee; the seller pays 5,250.
+          const request = {
+            ...base,
+            intent: {
+              ...base.intent, sellerPaidFeeSats: 5_250,
+              priceSats: base.intent.priceSats + 1_000, sellerProceedsSats: base.intent.sellerProceedsSats + 1_000,
+            },
+            inputs: base.inputs.map(input => input.index === 0 ? { ...input, value: input.value! + 1_000 } : input),
+            outputs: base.outputs.map(output => output.index === 1 ? { ...output, value: output.value + 1_000 } : output),
+          };
+          const review = analyzeMarketplaceIntent({ ...request, intent: parseMarketplaceIntent(request.intent) });
+          expect(review.blockers).toEqual([]);
+          const fees = review.paymentSummary?.filter(field => field.label === 'Platform fee');
+          const sellerPart = {
+            kind: 'amount', label: 'Platform fee', value: '5,250 sats', description: 'Deducted from seller proceeds',
+          };
+          // The seller sees only its own part; the bidder sees both, each with who pays it.
+          expect(fees).toEqual(accepting ? [sellerPart] : [
+            sellerPart,
+            { kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Paid by the buyer' },
+          ]);
+        });
+
         const mutations: Array<[string, (request: ReturnType<typeof feeExactBase>) => void]> = [
           ['wrong fee amount', request => { request.outputs[2]!.value -= 1; }],
           ['missing fee output', request => { request.outputs.pop(); }],

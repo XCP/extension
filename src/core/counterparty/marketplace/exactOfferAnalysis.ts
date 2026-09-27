@@ -239,12 +239,20 @@ export function analyzeExactOfferIntent(
     label: t('marketplace_intent_offer_price'),
     value: offerPriceSats === null ? t('marketplace_intent_unavailable') : satsValue(offerPriceSats),
   };
-  const platformFee: ProtocolField = {
-    kind: 'amount', label: t('marketplace_intent_platform_fee'), value: satsValue(intent.platformFeeSats),
-    description: sellerPaysFee
-      ? t('marketplace_intent_deducted_from_seller_proceeds')
-      : t('marketplace_intent_paid_by_the_buyer'),
+  // Split by who pays: the accepting seller's part (taker-pays) and any part the bidder pre-funded.
+  const bidderPaidFeeSats = intent.platformFeeSats - sellerPaidFeeSats;
+  const sellerFee: ProtocolField = {
+    kind: 'amount', label: t('marketplace_intent_platform_fee'), value: satsValue(sellerPaidFeeSats),
+    description: t('marketplace_intent_deducted_from_seller_proceeds'),
   };
+  const bidderFee: ProtocolField = {
+    kind: 'amount', label: t('marketplace_intent_platform_fee'), value: satsValue(bidderPaidFeeSats),
+    description: t('marketplace_intent_paid_by_the_buyer'),
+  };
+  const platformFees: ProtocolField[] = [
+    ...(sellerPaysFee ? [sellerFee] : []),
+    ...(bidderPaidFeeSats > 0 ? [bidderFee] : []),
+  ];
   const networkFee: ProtocolField = {
     kind: 'amount', label: t('marketplace_intent_network_fee'), value: satsValue(intent.networkFeeSats),
     description: t('marketplace_intent_deducted_from_seller_proceeds'),
@@ -263,7 +271,7 @@ export function analyzeExactOfferIntent(
       emphasis: 'primary',
     },
     offerPrice,
-    ...(intent.platformFeeSats > 0 ? [platformFee] : []),
+    ...platformFees,
     ...(deliveryUtxoSats > 0 ? [{
       kind: 'amount' as const, label: t('marketplace_intent_asset_utxo'),
       value: satsValue(deliveryUtxoSats),
@@ -272,7 +280,7 @@ export function analyzeExactOfferIntent(
   ] : [
     sellerReceives, offerPrice,
     // The seller sees the fee only when it comes out of their proceeds.
-    ...(sellerPaysFee ? [platformFee] : []),
+    ...(sellerPaysFee ? [sellerFee] : []),
     {
       kind: 'amount', label: t('marketplace_intent_utxo_returned'),
       value: satsValue(intent.utxoValueSats),

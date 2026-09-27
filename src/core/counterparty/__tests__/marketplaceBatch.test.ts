@@ -211,8 +211,15 @@ describe('fund-and-authorize-offers parser', () => {
     ...overrides,
   });
 
+  // Authorizations of the funding's asset that expire with it, as the marketplace builds them.
+  const offer = (index: number): AuthorizeExactOfferIntentClaim => ({
+    ...exactOffer(index),
+    assets: [{ ...exactOffer(index).assets[0], asset: 'RAREPEPE' }],
+    marketplaceExpiresAt: 2_000_003_600,
+  });
+
   it.each([1, 7])('admits a funding followed by %i authorizations of one of its outputs', count => {
-    const offers = Array.from({ length: count }, (_, index) => exactOffer(index));
+    const offers = Array.from({ length: count }, (_, index) => offer(index));
     const parsed = parseMarketplaceBatchIntents([fund(), ...offers]);
     expect(parsed.kind).toBe('fund-and-authorize-offers');
     expect(parsed.intents.slice(1)).toEqual(offers);
@@ -221,7 +228,7 @@ describe('fund-and-authorize-offers parser', () => {
   it('refuses a funding with no authorization, and more than seven', () => {
     // A lone funding is not a phase at all: it is its own xcp_signPsbt request.
     expect(() => parseMarketplaceBatchIntents([fund()])).toThrow(/not supported in a multi-PSBT phase/);
-    expect(() => parseMarketplaceBatchIntents([fund(), ...Array.from({ length: 8 }, (_, index) => exactOffer(index))]))
+    expect(() => parseMarketplaceBatchIntents([fund(), ...Array.from({ length: 8 }, (_, index) => offer(index))]))
       .toThrow(/1\.\.8/);
   });
 
@@ -233,20 +240,33 @@ describe('fund-and-authorize-offers parser', () => {
     ['another delivery', fund({ delivery: { mode: 'attached', utxoValueSats: 330 }, priceSats: 250_670 }), /one delivery/],
     ['a slot that is not the authorized offer', fund({ slotValueSats: 250_000, priceSats: 250_000 }), /exactly the authorized offer/],
   ])('refuses %s', (_label, funding, message) => {
-    expect(() => parseMarketplaceBatchIntents([funding, exactOffer(0)])).toThrow(message);
+    expect(() => parseMarketplaceBatchIntents([funding, offer(0)])).toThrow(message);
+  });
+
+  it('requires an asset-scoped funding and its authorizations to name one asset and one expiry', () => {
+    // offer(1) targets PEPECASH; offer(0)'s expiry is 2_000_003_600, the funding's.
+    expect(() => parseMarketplaceBatchIntents([fund(), offer(0), { ...offer(2), assets: exactOffer(1).assets }]))
+      .toThrow(/asset the offer funding names/);
+    expect(() => parseMarketplaceBatchIntents([fund(), { ...offer(1), assets: exactOffer(1).assets }]))
+      .toThrow(/asset the offer funding names/);
+    expect(() => parseMarketplaceBatchIntents([fund({ marketplaceExpiresAt: 2_000_009_999 }), offer(0)]))
+      .toThrow(/one marketplace expiry/);
+    // A collection target cannot be checked against an asset here; the expiry still must agree.
+    const collection = fund({ target: { scope: 'collection', collection: 'rare-pepe' } });
+    expect(parseMarketplaceBatchIntents([collection, offer(0)]).kind).toBe('fund-and-authorize-offers');
   });
 
   it('still refuses authorizations that do not share one funding outpoint', () => {
-    const other = { ...exactOffer(1), bitcoinInvalidation: { type: 'spend_funding_outpoint' as const, outpoint: { ...FUNDING, vout: 2 } } };
-    expect(() => parseMarketplaceBatchIntents([fund(), exactOffer(0), other])).toThrow(/one funding outpoint/);
+    const other = { ...offer(1), bitcoinInvalidation: { type: 'spend_funding_outpoint' as const, outpoint: { ...FUNDING, vout: 2 } } };
+    expect(() => parseMarketplaceBatchIntents([fund(), offer(0), other])).toThrow(/one funding outpoint/);
   });
 
   it('refuses a funding anywhere but first', () => {
-    expect(() => parseMarketplaceBatchIntents([exactOffer(0), fund()])).toThrow(/one semantic action/);
+    expect(() => parseMarketplaceBatchIntents([offer(0), fund()])).toThrow(/one semantic action/);
   });
 
   it('summarizes the funding with the offers it authorizes', () => {
-    const offers = [exactOffer(0), exactOffer(1)];
+    const offers = [offer(0), offer(1)];
     const intents = parseMarketplaceBatchIntents([fund(), ...offers]).intents;
     const review = analyzeMarketplaceBatch('fund-and-authorize-offers', intents, [
       proved({ family: 'fund_offers' }),
@@ -376,6 +396,19 @@ describe('marketplace batch aggregate proof', () => {
     expect(review.facts).toContainEqual({
       kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Paid by the buyer',
     });
+  });
+
+  it('splits a partly pre-funded fee between the seller and the bidder', () => {
+    const partial = (index: number): AuthorizeExactOfferIntentClaim => ({
+      ...exactOffer(index), platformFeeSats: 6_250, sellerPaidFeeSats: 5_250,
+    });
+    const review = analyzeMarketplaceBatch('authorize-offers', [partial(0)],
+      [proved({ status: 'caution', family: 'authorize_exact_offer' })]);
+    const fees = review.facts.filter(fact => fact.label === 'Platform fee');
+    expect(fees).toEqual([
+      { kind: 'amount', label: 'Platform fee', value: '5,250 sats', description: 'Deducted from seller proceeds' },
+      { kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Paid by the buyer' },
+    ]);
   });
 
   it('refuses a batch whose items split the fee differently', () => {
