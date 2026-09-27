@@ -41,3 +41,19 @@ export function amountText(data: Data, quantityKey: string, assetKey: string): s
   if (divisible === false) return `${String(raw)} ${asset}`;
   return `${t('tx_action_base_units', [String(raw)])} ${asset}`;
 }
+
+/** The params of this transaction's first event of one kind, whoever the event is about. */
+export function firstEvent(tx: Transaction, event: string): Data | undefined {
+  const match = (tx.events ?? [])
+    .filter((e) => e.event === event)
+    .sort((a, b) => a.event_index - b.event_index)[0];
+  return record(match?.params);
+}
+
+/** An asset as people know it: its long name when it has one (a subasset), else its name. */
+export function assetLabel(data: Data, assetKey: string): string | undefined {
+  const asset = data[assetKey];
+  if (typeof asset !== 'string' || !asset) return undefined;
+  const longname = record(data[`${assetKey}_info`])?.asset_longname;
+  return typeof longname === 'string' && longname ? longname : asset;
+}

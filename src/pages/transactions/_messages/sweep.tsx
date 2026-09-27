@@ -2,11 +2,12 @@ import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 
 import { t } from '@/i18n';
+import { eventParams, messageData } from "@/pages/transactions/_messages/facts";
 /**
  * Renders detailed information for sweep transactions
  */
 export function sweep(tx: Transaction): Array<{ label: string; value: string | ReactNode }> {
-  const params = tx.unpacked_data?.params;
+  const params = messageData(tx) ?? eventParams(tx, 'SWEEP')[0];
   if (!params) return [];
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
