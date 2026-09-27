@@ -6131,13 +6131,13 @@
     "message": "将 ZELD 移到小额输出"
   },
   "zeld_park_description": {
-    "message": "释放其余 BTC，用于必须将首个输出支付给他人的交易。"
+    "message": "让其余 BTC 可用于向他人付款。"
   },
   "zeld_about": {
     "message": "关于 ZeldHash"
   },
   "zeld_about_description": {
-    "message": "了解稀有交易 ID 如何获得 ZELD。打开 zeldhash.com。"
+    "message": "了解稀有交易 ID 如何获得 ZELD。"
   },
   "zeld_balance": {
     "message": "ZELD 余额"
