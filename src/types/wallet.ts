@@ -170,6 +170,16 @@ export interface SignTransactionOptions {
   lockScripts?: string[];
 }
 
+export interface SignPsbtOptions {
+  /**
+   * Unsigned bytes of earlier transactions in the same approved bundle, keyed by txid, that a later
+   * item spends before they are broadcast. Only the signing service supplies them, and only for a
+   * bundle whose review proved the spend (acceptance-cpfp, fund-and-authorize). Prevout checks read
+   * such a parent from these bytes (they must still hash to the input's txid) instead of the network.
+   */
+  packageTransactions?: Record<string, string>;
+}
+
 // ============================================================================
 // Hardware Wallet Types
 // ============================================================================

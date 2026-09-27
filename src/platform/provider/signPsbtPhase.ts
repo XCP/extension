@@ -1,4 +1,4 @@
-import { MAX_MARKETPLACE_BATCH_REQUESTS } from '@/core/counterparty/marketplaceBatch';
+import { MAX_MARKETPLACE_BATCH_REQUESTS, type MarketplaceBatchKind } from '@/core/counterparty/marketplaceBatch';
 
 /**
  * Sign one already-proved phase in order, but disclose results only as a complete set.
@@ -34,6 +34,24 @@ const txidHex = (value: string, label: string): string => {
 
 const unsignedTransactionHex = (psbtHex: string): string =>
   bytesToHex(parsePSBT(psbtHex).toBytes(true, false));
+
+/**
+ * Bundle kinds whose later items spend the first item's outputs before it is broadcast, and whose
+ * review proved that spend against the first item's own bytes. (attach-and-list is not one: its
+ * listing is rebound to the signed attach, which then travels as the input's nonWitnessUtxo.)
+ */
+export const bundleSpendsItsParent = (kind: 'acceptance-cpfp' | MarketplaceBatchKind): boolean =>
+  kind === 'acceptance-cpfp';
+
+/**
+ * The unsigned bytes of a bundle's first transaction, keyed by its txid, for the later items that
+ * spend its outputs before it is broadcast. The prevout check still hashes these bytes and binds
+ * them to each input's txid, so a parent whose final txid differs (a Legacy input's scriptSig is
+ * part of the txid) fails closed rather than verifying against the wrong transaction.
+ */
+export function packageParentOf(parentPsbtHex: string): Record<string, string> {
+  return { [parsePSBT(parentPsbtHex).id]: unsignedTransactionHex(parentPsbtHex) };
+}
 
 /** Replace only the dependent listing's asset-input parent after a Legacy attach is signed. */
 export function rebindDependentListingPsbt(

@@ -46,6 +46,13 @@ export interface AcceptanceCpfpBundleAnalysisInput {
   childSignerAddresses: string[];
   childTransactionId?: string;
   childHasCounterpartyPayload: boolean;
+  /**
+   * The parent as the wallet read it from its own PSBT bytes in this same bundle: its locally
+   * computed txid and outputs. The child's only input spends a parent the network has not seen,
+   * so these, not a network lookup, are what the child input must match.
+   */
+  parentTransactionId: string | undefined;
+  parentOutputs: OutputLike[];
 }
 
 const positiveInteger = (value: unknown, label: string): number =>
@@ -236,6 +243,23 @@ export function analyzeAcceptanceCpfpBundle(
     if (childInput.hasSignatures !== false) {
       blockers.push('the child input must be proven unsigned before bundle approval');
     }
+    // Derive the spent output from the parent's own bytes, not from the child's claim of it.
+    const parentTxid = input.parentTransactionId?.toLowerCase();
+    if (!parentTxid) {
+      retry.push('the wallet could not establish the parent transaction id');
+    } else if (childInput.txid.toLowerCase() !== parentTxid) {
+      blockers.push('the child input does not spend the reviewed parent transaction');
+    }
+    const spent = input.parentOutputs.find(output => output.index === childInput.vout);
+    if (
+      !spent
+      || spent.type === 'op_return'
+      || spent.value !== childInput.value
+      || !spent.address
+      || !sameAddress(childInput.address, spent.address)
+    ) {
+      blockers.push('the child input differs from the reviewed parent output it spends');
+    }
   }
 
   const childOutput = input.childOutputs[0];
@@ -272,6 +296,15 @@ export function analyzeAcceptanceCpfpBundle(
   const allProblems = [...retry, ...blockers];
   const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved';
   const claim = parentIntent.assets[0];
+  // `priceSats` is net of the part of the marketplace fee the accepting seller pays (taker-pays);
+  // the offer as the bidder made it adds that part back. Absent means the bidder funded the fee.
+  const sellerPaidFeeSats = parentIntent.sellerPaidFeeSats ?? 0;
+  const offerPriceSats = parentIntent.priceSats + sellerPaidFeeSats;
+  const sellerFee = sellerPaidFeeSats > 0 ? [{
+    kind: 'amount' as const, label: t('marketplace_intent_platform_fee'),
+    value: satsValue(sellerPaidFeeSats),
+    description: t('marketplace_intent_deducted_from_seller_proceeds'),
+  }] : [];
   // The parent's reason for blocking names the package's, unless the child adds its own.
   const blockKind = parentReview.status === 'blocked' && blockers.length === parentBlockers
     ? parentReview.blockKind : undefined;
@@ -280,7 +313,7 @@ export function analyzeAcceptanceCpfpBundle(
     ...(blockKind ? { blockKind } : {}),
     family: 'accept_exact_offer_with_cpfp',
     title: t('marketplace_bundle_accept_price_for_with_fee_bump', [
-      satsValue(parentIntent.priceSats),
+      satsValue(offerPriceSats),
       claim.asset,
     ]),
     ...(status === 'proved' ? {
@@ -296,8 +329,9 @@ export function analyzeAcceptanceCpfpBundle(
         amounts: [
           {
             kind: 'amount' as const, label: t('marketplace_bundle_offer_price'),
-            value: satsValue(parentIntent.priceSats),
+            value: satsValue(offerPriceSats),
           },
+          ...sellerFee,
           {
             kind: 'amount' as const, label: t('marketplace_bundle_utxo_returned'),
             value: satsValue(parentIntent.utxoValueSats),
@@ -318,9 +352,11 @@ export function analyzeAcceptanceCpfpBundle(
       },
       {
         kind: 'amount' as const, label: t('marketplace_bundle_offer_price'),
-        value: satsValue(parentIntent.priceSats),
+        value: satsValue(offerPriceSats),
       },
-      // The buyer-paid platform fee is not the seller's cost and is not listed here.
+      // The accepting seller sees the fee only when it comes out of their proceeds (taker-pays);
+      // a fee the bidder funded is not the seller's cost.
+      ...sellerFee,
       {
         kind: 'amount' as const, label: t('marketplace_bundle_utxo_returned'),
         value: satsValue(parentIntent.utxoValueSats),

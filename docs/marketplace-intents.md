@@ -173,9 +173,12 @@ quantity are those of the locally decoded attach message; the owner and value ar
 script and amount. This evidence stands in for the ledger lookup on listing input 1 only when the
 attach item itself did not fail its proof, and only when listing input 1 is exactly that outpoint
 with that owner and value; any difference blocks the bundle. If the ledger does report assets on
-that outpoint, its answer is kept and checked like any other listing. A failed lookup is replaced
-only when it is explained by the attach itself (the explorer reports the attach txid as unknown, or
-the lookup names the attach as the pending transaction); an outage stays a retry. Because
+that outpoint, its answer is kept and checked like any other listing. The listing's asset lookup is
+given the attach's own unsigned bytes as an unbroadcast parent, so the attach output reads as
+pending on exactly that attach; a failed lookup is replaced only when it is explained that way. The
+network is not asked whether it knows the attach (mempool.space answers an unknown txid with
+`{"confirmed":false}`, indistinguishable from an unconfirmed one). An outage anywhere else stays a
+retry. Because
 Counterparty also moves every balance on the attach's *inputs* onto the listed output, the listing
 is proved only after every attach input's parent transaction is confirmed at or below
 Counterparty's parsed block height and each input re-reads as asset-free; an unconfirmed or
@@ -203,7 +206,11 @@ the single authorization's, applied per item.
 
 An `accept_exact_offer` parent and a `bump_acceptance_fee` child, in that order. The child must
 claim exactly one asset, use `protocolVersion: 'exact_offer_v1'`, and spend the proved parent's
-seller-proceeds output 1. This kind is recognized by its shape (two requests, the first an
+seller-proceeds output 1. The parent is not broadcast yet, so the child's input is proved against the
+parent's own bytes in the bundle: its txid is the parent's locally computed txid, and its value and
+owner are those of the parent's output 1. At signing, the child's prevout is verified from the same
+unsigned parent bytes, which must still hash to the child's input txid; a parent with a Legacy input
+(whose final txid differs) fails closed. This kind is recognized by its shape (two requests, the first an
 `accept_exact_offer`) and is not listed in `marketplaceBundles`.
 
 ### `fund-policy-offer`

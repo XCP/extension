@@ -18,6 +18,7 @@ import {
   MAX_PENDING_DEPTH,
   type ParentTransaction,
   resolveEmptyLedgerOutpoint,
+  withPackageParents,
 } from '@/core/counterparty/pendingAttachments';
 import { arc4 } from '@/core/counterparty/unpack/binary';
 
@@ -286,5 +287,54 @@ describe('resolveEmptyLedgerOutpoint', () => {
       resolveEmptyLedgerOutpoint(context, tx.id, 2),
     ]);
     expect(src.parent).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('withPackageParents', () => {
+  it('reads an unbroadcast bundle parent from its own bytes, as unconfirmed', async () => {
+    const tx = attach(coin(1));
+    // The network has never seen it: the underlying source knows nothing.
+    const src = withPackageParents(source(), new Map([[tx.id.toUpperCase(), tx.hex]]));
+    expect(await src.parent(tx.id)).toEqual({ rawTxHex: tx.hex, confirmed: false });
+    // So an attach output in the same bundle is named pending on exactly that attach.
+    expect(await resolve(src, { txid: tx.id, vout: 0 })).toEqual({ kind: 'pending', parentTxid: tx.id });
+  });
+
+  it("derives a plain funding output from the funding transaction's own inputs", async () => {
+    const root = build([coin(7)], [WALLET]);
+    const funding = build([{ txid: root.id, vout: 0 }], [WALLET, WALLET]);
+    const clean = withPackageParents(source({ parents: { [root.id]: buried(root) } }), new Map([[funding.id, funding.hex]]));
+    expect(await resolve(clean, { txid: funding.id, vout: 0 })).toEqual({ kind: 'clean' });
+    // Its implicit move output carries whatever the spent coin carries: never clean then.
+    const carrying = withPackageParents(source({
+      parents: { [root.id]: buried(root) }, balances: { [`${root.id}:0`]: [RAREPEPE] },
+    }), new Map([[funding.id, funding.hex]]));
+    expect(await resolve(carrying, { txid: funding.id, vout: 0 })).toEqual({ kind: 'pending', parentTxid: funding.id });
+  });
+
+  it('cannot pass one transaction off as another: bytes must hash to the txid asked for', async () => {
+    const real = attach(coin(1));
+    const other = attach(coin(2));
+    const src = withPackageParents(source(), new Map([[real.id, other.hex]]));
+    expect(await resolve(src, { txid: real.id, vout: 0 })).toEqual({ kind: 'unknown' });
+  });
+
+  it('reads a failed ledger lookup of a package output as empty, and of anything else as the failure', async () => {
+    const tx = attach(coin(1));
+    const failing: AttachmentEvidenceSource = {
+      ...source(),
+      balances: vi.fn(async () => { throw new Error('indexer down'); }),
+    };
+    const src = withPackageParents(failing, new Map([[tx.id, tx.hex]]));
+    await expect(src.balances(`${tx.id}:0`, false)).resolves.toEqual([]);
+    await expect(src.balances(`${coin(3).txid}:0`, false)).rejects.toThrow('indexer down');
+  });
+
+  it('leaves every transaction outside the package to the underlying source', async () => {
+    const tx = attach(coin(1));
+    const inner = source({ parents: { [tx.id]: buried(tx) } });
+    const src = withPackageParents(inner, new Map());
+    expect(await src.parent(tx.id)).toEqual(buried(tx));
+    expect(inner.calls.parent).toEqual([tx.id]);
   });
 });

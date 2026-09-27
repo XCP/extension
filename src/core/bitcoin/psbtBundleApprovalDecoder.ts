@@ -1,6 +1,7 @@
 /** Semantic proof of every item in an atomic provider signing phase. */
 
-import { extractPsbtDetails, resolvePsbtSighashType, spendsTaprootOutput } from '@/core/bitcoin/psbt';
+import { bytesToHex } from '@noble/hashes/utils.js';
+import { extractPsbtDetails, parsePSBT, resolvePsbtSighashType, spendsTaprootOutput } from '@/core/bitcoin/psbt';
 import {
   type DecodedPsbtInfo,
   decodePsbtForApproval,
@@ -74,7 +75,10 @@ const decodeItem = (
   intent: MarketplaceIntentClaimV1,
   ownedAddresses: string[] | undefined,
   linkedInput?: LinkedInputEvidence,
-  options: Pick<NonNullable<Parameters<typeof decodePsbtForApproval>[9]>, 'policyOffer' | 'sharedAttachedAssets'> = {},
+  options: Pick<
+    NonNullable<Parameters<typeof decodePsbtForApproval>[9]>,
+    'policyOffer' | 'sharedAttachedAssets' | 'packageParents'
+  > = {},
 ): Promise<DecodedPsbtInfo> => decodePsbtForApproval(
   item.psbtHex,
   Object.keys(item.signInputs),
@@ -87,6 +91,9 @@ const decodeItem = (
   ownedAddresses,
   { linkedInput, ...options },
 );
+
+/** A PSBT's unsigned transaction bytes: what a same-bundle child's input spends before broadcast. */
+const unsignedTransactionHex = (psbtHex: string): string => bytesToHex(parsePSBT(psbtHex).toBytes(true, false));
 
 /** Alternatives decoded at once after the first; bounds the burst of per-item chain lookups. */
 const POLICY_OFFER_DECODE_CONCURRENCY = 10;
@@ -230,12 +237,16 @@ async function decodeAttachAndList(
             }],
           },
           attachTxid: proved.txid,
-          attachIsUnbroadcast: async () => await chain.txStatus(proved.txid) === 'missing',
         };
       }
     }
   }
-  const listing = await decodeItem(listingItem, intents[1]!, ownedAddresses, linked);
+  // The listing's asset lookup reads the attach from its reviewed bytes, so an unbroadcast attach
+  // output is named as pending on this very attach (the explanation `withLinkedInputAssets`
+  // requires) instead of failing on a network that has never seen it.
+  const listing = await decodeItem(listingItem, intents[1]!, ownedAddresses, linked, linked ? {
+    packageParents: new Map([[linked.attachTxid, unsignedTransactionHex(attachItem.psbtHex)]]),
+  } : {});
   for (const { problem, severity } of problems) {
     listing.marketplaceReview = withLinkProblem(listing.marketplaceReview, problem, severity);
   }
@@ -302,6 +313,8 @@ export async function decodePsbtBundleForApproval(
       childSignerAddresses: Object.keys(childItem!.signInputs),
       childTransactionId: child.transactionId,
       childHasCounterpartyPayload: childPayload !== null,
+      parentTransactionId: parent.psbtDetails.transactionId,
+      parentOutputs: parent.psbtDetails.outputs,
     });
     return {
       items: [parent, { psbtDetails: child, txid: child.transactionId }],

@@ -90,6 +90,43 @@ export const liveAttachmentEvidenceSource: AttachmentEvidenceSource = {
   ledgerHeights: () => fetchLedgerHeights(),
 };
 
+/**
+ * The same source, told about transactions of the request being reviewed that are not broadcast
+ * yet (a linked bundle's earlier item: an attach whose output the listing sells, a funding
+ * transaction whose output an authorization spends). Such a parent is read from its own bytes,
+ * as unconfirmed, instead of from a network that has never seen it; everything below then derives
+ * what its outputs can carry exactly as for any unconfirmed parent. A ledger lookup of one of its
+ * outputs that fails reads as empty, since no ledger can know an unbroadcast output — and empty
+ * is only ever accepted after that derivation, never as "clean" by itself.
+ *
+ * The bytes must hash to the txid asked for (`resolveEmptyLedgerOutpoint` checks), so a request
+ * cannot pass one transaction off as another. Only the bundle decoder supplies these, and only
+ * from an item it has already proved.
+ */
+export function withPackageParents(
+  source: AttachmentEvidenceSource,
+  packageParents: ReadonlyMap<string, string>,
+): AttachmentEvidenceSource {
+  const parents = new Map([...packageParents].map(([txid, raw]) => [txid.toLowerCase(), raw]));
+  const inPackage = (utxo: string): boolean => parents.has(utxo.split(':')[0]!.toLowerCase());
+  return {
+    balances: async (utxo, fresh) => {
+      try {
+        return await source.balances(utxo, fresh);
+      } catch (error) {
+        if (inPackage(utxo)) return [];
+        throw error;
+      }
+    },
+    ...(source.withBalances ? { withBalances: source.withBalances.bind(source) } : {}),
+    parent: async (txid) => {
+      const raw = parents.get(txid.toLowerCase());
+      return raw ? { rawTxHex: raw, confirmed: false } : source.parent(txid);
+    },
+    ledgerHeights: () => source.ledgerHeights(),
+  };
+}
+
 /** Which outputs of a transaction Counterparty could credit attached balances to. */
 export interface OutputExposure {
   txid: string;

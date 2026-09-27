@@ -15,6 +15,7 @@ import type { PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalD
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { computeTxid } from '@/core/bitcoin/transactionBroadcaster';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
+import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
 import { parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { arc4 } from '@/core/counterparty/unpack/binary';
 import { beginSignFlow, getSignFlow } from '@/platform/provider/signFlow';
@@ -85,9 +86,9 @@ vi.mock('@/core/api/client', async importOriginal => {
         if (!match) return actual.apiClient.get(url, config as never);
         const status = state.txStatus.get(match[1]!) ?? { confirmed: true, block_height: 800_000 };
         if (status === 'fail') throw Object.assign(new Error('explorer down'), { code: 'NETWORK_ERROR' });
-        if (status === 'missing') {
-          throw Object.assign(new Error('Transaction not found'), { code: 'HTTP_ERROR', status: 404 });
-        }
+        // mempool.space answers a txid it has never seen with HTTP 200 {"confirmed":false}, not a
+        // 404 (checked on mainnet): an unbroadcast attach looks exactly like an unconfirmed one.
+        if (status === 'missing') return { data: { confirmed: false }, status: 200 };
         return { data: status, status: 200 };
       },
     },
@@ -151,10 +152,18 @@ beforeEach(() => {
   state.wallet.getActiveAddress.mockResolvedValue({ address: segwit.address });
   state.wallet.getPairedAddresses.mockResolvedValue({ legacy, segwit });
   state.wallet.signPsbt.mockClear();
-  state.wallet.signPsbt.mockImplementation(async (hex: string, inputs: Record<string, number[]>, sighashes: number[]) => {
+  state.wallet.signPsbt.mockImplementation(async (
+    hex: string, inputs: Record<string, number[]>, sighashes: number[], _identity: unknown,
+    options?: { packageTransactions?: Record<string, string> },
+  ) => {
     let current = hex;
+    // As walletManager.signPsbt does: a same-bundle parent is verified from its supplied bytes.
+    const packageTransactions = options?.packageTransactions
+      ? new Map(Object.entries(options.packageTransactions)) : undefined;
     for (const [address, indices] of Object.entries(inputs)) {
-      const verified = await verifyPsbtPrevouts(current, { inputIndices: indices });
+      const verified = await verifyPsbtPrevouts(current, {
+        inputIndices: indices, ...(packageTransactions ? { packageTransactions } : {}),
+      });
       current = signPSBT(verified.hex, bytesToHex(walletKey), indices,
         address === legacy.address ? AddressFormat.P2PKH : AddressFormat.P2WPKH, sighashes);
     }
@@ -267,20 +276,26 @@ describe('attach-and-list linked proof', () => {
     }
   });
 
-  it('proves over a failed ledger lookup only when the network does not know the attach yet', async () => {
+  it('proves over a failed ledger lookup of the unbroadcast attach output, from the attach bytes', async () => {
     const items = attachAndList();
     const attachTxid = parsePSBT(items[0]!.psbtHex).id;
     state.assets.set(`${attachTxid}:0`, 'fail');
-    state.txStatus.set(attachTxid, 'missing');
-    const unbroadcast = await review(items, 'attach-and-list');
-    expect(listingReview(unbroadcast)?.status).toBe('proved');
-    expect(unbroadcast.policy.blocked).toBe(false);
+    // Whatever the explorer says about the attach, the listing is proved from the bundle itself.
+    for (const status of ['missing', 'fail', { confirmed: false }] as const) {
+      state.txStatus.set(attachTxid, status);
+      const result = await review(items, 'attach-and-list');
+      expect(listingReview(result)?.status).toBe('proved');
+      expect(result.policy.blocked).toBe(false);
+    }
+  });
 
-    // An explorer outage explains nothing: the failed lookup stays a retry.
-    state.txStatus.set(attachTxid, 'fail');
-    const outage = await review(items, 'attach-and-list');
-    expect(listingReview(outage)?.status).toBe('retry');
-    expect(outage.policy.blocked).toBe(true);
+  it('keeps an outage on the attach inputs a retry: the listed output also receives what they carry', async () => {
+    const items = attachAndList();
+    const sourceFunding = bytesToHex(parsePSBT(items[0]!.psbtHex).getInput(0).txid!);
+    state.assets.set(`${sourceFunding}:0`, 'fail');
+    const result = await review(items, 'attach-and-list');
+    expect(result.decodedInfo.review.status).toBe('retry');
+    expect(result.policy.blocked).toBe(true);
   });
 
   // The reviewer's bundle: attach input 1 is the seller's fresh one-unit UTXO of another asset,
@@ -479,5 +494,110 @@ describe('authorize-offers batch', () => {
     const result = await review(items, 'authorize-offers');
     expect(result.decodedInfo.review.status).toBe('blocked');
     expect(result.policy.blocked).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// acceptance-cpfp
+// ---------------------------------------------------------------------------------------------
+
+describe('acceptance-cpfp: the child spends its unbroadcast parent from the same bundle', () => {
+  const PROCEEDS = PRICE + 546 - NETWORK_FEE;
+  const CHILD_FEE = 300;
+
+  function acceptance(options: {
+    childSpends?: (parentId: string) => { txid: string; index: number; amount: bigint };
+  } = {}) {
+    // The bidder is someone else; the wallet is the accepting seller of its own asset UTXO.
+    const buyerBid = funding(outsider.script, BigInt(PRICE + FEE), 51);
+    const asset = funding(segwit.script, 546n, 52);
+    state.assets.set(`${asset.id}:0`, [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }]);
+    const parent = new Transaction({ version: 2, lockTime: 0, allowUnknownOutputs: true });
+    parent.addInput({
+      txid: buyerBid.id, index: 0, witnessUtxo: { script: outsider.script, amount: BigInt(PRICE + FEE) }, sighashType: 1,
+    });
+    parent.addInput({ txid: asset.id, index: 0, witnessUtxo: { script: segwit.script, amount: 546n }, sighashType: 1 });
+    parent.addOutput({ script: opReturn(buyerBid.id, 102, outsider.address), amount: 0n });
+    parent.addOutput({ script: segwit.script, amount: BigInt(PROCEEDS) });
+    parent.addOutput({ script: platform.script, amount: BigInt(FEE) });
+    // Never broadcast: the explorer has not heard of the parent, exactly as on mainnet.
+    const spends = options.childSpends?.(parent.id) ?? { txid: parent.id, index: 1, amount: BigInt(PROCEEDS) };
+    const child = new Transaction({ version: 2, lockTime: 0 });
+    child.addInput({
+      txid: spends.txid, index: spends.index, witnessUtxo: { script: segwit.script, amount: spends.amount }, sighashType: 1,
+    });
+    child.addOutput({ script: segwit.script, amount: BigInt(PROCEEDS - CHILD_FEE) });
+    const target = { asset: 'RAREPEPE', quantityRaw: '1', sourceOutpoint: { txid: asset.id, vout: 0 } };
+    const pair = parseAcceptanceCpfpBundleIntents({
+      standard: 'counterparty-marketplace', version: 1, action: 'accept_exact_offer',
+      operationId: 'auth-cpfp', protocolVersion: 'exact_offer_v1', assets: [target],
+      authorizationId: 'auth-cpfp', bidder: outsider.address, seller: segwit.address,
+      priceSats: PRICE, utxoValueSats: 546, sellerProceedsSats: PROCEEDS, networkFeeSats: NETWORK_FEE,
+      platformFeeSats: FEE, expectedTxid: parent.id,
+      delivery: { mode: 'detached', address: outsider.address },
+      marketplaceExpiresAt: 2_000_003_600, bitcoinExpiresAt: null,
+      bitcoinInvalidation: { type: 'spend_funding_outpoint', outpoint: { txid: buyerBid.id, vout: 0 } },
+    }, {
+      standard: 'counterparty-marketplace', version: 1, action: 'bump_acceptance_fee',
+      operationId: 'auth-cpfp', protocolVersion: 'exact_offer_v1', assets: [target],
+      authorizationId: 'auth-cpfp', seller: segwit.address, parentExpectedTxid: parent.id,
+      childExpectedTxid: child.id, parentSellerProceedsVout: 1, parentSellerProceedsSats: PROCEEDS,
+      parentNetworkFeeSats: NETWORK_FEE, childNetworkFeeSats: CHILD_FEE,
+      packageFeeSats: NETWORK_FEE + CHILD_FEE, packageFeeRate: 2, finalSellerProceedsSats: PROCEEDS - CHILD_FEE,
+    });
+    const items: PsbtBundleApprovalInput['items'] = [
+      {
+        psbtHex: bytesToHex(parent.toPSBT()), signInputs: { [segwit.address]: [1] }, sighashTypes: [1, 1],
+        marketplaceIntent: pair.parent,
+      },
+      {
+        psbtHex: bytesToHex(child.toPSBT()), signInputs: { [segwit.address]: [0] }, sighashTypes: [1],
+        marketplaceIntent: pair.child,
+      },
+    ];
+    return { items, parent };
+  }
+
+  it('proves and signs the child against the reviewed parent bytes, never the network', async () => {
+    const { items, parent } = acceptance();
+    const result = await review(items, 'acceptance-cpfp');
+    expect(result.decodedInfo.review).toMatchObject({ status: 'proved', blockers: [] });
+    expect(result.policy.blocked).toBe(false);
+
+    const [signedParent, signedChild] = await approve(result, result.policy.requiresAcknowledgement);
+    expect(parsePSBT(signedParent!).getInput(1).partialSig).toHaveLength(1);
+    const child = parsePSBT(signedChild!);
+    expect(bytesToHex(child.getInput(0).txid!)).toBe(parent.id);
+    expect(child.getInput(0).partialSig).toHaveLength(1);
+    // Only the child was handed the parent, and only the parent's own unsigned bytes.
+    const calls = state.wallet.signPsbt.mock.calls as unknown[][];
+    expect(calls[0]![4]).toBeUndefined();
+    expect(calls[1]![4]).toEqual({ packageTransactions: { [parent.id]: bytesToHex(parent.toBytes(true, false)) } });
+  });
+
+  it('without the parent bytes the child cannot be verified: the network has never seen it', async () => {
+    const { items } = acceptance();
+    await expect(verifyPsbtPrevouts(items[1]!.psbtHex, { inputIndices: [0] }))
+      .rejects.toThrow(/Could not independently verify previous transaction/);
+  });
+
+  it('blocks a child whose input value differs from the parent output it spends', async () => {
+    const { items } = acceptance({ childSpends: id => ({ txid: id, index: 1, amount: BigInt(PROCEEDS + 1) }) });
+    const result = await review(items, 'acceptance-cpfp');
+    expect(result.decodedInfo.review.status).toBe('blocked');
+    expect(result.decodedInfo.review.blockers).toContain(
+      'the child input differs from the reviewed parent output it spends',
+    );
+    await expect(approve(result, true)).rejects.toThrow();
+    expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+
+  it('blocks a child that spends some transaction other than the parent in the bundle', async () => {
+    const { items } = acceptance({ childSpends: () => ({ txid: 'ee'.repeat(32), index: 1, amount: BigInt(PROCEEDS) }) });
+    const result = await review(items, 'acceptance-cpfp');
+    expect(result.decodedInfo.review.status).toBe('blocked');
+    expect(result.decodedInfo.review.blockers).toContain('the child input does not spend the reviewed parent transaction');
+    await expect(approve(result, true)).rejects.toThrow();
+    expect(state.wallet.signPsbt).not.toHaveBeenCalled();
   });
 });
