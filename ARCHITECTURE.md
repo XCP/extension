@@ -74,7 +74,7 @@ execution. The popup sends a decision bound to that review's SHA-256 digest. It 
 transaction bytes or a claimed signed result to complete the provider request.
 
 The request lifecycle is `pending → signing → completed`, or cancellation. Records retain their
-original ten-minute deadline. A completed result has a kind-specific payload; a claimed signing
+original deadline ([request lifetime](PROVIDER.md#signing)). A completed result has a kind-specific payload; a claimed signing
 request cannot be executed twice. Request correlation includes origin, method, parameters, wallet,
 and address. Closing a pending prompt cancels that request; losing a popup while an approved
 signer is running does not grant another invocation permission to sign again.
@@ -100,6 +100,43 @@ unknown or inconsistent facts must remain visible to policy.
 Hardware conversion and returned transactions must preserve the unsigned serialization: version,
 locktime, input outpoints and sequences, and output scripts and amounts. Software reconstruction
 uses the same invariant. Device adapters reject script forms they cannot represent exactly.
+
+## Approval screens
+
+The approval screens are the wallet's security surface: "the transaction is valid" and "the screen
+explains it correctly" are separate properties, and each needs its own check. What the wallet
+verifies before anything is rendered is in [PROVIDER.md](PROVIDER.md#what-this-wallet-will-sign).
+The components are in `src/components/domain/approval`; the pages that compose them are under
+`src/pages/requests`.
+
+- **Summary card first.** Every approval reads top to bottom: at most one exception line
+  (`ApprovalNotice`, naming the most serious item with the rest collapsed beneath it), the summary
+  card (`ApprovalSummaryCard`: one headline and the key number), supporting protocol facts, then the
+  transaction details, collapsed. Anything the signer needs to decide belongs in the first two
+  layers; correct information in a collapsed section does not count as shown.
+- **Exceptions go through Review.** A knowingly signable exception does not paint the page red. The
+  footer's action becomes **Review**, which opens `ApprovalAttentionScreen` to name each
+  consequence and ask for a deliberate confirmation. Yellow and red are reserved for what the
+  signer can act on or must know; routine protocol facts are information.
+- **Key number above the fold.** What the signer pays, receives or puts at risk is visible at the
+  popup's 350x600 size without scrolling or expanding. A headline ending in an address puts the
+  address on its own line, in full.
+- **Grounded UTXO vocabulary.** Inputs, outputs, change, UTXO, anchor, payment, fee, sats: the words
+  people already use, and a marketplace protocol's own names where it has them. No coined terms.
+- **Role-aware labels.** Labels come from the signer's role in the proved analysis, never from a
+  website's label: "You pay" (buyer), "You receive" (seller accepting an offer), "Your payout if
+  sold" (seller listing), "You pay if accepted" (bidder), and "Change" only for true leftover
+  funding. An output the signature does not commit to is never counted as coming back.
+- **Label length is linted.** `npm run lint` (`lint:i18n`) fails when an approval fact label in any
+  catalog is over budget: 18 half-width units beside its value, 36 on its own line above it, with
+  full-width (CJK) characters counting two and a `$1` four. `fact-layout.ts` measures width the
+  same way at render time; keep the two in step. A value beside its label is at most three words and 16 units, with no
+  closing full stop.
+- **Galleries, screen by screen.** The approval galleries render every approval state as
+  screenshots ([running them](e2e/TESTING-GUIDE.md#approval-tests)). Their layout assertions do not
+  replace reading the screenshots: for each affected screen, ask what is happening, where the money
+  moves, whether the key number is above the fold, what is generic and what is specific to this
+  transaction, and what the signer cannot see that they should.
 
 ## Vault and session state
 
@@ -148,9 +185,7 @@ Regression tests should assert the resulting invariants: reviewed bytes equal si
 background result exposure requires current grants, matching identity, and an unexpired request;
 concurrent vault writes cannot mix encryption keys; and real decoded values survive browser serialization.
 Use real parsers and cryptography for those boundaries, with controlled external API responses.
-Browser approval tests must initialize the wallet fixture, require a successful decision and
-result, and run with normal browser security enabled. Merely observing a popup or an error
-does not demonstrate a working approval flow.
+Browser approval tests must complete the approval ([E2E testing guide](e2e/TESTING-GUIDE.md#approval-tests)).
 
 ## Reference patterns
 

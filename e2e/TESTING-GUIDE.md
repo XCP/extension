@@ -7,9 +7,8 @@ here is about the browser tests under `e2e/`. Setup, CI and the other test envir
 
 ## Running tests
 
-The tests load the unpacked extension from `.output/chrome-mv3`, so build it first. Use the e2e
-build, which grants the optional Trezor Suite host permission up front (automation cannot answer
-Chrome's permission prompt):
+The tests load the unpacked extension from `.output/chrome-mv3`, so build it first, with the
+e2e build ([how it differs](../CONTRIBUTING.md#building)):
 
 ```bash
 npm run build:e2e
@@ -75,11 +74,20 @@ walletTest('dashboard renders in Japanese', async ({ page }) => {
 
 Browser approval tests must initialize the wallet fixture, require a successful decision and
 result, and run with normal browser security enabled. Merely observing a popup or an error does
-not demonstrate a working approval flow ([ARCHITECTURE.md](../ARCHITECTURE.md#reviewing-changes)).
+not demonstrate a working approval flow.
 
-The approval galleries (`e2e/tests/approval-gallery.spec.ts`, `e2e/tests/marketplace-gallery.spec.ts`)
-render every approval state for review; how to read them is in
-[Approval screens](../docs/approval-screens.md#review-the-galleries-screen-by-screen).
+Two specs render every approval state as screenshots:
+
+- [`tests/approval-gallery.spec.ts`](tests/approval-gallery.spec.ts): every provider approval, per
+  Counterparty message type, for raw transactions and PSBTs, with optional locales
+  (`XCP_GALLERY_LOCALE`) and the side panel (`XCP_GALLERY_SURFACE=sidepanel`).
+- [`tests/marketplace-gallery.spec.ts`](tests/marketplace-gallery.spec.ts): marketplace intents,
+  plain-Bitcoin payments, linked bundles, and the blocked and retry gates in front of them.
+
+Both write to `test-results/` and accept `XCP_GALLERY_SCENARIOS` to run a subset. They also assert
+layout: no horizontal overflow at 350 and 380px, fact labels on one line, the exception notice and
+the signer's outcome in view before anything is expanded, and misleading text absent. How to read
+the screenshots is in [ARCHITECTURE.md](../ARCHITECTURE.md#approval-screens).
 
 ## Other environments
 

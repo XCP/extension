@@ -61,7 +61,7 @@ Translation never changes RPC codes, retry decisions, authorization or signing.
 
 How to add, translate and review strings, and how the Chinese catalogs relate to one
 another, is in [CONTRIBUTING.md](../../CONTRIBUTING.md#languages). Strings a native speaker
-has checked are listed under `reviewed` in `i18n/reviewed/<locale>.json`; every other string
+has checked are listed under `reviewed` in `i18n/<locale>.json`; every other string
 is a machine draft.
 
 ### Default wallet and address names

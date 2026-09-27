@@ -80,7 +80,7 @@ Three things will be true of it:
 - Social engineering or phishing attacks
 - Denial of service without security impact
 - Limitations already documented in the code, in [accepted risks](#accepted-risks), in
-  [the signing policy](docs/signing-policy.md#what-the-wallet-cannot-see), or in this file
+  [what the wallet cannot see](PROVIDER.md#what-the-wallet-cannot-see), or in this file
 - Theoretical vulnerabilities without demonstrated impact
 - Behaviour already fixed on `main` at the time of the report
 
