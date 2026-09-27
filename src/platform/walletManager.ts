@@ -1082,13 +1082,6 @@ export class WalletManager {
     }, { restrictive: true }));
   }
 
-  /** Revokes every connection and paired grant. Refused in memory at once, then saved. */
-  public clearConnectedWebsites(): Promise<void> {
-    return this.mutateVault(() => this.commitKeychain((draft) => {
-      draft.settings = { ...draft.settings, connectedWebsites: [], providerCapabilities: {} };
-    }, { restrictive: true }));
-  }
-
   /**
    * Grants (`identity`) or revokes (null) a site's paired-address access. A revocation, or the grant a
    * new one replaces, is withdrawn from memory before the write; a grant takes effect once saved.
