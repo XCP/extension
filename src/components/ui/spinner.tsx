@@ -46,7 +46,7 @@ export const Spinner = memo<SpinnerProps>(({
     <div 
       className={`flex flex-col items-center justify-center h-full ${className}`}
       role="status"
-      aria-label={message || 'Loading'}
+      aria-label={message || t('common_loading')}
     >
       <FaSpinner 
         className={`animate-spin ${SIZES[size]} ${COLORS[color]}`}

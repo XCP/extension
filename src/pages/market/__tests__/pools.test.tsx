@@ -115,7 +115,7 @@ describe('Market pools pagination', () => {
     expect(screen.getAllByTestId('pool')).toHaveLength(20);
     await view.setInView(true);
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading…' })).toBeInTheDocument();
     // Scrolling away while the network request is pending must not discard it.
     await view.setInView(false);
 
@@ -165,7 +165,7 @@ describe('Market pools pagination', () => {
     }
     await resolve(stale, page([pool('STALE')]));
     expect(screen.queryByText('STALE / XCP')).not.toBeInTheDocument();
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading…' })).toBeInTheDocument();
     await resolve(replacementMore, page([pool('FRESH')]));
     expect(screen.getByText('FRESH / XCP')).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -179,7 +179,7 @@ describe('Market pools pagination', () => {
     const view = renderPools();
     await resolve(initial, page(firstPage()));
     await view.setInView(true);
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading…' })).toBeInTheDocument();
 
     await act(async () => { failed.reject(new Error('Pool request failed')); await failed.promise.catch(() => {}); });
     expect.soft(screen.queryByRole('status')).not.toBeInTheDocument();

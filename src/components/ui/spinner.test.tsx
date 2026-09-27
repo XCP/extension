@@ -34,6 +34,12 @@ describe('Spinner', () => {
     expect(screen.getByText('Loading…')).toHaveClass('sr-only');
   });
 
+  it('names the status region with the translated loading text', () => {
+    render(<Spinner />);
+
+    expect(screen.getByRole('status', { name: 'Loading…' })).toBeInTheDocument();
+  });
+
   it('should render message when provided', () => {
     render(<Spinner message="Loading wallets…" />);
 

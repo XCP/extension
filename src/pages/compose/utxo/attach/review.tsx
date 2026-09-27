@@ -48,11 +48,11 @@ export function ReviewUtxoAttach({
   const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
 
   const customFields = [
-    { label: t('common_asset'), value: result.params.asset || "N/A" },
+    { label: t('common_asset'), value: result.params.asset || t('common_not_available') },
     {
       label: t('common_quantity'),
       value: result.params.quantity && result.params.asset ?
-        `${quantityDisplay} ${result.params.asset}` : "N/A",
+        `${quantityDisplay} ${result.params.asset}` : t('common_not_available'),
     },
     ...(result.params.destination_vout !== undefined && result.params.destination_vout !== null ?
       [{ label: t('attach_review_destination_output'), value: String(result.params.destination_vout) }] : []),
