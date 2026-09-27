@@ -319,15 +319,33 @@ describe('withPackageParents', () => {
     expect(await resolve(src, { txid: real.id, vout: 0 })).toEqual({ kind: 'unknown' });
   });
 
-  it('reads a failed ledger lookup of a package output as empty, and of anything else as the failure', async () => {
+  const failing = (): AttachmentEvidenceSource => ({
+    ...source(),
+    balances: vi.fn(async () => { throw new Error('indexer down'); }),
+  });
+
+  it('reads a failed ledger lookup of an unbroadcast package output as empty, and of anything else as the failure', async () => {
     const tx = attach(coin(1));
-    const failing: AttachmentEvidenceSource = {
-      ...source(),
-      balances: vi.fn(async () => { throw new Error('indexer down'); }),
-    };
-    const src = withPackageParents(failing, new Map([[tx.id, tx.hex]]));
+    const unknownToNetwork = vi.fn(async () => true);
+    const src = withPackageParents(failing(), new Map([[tx.id, tx.hex]]), unknownToNetwork);
     await expect(src.balances(`${tx.id}:0`, false)).resolves.toEqual([]);
+    await expect(src.balances(`${tx.id}:2`, false)).resolves.toEqual([]);
+    // Asked once per parent, and never for a transaction outside the package.
+    expect(unknownToNetwork).toHaveBeenCalledTimes(1);
     await expect(src.balances(`${coin(3).txid}:0`, false)).rejects.toThrow('indexer down');
+  });
+
+  // Review finding: a re-submitted funding the user signed earlier is already confirmed, and its
+  // output 0 received assets from its inputs. A failed read of that output must not become "empty"
+  // (and so, derived from its now-spent inputs, "clean"): the failure has to stay a retry.
+  it('keeps a failed read a failure when the package parent may already be on chain', async () => {
+    const root = build([coin(7)], [WALLET]);
+    const funding = build([{ txid: root.id, vout: 0 }], [WALLET, WALLET]);
+    for (const known of [async () => false, async () => { throw new Error('explorer down'); }]) {
+      const src = withPackageParents({ ...failing(), parent: source({ parents: { [root.id]: buried(root) } }).parent },
+        new Map([[funding.id, funding.hex]]), known);
+      await expect(src.balances(`${funding.id}:0`, false)).rejects.toThrow('indexer down');
+    }
   });
 
   it('leaves every transaction outside the package to the underlying source', async () => {

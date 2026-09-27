@@ -289,6 +289,19 @@ describe('attach-and-list linked proof', () => {
     }
   });
 
+  it('keeps a failed lookup a retry when the network already knows the attach', async () => {
+    const items = attachAndList();
+    const attachTxid = parsePSBT(items[0]!.psbtHex).id;
+    state.assets.set(`${attachTxid}:0`, 'fail');
+    // The explorer serves the attach's bytes: it may be on chain, so its output is not derivable.
+    state.parents.set(attachTxid, bytesToHex(parsePSBT(items[0]!.psbtHex).toBytes(true, false)));
+    state.txStatus.set(attachTxid, { confirmed: true, block_height: 800_000 });
+    const result = await review(items, 'attach-and-list');
+    expect(listingReview(result)?.status).toBe('retry');
+    expect(result.policy.blocked).toBe(true);
+    state.parents.delete(attachTxid);
+  });
+
   it('keeps an outage on the attach inputs a retry: the listed output also receives what they carry', async () => {
     const items = attachAndList();
     const sourceFunding = bytesToHex(parsePSBT(items[0]!.psbtHex).getInput(0).txid!);
