@@ -35,9 +35,9 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     },
     {
       label: t('common_status'),
-      value: status === 'open' || status === 0 ? "🟢 Open" :
-             status === 'closed' || status === 1 ? "🔴 Closed" :
-             status === 'pending' || status === 2 ? "⚠️ Pending" : "Unknown",
+      value: status === 'open' || status === 0 ? '🟢 ' + t('messages_fairminter_status_open') :
+             status === 'closed' || status === 1 ? '🔴 ' + t('messages_fairminter_status_closed') :
+             status === 'pending' || status === 2 ? '⚠️ ' + t('messages_fairminter_status_pending') : t('messages_order_status_unknown'),
     },
   ];
 
@@ -179,14 +179,14 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   if (params.lock_description !== undefined) {
     fields.push({
       label: t('common_description_locked'),
-      value: params.lock_description ? "🔒 Yes" : "🔓 No",
+      value: params.lock_description ? '🔒 ' + t('tx_action_yes') : '🔓 ' + t('tx_action_no'),
     });
   }
   
   if (params.lock_quantity !== undefined) {
     fields.push({
       label: t('messages_fairminter_quantity_locked'),
-      value: params.lock_quantity ? "🔒 Yes" : "🔓 No",
+      value: params.lock_quantity ? '🔒 ' + t('tx_action_yes') : '🔓 ' + t('tx_action_no'),
     });
   }
 

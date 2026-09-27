@@ -1,6 +1,8 @@
 import { render } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { Transaction } from '@/core/counterparty/api';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
+import ja from '../../../../public/_locales/ja/messages.json';
 import live from './__fixtures__/live-transactions.json';
 import { getMessageHandler } from './index';
 
@@ -73,6 +75,26 @@ describe('transaction details from live API responses', () => {
     expect(text).toContain('A12069251163470862000: ownership');
   });
 
+  // Core's sweep flags are 1 balances, 2 ownership, 4 binary memo (messages/sweep.py). With 4 set,
+  // the memo is raw bytes and the API returns them as hex; nothing about dispensers.
+  it('sweep: the binary-memo flag shows the memo as hex bytes, not as a sweep option', () => {
+    const tx = fixtures.sweep_memo!;
+    const message = { ...tx.unpacked_data.message_data, flags: 5, memo: 'deadbeef00' };
+    const text = shown({ ...tx, unpacked_data: { ...tx.unpacked_data, message_data: message } });
+    expect(text).toContain('Flags: Include Balances');
+    expect(text).not.toContain('Dispenser');
+    expect(text).toContain('Memo (hex): deadbeef00');
+  });
+
+  it('sweep: without the binary-memo flag a hex-looking memo is text', () => {
+    const tx = fixtures.sweep_memo!;
+    const message = { ...tx.unpacked_data.message_data, flags: 2, memo: 'FFFF' };
+    const text = shown({ ...tx, unpacked_data: { ...tx.unpacked_data, message_data: message } });
+    expect(text).toContain('Flags: Include Ownership');
+    expect(text).toContain('Memo: FFFF');
+    expect(text).not.toContain('(hex)');
+  });
+
   it('attach: the amount and the UTXO it went to', () => {
     const text = shown('attach');
     expect(text).toContain('Quantity: 1 LFGXCER');
@@ -107,6 +129,31 @@ describe('transaction details from live API responses', () => {
     expect(text).toContain('Asset: FAKEBANG');
     expect(text).toContain('Quantity Minted: 1,000,000.00000000 FAKEBANG');
     expect(text).toContain('XCP Paid: 10.00000000 XCP');
+  });
+
+  // Core mints the asked-for quantity, gives the fairminter's issuer a commission out of it, and
+  // credits the rest (`earn_quantity`) to the minter.
+  it('fairmint: what the minter received, with the commission apart', () => {
+    const text = shown('fairmint_commission');
+    expect(text).toContain('Quantity Minted: 1.14000000 A15794528998597699419');
+    expect(text).toContain('Commission Paid: 0.06000000 A15794528998597699419');
+    expect(text).toContain('XCP Paid: 2.00000000 XCP');
+    expect(text).toContain('Effective Price: 1.75438596 XCP per A15794528998597699419');
+    expect(text).not.toContain('1.20000000');
+  });
+
+  it('fairmint: a free mint asks for 0 and shows what the fairminter gave', () => {
+    const text = shown('fairmint_free');
+    expect(text).toContain('Quantity Minted: 10,555,545.00000000 A384698646958623498');
+    expect(text).toContain('Commission Paid: 555,555.00000000 A384698646958623498');
+    expect(text).not.toContain('XCP Paid');
+  });
+
+  it('fairmint: before a mint is recorded, what was asked for, labelled as such', () => {
+    const tx = fixtures.fairmint_commission!;
+    const text = shown({ ...tx, events: [] });
+    expect(text).toContain('Quantity Requested: 1.20000000 A15794528998597699419');
+    expect(text).not.toContain('Quantity Minted');
   });
 
   it('fairminter: its terms and state', () => {
@@ -166,5 +213,33 @@ describe('transaction details from live API responses', () => {
     ['utxomove', '2 A3344466055756786903'],
   ])('%s still shows its facts', (name, expected) => {
     expect(shown(name)).toContain(expected);
+  });
+});
+
+// Every value a handler writes itself is in the reader's language; only data from the chain is not.
+describe("transaction details in the reader's language", () => {
+  afterEach(() => mockBrowserLocale({ language: 'en' }));
+
+  /** The Japanese catalog's text, with $1 filled in the way Chrome does. */
+  const inJapanese = (key: keyof typeof ja, ...subs: string[]) =>
+    ja[key].message.replace(/\$(\d)/g, (_, index: string) => subs[Number(index) - 1] ?? '');
+
+  it.each([
+    ['dividend', inJapanese('messages_dividend_amount_per', '1', 'YELLPEPE.BTCVEGAS2026', 'HOPEFORYOU')],
+    ['dispenser_open', `🟢 ${inJapanese('common_open')}`],
+    ['dispenser', `⚠️ ${inJapanese('dispenser_manage_dispenser_card_closing')}`],
+    ['fairminter', `⚠️ ${inJapanese('messages_fairminter_status_pending')}`],
+    ['fairminter', inJapanese('fairminter_payment_model_pool')],
+    ['fairmint', inJapanese('fairminter_fairmint_fairmint')],
+    ['issuance_lock', `🔒 ${inJapanese('tx_action_yes')}`],
+    ['sweep_transfer', `A12069251163470862000: ${inJapanese('messages_sweep_ownership')}`],
+  ] as const)('%s: %s', (name, expected) => {
+    mockBrowserLocale({ language: 'ja' });
+    expect(shown(name)).toContain(expected);
+  });
+
+  it.each(Object.keys(fixtures))('%s: no English left in the values', (name) => {
+    mockBrowserLocale({ language: 'ja' });
+    expect(shown(name)).not.toMatch(/\b(?:per|Open|Closed|Closing|Pending|Unknown|Yes|No|N\/A|Fairmint|ownership|Fee)\b/);
   });
 });
