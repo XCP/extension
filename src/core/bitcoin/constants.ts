@@ -3,6 +3,9 @@
 /** nSequence that signals BIP125 replaceability and keeps nLockTime enforced. */
 export const RBF_SEQUENCE = 0xfffffffd;
 
+/** Satoshis in one bitcoin. */
+export const SATS_PER_BTC = 100_000_000;
+
 /** The dust threshold this wallet applies to an ordinary output, in satoshis. */
 export const DUST_LIMIT_SATS = 546;
 

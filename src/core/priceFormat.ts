@@ -1,8 +1,7 @@
+import { SATS_PER_BTC } from "@/core/bitcoin/constants";
 import { CURRENCY_INFO } from "@/core/bitcoin/price";
 import { formatAmount } from "@/core/format";
 import type { FiatCurrency, PriceUnit } from "@/core/settings";
-
-const SATS_PER_BTC = 100_000_000;
 
 /**
  * Format price based on selected unit

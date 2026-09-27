@@ -4,13 +4,12 @@
  */
 
 import { type DecimalPlaces, parseAmountDraft } from '@/core/amount-contract/amounts';
-import { DUST_LIMIT_SATS } from '@/core/bitcoin/constants';
+import { DUST_LIMIT_SATS, SATS_PER_BTC } from '@/core/bitcoin/constants';
 import { BigNumber, fromSatoshis, toBigNumber } from '@/core/numeric';
 
 // Constants
 export const DUST_LIMIT = DUST_LIMIT_SATS; // satoshis
 export const MAX_SATOSHIS = 2100000000000000; // 21 million BTC in satoshis
-export const SATOSHIS_PER_BTC = 100000000;
 /**
  * The largest supply an asset can hold, in base units: SQLite3's signed 64-bit ceiling, which
  * `issuance.validate` checks every quantity against ("total quantity overflow").
@@ -101,7 +100,7 @@ export function validateAmount(
   if (parsed.status !== 'valid') return { isValid: false, error: parsed.status === 'invalid' && parsed.code === 'amount_range' ? 'Amount exceeds maximum supported supply' : `Maximum ${decimals} decimal places allowed` };
 
   // Convert to satoshis for Bitcoin amounts
-  const satoshis = value.multipliedBy(SATOSHIS_PER_BTC).integerValue(BigNumber.ROUND_DOWN);
+  const satoshis = value.multipliedBy(SATS_PER_BTC).integerValue(BigNumber.ROUND_DOWN);
 
   // Check minimum amount
   if (satoshis.isLessThan(minAmount)) {
@@ -298,7 +297,7 @@ export function maxSupplyForDivisibility(divisible: boolean): string {
  * Converts BTC to satoshis
  */
 export function btcToSatoshis(btc: number | string): number {
-  const satoshis = toBigNumber(btc).multipliedBy(SATOSHIS_PER_BTC);
+  const satoshis = toBigNumber(btc).multipliedBy(SATS_PER_BTC);
   return satoshis.integerValue(BigNumber.ROUND_DOWN).toNumber();
 }
 

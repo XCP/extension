@@ -7,13 +7,13 @@ import BigNumber from 'bignumber.js';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { fromSatoshis } from '@/core/numeric';
+import { SATS_PER_BTC } from '@/core/bitcoin/constants';
 import {
   btcToSatoshis,
   DUST_LIMIT,
   isDustAmount,
   isValidNumber,
   MAX_SATOSHIS,
-  SATOSHIS_PER_BTC, 
   validateAmount,
   validateBalance,
   validateQuantity
@@ -301,7 +301,7 @@ describe('Amount Validation Fuzz Tests', () => {
             expect(typeof btc).toBe('string');
             
             // Verify conversion is correct
-            const expectedBtc = new BigNumber(satoshis).dividedBy(SATOSHIS_PER_BTC);
+            const expectedBtc = new BigNumber(satoshis).dividedBy(SATS_PER_BTC);
             const actualBtc = new BigNumber(btc);
             
             // Allow for formatting differences (trailing zeros removed)
@@ -315,7 +315,7 @@ describe('Amount Validation Fuzz Tests', () => {
     it('should handle edge values correctly', () => {
       expect(fromSatoshis(0, { removeTrailingZeros: true })).toBe('0');
       expect(fromSatoshis(1, { removeTrailingZeros: true })).toBe('0.00000001');
-      expect(fromSatoshis(SATOSHIS_PER_BTC, { removeTrailingZeros: true })).toBe('1');
+      expect(fromSatoshis(SATS_PER_BTC, { removeTrailingZeros: true })).toBe('1');
       expect(fromSatoshis(MAX_SATOSHIS, { removeTrailingZeros: true })).toBe('21000000');
     });
   });
@@ -332,7 +332,7 @@ describe('Amount Validation Fuzz Tests', () => {
             expect(satoshis).toBeGreaterThanOrEqual(0);
             
             // Verify conversion
-            const expectedSatoshis = Math.floor(btc * SATOSHIS_PER_BTC);
+            const expectedSatoshis = Math.floor(btc * SATS_PER_BTC);
             expect(satoshis).toBe(expectedSatoshis);
           }
         ),

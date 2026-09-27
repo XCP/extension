@@ -1,8 +1,8 @@
 import { apiClient } from "@/core/api/client";
+import { SATS_PER_BTC } from "@/core/bitcoin/constants";
 import { fetchTransactionChainStatus } from '@/core/bitcoin/utxo';
 
 const API_BASE_URL = "https://api.xcp.io";
-const SATOSHIS_PER_BTC = 100_000_000;
 /**
  * Fallback only. The service owns this bound and reports it as `summary.max_outputs_per_page`; keeping
  * a second authoritative copy here is how pagination silently breaks the day the two disagree.
@@ -144,7 +144,7 @@ function toConsolidationData(page: RecoveryPageResponse): ConsolidationData {
     address: page.address,
     summary: {
       total_utxos: page.summary.total_outputs,
-      total_btc: page.summary.total_value_sats / SATOSHIS_PER_BTC,
+      total_btc: page.summary.total_value_sats / SATS_PER_BTC,
       batches_required: page.summary.pages,
       current_batch: page.summary.current_page,
       batch_utxos: page.summary.outputs_on_page,
@@ -172,7 +172,7 @@ function toConsolidationData(page: RecoveryPageResponse): ConsolidationData {
     stamp_protection: {
       protected_utxos: page.protection.protected_stamp_outputs,
       protected_btc:
-        page.protection.protected_stamp_value_sats / SATOSHIS_PER_BTC,
+        page.protection.protected_stamp_value_sats / SATS_PER_BTC,
       included: page.protection.included,
     },
   };
@@ -315,7 +315,7 @@ class ConsolidationApiService {
           rows
             .filter((row) => row.status === "confirmed")
             .reduce((sum, row) => sum + row.output_value_sats, 0) /
-          SATOSHIS_PER_BTC,
+          SATS_PER_BTC,
       },
       recent_consolidations: rows.map((row) => ({
         txid: row.txid,
@@ -325,7 +325,7 @@ class ConsolidationApiService {
         status: row.status,
         confirmations: row.confirmations,
         utxos_consolidated: row.input_count,
-        amount_recovered: row.output_value_sats / SATOSHIS_PER_BTC,
+        amount_recovered: row.output_value_sats / SATS_PER_BTC,
         replaced_by: row.replacement_txid ?? undefined,
       })),
     };
