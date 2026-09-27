@@ -192,6 +192,24 @@ describe('the retry flag on a blocked policy', () => {
       .toMatchObject({ blocked: true, retry: true });
   });
 
+  it('is set when a dispense could not look up the dispenser it pays', () => {
+    const info = plain([]);
+    info.safety = { blocked: true, warnings: [
+      { severity: 'block', code: 'dispenser_lookup_retry', title: 'Retry', message: 'x' },
+    ] } as DecodedPsbtInfo['safety'];
+    expect(getPsbtApprovalPolicy(request, info, true, 10)).toMatchObject({ blocked: true, retry: true });
+  });
+
+  it('is not set for an oracle-priced dispense, which retrying cannot clear', () => {
+    const info = plain([]);
+    info.safety = { blocked: true, warnings: [
+      { severity: 'block', title: 'Blocked: Oracle-Priced Dispenser', message: 'x' },
+    ] } as DecodedPsbtInfo['safety'];
+    const policy = getPsbtApprovalPolicy(request, info, true, 10);
+    expect(policy.blocked).toBe(true);
+    expect(policy.retry).toBeUndefined();
+  });
+
   it('is not set for an input past the lookup cap, which retrying cannot clear', () => {
     const policy = getPsbtApprovalPolicy(request,
       plain([{ inputIndex: 0, utxo: 'u:0', assets: [], lookupFailed: true, overLimit: true }]), true, 10);

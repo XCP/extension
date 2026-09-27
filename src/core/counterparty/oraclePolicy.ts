@@ -31,6 +31,25 @@ export function oracleDispenseWarning(oracleAssets: string[]): SecurityWarning |
   };
 }
 
+/**
+ * Hold a dispense whose dispenser inventory could not be read.
+ *
+ * The oracle refusal above only fires once the dispensers behind the paid address are known; a
+ * failed lookup would otherwise let the same payment through unchecked. Only a dispense raises
+ * this — a plain Bitcoin payment never looks dispensers up.
+ */
+export function dispenserLookupRetryWarning(addresses: string[]): SecurityWarning | null {
+  if (addresses.length === 0) return null;
+  return {
+    severity: 'block',
+    code: 'dispenser_lookup_retry',
+    title: 'Retry Required: Couldn’t Check the Dispenser',
+    message:
+      `The wallet couldn’t look up the dispenser at ${addresses.join(', ')}, so it can’t confirm ` +
+      'what this payment buys or that the dispenser is one it signs for. Try again in a moment.',
+  };
+}
+
 /** Refuse the creation of a dispenser that prices from an oracle. */
 export function oracleDispenserWarning(oracleAddress: unknown): SecurityWarning | null {
   if (typeof oracleAddress !== 'string' || oracleAddress === '') return null;

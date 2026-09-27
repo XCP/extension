@@ -20,7 +20,7 @@ export interface ProviderApprovalPolicy {
   blocked: boolean;
   /**
    * Set on a blocked policy when some of the block is data the wallet could not look up (an
-   * input's attached assets, or a marketplace proof left at "retry"). Signing is refused all the
+   * input's attached assets, a dispense's dispensers, or a marketplace proof left at "retry"). Signing is refused all the
    * same; the flag only lets the refusal say "retry" instead of "did not verify".
    */
   retry?: true;
@@ -61,7 +61,8 @@ function policy(
     // durable sell authorization even if a presentation filter ever dropped that warning.
     || findUncommittedAssetSignatures(analysis.attachedAssets, signedInputs, marketplace).length > 0;
   // An input past the lookup cap is unknown for good; retrying cannot clear it.
-  const retry = assets.unknownStatus.some(entry => !entry.overLimit) || marketplace?.status === 'retry';
+  const retry = assets.unknownStatus.some(entry => !entry.overLimit) || marketplace?.status === 'retry'
+    || analysis.safety.warnings.some(item => item.code === 'dispenser_lookup_retry');
   return {
     blocked,
     ...(blocked && retry ? { retry: true as const } : {}),

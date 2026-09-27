@@ -207,7 +207,8 @@ export default function ApproveTransactionPage() {
   ], approvalPolicy?.requiresAcknowledgement);
   // An input past the lookup cap stays unknown however often it is retried.
   const retryAvailable = signedInputsUnknownStatus.some(entry => !entry.overLimit)
-    || decodedInfo.inputs.some(input => input.value === undefined || !input.address);
+    || decodedInfo.inputs.some(input => input.value === undefined || !input.address)
+    || safetyWarnings.some(warning => warning.code === "dispenser_lookup_retry");
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
   const blockingItems: WarningItem[] = [
     ...attention.filter(item => item.blocking),

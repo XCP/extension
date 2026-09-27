@@ -103,13 +103,13 @@ describe('what a dispense pays out', () => {
     expect(payouts[0]!.quantity).toBeUndefined();
   });
 
-  it('says nothing when the lookup fails', async () => {
+  it('reports a failed lookup as unknown, not as an address with no dispensers', async () => {
     // mockImplementation, not mockRejectedValue: the latter builds the rejected promise eagerly
     // and vitest reports it before the caller's catch can attach.
     mocked.mockImplementation(async () => {
       throw new Error('offline');
     });
-    await expect(resolveDispensersAt('bc1qdispenser', 50_000)).resolves.toEqual([]);
+    await expect(resolveDispensersAt('bc1qdispenser', 50_000)).resolves.toBeNull();
   });
 });
 

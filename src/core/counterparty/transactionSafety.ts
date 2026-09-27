@@ -37,6 +37,8 @@ interface SecurityWarningText {
 export type SecurityWarning = SecurityWarningText & (
   | StructureFinding
   | { code?: 'bitcoin_payment_gate' | 'counterparty_only_gate' | 'detach_all' | 'sweep' | 'destroy' | 'unrecognized_payload'; data?: never }
+  /** A dispense whose paid address's dispensers could not be looked up; clears on retry. */
+  | { code: 'dispenser_lookup_retry'; data?: never }
   | { code: 'unknown_message_type'; data: { messageType: string } }
   | { code: 'inscription_commit'; data: { totalSats: number; address: string } }
   /** A commit whose site-held reveal was proved: the BTC funds the reveal that publishes the message. */
