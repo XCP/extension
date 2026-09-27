@@ -837,7 +837,7 @@ describe('WalletManager', () => {
         signedTxHex: 'signed_raw',
         signedPsbtHex: 'signed_hardware_psbt',
       });
-      vi.spyOn(walletManager as any, 'getInitializedTrezor').mockResolvedValue({
+      vi.spyOn(walletManager['signer'] as any, 'getInitializedTrezor').mockResolvedValue({
         trezor: { signPsbt: signHardwarePsbt },
         DerivationPaths: { stringToPath: vi.fn().mockReturnValue([0x80000054, 0x80000000, 0x80000000, 0, 0]) },
         hardwareData: {},
@@ -874,7 +874,7 @@ describe('WalletManager', () => {
         signedTxHex: 'signed_raw',
         signedPsbtHex: 'signed_acceptance_psbt',
       });
-      vi.spyOn(walletManager as any, 'getInitializedTrezor').mockResolvedValue({
+      vi.spyOn(walletManager['signer'] as any, 'getInitializedTrezor').mockResolvedValue({
         trezor: { signPsbt: signHardwarePsbt },
         DerivationPaths: { stringToPath: vi.fn().mockReturnValue([0x80000054, 0x80000000, 0x80000000, 0, 0]) },
         hardwareData: {},
@@ -915,7 +915,7 @@ describe('WalletManager', () => {
       walletManager['wallets'] = [wallet];
       walletManager['activeWalletId'] = wallet.id;
       const signHardwarePsbt = vi.fn();
-      vi.spyOn(walletManager as any, 'getInitializedTrezor').mockResolvedValue({
+      vi.spyOn(walletManager['signer'] as any, 'getInitializedTrezor').mockResolvedValue({
         trezor: { signPsbt: signHardwarePsbt },
         DerivationPaths: { stringToPath: vi.fn().mockReturnValue([0x80000054, 0x80000000, 0x80000000, 0, 0]) },
         hardwareData: {},
