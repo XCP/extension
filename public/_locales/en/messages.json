@@ -8604,6 +8604,10 @@
     "message": "Your Trezor needs access to Trezor Suite. Connect again and choose Allow when Chrome asks.",
     "description": "Trezor SUITE_ACCESS_DENIED code: the user chose Deny in Chrome's permission prompt on the Connect Trezor page."
   },
+  "hardware_error_suite_handshake_timeout": {
+    "message": "Trezor Suite didn't respond in time. Let the Suite tab finish loading, close any other Trezor Suite tabs, then try again.",
+    "description": "Trezor SUITE_HANDSHAKE_TIMEOUT code: the Trezor Suite Web tab did not answer Connect's handshake, even after one automatic retry. Usually the tab is still loading, or another Suite tab holds its storage."
+  },
   "trezor_access_notice_body": {
     "message": "Your Trezor now connects through Trezor Suite. Allow access once to keep using it.",
     "description": "Home screen notice for a Trezor wallet without the suite.trezor.io permission, typically connected before 0.13.0."

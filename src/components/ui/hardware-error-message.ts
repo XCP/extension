@@ -12,6 +12,7 @@ export function hardwareErrorMessage(error: unknown): string | undefined {
     case 'PERMISSION_DENIED': return t('hardware_error_permission_denied');
     case 'SUITE_ACCESS_REQUIRED': return t('hardware_error_suite_access_required');
     case 'SUITE_ACCESS_DENIED': return t('hardware_error_suite_access_denied');
+    case 'SUITE_HANDSHAKE_TIMEOUT': return t('hardware_error_suite_handshake_timeout');
     case 'DEVICE_BUSY': return t('hardware_error_busy');
     case 'DISCOVERY_FAILED': return t('hardware_error_discovery_failed');
     case 'GET_ADDRESS_FAILED':

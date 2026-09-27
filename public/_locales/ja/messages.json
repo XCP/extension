@@ -6463,6 +6463,9 @@
   "hardware_error_suite_access_denied": {
     "message": "TrezorにはTrezor Suiteへのアクセス許可が必要です。もう一度接続し、Chromeの確認で「許可」を選んでください。"
   },
+  "hardware_error_suite_handshake_timeout": {
+    "message": "Trezor Suiteが時間内に応答しませんでした。Suiteのタブの読み込みが終わるのを待ち、ほかのTrezor Suiteのタブを閉じてから、もう一度お試しください。"
+  },
   "trezor_access_notice_body": {
     "message": "TrezorはTrezor Suite経由で接続するようになりました。引き続き使うには、一度だけアクセスを許可してください。"
   },

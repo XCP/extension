@@ -73,7 +73,8 @@ describe('hardware error presentation', () => {
   it.each([
     ['SUITE_ACCESS_REQUIRED', 'hardware_error_suite_access_required'] as const,
     ['SUITE_ACCESS_DENIED', 'hardware_error_suite_access_denied'] as const,
-  ])('explains the missing Trezor Suite permission for %s', (code, key) => {
+    ['SUITE_HANDSHAKE_TIMEOUT', 'hardware_error_suite_handshake_timeout'] as const,
+  ])('explains the Trezor Suite failure for %s', (code, key) => {
     const error = new HardwareWalletError('raw', code, 'trezor');
     expect(hardwareErrorMessage(error)).toBe(t(key));
     expect(hardwareErrorMessage(withHardwareErrorMetadata(new Error('raw'), { vendor: 'trezor', code }))).toBe(t(key));

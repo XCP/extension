@@ -88,6 +88,35 @@ type TrezorSignOutput = TrezorSignTransactionRequest['outputs'][number];
 
 
 /**
+ * The exact error Connect returns when the Suite Web tab never answers its channel handshake.
+ *
+ * AbstractMessageChannel (@trezor/connect-common) rejects with `new Error('handshake failed')`
+ * after five 2-second attempts, and CoreInSuiteWeb.call turns that into
+ * `{ success: false, error: { message: 'handshake failed', code: 'Failure_UnknownCode' } }`.
+ * The attempt count and interval are private channel fields with no setting, so the wallet
+ * cannot lengthen the window and retries the call instead.
+ */
+const SUITE_HANDSHAKE_FAILED = 'handshake failed';
+
+/** True only for the handshake failure above, never for a cancel, device or permission error. */
+export function isSuiteHandshakeFailure(result: unknown): boolean {
+  if (!result || typeof result !== 'object') return false;
+  const { success, error } = result as { success?: unknown; error?: { message?: unknown; code?: unknown } };
+  return success === false
+    && error?.message === SUITE_HANDSHAKE_FAILED
+    && (error.code === undefined || error.code === 'Failure_UnknownCode');
+}
+
+export function suiteHandshakeTimeoutError(): HardwareWalletError {
+  return new HardwareWalletError(
+    'Trezor Suite did not answer the Connect handshake',
+    'SUITE_HANDSHAKE_TIMEOUT',
+    'trezor',
+    "Trezor Suite didn't respond in time. Let the Suite tab finish loading, close any other Trezor Suite tabs, then try again.",
+  );
+}
+
+/**
  * Configuration options for TrezorAdapter initialization
  */
 export interface TrezorAdapterOptions {
@@ -259,7 +288,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     this.ensureInitialized();
 
     // Try to get features to verify device is connected
-    const result = await TrezorConnect.getFeatures();
+    const result = await this.callSuite(() => TrezorConnect.getFeatures());
 
     if (result.success) {
       this.deviceInfo = {
@@ -284,7 +313,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     // pingDevice moved into the management API, which the public surface omits. getFeatures
     // answers the same question - is the device reachable - without a device confirmation.
-    const result = await TrezorConnect.getFeatures();
+    const result = await this.callSuite(() => TrezorConnect.getFeatures());
 
     if (result.success) {
       this.connectionStatus = 'connected';
@@ -319,13 +348,13 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     // getAddress expects INPUT script types (SPEND*), not output types (PAYTO*)
     const scriptType = getInputScriptType(addressFormat);
 
-    const result = await TrezorConnect.getAddress({
+    const result = await this.callSuite(() => TrezorConnect.getAddress({
       path: pathString,
       coin: 'btc',
       showOnTrezor: showOnDevice,
       scriptType: scriptType,
       device: { useEmptyPassphrase: !usePassphrase },
-    });
+    }));
 
     if (!result.success) {
       throw new HardwareWalletError(
@@ -376,7 +405,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       };
     });
 
-    const result = await TrezorConnect.getAddress({ bundle, device: { useEmptyPassphrase: !usePassphrase } });
+    const result = await this.callSuite(() => TrezorConnect.getAddress({ bundle, device: { useEmptyPassphrase: !usePassphrase } }));
 
     if (!result.success) {
       throw new HardwareWalletError(
@@ -419,11 +448,11 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     // Use string path format to avoid JavaScript signed integer issues with hardened values
     const path = `m/${purpose}'/${0}'/${account}'`;
 
-    const result = await TrezorConnect.getPublicKey({
+    const result = await this.callSuite(() => TrezorConnect.getPublicKey({
       path,
       coin: 'btc',
       device: { useEmptyPassphrase: !usePassphrase },
-    });
+    }));
 
     if (!result.success) {
       throw new HardwareWalletError(
@@ -458,12 +487,12 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     // getAccountInfo no longer discovers - it rejects a request with neither path nor
     // descriptor. selectAccount is the replacement, and it returns the address and xpub
     // directly, so the descriptor no longer has to be parsed for the xpub.
-    const result = await TrezorConnect.selectAccount({
+    const result = await this.callSuite(() => TrezorConnect.selectAccount({
       coin: 'btc',
       selectionType: 'single',
       addressSelection: 'fullAccount',
       device: { useEmptyPassphrase: !usePassphrase },
-    });
+    }));
 
     if (!result.success) {
       const errorMsg = result.error.message?.toLowerCase() || '';
@@ -635,7 +664,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       }));
     }
 
-    const result = await TrezorConnect.signTransaction(signRequest);
+    const result = await this.callSuite(() => TrezorConnect.signTransaction(signRequest));
 
     if (!result.success) {
       await this.recoverFromSignFailure(result.error.code);
@@ -679,11 +708,11 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       );
     }
 
-    const result = await TrezorConnect.signMessage({
+    const result = await this.callSuite(() => TrezorConnect.signMessage({
       path: request.path,
       message: request.message,
       coin: 'btc',
-    });
+    }));
 
     if (!result.success) {
       // Provide better error message for script type errors
@@ -907,7 +936,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       locktime: transaction.lockTime,
     };
 
-    const result = await TrezorConnect.signTransaction(signRequest);
+    const result = await this.callSuite(() => TrezorConnect.signTransaction(signRequest));
 
     if (!result.success) {
       await this.recoverFromSignFailure(result.error.code);
@@ -1008,6 +1037,25 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         'Hardware wallet not initialized. Please reconnect.'
       );
     }
+  }
+
+  /**
+   * Make one Connect call, repeating it once if the Suite Web tab missed the handshake.
+   *
+   * A cold Suite Web tab (a large bundle and an IndexedDB preload, which a second Suite tab can
+   * block) may not be listening yet when Connect's ~10 s handshake window runs out. Nothing is
+   * reset in between: Connect keeps that tab open and its popup locked, so the second call
+   * focuses the same tab and handshakes with it again instead of opening another. The request
+   * itself is only sent after a handshake succeeds, so repeating it cannot duplicate a prompt or
+   * a signature. Any other failure is returned untouched, and a second handshake failure
+   * becomes SUITE_HANDSHAKE_TIMEOUT instead of the raw "handshake failed".
+   */
+  private async callSuite<T>(call: () => Promise<T>): Promise<T> {
+    const first = await call();
+    if (!isSuiteHandshakeFailure(first)) return first;
+    const second = await call();
+    if (isSuiteHandshakeFailure(second)) throw suiteHandshakeTimeoutError();
+    return second;
   }
 
   /**
