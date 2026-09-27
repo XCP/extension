@@ -6034,6 +6034,12 @@
   "zeld_hunt_description": {
     "message": "対応する取引の作成中に ZELD を探索します。追加の BTC 手数料はかかりません。見つからなくても取引は通常どおり続行されます。"
   },
+  "zeld_hunt_sites": {
+    "message": "Web サイトで使わないウォレット向けです。"
+  },
+  "zeld_hunt_sites_help": {
+    "message": "オンの間は、ZELD を移動させるサイトの取引は、ZELD を小額出力に移すまでブロックされます。"
+  },
   "zeld_hunt_invalid_seconds": {
     "message": "0〜$1 の整数で秒数を入力してください。"
   },
@@ -6305,10 +6311,72 @@
     "message": "ZELD が外部へ移動します"
   },
   "zeld_safety_blocked_detail": {
-    "message": "サイトが使用を要求した出力のうち $1 個が ZELD を保有しています。この取引では相手への出力が先になるため、ZELD も相手に移ります。ZELD ページで ZELD を小額出力に移してから、サイトで再試行してください。"
+    "message": "ZELD ページで ZELD を小額出力に移してから、サイトで再試行してください。"
   },
   "zeld_safety_warning_detail": {
-    "message": "サイトが使用を要求した出力のうち $1 個が ZELD を保有しています。この取引では相手への出力が先になるため、ZELD も相手に移ります。手元に残すには、先に ZELD ページで ZELD を小額出力に移してください。"
+    "message": "手元に残すには、先に ZELD ページで ZELD を小額出力に移してください。"
+  },
+  "zeld_safety_blocked_asset": {
+    "message": "ブロック：ZELD がアセットと一緒に移動します"
+  },
+  "zeld_safety_blocked_destroyed": {
+    "message": "ブロック：ZELD が失われます"
+  },
+  "zeld_safety_detach_first": {
+    "message": "先にウォレットでアセットをデタッチしてください。ZELD は手元に残り、新しいアタッチでは ZELD のない出力が使われます。"
+  },
+  "zeld_sentence_pair": {
+    "message": "$p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "zeld_approval_leaves": {
+    "message": "$1 ZELD が $2 に移ります。"
+  },
+  "zeld_approval_leaves_unknown": {
+    "message": "署名する入力の ZELD が $1 に移ります。"
+  },
+  "zeld_approval_leaves_open": {
+    "message": "$1 ZELD は、完成した取引で最初に置かれる出力に移ります。"
+  },
+  "zeld_approval_leaves_open_unknown": {
+    "message": "署名する入力の ZELD は、完成した取引で最初に置かれる出力に移ります。"
+  },
+  "zeld_approval_destroyed_title": {
+    "message": "ZELD が失われます"
+  },
+  "zeld_approval_destroyed": {
+    "message": "$1 ZELD が失われます。この取引には ZELD を受け取る出力がありません。"
+  },
+  "zeld_approval_destroyed_unknown": {
+    "message": "署名する入力の ZELD が失われます。この取引には ZELD を受け取る出力がありません。"
+  },
+  "zeld_approval_asset_output": {
+    "message": "$1 ZELD は $2 を保有する出力に載り、そのアセットが売却または移動されると一緒に移ります。"
+  },
+  "zeld_approval_asset_output_unknown": {
+    "message": "署名する入力の ZELD は $1 を保有する出力に載り、そのアセットが売却または移動されると一緒に移ります。"
+  },
+  "zeld_approval_listed": {
+    "message": "この出力は $1 ZELD も保有しており、売れた場合は購入者に渡ります。"
+  },
+  "zeld_approval_listed_unknown": {
+    "message": "この出力は ZELD も保有しており、売れた場合は購入者に渡ります。"
+  },
+  "zeld_approval_unchecked": {
+    "message": "このアドレスの ZELD を確認できませんでした。入力が ZELD を保有している場合、この取引の最初の出力と一緒に移ります。"
+  },
+  "zeld_approval_items_one": {
+    "message": "取引 $1: $2"
+  },
+  "zeld_approval_items_many": {
+    "message": "取引 $1: $2"
   },
   "default_wallet_name": {
     "message": "ウォレット $1"

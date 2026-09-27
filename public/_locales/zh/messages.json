@@ -6034,6 +6034,12 @@
   "zeld_hunt_description": {
     "message": "在进行符合条件的交易时搜寻 ZELD。不额外收取 BTC 手续费。即使没有找到结果，交易也会正常继续。"
   },
+  "zeld_hunt_sites": {
+    "message": "适合不在网站上使用的钱包。"
+  },
+  "zeld_hunt_sites_help": {
+    "message": "开启期间，会转移你的 ZELD 的网站交易将被阻止，直到你将 ZELD 移到小额输出。"
+  },
   "zeld_hunt_invalid_seconds": {
     "message": "请输入 0 到 $1 之间的整数秒数。"
   },
@@ -6305,10 +6311,72 @@
     "message": "ZELD 将被转出"
   },
   "zeld_safety_blocked_detail": {
-    "message": "网站要求花费的输出中有 $1 个持有 ZELD。此交易首先支付给他人，因此 ZELD 也会转给对方。请先在 ZELD 页面将 ZELD 移到小额输出，再让网站重试。"
+    "message": "请先在 ZELD 页面将 ZELD 移到小额输出，再让网站重试。"
   },
   "zeld_safety_warning_detail": {
-    "message": "网站要求花费的输出中有 $1 个持有 ZELD。此交易首先支付给他人，因此 ZELD 也会转给对方。如要保留 ZELD，请先在 ZELD 页面将其移到小额输出。"
+    "message": "如要保留 ZELD，请先在 ZELD 页面将其移到小额输出。"
+  },
+  "zeld_safety_blocked_asset": {
+    "message": "已阻止：ZELD 将随资产转出"
+  },
+  "zeld_safety_blocked_destroyed": {
+    "message": "已阻止：ZELD 将被销毁"
+  },
+  "zeld_safety_detach_first": {
+    "message": "请先在钱包中分离该资产：ZELD 会留在你这里，新的附加将使用不含 ZELD 的输出。"
+  },
+  "zeld_sentence_pair": {
+    "message": "$p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "zeld_approval_leaves": {
+    "message": "$1 ZELD 将转给 $2。"
+  },
+  "zeld_approval_leaves_unknown": {
+    "message": "你签名的输入上的 ZELD 将转给 $1。"
+  },
+  "zeld_approval_leaves_open": {
+    "message": "$1 ZELD 将转到完成后的交易中排在首位的输出。"
+  },
+  "zeld_approval_leaves_open_unknown": {
+    "message": "你签名的输入上的 ZELD 将转到完成后的交易中排在首位的输出。"
+  },
+  "zeld_approval_destroyed_title": {
+    "message": "ZELD 将被销毁"
+  },
+  "zeld_approval_destroyed": {
+    "message": "$1 ZELD 将被销毁：此交易没有可以接收它的输出。"
+  },
+  "zeld_approval_destroyed_unknown": {
+    "message": "你签名的输入上的 ZELD 将被销毁：此交易没有可以接收它的输出。"
+  },
+  "zeld_approval_asset_output": {
+    "message": "$1 ZELD 将留在持有 $2 的输出上，如果该资产被出售或转移，ZELD 也会随之转出。"
+  },
+  "zeld_approval_asset_output_unknown": {
+    "message": "你签名的输入上的 ZELD 将留在持有 $1 的输出上，如果该资产被出售或转移，ZELD 也会随之转出。"
+  },
+  "zeld_approval_listed": {
+    "message": "此输出还持有 $1 ZELD，如果售出将转给买家。"
+  },
+  "zeld_approval_listed_unknown": {
+    "message": "此输出还持有 ZELD，如果售出将转给买家。"
+  },
+  "zeld_approval_unchecked": {
+    "message": "无法检查此地址上的 ZELD；如果某个输入持有 ZELD，它将随此交易的第一个输出转移。"
+  },
+  "zeld_approval_items_one": {
+    "message": "交易 $1：$2"
+  },
+  "zeld_approval_items_many": {
+    "message": "交易 $1：$2"
   },
   "default_wallet_name": {
     "message": "钱包 $1"

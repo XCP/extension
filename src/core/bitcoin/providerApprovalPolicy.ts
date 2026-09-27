@@ -107,6 +107,9 @@ export function getPsbtBundleApprovalPolicy(
     safeOwnChange: false,
   };
   const warnings: SecurityWarning[] = [];
+  // ZELD notices are stated once per bundle, naming the items they concern, rather than repeated
+  // under every "Transaction N:" that raises the same one.
+  const zeld = new Map<string, { warning: Extract<SecurityWarning, { code: 'zeld_movement' }>; items: number[] }>();
   for (const [index, item] of decoded.items.entries()) {
     const requestItem = request.items[index];
     if (!requestItem) { result.blocked = true; continue; }
@@ -114,8 +117,16 @@ export function getPsbtBundleApprovalPolicy(
     let itemPolicy: ProviderApprovalPolicy;
     if ('safety' in item) {
       itemPolicy = getPsbtApprovalPolicy({ ...requestItem, address: request.address }, item, strictMode, fastestFee);
-      itemWarnings.push(...item.safety.warnings.filter(warning =>
-        warning.severity === 'block' || warning.severity === 'warning' || warning.severity === 'danger'));
+      itemWarnings.push(...item.safety.warnings.filter(warning => warning.code !== 'zeld_movement'
+        && (warning.severity === 'block' || warning.severity === 'warning' || warning.severity === 'danger')));
+      for (const warning of item.safety.warnings) {
+        if (warning.code !== 'zeld_movement') continue;
+        const { items: _items, ...notice } = warning.data;
+        const key = JSON.stringify(notice);
+        const entry = zeld.get(key) ?? { warning, items: [] };
+        entry.items.push(index + 1);
+        zeld.set(key, entry);
+      }
       itemWarnings.push(...item.structureFindings.map(finding => ({ ...finding, severity: 'block' as const })));
       const unknown = classifySignedInputAssets(item.attachedAssets, Object.values(requestItem.signInputs).flat()).unknownStatus;
       if (unknown.length) itemWarnings.push({ severity: 'block', title: 'Asset status unavailable',
@@ -141,7 +152,10 @@ export function getPsbtBundleApprovalPolicy(
       itemWarnings.push({ severity: 'block', title: 'Transaction did not pass verification',
         message: item.marketplaceReview?.blockers.join('; ') || 'The required transaction safety proof is missing.' });
     }
-    if (itemPolicy.requiresAcknowledgement && !itemWarnings.some(warning => warning.severity === 'warning' || warning.severity === 'danger')) {
+    const zeldWarning = 'safety' in item && item.safety.warnings.some(warning =>
+      warning.code === 'zeld_movement' && warning.severity === 'warning');
+    if (itemPolicy.requiresAcknowledgement && !zeldWarning
+      && !itemWarnings.some(warning => warning.severity === 'warning' || warning.severity === 'danger')) {
       itemWarnings.push({ severity: 'warning', title: 'Review transaction risks',
         message: item.marketplaceReview?.notices.map(notice => notice.message).join(' ') || 'Review this transaction’s authorization before signing.' });
     }
@@ -149,6 +163,12 @@ export function getPsbtBundleApprovalPolicy(
     if (itemPolicy.retry) result.retry = true;
     result.requiresAcknowledgement ||= itemPolicy.requiresAcknowledgement;
     warnings.push(...itemWarnings.map(warning => ({ ...warning, title: `Transaction ${index + 1}: ${warning.title}` })));
+  }
+  for (const { warning, items } of zeld.values()) {
+    // A one-item bundle, or a notice every item shares, needs no item numbers.
+    const named = items.length === decoded.items.length ? undefined : items;
+    warnings.push({ ...warning, data: { ...warning.data, ...(named ? { items: named } : {}) },
+      title: named ? `${named.length === 1 ? "Transaction" : "Transactions"} ${named.join(', ')}: ${warning.title}` : warning.title });
   }
   if (decoded.review.status === 'retry') result.retry = true;
   if (!result.blocked) delete result.retry;

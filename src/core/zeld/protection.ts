@@ -19,6 +19,7 @@ import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse
 import { fetchPreviousRawTransaction } from '@/core/bitcoin/utxo';
 import { fetchZeldUtxos, isLikelyZeldTxid } from '@/core/zeld/api';
 import { scriptHexForAddress } from '@/core/zeld/huntTemplate';
+import type { KnownZeldOutpoint } from '@/core/zeld/knownOutpoints';
 
 export interface ZeldExposure {
   /** Inputs, as `txid:vout`, whose ZELD would leave with this transaction. */
@@ -37,6 +38,8 @@ export interface AssessZeldExposureOptions {
   fetchParent?: (txid: string) => Promise<string | null>;
   /** Test seam: which txids count as hunted. Defaults to six leading zeros. */
   isZeldTxid?: (txid: string) => boolean;
+  /** The wallet's own record of its ZELD outputs, consulted only when the indexer cannot be read. */
+  knownOutpoints?: (address: string) => KnownZeldOutpoint[] | Promise<KnownZeldOutpoint[]>;
 }
 
 /** Whether the first non-OP_RETURN output of `rawTxHex` pays `address`. */
@@ -85,13 +88,22 @@ export async function isHuntedOutpoint(
 }
 
 export interface ZeldOutpointClassification {
-  /** Outpoints, as `txid:vout`, that carry ZELD by the indexer's word or by the txid heuristic. */
+  /** Outpoints, as `txid:vout`, that carry ZELD by the indexer's word, the wallet's record, or the txid heuristic. */
   bearing: string[];
   apiUnavailable: boolean;
+  /** ZELD base units per bearing outpoint, where the indexer or the record names an amount. */
+  amounts?: Record<string, string>;
+  /**
+   * Outpoints that could not be classified: the indexer was down, the wallet's record shows this
+   * address has held ZELD, and neither the record nor the heuristic names them. Never set for an
+   * address the wallet has no record of holding ZELD.
+   */
+  unchecked?: string[];
 }
 
 /**
- * Which of `inputs` carry ZELD: those the indexer lists for `address`, plus those on a six-zero
+ * Which of `inputs` carry ZELD: those the indexer lists for `address` (or, while it cannot be
+ * read, those the wallet's own record lists, see `knownOutpoints.ts`), plus those on a six-zero
  * txid whose parent shows them to be its first spendable output.
  */
 export async function classifyZeldOutpoints(
@@ -99,30 +111,52 @@ export async function classifyZeldOutpoints(
   address: string,
   options: AssessZeldExposureOptions = {},
 ): Promise<ZeldOutpointClassification> {
-  const indexed = new Set<string>();
+  const indexed = new Map<string, bigint | undefined>();
   let apiUnavailable = false;
+  let knownHolder = false;
   if (options.useIndexer !== false) {
     try {
       for (const utxo of await (options.fetchUtxos ?? fetchZeldUtxos)(address)) {
-        indexed.add(`${utxo.txid}:${utxo.vout}`);
+        indexed.set(`${utxo.txid}:${utxo.vout}`, utxo.balance);
       }
     } catch {
       apiUnavailable = true;
+      let known: KnownZeldOutpoint[] = [];
+      try {
+        known = await options.knownOutpoints?.(address) ?? [];
+      } catch {
+        known = [];
+      }
+      knownHolder = known.length > 0;
+      for (const item of known) {
+        indexed.set(item.outpoint.toLowerCase(), item.balance === undefined ? undefined : BigInt(item.balance));
+      }
     }
   }
   const fetchParent = options.fetchParent ?? fetchPreviousRawTransaction;
   const isHunted = options.isZeldTxid ?? isLikelyZeldTxid;
   const bearing: string[] = [];
+  const amounts: Record<string, string> = {};
+  const unchecked: string[] = [];
   for (const input of inputs) {
     const txid = input.txid.toLowerCase();
     const outpoint = `${txid}:${input.vout}`;
     if (indexed.has(outpoint)) {
       bearing.push(outpoint);
+      const amount = indexed.get(outpoint);
+      if (amount !== undefined) amounts[outpoint] = amount.toString();
     } else if (isHunted(txid) && await isRewardOutput(txid, input.vout, fetchParent)) {
       bearing.push(outpoint);
+    } else if (knownHolder) {
+      unchecked.push(outpoint);
     }
   }
-  return { bearing, apiUnavailable };
+  return {
+    bearing,
+    apiUnavailable,
+    ...(Object.keys(amounts).length > 0 ? { amounts } : {}),
+    ...(unchecked.length > 0 ? { unchecked } : {}),
+  };
 }
 
 export async function assessZeldExposure(
