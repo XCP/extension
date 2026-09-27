@@ -74,9 +74,9 @@ export async function signFundAndAuthorizationsForDelivery<T extends { psbtHex: 
 
 /**
  * The unsigned bytes of a bundle's first transaction, keyed by its txid, for the later items that
- * spend its outputs before it is broadcast. The prevout check still hashes these bytes and binds
- * them to each input's txid, so a parent whose final txid differs (a Legacy input's scriptSig is
- * part of the txid) fails closed rather than verifying against the wrong transaction.
+ * spend its outputs before it is broadcast. The prevout check hashes these bytes and binds them to
+ * each input's txid. Unsigned bytes carry the final txid only when every parent input is P2WPKH or
+ * P2TR (a scriptSig is part of the txid), so review refuses any other parent.
  */
 export function packageParentOf(parentPsbtHex: string): Record<string, string> {
   return { [parsePSBT(parentPsbtHex).id]: unsignedTransactionHex(parentPsbtHex) };

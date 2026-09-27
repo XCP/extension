@@ -32,7 +32,15 @@ describe('providerPsbtSigningCapabilities', () => {
     const batch = providerPsbtSigningCapabilities({ type: 'mnemonic', addressFormat: AddressFormat.P2TR }).psbtBatch;
     expect(batch.sighashTypes).toEqual([0x00, 0x01, 0x83]);
     expect(batch.marketplaceBundles).toContain('fund-policy-offer');
+    expect(batch.marketplaceBundles).toContain('fund-and-authorize-offers');
     expect(batch.maxPolicyOfferAlternatives).toBe(100);
+  });
+
+  it('advertises fund-and-authorize-offers only where the funding txid is final before signing', () => {
+    for (const addressFormat of [AddressFormat.P2PKH, AddressFormat.P2SH_P2WPKH]) {
+      expect(providerPsbtSigningCapabilities({ type: 'mnemonic', addressFormat }).psbtBatch.marketplaceBundles)
+        .toEqual(['attach-and-list', 'authorize-offers', 'fund-policy-offer']);
+    }
   });
 
   it('reports the proved selected-input and pre-signed external Trezor contract', () => {

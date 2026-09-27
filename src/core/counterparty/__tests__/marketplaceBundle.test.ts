@@ -98,6 +98,7 @@ const base = () => {
       { index: 1, type: 'p2wpkh', address: SELLER, value: 250_046 },
       { index: 2, type: 'p2wpkh', address: BUYER, value: 6_250 },
     ],
+    parentInputScriptTypes: ['p2wpkh', 'p2wpkh'] as Array<string | undefined>,
   };
 };
 
@@ -214,6 +215,10 @@ describe('exact acceptance plus CPFP atomic proof', () => {
       parentOutputs: [base().parentOutputs[0]!, { ...base().parentOutputs[1]!, address: BUYER }],
     }],
     ['a parent with no output 1', { parentOutputs: [base().parentOutputs[0]!] }],
+    // A scriptSig is part of the txid, so the child would spend an outpoint that never exists.
+    ['a parent with a Legacy input', { parentInputScriptTypes: ['p2wpkh', 'p2pkh'] }],
+    ['a parent with a nested SegWit input', { parentInputScriptTypes: ['p2sh', 'p2wpkh'] }],
+    ['a parent input of unknown type', { parentInputScriptTypes: [undefined, 'p2tr'] }],
   ])('blocks a mutation of %s', (_label, override) => {
     const review = analyzeAcceptanceCpfpBundle({ ...base(), ...override });
     expect(review.status).toBe('blocked');

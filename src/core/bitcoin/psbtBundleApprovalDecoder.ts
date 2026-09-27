@@ -370,6 +370,7 @@ export async function decodePsbtBundleForApproval(
       childHasCounterpartyPayload: childPayload !== null,
       parentTransactionId: parent.psbtDetails.transactionId,
       parentOutputs: parent.psbtDetails.outputs,
+      parentInputScriptTypes: parent.psbtDetails.inputs.map(input => input.scriptType),
     });
     return {
       items: [parent, { psbtDetails: child, txid: child.transactionId }],

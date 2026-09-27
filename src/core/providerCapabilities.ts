@@ -50,6 +50,14 @@ const SOFTWARE_MARKETPLACE_BUNDLES = [
   'attach-and-list', 'authorize-offers', 'fund-and-authorize-offers', 'fund-policy-offer',
 ] as const satisfies readonly MarketplaceBundleCapability[];
 
+/**
+ * The bundles a software wallet of this format can prove. fund-and-authorize-offers' authorizations
+ * spend the funding's unsigned txid, which is its final txid only for a P2WPKH or P2TR funder.
+ */
+const softwareMarketplaceBundles = (format: AddressFormat): MarketplaceBundleCapability[] =>
+  SOFTWARE_MARKETPLACE_BUNDLES.filter(kind =>
+    kind !== 'fund-and-authorize-offers' || format === AddressFormat.P2WPKH || format === AddressFormat.P2TR);
+
 export interface ProviderPsbtSigningRequestShape {
   inputCount: number;
   requestedInputIndices?: number[];
@@ -172,7 +180,7 @@ export function providerPsbtSigningCapabilities(
         externalInputs: 'any',
         maxRequests: MAX_MARKETPLACE_BATCH_REQUESTS,
         maxPolicyOfferAlternatives: MAX_POLICY_ALTERNATIVES,
-        marketplaceBundles: [...SOFTWARE_MARKETPLACE_BUNDLES],
+        marketplaceBundles: softwareMarketplaceBundles(wallet.addressFormat),
       },
     };
   }

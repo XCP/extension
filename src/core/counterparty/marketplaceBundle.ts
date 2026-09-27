@@ -53,6 +53,11 @@ export interface AcceptanceCpfpBundleAnalysisInput {
    */
   parentTransactionId: string | undefined;
   parentOutputs: OutputLike[];
+  /**
+   * The script type of each parent input's prevout. The child spends the parent's unsigned txid,
+   * which is its final txid only when no input's signature goes in the scriptSig.
+   */
+  parentInputScriptTypes: Array<string | undefined>;
 }
 
 const positiveInteger = (value: unknown, label: string): number =>
@@ -242,6 +247,9 @@ export function analyzeAcceptanceCpfpBundle(
     }
     if (childInput.hasSignatures !== false) {
       blockers.push('the child input must be proven unsigned before bundle approval');
+    }
+    if (input.parentInputScriptTypes.some(type => type !== 'p2wpkh' && type !== 'p2tr')) {
+      blockers.push('the parent spends an input other than P2WPKH or P2TR, so its final txid is not the one the child spends');
     }
     // Derive the spent output from the parent's own bytes, not from the child's claim of it.
     const parentTxid = input.parentTransactionId?.toLowerCase();
