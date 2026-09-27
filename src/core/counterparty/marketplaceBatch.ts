@@ -8,6 +8,7 @@ import {
   type AuthorizeExactOfferIntentClaim,
   type CreateListingIntentClaim,
   describeCanonicalPolicy,
+  type FundOffersIntentClaim,
   type FundPolicyOfferIntentClaim,
   formatExpiry,
   type MarketplaceApprovalReview,
@@ -28,6 +29,7 @@ export type MarketplaceBatchIntent =
   | AttachForListingIntentClaim
   | CreateListingIntentClaim
   | AuthorizeExactOfferIntentClaim
+  | FundOffersIntentClaim
   | FundPolicyOfferIntentClaim;
 
 /** Every homogeneous linked phase this wallet proves as a whole, as a runtime list for validation. */
@@ -38,6 +40,7 @@ export const MARKETPLACE_BATCH_KINDS = [
   'bulk-attach',
   'bulk-listing',
   'authorize-offers',
+  'fund-and-authorize-offers',
   'fund-policy-offer',
 ] as const;
 
@@ -54,6 +57,7 @@ const batchIdentity = (intent: MarketplaceBatchIntent): string =>
   intent.action === 'prepare_asset'
     ? intent.utxoOwner
     : intent.action === 'authorize_exact_offer' || intent.action === 'fund_policy_offer'
+      || intent.action === 'fund_offers'
       ? intent.bidder
       : intent.seller;
 
@@ -88,7 +92,11 @@ function parseAuthorizeOffers(offers: AuthorizeExactOfferIntentClaim[]): Authori
     if (!sameDelivery(offer.delivery, first.delivery)) {
       throw new Error('exact-offer authorizations must share one delivery');
     }
-    if (offer.priceSats !== first.priceSats || offer.platformFeeSats !== first.platformFeeSats) {
+    if (
+      offer.priceSats !== first.priceSats
+      || offer.platformFeeSats !== first.platformFeeSats
+      || (offer.sellerPaidFeeSats ?? 0) !== (first.sellerPaidFeeSats ?? 0)
+    ) {
       throw new Error('exact-offer authorizations must share one price and platform fee');
     }
   }
@@ -109,6 +117,50 @@ function parseAuthorizeOffers(offers: AuthorizeExactOfferIntentClaim[]): Authori
     throw new Error('exact-offer batch contains a duplicate transaction');
   }
   return offers;
+}
+
+/**
+ * One offer funding followed by the exact-offer authorizations that spend one of its set-aside
+ * outputs, all in one review. The authorizations are admitted exactly as an `authorize-offers`
+ * batch (one bidder, one funding outpoint, one price and fee), and that funding outpoint must be a
+ * set-aside output of this funding transaction whose value is exactly what each authorization
+ * spends. The transactions' own bytes are compared by the bundle decoder; this compares the claims.
+ */
+function parseFundAndAuthorize(
+  fund: FundOffersIntentClaim,
+  offers: AuthorizeExactOfferIntentClaim[],
+): [FundOffersIntentClaim, ...AuthorizeExactOfferIntentClaim[]] {
+  const authorized = parseAuthorizeOffers(offers);
+  const first = authorized[0]!;
+  const slot = first.bitcoinInvalidation.outpoint;
+  if (!sameAddress(first.bidder, fund.bidder)) {
+    throw new Error('the offer funding and its authorizations must share one bidder');
+  }
+  if (slot.txid !== fund.expectedTxid || slot.vout >= fund.slotCount) {
+    throw new Error('the authorizations must spend a set-aside output of this offer funding');
+  }
+  const deliveryUtxoSats = first.delivery.mode === 'attached' ? first.delivery.utxoValueSats : 0;
+  const fundedDeliverySats = fund.delivery.mode === 'attached' ? fund.delivery.utxoValueSats : 0;
+  if (first.delivery.mode !== fund.delivery.mode || deliveryUtxoSats !== fundedDeliverySats) {
+    throw new Error('the offer funding and its authorizations must use one delivery');
+  }
+  if (fund.slotValueSats !== first.priceSats + first.platformFeeSats + deliveryUtxoSats) {
+    throw new Error('the set-aside output does not fund exactly the authorized offer');
+  }
+  if (authorized.some(offer => offer.operationId === fund.operationId)) {
+    throw new Error('marketplace batch contains a duplicate operation id');
+  }
+  // The funding's target is display context, but the two claims must describe one offer: an
+  // asset-scoped funding backs only offers on that asset (a collection target cannot be checked
+  // here), and the funding expires with the offers it backs.
+  const target = fund.target;
+  if (target.scope === 'asset' && authorized.some(offer => offer.assets[0].asset !== target.asset)) {
+    throw new Error('the authorizations must target the asset the offer funding names');
+  }
+  if (authorized.some(offer => offer.marketplaceExpiresAt !== fund.marketplaceExpiresAt)) {
+    throw new Error('the offer funding and its authorizations must share one marketplace expiry');
+  }
+  return [fund, ...authorized];
 }
 
 /**
@@ -198,6 +250,19 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
     }
     return { kind: 'attach-and-list', intents: [attach, listing] };
   }
+  if (
+    parsed.length >= 2
+    && parsed[0]!.action === 'fund_offers'
+    && parsed.slice(1).every(intent => intent.action === 'authorize_exact_offer')
+  ) {
+    return {
+      kind: 'fund-and-authorize-offers',
+      intents: parseFundAndAuthorize(
+        parsed[0] as FundOffersIntentClaim,
+        parsed.slice(1) as AuthorizeExactOfferIntentClaim[],
+      ),
+    };
+  }
   const action = parsed[0]!.action;
   if (!parsed.every(intent => intent.action === action)) {
     throw new Error('marketplace batch requests must use one semantic action');
@@ -269,6 +334,24 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
   };
 }
 
+/**
+ * The platform fee as the bidder sees it, split by who pays: the part the accepting seller pays out
+ * of proceeds (taker-pays) and the part the bidder pre-funded (a slot funded before taker-pays).
+ */
+export function platformFeeRows(platformFeeSats: number, sellerPaidFeeSats: number): MarketplaceApprovalReview['facts'] {
+  const bidderPaidSats = platformFeeSats - sellerPaidFeeSats;
+  return [
+    ...(sellerPaidFeeSats > 0 ? [{
+      kind: 'amount' as const, label: t('marketplace_intent_platform_fee'), value: satsValue(sellerPaidFeeSats),
+      description: t('marketplace_intent_deducted_from_seller_proceeds'),
+    }] : []),
+    ...(bidderPaidSats > 0 ? [{
+      kind: 'amount' as const, label: t('marketplace_intent_platform_fee'), value: satsValue(bidderPaidSats),
+      description: t('marketplace_intent_paid_by_the_buyer'),
+    }] : []),
+  ];
+}
+
 const exactSafeSum = (values: number[], label: string): number => {
   const total = toSafeInteger(sum(values).toFixed(0));
   if (total === undefined) throw new Error(`${label} exceeds the safe integer range`);
@@ -304,7 +387,8 @@ export function analyzeMarketplaceBatch(
     { kind: 'address' as const, label: t('marketplace_batch_seller_wallet'), value: seller },
   ];
   const facts: MarketplaceApprovalReview['facts'] =
-    kind === 'attach-and-list' || kind === 'authorize-offers' || kind === 'fund-policy-offer'
+    kind === 'attach-and-list' || kind === 'authorize-offers' || kind === 'fund-and-authorize-offers'
+      || kind === 'fund-policy-offer'
       ? []
       : [...identityFacts];
   let title: string;
@@ -372,29 +456,37 @@ export function analyzeMarketplaceBatch(
       },
     );
     notice = t('marketplace_batch_the_attach_transaction_is_broadcast');
-  } else if (kind === 'authorize-offers') {
+  } else if (kind === 'authorize-offers' || kind === 'fund-and-authorize-offers') {
     // The parser admitted only items sharing bidder, funding outpoint, delivery, price, and fee,
     // and each item proved those against its own bytes, so the first item speaks for all of them.
-    const offers = intents as AuthorizeExactOfferIntentClaim[];
+    const fund = kind === 'fund-and-authorize-offers' ? intents[0] as FundOffersIntentClaim : undefined;
+    const offers = (fund ? intents.slice(1) : intents) as AuthorizeExactOfferIntentClaim[];
+    const offerReviews = fund ? reviews.slice(1) : reviews;
     const first = offers[0]!;
+    // What leaves the bidder's funding if accepted: the price net of any seller-paid fee, plus the
+    // fee output. Under taker-pays the accepting seller pays the fee out of the offer, so this is
+    // exactly the offer price the bidder set aside.
     const buyerCost = exactSafeSum([first.priceSats, first.platformFeeSats], 'offer cost');
+    const sellerPaidFeeSats = first.sellerPaidFeeSats ?? 0;
+    const offerPriceSats = exactSafeSum([first.priceSats, sellerPaidFeeSats], 'offer price');
     const deliveryUtxoSats = first.delivery.mode === 'attached' ? first.delivery.utxoValueSats : 0;
     const funding = first.bitcoinInvalidation.outpoint;
     const expiries = offers.map(offer => offer.marketplaceExpiresAt);
     const latestExpiry = Math.max(...expiries);
-    title = offers.length === 1
-      ? t('marketplace_batch_authorize_1_exact_offer')
-      : t('marketplace_batch_authorize_exact_offers', grouped(offers.length));
+    title = fund
+      ? offers.length === 1
+        ? t('marketplace_batch_fund_and_authorize_1_exact_offer')
+        : t('marketplace_batch_fund_and_authorize_exact_offers', grouped(offers.length))
+      : offers.length === 1
+        ? t('marketplace_batch_authorize_1_exact_offer')
+        : t('marketplace_batch_authorize_exact_offers', grouped(offers.length));
     facts.push(
       {
         kind: 'amount', label: t('marketplace_intent_you_pay_if_accepted'),
         value: satsValue(buyerCost), emphasis: 'primary',
       },
-      { kind: 'amount' as const, label: t('marketplace_intent_offer_price'), value: satsValue(first.priceSats) },
-      ...(first.platformFeeSats > 0 ? [{
-        kind: 'amount' as const, label: t('marketplace_intent_platform_fee'),
-        value: satsValue(first.platformFeeSats), description: t('marketplace_intent_paid_by_the_buyer'),
-      }] : []),
+      { kind: 'amount' as const, label: t('marketplace_intent_offer_price'), value: satsValue(offerPriceSats) },
+      ...platformFeeRows(first.platformFeeSats, sellerPaidFeeSats),
       ...(deliveryUtxoSats > 0 ? [{
         kind: 'amount' as const, label: t('marketplace_intent_asset_utxo'),
         value: satsValue(deliveryUtxoSats),
@@ -404,11 +496,24 @@ export function analyzeMarketplaceBatch(
         kind: 'paragraph' as const, label: t('marketplace_batch_settlement'),
         value: t('marketplace_batch_at_most_one_offer_can_be_accepted'),
       },
-      { kind: 'text' as const, label: t('marketplace_batch_transactions'), value: grouped(offers.length) },
+      // Funding happens now, in this same review: what it sets aside and what it costs to send.
+      ...(fund ? [
+        {
+          kind: 'amount' as const, label: t('marketplace_intent_set_aside'),
+          value: satsValue(exactSafeSum([fund.slotValueSats * fund.slotCount], 'set aside')),
+          description: `${grouped(fund.slotCount)} × ${satsValue(fund.slotValueSats)}`,
+        },
+        {
+          kind: 'amount' as const, label: t('marketplace_intent_network_fee'),
+          value: satsValue(fund.networkFeeSats),
+          description: t('marketplace_batch_funding_is_broadcast_now'),
+        },
+      ] : []),
+      { kind: 'text' as const, label: t('marketplace_batch_transactions'), value: grouped(intents.length) },
       // Each target under its ledger-proved quantity (the item proof's summary), never raw units.
       ...offers.map((offer, index) => ({
         kind: 'outpoint' as const,
-        label: reviews[index]?.summary?.description ?? offer.assets[0].asset,
+        label: offerReviews[index]?.summary?.description ?? offer.assets[0].asset,
         value: `${offer.assets[0].sourceOutpoint.txid}:${offer.assets[0].sourceOutpoint.vout}`,
       })),
       {

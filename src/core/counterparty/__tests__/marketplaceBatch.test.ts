@@ -198,6 +198,96 @@ describe('homogeneous marketplace batch parser', () => {
   });
 });
 
+describe('fund-and-authorize-offers parser', () => {
+  // The funding that creates FUNDING (vout 3) as one of four 251,000-sat set-aside outputs.
+  const fund = (overrides: Record<string, unknown> = {}) => ({
+    standard: 'counterparty-marketplace', version: 1, action: 'fund_offers',
+    operationId: `offer-funding:${FUNDING.txid}`, protocolVersion: 'exact_offer_v1', assets: [],
+    bidder: BIDDER, target: { scope: 'asset', asset: 'RAREPEPE' },
+    priceSats: 251_000, platformFeeSats: 0, delivery: { mode: 'detached' },
+    fundingInputs: [{ txid: '52'.repeat(32), vout: 0, valueSats: 1_005_000 }], fundingValueSats: 1_005_000,
+    slotCount: 4, slotValueSats: 251_000, networkFeeSats: 1_000, changeSats: 0,
+    expectedTxid: FUNDING.txid, marketplaceExpiresAt: 2_000_003_600,
+    ...overrides,
+  });
+
+  // Authorizations of the funding's asset that expire with it, as the marketplace builds them.
+  const offer = (index: number): AuthorizeExactOfferIntentClaim => ({
+    ...exactOffer(index),
+    assets: [{ ...exactOffer(index).assets[0], asset: 'RAREPEPE' }],
+    marketplaceExpiresAt: 2_000_003_600,
+  });
+
+  it.each([1, 7])('admits a funding followed by %i authorizations of one of its outputs', count => {
+    const offers = Array.from({ length: count }, (_, index) => offer(index));
+    const parsed = parseMarketplaceBatchIntents([fund(), ...offers]);
+    expect(parsed.kind).toBe('fund-and-authorize-offers');
+    expect(parsed.intents.slice(1)).toEqual(offers);
+  });
+
+  it('refuses a funding with no authorization, and more than seven', () => {
+    // A lone funding is not a phase at all: it is its own xcp_signPsbt request.
+    expect(() => parseMarketplaceBatchIntents([fund()])).toThrow(/not supported in a multi-PSBT phase/);
+    expect(() => parseMarketplaceBatchIntents([fund(), ...Array.from({ length: 8 }, (_, index) => offer(index))]))
+      .toThrow(/1\.\.8/);
+  });
+
+  it.each([
+    ['another funding transaction', fund({ expectedTxid: '53'.repeat(32) }), /set-aside output of this offer funding/],
+    ['a vout past the set-aside outputs', fund({ slotCount: 3, fundingValueSats: 754_000,
+      fundingInputs: [{ txid: '52'.repeat(32), vout: 0, valueSats: 754_000 }] }), /set-aside output/],
+    ['another bidder', fund({ bidder: SELLER }), /one bidder/],
+    ['another delivery', fund({ delivery: { mode: 'attached', utxoValueSats: 330 }, priceSats: 250_670 }), /one delivery/],
+    ['a slot that is not the authorized offer', fund({ slotValueSats: 250_000, priceSats: 250_000 }), /exactly the authorized offer/],
+  ])('refuses %s', (_label, funding, message) => {
+    expect(() => parseMarketplaceBatchIntents([funding, offer(0)])).toThrow(message);
+  });
+
+  it('requires an asset-scoped funding and its authorizations to name one asset and one expiry', () => {
+    // offer(1) targets PEPECASH; offer(0)'s expiry is 2_000_003_600, the funding's.
+    expect(() => parseMarketplaceBatchIntents([fund(), offer(0), { ...offer(2), assets: exactOffer(1).assets }]))
+      .toThrow(/asset the offer funding names/);
+    expect(() => parseMarketplaceBatchIntents([fund(), { ...offer(1), assets: exactOffer(1).assets }]))
+      .toThrow(/asset the offer funding names/);
+    expect(() => parseMarketplaceBatchIntents([fund({ marketplaceExpiresAt: 2_000_009_999 }), offer(0)]))
+      .toThrow(/one marketplace expiry/);
+    // A collection target cannot be checked against an asset here; the expiry still must agree.
+    const collection = fund({ target: { scope: 'collection', collection: 'rare-pepe' } });
+    expect(parseMarketplaceBatchIntents([collection, offer(0)]).kind).toBe('fund-and-authorize-offers');
+  });
+
+  it('still refuses authorizations that do not share one funding outpoint', () => {
+    const other = { ...offer(1), bitcoinInvalidation: { type: 'spend_funding_outpoint' as const, outpoint: { ...FUNDING, vout: 2 } } };
+    expect(() => parseMarketplaceBatchIntents([fund(), offer(0), other])).toThrow(/one funding outpoint/);
+  });
+
+  it('refuses a funding anywhere but first', () => {
+    expect(() => parseMarketplaceBatchIntents([offer(0), fund()])).toThrow(/one semantic action/);
+  });
+
+  it('summarizes the funding with the offers it authorizes', () => {
+    const offers = [offer(0), offer(1)];
+    const intents = parseMarketplaceBatchIntents([fund(), ...offers]).intents;
+    const review = analyzeMarketplaceBatch('fund-and-authorize-offers', intents, [
+      proved({ family: 'fund_offers' }),
+      ...offers.map(() => proved({ status: 'caution', family: 'authorize_exact_offer' })),
+    ]);
+    expect(review).toMatchObject({ status: 'caution', title: 'Fund and authorize 2 exact offers', blockers: [] });
+    expect(review.facts).toContainEqual({
+      kind: 'amount', label: 'Set aside', value: '1,004,000 sats', description: '4 × 251,000 sats',
+    });
+    expect(review.facts).toContainEqual({
+      kind: 'amount', label: 'Network fee', value: '1,000 sats', description: 'Paid now, to set the offer funding aside',
+    });
+    expect(review.facts).toContainEqual({ kind: 'text', label: 'Transactions', value: '3' });
+    for (const offer of offers) {
+      expect(review.facts).toContainEqual({
+        kind: 'outpoint', label: offer.assets[0].asset, value: `${offer.assets[0].sourceOutpoint.txid}:0`,
+      });
+    }
+  });
+});
+
 describe('exact-offer authorization batch parser', () => {
   it.each([1, 2, 8])('accepts %i exact targets sharing one bidder funding outpoint', count => {
     const offers = Array.from({ length: count }, (_, index) => exactOffer(index));
@@ -276,6 +366,55 @@ describe('marketplace batch aggregate proof', () => {
       });
     }
     expect(review.facts.map(fact => fact.label)).not.toContain('Seller wallet');
+  });
+
+  // The mainnet report: a 5,000-sat offer read "Offer price 4,000 / Platform fee 1,000 / Paid by the
+  // buyer". Under taker-pays the claim's priceSats is net of the fee the accepting seller pays.
+  it('states a taker-pays offer as the bidder made it, with the fee on the seller', () => {
+    const takerPays = (index: number): AuthorizeExactOfferIntentClaim => ({
+      ...exactOffer(index), priceSats: 4_000, platformFeeSats: 1_000, sellerPaidFeeSats: 1_000,
+      sellerProceedsSats: 4_046,
+    });
+    const offers = [takerPays(0), takerPays(1)];
+    const review = analyzeMarketplaceBatch('authorize-offers', offers,
+      offers.map(() => proved({ status: 'caution', family: 'authorize_exact_offer' })));
+    expect(review.facts[0]).toEqual({
+      kind: 'amount', label: 'You pay if accepted', value: '5,000 sats', emphasis: 'primary',
+    });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Offer price', value: '5,000 sats' });
+    expect(review.facts).toContainEqual({
+      kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Deducted from seller proceeds',
+    });
+    expect(review.facts.some(fact => fact.description === 'Paid by the buyer')).toBe(false);
+  });
+
+  it('still names a bidder-funded fee as paid by the buyer', () => {
+    const offers = [exactOffer(0)];
+    const review = analyzeMarketplaceBatch('authorize-offers', offers,
+      [proved({ status: 'caution', family: 'authorize_exact_offer' })]);
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Offer price', value: '250,000 sats' });
+    expect(review.facts).toContainEqual({
+      kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Paid by the buyer',
+    });
+  });
+
+  it('splits a partly pre-funded fee between the seller and the bidder', () => {
+    const partial = (index: number): AuthorizeExactOfferIntentClaim => ({
+      ...exactOffer(index), platformFeeSats: 6_250, sellerPaidFeeSats: 5_250,
+    });
+    const review = analyzeMarketplaceBatch('authorize-offers', [partial(0)],
+      [proved({ status: 'caution', family: 'authorize_exact_offer' })]);
+    const fees = review.facts.filter(fact => fact.label === 'Platform fee');
+    expect(fees).toEqual([
+      { kind: 'amount', label: 'Platform fee', value: '5,250 sats', description: 'Deducted from seller proceeds' },
+      { kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Paid by the buyer' },
+    ]);
+  });
+
+  it('refuses a batch whose items split the fee differently', () => {
+    expect(() => parseMarketplaceBatchIntents([
+      exactOffer(0), { ...exactOffer(1), sellerPaidFeeSats: 1_000 },
+    ])).toThrow(/one price and platform fee/);
   });
 
   // M1: a batch reads as "listing changed" only when every blocked item is ledger drift.

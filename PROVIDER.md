@@ -389,7 +389,7 @@ Every intent is an object with `standard: 'counterparty-marketplace'`, `version:
 | `prepare_bulk_fanout` | `xcp_signPsbt`, bundles | Split funding into UTXOs for a bulk operation |
 | `create_listing` | `xcp_signPsbt`, bundles | A seller's `SINGLE\|ANYONECANPAY` listing signature; `listingContext: { mode: 'reprice' }` marks a reprice of an existing listing |
 | `buy_listings` | `xcp_signPsbt` | A buyer completes 1..20 listings |
-| `fund_offers` | `xcp_signPsbt` | A clean-Bitcoin self-send that sets aside offer-backing outputs |
+| `fund_offers` | `xcp_signPsbt`, `fund-and-authorize-offers` bundle | A clean-Bitcoin self-send that sets aside offer-backing outputs |
 | `authorize_exact_offer` | `xcp_signPsbt`, bundles | A bidder's offer on one exact asset UTXO |
 | `accept_exact_offer` | `xcp_signPsbt`, `acceptance-cpfp` bundle | A seller completes an exact offer |
 | `bump_acceptance_fee` | `acceptance-cpfp` bundle only | A CPFP child that pays the fee for an accepted exact offer |
@@ -665,6 +665,26 @@ vaults. It does not appear for key-hash destinations (P2PKH, P2WPKH). If the wal
 holdings up, it shows the caution. A proved `reveal` or `inscription` clears it for the commit
 output.
 
+**Key-path marketplace fee (`platformFeeInternalKey`).** `buy_listings`, `authorize_exact_offer`
+and `accept_exact_offer` may carry `platformFeeInternalKey`: the x-only internal key (64 hex
+characters) of a BIP86 key-path Taproot fee address. The wallet rebuilds `p2tr(key)` with no script
+tree and requires it to equal, byte for byte, the output the proof already matched as the fee by
+position and amount. That output has no script path, so the review labels it **Marketplace fee** and
+drops the caution for it alone; any other script address in the transaction keeps its caution. A key
+that does not produce the fee output, or a key on a transaction with no fee output, blocks. Without
+the key nothing changes.
+
+```js
+intent: {
+  // ...the buy_listings / exact-offer claim...
+  platformFeeSats: 1000,
+  platformFeeInternalKey: '<x-only internal key of the fee address, 64 hex chars>',
+}
+```
+
+For an address at `0/i` of a BIP86 account xpub, the key is the child public key without its first
+(parity) byte.
+
 #### `xcp_signBitcoinPsbt`
 
 Sign a fully funded, plain-Bitcoin PSBT for an exact website payment. This is intended for flows
@@ -747,6 +767,7 @@ const result = await xcpwallet.request({
 |---|---|---|
 | `attach-and-list` | `[attach_for_listing, create_listing]` | The listing spends exactly the attach's new asset output. |
 | `authorize-offers` | 1..8 `authorize_exact_offer` | One bidder, funding outpoint, delivery, price, and fee; distinct targets. |
+| `fund-and-authorize-offers` | `[fund_offers, authorize_exact_offer × 1..7]` | As `authorize-offers`, and the shared funding outpoint is a set-aside output of the unbroadcast funding in the same review, read from its bytes. |
 | `acceptance-cpfp` | `[accept_exact_offer, bump_acceptance_fee]` | The child spends exactly the proved parent's seller output 1. |
 | `fund-policy-offer` | 1..100 `fund_policy_offer` alternatives | One bidder, keys, delivery, funding set, and anchor; distinct parent transactions, at most one of which can confirm. |
 | `bulk-listing`, `bulk-attach`, `prepare-assets` | 1..8 of one action | One seller identity; distinct targets. |
@@ -754,8 +775,9 @@ const result = await xcpwallet.request({
 
 **Advertised bundles.** `xcp_getAddresses` reports the linked kinds this wallet can prove at
 `signing.psbtBatch.marketplaceBundles`: currently `["attach-and-list", "authorize-offers",
-"fund-policy-offer"]` for a software wallet and `[]` for a hardware wallet, whose batch contract
-accepts only `SIGHASH_ALL` with every external input pre-signed.
+"fund-and-authorize-offers", "fund-policy-offer"]` for a P2WPKH or Taproot software wallet, the same
+without `fund-and-authorize-offers` for other software wallets, and `[]` for a hardware wallet,
+whose batch contract accepts only `SIGHASH_ALL` with every external input pre-signed.
 `signing.psbtBatch.maxPolicyOfferAlternatives` gives the largest `fund-policy-offer` set (100 for a
 software wallet, 0 when unsupported). Send a linked bundle only when its kind is listed; an older
 wallet proves each item alone and blocks a listing whose input is its sibling attach's output.
@@ -774,9 +796,10 @@ quantity are those of the locally decoded attach message; the owner and value ar
 script and amount. This evidence stands in for the ledger lookup on listing input 1 only when the
 attach item itself did not fail its proof, and only when listing input 1 is exactly that outpoint
 with that owner and value; any difference blocks the bundle. If the ledger does report assets on
-that outpoint, its answer is kept and checked like any other listing. A failed lookup is replaced
-only when it is explained by the attach itself (the explorer reports the attach txid as unknown, or
-the lookup names the attach as the pending transaction); an outage stays a retry. Because
+that outpoint, its answer is kept and checked like any other listing. The listing's asset lookup is
+given the attach's own unsigned bytes as an unbroadcast parent, so the attach output reads as
+pending on exactly that attach; a failed lookup is replaced only when it is explained that way, and
+an outage anywhere else stays a retry. Because
 Counterparty also moves every balance on the attach's *inputs* onto the listed output, the listing
 is proved only after every attach input's parent transaction is confirmed at or below
 Counterparty's parsed block height and each input re-reads as asset-free; an unconfirmed or
@@ -800,12 +823,36 @@ settle; the review states this once, with every target under its ledger-proved q
 the expiry "Latest expiry" when the targets' expiries differ. The acknowledgement policy is the
 single authorization's, applied per item.
 
+##### `fund-and-authorize-offers`
+
+An offer funding and the exact-offer authorizations it backs, in one review instead of two:
+`[fund_offers, authorize_exact_offer, ...]` with 1..7 authorizations. Send it only when
+`marketplaceBundles` lists it; otherwise send the `fund_offers` request and then the
+`authorize-offers` bundle. The funding is proved as a single `fund_offers` request and the
+authorizations as an `authorize-offers` bundle. The pair adds:
+
+- the shared funding outpoint is `fund_offers.expectedTxid` at a vout below `slotCount`, with the
+  same bidder and delivery, and `slotValueSats` equals the authorizations' `priceSats +
+  platformFeeSats` (plus the attached-delivery UTXO);
+- every authorization has the funding's `marketplaceExpiresAt` and, when the funding targets an
+  asset, targets that asset;
+- each authorization's input 0 spends the funding's locally computed txid, and its value and owner
+  equal that funding output, read from the funding PSBT's own bytes; its asset lookup reads the
+  funding as an unbroadcast parent;
+- every funding input is P2WPKH or P2TR, so signing cannot change the txid the authorizations spend.
+  The funding is signed first and must finalize to exactly the reviewed txid, or nothing is
+  returned.
+
+The site broadcasts the signed funding and stores the authorizations as it would after two reviews.
+
 ##### `acceptance-cpfp`
 
 An `accept_exact_offer` parent and a `bump_acceptance_fee` child, in that order. The child must
 claim exactly one asset, use `protocolVersion: 'exact_offer_v1'`, and spend the proved parent's
-seller-proceeds output 1. This kind is recognized by its shape (two requests, the first an
-`accept_exact_offer`) and is not listed in `marketplaceBundles`.
+seller-proceeds output 1, checked against the parent's own bytes: its locally computed txid, and
+that output's value and owner. Every parent input must be P2WPKH or P2TR, because the child spends
+the parent's unsigned txid, which is its final txid only then. This kind is recognized by its shape
+(two requests, the first an `accept_exact_offer`) and is not listed in `marketplaceBundles`.
 
 ##### `fund-policy-offer`
 

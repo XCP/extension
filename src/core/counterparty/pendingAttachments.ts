@@ -27,6 +27,7 @@
  * something that carries (or may carry) attached balances, which is checked recursively.
  */
 
+import { apiClient, isApiError } from '@/core/api/client';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { fetchPreviousRawTransaction, fetchTransactionChainStatus } from '@/core/bitcoin/utxo';
 import {
@@ -89,6 +90,72 @@ export const liveAttachmentEvidenceSource: AttachmentEvidenceSource = {
   parent: liveParent,
   ledgerHeights: () => fetchLedgerHeights(),
 };
+
+/**
+ * Whether the network affirmatively does not know a transaction: the explorer's raw-hex endpoint
+ * answers 404. (Its `/status` endpoint is useless for this: it answers `{"confirmed":false}` with
+ * HTTP 200 for a txid it has never seen.) Any other answer, including an outage, is false.
+ */
+export async function liveTransactionUnknown(txid: string): Promise<boolean> {
+  try {
+    await apiClient.get<string>(`https://mempool.space/api/tx/${txid}/hex`, { retries: 0 });
+    return false;
+  } catch (error) {
+    return isApiError(error) && error.status === 404;
+  }
+}
+
+/**
+ * The same source, told about transactions of the request being reviewed that are not broadcast
+ * yet (a linked bundle's earlier item: an attach whose output the listing sells, a funding
+ * transaction whose output an authorization spends). Such a parent is read from its own bytes,
+ * as unconfirmed, instead of from a network that has never seen it; everything below then derives
+ * what its outputs can carry exactly as for any unconfirmed parent.
+ *
+ * A failed ledger lookup of one of its outputs reads as empty only when the network affirmatively
+ * does not know the parent (no ledger can then hold anything there), and empty is only ever
+ * accepted after that derivation, never as "clean" by itself. If the parent may already be on
+ * chain — a request re-submitting a transaction the user signed earlier, since confirmed — the
+ * failure stays a failure (a retry): its output may really hold assets its spent inputs no longer
+ * show.
+ *
+ * The bytes must hash to the txid asked for (`resolveEmptyLedgerOutpoint` checks), so a request
+ * cannot pass one transaction off as another. Only the bundle decoder supplies these, and only
+ * from an item it has already proved.
+ */
+export function withPackageParents(
+  source: AttachmentEvidenceSource,
+  packageParents: ReadonlyMap<string, string>,
+  transactionUnknown: (txid: string) => Promise<boolean> = liveTransactionUnknown,
+): AttachmentEvidenceSource {
+  const parents = new Map([...packageParents].map(([txid, raw]) => [txid.toLowerCase(), raw]));
+  const unknown = new Map<string, Promise<boolean>>();
+  const provablyUnbroadcast = (txid: string): Promise<boolean> => {
+    let answer = unknown.get(txid);
+    if (!answer) {
+      answer = transactionUnknown(txid).catch(() => false);
+      unknown.set(txid, answer);
+    }
+    return answer;
+  };
+  return {
+    balances: async (utxo, fresh) => {
+      try {
+        return await source.balances(utxo, fresh);
+      } catch (error) {
+        const txid = utxo.split(':')[0]!.toLowerCase();
+        if (parents.has(txid) && await provablyUnbroadcast(txid)) return [];
+        throw error;
+      }
+    },
+    ...(source.withBalances ? { withBalances: source.withBalances.bind(source) } : {}),
+    parent: async (txid) => {
+      const raw = parents.get(txid.toLowerCase());
+      return raw ? { rawTxHex: raw, confirmed: false } : source.parent(txid);
+    },
+    ledgerHeights: () => source.ledgerHeights(),
+  };
+}
 
 /** Which outputs of a transaction Counterparty could credit attached balances to. */
 export interface OutputExposure {

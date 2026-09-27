@@ -1,6 +1,8 @@
 /** Semantic proof of every item in an atomic provider signing phase. */
 
-import { extractPsbtDetails, resolvePsbtSighashType, spendsTaprootOutput } from '@/core/bitcoin/psbt';
+import { bytesToHex } from '@noble/hashes/utils.js';
+import { sameAddress } from '@/core/bitcoin/address';
+import { extractPsbtDetails, parsePSBT, resolvePsbtSighashType, spendsTaprootOutput } from '@/core/bitcoin/psbt';
 import {
   type DecodedPsbtInfo,
   decodePsbtForApproval,
@@ -35,6 +37,7 @@ import type {
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 import { fromSatoshis } from '@/core/numeric';
+import type { ZeldPackageParent } from '@/core/zeld/signRequestZeld';
 
 export interface PsbtBundleApprovalInput {
   bundleKind: 'acceptance-cpfp' | MarketplaceBatchKind;
@@ -74,7 +77,10 @@ const decodeItem = (
   intent: MarketplaceIntentClaimV1,
   ownedAddresses: string[] | undefined,
   linkedInput?: LinkedInputEvidence,
-  options: Pick<NonNullable<Parameters<typeof decodePsbtForApproval>[9]>, 'policyOffer' | 'sharedAttachedAssets'> = {},
+  options: Pick<
+    NonNullable<Parameters<typeof decodePsbtForApproval>[9]>,
+    'policyOffer' | 'sharedAttachedAssets' | 'packageParents' | 'zeldPackageParents'
+  > = {},
 ): Promise<DecodedPsbtInfo> => decodePsbtForApproval(
   item.psbtHex,
   Object.keys(item.signInputs),
@@ -87,6 +93,26 @@ const decodeItem = (
   ownedAddresses,
   { linkedInput, ...options },
 );
+
+/** A PSBT's unsigned transaction bytes: what a same-bundle child's input spends before broadcast. */
+const unsignedTransactionHex = (psbtHex: string): string => bytesToHex(parsePSBT(psbtHex).toBytes(true, false));
+
+/**
+ * A decoded parent as the ZELD analysis reads it, with each signed input's sighash resolved
+ * exactly as decodePsbtForApproval resolves it for the parent's own review.
+ */
+const zeldPackageParent = (item: StoredItem, decoded: DecodedPsbtInfo): ZeldPackageParent => ({
+  inputs: decoded.psbtDetails.inputs,
+  signedInputs: Object.values(item.signInputs).flat().map(index => ({
+    index,
+    sighashType: resolvePsbtSighashType(
+      item.sighashTypes[index],
+      decoded.psbtDetails.inputs[index]?.sighashType,
+      spendsTaprootOutput(decoded.psbtDetails.inputs[index]),
+    ),
+  })),
+  outputs: decoded.psbtDetails.outputs,
+});
 
 /** Alternatives decoded at once after the first; bounds the burst of per-item chain lookups. */
 const POLICY_OFFER_DECODE_CONCURRENCY = 10;
@@ -161,14 +187,15 @@ async function linkedDisplayQuantity(
   return `${proved.quantityRaw} (base units)`;
 }
 
-/** Add a link problem to the listing's review. A retry never softens an existing block. */
+/** Add a link problem to a dependent item's review. A retry never softens an existing block. */
 const withLinkProblem = (
   review: MarketplaceApprovalReview | undefined,
   problem: string,
   severity: 'retry' | 'blocked',
+  family: MarketplaceApprovalReview['family'] = 'create_listing',
 ): MarketplaceApprovalReview => {
   const base: MarketplaceApprovalReview = review
-    ?? missingReview('create_listing', 'marketplace semantic proof 2 is missing');
+    ?? missingReview(family, 'the dependent marketplace semantic proof is missing');
   const { paymentSummary: _payment, summary: _summary, blockKind, ...rest } = base;
   const status = severity === 'blocked' || base.status === 'blocked' ? 'blocked' : 'retry';
   // A broken link between the two transactions is the site's contradiction, whatever else held.
@@ -230,16 +257,78 @@ async function decodeAttachAndList(
             }],
           },
           attachTxid: proved.txid,
-          attachIsUnbroadcast: async () => await chain.txStatus(proved.txid) === 'missing',
         };
       }
     }
   }
-  const listing = await decodeItem(listingItem, intents[1]!, ownedAddresses, linked);
+  // The listing's asset lookup reads the attach from its reviewed bytes, so an unbroadcast attach
+  // output is named as pending on this very attach (the explanation `withLinkedInputAssets`
+  // requires) instead of failing on a network that has never seen it.
+  const listing = await decodeItem(listingItem, intents[1]!, ownedAddresses, linked, linked ? {
+    packageParents: new Map([[linked.attachTxid, unsignedTransactionHex(attachItem.psbtHex)]]),
+  } : {});
   for (const { problem, severity } of problems) {
     listing.marketplaceReview = withLinkProblem(listing.marketplaceReview, problem, severity);
   }
   return [attach, listing];
+}
+
+/**
+ * Decode an offer funding first, then every authorization against it. Each authorization's input 0
+ * is a set-aside output of the funding, which is not broadcast yet: its value and owner are read
+ * from the funding's own proved bytes, and its asset lookup reads the funding as an unbroadcast
+ * parent (no Counterparty message, so the output carries only what the funding's own asset-free
+ * inputs could move to its first output). Only P2WPKH and P2TR funding inputs are admitted: any
+ * other input's signature changes the txid the authorizations spend.
+ */
+async function decodeFundAndAuthorize(
+  items: StoredItem[],
+  intents: MarketplaceIntentClaimV1[],
+  ownedAddresses: string[] | undefined,
+): Promise<DecodedPsbtInfo[]> {
+  const [fundItem, ...authorizationItems] = items;
+  if (!fundItem || authorizationItems.length === 0 || intents.length !== items.length) {
+    throw new Error('fund-and-authorize-offers must pair one funding with its authorizations');
+  }
+  const fund = await decodeItem(fundItem, intents[0]!, ownedAddresses);
+  const fundTxid = fund.psbtDetails.transactionId.toLowerCase();
+  const shared: string[] = [];
+  if (!fund.marketplaceReview || fund.marketplaceReview.status === 'blocked') {
+    shared.push('the authorization depends on an offer funding that did not prove');
+  }
+  if (fund.psbtDetails.inputs.some(input => input.scriptType !== 'p2wpkh' && input.scriptType !== 'p2tr')) {
+    shared.push('the offer funding spends an input other than P2WPKH or P2TR, so its final txid is not the one the authorizations spend');
+  }
+  const packageParents = new Map([[fundTxid, unsignedTransactionHex(fundItem.psbtHex)]]);
+  // The funding's inputs' ZELD lands on its first output, a slot: the authorization that spends
+  // that slot moves it on, and must say so as it would once the funding were broadcast.
+  const zeldPackageParents = new Map([[fundTxid, zeldPackageParent(fundItem, fund)]]);
+  const authorizations = await Promise.all(authorizationItems.map(async (item, index) => {
+    const authorization = await decodeItem(item, intents[index + 1]!, ownedAddresses, undefined, {
+      packageParents, zeldPackageParents,
+    });
+    const input = authorization.psbtDetails.inputs[0];
+    const spent = input ? fund.psbtDetails.outputs.find(output => output.index === input.vout) : undefined;
+    const problems = [...shared];
+    if (!input || input.txid.toLowerCase() !== fundTxid) {
+      problems.push('authorization input 0 does not spend the offer funding in this review');
+    } else if (
+      !spent
+      || spent.type === 'op_return'
+      || !spent.address
+      || spent.value !== input.value
+      || !sameAddress(input.address, spent.address)
+    ) {
+      problems.push('authorization input 0 differs from the offer funding output it spends');
+    }
+    for (const problem of problems) {
+      authorization.marketplaceReview = withLinkProblem(
+        authorization.marketplaceReview, problem, 'blocked', 'authorize_exact_offer',
+      );
+    }
+    return authorization;
+  }));
+  return [fund, ...authorizations];
 }
 
 export async function decodePsbtBundleForApproval(
@@ -302,6 +391,9 @@ export async function decodePsbtBundleForApproval(
       childSignerAddresses: Object.keys(childItem!.signInputs),
       childTransactionId: child.transactionId,
       childHasCounterpartyPayload: childPayload !== null,
+      parentTransactionId: parent.psbtDetails.transactionId,
+      parentOutputs: parent.psbtDetails.outputs,
+      parentInputScriptTypes: parent.psbtDetails.inputs.map(input => input.scriptType),
     });
     return {
       items: [parent, { psbtDetails: child, txid: child.transactionId }],
@@ -317,6 +409,8 @@ export async function decodePsbtBundleForApproval(
   }
   const decoded: DecodedPsbtInfo[] = parsed.kind === 'attach-and-list'
     ? await decodeAttachAndList(stored.items, parsed.intents, ownedAddresses, chain)
+    : parsed.kind === 'fund-and-authorize-offers'
+      ? await decodeFundAndAuthorize(stored.items, parsed.intents, ownedAddresses)
     : parsed.kind === 'fund-policy-offer'
       ? await decodeFundPolicyOffers(
           stored.items, parsed.intents as FundPolicyOfferIntentClaim[], ownedAddresses, chain, policyOfferContext,

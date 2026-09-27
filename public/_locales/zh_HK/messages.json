@@ -3017,6 +3017,15 @@
   "marketplace_batch_broadcast": {
     "message": "廣播"
   },
+  "marketplace_batch_fund_and_authorize_1_exact_offer": {
+    "message": "為 1 個指定出價準備資金並授權"
+  },
+  "marketplace_batch_fund_and_authorize_exact_offers": {
+    "message": "為 $1 個指定出價準備資金並授權"
+  },
+  "marketplace_batch_funding_is_broadcast_now": {
+    "message": "現在支付，用於預留出價資金"
+  },
   "marketplace_batch_sent_now": {
     "message": "立即發送"
   },
@@ -3212,6 +3221,9 @@
   "marketplace_intent_items_with_asset_count": {
     "message": "$1（$2 種資產）"
   },
+  "marketplace_intent_key_path_fee_output": {
+    "message": "無腳本的密鑰路徑 Taproot 地址：向其付款無法以你的地址發布 Counterparty 訊息"
+  },
   "marketplace_intent_list_for_sale": {
     "message": "上架出售"
   },
@@ -3220,6 +3232,9 @@
   },
   "marketplace_intent_expires": {
     "message": "有效期至"
+  },
+  "marketplace_intent_marketplace_fee": {
+    "message": "市場手續費"
   },
   "marketplace_intent_network_fee": {
     "message": "網絡費用"
@@ -6464,6 +6479,15 @@
   },
   "psbts_approve_authorize_offers_2": {
     "message": "授權 $1 個出價"
+  },
+  "psbts_approve_fund_and_authorize_offers": {
+    "message": "為出價準備資金並授權"
+  },
+  "psbts_approve_fund_and_authorize_1_offer": {
+    "message": "為 1 個出價準備資金並授權"
+  },
+  "psbts_approve_fund_and_authorize_offers_2": {
+    "message": "為 $1 個出價準備資金並授權"
   },
   "marketplace_batch_latest_expiry": {
     "message": "最晚到期"
