@@ -119,7 +119,7 @@
                     "message": "Background-only module. Extension pages and content scripts reach the background through a service client (services/*Client), never by importing its implementation. A pure helper they need belongs in core/."
                   },
                   {
-                    "group": ["@/services/*Service", "@/services/signDelivery"],
+                    "group": ["@/services/*Service", "@/services/signDelivery", "@/services/provider/**"],
                     "message": "Background service implementation. Import its client (services/*ServiceClient) instead: the implementation would run in this context, against its own copy of wallet state."
                   }
                 ]
@@ -150,7 +150,7 @@
                     "message": "Background-only module. Extension pages and content scripts reach the background through a service client (services/*Client), never by importing its implementation. A pure helper they need belongs in core/."
                   },
                   {
-                    "group": ["@/services/*Service", "@/services/signDelivery"],
+                    "group": ["@/services/*Service", "@/services/signDelivery", "@/services/provider/**"],
                     "message": "Background service implementation. Import its client (services/*ServiceClient) instead: the implementation would run in this context, against its own copy of wallet state."
                   }
                 ]
