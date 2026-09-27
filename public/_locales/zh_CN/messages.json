@@ -518,6 +518,39 @@
   "approval_too_many_inputs_description": {
     "message": "此交易花费超过 $1 个输入，超出钱包可检查附加资产的数量。请让网站减少输入数量。"
   },
+  "file_validation_invalid_file": {
+    "message": "无法读取此文件。"
+  },
+  "file_validation_empty": {
+    "message": "文件为空。"
+  },
+  "file_validation_safety_limit": {
+    "message": "文件超过50 MB的安全上限。"
+  },
+  "file_validation_too_large": {
+    "message": "文件过大。上限：$1 KB，实际：$2 KB。"
+  },
+  "file_validation_invalid_name": {
+    "message": "文件名无效。"
+  },
+  "file_validation_name_too_long": {
+    "message": "文件名过长。"
+  },
+  "file_validation_control_characters": {
+    "message": "文件名包含控制字符。"
+  },
+  "file_validation_reserved_name": {
+    "message": "保留的文件名。"
+  },
+  "file_validation_no_extension": {
+    "message": "文件没有扩展名。"
+  },
+  "file_validation_extension_not_allowed": {
+    "message": "不允许的文件扩展名。可接受：$1"
+  },
+  "file_validation_double_extension": {
+    "message": "检测到可疑的双重扩展名。"
+  },
   "provider_review_transaction_data_mismatch": {
     "message": "网站的交易数据与区块链不符。请让网站重新构建交易。"
   },
@@ -745,6 +778,9 @@
   },
   "asset_asset_menu_change_description": {
     "message": "更改描述"
+  },
+  "asset_asset_menu_fair_mint_open": {
+    "message": "公平铸造进行中，暂不可用。"
   },
   "asset_asset_name_input_asset_name_already_taken": {
     "message": "资产名称已被占用"
@@ -1435,6 +1471,9 @@
   },
   "common_memo_2": {
     "message": "备注: $1"
+  },
+  "common_not_available": {
+    "message": "不适用"
   },
   "common_message": {
     "message": "消息"
@@ -2633,6 +2672,9 @@
   "inputs_file_upload_input_choose_file": {
     "message": "选择文件"
   },
+  "inputs_file_upload_input_inscription": {
+    "message": "铭文"
+  },
   "inputs_file_upload_input_max_file_size_kb": {
     "message": "最大文件大小: $1KB"
   },
@@ -2671,6 +2713,12 @@
   },
   "inputs_memo_input_optional_memo_to_include": {
     "message": "要附带的备注（可选）。"
+  },
+  "inputs_memo_input_sent_as_hex": {
+    "message": "以0x开头，因此按十六进制字节发送。"
+  },
+  "inputs_memo_input_hex_help": {
+    "message": "以0x开头可发送十六进制字节；其他内容按文本发送。"
   },
   "inputs_password_input_enter_password": {
     "message": "输入密码"
@@ -3626,14 +3674,8 @@
   "messages_issuance_yes_8_decimal_places": {
     "message": "是（8 位小数）"
   },
-  "messages_move_utxo_same_as_source_consolidation": {
-    "message": "与来源相同（合并）"
-  },
   "messages_move_utxo_utxo_move": {
     "message": "UTXO 移动"
-  },
-  "messages_move_utxo_utxos_moved": {
-    "message": "已移动的 UTXO"
   },
   "messages_mpma_multi_send_to": {
     "message": "多地址发送（$1 发往 $2）"
@@ -5172,6 +5214,9 @@
   },
   "safety_fee_invalid": {
     "message": "仅限半角数字和小数点，最多8位小数。勿用逗号。"
+  },
+  "safety_memo_hex_invalid": {
+    "message": "以0x开头的备注按十六进制发送，0x后必须是完整字节的十六进制（0-9、a-f）。"
   },
   "safety_fee_minimum": {
     "message": "费率过低（最低：$1 sat/vB）"

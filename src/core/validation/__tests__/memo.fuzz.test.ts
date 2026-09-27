@@ -22,14 +22,15 @@ describe('Memo Validation Fuzz Tests', () => {
         fc.property(
           fc.string().filter(s => /^[0-9a-fA-F]*$/.test(s) && s.length > 0),
           (hex) => {
-            // Even-length hex should be valid
+            // Only an explicit 0x/0X prefix makes a memo hex; the same digits alone are text.
             const evenHex = hex.length % 2 === 0 ? hex : hex + '0';
-            expect(isHexMemo(evenHex)).toBe(true);
+            expect(isHexMemo(evenHex)).toBe(false);
             expect(isHexMemo('0x' + evenHex)).toBe(true);
-            
-            // Odd-length hex should be invalid (without 0x)
+            expect(isHexMemo('0X' + evenHex)).toBe(true);
+
+            // Odd-length hex is not whole bytes, prefix or not
             if (hex.length % 2 !== 0) {
-              expect(isHexMemo(hex)).toBe(false);
+              expect(isHexMemo('0x' + hex)).toBe(false);
             }
           }
         ),
@@ -60,10 +61,13 @@ describe('Memo Validation Fuzz Tests', () => {
         { input: '', expected: false },
         { input: '0x', expected: false },
         { input: '0x00', expected: true },
-        { input: '00', expected: true },
+        { input: '00', expected: false },
+        { input: '0X00', expected: true },
+        { input: '123456', expected: false },
         { input: '0', expected: false },
-        { input: 'deadbeef', expected: true },
-        { input: 'DEADBEEF', expected: true },
+        { input: 'deadbeef', expected: false },
+        { input: 'DEADBEEF', expected: false },
+        { input: '0xDEADBEEF', expected: true },
         { input: 'dead beef', expected: false },
         { input: '0xg', expected: false },
         { input: '  0x00  ', expected: true },
@@ -83,7 +87,7 @@ describe('Memo Validation Fuzz Tests', () => {
           (hex) => {
             expect(stripHexPrefix(hex)).toBe(hex);
             expect(stripHexPrefix('0x' + hex)).toBe(hex);
-            expect(stripHexPrefix('0X' + hex)).toBe('0X' + hex); // Case sensitive
+            expect(stripHexPrefix('0X' + hex)).toBe(hex);
           }
         ),
         { numRuns: 100 }
@@ -231,7 +235,7 @@ describe('Memo Validation Fuzz Tests', () => {
     });
 
     it('should respect type restrictions', () => {
-      const hexMemo = 'deadbeef';
+      const hexMemo = '0xdeadbeef';
       const textMemo = 'Hello World';
       
       // Allow only hex
@@ -247,6 +251,21 @@ describe('Memo Validation Fuzz Tests', () => {
       
       result = validateMemo(hexMemo, { allowHex: false, allowText: true });
       expect(result.isValid).toBe(false);
+    });
+  });
+
+  describe('validateMemo hex rule', () => {
+    it('treats an unprefixed hex-looking memo as text and counts its UTF-8 bytes', () => {
+      expect(validateMemo('123456', { maxBytes: 34 })).toEqual({ isValid: true, isHex: false, byteLength: 6 });
+    });
+
+    it('counts a 0X-prefixed memo as hex bytes, the same as 0x', () => {
+      expect(validateMemo('0X' + 'ab'.repeat(34), { maxBytes: 34 })).toEqual({ isValid: true, isHex: true, byteLength: 34 });
+      expect(validateMemo('0X' + 'ab'.repeat(35), { maxBytes: 34 }).isValid).toBe(false);
+    });
+
+    it.each(['0x', '0x123', '0xzz', '0X 12'])('rejects %j, a 0x memo that is not whole bytes of hex', (memo) => {
+      expect(validateMemo(memo, { maxBytes: 34 }).isValid).toBe(false);
     });
   });
 

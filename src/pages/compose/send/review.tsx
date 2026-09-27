@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
-import { normalizeQuantity } from "@/components/domain/tx/tx-action-info";
+import { memoForDisplay, normalizeQuantity } from "@/components/domain/tx/tx-action-info";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
@@ -112,7 +112,7 @@ export function ReviewSend({
     // the truth here. Divisibility still comes from asset_info — it is a ledger fact rather than a
     // property of this transaction — so only the decimal point retains an echo dependency.
     const decoded = decodedMessage?.data as
-      | { asset?: string; quantity?: bigint; destination?: string; memo?: string }
+      | { asset?: string; quantity?: bigint; destination?: string; memo?: string; memoBytes?: Uint8Array }
       | undefined;
 
     const asset = decoded?.asset ?? result.params.asset;
@@ -120,7 +120,13 @@ export function ReviewSend({
     const quantityDisplay = decoded?.quantity !== undefined
       ? normalizeQuantity(decoded.quantity, asset, result.params, 'asset')
       : (result.params.quantity_normalized ?? result.params.quantity);
-    const memo = decoded?.memo ?? result.params.memo;
+    // Classified from the signed bytes the same way the dapp approval screen does, so binary bytes
+    // show as hex rather than as whatever characters they happen to decode to. Without decoded
+    // bytes, the echoed memo is shown with the encoding the request asked for.
+    const { memo, memoEncoding } = decoded?.memoBytes instanceof Uint8Array
+      ? memoForDisplay(decoded as Record<string, unknown>)
+      : memoForDisplay({ memo: decoded?.memo ?? result.params.memo, memoIsBinary: String(result.params.memo_is_hex) === 'true' });
+    const memoLabel = memoEncoding === 'hex' ? t('tx_action_hex_label', [t('common_memo')]) : t('common_memo');
     const amountInFiat = isBtc && btcPrice ? multiply(quantityDisplay ?? 0, btcPrice) : null;
 
     customFields = [
@@ -135,7 +141,7 @@ export function ReviewSend({
       },
       ...(isBtc && decodedMessage?.messageType === 'dispense'
         ? [{ label: t('send_review_payment_type'), value: t('send_review_dispenser_payment') }] : []),
-      ...(memo ? [{ label: t('common_memo'), value: String(memo) }] : []),
+      ...(memo ? [{ label: memoLabel, value: memo }] : []),
       ...(result.params.more_outputs ? [(() => {
         const sats = String(result.params.more_outputs).split(':')[0] ?? '0';
         const btcVal = fromSatoshis(sats);

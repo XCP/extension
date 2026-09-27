@@ -7,7 +7,7 @@ import { TransactionInputError } from '@/core/validation/transaction-input-error
 import { parseRawInteger, rawToInput, serializeDecimal } from "@/core/amount-contract/amounts";
 import type { AssetInfo } from "@/core/counterparty/api";
 import { fetchAssetDetails } from "@/core/counterparty/api";
-import { isHexMemo, stripHexPrefix } from "@/core/counterparty/memo";
+import { hasHexPrefix, isHexMemo, stripHexPrefix } from "@/core/counterparty/memo";
 import { CounterpartyApiError } from "@/core/errors";
 import { validateFeeRate } from "@/core/validation/fee";
 import { exactQuantity } from "@/core/validation/transaction-amount";
@@ -296,13 +296,18 @@ export async function normalizeFormData(
     }
   }
 
-  // Process memo field (detect hex, strip prefix, set appropriate indicator)
+  // Process memo field. Only an explicit 0x/0X prefix asks for hex; every other memo, including
+  // one made only of hex digits such as a deposit ID, is sent as text.
   if (config.memoConfig && 'memo' in rawData) {
     const memo = rawData['memo']?.toString() || '';
 
+    if (hasHexPrefix(memo) && !isHexMemo(memo)) {
+      throw new TransactionInputError('memo_hex_invalid', 'A memo starting with 0x must be followed by whole bytes of hex.');
+    }
+
     if (memo && isHexMemo(memo)) {
       // Strip hex prefix and update memo
-      normalizedData['memo'] = stripHexPrefix(memo);
+      normalizedData['memo'] = stripHexPrefix(memo.trim());
 
       // Set the hex indicator based on config type
       if (config.memoConfig.type === 'boolean') {

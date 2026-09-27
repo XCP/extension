@@ -9,22 +9,6 @@ vi.mock('@/core/counterparty/api', () => ({
   fetchAssetDetails: vi.fn().mockResolvedValue({ divisible: true }),
 }));
 
-// Mock the counterparty memo functions
-vi.mock('@/core/counterparty/memo', () => ({
-  isHexMemo: vi.fn((memo: string) => {
-    if (!memo) return false;
-    const cleanMemo = memo.startsWith('0x') ? memo.slice(2) : memo;
-    return cleanMemo.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(cleanMemo);
-  }),
-  stripHexPrefix: vi.fn((hex: string) => {
-    return hex.startsWith('0x') ? hex.slice(2) : hex;
-  }),
-  isValidMemoLength: vi.fn((memo: string, isHex: boolean) => {
-    const byteLength = isHex ? Math.ceil(memo.length / 2) : new TextEncoder().encode(memo).length;
-    return byteLength <= 34;
-  })
-}));
-
 // Mock fee rates to prevent network calls
 vi.mock('@/core/bitcoin/feeRate', () => ({
   getFeeRates: vi.fn().mockResolvedValue({
@@ -279,6 +263,41 @@ describe('MPMAForm', () => {
     });
   });
 
+  describe('memo encoding', () => {
+    const submitted = async (memo: string): Promise<FormData> => {
+      renderWithProvider();
+      fireEvent.paste(screen.getByPlaceholderText('Paste CSV data here…'), {
+        clipboardData: { getData: () => `bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1,${memo}` }
+      });
+      const submit = await screen.findByRole('button', { name: 'Continue' });
+      await waitFor(() => expect(submit).not.toBeDisabled());
+      fireEvent.submit(submit.closest('form')!);
+      await waitFor(() => expect(mockFormAction).toHaveBeenCalled());
+      return mockFormAction.mock.calls[0]![0] as FormData;
+    };
+
+    // An exchange deposit ID is text. Read as hex it reached the chain as the bytes 12 34 56.
+    it('sends an unprefixed hex-looking memo as text', async () => {
+      const formData = await submitted('123456');
+      expect(formData.get('memos')).toBe('123456');
+      expect(formData.get('memos_are_hex')).toBe('false');
+    });
+
+    it('sends a 0X-prefixed memo as hex without the prefix', async () => {
+      const formData = await submitted('0XDEADBEEF');
+      expect(formData.get('memos')).toBe('DEADBEEF');
+      expect(formData.get('memos_are_hex')).toBe('true');
+    });
+
+    it('names the line of a 0x memo that is not whole bytes of hex', async () => {
+      renderWithProvider();
+      fireEvent.paste(screen.getByPlaceholderText('Paste CSV data here…'), {
+        clipboardData: { getData: () => 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1,0x123' }
+      });
+      expect(await screen.findByText(/Line 1: .*0x.*hex/)).toBeInTheDocument();
+    });
+  });
+
   it('handles file upload', async () => {
     renderWithProvider();
     
@@ -295,6 +314,19 @@ describe('MPMAForm', () => {
     await waitFor(() => {
       expect(screen.getByText('test.csv')).toBeInTheDocument();
     });
+  });
+
+  // The name is only displayed, never used as a path, so a double dot in it is harmless.
+  it('accepts a file whose name contains two dots in a row', async () => {
+    renderWithProvider();
+
+    const file = new File(['bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5'], 'payouts..csv', { type: 'text/csv' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [file], writable: false });
+    fireEvent.change(input);
+
+    expect(await screen.findByText('payouts..csv')).toBeInTheDocument();
+    expect(screen.queryByText(/traversal/i)).not.toBeInTheDocument();
   });
 
   it('shows preview of parsed data', async () => {

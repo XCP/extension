@@ -66,6 +66,44 @@ describe('MemoInput', () => {
     expect(input).toHaveClass('border-gray-300');
   });
 
+  describe('hex rule: only a 0x/0X prefix makes a memo hex', () => {
+    const input = () => screen.getByPlaceholderText('Optional memo');
+
+    it('treats an unprefixed hex-looking memo as text, with no hex hint', () => {
+      render(<MemoInput value="123456" onChange={vi.fn()} />);
+      expect(input()).not.toHaveClass('border-red-500');
+      expect(screen.queryByText(/sent as hex/)).not.toBeInTheDocument();
+    });
+
+    it('counts 34 bytes of hex behind 0X the same as behind 0x', () => {
+      const { unmount } = render(<MemoInput value={'0x' + 'ab'.repeat(34)} onChange={vi.fn()} />);
+      expect(input()).not.toHaveClass('border-red-500');
+      unmount();
+      render(<MemoInput value={'0X' + 'ab'.repeat(34)} onChange={vi.fn()} />);
+      expect(input()).not.toHaveClass('border-red-500');
+    });
+
+    it('says a 0x memo is sent as hex bytes', () => {
+      render(<MemoInput value="0xdeadbeef" onChange={vi.fn()} />);
+      expect(screen.getByText(/sent as hex bytes/)).toBeInTheDocument();
+    });
+
+    it('flags a 0x memo that is not whole bytes of hex', () => {
+      const onValidationChange = vi.fn();
+      render(<MemoInput value="0x123" onChange={vi.fn()} onValidationChange={onValidationChange} />);
+      expect(input()).toHaveClass('border-red-500');
+      expect(onValidationChange).toHaveBeenLastCalledWith(false);
+      expect(screen.getByText(/whole bytes of hex/)).toBeInTheDocument();
+    });
+
+    it('with hex memos off, counts a 0x value as the text it will be sent as', () => {
+      // 36 characters: 18 bytes read as hex, 36 bytes as the text a destroy tag is sent as.
+      render(<MemoInput value={'0x' + 'ab'.repeat(17)} onChange={vi.fn()} hexMemos={false} />);
+      expect(input()).toHaveClass('border-red-500');
+      expect(screen.queryByText(/sent as hex/)).not.toBeInTheDocument();
+    });
+  });
+
   it('can be disabled', () => {
     render(<MemoInput value="" onChange={vi.fn()} disabled={true} />);
     const input = screen.getByPlaceholderText('Optional memo');
