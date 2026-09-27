@@ -10,13 +10,19 @@ Self-reported security assessment based on industry checklists.
 
 **Independent Audit:** Not yet completed. We intend to pursue a professional audit when funding allows.
 
-**Internal Review:** July 2026 — code-verified review of the cryptography, session, storage, and secret-handling layers against this checklist. Findings were remediated and this document updated to match the code.
+**Internal reviews** (most recent first; none of these is an independent audit):
 
-**Hardening update:** September 2026 — background-owned signing decisions, explicit RPC permissions,
-serialized vault writes, session deadline consistency, and transaction integrity checks are described
-in [ARCHITECTURE.md](ARCHITECTURE.md). This remains an internal review, not an independent audit.
-
-August 2026 — review of the transaction construction, verification and signing path, ranked by how many files depend on each and by how often each has needed fixing. Findings were remediated and the Transaction Security section below rewritten to match: message verification is now byte equality against a locally rebuilt message rather than a field-by-field comparison against the request.
+- **September 2026:** hardening of background-owned signing decisions, explicit RPC permissions,
+  serialized vault writes, session deadline consistency, and transaction integrity checks, as
+  described in [ARCHITECTURE.md](ARCHITECTURE.md).
+- **August 2026:** review of the transaction construction, verification and signing path, ranked by
+  how many files depend on each and by how often each has needed fixing. Findings were remediated
+  and the Transaction Security section below rewritten to match: message verification is now byte
+  equality against a locally rebuilt message rather than a field-by-field comparison against the
+  request.
+- **July 2026:** code-verified review of the cryptography, session, storage, and secret-handling
+  layers against this checklist. Findings were remediated and this document updated to match the
+  code.
 
 **Automated Analysis:** The encryption module has been analyzed with Trail of Bits security tools:
 
@@ -41,10 +47,10 @@ August 2026 — review of the transaction construction, verification and signing
 | **Disk attacker** (stolen device, malware reading files) | All secrets encrypted at rest with AES-256-GCM |
 | **Brute-force password attack** | PBKDF2 with 600K iterations, rate limiting |
 | **Malicious dApp** | Origin validation, explicit approval for all signing |
-| **Supply chain attack** | Minimal deps (14), exact version pins, npm audit CI |
+| **Supply chain attack** | Few direct dependencies ([listed in the README](README.md#dependencies)), exact version pins, npm audit CI |
 | **Memory inspection** (while unlocked) | Auto-lock timeout, session cleared on lock |
 | **Replay attacks** | Nonce tracking, transaction deduplication |
-| **Compromised or spoofed Trezor Suite** | Under Trezor Connect 10, every Trezor approval is hosted by Trezor Suite Web (`suite.trezor.io`), which the manifest admits through `externally_connectable` and an optional host permission granted on first Trezor use. Suite relays requests to the device; it does not decide them. The device shows and confirms what it signs, and the wallet checks that the returned transaction preserves the reviewed serialization before using it |
+| **Compromised or spoofed Trezor Suite** | Under Trezor Connect 10, every Trezor approval is hosted by Trezor Suite Web (`suite.trezor.io`), which the manifest admits ([permissions](#extension-security)). Suite relays requests to the device; it does not decide them. The device shows and confirms what it signs, and the wallet checks that the returned transaction preserves the reviewed serialization before using it |
 
 ### What We Do NOT Protect Against
 
@@ -141,7 +147,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | Status | Item | Implementation |
 |--------|------|----------------|
 | ✅ | Minimum password length | 8 characters enforced |
-| ✅ | Rate limiting on attempts | Unlock: 5 failed/min persisted; provider API tiered 5-500 requests/min |
+| ✅ | Rate limiting on attempts | Unlock: 5 failed/min persisted; provider API limits under [Provider API Security](#provider-api-security) |
 | ✅ | Generic error messages | No oracle attacks via error text |
 | ⚠️ | Password complexity | Length only—no uppercase/symbol requirements |
 | ⚠️ | 2FA/PIN for sensitive actions | Password required, no separate 2FA |
@@ -174,9 +180,9 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Approval for website signing | Website-supplied messages and transactions require a decision bound to the reviewed facts; state and permissions are rechecked at execution. Extension-generated connection proofs use the existing connection grant |
 | ✅ | Locked state protection | Sensitive APIs blocked when locked |
 | ✅ | WYSIWYS | Full transaction details shown before sign |
-| ✅ | Rate limiting per origin | Tiered: 5 connections, 10 broadcasts, 100 API calls/min; signing requests are limited where they open a popup (below) |
-| ✅ | Global rate limit | 500 requests/min backstop |
-| ✅ | Pending-request bounds | 10-minute expiry; at most 3 open signing popups per origin, and 30 popups/min as a backstop, charged only when a popup opens |
+| ✅ | Rate limiting per origin | Tiered by method; signing requests are limited only where they open a popup. The limits are in [PROVIDER.md](PROVIDER.md#security) |
+| ✅ | Global rate limit | A backstop across all origins ([PROVIDER.md](PROVIDER.md#security)) |
+| ✅ | Pending-request bounds | Requests expire ([PROVIDER.md](PROVIDER.md#signing)); open signing popups are capped per origin, charged only when a popup opens ([PROVIDER.md](PROVIDER.md#security)) |
 | ✅ | Explicit capability consent | Paired-address access is opt-in and unchecked by default |
 | ✅ | Paired-address identity binding | Paired-address grants are scoped to origin, wallet ID, and active address, then rechecked immediately before signing |
 | ✅ | Multi-address signing constraints | Only the active address and its same-index Legacy/SegWit sibling pair are accepted; indices are unique and bounded, and each claimed signer must match the embedded prevout |
@@ -258,12 +264,12 @@ every `analytics.track` call in `src`:
   `consolidate_ineligible`, `consolidate_fetch_error`, `consolidate_stale_retry`,
   `consolidate_report_failed`, `consolidate_error_<category>`
 - Wallets and addresses: `wallet_created`, `wallet_imported`, `private_key_imported`,
-  `gift_card_imported`, `address_switched`, `address_type_switched_<surface>` (`header` for the
-  home header shortcut, `settings` for Settings > Address type)
+  `gift_card_imported`, `address_switched`, `address_type_switched_header` (the home header
+  shortcut), `address_type_switched_settings` (Settings > Address type)
 - Website connections and requests: `connection_request`, `connection_established`,
-  `connection_disconnected`, `connection_disconnect_all` (with the number of sites),
-  `request_approved`, `request_rejected`, `message_signed`, `transaction_signed`, `psbt_signed`,
-  `psbt_bundle_signed`, `transaction_broadcasted`, `provider_error`
+  `connection_disconnected`, `request_approved`, `request_rejected`, `message_signed`,
+  `transaction_signed`, `psbt_signed`, `psbt_bundle_signed`, `transaction_broadcasted`,
+  `provider_error`
 - Other interface actions: `settings_changed`, `copy_to_clipboard`, `asset_searched`,
   `asset_pinned`, `asset_unpinned`, `buy_bitcoin`, `buy_xcp`, `not_found`
 
@@ -280,7 +286,7 @@ are never sent.
 | ✅ | Exact version pinning | No wildcards in package.json |
 | ✅ | Lockfile integrity | package-lock.json with hashes |
 | ✅ | npm audit CI | Runs on every PR |
-| ✅ | Minimal dependencies | 13 direct runtime deps (most wallets have 50+) |
+| ✅ | Minimal dependencies | Few direct runtime dependencies, [listed in the README](README.md#dependencies) |
 | ⚪ | Dependency confusion | Not applicable—no private packages |
 
 ## Hardware Wallet Security
@@ -357,9 +363,9 @@ This is not true constant-time code. For higher-security applications, constant-
 | Input Validation | 5 | 0 | 0 | 0 |
 | UI/UX | 3 | 0 | 1 | 2 |
 | Error Handling | 4 | 0 | 0 | 0 |
-| Privacy & Analytics | 8 | 0 | 0 | 2 |
+| Privacy & Analytics | 8 | 0 | 0 | 1 |
 | Supply Chain | 4 | 0 | 0 | 1 |
 | Hardware Wallet | 12 | 1 | 0 | 1 |
-| **Total** | **94** | **5** | **2** | **13** |
+| **Total** | **94** | **5** | **2** | **12** |
 
 **Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)

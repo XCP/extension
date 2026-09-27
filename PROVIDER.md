@@ -4,13 +4,10 @@ The XCP Wallet browser extension injects a provider at `window.xcpwallet` on eve
 on `http://localhost` and `http://127.0.0.1` for local development. Websites use this provider to
 connect wallets, sign messages and transactions, and broadcast to the Bitcoin network.
 
-This page is the integrator reference: methods, parameters, results, events and errors. Two
-companion documents hold the detail behind it:
-
-- [Signing policy](docs/signing-policy.md): what the wallet refuses, what it verifies, how the
-  approval screen prices a request, and what it cannot see.
-- [Marketplace intents](docs/marketplace-intents.md): the `counterparty-marketplace` intent
-  schemas and the linked-bundle proofs for `xcp_signPsbt` and `xcp_signPsbts`.
+This page is the integrator reference: methods, parameters, results, events and errors, the rules
+the wallet applies before it signs a website's request, and
+[what it cannot see](#what-the-wallet-cannot-see). How the approval screens are designed is in
+[ARCHITECTURE.md](ARCHITECTURE.md#approval-screens).
 
 ## Detection
 
@@ -161,21 +158,106 @@ connection and paired-address grants, and session checks. Live results and recov
 delivery checks. Refused delivery does not erase an already persisted completion, and a lost
 response does not prove signing failed. An interrupted signing command is not automatically signed again.
 
+Every rule below runs in the extension's background on the transaction's own bytes. A website's
+description of a request (an intent, a display label, the origin) can change wording, never what
+can be signed.
+
 #### What this wallet will sign
 
 `xcp_signTransaction` and `xcp_signPsbt` are for Counterparty transactions. A request is refused
-outright when it is not one: it must carry a Counterparty message or spend an input holding
-attached assets. Plain Bitcoin website payments use the narrower `xcp_signBitcoinPsbt` capability
-documented below; origins never bypass either policy. Sweeps, oracle-priced dispensers,
-undecodable payloads and durable sell authorizations are also refused. A refusal is shown to the
-user with its reason; the method returns a rejection to the caller.
+outright when it is not one. Plain Bitcoin website payments use the narrower
+[`xcp_signBitcoinPsbt`](#xcp_signbitcoinpsbt) capability; origins never bypass either policy.
 
-The full list, with the reason for each rule and the limits of what the wallet can check, is in
-[Signing policy](docs/signing-policy.md#what-this-wallet-will-sign).
+- **No Counterparty content.** The transaction must either carry a Counterparty message or spend an
+  input holding attached assets. Both forms count, because spending an attached UTXO moves its
+  balances with no message at all. That is how an atomic swap of an attached asset works, and
+  requiring a payload would refuse it. A transaction with neither is a plain Bitcoin payment, which
+  a user can make in the wallet, where they choose the destination themselves. The exceptions are
+  proved [marketplace intents](#marketplace-intents-intent) that need no message: offer and fan-out
+  funding (`fund_offers`, `prepare_bulk_fanout`, `fund_policy_offer`), and a buyer's or bidder's
+  funding of a transaction that spends a seller's proved attached asset (`buy_listings` and
+  `authorize_exact_offer` with attached delivery).
+- **Sweeps.** A `sweep` hands every balance and asset ownership to another address in one message.
+  It is available in the wallet and not through a site.
+- **Oracle-priced dispensers.** Opening one, or paying one, is refused. Core applies the oracle
+  address's most recent broadcast with no bound on its age
+  (`ledger.other.get_oracle_last_price`), and the feed's owner can publish a new price in any block
+  before the transaction confirms, so what the payment buys is decided after the signature, by a
+  third party. The approval screen cannot state the outcome, so the wallet declines rather than
+  showing a figure it cannot stand behind. Fixed-rate dispensers are unaffected.
+- **Undecodable payloads.** A Counterparty payload the wallet cannot decode is surfaced as an
+  unrecognized transaction, not rendered as an ordinary transfer, and blocked while strict
+  verification is on (the default); with it off, signing needs the review step.
+- **Durable sell authorizations.** A `SINGLE|ANYONECANPAY` signature (or any other sighash that
+  leaves outputs uncommitted) over an input that carries attached assets, or whose asset status
+  cannot be verified, lets whoever holds it complete a sale of those assets at any time until the
+  UTXO is spent, with the assets delivered wherever they choose. It is refused, acknowledged or not,
+  unless a proved [`create_listing`](#listings-create_listing) intent covers that exact input.
+  `ALL|ANYONECANPAY` commits every output, so it stays with the attached-asset destination warning
+  instead.
+- **Assets the ledger cannot show yet.** The asset lookup asks the Counterparty ledger, which only
+  reflects parsed blocks. An empty answer for a signed input is accepted only when the transaction
+  that created the outpoint could not have attached anything to it: it carries no attach (or legacy
+  move) naming that output, and, if the outpoint is its first non-`OP_RETURN` output, where Core
+  moves attached balances, nothing it spends carries or may carry attached assets (checked up the
+  unconfirmed chain, bounded). Otherwise the wallet waits for that transaction to confirm and be
+  parsed, then reads the ledger again; until then signing asks for a retry. An unknown outpoint, or
+  a node that cannot say how far it has parsed, is never treated as asset-free. Spending the change
+  of an unconfirmed attach, or any output of an unconfirmed plain-Bitcoin fan-out or offer funding,
+  is unaffected. The wallet's own recent broadcasts are trusted.
+- **Unproved Taproot commit claims.** An [`inscription`](#taproot-commits-with-inscription) context
+  or a [`reveal`](#taproot-commits-and-reveals) that does not prove out against the commit blocks
+  signing with the reason.
+
+A refusal is shown to the user with its reason; the method returns a rejection to the caller.
 
 #### What the approval screen shows
 
-Moved to [Signing policy: What the approval screen shows](docs/signing-policy.md#what-the-approval-screen-shows).
+Every supported message type gets a one-line description built from the transaction's own bytes,
+and, separately from the Bitcoin inputs and outputs, a list of the protocol facts the headline
+cannot carry: an order's price and expiry, the UTXO an attach creates, the assets a detach
+releases, the blocks remaining on a BTCPay's order match, and what each dispenser at a paid address
+will pay back.
+
+Some of those require a ledger lookup, which is done against the configured Counterparty node.
+Every one fails soft: a fact that cannot be resolved is omitted and the screen says less. The
+decode, re-pack proof and structural checks run on the bytes locally; the attached-asset lookup,
+which does decide signing, blocks with a retry when the node cannot answer.
+
+When local transaction verification blocks approval, the popup recommends retrying or asking the
+site to rebuild the request. It does not instruct the user to disable strict verification from the
+signing screen.
+
+#### How the approval screen prices a request
+
+The summary counts an output as returning to the signer only when the signature commits to it.
+Under `SINGLE|ANYONECANPAY` (`0x83`) that is the output sharing the signed input's index; any
+*other* output paying the signer is shown as "Not guaranteed back", the headline reflects that
+worst case, and signing is gated until the signer acknowledges the amount. An input whose embedded
+prevout cannot be attributed to an address is treated as potentially the signer's, so its sighash
+reaches this calculation rather than being skipped.
+
+The warning copy preserves the same distinction. `ALL | ANYONECANPAY` is an informational note
+that other funding inputs may be added and explicitly says that every current output is fixed.
+`SINGLE | ANYONECANPAY` says that only the paired output is fixed; redirectable signer funds
+escalate to danger.
+
+Attached-asset review likewise presents one outcome, not several warnings for the same movement.
+When the destination is resolved, the destination and exact asset list share one row: movement to
+the wallet's own output or a detach back to its own address is information, while delivery outside
+the wallet or a signature that leaves delivery flexible is danger (and, outside a proved listing,
+blocked as a durable sell authorization). A failed asset lookup blocks with a retry because an
+unknown UTXO is never treated as asset-free; when the reason is an unconfirmed transaction that may
+attach assets to the input, the screen names that transaction and asks to retry after it confirms.
+
+**Mixed sighash flags.** When signed inputs carry different flags, the summary prices only the
+outputs that every `ANYONECANPAY` input covers on its own. Such an input is detachable: whoever
+holds the PSBT can keep it, drop the rest, and its signature travels with it, so an additional
+`SIGHASH_ALL` input cannot vouch for outputs a detachable input leaves free. In practice, two
+`SINGLE | ANYONECANPAY` signatures in one PSBT price **both** paired outputs as at risk, since each
+covers only the output at its own index and neither covers the other's. Submit one listing per
+PSBT: a proved listing signs exactly one input, so two listings of attached assets in one PSBT are
+refused as durable sell authorizations.
 
 #### `xcp_signMessage`
 
@@ -237,10 +319,7 @@ const result = await xcpwallet.request({
 When `signInputs` is supplied, it must contain at least one input. Every index must be
 unique, in range, and assigned to the address found in that input's embedded prevout.
 The provider rejects mismatches before opening the approval popup. Omitting `signInputs`
-preserves the legacy best-effort behavior for the active address only. For pricing, an
-input whose embedded prevout cannot be attributed to an address is treated as
-potentially the signer's, so its sighash reaches the at-risk calculation rather than
-being skipped.
+preserves the legacy best-effort behavior for the active address only.
 
 **Hardware wallets.** A Trezor wallet must pass `signInputs`; a request without it is refused.
 Provider PSBT signing on a Trezor is available only for a native SegWit (P2WPKH) account, signs
@@ -276,14 +355,8 @@ prevout so the amount is authenticated:
 `SIGHASH_NONE` and bare `SIGHASH_SINGLE` are rejected, whether requested through
 `sighashTypes` or embedded in the PSBT. A hardware wallet accepts only `SIGHASH_ALL`.
 
-How the approval screen prices each flag, and why a batched listing loses its no-prompt path, is
-described in [Signing policy](docs/signing-policy.md#how-the-approval-screen-prices-a-request).
-
-**Marketplace intents (`intent`).** `xcp_signPsbt` accepts an optional `counterparty-marketplace`
-intent: an untrusted claim about what the PSBT does, which the wallet proves against the bytes
-before showing a semantic review. A false claim is blocked. The accepted actions, their schemas,
-and what each proof checks are in [Marketplace intents](docs/marketplace-intents.md).
-`fund_policy_offer` is accepted only through `xcp_signPsbts`.
+How the approval screen prices each flag, and why listings go one per PSBT, is described in
+[How the approval screen prices a request](#how-the-approval-screen-prices-a-request).
 
 **Counterparty classification.** The wallet reads Counterparty data from an
 OP_RETURN output (plaintext or ARC4-obfuscated), from bare-multisig data outputs, from the
@@ -291,13 +364,164 @@ envelope in a Taproot reveal's first-input tapleaf (under the conditions Counter
 including the bare `CNTRPRTY` marker output), and from the envelope named by a verified
 `inscription` commit (see [Taproot commits with `inscription`](#taproot-commits-with-inscription)),
 so message classification and the sweep block apply regardless of
-encoding. A payload that cannot be decoded is surfaced as an unrecognized
-transaction rather than rendered as an ordinary transfer.
+encoding.
 
 **Unfunded PSBTs.** A PSBT whose outputs exceed its inputs — the normal shape of
 a listing awaiting a buyer's funding inputs — is accepted. No fee is claimed for
 it; the approval screen reports the fee as set by the other party rather than
 showing a figure that cannot be known yet.
+
+##### Marketplace intents (`intent`)
+
+`xcp_signPsbt` and [`xcp_signPsbts`](#xcp_signpsbts) accept an optional `counterparty-marketplace`
+intent alongside a PSBT. The intent is an untrusted claim used to ask for a semantic approval
+("list RAREPEPE for 250,000 sats"), not permission to skip validation. The wallet proves every term
+against the PSBT's bytes, its prevouts and the Counterparty ledger before showing that review; a
+false claim is blocked, and an unavailable lookup asks the user to retry.
+
+Every intent is an object with `standard: 'counterparty-marketplace'`, `version: 1`, and an
+`action`. This wallet version accepts these actions, and refuses any other as unsupported:
+
+| Action | Where | Purpose |
+|---|---|---|
+| `attach_for_listing` | `xcp_signPsbt`, bundles | Attach an asset to a new UTXO that a listing will sell |
+| `prepare_asset` | `xcp_signPsbt`, bundles | Prepare an asset UTXO for listing |
+| `prepare_bulk_fanout` | `xcp_signPsbt`, bundles | Split funding into UTXOs for a bulk operation |
+| `create_listing` | `xcp_signPsbt`, bundles | A seller's `SINGLE\|ANYONECANPAY` listing signature; `listingContext: { mode: 'reprice' }` marks a reprice of an existing listing |
+| `buy_listings` | `xcp_signPsbt` | A buyer completes 1..20 listings |
+| `fund_offers` | `xcp_signPsbt` | A clean-Bitcoin self-send that sets aside offer-backing outputs |
+| `authorize_exact_offer` | `xcp_signPsbt`, bundles | A bidder's offer on one exact asset UTXO |
+| `accept_exact_offer` | `xcp_signPsbt`, `acceptance-cpfp` bundle | A seller completes an exact offer |
+| `bump_acceptance_fee` | `acceptance-cpfp` bundle only | A CPFP child that pays the fee for an accepted exact offer |
+| `fund_policy_offer` | `xcp_signPsbts` only | Bidder funding for a `funded_policy_offer_v1` policy offer, one alternative per request |
+| `accept_policy_offer` | `xcp_signPsbt` | A seller's acceptance of a policy offer; the wallet signs child input 1 only |
+
+This page documents `create_listing` and `fund_offers` in full. The other schemas are defined by
+the marketplace integration that sends them; their fields and bounds are the `*IntentClaim` types
+in [`src/core/counterparty/marketplace/intentTypes.ts`](src/core/counterparty/marketplace/intentTypes.ts)
+and the parser beside them (`bump_acceptance_fee` is in
+[`src/core/counterparty/marketplaceBundle.ts`](src/core/counterparty/marketplaceBundle.ts)). A known
+field with the wrong type or value is refused; fields the types do not name are ignored.
+
+**`accept_exact_offer` is served unsigned.** One party's signature is never served to another: the
+seller receives the acceptance template with the buyer's input 0 *unsigned*, signs only input 1
+with `SIGHASH_ALL`, and the market merges the buyer's stored input 0 signature server-side. The
+wallet blocks an acceptance whose input 0 already carries signature material. A wallet whose
+contract requires every external input to be pre-signed (hardware) therefore cannot accept exact
+offers; it refuses the request before any approval opens, with a reason the site can show.
+
+##### Listings (`create_listing`)
+
+A listing is signed `SINGLE|ANYONECANPAY` over the asset input, which commits only to the output at
+the same index. So:
+
+- Put the seller's proceeds at the **same index as the input being signed**.
+- Do **not** add another output back to the seller. It carries no guarantee (the buyer can repoint
+  it and the signature still verifies), so the wallet will not price it as change.
+
+A listing built that way has nothing at risk and signs with no extra prompt.
+
+```js
+await xcpwallet.request({
+  method: 'xcp_signPsbt',
+  params: [{
+    hex: listingPsbtHex,
+    signInputs: { [seller]: [1] },
+    // Absolute PSBT indices: input 0 is not signed, but occupies slot 0.
+    sighashTypes: [0x01, 0x83],
+    intent: {
+      standard: 'counterparty-marketplace',
+      version: 1,
+      action: 'create_listing',
+      operationId: 'preflight-id',
+      protocolVersion: 'counterparty_attach_listing_v1',
+      assets: [{
+        asset: 'RAREPEPE',
+        quantityRaw: '1',
+        sourceOutpoint: { txid: '<64-char txid>', vout: 0 }
+      }],
+      seller,
+      priceSats: 250000,
+      utxoValueSats: 546,
+      guaranteedSellerPaymentSats: 250546,
+      delivery: { mode: 'buyer_selected_detach' },
+      signingRequestExpiresAt: 1711130400,
+      marketplaceExpiresAt: null,
+      bitcoinExpiresAt: null
+      // listingContext: { mode: 'reprice' }  // optional: this replaces an existing listing's price
+    }
+  }]
+});
+```
+
+The wallet independently checks the two-input/two-output template, null and unsigned buyer slot,
+exact attached outpoint and raw quantity, seller identity and asset UTXO value, only input 1
+requested with `SINGLE|ANYONECANPAY`, and exact asset UTXO-plus-price payment at output 1. It also
+states that buyer funding and the detach destination remain flexible. A false claim is blocked; an
+unavailable asset lookup asks the user to retry rather than treating the UTXO as empty.
+`bitcoinExpiresAt` must be `null`: the signature has no Bitcoin expiry, and the screen says that
+the seller cancels by delisting (no transaction) and invalidates the signature by spending the
+asset UTXO.
+
+##### Offer funding (`fund_offers`)
+
+Before a buyer can authorize exact offers, a clean-Bitcoin self-send sets aside one output per
+offered edition. It carries no Counterparty content, so the
+[Counterparty-only rule](#what-this-wallet-will-sign) would refuse it; a proved `fund_offers`
+intent lifts that rule, and only that rule:
+
+```js
+await xcpwallet.request({
+  method: 'xcp_signPsbt',
+  params: [{
+    hex: fundingPsbtHex,
+    signInputs: { [bidder]: [0, 1] },
+    sighashTypes: [0x01, 0x01],
+    intent: {
+      standard: 'counterparty-marketplace',
+      version: 1,
+      action: 'fund_offers',
+      operationId: 'offer-funding:<expected txid>',
+      protocolVersion: 'exact_offer_v1',
+      assets: [],
+      bidder,
+      target: { scope: 'collection', collection: 'rare-pepe', policy: 'series 1' }, // or { scope: 'asset', asset }
+      priceSats: 8000,
+      platformFeeSats: 1000,
+      delivery: { mode: 'detached' },             // or { mode: 'attached', utxoValueSats: 330 }
+      fundingInputs: [
+        { txid: '<64-char txid>', vout: 0, valueSats: 15000 },
+        { txid: '<64-char txid>', vout: 3, valueSats: 5000 }
+      ],
+      fundingValueSats: 20000,
+      slotCount: 2,
+      slotValueSats: 9000,                        // price + platform fee (+ delivery UTXO)
+      networkFeeSats: 400,
+      changeSats: 1600,
+      expectedTxid: '<64-char txid>',
+      marketplaceExpiresAt: 1711130400
+    }
+  }]
+});
+```
+
+The wallet proves the transaction id; that the inputs are exactly the claimed outpoints and values,
+all owned by the bidder, unsigned, and free of attached assets (a failed lookup asks for a retry);
+that every input is signed `SIGHASH_ALL`; that the outputs are exactly `slotCount` outputs of
+`slotValueSats` plus optional change, all paying the bidder, with no data output; that each slot is
+the price plus the platform fee plus any attached-delivery UTXO; and that the fee equals inputs
+minus outputs. The target is display context only: the funding commits to no asset. A seller can
+take a slot only through a later `authorize_exact_offer` signature, which is its own approval.
+
+- **`sighashTypes` must be `0x01` (`SIGHASH_ALL`) for every input, Taproot included.**
+  `SIGHASH_DEFAULT` (`0x00`) commits to the same data but is refused for this intent: the wallet
+  proves the exact flag, so an explicit or PSBT-embedded `0x00` on a P2TR input is blocked.
+- `fundingInputs` lists 1..60 distinct outpoints, the most the approval screen checks for
+  attached assets; a repeated outpoint is refused.
+- `slotCount` is 1..20.
+- `target.asset` must be a Counterparty asset name (named, numeric `A…`, or a subasset longname).
+  `target.collection` and `target.policy` are cleaned of control and bidi characters, collapsed to
+  one line, shortened, and shown in quotation marks as the website's own words.
 
 ##### Taproot commits with `inscription`
 
@@ -311,7 +535,7 @@ the message and show it before the user funds the commit. With `inscription`, th
 the user's own key: the user signs the commit and then the reveal, as two approvals. A site that
 builds and signs the reveal itself sends it with the commit as the `reveal` parameter instead. A
 commit sent with neither is not recognized as one and can only be reviewed as a payment to that
-address; see [Signing policy](docs/signing-policy.md#what-the-wallet-cannot-see) for why that matters.
+address (see [What the wallet cannot see](#what-the-wallet-cannot-see)).
 
 ```js
 // 1. The commit. The user's P2TR address funds the commit output (plus optional change to itself).
@@ -369,8 +593,8 @@ Build the reveal before asking for the commit, and ask for both in the same flow
 
 A site that builds and signs the reveal itself, such as one using Counterparty's own Taproot
 compose (which generates the reveal key, discards it, and returns the reveal signed as
-`signed_reveal_rawtransaction`), sends that reveal with the commit. The reveal publishes the
-message from the address that funded the commit, so signing the commit authorizes that message.
+`signed_reveal_rawtransaction`), sends that reveal with the commit, so the wallet can show the
+message before the user signs the commit.
 
 ```js
 // tmpData is Counterparty's compose response with encoding=taproot
@@ -406,9 +630,9 @@ shown. Each failure blocks signing with its reason:
   of its own.
 
 **What the approval shows.** On proof, the reveal's message becomes the transaction's Counterparty
-payload: the screen shows the decoded action from the user's address, as for an `OP_RETURN`
-message, with every message check applied (a sweep is still blocked). The commit output is listed
-as the BTC that funds the reveal. The reveal's own outputs are shown as proved facts, such as
+payload: the screen shows the decoded action, as for an `OP_RETURN` message, with every message
+check applied (a sweep is still blocked). The commit output is listed as the BTC that funds the
+reveal. The reveal's own outputs are shown as proved facts, such as
 "Second transaction: data only, no payment" or each payment with whether it goes to one of the
 user's addresses. A reveal that pays anywhere else is a warning that requires the review step.
 
@@ -434,16 +658,12 @@ output, the approval names it, with whether it is the user's address. If the out
 your flow, build the reveal so the user signs it (`inscription`).
 
 **Script-address payments without a reveal.** Payments to script addresses you don't control can
-carry risk for addresses holding Counterparty assets. When this wallet pays a P2TR, P2WSH or P2SH
-address (or another witness program) that is not its own and not a proved commit, from an address
-that holds Counterparty assets (a balance or an owned asset) or while spending asset-bearing
-UTXOs, the approval shows a **"Payment to a Script Address"** caution. It reads "Paying a script
-address can let its owner move your Counterparty assets from *address*. Only continue if you trust
-the recipient." and requires the review step. It is not a block: most such addresses are ordinary
-Taproot wallets, multisigs or vaults. It does not appear for key-hash destinations (P2PKH, P2WPKH),
-for payments another party funds, or when the paying address holds nothing. If the wallet cannot
-look the holdings up, it shows the caution. A proved `reveal` or `inscription` clears it for the
-commit output.
+carry risk for addresses that hold Counterparty assets; the wallet shows a caution in that case.
+The **"Payment to a Script Address"** caution names the script address in full and requires the
+review step. It is not a block: most such addresses are ordinary Taproot wallets, multisigs or
+vaults. It does not appear for key-hash destinations (P2PKH, P2WPKH). If the wallet cannot look the
+holdings up, it shows the caution. A proved `reveal` or `inscription` clears it for the commit
+output.
 
 #### `xcp_signBitcoinPsbt`
 
@@ -491,9 +711,9 @@ generate for the first dozen characters) must read differently from the real des
 
 Do not use this method to fund a Counterparty Taproot commit. The payment is exact, but a plain
 payment cannot show the message the commit funds. From an address holding Counterparty assets,
-such a payment carries the "Payment to a Script Address" caution (see [Taproot commits and reveals](#taproot-commits-and-reveals)). Send the commit
-through `xcp_signPsbt` with its `reveal` instead; passing `reveal` here is rejected with that
-instruction.
+such a payment carries the "Payment to a Script Address" caution (see
+[Taproot commits and reveals](#taproot-commits-and-reveals)). Send the commit through
+`xcp_signPsbt` with its `reveal` instead; passing `reveal` here is rejected with that instruction.
 
 The existing permissioned paired-address capability also applies to this method. A payment that
 spends both the same-index Legacy P2PKH and SegWit P2WPKH addresses must name both addresses and
@@ -532,9 +752,6 @@ const result = await xcpwallet.request({
 | `bulk-listing`, `bulk-attach`, `prepare-assets` | 1..8 of one action | One seller identity; distinct targets. |
 | `bulk-fanout` | 1..5 `prepare_bulk_fanout` | One seller and operation; ordered batch indices; distinct funding outpoints. |
 
-The proofs behind each kind are described in
-[Marketplace intents](docs/marketplace-intents.md#linked-bundles).
-
 **Advertised bundles.** `xcp_getAddresses` reports the linked kinds this wallet can prove at
 `signing.psbtBatch.marketplaceBundles`: currently `["attach-and-list", "authorize-offers",
 "fund-policy-offer"]` for a software wallet and `[]` for a hardware wallet, whose batch contract
@@ -542,6 +759,73 @@ accepts only `SIGHASH_ALL` with every external input pre-signed.
 `signing.psbtBatch.maxPolicyOfferAlternatives` gives the largest `fund-policy-offer` set (100 for a
 software wallet, 0 when unsupported). Send a linked bundle only when its kind is listed; an older
 wallet proves each item alone and blocks a listing whose input is its sibling attach's output.
+
+Each item is first proved on its own exactly as a single `xcp_signPsbt` request would be (see
+[Marketplace intents](#marketplace-intents-intent)); a bundle then adds the cross-item checks
+below.
+
+##### `attach-and-list`
+
+The listing's asset input is the attach's output, which is not broadcast yet, so no Counterparty
+ledger can report its balance. The wallet uses the attach instead, read from its own bytes and never
+from the intent: the outpoint is the attach PSBT's unsigned txid and the asset output index (the
+first non-OP_RETURN output, which an explicit `destination_vout` must equal); the asset and raw
+quantity are those of the locally decoded attach message; the owner and value are that output's
+script and amount. This evidence stands in for the ledger lookup on listing input 1 only when the
+attach item itself did not fail its proof, and only when listing input 1 is exactly that outpoint
+with that owner and value; any difference blocks the bundle. If the ledger does report assets on
+that outpoint, its answer is kept and checked like any other listing. A failed lookup is replaced
+only when it is explained by the attach itself (the explorer reports the attach txid as unknown, or
+the lookup names the attach as the pending transaction); an outage stays a retry. Because
+Counterparty also moves every balance on the attach's *inputs* onto the listed output, the listing
+is proved only after every attach input's parent transaction is confirmed at or below
+Counterparty's parsed block height and each input re-reads as asset-free; an unconfirmed or
+unindexed parent, or any unanswerable lookup, asks for a retry. The attach message's quantity and
+destination must be plain decimal digits, as Core requires. A `create_listing` outside this pair
+still requires the ledger, and a listing in this pair cannot carry `listingContext`. For a Legacy
+asset source the attach txid changes when it is signed; the wallet signs the attach first, confirms
+its unsigned bytes did not change, and moves listing input 1 to the final txid (same vout) before
+signing the listing, so the listing signature covers exactly the proved attach output.
+
+##### `authorize-offers`
+
+Several exact targets backed by one buyer funding UTXO, as returned by the marketplace's batch
+preflight. Each item is proved exactly as a single `authorize_exact_offer` (only input 0,
+`SIGHASH_ALL`, never `SINGLE|ANYONECANPAY`; fixed outputs, fee, and delivery; the target's attached
+asset from the ledger). The bundle additionally requires the same bidder,
+`bitcoinInvalidation.outpoint`, delivery, `priceSats`, and `platformFeeSats` on every item, and
+distinct `authorizationId`, `operationId`, target outpoint, and `expectedTxid`; no target outpoint
+may be the funding outpoint. Because every signature spends the same input 0, at most one can ever
+settle; the review states this once, with every target under its ledger-proved quantity, and labels
+the expiry "Latest expiry" when the targets' expiries differ. The acknowledgement policy is the
+single authorization's, applied per item.
+
+##### `acceptance-cpfp`
+
+An `accept_exact_offer` parent and a `bump_acceptance_fee` child, in that order. The child must
+claim exactly one asset, use `protocolVersion: 'exact_offer_v1'`, and spend the proved parent's
+seller-proceeds output 1. This kind is recognized by its shape (two requests, the first an
+`accept_exact_offer`) and is not listed in `marketplaceBundles`.
+
+##### `fund-policy-offer`
+
+The alternatives of one policy-offer funding set, one request per alternative parent. Every
+alternative spends the identical funding inputs and anchor, so at most one can ever be mined. The
+requests are admitted only when they share the operation, bidder, keys, delivery, funding inputs,
+anchor and marketplace fee, and name distinct parent transactions. Each request may repeat the
+complete claim (request *i* signs alternative *i*) or carry the shared claim with only its own
+alternative; the compact form keeps a 100-alternative set under the 1 MB request limit.
+`fund_policy_offer` is refused through `xcp_signPsbt`, because the funding inputs are proved once
+for the whole set.
+
+##### `bulk-listing`, `bulk-attach`, `prepare-assets`, `bulk-fanout`
+
+1..8 requests of one action (`create_listing`, `attach_for_listing`, `prepare_asset`, or
+`prepare_bulk_fanout`), with one seller identity and distinct targets. `bulk-listing` and
+`bulk-attach` requests carry distinct `operationId`s; `prepare-assets` requests share one operation
+and asset source. `bulk-fanout` takes at most 5 parents, all in one operation, with strictly
+increasing batch indices and distinct funding outpoints; a resumed fan-out may skip indices that
+already completed.
 
 ### Broadcasting
 
@@ -701,11 +985,11 @@ try {
 | Code | Meaning | What to do |
 |------|---------|------------|
 | `4001` | User rejected the request: declined it, closed the approval, unlock or setup window, or let it expire without answering (the unlock wait and every approval time out). Also sent when the approval window could not be opened, so nothing was shown or approved | Treat as a cancellation; resending may succeed |
-| `4100` | Not connected, or the wallet is locked / not set up | Call `xcp_requestAccounts`, or prompt to unlock |
+| `4100` | Not connected, the wallet is locked / not set up, or a request signs with a paired Legacy/SegWit address the site was not granted | Call `xcp_requestAccounts` (with `pairedAddresses` if needed), or prompt to unlock |
 | `4200` | Method not supported | Stop calling it |
 | `4900` | Wallet background was momentarily unavailable, or is still starting up (no `data`) | Transient — retry (the SDK retries a plain `4900` once; it never replays a signing request) |
 | `4900` + `data.reloadRequired: true` | This page's link to the extension is gone (the wallet was updated or reloaded) | Retrying cannot help: ask the user to reload the page. See [Liveness](#liveness) |
-| `-32602` | Invalid params: the request's shape or content is wrong (missing or mistyped fields, unsupported sighash, `signInputs` naming an input or address it cannot, parameters over 1MB, `fund_policy_offer` sent to `xcp_signPsbt`, a message signer outside the active pair, a PSBT that cannot be parsed, a malformed `intent`, a bundle over its request limit, a PSBT with no input owned by the active address, a sighash the active wallet cannot sign, a PSBT whose transaction header or funding does not fit its intent, a marketplace action the active wallet cannot sign) | Fix the request; resending it unchanged fails the same way. The message says what is wrong |
+| `-32602` | Invalid params: the request's shape or content is wrong (missing or mistyped fields, unsupported sighash, `signInputs` naming an input or address it cannot, parameters over 1MB, `fund_policy_offer` sent to `xcp_signPsbt`, a message signer outside the active pair, a PSBT that cannot be parsed, a malformed `intent`, a bundle over its request limit, a PSBT with no input owned by the active address, a sighash the active wallet cannot sign, a PSBT whose transaction header or funding does not fit its intent, a marketplace action the active wallet cannot sign, a malformed `reveal` or `inscription`, both at once, or either sent to `xcp_signBitcoinPsbt`) | Fix the request; resending it unchanged fails the same way. The message says what is wrong |
 | `-32005` | Limit exceeded ([EIP-1474](https://eips.ethereum.org/EIPS/eip-1474#error-codes)): a per-origin rate limit, too many signing requests already waiting for approval, or a connection request from the site already waiting | Wait and retry; the message says how long, or to finish an open request first |
 | `-32603` | Internal error | Generic failure; internal details are intentionally masked |
 
@@ -725,10 +1009,12 @@ its README for installation, configuration and the full API.
   `MessageSender`, requires the top frame, and rejects opaque or mismatched origins. Page
   JavaScript cannot supply or spoof it (see [ARCHITECTURE.md](ARCHITECTURE.md#website-requests))
 - **Connection proof**: A signature proving address ownership over a message format controlled by the extension
-- **Rate limiting**: Connection, broadcast, and API requests are rate-limited per origin. A signing
+- **Rate limiting**: Per origin and per minute: 5 `xcp_requestAccounts` calls, 10 broadcasts, and
+  100 requests of any kind, with a backstop of 500 requests a minute across all sites. A signing
   request is limited only when it would open an approval popup: at most 3 may be open per origin
-  at once, so send the next request after the user answers the last. Every limit rejects with
-  `-32005` and a message saying how long to wait
+  at once, so send the next request after the user answers the last, and at most 30 may open per
+  origin per minute. Every limit rejects with `-32005` and a message saying how long to wait, or to
+  finish an open request first
 - **Replay protection**: Broadcast transactions are tracked to prevent double-submission
 - **Parameter validation**: All inputs are type-checked and size-limited (max 1MB); a request that
   fails validation rejects with `-32602` and the reason
@@ -737,5 +1023,27 @@ its README for installation, configuration and the full API.
 - **Attached-asset disclosure**: Signed inputs are checked for attached Counterparty assets first,
   and an input that could not be checked is reported as unknown rather than as carrying nothing
 
-What the wallet verifies, and what it cannot see, is set out in
-[Signing policy](docs/signing-policy.md).
+### What the wallet cannot see
+
+The checks above read the transaction's bytes. Some things a transaction does are not in its
+bytes, and some facts come from services the wallet does not control.
+
+- **What a script address commits to.** A P2TR, P2WSH or P2SH address hides its script until the
+  output is spent, so the wallet cannot tell what a payment to one is for. Payments to script
+  addresses you don't control can carry risk for addresses that hold Counterparty assets; the
+  wallet shows a caution in that case. A site funding a Counterparty Taproot commit should send it
+  with [`inscription`](#taproot-commits-with-inscription) or
+  [`reveal`](#taproot-commits-and-reveals), so the wallet can show the message it pays for.
+- **Ledger facts.** Attached balances, asset divisibility and metadata, order and dispenser state
+  come from the configured Counterparty node. Divisibility moves the decimal point the screen shows.
+  An unavailable or inconsistent answer is shown as unknown or asks for a retry; it never reads as
+  "nothing attached".
+- **Events after signing.** The signature fixes the transaction, not the chain around it. An
+  oracle-priced dispenser is refused for this reason; a fixed-rate dispenser can still be emptied or
+  closed by another transaction before this one confirms.
+- **Broadcasts.** [`xcp_broadcastTransaction`](#xcp_broadcasttransaction) relays any signed
+  transaction for a connected site, without an approval; the review happens when a transaction is
+  signed.
+
+The trust boundaries behind these limits are described in [AUDIT.md](AUDIT.md#threat-model) and
+in the design note in [`unpack/verify.ts`](src/core/counterparty/unpack/verify.ts).
