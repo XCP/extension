@@ -67,7 +67,7 @@ export function usePendingDeltas(
       }
     };
 
-    read();
+    void read();
     return () => { isCancelled = true; };
   }, [address, reloadCount]);
 
@@ -108,7 +108,7 @@ export function usePendingCancellations(
       }
     };
 
-    read();
+    void read();
     return () => { isCancelled = true; };
   }, [address, reloadCount]);
 

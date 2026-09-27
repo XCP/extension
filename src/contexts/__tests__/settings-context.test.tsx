@@ -68,6 +68,19 @@ describe('SettingsContext', () => {
         expect(mockGetSettings).toHaveBeenCalled();
       });
     });
+
+    it('logs a failed read on mount instead of leaving the rejection unhandled', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const failure = new Error('background unavailable');
+      mockGetSettings.mockRejectedValueOnce(failure);
+
+      const { result } = renderHook(() => useSettings(), { wrapper: SettingsProvider });
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.settings).toEqual(DEFAULT_SETTINGS);
+      expect(consoleError).toHaveBeenCalledWith('Failed to load settings:', failure);
+      consoleError.mockRestore();
+    });
   });
 
   describe('Settings Updates', () => {
