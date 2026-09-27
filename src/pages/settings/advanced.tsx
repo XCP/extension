@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { HuntSettings } from "@/components/domain/zeld/hunt-settings";
 import { FiHelpCircle } from "@/components/icons";
+import { PriceCurrencySetting } from "@/components/settings/price-currency";
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
 import { ApiUrlInput } from "@/components/ui/inputs/api-url-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
@@ -24,7 +25,7 @@ const PATHS = {
  * AdvancedSettings component manages advanced wallet settings.
  *
  * Features:
- * - Configures auto-lock timer, MPMA sends, unconfirmed TXs, help text visibility, and analytics
+ * - Configures auto-lock timer, MPMA sends, unconfirmed TXs, price currency, help text visibility, and analytics
  * - Toggles help text display with a header button
  *
  * @returns {ReactElement} The rendered advanced settings UI.
@@ -166,6 +167,8 @@ export default function AdvancedSettingsPage(): ReactElement {
           onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
           showHelpText={shouldShowHelpText}
         />
+
+        <PriceCurrencySetting showHelpText={shouldShowHelpText} />
 
         <SettingSwitch
           label={t('settings_advanced_show_hide_help_text')}

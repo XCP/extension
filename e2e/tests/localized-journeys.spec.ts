@@ -93,8 +93,8 @@ walletTest('canonical slippage and BTC Max survive currency changes', async ({ c
   await callGalleryService(page, 'updateSettings', [{ showHelpText: true, defaultPoolSlippage: '1' }]);
   await page.reload();
   const settings = await context.newPage();
-  await settings.goto(page.url().split('#')[0] + '#/settings');
-  const controls = settings.locator('section[aria-label] select');
+  await settings.goto(page.url().split('#')[0] + '#/settings/advanced');
+  const controls = settings.locator('section[aria-labelledby="adv-privacy"] select');
   await expect(controls).toHaveCount(1);
   try {
     {

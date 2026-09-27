@@ -23,7 +23,9 @@ const fixture = vi.hoisted(() => ({
   preview: vi.fn(async (_wallet: string, format: string, index?: number) => `preview:${format}:${index}`),
   update: vi.fn(async () => {}),
   header: vi.fn(),
+  track: vi.fn(async (_event: string, _value?: number) => {}),
 }));
+vi.mock('@/platform/fathom', () => ({ analytics: { track: fixture.track } }));
 vi.mock('@/contexts/wallet-context', () => ({ useWallet: () => ({
   activeWallet: fixture.wallet,
   activeAddress: fixture.wallet.addresses.find((address) => address.address === fixture.activeAddress) ?? null,
@@ -118,6 +120,8 @@ describe('address-type listbox', () => {
     await act(async () => { fireEvent.keyDown(next, { key: 'Enter' }); });
     expect(fixture.update).toHaveBeenCalledTimes(1);
     expect(fixture.update).toHaveBeenCalledWith('wallet', AddressFormat.P2SH_P2WPKH);
+    // Same event as the header shortcut, naming only the surface.
+    expect(fixture.track).toHaveBeenCalledExactlyOnceWith('address_type_switched_settings');
   });
 
   it('does not re-save the format already in use', async () => {
@@ -127,6 +131,7 @@ describe('address-type listbox', () => {
     await act(async () => { fireEvent.click(selected); });
     await act(async () => { fireEvent.keyDown(selected, { key: ' ' }); });
     expect(fixture.update).not.toHaveBeenCalled();
+    expect(fixture.track).not.toHaveBeenCalled();
   });
 });
 
@@ -152,6 +157,7 @@ describe('Back after choosing a type', () => {
     openAt();
     fireEvent.click(await screen.findByText('Legacy (P2PKH)'));
     await screen.findByText('refused');
+    expect(fixture.track).not.toHaveBeenCalled();
     await back();
     expect(screen.getByTestId('where').textContent).toBe('/settings');
   });

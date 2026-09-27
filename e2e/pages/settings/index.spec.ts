@@ -25,6 +25,13 @@ walletTest.describe('Settings Index Page (/settings)', () => {
     await expect(settings.advancedOption(page)).toBeVisible({ timeout: 5000 });
   });
 
+  walletTest('settings page only links to subpages; price currency is under Advanced', async ({ page }) => {
+    await navigateTo(page, 'settings');
+    await expect(settings.advancedOption(page)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('combobox')).toHaveCount(0);
+    await expect(page.getByText('Price currency', { exact: true })).toHaveCount(0);
+  });
+
   walletTest('settings page shows About section', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.waitForLoadState('networkidle');

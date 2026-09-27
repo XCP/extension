@@ -268,8 +268,9 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     });
     const settingsPage = await context.newPage();
     try {
-      await settingsPage.goto(page.url().split('#')[0] + '#/settings');
-      const currency = settingsPage.getByRole('combobox', { name: 'Price currency', exact: true });
+      await settingsPage.goto(page.url().split('#')[0] + '#/settings/advanced');
+      const currency = settingsPage.getByRole('region', { name: 'Privacy & Display', exact: true })
+        .getByRole('combobox', { name: 'Price currency', exact: true });
       await expect(settingsPage.getByRole('combobox')).toHaveCount(1);
       for (const fiat of ['eur', 'jpy', 'cny', 'usd']) {
         await currency.selectOption(fiat);

@@ -124,6 +124,19 @@ walletTest.describe('Index Page', () => {
     });
   });
 
+  walletTest.describe('Current address', () => {
+    walletTest('shows just the address name above the address, with the type in the header shortcut', async ({ page }) => {
+      const card = index.currentAddress(page);
+      await expect(card).toBeVisible();
+      // The first line is the name alone; the address type is not appended to it.
+      await expect(card.locator('div').first()).toHaveText('Address 1');
+      await expect(card).not.toContainText('Native SegWit');
+      await expect(card).not.toContainText('·');
+      // The type is still one tap away, named on the header shortcut.
+      await expect(page.getByRole('button', { name: 'Change address type (current: Native SegWit (P2WPKH))' })).toBeVisible();
+    });
+  });
+
   walletTest.describe('Tabs', () => {
     walletTest('assets tab shows asset content when clicked', async ({ page }) => {
       const assetsTab = index.assetsTab(page);
