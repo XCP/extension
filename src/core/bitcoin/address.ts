@@ -5,16 +5,28 @@ import { HDKey } from '@scure/bip32';
 import { mnemonicToEntropy, mnemonicToSeedSync } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import * as btc from '@scure/btc-signer';
-import { AddressFormat } from '@/core/bitcoin/addressFormat';
+import {
+  AddressFormat,
+  DEFAULT_ADDRESS_FORMAT,
+  getAddressFormatLabel,
+  isCounterwalletFormat,
+  isFreewalletBIP39Format,
+  isSegwitFormat,
+} from '@/core/bitcoin/addressFormat';
 import { hasAddressActivity } from '@/core/bitcoin/balance';
 import { fetchTokenBalances } from '@/core/counterparty/api';
 import { getCounterwalletSeed } from '@/core/counterwallet';
 
-// Re-exported so existing importers keep working; the map itself lives in a leaf module.
-export { AddressFormat };
-
-/** One product default shared by every new-wallet and ambiguous-import entry point. */
-export const DEFAULT_ADDRESS_FORMAT: AddressFormat = AddressFormat.P2WPKH;
+// Re-exported so existing importers keep working; the format map and its pure helpers live in a
+// leaf module so the popup's first screen can use them without the derivation libraries below.
+export {
+  AddressFormat,
+  DEFAULT_ADDRESS_FORMAT,
+  getAddressFormatLabel,
+  isCounterwalletFormat,
+  isFreewalletBIP39Format,
+  isSegwitFormat,
+};
 
 /** Normalize only Bech32/Bech32m addresses; Base58 addresses remain case-sensitive. */
 export function normalizeAddressForComparison(address: string): string {
@@ -28,60 +40,6 @@ export function normalizeAddressForComparison(address: string): string {
 export const sameAddress = (left: string | undefined, right: string): boolean =>
   left !== undefined
   && normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
-
-/**
- * Human-readable label for an address format, shown wherever the UI names a
- * wallet's address type (settings, address list).
- */
-export function getAddressFormatLabel(format: AddressFormat): string {
-  switch (format) {
-    case AddressFormat.P2PKH:
-      return 'Legacy (P2PKH)';
-    case AddressFormat.P2WPKH:
-      return 'Native SegWit (P2WPKH)';
-    case AddressFormat.P2SH_P2WPKH:
-      return 'Nested SegWit (P2SH-P2WPKH)';
-    case AddressFormat.P2TR:
-      return 'Taproot (P2TR)';
-    case AddressFormat.Counterwallet:
-      return 'CounterWallet (P2PKH)';
-    case AddressFormat.CounterwalletSegwit:
-      return 'CounterWallet SegWit (P2WPKH)';
-    case AddressFormat.FreewalletBIP39:
-      return 'FreeWallet (P2PKH)';
-    case AddressFormat.FreewalletBIP39Segwit:
-      return 'FreeWallet SegWit (P2WPKH)';
-    default:
-      return format;
-  }
-}
-
-/**
- * Check if an address format is a SegWit format (P2WPKH, P2SH-P2WPKH, CounterwalletSegwit, or P2TR).
- */
-export function isSegwitFormat(format: AddressFormat): boolean {
-  return format === AddressFormat.P2WPKH ||
-         format === AddressFormat.P2SH_P2WPKH ||
-         format === AddressFormat.CounterwalletSegwit ||
-         format === AddressFormat.FreewalletBIP39Segwit ||
-         format === AddressFormat.P2TR;
-}
-
-/**
- * Check if an address format is a Counterwallet/FreeWallet style format.
- */
-export function isCounterwalletFormat(format: AddressFormat): boolean {
-  return format === AddressFormat.Counterwallet ||
-         format === AddressFormat.CounterwalletSegwit;
-}
-
-/**
- * Check if an address format is a FreeWallet BIP39 style format.
- */
-export function isFreewalletBIP39Format(format: AddressFormat): boolean {
-  return format === AddressFormat.FreewalletBIP39 ||
-         format === AddressFormat.FreewalletBIP39Segwit;
-}
 
 /**
  * Derive the appropriate seed from a mnemonic based on the address format.

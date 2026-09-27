@@ -1,4 +1,4 @@
-import { AddressFormat, getAddressFormatLabel } from '@/core/bitcoin/address';
+import { AddressFormat, getAddressFormatLabel } from '@/core/bitcoin/addressFormat';
 import { t } from '@/i18n';
 
 /** Translate presentation only; saved formats and protocol identifiers stay unchanged. */
