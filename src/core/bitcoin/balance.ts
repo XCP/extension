@@ -101,7 +101,7 @@ export async function hasAddressActivity(address: string, timeoutMs = 5000): Pro
 
     for (const endpoint of endpoints) {
       try {
-        const resp = await apiClient.get<Record<string, any>>(endpoint, { timeout: timeoutMs, retries: 0 });
+        const resp = await apiClient.get<Record<string, any>>(endpoint, { timeout: timeoutMs, retries: 0, reportStatus: false });
         const data = resp.data;
 
         // Check if address has any transaction history
@@ -160,7 +160,7 @@ export async function fetchBTCBalance(address: string, timeoutMs = 5000): Promis
 
       for (const endpoint of endpoints) {
         try {
-          const resp = await apiClient.get<unknown>(endpoint, { timeout: timeoutMs, retries: 0 });
+          const resp = await apiClient.get<unknown>(endpoint, { timeout: timeoutMs, retries: 0, reportStatus: false });
           const parsed = parseBTCBalance(endpoint, resp.data);
           if (parsed !== null && parsed !== undefined && typeof parsed === 'number' && !Number.isNaN(parsed)) {
             return parsed;
