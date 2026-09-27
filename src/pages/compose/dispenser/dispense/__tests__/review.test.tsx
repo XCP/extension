@@ -70,4 +70,24 @@ describe('complete dispense purchase review', () => {
     expect(screen.queryByText('You Receive:')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Go back to edit transaction' })).toBeEnabled();
   });
+
+  it('refuses a payment that would also trigger an oracle-priced dispenser at the address', async () => {
+    const fixed = rows[0]!;
+    const oracle = { ...rows[1]!, asset: 'ORACLED', oracle_address: '1oracle' };
+    vi.mocked(apiClient.get).mockImplementation(async url => (url.endsWith('/dispensers')
+      ? { data: { result: [fixed, oracle], result_count: 2 } }
+      : { data: { result: [] } }) as any);
+    renderReview();
+    await screen.findByText(/would also trigger an oracle-priced dispenser \(ORACLED\)/);
+    expect(screen.getByRole('button', { name: 'Sign and broadcast transaction' })).toBeDisabled();
+  });
+
+  it('signs a fixed-rate dispense with no oracle dispenser at the address', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async url => (url.endsWith('/dispensers')
+      ? { data: { result: [rows[0]!], result_count: 1 } }
+      : { data: { result: [] } }) as any);
+    renderReview();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sign and broadcast transaction' })).toBeEnabled());
+    expect(screen.queryByText(/oracle-priced/)).not.toBeInTheDocument();
+  });
 });

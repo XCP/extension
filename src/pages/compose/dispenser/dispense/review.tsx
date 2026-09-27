@@ -145,6 +145,12 @@ export function ReviewDispense({
     minimumFractionDigits: 8
   });
   const btcInFiat = btcPrice ? btcInBtc * btcPrice : null;
+  // The form hides oracle-only dispensers, but one can share an address with a fixed-rate dispenser
+  // and trigger on the same payment. This wallet does not sign those (oraclePolicy.ts).
+  const oracleAssets = payouts.filter(payout => payout.oraclePriced).map(payout => payout.asset);
+  const oracleError = oracleAssets.length > 0
+    ? t('dispense_oracle_refused', [oracleAssets.join(', ')])
+    : null;
 
   const customFields = [];
   if (isLoadingInfo) {
@@ -247,9 +253,9 @@ export function ReviewDispense({
       onSign={onSign}
       onBack={onBack}
       customFields={customFields}
-      error={error || lookupError}
+      error={error || lookupError || oracleError}
       isSigning={isSigning}
-      signDisabled={isLoadingInfo || !!lookupError}
+      signDisabled={isLoadingInfo || !!lookupError || !!oracleError}
     />
   );
 }
