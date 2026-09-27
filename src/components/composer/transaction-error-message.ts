@@ -25,6 +25,7 @@ export function transactionErrorMessage(error: unknown): string | undefined {
       case 'asset_divisibility_unknown': return t('safety_divisibility_unknown');
       case 'fraction_inexact': return t('safety_fraction_inexact');
       case 'fee_invalid': return t('safety_fee_invalid');
+      case 'memo_hex_invalid': return t('safety_memo_hex_invalid');
     }
   }
   return zeldErrorMessage(error);

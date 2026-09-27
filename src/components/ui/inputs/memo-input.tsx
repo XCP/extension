@@ -1,7 +1,7 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { validateMemo as validateMemoUtil } from "@/core/validation/memo";
+import { hasHexPrefix, isHexMemo, validateMemoLength, validateMemo as validateMemoUtil } from "@/core/validation/memo";
 
 import { t } from '@/i18n';
 
@@ -15,11 +15,17 @@ interface MemoInputProps {
   className?: string;
   name?: string;
   maxBytes?: number;
+  /**
+   * Whether a 0x/0X prefix sends the memo as hex bytes. True for send and sweep memos. A destroy
+   * tag is always sent as text, so its value is counted and described as text.
+   */
+  hexMemos?: boolean;
 }
 
 /**
  * MemoInput component for entering transaction memos with validation.
  * Validates memo length in bytes (default 34 bytes as per Counterparty protocol).
+ * A memo is hex only when written with a 0x/0X prefix; anything else is text.
  */
 export function MemoInput({
   value = "",
@@ -31,6 +37,7 @@ export function MemoInput({
   className = "",
   name = "memo",
   maxBytes = 34,
+  hexMemos = true,
 }: MemoInputProps): ReactElement {
   const [memo, setMemo] = useState(value);
   const [isValid, setIsValid] = useState(true);
@@ -40,6 +47,7 @@ export function MemoInput({
     if (required && !memoValue.trim()) {
       return false;
     }
+    if (!hexMemos) return validateMemoLength(memoValue, false, maxBytes);
     const result = validateMemoUtil(memoValue, { maxBytes });
     return result.isValid;
   };
@@ -75,6 +83,12 @@ export function MemoInput({
     onValidationChange?.(valid);
   }, []);
 
+  // Only shown for a 0x memo: the one input that changes how the memo is encoded.
+  const hexNote = hexMemos && hasHexPrefix(memo)
+    ? (isHexMemo(memo) ? t('inputs_memo_input_sent_as_hex') : t('safety_memo_hex_invalid'))
+    : null;
+  const describedBy = [showHelpText && "memo-description", hexNote && "memo-hex-note"].filter(Boolean).join(" ");
+
   return (
     <Field className={className}>
       <Label className="text-sm font-medium text-gray-700">
@@ -93,12 +107,19 @@ export function MemoInput({
         }`}
         disabled={disabled}
         aria-invalid={!isValid}
-        aria-describedby={showHelpText ? "memo-description" : undefined}
+        aria-describedby={describedBy || undefined}
       />
+
+      {hexNote && (
+        <p id="memo-hex-note" className={`mt-1 text-xs ${isValid ? "text-gray-500" : "text-red-600"}`}>
+          {hexNote}
+        </p>
+      )}
 
       {showHelpText && (
         <Description id="memo-description" className="mt-2 text-sm text-gray-500">
           {t('inputs_memo_input_optional_memo_to_include')}
+          {hexMemos && <> {t('inputs_memo_input_hex_help')}</>}
         </Description>
       )}
     </Field>

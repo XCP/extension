@@ -259,6 +259,8 @@ export interface OwnedAsset {
   supply_normalized: DisplayUnits;
   description: string;
   locked: boolean;
+  /** Description frozen — core refuses any later issuance that carries a description. */
+  description_locked?: boolean;
 }
 
 /**

@@ -55,7 +55,7 @@ async function deriveKeyInWorker(
 }
 
 // Worker message handler
-self.addEventListener('message', async (e: MessageEvent<DeriveKeyMessage>) => {
+async function handleMessage(e: MessageEvent<DeriveKeyMessage>): Promise<void> {
   try {
     const { password, salt, iterations } = e.data;
     const keyBytes = await deriveKeyInWorker(password, salt, iterations);
@@ -71,4 +71,6 @@ self.addEventListener('message', async (e: MessageEvent<DeriveKeyMessage>) => {
       error: error instanceof Error ? error.message : 'Key derivation failed',
     });
   }
-});
+}
+
+self.addEventListener('message', (e: MessageEvent<DeriveKeyMessage>) => void handleMessage(e));

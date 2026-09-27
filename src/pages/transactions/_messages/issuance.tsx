@@ -2,23 +2,29 @@ import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { displayLocale, formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
-
 import { t } from '@/i18n';
+import { eventParams, messageData } from "@/pages/transactions/_messages/facts";
+
 /**
  * Renders detailed information for issuance transactions
  */
 export function issuance(tx: Transaction): Array<{ label: string; value: string | ReactNode }> {
-  // Try to get params from unpacked_data first, then check events
-  let params = tx.unpacked_data?.params;
-  if (!params) {
-    const issuanceEvent = tx.events?.find((e: any) =>
-      e.event === 'ISSUANCE' ||
-      e.event === 'ASSET_ISSUANCE' ||
-      e.event === 'ASSET_CREATION'
-    );
-    params = issuanceEvent?.params;
-  }
+  // The message holds what was asked. Its ASSET_ISSUANCE event records what it did: `asset_events`
+  // (creation, transfer, lock_quantity, ...), the new owner of a transfer (`issuer`), and the
+  // asset's long name, which a description change or reissuance of a subasset does not repeat.
+  const message = messageData(tx);
+  const event = eventParams(tx, 'ASSET_ISSUANCE')[0] ?? eventParams(tx, 'ASSET_TRANSFER')[0];
+  const params = message ?? event;
   if (!params) return [];
+  const assetEvents = new Set(String(event?.asset_events ?? '').split(/[\s,]+/).filter(Boolean));
+  const created = assetEvents.has('creation') || eventParams(tx, 'ASSET_CREATION').length > 0;
+  const longname: unknown = params.subasset_longname || event?.asset_longname
+    || (typeof params.asset === 'string' && params.asset.includes('.') ? params.asset : undefined);
+  const assetName: string = typeof longname === 'string' && longname ? longname : params.asset;
+  const transferDestination: unknown = params.transfer_destination
+    || (event?.transfer === true && typeof event.issuer === 'string' ? event.issuer : undefined);
+  const lock: unknown = params.lock ?? (assetEvents.has('lock_quantity') ? true : undefined);
+  const reset = params.reset === true || assetEvents.has('reset');
 
   // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.divisible ?? true;
@@ -30,18 +36,18 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
   
   // Determine issuance type
   let issuanceType = t('messages_issuance_asset_issuance');
-  if (params.transfer_destination) {
+  if (transferDestination) {
     issuanceType = t('messages_issuance_ownership_transfer');
-  } else if (!hasSupply && params.description === "") {
+  } else if (reset) {
     issuanceType = t('messages_issuance_supply_reset');
-  } else if (!hasSupply && params.lock) {
-    issuanceType = t('messages_issuance_supply_lock');
-  } else if (params.description && !hasSupply) {
-    issuanceType = t('messages_issuance_description_update');
-  } else if (hasSupply && params.asset && params.asset.includes('.')) {
-    issuanceType = t('messages_issuance_subasset_creation');
+  } else if (created) {
+    issuanceType = longname ? t('messages_issuance_subasset_creation') : t('messages_issuance_asset_issuance');
   } else if (hasSupply) {
     issuanceType = t('messages_issuance_supply_increase');
+  } else if (lock) {
+    issuanceType = t('messages_issuance_supply_lock');
+  } else {
+    issuanceType = t('messages_issuance_description_update');
   }
   
   fields.push({
@@ -51,7 +57,7 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
   
   fields.push({
     label: t('common_asset'),
-    value: params.asset,
+    value: assetName,
   });
   
   // Show quantity if not zero
@@ -72,10 +78,10 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
     value: isDivisible ? t('messages_issuance_yes_8_decimal_places') : t('messages_issuance_no_whole_units_only'),
   });
   
-  if (params.lock !== undefined) {
+  if (lock !== undefined) {
     fields.push({
       label: t('messages_issuance_supply_locked'),
-      value: params.lock ? "🔒 Yes" : "🔓 No",
+      value: lock ? "🔒 Yes" : "🔓 No",
     });
   }
   
@@ -92,20 +98,20 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
   }
   
   // Transfer destination
-  if (params.transfer_destination) {
+  if (typeof transferDestination === 'string') {
     fields.push({
       label: t('messages_issuance_transfer_to'),
       value: (
         <span className="text-xs break-all">
-          {params.transfer_destination}
+          {transferDestination}
         </span>
       ),
     });
   }
   
   // Parent asset for subassets
-  if (params.asset && params.asset.includes('.')) {
-    const parentAsset = params.asset.split('.')[0];
+  if (assetName && assetName.includes('.')) {
+    const parentAsset = assetName.split('.')[0];
     fields.push({
       label: t('messages_issuance_parent_asset'),
       value: parentAsset,

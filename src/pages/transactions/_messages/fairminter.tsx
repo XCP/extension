@@ -7,14 +7,20 @@ import {
 } from "@/core/counterparty/fairminterModel";
 import { formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
-
 import { t } from '@/i18n';
+import { eventParams, messageData } from "@/pages/transactions/_messages/facts";
+
 /**
  * Renders detailed information for fairminter creation transactions
  */
 export function fairminter(tx: Transaction): Array<{ label: string; value: string | ReactNode }> {
-  const params = tx.unpacked_data?.params;
-  if (!params) return [];
+  // The message holds the terms; its state is on the NEW_FAIRMINTER event (the message's own
+  // `status` would be the parse result).
+  const message = messageData(tx);
+  const created = eventParams(tx, 'NEW_FAIRMINTER')[0];
+  if (!message && !created) return [];
+  const params = { ...message, ...created };
+  const status = created?.status ?? message?.status;
   
   const isDivisible = params.divisible ?? true;
   
@@ -29,9 +35,9 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     },
     {
       label: t('common_status'),
-      value: params.status === 0 ? "🟢 Open" : 
-             params.status === 1 ? "🔴 Closed" : 
-             params.status === 2 ? "⚠️ Pending" : "Unknown",
+      value: status === 'open' || status === 0 ? "🟢 Open" :
+             status === 'closed' || status === 1 ? "🔴 Closed" :
+             status === 'pending' || status === 2 ? "⚠️ Pending" : "Unknown",
     },
   ];
 

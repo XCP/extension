@@ -32,7 +32,7 @@ function ComposeDispenserPage() {
       <Composer<DispenserOptions>
         composeType="dispenser"
         composeApiMethod={composeDispenser}
-        initialTitle={isRefill ? t('compose_dispenser_refill_dispenser') : "Dispenser"}
+        initialTitle={isRefill ? t('compose_dispenser_refill_dispenser') : t('common_dispenser')}
         initialFormData={initialFormData}
         renderForm={(props) => <DispenserForm {...props} asset={asset || ""} isRefill={isRefill} />}
         renderReview={(props) => <ReviewDispenser {...props} asset={asset || ""} />}

@@ -167,6 +167,7 @@ export function DestroySupplyForm({
             value={tag}
             onChange={setTag}
             name="tag"
+            hexMemos={false}
             showHelpText={showHelpText}
             disabled={pending}
           />

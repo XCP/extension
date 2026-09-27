@@ -83,25 +83,3 @@ export const ErrorAlert = memo<ErrorAlertProps>(({
 });
 
 ErrorAlert.displayName = 'ErrorAlert';
-
-/**
- * InlineError Component - For form field errors
- * 
- * A lighter-weight error display for inline form validation
- */
-export const InlineError = memo<{ message: string; className?: string }>(({ 
-  message, 
-  className = '' 
-}) => {
-  return (
-    <p 
-      className={`text-red-500 text-sm mt-1 ${className}`}
-      role="alert"
-      aria-live="polite"
-    >
-      {message}
-    </p>
-  );
-});
-
-InlineError.displayName = 'InlineError';
