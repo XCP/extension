@@ -6131,13 +6131,13 @@
     "message": "ZELD を小額出力に移す"
   },
   "zeld_park_description": {
-    "message": "最初の出力を相手に支払う必要がある取引で、残りの BTC を使えるようにします。"
+    "message": "他の BTC を支払いに使えるようにします。"
   },
   "zeld_about": {
     "message": "ZeldHash について"
   },
   "zeld_about_description": {
-    "message": "希少なトランザクション ID で ZELD を獲得する仕組み。zeldhash.com を開きます。"
+    "message": "希少なトランザクション ID で ZELD を獲得する仕組み。"
   },
   "zeld_balance": {
     "message": "ZELD 残高"
