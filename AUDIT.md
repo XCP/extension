@@ -258,7 +258,8 @@ every `analytics.track` call in `src`:
   `consolidate_ineligible`, `consolidate_fetch_error`, `consolidate_stale_retry`,
   `consolidate_report_failed`, `consolidate_error_<category>`
 - Wallets and addresses: `wallet_created`, `wallet_imported`, `private_key_imported`,
-  `gift_card_imported`, `address_switched`
+  `gift_card_imported`, `address_switched`, `address_type_switched_<surface>` (`header` for the
+  home header shortcut, `settings` for Settings > Address type)
 - Website connections and requests: `connection_request`, `connection_established`,
   `connection_disconnected`, `connection_disconnect_all` (with the number of sites),
   `request_approved`, `request_rejected`, `message_signed`, `transaction_signed`, `psbt_signed`,

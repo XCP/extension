@@ -24,8 +24,10 @@ const fixture = vi.hoisted(() => {
     onlyOneFormat: false,
     preview: vi.fn(async (_wallet: string, format: string, index?: number) => `address-for-${format}-at-${index}`),
     update: vi.fn(async (_wallet: string, _format: string) => {}),
+    track: vi.fn(async (_event: string, _value?: number) => {}),
   };
 });
+vi.mock('@/platform/fathom', () => ({ analytics: { track: fixture.track } }));
 
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
@@ -215,6 +217,8 @@ describe('AddressTypeShortcut popover', () => {
     expect(fixture.update).toHaveBeenCalledTimes(1);
     expect(fixture.update).toHaveBeenCalledWith('wallet', AddressFormat.P2TR);
     await waitFor(popoverClosed);
+    // One event naming only the surface: never the format, wallet or address.
+    expect(fixture.track).toHaveBeenCalledExactlyOnceWith('address_type_switched_header');
   });
 
   it('closes without switching when Enter is pressed on the current type', async () => {
@@ -253,6 +257,8 @@ describe('AddressTypeShortcut popover', () => {
     expect(fixture.update).toHaveBeenCalledTimes(1);
     expect(fixture.update).toHaveBeenCalledWith('wallet', AddressFormat.P2TR);
     await waitFor(popoverClosed);
+    // One event naming only the surface: never the format, wallet or address.
+    expect(fixture.track).toHaveBeenCalledExactlyOnceWith('address_type_switched_header');
   });
 
   it('keeps the popover open, reverts the selection and shows the error when the switch fails', async () => {
@@ -262,6 +268,7 @@ describe('AddressTypeShortcut popover', () => {
     await act(async () => { fireEvent.click(option(list, /Legacy/)); });
     expect(await screen.findByText('Wallet is locked. Please unlock first.')).toBeInTheDocument();
     expect(selectedOption(list)).toHaveTextContent('Native SegWit (P2WPKH)');
+    expect(fixture.track).not.toHaveBeenCalled();
   });
 });
 

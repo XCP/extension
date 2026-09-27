@@ -17,6 +17,9 @@ for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) walletTest.de
     const nameLabel = page.getByRole('button', { name: message('app_select_wallet'), exact: true }).locator('span');
     expect(await nameLabel.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await expect(page.getByText(addressLabel, { exact: true })).toBeVisible();
+    // The home card's first line is the localized name alone, with no address type appended.
+    await expect(page.getByRole('button', { name: message('common_current_address'), exact: true }).locator('div').first())
+      .toHaveText(addressLabel);
     await page.screenshot({ path: info.outputPath(`${language}-home.png`) });
     for (const [route, label] of [['/keychain/wallets', walletLabel], ['/addresses', addressLabel], ['/addresses/details', addressLabel]] as const) {
       await page.goto(`${base}#${route}`);

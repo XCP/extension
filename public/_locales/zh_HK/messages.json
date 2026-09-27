@@ -4373,6 +4373,9 @@
   "settings_advanced_enable_this_to_chain_transactions": {
     "message": "允許使用尚未確認交易的輸出，繼續發送交易。"
   },
+  "settings_advanced_price_currency_description": {
+    "message": "錢包中估算金額所使用的幣別。"
+  },
   "settings_advanced_privacy_display": {
     "message": "隱私與顯示"
   },

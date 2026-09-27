@@ -4373,6 +4373,9 @@
   "settings_advanced_enable_this_to_chain_transactions": {
     "message": "未承認のトランザクションの出力を、次のトランザクションで使用する場合に有効にします。"
   },
+  "settings_advanced_price_currency_description": {
+    "message": "ウォレット全体で概算額の表示に使う通貨です。"
+  },
   "settings_advanced_privacy_display": {
     "message": "プライバシーと表示"
   },

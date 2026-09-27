@@ -5820,6 +5820,10 @@
     "message": "Enable this to chain transactions that haven't been confirmed yet.",
     "description": "pages/settings/advanced.tsx"
   },
+  "settings_advanced_price_currency_description": {
+    "message": "The currency used for estimated values across the wallet.",
+    "description": "pages/settings/advanced.tsx: help text under the Price currency control in Privacy & Display."
+  },
   "settings_advanced_privacy_display": {
     "message": "Privacy & Display",
     "description": "pages/settings/advanced.tsx"
@@ -6830,7 +6834,7 @@
   },
   "display_preferences_fiat": {
     "message": "Price currency",
-    "description": "Display preference control."
+    "description": "pages/settings/advanced.tsx: label of the price currency control in Privacy & Display."
   },
   "display_preferences_save_failed": {
     "message": "Could not save this preference. Please try again.",
