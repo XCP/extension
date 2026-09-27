@@ -3,9 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { CounterpartyApiError, UnofferedInputsError } from '@/core/errors';
 import {
+  carriesTaprootReveal,
   chooseComposeEncoding,
   chooseEncoding,
   composeWithEncoding,
+  hasUnsignedTaprootReveal,
   isTaprootEligibleMessage,
   isTaprootEncodingSource,
   OP_RETURN_MESSAGE_MAX_BYTES,
@@ -188,6 +190,87 @@ describe('composing with the chosen encoding', () => {
       throw new CounterpartyApiError('refused', 'send');
     });
     await expect(composeWithEncoding(compose, data, 'taproot', controller.signal)).rejects.toThrow('refused');
+    expect(compose).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** The shape Core 11.5 returns for a Taproot compose: an unsigned reveal and what signing it needs. */
+const UNSIGNED_REVEAL = {
+  rawtransaction: '02',
+  envelope_script: '0063',
+  reveal_rawtransaction: '0200000001',
+  reveal_control_block: 'c0',
+  reveal_pubkey: '02'.padEnd(66, '1'),
+  reveal_lock_scripts: ['5120'],
+  reveal_inputs_values: [330],
+};
+
+describe('a Taproot compose whose reveal comes back unsigned (Core 11.5)', () => {
+  it('is recognized by the unsigned reveal fields with no signed reveal', () => {
+    expect(hasUnsignedTaprootReveal(UNSIGNED_REVEAL)).toBe(true);
+    const { reveal_rawtransaction: _raw, ...controlBlockOnly } = UNSIGNED_REVEAL;
+    expect(hasUnsignedTaprootReveal(controlBlockOnly)).toBe(true);
+    const { reveal_control_block: _block, ...rawOnly } = UNSIGNED_REVEAL;
+    expect(hasUnsignedTaprootReveal(rawOnly)).toBe(true);
+  });
+
+  it('is not the 11.3 shape, a half-returned compose, or a default compose', () => {
+    // 11.3: envelope plus signed reveal.
+    expect(hasUnsignedTaprootReveal({ rawtransaction: '02', envelope_script: '0063', signed_reveal_rawtransaction: '02' })).toBe(false);
+    // A signed reveal alongside the new fields is still the signed shape the wallet verifies.
+    expect(hasUnsignedTaprootReveal({ ...UNSIGNED_REVEAL, signed_reveal_rawtransaction: '02' })).toBe(false);
+    // Envelope alone, or with only a pubkey, stays a half-returned compose.
+    expect(hasUnsignedTaprootReveal({ rawtransaction: '02', envelope_script: '0063' })).toBe(false);
+    expect(hasUnsignedTaprootReveal({ rawtransaction: '02', envelope_script: '0063', reveal_pubkey: '02' })).toBe(false);
+    expect(hasUnsignedTaprootReveal({ rawtransaction: '02', reveal_rawtransaction: '', reveal_control_block: 7 })).toBe(false);
+    expect(hasUnsignedTaprootReveal({ rawtransaction: '02' })).toBe(false);
+    expect(hasUnsignedTaprootReveal(null)).toBe(false);
+    expect(hasUnsignedTaprootReveal('reveal_rawtransaction')).toBe(false);
+  });
+
+  it('still marks the commit as one a reveal spends', () => {
+    expect(carriesTaprootReveal(UNSIGNED_REVEAL)).toBe(true);
+    expect(carriesTaprootReveal({ signed_reveal_rawtransaction: '02' })).toBe(true);
+    expect(carriesTaprootReveal({ envelope_script: '0063' })).toBe(true);
+    expect(carriesTaprootReveal({ rawtransaction: '02' })).toBe(false);
+    expect(carriesTaprootReveal(undefined)).toBe(false);
+  });
+
+  const data = { sourceAddress: P2WPKH, sat_per_vbyte: '2' };
+
+  it('is composed again on the default encoding when the wallet chose Taproot itself', async () => {
+    const compose = vi.fn()
+      .mockResolvedValueOnce({ result: UNSIGNED_REVEAL })
+      .mockResolvedValueOnce({ result: { rawtransaction: 'default' } });
+    await expect(composeWithEncoding(compose, data, 'taproot')).resolves.toEqual({ result: { rawtransaction: 'default' } });
+    expect(compose).toHaveBeenCalledTimes(2);
+    expect(compose).toHaveBeenNthCalledWith(1, { ...data, encoding: 'taproot' });
+    expect(compose).toHaveBeenNthCalledWith(2, data);
+  });
+
+  it('is returned untouched when the request chose its own encoding, for the composer to refuse', async () => {
+    const response = { result: UNSIGNED_REVEAL };
+    const compose = vi.fn().mockResolvedValue(response);
+    const explicit = { ...data, encoding: 'taproot', inscription: 'aGk=' };
+    await expect(composeWithEncoding(compose, explicit, undefined)).resolves.toBe(response);
+    expect(compose).toHaveBeenCalledTimes(1);
+    expect(compose).toHaveBeenCalledWith(explicit);
+  });
+
+  it('leaves an 11.3 Taproot compose alone', async () => {
+    const response = { result: { rawtransaction: '02', envelope_script: '0063', signed_reveal_rawtransaction: '02' } };
+    const compose = vi.fn().mockResolvedValue(response);
+    await expect(composeWithEncoding(compose, data, 'taproot')).resolves.toBe(response);
+    expect(compose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not compose again once the compose was abandoned', async () => {
+    const controller = new AbortController();
+    const compose = vi.fn().mockImplementation(async () => {
+      controller.abort();
+      return { result: UNSIGNED_REVEAL };
+    });
+    await expect(composeWithEncoding(compose, data, 'taproot', controller.signal)).rejects.toThrow();
     expect(compose).toHaveBeenCalledTimes(1);
   });
 });

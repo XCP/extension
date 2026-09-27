@@ -5,6 +5,7 @@ import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import { recordComposerChoices } from '@/core/counterparty/composerChoices';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
+import { carriesTaprootReveal } from '@/core/counterparty/taprootEncoding';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError, UnofferedInputsError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
@@ -142,6 +143,17 @@ export interface ComposeResult {
    */
   envelope_script?: string;
   signed_reveal_rawtransaction?: string;
+  /**
+   * Core 11.5 returns an unsigned reveal for Taproot composes: these replace
+   * `signed_reveal_rawtransaction`, leaving the reveal for the wallet to sign. The wallet does not
+   * sign reveals yet, so a result carrying them is recomposed with the default encoding or refused
+   * (`taprootEncoding.ts`, `hasUnsignedTaprootReveal`); nothing here is signed or broadcast.
+   */
+  reveal_rawtransaction?: string;
+  reveal_control_block?: string;
+  reveal_pubkey?: string;
+  reveal_lock_scripts?: string[];
+  reveal_inputs_values?: number[];
   /**
    * Added by the wallet, never by the composer: the reveal's miner fee, computed from the commit
    * output it spends and its own outputs once both were verified. `btc_fee` is the commit's alone.
@@ -647,10 +659,10 @@ export async function composeTransaction<T extends Record<string, unknown>>(
     return composed;
   };
 
-  // A Taproot compose is never rearranged: its reveal is already signed over the commit's txid and
-  // spends output 0, so moving change ahead of the commit output would strand the reveal.
+  // A Taproot compose is never rearranged: its reveal spends output 0 of the commit's txid, so
+  // moving change ahead of the commit output would strand the reveal.
   const arrange = (response: ApiResponse): ApiResponse =>
-    layout.changeFirst && !response.result?.signed_reveal_rawtransaction
+    layout.changeFirst && !carriesTaprootReveal(response.result)
       ? withComposedChangeFirst(response, sourceAddress, layout)
       : response;
 

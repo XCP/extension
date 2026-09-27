@@ -58,6 +58,18 @@ describe('huntZeldForCompose', () => {
     expect(result.result.rawtransaction).toBe(response.result.rawtransaction);
     expect(result.result.zeld_hunt?.reason).toContain('reveal');
   });
+  it('preserves a commit txid when Core 11.5 returned its reveal unsigned', async () => {
+    const response = responseFor(enhancedSendRawTx());
+    response.result.envelope_script = '0063';
+    response.result.reveal_rawtransaction = 'unsigned child';
+    response.result.reveal_control_block = 'c0';
+    const hunt = vi.fn();
+    const result = await huntZeldForCompose(response, { ...context, hunt });
+    expect(hunt).not.toHaveBeenCalled();
+    expect(result.result.rawtransaction).toBe(response.result.rawtransaction);
+    expect(result.result.zeld_hunt?.status).toBe('skipped');
+    expect(result.result.zeld_hunt?.reason).toContain('reveal');
+  });
   it('does nothing when the budget is zero', async () => {
     const response = responseFor(enhancedSendRawTx());
     const hunt = vi.fn();

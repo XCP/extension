@@ -5,6 +5,7 @@
  * out in order.
  */
 
+import * as btc from '@scure/btc-signer';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,6 +18,7 @@ import {
   tamperedTaprootCompose,
 } from '@/core/counterparty/__tests__/taprootFixtures';
 import type { ApiResponse } from '@/core/counterparty/compose';
+import { arc4, bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
 import { CounterpartyApiError } from '@/core/errors';
 import { HUNTS_WHILE_SIGNING } from '@/core/zeld/eligibility';
 import { ComposerProvider } from '../composer-context';
@@ -98,6 +100,66 @@ function responseFor(fixture: TaprootFixture): ApiResponse {
       name: 'send',
     },
   };
+}
+
+/**
+ * The same send as Core 11.5 returns it for `encoding=taproot`: the reveal comes back unsigned,
+ * with what signing it needs, and no `signed_reveal_rawtransaction`.
+ */
+function unsignedRevealResponseFor(fixture: TaprootFixture): ApiResponse {
+  const response = responseFor(fixture);
+  delete response.result.signed_reveal_rawtransaction;
+  const reveal = btc.Transaction.fromRaw(hexToBytes(fixture.signed_reveal_rawtransaction), { allowUnknownOutputs: true });
+  response.result.reveal_rawtransaction = reveal.unsignedTx ? bytesToHex(reveal.unsignedTx) : '02';
+  response.result.reveal_control_block = 'c0f8fdbe844deb9236113d98b905473f99d0ce51cb88dfa981223f91e705c691cf';
+  response.result.reveal_pubkey = '02f8fdbe844deb9236113d98b905473f99d0ce51cb88dfa981223f91e705c691cf';
+  response.result.reveal_lock_scripts = ['5120fb639eba0e0859d5e65fe0058c985ac6606d6049204380406fa7b8232007cdaf'];
+  response.result.reveal_inputs_values = [330];
+  return response;
+}
+
+/**
+ * The same send on Core's default encoding: the 88-byte message overflows an OP_RETURN, so Core
+ * spreads it over 1-of-3 bare multisig outputs, each carrying 53 payload bytes after its length
+ * byte and CNTRPRTY prefix, ARC4-keyed by the first input's txid.
+ */
+function multisigResponseFor(fixture: TaprootFixture): ApiResponse {
+  const commit = btc.Transaction.fromRaw(hexToBytes(fixture.rawtransaction), { allowUnknownOutputs: true });
+  const input = commit.getInput(0);
+  const txidHex = bytesToHex(input.txid!);
+  const prefixed = hexToBytes(fixture.data);
+  const prefix = prefixed.slice(0, 8);
+  const message = prefixed.slice(8);
+  const tx = new btc.Transaction({ allowUnknownOutputs: true });
+  tx.addInput({ txid: input.txid!, index: input.index!, sequence: 0xffffffff });
+  const dust = 1000n;
+  let chunks = 0;
+  for (let offset = 0; offset < message.length; offset += 53) {
+    const content = new Uint8Array([...prefix, ...message.slice(offset, offset + 53)]);
+    const plain = new Uint8Array(62);
+    plain[0] = content.length;
+    plain.set(content, 1);
+    const obfuscated = arc4(hexToBytes(txidHex), plain);
+    const key = (data: Uint8Array) => new Uint8Array([0x02, ...data, 0x00]);
+    tx.addOutput({
+      script: new Uint8Array([0x51, 0x21, ...key(obfuscated.slice(0, 31)), 0x21, ...key(obfuscated.slice(31, 62)),
+        0x21, ...new Uint8Array(33).fill(0x03), 0x53, 0xae]),
+      amount: dust,
+    });
+    chunks += 1;
+  }
+  const fee = 1_000;
+  tx.addOutput({
+    script: btc.OutScript.encode(btc.Address().decode(TAPROOT_SOURCE)),
+    amount: BigInt(TAPROOT_INPUT_VALUE) - dust * BigInt(chunks) - BigInt(fee),
+  });
+  const response = responseFor(fixture);
+  delete response.result.envelope_script;
+  delete response.result.signed_reveal_rawtransaction;
+  response.result.rawtransaction = tx.hex;
+  response.result.btc_fee = fee;
+  response.result.psbt = '';
+  return response;
 }
 
 /** The send form's submission for the send fixture: 1 PEPEMEMECOIN with a 34-byte memo. */
@@ -185,6 +247,63 @@ describe('ComposerContext Taproot encoding', () => {
       const { result } = await composed(vi.fn(async () => response));
       await waitFor(() => expect(result.current.state.error).toMatch(/only one of the two transactions/));
     }
+  });
+
+  it('refuses the envelope with only part of the new reveal data as half of a Taproot compose', async () => {
+    const response = responseFor(SEND_TAPROOT);
+    delete response.result.signed_reveal_rawtransaction;
+    response.result.reveal_pubkey = '02f8fdbe844deb9236113d98b905473f99d0ce51cb88dfa981223f91e705c691cf';
+    const composeApi = vi.fn(async () => response);
+    const { result } = await composed(composeApi);
+    await waitFor(() => expect(result.current.state.error).toMatch(/only one of the two transactions/));
+    // Not the unsigned-reveal shape, so no second compose on the default encoding.
+    expect(composeApi).toHaveBeenCalledTimes(1);
+  });
+
+  it('composes on the default encoding when Core 11.5 returns an unsigned reveal, then reviews and signs that', async () => {
+    const composeApi = vi.fn()
+      .mockResolvedValueOnce(unsignedRevealResponseFor(SEND_TAPROOT))
+      .mockResolvedValueOnce(multisigResponseFor(SEND_TAPROOT));
+    const { result } = await composed(composeApi);
+
+    await waitFor(() => expect(result.current.state.step).toBe('review'));
+    expect(result.current.state.error).toBeNull();
+    expect(composeApi).toHaveBeenCalledTimes(2);
+    expect(composeApi.mock.calls[0]![0]).toMatchObject({ encoding: 'taproot' });
+    expect(composeApi.mock.calls[1]![0]).not.toHaveProperty('encoding');
+    const reviewed = result.current.state.apiResponse!.result;
+    expect(reviewed.rawtransaction).toBe(multisigResponseFor(SEND_TAPROOT).result.rawtransaction);
+    expect(reviewed.reveal_rawtransaction).toBeUndefined();
+    expect(reviewed.reveal_fee).toBeUndefined();
+    expect(result.current.state.decodedMessage?.data).toMatchObject({
+      destination: SEND_TAPROOT.request.destination,
+      asset: 'PEPEMEMECOIN',
+      quantity: 100000000n,
+    });
+
+    await act(async () => { await result.current.signAndBroadcast(); });
+    await waitFor(() => expect(result.current.state.step).toBe('success'));
+    expect(signTransaction).toHaveBeenCalledTimes(1);
+    expect(signTransaction.mock.calls[0]![0]).toBe(reviewed.rawtransaction);
+    // One transaction, no reveal.
+    expect(broadcastTransaction.mock.calls.map(([hex]) => hex)).toEqual([reviewed.rawtransaction]);
+  });
+
+  it.each([
+    ['an explicit Taproot encoding', 'encoding', 'taproot'],
+    ['an inscription', 'inscription', 'aGVsbG8='],
+  ])('refuses %s against an unsigned reveal instead of changing the encoding', async (_, field, value) => {
+    const composeApi = vi.fn(async (_data: Record<string, unknown>) => unsignedRevealResponseFor(SEND_TAPROOT));
+    const hook = renderComposer(composeApi);
+    const form = sendForm();
+    form.set(field, value);
+    await act(async () => { await hook.result.current.composeTransaction(form); });
+
+    await waitFor(() => expect(hook.result.current.state.error).toMatch(/needs a newer version of this wallet/));
+    expect(hook.result.current.state.step).toBe('form');
+    expect(composeApi).toHaveBeenCalledTimes(1);
+    expect(composeApi.mock.calls[0]![0]).toMatchObject({ [field]: value });
+    expect(broadcastTransaction).not.toHaveBeenCalled();
   });
 
   it('asks once more on the default encoding when the composer refuses Taproot', async () => {

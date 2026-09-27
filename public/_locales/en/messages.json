@@ -2447,6 +2447,10 @@
     "message": "Transaction verification failed: the composer returned only one of the two transactions this needs.",
     "description": "contexts/composer-context.tsx. A Taproot-encoded compose came back with an envelope but no reveal, or a reveal but no envelope"
   },
+  "composer_context_taproot_reveal_needs_newer_wallet": {
+    "message": "This Counterparty server needs a newer version of this wallet for Taproot features such as inscriptions. Update the wallet, or compose this without an inscription.",
+    "description": "contexts/composer-context.tsx. Shown when a compose that asked for Taproot encoding (an inscription) gets back an unsigned reveal, the Taproot shape Counterparty Core 11.5 returns, which this wallet version cannot complete"
+  },
   "composer_context_taproot_unexpected_envelope": {
     "message": "Transaction verification failed: the composer's Taproot envelope is not the one this request produces.",
     "description": "contexts/composer-context.tsx. The data envelope of a Taproot-encoded compose is malformed or of the wrong kind"

@@ -146,8 +146,52 @@ export function shouldRetryWithDefaultEncoding(error: unknown): boolean {
   return error instanceof CounterpartyApiError && !(error instanceof UnofferedInputsError);
 }
 
+function presentString(value: unknown): boolean {
+  return typeof value === 'string' && value.length > 0;
+}
+
+/**
+ * Whether a compose result is a Taproot compose whose reveal comes back unsigned.
+ *
+ * Core 11.5 returns an unsigned reveal for Taproot composes: `reveal_rawtransaction` with the
+ * data needed to sign it (`reveal_control_block`, `reveal_pubkey`, ...) and no
+ * `signed_reveal_rawtransaction`. This wallet only publishes reveals that arrive signed, so such a
+ * result cannot be completed here. The test is narrow on purpose: a result with a signed reveal is
+ * the shape the wallet verifies, and any other half-returned combination stays a verification
+ * failure in the composer context.
+ */
+export function hasUnsignedTaprootReveal(result: unknown): boolean {
+  if (!result || typeof result !== 'object') return false;
+  const fields = result as Record<string, unknown>;
+  if (presentString(fields.signed_reveal_rawtransaction)) return false;
+  return presentString(fields.reveal_rawtransaction) || presentString(fields.reveal_control_block);
+}
+
+/**
+ * Whether a compose result belongs to a Taproot commit, whatever shape its reveal takes. Such a
+ * commit is spent by its reveal through output 0 and a fixed txid, so it is never rearranged or
+ * given a new nonce.
+ */
+export function carriesTaprootReveal(result: unknown): boolean {
+  if (!result || typeof result !== 'object') return false;
+  const fields = result as Record<string, unknown>;
+  return presentString(fields.signed_reveal_rawtransaction)
+    || presentString(fields.envelope_script)
+    || hasUnsignedTaprootReveal(result);
+}
+
+function responseResult(response: unknown): unknown {
+  return response && typeof response === 'object' ? (response as { result?: unknown }).result : undefined;
+}
+
 /**
  * Compose with the chosen encoding, once, and fall back to the default if the composer refuses.
+ *
+ * A Taproot compose that comes back with an unsigned reveal (Core 11.5) is treated the same way:
+ * the wallet chose the encoding only because it was cheaper, and it cannot yet complete that
+ * shape, so the transaction is composed the default way instead. A request that named its own
+ * encoding or an inscription never reaches this fallback (`chooseEncoding` leaves it alone), so
+ * it is never silently changed.
  */
 export async function composeWithEncoding<R>(
   compose: (data: Params) => Promise<R>,
@@ -156,10 +200,14 @@ export async function composeWithEncoding<R>(
   signal?: AbortSignal,
 ): Promise<R> {
   if (!encoding) return compose(data);
+  let composed: R;
   try {
-    return await compose({ ...data, encoding });
+    composed = await compose({ ...data, encoding });
   } catch (error) {
     if (signal?.aborted || !shouldRetryWithDefaultEncoding(error)) throw error;
     return compose(data);
   }
+  if (!hasUnsignedTaprootReveal(responseResult(composed))) return composed;
+  signal?.throwIfAborted();
+  return compose(data);
 }
