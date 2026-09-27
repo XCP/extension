@@ -4,8 +4,8 @@
  * https://github.com/ACken2/bip322-js
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import * as secp256k1 from '@noble/secp256k1';
 import { base64, hex } from '@scure/base';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';

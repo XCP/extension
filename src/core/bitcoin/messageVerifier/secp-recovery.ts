@@ -4,7 +4,7 @@
  * Pure implementation using noble/scure libraries only - no external dependencies!
  */
 
-import * as secp256k1 from '@noble/secp256k1';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import type { SignatureInfo } from '@/core/bitcoin/messageVerifier/types';
 
 /**
@@ -38,17 +38,14 @@ export function recoverPublicKeyFromSignature(
     recoveredSig[0] = recoveryId;  // Raw recovery ID (0-3)
     recoveredSig.set(raw, 1);
 
-    // Ask noble for the exact SEC encoding carried by the BIP-137 header. Compressed and
-    // uncompressed encodings hash to different P2PKH addresses, so this is semantic rather than
-    // cosmetic.
-    return secp256k1.recoverPublicKey(
-      recoveredSig,           // signature (65 bytes)
-      messageHash,            // message hash (32 bytes)
-      {
-        prehash: false,       // don't hash again - we already hashed
-        isCompressed: compressed,
-      }
-    );
+    // Return the exact SEC encoding carried by the BIP-137 header. Compressed and uncompressed
+    // encodings hash to different P2PKH addresses, so this is semantic rather than cosmetic.
+    // `Signature.recoverPublicKey` takes the digest as given (no prehash) and returns the point, so
+    // the encoding is chosen here; the top-level `secp256k1.recoverPublicKey` only returns the
+    // compressed form.
+    return secp256k1.Signature.fromBytes(recoveredSig, 'recovered')
+      .recoverPublicKey(messageHash)  // message hash (32 bytes), not hashed again
+      .toBytes(compressed);
   } catch (_error) {
     return null;
   }

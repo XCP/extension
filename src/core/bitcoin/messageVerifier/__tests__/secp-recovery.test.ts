@@ -11,6 +11,8 @@
  * fixtures, because the point is the encoding, not any wallet's behaviour.
  */
 
+import { hmac } from '@noble/hashes/hmac.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 import * as secp from '@noble/secp256k1';
 import { base64 } from '@scure/base';
 import * as btc from '@scure/btc-signer';
@@ -19,6 +21,11 @@ import { verifyLooseBIP137 } from '../compatibility/loose-bip137';
 import { verifyBIP137 } from '../specs/bip137';
 import { hashMessage, recoverPublicKey } from '../utils';
 import { verifyMessage } from '../verifier';
+
+// The signatures here come from @noble/secp256k1, a second implementation independent of the
+// @noble/curves the wallet uses; its synchronous API needs its hashes wired.
+if (!secp.hashes.sha256) secp.hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
+if (!secp.hashes.hmacSha256) secp.hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
 
 const PRIVATE_KEY = new Uint8Array(32).fill(7);
 const MESSAGE = 'Hello World';

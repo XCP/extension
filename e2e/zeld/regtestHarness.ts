@@ -8,11 +8,9 @@
  */
 
 import { appendFileSync } from 'node:fs';
-import { hmac } from '@noble/hashes/hmac.js';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
-import * as secp256k1 from '@noble/secp256k1';
-import { hashes } from '@noble/secp256k1';
 import * as btc from '@scure/btc-signer';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { signTransaction } from '@/core/bitcoin/transactionSigner';
@@ -20,10 +18,6 @@ import type { TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { huntZeldForCompose } from '@/core/zeld/composeHunt';
 import { huntTxid } from '@/core/zeld/hunt';
-
-// noble-secp256k1 v3 signs only once told which hash to use, as the wallet's signers do.
-if (!hashes.sha256) hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
-if (!hashes.hmacSha256) hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
 
 export const REGTEST_ENABLED = process.env.ZELD_REGTEST === '1';
 const BITCOIND = process.env.ZELD_REGTEST_BITCOIND ?? 'http://127.0.0.1:18443';

@@ -1,13 +1,16 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2pkh, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { finalizePSBT, parsePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { computeTxid } from '@/core/bitcoin/transactionBroadcaster';
 import {
+  bundleSpendsItsParent,
+  packageParentOf,
   rebindDependentListingPsbt,
   signAttachAndListingForDelivery,
+  signFundAndAuthorizationsForDelivery,
   signPsbtPhaseForDelivery,
 } from '@/platform/provider/signPsbtPhase';
 
@@ -57,7 +60,7 @@ describe('signPsbtPhaseForDelivery', () => {
 const PRIVATE_KEY = 'e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35';
 
 function legacyAttachAndDependentListing() {
-  const publicKey = getPublicKey(hexToBytes(PRIVATE_KEY), true);
+  const publicKey = secp256k1.getPublicKey(hexToBytes(PRIVATE_KEY), true);
   const legacy = p2pkh(publicKey);
   const segwit = p2wpkh(publicKey);
 
@@ -140,5 +143,63 @@ describe('dependent attach and listing signing', () => {
       { txid: 'ff'.repeat(32), vout: 0 },
       '11'.repeat(32),
     )).toThrow(/reviewed attach outpoint/);
+  });
+});
+
+describe('signFundAndAuthorizationsForDelivery', () => {
+  const key = hexToBytes(PRIVATE_KEY);
+  const owner = p2wpkh(secp256k1.getPublicKey(key, true));
+  function fundAndAuthorization() {
+    const fund = new Transaction({ version: 2, lockTime: 0 });
+    fund.addInput({ txid: new Uint8Array(32).fill(1), index: 0, witnessUtxo: { script: owner.script, amount: 20_000n } });
+    fund.addOutput({ script: owner.script, amount: 5_000n });
+    fund.addOutput({ script: owner.script, amount: 14_500n });
+    const authorization = new Transaction({ version: 2, lockTime: 0 });
+    authorization.addInput({ txid: fund.id, index: 0, witnessUtxo: { script: owner.script, amount: 5_000n } });
+    authorization.addOutput({ script: owner.script, amount: 4_500n });
+    return {
+      fund: { psbtHex: bytesToHex(fund.toPSBT()) },
+      authorization: { psbtHex: bytesToHex(authorization.toPSBT()) },
+      fundId: fund.id,
+    };
+  }
+  const signAll = async (item: { psbtHex: string }) =>
+    signPSBT(item.psbtHex, PRIVATE_KEY, [0], AddressFormat.P2WPKH, [SigHash.ALL]);
+
+  it('signs the funding first, checks its final txid, then the authorizations', async () => {
+    const { fund, authorization, fundId } = fundAndAuthorization();
+    const sign = vi.fn(async (item: { psbtHex: string }, _index: number) => signAll(item));
+    const signed = await signFundAndAuthorizationsForDelivery([fund, authorization, authorization], sign);
+    expect(signed).toHaveLength(3);
+    expect(computeTxid(finalizePSBT(signed[0]!))).toBe(fundId);
+    expect(sign.mock.calls.map(call => call[1])).toEqual([0, 1, 2]);
+  });
+
+  it('signs no authorization when the signed funding changed', async () => {
+    const { fund, authorization } = fundAndAuthorization();
+    const other = fundAndAuthorization();
+    const tampered = parsePSBT(other.fund.psbtHex);
+    tampered.updateInput(0, { sequence: 1 });
+    const sign = vi.fn(async (item: { psbtHex: string }, index: number) =>
+      index === 0 ? signAll({ psbtHex: bytesToHex(tampered.toPSBT()) }) : signAll(item));
+    await expect(signFundAndAuthorizationsForDelivery([fund, authorization], sign))
+      .rejects.toThrow('offer funding signer changed the reviewed transaction');
+    expect(sign).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a phase without an authorization', async () => {
+    const { fund } = fundAndAuthorization();
+    const sign = vi.fn(signAll);
+    await expect(signFundAndAuthorizationsForDelivery([fund], sign)).rejects.toThrow('2..8');
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it('hands the funding bytes, keyed by its txid, only to bundles that spend their parent', () => {
+    const { fund, fundId } = fundAndAuthorization();
+    expect(packageParentOf(fund.psbtHex)).toEqual({ [fundId]: bytesToHex(parsePSBT(fund.psbtHex).toBytes(true, false)) });
+    expect(bundleSpendsItsParent('fund-and-authorize-offers')).toBe(true);
+    expect(bundleSpendsItsParent('acceptance-cpfp')).toBe(true);
+    expect(bundleSpendsItsParent('authorize-offers')).toBe(false);
+    expect(bundleSpendsItsParent('attach-and-list')).toBe(false);
   });
 });

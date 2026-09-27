@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2tr, p2wpkh, Script, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
@@ -607,8 +607,8 @@ describe('TrezorAdapter', () => {
 
   describe('signPsbt', () => {
     const key = '01'.padStart(64, '0');
-    const own = p2wpkh(getPublicKey(hexToBytes(key)));
-    const recipient = p2wpkh(getPublicKey(hexToBytes('02'.padStart(64, '0'))));
+    const own = p2wpkh(secp256k1.getPublicKey(hexToBytes(key)));
+    const recipient = p2wpkh(secp256k1.getPublicKey(hexToBytes('02'.padStart(64, '0'))));
     const path = [84 | 0x80000000, 0x80000000, 0x80000000, 0, 0];
     const inputPaths = new Map([[0, path]]);
     const createTransaction = (options: { version?: number; lockTime?: number; sequence?: number; amount?: bigint; script?: Uint8Array; funded?: boolean } = {}) => {
@@ -690,7 +690,7 @@ describe('TrezorAdapter', () => {
     });
 
     it('preserves DEFAULT sighash for the existing raw Taproot composer path', async () => {
-      const internalKey = getPublicKey(hexToBytes(key)).slice(1);
+      const internalKey = secp256k1.getPublicKey(hexToBytes(key)).slice(1);
       const taproot = p2tr(internalKey);
       const tx = createTransaction();
       tx.updateInput(0, { witnessUtxo: { script: taproot.script, amount: 100_000n },

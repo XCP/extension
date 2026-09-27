@@ -62,7 +62,7 @@ first Trezor use. Never ship it.
 ```bash
 npm run compile                                           # tsc --noEmit
 npm run lint                                              # Biome, Oxlint, promise rules, lint:i18n
-npx vitest run src/platform/__tests__/proxy.test.ts --retry=0
+npx vitest run src/platform/proxy/__tests__/proxy.test.ts --retry=0
 npm run build:e2e
 npx playwright test e2e/tests/provider-message-signing.spec.ts
 ```

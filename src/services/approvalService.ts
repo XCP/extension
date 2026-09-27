@@ -385,10 +385,10 @@ export class ApprovalService {
 }
 
 // Proxy for cross-context communication
-import { defineProxyService } from '@/platform/proxy';
+import { defineProxyServer } from '@/platform/proxy/server';
 import { APPROVAL_SERVICE_NAME, APPROVAL_SERVICE_POLICY } from '@/services/approvalServiceClient';
 
-export const [registerApprovalService, getApprovalService] = defineProxyService(
+export const [registerApprovalService, getApprovalService] = defineProxyServer(
   APPROVAL_SERVICE_NAME,
   () => new ApprovalService(),
   APPROVAL_SERVICE_POLICY,

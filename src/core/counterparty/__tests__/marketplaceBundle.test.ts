@@ -92,6 +92,13 @@ const base = () => {
     childSignerAddresses: [SELLER],
     childTransactionId: CHILD_TXID,
     childHasCounterpartyPayload: false,
+    parentTransactionId: PARENT_TXID as string | undefined,
+    parentOutputs: [
+      { index: 0, type: 'op_return', value: 0 },
+      { index: 1, type: 'p2wpkh', address: SELLER, value: 250_046 },
+      { index: 2, type: 'p2wpkh', address: BUYER, value: 6_250 },
+    ],
+    parentInputScriptTypes: ['p2wpkh', 'p2wpkh'] as Array<string | undefined>,
   };
 };
 
@@ -197,10 +204,49 @@ describe('exact acceptance plus CPFP atomic proof', () => {
     ['package arithmetic', {
       childIntent: { ...base().childIntent, packageFeeSats: 1_499 },
     }],
+    // The parent's own bytes, not the child's claim, decide what the child input spends.
+    ['a parent whose computed txid is not the one the child spends', {
+      parentTransactionId: '15'.repeat(32),
+    }],
+    ['a parent output 1 of another value', {
+      parentOutputs: [base().parentOutputs[0]!, { ...base().parentOutputs[1]!, value: 250_047 }],
+    }],
+    ['a parent output 1 paying someone else', {
+      parentOutputs: [base().parentOutputs[0]!, { ...base().parentOutputs[1]!, address: BUYER }],
+    }],
+    ['a parent with no output 1', { parentOutputs: [base().parentOutputs[0]!] }],
+    // A scriptSig is part of the txid, so the child would spend an outpoint that never exists.
+    ['a parent with a Legacy input', { parentInputScriptTypes: ['p2wpkh', 'p2pkh'] }],
+    ['a parent with a nested SegWit input', { parentInputScriptTypes: ['p2sh', 'p2wpkh'] }],
+    ['a parent input of unknown type', { parentInputScriptTypes: [undefined, 'p2tr'] }],
   ])('blocks a mutation of %s', (_label, override) => {
     const review = analyzeAcceptanceCpfpBundle({ ...base(), ...override });
     expect(review.status).toBe('blocked');
     expect(review.blockers.length).toBeGreaterThan(0);
+  });
+
+  it('asks for a retry, never a proof, when the parent txid is unknown', () => {
+    const review = analyzeAcceptanceCpfpBundle({ ...base(), parentTransactionId: undefined });
+    expect(review.status).toBe('retry');
+    expect(review.blockers).toContain('the wallet could not establish the parent transaction id');
+  });
+
+  it('states the offer as the bidder made it and the fee the accepting seller pays (taker-pays)', () => {
+    const request = base();
+    // A 5,000-sat offer: the claim is net of the 1,000-sat fee the seller pays out of proceeds.
+    request.parentIntent.priceSats = 4_000;
+    request.parentIntent.platformFeeSats = 1_000;
+    request.parentIntent.sellerPaidFeeSats = 1_000;
+    const review = analyzeAcceptanceCpfpBundle(request);
+    expect(review.title).toBe('Accept 5,000 sats for RAREPEPE with fee bump');
+    expect(review.bundleSummary?.amounts).toContainEqual({ kind: 'amount', label: 'Offer price', value: '5,000 sats' });
+    expect(review.bundleSummary?.amounts).toContainEqual({
+      kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Deducted from seller proceeds',
+    });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Offer price', value: '5,000 sats' });
+    expect(review.facts).toContainEqual({
+      kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Deducted from seller proceeds',
+    });
   });
 
   it('requires retry when the parent proof is waiting on independent asset truth', () => {

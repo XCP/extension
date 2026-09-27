@@ -42,7 +42,7 @@ import { analytics } from '@/platform/fathom';
 import { continuationUnlockPath, openExtensionPopup, reusePopupWindow } from '@/platform/popup';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import { beginSignFlow, findSafeChangeSigningAddress } from '@/platform/provider/signFlow';
-import { defineProxyService } from '@/platform/proxy';
+import { defineProxyServer } from '@/platform/proxy/server';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 import { keychainExists } from '@/platform/storage/walletStorage';
 import type { ApprovalPlacement } from '@/services/approvalService';
@@ -1232,7 +1232,7 @@ export function createProviderService(): ProviderService {
 }
 
 // Register proxy service for cross-context communication
-export const [registerProviderService, getProviderService] = defineProxyService(
+export const [registerProviderService, getProviderService] = defineProxyServer(
   PROVIDER_SERVICE_NAME,
   createProviderService,
   PROVIDER_SERVICE_POLICY,

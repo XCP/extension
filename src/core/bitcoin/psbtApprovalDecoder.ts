@@ -11,6 +11,7 @@ import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/tr
 import { fetchInputsAttachedAssets, type InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import { type LinkedInputEvidence, withLinkedInputAssets } from '@/core/counterparty/marketplaceAttachLink';
 import type { MarketplaceIntentClaimV1, PolicyOfferWalletContext } from '@/core/counterparty/marketplaceIntent';
+import { liveAttachmentEvidenceSource, withPackageParents } from '@/core/counterparty/pendingAttachments';
 import {
   type InscriptionCommitContext,
   resolveRevealMessage,
@@ -20,6 +21,7 @@ import {
   type SignRequestAnalysis,
 } from '@/core/counterparty/signRequestAnalysis';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
+import type { ZeldPackageParent } from '@/core/zeld/signRequestZeld';
 
 export interface DecodedPsbtInfo extends SignRequestAnalysis {
   psbtDetails: PsbtDetails;
@@ -44,6 +46,18 @@ export async function decodePsbtForApproval(
      * supplies it, and only after proving the input is exactly the linked output.
      */
     linkedInput?: LinkedInputEvidence;
+    /**
+     * Unsigned bytes, keyed by txid, of transactions in the same atomic bundle that this PSBT
+     * spends before they are broadcast. Asset lookups of their outputs derive from these bytes
+     * (pendingAttachments.ts withPackageParents). Only the bundle decoder supplies them, and only
+     * from an item it has already proved.
+     */
+    packageParents?: ReadonlyMap<string, string>;
+    /**
+     * The same parents as the ZELD analysis reads them (inputs with owners, signed inputs,
+     * outputs), so what their inputs carry is placed on the outputs this PSBT spends.
+     */
+    zeldPackageParents?: ReadonlyMap<string, ZeldPackageParent>;
     /** Resolves prevouts the wallet itself broadcast (its trusted journal). */
     resolveTrustedPrevout?: TrustedPrevoutResolver;
     /**
@@ -59,18 +73,17 @@ export async function decodePsbtForApproval(
   } = {},
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
-  const { linkedInput, resolveTrustedPrevout = noTrustedPrevout, sharedAttachedAssets } = options;
+  const { linkedInput, packageParents, resolveTrustedPrevout = noTrustedPrevout, sharedAttachedAssets } = options;
   const outpoints = psbtDetails.inputs.map(input => `${input.txid}:${input.vout}`);
   const reusable = sharedAttachedAssets !== undefined
     && sharedAttachedAssets.outpoints.length === outpoints.length
     && sharedAttachedAssets.outpoints.every((outpoint, index) => outpoint === outpoints[index]);
   const ledgerAssets = reusable
     ? Promise.resolve(sharedAttachedAssets.assets)
-    : fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices, resolveTrustedPrevout);
+    : fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices, resolveTrustedPrevout,
+      packageParents ? withPackageParents(liveAttachmentEvidenceSource, packageParents) : undefined);
   const attachedAssetsPromise = linkedInput
-    ? ledgerAssets.then(ledger => withLinkedInputAssets(
-        ledger, linkedInput.entry, linkedInput.attachTxid, linkedInput.attachIsUnbroadcast,
-      ))
+    ? ledgerAssets.then(ledger => withLinkedInputAssets(ledger, linkedInput.entry, linkedInput.attachTxid))
     : ledgerAssets;
   const txid = psbtDetails.transactionId;
   let counterpartyDataHex: string | undefined;
@@ -116,6 +129,7 @@ export async function decodePsbtForApproval(
     transactionVersion: psbtDetails.transactionVersion,
     lockTime: psbtDetails.lockTime,
     policyOffer: options.policyOffer,
+    zeldPackageParents: options.zeldPackageParents,
   });
 
   return { psbtDetails, txid, ...analysis };

@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
@@ -19,14 +19,14 @@ vi.mock('@/platform/auth/sessionManager', async (original) => ({
 describe('WalletManager hardware input derivation', () => {
   it('passes each verified input owner to Trezor using the real hardened-path parser', async () => {
     const keys = ['01'.padStart(64, '0'), '02'.padStart(64, '0')];
-    const owners = keys.map((key) => p2wpkh(getPublicKey(hexToBytes(key))));
+    const owners = keys.map((key) => p2wpkh(secp256k1.getPublicKey(hexToBytes(key))));
     const wallet: Wallet = {
       id: 'hardware-paths', name: 'Hardware', type: 'hardware',
       addressFormat: AddressFormat.P2WPKH, addressCount: 2,
       addresses: owners.map((owner, index) => ({
         address: owner.address, name: `Address ${index + 1}`,
         path: `m/84'/0'/0'/0/${index === 0 ? 0 : 7}`,
-        pubKey: bytesToHex(getPublicKey(hexToBytes(keys[index]!))),
+        pubKey: bytesToHex(secp256k1.getPublicKey(hexToBytes(keys[index]!))),
       })),
     };
     const parent = new Transaction();
@@ -64,10 +64,10 @@ describe('WalletManager hardware input derivation', () => {
     hardware.init.mockClear();
     hardware.signPsbt.mockClear();
     const key = '03'.padStart(64, '0');
-    const owner = p2wpkh(getPublicKey(hexToBytes(key)));
+    const owner = p2wpkh(secp256k1.getPublicKey(hexToBytes(key)));
     const wallet: Wallet = {
       id: 'hardware-no-access', name: 'Hardware', type: 'hardware', addressFormat: AddressFormat.P2WPKH, addressCount: 1,
-      addresses: [{ address: owner.address!, name: 'Address 1', path: "m/84'/0'/0'/0/0", pubKey: bytesToHex(getPublicKey(hexToBytes(key))) }],
+      addresses: [{ address: owner.address!, name: 'Address 1', path: "m/84'/0'/0'/0/0", pubKey: bytesToHex(secp256k1.getPublicKey(hexToBytes(key))) }],
     };
     const manager = new WalletManager();
     manager['wallets'] = [wallet];

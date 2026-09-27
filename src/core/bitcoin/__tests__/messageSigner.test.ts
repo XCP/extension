@@ -1,23 +1,8 @@
-import { hmac } from '@noble/hashes/hmac.js';
-import { sha256 } from '@noble/hashes/sha2.js';
-import { hashes } from '@noble/secp256k1';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { verifyBIP322Signature } from '@/core/bitcoin/bip322';
 import { getSigningCapabilities, signMessage } from '@/core/bitcoin/messageSigner';
 import { verifyMessage } from '@/core/bitcoin/messageVerifier/verifier';
-
-// Initialize secp256k1 for tests
-beforeAll(() => {
-  
-  if (!hashes.hmacSha256) {
-    hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
-    hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
-    
-    hashes.hmacSha256Async = async (key, msg) => new Uint8Array(hmac(sha256, key, msg));
-    hashes.sha256Async = async (msg) => new Uint8Array(sha256(msg));
-  }
-});
 
 describe('messageSign', () => {
   // Test vectors - using a known private key for consistent testing

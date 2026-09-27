@@ -935,36 +935,6 @@
   "assets_asset_view_dividend_transaction": {
     "message": "查看分紅交易 $1"
   },
-  "assets_failed_to_add_asset": {
-    "message": "添加資產失敗。"
-  },
-  "assets_failed_to_remove_asset": {
-    "message": "移除資產失敗。"
-  },
-  "assets_failed_to_search_assets": {
-    "message": "搜尋資產失敗。"
-  },
-  "assets_no_active_wallet_selected": {
-    "message": "未選擇活動錢包"
-  },
-  "assets_pin_up_to_assets_to": {
-    "message": "最多可將 $1 個資產置頂到主屏幕。"
-  },
-  "assets_remove_from_pinned": {
-    "message": "取消置頂 $1"
-  },
-  "assets_search_assets": {
-    "message": "搜尋資產"
-  },
-  "assets_search_assets_2": {
-    "message": "搜尋資產"
-  },
-  "assets_searching": {
-    "message": "搜尋中…"
-  },
-  "assets_you_can_only_pin_up": {
-    "message": "最多隻能置頂 $1 個資產。"
-  },
   "attach_form_could_not_load_details_for": {
     "message": "無法加載此資產的詳情。"
   },
@@ -3047,6 +3017,15 @@
   "marketplace_batch_broadcast": {
     "message": "廣播"
   },
+  "marketplace_batch_fund_and_authorize_1_exact_offer": {
+    "message": "為 1 個指定出價準備資金並授權"
+  },
+  "marketplace_batch_fund_and_authorize_exact_offers": {
+    "message": "為 $1 個指定出價準備資金並授權"
+  },
+  "marketplace_batch_funding_is_broadcast_now": {
+    "message": "現在支付，用於預留出價資金"
+  },
   "marketplace_batch_sent_now": {
     "message": "立即發送"
   },
@@ -3242,6 +3221,9 @@
   "marketplace_intent_items_with_asset_count": {
     "message": "$1（$2 種資產）"
   },
+  "marketplace_intent_key_path_fee_output": {
+    "message": "無腳本的密鑰路徑 Taproot 地址：向其付款無法以你的地址發布 Counterparty 訊息"
+  },
   "marketplace_intent_list_for_sale": {
     "message": "上架出售"
   },
@@ -3250,6 +3232,9 @@
   },
   "marketplace_intent_expires": {
     "message": "有效期至"
+  },
+  "marketplace_intent_marketplace_fee": {
+    "message": "市場手續費"
   },
   "marketplace_intent_network_fee": {
     "message": "網絡費用"
@@ -6494,6 +6479,15 @@
   },
   "psbts_approve_authorize_offers_2": {
     "message": "授權 $1 個出價"
+  },
+  "psbts_approve_fund_and_authorize_offers": {
+    "message": "為出價準備資金並授權"
+  },
+  "psbts_approve_fund_and_authorize_1_offer": {
+    "message": "為 1 個出價準備資金並授權"
+  },
+  "psbts_approve_fund_and_authorize_offers_2": {
+    "message": "為 $1 個出價準備資金並授權"
   },
   "marketplace_batch_latest_expiry": {
     "message": "最晚到期"

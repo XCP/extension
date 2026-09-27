@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeProxyResult, encodeProxyResult } from '../proxySerialization';
+import { decodeProxyResult, encodeProxyResult } from '../serialization';
 
 describe('lossless RPC result encoding', () => {
   it('keeps a literal __proto__ property without assigning the prototype', () => {

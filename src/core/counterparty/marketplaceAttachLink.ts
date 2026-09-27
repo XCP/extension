@@ -109,11 +109,10 @@ export function listingSpendsProvedAttach(
   return null;
 }
 
-/** Linked evidence for one input, and how to judge a failed ledger lookup of it. */
+/** Linked evidence for one input, and the attach transaction it comes from. */
 export interface LinkedInputEvidence {
   entry: InputAttachedAssets;
   attachTxid: string;
-  attachIsUnbroadcast: () => Promise<boolean>;
 }
 
 /**
@@ -122,24 +121,27 @@ export interface LinkedInputEvidence {
  * - The ledger reports assets on the outpoint: kept. The listing proof then checks it against the
  *   claim like any other listing, so a disagreement still blocks.
  * - The ledger reports it empty: replaced. An unbroadcast attach output reads exactly that way.
- * - The lookup failed: replaced only when the failure is explained by this attach — the lookup
- *   names the attach itself as the pending transaction creating the outpoint, or the network
- *   affirmatively does not know the attach txid (it is not broadcast yet). An outage stays a retry.
+ * - The lookup failed: replaced only when the failure is explained by this attach, i.e. the lookup
+ *   names the attach itself as the pending transaction creating the outpoint. The decoder gives
+ *   the lookup the attach's own bytes (`withPackageParents`), so an unbroadcast attach is named
+ *   that way from the request itself; any other failure stays a retry.
+ *
+ * The network is deliberately not asked whether the attach is known: mempool.space answers
+ * `{"confirmed":false}` with HTTP 200 for a txid it has never seen, which made an unbroadcast
+ * attach indistinguishable from an unconfirmed one and left every mainnet attach-and-list at retry.
  */
-export async function withLinkedInputAssets(
+export function withLinkedInputAssets(
   ledger: InputAttachedAssets[],
   linked: InputAttachedAssets,
   attachTxid: string,
-  attachIsUnbroadcast: () => Promise<boolean>,
-): Promise<InputAttachedAssets[]> {
+): InputAttachedAssets[] {
   const existing = ledger.find(entry => entry.inputIndex === linked.inputIndex);
   if (existing && !existing.lookupFailed && existing.assets.length > 0) return ledger;
   if (existing?.lookupFailed) {
-    // A stricter lookup may name the unconfirmed transaction behind an unknown answer.
     const pendingParent = 'pendingParentTxid' in existing ? existing.pendingParentTxid : undefined;
     const explained = typeof pendingParent === 'string'
       && pendingParent.toLowerCase() === attachTxid.toLowerCase();
-    if (!explained && !await attachIsUnbroadcast().catch(() => false)) return ledger;
+    if (!explained) return ledger;
   }
   return [...ledger.filter(entry => entry.inputIndex !== linked.inputIndex), linked];
 }
@@ -149,7 +151,9 @@ export async function withLinkedInputAssets(
 // -------------------------------------------------------------------------------------------
 
 /** A transaction's chain status per the explorer. `missing` is an affirmative "unknown to the
- * network" (HTTP 404); null is an outage or any other unanswerable state. */
+ * network" (HTTP 404); null is an outage or any other unanswerable state. mempool.space answers an
+ * unknown txid with `{"confirmed":false}`, so an unknown parent usually reads as unconfirmed; both
+ * are a retry in `proveAttachInputsSettled`. */
 export type LinkedTxStatus = { confirmed: boolean; blockHeight?: number } | 'missing' | null;
 
 /** The chain and ledger reads the linked proof needs; injectable so tests never touch the network. */

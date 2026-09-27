@@ -7,7 +7,8 @@
  * dynamic import of providerService.ts inlined all of it). The background registers the real
  * service against this same policy, so the two sides cannot drift.
  */
-import { defineProxyService, type ProxyServicePolicy } from '@/platform/proxy';
+import { defineProxyClient } from '@/platform/proxy/client';
+import type { ProxyServicePolicy } from '@/platform/proxy/protocol';
 import type { ProviderService } from '@/services/providerService';
 
 export const PROVIDER_SERVICE_NAME = 'ProviderService';
@@ -17,9 +18,5 @@ export const PROVIDER_SERVICE_POLICY: ProxyServicePolicy<ProviderService> = {
   contentScript: 'provider',
 };
 
-/** A caller-side proxy. It is never registered, so its factory never runs. */
-export const [, getProviderServiceClient] = defineProxyService<ProviderService>(
-  PROVIDER_SERVICE_NAME,
-  () => { throw new Error('ProviderService is registered only in the background'); },
-  PROVIDER_SERVICE_POLICY,
-);
+/** A caller-side proxy. It has no implementation behind it, so calling it in the background throws. */
+export const getProviderServiceClient = defineProxyClient<ProviderService>(PROVIDER_SERVICE_NAME, PROVIDER_SERVICE_POLICY);

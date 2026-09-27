@@ -21,8 +21,8 @@ import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import type { SigningIdentity } from '@/platform/auth/signingIdentity';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
 import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignMessageRequest, type SignPsbtRequest, type SignPsbtsRequest, type SignTransactionRequest } from '@/platform/provider/signFlow';
-import { signAttachAndListingForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
-import { defineProxyService } from '@/platform/proxy';
+import { bundleSpendsItsParent, packageParentOf, signAttachAndListingForDelivery, signFundAndAuthorizationsForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
+import { defineProxyServer } from '@/platform/proxy/server';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY } from '@/services/providerSigningServiceClient';
@@ -292,16 +292,25 @@ export function createProviderSigningService(): ProviderSigningService {
           result = { signedPsbtHex: await wallet.signPsbt(request.psbtHex, request.signInputs, request.sighashTypes, identity) };
           break;
         case 'sign-psbts': {
-          const sign = async (item: (typeof request.items)[number]) => {
+          // A child that spends its unbroadcast parent in the same bundle verifies that input
+          // from the parent's reviewed bytes; the network has never seen them. Only bundle kinds
+          // whose review proved that spend supply them, and never to the parent itself.
+          const packageTransactions = bundleSpendsItsParent(request.bundleKind)
+            ? packageParentOf(request.items[0]!.psbtHex)
+            : undefined;
+          const sign = async (item: (typeof request.items)[number], index: number) => {
             await assertAuthorization(request, item, parsed);
-            return wallet.signPsbt(item.psbtHex, item.signInputs, item.sighashTypes, identity);
+            return wallet.signPsbt(item.psbtHex, item.signInputs, item.sighashTypes, identity,
+              packageTransactions && index > 0 ? { packageTransactions } : undefined);
           };
           const attach = request.items[0]?.marketplaceIntent;
           const signedPsbtHexes = request.bundleKind === 'attach-and-list'
             ? await signAttachAndListingForDelivery(request.items,
               attach?.action === 'attach_for_listing' ? attach.expectedAttachedOutpoint
                 : (() => { throw new ProviderReviewError('missing_attachment'); })(), sign)
-            : await signPsbtPhaseForDelivery(request.items, sign, maxMarketplaceBatchRequests(request.bundleKind));
+            : request.bundleKind === 'fund-and-authorize-offers'
+              ? await signFundAndAuthorizationsForDelivery(request.items, sign)
+              : await signPsbtPhaseForDelivery(request.items, sign, maxMarketplaceBatchRequests(request.bundleKind));
           result = { signedPsbtHexes };
           break;
         }
@@ -351,6 +360,6 @@ export function createProviderSigningService(): ProviderSigningService {
   return { getRequest, getReview, approveAndSign, reject };
 }
 
-export const [registerProviderSigningService, getProviderSigningService] = defineProxyService(
+export const [registerProviderSigningService, getProviderSigningService] = defineProxyServer(
   PROVIDER_SIGNING_SERVICE_NAME, createProviderSigningService, PROVIDER_SIGNING_SERVICE_POLICY,
 );
