@@ -105,6 +105,23 @@ it('reviews a request as its own signer after a switch to the paired sibling', a
   await waitFor(() => expect(state.approve).toHaveBeenCalledWith(false));
 });
 
+it('offers a retry, not a sign, when a dispense could not check its dispenser', () => {
+  const info = decoded('prepare_asset');
+  info.marketplaceReview = undefined;
+  info.safety = { blocked: true, warnings: [{
+    severity: 'block', code: 'dispenser_lookup_retry',
+    title: 'Retry Required: Couldn’t Check the Dispenser', message: 'Try again in a moment.',
+  }] } as DecodedPsbtInfo['safety'];
+  state.decoded = info;
+  state.policy = getPsbtApprovalPolicy(request, info, true, 10);
+  expect(state.policy).toMatchObject({ blocked: true, retry: true });
+  render(<ApprovePsbtPage />);
+  expect(screen.getByText('Retry Required: Couldn’t Check the Dispenser')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Retry verification' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Awaiting verification' })).toBeDisabled();
+  expect(state.approve).not.toHaveBeenCalled();
+});
+
 it('states where ZELD stays with an attached asset without adding a review step', async () => {
   state.decoded = decoded('attach_for_listing');
   state.decoded.safety.warnings = [zeldWarning({ kind: 'asset_output', amount: '409600000000', asset: 'RARESHADILAY', vout: 0 }, false)];

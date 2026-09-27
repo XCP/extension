@@ -349,7 +349,8 @@ export default function ApprovePsbtPage() {
   ], approvalPolicy?.requiresAcknowledgement);
   // An input past the lookup cap stays unknown however often it is retried.
   const retryAvailable =
-    marketplaceReview?.status === "retry" || signedInputsUnknownStatus.some((entry) => !entry.overLimit);
+    marketplaceReview?.status === "retry" || signedInputsUnknownStatus.some((entry) => !entry.overLimit)
+    || safetyWarnings.some((warning) => warning.code === "dispenser_lookup_retry");
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
   const attentionTitle =
     counterpartyMessage?.messageType === "destroy" && txAction
