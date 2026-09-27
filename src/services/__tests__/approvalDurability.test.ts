@@ -6,7 +6,7 @@
  * what a restart actually is: the same session storage, none of the memory.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/services/eventEmitterService', () => ({
   eventEmitterService: { emit: vi.fn(), on: vi.fn(), off: vi.fn() },
@@ -60,11 +60,23 @@ const CONNECT_REQUEST: ApprovalRequestOptions = {
   metadata: { domain: 'example.com', title: 'Connection Request', description: 'Connect' },
 };
 
+/** Requests each test left open, so none outlives it holding a real five-minute timeout. */
+const asked: { service: ApprovalService; id: string; settled: Promise<unknown> }[] = [];
+
+afterEach(async () => {
+  for (const { service, id, settled } of asked.splice(0)) {
+    if (service.getCurrentApproval()?.id === id) service.rejectApproval(id, 'Test finished');
+    // requestApproval clears its timeout on the way out, however the request ended.
+    await settled;
+  }
+});
+
 /** Ask for approval without awaiting the answer, the way a caller that is about to die does. */
 async function ask(service: ApprovalService, options = CONNECT_REQUEST): Promise<void> {
-  service.requestApproval(options).catch(() => {
+  const settled = service.requestApproval(options).catch(() => {
     // The caller is gone in these tests; its rejection is the premise, not a failure.
   });
+  asked.push({ service, id: options.id, settled });
   // Let requestApproval reach its first await, by which point the request is stored.
   await vi.waitFor(() => expect(service.hasPendingApproval()).toBe(true));
 }
