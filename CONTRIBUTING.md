@@ -72,12 +72,8 @@ the full suites; the e2e suite takes well over an hour serially, so CI shards it
 the tests your change affects.
 
 - **Unit tests** are Vitest files next to the code under `src`.
-- **Browser tests** are Playwright specs under `e2e/`. They load `.output/chrome-mv3`, so run
-  `npm run build:e2e` first and again after every source change. How to write them, and the
-  fixtures to use, is in [e2e/TESTING-GUIDE.md](e2e/TESTING-GUIDE.md).
-- **Run one Playwright job at a time.** Each test launches its own Chromium profile, and
-  concurrent runs share the build output and `test-results/` (each run wipes it), so they fail in
-  ways that look like flakiness.
+- **Browser tests** are Playwright specs under `e2e/`. How to build for them, run them (one
+  Playwright job at a time), and write them is in [e2e/TESTING-GUIDE.md](e2e/TESTING-GUIDE.md).
 
 `npm run lint` rejects any increase in the per-file, per-rule warning budgets in
 `lint-baseline.json`. After fixing warnings, run `npm run lint:prune` to lower those budgets; it
@@ -170,13 +166,13 @@ translation of it:
 5. `npm run lint` checks the catalogs (`lint:i18n`). It fails on keys that are missing, unused, or
    have different placeholders than the English; on a `zh` that differs from `zh_CN`; on numbers
    formatted in a fixed locale; and on approval-screen labels too long to fit on one line (see
-   [Approval screens](docs/approval-screens.md#label-length-is-enforced)).
+   [Approval screens](ARCHITECTURE.md#approval-screens)).
 
 ### Reviewing a translation
 
 `node scripts/i18n.mjs review ja --machine > review-ja.md` writes the unchecked strings as a
 table: the English, the translation, and where each appears. Once a native speaker has checked a
-string, add its key to `reviewed` in `i18n/reviewed/ja.json`. The check fails if that list names
+string, add its key to `reviewed` in `i18n/ja.json`. The check fails if that list names
 a key that no longer exists.
 
 ## Releasing
