@@ -46,7 +46,7 @@ describe('what a dispense pays out', () => {
     // must_give = floor(50000 / 10000) = 5 lots of 1 PEPECASH.
     respond([dispenser()]);
 
-    const payouts = await resolveDispensersAt('bc1qdispenser', 50_000);
+    const payouts = (await resolveDispensersAt('bc1qdispenser', 50_000))!;
 
     expect(payouts).toHaveLength(1);
     expect(payouts[0]!.quantity).toBe('5');
@@ -59,7 +59,7 @@ describe('what a dispense pays out', () => {
     // nearly-empty dispenser at its full rate.
     respond([dispenser({ give_remaining: 200_000_000, give_remaining_normalized: '2.00000000' })]);
 
-    const payouts = await resolveDispensersAt('bc1qdispenser', 50_000);
+    const payouts = (await resolveDispensersAt('bc1qdispenser', 50_000))!;
 
     expect(payouts[0]!.quantity).toBe('2');
     expect(payouts[0]!.partiallyFilled).toBe(true);
@@ -74,7 +74,7 @@ describe('what a dispense pays out', () => {
       dispenser({ asset: 'AAACOIN' }),
     ]);
 
-    const payouts = await resolveDispensersAt('bc1qdispenser', 50_000);
+    const payouts = (await resolveDispensersAt('bc1qdispenser', 50_000))!;
 
     expect(payouts.map((p) => p.asset)).toEqual(['AAACOIN', 'ZZZCOIN']);
   });
@@ -86,7 +86,7 @@ describe('what a dispense pays out', () => {
       dispenser({ asset: 'CLOSED', status: 10 }),
     ]);
 
-    const payouts = await resolveDispensersAt('bc1qdispenser', 50_000);
+    const payouts = (await resolveDispensersAt('bc1qdispenser', 50_000))!;
 
     expect(payouts.map((p) => p.asset)).toEqual(['OPENEMPTY']);
     expect(mocked).toHaveBeenCalledWith('bc1qdispenser', { status: 'open,closing' });
@@ -97,7 +97,7 @@ describe('what a dispense pays out', () => {
     // formula would state a number that is not what the payer receives.
     respond([dispenser({ oracle_address: 'bc1qoracle' })]);
 
-    const payouts = await resolveDispensersAt('bc1qdispenser', 50_000);
+    const payouts = (await resolveDispensersAt('bc1qdispenser', 50_000))!;
 
     expect(payouts[0]!.oraclePriced).toBe(true);
     expect(payouts[0]!.quantity).toBeUndefined();
