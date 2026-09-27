@@ -75,7 +75,7 @@ export function broadcast(tx: Transaction): Array<{ label: string; value: string
   if (locked !== undefined) {
     fields.push({
       label: t('common_locked'),
-      value: locked ? "🔒 Yes" : "🔓 No",
+      value: locked ? '🔒 ' + t('tx_action_yes') : '🔓 ' + t('tx_action_no'),
     });
   }
 

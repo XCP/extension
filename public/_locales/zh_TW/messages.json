@@ -2516,6 +2516,18 @@
   "fairminter_fairmint_fairmint": {
     "message": "公平鑄造"
   },
+  "fairminter_payment_model_free": {
+    "message": "僅BTC手續費（給礦工）"
+  },
+  "fairminter_payment_model_burned": {
+    "message": "XCP費用（銷毀）"
+  },
+  "fairminter_payment_model_pool": {
+    "message": "XCP費用（進入流動性池）"
+  },
+  "fairminter_payment_model_issuer": {
+    "message": "XCP費用（給發行者）"
+  },
   "fairminter_form_a_textual_description_for_the": {
     "message": "資產的文字描述。將銘刻到鏈上。"
   },
@@ -3575,6 +3587,9 @@
   "messages_dividend_quantity_per_unit": {
     "message": "每單位數量"
   },
+  "messages_dividend_amount_per": {
+    "message": "每 $3 $1 $2"
+  },
   "messages_dividend_total_distributed": {
     "message": "累計發放"
   },
@@ -3589,6 +3604,9 @@
   },
   "messages_fairmint_quantity_minted": {
     "message": "鑄造數量"
+  },
+  "messages_fairmint_quantity_requested": {
+    "message": "請求數量"
   },
   "messages_fairmint_still_open": {
     "message": "仍然開放"
@@ -3625,6 +3643,15 @@
   },
   "messages_fairminter_quantity_per_price": {
     "message": "每價格單位數量"
+  },
+  "messages_fairminter_status_open": {
+    "message": "進行中"
+  },
+  "messages_fairminter_status_closed": {
+    "message": "已結束"
+  },
+  "messages_fairminter_status_pending": {
+    "message": "待開始"
   },
   "messages_fairminter_yes_8_decimals": {
     "message": "是（8 位小數）"
@@ -3719,9 +3746,6 @@
   "messages_sweep_assets_swept": {
     "message": "已清掃的資產"
   },
-  "messages_sweep_close_dispensers": {
-    "message": "關閉販賣機"
-  },
   "messages_sweep_flags": {
     "message": "標誌"
   },
@@ -3730,6 +3754,9 @@
   },
   "messages_sweep_include_ownership": {
     "message": "包含所有權"
+  },
+  "messages_sweep_ownership": {
+    "message": "所有權"
   },
   "messages_sweep_raw_value": {
     "message": "原始值: $1"

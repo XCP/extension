@@ -1965,7 +1965,7 @@
   },
   "common_not_available": {
     "message": "N/A",
-    "description": "pages/compose/utxo/attach/review.tsx, pages/compose/utxo/detach/review.tsx. Shown when a value is missing."
+    "description": "pages/compose/utxo/attach/review.tsx, pages/compose/utxo/detach/review.tsx, pages/transactions/_messages/dispense.tsx. Shown when a value is missing."
   },
   "common_message": {
     "message": "Message",
@@ -2025,7 +2025,7 @@
   },
   "common_open": {
     "message": "Open",
-    "description": "components/domain/dispenser/dispenser-card.tsx, pages/market/dispensers/[asset].tsx"
+    "description": "components/domain/dispenser/dispenser-card.tsx, pages/market/dispensers/[asset].tsx, pages/transactions/_messages/dispenser.tsx"
   },
   "common_options": {
     "message": "Options",
@@ -3182,11 +3182,11 @@
   },
   "dispenser_manage_dispenser_card_closed": {
     "message": "Closed",
-    "description": "components/domain/dispenser/manage-dispenser-card.tsx"
+    "description": "components/domain/dispenser/manage-dispenser-card.tsx, pages/transactions/_messages/dispenser.tsx. A dispenser that is closed."
   },
   "dispenser_manage_dispenser_card_closing": {
     "message": "Closing",
-    "description": "components/domain/dispenser/manage-dispenser-card.tsx"
+    "description": "components/domain/dispenser/manage-dispenser-card.tsx, pages/transactions/_messages/dispenser.tsx. A dispenser that is closing."
   },
   "dispenser_manage_dispenser_card_refill": {
     "message": "Refill",
@@ -3342,7 +3342,23 @@
   },
   "fairminter_fairmint_fairmint": {
     "message": "Fairmint",
-    "description": "pages/compose/fairminter/fairmint/index.tsx"
+    "description": "pages/compose/fairminter/fairmint/index.tsx, pages/transactions/_messages/fairmint.tsx (transaction type)"
+  },
+  "fairminter_payment_model_free": {
+    "message": "BTC Fee Only (to miners)",
+    "description": "core/counterparty/fairminterModel.ts. Where a fairmint's payment goes: free mint, only the Bitcoin network fee is paid."
+  },
+  "fairminter_payment_model_burned": {
+    "message": "XCP Fee (burned)",
+    "description": "core/counterparty/fairminterModel.ts. Where a fairmint's payment goes: the XCP paid is destroyed."
+  },
+  "fairminter_payment_model_pool": {
+    "message": "XCP Fee (to liquidity pool)",
+    "description": "core/counterparty/fairminterModel.ts. Where a fairmint's payment goes: the XCP paid seeds a liquidity pool for the asset."
+  },
+  "fairminter_payment_model_issuer": {
+    "message": "XCP Fee (to issuer)",
+    "description": "core/counterparty/fairminterModel.ts. Where a fairmint's payment goes: the XCP paid goes to the address that opened the fairminter."
   },
   "fairminter_form_a_textual_description_for_the": {
     "message": "A textual description for the asset. This will be inscribed on-chain.",
@@ -4756,6 +4772,10 @@
     "message": "Quantity per Unit",
     "description": "pages/transactions/_messages/dividend.tsx"
   },
+  "messages_dividend_amount_per": {
+    "message": "$1 $2 per $3",
+    "description": "pages/transactions/_messages/dividend.tsx. The dividend paid per unit held: $1 = amount (preformatted), $2 = dividend asset, $3 = the asset whose holders are paid."
+  },
   "messages_dividend_total_distributed": {
     "message": "Total Distributed",
     "description": "pages/transactions/_messages/dividend.tsx"
@@ -4775,6 +4795,10 @@
   "messages_fairmint_quantity_minted": {
     "message": "Quantity Minted",
     "description": "pages/transactions/_messages/fairmint.tsx"
+  },
+  "messages_fairmint_quantity_requested": {
+    "message": "Quantity Requested",
+    "description": "pages/transactions/_messages/fairmint.tsx. What the fairmint asked for, shown only when no mint was recorded (e.g. unconfirmed)."
   },
   "messages_fairmint_still_open": {
     "message": "Still Open",
@@ -4823,6 +4847,18 @@
   "messages_fairminter_quantity_per_price": {
     "message": "Quantity per Price",
     "description": "pages/transactions/_messages/fairminter.tsx"
+  },
+  "messages_fairminter_status_open": {
+    "message": "Open",
+    "description": "pages/transactions/_messages/fairminter.tsx. Fairminter state: minting is open."
+  },
+  "messages_fairminter_status_closed": {
+    "message": "Closed",
+    "description": "pages/transactions/_messages/fairminter.tsx. Fairminter state: minting has ended."
+  },
+  "messages_fairminter_status_pending": {
+    "message": "Pending",
+    "description": "pages/transactions/_messages/fairminter.tsx. Fairminter state: created, minting not started yet."
   },
   "messages_fairminter_yes_8_decimals": {
     "message": "Yes (8 decimals)",
@@ -4948,10 +4984,6 @@
     "message": "Assets Swept",
     "description": "pages/transactions/_messages/sweep.tsx"
   },
-  "messages_sweep_close_dispensers": {
-    "message": "Close Dispensers",
-    "description": "pages/transactions/_messages/sweep.tsx"
-  },
   "messages_sweep_flags": {
     "message": "Flags",
     "description": "pages/transactions/_messages/sweep.tsx"
@@ -4963,6 +4995,10 @@
   "messages_sweep_include_ownership": {
     "message": "Include Ownership",
     "description": "pages/transactions/_messages/sweep.tsx"
+  },
+  "messages_sweep_ownership": {
+    "message": "ownership",
+    "description": "pages/transactions/_messages/sweep.tsx. Stands in for a quantity in the swept-assets list: the asset's ownership (issuer rights) was transferred, not a balance. Shown as \"ASSET: ownership\"."
   },
   "messages_sweep_raw_value": {
     "message": "Raw value: $1",
@@ -7978,7 +8014,7 @@
   },
   "messages_order_status_unknown": {
     "message": "Unknown",
-    "description": "Missing recorded status, without assuming that successful payload unpack means an open order."
+    "description": "Missing or unrecognized recorded status of a historical order, dispenser or fairminter (pages/transactions/_messages/order.tsx, dispenser.tsx, fairminter.tsx), without assuming that successful payload unpack means an open order."
   },
   "settings_order_duration_hours": {
     "message": "$1h",
