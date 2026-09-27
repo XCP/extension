@@ -210,8 +210,6 @@
     "src/pages/settings/pinned-assets.tsx | typescript(no-misused-promises)": 5,
     "src/pages/settings/security.tsx | typescript(no-floating-promises)": 1,
     "src/pages/settings/security.tsx | typescript(no-misused-promises)": 2,
-    "src/pages/transactions/[txHash].tsx | typescript(no-floating-promises)": 1,
-    "src/pages/transactions/[txHash].tsx | typescript(no-misused-promises)": 2,
     "src/platform/__tests__/helpers/testHelpers.ts | typescript(no-misused-promises)": 1,
     "src/platform/auth/__tests__/sessionManager.test.ts | typescript(no-misused-promises)": 1,
     "src/services/__tests__/setup.ts | typescript(no-misused-promises)": 1,

@@ -42,8 +42,8 @@ export default function TransactionPage(): ReactElement {
   // passes nothing, and Back returns there instead.
   const savedPage: number | undefined = location.state?.page;
   const goBack = useCallback(() => {
-    if (savedPage !== undefined) navigate(`/addresses/history?page=${savedPage}`);
-    else navigate(-1);
+    if (savedPage !== undefined) void navigate(`/addresses/history?page=${savedPage}`);
+    else void navigate(-1);
   }, [navigate, savedPage]);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function TransactionPage(): ReactElement {
       }
     };
 
-    loadTransaction();
+    void loadTransaction();
   }, [txHash]);
 
   useEffect(() => {
