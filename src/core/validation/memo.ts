@@ -4,33 +4,32 @@
  */
 
 /**
- * Check if a string is a valid hex memo
+ * Whether the memo is written with an explicit `0x`/`0X` prefix, the one way to ask for hex.
  */
-export function isHexMemo(value: string): boolean {
-  if (!value) return false;
-  
-  const trimmed = value.trim();
-  
-  // Check if it starts with 0x or 0X - must have even number of hex digits after prefix
-  if (trimmed.toLowerCase().startsWith('0x')) {
-    const hexPart = trimmed.slice(2);
-    // 0x alone is not valid, needs actual hex data
-    return hexPart.length > 0 && /^[0-9a-fA-F]+$/.test(hexPart) && hexPart.length % 2 === 0;
-  }
-  
-  // Pure hex must have even length for valid byte encoding
-  return /^[0-9a-fA-F]+$/.test(trimmed) && trimmed.length % 2 === 0;
+export function hasHexPrefix(value: string): boolean {
+  return /^0x/i.test(value.trim());
 }
 
 /**
- * Strip hex prefix from a string
+ * Whether a memo is sent as hex bytes rather than as text.
+ *
+ * Only an explicit `0x`/`0X` prefix followed by whole bytes of hex makes a memo hex. Anything else
+ * is text, even when every character happens to be a hex digit: an exchange deposit ID such as
+ * `123456` must reach the chain as those six characters, not as the three bytes 12 34 56.
+ */
+export function isHexMemo(value: string): boolean {
+  if (!value) return false;
+  const trimmed = value.trim();
+  if (!hasHexPrefix(trimmed)) return false;
+  const hexPart = trimmed.slice(2);
+  return hexPart.length > 0 && hexPart.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(hexPart);
+}
+
+/**
+ * Strip a `0x`/`0X` hex prefix from a string
  */
 export function stripHexPrefix(hex: string): string {
-  // Only strip lowercase '0x', not uppercase '0X'
-  if (hex.startsWith('0x')) {
-    return hex.slice(2);
-  }
-  return hex;
+  return /^0x/i.test(hex) ? hex.slice(2) : hex;
 }
 
 /**
@@ -40,7 +39,7 @@ export function validateMemoLength(memo: string, isHex: boolean, maxBytes: numbe
   if (!memo) return true; // Empty memo is valid
   
   if (isHex) {
-    const hexContent = stripHexPrefix(memo);
+    const hexContent = stripHexPrefix(memo.trim());
     // Each byte is 2 hex characters
     return hexContent.length <= maxBytes * 2;
   } else {
@@ -63,7 +62,7 @@ export function getMemoByteLength(memo: string, isHex: boolean): number {
   if (!memo) return 0;
   
   if (isHex) {
-    const hexContent = stripHexPrefix(memo);
+    const hexContent = stripHexPrefix(memo.trim());
     return Math.floor(hexContent.length / 2);
   } else {
     const encoder = new TextEncoder();
@@ -88,8 +87,14 @@ export function validateMemo(memo: string, options?: {
     return { isValid: true, isHex: false, byteLength: 0 };
   }
   
+  // A 0x prefix asks for hex, so a prefixed memo that is not whole bytes of hex is a mistake to
+  // fix, not text to send as typed.
+  if (hasHexPrefix(memo) && !isHexMemo(memo)) {
+    return { isValid: false, error: "A memo starting with 0x must be followed by whole bytes of hex" };
+  }
+
   const isHex = isHexMemo(memo);
-  
+
   // Check if type is allowed
   if (isHex && !allowHex) {
     return { isValid: false, error: "Hex memos are not allowed" };

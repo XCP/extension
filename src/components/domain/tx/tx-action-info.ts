@@ -456,8 +456,12 @@ function fromLocalUnpack(
   };
 }
 
-/** Keep the locally decoded bytes authoritative; a hex-looking text memo is still text. */
-function memoForDisplay(data: Record<string, unknown>): Pick<DescribableMessage, 'memo' | 'memoEncoding'> {
+/**
+ * Keep the locally decoded bytes authoritative; a hex-looking text memo is still text.
+ * Shared by the dapp approval screens and the wallet's own send review, so both show one memo
+ * the same way.
+ */
+export function memoForDisplay(data: Record<string, unknown>): Pick<DescribableMessage, 'memo' | 'memoEncoding'> {
   const bytes = data.memoBytes;
   if (!(bytes instanceof Uint8Array)) {
     return typeof data.memo === 'string' ? { memo: data.memo,

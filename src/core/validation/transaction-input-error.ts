@@ -1,4 +1,4 @@
-export type TransactionInputCode = 'asset_divisibility_unknown' | 'fraction_inexact' | 'fee_invalid';
+export type TransactionInputCode = 'asset_divisibility_unknown' | 'fraction_inexact' | 'fee_invalid' | 'memo_hex_invalid';
 
 /** Stable diagnostics are localized at the UI boundary, never by matching English text. */
 export class TransactionInputError extends Error {

@@ -691,6 +691,50 @@
     "message": "This transaction spends more than $1 inputs, more than the wallet can check for attached assets. Ask the site to use fewer inputs.",
     "description": "Below approval_too_many_inputs_title. $1 is the number of inputs the wallet checks."
   },
+  "file_validation_invalid_file": {
+    "message": "This file could not be read.",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload."
+  },
+  "file_validation_empty": {
+    "message": "File is empty.",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload."
+  },
+  "file_validation_safety_limit": {
+    "message": "File exceeds the 50 MB safety limit.",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload."
+  },
+  "file_validation_too_large": {
+    "message": "File too large. Maximum size: $1 KB, actual: $2 KB.",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload. $1 = maximum size in KB; $2 = actual size in KB."
+  },
+  "file_validation_invalid_name": {
+    "message": "Invalid file name.",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload."
+  },
+  "file_validation_name_too_long": {
+    "message": "File name is too long.",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload."
+  },
+  "file_validation_control_characters": {
+    "message": "File name contains control characters.",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload."
+  },
+  "file_validation_reserved_name": {
+    "message": "Reserved file name.",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload."
+  },
+  "file_validation_no_extension": {
+    "message": "File has no extension.",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload."
+  },
+  "file_validation_extension_not_allowed": {
+    "message": "File extension not allowed. Accepted: $1",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload. $1 = accepted extensions, e.g. \".csv\". Keep extensions literal."
+  },
+  "file_validation_double_extension": {
+    "message": "Suspicious double extension detected.",
+    "description": "core/validation/file.ts, shown by the MPMA CSV upload."
+  },
   "provider_review_transaction_data_mismatch": {
     "message": "The site's transaction data does not match the blockchain. Ask the site to rebuild it.",
     "description": "Signing stopped because the site's transaction describes an input differently from the blockchain, or the key cannot sign what it describes."
@@ -994,6 +1038,10 @@
   "asset_asset_menu_change_description": {
     "message": "Change Description",
     "description": "components/domain/asset/asset-menu.tsx"
+  },
+  "asset_asset_menu_fair_mint_open": {
+    "message": "Unavailable while a fair mint is open.",
+    "description": "components/domain/asset/asset-menu.tsx. Shown instead of the owner actions while a fairminter is live."
   },
   "asset_asset_name_input_asset_name_already_taken": {
     "message": "Asset name already taken",
@@ -1914,6 +1962,10 @@
   "common_memo_2": {
     "message": "Memo: $1",
     "description": "pages/compose/send/mpma/review.tsx, pages/compose/send/review.tsx. $1 = tx.memo"
+  },
+  "common_not_available": {
+    "message": "N/A",
+    "description": "pages/compose/utxo/attach/review.tsx, pages/compose/utxo/detach/review.tsx. Shown when a value is missing."
   },
   "common_message": {
     "message": "Message",
@@ -3500,6 +3552,10 @@
     "message": "Choose File",
     "description": "components/ui/inputs/file-upload-input.tsx"
   },
+  "inputs_file_upload_input_inscription": {
+    "message": "Inscription",
+    "description": "components/ui/inputs/file-upload-input.tsx. Default label of the inscription file upload."
+  },
   "inputs_file_upload_input_max_file_size_kb": {
     "message": "Max file size: $1KB",
     "description": "components/ui/inputs/file-upload-input.tsx. $1 = maxSizeKB"
@@ -3551,6 +3607,14 @@
   "inputs_memo_input_optional_memo_to_include": {
     "message": "Optional memo to include.",
     "description": "components/ui/inputs/memo-input.tsx"
+  },
+  "inputs_memo_input_sent_as_hex": {
+    "message": "Starts with 0x, so it is sent as hex bytes.",
+    "description": "components/ui/inputs/memo-input.tsx. Shown under a memo that starts with 0x. Keep \"0x\" literal."
+  },
+  "inputs_memo_input_hex_help": {
+    "message": "Start with 0x to send hex bytes; anything else is sent as text.",
+    "description": "components/ui/inputs/memo-input.tsx. Help text after \"Optional memo to include.\" Keep \"0x\" literal."
   },
   "inputs_password_input_enter_password": {
     "message": "Enter password",
@@ -4824,16 +4888,8 @@
     "message": "Yes (8 decimal places)",
     "description": "pages/transactions/_messages/issuance.tsx"
   },
-  "messages_move_utxo_same_as_source_consolidation": {
-    "message": "Same as source (consolidation)",
-    "description": "pages/transactions/_messages/move_utxo.tsx"
-  },
   "messages_move_utxo_utxo_move": {
     "message": "UTXO Move",
-    "description": "pages/transactions/_messages/move_utxo.tsx"
-  },
-  "messages_move_utxo_utxos_moved": {
-    "message": "UTXOs Moved",
     "description": "pages/transactions/_messages/move_utxo.tsx"
   },
   "messages_mpma_multi_send_to": {
@@ -4954,7 +5010,7 @@
   },
   "mpma_form_line": {
     "message": "Line $1: $2",
-    "description": "pages/compose/send/mpma/form.tsx. $1 = row.lineNumber; $2 = row.address"
+    "description": "pages/compose/send/mpma/form.tsx. $1 = row.lineNumber; $2 = what is wrong on that line (a parse error, the address, or a memo error)"
   },
   "mpma_form_line_invalid_bitcoin_address": {
     "message": "Line $1: Invalid Bitcoin address: $2. $3",
@@ -6883,6 +6939,10 @@
   "safety_fee_invalid": {
     "message": "Use digits and a dot, up to 8 decimals. No commas.",
     "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_memo_hex_invalid": {
+    "message": "A memo starting with 0x is sent as hex, so it must be followed by whole bytes of hex (0-9, a-f).",
+    "description": "components/ui/inputs/memo-input.tsx (under a 0x memo), the compose error for such a memo, and the MPMA CSV line error (after \"Line $1:\"). Only a 0x/0X prefix makes a memo hex; keep \"0x\" and \"0-9, a-f\" literal."
   },
   "safety_fee_minimum": {
     "message": "Fee rate too low (minimum: $1 sat/vB)",

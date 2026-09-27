@@ -54,10 +54,10 @@ describe('Simple Validation Tests', () => {
 
   describe('Memo validation', () => {
     it('should identify hex memos', () => {
-      expect(isHexMemo('deadbeef')).toBe(true);
+      expect(isHexMemo('deadbeef')).toBe(false); // No 0x prefix: text
       expect(isHexMemo('0xdeadbeef')).toBe(true);
       expect(isHexMemo('hello world')).toBe(false);
-      expect(isHexMemo('deadbeef0')).toBe(false); // Odd length
+      expect(isHexMemo('0xdeadbeef0')).toBe(false); // Odd length
     });
 
     it('should validate memo lengths', () => {

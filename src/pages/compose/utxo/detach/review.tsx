@@ -29,7 +29,7 @@ export function ReviewUtxoDetach({
 
 
   const customFields = [
-    { label: t('detach_review_source_utxo'), value: result.params.sourceUtxo || result.params.utxo || "N/A" },
+    { label: t('detach_review_source_utxo'), value: result.params.sourceUtxo || result.params.utxo || t('common_not_available') },
     ...(result.params.destination ? [{ label: t('common_destination'), value: result.params.destination }] : []),
   ];
 

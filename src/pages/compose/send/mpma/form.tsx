@@ -5,7 +5,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { fetchAssetDetails } from "@/core/counterparty/api";
-import { isHexMemo, isValidMemoLength, stripHexPrefix } from "@/core/counterparty/memo";
+import { hasHexPrefix, isHexMemo, isValidMemoLength, stripHexPrefix } from "@/core/counterparty/memo";
 import { validateBitcoinAddress } from "@/core/validation/bitcoin";
 import { parseCSV } from "@/core/validation/csv";
 import { validateFile } from "@/core/validation/file";
@@ -113,8 +113,12 @@ export function MPMAForm({
           isDivisible = assetCache[asset]!;
         }
 
-        // Validate memo length if provided
+        // Validate memo length if provided. Only a 0x/0X prefix makes a memo hex, so a prefixed
+        // memo that is not whole bytes of hex is an error rather than text sent as typed.
         if (memo) {
+          if (hasHexPrefix(memo) && !isHexMemo(memo)) {
+            throw new Error(t('mpma_form_line', [String(lineNumber), t('safety_memo_hex_invalid')]));
+          }
           const isHex = isHexMemo(memo);
           const memoToValidate = isHex ? stripHexPrefix(memo) : memo;
           if (!isValidMemoLength(memoToValidate, isHex)) {
@@ -152,13 +156,12 @@ export function MPMAForm({
     if (!file) return;
     
     // Bounded before the whole file is read into memory. parseCSV caps rows, but that only
-    // applies once the text exists, and nothing capped the bytes. detectMaliciousPatterns is left
-    // off deliberately: parseCSV already screens every field for injection, which covers the whole
-    // file rather than the first kilobyte, and a scan for script markers could trip on a memo.
+    // applies once the text exists, and nothing capped the bytes. There is no content scan here:
+    // parseCSV already screens every field for injection, which covers the whole file, and a scan
+    // for script markers could trip on a memo. validateFile's errors are already translated.
     const fileCheck = await validateFile(file, {
       maxSizeKB: MAX_CSV_SIZE_KB,
       allowedExtensions: ['.csv'],
-      detectMaliciousPatterns: false,
     });
     if (!fileCheck.isValid) {
       setValidationError(fileCheck.error ?? t('mpma_form_please_select_a_csv_file'));
@@ -200,10 +203,10 @@ export function MPMAForm({
     const hasAnyMemo = memos.some(m => m !== '');
     
     if (hasAnyMemo) {
-      // Auto-detect hex memos and potentially strip 0x prefix
+      // A memo is hex only when written with a 0x/0X prefix, which is stripped here
       const processedMemos = csvData.map(r => {
         if (r.memo && isHexMemo(r.memo)) {
-          return stripHexPrefix(r.memo);
+          return stripHexPrefix(r.memo.trim());
         }
         return r.memo || '';
       });
