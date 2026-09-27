@@ -80,7 +80,7 @@ export function useCopyToClipboard(
       }
 
       setCopiedText(text);
-      analytics.track('copy_to_clipboard');
+      void analytics.track('copy_to_clipboard');
       timeoutRef.current = setTimeout(() => {
         setCopiedText(null);
       }, feedbackMs);

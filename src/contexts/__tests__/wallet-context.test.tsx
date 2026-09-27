@@ -1085,6 +1085,26 @@ describe('WalletContext — keychain locked outside this surface', () => {
     expect(result.current.activeAddress).toBeNull();
   });
 
+  it('still shows the lock when the state lock times out behind a stuck refresh', async () => {
+    const { withStateLock } = await import('@/core/wallet/stateLockManager');
+    const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+    await waitFor(() => expect(result.current.authState).toBe('UNLOCKED'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // What the lock queue does to every waiter when a holder overruns its timeout.
+    vi.mocked(withStateLock).mockImplementationOnce(async (key: string) => {
+      throw new Error(`Lock timeout for resource: ${key}`);
+    });
+    await act(async () => {
+      await clearCachedKeychainMasterKey();
+    });
+
+    await waitFor(() => expect(result.current.authState).toBe('LOCKED'));
+    expect(result.current.keychainLocked).toBe(true);
+    expect(result.current.activeWallet).toBeNull();
+    consoleError.mockRestore();
+  });
+
   it('does not treat the key being written (an unlock) as a lock', async () => {
     const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
     await waitFor(() => expect(result.current.authState).toBe('UNLOCKED'));
