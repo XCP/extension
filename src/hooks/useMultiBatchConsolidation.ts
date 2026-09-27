@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useWallet } from "@/contexts/wallet-context";
 import { isStaleInputsError } from "@/core/bitcoin/broadcastErrors";
@@ -32,6 +32,9 @@ export function useMultiBatchConsolidation() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentBatch, setCurrentBatch] = useState(0);
   const [results, setResults] = useState<ConsolidationResult[]>([]);
+  // A ref, not isProcessing: a second trigger in the same tick would still read the old state and
+  // broadcast the same batches again.
+  const isRunningRef = useRef(false);
 
   /**
    * Reporting is bookkeeping, not consensus. The coins have already moved by the time this runs, so a
@@ -60,11 +63,14 @@ export function useMultiBatchConsolidation() {
     feeRateSatPerVByte: number,
     destinationAddress?: string,
     includeProtectedStamps = false,
-  ) => {
+  ): Promise<ConsolidationResult[] | undefined> => {
+    // A second trigger while a run is in flight is ignored, not queued.
+    if (isRunningRef.current) return undefined;
     if (!activeWallet || !activeAddress) {
       throw new Error("Wallet not properly initialized");
     }
 
+    isRunningRef.current = true;
     setIsProcessing(true);
     setResults([]);
     const batchResults: ConsolidationResult[] = [];
@@ -144,8 +150,9 @@ export function useMultiBatchConsolidation() {
           );
           const remaining = refreshed.filter((batch) => batch.summary.batch_utxos > 0);
           totalBatches += remaining.length;
-          for (const [index, batch] of remaining.entries()) {
-            record(await runBatch(batch, batchResults.length + index + 1));
+          // Numbered after everything recorded so far, which record() itself keeps growing.
+          for (const batch of remaining) {
+            record(await runBatch(batch, batchResults.length + 1));
           }
         } catch (refreshError) {
           console.error("Could not refresh the batch list after a stale-input failure:", refreshError);
@@ -176,6 +183,7 @@ export function useMultiBatchConsolidation() {
       console.error("Consolidation failed:", error);
       throw error;
     } finally {
+      isRunningRef.current = false;
       setIsProcessing(false);
       setCurrentBatch(0);
     }
