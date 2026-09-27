@@ -1473,6 +1473,17 @@ describe('offer funding proof', () => {
     });
   });
 
+  it('shows no platform fee row for a taker-pays funding, which pre-funds none of it', () => {
+    const review = analyzeMarketplaceIntent({
+      ...fundOffersBase(),
+      intent: { ...fundOffersIntent, priceSats: 9_000, platformFeeSats: 0 },
+    });
+    expect(review.status).toBe('proved');
+    expect(review.paymentSummary?.map(field => field.label)).toEqual([
+      'Offer price · each', 'Set aside', 'Network fee',
+    ]);
+  });
+
   it('clips long collection and policy text instead of letting it carry a sentence', () => {
     const review = analyzeMarketplaceIntent({
       ...fundOffersBase(),

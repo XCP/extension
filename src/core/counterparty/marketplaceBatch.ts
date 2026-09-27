@@ -88,7 +88,11 @@ function parseAuthorizeOffers(offers: AuthorizeExactOfferIntentClaim[]): Authori
     if (!sameDelivery(offer.delivery, first.delivery)) {
       throw new Error('exact-offer authorizations must share one delivery');
     }
-    if (offer.priceSats !== first.priceSats || offer.platformFeeSats !== first.platformFeeSats) {
+    if (
+      offer.priceSats !== first.priceSats
+      || offer.platformFeeSats !== first.platformFeeSats
+      || (offer.sellerPaidFeeSats ?? 0) !== (first.sellerPaidFeeSats ?? 0)
+    ) {
       throw new Error('exact-offer authorizations must share one price and platform fee');
     }
   }
@@ -377,7 +381,12 @@ export function analyzeMarketplaceBatch(
     // and each item proved those against its own bytes, so the first item speaks for all of them.
     const offers = intents as AuthorizeExactOfferIntentClaim[];
     const first = offers[0]!;
+    // What leaves the bidder's funding if accepted: the price net of any seller-paid fee, plus the
+    // fee output. Under taker-pays the accepting seller pays the fee out of the offer, so this is
+    // exactly the offer price the bidder set aside.
     const buyerCost = exactSafeSum([first.priceSats, first.platformFeeSats], 'offer cost');
+    const sellerPaidFeeSats = first.sellerPaidFeeSats ?? 0;
+    const offerPriceSats = exactSafeSum([first.priceSats, sellerPaidFeeSats], 'offer price');
     const deliveryUtxoSats = first.delivery.mode === 'attached' ? first.delivery.utxoValueSats : 0;
     const funding = first.bitcoinInvalidation.outpoint;
     const expiries = offers.map(offer => offer.marketplaceExpiresAt);
@@ -390,10 +399,13 @@ export function analyzeMarketplaceBatch(
         kind: 'amount', label: t('marketplace_intent_you_pay_if_accepted'),
         value: satsValue(buyerCost), emphasis: 'primary',
       },
-      { kind: 'amount' as const, label: t('marketplace_intent_offer_price'), value: satsValue(first.priceSats) },
+      { kind: 'amount' as const, label: t('marketplace_intent_offer_price'), value: satsValue(offerPriceSats) },
       ...(first.platformFeeSats > 0 ? [{
         kind: 'amount' as const, label: t('marketplace_intent_platform_fee'),
-        value: satsValue(first.platformFeeSats), description: t('marketplace_intent_paid_by_the_buyer'),
+        value: satsValue(first.platformFeeSats),
+        description: sellerPaidFeeSats > 0
+          ? t('marketplace_intent_deducted_from_seller_proceeds')
+          : t('marketplace_intent_paid_by_the_buyer'),
       }] : []),
       ...(deliveryUtxoSats > 0 ? [{
         kind: 'amount' as const, label: t('marketplace_intent_asset_utxo'),

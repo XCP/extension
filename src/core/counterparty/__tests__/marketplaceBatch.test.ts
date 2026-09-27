@@ -278,6 +278,42 @@ describe('marketplace batch aggregate proof', () => {
     expect(review.facts.map(fact => fact.label)).not.toContain('Seller wallet');
   });
 
+  // The mainnet report: a 5,000-sat offer read "Offer price 4,000 / Platform fee 1,000 / Paid by the
+  // buyer". Under taker-pays the claim's priceSats is net of the fee the accepting seller pays.
+  it('states a taker-pays offer as the bidder made it, with the fee on the seller', () => {
+    const takerPays = (index: number): AuthorizeExactOfferIntentClaim => ({
+      ...exactOffer(index), priceSats: 4_000, platformFeeSats: 1_000, sellerPaidFeeSats: 1_000,
+      sellerProceedsSats: 4_046,
+    });
+    const offers = [takerPays(0), takerPays(1)];
+    const review = analyzeMarketplaceBatch('authorize-offers', offers,
+      offers.map(() => proved({ status: 'caution', family: 'authorize_exact_offer' })));
+    expect(review.facts[0]).toEqual({
+      kind: 'amount', label: 'You pay if accepted', value: '5,000 sats', emphasis: 'primary',
+    });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Offer price', value: '5,000 sats' });
+    expect(review.facts).toContainEqual({
+      kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Deducted from seller proceeds',
+    });
+    expect(review.facts.some(fact => fact.description === 'Paid by the buyer')).toBe(false);
+  });
+
+  it('still names a bidder-funded fee as paid by the buyer', () => {
+    const offers = [exactOffer(0)];
+    const review = analyzeMarketplaceBatch('authorize-offers', offers,
+      [proved({ status: 'caution', family: 'authorize_exact_offer' })]);
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Offer price', value: '250,000 sats' });
+    expect(review.facts).toContainEqual({
+      kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Paid by the buyer',
+    });
+  });
+
+  it('refuses a batch whose items split the fee differently', () => {
+    expect(() => parseMarketplaceBatchIntents([
+      exactOffer(0), { ...exactOffer(1), sellerPaidFeeSats: 1_000 },
+    ])).toThrow(/one price and platform fee/);
+  });
+
   // M1: a batch reads as "listing changed" only when every blocked item is ledger drift.
   it('carries a shared block kind, and drops it when blocked items disagree', () => {
     const offers = [exactOffer(0), exactOffer(1)];
