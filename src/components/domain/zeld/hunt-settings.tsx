@@ -64,7 +64,9 @@ export function HuntSettings({ showHelpText = false, showTimeInput = true }: Hun
     <div>
       <SettingSwitch label={t('zeld_hunt_enable')} checked={stored > 0} onChange={enabled => { void toggle(enabled); }}
         disabled={saving} showHelpText={showHelpText}
-        description={t('zeld_hunt_description')} />
+        description={t('zeld_sentence_pair', [t('zeld_hunt_description'), t('zeld_hunt_sites_help')])} />
+      {/* Hunting blocks site transactions that would move ZELD, so it suits wallets kept off sites. */}
+      <p className="mt-1 text-xs text-gray-500">{t('zeld_hunt_sites')}</p>
       {error && (
         <p className="mt-1 text-sm text-red-600" role="alert">{error}</p>
       )}

@@ -24,6 +24,8 @@ import { revealControlText, revealOutputsText, revealRefusalText } from '@/core/
 import { scriptPaymentRiskText } from '@/core/counterparty/scriptPaymentCaution';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { formatAmount } from '@/core/format';
+import { ZELD_DISPLAY_NAME, zeldBaseUnitsToDisplay } from '@/core/zeld/api';
+import type { ZeldNotice } from '@/core/zeld/signRequestZeld';
 
 import { t } from '@/i18n';
 
@@ -54,6 +56,74 @@ export function marketplaceBlockText(kind: 'retry' | 'transaction' | Marketplace
   }
 }
 
+/** A ZELD amount in base units, whole ZELD first: "4,096", or "0.5". */
+function zeldAmount(baseUnits: string): string {
+  return formatAmount({ value: zeldBaseUnitsToDisplay(BigInt(baseUnits)), minimumFractionDigits: 0, maximumFractionDigits: 8 });
+}
+
+/**
+ * Where the ZELD on the signed inputs goes, in one sentence (core/zeld/signRequestZeld.ts), then
+ * what to do about it when the analysis blocks or warns. A batch names the transactions it
+ * concerns, once, rather than repeating the sentence per item.
+ */
+export function zeldNoticeText(
+  notice: ZeldNotice & { items?: number[] },
+  severity: SecurityWarning['severity'] = 'info',
+): { title: string; description: string } {
+  const amount = notice.kind !== 'unchecked' && notice.amount ? zeldAmount(notice.amount) : undefined;
+  const blocked = severity === 'block';
+  let title: string = ZELD_DISPLAY_NAME;
+  let description: string;
+  let remedy: string | undefined;
+  switch (notice.kind) {
+    case 'leaves':
+      title = blocked ? t('zeld_safety_blocked') : t('zeld_safety_warning');
+      description = notice.destination
+        ? amount ? t('zeld_approval_leaves', [amount, notice.destination]) : t('zeld_approval_leaves_unknown', notice.destination)
+        : amount ? t('zeld_approval_leaves_open', amount) : t('zeld_approval_leaves_open_unknown');
+      remedy = blocked ? t('zeld_safety_blocked_detail') : t('zeld_safety_warning_detail');
+      break;
+    case 'destroyed':
+      title = blocked ? t('zeld_safety_blocked_destroyed') : t('zeld_approval_destroyed_title');
+      description = amount ? t('zeld_approval_destroyed', amount) : t('zeld_approval_destroyed_unknown');
+      remedy = blocked ? t('zeld_safety_blocked_detail') : t('zeld_safety_warning_detail');
+      break;
+    case 'asset_output':
+      if (blocked) title = t('zeld_safety_blocked_asset');
+      description = amount
+        ? t('zeld_approval_asset_output', [amount, notice.asset])
+        : t('zeld_approval_asset_output_unknown', notice.asset);
+      if (blocked) remedy = t('zeld_safety_blocked_detail');
+      break;
+    case 'listed':
+      if (blocked) title = t('zeld_safety_blocked_asset');
+      description = amount ? t('zeld_approval_listed', amount) : t('zeld_approval_listed_unknown');
+      if (blocked) remedy = t('zeld_safety_detach_first');
+      break;
+    case 'unchecked':
+      description = t('zeld_approval_unchecked');
+      break;
+  }
+  if (remedy) description = t('zeld_sentence_pair', [description, remedy]);
+  const items = notice.items ?? [];
+  if (items.length > 0) {
+    description = items.length === 1
+      ? t('zeld_approval_items_one', [String(items[0]), description])
+      : t('zeld_approval_items_many', [items.join(', '), description]);
+  }
+  return { title, description };
+}
+
+/**
+ * The ZELD statements that need no decision: where ZELD stays with an asset. They are shown on
+ * the review itself, under the summary, rather than as warnings; a ZELD warning (leaving the
+ * wallet) goes through the review step with the other warnings instead.
+ */
+export function zeldReviewNotes(warnings: readonly SecurityWarning[]): string[] {
+  return warnings.flatMap(warning => warning.code === 'zeld_movement' && warning.severity === 'info'
+    ? [zeldNoticeText(warning.data).description] : []);
+}
+
 /** Known local findings are translated here, after crossing the background/UI language boundary. */
 function safetyWarningText(warning: SecurityWarning): { title: string; description: string; children?: ReactNode } {
   switch (warning.code) {
@@ -61,13 +131,8 @@ function safetyWarningText(warning: SecurityWarning): { title: string; descripti
       return { ...marketplaceBlockText('retry'), children: <WarningDetails details={warning.data.details} /> };
     case 'marketplace_blocked':
       return { ...marketplaceBlockText(warning.data.kind), children: <WarningDetails details={warning.data.details} /> };
-    case 'zeld_would_leave':
-      return {
-        title: warning.severity === 'block' ? t('zeld_safety_blocked') : t('zeld_safety_warning'),
-        description: warning.severity === 'block'
-          ? t('zeld_safety_blocked_detail', [String(warning.data.count)])
-          : t('zeld_safety_warning_detail', [String(warning.data.count)]),
-      };
+    case 'zeld_movement':
+      return zeldNoticeText(warning.data, warning.severity);
     case 'sweep':
       return { title: t('safety_blocked_sweep_transaction'), description: t('safety_this_would_send_all_counterparty') };
     case 'destroy':

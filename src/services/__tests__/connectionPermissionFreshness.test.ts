@@ -67,7 +67,6 @@ vi.mock('@/services/walletService', () => ({
       addConnectedWebsite: (origin: string, identity?: { walletId: string; address: string }) =>
         manager.addConnectedWebsite(origin, identity),
       removeConnectedWebsite: (origin: string) => manager.removeConnectedWebsite(origin),
-      clearConnectedWebsites: () => manager.clearConnectedWebsites(),
       setPairedAddressPermission: (origin: string, identity: { walletId: string; address: string } | null) =>
         manager.setPairedAddressPermission(origin, identity),
     };

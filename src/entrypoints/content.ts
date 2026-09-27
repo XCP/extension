@@ -33,7 +33,7 @@ export default defineContentScript({
       const msg = isRecord(message) ? message : undefined;
 
       // Handle provider events (accountsChanged, disconnect, etc.)
-      if (msg?.type === 'PROVIDER_EVENT') {
+      if (msg?.type === MESSAGE_TYPES.PROVIDER_EVENT) {
         // Events reach every tab; only the origin they were addressed to may see them.
         if (msg.origin !== window.location.origin) {
           sendResponse({ received: false });

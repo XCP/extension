@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FIAT_CURRENCIES } from '@/core/bitcoin/price';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import AdvancedSettingsPage from '../advanced';
 
 const mockUpdateSettings = vi.fn();

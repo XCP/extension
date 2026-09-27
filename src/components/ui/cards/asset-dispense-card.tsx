@@ -1,12 +1,11 @@
 import type { ReactElement } from "react";
 import { FaCheck, FaCopy } from "@/components/icons";
+import { SATS_PER_BTC } from "@/core/bitcoin/constants";
 import type { Dispense } from "@/core/counterparty/api";
 import { formatAmount, formatTimeAgo } from "@/core/format";
 import { toBigNumber } from "@/core/numeric";
 
 import { t } from '@/i18n';
-
-const SATS_PER_BTC = 100_000_000;
 
 interface AssetDispenseCardProps {
   dispense: Dispense;

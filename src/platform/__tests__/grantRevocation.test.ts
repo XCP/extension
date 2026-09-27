@@ -81,7 +81,6 @@ vi.mock('@/services/walletService', async () => {
     getPairedAddresses: async () => manager.getPairedAddresses(),
     addConnectedWebsite: (origin: string, identity?: { walletId: string; address: string }) => manager.addConnectedWebsite(origin, identity),
     removeConnectedWebsite: (origin: string) => manager.removeConnectedWebsite(origin),
-    clearConnectedWebsites: () => manager.clearConnectedWebsites(),
     setPairedAddressPermission: (origin: string, identity: { walletId: string; address: string } | null) =>
       manager.setPairedAddressPermission(origin, identity),
   };
@@ -181,17 +180,6 @@ describe('revoking access fails closed', () => {
     pending.release();
     await revoking;
     expect((await onDisk()).providerCapabilities).toEqual({});
-  });
-
-  it('refuses every site while disconnect-all is being written', async () => {
-    const pending = barrier();
-    const revoking = walletManager.clearConnectedWebsites();
-    await pending.entered;
-    expect(await permission()).toBe(false);
-    expect(await getConnectionService().hasPermission(OTHER_ORIGIN)).toBe(false);
-    pending.release();
-    await revoking;
-    expect((await onDisk()).connectedWebsites).toEqual([]);
   });
 
   it('keeps a revocation whose write failed, reports the failure, and saves it with the next write', async () => {

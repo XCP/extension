@@ -94,9 +94,11 @@ import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
 import { ComposeVerificationError } from '@/core/validation/compose-verification-error';
 import { huntZeldForCompose } from "@/core/zeld/composeHunt";
 import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility";
+import { zeldRecordAfterBroadcast } from "@/core/zeld/recordReads";
 import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 import { getKnownScriptRecipients, recordScriptRecipients } from "@/services/scriptRecipientsClient";
+import { recordZeldOutpoints } from "@/services/zeldRecordClient";
 
 /**
  * Maximum age for a composed transaction before requiring recomposition (5 minutes).
@@ -735,6 +737,10 @@ export function ComposerProvider<T>({
 
     const broadcastResponse = await broadcastTransaction(signedTxHex);
     void recordScriptRecipients(activeAddress.address, scriptRecipientsRef.current);
+    // What this spent and left of the address's ZELD, for approvals to fall back on while the
+    // indexer is down or has not yet seen this transaction.
+    void recordZeldOutpoints(activeAddress.address,
+      zeldRecordAfterBroadcast(signedTxHex, activeAddress.address, state.apiResponse.result));
 
     // Record the real txid as broadcasted (the placeholder stays as 'pending'
     // but will be cleaned up automatically; replay prevention matches on params)

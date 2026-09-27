@@ -95,6 +95,18 @@ export function parseZeldRewards(payload: unknown): ZeldReward[] {
   return rewards;
 }
 
+type ZeldUtxoReadListener = (address: string, utxos: ZeldUtxo[]) => void;
+let utxoReadListener: ZeldUtxoReadListener | null = null;
+
+/**
+ * Be told of every fresh indexer answer for an address, so the wallet can keep its own record of
+ * its ZELD outputs for when the indexer is down (`knownOutpoints.ts`). The composition root of
+ * each extension context installs one; nothing else does. Pass null to remove it.
+ */
+export function setZeldUtxoReadListener(listener: ZeldUtxoReadListener | null): void {
+  utxoReadListener = listener;
+}
+
 /** Outpoints of `address` that carry ZELD, per the indexer. Cached briefly per address. */
 export function fetchZeldUtxos(address: string, signal?: AbortSignal): Promise<ZeldUtxo[]> {
   const key = address;
@@ -105,7 +117,13 @@ export function fetchZeldUtxos(address: string, signal?: AbortSignal): Promise<Z
       `${ZELD_API_BASE}/addresses/${encodeURIComponent(address)}/utxos`,
       { retries: 0, signal, reportStatus: false },
     );
-    return parseZeldUtxos(response.data);
+    const utxos = parseZeldUtxos(response.data);
+    try {
+      utxoReadListener?.(address, utxos);
+    } catch {
+      // Keeping the record is best effort; the answer itself is unaffected.
+    }
+    return utxos;
   })();
   utxoCache.set(key, { expires: Date.now() + CACHE_MS, promise });
   promise.catch(() => utxoCache.delete(key));
