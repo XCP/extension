@@ -4,7 +4,7 @@ import { FiHelpCircle } from "@/components/icons";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { useMultiBatchConsolidation } from "@/hooks/useMultiBatchConsolidation";
+import { type ConsolidationResult, useMultiBatchConsolidation } from "@/hooks/useMultiBatchConsolidation";
 import { t } from '@/i18n';
 import { ConsolidationForm, type ConsolidationFormData } from "@/pages/actions/consolidate/form";
 import { ConsolidationHistory } from "@/pages/actions/consolidate/history";
@@ -89,12 +89,12 @@ function ConsolidatePage() {
     setTxDetails(null);
   };
 
-  const handleSign = async () => {
-    if (!formData || !formData.allBatches.length) return;
+  const handleSign = async (): Promise<ConsolidationResult[] | undefined> => {
+    if (!formData || !formData.allBatches.length) return undefined;
 
     try {
       setError(null);
-      await consolidateAllBatches(
+      return await consolidateAllBatches(
         formData.allBatches,
         formData.feeRateSatPerVByte,
         formData.destinationAddress || undefined,
@@ -103,12 +103,14 @@ function ConsolidatePage() {
       // Navigation to success is handled by the hook
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      return undefined;
     }
   };
 
   return (
     <div className="p-4">
-      {error && (
+      {/* The review step shows its own dismissible alert for the same error. */}
+      {error && step !== "review" && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
           {error}
         </div>
