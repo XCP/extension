@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DestinationInput } from '@/components/ui/inputs/destination-input';
 import { MemoInput } from '@/components/ui/inputs/memo-input';
 import { t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import { DestinationsInput } from './destinations-input';
 
 const lookups = vi.hoisted(() => ({

@@ -1,7 +1,7 @@
 import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import { PriceChart } from './price-chart';
 
 const canvas = {

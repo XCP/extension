@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AddressFormat } from "@/core/bitcoin/address";
 import { getPrivateKeyFromMnemonic } from "@/core/bitcoin/privateKey";
 import { GIFT_CARD_PATH } from "@/core/wallet/rarePepeWallet";
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import { analytics } from "@/platform/fathom";
 import ImportMnemonicPage from "../import-mnemonic";
 

@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { formatAddress } from '@/core/format';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import AddressTypesPage from '@/pages/settings/address-types';
 import { AddressTypeShortcut } from './address-type-shortcut';
 

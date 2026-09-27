@@ -4,32 +4,26 @@
 //                                  # every locale has every key, zh matches zh_CN, and no
 //                                  # number is formatted in a language nobody chose; exit 1 otherwise
 //   node scripts/i18n.mjs sync-zh  # public/_locales/zh_CN/messages.json -> zh/messages.json
-//   node scripts/i18n.mjs review <locale> [--machine] > review-<locale>.md
+//   node scripts/i18n.mjs review <locale> > review-<locale>.md
 //
 // `en/messages.json` is the source of truth, and its keys type `t()` (src/i18n
 // imports the file as a type). Each entry carries the message and a
 // `description` naming where it appears and what any `$1` stands for, which is
 // what a translator reads. A locale file has the same keys and only `message`
-// (Chrome reads nothing else). The keys a native speaker has checked are listed
-// in `i18n/<locale>.json` under "reviewed"; every other key is a
-// machine draft, so a new string needs no bookkeeping. That list lives outside
-// `public/` so it is never packaged.
+// (Chrome reads nothing else).
 import { copyFileSync, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const LOCALES_DIR = join(ROOT, 'public', '_locales');
 const SRC = join(ROOT, 'src');
-const REVIEWED_DIR = join(ROOT, 'i18n');
-const [command, locale, ...flags] = process.argv.slice(2);
+const [command, locale] = process.argv.slice(2);
 
 const readJson = (path, fallback) => (existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : fallback);
 const en = readJson(join(LOCALES_DIR, 'en', 'messages.json'), {});
 const locales = existsSync(LOCALES_DIR)
   ? readdirSync(LOCALES_DIR).filter((name) => name !== 'en' && statSync(join(LOCALES_DIR, name)).isDirectory())
   : [];
-/** The keys of `name` a native speaker has checked. */
-const reviewedKeys = (name) => readJson(join(REVIEWED_DIR, `${name}.json`), { reviewed: [] }).reviewed;
 
 function* sourceFiles(dir) {
   for (const name of readdirSync(dir)) {
@@ -259,12 +253,8 @@ function check() {
       const have = (expandedMessage(messages[key]).match(/\$\d/g) ?? []).sort().join('');
       return want !== have;
     });
-    const reviewed = new Set(reviewedKeys(name));
-    const staleReviewed = [...reviewed].filter((key) => !defined.has(key));
-    const awaiting = Object.keys(messages).filter((key) => !reviewed.has(key)).length;
-    if (missing.length || extra.length || badPlaceholders.length || staleReviewed.length) failed = true;
-    console.log(`${name}: ${Object.keys(messages).length} messages, missing ${missing.length}, stale ${extra.length}, placeholder mismatches ${badPlaceholders.length}, ${awaiting} awaiting review`);
-    for (const key of staleReviewed) console.log(`  i18n/${name}.json lists a key that no longer exists: ${key}`);
+    if (missing.length || extra.length || badPlaceholders.length) failed = true;
+    console.log(`${name}: ${Object.keys(messages).length} messages, missing ${missing.length}, stale ${extra.length}, placeholder mismatches ${badPlaceholders.length}`);
     for (const key of missing.slice(0, 20)) console.log(`  missing ${key}`);
     for (const key of extra) console.log(`  stale ${key}`);
     for (const key of badPlaceholders) console.log(`  placeholders ${key}: en "${en[key].message}" vs "${messages[key].message}"`);
@@ -303,22 +293,19 @@ function check() {
 
 function review() {
   if (!locale) {
-    console.error('usage: node scripts/i18n.mjs review <locale> [--machine]');
+    console.error('usage: node scripts/i18n.mjs review <locale>');
     process.exit(2);
   }
   const messages = readJson(join(LOCALES_DIR, locale, 'messages.json'), {});
-  const reviewed = new Set(reviewedKeys(locale));
-  const machine = new Set(Object.keys(messages).filter((key) => !reviewed.has(key)));
-  const onlyMachine = flags.includes('--machine');
   const used = usedKeys();
   const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/[\r\n]/g, ' ');
-  const keys = Object.keys(messages).filter((key) => !onlyMachine || machine.has(key));
-  console.log(`# ${locale}: ${keys.length} strings${onlyMachine ? ' awaiting review' : ''}\n`);
-  console.log(`| | English | ${locale} | Where | Meaning |`);
-  console.log('|---|---|---|---|---|');
+  const keys = Object.keys(messages);
+  console.log(`# ${locale}: ${keys.length} strings\n`);
+  console.log(`| English | ${locale} | Where | Meaning |`);
+  console.log('|---|---|---|---|');
   for (const key of keys) {
     const where = (used.get(key) ?? []).map((f) => f.replace(/\.tsx?$/, '')).join(', ');
-    console.log(`| ${machine.has(key) ? '🤖' : '✅'} | ${esc(en[key]?.message ?? '')} | ${esc(messages[key].message)} | ${esc(where)} | ${esc(en[key]?.description ?? '')} |`);
+    console.log(`| ${esc(en[key]?.message ?? '')} | ${esc(messages[key].message)} | ${esc(where)} | ${esc(en[key]?.description ?? '')} |`);
   }
 }
 

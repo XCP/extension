@@ -2,7 +2,7 @@ import { act, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderReviewError } from '@/core/providerReviewErrors';
 import { t } from '@/i18n';
-import { mockBrowserLocale, renderHook } from '@/i18n/test-utils';
+import { mockBrowserLocale, renderHook } from '@/i18n/__tests__/helpers/locale';
 import type { ProviderSigningReview } from '@/services/providerSigningService';
 import { useProviderSigningRequest } from '../useProviderSigningRequest';
 

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { withHardwareErrorMetadata } from '@/core/hardware/errorMetadata';
 import { t } from '@/i18n';
-import { mockBrowserLocale, renderHook } from '@/i18n/test-utils';
+import { mockBrowserLocale, renderHook } from '@/i18n/__tests__/helpers/locale';
 import { useAddressFormatSwitch } from '../useAddressFormatSwitch';
 
 const fixture = vi.hoisted(() => ({

@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEGACY_MAX_ORDER_EXPIRATION } from '@/core/settings';
 import { t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import { OrderSettings } from '../order-settings';
 
 const mockUpdateSettings = vi.fn();

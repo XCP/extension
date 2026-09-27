@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { WarningItem } from '@/components/ui/warning-stack';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import { highFeeAttentionItem, withPolicyAcknowledgement } from '../approval-attention';
 
 const highFee: WarningItem = { key: 'high-fee', severity: 'warning', title: 'High fee' };

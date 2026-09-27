@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { HeaderProvider } from '@/contexts/header-context';
 import { fetchAssetDetails, fetchOrderMatchesByPair, fetchOrdersByPair } from '@/core/counterparty/api';
 import { t } from '@/i18n';
-import { mockBrowserLocale, render } from '@/i18n/test-utils';
+import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import AssetOrdersPage from './[quoteAsset]';
 
 vi.mock('@/core/counterparty/api', () => ({ fetchAssetDetails: vi.fn(), fetchOrderMatchesByPair: vi.fn(), fetchOrdersByPair: vi.fn() }));
