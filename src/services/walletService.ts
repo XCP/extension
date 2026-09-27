@@ -29,7 +29,6 @@ export interface WalletService {
   updateSettings: (updates: Partial<import('@/core/settings').AppSettings>) => Promise<void>;
   addConnectedWebsite: (origin: string, pairedIdentity?: { walletId: string; address: string; pairedAddress?: string }) => Promise<void>;
   removeConnectedWebsite: (origin: string) => Promise<void>;
-  clearConnectedWebsites: () => Promise<void>;
   setPairedAddressPermission: (origin: string, identity: { walletId: string; address: string; pairedAddress?: string } | null) => Promise<void>;
   getWallets: () => Promise<Wallet[]>;
   getActiveWallet: () => Promise<Wallet | undefined>;
@@ -150,7 +149,6 @@ function createWalletService(): WalletService {
     },
     addConnectedWebsite: async (origin, pairedIdentity) => walletManager.addConnectedWebsite(origin, pairedIdentity),
     removeConnectedWebsite: async (origin) => walletManager.removeConnectedWebsite(origin),
-    clearConnectedWebsites: async () => walletManager.clearConnectedWebsites(),
     setPairedAddressPermission: async (origin, identity) => walletManager.setPairedAddressPermission(origin, identity),
     getWallets: async () => walletManager.getWallets(),
     getActiveWallet: async () => walletManager.getActiveWallet(),

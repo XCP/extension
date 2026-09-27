@@ -183,13 +183,6 @@ export const OrderStatus = {
 } as const;
 export type OrderStatusType = (typeof OrderStatus)[keyof typeof OrderStatus];
 
-export const DispenserStatus = {
-  OPEN: 0,
-  CLOSED: 10,
-  CLOSING: 11,
-} as const;
-export type DispenserStatusType = (typeof DispenserStatus)[keyof typeof DispenserStatus];
-
 // =============================================================================
 // TYPES - Generic
 // =============================================================================

@@ -3,6 +3,7 @@
  */
 
 import { type DecimalPlaces, parseAmountDraft } from '@/core/amount-contract/amounts';
+import { SATS_PER_BTC } from '@/core/bitcoin/constants';
 import { CURRENCY_INFO, type FiatCurrency } from '@/core/bitcoin/price';
 import { type BigNumber, fromSatoshis, toSatoshis } from '@/core/numeric';
 import { currentNumberLocale, t } from '@/i18n';
@@ -449,6 +450,5 @@ export function formatFiatEstimate(value: AmountFormatterOptions['value'], curre
  * @returns Fiat value
  */
 export function satsToFiat(sats: number, btcPrice: number): number {
-  const SATS_PER_BTC = 100_000_000;
   return (sats / SATS_PER_BTC) * btcPrice;
 }

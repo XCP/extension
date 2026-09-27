@@ -3,6 +3,7 @@ import { getPublicKey } from '@noble/secp256k1';
 import { OutScript, p2tr, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { checkScript } from '@scure/btc-signer/payment.js';
 import { AddressFormat } from '@/core/bitcoin/address';
+import { DEFAULT_SEQUENCE } from '@/core/bitcoin/constants';
 import { parseConsensusTransaction, parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { assertTransactionMatchesReviewed } from '@/core/bitcoin/transactionIntegrity';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
@@ -88,11 +89,6 @@ interface TransactionInputData {
   /** X-only internal public key for Taproot key-path spends */
   tapInternalKey?: Uint8Array;
 }
-
-/**
- * Bitcoin's default sequence when an input does not explicitly supply one.
- */
-const DEFAULT_SEQUENCE = 0xffffffff;
 
 /**
  * Sign a Bitcoin transaction.

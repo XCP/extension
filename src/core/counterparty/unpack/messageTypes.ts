@@ -85,6 +85,16 @@ export const PROTOCOL = {
   MAX_ASSET_ID: 2n ** 64n - 1n,
 } as const;
 
+/**
+ * The subasset name charset, in digit order: digit d encodes SUBASSET_DIGITS[d-1], and the digits
+ * run 1..68 with no zero (core `assetnames.py`, SUBASSET_REVERSE). Shared by the compactor in
+ * `pack/messages.ts` and its inverse in `unpack/messages/issuance.ts`.
+ */
+export const SUBASSET_DIGITS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_@!';
+
+/** The longest memo, in bytes, an enhanced send or sweep may carry. */
+export const MAX_MEMO_LENGTH = 34;
+
 /** Dispenser status values */
 export const DispenserStatus = {
   OPEN: 0,

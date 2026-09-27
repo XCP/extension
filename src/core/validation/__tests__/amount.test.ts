@@ -2,6 +2,7 @@
  * Unit tests for amount validation functions
  */
 import { describe, expect, it } from 'vitest';
+import { SATS_PER_BTC } from '@/core/bitcoin/constants';
 import {
   btcToSatoshis,
   DUST_LIMIT,
@@ -10,7 +11,6 @@ import {
   MAX_SATOSHIS,
   MAX_SUPPLY,
   maxSupplyForDivisibility,
-  SATOSHIS_PER_BTC, 
   validateAmount,
   validateBalance,
   validateQuantity
@@ -127,14 +127,14 @@ describe('validateAmount', () => {
 
   describe('options', () => {
     it('should enforce dust limit when allowDust is false', () => {
-      const belowDust = (DUST_LIMIT - 1) / SATOSHIS_PER_BTC;
+      const belowDust = (DUST_LIMIT - 1) / SATS_PER_BTC;
       const result = validateAmount(belowDust.toFixed(8), { allowDust: false });
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('dust');
     });
 
     it('should allow dust by default', () => {
-      const belowDust = (DUST_LIMIT - 1) / SATOSHIS_PER_BTC;
+      const belowDust = (DUST_LIMIT - 1) / SATS_PER_BTC;
       const result = validateAmount(belowDust.toFixed(8));
       expect(result.isValid).toBe(true);
     });
