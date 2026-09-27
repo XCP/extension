@@ -5412,6 +5412,14 @@
     "message": "Input $1 holds Counterparty assets, or the wallet could not verify that it doesn't, and this signature leaves the transaction's outputs open (SIGHASH_SINGLE or NONE). That is a lasting authorization to sell those assets: whoever holds the signature can complete the sale at any time until the UTXO is spent, and choose where the assets go. Only a verified marketplace listing may ask for it.",
     "description": "Approval screen block body under \"Blocked: Durable Sell Authorization\". $1 = the affected input numbers, e.g. \"#1\" or \"#0, #2\". SIGHASH_SINGLE and NONE are protocol names and stay untranslated."
   },
+  "safety_blocked_unreadable_signed_message": {
+    "message": "Blocked: Unreadable Message From Your Address",
+    "description": "Approval screen block title (core/bitcoin/envelopeLeafGuard.ts, components/domain/approval/approval-warnings.tsx): the transaction spends a Taproot script path that names one of the wallet's keys, other than the one Counterparty message the approval decoded and shows. Signing it would publish that message from the user's address."
+  },
+  "safety_unreadable_signed_message_detail": {
+    "message": "This transaction would publish a message signed by your address that the wallet cannot read or has not shown you. It will not be signed.",
+    "description": "Approval screen block body under \"Blocked: Unreadable Message From Your Address\". Neutral statement of fact: the signature would make a message the user has not seen come from their address."
+  },
   "safety_btc_payment": {
     "message": "BTC Payment",
     "description": "Approval screen information title (core/counterparty/transactionSafety.ts), shown when the message type itself pays BTC to another address (a dispense or a BTCPay)."

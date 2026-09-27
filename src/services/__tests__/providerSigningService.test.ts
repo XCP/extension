@@ -366,6 +366,35 @@ describe('background provider signing execution', () => {
     expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
   });
 
+  it('blocks every bundle item that spends an unshown envelope leaf naming the wallet key', async () => {
+    const pubKey = `02${'5a'.repeat(32)}`;
+    // OP_FALSE OP_IF <ff> OP_ENDIF <wallet x-only key> OP_CHECKSIG: an envelope the wallet cannot read.
+    const leaf = `006301ff6820${'5a'.repeat(32)}ac`;
+    mocks.wallet.getActiveWallet.mockResolvedValue({ id: identity.walletId, type: 'privateKey', addressFormat: 'p2wpkh',
+      addresses: [{ address: identity.address, pubKey }] });
+    const item = { psbtHex: 'psbt', signInputs: { [identity.address]: [0] }, sighashTypes: [1],
+      marketplaceIntent: { action: 'create_listing' } as never };
+    await beginSignFlow(request({ kind: 'sign-psbts', bundleKind: 'bulk-listing', items: [item, item] }));
+    const inputs = [{ index: 0, address: identity.address, value: 20_000, tapLeafScripts: [leaf] }];
+    mocks.decodeBundle.mockResolvedValue({
+      items: [
+        { ...analysis(), psbtDetails: { inputs, outputs: [], fee: 1000 } },
+        { psbtDetails: { inputs, outputs: [], fee: 1000 }, txid: 'child' },
+      ],
+      review: { status: 'proved', blockers: [], notices: [] },
+    });
+    const review = await service.getReview('req-1');
+    if (review.kind !== 'sign-psbts') throw new Error('wrong kind');
+    expect(review.policy.blocked).toBe(true);
+    expect(review.decodedInfo.policyWarnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'unshown_envelope_signature', title: expect.stringMatching(/^Transaction 1: /) }),
+      expect.objectContaining({ code: 'unshown_envelope_signature', title: expect.stringMatching(/^Transaction 2: /) }),
+    ]));
+    await expect(service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: true }))
+      .rejects.toThrow(/did not pass/);
+    expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+
   describe('after a switch to the same-index paired sibling', () => {
     const sibling = '1Siblinglegacyaddress';
     const grant = { pairedAddresses: true, ...identity, pairedAddress: sibling };
