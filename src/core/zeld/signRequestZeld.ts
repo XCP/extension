@@ -21,7 +21,7 @@
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
-import type { ZeldUtxo } from '@/core/zeld/api';
+import { isLikelyZeldTxid, type ZeldUtxo } from '@/core/zeld/api';
 import { decodeCborUintArray } from '@/core/zeld/cbor';
 import type { KnownZeldOutpoint } from '@/core/zeld/knownOutpoints';
 import { type AssessZeldExposureOptions, classifyZeldOutpoints } from '@/core/zeld/protection';
@@ -57,10 +57,23 @@ export interface ZeldSignRequestInput {
   listedInputs?: ReadonlyMap<number, string>;
 }
 
+/**
+ * An unbroadcast transaction of the same atomic bundle that the request spends, as the bundle
+ * decoder proved it: its inputs with their owners, the inputs this wallet signs and how, and its
+ * outputs. No indexer knows its outputs yet, so their ZELD is derived from these.
+ */
+export interface ZeldPackageParent {
+  inputs: ZeldSignRequestInput['inputs'];
+  signedInputs: ZeldSignRequestInput['signedInputs'];
+  outputs: ZeldSignRequestInput['outputs'];
+}
+
 export interface ZeldLookupOptions extends Pick<AssessZeldExposureOptions, 'fetchParent' | 'isZeldTxid'> {
   fetchUtxos?: (address: string) => Promise<ZeldUtxo[]>;
   /** The wallet's own record, consulted only when the indexer cannot be read. */
   knownOutpoints?: (address: string) => KnownZeldOutpoint[] | Promise<KnownZeldOutpoint[]>;
+  /** Same-bundle parents by txid (any case); only the bundle decoder supplies them. */
+  packageParents?: ReadonlyMap<string, ZeldPackageParent>;
 }
 
 type KnownOutpointSource = (address: string) => KnownZeldOutpoint[] | Promise<KnownZeldOutpoint[]>;
@@ -135,10 +148,69 @@ interface Classified {
   unchecked: number[];
 }
 
+/**
+ * Where a package parent's ZELD lands among its outputs: the most each output can receive (amount
+ * absent when unknown), and the outputs that may receive ZELD the lookup could not classify. The
+ * parent's own inputs are classified exactly as a request's are, so a parent whose inputs hold no
+ * ZELD places none, and an indexer outage yields `unchecked` only under the same rule.
+ */
+interface ParentPlacement {
+  amounts: Map<number, bigint | undefined>;
+  unchecked: Set<number>;
+}
+
+async function packageParentPlacement(
+  txid: string,
+  parent: ZeldPackageParent,
+  options: ZeldLookupOptions,
+): Promise<ParentPlacement> {
+  const placement: ParentPlacement = { amounts: new Map(), unchecked: new Set() };
+  const spendable = parent.outputs.filter(output => output.type !== 'op_return');
+  const first = spendable[0];
+  if (!first) return placement;
+  const parentInput: ZeldSignRequestInput = { ...parent, ownedAddresses: [] };
+  // One level only: a parent's own inputs are ones the network already knows.
+  const { bearing, unchecked } = await classifySignedInputs(parentInput, { ...options, packageParents: undefined });
+  const place = (vout: number, amount: bigint | undefined) => {
+    if (!placement.amounts.has(vout)) {
+      placement.amounts.set(vout, amount);
+      return;
+    }
+    const previous = placement.amounts.get(vout);
+    placement.amounts.set(vout, previous === undefined || amount === undefined ? undefined : previous + amount);
+  };
+  if (bearing.length > 0) {
+    for (const { position, amount } of receivers(parentInput, bearing)) {
+      const output = spendable[position];
+      if (output) place(output.index, amount);
+    }
+  }
+  // A six-zero parent earns a reward on its first spendable output, in an amount no one knows yet.
+  if ((options.isZeldTxid ?? isLikelyZeldTxid)(txid)) place(first.index, undefined);
+  if (unchecked.length > 0) {
+    placement.unchecked.add(first.index);
+    const distribution = zeldDistribution(parent.outputs);
+    distribution?.forEach((value, position) => {
+      const output = spendable[position];
+      if (output && value > 0n) placement.unchecked.add(output.index);
+    });
+  }
+  return placement;
+}
+
 async function classifySignedInputs(input: ZeldSignRequestInput, options: ZeldLookupOptions): Promise<Classified> {
   const byAddress = new Map<string, Array<{ index: number; sighashType: number; txid: string; vout: number }>>();
+  const parents = new Map([...options.packageParents ?? []].map(([txid, parent]) => [txid.toLowerCase(), parent]));
+  const fromParents = new Map<string, Array<{ index: number; sighashType: number; vout: number }>>();
   for (const signed of input.signedInputs) {
     const spent = input.inputs[signed.index];
+    const parentTxid = spent?.txid.toLowerCase();
+    if (spent && parentTxid && parents.has(parentTxid)) {
+      const list = fromParents.get(parentTxid) ?? [];
+      list.push({ index: signed.index, sighashType: signed.sighashType, vout: spent.vout });
+      fromParents.set(parentTxid, list);
+      continue;
+    }
     const address = spent?.address ?? input.defaultAddress;
     if (!spent || !address) continue;
     const list = byAddress.get(address) ?? [];
@@ -149,8 +221,9 @@ async function classifySignedInputs(input: ZeldSignRequestInput, options: ZeldLo
   const bearing: BearingInput[] = [];
   const unchecked: number[] = [];
   // One classification per signing address: the indexer answers per address, and so does the
-  // wallet's record that stands in for it.
-  await Promise.all([...byAddress].map(async ([address, spent]) => {
+  // wallet's record that stands in for it. A package parent's placement reads its inputs' owners
+  // alongside (the indexer's per-address cache serves both when they are the same address).
+  const fromIndexer = Promise.all([...byAddress].map(async ([address, spent]) => {
     const classified = await classifyZeldOutpoints(spent, address, {
       ...options,
       knownOutpoints: options.knownOutpoints ?? knownOutpointSource ?? undefined,
@@ -167,7 +240,20 @@ async function classifySignedInputs(input: ZeldSignRequestInput, options: ZeldLo
       }
     }
   }));
+  const fromPackage = Promise.all([...fromParents].map(async ([txid, spent]) => {
+    const placement = await packageParentPlacement(txid, parents.get(txid)!, options);
+    for (const entry of spent) {
+      if (placement.amounts.has(entry.vout)) {
+        const amount = placement.amounts.get(entry.vout);
+        bearing.push({ index: entry.index, sighashType: entry.sighashType, ...(amount === undefined ? {} : { amount }) });
+      } else if (placement.unchecked.has(entry.vout)) {
+        unchecked.push(entry.index);
+      }
+    }
+  }));
+  await Promise.all([fromIndexer, fromPackage]);
   bearing.sort((a, b) => a.index - b.index);
+  unchecked.sort((a, b) => a - b);
   return { bearing, unchecked };
 }
 

@@ -196,3 +196,51 @@ describe('which inputs carry ZELD', () => {
     expect(options.fetchUtxos).not.toHaveBeenCalled();
   });
 });
+
+describe('an input spending an unbroadcast parent of the same bundle', () => {
+  const PARENT = 'a'.repeat(64);
+  /** A self-send funding: MOVED:0 in, two outputs of this wallet out, all signed SIGHASH_ALL. */
+  const parent = (outputs: ZeldSignRequestInput['outputs'] = [pays(0, SIGNER), pays(1, SIGNER)]) => new Map([[PARENT, {
+    inputs: [{ txid: MOVED, vout: 0, address: SIGNER }],
+    signedInputs: [{ index: 0, sighashType: 1 }],
+    outputs,
+  }]]);
+  const spendsParent = (vout: number) => request({
+    inputs: [{ txid: PARENT, vout, address: SIGNER }],
+    outputs: [opReturn(0), pays(1, STRANGER)],
+  });
+
+  it('carries what the parent inputs hold onto the parent first output', async () => {
+    const options = { ...indexer([{ txid: MOVED, vout: 0, balance: ZELD }]), packageParents: parent() };
+    expect(await analyzeSignRequestZeld(spendsParent(0), options))
+      .toEqual([{ kind: 'leaves', destination: STRANGER, amount: ZELD.toString() }]);
+    expect(options.fetchUtxos).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the parent other outputs clean', async () => {
+    const options = { ...indexer([{ txid: MOVED, vout: 0, balance: ZELD }]), packageParents: parent() };
+    expect(await analyzeSignRequestZeld(spendsParent(1), options)).toEqual([]);
+  });
+
+  it('follows a split in the parent', async () => {
+    const options = {
+      ...indexer([{ txid: MOVED, vout: 0, balance: ZELD }]),
+      packageParents: parent([pays(0, SIGNER), pays(1, SIGNER), split(2, [0n, 100n])]),
+    };
+    expect(await analyzeSignRequestZeld(spendsParent(1), options))
+      .toEqual([{ kind: 'leaves', destination: STRANGER, amount: '100' }]);
+    expect(await analyzeSignRequestZeld(spendsParent(0), options))
+      .toEqual([{ kind: 'leaves', destination: STRANGER, amount: (ZELD - 100n).toString() }]);
+  });
+
+  it('says nothing when the parent inputs hold no ZELD', async () => {
+    expect(await analyzeSignRequestZeld(spendsParent(0), { ...indexer([]), packageParents: parent() })).toEqual([]);
+  });
+
+  it('keeps an outage to the unchecked rule', async () => {
+    expect(await analyzeSignRequestZeld(spendsParent(0), { ...indexerDown(), packageParents: parent() })).toEqual([]);
+    const known = async () => [{ outpoint: `${FOREIGN}:0`, balance: '1' }];
+    expect(await analyzeSignRequestZeld(spendsParent(0), { ...indexerDown(known), packageParents: parent() }))
+      .toEqual([{ kind: 'unchecked' }]);
+  });
+});

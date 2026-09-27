@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import * as secp256k1 from '@noble/secp256k1';
 import { RawWitness, SigHash, Transaction } from '@scure/btc-signer';
 import { getPrevOut } from '@scure/btc-signer/transaction.js';
 import { hash160 } from '@scure/btc-signer/utils.js';

@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
@@ -26,9 +26,9 @@ vi.mock('@/core/counterparty/pendingAttachments', async (original) => ({
 }));
 
 const privateKey = '01'.padStart(64, '0');
-const signer = p2wpkh(getPublicKey(hexToBytes(privateKey)));
-const merchant = p2wpkh(getPublicKey(hexToBytes('02'.padStart(64, '0'))));
-const attackerKey = getPublicKey(hexToBytes('03'.padStart(64, '0')));
+const signer = p2wpkh(secp256k1.getPublicKey(hexToBytes(privateKey)));
+const merchant = p2wpkh(secp256k1.getPublicKey(hexToBytes('02'.padStart(64, '0'))));
+const attackerKey = secp256k1.getPublicKey(hexToBytes('03'.padStart(64, '0')));
 const intent: BitcoinPaymentIntentV1 = {
   standard: 'xcp-wallet/bitcoin-payment', version: 1, action: 'pay',
   outputs: [{ address: merchant.address, amountSats: 1_000 }],

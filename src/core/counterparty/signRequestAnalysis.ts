@@ -63,7 +63,7 @@ import { type ProviderVerificationResult, verifyProviderTransaction } from '@/co
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import { getActiveSettings } from '@/core/settings';
 import type { KnownZeldOutpoint } from '@/core/zeld/knownOutpoints';
-import { analyzeSignRequestZeld, type ZeldNotice } from '@/core/zeld/signRequestZeld';
+import { analyzeSignRequestZeld, type ZeldNotice, type ZeldPackageParent } from '@/core/zeld/signRequestZeld';
 import { t } from '@/i18n';
 
 /** An input being signed, identified by the outpoint it spends. */
@@ -141,6 +141,11 @@ export interface SignRequestAnalysisInput {
   policyOffer?: PolicyOfferWalletContext;
   /** The wallet's own record of its ZELD outputs, read only when the ZELD indexer is down. */
   knownZeldOutpoints?: (address: string) => KnownZeldOutpoint[] | Promise<KnownZeldOutpoint[]>;
+  /**
+   * Unbroadcast transactions of the same atomic bundle that this one spends, keyed by txid, for
+   * the ZELD their outputs receive from their own inputs. Only the bundle decoder supplies them.
+   */
+  zeldPackageParents?: ReadonlyMap<string, ZeldPackageParent>;
 }
 
 export interface SignRequestAnalysis {
@@ -577,7 +582,7 @@ export async function analyzeSignRequest(
       counterpartyMessage, outputs, attachedAssets, attachedAssetDestination,
     ),
     listedInputs: zeldListedInputs(attachedAssets, input.signedInputs),
-  }, { knownOutpoints: input.knownZeldOutpoints });
+  }, { knownOutpoints: input.knownZeldOutpoints, packageParents: input.zeldPackageParents });
   const hunting = (getActiveSettings().zeldHuntSeconds ?? 0) > 0;
   const zeldWarnings = zeldNotices.map(notice => zeldWarning(notice, hunting));
   safety.warnings = [...safety.warnings, ...zeldWarnings];
@@ -672,6 +677,27 @@ export async function analyzeSignRequest(
         );
       }
       safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
+    }
+    const keyPathFee = marketplaceReview.keyPathFeeOutput;
+    if (
+      keyPathFee
+      && (marketplaceReview.status === 'proved' || marketplaceReview.status === 'caution')
+      && safety.warnings.some(warning => warning.code === 'unproven_script_output')
+    ) {
+      // The proof rebuilt the fee output from its declared BIP86 key with no script tree: it has no
+      // script path. Drop it from the caution, and only it;
+      // any other script address this transaction pays is still named (the payer's holdings were
+      // already found to warrant the caution, or it would not be here).
+      const rest = scriptPaymentRisk({
+        ...scriptPaymentInput,
+        provenAddresses: [...scriptPaymentInput.provenAddresses, keyPathFee.address],
+      }, true);
+      safety.warnings = safety.warnings.flatMap((warning): SecurityWarning[] => {
+        if (warning.code !== 'unproven_script_output') return [warning];
+        if (!rest) return [];
+        const text = scriptPaymentRiskText(rest);
+        return [{ ...warning, data: rest, title: text.title, message: text.description }];
+      });
     }
   }
 

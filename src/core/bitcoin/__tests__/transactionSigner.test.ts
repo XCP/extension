@@ -20,7 +20,7 @@ const mockFetchPreviousRawTransaction = vi.mocked(fetchPreviousRawTransaction);
 const mockGetTrustedBroadcastPrevout = vi.fn();
 
 // Import necessary functions for test setup
-import { getPublicKey } from '@noble/secp256k1';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { OutScript, p2sh, p2tr, p2wpkh, Transaction } from '@scure/btc-signer';
 import { hash160 } from '@scure/btc-signer/utils.js';
 
@@ -30,7 +30,7 @@ describe('Transaction Signer Utilities', () => {
   
   // Generate the correct public key hash for our private key
   const privateKeyBytes = hexToBytes(mockPrivateKey);
-  const publicKey = getPublicKey(privateKeyBytes, true); // compressed
+  const publicKey = secp256k1.getPublicKey(privateKeyBytes, true); // compressed
   const mockPubKey = bytesToHex(publicKey);
   const pubKeyHash = hash160(publicKey);
   const pubKeyHashHex = bytesToHex(pubKeyHash);
@@ -757,7 +757,7 @@ describe('Transaction Signer Utilities', () => {
     // composes after the check was re-enabled. allowUnknownOutputs does not cover it because
     // bare multisig is a known script type.
     // Counterparty nudges its payload keys onto the curve, so they decode as real pubkeys.
-    const payloadKey = (seed: string) => getPublicKey(hexToBytes(seed.repeat(32)), true);
+    const payloadKey = (seed: string) => secp256k1.getPublicKey(hexToBytes(seed.repeat(32)), true);
     const dataOutputScript = OutScript.encode({ type: 'ms', m: 1, pubkeys: [publicKey, payloadKey('03'), payloadKey('04')] });
 
     const buildRawTx = () => {
@@ -791,7 +791,7 @@ describe('Transaction Signer Utilities', () => {
 
     it('still rejects a nested SegWit input whose redeemScript does not hash to the prevout', async () => {
       const p2shWallet = { ...mockWallet, addressFormat: AddressFormat.P2SH_P2WPKH };
-      const otherKey = getPublicKey(hexToBytes('02'.repeat(32)), true);
+      const otherKey = secp256k1.getPublicKey(hexToBytes('02'.repeat(32)), true);
       const foreignNestedScript = bytesToHex(p2sh(p2wpkh(otherKey)).script);
 
       await expect(signTransaction(

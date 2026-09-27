@@ -482,6 +482,16 @@ const parsePrepareAssetIntent = (
   };
 };
 
+/**
+ * The optional BIP86 internal key of the platform fee output: 32-byte x-only hex. Absent stays
+ * absent (the fee output is then an ordinary, unproven payment); a present but malformed key is
+ * the site's contradiction and refuses the request.
+ */
+const platformFeeInternalKey = (value: Record<string, unknown>): { platformFeeInternalKey?: string } =>
+  value.platformFeeInternalKey === undefined
+    ? {}
+    : { platformFeeInternalKey: hex32(value.platformFeeInternalKey, 'platformFeeInternalKey') };
+
 const parseExactOfferIntent = <
   Action extends 'authorize_exact_offer' | 'accept_exact_offer',
 >(
@@ -535,6 +545,7 @@ const parseExactOfferIntent = <
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
     platformFeeSats,
     ...(sellerPaidFeeSats === undefined ? {} : { sellerPaidFeeSats }),
+    ...platformFeeInternalKey(value),
     expectedTxid,
     delivery,
     marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
@@ -607,6 +618,7 @@ const parseBuyListingsIntent = (value: Record<string, unknown>): BuyListingsInte
     subtotalSats: safeInteger(value.subtotalSats, 'subtotalSats', { positive: true }),
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
     platformFeeSats: nonNegativeSafeInteger(value.platformFeeSats, 'platformFeeSats'),
+    ...platformFeeInternalKey(value),
     totalSats: safeInteger(value.totalSats, 'totalSats', { positive: true }),
     expectedTxid,
     delivery,

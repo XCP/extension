@@ -1,10 +1,10 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
 import { PrevoutMismatchError, verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 
-const PUBLIC_KEY = getPublicKey(hexToBytes('01'.padStart(64, '0')), true);
+const PUBLIC_KEY = secp256k1.getPublicKey(hexToBytes('01'.padStart(64, '0')), true);
 const SCRIPT = p2wpkh(PUBLIC_KEY).script;
 
 function fixture(witnessAmount = 25_000n) {

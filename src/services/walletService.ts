@@ -16,11 +16,11 @@ import {
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import type { KnownZeldOutpoint, ZeldOutpointUpdate } from '@/core/zeld/knownOutpoints';
 import { registerSessionExpiredHandler, setLastActiveTime } from '@/platform/auth/sessionManager';
-import { defineProxyService } from '@/platform/proxy';
+import { defineProxyServer } from '@/platform/proxy/server';
 import { walletManager } from '@/platform/walletManager';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { WALLET_SERVICE_NAME, WALLET_SERVICE_POLICY } from '@/services/walletServiceClient';
-import type { Address, PairedAddresses, RevealSecretRequest, SignTransactionOptions, Wallet } from '@/types/wallet';
+import type { Address, PairedAddresses, RevealSecretRequest, SignPsbtOptions, SignTransactionOptions, Wallet } from '@/types/wallet';
 
 export interface WalletService {
   refreshWallets: () => Promise<void>;
@@ -81,7 +81,7 @@ export interface WalletService {
   signTransaction: (rawTxHex: string, sourceAddress: string, options?: SignTransactionOptions, expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   signMessage: (message: string, address: string, expectedIdentity?: { walletId: string; address: string }) => Promise<{ signature: string; address: string }>;
-  signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
+  signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }, options?: SignPsbtOptions) => Promise<string>;
   getLastActiveAddress: () => Promise<string | undefined>;
   /** Script addresses `payer` has already paid, so the notice for them is not repeated. */
   getKnownScriptRecipients: (payer: string) => Promise<string[]>;
@@ -249,8 +249,8 @@ function createWalletService(): WalletService {
     signMessage: async (message, address, expectedIdentity) => {
       return walletManager.signMessage(message, address, expectedIdentity);
     },
-    signPsbt: async (psbtHex, signInputs, sighashTypes, expectedIdentity) => {
-      return walletManager.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity);
+    signPsbt: async (psbtHex, signInputs, sighashTypes, expectedIdentity, options) => {
+      return walletManager.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity, options);
     },
     getKnownScriptRecipients: async (payer) => walletManager.getKnownScriptRecipients(payer),
     recordScriptRecipients: async (payer, recipients) => walletManager.recordScriptRecipients(payer, recipients),
@@ -295,7 +295,7 @@ function createWalletService(): WalletService {
 }
 
 // Create the proxy service
-const [registerWalletService, getWalletServiceRaw] = defineProxyService(
+const [registerWalletService, getWalletServiceRaw] = defineProxyServer(
   WALLET_SERVICE_NAME,
   createWalletService,
   WALLET_SERVICE_POLICY,

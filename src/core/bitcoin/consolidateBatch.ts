@@ -3,8 +3,8 @@
  * Builds and signs recovery transactions from xcp.io recovery API batch data.
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { Address, OutScript, Transaction } from '@scure/btc-signer';
 import type { ConsolidationData, ConsolidationUTXO } from '@/core/bitcoin/consolidationApi';
 import { DUST_LIMIT_SATS, RBF_SEQUENCE } from '@/core/bitcoin/constants';
@@ -119,7 +119,7 @@ export async function consolidateBareMultisigBatch(
   const privateKeyBytes = hexToBytes(privateKey);
 
   try {
-    const ourPubkeys = [getPublicKey(privateKeyBytes, true), getPublicKey(privateKeyBytes, false)];
+    const ourPubkeys = [secp256k1.getPublicKey(privateKeyBytes, true), secp256k1.getPublicKey(privateKeyBytes, false)];
 
     const tx = new Transaction({ lowR: true });
     const scripts: Uint8Array[] = [];

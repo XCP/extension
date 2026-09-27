@@ -8,8 +8,8 @@
  * what the check is for.
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
@@ -44,7 +44,7 @@ vi.mock('@/core/counterparty/utxoSelection', () => ({
   }),
 }));
 
-const OWNER_PUBKEY = getPublicKey(hexToBytes('11'.repeat(32)), true);
+const OWNER_PUBKEY = secp256k1.getPublicKey(hexToBytes('11'.repeat(32)), true);
 const OWNER = encodeAddress(OWNER_PUBKEY, AddressFormat.P2WPKH);
 
 /** A real, parseable composed transaction spending the given coins. */

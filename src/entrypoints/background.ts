@@ -38,7 +38,7 @@ export default defineBackground(() => {
   // No tab listeners here on purpose: every one of them wakes this worker on every page load in
   // the browser. Which tabs a provider event concerns is learned from provider ports instead
   // (see platform/browser.ts). Nor a runtime.onMessage one: nothing sends the worker one-off
-  // messages; extension pages and content scripts reach it over proxy ports (platform/proxy.ts).
+  // messages; extension pages and content scripts reach it over proxy ports (platform/proxy).
 
   // Everything that can wake the worker is registered here, in the first turn: Chrome delivers the
   // waking event only to listeners that exist by the end of it. Each handler waits for

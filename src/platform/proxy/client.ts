@@ -1,39 +1,20 @@
-/** Explicit, sender-scoped RPC over reconnectable extension ports. */
-
-import { type HardwareErrorMetadata, parseHardwareErrorMetadata, withHardwareErrorMetadata } from '@/core/hardware/errorMetadata';
-import { HardwareWalletError } from '@/core/hardware/types';
-import { isRecord } from '@/core/isRecord';
-import { isProviderReviewCode, type ProviderReviewCode, providerReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
-import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
-import { recordProviderTab } from '@/platform/browser';
-import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
-import { decodeProxyResult, encodeProxyResult } from '@/platform/proxySerialization';
-import { whenServicesReady } from '@/platform/serviceReadiness';
-
-type MethodName<T> = Extract<{
-  [K in keyof T]-?: T[K] extends (...args: never[]) => unknown ? K : never;
-}[keyof T], string>;
-
-export interface ProxyServicePolicy<T> {
-  /** Only these methods are remotely callable. Commands are never automatically replayed. */
-  methods: Partial<Record<MethodName<T>, 'read' | 'command'>>;
-  /** The page bridge may only call handleRequest; its origin comes from Chrome's sender. */
-  contentScript?: 'provider';
-}
-
-/** `ack` opts in to a receipt; a caller that never asked (older clients, raw test ports) gets exactly one reply. */
-interface PortRequest { id: number; methodName: string; args: unknown[]; ack?: true }
-type PortResponse =
-  | { id: number; success: true; result: unknown; resultEncoding?: 'xcp-json-v1' }
-  | { id: number; success: false; error: { message: string; code?: number; reviewCode?: ProviderReviewCode; hardware?: HardwareErrorMetadata } };
-
-/** The background's "request received", sent before it waits on anything. Not a result. */
-interface PortAck { id: number; ack: true }
 /**
- * Liveness probe while calls wait on a port. It has no `id`, so no caller can mistake it (or its
- * echo) for a request or an answer, and the background answers it without touching any service.
+ * The page half of the service RPC: a typed proxy that forwards calls to the background over a
+ * reconnectable port. Used by the popup, side panel and content script; the background half is
+ * server.ts, and what both ends agree on is in protocol.ts.
  */
-interface PortHeartbeat { heartbeat: number }
+
+import { parseHardwareErrorMetadata, withHardwareErrorMetadata } from '@/core/hardware/errorMetadata';
+import { isRecord } from '@/core/isRecord';
+import { isProviderReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
+import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
+import {
+  isBackgroundScript, type PortHeartbeat, type PortRequest, type PortResponse,
+  type ProxyServicePolicy, policyMethods, proxyPortName,
+} from '@/platform/proxy/protocol';
+import { decodeProxyResult } from '@/platform/proxy/serialization';
+
 interface PendingCall {
   port: chrome.runtime.Port;
   resolve: (value: unknown) => void;
@@ -66,23 +47,11 @@ export const PORT_IDLE_RECONNECT_MS = 20_000;
 /** Transport loss, as opposed to a service that deliberately answered with code 4900. */
 class PortClosedError extends ProviderError {}
 
-const registeredServices = new Set<string>();
 /** One per proxy client: closes its cached port and fails the calls waiting on it. */
 const portDroppers = new Set<() => void>();
 const PROVIDER_QUERIES = new Set([
   'xcp_accounts', 'xcp_getBalances', 'xcp_getAddresses', 'xcp_chainId', 'xcp_getNetwork',
 ]);
-const MAX_REQUEST_BYTES = 1024 * 1024 + 4096;
-
-function parseRequest(value: unknown): PortRequest | null {
-  if (!isRecord(value) || !Number.isSafeInteger(value.id) || (value.id as number) < 1
-    || typeof value.methodName !== 'string' || value.methodName.length > 100
-    || !Array.isArray(value.args) || value.args.length > 16) return null;
-  try {
-    if (new TextEncoder().encode(JSON.stringify(value)).length > MAX_REQUEST_BYTES) return null;
-  } catch { return null; }
-  return { id: value.id as number, methodName: value.methodName, args: value.args, ...(value.ack === true ? { ack: true } : {}) };
-}
 
 function parseResponse(value: unknown): PortResponse | null {
   if (!isRecord(value) || !Number.isSafeInteger(value.id)) return null;
@@ -106,27 +75,6 @@ function parseResponse(value: unknown): PortResponse | null {
   };
 }
 
-/** Extension tabs are trusted UI too; tab presence alone cannot distinguish them from content. */
-export function isExtensionPageSender(sender: chrome.runtime.MessageSender | undefined): boolean {
-  if (sender?.id !== chrome.runtime.id || !sender.url) return false;
-  try {
-    const actual = new URL(sender.url);
-    const expected = new URL(chrome.runtime.getURL('/'));
-    return actual.protocol === expected.protocol && actual.host === expected.host;
-  } catch { return false; }
-}
-
-function contentOrigin(sender: chrome.runtime.MessageSender | undefined): string | null {
-  if (sender?.id !== chrome.runtime.id || !sender.url || sender.frameId !== 0) return null;
-  try {
-    const url = new URL(sender.url);
-    const allowed = url.protocol === 'https:' || (url.protocol === 'http:'
-      && (url.hostname === 'localhost' || url.hostname === '127.0.0.1'));
-    if (!allowed || (sender.origin !== undefined && sender.origin !== url.origin)) return null;
-    return url.origin;
-  } catch { return null; }
-}
-
 /** Close every cached port and fail its in-flight calls, so the next call reconnects. */
 export function disconnectAllPorts(): void {
   for (const drop of portDroppers) drop();
@@ -137,101 +85,27 @@ const disconnectedError = () => isExtensionContextValid()
   ? new PortClosedError(PROVIDER_ERROR_CODES.DISCONNECTED, EXTENSION_RESTARTED_MESSAGE)
   : reloadRequired();
 
-export function defineProxyService<T extends object>(
+/**
+ * A page's handle on a background service, built from the name and policy the background registers
+ * it under. Only the policy's methods exist on the proxy. The background has no use for it (it
+ * holds the real service), so calling it there throws, as a service it never registered would.
+ *
+ * Defining a client opens nothing (the port waits for the first call), which the annotation tells
+ * the bundler: the background imports each service's name and policy from its client module, and
+ * this lets it drop the unused client that module also defines.
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export function defineProxyClient<T extends object>(
   serviceName: string,
-  factory: () => T,
   policy: ProxyServicePolicy<T> = { methods: {} },
-): [() => T, () => T] {
-  let serviceInstance: T | undefined;
-  const portName = `proxy:${serviceName}`;
-  const methods = policy.methods as Readonly<Record<string, 'read' | 'command' | undefined>>;
+): () => T {
+  const portName = proxyPortName(serviceName);
+  const methods = policyMethods(policy);
   const canCall = (method: string) => Object.hasOwn(methods, method);
   const canRetry = (method: string, args: unknown[]) => canCall(method) && (
     methods[method] === 'read' || (policy.contentScript === 'provider' && method === 'handleRequest'
       && typeof args[1] === 'string' && PROVIDER_QUERIES.has(args[1]))
   );
-
-  const register = (): T => {
-    if (!isBackgroundScript()) throw new Error(`[ProxyService] ${serviceName} can only be registered in the background script`);
-    serviceInstance = factory();
-    if (registeredServices.has(serviceName)) return serviceInstance;
-    registeredServices.add(serviceName);
-
-    chrome.runtime.onConnect.addListener((incoming) => {
-      if (incoming.name !== portName) return;
-      const trustedUI = isExtensionPageSender(incoming.sender);
-      const origin = policy.contentScript === 'provider' ? contentOrigin(incoming.sender) : null;
-      if (!trustedUI && !origin) { incoming.disconnect(); return; }
-      // The one place the worker learns, from Chrome rather than the page, which tab shows which
-      // origin; provider events are addressed with it (see platform/browser.ts).
-      const tabId = incoming.sender?.tab?.id;
-      if (origin && tabId !== undefined && tabId >= 0) {
-        void recordProviderTab(tabId, origin).catch(() => { /* events fall back to not reaching this tab */ });
-      }
-
-      let disconnected = false;
-      const reply = (response: PortResponse | PortAck | PortHeartbeat) => {
-        if (!disconnected) {
-          try { incoming.postMessage(response); } catch { /* the requesting document closed */ }
-        }
-      };
-      const dispatch = async (value: unknown): Promise<void> => {
-        if (isRecord(value) && !Object.hasOwn(value, 'id') && Number.isSafeInteger(value.heartbeat)) {
-          reply({ heartbeat: value.heartbeat as number });
-          return;
-        }
-        const request = parseRequest(value);
-        if (!request) {
-          if (isRecord(value) && Number.isSafeInteger(value.id)) {
-            reply({ id: value.id as number, success: false, error: { message: 'Invalid RPC request', code: -32600 } });
-          }
-          return;
-        }
-        const { id, methodName } = request;
-        // Receipt, not an answer: lets the caller tell a slow call from a port nobody reads. Only on
-        // request, so a caller that treats the first message for its id as the answer is unaffected.
-        if (request.ack) reply({ id, ack: true });
-        if (!canCall(methodName) || (!trustedUI && methodName !== 'handleRequest')) {
-          reply({ id, success: false, error: { message: `Method ${methodName} not found on ${serviceName}` } });
-          return;
-        }
-        let args = request.args;
-        if (!trustedUI) {
-          // Never forward a claimed page origin or arbitrary service arguments.
-          if (typeof args[1] !== 'string' || (args[2] !== undefined && !Array.isArray(args[2]))) {
-            reply({ id, success: false, error: { message: 'Invalid provider request', code: -32602 } });
-            return;
-          }
-          args = [origin, args[1], args[2] ?? []];
-        }
-        try {
-          await whenServicesReady();
-          if (disconnected) return;
-          const method = serviceInstance?.[methodName as keyof T];
-          if (typeof method !== 'function') throw new Error(`Method ${methodName} not found on ${serviceName}`);
-          const result: unknown = await Reflect.apply(method, serviceInstance, args);
-          // Encode before replying: serialization failures are service failures, not closed ports.
-          reply({ id, success: true, result: encodeProxyResult(result), resultEncoding: 'xcp-json-v1' });
-        } catch (error) {
-          reply({ id, success: false, error: {
-            message: error instanceof Error ? error.message : 'Service call failed',
-            code: error instanceof ProviderError ? error.code : undefined,
-            reviewCode: providerReviewCode(error),
-            // Device diagnostics are for extension UI, not a new public provider contract.
-            hardware: trustedUI && error instanceof HardwareWalletError ? parseHardwareErrorMetadata(error) : undefined,
-          } });
-        }
-      };
-      incoming.onMessage.addListener((value: unknown) => {
-        void dispatch(value).catch(() => { /* dispatch reports failures; closed ports need no response */ });
-      });
-      incoming.onDisconnect.addListener(() => {
-        disconnected = true;
-        if (chrome.runtime.lastError) { /* consumed */ }
-      });
-    });
-    return serviceInstance;
-  };
 
   let port: chrome.runtime.Port | null = null;
   const pendingCalls = new Map<number, PendingCall>();
@@ -353,10 +227,9 @@ export function defineProxyService<T extends object>(
   let client: T | undefined;
   const methodCache = new Map<string, (...args: unknown[]) => Promise<unknown>>();
 
-  const getService = (): T => {
+  return (): T => {
     if (isBackgroundScript()) {
-      if (!serviceInstance) throw new Error(`Failed to get an instance of ${serviceName}: registerService has not been called`);
-      return serviceInstance;
+      throw new Error(`Failed to get an instance of ${serviceName}: registerService has not been called`);
     }
     client ??= new Proxy({} as T, {
       get: (_target, prop) => {
@@ -410,15 +283,4 @@ export function defineProxyService<T extends object>(
     });
     return client;
   };
-  return [register, getService];
-}
-
-/**
- * The MV3 background is a service worker: extension APIs and no window. Every document (popup,
- * side panel, content script) has a window. The wallet builds for Chrome MV3 only, so there is no
- * background document to recognise.
- */
-export function isBackgroundScript(): boolean {
-  if (typeof chrome === 'undefined' || !chrome.runtime?.id) return false;
-  return typeof window === 'undefined' && typeof self !== 'undefined';
 }

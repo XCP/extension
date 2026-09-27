@@ -8,7 +8,8 @@
  * background keeps using getApprovalService() from approvalService.ts: this proxy is never
  * registered, so calling it inside the background throws.
  */
-import { defineProxyService, type ProxyServicePolicy } from '@/platform/proxy';
+import { defineProxyClient } from '@/platform/proxy/client';
+import type { ProxyServicePolicy } from '@/platform/proxy/protocol';
 import type { ApprovalService } from '@/services/approvalService';
 
 export const APPROVAL_SERVICE_NAME = 'ApprovalService';
@@ -20,9 +21,5 @@ export const APPROVAL_SERVICE_POLICY: ProxyServicePolicy<ApprovalService> = {
   },
 };
 
-/** A caller-side proxy. It is never registered, so its factory never runs. */
-export const [, getApprovalServiceClient] = defineProxyService<ApprovalService>(
-  APPROVAL_SERVICE_NAME,
-  () => { throw new Error('ApprovalService is registered only in the background'); },
-  APPROVAL_SERVICE_POLICY,
-);
+/** A caller-side proxy. It has no implementation behind it, so calling it in the background throws. */
+export const getApprovalServiceClient = defineProxyClient<ApprovalService>(APPROVAL_SERVICE_NAME, APPROVAL_SERVICE_POLICY);

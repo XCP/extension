@@ -5,8 +5,8 @@
  * having enumerated the field or message type that produced it.
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
@@ -18,7 +18,7 @@ import {
 } from '../outputPolicy';
 
 const OWNER_KEY = hexToBytes('11'.repeat(32));
-const OWNER_PUBKEY = getPublicKey(OWNER_KEY, true);
+const OWNER_PUBKEY = secp256k1.getPublicKey(OWNER_KEY, true);
 const OWNER = encodeAddress(OWNER_PUBKEY, AddressFormat.P2WPKH);
 
 const RECIPIENT = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
@@ -147,8 +147,8 @@ describe('checkOutputPolicy', () => {
     // Counterparty's multisig encoding carries the message in 1-of-3 outputs; those are data.
     // The data-carrying "pubkeys" must still be valid curve points — core nudges them onto the
     // curve with a nonce byte — because script parsers reject a multisig script otherwise.
-    const dataPubkeyA = getPublicKey(hexToBytes('22'.repeat(32)), true);
-    const dataPubkeyB = getPublicKey(hexToBytes('44'.repeat(32)), true);
+    const dataPubkeyA = secp256k1.getPublicKey(hexToBytes('22'.repeat(32)), true);
+    const dataPubkeyB = secp256k1.getPublicKey(hexToBytes('44'.repeat(32)), true);
     const dataScript = new Uint8Array([
       0x51,
       0x21, ...dataPubkeyA,
@@ -170,9 +170,9 @@ describe('checkOutputPolicy', () => {
   });
 
   describe('recovery key in data outputs', () => {
-    const dataPubkeyA = getPublicKey(hexToBytes('22'.repeat(32)), true);
-    const dataPubkeyB = getPublicKey(hexToBytes('44'.repeat(32)), true);
-    const strangerPubkey = getPublicKey(hexToBytes('55'.repeat(32)), true);
+    const dataPubkeyA = secp256k1.getPublicKey(hexToBytes('22'.repeat(32)), true);
+    const dataPubkeyB = secp256k1.getPublicKey(hexToBytes('44'.repeat(32)), true);
+    const strangerPubkey = secp256k1.getPublicKey(hexToBytes('55'.repeat(32)), true);
 
     const dataScriptWithRecoveryKey = (recovery: Uint8Array) => new Uint8Array([
       0x51, 0x21, ...dataPubkeyA, 0x21, ...dataPubkeyB, 0x21, ...recovery, 0x53, 0xae,

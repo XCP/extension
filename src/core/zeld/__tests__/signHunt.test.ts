@@ -1,5 +1,5 @@
+import { secp256k1 as secp } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import * as secp from '@noble/secp256k1';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';

@@ -752,6 +752,9 @@
   "asset_asset_name_input_asset_name_is_available": {
     "message": "このアセット名は利用可能です"
   },
+  "asset_asset_name_input_availability_check_failed": {
+    "message": "この名前が利用可能か確認できませんでした。接続を確認してから、名前を編集してもう一度お試しください。"
+  },
   "asset_asset_name_input_checking_availability": {
     "message": "利用可能か確認中…"
   },
@@ -931,36 +934,6 @@
   },
   "assets_asset_view_dividend_transaction": {
     "message": "配当トランザクション $1 を表示"
-  },
-  "assets_failed_to_add_asset": {
-    "message": "アセットを追加できませんでした。"
-  },
-  "assets_failed_to_remove_asset": {
-    "message": "アセットを削除できませんでした。"
-  },
-  "assets_failed_to_search_assets": {
-    "message": "アセットを検索できませんでした。"
-  },
-  "assets_no_active_wallet_selected": {
-    "message": "アクティブなウォレットが選択されていません"
-  },
-  "assets_pin_up_to_assets_to": {
-    "message": "最大 $1 件のアセットをメイン画面の上部にピン留めできます。"
-  },
-  "assets_remove_from_pinned": {
-    "message": "$1 のピン留めを解除"
-  },
-  "assets_search_assets": {
-    "message": "アセットを検索"
-  },
-  "assets_search_assets_2": {
-    "message": "アセットを検索"
-  },
-  "assets_searching": {
-    "message": "検索中…"
-  },
-  "assets_you_can_only_pin_up": {
-    "message": "ピン留めできるアセットは $1 個までです。"
   },
   "attach_form_could_not_load_details_for": {
     "message": "このアセットの詳細を読み込めませんでした。"
@@ -3044,6 +3017,15 @@
   "marketplace_batch_broadcast": {
     "message": "ブロードキャスト"
   },
+  "marketplace_batch_fund_and_authorize_1_exact_offer": {
+    "message": "1 件の指定オファーに資金を用意して承認"
+  },
+  "marketplace_batch_fund_and_authorize_exact_offers": {
+    "message": "$1 件の指定オファーに資金を用意して承認"
+  },
+  "marketplace_batch_funding_is_broadcast_now": {
+    "message": "オファー資金を確保するため今すぐ支払われます"
+  },
   "marketplace_batch_sent_now": {
     "message": "今すぐ送信"
   },
@@ -3239,6 +3221,9 @@
   "marketplace_intent_items_with_asset_count": {
     "message": "$1（アセット $2 種類）"
   },
+  "marketplace_intent_key_path_fee_output": {
+    "message": "スクリプトのないキーパス Taproot アドレス：支払っても、あなたのアドレスから Counterparty メッセージが発行されることはありません"
+  },
   "marketplace_intent_list_for_sale": {
     "message": "出品する"
   },
@@ -3247,6 +3232,9 @@
   },
   "marketplace_intent_expires": {
     "message": "有効期限"
+  },
+  "marketplace_intent_marketplace_fee": {
+    "message": "マーケットプレイス手数料"
   },
   "marketplace_intent_network_fee": {
     "message": "ネットワーク手数料"
@@ -6491,6 +6479,15 @@
   },
   "psbts_approve_authorize_offers_2": {
     "message": "$1 件のオファーを承認"
+  },
+  "psbts_approve_fund_and_authorize_offers": {
+    "message": "オファーに資金を用意して承認"
+  },
+  "psbts_approve_fund_and_authorize_1_offer": {
+    "message": "1 件のオファーに資金を用意して承認"
+  },
+  "psbts_approve_fund_and_authorize_offers_2": {
+    "message": "$1 件のオファーに資金を用意して承認"
   },
   "marketplace_batch_latest_expiry": {
     "message": "最終有効期限"

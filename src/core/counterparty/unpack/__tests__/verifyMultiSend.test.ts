@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2pkh, p2tr, p2wpkh } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { addressesEqual } from '../address';
@@ -121,7 +121,7 @@ describe('verifyMultiSend', () => {
  * same order, with the same details.
  */
 describe('verifyMultiSend matches the pairwise search it replaced', () => {
-  const key = (n: number) => getPublicKey(hexToBytes(n.toString(16).padStart(64, '0')), true);
+  const key = (n: number) => secp256k1.getPublicKey(hexToBytes(n.toString(16).padStart(64, '0')), true);
   const SEGWIT = Array.from({ length: 6 }, (_, i) => p2wpkh(key(i + 1)).address!);
   const LEGACY = Array.from({ length: 3 }, (_, i) => p2pkh(key(i + 20)).address!);
   const TAPROOT = p2tr(key(30).slice(1)).address!;

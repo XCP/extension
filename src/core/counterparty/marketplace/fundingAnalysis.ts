@@ -285,11 +285,13 @@ export function analyzeFundOffersIntent(
       kind: 'amount', label: each(t('marketplace_intent_offer_price')),
       value: satsValue(intent.priceSats),
     },
-    {
-      kind: 'amount', label: each(t('marketplace_intent_platform_fee')),
+    // Under taker-pays the accepting seller pays the fee out of the offer, and the funding
+    // pre-funds none of it: a zero row would only suggest the bidder owes it later.
+    ...(intent.platformFeeSats > 0 ? [{
+      kind: 'amount' as const, label: each(t('marketplace_intent_platform_fee')),
       value: satsValue(intent.platformFeeSats),
       description: t('marketplace_intent_paid_only_if_a_seller_accepts'),
-    },
+    }] : []),
     ...(attachedUtxoSats > 0 ? [{
       kind: 'amount' as const, label: each(t('marketplace_intent_asset_utxo')),
       value: satsValue(attachedUtxoSats),

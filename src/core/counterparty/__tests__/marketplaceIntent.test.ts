@@ -1,3 +1,6 @@
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { getPublicKey } from '@noble/secp256k1';
+import { p2tr } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import {
@@ -155,6 +158,13 @@ const buyBase = () => ({
   transactionId: BUY_TXID,
   localCounterpartyMessage: { messageType: 'detach', data: { destination: BUYER } },
 });
+
+/** A BIP86 fee key and its key-path output, as the marketplace derives fee addresses. */
+const FEE_INTERNAL_KEY = bytesToHex(getPublicKey(new Uint8Array(32).fill(3), true).slice(1));
+const keyPathFeeOutput = () => {
+  const payment = p2tr(hexToBytes(FEE_INTERNAL_KEY));
+  return { index: 3, type: 'p2tr', address: payment.address!, value: 5_000, script: bytesToHex(payment.script) };
+};
 
 const attachedBuyBase = () => ({
   intent: {
@@ -914,6 +924,52 @@ describe('create-listing proof', () => {
 });
 
 describe('buy-listings proof', () => {
+  it('proves a declared BIP86 fee key against the fee output and names it "Marketplace fee"', () => {
+    const request = buyBase();
+    const fee = keyPathFeeOutput();
+    const review = analyzeMarketplaceIntent({
+      ...request,
+      intent: { ...request.intent, platformFeeInternalKey: FEE_INTERNAL_KEY },
+      outputs: request.outputs.map(output => output.index === 3 ? fee : output),
+    });
+    expect(review).toMatchObject({ status: 'proved', blockers: [], keyPathFeeOutput: { index: 3, address: fee.address } });
+    expect(review.facts).toContainEqual(expect.objectContaining({
+      kind: 'address', label: 'Marketplace fee', value: fee.address,
+    }));
+  });
+
+  it('leaves an undeclared fee output unproven, exactly as before', () => {
+    const request = buyBase();
+    const review = analyzeMarketplaceIntent({
+      ...request, outputs: request.outputs.map(output => output.index === 3 ? keyPathFeeOutput() : output),
+    });
+    expect(review.status).toBe('proved');
+    expect(review.keyPathFeeOutput).toBeUndefined();
+    expect(review.facts.some(fact => fact.label === 'Marketplace fee')).toBe(false);
+  });
+
+  it('blocks a declared fee key that does not produce the fee output', () => {
+    const request = buyBase();
+    // The p2wpkh platform output of the base checkout is not any key's Taproot output.
+    const review = analyzeMarketplaceIntent({
+      ...request, intent: { ...request.intent, platformFeeInternalKey: FEE_INTERNAL_KEY },
+    });
+    expect(review.status).toBe('blocked');
+    expect(review.keyPathFeeOutput).toBeUndefined();
+    expect(review.blockers).toContain(
+      'the platform fee output is not the key-path Taproot output of the declared internal key',
+    );
+  });
+
+  it('blocks a fee key on a checkout that pays no platform fee', () => {
+    const request = buyBase();
+    const review = analyzeMarketplaceIntent({
+      ...request,
+      intent: { ...request.intent, platformFeeSats: 0, platformFeeInternalKey: FEE_INTERNAL_KEY },
+    });
+    expect(review.blockers).toContain('the checkout names a platform fee key but pays no platform fee');
+  });
+
   it.each([
     { mode: 'attached' as const, sellerAssetUtxo: 330 },
     { mode: 'attached' as const, sellerAssetUtxo: 546 },
@@ -1206,6 +1262,31 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
           }
         });
 
+        it('splits a fee the bidder partly pre-funded from the part the seller pays', () => {
+          const base = takerExactBase(accepting, attached, 6_250);
+          // A slot funded before taker-pays pre-funds 1,000 sats of the fee; the seller pays 5,250.
+          const request = {
+            ...base,
+            intent: {
+              ...base.intent, sellerPaidFeeSats: 5_250,
+              priceSats: base.intent.priceSats + 1_000, sellerProceedsSats: base.intent.sellerProceedsSats + 1_000,
+            },
+            inputs: base.inputs.map(input => input.index === 0 ? { ...input, value: input.value! + 1_000 } : input),
+            outputs: base.outputs.map(output => output.index === 1 ? { ...output, value: output.value + 1_000 } : output),
+          };
+          const review = analyzeMarketplaceIntent({ ...request, intent: parseMarketplaceIntent(request.intent) });
+          expect(review.blockers).toEqual([]);
+          const fees = review.paymentSummary?.filter(field => field.label === 'Platform fee');
+          const sellerPart = {
+            kind: 'amount', label: 'Platform fee', value: '5,250 sats', description: 'Deducted from seller proceeds',
+          };
+          // The seller sees only its own part; the bidder sees both, each with who pays it.
+          expect(fees).toEqual(accepting ? [sellerPart] : [
+            sellerPart,
+            { kind: 'amount', label: 'Platform fee', value: '1,000 sats', description: 'Paid by the buyer' },
+          ]);
+        });
+
         const mutations: Array<[string, (request: ReturnType<typeof feeExactBase>) => void]> = [
           ['wrong fee amount', request => { request.outputs[2]!.value -= 1; }],
           ['missing fee output', request => { request.outputs.pop(); }],
@@ -1471,6 +1552,17 @@ describe('offer funding proof', () => {
     expect(review.facts).toContainEqual({
       kind: 'paragraph', label: 'Cancellation', value: 'Cancel anytime by spending the set-aside outputs',
     });
+  });
+
+  it('shows no platform fee row for a taker-pays funding, which pre-funds none of it', () => {
+    const review = analyzeMarketplaceIntent({
+      ...fundOffersBase(),
+      intent: { ...fundOffersIntent, priceSats: 9_000, platformFeeSats: 0 },
+    });
+    expect(review.status).toBe('proved');
+    expect(review.paymentSummary?.map(field => field.label)).toEqual([
+      'Offer price · each', 'Set aside', 'Network fee',
+    ]);
   });
 
   it('clips long collection and policy text instead of letting it carry a sentence', () => {

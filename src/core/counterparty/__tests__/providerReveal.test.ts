@@ -12,8 +12,8 @@
  * pin what the review says the site decides for each, and what the supplied reveal pays.
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { extractPsbtDetails } from '@/core/bitcoin/psbt';
@@ -41,7 +41,7 @@ import {
 } from './helpers/revealFixtures';
 
 const RECIPIENTS = Array.from({ length: 43 }, (_, i) =>
-  p2wpkh(getPublicKey(new Uint8Array(32).fill(10 + i), true)).address!);
+  p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(10 + i), true)).address!);
 
 /** The CounterwalletV2 shape: one MPMA moving the user's asset to 43 addresses. */
 const MPMA_HEX = bytesToHex(packComposeMessage('mpma', {

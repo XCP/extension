@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
@@ -23,12 +23,12 @@ vi.mock('@/platform/auth/sessionManager', async (original) => ({
 }));
 
 const privateKey = '01'.padStart(64, '0');
-const own = p2wpkh(getPublicKey(hexToBytes(privateKey)));
-const recipient = p2wpkh(getPublicKey(hexToBytes('02'.padStart(64, '0'))));
-const attacker = p2wpkh(getPublicKey(hexToBytes('03'.padStart(64, '0'))));
+const own = p2wpkh(secp256k1.getPublicKey(hexToBytes(privateKey)));
+const recipient = p2wpkh(secp256k1.getPublicKey(hexToBytes('02'.padStart(64, '0'))));
+const attacker = p2wpkh(secp256k1.getPublicKey(hexToBytes('03'.padStart(64, '0'))));
 const wallet: Wallet = {
   id: 'hardware-identity', name: 'Hardware', type: 'hardware', addressFormat: AddressFormat.P2WPKH,
-  addressCount: 1, addresses: [{ address: own.address, name: 'Account', path: "m/84'/0'/0'/0/0", pubKey: bytesToHex(getPublicKey(hexToBytes(privateKey))) }],
+  addressCount: 1, addresses: [{ address: own.address, name: 'Account', path: "m/84'/0'/0'/0/0", pubKey: bytesToHex(secp256k1.getPublicKey(hexToBytes(privateKey))) }],
 };
 const identity = { walletId: wallet.id, address: own.address };
 const parent = new Transaction();

@@ -1,5 +1,5 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { ApiResponse, ComposeResult } from '../../compose';
@@ -37,7 +37,7 @@ export const mockInputsSet = `${mockInputTxid}:0`;
  */
 function buildMockRawTransaction(): string {
   const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
-  const script = p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script;
+  const script = p2wpkh(secp256k1.getPublicKey(hexToBytes('11'.repeat(32)), true)).script;
   tx.addInput({
     txid: hexToBytes(mockInputTxid),
     index: 0,

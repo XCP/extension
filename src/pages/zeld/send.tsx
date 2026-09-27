@@ -42,13 +42,23 @@ function ZeldSendForm({
   const [destination, setDestination] = useState(initialFormData?.destination ?? '');
   const recipientSats = destination ? zeldRecipientDustSats(destination) : undefined;
 
+  const [balanceError, setBalanceError] = useState(false);
+  const [balanceRevision, setBalanceRevision] = useState(0);
+
   const address = activeAddress?.address;
   useEffect(() => {
     if (!address) return;
-    void fetchZeldBalance(address).then(setBalance).catch((error) => {
+    let cancelled = false;
+    void fetchZeldBalance(address).then((result) => {
+      if (cancelled) return;
+      setBalance(result);
+      setBalanceError(false);
+    }).catch((error) => {
       console.error('Failed to load ZELD send balance:', error);
+      if (!cancelled) setBalanceError(true);
     });
-  }, [address]);
+    return () => { cancelled = true; };
+  }, [address, balanceRevision]);
 
   const available = balance?.baseUnits ?? 0n;
   const amountBaseUnits = useMemo(() => {
@@ -88,6 +98,12 @@ function ZeldSendForm({
           </span>
         </div>
       </div>
+      {balanceError && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+          <p role="alert" className="text-sm text-amber-800">{t('zeld_balance_error', [t('zeld_indexer_unavailable')])}</p>
+          <button type="button" onClick={() => { setBalanceError(false); setBalanceRevision(value => value + 1); }} className="text-sm font-medium text-blue-700 underline cursor-pointer">{t('common_try_again')}</button>
+        </div>
+      )}
       <DestinationInput
         value={destination}
         onChange={setDestination}

@@ -8,7 +8,8 @@
  * using getWalletService() from walletService.ts: this proxy is never registered, so calling it
  * inside the background throws.
  */
-import { defineProxyService, type ProxyServicePolicy } from '@/platform/proxy';
+import { defineProxyClient } from '@/platform/proxy/client';
+import type { ProxyServicePolicy } from '@/platform/proxy/protocol';
 import type { WalletService } from '@/services/walletService';
 
 export const WALLET_SERVICE_NAME = 'WalletService';
@@ -36,9 +37,5 @@ export const WALLET_SERVICE_POLICY: ProxyServicePolicy<WalletService> = {
   },
 };
 
-/** A caller-side proxy. It is never registered, so its factory never runs. */
-export const [, getWalletServiceClient] = defineProxyService<WalletService>(
-  WALLET_SERVICE_NAME,
-  () => { throw new Error('WalletService is registered only in the background'); },
-  WALLET_SERVICE_POLICY,
-);
+/** A caller-side proxy. It has no implementation behind it, so calling it in the background throws. */
+export const getWalletServiceClient = defineProxyClient<WalletService>(WALLET_SERVICE_NAME, WALLET_SERVICE_POLICY);

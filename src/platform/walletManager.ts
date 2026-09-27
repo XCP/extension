@@ -55,7 +55,7 @@ import { WalletSigner } from '@/platform/walletSigner';
 
 import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
 // Import types from centralized types module
-import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, RevealSecretRequest, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
+import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, RevealSecretRequest, SignPsbtOptions, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
 
 /** How long a keychain load waits for session recovery before declining to load this time. */
 const RECOVERY_WAIT_MS = 5_000;
@@ -1851,8 +1851,9 @@ export class WalletManager {
     signInputs?: Record<string, number[]>,
     sighashTypes?: number[],
     expectedIdentity?: SigningIdentity,
+    options?: SignPsbtOptions,
   ): Promise<string> {
-    return this.signer.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity);
+    return this.signer.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity, options);
   }
 
 }

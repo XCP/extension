@@ -752,6 +752,9 @@
   "asset_asset_name_input_asset_name_is_available": {
     "message": "资产名称可用"
   },
+  "asset_asset_name_input_availability_check_failed": {
+    "message": "无法检查此名称是否可用。请检查网络连接，然后修改名称重试。"
+  },
   "asset_asset_name_input_checking_availability": {
     "message": "正在检查可用性…"
   },
@@ -931,36 +934,6 @@
   },
   "assets_asset_view_dividend_transaction": {
     "message": "查看分红交易 $1"
-  },
-  "assets_failed_to_add_asset": {
-    "message": "添加资产失败。"
-  },
-  "assets_failed_to_remove_asset": {
-    "message": "移除资产失败。"
-  },
-  "assets_failed_to_search_assets": {
-    "message": "搜索资产失败。"
-  },
-  "assets_no_active_wallet_selected": {
-    "message": "未选择活动钱包"
-  },
-  "assets_pin_up_to_assets_to": {
-    "message": "最多可将 $1 个资产置顶到主屏幕。"
-  },
-  "assets_remove_from_pinned": {
-    "message": "取消置顶 $1"
-  },
-  "assets_search_assets": {
-    "message": "搜索资产"
-  },
-  "assets_search_assets_2": {
-    "message": "搜索资产"
-  },
-  "assets_searching": {
-    "message": "搜索中…"
-  },
-  "assets_you_can_only_pin_up": {
-    "message": "最多只能置顶 $1 个资产。"
   },
   "attach_form_could_not_load_details_for": {
     "message": "无法加载此资产的详情。"
@@ -3044,6 +3017,15 @@
   "marketplace_batch_broadcast": {
     "message": "广播"
   },
+  "marketplace_batch_fund_and_authorize_1_exact_offer": {
+    "message": "为 1 个指定出价准备资金并授权"
+  },
+  "marketplace_batch_fund_and_authorize_exact_offers": {
+    "message": "为 $1 个指定出价准备资金并授权"
+  },
+  "marketplace_batch_funding_is_broadcast_now": {
+    "message": "现在支付，用于预留出价资金"
+  },
   "marketplace_batch_sent_now": {
     "message": "立即发送"
   },
@@ -3239,6 +3221,9 @@
   "marketplace_intent_items_with_asset_count": {
     "message": "$1（$2 种资产）"
   },
+  "marketplace_intent_key_path_fee_output": {
+    "message": "无脚本的密钥路径 Taproot 地址：向其付款无法以你的地址发布 Counterparty 消息"
+  },
   "marketplace_intent_list_for_sale": {
     "message": "上架出售"
   },
@@ -3247,6 +3232,9 @@
   },
   "marketplace_intent_expires": {
     "message": "有效期至"
+  },
+  "marketplace_intent_marketplace_fee": {
+    "message": "市场手续费"
   },
   "marketplace_intent_network_fee": {
     "message": "网络费用"
@@ -6491,6 +6479,15 @@
   },
   "psbts_approve_authorize_offers_2": {
     "message": "授权 $1 个出价"
+  },
+  "psbts_approve_fund_and_authorize_offers": {
+    "message": "为出价准备资金并授权"
+  },
+  "psbts_approve_fund_and_authorize_1_offer": {
+    "message": "为 1 个出价准备资金并授权"
+  },
+  "psbts_approve_fund_and_authorize_offers_2": {
+    "message": "为 $1 个出价准备资金并授权"
   },
   "marketplace_batch_latest_expiry": {
     "message": "最晚到期"

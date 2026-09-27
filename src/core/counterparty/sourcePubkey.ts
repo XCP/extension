@@ -23,15 +23,10 @@
  */
 
 import { publicKeyMatchesAddress } from '@/core/bitcoin/publicKeyIdentity';
+import { getSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
 
-type SourcePubkeyProvider = (address: string) => string | null;
-
-let provider: SourcePubkeyProvider | null = null;
-
-/** Registered by the wallet context; addresses and their keys are runtime state. */
-export function setSourcePubkeyProvider(nextProvider: SourcePubkeyProvider | null): void {
-  provider = nextProvider;
-}
+// Re-exported so existing importers keep working; the registration itself lives in a leaf module.
+export { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
 
 /**
  * A single EC point in hex: 33 bytes compressed (02/03) or 65 uncompressed (04).
@@ -60,6 +55,7 @@ export function setSourcePubkeyProvider(nextProvider: SourcePubkeyProvider | nul
  * fallback that might work beats a parameter that certainly will not.
  */
 export function getSourcePubkey(address: string): string | null {
+  const provider = getSourcePubkeyProvider();
   if (!provider || !address) return null;
   const pubkey = provider(address);
   if (!pubkey) return null;
