@@ -5,7 +5,7 @@ import { getBtcPrice } from '@/core/bitcoin/price';
 import { fetchAssetDetails, fetchUtxoBalances } from '@/core/counterparty/api';
 import { getXCPPrice } from '@/core/counterparty/price';
 import { MIN_PASSWORD_LENGTH } from '@/core/encryption/encryption';
-import { mockBrowserLocale, renderHook } from '@/i18n/test-utils';
+import { mockBrowserLocale, renderHook } from '@/i18n/__tests__/helpers/locale';
 import ja from '../../../public/_locales/ja/messages.json';
 import { useAssetOwnerLookup } from '../useAssetOwnerLookup';
 import { useBlockHeight } from '../useBlockHeight';

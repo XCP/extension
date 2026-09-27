@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
-import { mockBrowserLocale } from '@/i18n/test-utils';
+import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import ja from '../../../public/_locales/ja/messages.json';
 import { useMultiBatchConsolidation } from '../useMultiBatchConsolidation';
 
