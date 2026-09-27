@@ -6292,6 +6292,9 @@
   "dispense_inventory_failed": {
     "message": "すべての自販機を読み込めません。購入する前に戻って再試行してください。"
   },
+  "dispense_oracle_refused": {
+    "message": "この支払いはオラクル価格の自販機（$1）も起動します。署名後に価格が変わる可能性があるため、このウォレットでは署名しません。"
+  },
   "dispense_inventory_loading": {
     "message": "すべての自販機を読み込み中…"
   },
