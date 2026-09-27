@@ -1003,6 +1003,10 @@
     "message": "Asset name is available",
     "description": "components/domain/asset/asset-name-input.tsx"
   },
+  "asset_asset_name_input_availability_check_failed": {
+    "message": "Couldn't check whether this name is available. Check your connection, then edit the name to try again.",
+    "description": "components/domain/asset/asset-name-input.tsx: shown under the asset name when the availability check could not reach the Counterparty API (offline, timeout, server error); the name is treated as unchecked, not available."
+  },
   "asset_asset_name_input_checking_availability": {
     "message": "Checking availability…",
     "description": "components/domain/asset/asset-name-input.tsx"

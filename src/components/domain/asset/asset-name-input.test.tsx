@@ -1,6 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { CounterpartyApiError } from '@/core/errors';
 import { AssetNameInput } from './asset-name-input';
 
 // Setup portal root for Headless UI
@@ -369,7 +371,7 @@ describe('AssetNameInput', () => {
 
     it('should handle 404 errors as asset available', async () => {
       // Simulate a 404 error (asset not found = available)
-      mockFetchAssetDetails.mockRejectedValueOnce(new Error('404 Not Found'));
+      mockFetchAssetDetails.mockRejectedValueOnce(new CounterpartyApiError('Not found', '/v2/assets/VALIDNAME', { statusCode: 404 }));
 
       const { rerender } = render(
         <AssetNameInput 
@@ -464,5 +466,101 @@ describe('AssetNameInput', () => {
       expect(mockOnChange).toHaveBeenCalledWith('YACHTDOCK.');
     });
 
+  });
+});
+describe('AssetNameInput availability races', () => {
+  const mockFetchAssetDetails = fetchAssetDetails as any;
+
+  /** The fairminter and pool-deposit shape: a stable state setter gates submit. */
+  function Harness() {
+    const [value, setValue] = useState('');
+    const [valid, setValid] = useState(false);
+    return (
+      <>
+        <AssetNameInput value={value} onChange={setValue} onValidationChange={setValid} showHelpText />
+        <output data-testid="valid">{String(valid)}</output>
+      </>
+    );
+  }
+
+  /** Answers per asset name, each held until the test releases it. */
+  function deferByName() {
+    const pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: unknown) => void }>();
+    mockFetchAssetDetails.mockImplementation((name: string) =>
+      new Promise((resolve, reject) => { pending.set(name, { resolve, reject }); }));
+    return pending;
+  }
+
+  const input = () => screen.getByRole('textbox');
+  const valid = () => screen.getByTestId('valid').textContent;
+  const notFound = (name: string) => new CounterpartyApiError('Not found', `/v2/assets/${name}`, { statusCode: 404 });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useWallet as any).mockReturnValue({ activeAddress: { address: 'bc1qtest123' } });
+  });
+
+  it('marks a free name available after the check', async () => {
+    mockFetchAssetDetails.mockRejectedValue(notFound('FREENAME'));
+    render(<Harness />);
+
+    fireEvent.change(input(), { target: { value: 'FREENAME' } });
+
+    await waitFor(() => expect(screen.getByText('Asset name is available')).toBeInTheDocument());
+    expect(valid()).toBe('true');
+  });
+
+  it('does not let a late answer for an earlier name mark a taken name available', async () => {
+    const pending = deferByName();
+    render(<Harness />);
+
+    fireEvent.change(input(), { target: { value: 'FOOBAR' } });
+    await waitFor(() => expect(pending.has('FOOBAR')).toBe(true));
+
+    fireEvent.change(input(), { target: { value: 'PEPECASH' } });
+    await waitFor(() => expect(pending.has('PEPECASH')).toBe(true));
+    await act(async () => { pending.get('PEPECASH')!.resolve({ asset: 'PEPECASH', issuer: 'bc1qsomeone' }); });
+    await waitFor(() => expect(screen.getByText('Asset name already taken')).toBeInTheDocument());
+
+    // FOOBAR's slow answer lands after the user has moved on.
+    await act(async () => { pending.get('FOOBAR')!.reject(notFound('FOOBAR')); });
+
+    expect(screen.getByText('Asset name already taken')).toBeInTheDocument();
+    expect(screen.queryByText('Asset name is available')).not.toBeInTheDocument();
+    expect(valid()).toBe('false');
+  });
+
+  it('withdraws validity as soon as a checked name is edited, until the new name is checked', async () => {
+    const pending = deferByName();
+    render(<Harness />);
+
+    fireEvent.change(input(), { target: { value: 'FREENAME' } });
+    await waitFor(() => expect(pending.has('FREENAME')).toBe(true));
+    await act(async () => { pending.get('FREENAME')!.reject(notFound('FREENAME')); });
+    await waitFor(() => expect(valid()).toBe('true'));
+
+    fireEvent.change(input(), { target: { value: 'PEPECASH' } });
+
+    expect(valid()).toBe('false');
+    expect(screen.queryByText('Asset name is available')).not.toBeInTheDocument();
+  });
+
+  it('does not call a name available when the check itself fails', async () => {
+    mockFetchAssetDetails.mockRejectedValue(new CounterpartyApiError('Network Error', '/v2/assets/SOMENAME'));
+    render(<Harness />);
+
+    fireEvent.change(input(), { target: { value: 'SOMENAME' } });
+
+    await waitFor(() => expect(screen.getByText(/Couldn't check whether this name is available/)).toBeInTheDocument());
+    expect(screen.queryByText('Asset name is available')).not.toBeInTheDocument();
+    expect(valid()).toBe('false');
+  });
+
+  it('reports a parent the node does not know as missing, not the subasset as available', async () => {
+    mockFetchAssetDetails.mockRejectedValue(notFound('NOPARENT'));
+    render(<AssetNameInput value="NOPARENT.child" onChange={vi.fn()} onValidationChange={vi.fn()} isSubasset showHelpText />);
+
+    await waitFor(() => expect(screen.getByText('Parent asset does not exist')).toBeInTheDocument());
+    expect(screen.queryByText('Asset name is available')).not.toBeInTheDocument();
   });
 });
