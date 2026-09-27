@@ -4012,6 +4012,18 @@
     "message": "Broadcast",
     "description": "Label on the listing batch approval screen, beside whether the signed transactions go to the network now."
   },
+  "marketplace_batch_fund_and_authorize_1_exact_offer": {
+    "message": "Fund and authorize 1 exact offer",
+    "description": "Title of the batch approval screen where the bidder sets aside the offer's funding and signs an exact offer on one specific collectible in the same review."
+  },
+  "marketplace_batch_fund_and_authorize_exact_offers": {
+    "message": "Fund and authorize $1 exact offers",
+    "description": "Title of the batch approval screen where the bidder sets aside the offer's funding and signs exact offers on several specific collectibles, all backed by that one funding output, in the same review. $1 is the number of offers (2 or more)."
+  },
+  "marketplace_batch_funding_is_broadcast_now": {
+    "message": "Paid now, to set the offer funding aside",
+    "description": "Note under the 'Network fee' row on the fund-and-authorize approval screen: this miner fee is for the funding transaction, which the site broadcasts right away; the offers themselves cost nothing until accepted."
+  },
   "marketplace_batch_sent_now": {
     "message": "Sent now",
     "description": "Row label on the Attach and List screen, beside what signing broadcasts right away (only the attach; the listing is not broadcast)."
@@ -4272,6 +4284,10 @@
     "message": "$1 ($2 assets)",
     "description": "Value of the Items row when the basket holds more than one item of the same asset. $1 is the item count, $2 is how many distinct assets those items span."
   },
+  "marketplace_intent_key_path_fee_output": {
+    "message": "Key-path Taproot address with no scripts: paying it cannot publish a Counterparty message from your address",
+    "description": "Note under the 'Marketplace fee' address row: the wallet proved the fee address commits to no script, so the script-address caution does not apply to it."
+  },
   "marketplace_intent_list_for_sale": {
     "message": "List for sale",
     "description": "Short action summary at the top of the marketplace approval screen when the signature creates a new listing."
@@ -4283,6 +4299,10 @@
   "marketplace_intent_expires": {
     "message": "Expires",
     "description": "Row label: the date and time after which the marketplace stops honoring this signature. The value is a date."
+  },
+  "marketplace_intent_marketplace_fee": {
+    "message": "Marketplace fee",
+    "description": "Row label on the buy and exact-offer approval screens, above the address the marketplace fee is paid to, shown only when the wallet proved that address is a key-path-only Taproot output of the key the site declared."
   },
   "marketplace_intent_network_fee": {
     "message": "Network fee",
@@ -8603,6 +8623,18 @@
   "psbts_approve_authorize_offers_2": {
     "message": "Authorize $1 offers",
     "description": "pages/requests/psbts/approve.tsx. Sign button for a batch of exact offers. $1 = request.items.length"
+  },
+  "psbts_approve_fund_and_authorize_offers": {
+    "message": "Fund and Authorize Offers",
+    "description": "pages/requests/psbts/approve.tsx. Header title of the batch screen where the bidder sets aside offer funding (paid now) and signs exact offers backed by it, in one review."
+  },
+  "psbts_approve_fund_and_authorize_1_offer": {
+    "message": "Fund and authorize 1 offer",
+    "description": "pages/requests/psbts/approve.tsx. Sign button for a fund-and-authorize batch holding one exact offer; signing also funds it now."
+  },
+  "psbts_approve_fund_and_authorize_offers_2": {
+    "message": "Fund and authorize $1 offers",
+    "description": "pages/requests/psbts/approve.tsx. Sign button for a fund-and-authorize batch of exact offers; signing also funds them now. $1 = the number of offers (the funding is not counted)."
   },
   "marketplace_batch_latest_expiry": {
     "message": "Latest expiry",

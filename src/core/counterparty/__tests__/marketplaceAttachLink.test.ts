@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   deriveProvedAttachOutput,
   type LinkedAttachChainSource,
@@ -95,38 +95,31 @@ describe('withLinkedInputAssets', () => {
     inputIndex: 1, utxo: `${TXID}:0`,
     assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1', asset_longname: null }],
   };
-  const unbroadcast = vi.fn(async () => true);
-  const broadcastOrUnknown = vi.fn(async () => false);
   const failed = { inputIndex: 1, utxo: linked.utxo, assets: [], lookupFailed: true };
 
-  it('fills an input the ledger reported empty without asking the network', async () => {
-    await expect(withLinkedInputAssets([], linked, TXID, broadcastOrUnknown)).resolves.toEqual([linked]);
-    expect(broadcastOrUnknown).not.toHaveBeenCalled();
+  it('fills an input the ledger reported empty', () => {
+    expect(withLinkedInputAssets([], linked, TXID)).toEqual([linked]);
   });
 
-  it('fills a failed lookup only when the network affirmatively does not know the attach', async () => {
-    await expect(withLinkedInputAssets([failed], linked, TXID, unbroadcast)).resolves.toEqual([linked]);
-    await expect(withLinkedInputAssets([failed], linked, TXID, broadcastOrUnknown)).resolves.toEqual([failed]);
-    const throwing = async () => { throw new Error('explorer down'); };
-    await expect(withLinkedInputAssets([failed], linked, TXID, throwing)).resolves.toEqual([failed]);
-  });
-
-  it('fills a lookup held back because the attach itself is still pending', async () => {
+  it('fills a lookup held back because the attach itself is still pending', () => {
     const pending = { ...failed, pendingParentTxid: TXID.toUpperCase() };
-    await expect(withLinkedInputAssets([pending], linked, TXID, broadcastOrUnknown)).resolves.toEqual([linked]);
+    expect(withLinkedInputAssets([pending], linked, TXID)).toEqual([linked]);
+  });
+
+  it('keeps a failed lookup the attach does not explain: an outage stays a retry', () => {
+    expect(withLinkedInputAssets([failed], linked, TXID)).toEqual([failed]);
     const otherParent = { ...failed, pendingParentTxid: 'cd'.repeat(32) };
-    await expect(withLinkedInputAssets([otherParent], linked, TXID, broadcastOrUnknown))
-      .resolves.toEqual([otherParent]);
+    expect(withLinkedInputAssets([otherParent], linked, TXID)).toEqual([otherParent]);
   });
 
-  it('keeps a ledger that does report assets, so a disagreement still blocks', async () => {
+  it('keeps a ledger that does report assets, so a disagreement still blocks', () => {
     const ledger = [{ inputIndex: 1, utxo: linked.utxo, assets: [{ asset: 'OTHER', quantity_normalized: '1' }] }];
-    await expect(withLinkedInputAssets(ledger, linked, TXID, unbroadcast)).resolves.toBe(ledger);
+    expect(withLinkedInputAssets(ledger, linked, TXID)).toBe(ledger);
   });
 
-  it('leaves every other input untouched', async () => {
+  it('leaves every other input untouched', () => {
     const other = { inputIndex: 0, utxo: 'x:0', assets: [], lookupFailed: true };
-    await expect(withLinkedInputAssets([other], linked, TXID, broadcastOrUnknown)).resolves.toEqual([other, linked]);
+    expect(withLinkedInputAssets([other], linked, TXID)).toEqual([other, linked]);
   });
 });
 

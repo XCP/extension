@@ -85,6 +85,20 @@ it('names exact-offer authorizations in the header and the sign button', async (
   await waitFor(() => expect(state.approve).toHaveBeenCalledWith(false));
 });
 
+it('says fund and authorize, counting only the offers, when the review also funds them', async () => {
+  state.request = {bundleKind: 'fund-and-authorize-offers', origin: 'https://example.test', address: '1wallet', items: [{signInputs: {'1wallet': [0]}}, {signInputs: {'1wallet': [0]}}, {signInputs: {'1wallet': [0]}}]};
+  render(<ApprovePsbtsPage />);
+  expect(state.setHeaderProps).toHaveBeenCalledWith({title: 'Fund and Authorize Offers'});
+  fireEvent.click(screen.getByRole('button', {name: 'Fund and authorize 2 offers'}));
+  await waitFor(() => expect(state.approve).toHaveBeenCalledWith(false));
+});
+
+it('names a single funded offer in the singular', () => {
+  state.request = {bundleKind: 'fund-and-authorize-offers', origin: 'https://example.test', address: '1wallet', items: [{signInputs: {'1wallet': [0]}}, {signInputs: {'1wallet': [0]}}]};
+  render(<ApprovePsbtsPage />);
+  expect(screen.getByRole('button', {name: 'Fund and authorize 1 offer'})).toBeInTheDocument();
+});
+
 it('takes the review step when an exact-offer batch requires acknowledgement', async () => {
   state.request = {bundleKind: 'authorize-offers', origin: 'https://example.test', address: '1wallet', items: [{signInputs: {'1wallet': [0]}}]};
   state.policy.requiresAcknowledgement = true;

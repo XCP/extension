@@ -15,6 +15,7 @@ import {
   newProofLog,
   proveActualFee,
   proveAttachedAsset,
+  proveKeyPathFeeOutput,
   proveTxidClaim,
   reviewStatus,
   safeSum,
@@ -97,6 +98,12 @@ export function analyzeExactOfferIntent(
     }
   }
 
+  const keyPathFee = intent.platformFeeSats > 0
+    ? proveKeyPathFeeOutput(log, outputs[2], intent.platformFeeInternalKey)
+    : null;
+  if (intent.platformFeeSats === 0 && intent.platformFeeInternalKey !== undefined) {
+    blockers.push('the exact offer names a platform fee key but pays no platform fee');
+  }
   const expectedOutputs = intent.platformFeeSats > 0 ? 3 : 2;
   if (inputs.length !== 2 || outputs.length !== expectedOutputs) {
     blockers.push(`expected exactly 2 inputs and ${expectedOutputs} outputs, got ${inputs.length}/${outputs.length}`);
@@ -220,6 +227,7 @@ export function analyzeExactOfferIntent(
 
   const allProblems = [...retry, ...blockers];
   const status = reviewStatus(log, authorizing ? 'caution' : 'proved');
+  const provedFee = allProblems.length === 0 ? keyPathFee : null;
   const fundingOutpoint = intent.bitcoinInvalidation.outpoint;
   // Absent means the bidder funded the whole fee (requests from before the taker fee).
   const sellerPaidFeeSats = intent.sellerPaidFeeSats ?? 0;
@@ -231,12 +239,20 @@ export function analyzeExactOfferIntent(
     label: t('marketplace_intent_offer_price'),
     value: offerPriceSats === null ? t('marketplace_intent_unavailable') : satsValue(offerPriceSats),
   };
-  const platformFee: ProtocolField = {
-    kind: 'amount', label: t('marketplace_intent_platform_fee'), value: satsValue(intent.platformFeeSats),
-    description: sellerPaysFee
-      ? t('marketplace_intent_deducted_from_seller_proceeds')
-      : t('marketplace_intent_paid_by_the_buyer'),
+  // Split by who pays: the accepting seller's part (taker-pays) and any part the bidder pre-funded.
+  const bidderPaidFeeSats = intent.platformFeeSats - sellerPaidFeeSats;
+  const sellerFee: ProtocolField = {
+    kind: 'amount', label: t('marketplace_intent_platform_fee'), value: satsValue(sellerPaidFeeSats),
+    description: t('marketplace_intent_deducted_from_seller_proceeds'),
   };
+  const bidderFee: ProtocolField = {
+    kind: 'amount', label: t('marketplace_intent_platform_fee'), value: satsValue(bidderPaidFeeSats),
+    description: t('marketplace_intent_paid_by_the_buyer'),
+  };
+  const platformFees: ProtocolField[] = [
+    ...(sellerPaysFee ? [sellerFee] : []),
+    ...(bidderPaidFeeSats > 0 ? [bidderFee] : []),
+  ];
   const networkFee: ProtocolField = {
     kind: 'amount', label: t('marketplace_intent_network_fee'), value: satsValue(intent.networkFeeSats),
     description: t('marketplace_intent_deducted_from_seller_proceeds'),
@@ -255,7 +271,7 @@ export function analyzeExactOfferIntent(
       emphasis: 'primary',
     },
     offerPrice,
-    ...(intent.platformFeeSats > 0 ? [platformFee] : []),
+    ...platformFees,
     ...(deliveryUtxoSats > 0 ? [{
       kind: 'amount' as const, label: t('marketplace_intent_asset_utxo'),
       value: satsValue(deliveryUtxoSats),
@@ -264,7 +280,7 @@ export function analyzeExactOfferIntent(
   ] : [
     sellerReceives, offerPrice,
     // The seller sees the fee only when it comes out of their proceeds.
-    ...(sellerPaysFee ? [platformFee] : []),
+    ...(sellerPaysFee ? [sellerFee] : []),
     {
       kind: 'amount', label: t('marketplace_intent_utxo_returned'),
       value: satsValue(intent.utxoValueSats),
@@ -276,6 +292,7 @@ export function analyzeExactOfferIntent(
     status,
     ...ledgerBlockKind(blockers, log.ledger),
     family: intent.action,
+    ...(provedFee ? { keyPathFeeOutput: provedFee } : {}),
     ...(allProblems.length === 0 ? {
       paymentSummary,
       summary: {
@@ -292,7 +309,10 @@ export function analyzeExactOfferIntent(
       ...paymentSummary,
       // Whoever pays the platform fee sees it: the bidder when they funded it, the seller when it
       // comes out of their proceeds. The fee output itself stays itemized in the raw transaction.
-      ...((authorizing || sellerPaysFee) && intent.platformFeeSats > 0 && outputs[2]?.address ? [{
+      ...((authorizing || sellerPaysFee) && intent.platformFeeSats > 0 && outputs[2]?.address ? [provedFee ? {
+        kind: 'address' as const, label: t('marketplace_intent_marketplace_fee'), value: provedFee.address,
+        description: t('marketplace_intent_key_path_fee_output'),
+      } : {
         kind: 'address' as const, label: t('marketplace_intent_fee_recipient'), value: outputs[2].address,
       }] : []),
       ...(authorizing && buyerFundingSats !== null ? [{

@@ -62,7 +62,7 @@ import { huntInBackground } from '@/platform/zeldHunt';
 
 import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
 // Import types from centralized types module
-import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, RevealSecretRequest, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
+import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, RevealSecretRequest, SignPsbtOptions, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
 
 /** How long a keychain load waits for session recovery before declining to load this time. */
 const RECOVERY_WAIT_MS = 5_000;
@@ -2083,11 +2083,16 @@ export class WalletManager {
     signInputs?: Record<string, number[]>,
     sighashTypes?: number[],
     expectedIdentity?: SigningIdentity,
+    options?: SignPsbtOptions,
   ): Promise<string> {
     const assertStillAuthorized = this.createSigningGuard(expectedIdentity);
     if (!this.activeWalletId) throw new Error("No active wallet set");
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
+    // Earlier items of the same approved bundle, which a later item spends before broadcast.
+    const packageTransactions = options?.packageTransactions
+      ? new Map(Object.entries(options.packageTransactions).map(([txid, raw]) => [txid.toLowerCase(), raw]))
+      : undefined;
 
     if (wallet.type === 'hardware') {
       if (!signInputs || Object.keys(signInputs).length === 0) {
@@ -2119,7 +2124,10 @@ export class WalletManager {
 
       // The device displays every input's amount, including presigned external inputs.
       // Resolve every parent and bind the requested signer to that authenticated prevout.
-      const verified = await verifyPsbtPrevouts(psbtHex, { resolveTrustedPrevout: getTrustedBroadcastPrevout });
+      const verified = await verifyPsbtPrevouts(psbtHex, {
+        resolveTrustedPrevout: getTrustedBroadcastPrevout,
+        ...(packageTransactions ? { packageTransactions } : {}),
+      });
       assertStillAuthorized();
       const ownership = validateSignInputs(signInputs, walletAddresses, psbtDetails.inputs.length,
         verified.prevouts.map(prevout => prevout.address));
@@ -2156,6 +2164,7 @@ export class WalletManager {
     const verified = await verifyPsbtPrevouts(psbtHex, {
       resolveTrustedPrevout: getTrustedBroadcastPrevout,
       ...(requestedInputIndices ? { inputIndices: requestedInputIndices } : {}),
+      ...(packageTransactions ? { packageTransactions } : {}),
     });
     // Prevout verification awaits the network. A lock or identity change during it must stop
     // this request here, as it does on the hardware path, before any key is selected.

@@ -3017,6 +3017,15 @@
   "marketplace_batch_broadcast": {
     "message": "ブロードキャスト"
   },
+  "marketplace_batch_fund_and_authorize_1_exact_offer": {
+    "message": "1 件の指定オファーに資金を用意して承認"
+  },
+  "marketplace_batch_fund_and_authorize_exact_offers": {
+    "message": "$1 件の指定オファーに資金を用意して承認"
+  },
+  "marketplace_batch_funding_is_broadcast_now": {
+    "message": "オファー資金を確保するため今すぐ支払われます"
+  },
   "marketplace_batch_sent_now": {
     "message": "今すぐ送信"
   },
@@ -3212,6 +3221,9 @@
   "marketplace_intent_items_with_asset_count": {
     "message": "$1（アセット $2 種類）"
   },
+  "marketplace_intent_key_path_fee_output": {
+    "message": "スクリプトのないキーパス Taproot アドレス：支払っても、あなたのアドレスから Counterparty メッセージが発行されることはありません"
+  },
   "marketplace_intent_list_for_sale": {
     "message": "出品する"
   },
@@ -3220,6 +3232,9 @@
   },
   "marketplace_intent_expires": {
     "message": "有効期限"
+  },
+  "marketplace_intent_marketplace_fee": {
+    "message": "マーケットプレイス手数料"
   },
   "marketplace_intent_network_fee": {
     "message": "ネットワーク手数料"
@@ -6464,6 +6479,15 @@
   },
   "psbts_approve_authorize_offers_2": {
     "message": "$1 件のオファーを承認"
+  },
+  "psbts_approve_fund_and_authorize_offers": {
+    "message": "オファーに資金を用意して承認"
+  },
+  "psbts_approve_fund_and_authorize_1_offer": {
+    "message": "1 件のオファーに資金を用意して承認"
+  },
+  "psbts_approve_fund_and_authorize_offers_2": {
+    "message": "$1 件のオファーに資金を用意して承認"
   },
   "marketplace_batch_latest_expiry": {
     "message": "最終有効期限"
