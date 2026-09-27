@@ -26,7 +26,7 @@ const MAX_PINNED_ASSETS = 10;
 const SEARCH_API_URL = "https://api.xcp.io/v2/assets";
 const PATHS = {
   INDEX: "/index",
-  BALANCE: "/balance",
+  ASSETS: "/assets",
 } as const;
 
 /**
@@ -226,7 +226,7 @@ export default function AssetsPage(): ReactElement {
     const imageUrl = `https://cdn.xcp.io/img/icon/${symbol}`;
     return (
       <Link
-        to={`${PATHS.BALANCE}/${symbol}`}
+        to={`${PATHS.ASSETS}/${encodeURIComponent(symbol)}/balance`}
         className="flex items-center flex-1 cursor-pointer hover:bg-gray-50"
       >
         <div className="size-8 flex-shrink-0 mr-3">

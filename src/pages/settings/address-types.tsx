@@ -40,7 +40,8 @@ export default function AddressTypesPage(): ReactElement {
   const navigate = useNavigate();
   const location = useLocation();
   const { setHeaderProps } = useHeader();
-  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+  // returnState is handed back to that page, so it keeps where it was itself opened from.
+  const { returnTo, returnState } = (location.state as { returnTo?: string; returnState?: unknown } | null) ?? {};
   const { activeWallet } = useWallet();
   const {
     formats,
@@ -59,7 +60,7 @@ export default function AddressTypesPage(): ReactElement {
     const handleBack = () => {
       // Return to the page that linked here (e.g. the address list)
       if (returnTo) {
-        navigate(returnTo);
+        navigate(returnTo, { state: returnState });
       } else if (hasChangedType.current) {
         // If address type was changed, go to index
         navigate("/index");
@@ -74,7 +75,7 @@ export default function AddressTypesPage(): ReactElement {
       onBack: handleBack,
       rightButton: undefined,
     });
-  }, [setHeaderProps, navigate, returnTo]);
+  }, [setHeaderProps, navigate, returnTo, returnState]);
 
 
   // Remember the address type the page opened with, so Back knows whether it changed.
