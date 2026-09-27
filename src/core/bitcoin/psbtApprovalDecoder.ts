@@ -21,6 +21,7 @@ import {
   type SignRequestAnalysis,
 } from '@/core/counterparty/signRequestAnalysis';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
+import type { ZeldPackageParent } from '@/core/zeld/signRequestZeld';
 
 export interface DecodedPsbtInfo extends SignRequestAnalysis {
   psbtDetails: PsbtDetails;
@@ -52,6 +53,11 @@ export async function decodePsbtForApproval(
      * from an item it has already proved.
      */
     packageParents?: ReadonlyMap<string, string>;
+    /**
+     * The same parents as the ZELD analysis reads them (inputs with owners, signed inputs,
+     * outputs), so what their inputs carry is placed on the outputs this PSBT spends.
+     */
+    zeldPackageParents?: ReadonlyMap<string, ZeldPackageParent>;
     /** Resolves prevouts the wallet itself broadcast (its trusted journal). */
     resolveTrustedPrevout?: TrustedPrevoutResolver;
     /**
@@ -123,6 +129,7 @@ export async function decodePsbtForApproval(
     transactionVersion: psbtDetails.transactionVersion,
     lockTime: psbtDetails.lockTime,
     policyOffer: options.policyOffer,
+    zeldPackageParents: options.zeldPackageParents,
   });
 
   return { psbtDetails, txid, ...analysis };

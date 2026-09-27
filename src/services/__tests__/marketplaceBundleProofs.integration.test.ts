@@ -11,7 +11,7 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { finalizePSBT, parsePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
-import type { PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
+import type { DecodedPsbtBundleItem, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { computeTxid } from '@/core/bitcoin/transactionBroadcaster';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
@@ -31,6 +31,9 @@ const state = vi.hoisted(() => ({
   ledgerHeight: 900_000,
   /** Raw bytes of every fabricated parent, served by the simulated explorer. */
   parents: new Map<string, string>(),
+  /** ZELD per outpoint, as the indexer would list it; empty means no input holds any. */
+  zeld: new Map<string, bigint>(),
+  zeldHuntSeconds: 0,
   wallet: {
     isKeychainUnlocked: vi.fn(async () => true), getActiveWallet: vi.fn(),
     getActiveAddress: vi.fn(), getSettings: vi.fn(async () => ({ strictTransactionVerification: true })),
@@ -49,7 +52,7 @@ vi.mock('@/platform/walletManager', () => ({ walletManager: {
   } }),
   getActiveWallet: () => ({ id: 'audit', addresses: [{ address: state.address }] }),
 } }));
-vi.mock('@/core/settings', () => ({ getActiveSettings: () => ({ zeldHuntSeconds: 0 }) }));
+vi.mock('@/core/settings', () => ({ getActiveSettings: () => ({ zeldHuntSeconds: state.zeldHuntSeconds }) }));
 // The ledger has never seen any outpoint these tests fabricate, exactly like mainnet has never seen
 // an unbroadcast attach output: every lookup answers [] unless a test says otherwise.
 vi.mock('@/core/counterparty/api', () => ({
@@ -97,9 +100,18 @@ vi.mock('@/core/api/client', async importOriginal => {
 vi.mock('@/core/counterparty/transaction', () => ({ decodeCounterpartyMessage: async () => undefined }));
 vi.mock('@/core/counterparty/sourcePubkey', () => ({ getSourcePubkey: () => undefined }));
 vi.mock('@/core/bitcoin/feeRate', () => ({ getFeeRates: async () => ({ fastestFee: 2 }) }));
-vi.mock('@/core/zeld/protection', () => ({ classifyZeldOutpoints: async (inputs: unknown[]) => ({
-  bearing: [], unknown: [], clean: inputs,
-}) }));
+vi.mock('@/core/zeld/protection', () => ({
+  classifyZeldOutpoints: async (inputs: Array<{ txid: string; vout: number }>) => {
+    const bearing = inputs.map(input => `${input.txid.toLowerCase()}:${input.vout}`)
+      .filter(outpoint => state.zeld.has(outpoint));
+    return {
+      bearing, apiUnavailable: false,
+      ...(bearing.length > 0
+        ? { amounts: Object.fromEntries(bearing.map(outpoint => [outpoint, state.zeld.get(outpoint)!.toString()])) }
+        : {}),
+    };
+  },
+}));
 
 const walletKey = new Uint8Array(32).fill(7);
 const legacy = p2pkh(getPublicKey(walletKey));
@@ -147,6 +159,8 @@ beforeEach(() => {
   state.address = segwit.address;
   state.assets.clear();
   state.txStatus.clear();
+  state.zeld.clear();
+  state.zeldHuntSeconds = 0;
   state.ledgerHeight = 900_000;
   state.wallet.getActiveWallet.mockResolvedValue({ id: 'audit', type: 'mnemonic', addressFormat: 'p2wpkh' });
   state.wallet.getActiveAddress.mockResolvedValue({ address: segwit.address });
@@ -689,7 +703,7 @@ describe('fund-and-authorize-offers: one review funds the offer and authorizes i
         marketplaceIntent: parsed.intents[index + 1]!,
       })),
     ];
-    return { items, fund };
+    return { items, fund, coin };
   }
 
   it.each([1, 3])('proves the funding and %i authorization(s) together, then signs the funding first', async targets => {
@@ -717,6 +731,46 @@ describe('fund-and-authorize-offers: one review funds the offer and authorizes i
     for (const call of calls.slice(1)) {
       expect(call[4]).toEqual({ packageTransactions: { [fund.id]: bytesToHex(fund.toBytes(true, false)) } });
     }
+  });
+
+  // The funding's inputs' ZELD lands on its first output, the slot; each authorization then sends
+  // it to its first spendable output, the seller's proceeds. Broadcast first, the slot would be
+  // indexed and the authorization's review would say so; in one review nothing has indexed it.
+  const zeldWarnings = (item: DecodedPsbtBundleItem | undefined) => item && 'safety' in item
+    ? item.safety.warnings.filter(warning => warning.code === 'zeld_movement') : [];
+
+  it('says the ZELD on the funding inputs leaves with the authorization that spends the slot', async () => {
+    const { items, coin } = fundAndAuthorize();
+    state.zeld.set(`${coin.id}:0`, 4_096n * 10n ** 8n);
+    const result = await review(items, 'fund-and-authorize-offers');
+    const notice = { kind: 'leaves', destination: outsider.address, amount: (4_096n * 10n ** 8n).toString() };
+    expect(zeldWarnings(result.decodedInfo.items[0])).toEqual([]);
+    expect(zeldWarnings(result.decodedInfo.items[1])).toEqual([
+      expect.objectContaining({ code: 'zeld_movement', severity: 'warning', data: notice })]);
+    expect(result.decodedInfo.policyWarnings).toContainEqual(expect.objectContaining({
+      code: 'zeld_movement', severity: 'warning', title: 'Transaction 2: ZELD Would Leave',
+      data: { ...notice, items: [2] },
+    }));
+    expect(result.policy).toMatchObject({ blocked: false, requiresAcknowledgement: true });
+  });
+
+  it('blocks it while ZELD hunting is on, as the authorization alone would be', async () => {
+    const { items, coin } = fundAndAuthorize();
+    state.zeld.set(`${coin.id}:0`, 1n);
+    state.zeldHuntSeconds = 20;
+    const result = await review(items, 'fund-and-authorize-offers');
+    expect(zeldWarnings(result.decodedInfo.items[1])).toEqual([
+      expect.objectContaining({ code: 'zeld_movement', severity: 'block' })]);
+    expect(result.policy.blocked).toBe(true);
+    await expect(approve(result, true)).rejects.toThrow();
+    expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+
+  it('adds no ZELD notice when the funding inputs hold none', async () => {
+    const { items } = fundAndAuthorize();
+    const result = await review(items, 'fund-and-authorize-offers');
+    for (const item of result.decodedInfo.items) expect(zeldWarnings(item)).toEqual([]);
+    expect(result.decodedInfo.policyWarnings?.filter(warning => warning.code === 'zeld_movement')).toEqual([]);
   });
 
   it('cannot authorize the unbroadcast slot on its own: that is why the funding travels with it', async () => {

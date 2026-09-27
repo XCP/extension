@@ -37,6 +37,7 @@ import type {
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 import { fromSatoshis } from '@/core/numeric';
+import type { ZeldPackageParent } from '@/core/zeld/signRequestZeld';
 
 export interface PsbtBundleApprovalInput {
   bundleKind: 'acceptance-cpfp' | MarketplaceBatchKind;
@@ -78,7 +79,7 @@ const decodeItem = (
   linkedInput?: LinkedInputEvidence,
   options: Pick<
     NonNullable<Parameters<typeof decodePsbtForApproval>[9]>,
-    'policyOffer' | 'sharedAttachedAssets' | 'packageParents'
+    'policyOffer' | 'sharedAttachedAssets' | 'packageParents' | 'zeldPackageParents'
   > = {},
 ): Promise<DecodedPsbtInfo> => decodePsbtForApproval(
   item.psbtHex,
@@ -95,6 +96,23 @@ const decodeItem = (
 
 /** A PSBT's unsigned transaction bytes: what a same-bundle child's input spends before broadcast. */
 const unsignedTransactionHex = (psbtHex: string): string => bytesToHex(parsePSBT(psbtHex).toBytes(true, false));
+
+/**
+ * A decoded parent as the ZELD analysis reads it, with each signed input's sighash resolved
+ * exactly as decodePsbtForApproval resolves it for the parent's own review.
+ */
+const zeldPackageParent = (item: StoredItem, decoded: DecodedPsbtInfo): ZeldPackageParent => ({
+  inputs: decoded.psbtDetails.inputs,
+  signedInputs: Object.values(item.signInputs).flat().map(index => ({
+    index,
+    sighashType: resolvePsbtSighashType(
+      item.sighashTypes[index],
+      decoded.psbtDetails.inputs[index]?.sighashType,
+      spendsTaprootOutput(decoded.psbtDetails.inputs[index]),
+    ),
+  })),
+  outputs: decoded.psbtDetails.outputs,
+});
 
 /** Alternatives decoded at once after the first; bounds the burst of per-item chain lookups. */
 const POLICY_OFFER_DECODE_CONCURRENCY = 10;
@@ -282,8 +300,13 @@ async function decodeFundAndAuthorize(
     shared.push('the offer funding spends an input other than P2WPKH or P2TR, so its final txid is not the one the authorizations spend');
   }
   const packageParents = new Map([[fundTxid, unsignedTransactionHex(fundItem.psbtHex)]]);
+  // The funding's inputs' ZELD lands on its first output, a slot: the authorization that spends
+  // that slot moves it on, and must say so as it would once the funding were broadcast.
+  const zeldPackageParents = new Map([[fundTxid, zeldPackageParent(fundItem, fund)]]);
   const authorizations = await Promise.all(authorizationItems.map(async (item, index) => {
-    const authorization = await decodeItem(item, intents[index + 1]!, ownedAddresses, undefined, { packageParents });
+    const authorization = await decodeItem(item, intents[index + 1]!, ownedAddresses, undefined, {
+      packageParents, zeldPackageParents,
+    });
     const input = authorization.psbtDetails.inputs[0];
     const spent = input ? fund.psbtDetails.outputs.find(output => output.index === input.vout) : undefined;
     const problems = [...shared];
