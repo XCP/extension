@@ -430,7 +430,7 @@ export default function AssetPage(): ReactElement {
                 {dividends.map((dividend) => (
                   <button type="button"
                     key={dividend.tx_hash}
-                    onClick={() => navigate(`/transaction/${dividend.tx_hash}`)}
+                    onClick={() => navigate(`/transactions/${dividend.tx_hash}`)}
                     className="block w-full text-left border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     aria-label={t('assets_asset_view_dividend_transaction', [String(dividend.tx_hash)])}
                   >

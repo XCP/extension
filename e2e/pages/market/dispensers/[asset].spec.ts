@@ -97,6 +97,11 @@ walletTest.describe('Asset Dispensers Page (/market/dispensers/:asset)', () => {
   });
 
   walletTest('has back navigation to market', async ({ page }) => {
+    // Back returns to the previous screen, so arrive from the market as a user would.
+    const baseUrl = page.url().substring(0, page.url().indexOf('#') + 1);
+    await page.goto(`${baseUrl}/market`);
+    await page.goto(`${baseUrl}/market/dispensers/XCP`);
+    await page.waitForLoadState('networkidle');
     const backButton = common.headerBackButton(page);
     const backCount = await backButton.count();
 

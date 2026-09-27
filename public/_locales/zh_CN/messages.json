@@ -6307,6 +6307,9 @@
   "dispense_inventory_failed": {
     "message": "无法加载全部售货机。购买前请返回并重试。"
   },
+  "dispense_oracle_refused": {
+    "message": "此付款还会触发一个按预言机定价的售货机（$1）。其价格可能在您签名后改变，因此本钱包不会签名。"
+  },
   "dispense_inventory_loading": {
     "message": "正在加载全部售货机…"
   },

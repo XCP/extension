@@ -8396,6 +8396,10 @@
     "message": "Unable to load all dispensers. Go back and try again before purchasing.",
     "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
   },
+  "dispense_oracle_refused": {
+    "message": "This payment would also trigger an oracle-priced dispenser ($1). Its price can change after you sign, so this wallet does not sign it.",
+    "description": "Dispense review error when the paid address also has an oracle-priced dispenser; $1 is the asset name(s)."
+  },
   "dispense_inventory_loading": {
     "message": "Loading all dispensers…",
     "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."

@@ -6307,6 +6307,9 @@
   "dispense_inventory_failed": {
     "message": "無法載入所有售賣機。購買前請返回並再試一次。"
   },
+  "dispense_oracle_refused": {
+    "message": "此付款亦會觸發一部按預言機定價的售賣機（$1）。其價格可能在您簽署後改變，因此本錢包不會簽署。"
+  },
   "dispense_inventory_loading": {
     "message": "正在載入所有售賣機…"
   },
