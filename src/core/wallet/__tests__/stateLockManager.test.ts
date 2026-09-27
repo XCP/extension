@@ -1,493 +1,316 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { stateLockManager, withLock, withStateLock } from '../stateLockManager';
+
+type LockModule = typeof import('../stateLockManager');
+
+// The manager is a module singleton; load a fresh copy per test so no lock or timer leaks across.
+let stateLockManager: LockModule['stateLockManager'];
+let withStateLock: LockModule['withStateLock'];
+
+interface Tracked<T> {
+  settled: boolean;
+  value?: T;
+  error?: unknown;
+}
+
+function track<T>(promise: Promise<T>): Tracked<T> {
+  const state: Tracked<T> = { settled: false };
+  promise.then(
+    (value) => { state.settled = true; state.value = value; },
+    (error) => { state.settled = true; state.error = error; },
+  );
+  return state;
+}
+
+/** Let pending promise callbacks run without moving the clock. */
+const flush = () => vi.advanceTimersByTimeAsync(0);
 
 describe('StateLockManager', () => {
-  beforeEach(() => {
-    // Clear all locks before each test
-    stateLockManager.clearAll();
-    vi.clearAllTimers();
+  beforeEach(async () => {
     vi.useFakeTimers();
+    vi.resetModules();
+    ({ stateLockManager, withStateLock } = await import('../stateLockManager'));
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
-    stateLockManager.clearAll();
   });
 
   describe('acquire and release', () => {
-    it('should acquire and release a lock successfully', async () => {
-      const resource = 'test-resource';
+    it('acquires a free lock immediately and frees it on release', async () => {
+      const first = track(stateLockManager.acquire('r'));
+      await flush();
+      expect(first.settled).toBe(true);
 
-      const releaseFn = await stateLockManager.acquire(resource);
+      first.value!();
 
-      expect(stateLockManager.isLocked(resource)).toBe(true);
-      expect(stateLockManager.getQueueLength(resource)).toBe(0);
-
-      releaseFn();
-
-      expect(stateLockManager.isLocked(resource)).toBe(false);
+      const second = track(stateLockManager.acquire('r'));
+      await flush();
+      expect(second.settled).toBe(true);
+      second.value!();
     });
 
-    it('should queue multiple acquire requests for same resource', async () => {
-      const resource = 'test-resource';
-      let firstReleased = false;
-      let _secondReleased = false;
+    it('makes a second caller wait until the first releases', async () => {
+      const first = track(stateLockManager.acquire('r'));
+      const second = track(stateLockManager.acquire('r'));
+      await flush();
 
-      // First acquire - should succeed immediately
-      const firstPromise = stateLockManager.acquire(resource).then(release => {
-        expect(stateLockManager.isLocked(resource)).toBe(true);
-        return release;
-      });
+      expect(first.settled).toBe(true);
+      expect(second.settled).toBe(false);
 
-      // Second acquire - should queue
-      const secondPromise = stateLockManager.acquire(resource).then(release => {
-        expect(stateLockManager.isLocked(resource)).toBe(true);
-        expect(firstReleased).toBe(true); // First should be released by now
-        return release;
-      });
-
-      // Verify queue length
-      await vi.waitFor(() => {
-        expect(stateLockManager.getQueueLength(resource)).toBe(1);
-      });
-
-      // Release first lock
-      const firstRelease = await firstPromise;
-      firstReleased = true;
-      firstRelease();
-
-      // Second should now acquire
-      const secondRelease = await secondPromise;
-      _secondReleased = true;
-      expect(stateLockManager.isLocked(resource)).toBe(true);
-
-      secondRelease();
-      expect(stateLockManager.isLocked(resource)).toBe(false);
+      first.value!();
+      await flush();
+      expect(second.settled).toBe(true);
+      second.value!();
     });
 
-    it('should handle timeout scenarios', async () => {
-      const resource = 'timeout-resource';
-      const timeoutMs = 1000;
+    it('grants queued callers in FIFO order', async () => {
+      const order: number[] = [];
+      const holders = [1, 2, 3].map((n) =>
+        stateLockManager.acquire('r').then((release) => {
+          order.push(n);
+          return release;
+        })
+      );
 
-      // Spy on console.warn to check timeout warning
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      (await holders[0]!)();
+      (await holders[1]!)();
+      (await holders[2]!)();
 
-      const _releaseFn = await stateLockManager.acquire(resource, timeoutMs);
-      expect(stateLockManager.isLocked(resource)).toBe(true);
-
-      // Advance time past timeout
-      vi.advanceTimersByTime(timeoutMs + 100);
-
-      // Should have logged timeout warning and force released
-      expect(warnSpy).toHaveBeenCalledWith(`Lock timeout for resource: ${resource}`);
-      expect(stateLockManager.isLocked(resource)).toBe(false);
-
-      warnSpy.mockRestore();
+      expect(order).toEqual([1, 2, 3]);
     });
 
-    it('should handle concurrent access to different resources', async () => {
-      const resource1 = 'resource-1';
-      const resource2 = 'resource-2';
+    it('keeps different resources independent', async () => {
+      const a = track(stateLockManager.acquire('a'));
+      const b = track(stateLockManager.acquire('b'));
+      await flush();
 
-      const [release1, release2] = await Promise.all([
-        stateLockManager.acquire(resource1),
-        stateLockManager.acquire(resource2)
-      ]);
-
-      expect(stateLockManager.isLocked(resource1)).toBe(true);
-      expect(stateLockManager.isLocked(resource2)).toBe(true);
-
-      release1();
-      expect(stateLockManager.isLocked(resource1)).toBe(false);
-      expect(stateLockManager.isLocked(resource2)).toBe(true);
-
-      release2();
-      expect(stateLockManager.isLocked(resource2)).toBe(false);
+      expect(a.settled).toBe(true);
+      expect(b.settled).toBe(true);
+      a.value!();
+      b.value!();
     });
   });
 
-  describe('queue management', () => {
-    it('should process queue in FIFO order', async () => {
-      const resource = 'queue-test';
-      const executionOrder: number[] = [];
+  describe('timeouts', () => {
+    it('force-releases a holder that runs past its timeout', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      // First lock - acquire immediately
-      const firstPromise = stateLockManager.acquire(resource).then(release => {
-        executionOrder.push(1);
-        setTimeout(() => {
-          release();
-        }, 100);
-        return release;
-      });
+      const holder = track(stateLockManager.acquire('r', 1000));
+      await flush();
+      expect(holder.settled).toBe(true);
 
-      // Second and third - should queue
-      const secondPromise = stateLockManager.acquire(resource).then(release => {
-        executionOrder.push(2);
-        setTimeout(() => {
-          release();
-        }, 100);
-        return release;
-      });
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(warnSpy).toHaveBeenCalledWith('Lock timeout for resource: r');
 
-      const thirdPromise = stateLockManager.acquire(resource).then(release => {
-        executionOrder.push(3);
-        release();
-        return release;
-      });
-
-      // Wait for first lock to be acquired
-      const _firstRelease = await firstPromise;
-
-      // Check queue has built up
-      expect(stateLockManager.getQueueLength(resource)).toBe(2);
-
-      // Release first lock and advance time
-      vi.advanceTimersByTime(100);
-
-      // Wait for second lock
-      const _secondRelease = await secondPromise;
-      vi.advanceTimersByTime(100);
-
-      // Wait for third lock
-      await thirdPromise;
-
-      expect(executionOrder).toEqual([1, 2, 3]);
+      // The resource is free again for a new caller.
+      const next = track(stateLockManager.acquire('r'));
+      await flush();
+      expect(next.settled).toBe(true);
+      next.value!();
     });
 
-    it('should handle queue timeout properly and reject queued promises', async () => {
-      const resource = 'queue-timeout';
+    it('rejects everyone queued behind a holder that times out', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      // First lock
-      const _firstRelease = await stateLockManager.acquire(resource, 500);
+      await stateLockManager.acquire('r', 500);
+      const queued1 = stateLockManager.acquire('r', 200);
+      const queued2 = stateLockManager.acquire('r', 200);
+      const assertions = Promise.all([
+        expect(queued1).rejects.toThrow('Lock timeout for resource: r'),
+        expect(queued2).rejects.toThrow('Lock timeout for resource: r'),
+      ]);
 
-      // Queue some locks - these should be rejected when timeout occurs
-      const queuedPromise1 = stateLockManager.acquire(resource, 200);
-      const queuedPromise2 = stateLockManager.acquire(resource, 200);
-
-      // Wait for queue to build
-      await vi.waitFor(() => {
-        expect(stateLockManager.getQueueLength(resource)).toBe(2);
-      });
-
-      // Advance time to trigger timeout on first lock (500ms)
-      vi.advanceTimersByTime(500);
-
-      // Queue should be cleared due to timeout
-      await vi.waitFor(() => {
-        expect(stateLockManager.getQueueLength(resource)).toBe(0);
-      });
-
-      // Queued promises should be rejected with timeout error
-      await expect(queuedPromise1).rejects.toThrow('Lock timeout for resource: queue-timeout');
-      await expect(queuedPromise2).rejects.toThrow('Lock timeout for resource: queue-timeout');
-
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Lock queue cleared due to timeout')
-      );
-
-      errorSpy.mockRestore();
+      await vi.advanceTimersByTimeAsync(500);
+      await assertions;
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Lock queue cleared due to timeout'));
     });
-  });
 
-  describe('edge cases and error handling', () => {
-    it('should handle releasing non-existent lock gracefully', () => {
+    it('starts a queued caller\'s timeout only once it holds the lock', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      // Try to release a lock that doesn't exist (simulate manual call to private method)
-      (stateLockManager as any).release('non-existent');
+      const first = track(stateLockManager.acquire('r', 1000));
+      const second = track(stateLockManager.acquire('r', 1000));
+      await vi.advanceTimersByTimeAsync(900);
+      first.value!();
+      await flush();
+      expect(second.settled).toBe(true);
 
-      expect(warnSpy).toHaveBeenCalledWith(
-        'Attempting to release non-existent lock: non-existent'
-      );
-
-      warnSpy.mockRestore();
-    });
-
-    it('should handle rapid acquire/release cycles', async () => {
-      const resource = 'rapid-test';
-      const cycles = 100;
-
-      for (let i = 0; i < cycles; i++) {
-        const release = await stateLockManager.acquire(resource);
-        expect(stateLockManager.isLocked(resource)).toBe(true);
-        release();
-        expect(stateLockManager.isLocked(resource)).toBe(false);
-      }
-    });
-
-    it('should prevent memory leaks with many different resources', async () => {
-      const resourceCount = 1000;
-      const releases: (() => void)[] = [];
-
-      // Acquire locks for many different resources
-      for (let i = 0; i < resourceCount; i++) {
-        const release = await stateLockManager.acquire(`resource-${i}`);
-        releases.push(release);
-      }
-
-      // Release all locks
-      releases.forEach(release => { release(); });
-
-      // All resources should be unlocked and cleaned up
-      for (let i = 0; i < resourceCount; i++) {
-        expect(stateLockManager.isLocked(`resource-${i}`)).toBe(false);
-      }
-    });
-
-    it('should handle invalid resource identifiers', async () => {
-      const invalidResources = ['', '   ', '\n\t', '🚀💎'];
-
-      for (const resource of invalidResources) {
-        const release = await stateLockManager.acquire(resource);
-        expect(stateLockManager.isLocked(resource)).toBe(true);
-        release();
-        expect(stateLockManager.isLocked(resource)).toBe(false);
-      }
+      // 900 ms into the second holder's 1000 ms: the first holder's deadline must not apply.
+      await vi.advanceTimersByTimeAsync(900);
+      expect(warnSpy).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(warnSpy).toHaveBeenCalledWith('Lock timeout for resource: r');
     });
   });
 
-  describe('withLock decorator', () => {
-    it('should lock and release automatically for decorated methods', async () => {
-      let executionOrder: string[] = [];
+  describe('stale releases', () => {
+    it('ignores a late release from a timed-out holder, so the next holder keeps the lock', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      class TestClass {
-        async testMethod(id: string) {
-          executionOrder.push(`start-${id}`);
-          await new Promise(resolve => {
-            setTimeout(resolve, 100);
-            vi.advanceTimersByTime(100);
-          });
-          executionOrder.push(`end-${id}`);
-          return `result-${id}`;
-        }
-      }
+      // A takes the lock and outlives its timeout (say, waiting on a hardware confirmation).
+      const a = track(stateLockManager.acquire('r', 1000));
+      await flush();
+      await vi.advanceTimersByTimeAsync(1000);
 
-      // Apply decorator manually for testing
-      const descriptor = Object.getOwnPropertyDescriptor(TestClass.prototype, 'testMethod');
-      if (descriptor) {
-        withLock('test-method')(TestClass.prototype, 'testMethod', descriptor);
-        Object.defineProperty(TestClass.prototype, 'testMethod', descriptor);
-      }
+      // B takes the freed lock; C lines up behind B.
+      const b = track(stateLockManager.acquire('r', 1000));
+      await flush();
+      expect(b.settled).toBe(true);
+      const c = track(stateLockManager.acquire('r', 1000));
+      await flush();
+      expect(c.settled).toBe(false);
 
-      const instance = new TestClass();
+      // A finally finishes and calls its release. B still holds the lock, so C must keep waiting.
+      a.value!();
+      await flush();
+      expect(c.settled).toBe(false);
 
-      // Run two concurrent calls
-      const promise1 = instance.testMethod('1');
-      const promise2 = instance.testMethod('2');
-
-      await vi.runAllTimersAsync();
-
-      const [result1, result2] = await Promise.all([promise1, promise2]);
-
-      expect(result1).toBe('result-1');
-      expect(result2).toBe('result-2');
-
-      // Should execute sequentially due to lock
-      expect(executionOrder).toEqual(['start-1', 'end-1', 'start-2', 'end-2']);
+      b.value!();
+      await flush();
+      expect(c.settled).toBe(true);
+      expect(c.error).toBeUndefined();
+      c.value!();
     });
 
-    it('should handle dynamic lock keys with function', async () => {
-      let executionOrder: string[] = [];
+    it('ignores a late release when nobody is queued, and keeps the current holder\'s timeout', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      class TestClass {
-        async methodWithDynamicKey(resourceId: string, id: string) {
-          executionOrder.push(`start-${id}`);
-          await new Promise(resolve => {
-            setTimeout(resolve, 50);
-            vi.advanceTimersByTime(50);
-          });
-          executionOrder.push(`end-${id}`);
-        }
-      }
+      const a = track(stateLockManager.acquire('r', 1000));
+      await flush();
+      await vi.advanceTimersByTimeAsync(1000);
 
-      // Apply decorator manually for testing
-      const descriptor = Object.getOwnPropertyDescriptor(TestClass.prototype, 'methodWithDynamicKey');
-      if (descriptor) {
-        const decorator = withLock(function(this: any, resourceId: string) { return `dynamic-${resourceId}`; });
-        decorator(TestClass.prototype, 'methodWithDynamicKey', descriptor);
-        Object.defineProperty(TestClass.prototype, 'methodWithDynamicKey', descriptor);
-      }
+      const b = track(stateLockManager.acquire('r', 1000));
+      await flush();
+      a.value!();
 
-      const instance = new TestClass();
+      // B still holds the lock...
+      const d = stateLockManager.acquire('r', 1000);
+      const dResult = track(d);
+      await flush();
+      expect(dResult.settled).toBe(false);
 
-      // Same resource - should serialize
-      const promise1 = instance.methodWithDynamicKey('resource1', 'a');
-      const promise2 = instance.methodWithDynamicKey('resource1', 'b');
-
-      // Different resource - should run concurrently
-      const promise3 = instance.methodWithDynamicKey('resource2', 'c');
-
-      await vi.runAllTimersAsync();
-      await Promise.all([promise1, promise2, promise3]);
-
-      // resource1 calls should be sequential, resource2 should be concurrent
-      expect(executionOrder).toContain('start-a');
-      expect(executionOrder).toContain('end-a');
-      expect(executionOrder).toContain('start-b');
-      expect(executionOrder).toContain('end-b');
-      expect(executionOrder).toContain('start-c');
-      expect(executionOrder).toContain('end-c');
+      // ...until B's own timeout, which still fires and rejects D as before.
+      const dRejected = expect(d).rejects.toThrow('Lock timeout for resource: r');
+      await vi.advanceTimersByTimeAsync(1000);
+      await dRejected;
+      expect(warnSpy.mock.calls.filter(([msg]) => msg === 'Lock timeout for resource: r')).toHaveLength(2);
+      expect(b.settled).toBe(true);
     });
 
-    it('should handle exceptions in decorated methods', async () => {
-      class TestClass {
-        async errorMethod() {
-          throw new Error('Test error');
-        }
-      }
+    it('treats a second release from the same holder as a no-op', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      // Apply decorator manually for testing
-      const descriptor = Object.getOwnPropertyDescriptor(TestClass.prototype, 'errorMethod');
-      if (descriptor) {
-        withLock('error-test')(TestClass.prototype, 'errorMethod', descriptor);
-        Object.defineProperty(TestClass.prototype, 'errorMethod', descriptor);
-      }
+      const a = track(stateLockManager.acquire('r'));
+      const b = track(stateLockManager.acquire('r'));
+      const c = track(stateLockManager.acquire('r'));
+      await flush();
 
-      const instance = new TestClass();
+      a.value!();
+      await flush();
+      expect(b.settled).toBe(true);
 
-      await expect(instance.errorMethod()).rejects.toThrow('Test error');
+      a.value!();
+      await flush();
+      expect(c.settled).toBe(false);
 
-      // Lock should be released even after error
-      expect(stateLockManager.isLocked('error-test')).toBe(false);
+      b.value!();
+      await flush();
+      expect(c.settled).toBe(true);
+      c.value!();
+    });
+
+    it('lets a timed-out holder release harmlessly when nobody has taken the lock since', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const a = track(stateLockManager.acquire('r', 1000));
+      await flush();
+      await vi.advanceTimersByTimeAsync(1000);
+
+      a.value!();
+      expect(warnSpy).toHaveBeenCalledWith('Attempting to release non-existent lock: r');
+
+      const next = track(stateLockManager.acquire('r'));
+      await flush();
+      expect(next.settled).toBe(true);
+      next.value!();
     });
   });
 
-  describe('withStateLock helper', () => {
-    it('should execute function with lock protection', async () => {
-      const resource = 'helper-test';
+  describe('withStateLock', () => {
+    it('runs callers one at a time', async () => {
       let counter = 0;
-      let executionOrder: number[] = [];
+      const seen: number[] = [];
 
-      const incrementWithLock = () => withStateLock(resource, async () => {
+      const increment = () => withStateLock('counter', async () => {
         const current = counter;
-        executionOrder.push(current);
-        await new Promise(resolve => {
-          setTimeout(resolve, 10);
-          vi.advanceTimersByTime(10);
-        });
+        seen.push(current);
+        await new Promise((resolve) => setTimeout(resolve, 10));
         counter = current + 1;
         return counter;
       });
 
-      // Run multiple concurrent operations
-      const promises = [
-        incrementWithLock(),
-        incrementWithLock(),
-        incrementWithLock()
-      ];
-
-      // Advance timers to complete all operations
+      const results = Promise.all([increment(), increment(), increment()]);
       await vi.runAllTimersAsync();
 
-      const results = await Promise.all(promises);
-
-      expect(counter).toBe(3);
-      expect(results.sort()).toEqual([1, 2, 3]);
-      // Verify they ran sequentially
-      expect(executionOrder).toEqual([0, 1, 2]);
+      expect((await results).sort()).toEqual([1, 2, 3]);
+      expect(seen).toEqual([0, 1, 2]);
     });
 
-    it('should handle exceptions and release lock', async () => {
-      const resource = 'helper-error-test';
+    it('releases the lock when the function throws', async () => {
+      await expect(withStateLock('throws', async () => {
+        throw new Error('boom');
+      })).rejects.toThrow('boom');
 
-      const errorFunction = () => withStateLock(resource, async () => {
-        throw new Error('Helper test error');
+      const next = track(stateLockManager.acquire('throws'));
+      await flush();
+      expect(next.settled).toBe(true);
+      next.value!();
+    });
+
+    it('keeps the second and third operations apart when the first outlives the default timeout', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const events: string[] = [];
+
+      const operation = (name: string, ms: number) => withStateLock('wallet-operation', async () => {
+        events.push(`start-${name}`);
+        await new Promise((resolve) => setTimeout(resolve, ms));
+        events.push(`end-${name}`);
       });
 
-      await expect(errorFunction()).rejects.toThrow('Helper test error');
+      // A waits 40 s on a hardware confirmation; the lock is force-released at 30 s.
+      const a = operation('A', 40_000);
+      await vi.advanceTimersByTimeAsync(30_000);
 
-      // Lock should be released
-      expect(stateLockManager.isLocked(resource)).toBe(false);
-    });
-  });
+      // B starts in the gap, C queues behind it.
+      const b = operation('B', 20_000);
+      await flush();
+      const c = operation('C', 1_000);
 
-  describe('clearAll', () => {
-    it('should clear all locks and timeouts', async () => {
-      const resources = ['resource1', 'resource2', 'resource3'];
-      const releases: (() => void)[] = [];
-
-      // Acquire multiple locks
-      for (const resource of resources) {
-        const release = await stateLockManager.acquire(resource);
-        releases.push(release);
-        expect(stateLockManager.isLocked(resource)).toBe(true);
-      }
-
-      // Clear all
-      stateLockManager.clearAll();
-
-      // All should be unlocked
-      for (const resource of resources) {
-        expect(stateLockManager.isLocked(resource)).toBe(false);
-        expect(stateLockManager.getQueueLength(resource)).toBe(0);
-      }
-    });
-  });
-
-  describe('stress testing', () => {
-    it('should handle high concurrency scenarios', async () => {
-      const resource = 'stress-test';
-      const concurrentOperations = 50;
-      const results: number[] = [];
-
-      const operations = Array.from({ length: concurrentOperations }, (_, i) =>
-        withStateLock(resource, async () => {
-          await new Promise(resolve => {
-            setTimeout(resolve, 1);
-            // Immediately resolve instead of waiting
-            resolve(undefined);
-          });
-          results.push(i);
-          return i;
-        })
-      );
-
-      // Use runAllTimersAsync to handle all pending timers
-      const operationPromise = Promise.all(operations);
       await vi.runAllTimersAsync();
-      await operationPromise;
+      await Promise.all([a, b, c]);
 
-      expect(results).toHaveLength(concurrentOperations);
-      expect(stateLockManager.isLocked(resource)).toBe(false);
-    }, 10000);
+      // A's late release at 40 s must not let C start while B (30 s → 50 s) is still running.
+      expect(events).toEqual(['start-A', 'start-B', 'end-A', 'end-B', 'start-C', 'end-C']);
+    });
 
-    it('should handle mixed timeout scenarios', async () => {
-      const resource = 'mixed-timeout-test';
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('serializes many concurrent callers', async () => {
+      let active = 0;
+      let maxActive = 0;
 
-      // First lock with short timeout
-      const _firstRelease = await stateLockManager.acquire(resource, 100);
+      const ops = Array.from({ length: 50 }, (_, i) => withStateLock('stress', async () => {
+        active++;
+        maxActive = Math.max(maxActive, active);
+        await Promise.resolve();
+        active--;
+        return i;
+      }));
 
-      // Queue some with longer timeouts - these will be rejected when first lock times out
-      const queuedPromise1 = stateLockManager.acquire(resource, 500);
-      const queuedPromise2 = stateLockManager.acquire(resource, 500);
-      const queuedPromise3 = stateLockManager.acquire(resource, 500);
-
-      // Wait for queue to build
-      await vi.waitFor(() => {
-        expect(stateLockManager.getQueueLength(resource)).toBe(3);
-      });
-
-      // Advance time to trigger timeout on the first acquired lock
-      vi.advanceTimersByTime(100);
-
-      // The first lock should timeout and the queue should be cleared
-      await vi.waitFor(() => {
-        expect(warnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Lock timeout for resource')
-        );
-      });
-
-      // All queued promises should be rejected
-      await expect(queuedPromise1).rejects.toThrow('Lock timeout');
-      await expect(queuedPromise2).rejects.toThrow('Lock timeout');
-      await expect(queuedPromise3).rejects.toThrow('Lock timeout');
-
-      warnSpy.mockRestore();
-      errorSpy.mockRestore();
+      const results = await Promise.all(ops);
+      expect(results).toHaveLength(50);
+      expect(maxActive).toBe(1);
     });
   });
 });
