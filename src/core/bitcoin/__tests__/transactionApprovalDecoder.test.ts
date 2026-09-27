@@ -38,6 +38,28 @@ describe('raw transaction approval decoder', () => {
     expect(mocks.assets).toHaveBeenCalledWith(expect.any(Array), undefined, trusted);
   });
 
+  it.each([
+    // What signing writes for an input decides whether the unsigned id is final.
+    ['a P2PKH prevout script', { scriptPubKey: `76a914${'11'.repeat(20)}88ac` }, 'p2pkh'],
+    ['a nested SegWit prevout script', { scriptPubKey: `a914${'22'.repeat(20)}87` }, 'p2sh'],
+    ['a P2WPKH prevout script', { scriptPubKey: `0014${'33'.repeat(20)}` }, 'p2wpkh'],
+    ['a Taproot prevout address', { address: 'bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297' }, 'p2tr'],
+    ['a legacy prevout address', { address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' }, 'p2pkh'],
+  ])('classifies each input from %s', async (_name, prevout, scriptType) => {
+    mocks.prevouts.mockResolvedValue(new Map([['prev:0', { value: 20_000, ...prevout }]]));
+    const result = await decodeTransactionForApproval('hex', 'bound-address');
+    expect(result.inputs[0]?.scriptType).toBe(scriptType);
+    expect(mocks.analyze).toHaveBeenCalledWith(expect.objectContaining({
+      inputs: [expect.objectContaining({ scriptType })],
+    }));
+  });
+
+  it('leaves an input unclassified when neither its script nor its address is known', async () => {
+    mocks.prevouts.mockResolvedValue(new Map([['prev:0', { value: 20_000 }]]));
+    const result = await decodeTransactionForApproval('hex', 'bound-address');
+    expect(result.inputs[0]?.scriptType).toBeUndefined();
+  });
+
   it('keeps unresolved amounts visibly unknown rather than assigning a partial fee', async () => {
     mocks.prevouts.mockResolvedValue(new Map());
     const result = await decodeTransactionForApproval('hex', 'bound-address');

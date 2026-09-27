@@ -5806,6 +5806,9 @@
   "tx_action_new_utxo": {
     "message": "新UTXO"
   },
+  "tx_action_output_of_this_transaction": {
+    "message": "本交易的输出 $1"
+  },
   "tx_action_detached": {
     "message": "分离数量"
   },

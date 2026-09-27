@@ -60,6 +60,7 @@ import { checkTransactionFee } from "@/core/bitcoin/feeVerification";
 import { fetchOrderMatch } from "@/core/counterparty/api";
 import { btcPayPayment } from "@/core/counterparty/btcpayPayment";
 import type { ApiResponse } from "@/core/counterparty/compose";
+import { composerChosenMessageFields } from "@/core/counterparty/composerChoices";
 import {
   envelopeKind,
   readDataEnvelope,
@@ -313,6 +314,11 @@ export function ComposerProvider<T>({
       // Reassigned below if verification finds the reported fee differs from the real one.
       const encoding = chooseComposeEncoding(composeType, dataForApi, activeAddress.address);
       let response = await composeWithEncoding(composeApi, dataForApi, encoding, signal);
+      // The request as the wallet actually sent it: the form's data plus any message field the
+      // compose function chose itself (an attach's output after the change). Recorded by the
+      // compose function when it built the request, never read from the response, so the message
+      // below is still held to exactly what this wallet asked for.
+      const requestedData: Record<string, any> = { ...dataForApi, ...composerChosenMessageFields(response) };
 
       // Check if aborted after API call
       if (signal.aborted) return;
@@ -363,7 +369,7 @@ export function ComposerProvider<T>({
           throw new Error(t('composer_context_taproot_unexpected_envelope'));
         }
         if (kind === 'ord') {
-          const expectedMessage = packComposeMessage(composeType, dataForApi);
+          const expectedMessage = packComposeMessage(composeType, requestedData);
           if (!expectedMessage) {
             throw new Error(
               t('composer_context_transaction_verification_failed_this_inscription')
@@ -412,7 +418,7 @@ export function ComposerProvider<T>({
         // it whole, so no field goes unchecked (see `unpack/verify.ts`). A null return means the type cannot be
         // constructed locally and falls through to field comparison; the decoded message supplies
         // only values the request cannot determine (see `Observed` in pack/messages.ts).
-        const expected = packComposeMessage(composeType, dataForApi, decodedMessage?.data);
+        const expected = packComposeMessage(composeType, requestedData, decodedMessage?.data);
 
         // An envelope's message is held to the exact bytes of the request, never to field
         // comparison: Taproot is only chosen for messages built locally.
@@ -432,7 +438,7 @@ export function ComposerProvider<T>({
         } else {
           // Field comparison covers only fields it was taught about, so it grades severity:
           // informational differences surface on the review screen instead of blocking.
-          const verification = verifyTransaction(counterpartyData, composeType, dataForApi);
+          const verification = verifyTransaction(counterpartyData, composeType, requestedData);
 
           if (!verification.valid) {
             // In strict mode (default), block the transaction
@@ -444,7 +450,7 @@ export function ComposerProvider<T>({
           // Differences too minor to block, shown on the review screen so the user can still see them.
           verificationWarnings = verification.warnings;
         }
-      } else if (!taprootCommitAddress && packComposeMessage(composeType, dataForApi)) {
+      } else if (!taprootCommitAddress && packComposeMessage(composeType, requestedData)) {
         // No payload, but this request's message can be built — so the transaction carries none of
         // it and cannot do what was asked. Signing it would spend the fee to no effect. Types that
         // legitimately carry no message (a BTC send, a burn) cannot be built and do not reach here,
@@ -562,7 +568,7 @@ export function ComposerProvider<T>({
         ...response,
         result: {
           ...response.result,
-          params: { ...response.result.params, ...verifiedReviewParams(composeType, dataForApi, assetInfoCache) },
+          params: { ...response.result.params, ...verifiedReviewParams(composeType, requestedData, assetInfoCache) },
           // The review states what a two-transaction compose costs in total, so the reveal's share
           // is the one verified above, not anything the response says.
           ...(revealFee !== undefined ? { reveal_fee: revealFee } : {}),

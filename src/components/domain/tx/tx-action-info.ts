@@ -155,6 +155,7 @@ const localizeAction: DescriptionLocalizer = (source, substitutions) => {
     case "XCP fee": return t('tx_action_xcp_fee', substitutions);
     case "The XCP fee may change at confirmation.": return t('common_xcp_fee_may_change', substitutions);
     case "New UTXO": return t('tx_action_new_utxo', substitutions);
+    case "Output $1 of this transaction": return t('tx_action_output_of_this_transaction', substitutions);
     case "Detached": return t('tx_action_detached', substitutions);
     case "From UTXO": return t('tx_action_from_utxo', substitutions);
     case "To": return t('tx_action_to', substitutions);

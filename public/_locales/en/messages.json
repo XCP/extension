@@ -7728,6 +7728,10 @@
     "message": "New UTXO",
     "description": "Counterparty approval new utxo. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."
   },
+  "tx_action_output_of_this_transaction": {
+    "message": "Output $1 of this transaction",
+    "description": "Counterparty approval: the output an attach lands on, named by its index because signing will change this transaction's id (P2PKH or nested SegWit inputs), so no outpoint can be named yet. $1 = output index number."
+  },
   "tx_action_detached": {
     "message": "Detached",
     "description": "Counterparty approval detached. Quantity substitutions are preformatted exact values; asset names, addresses, identifiers and user content remain unchanged."

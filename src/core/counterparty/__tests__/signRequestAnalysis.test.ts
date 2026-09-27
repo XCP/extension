@@ -13,7 +13,7 @@ import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import type { InputAttachedAssets } from '../inputAssets';
 import { parseMarketplaceIntent } from '../marketplaceIntent';
 import type { ProtocolContext } from '../protocolContext';
-import { type AnalyzedOutput, analyzeSignRequest } from '../signRequestAnalysis';
+import { type AnalyzedOutput, analyzeSignRequest, transactionIdIsFinal } from '../signRequestAnalysis';
 
 // ZELD-specific behavior has its own suite; this suite must not query the live indexer.
 vi.mock('@/core/zeld/protection', () => ({
@@ -200,6 +200,42 @@ describe('local structure evidence', () => {
     expect(analysis.structureFindings).toHaveLength(1);
     expect(analysis.structureFindings[0]).toMatchObject({ code, data: evidence });
     expect(analysis.structureFindings[0]?.message).toContain('If signed and confirmed, the Bitcoin fee would still be paid.');
+  });
+});
+
+describe('the transaction id an attach names its new UTXO by', () => {
+  const TXID = 'ef'.repeat(32);
+  const input = (scriptType?: 'p2pkh' | 'p2wpkh' | 'p2sh' | 'p2tr' | 'unknown') => ({ txid: 'a'.repeat(64), vout: 0, ...(scriptType ? { scriptType } : {}) });
+
+  it.each([
+    [['p2wpkh'], true],
+    [['p2tr'], true],
+    [['p2wpkh', 'p2tr'], true],
+    // A scriptSig is covered by the id, so signing these changes it.
+    [['p2pkh'], false],
+    [['p2sh'], false],
+    [['p2wpkh', 'p2pkh'], false],
+    // Unknown could be either.
+    [['unknown'], false],
+    [[undefined], false],
+    [[], false],
+  ] as const)('inputs %j: final %s', (types, final) => {
+    expect(transactionIdIsFinal(types.map(input))).toBe(final);
+  });
+
+  it.each([
+    ['p2wpkh', TXID],
+    ['p2tr', TXID],
+    ['p2pkh', undefined],
+    ['p2sh', undefined],
+    [undefined, undefined],
+  ] as const)('passes the id to the protocol context only when final (%s input)', async (scriptType, expected) => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: { success: true, messageType: 'attach', data: { asset: 'XCP', quantity: 1n, destinationVout: 2 } },
+    } as never);
+    vi.mocked(resolveProtocolContext).mockClear().mockResolvedValue({ context: {} as ProtocolContext, warnings: [] });
+    await run({ counterpartyDataHex: '00', transactionId: TXID, inputs: [input(scriptType)] });
+    expect(vi.mocked(resolveProtocolContext).mock.calls[0]?.[0].transactionId).toBe(expected);
   });
 });
 

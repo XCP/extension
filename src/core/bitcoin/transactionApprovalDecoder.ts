@@ -1,6 +1,7 @@
 /** Local raw transaction review shared by provider execution and its approval screen. */
 
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
+import { type DecodedOutput, getScriptType } from '@/core/bitcoin/psbt';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import {
@@ -9,6 +10,7 @@ import {
 } from '@/core/counterparty/signRequestAnalysis';
 import { fetchInputPrevouts } from '@/core/counterparty/transaction';
 import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
+import { scriptHexForAddress } from '@/core/zeld/huntTemplate';
 
 /**
  * Decoded transaction details: what the bytes say, plus the safety analysis every signing request
@@ -21,6 +23,8 @@ export interface DecodedTransactionInfo extends SignRequestAnalysis {
     vout: number;
     value?: number;
     address?: string;
+    /** Script type of the spent output, when its script or address could be read. */
+    scriptType?: DecodedOutput['type'];
   }>;
   outputs: Array<{
     index: number;
@@ -91,6 +95,10 @@ export async function decodeTransactionForApproval(
         // Without the owning address the movement summary cannot tell whose
         // input this is, and reports every total as undetermined.
         if (prevout.address) input.address = prevout.address;
+        // What signing will write for this input, which decides whether the id computed from
+        // these unsigned bytes is the one the network will see (`transactionIdIsFinal`).
+        const script = prevout.scriptPubKey ?? (prevout.address ? scriptHexForAddress(prevout.address) : null);
+        if (script) input.scriptType = getScriptType(script.toLowerCase());
       }
     } catch (err) {
       console.warn('Failed to fetch input values:', err);

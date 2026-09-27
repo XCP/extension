@@ -32,6 +32,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { normalizeAddressForComparison } from "@/core/bitcoin/address";
 import { exceedsSaneFeeRate } from "@/core/bitcoin/feeVerification";
 import { classifySignedInputAssets } from "@/core/counterparty/inputAssets";
+import { transactionIdIsFinal } from "@/core/counterparty/signRequestAnalysis";
 import { shouldBlockSigning } from "@/core/counterparty/unpack/providerVerify";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import type { DecodedTransactionInfo } from "@/hooks/useSignTransactionRequest";
@@ -306,7 +307,8 @@ export default function ApproveTransactionPage() {
 
 
       <ApprovalTransactionDetails
-        txid={decodedInfo.txid}
+        // Signing a P2PKH or nested SegWit input changes the id, so it is shown only when final.
+        txid={transactionIdIsFinal(decodedInfo.inputs) ? decodedInfo.txid : undefined}
         inputs={decodedInfo.inputs.map((input, index) => ({ ...input, index }))}
         outputs={decodedInfo.outputs}
         attachedAssets={decodedInfo.attachedAssets}

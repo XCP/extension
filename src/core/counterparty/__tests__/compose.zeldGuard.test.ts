@@ -6,6 +6,7 @@ import { getActiveSettings } from '@/core/settings';
 import { OTHER_ADDRESS, opReturnScript, PREV_TXID, SOURCE_ADDRESS, SOURCE_P2WPKH, unsignedRawTx } from '@/core/zeld/__tests__/fixtures';
 import { fetchZeldOutpointBalance, fetchZeldUtxos } from '@/core/zeld/api';
 import { composeAttach, composeBurn, composeDetach, composeDispense, composeMove, composeSend } from '../compose';
+import { composerChosenMessageFields } from '../composerChoices';
 import { mockSettings } from './helpers/composeTestHelpers';
 
 vi.mock('@/core/api/client');
@@ -267,6 +268,8 @@ describe('ZELD guard on composed transactions', () => {
     const parsed = parseRawTransactionLocally(composed.result.rawtransaction)!;
     expect(parsed.outputs.map(o => o.value)).toEqual([0, 90_000, 546]);
     expect(composed.result.zeld_protection?.carried_forward).toEqual([`${ZELD_TXID}:0`]);
+    // The output it asked for is recorded, so verification expects a message naming it.
+    expect(composerChosenMessageFields(composed)).toEqual({ destination_vout: '2' });
   });
 
   it('keeps the validated default attach when there is no change to put first', async () => {
@@ -278,12 +281,32 @@ describe('ZELD guard on composed transactions', () => {
     const composed = await attach();
     expect(api.get).toHaveBeenCalledTimes(2);
     expect(composed.result.rawtransaction).toBe(defaultAttach(CLEAN_TXID));
+    // Core's default names no output, so nothing is added to the expected message.
+    expect(composerChosenMessageFields(composed)).toEqual({});
   });
 
   it('keeps the validated default attach when the named layout fails to compose', async () => {
     api.get.mockResolvedValueOnce(response(defaultAttach(CLEAN_TXID)) as never).mockRejectedValueOnce(new Error('boom'));
     const composed = await attach();
     expect(composed.result.rawtransaction).toBe(defaultAttach(CLEAN_TXID));
+    expect(composerChosenMessageFields(composed)).toEqual({});
+  });
+
+  it('records nothing a response could carry: only the object this module returned counts', async () => {
+    const namedAttach = unsignedRawTx({
+      inputs: [{ txid: CLEAN_TXID, index: 0 }],
+      outputs: [
+        { script: opReturnScript(20), amount: 0n },
+        { script: SOURCE_P2WPKH.script, amount: 546n },
+        { script: SOURCE_P2WPKH.script, amount: 90_000n },
+      ],
+    });
+    api.get.mockResolvedValueOnce(response(defaultAttach(CLEAN_TXID)) as never).mockResolvedValueOnce(response(namedAttach) as never);
+    const composed = await attach();
+    expect(composerChosenMessageFields(composed)).toEqual({ destination_vout: '2' });
+    // A copy (or a response that merely claims the field) is not the request the wallet made.
+    expect(composerChosenMessageFields({ ...composed })).toEqual({});
+    expect(composerChosenMessageFields(JSON.parse(JSON.stringify(composed)))).toEqual({});
   });
 
   it('puts change first on a BTC send, raw and PSBT alike, and records it', async () => {

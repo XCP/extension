@@ -38,6 +38,27 @@ describe('isAssetDivisible', () => {
 });
 
 describe('getTxActionInfo', () => {
+  describe('the UTXO an attach creates', () => {
+    const TXID = 'ab'.repeat(32);
+    const attach = (destinationVout?: number) => fromUnpack('attach', { asset: 'XCP', quantity: 50_000_000n, destinationVout });
+    const newUtxo = (info: ReturnType<typeof getTxActionInfo>) => info?.protocol.filter(field => field.label === 'New UTXO');
+
+    it('names the outpoint when the id is final before signing', () => {
+      expect(newUtxo(getTxActionInfo(attach(2), { transactionId: TXID })))
+        .toEqual([{ label: 'New UTXO', value: `${TXID}:2`, kind: 'outpoint' }]);
+    });
+
+    it('names the output by index when signing will change the id', () => {
+      // `analyzeSignRequest` withholds the id for P2PKH and nested SegWit inputs.
+      expect(newUtxo(getTxActionInfo(attach(2), {})))
+        .toEqual([{ label: 'New UTXO', value: 'Output 2 of this transaction', kind: 'text' }]);
+    });
+
+    it('names nothing when the message leaves the output to Core', () => {
+      expect(newUtxo(getTxActionInfo(attach(undefined), { transactionId: TXID }))).toEqual([]);
+    });
+  });
+
   it('states the per-unit dividend rate without inventing an aggregate payout or fee', () => {
     const info = getTxActionInfo(fromUnpack('dividend', {
       asset: 'BONPARTY', quantityPerUnit: 1n, dividendAsset: 'XCP',

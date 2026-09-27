@@ -2,6 +2,7 @@ import { parseAmountDraft, serializeDecimal, serializeRawInteger } from "@/core/
 import { apiClient } from '@/core/api/client';
 import { runCounterpartyRequest } from '@/core/counterparty/api';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
+import { recordComposerChoices } from '@/core/counterparty/composerChoices';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
@@ -1356,15 +1357,20 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
   // goes right after the data, as on an asset send. If the named compose fails or has no change
   // to put first, the validated default stands.
   try {
+    const layout = zeldAttachParams(sourceAddress);
     const named = await composeTransaction(
       'attach',
-      { ...paramsObj, ...zeldAttachParams(sourceAddress), validate: 'false' },
+      { ...paramsObj, ...layout, validate: 'false' },
       sourceAddress,
       sat_per_vbyte,
       encoding,
       { changeFirst: true, afterData: true },
     );
-    if (attachLayoutHolds(named, sourceAddress)) return named;
+    if (attachLayoutHolds(named, sourceAddress)) {
+      // The output this request asked for, so the message is verified against it.
+      recordComposerChoices(named, { destination_vout: layout.destination_vout });
+      return named;
+    }
   } catch {
     // The validated default compose is returned below.
   }
