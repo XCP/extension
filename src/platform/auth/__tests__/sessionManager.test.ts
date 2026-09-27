@@ -235,7 +235,9 @@ describe('sessionManager', () => {
 
     it('attempts cached-key removal even when metadata removal fails', async () => {
       const cachedKeyRemove = vi.spyOn(fakeBrowser.storage.session, 'remove');
-      vi.mocked(global.chrome.storage.session.remove).mockImplementation(async (key) => {
+      // The promise overload: the code under test awaits remove, it never passes a callback.
+      const remove = global.chrome.storage.session.remove as (keys: string | string[]) => Promise<void>;
+      vi.mocked(remove).mockImplementation(async (key) => {
         if (String(key) === 'sessionMetadata') throw new Error('metadata cleanup failed');
       });
 

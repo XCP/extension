@@ -179,7 +179,7 @@ describe('ComposerContext', () => {
       });
 
       await act(async () => {
-        result.current.composeTransaction(formData);
+        await result.current.composeTransaction(formData);
       });
 
       await waitFor(() => {
@@ -222,7 +222,7 @@ describe('ComposerContext', () => {
       });
 
       await act(async () => {
-        result.current.composeTransaction(formData);
+        await result.current.composeTransaction(formData);
       });
 
       await waitFor(() => {
@@ -250,7 +250,7 @@ describe('ComposerContext', () => {
       });
 
       await act(async () => {
-        result.current.composeTransaction(formData);
+        await result.current.composeTransaction(formData);
       });
 
       await waitFor(() => {
@@ -387,7 +387,7 @@ describe('ComposerContext', () => {
 
       // Move to review step
       await act(async () => {
-        result.current.composeTransaction(formData);
+        await result.current.composeTransaction(formData);
       });
 
       await waitFor(() => {
@@ -509,7 +509,7 @@ describe('ComposerContext', () => {
 
       // Move to review step
       await act(async () => {
-        result.current.composeTransaction(formData);
+        await result.current.composeTransaction(formData);
       });
 
       await waitFor(() => {
@@ -591,7 +591,7 @@ describe('ComposerContext', () => {
       expect(result.current.state.isComposing).toBe(false);
 
       act(() => {
-        result.current.composeTransaction(formData);
+        void result.current.composeTransaction(formData);
       });
 
       // Should be composing during async operation
@@ -647,7 +647,7 @@ describe('a compose whose message is missing entirely', () => {
     }));
 
     await act(async () => {
-      result.current.composeTransaction(formData);
+      await result.current.composeTransaction(formData);
     });
 
     await waitFor(() => {
@@ -669,7 +669,7 @@ describe('a compose whose message is missing entirely', () => {
     }));
 
     await act(async () => {
-      result.current.composeTransaction(formData);
+      await result.current.composeTransaction(formData);
     });
 
     await waitFor(() => {
@@ -689,7 +689,7 @@ describe('a compose whose message is missing entirely', () => {
     const { result } = composeWith('move', messagelessResponse({ destination: OWN_ADDRESS }));
 
     await act(async () => {
-      result.current.composeTransaction(formData);
+      await result.current.composeTransaction(formData);
     });
 
     await waitFor(() => {

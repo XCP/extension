@@ -34,7 +34,7 @@ export const createPrivateKeyWallet = (overrides?: Partial<Wallet>): Wallet => (
 export const defaultMocks = {
   sessionManager: {
     setLastActiveTime: vi.fn().mockResolvedValue(undefined),
-    getUnlockedSecret: vi.fn().mockResolvedValue(null),
+    getUnlockedSecret: vi.fn<(walletId: string) => Promise<string | null>>().mockResolvedValue(null),
     storeUnlockedSecret: vi.fn(),
     clearUnlockedSecret: vi.fn(),
     clearAllUnlockedSecrets: vi.fn().mockResolvedValue(undefined),

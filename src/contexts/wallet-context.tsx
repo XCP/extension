@@ -428,26 +428,37 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         await refreshWalletState();
       }
     };
-    loadWithRetry();
+    loadWithRetry().catch((error: unknown) => {
+      console.error('[WalletContext] Initial wallet load failed:', error);
+    });
 
     // A lock made anywhere (this surface, another one, or the background's auto-lock) removes the
     // master key from session storage, and every open surface sees that removal.
     // This MUST use the same lock key as refreshWalletState so the two cannot race.
+    const showLocked = () => {
+      // Increment version to invalidate any concurrent refresh
+      lockStateVersionRef.current++;
+      // Update state to trigger navigation
+      setWalletState((prev) => ({
+        ...prev,
+        authState: AuthState.Locked,
+        keychainLocked: true,
+        activeWallet: null,
+        activeAddress: null,
+      }));
+    };
     const stopWatchingLock = watchKeychainLock(() => {
       withStateLock('wallet-refresh', async () => {
         if (process.env.NODE_ENV === 'development') {
           console.log('[WalletContext] Keychain locked');
         }
-        // Increment version to invalidate any concurrent refresh
-        lockStateVersionRef.current++;
-        // Update state to trigger navigation
-        setWalletState((prev) => ({
-          ...prev,
-          authState: AuthState.Locked,
-          keychainLocked: true,
-          activeWallet: null,
-          activeAddress: null,
-        }));
+        showLocked();
+      }).catch((error: unknown) => {
+        // The lock queue rejects waiters when a refresh holds it past its timeout. The keychain is
+        // locked regardless, so the screen must say so; the version bump makes the stuck refresh
+        // discard its unlocked view when it finally lands.
+        console.error('[WalletContext] Lock update could not take the state lock:', error);
+        showLocked();
       });
     });
 
@@ -463,7 +474,9 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     // there is nothing to re-read and the lock path handles that transition itself.
     const stopWatchingKeychain = watchKeychainRecord(() => {
       if (walletStateRef.current.keychainLocked) return;
-      refreshWalletState();
+      refreshWalletState().catch((error: unknown) => {
+        console.error('[WalletContext] Refresh after a keychain change failed:', error);
+      });
     });
 
     return () => {

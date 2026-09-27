@@ -55,7 +55,9 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   // This refresh ensures we get the correct settings after the keychain is confirmed loaded.
   useEffect(() => {
     if (prevAuthStateRef.current !== 'UNLOCKED' && authState === 'UNLOCKED' && !walletLoading) {
-      refreshSettings();
+      refreshSettings().catch((error: unknown) => {
+        console.error('Failed to refresh settings after unlock:', error);
+      });
     }
     prevAuthStateRef.current = authState;
   }, [authState, walletLoading, refreshSettings]);
