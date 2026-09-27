@@ -1,8 +1,12 @@
 /**
  * Bitcoin Message Signer
- * 
- * Implements Bitcoin message signing compatible with BIP-137 (P2PKH, P2SH-P2WPKH, P2WPKH)
- * and simplified Taproot signing
+ *
+ * Software-wallet message signing, BIP-322 simple for every address type: the base64 witness stack
+ * of the `to_sign` spend. P2PKH (and the Counterwallet / FreeWallet legacy formats) emit a
+ * two-item `[signature, pubkey]` stack over the legacy sighash. That is not the 65-byte legacy
+ * signmessage signature BIP-322 prescribes for P2PKH, so Bitcoin Core's `verifymessage` does not
+ * accept it; the XCP wallet SDK and the marketplace verify exactly this shape, which is why it has
+ * not been switched. Trezor signs on the device instead (see `trezorAdapter.signMessage`).
  */
 
 import { secp256k1 } from '@noble/curves/secp256k1.js';
@@ -14,62 +18,6 @@ import {
   signBIP322P2TR,
   signBIP322P2WPKH,
 } from '@/core/bitcoin/bip322';
-
-/**
- * Magic bytes for Bitcoin Signed Message
- */
-const BITCOIN_MESSAGE_MAGIC = '\x18Bitcoin Signed Message:\n';
-
-/**
- * Format message for signing according to Bitcoin standard
- */
-export function formatMessageForSigning(message: string): Uint8Array {
-  const messageBytes = new TextEncoder().encode(message);
-
-  // The magic string already includes \x18 which is its length
-  const magicBytes = new TextEncoder().encode(BITCOIN_MESSAGE_MAGIC);
-
-  // Encode message length as varint
-  let messageLengthBytes: Uint8Array;
-  if (messageBytes.length < 0xfd) {
-    messageLengthBytes = new Uint8Array([messageBytes.length]);
-  } else if (messageBytes.length <= 0xffff) {
-    messageLengthBytes = new Uint8Array([0xfd, messageBytes.length & 0xff, (messageBytes.length >> 8) & 0xff]);
-  } else {
-    throw new Error('Message too long for signing');
-  }
-
-  // Combine: magic + message_length_varint + message
-  const combined = new Uint8Array(
-    magicBytes.length +
-    messageLengthBytes.length +
-    messageBytes.length
-  );
-
-  let offset = 0;
-  combined.set(magicBytes, offset);
-  offset += magicBytes.length;
-  combined.set(messageLengthBytes, offset);
-  offset += messageLengthBytes.length;
-  combined.set(messageBytes, offset);
-
-  return combined;
-}
-
-
-
-/**
- * Sign a message for Taproot addresses (P2TR)
- * Uses BIP-322 compatible Schnorr signatures
- */
-export async function signMessageTaproot(
-  message: string,
-  privateKey: Uint8Array,
-  publicKey: Uint8Array
-): Promise<string> {
-  // Use BIP-322 signing for Taproot
-  return await signBIP322P2TR(message, privateKey);
-}
 
 /**
  * Main message signing function that handles all address types
@@ -213,4 +161,3 @@ export function getSigningCapabilities(addressFormat: AddressFormat | string): {
   }
 }
 
-// Export helper function for use in verifier
