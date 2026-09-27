@@ -6134,13 +6134,13 @@
     "message": "將 ZELD 移到小額輸出"
   },
   "zeld_park_description": {
-    "message": "釋放其餘 BTC，用於必須將首個輸出支付給他人的交易。"
+    "message": "讓其餘 BTC 可用於向他人付款。"
   },
   "zeld_about": {
     "message": "關於 ZeldHash"
   },
   "zeld_about_description": {
-    "message": "了解稀有交易 ID 如何獲得 ZELD。開啟 zeldhash.com。"
+    "message": "了解稀有交易 ID 如何獲得 ZELD。"
   },
   "zeld_balance": {
     "message": "ZELD 餘額"
