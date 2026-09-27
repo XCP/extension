@@ -8,7 +8,7 @@
  * The lookups that reach the network are mocked; everything that decides safety is the real code.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import type { InputAttachedAssets } from '../inputAssets';
 import { parseMarketplaceIntent } from '../marketplaceIntent';
@@ -853,6 +853,28 @@ describe('the marketplace intent proof', () => {
       code: 'counterparty_only_gate',
     }));
   });
+
+  // Only the checkout and exact-offer proofs establish the delivery and payments these generic
+  // alarms are about; a proved listing does not, so it keeps them.
+  it('keeps the external-payment alarm on a proved listing', async () => {
+    vi.mocked(resolveProtocolContext).mockResolvedValueOnce({
+      context: {} as ProtocolContext,
+      warnings: [{ severity: 'warning', code: 'external_btc_output', title: 'External Payment', message: 'x' } as never],
+    });
+    const analysis = await listing();
+    expect(analysis.marketplaceReview?.status).toBe('proved');
+    expect(analysis.safety.warnings.map(warning => warning.title)).toContain('External Payment');
+  });
+
+  // The seller's detach moves the asset its signed input carries: the destination follows the
+  // local decode, not Core's implicit first-output rule.
+  it('resolves where a signed asset goes from the locally decoded detach', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: { success: true, messageType: 'detach', data: { destination: SIGNER } },
+    } as never);
+    const analysis = await exact(true);
+    expect(analysis.attachedAssetDestination).toMatchObject({ mode: 'explicit-detach', sourceInputs: [1] });
+  });
 });
 
 describe('policy warnings from the ledger lookups', () => {
@@ -920,5 +942,199 @@ describe('reading the message', () => {
 
     expect(analysis.mpmaRecipients).toHaveLength(1);
     expect(analysis.counterpartyMessage?.description).toBe('described locally');
+  });
+});
+
+// Mutation testing found the gates below reachable only through tests that were already blocked
+// for another reason (most often the Counterparty-only gate), so deleting them went unnoticed.
+// Each case here isolates one gate.
+describe('gates that must hold on their own', () => {
+  const noPolicyWarnings = () => vi.mocked(resolveProtocolContext).mockResolvedValue({
+    context: {} as ProtocolContext, warnings: [],
+  });
+  beforeEach(() => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({ localUnpack: undefined } as never);
+    noPolicyWarnings();
+  });
+  afterEach(noPolicyWarnings);
+
+  it('blocks when any one policy warning blocks, among others that do not', async () => {
+    vi.mocked(resolveProtocolContext).mockResolvedValue({
+      context: {} as ProtocolContext,
+      warnings: [
+        { severity: 'warning', title: 'Priced by an oracle', message: 'x' },
+        { severity: 'block', title: 'Blocked: Oracle Dispenser', message: 'x' },
+      ],
+    });
+    const analysis = await run({ counterpartyDataHex: '434e5452505254590a00' });
+    expect(analysis.safety.blocked).toBe(true);
+  });
+
+  describe('an inscription commit the site describes', () => {
+    const context = { revealScript: '51', tapInternalKey: '11'.repeat(32) };
+
+    it('blocks on its own when the commit does not verify', async () => {
+      // An asset-bearing signed input keeps the Counterparty-only gate open.
+      const analysis = await run({ inscriptionContext: context, attachedAssets: Promise.resolve([withAssets(0)]) });
+      expect(analysis.safety.warnings.filter(warning => warning.severity === 'block').map(warning => warning.title))
+        .toEqual(['Blocked: Inscription Did Not Verify']);
+      expect(analysis.safety.blocked).toBe(true);
+    });
+
+    it('blocks when the commit does not verify', async () => {
+      const analysis = await run({ inscriptionContext: context });
+      expect(analysis.safety.blocked).toBe(true);
+      expect(analysis.verifiedCommit).toBeUndefined();
+      expect(analysis.safety.warnings).toContainEqual(expect.objectContaining({
+        severity: 'block', title: 'Blocked: Inscription Did Not Verify',
+      }));
+    });
+
+    it('blocks when there is no signing address to verify it against', async () => {
+      const analysis = await run({ inscriptionContext: context, signerAddresses: [] });
+      expect(analysis.safety.blocked).toBe(true);
+      expect(analysis.safety.warnings).toContainEqual(expect.objectContaining({
+        severity: 'block',
+        message: expect.stringContaining('The inscription context names no signing address to verify against.'),
+      }));
+    });
+  });
+
+  it("refuses a reveal offered beside the transaction's own Counterparty message", async () => {
+    const analysis = await run({ counterpartyDataHex: '434e5452505254590a00', counterpartyReveal: '00' });
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]).toMatchObject({
+      code: 'counterparty_reveal_refused', severity: 'block', data: { reason: 'two_messages' },
+    });
+  });
+
+  describe('the plain Bitcoin payment capability', () => {
+    const payment = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
+      signingPurpose: 'bitcoin-payment',
+      bitcoinPaymentIntent: PAYMENT_INTENT,
+      inputs: [...INPUTS, { txid: 'c'.repeat(64), vout: 1 }],
+      outputs: [
+        { index: 0, value: 21_600, type: 'witness_v0_keyhash', address: VAULT },
+        { index: 1, value: 28_982, type: 'witness_v0_keyhash', address: SIGNER },
+      ],
+      ...overrides,
+    });
+
+    it('blocks a request that carries no payment intent at all', async () => {
+      const analysis = await payment({ bitcoinPaymentIntent: undefined });
+      expect(analysis.safety.blocked).toBe(true);
+      expect(analysis.bitcoinPaymentBlockers).toEqual(['the site supplied no versioned Bitcoin payment intent']);
+      expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Bitcoin Payment Did Not Verify');
+    });
+
+    it('asks for a retry, not a verdict, when a signed input could not be looked up', async () => {
+      const analysis = await payment({ attachedAssets: Promise.resolve([
+        { inputIndex: 0, utxo: `${'a'.repeat(64)}:0`, assets: [], lookupFailed: true },
+      ]) });
+      expect(analysis.safety.warnings[0]?.title).toBe('Retry Required: Asset Status Unknown');
+    });
+
+    it('proves a payment whose signed input the ledger shows clean, whatever sits on inputs it does not sign', async () => {
+      const analysis = await payment({ attachedAssets: Promise.resolve([
+        { inputIndex: 0, utxo: `${'a'.repeat(64)}:0`, assets: [] },
+        withAssets(1),
+        { inputIndex: 2, utxo: `${'d'.repeat(64)}:2`, assets: [], lookupFailed: true },
+      ]) });
+      expect(analysis.bitcoinPaymentBlockers).toBeUndefined();
+      expect(analysis.bitcoinPaymentProof?.proved).toBe(true);
+      expect(analysis.safety.blocked).toBe(false);
+    });
+  });
+
+  describe('a proved marketplace review lifts only its own exemption', () => {
+    const FANOUT_TXID = '20'.repeat(32);
+    const FANOUT_FUNDING_TXID = '21'.repeat(32);
+    const fanout = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
+      marketplaceIntent: parseMarketplaceIntent({
+        standard: 'counterparty-marketplace',
+        version: 1,
+        action: 'prepare_bulk_fanout',
+        operationId: 'bulk-1',
+        protocolVersion: 'counterparty_bulk_attach_v1',
+        assets: [],
+        batchIndex: 0,
+        seller: SIGNER,
+        fundingOutpoint: { txid: FANOUT_FUNDING_TXID, vout: 2 },
+        fundingValueSats: 100_000,
+        slotCount: 2,
+        slotValueSats: 10_000,
+        networkFeeSats: 1_000,
+        changeSats: 79_000,
+        expectedTxid: FANOUT_TXID,
+        operationExpiresAt: 2_000_000_000,
+      }),
+      inputs: [{ index: 0, txid: FANOUT_FUNDING_TXID, vout: 2, address: SIGNER, value: 100_000, hasSignatures: false }],
+      outputs: [
+        { index: 0, value: 10_000, type: 'witness_v0_keyhash', address: SIGNER },
+        { index: 1, value: 10_000, type: 'witness_v0_keyhash', address: SIGNER },
+        { index: 2, value: 79_000, type: 'witness_v0_keyhash', address: SIGNER },
+      ],
+      transactionId: FANOUT_TXID,
+      attachedAssets: Promise.resolve([{ inputIndex: 0, utxo: `${FANOUT_FUNDING_TXID}:2`, assets: [] }]),
+      ...overrides,
+    });
+    const blockingPolicy = () => vi.mocked(resolveProtocolContext).mockResolvedValue({
+      context: {} as ProtocolContext,
+      warnings: [{ severity: 'block', title: 'Blocked: Something Else', message: 'x' }],
+    });
+
+    it('lets a proved fan-out through the Counterparty-only gate', async () => {
+      const analysis = await fanout();
+      expect(analysis.marketplaceReview).toMatchObject({ status: 'proved', family: 'prepare_bulk_fanout' });
+      expect(analysis.safety.blocked).toBe(false);
+    });
+
+    it("does not turn a proved fan-out's other warnings into blocks", async () => {
+      vi.mocked(resolveProtocolContext).mockResolvedValue({
+        context: {} as ProtocolContext,
+        warnings: [{ severity: 'warning', title: 'Something to Note', message: 'x' }],
+      });
+      const analysis = await fanout();
+      expect(analysis.safety.blocked).toBe(false);
+      expect(analysis.safety.warnings.map(warning => warning.title)).toContain('Something to Note');
+    });
+
+    it('keeps every other block on a proved fan-out', async () => {
+      blockingPolicy();
+      const analysis = await fanout();
+      expect(analysis.marketplaceReview?.status).toBe('proved');
+      expect(analysis.safety.blocked).toBe(true);
+      expect(analysis.safety.warnings.map(warning => warning.title)).toContain('Blocked: Something Else');
+      expect(analysis.safety.warnings.map(warning => warning.code)).not.toContain('counterparty_only_gate');
+    });
+
+    it('keeps every other block on a proved attached checkout', async () => {
+      blockingPolicy();
+      const analysis = await run({
+        marketplaceIntent: parseMarketplaceIntent({
+          ...CHECKOUT_INTENT,
+          delivery: { mode: 'attached', address: SIGNER, utxoValueSats: 330 },
+        }),
+        inputs: [
+          { index: 0, txid: '11'.repeat(32), vout: 0, address: SIGNER, value: 400_000, hasSignatures: false },
+          { index: 1, txid: LISTING_TXID, vout: 4, address: VAULT, value: 546, hasSignatures: false },
+        ],
+        outputs: [
+          { index: 0, value: 330, type: 'witness_v0_keyhash', address: SIGNER },
+          { index: 1, value: 250_546, type: 'witness_v0_keyhash', address: VAULT },
+          { index: 2, value: 5_000, type: 'witness_v0_keyhash', address: 'bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9e75rs' },
+          { index: 3, value: 142_670, type: 'witness_v0_keyhash', address: SIGNER },
+        ],
+        transactionId: CHECKOUT_TXID,
+        attachedAssets: Promise.resolve([{
+          inputIndex: 1, utxo: `${LISTING_TXID}:4`,
+          assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+        }]),
+      });
+      expect(analysis.marketplaceReview?.status).toBe('proved');
+      expect(analysis.safety.blocked).toBe(true);
+      expect(analysis.safety.warnings.map(warning => warning.title)).toContain('Blocked: Something Else');
+      expect(analysis.safety.warnings.map(warning => warning.code)).not.toContain('counterparty_only_gate');
+    });
   });
 });

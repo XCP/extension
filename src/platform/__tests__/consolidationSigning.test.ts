@@ -52,6 +52,11 @@ vi.mock('@/platform/proxy/server', () => ({
   defineProxyServer: (_name: string, factory: () => unknown) => [factory, factory],
 }));
 vi.mock('@/services/eventEmitterService', () => ({ eventEmitterService: { emit: vi.fn() } }));
+// The real batch builder, observed, so a test can prove no batch was signed at all.
+vi.mock('@/core/bitcoin/consolidateBatch', async (original) => {
+  const actual = await original<typeof import('@/core/bitcoin/consolidateBatch')>();
+  return { ...actual, consolidateBareMultisigBatch: vi.fn(actual.consolidateBareMultisigBatch) };
+});
 
 const SESSION_CHANGED = 'Wallet session changed; please try again.';
 const IDENTITY_CHANGED = 'The signing identity changed after this request was approved.';
@@ -174,6 +179,16 @@ describe('consolidation signs exactly as before', () => {
     expect(expected).toEqual(expect.any(String));
     await expect(getWalletService().consolidateBareMultisig(address, batch, 7)).rejects.toThrow(expected!);
   });
+
+  it("signs from a wallet's second address with that address's own key", async () => {
+    await use('p2pkh');
+    const second = await walletManager.addAddress(walletId('p2pkh'));
+    const signingKey = expectedKey('p2pkh', second.path);
+    const batch = batchFor(second.address, secp256k1.getPublicKey(hexToBytes(signingKey.hex), true), 2);
+    const expected = await consolidateBareMultisigBatch(signingKey.hex, second.address, structuredClone(batch), 7, FEE_ADDRESS);
+
+    expect(await getWalletService().consolidateBareMultisig(second.address, batch, 7, FEE_ADDRESS)).toEqual(expected);
+  });
 });
 
 describe('a lock or identity change during a consolidation batch', () => {
@@ -208,11 +223,13 @@ describe('a lock or identity change during a consolidation batch', () => {
     const { address, batch } = await fixtureFor('p2pkh', 1);
     const pending = barrier();
     sessionBarrier = pending;
+    vi.mocked(consolidateBareMultisigBatch).mockClear();
     const signing = getWalletService().consolidateBareMultisig(address, batch, 7);
     const rejected = expect(signing).rejects.toThrow(IDENTITY_CHANGED);
     await pending.entered;
     await walletManager.updateSettings({ lastActiveAddress: second.address });
     pending.release();
     await rejected;
+    expect(consolidateBareMultisigBatch).not.toHaveBeenCalled();
   });
 });
