@@ -7,9 +7,9 @@ import { eventParams, firstEvent, messageData } from "@/pages/transactions/_mess
 
 /** Core's dispenser states: 0 open, 1 open on an empty address, 10 closed, 11 closing. */
 function statusLabel(status: unknown): string {
-  return status === 0 || status === 1 ? "🟢 Open" :
-         status === 10 ? "🔴 Closed" :
-         status === 11 ? "⚠️ Closing" : "Unknown";
+  return status === 0 || status === 1 ? '🟢 ' + t('common_open') :
+         status === 10 ? '🔴 ' + t('dispenser_manage_dispenser_card_closed') :
+         status === 11 ? '⚠️ ' + t('dispenser_manage_dispenser_card_closing') : t('messages_order_status_unknown');
 }
 
 /**
