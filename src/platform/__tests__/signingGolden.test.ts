@@ -16,14 +16,15 @@
  * pinned to a fixed pattern for the duration of the signing call. That makes the Taproot bytes
  * goldenable; the ECDSA paths are RFC 6979 deterministic and need no pin. @noble/curves also draws
  * blinding values (never 32 bytes) for secret scalar arithmetic; they cannot change any output,
- * and the pin covers them too. Each case counts the 32-byte (aux) draws: exactly one per Schnorr signature and
- * none on any ECDSA path. Independently of the golden, every Schnorr signature is verified against
- * a BIP341 sighash computed here and the prevout's output key, so a recorded golden cannot hide a
+ * and the pin covers them too. Each case counts the 32-byte (aux) draws: exactly one per Schnorr
+ * signature and none on any ECDSA path. Independently of the golden, every Schnorr signature is
+ * verified with a second implementation (@noble/secp256k1, a test-only dependency) against a
+ * BIP341 sighash computed here and the prevout's output key, so a recorded golden cannot hide a
  * signature that does not verify.
  */
-
-import { schnorr } from '@noble/curves/secp256k1.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 import { hexToBytes } from '@noble/hashes/utils.js';
+import { hashes, schnorr } from '@noble/secp256k1';
 import { SigHash, Transaction } from '@scure/btc-signer';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
@@ -73,6 +74,9 @@ vi.mock('@/platform/provider/recentBroadcasts', async (original) => ({
 }));
 const hardware = vi.hoisted(() => ({ init: vi.fn(), signPsbt: vi.fn(), signMessage: vi.fn() }));
 vi.mock('@/core/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => hardware }));
+
+// The independent Schnorr verifier (@noble/secp256k1) needs its hash wired; the wallet signs with @noble/curves.
+if (!hashes.sha256) hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
 
 const MESSAGE = 'XCP Wallet golden signature: every signing path, byte for byte.';
 const AUX_RAND_BYTE = 0x42;

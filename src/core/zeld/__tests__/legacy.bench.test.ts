@@ -16,11 +16,9 @@
  */
 
 import { writeFileSync } from 'node:fs';
-import { invert, mod } from '@noble/curves/abstract/modular.js';
-import { secp256k1 as secp } from '@noble/curves/secp256k1.js';
-import { numberToBytesBE } from '@noble/curves/utils.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { hexToBytes } from '@noble/hashes/utils.js';
+import * as secp from '@noble/secp256k1';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { legacySighashPreimage, preimageLockTimeOffset } from '@/core/zeld/legacySighash';
@@ -56,6 +54,7 @@ function bigIntTo32Bytes(value: bigint, out: Uint8Array): void {
 
 describe.runIf(enabled)('legacy hunt cost', () => {
   it('signs per attempt with a fixed k and reports hashes per second', () => {
+    secp.hashes.sha256 = sha256;
     const d = secp.utils.randomSecretKey();
     const pubkey = secp.getPublicKey(d, true);
     const p2pkh = btc.p2pkh(pubkey);
@@ -74,13 +73,13 @@ describe.runIf(enabled)('legacy hunt cost', () => {
     // Fixed nonce for the hunt, and the constants that make s a multiply-add.
     const k = bytesToBigInt(secp.utils.randomSecretKey());
     const R = secp.Point.BASE.multiply(k);
-    const r = mod(R.x, N);
-    const a = invert(k, N);
-    const b = mod(a * mod(r * bytesToBigInt(d), N), N);
+    const r = secp.etc.mod(R.x, N);
+    const a = secp.etc.invert(k, N);
+    const b = secp.etc.mod(a * secp.etc.mod(r * bytesToBigInt(d), N), N);
 
     // The signed transaction's bytes with a placeholder signature, so the s window and the
     // locktime window can be patched in place. DER: 30 len 02 rlen r 02 20 s, then hashtype.
-    const rBytes = numberToBytesBE(r, 32);
+    const rBytes = secp.etc.numberToBytesBE(r);
     const rDer = rBytes[0]! & 0x80 ? new Uint8Array([0, ...rBytes]) : rBytes;
     const sigLength = 2 + 2 + rDer.length + 2 + 32 + 1;
     const scriptSig = new Uint8Array(1 + sigLength + 1 + pubkey.length);

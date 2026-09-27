@@ -1,5 +1,6 @@
-import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import * as secp from '@noble/secp256k1';
+import { getPublicKey } from '@noble/secp256k1';
 import { OutScript, Transaction } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import {
@@ -20,9 +21,9 @@ import {
 
 describe('Multisig Signer', () => {
   const privateKey = hexToBytes('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
-  const compressedPubkey = secp256k1.getPublicKey(privateKey, true);
-  const uncompressedPubkey = secp256k1.getPublicKey(privateKey, false);
-  const otherKey = secp256k1.getPublicKey(hexToBytes('11'.repeat(32)), true);
+  const compressedPubkey = getPublicKey(privateKey, true);
+  const uncompressedPubkey = getPublicKey(privateKey, false);
+  const otherKey = getPublicKey(hexToBytes('11'.repeat(32)), true);
 
   describe('parseBareMultisig', () => {
     it('parses a historical 1-of-2 script whose data slot is not a pubkey', () => {
@@ -171,11 +172,11 @@ describe('Multisig Signer', () => {
         // a valid signature proves the signer's preimage matched it.
         const sighash = legacySighashAll(wire, index, spec.script);
         expect(
-          secp256k1.verify(derToCompact(der), sighash, spec.signer, { prehash: false }),
+          secp.verify(derToCompact(der), sighash, spec.signer, { prehash: false }),
           spec.label
         ).toBe(true);
         expect(
-          secp256k1.verify(derToCompact(der), sighash, otherKey, { prehash: false }),
+          secp.verify(derToCompact(der), sighash, otherKey, { prehash: false }),
           `${spec.label} (wrong key must fail)`
         ).toBe(false);
       }
