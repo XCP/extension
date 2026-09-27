@@ -61,7 +61,7 @@ import {
   SIGN_FLOW_TTL_MS,
   type SignFlowEventPrefix,
 } from '@/platform/provider/signFlow';
-import { defineProxyService } from '@/platform/proxy';
+import { defineProxyServer } from '@/platform/proxy/server';
 import { createWriteLock } from '@/platform/storage/mutex';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 import { keychainExists } from '@/platform/storage/walletStorage';
@@ -1482,7 +1482,7 @@ export function createProviderService(): ProviderService {
 }
 
 // Register proxy service for cross-context communication
-export const [registerProviderService, getProviderService] = defineProxyService(
+export const [registerProviderService, getProviderService] = defineProxyServer(
   PROVIDER_SERVICE_NAME,
   createProviderService,
   PROVIDER_SERVICE_POLICY,

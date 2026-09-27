@@ -4,9 +4,10 @@ import { EXTENSION_RELOAD_REQUIRED_MESSAGE, EXTENSION_RESTARTED_MESSAGE, Provide
 import { recordProviderTab } from '@/platform/browser';
 import { markServicesReady } from '@/platform/serviceReadiness';
 import {
-  defineProxyService, disconnectAllPorts, isBackgroundScript, PORT_ACK_TIMEOUT_MS, PORT_HEARTBEAT_INTERVAL_MS,
-  PORT_IDLE_RECONNECT_MS,
-} from '../proxy';
+  defineProxyClient, disconnectAllPorts, PORT_ACK_TIMEOUT_MS, PORT_HEARTBEAT_INTERVAL_MS, PORT_IDLE_RECONNECT_MS,
+} from '../client';
+import { isBackgroundScript } from '../protocol';
+import { defineProxyServer } from '../server';
 
 vi.mock('@/platform/browser', () => ({ recordProviderTab: vi.fn(async () => {}) }));
 
@@ -111,10 +112,10 @@ describe('isBackgroundScript', () => {
 });
 
 // ---------------------------------------------------------------------------
-// defineProxyService
+// defineProxyServer and defineProxyClient
 // ---------------------------------------------------------------------------
 
-describe('defineProxyService', () => {
+describe('defineProxyServer and defineProxyClient', () => {
   interface TestService {
     getValue: () => number;
     setValue: (value: number) => void;
@@ -127,6 +128,7 @@ describe('defineProxyService', () => {
   let testServiceInstance: TestService;
   let register: () => TestService;
   let getService: () => TestService;
+  let getClient: () => TestService;
   let currentServiceName: string;
 
   beforeEach(() => {
@@ -145,11 +147,9 @@ describe('defineProxyService', () => {
       handleRequest: vi.fn(),
     };
 
-    [register, getService] = defineProxyService(
-      currentServiceName,
-      () => testServiceInstance,
-      { methods: { getValue: 'read', getAsync: 'read', setValue: 'command', throwError: 'command', throwCoded: 'command', handleRequest: 'command' } },
-    );
+    const policy = { methods: { getValue: 'read', getAsync: 'read', setValue: 'command', throwError: 'command', throwCoded: 'command', handleRequest: 'command' } } as const;
+    [register, getService] = defineProxyServer(currentServiceName, () => testServiceInstance, policy);
+    getClient = defineProxyClient<TestService>(currentServiceName, policy);
   });
 
   afterEach(() => {
@@ -180,6 +180,11 @@ describe('defineProxyService', () => {
 
     it('should throw when getting service before registration', () => {
       expect(() => getService()).toThrow('registerService has not been called');
+    });
+
+    it('refuses a client in the background, where only the registered service should be used', () => {
+      register();
+      expect(() => getClient()).toThrow('registerService has not been called');
     });
 
     it('should handle incoming port messages', async () => {
@@ -261,7 +266,7 @@ describe('defineProxyService', () => {
       const handleRequest = vi.fn().mockResolvedValue([]);
       const disconnect = vi.fn();
       const name = `Origin_${++testServiceCounter}`;
-      const [registerProvider] = defineProxyService(name, () => ({ handleRequest, disconnect }), {
+      const [registerProvider] = defineProxyServer(name, () => ({ handleRequest, disconnect }), {
         methods: { handleRequest: 'command', disconnect: 'command' }, contentScript: 'provider',
       });
       registerProvider();
@@ -278,7 +283,7 @@ describe('defineProxyService', () => {
 
     it('records which tab a provider port came from, so events reach only the tabs of its origin', () => {
       const name = `TabRecord_${++testServiceCounter}`;
-      const [registerProvider] = defineProxyService(name, () => ({ handleRequest: vi.fn() }), {
+      const [registerProvider] = defineProxyServer(name, () => ({ handleRequest: vi.fn() }), {
         methods: { handleRequest: 'command' }, contentScript: 'provider',
       });
       registerProvider();
@@ -297,7 +302,7 @@ describe('defineProxyService', () => {
       const failure = new HardwareWalletError('Original SDK evidence', 'DEVICE_BUSY', 'trezor', 'English hint');
       const handleRequest = vi.fn().mockRejectedValue(failure);
       const name = `HardwarePrivacy_${++testServiceCounter}`;
-      const [registerProvider] = defineProxyService(name, () => ({ handleRequest }), {
+      const [registerProvider] = defineProxyServer(name, () => ({ handleRequest }), {
         methods: { handleRequest: 'command' }, contentScript: 'provider',
       });
       registerProvider();
@@ -327,7 +332,7 @@ describe('defineProxyService', () => {
       { url: 'https://site.example', origin: 'https://other.example', frameId: 0 },
     ])('refuses an ineligible provider sender: %j', (sender) => {
       const name = `RejectedOrigin_${++testServiceCounter}`;
-      const [registerProvider] = defineProxyService(name, () => ({ handleRequest: vi.fn() }), {
+      const [registerProvider] = defineProxyServer(name, () => ({ handleRequest: vi.fn() }), {
         methods: { handleRequest: 'command' }, contentScript: 'provider',
       });
       registerProvider();
@@ -401,14 +406,14 @@ describe('defineProxyService', () => {
     });
 
     it('should return proxy object', () => {
-      const service = getService();
+      const service = getClient();
       expect(service).not.toBe(testServiceInstance);
       expect(typeof service.getValue).toBe('function');
     });
 
     it('returns one client with stable method functions, so React dependencies hold', () => {
-      const first = getService();
-      const second = getService();
+      const first = getClient();
+      const second = getClient();
       expect(second).toBe(first);
       expect(second.getValue).toBe(first.getValue);
       expect(first.getAsync).toBe(first.getAsync);
@@ -416,7 +421,7 @@ describe('defineProxyService', () => {
     });
 
     it('should connect port and send message on method call', async () => {
-      const service = getService();
+      const service = getClient();
 
       // Simulate background responding
       clientPort.postMessage.mockImplementation((msg: any) => {
@@ -432,7 +437,7 @@ describe('defineProxyService', () => {
     });
 
     it('should pass arguments correctly', async () => {
-      const service = getService();
+      const service = getClient();
 
       clientPort.postMessage.mockImplementation((msg: any) => {
         setTimeout(() => clientPort._fireMessage({ id: msg.id, success: true, result: null }), 0);
@@ -446,7 +451,7 @@ describe('defineProxyService', () => {
     });
 
     it('should handle service errors from background', async () => {
-      const service = getService();
+      const service = getClient();
 
       clientPort.postMessage.mockImplementation((msg: any) => {
         setTimeout(() => clientPort._fireMessage({
@@ -461,7 +466,7 @@ describe('defineProxyService', () => {
     });
 
     it('should reject pending calls on port disconnect', async () => {
-      const service = getService();
+      const service = getClient();
 
       // Both attempts disconnect immediately — no response ever comes
       const secondPort = createMockPort(`proxy:${currentServiceName}`);
@@ -486,7 +491,7 @@ describe('defineProxyService', () => {
     });
 
     it('does not replay non-idempotent provider methods on disconnect', async () => {
-      const service = getService();
+      const service = getClient();
 
       // A retry (if it happened) would connect a second time.
       const secondPort = createMockPort(`proxy:${currentServiceName}`);
@@ -510,7 +515,7 @@ describe('defineProxyService', () => {
     });
 
     it('should reconnect and retry once after disconnect', async () => {
-      const service = getService();
+      const service = getClient();
 
       // First call: port disconnects immediately
       clientPort.postMessage.mockImplementation(() => {
@@ -541,7 +546,7 @@ describe('defineProxyService', () => {
         committedOperations++;
         queueMicrotask(() => clientPort._fireDisconnect());
       });
-      await expect(getService().setValue(123)).rejects.toMatchObject({ code: 4900 });
+      await expect(getClient().setValue(123)).rejects.toMatchObject({ code: 4900 });
       expect(committedOperations).toBe(1);
       expect(mockChrome.runtime.connect).toHaveBeenCalledOnce();
     });
@@ -555,13 +560,13 @@ describe('defineProxyService', () => {
 
       it('refuses at once, without connecting, once the extension context is invalidated', async () => {
         mockChrome.runtime.id = undefined as any;
-        await expect(getService().getValue()).rejects.toMatchObject({ code: 4900, message: EXTENSION_RELOAD_REQUIRED_MESSAGE });
+        await expect(getClient().getValue()).rejects.toMatchObject({ code: 4900, message: EXTENSION_RELOAD_REQUIRED_MESSAGE });
         expect(mockChrome.runtime.connect).not.toHaveBeenCalled();
       });
 
       it('maps a connect that throws "Extension context invalidated" to the reload error', async () => {
         mockChrome.runtime.connect.mockImplementation(() => { throw new Error('Extension context invalidated.'); });
-        await expect(getService().setValue(1)).rejects.toMatchObject({ code: 4900, message: EXTENSION_RELOAD_REQUIRED_MESSAGE });
+        await expect(getClient().setValue(1)).rejects.toMatchObject({ code: 4900, message: EXTENSION_RELOAD_REQUIRED_MESSAGE });
         expect(mockChrome.runtime.connect).toHaveBeenCalledOnce();
       });
 
@@ -570,7 +575,7 @@ describe('defineProxyService', () => {
           mockChrome.runtime.id = undefined as any;
           queueMicrotask(() => clientPort._fireDisconnect());
         });
-        await expect(getService().getValue()).rejects.toMatchObject({ code: 4900, message: EXTENSION_RELOAD_REQUIRED_MESSAGE });
+        await expect(getClient().getValue()).rejects.toMatchObject({ code: 4900, message: EXTENSION_RELOAD_REQUIRED_MESSAGE });
         expect(mockChrome.runtime.connect).toHaveBeenCalledOnce();
       });
 
@@ -582,7 +587,7 @@ describe('defineProxyService', () => {
           queueMicrotask(() => fresh._fireMessage({ id: msg.id, success: true, result: 7 }));
         });
         mockChrome.runtime.connect.mockReturnValueOnce(clientPort).mockReturnValueOnce(fresh);
-        const result = getService().getValue(); // clientPort swallows it: open, but nobody listening
+        const result = getClient().getValue(); // clientPort swallows it: open, but nobody listening
         await vi.advanceTimersByTimeAsync(PORT_ACK_TIMEOUT_MS + 200);
         await expect(result).resolves.toBe(7);
         expect(clientPort.disconnect).toHaveBeenCalledOnce();
@@ -590,7 +595,7 @@ describe('defineProxyService', () => {
 
       it('fails an unacknowledged command with a retryable 4900 instead of replaying it', async () => {
         vi.useFakeTimers();
-        const settled = expect(getService().setValue(1)).rejects
+        const settled = expect(getClient().setValue(1)).rejects
           .toMatchObject({ code: 4900, message: EXTENSION_RESTARTED_MESSAGE });
         await vi.advanceTimersByTimeAsync(PORT_ACK_TIMEOUT_MS + 200);
         await settled;
@@ -611,7 +616,7 @@ describe('defineProxyService', () => {
           requestId = msg.id;
           queueMicrotask(() => clientPort._fireMessage({ id: msg.id, ack: true }));
         });
-        const result = getService().setValue(1);
+        const result = getClient().setValue(1);
         await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
         clientPort._fireMessage({ id: requestId, success: true, result: 'approved' });
         await expect(result).resolves.toBe('approved');
@@ -628,7 +633,7 @@ describe('defineProxyService', () => {
         clientPort.postMessage.mockImplementation((msg: any) => {
           if (msg.id !== undefined) queueMicrotask(() => clientPort._fireMessage({ id: msg.id, ack: true }));
         });
-        const settled = expect(getService().setValue(1)).rejects
+        const settled = expect(getClient().setValue(1)).rejects
           .toMatchObject({ code: 4900, message: EXTENSION_RESTARTED_MESSAGE });
         await vi.advanceTimersByTimeAsync(PORT_HEARTBEAT_INTERVAL_MS * 2 + 200);
         await settled;
@@ -645,7 +650,7 @@ describe('defineProxyService', () => {
           queueMicrotask(() => clientPort._fireMessage({ id: msg.id, success: true, result: 'first' }));
         });
         mockChrome.runtime.connect.mockReturnValueOnce(clientPort).mockReturnValueOnce(fresh);
-        const service = getService();
+        const service = getClient();
         await expect(service.getValue()).resolves.toBe('first');
         await vi.advanceTimersByTimeAsync(PORT_IDLE_RECONNECT_MS);
         // clientPort's worker was stopped while idle; the next call must not be posted into it.
@@ -660,7 +665,7 @@ describe('defineProxyService', () => {
             id: msg.id, success: false, error: { message: 'Chain unavailable', code: 4900 },
           }));
         });
-        await expect(getService().getValue()).rejects.toMatchObject({ code: 4900, message: 'Chain unavailable' });
+        await expect(getClient().getValue()).rejects.toMatchObject({ code: 4900, message: 'Chain unavailable' });
         expect(clientPort.postMessage).toHaveBeenCalledOnce(); // not retried
         expect(clientPort.disconnect).not.toHaveBeenCalled();
       });
@@ -672,7 +677,7 @@ describe('defineProxyService', () => {
         });
         clientPort.postMessage.mockImplementation(() => { throw new Error('Attempting to use a disconnected port object'); });
         mockChrome.runtime.connect.mockReturnValueOnce(clientPort).mockReturnValueOnce(fresh);
-        await expect(getService().setValue(1)).resolves.toBe('ok');
+        await expect(getClient().setValue(1)).resolves.toBe('ok');
         expect(fresh.postMessage).toHaveBeenCalledOnce();
       });
 
@@ -685,7 +690,7 @@ describe('defineProxyService', () => {
           queueMicrotask(() => clientPort._fireMessage({ id: msg.id, success: true, result: 0 }));
         });
         mockChrome.runtime.connect.mockReturnValueOnce(clientPort).mockReturnValueOnce(restarted);
-        const service = getService();
+        const service = getClient();
         await expect(service.setValue(1)).resolves.toBe(0);
         clientPort._fireDisconnect(); // the worker stopped while idle
         await expect(service.setValue(2)).resolves.toBe(1);
@@ -694,7 +699,7 @@ describe('defineProxyService', () => {
     });
 
     it('does not treat the service as a promise or expose undeclared methods', () => {
-      const service = getService();
+      const service = getClient();
       expect(Reflect.get(service, 'then')).toBeUndefined();
       expect(Reflect.get(service, 'constructor')).toBeUndefined();
       expect(Reflect.get(service, 'toString')).toBeUndefined();
@@ -702,7 +707,7 @@ describe('defineProxyService', () => {
     });
 
     it('should reuse existing port for multiple calls', async () => {
-      const service = getService();
+      const service = getClient();
 
       clientPort.postMessage.mockImplementation((msg: any) => {
         setTimeout(() => clientPort._fireMessage({ id: msg.id, success: true, result: msg.methodName }), 0);
@@ -728,11 +733,9 @@ describe('disconnectAllPorts', () => {
       setTimeout(() => port._fireMessage({ id: msg.id, success: true, result: 1 }), 0);
     });
 
-    const [, getService] = defineProxyService(`DiscTest_${++testServiceCounter}`, () => ({
-      ping: () => 1,
-    }), { methods: { ping: 'read' } });
+    const getClient = defineProxyClient<{ ping: () => number }>(`DiscTest_${++testServiceCounter}`, { methods: { ping: 'read' } });
 
-    const service = getService();
+    const service = getClient();
     service.ping(); // triggers port creation
 
     disconnectAllPorts();
@@ -751,10 +754,8 @@ describe('disconnectAllPorts', () => {
     const connects = vi.fn((portName: string) => (portName === `proxy:${name}` ? ports.shift() : createMockPort(portName)));
     mockChrome.runtime.connect.mockReset();
     mockChrome.runtime.connect.mockImplementation(({ name: portName }: { name: string }) => connects(portName));
-    const [, getService] = defineProxyService(name, () => ({
-      approve: () => 1,
-    }), { methods: { approve: 'command' } });
-    const service = getService();
+    const getClient = defineProxyClient<{ approve: () => number }>(name, { methods: { approve: 'command' } });
+    const service = getClient();
     const inFlight = service.approve();
     await Promise.resolve();
     // Chrome fires onDisconnect only on the far end, so a local disconnect must settle this itself.

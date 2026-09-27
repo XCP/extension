@@ -1,5 +1,5 @@
 import type { BrowserContext, Page, Route } from '@playwright/test';
-import { decodeProxyResult } from '../../src/platform/proxySerialization';
+import { decodeProxyResult } from '../../src/platform/proxy/serialization';
 
 /** Exercise the same trusted extension-page RPC boundary as the real approval UI. */
 export async function callGalleryService<T>(page: Page, methodName: string, args: unknown[] = []): Promise<T> {

@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
 /** The files that own the boundary. Listeners registered anywhere else are a finding in itself. */
 const BOUNDARY_FILES = [
   'src/entrypoints/background.ts',
-  'src/platform/proxy.ts',
+  'src/platform/proxy/server.ts',
   // Registers its port listener from the background's first turn (see background.ts).
   'src/services/popupMonitorService.ts',
 ] as const;
@@ -52,7 +52,7 @@ const DOORS: Record<string, Door> = {
     reason: 'Popup-lifecycle ports from approval windows. Tracking a port is in-memory and happens at ' +
       'once; cancelling or expiring a signing request reads its flow and so waits for initialisation.',
   },
-  "proxy.ts chrome.runtime.onConnect#1": {
+  "server.ts chrome.runtime.onConnect#1": {
     gated: true,
     reason: 'Dispatches trusted UI methods and the content bridge provider entry point after recovery.',
   },

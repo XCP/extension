@@ -6,7 +6,8 @@
  * the implementation (PSBT decoding, signing plans, the wallet service). The background registers
  * the real service against this same policy, so the two sides cannot drift.
  */
-import { defineProxyService, type ProxyServicePolicy } from '@/platform/proxy';
+import { defineProxyClient } from '@/platform/proxy/client';
+import type { ProxyServicePolicy } from '@/platform/proxy/protocol';
 import type { ProviderSigningService } from '@/services/providerSigningService';
 
 export type { ProviderSigningReview } from '@/services/providerSigningService';
@@ -17,9 +18,5 @@ export const PROVIDER_SIGNING_SERVICE_POLICY: ProxyServicePolicy<ProviderSigning
   methods: { getRequest: 'read', getReview: 'read', approveAndSign: 'command', reject: 'command' },
 };
 
-/** A caller-side proxy. It is never registered, so its factory never runs. */
-export const [, getProviderSigningServiceClient] = defineProxyService<ProviderSigningService>(
-  PROVIDER_SIGNING_SERVICE_NAME,
-  () => { throw new Error('ProviderSigningService is registered only in the background'); },
-  PROVIDER_SIGNING_SERVICE_POLICY,
-);
+/** A caller-side proxy. It has no implementation behind it, so calling it in the background throws. */
+export const getProviderSigningServiceClient = defineProxyClient<ProviderSigningService>(PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY);

@@ -3,7 +3,7 @@ import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
 import { isRecord } from '@/core/isRecord';
 import { classifyProviderError, JSON_RPC_ERROR_CODES, ProviderError, reloadRequiredError } from '@/core/rpcErrors';
 import { isContextInvalidatedError, isExtensionContextValid } from '@/platform/extensionContext';
-import { disconnectAllPorts } from '@/platform/proxy';
+import { disconnectAllPorts } from '@/platform/proxy/client';
 import { getProviderServiceClient } from '@/services/providerServiceClient';
 
 const BRIDGE_OWNER_KEY = '__xcpWalletBridgeOwner';
