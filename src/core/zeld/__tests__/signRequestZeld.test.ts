@@ -101,6 +101,15 @@ describe('where a signed input\'s ZELD lands', () => {
     expect(notices).toEqual([]);
   });
 
+  it('follows a split whose oversized extra entry the indexer ignores', async () => {
+    // Summing every entry would call this split invalid and keep all the ZELD on the signer's output,
+    // while the indexer reads one value per output, drops the third entry and pays 100 to the stranger.
+    const notices = await analyzeSignRequestZeld(request({
+      outputs: [pays(0, SIGNER), pays(1, STRANGER), split(2, [0n, 100n, ZELD * 10n])],
+    }), withZeld);
+    expect(notices).toEqual([{ kind: 'leaves', destination: STRANGER, amount: '100' }]);
+  });
+
   it('ignores a split that asks for more than the inputs carry: everything goes to the first output', async () => {
     const notices = await analyzeSignRequestZeld(request({
       outputs: [pays(0, SIGNER), pays(1, STRANGER), split(2, [0n, ZELD + 1n])],
