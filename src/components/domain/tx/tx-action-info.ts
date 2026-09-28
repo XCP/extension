@@ -332,6 +332,23 @@ export function getTxActionInfo(
 }
 
 /**
+ * The approval screen's protocol rows for a message this wallet composed itself, so its own review
+ * states the same facts in the same words.
+ *
+ * `data` is the message in the local unpack's field names, and `assetInfo` carries verified
+ * divisibility under the API's field names (`asset_info`, as `verifiedReviewParams` sets it), since
+ * a figure derived on a guessed scale is exactly what the describer refuses to print.
+ */
+export function composedMessageFields(
+  messageType: string,
+  data: Record<string, unknown>,
+  context: ProtocolContext,
+  assetInfo?: Record<string, unknown>,
+): ProtocolField[] {
+  return protocolFields(messageType, fromLocalUnpack(data, assetInfo), context, localizeAction);
+}
+
+/**
  * What a sweep's flags move, worded and translated as the approval screen's "Includes" row, so the
  * wallet's own sweep review says the same thing. Undefined when the flags move nothing.
  */
