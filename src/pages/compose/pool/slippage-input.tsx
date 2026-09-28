@@ -5,8 +5,6 @@ import { POOL_SLIPPAGE_AUTO } from "@/core/settings";
 import { t } from '@/i18n';
 import { isValidSlippageDraft } from './slippage-draft';
 
-export { DEFAULT_POOL_SLIPPAGE } from "@/core/settings";
-
 // Presets skew slightly above fast-chain DEXs: Counterparty's ~10-min blocks leave
 // more time for someone else to move the pool before a deposit/withdraw confirms.
 // 0% / very-high values are intentionally Custom-only.

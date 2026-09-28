@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { DerivationPaths, HardwareWalletError } from '../types';
 
 describe('DerivationPaths', () => {

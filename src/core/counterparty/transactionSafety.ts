@@ -9,7 +9,7 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { DUST_LIMIT_SATS } from '@/core/bitcoin/constants';
 import { publicKeyPointId } from '@/core/bitcoin/publicKeyIdentity';
-import type { MarketplaceBlockKind } from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceBlockKind } from '@/core/counterparty/marketplace/intentTypes';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import type {
   RevealControlFacts,

@@ -21,7 +21,7 @@
 import { SigHash } from '@scure/btc-signer';
 import { sighashBase } from '@/core/bitcoin/psbt';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
-import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplace/intentTypes';
 
 /** True when the sighash does not commit every output. Taproot's 0x00 default is ALL. */
 export function leavesOutputsUncommitted(sighashType: number): boolean {

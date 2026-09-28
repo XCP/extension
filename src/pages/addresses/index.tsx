@@ -8,7 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressList } from "@/components/ui/lists/address-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { isCounterwalletFormat } from "@/core/bitcoin/address";
+import { isCounterwalletFormat } from "@/core/bitcoin/addressFormat";
 import { MAX_ADDRESSES_PER_WALLET } from "@/core/wallet/constants";
 import { t } from '@/i18n';
 import { analytics } from "@/platform/fathom";

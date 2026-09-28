@@ -10,8 +10,8 @@ import {
 } from '@/core/bitcoin/psbt';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchInputsAttachedAssets, type InputAttachedAssets } from '@/core/counterparty/inputAssets';
+import type { MarketplaceIntentClaimV1, PolicyOfferWalletContext } from '@/core/counterparty/marketplace/intentTypes';
 import { type LinkedInputEvidence, withLinkedInputAssets } from '@/core/counterparty/marketplaceAttachLink';
-import type { MarketplaceIntentClaimV1, PolicyOfferWalletContext } from '@/core/counterparty/marketplaceIntent';
 import { liveAttachmentEvidenceSource, withPackageParents } from '@/core/counterparty/pendingAttachments';
 import type { InscriptionCommitContext } from '@/core/counterparty/providerInscriptions';
 import {

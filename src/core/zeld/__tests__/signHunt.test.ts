@@ -2,7 +2,7 @@ import { secp256k1 as secp } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { huntsWhileSigning } from '@/core/zeld/eligibility';
 import type { HuntTxidResult } from '@/core/zeld/hunt';

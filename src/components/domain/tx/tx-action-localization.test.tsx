@@ -1,7 +1,7 @@
 import { cleanup, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ApprovalSummaryCard } from '@/components/domain/approval/approval-summary-card';
-import type { MoneyMovement } from '@/components/domain/approval/money-movement';
+import type { MoneyMovement } from '@/core/bitcoin/moneyMovement';
 import { describeMessage, protocolFields } from '@/core/counterparty/describe';
 import { t } from '@/i18n';
 import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';

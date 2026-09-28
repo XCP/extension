@@ -1,6 +1,6 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { describe, expect, it } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
 import {

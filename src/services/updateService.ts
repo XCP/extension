@@ -244,4 +244,4 @@ export function getUpdateService(): UpdateService {
   return updateServiceInstance;
 }
 
-export { UpdateService, type UpdateState };
+export { UpdateService };

@@ -12,7 +12,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Address, p2tr, Transaction, taprootNumsKey } from '@scure/btc-signer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { parsePSBT } from '@/core/bitcoin/psbt';
 import { encodeCbor } from '@/core/counterparty/pack/cbor';
 import { beginSignFlow, getSignFlow } from '@/platform/provider/signFlow';

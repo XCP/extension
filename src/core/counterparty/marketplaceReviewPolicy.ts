@@ -5,7 +5,7 @@
  * can never offer a one-click signature that the signing service then refuses with
  * `acknowledge_risks`, or force a second click the policy does not require.
  */
-import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplace/intentTypes';
 
 type Family = MarketplaceApprovalReview['family'];
 

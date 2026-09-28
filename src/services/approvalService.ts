@@ -24,8 +24,6 @@ import type { ApprovalRequest, ApprovalRequestOptions, ApprovalResult } from '@/
 /** The screen every approval opens. Signing requests have their own screens and their own flow. */
 const APPROVAL_ROUTE = '/requests/connect/approve';
 
-export type { ApprovalRequestOptions, ApprovalResult };
-
 interface PendingApproval extends ApprovalRequest {
   /** The caller waiting on this request. Absent once it has been restored from storage. */
   waiter?: {

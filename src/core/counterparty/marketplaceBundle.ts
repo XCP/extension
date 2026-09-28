@@ -3,15 +3,10 @@
 import { SigHash } from '@scure/btc-signer';
 import { sameAddress } from '@/core/bitcoin/address';
 import { grouped, satsValue } from '@/core/counterparty/marketplace/format';
-import type { InputLike, OutputLike } from '@/core/counterparty/marketplace/intentTypes';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
+import type { AcceptExactOfferIntentClaim, InputLike, MarketplaceApprovalReview, MarketplaceAssetClaim, OutputLike } from '@/core/counterparty/marketplace/intentTypes';
 import { boundedString, hex32, positiveRawQuantity, safeInteger } from '@/core/counterparty/marketplace/wire';
 import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
-import {
-  type AcceptExactOfferIntentClaim,
-  type MarketplaceApprovalReview,
-  type MarketplaceAssetClaim,
-  parseMarketplaceIntent,
-} from '@/core/counterparty/marketplaceIntent';
 import { isRecord } from '@/core/isRecord';
 import { toFiniteNumber } from '@/core/numeric';
 import { t } from '@/i18n';

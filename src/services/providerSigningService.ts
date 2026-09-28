@@ -9,10 +9,10 @@ import { getFeeRates } from '@/core/bitcoin/feeRate';
 import { getPsbtApprovalPolicy, getPsbtBundleApprovalPolicy, getTransactionApprovalPolicy, type ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import { extractPsbtDetails, type PsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
-import { type DecodedPsbtInfo, decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
-import { type DecodedPsbtBundleInfo, decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDecoder';
+import { decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
+import { decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { PrevoutMismatchError } from '@/core/bitcoin/psbtPrevouts';
-import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
+import { decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
 import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { maxMarketplaceBatchRequests } from '@/core/counterparty/marketplaceBatch';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
@@ -24,33 +24,14 @@ import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import type { SigningIdentity } from '@/platform/auth/signingIdentity';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
-import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignMessageRequest, type SignPsbtRequest, type SignPsbtsRequest, type SignTransactionRequest } from '@/platform/provider/signFlow';
+import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignPsbtsRequest, } from '@/platform/provider/signFlow';
 import { bundleSpendsItsParent, packageParentOf, signAttachAndListingForDelivery, signFundAndAuthorizationsForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
 import { defineProxyServer } from '@/platform/proxy/server';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY } from '@/services/providerSigningServiceClient';
+import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY, type ProviderSigningReview, type ReviewBase } from '@/services/providerSigningServiceClient';
 import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/services/signDelivery';
 import { getWalletService } from '@/services/walletService';
-
-interface ReviewBase {
-  reviewKey: string;
-  policy: ProviderApprovalPolicy;
-  fastestFee?: number;
-  /**
-   * The origin's paired grant when this request may continue after a switch to the active
-   * address's Legacy/SegWit sibling. Lets the screen keep the review open; execution re-reads
-   * the current grant and authorizes every signer against it. Included in reviewKey, so a grant
-   * change invalidates an open review (review_changed) on purpose.
-   */
-  pairedGrant?: PairedGrant;
-}
-export type ProviderSigningReview = ReviewBase & (
-  | { kind: 'sign-message'; request: SignMessageRequest }
-  | { kind: 'sign-transaction'; request: SignTransactionRequest; decodedInfo: DecodedTransactionInfo }
-  | { kind: 'sign-psbt'; request: SignPsbtRequest; decodedInfo: DecodedPsbtInfo }
-  | { kind: 'sign-psbts'; request: SignPsbtsRequest; decodedInfo: DecodedPsbtBundleInfo }
-);
 
 export interface SigningDecision {
   /** Identifies the facts the user actually reviewed, including the execution policy. */

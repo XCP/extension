@@ -7,7 +7,8 @@
  * - WalletService: Wallet state and cryptographic operations
  */
 
-import { type AddressFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import {
@@ -24,9 +25,9 @@ import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import { extractPsbtDetails } from '@/core/bitcoin/psbt';
 import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { fetchTokenBalance } from '@/core/counterparty/api';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
-import { parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import { MAX_REVEAL_HEX_LENGTH } from '@/core/counterparty/providerReveal';
 import { generateRequestId } from '@/core/id';
@@ -54,8 +55,6 @@ import { PROVIDER_SERVICE_NAME, PROVIDER_SERVICE_POLICY } from '@/services/provi
 import { assertSignDeliveryAuthorized } from '@/services/signDelivery';
 import { getWalletService, type WalletService } from '@/services/walletService';
 import type { PairedAddresses } from '@/types/wallet';
-
-export { SIGN_FLOW_RECOVERY_POLL_MS } from '@/services/provider/signApproval';
 
 // Define proper types for provider requests and responses
 export type ProviderRequestParams = unknown[];

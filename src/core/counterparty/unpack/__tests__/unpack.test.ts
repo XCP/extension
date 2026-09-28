@@ -3,18 +3,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  assetIdToName,
-  assetNameToId,
-  bytesToHex,
-  COUNTERPARTY_PREFIX_HEX,
-  hexToBytes,
-  isCounterpartyData,
-  packAddress,
-  unpackAddress,
-  unpackCounterpartyMessage,
-  verifyTransaction,
-} from '../index';
+import { packAddress, unpackAddress } from '@/core/counterparty/unpack/address';
+import { assetIdToName, assetNameToId } from '@/core/counterparty/unpack/assetId';
+import { bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
+import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
+import { verifyTransaction } from '@/core/counterparty/unpack/verify';
+import { isCounterpartyData, unpackCounterpartyMessage } from '../index';
 
 describe('assetId', () => {
   describe('assetNameToId', () => {

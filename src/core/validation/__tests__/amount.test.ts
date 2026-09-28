@@ -2,10 +2,9 @@
  * Unit tests for amount validation functions
  */
 import { describe, expect, it } from 'vitest';
-import { SATS_PER_BTC } from '@/core/bitcoin/constants';
+import { DUST_LIMIT_SATS, SATS_PER_BTC } from '@/core/bitcoin/constants';
 import {
   btcToSatoshis,
-  DUST_LIMIT,
   isDustAmount,
   isValidNumber,
   MAX_SATOSHIS,
@@ -127,14 +126,14 @@ describe('validateAmount', () => {
 
   describe('options', () => {
     it('should enforce dust limit when allowDust is false', () => {
-      const belowDust = (DUST_LIMIT - 1) / SATS_PER_BTC;
+      const belowDust = (DUST_LIMIT_SATS - 1) / SATS_PER_BTC;
       const result = validateAmount(belowDust.toFixed(8), { allowDust: false });
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('dust');
     });
 
     it('should allow dust by default', () => {
-      const belowDust = (DUST_LIMIT - 1) / SATS_PER_BTC;
+      const belowDust = (DUST_LIMIT_SATS - 1) / SATS_PER_BTC;
       const result = validateAmount(belowDust.toFixed(8));
       expect(result.isValid).toBe(true);
     });
@@ -345,12 +344,12 @@ describe('isDustAmount', () => {
   it('should identify dust amounts', () => {
     expect(isDustAmount(1)).toBe(true);
     expect(isDustAmount(545)).toBe(true);
-    expect(isDustAmount(DUST_LIMIT - 1)).toBe(true);
+    expect(isDustAmount(DUST_LIMIT_SATS - 1)).toBe(true);
   });
 
   it('should identify non-dust amounts', () => {
     expect(isDustAmount(0)).toBe(false);
-    expect(isDustAmount(DUST_LIMIT)).toBe(false);
+    expect(isDustAmount(DUST_LIMIT_SATS)).toBe(false);
     expect(isDustAmount(1000)).toBe(false);
     expect(isDustAmount(-100)).toBe(false);
   });

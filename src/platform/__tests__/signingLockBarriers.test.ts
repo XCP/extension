@@ -16,7 +16,7 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { signMessage as signMessageWithKey } from '@/core/bitcoin/messageSigner';
 import { finalizePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { fetchPreviousRawTransaction, fetchUTXOs } from '@/core/bitcoin/utxo';

@@ -7,7 +7,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey, hashes, schnorr, verify as verifyEcdsa } from '@noble/secp256k1';
 import { Address, p2pkh, p2tr, p2wpkh, SigHash, Transaction, taprootNumsKey } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
-import { AddressFormat } from '../address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import {
   committedOutputIndices,
   completePsbtWithInputValues,

@@ -1,6 +1,6 @@
 import { act, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { withHardwareErrorMetadata } from '@/core/hardware/errorMetadata';
 import { t } from '@/i18n';
 import { mockBrowserLocale, renderHook } from '@/i18n/__tests__/helpers/locale';

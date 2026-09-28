@@ -31,12 +31,12 @@ import {
   rpc,
   scanUnspents,
   signAsWallet,
-} from './regtestHarness';
+} from '../regtest/regtestHarness';
 
 vi.mock('@/core/bitcoin/utxo', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/bitcoin/utxo')>()),
   fetchUTXOs: async (address: string) => {
-    const { scanUnspents } = await import('./regtestHarness');
+    const { scanUnspents } = await import('../regtest/regtestHarness');
     return (await scanUnspents(address)).map(u => ({
       txid: u.txid, vout: u.vout, value: Math.round(u.amount * 1e8),
       status: { confirmed: true, block_height: u.height, block_hash: '', block_time: 0 },
@@ -46,7 +46,7 @@ vi.mock('@/core/bitcoin/utxo', async (importOriginal) => ({
 vi.mock('@/core/zeld/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/core/zeld/api')>();
   const utxosOf = async (address: string) => {
-    const { rpc, scanUnspents } = await import('./regtestHarness');
+    const { rpc, scanUnspents } = await import('../regtest/regtestHarness');
     const zeld: Array<{ txid: string; vout: number; balance: bigint }> = [];
     for (const u of await scanUnspents(address)) {
       if (!actual.isLikelyZeldTxid(u.txid)) continue;

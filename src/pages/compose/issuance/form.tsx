@@ -11,7 +11,7 @@ import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { isSegwitFormat } from '@/core/bitcoin/address';
+import { isSegwitFormat } from '@/core/bitcoin/addressFormat';
 import { type IssuanceOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
 import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
 import { asDisplayUnits } from '@/core/numeric';

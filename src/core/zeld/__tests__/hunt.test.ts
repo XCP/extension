@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { type HuntWorkerLike, huntTxid } from '@/core/zeld/hunt';
 import { assessZeldHunt, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';

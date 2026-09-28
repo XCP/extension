@@ -2,12 +2,13 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { AddressFormat, DEFAULT_ADDRESS_FORMAT, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat } from '@/core/bitcoin/address';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat, DEFAULT_ADDRESS_FORMAT, isCounterwalletFormat } from '@/core/bitcoin/addressFormat';
 import type { ConsolidationResult } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
-import { isValidCounterwalletMnemonic } from '@/core/counterwallet';
+import { isValidCounterwalletMnemonic } from '@/core/counterwallet/mnemonic';
 import { base64ToBuffer, bufferToBase64, generateRandomBytes } from '@/core/encryption/buffer';
 import {
   DEFAULT_PBKDF2_ITERATIONS,

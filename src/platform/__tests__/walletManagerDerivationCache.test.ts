@@ -13,7 +13,7 @@ import type { HDKey } from '@scure/bip32';
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { getPrivateKeyFromMnemonic } from '@/core/bitcoin/privateKey';
 import { bufferToBase64 } from '@/core/encryption/buffer';
 import { decryptWithKey, deriveKey, encryptWithKey } from '@/core/encryption/encryption';

@@ -1,12 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  analyzeMarketplaceIntent,
-  type FundOffersIntentClaim,
-  type MarketplaceAnalysisInput,
-  type PrepareBulkFanoutIntentClaim,
-} from '@/core/counterparty/marketplaceIntent';
+import type { FundOffersIntentClaim, MarketplaceAnalysisInput, PrepareBulkFanoutIntentClaim } from '@/core/counterparty/marketplace/intentTypes';
+import { analyzeMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { CounterpartyDetailsCard } from './counterparty-details-card';
 import { MarketplaceReviewCard, provedReviewNotes } from './marketplace-review-card';
 

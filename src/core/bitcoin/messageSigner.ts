@@ -11,7 +11,8 @@
 
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { hex } from '@scure/base';
-import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
+import { encodeAddress } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import {
   signBIP322P2PKH,
   signBIP322P2SH_P2WPKH,

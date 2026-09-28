@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import type { MoneyMovement } from '@/core/bitcoin/moneyMovement';
+import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplace/intentTypes';
 import { ApprovalSummaryCard } from './approval-summary-card';
-import type { MoneyMovement } from './money-movement';
 
 const movement = (over: Partial<MoneyMovement> = {}): MoneyMovement => ({
   spent: 100000, backToYou: 5000, atRisk: 0, external: [{ address: 'bc1qexternaldest', value: 90000 }], fee: 5000, net: -95000, incomplete: false, ...over,

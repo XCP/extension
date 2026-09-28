@@ -13,7 +13,8 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
-import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
+import { encodeAddress } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { getActiveSettings } from '@/core/settings';
 import { composeSend } from '../compose';
 import {

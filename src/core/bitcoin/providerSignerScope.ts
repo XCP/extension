@@ -1,4 +1,5 @@
-import { type AddressFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 
 /** Whether the wallet can derive the active index's Legacy/SegWit sibling pair. */

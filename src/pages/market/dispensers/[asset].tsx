@@ -12,6 +12,7 @@ import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { SATS_PER_BTC } from "@/core/bitcoin/constants";
+import type { PriceUnit } from "@/core/bitcoin/price";
 import {
   type AssetInfo,
   type Dispense,
@@ -24,7 +25,6 @@ import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 import { formatAmount } from "@/core/format";
 import { type BigNumber, divide, multiply, roundDown, toBigNumber, toNumber } from "@/core/numeric";
 import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/priceFormat";
-import type { PriceUnit } from "@/core/settings";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useInView } from "@/hooks/useInView";
 import { useMarketPrices } from "@/hooks/useMarketPrices";

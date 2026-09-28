@@ -18,7 +18,7 @@ import { getMessageSigningRisks } from '@/core/bitcoin/messageRisk';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
 import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
-import type { MarketplaceBlockKind } from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceBlockKind } from '@/core/counterparty/marketplace/intentTypes';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import { revealControlText, revealOutputsText, revealRefusalText } from '@/core/counterparty/providerReveal';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';

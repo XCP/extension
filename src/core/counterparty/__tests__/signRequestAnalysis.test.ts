@@ -10,9 +10,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
+import type { ProtocolContext } from '@/core/counterparty/describe';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
 import type { InputAttachedAssets } from '../inputAssets';
-import { parseMarketplaceIntent } from '../marketplaceIntent';
-import type { ProtocolContext } from '../protocolContext';
 import { type AnalyzedOutput, analyzeSignRequest, transactionIdIsFinal } from '../signRequestAnalysis';
 
 // ZELD-specific behavior has its own suite; this suite must not query the live indexer.
@@ -30,7 +30,7 @@ vi.mock('@/core/counterparty/protocolContext', () => ({
   resolveProtocolContext: vi.fn(async () => ({ context: {} as ProtocolContext, warnings: [] })),
 }));
 
-vi.mock('@/core/counterparty/unpack', () => ({
+vi.mock('@/core/counterparty/unpack/providerVerify', () => ({
   verifyProviderTransaction: vi.fn(() => ({ localUnpack: undefined })),
 }));
 
@@ -42,7 +42,7 @@ vi.mock('@/core/counterparty/mpmaTableFormat', async (importOriginal) => ({
 
 const { decodeCounterpartyMessage, resolveMpmaRecipients } = await import('../transaction');
 const { resolveProtocolContext } = await import('../protocolContext');
-const { verifyProviderTransaction } = await import('../unpack');
+const { verifyProviderTransaction } = await import('../unpack/providerVerify');
 const { resolveMpmaTableFormat } = await import('../mpmaTableFormat');
 
 const SIGNER = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';

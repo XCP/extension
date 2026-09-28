@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { isHexMemo, isValidMemoLength, stripHexPrefix } from '../memo';
+import { isHexMemo, stripHexPrefix } from '@/core/validation/memo';
+import { isValidMemoLength } from '../memo';
 
 describe('Memo Utilities', () => {
   describe('isHexMemo', () => {

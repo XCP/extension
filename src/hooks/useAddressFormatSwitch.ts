@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { useWallet } from '@/contexts/wallet-context';
-import type { AddressFormat } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { addressIndexKeptBySwitch, selectableAddressFormats } from '@/core/wallet/addressFormatChoices';
 import { t } from '@/i18n';
 

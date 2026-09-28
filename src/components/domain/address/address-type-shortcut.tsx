@@ -6,7 +6,7 @@ import { FaCheck, FiLayers } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { useWallet } from '@/contexts/wallet-context';
-import type { AddressFormat } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { formatAddress } from '@/core/format';
 import { canSwitchAddressFormat, selectableAddressFormats } from '@/core/wallet/addressFormatChoices';
 import { useAddressFormatSwitch } from '@/hooks/useAddressFormatSwitch';

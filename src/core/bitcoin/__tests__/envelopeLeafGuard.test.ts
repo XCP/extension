@@ -12,7 +12,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Address, p2tr, p2wpkh, Script, SigHash, Transaction, taprootNumsKey } from '@scure/btc-signer';
 import { taprootTweakPubkey } from '@scure/btc-signer/utils.js';
 import { describe, expect, it } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import {
   resolvePsbtCounterpartyPayload,
   shownEnvelopeLeaf,

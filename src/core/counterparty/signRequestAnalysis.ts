@@ -23,17 +23,14 @@ import {
   movesCounterpartyValue,
   resolveAttachedAssetDestination,
 } from '@/core/counterparty/attachedAssetMovement';
+import type { ProtocolContext } from '@/core/counterparty/describe';
 import { findUncommittedAssetSignatures } from '@/core/counterparty/durableSellAuthorization';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
-import {
-  analyzeMarketplaceIntent,
-  type MarketplaceApprovalReview,
-  type MarketplaceIntentClaimV1,
-  type PolicyOfferWalletContext,
-} from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceApprovalReview, MarketplaceIntentClaimV1, PolicyOfferWalletContext } from '@/core/counterparty/marketplace/intentTypes';
+import { analyzeMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { checkMessageStructure, type StructureFinding } from '@/core/counterparty/messageStructure';
 import { mpmaTableWarning, resolveMpmaTableFormat } from '@/core/counterparty/mpmaTableFormat';
-import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
+import { resolveProtocolContext } from '@/core/counterparty/protocolContext';
 import {
   type InscriptionCommitContext,
   verifyInscriptionCommit,
@@ -57,8 +54,8 @@ import {
   type SecurityWarning,
   type VerifiedCommit,
 } from '@/core/counterparty/transactionSafety';
-import { type ProviderVerificationResult, verifyProviderTransaction } from '@/core/counterparty/unpack';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
+import { type ProviderVerificationResult, verifyProviderTransaction } from '@/core/counterparty/unpack/providerVerify';
 import { getActiveSettings } from '@/core/settings';
 import type { KnownZeldOutpoint } from '@/core/zeld/knownOutpoints';
 import { analyzeSignRequestZeld, type ZeldNotice, type ZeldPackageParent } from '@/core/zeld/signRequestZeld';

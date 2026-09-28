@@ -2,11 +2,8 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { describe, expect, it } from 'vitest';
-import {
-  AddressFormat,
-  getAddressFromMnemonic,
-  getDerivationPathForAddressFormat,
-} from '@/core/bitcoin/address';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
 import type { WalletRecord } from '@/types/wallet';
 import {

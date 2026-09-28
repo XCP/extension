@@ -28,7 +28,7 @@ import { isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-a
 import { FiArrowDown } from '@/components/icons';
 import { fetchPoolQuote, type PoolQuote } from '@/core/counterparty/api';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
-import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
+import type { ProviderVerificationResult } from '@/core/counterparty/unpack/providerVerify';
 import { formatAmount, formatPriceRatio } from '@/core/format';
 import { type BigNumber, divide, isGreaterThan, subtract, toBigNumber, toNumber } from '@/core/numeric';
 

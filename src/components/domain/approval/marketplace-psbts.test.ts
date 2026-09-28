@@ -5,8 +5,8 @@
  * Deterministic keys: legacy priv = 0x07 x32, segwit priv = 0x09 x32.
  */
 import { describe, expect, it } from 'vitest';
+import { computeMoneyMovement } from '@/core/bitcoin/moneyMovement';
 import { committedOutputIndices, extractPsbtDetails } from '@/core/bitcoin/psbt';
-import { computeMoneyMovement } from './money-movement';
 
 const LEGACY = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
 const SEGWIT = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';

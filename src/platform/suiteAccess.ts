@@ -9,8 +9,6 @@
 import { HardwareWalletError } from '@/core/hardware/types';
 import { TREZOR_SUITE_ORIGINS } from '@/platform/suiteOrigins';
 
-export { TREZOR_SUITE_ORIGINS };
-
 function permissionsApi(): typeof chrome.permissions | undefined {
   return (globalThis as { chrome?: typeof chrome }).chrome?.permissions;
 }

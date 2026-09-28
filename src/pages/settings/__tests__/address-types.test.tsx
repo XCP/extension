@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { formatAddress } from '@/core/format';
 import { mockBrowserLocale, render } from '@/i18n/__tests__/helpers/locale';
 import AddressTypesPage from '../address-types';

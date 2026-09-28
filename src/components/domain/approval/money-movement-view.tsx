@@ -1,5 +1,5 @@
-import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import type { PsbtFlexibilityKind } from '@/components/domain/approval/psbt-flexibility';
+import type { MoneyMovement } from '@/core/bitcoin/moneyMovement';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 

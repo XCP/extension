@@ -8,6 +8,13 @@ import {
   decodePsbtForApproval,
 } from '@/core/bitcoin/psbtApprovalDecoder';
 import { fetchAssetDetails } from '@/core/counterparty/api';
+import type {
+  AcceptExactOfferIntentClaim,
+  FundPolicyOfferIntentClaim,
+  MarketplaceApprovalReview,
+  MarketplaceIntentClaimV1,
+  PolicyOfferWalletContext,
+} from '@/core/counterparty/marketplace/intentTypes';
 import {
   deriveProvedAttachOutput,
   type LinkedAttachChainSource,
@@ -27,13 +34,6 @@ import {
   type BumpAcceptanceFeeIntentClaim,
 } from '@/core/counterparty/marketplaceBundle';
 import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
-import type {
-  AcceptExactOfferIntentClaim,
-  FundPolicyOfferIntentClaim,
-  MarketplaceApprovalReview,
-  MarketplaceIntentClaimV1,
-  PolicyOfferWalletContext,
-} from '@/core/counterparty/marketplaceIntent';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 import { fromSatoshis } from '@/core/numeric';

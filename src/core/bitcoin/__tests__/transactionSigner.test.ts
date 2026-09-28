@@ -1,6 +1,6 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { signTransaction } from '@/core/bitcoin/transactionSigner';
 // Import the functions we're mocking
 import { fetchPreviousRawTransaction, fetchUTXOs, getUtxoByTxid, type UTXO } from '@/core/bitcoin/utxo';

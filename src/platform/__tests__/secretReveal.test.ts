@@ -9,7 +9,7 @@
  * Real encryption and session manager; only browser storage and the attempt limiter are replaced.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { bufferToBase64 } from '@/core/encryption/buffer';
 import { deriveKey } from '@/core/encryption/encryption';
 import { DEFAULT_SETTINGS } from '@/core/settings';

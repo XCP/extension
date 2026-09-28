@@ -30,7 +30,7 @@ import {
   REGTEST_ENABLED,
   signAsWallet,
   xcpBalance,
-} from './regtestHarness';
+} from '../regtest/regtestHarness';
 
 const targetZeros = Number(process.env.ZELD_REGTEST_ZEROS ?? 4);
 

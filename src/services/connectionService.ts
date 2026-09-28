@@ -15,9 +15,10 @@ import { pairedGrantCovers } from '@/core/pairedGrant';
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
 import { createWriteLock } from '@/platform/storage/mutex';
-import { type ApprovalPlacement, type ApprovalResult, getApprovalService } from '@/services/approvalService';
+import { type ApprovalPlacement, getApprovalService } from '@/services/approvalService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getWalletService } from '@/services/walletService';
+import type { ApprovalResult } from '@/types/provider';
 
 export interface ConnectionStatus {
   origin: string;

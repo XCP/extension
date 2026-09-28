@@ -19,33 +19,6 @@ import {
   analyzeFundPolicyOfferIntent,
 } from '@/core/counterparty/marketplace/policyOfferAnalysis';
 
-export { describeCanonicalPolicy, formatExpiry, policyOfferStandingNotice } from '@/core/counterparty/marketplace/format';
-export { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
-export {
-  type AcceptExactOfferIntentClaim,
-  type AcceptPolicyOfferIntentClaim,
-  type AttachForListingIntentClaim,
-  type AuthorizeExactOfferIntentClaim,
-  type BuyListingsIntentClaim,
-  type CreateListingIntentClaim,
-  type FundOffersIntentClaim,
-  type FundOffersTargetClaim,
-  type FundPolicyOfferAlternativeClaim,
-  type FundPolicyOfferIntentClaim,
-  MARKETPLACE_INTENT_STANDARD,
-  MARKETPLACE_INTENT_VERSION,
-  type MarketplaceAnalysisInput,
-  type MarketplaceApprovalReview,
-  type MarketplaceAssetClaim,
-  type MarketplaceBlockKind,
-  type MarketplaceIntentClaimV1,
-  type MarketplaceOutpointClaim,
-  type MarketplaceSettlementDelivery,
-  type PolicyOfferWalletContext,
-  type PrepareAssetIntentClaim,
-  type PrepareBulkFanoutIntentClaim,
-} from '@/core/counterparty/marketplace/intentTypes';
-export { marketplaceTransactionHeaderProblem } from '@/core/counterparty/marketplace/proofs';
 
 export function analyzeMarketplaceIntent(input: MarketplaceAnalysisInput): MarketplaceApprovalReview {
   const review = analyzeMarketplaceIntentClaim(input);

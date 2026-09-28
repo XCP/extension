@@ -8,7 +8,7 @@ import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { HIGH_ABSOLUTE_FEE_SATS } from '@/core/bitcoin/signedVsize';
 import type { DecodedTransactionInfo } from '@/core/bitcoin/transactionApprovalDecoder';
-import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplace/intentTypes';
 import { marketplaceReviewRequiresAcknowledgement } from '@/core/counterparty/marketplaceReviewPolicy';
 import { zeldWarning } from '@/core/counterparty/signRequestAnalysis';
 import { asDisplayUnits } from '@/core/numeric';

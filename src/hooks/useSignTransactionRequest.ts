@@ -1,7 +1,5 @@
 import { useProviderSigningRequest } from '@/hooks/useProviderSigningRequest';
 
-export type { DecodedTransactionInfo } from '@/core/bitcoin/transactionApprovalDecoder';
-
 export function useSignTransactionRequest() {
   const state = useProviderSigningRequest('sign-transaction');
   return { ...state, request: state.review?.request ?? null,
