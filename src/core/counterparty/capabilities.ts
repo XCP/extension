@@ -1,8 +1,9 @@
 import { apiClient } from '@/core/api/client';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings } from '@/core/settings';
+import { t } from '@/i18n';
 
-export type CounterpartyFeature = 'ammPools' | 'indefiniteOrders';
+export type CounterpartyFeature = 'ammPools' | 'indefiniteOrders' | 'taprootReveals';
 
 interface ServerInfo {
   server_ready: boolean;
@@ -16,10 +17,28 @@ interface FeatureRequirement {
   minVersion: string;
   activationHeights: Record<string, number>;
   label: string;
+  /** The reader's sentence when the API is older than `minVersion`; `label`'s English otherwise. */
+  versionMessage?: (minVersion: string, currentVersion: string) => string;
 }
 
 const CAPABILITY_CACHE_TTL_MS = 60_000;
-export const MIN_COUNTERPARTY_API_VERSION = '11.3.0';
+
+/**
+ * The oldest Counterparty API a custom node may run (`validation/api.ts`, checked when the node is
+ * set). From 11.5 a Taproot reveal publishes its message only when the source signed it, and a node
+ * older than that reads the chain differently past that release's activation height, so its
+ * balances and history are not the network's.
+ */
+export const MIN_COUNTERPARTY_API_VERSION = '11.5.0';
+
+/**
+ * Core 11.5 returns an unsigned reveal the wallet signs with the source key; an older API returns
+ * the reveal signed by the server, which 11.5 does not attribute to the source. Every compose that
+ * asks for Taproot encoding (inscriptions, and long messages the wallet moves into an envelope)
+ * requires it. Enforced by version alone: an 11.5 node applies the rule from its own activation
+ * height, and a reveal the source signed is attributed to it on either side of that height.
+ */
+export const TAPROOT_REVEAL_MIN_VERSION = '11.5.0';
 
 const FEATURE_REQUIREMENTS: Record<CounterpartyFeature, FeatureRequirement> = {
   ammPools: {
@@ -45,6 +64,20 @@ const FEATURE_REQUIREMENTS: Record<CounterpartyFeature, FeatureRequirement> = {
       regtest: 0,
     },
     label: 'Never-expiring orders',
+  },
+  taprootReveals: {
+    minVersion: TAPROOT_REVEAL_MIN_VERSION,
+    activationHeights: {
+      mainnet: 0,
+      testnet: 0,
+      testnet3: 0,
+      testnet4: 0,
+      signet: 0,
+      regtest: 0,
+    },
+    label: 'Taproot encoding and inscriptions',
+    versionMessage: (minVersion, currentVersion) =>
+      t('capabilities_taproot_requires_api_version', [minVersion, currentVersion]),
   },
 };
 
@@ -116,7 +149,8 @@ export async function getCounterpartyFeatureStatus(feature: CounterpartyFeature)
     return {
       supported: false,
       serverInfo,
-      reason: `${requirement.label} require Counterparty API ${requirement.minVersion} or newer; current API is ${serverInfo.version}`,
+      reason: requirement.versionMessage?.(requirement.minVersion, String(serverInfo.version))
+        ?? `${requirement.label} require Counterparty API ${requirement.minVersion} or newer; current API is ${serverInfo.version}`,
     };
   }
 

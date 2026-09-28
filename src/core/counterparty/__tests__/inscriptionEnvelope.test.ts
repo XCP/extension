@@ -5,29 +5,47 @@
  * an image/png inscription of "hello" from a P2WPKH source. Rebuilding the envelope locally and
  * getting the server's bytes back proves the mirror is exact; deriving the commit address and
  * getting the transaction's actual output proves the taproot derivation is right. Together they
- * are the same assertion core makes about its own output in `check_transaction_sanity`. The rest
- * (`taprootFixtures.ts`) are complete composes — commit, envelope and reveal — for the plain data
- * envelope core uses when there is no inscription, and one more ord inscription.
+ * are the same assertion core makes about its own output in `check_transaction_sanity`.
+ * `taprootFixtures.ts` adds complete composes for the plain data envelope core uses when there is
+ * no inscription, and one more ord inscription; their envelopes are read here.
+ *
+ * The reveal checks run on composes captured from Core 11.5 (`taproot115Fixtures.ts`), which
+ * returns an unsigned reveal the wallet signs with the source key.
  */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Address, OutScript, p2tr, TaprootControlBlock, Transaction, utils } from '@scure/btc-signer';
+import { Address, OutScript, Transaction, utils } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
 import {
   envelopeKind,
+  type RevealCheckOptions,
   readDataEnvelope,
   revealSpendsTransaction,
   verifyInscriptionEnvelope,
-  verifyRevealTransaction,
+  verifyUnsignedReveal,
 } from '../inscriptionEnvelope';
+import { readRevealShape } from '../taprootEncoding';
+import {
+  BROADCAST_P2TR_INTERNAL,
+  BROADCAST_P2TR_OUTPUT_KEY,
+  BROADCAST_P2WPKH,
+  type Compose115Result,
+  envelopeClosedBy,
+  type Fixture115,
+  KEY_TR,
+  KEY_WPKH,
+  MPMA_P2WPKH,
+  ORD_BROADCAST_P2WPKH,
+  recompose115,
+  tamperedMessage115,
+} from './taproot115Fixtures';
 import {
   BROADCAST_600_TAPROOT,
   MPMA_TAPROOT,
   ORD_BROADCAST_TAPROOT,
   SEND_TAPROOT,
-  TAPROOT_SOURCE,
   type TaprootFixture,
   tamperedTaprootCompose,
 } from './taprootFixtures';
@@ -143,276 +161,185 @@ function commitOutputAddress(fixture: TaprootFixture): string {
   return Address().encode(OutScript.decode(commit.getOutput(0).script!));
 }
 
-/** The options a real fixture verifies under, as the composer passes them. */
-function revealOptions(fixture: TaprootFixture) {
-  const kind = envelopeKind(fixture.envelope_script)!;
-  const commitAddress = kind === 'data'
-    ? readDataEnvelope(fixture.envelope_script).commitAddress!
-    : verifyInscriptionEnvelope(fixture.envelope_script, hexToBytes(fixture.data)).commitAddress!;
-  return {
-    kind,
-    ownAddresses: [TAPROOT_SOURCE],
-    commitTxHex: fixture.rawtransaction,
-    commitAddress,
-    envelopeScriptHex: fixture.envelope_script,
-    feeRate: fixture.feeRate,
-  };
+/** The commit address the composer derives for an 11.5 compose, from its verified envelope. */
+function commitAddress115(result: Compose115Result, data = result.data): string {
+  return envelopeKind(result.envelope_script) === 'data'
+    ? readDataEnvelope(result.envelope_script).commitAddress!
+    : verifyInscriptionEnvelope(result.envelope_script, hexToBytes(data)).commitAddress!;
 }
 
-const MARKER = '00000000000000000a6a08434e545250525459';
+/** The unsigned reveal and options an 11.5 compose verifies under, as the composer passes them. */
+function check115(fixture: Fixture115, result: Compose115Result = fixture.result, overrides: Partial<RevealCheckOptions> = {}) {
+  const shape = readRevealShape(result);
+  if (shape.kind !== 'unsigned') throw new Error(`not an unsigned reveal: ${shape.kind}`);
+  return verifyUnsignedReveal(shape.reveal, {
+    kind: envelopeKind(result.envelope_script)!,
+    ownAddresses: [fixture.key.address],
+    sourceAddress: fixture.key.address,
+    commitTxHex: result.rawtransaction,
+    commitAddress: commitAddress115(result),
+    envelopeScriptHex: result.envelope_script,
+    feeRate: fixture.feeRate,
+    ...overrides,
+  });
+}
 
-describe('the pre-signed reveal transaction', () => {
-  it.each([
-    ['send at 2 sat/vB, raised to the dust floor', SEND_TAPROOT, 330],
-    ['MPMA at 10 sat/vB', MPMA_TAPROOT, 1380],
-    ['two-chunk broadcast at 3 sat/vB', BROADCAST_600_TAPROOT, 786],
-  ] as const)('accepts core\'s data reveal (%s): only the marker, the whole commit output as fee', (_, fixture, fee) => {
-    const result = verifyRevealTransaction(fixture.signed_reveal_rawtransaction, revealOptions(fixture));
+const FIXTURES_115 = [
+  ['an MPMA from P2WPKH at 3 sat/vB', MPMA_P2WPKH, 408],
+  ['a two-chunk broadcast from P2WPKH at 2 sat/vB', BROADCAST_P2WPKH, 526],
+  ['the broadcast from P2TR, closed by its internal key', BROADCAST_P2TR_INTERNAL, 526],
+  ['the broadcast from P2TR, closed by its output key', BROADCAST_P2TR_OUTPUT_KEY, 526],
+  ['an ord inscription from P2WPKH, returning dust', ORD_BROADCAST_P2WPKH, 1291 - 546],
+] as const;
 
+describe('the unsigned reveal Core 11.5 returns', () => {
+  it.each(FIXTURES_115)('accepts core\'s own compose: %s', (_, fixture, fee) => {
+    const result = check115(fixture);
     expect(result.error).toBeUndefined();
     expect(result.revealFee).toBe(fee);
   });
 
-  it('accepts core\'s ord reveal, which returns dust to the source', () => {
-    const result = verifyRevealTransaction(
-      ORD_BROADCAST_TAPROOT.signed_reveal_rawtransaction,
-      revealOptions(ORD_BROADCAST_TAPROOT),
-    );
-
-    expect(result.error).toBeUndefined();
-    // 1,291 sats committed, 546 returned.
-    expect(result.revealFee).toBe(745);
+  it('closes each envelope with a key of the source: the same key for every compose from one address', () => {
+    expect(MPMA_P2WPKH.result.reveal_pubkey).toBe(KEY_WPKH.publicKeyHex.slice(2));
+    expect(BROADCAST_P2TR_INTERNAL.result.reveal_pubkey).toBe(KEY_TR.publicKeyHex.slice(2));
+    expect(BROADCAST_P2TR_OUTPUT_KEY.result.reveal_pubkey).toBe(KEY_TR.scriptHex.slice(4));
   });
 
-  it('rejects the ord reveal when the source is not ours', () => {
-    const result = verifyRevealTransaction(ORD_BROADCAST_TAPROOT.signed_reveal_rawtransaction, {
-      ...revealOptions(ORD_BROADCAST_TAPROOT),
-      ownAddresses: ['bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq'],
-    });
+  it('rebuilds each fixture byte for byte, so the rebuilt composes below differ only as asked', () => {
+    for (const [, fixture] of FIXTURES_115) {
+      const rebuilt = recompose115(fixture);
+      for (const field of ['rawtransaction', 'envelope_script', 'reveal_rawtransaction', 'reveal_control_block',
+        'reveal_pubkey'] as const) {
+        expect(rebuilt[field], field).toBe(fixture.result[field]);
+      }
+      expect(rebuilt.reveal_lock_scripts).toEqual(fixture.result.reveal_lock_scripts);
+      expect(rebuilt.reveal_inputs_values).toEqual(fixture.result.reveal_inputs_values);
+    }
+  });
 
+  it('refuses an envelope closed by a key that is not the source\'s, however consistent the rest', () => {
+    const other = utils.pubSchnorr(new Uint8Array(32).fill(9));
+    const tampered = recompose115(BROADCAST_P2WPKH, { envelope: envelopeClosedBy(BROADCAST_P2WPKH, other) });
+    const result = check115(BROADCAST_P2WPKH, tampered);
     expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/not yours/);
+    expect(result.error).toMatch(/not closed by your address/);
+    // Nor the other address's key: a P2TR key closing a P2WPKH source's envelope.
+    const trKey = recompose115(BROADCAST_P2WPKH, { envelope: envelopeClosedBy(BROADCAST_P2WPKH, hexToBytes(KEY_TR.publicKeyHex.slice(2))) });
+    expect(check115(BROADCAST_P2WPKH, trKey).ok).toBe(false);
+  });
+
+  it('refuses a reveal_pubkey that is not the key closing the envelope', () => {
+    const result = check115(BROADCAST_P2WPKH, { ...BROADCAST_P2WPKH.result, reveal_pubkey: KEY_TR.publicKeyHex.slice(2) });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/not closed by the key the reveal is signed with/);
+  });
+
+  it('refuses a control block with the wrong parity, a merkle path, or another internal key', () => {
+    const control = BROADCAST_P2WPKH.result.reveal_control_block;
+    const flipped = (Number.parseInt(control.slice(0, 2), 16) ^ 1).toString(16) + control.slice(2);
+    for (const reveal_control_block of [flipped, `${control}${'11'.repeat(32)}`, `c0${KEY_TR.publicKeyHex.slice(2)}`]) {
+      const result = check115(BROADCAST_P2WPKH, { ...BROADCAST_P2WPKH.result, reveal_control_block });
+      expect(result.ok).toBe(false);
+      expect(result.error).toMatch(/commit to exactly the verified envelope/);
+    }
+  });
+
+  it('refuses a commit output that hides a second leaf, or sits under another internal key', () => {
+    const hidden = recompose115(BROADCAST_P2WPKH, { extraLeaf: MPMA_P2WPKH.result.envelope_script });
+    expect(check115(BROADCAST_P2WPKH, hidden, { commitAddress: commitOutputAddress115(hidden) }).error)
+      .toMatch(/commit to exactly the verified envelope/);
+    const otherInternal = recompose115(BROADCAST_P2WPKH, { internalKey: utils.pubSchnorr(new Uint8Array(32).fill(7)) });
+    expect(check115(BROADCAST_P2WPKH, otherInternal, { commitAddress: commitOutputAddress115(otherInternal) }).error)
+      .toMatch(/commit to exactly the verified envelope/);
+  });
+
+  it('refuses a commit that pays a different address than the verified envelope derives', () => {
+    const result = check115(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, { commitTxHex: MPMA_P2WPKH.result.rawtransaction });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/does not fund the reveal/);
+  });
+
+  it('refuses reveal lock scripts or values that are not the commit output', () => {
+    const { result } = BROADCAST_P2WPKH;
+    for (const change of [
+      { reveal_lock_scripts: MPMA_P2WPKH.result.reveal_lock_scripts },
+      { reveal_lock_scripts: [...result.reveal_lock_scripts, ...result.reveal_lock_scripts] },
+      { reveal_inputs_values: [result.reveal_inputs_values[0]! + 1] },
+    ]) {
+      const check = check115(BROADCAST_P2WPKH, { ...result, ...change });
+      expect(check.ok).toBe(false);
+      expect(check.error).toMatch(/does not spend the commit output it names/);
+    }
+  });
+
+  it('refuses a reveal that spends another transaction, or more than the commit output', () => {
+    const elsewhere = check115(BROADCAST_P2WPKH, { ...BROADCAST_P2WPKH.result, reveal_rawtransaction: MPMA_P2WPKH.result.reveal_rawtransaction });
+    expect(elsewhere.error).toMatch(/does not spend this commit/);
+    const reveal = Transaction.fromRaw(hexToBytes(BROADCAST_P2WPKH.result.reveal_rawtransaction), { allowUnknownOutputs: true });
+    reveal.addInput({ txid: new Uint8Array(32).fill(1), index: 0 });
+    const twoInputs = check115(BROADCAST_P2WPKH, { ...BROADCAST_P2WPKH.result, reveal_rawtransaction: bytesToHex(reveal.unsignedTx) });
+    expect(twoInputs.error).toMatch(/does not spend this commit/);
+  });
+
+  it('refuses a reveal that arrives with a witness already', () => {
+    const reveal = Transaction.fromRaw(hexToBytes(BROADCAST_P2WPKH.result.reveal_rawtransaction), { allowUnknownOutputs: true });
+    reveal.updateInput(0, { finalScriptWitness: [new Uint8Array(64), hexToBytes(BROADCAST_P2WPKH.result.envelope_script)] }, true);
+    const result = check115(BROADCAST_P2WPKH, { ...BROADCAST_P2WPKH.result, reveal_rawtransaction: reveal.hex });
+    expect(result.error).toMatch(/already signed/);
+  });
+
+  it('refuses a data reveal with any output beyond the marker, even one paying the source', () => {
+    const tampered = recompose115(BROADCAST_P2WPKH, {
+      editReveal: (reveal) => reveal.addOutput({ script: hexToBytes(KEY_WPKH.scriptHex), amount: 100n }),
+    });
+    expect(check115(BROADCAST_P2WPKH, tampered).error).toMatch(/outputs core does not create/);
+  });
+
+  it('refuses an ord reveal whose dust goes elsewhere or exceeds core\'s', () => {
+    expect(check115(ORD_BROADCAST_P2WPKH, ORD_BROADCAST_P2WPKH.result, { ownAddresses: [KEY_TR.address] }).error)
+      .toMatch(/not yours/);
+    const more = recompose115(ORD_BROADCAST_P2WPKH, {
+      commitValue: 1291 + 1,
+      editReveal: (reveal) => reveal.updateOutput(1, { amount: 547n }),
+    });
+    expect(check115(ORD_BROADCAST_P2WPKH, more).error).toMatch(/more than the dust core sends back/);
+  });
+
+  it('refuses a commit output funding more reveal fee than the user\'s rate', () => {
+    expect(check115(MPMA_P2WPKH, MPMA_P2WPKH.result, { feeRate: 1 }).error).toMatch(/higher fee/);
+    const rich = recompose115(BROADCAST_P2WPKH, { commitValue: 50_000 });
+    expect(check115(BROADCAST_P2WPKH, rich).error).toMatch(/higher fee/);
   });
 
   it('holds each envelope to its own reveal shape', () => {
-    // A data reveal has no dust output, an ord reveal has one: neither passes as the other.
-    expect(verifyRevealTransaction(SEND_TAPROOT.signed_reveal_rawtransaction,
-      { ...revealOptions(SEND_TAPROOT), kind: 'ord' }).ok).toBe(false);
-    expect(verifyRevealTransaction(ORD_BROADCAST_TAPROOT.signed_reveal_rawtransaction,
-      { ...revealOptions(ORD_BROADCAST_TAPROOT), kind: 'data' }).ok).toBe(false);
+    expect(check115(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, { kind: 'ord' }).ok).toBe(false);
+    expect(check115(ORD_BROADCAST_P2WPKH, ORD_BROADCAST_P2WPKH.result, { kind: 'data' }).ok).toBe(false);
   });
 
-  it('rejects a data reveal with any output beyond the marker, even one paying us', () => {
-    const own = '160014dc53f17104ec8d1f215d61f92b603c7b2238cadb';
-    const extra = SEND_TAPROOT.signed_reveal_rawtransaction
-      .replace(`ffffffff01${MARKER}`, `ffffffff02${MARKER}2202000000000000${own}`);
-    expect(extra).not.toBe(SEND_TAPROOT.signed_reveal_rawtransaction);
-
-    const result = verifyRevealTransaction(extra, revealOptions(SEND_TAPROOT));
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/outputs core does not create/);
-  });
-
-  it('rejects a marker that carries value or says something else', () => {
-    const valued = SEND_TAPROOT.signed_reveal_rawtransaction.replace(MARKER, `2202000000000000${MARKER.slice(16)}`);
-    const other = SEND_TAPROOT.signed_reveal_rawtransaction.replace(MARKER, MARKER.replace('434e5452', '434e5453'));
-    for (const reveal of [valued, other]) {
-      expect(reveal).not.toBe(SEND_TAPROOT.signed_reveal_rawtransaction);
-      expect(verifyRevealTransaction(reveal, revealOptions(SEND_TAPROOT)).ok).toBe(false);
-    }
-  });
-
-  it('rejects a reveal that spends a different commit', () => {
-    const result = verifyRevealTransaction(MPMA_TAPROOT.signed_reveal_rawtransaction, {
-      ...revealOptions(MPMA_TAPROOT),
-      commitTxHex: SEND_TAPROOT.rawtransaction,
-    });
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/does not spend this commit/);
-  });
-
-  it('rejects a reveal that publishes a different envelope than the one verified', () => {
-    const result = verifyRevealTransaction(SEND_TAPROOT.signed_reveal_rawtransaction, {
-      ...revealOptions(SEND_TAPROOT),
-      envelopeScriptHex: MPMA_TAPROOT.envelope_script,
-    });
-    expect(result.ok).toBe(false);
-  });
-
-  it('rejects a commit output that funds more reveal fee than the user\'s rate', () => {
-    // 1,380 sats of reveal fee is right at 10 sat/vB and far too much at 1.
-    const result = verifyRevealTransaction(MPMA_TAPROOT.signed_reveal_rawtransaction, {
-      ...revealOptions(MPMA_TAPROOT),
-      feeRate: 1,
-    });
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/higher fee/);
+  it('reads the message a tampered envelope carries, so the request comparison refuses it', () => {
+    const tampered = tamperedMessage115(BROADCAST_P2WPKH, (m) => m.replace('54686520717569636b', '54686520717569636c'));
+    // Structurally sound and closed by the source's key…
+    expect(check115(BROADCAST_P2WPKH, tampered).ok).toBe(true);
+    // …but it is not the message this request packs.
+    const read = readDataEnvelope(tampered.envelope_script);
+    expect(read.messageHex).toBe(tampered.data);
+    expect(read.messageHex).not.toBe(BROADCAST_P2WPKH.result.data);
   });
 });
 
-function reverseHex(hex: string): string {
-  return hex.match(/../g)!.reverse().join('');
+/** The address a rebuilt compose's commit output 0 pays, decoded with btc-signer. */
+function commitOutputAddress115(result: Compose115Result): string {
+  const commit = Transaction.fromRaw(hexToBytes(result.rawtransaction), { allowUnknownOutputs: true });
+  return Address().encode(OutScript.decode(commit.getOutput(0).script!));
 }
-
-function amountHex(sats: number): string {
-  return reverseHex(BigInt(sats).toString(16).padStart(16, '0'));
-}
-
-/**
- * A real compose with its commit output 0 funded with `commitValue`, and its reveal re-pointed at
- * that commit, returning `changeValue` in its ord output when given. The reveal's signature goes
- * stale; nothing checked here reads it.
- */
-function refunded(fixture: TaprootFixture, commitValue: number, changeValue?: number) {
-  const commit = Transaction.fromRaw(hexToBytes(fixture.rawtransaction), { allowUnknownOutputs: true });
-  const { amount, script } = commit.getOutput(0);
-  const scriptHex = `${(script!.length).toString(16).padStart(2, '0')}${bytesToHex(script!)}`;
-  const rawtransaction = fixture.rawtransaction
-    .replace(`${amountHex(Number(amount))}${scriptHex}`, `${amountHex(commitValue)}${scriptHex}`);
-  const commitId = Transaction.fromRaw(hexToBytes(rawtransaction), { allowUnknownOutputs: true }).id;
-  let reveal = fixture.signed_reveal_rawtransaction.replace(reverseHex(commit.id), reverseHex(commitId));
-  if (changeValue !== undefined) {
-    const change = Transaction.fromRaw(hexToBytes(reveal), { allowUnknownOutputs: true }).getOutput(1);
-    const changeScript = `${(change.script!.length).toString(16).padStart(2, '0')}${bytesToHex(change.script!)}`;
-    reveal = reveal.replace(`${amountHex(Number(change.amount))}${changeScript}`, `${amountHex(changeValue)}${changeScript}`);
-  }
-  return { reveal, options: { ...revealOptions(fixture), commitTxHex: rawtransaction } };
-}
-
-describe('what the commit output may hold', () => {
-  // Core's ord reveal: 1,291 sats committed, 546 returned, 745 fee.
-  const ORD_FEE = 745;
-
-  it("rebuilds core's own ord pair unchanged, and accepts it", () => {
-    const { reveal, options } = refunded(ORD_BROADCAST_TAPROOT, ORD_FEE + 546, 546);
-    expect(options.commitTxHex).toBe(ORD_BROADCAST_TAPROOT.rawtransaction);
-    expect(reveal).toBe(ORD_BROADCAST_TAPROOT.signed_reveal_rawtransaction);
-    expect(verifyRevealTransaction(reveal, options)).toEqual({ ok: true, revealFee: ORD_FEE });
-  });
-
-  it('refuses a large commit whose reveal returns a little and burns the rest as fee', () => {
-    const { reveal, options } = refunded(ORD_BROADCAST_TAPROOT, 50_000_000, 1000);
-    const result = verifyRevealTransaction(reveal, options);
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/not accepted/);
-  });
-
-  it('refuses a large ord commit even when the reveal returns nearly all of it to the source', () => {
-    // The fee is exactly core's, but the commit output holds 0.1 BTC under the envelope key.
-    const { reveal, options } = refunded(ORD_BROADCAST_TAPROOT, ORD_FEE + 10_000_000, 10_000_000);
-    const result = verifyRevealTransaction(reveal, options);
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/more than the dust core sends back/);
-  });
-
-  it("refuses an ord reveal returning one sat more than core's dust", () => {
-    const { reveal, options } = refunded(ORD_BROADCAST_TAPROOT, ORD_FEE + 547, 547);
-    const result = verifyRevealTransaction(reveal, options);
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/more than the dust core sends back/);
-  });
-
-  it('refuses a data commit holding more than the reveal fee, since its reveal returns nothing', () => {
-    // Core's send commit is 330 sats, all of it fee; any more is fee the user never chose.
-    const same = refunded(SEND_TAPROOT, 330);
-    expect(same.options.commitTxHex).toBe(SEND_TAPROOT.rawtransaction);
-    expect(verifyRevealTransaction(same.reveal, same.options)).toEqual({ ok: true, revealFee: 330 });
-
-    for (const value of [1_000, 50_000_000]) {
-      const { reveal, options } = refunded(SEND_TAPROOT, value);
-      const result = verifyRevealTransaction(reveal, options);
-      expect(result.ok).toBe(false);
-      expect(result.error).toMatch(/higher fee/);
-    }
-  });
-});
-
-/**
- * A real compose whose commit output 0 is re-pointed at another script tree, and whose reveal is
- * re-pointed at that commit with the control block for the fixture's envelope in that tree. The
- * reveal's signature goes stale; nothing checked here reads it.
- */
-function recommitted(fixture: TaprootFixture, options: { internalKey?: Uint8Array; extraLeaf?: string }) {
-  const envelope = hexToBytes(fixture.envelope_script);
-  const envelopeKey = envelope.slice(-33, -1);
-  const tree = options.extraLeaf
-    ? [{ script: envelope }, { script: hexToBytes(options.extraLeaf) }]
-    : { script: envelope };
-  const payment = p2tr(options.internalKey ?? envelopeKey, tree, undefined, true);
-  const [controlBlock] = payment.tapLeafScript!.find(([, script]) =>
-    bytesToHex(script.slice(0, -1)) === fixture.envelope_script)!;
-  const control = bytesToHex(TaprootControlBlock.encode(controlBlock));
-
-  const original = Transaction.fromRaw(hexToBytes(fixture.rawtransaction), { allowUnknownOutputs: true });
-  const rawtransaction = fixture.rawtransaction.replace(bytesToHex(original.getOutput(0).script!), bytesToHex(payment.script));
-  const commitId = Transaction.fromRaw(hexToBytes(rawtransaction), { allowUnknownOutputs: true }).id;
-  const originalControl = fixture.signed_reveal_rawtransaction.slice(-8 - 66, -8);
-  const reveal = fixture.signed_reveal_rawtransaction
-    .replace(reverseHex(original.id), reverseHex(commitId))
-    .replace(`21${originalControl}00000000`, `${(control.length / 2).toString(16).padStart(2, '0')}${control}00000000`);
-  return { rawtransaction, reveal, outputAddress: payment.address! };
-}
-
-describe("the commit output's script tree", () => {
-  it("accepts core's pair: the output commits to the verified envelope alone, under its own key", () => {
-    for (const fixture of [SEND_TAPROOT, MPMA_TAPROOT, ORD_BROADCAST_TAPROOT]) {
-      expect(verifyRevealTransaction(fixture.signed_reveal_rawtransaction, revealOptions(fixture)).ok).toBe(true);
-    }
-    // Rebuilding the same single-leaf tree reproduces core's commit exactly.
-    const same = recommitted(SEND_TAPROOT, {});
-    expect(same.rawtransaction).toBe(SEND_TAPROOT.rawtransaction);
-    expect(same.reveal).toBe(SEND_TAPROOT.signed_reveal_rawtransaction);
-  });
-
-  it('refuses a commit output that hides a second leaf, even at the address that output pays', () => {
-    const { rawtransaction, reveal, outputAddress } = recommitted(SEND_TAPROOT, { extraLeaf: MPMA_TAPROOT.envelope_script });
-    const options = { ...revealOptions(SEND_TAPROOT), commitTxHex: rawtransaction };
-    expect(rawtransaction).not.toBe(SEND_TAPROOT.rawtransaction);
-
-    expect(verifyRevealTransaction(reveal, options).ok).toBe(false);
-    const result = verifyRevealTransaction(reveal, { ...options, commitAddress: outputAddress });
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/commit to exactly the verified envelope/);
-  });
-
-  it('refuses a commit output under a different internal key, even at the address that output pays', () => {
-    const otherKey = utils.pubSchnorr(new Uint8Array(32).fill(7));
-    const { rawtransaction, reveal, outputAddress } = recommitted(SEND_TAPROOT, { internalKey: otherKey });
-    const options = { ...revealOptions(SEND_TAPROOT), commitTxHex: rawtransaction };
-    expect(rawtransaction).not.toBe(SEND_TAPROOT.rawtransaction);
-
-    expect(verifyRevealTransaction(reveal, options).ok).toBe(false);
-    const result = verifyRevealTransaction(reveal, { ...options, commitAddress: outputAddress });
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/commit to exactly the verified envelope/);
-  });
-
-  it('refuses a commit output to a different leaf than the one the reveal publishes', () => {
-    // The commit pays for the MPMA's envelope; the reveal shows the send's.
-    const mpmaCommit = MPMA_TAPROOT.rawtransaction;
-    const mpmaOutput = commitOutputAddress(MPMA_TAPROOT);
-    const commitId = Transaction.fromRaw(hexToBytes(mpmaCommit), { allowUnknownOutputs: true }).id;
-    const sendId = Transaction.fromRaw(hexToBytes(SEND_TAPROOT.rawtransaction), { allowUnknownOutputs: true }).id;
-    const reveal = SEND_TAPROOT.signed_reveal_rawtransaction.replace(reverseHex(sendId), reverseHex(commitId));
-    expect(reveal).not.toBe(SEND_TAPROOT.signed_reveal_rawtransaction);
-
-    const result = verifyRevealTransaction(reveal, {
-      ...revealOptions(SEND_TAPROOT),
-      commitTxHex: mpmaCommit,
-      commitAddress: mpmaOutput,
-    });
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/commit to exactly the verified envelope/);
-  });
-});
 
 describe('the reveal against the signed commit', () => {
   it('matches the commit it was composed with', () => {
-    expect(revealSpendsTransaction(SEND_TAPROOT.signed_reveal_rawtransaction, SEND_TAPROOT.rawtransaction)).toBe(true);
+    expect(revealSpendsTransaction(BROADCAST_P2WPKH.result.reveal_rawtransaction, BROADCAST_P2WPKH.result.rawtransaction)).toBe(true);
   });
 
   it('no longer matches once anything changed the commit, such as a ZELD nonce in nLockTime', () => {
-    const hunted = `${SEND_TAPROOT.rawtransaction.slice(0, -8)}2a000000`;
-    expect(revealSpendsTransaction(SEND_TAPROOT.signed_reveal_rawtransaction, hunted)).toBe(false);
+    const hunted = `${BROADCAST_P2WPKH.result.rawtransaction.slice(0, -8)}2a000000`;
+    expect(revealSpendsTransaction(BROADCAST_P2WPKH.result.reveal_rawtransaction, hunted)).toBe(false);
   });
 });

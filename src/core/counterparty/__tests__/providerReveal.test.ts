@@ -1,8 +1,9 @@
 /**
  * The hostile-site suite for Counterparty Taproot commits whose reveal a site holds.
  *
- * The reveal publishes its message from the address that funded the commit, while the site's own
- * key signs the reveal. Each test is a request a site could make: the honest core
+ * The reveal publishes its message from the address that funded the commit, and from Core 11.5
+ * only when that address's key closes the envelope and signs the reveal. Each test is a request a
+ * site could make: the honest core
  * shape, and each way to make the wallet describe one message while the commit lets the site
  * publish another — a reveal for a different transaction, a leaf swapped after signing, a commit
  * that hides a second leaf, an envelope that says nothing, and a commit funded by someone else.
@@ -33,6 +34,8 @@ import {
   buildCommit,
   buildReveal,
   dataEnvelope,
+  EPHEMERAL_KEY,
+  EPHEMERAL_PUBKEY,
   FAIRMINTER_METADATA,
   OTHER_ADDRESS,
   ordEnvelope,
@@ -76,11 +79,31 @@ describe('verifyCounterpartyReveal', () => {
     expect(sends.map((send) => send.destination)).toEqual(RECIPIENTS);
   });
 
-  it('proves an ord envelope signed with the throwaway key', () => {
+  it('proves an ord envelope closed and signed by the source key', () => {
     const commit = buildCommit(ordEnvelope({ metadata: FAIRMINTER_METADATA }));
     const result = verifyCounterpartyReveal(buildReveal(commit), commitOf(commit.psbtHex), [USER_ADDRESS]);
 
     expect(result).toMatchObject({ ok: true, envelope: 'ord', messageType: 'fairminter' });
+  });
+
+  // From Core 11.5 a reveal whose envelope another key closes publishes nothing from the user's
+  // address, so it cannot be what signing the commit means.
+  it.each([
+    ['data', () => dataEnvelope(MPMA_HEX, EPHEMERAL_PUBKEY)],
+    ['ord', () => ordEnvelope({ metadata: FAIRMINTER_METADATA, pubkey: EPHEMERAL_PUBKEY })],
+  ])("refuses a %s envelope closed and signed by the site's own key", (_, envelope) => {
+    const commit = buildCommit(envelope(), { key: EPHEMERAL_KEY });
+    const result = verifyCounterpartyReveal(buildReveal(commit, { key: EPHEMERAL_KEY }), commitOf(commit.psbtHex), [USER_ADDRESS]);
+
+    expect(result).toMatchObject({ ok: false, reason: 'not_source_key' });
+  });
+
+  it("proves a user-key envelope under the site's internal key: the rule reads the leaf's key", () => {
+    // The internal key decides only who may key-path spend; the rule reads the leaf's key.
+    const commit = buildCommit(dataEnvelope(MPMA_HEX), { key: EPHEMERAL_KEY });
+    const result = verifyCounterpartyReveal(buildReveal(commit), commitOf(commit.psbtHex), [USER_ADDRESS]);
+
+    expect(result).toMatchObject({ ok: true, messageType: 'mpma_send' });
   });
 
   it('refuses a reveal that spends a different transaction', () => {

@@ -52,11 +52,13 @@ import {
 } from '@/platform/storage/walletStorage';
 import { assertTrezorSuiteAccess } from '@/platform/suiteAccess';
 import { WalletSigner } from '@/platform/walletSigner';
+
 // Note: getTrezorAdapter is dynamically imported in createHardwareWalletWithDiscovery to avoid
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
-import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
 // Import types from centralized types module
+import type { TaprootRevealToSign } from '@/core/bitcoin/taprootRevealSigner';
+import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
 import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, RevealSecretRequest, SignPsbtOptions, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
 
 /** How long a keychain load waits for session recovery before declining to load this time. */
@@ -1836,6 +1838,17 @@ export class WalletManager {
     expectedIdentity?: SigningIdentity,
   ): Promise<string> {
     return this.signer.signTransaction(rawTxHex, sourceAddress, options, expectedIdentity);
+  }
+
+  /** Sign a Taproot commit and its reveal with the source key, both or neither (see WalletSigner). */
+  public async signCommitAndReveal(
+    rawTxHex: string,
+    sourceAddress: string,
+    reveal: TaprootRevealToSign,
+    options?: Omit<SignTransactionOptions, 'zeldHuntSeconds'>,
+    expectedIdentity?: SigningIdentity,
+  ): Promise<{ signedTxHex: string; signedRevealHex: string }> {
+    return this.signer.signCommitAndReveal(rawTxHex, sourceAddress, reveal, options, expectedIdentity);
   }
 
   public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {

@@ -21,7 +21,10 @@
  * - the leaf must be an envelope core reads, decoding to a Counterparty message the wallet can
  *   describe, and the reveal must carry the CNTRPRTY marker core requires;
  * - the commit must be funded from this wallet, the address the message is
- *   published from.
+ *   published from;
+ * - the leaf must be a canonical envelope closed by a key of that address. Core 11.5 attributes a
+ *   reveal to its source only then (`revealSourceRule.ts`); any other reveal publishes nothing, so
+ *   describing its message as what the commit does would be false.
  *
  * What the proof cannot fix is the reveal's *outputs*. Core signs its own reveals with a key it
  * discards, so those can never change; but a site that built its reveal with its own key can
@@ -36,10 +39,11 @@
  * output's value.
  */
 
-import { bytesToHex } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import type { Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
+import { checkRevealSourceSignature, sourceOutputScript } from '@/core/counterparty/revealSourceRule';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
 import {
@@ -149,6 +153,8 @@ export type RevealRefusal =
   | 'script_not_committed'
   | 'not_counterparty'
   | 'source_not_signer'
+  /** The envelope is not closed by a key of the funding address, so Core 11.5 ignores the reveal. */
+  | 'not_source_key'
   /** The commit carries its own Counterparty message too; the screen could describe only one. */
   | 'two_messages';
 
@@ -275,6 +281,20 @@ export function verifyCounterpartyReveal(
     );
   }
 
+  // Core 11.5 attributes the reveal to the funding address only when its signature is proved to be
+  // that address's: the spent output is P2TR, the leaf is a canonical envelope committed under
+  // tapscript, and its key is the address's. Anything else publishes no message at all.
+  const sourceScript = sourceOutputScript(source);
+  const rule = sourceScript && input.finalScriptWitness
+    ? checkRevealSourceSignature(hexToBytes(output.script), sourceScript, input.finalScriptWitness)
+    : null;
+  if (!rule?.ok) {
+    return refuse(
+      'not_source_key',
+      'The reveal is not signed by a key of the funding address, so Counterparty would not publish its message.',
+    );
+  }
+
   const outputs: RevealOutput[] = [];
   const destinations: (string | null)[] = [];
   let dataSeen = false;
@@ -311,6 +331,7 @@ export function revealRefusalText(reason: RevealRefusal): string {
     case 'script_not_committed': return t('safety_reveal_script_not_committed');
     case 'not_counterparty': return t('safety_reveal_not_counterparty');
     case 'source_not_signer': return t('safety_reveal_source_not_signer');
+    case 'not_source_key': return t('safety_reveal_not_source_key');
     case 'two_messages': return t('safety_reveal_two_messages');
   }
 }

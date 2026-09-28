@@ -5,6 +5,7 @@ import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails, parsePSBT, resolvePsbtSighashType, validateSignInputs } from '@/core/bitcoin/psbt';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
+import { signTaprootReveal, type TaprootRevealToSign } from '@/core/bitcoin/taprootRevealSigner';
 import { assertTransactionMatchesReviewed, parseTransactionForIntegrity } from '@/core/bitcoin/transactionIntegrity';
 import { signTransaction as btcSignTransaction } from '@/core/bitcoin/transactionSigner';
 import { mapVerifiedInputPaths } from '@/core/hardware/inputPaths';
@@ -212,6 +213,70 @@ export class WalletSigner {
     );
     assertStillAuthorized();
     return signedTxHex;
+  }
+
+  /**
+   * Sign a Taproot-encoded compose: the commit, then its reveal with the source key.
+   *
+   * Core 11.5 returns an unsigned reveal the wallet signs with the source key. Both signatures are
+   * made here, in one request under one signing guard, so a lock, wallet switch or address change
+   * at any point stops both: nothing is returned unless both were signed under the identity the
+   * request started with. The commit is signed exactly as `signTransaction` signs it (no ZELD
+   * nonce: the reveal spends its txid); the reveal is signed only if it spends output 0 of that
+   * signed commit and passes `signTaprootReveal`'s checks against that output.
+   *
+   * Software wallets only: a hardware wallet never asks for Taproot encoding.
+   */
+  public async signCommitAndReveal(
+    rawTxHex: string,
+    sourceAddress: string,
+    reveal: TaprootRevealToSign,
+    options?: Omit<SignTransactionOptions, 'zeldHuntSeconds'>,
+    expectedIdentity?: SigningIdentity,
+  ): Promise<{ signedTxHex: string; signedRevealHex: string }> {
+    const assertStillAuthorized = this.createSigningGuard(expectedIdentity);
+    const activeWalletId = this.state.activeWalletId();
+    if (!activeWalletId) throw new Error("No active wallet set");
+    const wallet = this.state.getWalletById(activeWalletId);
+    if (!wallet) throw new Error("Wallet not found");
+    if (wallet.type === 'hardware') {
+      throw new Error('A hardware wallet does not sign Taproot reveals');
+    }
+    const targetAddress = wallet.addresses.find(addr => addr.address === sourceAddress);
+    if (!targetAddress) throw new Error("Source address not found in wallet");
+
+    const privateKeyResult = await this.state.getPrivateKey(wallet.id, targetAddress.path);
+    assertStillAuthorized();
+    const signedTxHex = await btcSignTransaction(
+      rawTxHex,
+      wallet,
+      targetAddress,
+      privateKeyResult.hex,
+      privateKeyResult.compressed,
+      options?.inputValues,
+      options?.lockScripts,
+      getTrustedBroadcastPrevout,
+      assertStillAuthorized,
+      0,
+    );
+    assertStillAuthorized();
+
+    // The reveal spends output 0 of the commit as signed; read that output from the signed bytes.
+    const commit = parseTransactionForIntegrity(signedTxHex);
+    const commitOutput = commit.outputsLength > 0 ? commit.getOutput(0) : undefined;
+    const revealInput = parseTransactionForIntegrity(reveal.revealHex).getInput(0);
+    if (!commitOutput?.script || commitOutput.amount === undefined || !revealInput?.txid
+      || revealInput.index !== 0 || bytesToHex(revealInput.txid) !== commit.id) {
+      throw new Error('The reveal does not spend the signed commit transaction.');
+    }
+    const signedRevealHex = signTaprootReveal(
+      reveal,
+      { scriptHex: bytesToHex(commitOutput.script), value: commitOutput.amount },
+      sourceAddress,
+      privateKeyResult.hex,
+    );
+    assertStillAuthorized();
+    return { signedTxHex, signedRevealHex };
   }
 
   /**

@@ -66,7 +66,7 @@ import {
   readDataEnvelope,
   revealSpendsTransaction,
   verifyInscriptionEnvelope,
-  verifyRevealTransaction,
+  verifyUnsignedReveal,
 } from "@/core/counterparty/inscriptionEnvelope";
 import { normalizeFormData, verifiedReviewParams } from "@/core/counterparty/normalize";
 import {
@@ -83,7 +83,7 @@ import {
   ownScriptRecipients,
 } from "@/core/counterparty/scriptPaymentCaution";
 import { getSourcePubkey } from "@/core/counterparty/sourcePubkey";
-import { chooseComposeEncoding, composeWithEncoding, hasUnsignedTaprootReveal } from "@/core/counterparty/taprootEncoding";
+import { chooseComposeEncoding, composeWithEncoding, readRevealShape, signsTaprootReveals } from "@/core/counterparty/taprootEncoding";
 import { fetchInputValues } from "@/core/counterparty/transaction";
 import { unpackCounterpartyMessage } from "@/core/counterparty/unpack";
 import { packAddress } from "@/core/counterparty/unpack/address";
@@ -196,7 +196,8 @@ export function ComposerProvider<T>({
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
   const {
-    activeAddress, activeWallet, wallets, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress,
+    activeAddress, activeWallet, wallets, authState, signTransaction, signCommitAndReveal, broadcastTransaction,
+    setHardwareOperationInProgress,
   } = useWallet();
   const { settings } = useSettings();
   const { clearBalances } = useHeader();
@@ -306,13 +307,21 @@ export function ComposerProvider<T>({
       // Check if aborted before API call
       if (signal.aborted) return;
 
+      // Core 11.5 returns an unsigned reveal the wallet signs with the source key. A hardware wallet
+      // does not sign one here, so a request that asks for Taproot (an inscription) is refused
+      // before it is composed; a wallet-chosen encoding never asks (`chooseComposeEncoding`).
+      const requestsTaproot = dataForApi.encoding === 'taproot' || !!dataForApi.inscription;
+      if (requestsTaproot && !signsTaprootReveals(activeWallet?.type)) {
+        throw new Error(t('composer_context_taproot_needs_software_wallet'));
+      }
+
       // Call compose API (UTXO selection is handled internally by compose functions). A message too
       // long for an OP_RETURN goes out Taproot-encoded where core allows it, since the multisig
       // fallback costs several times more; the user is never asked to choose, and a composer that
       // will not build it that way is asked once more for the default. Verification below compares
       // against `dataForApi`, which the encoding does not change.
       // Reassigned below if verification finds the reported fee differs from the real one.
-      const encoding = chooseComposeEncoding(composeType, dataForApi, activeAddress.address);
+      const encoding = chooseComposeEncoding(composeType, dataForApi, activeAddress.address, activeWallet?.type);
       let response = await composeWithEncoding(composeApi, dataForApi, encoding, signal);
       // The request as the wallet actually sent it: the form's data plus any message field the
       // compose function chose itself (an attach's output after the change). Recorded by the
@@ -345,30 +354,31 @@ export function ComposerProvider<T>({
 
       // A Taproot compose carries its message in an envelope rather than an OP_RETURN, so the
       // transaction being signed is a commit paying a P2TR address derived from that envelope, and
-      // a reveal the composer already signed publishes it. A plain data envelope is read — its
-      // message then goes through every check below exactly as an OP_RETURN payload would — and an
-      // inscription's ord envelope is rebuilt from the message this request should produce. Either
-      // way the derived address explains the commit output, and the reveal is held to core's
-      // construction. Verified here rather than exempted (`inscriptionEnvelope.ts`).
+      // a reveal publishes it. Core 11.5 returns an unsigned reveal the wallet signs with the source
+      // key. A plain data envelope is read — its message then goes through every check below
+      // exactly as an OP_RETURN payload would — and an inscription's ord envelope is rebuilt from
+      // the message this request should produce. Either way the derived address explains the
+      // commit output, and the reveal is held to core's construction and attribution rule before
+      // either transaction can be signed. Verified here rather than exempted
+      // (`inscriptionEnvelope.ts`).
       let taprootCommitAddress: string | null = null;
       let revealFee: number | undefined;
-      const envelopeScript = response.result.envelope_script;
-      const revealHex = response.result.signed_reveal_rawtransaction;
-      const hasEnvelope = typeof envelopeScript === 'string' && envelopeScript.length > 0;
-      const hasReveal = typeof revealHex === 'string' && revealHex.length > 0;
-      // Core 11.5 returns an unsigned reveal for Taproot composes, which this wallet does not sign
-      // yet. Where the wallet chose Taproot itself, `composeWithEncoding` already composed the
-      // default way instead; reaching here means the request asked for Taproot (an inscription),
-      // so it is refused rather than quietly built as something else.
-      if (hasUnsignedTaprootReveal(response.result)) {
-        throw new Error(t('composer_context_taproot_reveal_needs_newer_wallet'));
+      const revealShape = readRevealShape(response.result);
+      if (revealShape.kind === 'server_signed') {
+        // A reveal signed by the server is not one Core 11.5 attributes to the user; never broadcast.
+        throw new Error(t('composer_context_taproot_server_signed_reveal'));
       }
-      if (hasEnvelope !== hasReveal) {
-        // One half alone is either a reveal that would be broadcast unchecked or a commit whose
-        // message never lands.
+      if (revealShape.kind === 'partial') {
+        // Part of a reveal is either one that cannot be checked or a commit whose message never
+        // lands.
         throw new Error(t('composer_context_taproot_half_returned'));
       }
-      if (hasEnvelope && hasReveal) {
+      if (revealShape.kind === 'unsigned' && (!requestsTaproot && encoding !== 'taproot')) {
+        // Only a request that asked for Taproot gets a reveal to sign.
+        throw new Error(t('composer_context_taproot_unexpected_envelope'));
+      }
+      if (revealShape.kind === 'unsigned') {
+        const envelopeScript = revealShape.envelopeScriptHex;
         const kind = envelopeKind(envelopeScript);
         // A commit also carrying a data output, or an ord envelope nobody asked for, is not what
         // core builds for this request.
@@ -395,11 +405,12 @@ export function ComposerProvider<T>({
           taprootCommitAddress = envelope.commitAddress;
           counterpartyData = envelope.messageHex;
         }
-        // The reveal is signed by the composer, so its input, outputs and fee are checked rather
-        // than trusted.
-        const revealCheck = verifyRevealTransaction(revealHex, {
+        // The wallet signs the reveal with the source key, so its key, commitment, input, outputs
+        // and fee are checked before anything is signed.
+        const revealCheck = verifyUnsignedReveal(revealShape.reveal, {
           kind,
           ownAddresses: [activeAddress.address],
+          sourceAddress: activeAddress.address,
           commitTxHex: response.result.rawtransaction,
           commitAddress: taprootCommitAddress,
           envelopeScriptHex: envelopeScript,
@@ -685,8 +696,13 @@ export function ComposerProvider<T>({
     }
 
     const rawTxHex = state.apiResponse.result.rawtransaction;
-    const revealHex = state.apiResponse.result.signed_reveal_rawtransaction;
-    const hasReveal = typeof revealHex === 'string' && revealHex.length > 0;
+    // Verified at compose time; read again here so a reviewed response without every reveal field
+    // can never be signed as a single transaction.
+    const revealShape = readRevealShape(state.apiResponse.result);
+    if (revealShape.kind === 'server_signed' || revealShape.kind === 'partial') {
+      throw new Error(t('composer_context_taproot_half_returned'));
+    }
+    const unsignedReveal = revealShape.kind === 'unsigned' ? revealShape : null;
     // PSBT is available for hardware wallet signing
     const psbtHex = state.apiResponse.result.psbt;
     // Input values and lock scripts are needed to complete PSBT for hardware wallets
@@ -715,17 +731,29 @@ export function ComposerProvider<T>({
     const signal = abortControllerRef.current?.signal;
     signal?.throwIfAborted();
     let signedTxHex: string;
+    let revealHex: string | null = null;
     try {
-      // Signing, including a legacy hunt, stays behind the background session guard.
-      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, {
-        psbtHex, inputValues, lockScripts,
-        // Never hunt over a commit whose reveal is already signed: the nonce would change the txid
-        // the reveal spends.
-        ...(!hasReveal && activeWallet && huntsWhileSigning(activeWallet.addressFormat, activeWallet.type)
-          && state.apiResponse.result.zeld_hunt?.reason === HUNTS_WHILE_SIGNING
-          ? { zeldHuntSeconds: state.apiResponse.result.zeld_hunt?.seconds ?? 0 }
-          : {}),
-      });
+      if (unsignedReveal) {
+        // Commit and reveal are signed in one background request under one session guard, so a
+        // lock or identity change stops both. Never with a ZELD nonce: the reveal spends the
+        // commit's txid.
+        const signed = await signCommitAndReveal(rawTxHex, activeAddress.address, {
+          revealHex: unsignedReveal.reveal.revealHex,
+          envelopeScriptHex: unsignedReveal.envelopeScriptHex,
+          controlBlockHex: unsignedReveal.reveal.controlBlockHex,
+        }, { psbtHex, inputValues, lockScripts });
+        signedTxHex = signed.signedTxHex;
+        revealHex = signed.signedRevealHex;
+      } else {
+        // Signing, including a legacy hunt, stays behind the background session guard.
+        signedTxHex = await signTransaction(rawTxHex, activeAddress.address, {
+          psbtHex, inputValues, lockScripts,
+          ...(activeWallet && huntsWhileSigning(activeWallet.addressFormat, activeWallet.type)
+            && state.apiResponse.result.zeld_hunt?.reason === HUNTS_WHILE_SIGNING
+            ? { zeldHuntSeconds: state.apiResponse.result.zeld_hunt?.seconds ?? 0 }
+            : {}),
+        });
+      }
     } finally {
       if (isHardwareWallet) setHardwareOperationInProgress(false);
     }
@@ -734,7 +762,7 @@ export function ComposerProvider<T>({
     // The reveal spends the commit by txid. If anything between compose and signature changed the
     // commit, the reveal spends nothing and the commit alone would strand its value, so neither
     // goes out.
-    if (hasReveal && !revealSpendsTransaction(revealHex, signedTxHex)) {
+    if (unsignedReveal && (!revealHex || !revealSpendsTransaction(revealHex, signedTxHex))) {
       throw new Error(t('composer_context_reveal_no_longer_matches'));
     }
     // Record transaction before broadcast to prevent double-broadcast
@@ -768,12 +796,12 @@ export function ComposerProvider<T>({
     }
 
     // A Taproot compose is two transactions: the commit just went out, and the reveal publishes the
-    // message. The reveal is already signed by the composer and was checked at compose time
-    // against core's construction, and again above against the signed commit. It goes out only
-    // now, after the commit was accepted, because it spends the commit's output. Without it the
-    // message never lands and the committed sats are stranded.
+    // message. The reveal was checked at compose time against core's construction, signed with the
+    // source key only after passing core's attribution rule, and checked again above against the
+    // signed commit. It goes out only now, after the commit was accepted, because it spends the
+    // commit's output. Without it the message never lands.
     let revealBroadcast: { txid?: string } | undefined;
-    if (hasReveal) {
+    if (revealHex) {
       try {
         revealBroadcast = await broadcastTransaction(revealHex);
       } catch (error) {
@@ -796,7 +824,7 @@ export function ComposerProvider<T>({
       broadcast: broadcastResponse,
       ...(revealBroadcast ? { revealBroadcast } : {}),
     };
-  }, [state.apiResponse, activeAddress, activeWallet, signTransaction, broadcastTransaction, setHardwareOperationInProgress]);
+  }, [state.apiResponse, activeAddress, activeWallet, signTransaction, signCommitAndReveal, broadcastTransaction, setHardwareOperationInProgress]);
 
   // Sign and broadcast transaction
   const signAndBroadcast = useCallback(async () => {

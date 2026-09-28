@@ -2,10 +2,11 @@
  * Verification for Taproot-encoded composes: ord inscriptions and plain data envelopes.
  *
  * With `encoding=taproot`, core does not put the Counterparty message in an OP_RETURN. It builds an
- * envelope script carrying the message, commits to that script in a P2TR output, and returns a
- * *reveal* transaction — already signed with a throwaway key — that spends the commit and publishes
- * the envelope (`lib/api/composer.py`, `generate_envelope_script` / `prepare_taproot_output`). The
- * transaction the wallet signs is only the commit.
+ * envelope script carrying the message, commits to that script in a P2TR output, and returns an
+ * unsigned *reveal* transaction that spends the commit and publishes the envelope
+ * (`lib/api/composer.py`, `generate_envelope_script` / `prepare_taproot_output`). Core 11.5
+ * returns an unsigned reveal the wallet signs with the source key: the envelope is closed by that
+ * key, and the wallet signs both the commit and the reveal (`taprootRevealSigner.ts`).
  *
  * The ordinary checks therefore do not apply: there is no OP_RETURN to unpack, and the commit
  * output pays an address no request names. Instead of exempting the type, the envelope is read or
@@ -31,27 +32,32 @@
  *
  *   OP_FALSE OP_IF (<message chunk>)* OP_ENDIF <32-byte x-only pubkey> OP_CHECKSIG
  *
- * The trailing pubkey is drawn randomly per compose, so it is read from the composed script —
+ * The trailing pubkey is the source's own key (`reveal_pubkey`), read from the composed script —
  * the same allowance core makes when it strips the last two elements before comparing. It cannot
- * redirect the message: the commit address derives from it *and* the verified envelope, the
- * commit output is proved to commit to that envelope as its only leaf, and the reveal's outputs
- * and fee are checked separately (`verifyRevealTransaction`). Core holds the
- * matching private key, so the value the commit output carries is at core's mercy until the reveal
- * confirms; that value is bounded to the reveal's fee at the user's rate for the same reason.
+ * redirect the message: the commit address derives from it *and* the verified envelope, and
+ * `verifyUnsignedReveal` requires it to be a key of the source address, the commit output to
+ * commit to that envelope as its only leaf, and the reveal's outputs and fee to be core's. The
+ * commit output's key path is the source key too, so no one else can spend it.
  */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { p2tr, type Transaction } from '@scure/btc-signer';
+import { p2tr, TaprootControlBlock, type Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
 import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { type CborEncodable, encodeCbor } from '@/core/counterparty/pack/cbor';
+import {
+  checkRevealSourceSignature,
+  envelopeLeafKey,
+  sourceControlsKey,
+  sourceOutputScript,
+  TAPSCRIPT_LEAF_VERSION,
+} from '@/core/counterparty/revealSourceRule';
 import { decodeCbor } from '@/core/counterparty/unpack/cbor';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
 import {
   extractDataEnvelopeMessage,
   type Instruction,
   parseInstructions,
-  proveSingleLeafSpend,
   REVEAL_MARKER_SCRIPT,
 } from '@/core/counterparty/unpack/ordEnvelope';
 import { add, isGreaterThan, maximum, multiply, roundUp, subtract, toFiniteNumber, toSafeInteger } from '@/core/numeric';
@@ -160,7 +166,7 @@ function splitMessage(messageBytes: Uint8Array): {
   return { messageTypeId, metadata: encodeCbor(metadataFields), mimeType, content };
 }
 
-/** Build the envelope script core would produce for this message and ephemeral pubkey. */
+/** Build the envelope script core would produce for this message and envelope key. */
 function buildEnvelopeScript(messageBytes: Uint8Array, xOnlyPubkey: Uint8Array): Uint8Array | null {
   const split = splitMessage(messageBytes);
   if (!split) return null;
@@ -189,7 +195,7 @@ function buildEnvelopeScript(messageBytes: Uint8Array, xOnlyPubkey: Uint8Array):
 }
 
 /**
- * The ephemeral x-only pubkey is the last push before the trailing OP_CHECKSIG.
+ * The envelope's x-only key is the last push before the trailing OP_CHECKSIG.
  * Returns null when the script does not end in the expected `<32 bytes> OP_CHECKSIG` shape.
  */
 function extractEnvelopePubkey(envelope: Uint8Array): Uint8Array | null {
@@ -338,17 +344,35 @@ export const COMMIT_DUST_FLOOR = 330;
 /**
  * `config.DEFAULT_REGULAR_DUST_SIZE`: what core returns to the source in an ord reveal
  * (`get_reveal_outputs` pays `regular_dust_size(construct_params)`, and the wallet never sets
- * `regular_dust_size` on a compose request). The commit output's key-path is the envelope key the
- * server holds, so whatever the commit output holds beyond the reveal's fee is only as safe as
- * that key — the reveal may return no more than this.
+ * `regular_dust_size` on a compose request). The reveal may return no more than this: anything
+ * else is not core's construction.
  */
 export const ORD_REVEAL_CHANGE_SATS = 546;
+
+/**
+ * The reveal half of a Core 11.5 Taproot compose, as it arrives: unsigned, with what signing it
+ * needs (`taprootEncoding.ts`, `readUnsignedReveal`).
+ */
+export interface UnsignedReveal {
+  /** `reveal_rawtransaction`: the reveal, without a witness. */
+  revealHex: string;
+  /** `reveal_control_block`: the control block of the envelope leaf. */
+  controlBlockHex: string;
+  /** `reveal_pubkey`: the x-only key that closes the envelope, and signs the reveal. */
+  revealPubkeyHex: string;
+  /** `reveal_lock_scripts`: the script of the one output the reveal spends. */
+  lockScripts: string[];
+  /** `reveal_inputs_values`: its value. */
+  inputsValues: number[];
+}
 
 export interface RevealCheckOptions {
   /** The envelope the reveal publishes, which decides the outputs core gives it. */
   kind: EnvelopeKind;
   /** Addresses the reveal may return value to (an ord reveal's dust output). */
   ownAddresses: string[];
+  /** The address the message is published from, whose key must close the envelope. */
+  sourceAddress: string;
   /** The unsigned commit transaction, whose output 0 the reveal must spend. */
   commitTxHex: string;
   /** The address derived from the verified envelope, which commit output 0 must pay. */
@@ -367,27 +391,33 @@ export interface RevealCheck {
 }
 
 /**
- * Check the pre-signed reveal is exactly the transaction core builds for this commit.
+ * Check the unsigned reveal is exactly the transaction core builds for this commit, and that the
+ * wallet's signature on it is one core attributes to the source.
  *
- * The reveal is built and signed by the server, so none of it is the user's choice — but all of it
- * is checkable against core's construction (`get_reveal_outputs`, `prepare_taproot_output`):
+ * Core 11.5 returns an unsigned reveal the wallet signs with the source key, so everything the
+ * wallet is about to sign is held to core's construction (`prepare_taproot_output`,
+ * `get_reveal_outputs`, `get_reveal_control_block`) and to its attribution rule
+ * (`revealSourceRule.ts`):
  *
- * - one input, spending output 0 of this commit, which must pay the derived commit address and
- *   commit to the verified envelope as its only leaf, published as the reveal's tapleaf;
+ * - the envelope is a canonical envelope closed by `reveal_pubkey`, a key of the source address;
+ * - commit output 0 pays the address derived from that key and envelope, commits to the envelope
+ *   as its only leaf, and is what `reveal_lock_scripts` and `reveal_inputs_values` name; the
+ *   control block is exactly that leaf's, parity included;
+ * - the reveal has one input, spending output 0 of this commit, and no witness yet;
  * - a data envelope's reveal has only the zero-value CNTRPRTY marker, so the whole commit output
- *   is fee; an ord reveal adds exactly one output returning dust to the source, and no more than
- *   core's dust, since the envelope key can also spend the commit output by its key path;
- * - the commit output holds the reveal's fee at the user's rate plus that dust, raised to the
- *   segwit dust floor, and no more.
+ *   is fee; an ord reveal adds exactly one output returning no more than core's dust to the user;
+ * - the commit output holds the reveal's fee at the user's rate (sized with its signature, as core
+ *   sizes it) plus that dust, raised to the segwit dust floor, and no more.
  *
- * Anything else means the reveal would carry value somewhere the user never asked for, or spend
- * more on fees than they chose, and the commit that funds it must not be signed.
+ * Anything else means the reveal would publish something other than the verified message, carry
+ * value somewhere the user never asked for, or spend more on fees than they chose; neither
+ * transaction is signed.
  */
-export function verifyRevealTransaction(revealHex: string, options: RevealCheckOptions): RevealCheck {
+export function verifyUnsignedReveal(unsigned: UnsignedReveal, options: RevealCheckOptions): RevealCheck {
   let reveal: Transaction;
   let commit: Transaction;
   try {
-    reveal = parseTransactionForSigning(revealHex);
+    reveal = parseTransactionForSigning(unsigned.revealHex);
   } catch {
     return { ok: false, error: 'The reveal transaction could not be read.' };
   }
@@ -396,33 +426,48 @@ export function verifyRevealTransaction(revealHex: string, options: RevealCheckO
   } catch {
     return { ok: false, error: 'The commit transaction could not be read.' };
   }
+  const envelope = hexBytes(options.envelopeScriptHex);
+  const controlBlock = hexBytes(unsigned.controlBlockHex);
+  const sourceScript = sourceOutputScript(options.sourceAddress);
+  if (!envelope || !controlBlock || !sourceScript) {
+    return { ok: false, error: 'The reveal could not be read.' };
+  }
 
-  // The reveal spends the commit's output 0 and nothing else.
+  // The envelope is closed by `reveal_pubkey`, and that key is the source's.
+  const leafKey = envelopeLeafKey(envelope);
+  if (!leafKey.ok || bytesToHex(leafKey.key) !== unsigned.revealPubkeyHex.toLowerCase()) {
+    return { ok: false, error: 'The envelope is not closed by the key the reveal is signed with.' };
+  }
+  if (!sourceControlsKey(sourceScript, leafKey.key)) {
+    return { ok: false, error: 'The envelope is not closed by your address’s key, so the reveal would not publish from it.' };
+  }
+
+  // Commit output 0 commits to the envelope alone, under the envelope's own key, as named.
+  const commitOutput = commit.outputsLength > 0 ? commit.getOutput(0) : undefined;
+  const commitScript = commitOutput?.script;
+  const commitPays = commitScript ? decodeAddressFromScript(bytesToHex(commitScript)) : null;
+  if (commitOutput?.amount === undefined || !commitScript || !commitPays || commitPays !== options.commitAddress) {
+    return { ok: false, error: 'The commit transaction does not fund the reveal it was composed with.' };
+  }
+  if (unsigned.lockScripts.length !== 1 || unsigned.lockScripts[0]!.toLowerCase() !== bytesToHex(commitScript)
+    || unsigned.inputsValues.length !== 1 || BigInt(unsigned.inputsValues[0]!) !== commitOutput.amount) {
+    return { ok: false, error: 'The reveal does not spend the commit output it names.' };
+  }
+  if (bytesToHex(controlBlock) !== singleLeafControlBlock(leafKey.key, envelope)) {
+    return { ok: false, error: 'The commit output does not commit to exactly the verified envelope.' };
+  }
+  const rule = checkRevealSourceSignature(commitScript, sourceScript, [new Uint8Array(64), envelope, controlBlock]);
+  if (!rule.ok) {
+    return { ok: false, error: 'The reveal would not be attributed to your address.' };
+  }
+
+  // The reveal spends the commit's output 0, nothing else, and is not yet signed.
   const input = reveal.inputsLength === 1 ? reveal.getInput(0) : undefined;
   if (!input?.txid || input.index !== 0 || bytesToHex(input.txid) !== commit.id) {
     return { ok: false, error: 'The reveal does not spend this commit transaction.' };
   }
-  const commitOutput = commit.outputsLength > 0 ? commit.getOutput(0) : undefined;
-  const commitScript = commitOutput?.script ? bytesToHex(commitOutput.script) : '';
-  const commitPays = commitScript ? decodeAddressFromScript(commitScript) : null;
-  if (commitOutput?.amount === undefined || !commitPays || commitPays !== options.commitAddress) {
-    return { ok: false, error: 'The commit transaction does not fund the reveal it was composed with.' };
-  }
-  // The script-path witness is [signature, tapleaf, control block]. Proved against the output the
-  // wallet signs, not just its address: the output's key is the control block's internal key
-  // tweaked by this one leaf, so it commits to that leaf and no other; the leaf is the verified
-  // envelope, and the internal key is the envelope's own, as core builds it. No other message can
-  // be published from the output.
-  const proof = proveSingleLeafSpend(input.finalScriptWitness, commitScript);
-  if (!proof.ok) {
-    return { ok: false, error: 'The commit output does not commit to exactly the verified envelope.' };
-  }
-  if (bytesToHex(proof.leaf) !== options.envelopeScriptHex.replace(/^0x/, '').toLowerCase()) {
-    return { ok: false, error: 'The reveal does not publish the verified envelope.' };
-  }
-  const envelopeKey = extractEnvelopePubkey(proof.leaf);
-  if (!envelopeKey || bytesToHex(envelopeKey) !== bytesToHex(proof.internalKey)) {
-    return { ok: false, error: 'The commit output does not commit to exactly the verified envelope.' };
+  if (input.finalScriptWitness?.length || input.finalScriptSig?.length) {
+    return { ok: false, error: 'The reveal arrived already signed, so it was not accepted.' };
   }
 
   // Exactly the outputs core gives this kind of reveal.
@@ -454,7 +499,10 @@ export function verifyRevealTransaction(revealHex: string, options: RevealCheckO
   if (userRate === undefined || !isGreaterThan(userRate, 0)) {
     return { ok: false, error: 'The reveal fee cannot be checked without a fee rate.' };
   }
-  const atRate = roundUp(multiply(reveal.vsize, userRate));
+  // Sized as it will be broadcast, with its witness; core counts the signature as 65 bytes.
+  const sized = parseTransactionForSigning(unsigned.revealHex);
+  sized.updateInput(0, { finalScriptWitness: [new Uint8Array(65), envelope, controlBlock] }, true);
+  const atRate = roundUp(multiply(sized.vsize, userRate));
   // Core sizes the fee on a dummy reveal of the same shape, so the two agree exactly in practice;
   // the slack absorbs a serializer's rounding without admitting a meaningful overpayment.
   const slack = maximum(10, roundUp(multiply(atRate, '0.02')));
@@ -464,6 +512,17 @@ export function verifyRevealTransaction(revealHex: string, options: RevealCheckO
     return { ok: false, error: 'The reveal pays a higher fee than the rate you chose, so it was not accepted.' };
   }
   return { ok: true, revealFee: fee };
+}
+
+/** The control block of the single-leaf tree `P2TR(key, [envelope])`, as core builds it. */
+function singleLeafControlBlock(key: Uint8Array, envelope: Uint8Array): string {
+  try {
+    const payment = p2tr(key, { script: envelope, leafVersion: TAPSCRIPT_LEAF_VERSION }, undefined, true);
+    const control = payment.tapLeafScript?.[0]?.[0];
+    return control ? bytesToHex(TaprootControlBlock.encode(control)) : '';
+  } catch {
+    return '';
+  }
 }
 
 /**

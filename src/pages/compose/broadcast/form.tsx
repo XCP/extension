@@ -7,9 +7,9 @@ import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
-import { isSegwitFormat } from '@/core/bitcoin/address';
 import { type BroadcastOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
 import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
+import { canInscribe } from '@/core/counterparty/taprootEncoding';
 
 import { t } from '@/i18n';
 
@@ -46,7 +46,7 @@ export function BroadcastForm({
   const [fileError, setFileError] = useState<string | null>(null);
   
   // Computed values
-  const isSegwitAddress = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
+  const inscribeAvailable = canInscribe(activeAddress?.address, activeWallet?.type);
   
   // Sync textContent when initialFormData changes
   useEffect(() => {
@@ -156,7 +156,7 @@ export function BroadcastForm({
             </Field>
           )}
 
-          {isSegwitAddress && (
+          {inscribeAvailable && (
             <SettingSwitch
               label={t('common_inscribe')}
               description={t('common_store_message_as_a_taproot')}

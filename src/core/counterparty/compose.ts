@@ -136,18 +136,16 @@ export interface ComposeResult {
   psbt: string;
   /**
    * Present only for `encoding=taproot` composes. The envelope script carrying the message (an ord
-   * envelope for an inscription, a plain data envelope otherwise), and the reveal transaction —
-   * already signed by the composer's ephemeral key — that spends the commit output and publishes
-   * it. `rawtransaction` is only the commit, so the message takes effect only once the reveal is
+   * envelope for an inscription, a plain data envelope otherwise), closed by the source's key.
+   * `rawtransaction` is only the commit, so the message takes effect only once the reveal is
    * broadcast too.
    */
   envelope_script?: string;
-  signed_reveal_rawtransaction?: string;
   /**
-   * Core 11.5 returns an unsigned reveal for Taproot composes: these replace
-   * `signed_reveal_rawtransaction`, leaving the reveal for the wallet to sign. The wallet does not
-   * sign reveals yet, so a result carrying them is recomposed with the default encoding or refused
-   * (`taprootEncoding.ts`, `hasUnsignedTaprootReveal`); nothing here is signed or broadcast.
+   * Core 11.5 returns an unsigned reveal the wallet signs with the source key: the reveal spending
+   * the commit's output 0, its control block, the key that closes the envelope (x-only), and the
+   * script and value of the output it spends. All present or none (`taprootEncoding.ts`,
+   * `readRevealShape`); verified before either transaction is signed (`verifyUnsignedReveal`).
    */
   reveal_rawtransaction?: string;
   reveal_control_block?: string;
@@ -621,6 +619,9 @@ export async function composeTransaction<T extends Record<string, unknown>>(
 ): Promise<ApiResponse> {
   const validatedParams = toStringParams(paramsObj);
   const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
+  // Core 11.5 returns an unsigned reveal the wallet signs with the source key; an older API cannot
+  // compose one, so a Taproot request is refused before it is sent (`capabilities.ts`).
+  if (encoding === 'taproot') await requireCounterpartyFeature('taprootReveals');
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   const settings = getActiveSettings();
@@ -640,7 +641,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
       allow_unconfirmed_inputs: allowUnconfirmed.toString(),
       disable_utxo_locks: 'true',
       verbose: 'true',
-      ...(encoding && { encoding }),
+        ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
       ...(excludeUtxos && excludeUtxos.length > 0 ? { exclude_utxos: excludeUtxos.join(',') } : {}),
       ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
@@ -692,6 +693,9 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
 ): Promise<ApiResponse> {
   const validatedParams = toStringParams(paramsObj);
   const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
+  // Core 11.5 returns an unsigned reveal the wallet signs with the source key; an older API cannot
+  // compose one, so a Taproot request is refused before it is sent (`capabilities.ts`).
+  if (encoding === 'taproot') await requireCounterpartyFeature('taprootReveals');
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   const settings = getActiveSettings();
@@ -707,7 +711,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
       allow_unconfirmed_inputs: allowUnconfirmed.toString(),
       disable_utxo_locks: 'true',
       verbose: 'true',
-      ...(encoding && { encoding }),
+        ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
       ...(excludeUtxos && excludeUtxos.length > 0 ? { exclude_utxos: excludeUtxos.join(',') } : {}),
       ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
@@ -762,6 +766,9 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
 ): Promise<ApiResponse> {
   const validatedParams = toStringParams(paramsObj);
   const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
+  // Core 11.5 returns an unsigned reveal the wallet signs with the source key; an older API cannot
+  // compose one, so a Taproot request is refused before it is sent (`capabilities.ts`).
+  if (encoding === 'taproot') await requireCounterpartyFeature('taprootReveals');
   const base = await getApiBase();
   const apiUrl = `${base}/v2/utxos/${sourceUtxo}/compose/${endpoint}`;
 
