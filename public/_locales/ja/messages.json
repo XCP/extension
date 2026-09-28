@@ -215,9 +215,6 @@
   "addresses_adding": {
     "message": "追加中…"
   },
-  "addresses_change_address_type": {
-    "message": "アドレスタイプを変更"
-  },
   "addresses_could_not_read_the_derivation": {
     "message": "このアドレスの導出インデックスを読み取れませんでした。"
   },

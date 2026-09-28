@@ -287,10 +287,6 @@
     "message": "Adding…",
     "description": "pages/addresses/index.tsx"
   },
-  "addresses_change_address_type": {
-    "message": "Change Address Type",
-    "description": "pages/addresses/index.tsx"
-  },
   "addresses_could_not_read_the_derivation": {
     "message": "Could not read the derivation index for this address.",
     "description": "pages/addresses/index.tsx"
