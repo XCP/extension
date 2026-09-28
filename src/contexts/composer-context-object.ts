@@ -22,6 +22,8 @@ export interface ComposerState<T> {
   apiResponse: ApiResponse | null;
   error: string | null;
   verificationWarnings: string[];
+  /** Neutral notes for the review screen: facts about the send, not differences from the request. */
+  reviewNotices: string[];
   /** Decoded from the transaction's own bytes, not from the response's echo of the request. */
   decodedMessage: DecodedMessage | null;
   isComposing: boolean;

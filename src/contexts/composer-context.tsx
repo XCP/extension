@@ -68,6 +68,7 @@ import {
   verifyInscriptionEnvelope,
   verifyRevealTransaction,
 } from "@/core/counterparty/inscriptionEnvelope";
+import { type MpmaTableFormatResolution, mpmaNearsActivation, resolveMpmaTableFormat } from "@/core/counterparty/mpmaTableFormat";
 import { normalizeFormData, verifiedReviewParams } from "@/core/counterparty/normalize";
 import {
   checkOutputPolicy,
@@ -76,7 +77,7 @@ import {
   pinnedQuantity,
   withPinnedDestinations,
 } from "@/core/counterparty/outputPolicy";
-import { packComposeMessage } from "@/core/counterparty/pack/messages";
+import { composesAsMpma, type PackRules, packComposeMessage } from "@/core/counterparty/pack/messages";
 import {
   assessOwnScriptPayments,
   composedTransactionOutputs,
@@ -158,6 +159,7 @@ function freshComposerState<T>(): ComposerState<T> {
     apiResponse: null,
     error: null,
     verificationWarnings: [],
+    reviewNotices: [],
     decodedMessage: null,
     isComposing: false,
     isSigning: false,
@@ -306,13 +308,29 @@ export function ComposerProvider<T>({
       // Check if aborted before API call
       if (signal.aborted) return;
 
+      // An MPMA's address table depends on the block it lands in (`mpmaTableFormat.ts`), so the
+      // table this request must produce is settled before compose, from the height, and the
+      // message is held to it below. When the height cannot be read consistently the send is not
+      // composed at all: either table could be the wrong one.
+      let mpmaTable: MpmaTableFormatResolution | null = null;
+      if (composesAsMpma(composeType, dataForApi)) {
+        mpmaTable = await resolveMpmaTableFormat();
+        if (signal.aborted) return;
+        if (!mpmaTable) throw new Error(t('composer_context_mpma_table_format_unconfirmed'));
+      }
+      const packRules: PackRules = mpmaTable ? { mpmaTableFormat: mpmaTable.format } : {};
+      const reviewNotices: string[] = [];
+      if (mpmaTable && mpmaNearsActivation(mpmaTable)) {
+        reviewNotices.push(t('composer_context_mpma_near_activation', [String(mpmaTable.activationHeight)]));
+      }
+
       // Call compose API (UTXO selection is handled internally by compose functions). A message too
       // long for an OP_RETURN goes out Taproot-encoded where core allows it, since the multisig
       // fallback costs several times more; the user is never asked to choose, and a composer that
       // will not build it that way is asked once more for the default. Verification below compares
       // against `dataForApi`, which the encoding does not change.
       // Reassigned below if verification finds the reported fee differs from the real one.
-      const encoding = chooseComposeEncoding(composeType, dataForApi, activeAddress.address);
+      const encoding = chooseComposeEncoding(composeType, dataForApi, activeAddress.address, packRules);
       let response = await composeWithEncoding(composeApi, dataForApi, encoding, signal);
       // The request as the wallet actually sent it: the form's data plus any message field the
       // compose function chose itself (an attach's output after the change). Recorded by the
@@ -376,7 +394,7 @@ export function ComposerProvider<T>({
           throw new Error(t('composer_context_taproot_unexpected_envelope'));
         }
         if (kind === 'ord') {
-          const expectedMessage = packComposeMessage(composeType, requestedData);
+          const expectedMessage = packComposeMessage(composeType, requestedData, undefined, packRules);
           if (!expectedMessage) {
             throw new Error(
               t('composer_context_transaction_verification_failed_this_inscription')
@@ -425,7 +443,19 @@ export function ComposerProvider<T>({
         // it whole, so no field goes unchecked (see `unpack/verify.ts`). A null return means the type cannot be
         // constructed locally and falls through to field comparison; the decoded message supplies
         // only values the request cannot determine (see `Observed` in pack/messages.ts).
-        const expected = packComposeMessage(composeType, requestedData, decodedMessage?.data);
+        // An MPMA must carry the address table core reads at the block it lands in, whatever
+        // else is checked: the recipients decoded from the other table are not the ones core
+        // would credit.
+        if (unpacked.success && unpacked.messageType === 'mpma_send') {
+          const carried = (unpacked.data as { tableFormat?: unknown } | undefined)?.tableFormat;
+          if (!mpmaTable) mpmaTable = await resolveMpmaTableFormat();
+          if (signal.aborted) return;
+          if (!mpmaTable) throw new Error(t('composer_context_mpma_table_format_unconfirmed'));
+          if (carried !== mpmaTable.format) {
+            throw new Error(t('composer_context_transaction_verification_failed_the_composed'));
+          }
+        }
+        const expected = packComposeMessage(composeType, requestedData, decodedMessage?.data, packRules);
 
         // An envelope's message is held to the exact bytes of the request, never to field
         // comparison: Taproot is only chosen for messages built locally.
@@ -457,7 +487,7 @@ export function ComposerProvider<T>({
           // Differences too minor to block, shown on the review screen so the user can still see them.
           verificationWarnings = verification.warnings;
         }
-      } else if (!taprootCommitAddress && packComposeMessage(composeType, requestedData)) {
+      } else if (!taprootCommitAddress && packComposeMessage(composeType, requestedData, undefined, packRules)) {
         // No payload, but this request's message can be built — so the transaction carries none of
         // it and cannot do what was asked. Signing it would spend the fee to no effect. Types that
         // legitimately carry no message (a BTC send, a burn) cannot be built and do not reach here,
@@ -644,6 +674,7 @@ export function ComposerProvider<T>({
         apiResponse: response,
         error: null,
         verificationWarnings,
+        reviewNotices,
         decodedMessage,
         isComposing: false,
         composedAt: Date.now(),
@@ -891,6 +922,7 @@ export function ComposerProvider<T>({
         apiResponse: null,
         error: null,
         verificationWarnings: [],
+        reviewNotices: [],
         decodedMessage: null,
         scriptPaymentRisk: null,
       }));

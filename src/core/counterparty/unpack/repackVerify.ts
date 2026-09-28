@@ -30,7 +30,7 @@
  * never "verified".
  */
 
-import { packComposeMessage } from '@/core/counterparty/pack/messages';
+import { type PackRules, packComposeMessage } from '@/core/counterparty/pack/messages';
 import { bytesToHex } from '@/core/counterparty/unpack/binary';
 import type { AttachData, DetachData, MoveData } from '@/core/counterparty/unpack/messages/attach';
 import type { BroadcastData } from '@/core/counterparty/unpack/messages/broadcast';
@@ -68,7 +68,7 @@ type Params = Record<string, unknown>;
  * Returns null where a shape cannot be expressed. Memos are the common case: only the plain-text
  * form is packed, so a binary memo yields no params rather than a wrong guess.
  */
-function paramsFor(messageType: string, data: unknown): { composeType: string; params: Params } | null {
+function paramsFor(messageType: string, data: unknown): { composeType: string; params: Params; rules?: PackRules } | null {
   switch (messageType) {
     case 'enhanced_send':
     case 'send': {
@@ -97,6 +97,10 @@ function paramsFor(messageType: string, data: unknown): { composeType: string; p
           assets: mpma.sends.map((s) => s.asset).join(','),
           quantities: mpma.sends.map((s) => s.quantity.toString()).join(','),
         },
+        // Rebuilt in the table the bytes carry: this proves the decode complete, not that the
+        // table is the one core will read at the height the message lands (the approval checks
+        // that separately, against the height).
+        rules: { mpmaTableFormat: mpma.tableFormat },
       };
     }
 
@@ -333,7 +337,7 @@ export function proveByRepack(
   const mapped = paramsFor(messageType, data);
   if (!mapped) return { proved: false, reason: 'no-adapter' };
 
-  const packed = packComposeMessage(mapped.composeType, mapped.params as never);
+  const packed = packComposeMessage(mapped.composeType, mapped.params as never, undefined, mapped.rules);
   if (!packed) return { proved: false, reason: 'no-adapter' };
 
   const rebuilt = bytesToHex(packed.bytes).toLowerCase();

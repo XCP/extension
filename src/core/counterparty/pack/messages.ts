@@ -5,7 +5,10 @@
  *
  * Field order and encoding follow core's compose functions exactly, since the output is compared
  * byte-for-byte. Only the taproot_support (CBOR-era) encoding is produced: protocol features
- * activate at a block height and never turn off, so every present-day compose uses it.
+ * activate at a block height and never turn off, so every present-day compose uses it. The one
+ * exception is the MPMA address table, whose `mpma_taproot_support` layout replaces the legacy one
+ * at an activation height near enough that both are current; the caller names the one to build
+ * (`PackRules`).
  *
  * A type that cannot be packed yields `null`, which the caller treats as "cannot verify by
  * equality" — never as agreement.
@@ -13,6 +16,7 @@
 
 import { isTextualMimeType } from '@/core/counterparty/inscriptionEnvelope';
 import { decodeMemoList } from '@/core/counterparty/memo';
+import type { MpmaTableFormat } from '@/core/counterparty/mpmaTableFormat';
 import { type CborEncodable, encodeCbor } from '@/core/counterparty/pack/cbor';
 import { packAddress, packAddressLegacy } from '@/core/counterparty/unpack/address';
 import { assetNameToId } from '@/core/counterparty/unpack/assetId';
@@ -60,6 +64,15 @@ type Params = Record<string, unknown>;
  * must never be borrowed.
  */
 type Observed = Record<string, unknown> | undefined;
+
+/**
+ * Consensus rules the request alone does not fix, because they depend on the block the
+ * transaction lands in. The caller establishes them (see `mpmaTableFormat.ts`) rather than the
+ * packer guessing: an MPMA packs only when told which address table to use.
+ */
+export interface PackRules {
+  mpmaTableFormat?: MpmaTableFormat;
+}
 
 function requireString(params: Params, key: string): string | null {
   const value = params[key];
@@ -663,22 +676,54 @@ function writeMemo(writer: BitWriter, memo: string | null, isHex: boolean): bool
 }
 
 /**
- * MPMA send: a `>H`-counted LUT of legacy-packed destination addresses sorted lexicographically,
- * then a bit stream — a global memo, and per asset (sorted by name) a `1` continuation bit, the
- * 64-bit asset id, an nbits-wide send count less one, and each send's nbits-wide LUT index, 64-bit
- * quantity and memo — terminated by a `0` bit and zero-padded to a byte
- * (core `mpmaencoding._encode_mpma_send`; nbits is ceil(log2(LUT size))).
+ * The address table: a `>H` entry count, then the distinct destinations sorted lexicographically,
+ * each in the layout the table format names (core `mpmaencoding._encode_compress_lut`). Null when
+ * an address cannot be packed in that layout.
+ *
+ * - `legacy`: every entry a fixed 21 bytes of `address.pack_legacy`. A Taproot or P2WSH
+ *   destination does not fit, and core's compose refuses it before activation.
+ * - `length-prefixed`: each entry a length byte and the modern packing core's Rust
+ *   `utils::pack_address` emits (`0x01`/`0x02` + hash, `0x03` + witness version + program).
+ */
+function packMpmaTable(addresses: string[], format: MpmaTableFormat): Uint8Array | null {
+  const entries: number[] = [addresses.length >> 8, addresses.length & 0xff];
+  try {
+    for (const address of addresses) {
+      if (format === 'legacy') {
+        entries.push(...packAddressLegacy(address));
+      } else {
+        const packed = packAddress(address);
+        entries.push(packed.length, ...packed);
+      }
+    }
+  } catch {
+    return null;
+  }
+  return new Uint8Array(entries);
+}
+
+/**
+ * MPMA send: the address table (`packMpmaTable`), then a bit stream — a global memo, and per
+ * asset (sorted by name) a `1` continuation bit, the 64-bit asset id, an nbits-wide send count
+ * less one, and each send's nbits-wide LUT index, 64-bit quantity and memo — terminated by a `0`
+ * bit and zero-padded to a byte (core `mpmaencoding._encode_mpma_send`; nbits is
+ * ceil(log2(LUT size))). The bit stream is the same under both table formats.
  *
  * A single distinct destination makes nbits zero: the count and index fields occupy no bits
  * (bitstring 4.1.4, core's pin, appends nothing for `uint:0`; newer versions raise) and the
  * decoder infers one recipient per asset. An asset group with several sends is therefore not
  * expressible at nbits zero — core's encoder raises on it.
  *
- * Declined when core could not compose the same request: a Taproot or P2WSH destination does not
- * fit the 21-byte legacy packing, a subasset resolves through the ledger, and BTC cannot be sent
- * by message. The LUT and the asset groups are sorted; sends within an asset keep request order.
+ * Declined when core could not compose the same request: a destination the table format cannot
+ * carry, a subasset (it resolves through the ledger), and BTC, which cannot be sent by message.
+ * The LUT and the asset groups are sorted; sends within an asset keep request order.
  */
-function packMpma(sends: MpmaSend[], globalMemo: string | null, globalMemoIsHex: boolean): PackedMessage | null {
+function packMpma(
+  sends: MpmaSend[],
+  globalMemo: string | null,
+  globalMemoIsHex: boolean,
+  format: MpmaTableFormat
+): PackedMessage | null {
   if (sends.length < 2) return null;
   for (const send of sends) {
     if (!send.asset || send.asset === 'BTC' || send.asset.includes('.')) return null;
@@ -688,12 +733,8 @@ function packMpma(sends: MpmaSend[], globalMemo: string | null, globalMemoIsHex:
   const lutAddresses = [...new Set(sends.map((send) => send.destination))].sort();
   const nbits = lutAddresses.length > 1 ? Math.ceil(Math.log2(lutAddresses.length)) : 0;
 
-  let lut: Uint8Array[];
-  try {
-    lut = lutAddresses.map((address) => packAddressLegacy(address));
-  } catch {
-    return null;
-  }
+  const lutBytes = packMpmaTable(lutAddresses, format);
+  if (lutBytes === null) return null;
 
   const writer = new BitWriter();
   if (!writeMemo(writer, globalMemo, globalMemoIsHex)) return null;
@@ -718,11 +759,6 @@ function packMpma(sends: MpmaSend[], globalMemo: string | null, globalMemoIsHex:
   }
   writer.writeBit(false);
 
-  const lutBytes = new Uint8Array(2 + lut.length * 21);
-  lutBytes[0] = lut.length >> 8;
-  lutBytes[1] = lut.length & 0xff;
-  lut.forEach((packed, index) => { lutBytes.set(packed, 2 + index * 21); });
-
   const body = new Uint8Array([...lutBytes, ...writer.toBytes()]);
   return withPrefix(MessageTypeId.MPMA_SEND, body);
 }
@@ -737,8 +773,13 @@ function packMpma(sends: MpmaSend[], globalMemo: string | null, globalMemoIsHex:
  *
  * Core's API applies a single `memos_are_hex` flag to every memo, so a mixed list is not
  * expressible; `composeMPMA` refuses to send one, and it is declined here.
+ *
+ * Without a table format there is nothing to compare against, so nothing is packed.
  */
-function packMpmaFromParams(params: Params): PackedMessage | null {
+function packMpmaFromParams(params: Params, rules: PackRules): PackedMessage | null {
+  const format = rules.mpmaTableFormat;
+  if (format !== 'legacy' && format !== 'length-prefixed') return null;
+
   const assetsCsv = requireString(params, 'assets');
   const destinationsCsv = requireString(params, 'destinations');
   const quantitiesCsv = requireString(params, 'quantities');
@@ -785,7 +826,16 @@ function packMpmaFromParams(params: Params): PackedMessage | null {
     : null;
   const globalMemoIsHex = params.memo_is_hex === true || params.memo_is_hex === 'true';
 
-  return packMpma(sends, globalMemo, globalMemo === null ? false : globalMemoIsHex);
+  return packMpma(sends, globalMemo, globalMemo === null ? false : globalMemoIsHex, format);
+}
+
+/**
+ * Whether this request composes as an MPMA send — the MPMA form, or the send form with several
+ * comma-separated destinations — and so needs `PackRules.mpmaTableFormat` to be packed.
+ */
+export function composesAsMpma(composeType: string, params: Params): boolean {
+  if (composeType === 'mpma') return true;
+  return composeType === 'send' && typeof params.destinations === 'string' && params.destinations.includes(',');
 }
 
 /**
@@ -793,7 +843,7 @@ function packMpmaFromParams(params: Params): PackedMessage | null {
  * destinations into an MPMA send of the same asset, quantity and memo to each, with the memo
  * carried once as the whole-send memo.
  */
-function packSendAsMpma(params: Params): PackedMessage | null {
+function packSendAsMpma(params: Params, rules: PackRules): PackedMessage | null {
   const asset = requireString(params, 'asset');
   const quantity = requireQuantity(params, 'quantity');
   const destinations = requireString(params, 'destinations');
@@ -807,7 +857,7 @@ function packSendAsMpma(params: Params): PackedMessage | null {
     ...(typeof params.memo === 'string' && params.memo !== ''
       ? { memo: params.memo, memo_is_hex: params.memo_is_hex }
       : {}),
-  });
+  }, rules);
 }
 
 /**
@@ -1032,17 +1082,18 @@ function packPoolWithdraw(params: Params): PackedMessage | null {
 export function packComposeMessage(
   composeType: string,
   params: Params,
-  observed?: Observed
+  observed?: Observed,
+  rules: PackRules = {}
 ): PackedMessage | null {
   switch (composeType) {
     case 'send':
       // Several comma-separated destinations compose as MPMA (`composeSendOrMPMA`).
-      if (typeof params.destinations === 'string' && params.destinations.includes(',')) {
-        return packSendAsMpma(params);
+      if (composesAsMpma(composeType, params)) {
+        return packSendAsMpma(params, rules);
       }
       return packEnhancedSend(params);
     case 'mpma':
-      return packMpmaFromParams(params);
+      return packMpmaFromParams(params, rules);
     case 'issuance':
       return packIssuance(params, observed);
     case 'sweep':

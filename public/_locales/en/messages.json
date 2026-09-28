@@ -2427,6 +2427,14 @@
     "message": "Invalid transaction data",
     "description": "contexts/composer-context.tsx"
   },
+  "composer_context_mpma_near_activation": {
+    "message": "This send reaches several recipients, and the network changes how such sends are read at block $1. If it confirms at or after that block, it will not take effect, though the Bitcoin fee is still paid.",
+    "description": "contexts/composer-context.tsx. $1 = activation block height"
+  },
+  "composer_context_mpma_table_format_unconfirmed": {
+    "message": "Could not confirm the current block height, which decides how a send to several recipients is encoded. Try again in a moment.",
+    "description": "contexts/composer-context.tsx"
+  },
   "composer_context_no_active_address_available": {
     "message": "No active address available",
     "description": "contexts/composer-context.tsx"

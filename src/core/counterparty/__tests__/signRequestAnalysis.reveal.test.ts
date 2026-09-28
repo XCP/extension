@@ -29,6 +29,11 @@ import {
   USER_ADDRESS,
 } from './helpers/revealFixtures';
 
+// The address table is checked against the height elsewhere; these fixtures carry the legacy one.
+vi.mock('@/core/counterparty/mpmaTableFormat', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/core/counterparty/mpmaTableFormat')>(),
+  resolveMpmaTableFormat: vi.fn(async () => ({ format: 'legacy', nextBlockIndex: 971_000, activationHeight: 971_700 })),
+}));
 vi.mock('@/core/zeld/protection', () => ({
   classifyZeldOutpoints: async () => ({ bearing: [], unknown: [], clean: [] }),
 }));
@@ -65,7 +70,7 @@ const MPMA_HEX = bytesToHex(packComposeMessage('mpma', {
   assets: 'PEPECASH,PEPECASH,PEPECASH',
   destinations: RECIPIENTS.join(','),
   quantities: '1,2,3',
-})!.bytes);
+}, undefined, { mpmaTableFormat: 'legacy' })!.bytes);
 const ISSUANCE_HEX = bytesToHex(packComposeMessage('issuance', {
   asset: 'PEPECASH', quantity: 1, divisible: true, lock: false, reset: false, description: '',
 })!.bytes);

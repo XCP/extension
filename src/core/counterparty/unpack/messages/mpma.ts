@@ -7,9 +7,11 @@
  * to multiple recipients in a single transaction.
  *
  * Format:
- * 1. Address LUT (Lookup Table):
+ * 1. Address LUT (Lookup Table), in one of two layouts (see `mpmaTableFormat.ts`):
  *    - 2 bytes: Number of addresses (uint16 big-endian)
- *    - 21 bytes × N: Packed addresses
+ *    - legacy (before `mpma_taproot_support`): 21 bytes × N, `address.pack_legacy`
+ *    - length-prefixed (from `mpma_taproot_support`): per address, a length byte and that many
+ *      bytes of the modern packing (`0x01`/`0x02` + hash, or `0x03` + witness version + program)
  *
  * 2. Bit-packed send data:
  *    - Global memo (optional): 1 bit exists flag, if true: 1 bit is_hex, 6 bits length, data
@@ -24,7 +26,8 @@
  *    - Final 0 bit signals end
  */
 
-import { PACKED_ADDRESS_LENGTH, unpackAddressLegacy } from '@/core/counterparty/unpack/address';
+import type { MpmaTableFormat } from '@/core/counterparty/mpmaTableFormat';
+import { PACKED_ADDRESS_LENGTH, unpackAddressLegacy, unpackAddressModern } from '@/core/counterparty/unpack/address';
 import { assetIdToName } from '@/core/counterparty/unpack/assetId';
 
 /**
@@ -53,6 +56,12 @@ export interface MPMAData {
   globalMemo?: string;
   /** Whether global memo is hex-encoded */
   globalMemoIsHex?: boolean;
+  /**
+   * Which address table the bytes carry. Core reads exactly one of them at any height, so a
+   * caller that knows the height the message will be parsed at holds this to it
+   * (`resolveMpmaTableFormat`); the recipients above are only what core credits when it matches.
+   */
+  tableFormat: MpmaTableFormat;
 }
 
 /**
@@ -123,11 +132,73 @@ class BitReader {
 }
 
 /**
+ * First bytes a legacy table entry can start with, as `unpackAddressLegacy` accepts them: the
+ * four base58 version bytes and the segwit marker range. A length-prefixed entry starts with its
+ * length, 21 to 42, which is none of these — so the first entry says which table this is.
+ */
+function isLegacyEntryStart(byte: number): boolean {
+  return byte === 0x00 || byte === 0x05 || byte === 0x6f || byte === 0xc4 || (byte >= 0x80 && byte <= 0x8f);
+}
+
+/** Legacy table: fixed 21-byte `pack_legacy` entries (core `_decode_decode_lut`, pre-activation). */
+function decodeLegacyEntries(data: Uint8Array, numAddresses: number): { addresses: string[]; end: number } {
+  const bytesPerAddress = PACKED_ADDRESS_LENGTH; // 21
+  const end = 2 + numAddresses * bytesPerAddress;
+
+  if (data.length < end) {
+    throw new Error(`MPMA data too short for ${numAddresses} addresses`);
+  }
+
+  const addresses: string[] = [];
+  let pos = 2;
+  for (let i = 0; i < numAddresses; i++) {
+    const packedAddr = data.slice(pos, pos + bytesPerAddress);
+    // Detect network from first address byte
+    const network = packedAddr[0] === 0x6f || packedAddr[0] === 0xc4 ? 'testnet' : 'mainnet';
+    // Legacy rules only: in this table core decodes with `address.unpack_legacy`, never the
+    // taproot-aware `unpack`. Under the modern rules a leading 0x01 is a P2PKH type tag and renders
+    // an ordinary `1…` address, while core reads it as a base58 version byte and credits a
+    // different one — and an MPMA's recipients are carried in the payload, so this string is all
+    // the approval screen has.
+    addresses.push(unpackAddressLegacy(packedAddr, network));
+    pos += bytesPerAddress;
+  }
+  return { addresses, end };
+}
+
+/**
+ * Length-prefixed table (core `_decode_decode_lut` under `mpma_taproot_support`): each entry is a
+ * length byte and that many bytes of the modern packing, read with the modern rules alone, as
+ * core's Rust unpacker reads them. An empty or truncated entry is refused rather than read out of
+ * the bytes that follow it.
+ */
+function decodeLengthPrefixedEntries(data: Uint8Array, numAddresses: number): { addresses: string[]; end: number } {
+  const addresses: string[] = [];
+  let pos = 2;
+  for (let i = 0; i < numAddresses; i++) {
+    if (pos >= data.length) {
+      throw new Error(`MPMA data too short for ${numAddresses} addresses`);
+    }
+    const length = data[pos]!;
+    pos += 1;
+    if (length === 0) {
+      throw new Error('MPMA address cannot be empty');
+    }
+    if (pos + length > data.length) {
+      throw new Error('MPMA address list is truncated');
+    }
+    addresses.push(unpackAddressModern(data.slice(pos, pos + length)));
+    pos += length;
+  }
+  return { addresses, end: pos };
+}
+
+/**
  * Decode the address lookup table from MPMA data
  */
 function decodeLUT(
   data: Uint8Array
-): { addresses: string[]; nbits: number; remaining: Uint8Array } {
+): { addresses: string[]; nbits: number; remaining: Uint8Array; tableFormat: MpmaTableFormat } {
   if (data.length < 2) {
     throw new Error('MPMA data too short for LUT header');
   }
@@ -138,29 +209,14 @@ function decodeLUT(
   if (numAddresses === 0) {
     throw new Error('MPMA address list cannot be empty');
   }
-
-  const bytesPerAddress = PACKED_ADDRESS_LENGTH; // 21
-  const lutSize = 2 + numAddresses * bytesPerAddress;
-
-  if (data.length < lutSize) {
+  if (data.length < 3) {
     throw new Error(`MPMA data too short for ${numAddresses} addresses`);
   }
 
-  // Decode addresses
-  const addresses: string[] = [];
-  let pos = 2;
-  for (let i = 0; i < numAddresses; i++) {
-    const packedAddr = data.slice(pos, pos + bytesPerAddress);
-    // Detect network from first address byte
-    const network = packedAddr[0] === 0x6f || packedAddr[0] === 0xc4 ? 'testnet' : 'mainnet';
-    // Legacy rules only: core decodes this table with `address.unpack_legacy` unconditionally
-    // (utils/mpmaencoding.py `_decode_decode_lut`), never the taproot-aware `unpack`. Under the
-    // modern rules a leading 0x01 is a P2PKH type tag and renders an ordinary `1…` address, while
-    // core reads it as a base58 version byte and credits a different one — and an MPMA's
-    // recipients are carried in the payload, so this string is all the approval screen has.
-    addresses.push(unpackAddressLegacy(packedAddr, network));
-    pos += bytesPerAddress;
-  }
+  const tableFormat: MpmaTableFormat = isLegacyEntryStart(data[2]!) ? 'legacy' : 'length-prefixed';
+  const { addresses, end } = tableFormat === 'legacy'
+    ? decodeLegacyEntries(data, numAddresses)
+    : decodeLengthPrefixedEntries(data, numAddresses);
 
   // Calculate nbits (bits needed to index addresses)
   const nbits = numAddresses > 1 ? Math.ceil(Math.log2(numAddresses)) : 0;
@@ -168,7 +224,8 @@ function decodeLUT(
   return {
     addresses,
     nbits,
-    remaining: data.slice(lutSize),
+    remaining: data.slice(end),
+    tableFormat,
   };
 }
 
@@ -224,7 +281,7 @@ export function unpackMPMA(payload: Uint8Array): MPMAData {
   }
 
   // Decode the address lookup table
-  const { addresses, nbits, remaining } = decodeLUT(payload);
+  const { addresses, nbits, remaining, tableFormat } = decodeLUT(payload);
 
   // Create bit reader for remaining data
   const reader = new BitReader(remaining);
@@ -284,5 +341,6 @@ export function unpackMPMA(payload: Uint8Array): MPMAData {
     sends,
     globalMemo,
     globalMemoIsHex,
+    tableFormat,
   };
 }

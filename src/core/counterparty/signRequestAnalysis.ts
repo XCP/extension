@@ -34,6 +34,7 @@ import {
   type PolicyOfferWalletContext,
 } from '@/core/counterparty/marketplaceIntent';
 import { checkMessageStructure, type StructureFinding } from '@/core/counterparty/messageStructure';
+import { mpmaTableWarning, resolveMpmaTableFormat } from '@/core/counterparty/mpmaTableFormat';
 import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
 import {
   type InscriptionCommitContext,
@@ -442,6 +443,17 @@ export async function analyzeSignRequest(
           description: describeMpmaSend(mpmaRecipients),
         };
       }
+    }
+  }
+
+  // The recipients above are the ones core credits only if the address table is the one it reads
+  // at the next block (`mpmaTableFormat.ts`).
+  if (verification.localUnpack?.messageType === 'mpma_send' && verification.localUnpack.data) {
+    const carried = (verification.localUnpack.data as MPMAData).tableFormat;
+    const tableWarning = mpmaTableWarning(carried, await resolveMpmaTableFormat());
+    if (tableWarning) {
+      safety.warnings = [tableWarning, ...safety.warnings];
+      safety.blocked = true;
     }
   }
 

@@ -18,6 +18,7 @@ const P2WPKH = TAPROOT_SOURCE;
 const P2WSH = 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3';
 const P2TR = 'bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297';
 const P2PKH = '1BoatSLRHtKNngkdXEeobR76b53LETtpyT';
+const LEGACY = { mpmaTableFormat: 'legacy' } as const;
 const P2SH = '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy';
 const UTXO = `${'ab'.repeat(32)}:0`;
 
@@ -111,7 +112,8 @@ describe('measuring the request', () => {
     // The fixtures are real composes; their data is what core's length test saw.
     const send = packComposeMessage('send', SEND_TAPROOT.request);
     expect(send && bytesToHex(send.bytes)).toBe(SEND_TAPROOT.data);
-    const mpma = packComposeMessage('mpma', MPMA_TAPROOT.request);
+    // Composed before `mpma_taproot_support`, so its address table is the legacy one.
+    const mpma = packComposeMessage('mpma', MPMA_TAPROOT.request, undefined, LEGACY);
     expect(mpma && bytesToHex(mpma.bytes)).toBe(MPMA_TAPROOT.data);
   });
 
@@ -123,12 +125,27 @@ describe('measuring the request', () => {
   });
 
   it('chooses Taproot for a several-recipient MPMA, including one sent from the send form', () => {
-    expect(chooseComposeEncoding('mpma', MPMA_TAPROOT.request, P2WPKH)).toBe('taproot');
-    expect(chooseComposeEncoding('send', {
-      asset: 'PEPEMEMECOIN',
-      quantity: '100',
-      destinations: MPMA_TAPROOT.request.destinations,
-    }, P2WPKH)).toBe('taproot');
+    for (const mpmaTableFormat of ['legacy', 'length-prefixed'] as const) {
+      expect(chooseComposeEncoding('mpma', MPMA_TAPROOT.request, P2WPKH, { mpmaTableFormat })).toBe('taproot');
+      expect(chooseComposeEncoding('send', {
+        asset: 'PEPEMEMECOIN',
+        quantity: '100',
+        destinations: MPMA_TAPROOT.request.destinations,
+      }, P2WPKH, { mpmaTableFormat })).toBe('taproot');
+    }
+  });
+
+  it('measures an MPMA only once its address table is known', () => {
+    // The table's layout changes the length, so an MPMA measured without one is left on core's
+    // default rather than guessed at.
+    expect(chooseComposeEncoding('mpma', MPMA_TAPROOT.request, P2WPKH)).toBeUndefined();
+  });
+
+  it('measures the length-prefixed table, which is longer by a byte per address', () => {
+    const two = { assets: 'XCP,XCP', destinations: `${P2PKH},1CounterpartyXXXXXXXXXXXXXXXUWLpVr`, quantities: '1,2' };
+    const legacy = packComposeMessage('mpma', two, undefined, LEGACY)!;
+    const prefixed = packComposeMessage('mpma', two, undefined, { mpmaTableFormat: 'length-prefixed' })!;
+    expect(prefixed.bytes.length - legacy.bytes.length).toBe(2);
   });
 
   it('measures a broadcast before core stamps its timestamp', () => {

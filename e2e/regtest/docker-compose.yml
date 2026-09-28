@@ -12,7 +12,7 @@ services:
       timeout: 2s
       retries: 30
   counterparty:
-    image: counterparty/counterparty:v11.3.0
+    image: counterparty/counterparty:v11.4.0
     depends_on:
       bitcoind:
         condition: service_healthy

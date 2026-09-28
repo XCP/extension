@@ -48,7 +48,7 @@ const MPMA_HEX = bytesToHex(packComposeMessage('mpma', {
   assets: RECIPIENTS.map(() => 'PEPECASH').join(','),
   destinations: RECIPIENTS.join(','),
   quantities: RECIPIENTS.map(() => '100000000').join(','),
-})!.bytes);
+}, undefined, { mpmaTableFormat: 'legacy' })!.bytes);
 
 const commitOf = (psbtHex: string) => {
   const details = extractPsbtDetails(psbtHex);
