@@ -39,7 +39,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { verifyLooseBIP137, verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
+import { verifyLooseBIP137 } from '@/core/bitcoin/messageVerifier/compatibility/loose-bip137';
+import { verifyMessage, verifyMessageWithMethod } from '@/core/bitcoin/messageVerifier/verifier';
 
 describe('Wallet Implementation Test Fixtures', () => {
   describe('Bitcore/FreeWallet Fixtures', () => {

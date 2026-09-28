@@ -22,7 +22,7 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
-import { isSegwitFormat } from '@/core/bitcoin/address';
+import { isSegwitFormat } from '@/core/bitcoin/addressFormat';
 import type { FairminterOptions } from "@/core/counterparty/compose";
 import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";

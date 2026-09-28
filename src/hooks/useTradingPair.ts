@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchTradingPair, type TradingPairData } from "@/core/counterparty/price";
 
-export type { TradingPairData };
-
 /** A finished read, tagged with the pair it answers for. */
 interface TradingPairResult {
   key: string;

@@ -12,7 +12,7 @@ import {
   sweepFlagsContents,
 } from '@/core/counterparty/describe';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
-import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
+import type { ProviderVerificationResult } from '@/core/counterparty/unpack/providerVerify';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 import { t } from '@/i18n';

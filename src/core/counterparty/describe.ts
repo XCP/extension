@@ -22,7 +22,6 @@ import { getFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
 import { isTextualMimeType } from '@/core/counterparty/inscriptionEnvelope';
 import { formatAmount } from '@/core/format';
 import {
-  type DisplayUnits,
   divide,
   fromSatoshis,
   isGreaterThan,
@@ -356,8 +355,6 @@ export function describeMessageDetails(messageType: string, m: DescribableMessag
   const description = describeMessage(messageType, m, text, (headline) => { presentation = headline; });
   return description === null ? null : { description, presentation };
 }
-
-export type { DisplayUnits };
 
 /**
  * Ledger facts the message itself does not carry, looked up so the detail list can say what the

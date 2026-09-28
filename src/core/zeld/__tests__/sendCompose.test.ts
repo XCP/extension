@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { parsePSBT } from '@/core/bitcoin/psbt';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';

@@ -10,8 +10,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { computeMoneyMovement } from '@/core/bitcoin/moneyMovement';
 import { committedOutputIndices } from '@/core/bitcoin/psbt';
-import { computeMoneyMovement } from './money-movement';
 
 const ALL = 0x01;
 const ALL_ACP = 0x81;

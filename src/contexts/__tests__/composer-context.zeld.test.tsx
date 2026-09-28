@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
+import { decodeAddressFromScript } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';

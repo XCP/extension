@@ -2,7 +2,7 @@ import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { p2pkh, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { finalizePSBT, parsePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { computeTxid } from '@/core/bitcoin/transactionBroadcaster';
 import {

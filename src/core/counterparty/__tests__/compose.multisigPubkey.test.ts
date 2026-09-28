@@ -14,9 +14,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
+import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
 import { getActiveSettings } from '@/core/settings';
 import { composeBroadcast, composeSend } from '../compose';
-import { setSourcePubkeyProvider } from '../sourcePubkey';
 import {
   createMockComposeResponse,
   mockDestAddress,

@@ -25,8 +25,6 @@
 import { publicKeyMatchesAddress } from '@/core/bitcoin/publicKeyIdentity';
 import { getSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
 
-// Re-exported so existing importers keep working; the registration itself lives in a leaf module.
-export { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
 
 /**
  * A single EC point in hex: 33 bytes compressed (02/03) or 65 uncompressed (04).

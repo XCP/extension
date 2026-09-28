@@ -13,13 +13,13 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
+import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
 import {
   MARKETPLACE_BATCH_KINDS,
   type MarketplaceBatchKind,
   maxMarketplaceBatchRequests,
 } from '@/core/counterparty/marketplaceBatch';
 import type { BumpAcceptanceFeeIntentClaim } from '@/core/counterparty/marketplaceBundle';
-import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
 import { type AuthorizedRequest, RequestStorage } from '@/platform/storage/requestStorage';
 
 export type SignFlowKind = 'sign-message' | 'sign-psbt' | 'sign-psbts' | 'sign-transaction';

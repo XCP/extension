@@ -13,11 +13,11 @@ import { getPublicKey } from '@noble/secp256k1';
 import { p2tr, p2wpkh, Script, Transaction } from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
 import { extractPsbtDetails } from '@/core/bitcoin/psbt';
+import type { ProtocolContext } from '@/core/counterparty/describe';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
 import { newProofLog, proveKeyPathFeeOutput } from '@/core/counterparty/marketplace/proofs';
-import { parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { arc4 } from '@/core/counterparty/unpack/binary';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
-import type { ProtocolContext } from '../protocolContext';
 import { analyzeSignRequest } from '../signRequestAnalysis';
 
 vi.mock('@/core/zeld/protection', () => ({

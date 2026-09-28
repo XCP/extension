@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { verifyBIP322Signature } from '@/core/bitcoin/bip322';
 import { getSigningCapabilities, signMessage } from '@/core/bitcoin/messageSigner';
 import { verifyMessage } from '@/core/bitcoin/messageVerifier/verifier';

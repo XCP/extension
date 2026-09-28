@@ -16,12 +16,8 @@
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { describe, expect, it } from 'vitest';
-import {
-  type AddressFormat,
-  getAddressFromMnemonic,
-  getDerivationPathForAddressFormat,
-  getSeedFromMnemonic,
-} from '@/core/bitcoin/address';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat, getSeedFromMnemonic } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { getPrivateKeyFromMnemonic } from '@/core/bitcoin/privateKey';
 import type { Address, WalletRecord } from '@/types/wallet';
 import {

@@ -14,7 +14,7 @@ import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import * as btc from '@scure/btc-signer';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { signTransaction } from '@/core/bitcoin/transactionSigner';
 import type { TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import type { ApiResponse } from '@/core/counterparty/compose';

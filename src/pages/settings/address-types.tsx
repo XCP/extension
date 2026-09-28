@@ -8,7 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import type { AddressFormat } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { formatAddress } from "@/core/format";
 import { isAddressFormatLocked } from '@/core/wallet/addressFormatChoices';
 import { useAddressFormatSwitch } from "@/hooks/useAddressFormatSwitch";

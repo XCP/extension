@@ -14,7 +14,7 @@
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { bufferToBase64 } from '@/core/encryption/buffer';
 import { deriveKey } from '@/core/encryption/encryption';
 import { DEFAULT_SETTINGS } from '@/core/settings';

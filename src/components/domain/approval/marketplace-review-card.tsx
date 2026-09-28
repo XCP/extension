@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplace/intentTypes';
 import { t } from '@/i18n';
 import { ApprovalFacts } from './approval-facts';
 import { ApprovalNotice } from './approval-notice';

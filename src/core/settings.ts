@@ -10,9 +10,6 @@ import type {
   PriceUnit,
 } from '@/core/bitcoin/price';
 
-// Re-export for convenience
-export type { FiatCurrency, PriceUnit } from '@/core/bitcoin/price';
-
 /**
  * Valid auto-lock timer options.
  */

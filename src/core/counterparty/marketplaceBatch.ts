@@ -1,23 +1,20 @@
 /** Homogeneous multi-PSBT marketplace phases. Every item proves independently first. */
 
 import { sameAddress } from '@/core/bitcoin/address';
-import { formatXcpRaw, grouped, satsValue } from '@/core/counterparty/marketplace/format';
+import { describeCanonicalPolicy, formatExpiry, formatXcpRaw, grouped, policyOfferStandingNotice, satsValue } from '@/core/counterparty/marketplace/format';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
+import type {
+  AttachForListingIntentClaim,
+  AuthorizeExactOfferIntentClaim,
+  CreateListingIntentClaim,
+  FundOffersIntentClaim,
+  FundPolicyOfferIntentClaim,
+  MarketplaceApprovalReview,
+  PolicyOfferWalletContext,
+  PrepareAssetIntentClaim,
+  PrepareBulkFanoutIntentClaim,
+} from '@/core/counterparty/marketplace/intentTypes';
 import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
-import {
-  type AttachForListingIntentClaim,
-  type AuthorizeExactOfferIntentClaim,
-  type CreateListingIntentClaim,
-  describeCanonicalPolicy,
-  type FundOffersIntentClaim,
-  type FundPolicyOfferIntentClaim,
-  formatExpiry,
-  type MarketplaceApprovalReview,
-  type PolicyOfferWalletContext,
-  type PrepareAssetIntentClaim,
-  type PrepareBulkFanoutIntentClaim,
-  parseMarketplaceIntent,
-  policyOfferStandingNotice,
-} from '@/core/counterparty/marketplaceIntent';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import { isRecord } from '@/core/isRecord';
 import { sum, toSafeInteger } from '@/core/numeric';

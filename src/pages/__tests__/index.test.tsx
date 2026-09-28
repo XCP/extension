@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { localizedAddressFormatLabel } from '@/components/domain/address/address-format-label';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { t } from '@/i18n';
 import HomePage from '../index';
 

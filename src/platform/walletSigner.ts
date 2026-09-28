@@ -1,5 +1,6 @@
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { AddressFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { type ConsolidationResult, consolidateBareMultisigBatch } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { shownEnvelopeLeaf } from '@/core/bitcoin/envelopeLeafGuard';

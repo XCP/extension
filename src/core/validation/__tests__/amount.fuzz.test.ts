@@ -6,11 +6,10 @@
 import BigNumber from 'bignumber.js';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { SATS_PER_BTC } from '@/core/bitcoin/constants';
+import { DUST_LIMIT_SATS, SATS_PER_BTC } from '@/core/bitcoin/constants';
 import { fromSatoshis } from '@/core/numeric';
 import {
   btcToSatoshis,
-  DUST_LIMIT,
   isDustAmount,
   isValidNumber,
   MAX_SATOSHIS,
@@ -351,11 +350,11 @@ describe('Amount Validation Fuzz Tests', () => {
     it('should identify dust amounts correctly', () => {
       fc.assert(
         fc.property(
-          fc.integer({ min: 1, max: DUST_LIMIT * 2 }),
+          fc.integer({ min: 1, max: DUST_LIMIT_SATS * 2 }),
           (satoshis) => {
             const result = isDustAmount(satoshis);
             
-            if (satoshis < DUST_LIMIT && satoshis > 0) {
+            if (satoshis < DUST_LIMIT_SATS && satoshis > 0) {
               expect(result).toBe(true);
             } else {
               expect(result).toBe(false);
@@ -368,8 +367,8 @@ describe('Amount Validation Fuzz Tests', () => {
 
     it('should handle edge cases', () => {
       expect(isDustAmount(0)).toBe(false); // Zero is not dust
-      expect(isDustAmount(DUST_LIMIT - 1)).toBe(true);
-      expect(isDustAmount(DUST_LIMIT)).toBe(false);
+      expect(isDustAmount(DUST_LIMIT_SATS - 1)).toBe(true);
+      expect(isDustAmount(DUST_LIMIT_SATS)).toBe(false);
       expect(isDustAmount(-100)).toBe(false); // Negative is not dust
     });
   });

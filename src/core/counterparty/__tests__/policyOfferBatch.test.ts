@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { formatExpiry } from '@/core/counterparty/marketplace/format';
+import type { FundPolicyOfferIntentClaim, MarketplaceApprovalReview } from '@/core/counterparty/marketplace/intentTypes';
 import { analyzeMarketplaceBatch, parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
-import {
-  type FundPolicyOfferIntentClaim,
-  formatExpiry,
-  type MarketplaceApprovalReview,
-} from '@/core/counterparty/marketplaceIntent';
 import { POLICY_OFFER_VECTORS } from './policyOfferVectors';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

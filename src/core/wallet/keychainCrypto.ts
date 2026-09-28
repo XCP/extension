@@ -3,7 +3,7 @@
  * stays with the caller so the unlock path can use the off-thread worker.
  */
 
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { decryptJsonWithKey, encryptJsonWithKey } from '@/core/encryption/encryption';
 import { isRecord } from '@/core/isRecord';
 import { type AppSettings, DEFAULT_SETTINGS, MAX_ORDER_EXPIRATION, VALID_AUTO_LOCK_TIMERS } from '@/core/settings';

@@ -1,8 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import {
-  analyzeMarketplaceBatch,
-  parseMarketplaceBatchIntents,
-} from '@/core/counterparty/marketplaceBatch';
 import type {
   AttachForListingIntentClaim,
   AuthorizeExactOfferIntentClaim,
@@ -10,7 +6,11 @@ import type {
   MarketplaceApprovalReview,
   PrepareAssetIntentClaim,
   PrepareBulkFanoutIntentClaim,
-} from '@/core/counterparty/marketplaceIntent';
+} from '@/core/counterparty/marketplace/intentTypes';
+import {
+  analyzeMarketplaceBatch,
+  parseMarketplaceBatchIntents,
+} from '@/core/counterparty/marketplaceBatch';
 
 const SELLER = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
 

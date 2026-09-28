@@ -1,4 +1,4 @@
-import { AddressFormat, DEFAULT_ADDRESS_FORMAT } from '@/core/bitcoin/address';
+import { AddressFormat, DEFAULT_ADDRESS_FORMAT } from '@/core/bitcoin/addressFormat';
 
 /**
  * Private key format validation interface

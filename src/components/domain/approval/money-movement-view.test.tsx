@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import type { MoneyMovement } from './money-movement';
+import type { MoneyMovement } from '@/core/bitcoin/moneyMovement';
 import { MoneyMovementView } from './money-movement-view';
 
 const movement = (over: Partial<MoneyMovement>): MoneyMovement => ({

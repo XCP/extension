@@ -35,8 +35,6 @@ import {
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { type BigNumber, formatDecimal, fromSatoshis, isGreaterThan, roundUp, toBigNumber } from '@/core/numeric';
 
-export type { ProtocolContext };
-
 /**
  * A figure as a row on the approval screen should read it: at most eight decimals, no trailing
  * zeros.

@@ -7,7 +7,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
-import { verifyMessageWithMethod } from "@/core/bitcoin/messageVerifier";
+import { verifyMessageWithMethod } from "@/core/bitcoin/messageVerifier/verifier";
 import { validateSignatureJson } from "@/core/validation/signatureJson";
 
 import { t } from '@/i18n';

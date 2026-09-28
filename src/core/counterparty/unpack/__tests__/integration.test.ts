@@ -14,11 +14,9 @@ import { asBaseUnits } from '@/core/numeric';
  */
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import {
-  MessageTypeId,
-  unpackCounterpartyMessage,
-  verifyTransaction,
-} from '../index';
+import { MessageTypeId } from '@/core/counterparty/unpack/messageTypes';
+import { verifyTransaction } from '@/core/counterparty/unpack/verify';
+import { unpackCounterpartyMessage } from '../index';
 
 // API base URL
 const API_BASE = 'https://api.counterparty.io:4000';

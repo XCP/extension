@@ -6,7 +6,7 @@
  * type-only imports without pulling in implementation.
  */
 
-import type { AddressFormat } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import type { AppSettings } from '@/core/settings';
 
 /**

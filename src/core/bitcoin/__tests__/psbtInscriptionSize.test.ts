@@ -3,7 +3,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Address, p2tr, SigHash, Transaction, taprootNumsKey } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
-import { AddressFormat } from '../address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { extractPsbtDetails, parsePSBT, signPSBT } from '../psbt';
 
 const PRIVATE_KEY = '01'.repeat(32);

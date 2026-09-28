@@ -15,8 +15,8 @@ import { p2wpkh } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { extractPsbtDetails } from '@/core/bitcoin/psbt';
+import type { ProtocolContext } from '@/core/counterparty/describe';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
-import type { ProtocolContext } from '../protocolContext';
 import { analyzeSignRequest } from '../signRequestAnalysis';
 import {
   buildCommit,

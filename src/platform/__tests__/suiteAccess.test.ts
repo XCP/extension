@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, type vi } from 'vitest';
 import { HardwareWalletError } from '@/core/hardware/types';
-import { assertTrezorSuiteAccess, hasTrezorSuiteAccess, requestTrezorSuiteAccess, TREZOR_SUITE_ORIGINS } from '@/platform/suiteAccess';
+import { assertTrezorSuiteAccess, hasTrezorSuiteAccess, requestTrezorSuiteAccess } from '@/platform/suiteAccess';
+import { TREZOR_SUITE_ORIGINS } from '@/platform/suiteOrigins';
 
 const permissions = () => chrome.permissions as unknown as {
   contains: ReturnType<typeof vi.fn>; request: ReturnType<typeof vi.fn>;

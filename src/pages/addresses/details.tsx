@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { QRCode } from "@/components/ui/qr-code";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { t } from '@/i18n';
 
 /**
