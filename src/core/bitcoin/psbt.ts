@@ -7,8 +7,8 @@
 
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Address, getInputType, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
-import { hash160, taprootTweakPrivKey } from '@scure/btc-signer/utils.js';
+import { Address, getInputType, p2wpkh, Script, SigHash, Transaction } from '@scure/btc-signer';
+import { hash160, taprootTweakPrivKey, taprootTweakPubkey } from '@scure/btc-signer/utils.js';
 import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { signInputWithUncompressedKey } from '@/core/bitcoin/uncompressedSigner';
 import { SigningError, ValidationError } from '@/core/errors';
@@ -557,6 +557,75 @@ export function tapLeafOwnerAddress(input: DecodedInput): string | undefined {
 }
 
 /**
+ * Whether a tapleaf script names any of `keys` as a push, wherever in the script it sits, or
+ * cannot be read at all. The PSBT signer finds its key in a leaf the same way (any push equal to
+ * it, from the same parser), so a leaf this answers no for is one it would not sign.
+ */
+export function leafNamesAnyKey(leaf: Uint8Array, keys: readonly Uint8Array[]): boolean {
+  let instructions: ReadonlyArray<unknown>;
+  try {
+    instructions = Script.decode(leaf);
+  } catch {
+    return true;
+  }
+  return instructions.some((instruction) => instruction instanceof Uint8Array
+    && keys.some((key) => key.length === instruction.length
+      && key.every((byte, index) => byte === instruction[index])));
+}
+
+/**
+ * The x-only keys a signer's script-path signature can verify against: the key's own x-only form
+ * (every address format; the parity is not part of it), and for a Taproot signer also its output
+ * key, which the signer retries with below.
+ */
+function signerScriptPathKeys(pubkey: Uint8Array, addressFormat: AddressFormat): Uint8Array[] {
+  const xOnly = pubkey.slice(1, 33);
+  return addressFormat === AddressFormat.P2TR
+    ? [xOnly, taprootTweakPubkey(xOnly, new Uint8Array(0))[0]]
+    : [xOnly];
+}
+
+/**
+ * Refuse a script-path signature the approval did not show the message of.
+ *
+ * A Counterparty envelope leaf (`OP_FALSE OP_IF <pushes> OP_ENDIF <key> OP_CHECKSIG`) spent by
+ * its key's owner publishes the envelope's message from that owner's address, so signing such a
+ * leaf is signing its message. The wallet signs a leaf naming one of its keys only when it is the
+ * one leaf whose message the approval decoded and showed (`shownEnvelopeLeaf`); any other leaf
+ * naming its key, and any leaf it cannot read, is refused before a signature exists.
+ */
+function assertScriptPathSignable(
+  tx: Transaction,
+  inputIdx: number,
+  keys: readonly Uint8Array[],
+  shownEnvelopeLeaf: string | undefined,
+): void {
+  const leaves = tx.getInput(inputIdx).tapLeafScript ?? [];
+  for (const [, scriptWithVersion] of leaves) {
+    const leaf = scriptWithVersion.subarray(0, -1);
+    if (!leafNamesAnyKey(leaf, keys)) continue;
+    const shown = shownEnvelopeLeaf !== undefined && inputIdx === 0 && leaves.length === 1
+      && bytesToHex(leaf) === shownEnvelopeLeaf.toLowerCase();
+    if (!shown) {
+      throw new ValidationError(
+        'INVALID_PSBT',
+        `Refusing to sign input ${inputIdx}: its script path publishes a message signed by this key that the approval did not show`,
+      );
+    }
+  }
+}
+
+/** Options for signPSBT beyond the key and inputs. */
+export interface PsbtSigningOptions {
+  /**
+   * The tapleaf script, hex, whose Counterparty message the approval decoded and showed (see
+   * core/bitcoin/envelopeLeafGuard.ts). Only this leaf, on input 0 as the only leaf, may be
+   * signed by script path with this key; without it no leaf naming the key is signed.
+   */
+  shownEnvelopeLeaf?: string;
+}
+
+/**
  * Sign one input with an uncompressed key. The PSBT signer handles compressed keys only, so this
  * makes the checks it would make and then signs the legacy digest itself. Only a P2PKH prevout
  * paying hash160 of this uncompressed key is signable (no other script type is valid for an
@@ -600,6 +669,7 @@ function signP2pkhInputWithUncompressedKey(
  * @param sighashTypes - Optional sighash type per input (for atomic swaps use 0x81 = ALL|ANYONECANPAY)
  * @param compressed - Whether the key's public key is compressed. An uncompressed key (an imported
  *   uncompressed WIF) owns only P2PKH outputs and signs only those.
+ * @param options - See PsbtSigningOptions: the one envelope leaf, if any, the approval showed.
  * @returns Signed PSBT hex (not finalized - caller can finalize or pass to next signer)
  */
 export function signPSBT(
@@ -609,6 +679,7 @@ export function signPSBT(
   addressFormat: AddressFormat,
   sighashTypes?: number[],
   compressed = true,
+  options: PsbtSigningOptions = {},
 ): string {
   // Normalize to hex (handles both hex and base64 input)
   const psbtHex = normalizePsbtToHex(psbt);
@@ -633,6 +704,7 @@ export function signPSBT(
   }
   // The key's own public key: an uncompressed key's P2PKH address hashes the 65-byte encoding.
   const pubkeyBytes = secp256k1.getPublicKey(privateKeyBytes, compressed);
+  const scriptPathKeys = signerScriptPathKeys(pubkeyBytes, addressFormat);
 
   // If no specific indices provided, try to sign all inputs
   const indicesToSign = inputIndices.length > 0
@@ -679,6 +751,9 @@ export function signPSBT(
       // Best-effort mode signs only the active address's own inputs; a paired or foreign input is
       // silently skipped, exactly as a co-signer's input in an atomic swap is.
       if (bestEffort && !belongsToActiveAddress(inputIdx)) continue;
+      // Before anything is signed or completed: a script path naming this key must be the leaf
+      // whose message was shown. Refused even in best-effort mode, never skipped silently.
+      assertScriptPathSignable(tx, inputIdx, scriptPathKeys, options.shownEnvelopeLeaf);
 
       // For P2SH-P2WPKH, we may need to add the redeem script
       if (addressFormat === AddressFormat.P2SH_P2WPKH) {
