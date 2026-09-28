@@ -237,7 +237,9 @@ vi.mock('@/platform/walletManager', () => ({
     updateSettings: vi.fn(),
   },
 }));
-vi.mock('@/core/bitcoin/messageSigner', () => ({
+// Partial: the connection proof reports the real signature scheme for the address format.
+vi.mock('@/core/bitcoin/messageSigner', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/core/bitcoin/messageSigner')>(),
   signMessage: vi.fn().mockResolvedValue({ signature: 'mock-proof-sig', address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty' }),
 }));
 // Partial: the rest of the flow module (request keys, rejoin lookups) must stay real.
@@ -529,7 +531,7 @@ describe('ProviderService', () => {
         expect(result.proofs).toEqual([
           result.proof,
           expect.objectContaining({ address: siblingAddress,
-            verification: { method: 'BIP-322', format: 'p2pkh' } }),
+            verification: { method: 'BIP-137', format: 'legacy_recoverable' } }),
         ]);
         expect(new Set(result.proofs.map((proof: { message: string }) => proof.message)).size).toBe(2);
         expect(wallet.signMessage).toHaveBeenCalledWith(expect.any(String), siblingAddress,

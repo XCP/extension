@@ -141,18 +141,19 @@ describe('sign -> verify round trip for every software-wallet address format', (
   const MESSAGE = 'Round trip\r\nwith a CRLF and a tab\t.';
 
   it.each([
-    [AddressFormat.P2PKH, 'P2PKH'],
-    [AddressFormat.Counterwallet, 'P2PKH'],
-    [AddressFormat.FreewalletBIP39, 'P2PKH'],
-    [AddressFormat.P2WPKH, 'P2WPKH'],
-    [AddressFormat.CounterwalletSegwit, 'P2WPKH'],
-    [AddressFormat.FreewalletBIP39Segwit, 'P2WPKH'],
-    [AddressFormat.P2SH_P2WPKH, 'P2SH'],
-    [AddressFormat.P2TR, 'P2TR'],
-  ])('%s', async (format, type) => {
+    // P2PKH signs the classic 65-byte format; everything else BIP-322 simple.
+    [AddressFormat.P2PKH, 'BIP-137 (P2PKH)'],
+    [AddressFormat.Counterwallet, 'BIP-137 (P2PKH)'],
+    [AddressFormat.FreewalletBIP39, 'BIP-137 (P2PKH)'],
+    [AddressFormat.P2WPKH, 'BIP-322 Simple (P2WPKH)'],
+    [AddressFormat.CounterwalletSegwit, 'BIP-322 Simple (P2WPKH)'],
+    [AddressFormat.FreewalletBIP39Segwit, 'BIP-322 Simple (P2WPKH)'],
+    [AddressFormat.P2SH_P2WPKH, 'BIP-322 Simple (P2SH)'],
+    [AddressFormat.P2TR, 'BIP-322 Simple (P2TR)'],
+  ])('%s', async (format, method) => {
     const { signature, address } = await signMessage(MESSAGE, PRIV_HEX, format);
     const result = await verifyMessage(MESSAGE, signature, address, { strict: true });
-    expect(result).toMatchObject({ valid: true, method: `BIP-322 Simple (${type})` });
+    expect(result).toMatchObject({ valid: true, method });
     // The signer hashes the exact bytes too: the LF text is a different message.
     expect((await verifyMessage(MESSAGE.replace(/\r\n/g, '\n'), signature, address, { strict: true })).valid).toBe(false);
   });
@@ -164,8 +165,9 @@ describe('sign -> verify round trip for every software-wallet address format', (
 });
 
 describe('P2PKH signatures already issued keep verifying', () => {
-  // Signed by this wallet before this change and pinned: the two-item `[signature, pubkey]` witness
-  // stack over the BIP-322 legacy sighash. Anything that changes how P2PKH is signed must keep these.
+  // Signed by earlier wallet versions and pinned: the two-item `[signature, pubkey]` witness stack
+  // over the BIP-322 legacy sighash. The wallet now signs P2PKH in the classic 65-byte format, and
+  // these must keep verifying.
   const MESSAGE = 'XCP Wallet P2PKH proof';
   const ISSUED = [
     {

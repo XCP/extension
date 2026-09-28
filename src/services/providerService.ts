@@ -10,6 +10,7 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
+import { type MessageSignatureScheme, softwareMessageSignatureScheme } from '@/core/bitcoin/messageSigner';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import {
   checkSignInputOwners,
@@ -64,9 +65,7 @@ type ProviderConnectionProof = {
   address: string;
   message: string;
   signature: string;
-  verification:
-    | { method: 'BIP-322'; format: string }
-    | { method: 'BIP-137'; format: 'legacy_recoverable' };
+  verification: MessageSignatureScheme;
 };
 
 type ConnectionProofContext = {
@@ -200,7 +199,7 @@ export function createProviderService(): ProviderService {
         signature: result.signature,
         verification: context.hardware
           ? { method: 'BIP-137', format: 'legacy_recoverable' }
-          : { method: 'BIP-322', format: target.format },
+          : softwareMessageSignatureScheme(target.format),
       };
     } catch (error) {
       console.warn('[ProviderService] Failed to generate connection proof:', error);
