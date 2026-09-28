@@ -39,7 +39,7 @@ export default function AddressDetailsPage(): ReactElement {
       title: t('addresses_details_my_address'),
       onBack: () => void navigate(PATHS.BACK),
       rightButton:
-        activeWallet?.type === "mnemonic"
+        activeWallet?.type === "mnemonic" || activeWallet?.type === "hardware"
           ? {
               icon: <FaList className="size-4" aria-hidden="true" />,
               onClick: () =>
