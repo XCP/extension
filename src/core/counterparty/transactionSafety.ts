@@ -57,6 +57,11 @@ export type SecurityWarning = SecurityWarningText & (
    */
   | { code: 'zeld_movement'; data: ZeldNotice & { items?: number[] } }
   | { code: 'durable_sell_authorization'; data: { inputs: number[] } }
+  /**
+   * Inputs whose script path names this wallet's key in a leaf other than the one whose message
+   * the review shows (core/bitcoin/envelopeLeafGuard.ts). Signing it would publish that message.
+   */
+  | { code: 'unshown_envelope_signature'; data: { inputs: number[] } }
   /** A marketplace proof that could not finish: `details` are the wallet's internal reasons. */
   | { code: 'marketplace_retry'; data: { details: string[] } }
   /** A marketplace proof that failed, by why (MarketplaceApprovalReview.blockKind). */

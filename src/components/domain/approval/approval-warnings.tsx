@@ -185,6 +185,11 @@ function safetyWarningText(warning: SecurityWarning): { title: string; descripti
         title: t('safety_blocked_durable_sell_authorization'),
         description: t('safety_durable_sell_authorization_detail', warning.data.inputs.map(index => `#${index}`).join(', ')),
       };
+    case 'unshown_envelope_signature':
+      return {
+        title: t('safety_blocked_unreadable_signed_message'),
+        description: t('safety_unreadable_signed_message_detail'),
+      };
     case 'misdirected_recovery_key':
       return {
         title: t('safety_data_outputs_not_recoverable_by'),

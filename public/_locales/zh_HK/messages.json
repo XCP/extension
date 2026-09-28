@@ -4061,6 +4061,12 @@
   "safety_durable_sell_authorization_detail": {
     "message": "輸入 $1 持有 Counterparty 資產，或錢包無法確認其未持有資產，而此簽名不固定交易的輸出（SIGHASH_SINGLE 或 NONE）。這是出售這些資產的持久授權：持有簽名的人可在該 UTXO 被花費前隨時完成出售，並決定資產的去向。只有經過驗證的市場掛單才能請求這種簽名。"
   },
+  "safety_blocked_unreadable_signed_message": {
+    "message": "已阻止：以您的地址簽署的無法讀取的訊息"
+  },
+  "safety_unreadable_signed_message_detail": {
+    "message": "此交易將發佈一則以您的地址簽署、但錢包無法讀取或未向您顯示的訊息。不會簽署。"
+  },
   "safety_btc_payment": {
     "message": "BTC 支付"
   },

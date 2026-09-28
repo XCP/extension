@@ -4061,6 +4061,12 @@
   "safety_durable_sell_authorization_detail": {
     "message": "入力 $1 は Counterparty アセットを保有しているか、保有していないことをウォレットが確認できません。さらにこの署名はトランザクションの出力を固定しません (SIGHASH_SINGLE または NONE)。これはそのアセットを売却する継続的な承認です。署名を持つ人は、その UTXO が使われるまでいつでも売却を完了し、アセットの送り先を選べます。これを求めてよいのは、検証済みのマーケットプレイス出品だけです。"
   },
+  "safety_blocked_unreadable_signed_message": {
+    "message": "ブロック: あなたのアドレスによる読み取れないメッセージ"
+  },
+  "safety_unreadable_signed_message_detail": {
+    "message": "この取引は、ウォレットが読み取れない、または表示していないメッセージを、あなたのアドレスの署名付きで公開します。署名されません。"
+  },
   "safety_btc_payment": {
     "message": "BTC の支払い"
   },

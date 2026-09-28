@@ -492,6 +492,7 @@ describe('signPSBT taproot inscription shapes', () => {
     0x00, 0x63, 0x03, 0x6f, 0x72, 0x64, 0x68, 0x20, ...outputKey, 0xac,
   ]);
   const commitP2tr = p2tr(taprootNumsKey(), { script: leaf, leafVersion: 0xc0 }, undefined, true);
+  const shown = { shownEnvelopeLeaf: bytesToHex(leaf) };
 
   it('signs a commit funding input that carries no tapInternalKey', () => {
     const tx = new Transaction();
@@ -525,7 +526,9 @@ describe('signPSBT taproot inscription shapes', () => {
     tx.addOutput({ script: hexToBytes('6a08434e545250525459'), amount: 0n });
     tx.addOutputAddress(addrP2tr.address!, 546n);
 
-    const signed = signPSBT(bytesToHex(tx.toPSBT()), privKey, [0], AddressFormat.P2TR);
+    // The leaf stands for one whose message the approval showed; without it the signer refuses.
+    expect(() => signPSBT(bytesToHex(tx.toPSBT()), privKey, [0], AddressFormat.P2TR)).toThrow(/approval did not show/);
+    const signed = signPSBT(bytesToHex(tx.toPSBT()), privKey, [0], AddressFormat.P2TR, undefined, true, shown);
 
     // Finalized with the options the launchpad's finalizeSignedPsbt uses — allowUnknownInputs is
     // what lets the finalizer assemble a witness for a leaf script it has no template for.
@@ -553,7 +556,8 @@ describe('signPSBT taproot inscription shapes', () => {
     tx.addOutput({ script: hexToBytes('6a08434e545250525459'), amount: 0n });
     tx.addOutputAddress(addrP2tr.address!, 546n);
 
-    const signed = Transaction.fromPSBT(hexToBytes(signPSBT(bytesToHex(tx.toPSBT()), privKey, [0], AddressFormat.P2TR)), {
+    const signed = Transaction.fromPSBT(hexToBytes(signPSBT(bytesToHex(tx.toPSBT()), privKey, [0], AddressFormat.P2TR,
+      undefined, true, shown)), {
       allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true,
     });
     const [{ leafHash }, signature] = signed.getInput(0).tapScriptSig![0]!;
