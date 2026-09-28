@@ -42,6 +42,8 @@ export interface LocalParsedOutput {
 
 export interface LocalParsedTransaction {
   txid: string;
+  /** nVersion; 3 marks a TRUC (BIP 431) transaction. */
+  version: number;
   inputs: LocalParsedInput[];
   outputs: LocalParsedOutput[];
   vsize: number;
@@ -130,6 +132,7 @@ export function parseRawTransactionLocally(rawTxHex: string): LocalParsedTransac
 
   return {
     txid: computeTxid(tx),
+    version: tx.version,
     inputs,
     outputs,
     vsize: computeVsize(tx, rawBytes.length),

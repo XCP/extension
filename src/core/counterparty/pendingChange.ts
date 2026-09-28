@@ -54,6 +54,9 @@ export function extractSafeOwnChangeOutputs(
 ): SafeOwnChangeOutput[] {
   const parsed = parseRawTransactionLocally(rawTxHex);
   if (!parsed || parsed.inputs.length === 0 || !parsed.inputs[0]?.txid) return [];
+  // A TRUC (version 3) transaction's unconfirmed outputs may only be spent by one small version 3
+  // child, which the wallet's own sends are not: its change waits for confirmation instead.
+  if (parsed.version === 3) return [];
 
   const outputScripts = parsed.outputs.map((output) => output.script ?? output.opReturnData ?? '');
   const payload = extractPayloadFromOutputs(outputScripts, parsed.inputs[0].txid);
