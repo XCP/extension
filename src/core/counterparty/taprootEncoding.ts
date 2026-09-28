@@ -21,7 +21,7 @@
  * conditional cases are the ones whose compose adds an output depending on parameters.
  */
 
-import { packComposeMessage } from '@/core/counterparty/pack/messages';
+import { type PackRules, packComposeMessage } from '@/core/counterparty/pack/messages';
 import { CounterpartyApiError, UnofferedInputsError } from '@/core/errors';
 import { validateBitcoinAddress } from '@/core/validation/bitcoin';
 
@@ -123,11 +123,19 @@ function lengthProbe(): Params {
   return { timestamp: Math.floor(Date.now() / 1000), divisible: true };
 }
 
-/** `chooseEncoding` with the message length measured from the request itself. */
-export function chooseComposeEncoding(composeType: string, params: Params, sourceAddress: string): 'taproot' | undefined {
+/**
+ * `chooseEncoding` with the message length measured from the request itself. An MPMA's length
+ * depends on its address table, so it is measured only when `rules` names one.
+ */
+export function chooseComposeEncoding(
+  composeType: string,
+  params: Params,
+  sourceAddress: string,
+  rules: PackRules = {}
+): 'taproot' | undefined {
   let messageLength: number | null = null;
   try {
-    messageLength = packComposeMessage(composeType, params, lengthProbe())?.bytes.length ?? null;
+    messageLength = packComposeMessage(composeType, params, lengthProbe(), rules)?.bytes.length ?? null;
   } catch {
     messageLength = null;
   }

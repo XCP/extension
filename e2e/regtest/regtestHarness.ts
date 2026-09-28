@@ -4,7 +4,7 @@
  * signer performs.
  *
  * Expects the stack in `docker-compose.yml` beside this file (Bitcoin Core 30 and Counterparty
- * Core 11.3 on regtest, RPC user `rpc`/`rpc`). Enabled by REGTEST=1 (or ZELD_REGTEST=1); the
+ * Core 11.4 on regtest, RPC user `rpc`/`rpc`). Enabled by REGTEST=1 (or ZELD_REGTEST=1); the
  * endpoints are REGTEST_BITCOIND and REGTEST_COUNTERPARTY, with the ZELD_-prefixed names still
  * read for the ZELD suites.
  */

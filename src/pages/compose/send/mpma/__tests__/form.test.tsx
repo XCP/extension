@@ -310,10 +310,12 @@ describe('MPMAForm', () => {
       const data = Object.fromEntries(mockFormAction.mock.calls[0]![0] as FormData);
 
       expect(verifiedReviewParams('mpma', data).memos).toEqual(['Invoice 12, part 2', 'thanks']);
-      const packed = packComposeMessage('mpma', data);
-      expect(packed).not.toBeNull();
-      // The payload follows the 8-byte CNTRPRTY prefix and the one-byte message type.
-      expect(unpackMPMA(packed!.bytes.slice(9)).sends.map(send => send.memo)).toEqual(['Invoice 12, part 2', 'thanks']);
+      for (const mpmaTableFormat of ['legacy', 'length-prefixed'] as const) {
+        const packed = packComposeMessage('mpma', data, undefined, { mpmaTableFormat });
+        expect(packed).not.toBeNull();
+        // The payload follows the 8-byte CNTRPRTY prefix and the one-byte message type.
+        expect(unpackMPMA(packed!.bytes.slice(9)).sends.map(send => send.memo)).toEqual(['Invoice 12, part 2', 'thanks']);
+      }
     });
 
     it('names the line of a 0x memo that is not whole bytes of hex', async () => {

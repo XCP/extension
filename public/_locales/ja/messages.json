@@ -1820,6 +1820,12 @@
   "composer_context_invalid_transaction_data": {
     "message": "トランザクションデータが無効です"
   },
+  "composer_context_mpma_near_activation": {
+    "message": "この複数宛先への送金について、ネットワークはブロック $1 から読み取り方を変更します。このトランザクションがそのブロック以降に承認された場合、送金は反映されませんが、ビットコイン手数料は支払われます。"
+  },
+  "composer_context_mpma_table_format_unconfirmed": {
+    "message": "複数宛先への送金のエンコード方式を決める現在のブロック高を確認できませんでした。しばらくしてから再試行してください。"
+  },
   "composer_context_no_active_address_available": {
     "message": "利用できるアクティブなアドレスがありません"
   },

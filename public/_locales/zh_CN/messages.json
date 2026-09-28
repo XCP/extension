@@ -1820,6 +1820,12 @@
   "composer_context_invalid_transaction_data": {
     "message": "交易数据无效"
   },
+  "composer_context_mpma_near_activation": {
+    "message": "网络将从区块 $1 起更改多方多资产交易的读取方式。如果此交易在该区块或之后才确认，它将不会生效，但比特币手续费仍会支付。"
+  },
+  "composer_context_mpma_table_format_unconfirmed": {
+    "message": "无法确认当前区块高度，而多方多资产交易的编码方式取决于它。请稍后重试。"
+  },
   "composer_context_no_active_address_available": {
     "message": "没有可用的活动地址"
   },

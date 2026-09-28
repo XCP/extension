@@ -229,6 +229,11 @@ function ComposerInner<T>({
               </Banner>
             </div>
           )}
+          {state.reviewNotices.map((notice, index) => (
+            <div key={`${index}-${notice}`} className="px-4 pt-4">
+              <Banner severity="info" title={notice} />
+            </div>
+          ))}
           {renderReview ? renderReview({
             apiResponse: state.apiResponse,
             onSign: () => { void signAndBroadcast(); },

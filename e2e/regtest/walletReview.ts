@@ -28,9 +28,10 @@ import type { ApiResponse } from '@/core/counterparty/compose';
 import { composerChosenMessageFields } from '@/core/counterparty/composerChoices';
 import { calculateDispensePayouts, describePayout } from '@/core/counterparty/dispenseOutcome';
 import { describeFairminterPaymentModel, getFairmintCost, isPaidFairminter, readFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
+import { resolveMpmaTableFormat } from '@/core/counterparty/mpmaTableFormat';
 import { normalizeFormData, verifiedReviewParams } from '@/core/counterparty/normalize';
 import { checkOutputPolicy, type IntendedDestination, pinnedDestinations, withPinnedDestinations } from '@/core/counterparty/outputPolicy';
-import { packComposeMessage } from '@/core/counterparty/pack/messages';
+import { composesAsMpma, type PackRules, packComposeMessage } from '@/core/counterparty/pack/messages';
 import { readAssetSupply, readCancelledOrder, readUtxoAssets } from '@/core/counterparty/protocolContext';
 import { chooseComposeEncoding, composeWithEncoding } from '@/core/counterparty/taprootEncoding';
 import { fetchInputValues } from '@/core/counterparty/transaction';
@@ -101,7 +102,14 @@ export async function composeAsWallet(
   const { normalizedData, assetInfoCache } = await normalizeFormData(formData, composeType);
   const dataForApi: Record<string, unknown> = { ...normalizedData, sourceAddress: source };
 
-  const encoding = chooseComposeEncoding(composeType, dataForApi, source);
+  // The MPMA address table for the next block, settled before compose as the composer does.
+  let packRules: PackRules = {};
+  if (composesAsMpma(composeType, dataForApi)) {
+    const table = await resolveMpmaTableFormat();
+    if (!table) throw new Error(`${composeType}: the MPMA address table could not be settled from the height`);
+    packRules = { mpmaTableFormat: table.format };
+  }
+  const encoding = chooseComposeEncoding(composeType, dataForApi, source, packRules);
   if (encoding === 'taproot') throw new Error(`${composeType} chose Taproot encoding; this suite covers OP_RETURN composes only`);
   let response = await composeWithEncoding(composeApi, dataForApi, encoding);
   if (!response?.result?.rawtransaction) throw new Error(`${composeType}: the composer returned no transaction`);
@@ -116,7 +124,11 @@ export async function composeAsWallet(
     if (unpacked.success && unpacked.messageType && unpacked.data) {
       decodedMessage = { messageType: unpacked.messageType, data: unpacked.data as Record<string, unknown> };
     }
-    const expected = packComposeMessage(composeType, requestedData, decodedMessage?.data);
+    if (decodedMessage?.messageType === 'mpma_send' && decodedMessage.data.tableFormat !== packRules.mpmaTableFormat) {
+      throw new Error(`${composeType}: the MPMA carries the ${String(decodedMessage.data.tableFormat)} address table, `
+        + `not the ${String(packRules.mpmaTableFormat)} one core reads at the next block`);
+    }
+    const expected = packComposeMessage(composeType, requestedData, decodedMessage?.data, packRules);
     if (expected) {
       if (bytesToHex(expected.bytes).toLowerCase() !== counterpartyData.toLowerCase()) {
         throw new Error(`${composeType}: the composed message differs from the one this request should produce `
@@ -127,7 +139,7 @@ export async function composeAsWallet(
       if (!verification.valid) throw new Error(`${composeType}: verification failed: ${verification.errors.join('; ')}`);
       verificationWarnings.push(...verification.warnings);
     }
-  } else if (packComposeMessage(composeType, requestedData)) {
+  } else if (packComposeMessage(composeType, requestedData, undefined, packRules)) {
     throw new Error(`${composeType}: the composed transaction carries no message`);
   }
 

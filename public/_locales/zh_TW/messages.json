@@ -1820,6 +1820,12 @@
   "composer_context_invalid_transaction_data": {
     "message": "交易資料無效"
   },
+  "composer_context_mpma_near_activation": {
+    "message": "網路將從區塊 $1 起更改多方多資產交易的讀取方式。如果此交易在該區塊或之後才確認，它將不會生效，但比特幣手續費仍會支付。"
+  },
+  "composer_context_mpma_table_format_unconfirmed": {
+    "message": "無法確認目前的區塊高度，而多方多資產交易的編碼方式取決於它。請稍後再試。"
+  },
   "composer_context_no_active_address_available": {
     "message": "沒有可用的活動地址"
   },
