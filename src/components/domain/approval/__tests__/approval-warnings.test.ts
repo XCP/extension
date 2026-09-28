@@ -416,7 +416,7 @@ describe('durable sell authorization', () => {
   });
 });
 
-describe('Counterparty commits and script addresses', () => {
+describe('Counterparty commits', () => {
   const COMMIT = 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr';
   const PAYER = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
 
@@ -425,10 +425,6 @@ describe('Counterparty commits and script addresses', () => {
     const safetyWarnings: SecurityWarning[] = [
       { code: 'counterparty_reveal_refused', data: { reason: 'script_not_committed' },
         severity: 'block', title: 'English', message: 'English' },
-      { code: 'unproven_script_output', data: { totalSats: 600, addresses: [COMMIT], source: PAYER },
-        severity: 'warning', title: 'English', message: 'English' },
-      { code: 'unproven_script_output', data: { totalSats: 1_200, addresses: [COMMIT, COMMIT], source: PAYER },
-        severity: 'warning', title: 'English', message: 'English' },
       ...analyzeTransactionSafety('mpma_send', [], 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', {
         verifiedCommit: { address: COMMIT, value: 600, kind: 'reveal' },
       }).warnings,
@@ -441,19 +437,12 @@ describe('Counterparty commits and script addresses', () => {
       description: t('safety_reveal_script_not_committed'),
     });
     expect(items[1]).toMatchObject({
-      severity: 'warning',
-      title: t('safety_unproven_script_output'),
-      description: t('safety_unproven_script_output_one', ['0.00000600', COMMIT, PAYER]),
-    });
-    expect(items[2]?.description).toBe(
-      t('safety_unproven_script_output_many', ['0.00001200', `${COMMIT}, ${COMMIT}`, PAYER]));
-    expect(items[3]).toMatchObject({
       severity: 'info',
       title: t('safety_counterparty_reveal_commit'),
       description: t('safety_counterparty_reveal_commit_detail', ['0.00000600', COMMIT]),
     });
     // Not the inscription wording: this commit's key is the site's, not the user's.
-    expect(items[3]?.title).not.toBe(t('safety_inscription_commit'));
+    expect(items[1]?.title).not.toBe(t('safety_inscription_commit'));
   });
 
   it.each(['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const)('states a proved reveal from its facts (%s)', language => {

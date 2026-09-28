@@ -80,10 +80,6 @@ export interface WalletService {
   signMessage: (message: string, address: string, expectedIdentity?: { walletId: string; address: string }) => Promise<{ signature: string; address: string }>;
   signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }, options?: SignPsbtOptions) => Promise<string>;
   getLastActiveAddress: () => Promise<string | undefined>;
-  /** Script addresses `payer` has already paid, so the notice for them is not repeated. */
-  getKnownScriptRecipients: (payer: string) => Promise<string[]>;
-  /** Remember, in the encrypted keychain, that `payer` paid these script addresses. */
-  recordScriptRecipients: (payer: string, recipients: string[]) => Promise<void>;
   /** Outputs `address` was last known to hold ZELD on, for approvals while the indexer is down. */
   getKnownZeldOutpoints: (address: string) => Promise<KnownZeldOutpoint[]>;
   /** Update, in the encrypted keychain, the record of `address`'s ZELD outputs. */
@@ -249,8 +245,6 @@ function createWalletService(): WalletService {
     signPsbt: async (psbtHex, signInputs, sighashTypes, expectedIdentity, options) => {
       return walletManager.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity, options);
     },
-    getKnownScriptRecipients: async (payer) => walletManager.getKnownScriptRecipients(payer),
-    recordScriptRecipients: async (payer, recipients) => walletManager.recordScriptRecipients(payer, recipients),
     getKnownZeldOutpoints: async (address) => walletManager.getKnownZeldOutpoints(address),
     recordZeldOutpoints: async (address, update) => walletManager.recordZeldOutpoints(address, update),
     getLastActiveAddress: async () => {

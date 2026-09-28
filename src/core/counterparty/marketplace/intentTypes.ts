@@ -116,8 +116,8 @@ export interface BuyListingsIntentClaim {
   /**
    * Optional: the x-only internal key of the platform fee output, when that output is a BIP86
    * key-path Taproot address (the marketplace derives its fee addresses that way). With it the
-   * wallet proves the output commits to no script (it has no script path), and it drops the
-   * script-address caution for exactly that output.
+   * wallet proves the output is that key's key-path output and labels it "Marketplace fee"; a key
+   * the output does not match blocks.
    */
   platformFeeInternalKey?: string;
   totalSats: number;
@@ -153,8 +153,8 @@ export interface ExactOfferIntentBase<Action extends 'authorize_exact_offer' | '
   /**
    * Optional: the x-only internal key of the platform fee output, when that output is a BIP86
    * key-path Taproot address (the marketplace derives its fee addresses that way). With it the
-   * wallet proves the output commits to no script (it has no script path), and it drops the
-   * script-address caution for exactly that output.
+   * wallet proves the output is that key's key-path output and labels it "Marketplace fee"; a key
+   * the output does not match blocks.
    */
   platformFeeInternalKey?: string;
   expectedTxid: string;
@@ -345,8 +345,6 @@ export interface MarketplaceApprovalReview {
   /**
    * The platform fee output, set only on a proved (or routine-caution) review whose intent named
    * its BIP86 internal key and whose output script is exactly that key's key-path Taproot output.
-   * Such an output commits to no script, so it has no script path; the script-address caution is
-   * dropped for it and for nothing else.
    */
   keyPathFeeOutput?: { index: number; address: string };
 }

@@ -3284,9 +3284,6 @@
   "marketplace_intent_items_with_asset_count": {
     "message": "$1（$2 種資產）"
   },
-  "marketplace_intent_key_path_fee_output": {
-    "message": "無腳本的金鑰路徑 Taproot 位址：付款給它無法以你的位址發布 Counterparty 訊息"
-  },
   "marketplace_intent_list_for_sale": {
     "message": "上架出售"
   },
@@ -4132,15 +4129,6 @@
   },
   "safety_reveal_two_messages": {
     "message": "此交易除了揭示交易的訊息外，還帶有自己的 Counterparty 訊息，因此無法作為單一操作說明。"
-  },
-  "safety_unproven_script_output": {
-    "message": "向腳本地址付款"
-  },
-  "safety_unproven_script_output_one": {
-    "message": "$1 BTC 將發送到腳本地址 $2。向腳本地址付款可能讓其擁有者從 $3 轉走你的 Counterparty 資產。只有在你信任收款方時才繼續。"
-  },
-  "safety_unproven_script_output_many": {
-    "message": "$1 BTC 將發送到腳本地址：$2。向腳本地址付款可能讓其擁有者從 $3 轉走你的 Counterparty 資產。只有在你信任收款方時才繼續。"
   },
   "safety_reveal_site_builds_title": {
     "message": "第二筆交易由網站建立"

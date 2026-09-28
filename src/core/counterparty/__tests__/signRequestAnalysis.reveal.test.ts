@@ -3,9 +3,8 @@
  *
  * With a proved reveal the commit is a Counterparty transaction: the reveal's message is its
  * payload, so it passes the Counterparty-only gate and every message check runs on it, and the
- * review states what the reveal's outputs decide and what they pay. Without one, a payment to a
- * script address the wallet does not control carries a caution — but only when it is paid from the
- * user's address and that address has something to lose.
+ * review states what the reveal's outputs decide and what they pay. Without one, the commit is an
+ * ordinary payment, analyzed as before the reveal work.
  *
  * Network lookups are mocked; the transaction bytes, the envelope and the local decode are real.
  */
@@ -17,7 +16,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { extractPsbtDetails } from '@/core/bitcoin/psbt';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
-import type { InputAttachedAssets } from '../inputAssets';
 import type { ProtocolContext } from '../protocolContext';
 import { analyzeSignRequest } from '../signRequestAnalysis';
 import {
@@ -43,7 +41,6 @@ vi.mock('@/core/counterparty/protocolContext', () => ({
   resolveProtocolContext: vi.fn(async () => ({ context: {} as ProtocolContext, warnings: [] })),
 }));
 
-// The payer's holdings: the real assetHoldings code runs against these reads.
 vi.mock('@/core/counterparty/api', () => ({
   fetchTokenBalances: vi.fn(async () => []),
   fetchOwnedAssets: vi.fn(async () => []),
@@ -55,9 +52,6 @@ beforeEach(() => {
   vi.mocked(api.fetchTokenBalances).mockReset().mockResolvedValue([]);
   vi.mocked(api.fetchOwnedAssets).mockReset().mockResolvedValue([]);
 });
-
-const holdsAssets = () =>
-  vi.mocked(api.fetchTokenBalances).mockResolvedValue([{ asset: 'PEPECASH' }] as never);
 
 const RECIPIENTS = Array.from({ length: 3 }, (_, i) =>
   p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(10 + i), true)).address!);
@@ -97,7 +91,6 @@ const payIntent = (address: string, amountSats: number) => parseBitcoinPaymentIn
 
 describe('a Counterparty commit with its reveal', () => {
   it('becomes the Counterparty transaction the reveal publishes', async () => {
-    holdsAssets();
     const commit = buildCommit(dataEnvelope(MPMA_HEX));
     const analysis = await analyze(commit.psbtHex, { counterpartyReveal: buildReveal(commit) });
 
@@ -107,8 +100,6 @@ describe('a Counterparty commit with its reveal', () => {
     expect(codes(analysis)).toContain('counterparty_reveal_commit');
     // The commit output is the transaction's subject, not an unexplained payment.
     expect(codes(analysis)).not.toContain('external_btc_output');
-    // Proved, so the script-address caution has nothing left to say, even for a holder.
-    expect(codes(analysis)).not.toContain('unproven_script_output');
     expect(codes(analysis)).not.toContain('counterparty_only_gate');
     // An MPMA is stated entirely in the message: no site-control disclosure, and a data-only
     // reveal is information, not a warning.
@@ -169,10 +160,8 @@ describe('a Counterparty commit with its reveal', () => {
   });
 });
 
-describe('a script-address output without a reveal', () => {
-  // A commit sent as a plain Bitcoin payment, from an address that holds assets.
-  it('cautions, without blocking, when the payer holds Counterparty assets', async () => {
-    holdsAssets();
+describe('a commit without a reveal', () => {
+  it('is an ordinary payment when sent as a plain Bitcoin payment', async () => {
     const commit = buildCommit(dataEnvelope(MPMA_HEX));
     const commitAddress = extractPsbtDetails(commit.psbtHex).outputs[0]!.address!;
     const analysis = await analyze(commit.psbtHex, {
@@ -182,114 +171,23 @@ describe('a script-address output without a reveal', () => {
 
     expect(analysis.bitcoinPaymentProof?.proved).toBe(true);
     expect(analysis.safety.blocked).toBe(false);
-    const caution = analysis.safety.warnings.find((w) => w.code === 'unproven_script_output');
-    expect(caution).toMatchObject({
-      severity: 'warning',
-      data: { totalSats: 600, addresses: [commitAddress], source: USER_ADDRESS },
-    });
-    expect(caution?.message).toBe(
-      `0.00000600 BTC goes to ${commitAddress}, a script address. Paying a script address can let its owner `
-      + `move your Counterparty assets from ${USER_ADDRESS}. Only continue if you trust the recipient.`);
-    expect(api.fetchTokenBalances).toHaveBeenCalledWith(USER_ADDRESS, expect.anything());
-  });
-
-  it('cautions for an address that owns an asset but holds no balance', async () => {
-    vi.mocked(api.fetchOwnedAssets).mockResolvedValue([{ asset: 'PEPECASH' }] as never);
-    const commit = buildCommit(dataEnvelope(MPMA_HEX));
-    const commitAddress = extractPsbtDetails(commit.psbtHex).outputs[0]!.address!;
-    const analysis = await analyze(commit.psbtHex, {
-      signingPurpose: 'bitcoin-payment',
-      bitcoinPaymentIntent: payIntent(commitAddress, 600),
-    });
-
-    expect(codes(analysis)).toContain('unproven_script_output');
-  });
-
-  it('stays quiet when the payer holds nothing', async () => {
-    const commit = buildCommit(dataEnvelope(MPMA_HEX));
-    const commitAddress = extractPsbtDetails(commit.psbtHex).outputs[0]!.address!;
-    const analysis = await analyze(commit.psbtHex, {
-      signingPurpose: 'bitcoin-payment',
-      bitcoinPaymentIntent: payIntent(commitAddress, 600),
-    });
-
-    expect(codes(analysis)).not.toContain('unproven_script_output');
-  });
-
-  it('fails safe: cautions when the holdings cannot be read', async () => {
-    vi.mocked(api.fetchTokenBalances).mockRejectedValue(new Error('API down'));
-    const commit = buildCommit(dataEnvelope(MPMA_HEX));
-    const commitAddress = extractPsbtDetails(commit.psbtHex).outputs[0]!.address!;
-    const analysis = await analyze(commit.psbtHex, {
-      signingPurpose: 'bitcoin-payment',
-      bitcoinPaymentIntent: payIntent(commitAddress, 600),
-    });
-
-    expect(codes(analysis)).toContain('unproven_script_output');
-  });
-
-  it('cautions when an input carries attached assets, whatever the address holds', async () => {
-    const commit = buildCommit(dataEnvelope(MPMA_HEX));
-    const attached = [{
-      inputIndex: 0, utxo: `${'ab'.repeat(32)}:0`,
-      assets: [{ asset: 'PEPECASH', quantity_normalized: '1' }],
-    }] as unknown as InputAttachedAssets[];
-    const analysis = await analyze(commit.psbtHex, { attachedAssets: Promise.resolve(attached) });
-
-    expect(codes(analysis)).toContain('unproven_script_output');
-  });
-
-  it('stays quiet for a key-hash address, without a lookup', async () => {
-    holdsAssets();
-    const tx = extractPsbtDetails(buildCommit(dataEnvelope(MPMA_HEX)).psbtHex);
-    const outputs = tx.outputs.map((output, index) => index === 0
-      ? { ...output, type: 'p2wpkh' as const, address: OTHER_ADDRESS,
-          script: bytesToHex(p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(2), true)).script) }
-      : output);
-    const analysis = await analyzeSignRequest({
-      counterpartyDataHex: undefined,
-      inputs: tx.inputs,
-      outputs,
-      signerAddresses: [USER_ADDRESS],
-      signedInputIndices: [0],
-      signedInputs: [{ index: 0, sighashType: 0x01 }],
-      transactionId: tx.transactionId,
-      attachedAssets: Promise.resolve([]),
-      signingPurpose: 'bitcoin-payment',
-      bitcoinPaymentIntent: payIntent(OTHER_ADDRESS, 600),
-    });
-
-    expect(analysis.safety.blocked).toBe(false);
-    expect(codes(analysis)).not.toContain('unproven_script_output');
-    expect(api.fetchTokenBalances).not.toHaveBeenCalled();
-  });
-
-  it('stays quiet when someone else pays', async () => {
-    holdsAssets();
-    const commit = buildCommit(dataEnvelope(MPMA_HEX), { funder: OTHER_ADDRESS });
-    const analysis = await analyze(commit.psbtHex);
-
-    expect(codes(analysis)).not.toContain('unproven_script_output');
-    expect(api.fetchTokenBalances).not.toHaveBeenCalled();
+    expect(analysis.safety.warnings.some((w) => w.severity === 'warning')).toBe(false);
   });
 
   it('still refuses a plain Bitcoin commit through the Counterparty method', async () => {
-    holdsAssets();
     const commit = buildCommit(dataEnvelope(MPMA_HEX));
     const analysis = await analyze(commit.psbtHex);
 
     expect(analysis.safety.blocked).toBe(true);
     expect(codes(analysis)).toContain('counterparty_only_gate');
-    expect(codes(analysis)).toContain('unproven_script_output');
   });
 });
 
 /**
- * A request with no reveal, from an address with no Counterparty assets, must be analyzed exactly
- * as before the reveal work. The expected values below were produced by running these inputs
+ * A request with no reveal must be analyzed exactly as before the reveal work. The expected values below were produced by running these inputs
  * through `analyzeSignRequest` on origin/main (e164b041) with the same mocks.
  */
-describe('without a reveal, from an address holding nothing', () => {
+describe('without a reveal', () => {
   const plain = (value: unknown) => JSON.parse(JSON.stringify(value, (_key, v) =>
     typeof v === 'bigint' ? `${v}n` : v));
 
@@ -301,7 +199,6 @@ describe('without a reveal, from an address holding nothing', () => {
       bitcoinPaymentIntent: payIntent(commitAddress, 600),
     });
 
-    expect(api.fetchTokenBalances).toHaveBeenCalled();
     expect(plain(analysis)).toEqual(MAIN_BITCOIN_PAYMENT);
   });
 
