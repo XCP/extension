@@ -115,7 +115,7 @@ REGTEST=1 REGTEST_BITCOIND=http://127.0.0.1:28443 REGTEST_COUNTERPARTY=http://12
 docker compose -p xcp-regtest -f e2e/regtest/docker-compose.yml down -v
 ```
 
-The stack is Bitcoin Core 30 and Counterparty Core 11.3 (`e2e/regtest/docker-compose.yml`); set
+The stack is Bitcoin Core 30 and Counterparty Core 11.4 (`e2e/regtest/docker-compose.yml`); set
 `COUNTERPARTY_IMAGE` to run it against another Counterparty Core image, for instance an 11.5 build
 for `review-taproot.test.ts`, which is skipped on a node older than 11.5. The
 files share one chain, so they run one after another. A run takes about three minutes while Core
@@ -127,7 +127,7 @@ What each file covers:
 
 | File | Types | Address formats |
 |------|-------|-----------------|
-| `review-send.test.ts` | enhanced send, MPMA | send from and to all four; MPMA to P2WPKH, P2PKH, P2SH-P2WPKH |
+| `review-send.test.ts` | enhanced send, MPMA | send from and to all four; MPMA to all four |
 | `review-dex.test.ts` | dispenser open, dispense (two dispensers, partial fill), close; order, match, cancel; BTC order and BTCPay | dispense from all four |
 | `review-utxo.test.ts` | attach (both layouts), detach, move | attach from all four; detach and move from two each |
 | `review-issuance.test.ts` | issuance, issue more, description, lock, transfer ownership, dividend, destroy, broadcast, sweep | P2WPKH, P2PKH, P2TR |

@@ -1,7 +1,9 @@
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { AddressFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { type ConsolidationResult, consolidateBareMultisigBatch } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import { shownEnvelopeLeaf } from '@/core/bitcoin/envelopeLeafGuard';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails, parsePSBT, resolvePsbtSighashType, validateSignInputs } from '@/core/bitcoin/psbt';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
@@ -493,6 +495,10 @@ export class WalletSigner {
     // this request here, as it does on the hardware path, before any key is selected.
     assertStillAuthorized();
     psbtHex = verified.hex;
+    // The one tapleaf whose message the approval shows, read from these bytes exactly as the
+    // approval read it. The signer refuses every other script path naming its key.
+    const shownLeaf = shownEnvelopeLeaf(extractPsbtDetails(psbtHex));
+    const signingOptions = shownLeaf ? { shownEnvelopeLeaf: shownLeaf } : {};
 
     // If signInputs is provided, sign only the specified inputs
     // Otherwise, sign all inputs we can (using the active address)
@@ -534,6 +540,7 @@ export class WalletSigner {
           targetFormat,
           sighashTypes,
           key.compressed,
+          signingOptions,
         );
       }
 
@@ -556,6 +563,7 @@ export class WalletSigner {
         wallet.addressFormat,
         sighashTypes,
         privateKeyResult.compressed,
+        signingOptions,
       );
     }
   }

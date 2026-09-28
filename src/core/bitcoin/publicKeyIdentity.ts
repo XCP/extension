@@ -1,10 +1,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import {
-  AddressFormat,
-  encodeAddress,
-  normalizeAddressForComparison,
-} from '@/core/bitcoin/address';
+import { encodeAddress, normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 
 export type SecPublicKeyEncoding = 'compressed' | 'uncompressed';
 

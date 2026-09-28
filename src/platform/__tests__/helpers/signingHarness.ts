@@ -10,7 +10,7 @@ import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { Address as BtcAddress, OutScript, p2wpkh, Transaction } from '@scure/btc-signer';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemonic } from '@/core/bitcoin/privateKey';
 import type { UTXO } from '@/core/bitcoin/utxo';
 import { bufferToBase64 } from '@/core/encryption/buffer';

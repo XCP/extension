@@ -3,15 +3,28 @@ import { appendFileSync } from 'node:fs';
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { composeBroadcast, composeSend } from '@/core/counterparty/compose';
 import { verifyTransaction } from '@/core/counterparty/unpack/verify';
 import { DEFAULT_SETTINGS, setSettingsProvider } from '@/core/settings';
 import { huntZeldForCompose } from '@/core/zeld/composeHunt';
 import {
-  broadcastAndMine, counterparty, ensureMinerWallet, ensureXcp, fund, keyFor, legacyKeyFor,
-  nestedKeyFor, parsedTransaction, REGTEST_ENABLED, rpc, scanUnspents, signAsWallet, taprootKeyFor, xcpBalance,
-} from './regtestHarness';
+  broadcastAndMine,
+  counterparty,
+  ensureMinerWallet,
+  ensureXcp,
+  fund,
+  keyFor,
+  legacyKeyFor,
+  nestedKeyFor,
+  parsedTransaction,
+  REGTEST_ENABLED,
+  rpc,
+  scanUnspents,
+  signAsWallet,
+  taprootKeyFor,
+  xcpBalance,
+} from '../regtest/regtestHarness';
 
 // Regtest transport adapters. Composition, input selection, hashing, verification and signing
 // are the production functions. Every UTXO and previous transaction below comes from Bitcoin Core.

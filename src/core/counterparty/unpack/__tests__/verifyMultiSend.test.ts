@@ -25,7 +25,7 @@ function emptyResult(): VerificationResult {
 }
 
 function mpma(sends: Array<{ asset: string; destination: string; quantity: bigint }>): MPMAData {
-  return { sends };
+  return { sends, tableFormat: 'legacy' };
 }
 
 describe('verifyMultiSend', () => {

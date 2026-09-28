@@ -2,12 +2,13 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { AddressFormat, DEFAULT_ADDRESS_FORMAT, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat } from '@/core/bitcoin/address';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat, DEFAULT_ADDRESS_FORMAT, isCounterwalletFormat } from '@/core/bitcoin/addressFormat';
 import type { ConsolidationResult } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
-import { isValidCounterwalletMnemonic } from '@/core/counterwallet';
+import { isValidCounterwalletMnemonic } from '@/core/counterwallet/mnemonic';
 import { base64ToBuffer, bufferToBase64, generateRandomBytes } from '@/core/encryption/buffer';
 import {
   DEFAULT_PBKDF2_ITERATIONS,
@@ -31,7 +32,6 @@ import {
 import { addressIndexKeptBySwitch } from '@/core/wallet/addressFormatChoices';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
 import { detectUtxoAddress, isUtxoAddressPath, parseUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
-import { knownScriptRecipients, MAX_RECIPIENTS_PER_RECORD, withScriptRecipients } from '@/core/wallet/scriptRecipients';
 import { type KnownZeldOutpoint, knownZeldOutpoints, parseZeldOutpointUpdate, withZeldOutpoints } from '@/core/zeld/knownOutpoints';
 import { isValidZeldHuntSeconds, MAX_ZELD_HUNT_SECONDS } from '@/core/zeld/protocol';
 import * as sessionManager from '@/platform/auth/sessionManager';
@@ -1035,34 +1035,6 @@ export class WalletManager {
       const timeoutMs = getAutoLockTimeoutMs(updates.autoLockTimer);
       await this.mutationStep(sessionManager.updateSessionTimeout(timeoutMs));
     }
-  }
-
-  /**
-   * The script addresses `payer` has already paid from the wallet's own flows (see
-   * core/wallet/scriptRecipients). Empty while locked.
-   */
-  public getKnownScriptRecipients(payer: string): string[] {
-    if (typeof payer !== 'string' || !this.keychain) return [];
-    return knownScriptRecipients(this.keychain.scriptPaymentRecipients ?? [], payer);
-  }
-
-  /**
-   * Remember that `payer` paid the script addresses `recipients`, in the encrypted keychain. Writes
-   * nothing when every one is already recorded, so paying a known recipient again costs nothing.
-   */
-  public async recordScriptRecipients(payer: string, recipients: string[]): Promise<void> {
-    if (typeof payer !== 'string' || !Array.isArray(recipients)
-      || recipients.length > MAX_RECIPIENTS_PER_RECORD
-      || !recipients.every((recipient) => typeof recipient === 'string')) {
-      throw new Error('Invalid script payment recipients');
-    }
-    if (recipients.length === 0) return;
-    return this.mutateVault(async () => {
-      if (!this.keychain) throw new Error('Keychain not loaded');
-      const next = withScriptRecipients(this.keychain.scriptPaymentRecipients ?? [], payer, recipients);
-      if (!next) return;
-      await this.commitKeychain((draft) => { draft.scriptPaymentRecipients = next; });
-    });
   }
 
   /**

@@ -13,7 +13,7 @@ services:
       retries: 30
   counterparty:
     # Override with COUNTERPARTY_IMAGE to run the suite against another Counterparty Core build.
-    image: ${COUNTERPARTY_IMAGE:-counterparty/counterparty:v11.3.0}
+    image: ${COUNTERPARTY_IMAGE:-counterparty/counterparty:v11.4.0}
     depends_on:
       bitcoind:
         condition: service_healthy

@@ -136,7 +136,7 @@ export function AuthRequired(): ReactElement | null {
         ? navigationOptions
         : { replace: true };
 
-      navigate(redirectPath, options);
+      void navigate(redirectPath, options);
       return;
     }
 
@@ -147,7 +147,7 @@ export function AuthRequired(): ReactElement | null {
       hasCheckedDeepLink.current = true;
       const fallback = getDeepLinkFallback(location.pathname);
       if (fallback) {
-        navigate(fallback, { replace: true });
+        void navigate(fallback, { replace: true });
       }
     }
   }, [authState, keychainExists, navigate, isLoading, getRedirectPath, navigationOptions, location.pathname]);

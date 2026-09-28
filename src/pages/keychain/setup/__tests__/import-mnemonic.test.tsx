@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AddressFormat } from "@/core/bitcoin/address";
+import { AddressFormat } from "@/core/bitcoin/addressFormat";
 import { getPrivateKeyFromMnemonic } from "@/core/bitcoin/privateKey";
 import { GIFT_CARD_PATH } from "@/core/wallet/rarePepeWallet";
 import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';

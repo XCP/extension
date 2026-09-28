@@ -96,7 +96,7 @@ export function AssetSelectInput({
       }
     };
 
-    const debounceTimeout = setTimeout(searchAssets, 300);
+    const debounceTimeout = setTimeout(() => void searchAssets(), 300);
     return () => clearTimeout(debounceTimeout);
   }, [query, isInitialLoad, settings?.pinnedAssets]);
 

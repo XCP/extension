@@ -189,12 +189,27 @@ describe('AddressList', () => {
     fireEvent.click(copyButton);
     
     // Check icon should appear
-    expect(document.querySelector('.text-green-500')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(document.querySelector('.text-green-500')).toBeInTheDocument();
+    });
     
     // Wait for 2+ seconds for the icon to disappear
     await waitFor(() => {
       expect(document.querySelector('.text-green-500')).not.toBeInTheDocument();
     }, { timeout: 3000 });
+  });
+
+  it('does not show the check icon when the clipboard write fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failure = new DOMException('Document is not focused.', 'NotAllowedError');
+    vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(failure);
+    render(<AddressList {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId("copy-m/84'/0'/0'/0/0"));
+
+    await waitFor(() => expect(consoleError).toHaveBeenCalledWith('Failed to copy address:', failure));
+    expect(document.querySelector('.text-green-500')).not.toBeInTheDocument();
+    consoleError.mockRestore();
   });
 
   it('should render AddressMenu for each address', () => {

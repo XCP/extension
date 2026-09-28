@@ -10,14 +10,16 @@ import * as secp256k1 from '@noble/secp256k1';
 import { p2pkh, p2tr, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { getPsbtApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
 import { extractPsbtDetails, parsePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
+import { formatExpiry } from '@/core/counterparty/marketplace/format';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
+import type { AcceptPolicyOfferIntentClaim } from '@/core/counterparty/marketplace/intentTypes';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
-import { type AcceptPolicyOfferIntentClaim, formatExpiry, parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import {
   type CanonicalPolicy,
   encodePolicyLeaf,

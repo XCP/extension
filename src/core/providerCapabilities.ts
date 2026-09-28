@@ -1,5 +1,5 @@
 import { SigHash } from '@scure/btc-signer';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { MAX_MARKETPLACE_BATCH_REQUESTS, type MarketplaceBatchKind } from '@/core/counterparty/marketplaceBatch';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import type { Wallet } from '@/types/wallet';

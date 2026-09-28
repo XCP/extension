@@ -1,9 +1,9 @@
+import type { MoneyMovement } from '@/core/bitcoin/moneyMovement';
 import type { BitcoinPaymentIntentV1, BitcoinPaymentProof } from '@/core/bitcoin/providerPayment';
 import type { DecodedOutput } from '@/core/bitcoin/psbt';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis, subtract, toBigNumber, toNumber } from '@/core/numeric';
 import { ApprovalIdentifier } from './approval-identifier';
-import type { MoneyMovement } from './money-movement';
 
 const btc = (sats: number) => formatAmount({
   value: fromSatoshis(sats, true), minimumFractionDigits: 8, maximumFractionDigits: 8,

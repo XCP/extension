@@ -12,7 +12,7 @@
 
 import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { huntTxid } from '@/core/zeld/hunt';
 import { assessZeldHunt } from '@/core/zeld/huntTemplate';
 import { expectedAttempts } from '@/core/zeld/protocol';

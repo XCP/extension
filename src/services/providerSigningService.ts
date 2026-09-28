@@ -2,16 +2,20 @@
  * The background owns approval execution. A popup submits a decision over a
  * review, never bytes, signer parameters, or an alleged signing outcome.
  */
+import {
+  unshownEnvelopeWarning, unshownKeyLeafInputs, type WalletLeafKeys, walletLeafKeys, withEnvelopeLeafGuard,
+} from '@/core/bitcoin/envelopeLeafGuard';
 import { getFeeRates } from '@/core/bitcoin/feeRate';
 import { getPsbtApprovalPolicy, getPsbtBundleApprovalPolicy, getTransactionApprovalPolicy, type ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import { extractPsbtDetails, type PsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
-import { type DecodedPsbtInfo, decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
-import { type DecodedPsbtBundleInfo, decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDecoder';
+import { decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
+import { decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { PrevoutMismatchError } from '@/core/bitcoin/psbtPrevouts';
-import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
+import { decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
 import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { maxMarketplaceBatchRequests } from '@/core/counterparty/marketplaceBatch';
+import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { SigningError } from '@/core/errors';
 import type { PairedGrant } from '@/core/pairedGrant';
 import { ProviderReviewError, providerReviewCode, withProviderReviewCode } from '@/core/providerReviewErrors';
@@ -20,33 +24,14 @@ import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import type { SigningIdentity } from '@/platform/auth/signingIdentity';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
-import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignMessageRequest, type SignPsbtRequest, type SignPsbtsRequest, type SignTransactionRequest } from '@/platform/provider/signFlow';
+import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignPsbtsRequest, } from '@/platform/provider/signFlow';
 import { bundleSpendsItsParent, packageParentOf, signAttachAndListingForDelivery, signFundAndAuthorizationsForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
 import { defineProxyServer } from '@/platform/proxy/server';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY } from '@/services/providerSigningServiceClient';
+import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY, type ProviderSigningReview, type ReviewBase } from '@/services/providerSigningServiceClient';
 import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/services/signDelivery';
 import { getWalletService } from '@/services/walletService';
-
-interface ReviewBase {
-  reviewKey: string;
-  policy: ProviderApprovalPolicy;
-  fastestFee?: number;
-  /**
-   * The origin's paired grant when this request may continue after a switch to the active
-   * address's Legacy/SegWit sibling. Lets the screen keep the review open; execution re-reads
-   * the current grant and authorizes every signer against it. Included in reviewKey, so a grant
-   * change invalidates an open review (review_changed) on purpose.
-   */
-  pairedGrant?: PairedGrant;
-}
-export type ProviderSigningReview = ReviewBase & (
-  | { kind: 'sign-message'; request: SignMessageRequest }
-  | { kind: 'sign-transaction'; request: SignTransactionRequest; decodedInfo: DecodedTransactionInfo }
-  | { kind: 'sign-psbt'; request: SignPsbtRequest; decodedInfo: DecodedPsbtInfo }
-  | { kind: 'sign-psbts'; request: SignPsbtsRequest; decodedInfo: DecodedPsbtBundleInfo }
-);
 
 export interface SigningDecision {
   /** Identifies the facts the user actually reviewed, including the execution policy. */
@@ -172,6 +157,21 @@ export function createProviderSigningService(): ProviderSigningService {
     return { ownedAddresses: [request.address], identity };
   }
 
+  /**
+   * Every key of the active wallet's addresses and its Legacy/SegWit pair, in the forms a tapleaf
+   * can name them, for refusing script paths whose message the review does not show.
+   */
+  async function walletScriptKeys(): Promise<WalletLeafKeys> {
+    const wallet = getWalletService();
+    const activeWallet = await wallet.getActiveWallet();
+    const paired = activeWallet?.type === 'mnemonic' && getPairedAddressFormats(activeWallet.addressFormat)
+      ? await wallet.getPairedAddresses() : null;
+    return walletLeafKeys([
+      ...(activeWallet?.addresses ?? []),
+      ...(paired ? [paired.legacy, paired.segwit] : []),
+    ]);
+  }
+
   /** The active mnemonic wallet's Legacy/SegWit pair when `address` is one of them, else none. */
   async function pairedSiblings(address: string): Promise<string[]> {
     try {
@@ -220,21 +220,40 @@ export function createProviderSigningService(): ProviderSigningService {
       }
       case 'sign-psbt': {
         const signers = Object.keys(request.signInputs ?? {});
-        const decodedInfo = await decodePsbtForApproval(request.psbtHex,
+        const decodedInfo = withEnvelopeLeafGuard(await decodePsbtForApproval(request.psbtHex,
           signers.length ? signers : [request.address], Object.values(request.signInputs ?? {}).flat(),
           request.sighashTypes, request.inscription, request.signingPurpose,
           request.bitcoinPaymentIntent, request.marketplaceIntent, ownedAddresses,
-          { resolveTrustedPrevout: getTrustedBroadcastPrevout, counterpartyReveal: request.reveal });
+          { resolveTrustedPrevout: getTrustedBroadcastPrevout, counterpartyReveal: request.reveal }),
+        await walletScriptKeys());
         review = { kind: request.kind, request, decodedInfo, fastestFee,
           policy: getPsbtApprovalPolicy(request, decodedInfo, strictMode, fastestFee) };
         break;
       }
       case 'sign-psbts': {
         // The origin is the one the provider verified from the sender, never the site's words.
-        const decodedInfo = await decodePsbtBundleForApproval(
+        const decoded = await decodePsbtBundleForApproval(
           request, ownedAddresses, undefined, { origin: request.origin },
         );
-        const { policy, warnings } = getPsbtBundleApprovalPolicy(request, decodedInfo, strictMode, fastestFee);
+        // Every item gets the leaf check. An item decoded without a safety analysis (a proved
+        // fee-bump child) has no warnings to carry the block, so the bundle takes it instead.
+        const keys = await walletScriptKeys();
+        const unanalyzedBlocks: SecurityWarning[] = [];
+        const decodedInfo = {
+          ...decoded,
+          items: decoded.items.map((item, index) => {
+            if ('safety' in item) return withEnvelopeLeafGuard(item, keys);
+            const inputs = unshownKeyLeafInputs(item.psbtDetails, keys);
+            if (inputs.length > 0) {
+              const warning = unshownEnvelopeWarning(inputs);
+              unanalyzedBlocks.push({ ...warning, title: `Transaction ${index + 1}: ${warning.title}` });
+            }
+            return item;
+          }),
+        };
+        const bundlePolicy = getPsbtBundleApprovalPolicy(request, decodedInfo, strictMode, fastestFee);
+        const policy = unanalyzedBlocks.length > 0 ? { ...bundlePolicy.policy, blocked: true } : bundlePolicy.policy;
+        const warnings = [...unanalyzedBlocks, ...bundlePolicy.warnings];
         review = { kind: request.kind, request,
           decodedInfo: { ...decodedInfo, policyWarnings: warnings }, fastestFee, policy };
         break;

@@ -51,6 +51,14 @@ fakeBrowser.runtime.getURL = vi.fn((path: string) => `chrome-extension://test-id
 
 (global as any).browser = fakeBrowser;
 
+/**
+ * The window listener returns nothing: a DOM listener's promise has no taker, so the handler
+ * answers every outcome through postMessage. Its one wait is the provider call, which these mocks
+ * settle within a few microtasks, so a test delivers the event and lets that run out before looking.
+ */
+const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
+const deliver = async (listener: any, event: unknown) => { listener(event); await settle(); };
+
 // Mock window object
 const mockWindow = {
   addEventListener: vi.fn(),
@@ -181,7 +189,7 @@ describe('Content Script', () => {
         }
       };
 
-      await messageListener(event);
+      await deliver(messageListener, event);
 
       expect(mockProviderService.handleRequest).toHaveBeenCalledWith(
         mockWindow.location.origin,
@@ -205,14 +213,14 @@ describe('Content Script', () => {
     });
 
     it.each([null, [], { id: {} }, { id: 'x'.repeat(257) }])('ignores malformed page envelopes', async payload => {
-      await messageListener({ source: window, origin: mockWindow.location.origin,
+      await deliver(messageListener, { source: window, origin: mockWindow.location.origin,
         data: payload && { target: 'xcp-wallet-content', type: 'XCP_WALLET_REQUEST', ...payload } });
       expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
       expect(mockWindow.postMessage).not.toHaveBeenCalled();
     });
 
     it.each([null, { method: 123 }, { method: 'xcp_accounts', params: {} }])('rejects malformed method arguments before RPC', async data => {
-      await messageListener({ source: window, origin: mockWindow.location.origin, data: {
+      await deliver(messageListener, { source: window, origin: mockWindow.location.origin, data: {
         target: 'xcp-wallet-content', type: 'XCP_WALLET_REQUEST', id: 1, data,
       } });
       expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
@@ -239,7 +247,7 @@ describe('Content Script', () => {
         }
       };
 
-      await messageListener(event);
+      await deliver(messageListener, event);
 
       // When providerService returns null, it's wrapped as a successful response with null result
       expect(mockWindow.postMessage).toHaveBeenCalledWith(
@@ -277,7 +285,7 @@ describe('Content Script', () => {
         }
       };
 
-      await messageListener(event);
+      await deliver(messageListener, event);
 
       // Should return generic error message, not internal details
       expect(mockWindow.postMessage).toHaveBeenCalledWith(
@@ -313,7 +321,7 @@ describe('Content Script', () => {
         }
       };
 
-      await messageListener(event);
+      await deliver(messageListener, event);
 
       // User-facing errors should pass through
       expect(mockWindow.postMessage).toHaveBeenCalledWith(
@@ -347,7 +355,7 @@ describe('Content Script', () => {
         }
       };
 
-      await messageListener(event);
+      await deliver(messageListener, event);
 
       expect(mockWindow.postMessage).toHaveBeenCalledWith(
         {
@@ -374,7 +382,7 @@ describe('Content Script', () => {
         }
       };
 
-      await messageListener(event);
+      await deliver(messageListener, event);
 
       expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
       expect(mockWindow.postMessage).not.toHaveBeenCalled();
@@ -396,7 +404,7 @@ describe('Content Script', () => {
         }
       };
 
-      await messageListener(event);
+      await deliver(messageListener, event);
 
       expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
       expect(mockWindow.postMessage).not.toHaveBeenCalled();
@@ -502,7 +510,7 @@ describe('Content Script', () => {
       const messageListener = mockWindow.addEventListener.mock.calls.find(call => call[0] === 'message')?.[1];
 
       mockContext.onInvalidated.mock.calls[0]![0](); // what a page dispatching the DOM event would cause
-      await messageListener(accountsRequest(1));
+      await deliver(messageListener, accountsRequest(1));
 
       expect(mockProviderService.handleRequest).toHaveBeenCalledOnce();
       expect(mockWindow.postMessage).not.toHaveBeenCalledWith(disconnectEvent, expect.anything());
@@ -514,7 +522,7 @@ describe('Content Script', () => {
       const older = mockWindow.addEventListener.mock.calls.find(call => call[0] === 'message')?.[1];
       await contentScript.default.main(mockContext as any); // the newer copy, same isolated world
 
-      await older(accountsRequest(2));
+      await deliver(older, accountsRequest(2));
       expect(mockWindow.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ id: 2 }), expect.anything());
     });
 
@@ -525,7 +533,7 @@ describe('Content Script', () => {
         await contentScript.default.main(mockContext as any);
         const messageListener = mockWindow.addEventListener.mock.calls.find(call => call[0] === 'message')?.[1];
         mockProviderService.handleRequest.mockResolvedValueOnce([]);
-        await messageListener({
+        await deliver(messageListener, {
           source: window, origin: mockWindow.location.origin,
           data: { target: 'xcp-wallet-content', type: 'XCP_WALLET_REQUEST', id: 1, data: { method: 'xcp_accounts', params: [] } },
         });
@@ -555,7 +563,7 @@ describe('Content Script', () => {
   });
 
   describe('Bridge liveness', () => {
-    let messageListener: (event: unknown) => Promise<void>;
+    let messageListener: (event: unknown) => void;
     const request = (id: number | string, method = 'xcp_accounts') => ({
       source: window,
       origin: mockWindow.location.origin,
@@ -574,11 +582,11 @@ describe('Content Script', () => {
     it('acknowledges receipt before the wallet answers', async () => {
       let answer: (value: unknown) => void = () => {};
       mockProviderService.handleRequest.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
-      const pending = messageListener(request(1, 'xcp_signPsbt'));
+      messageListener(request(1, 'xcp_signPsbt'));
       expect(mockWindow.postMessage).toHaveBeenCalledExactlyOnceWith(
         { target: 'xcp-wallet-injected', type: 'XCP_WALLET_ACK', id: 1 }, mockWindow.location.origin);
       answer('signed');
-      await pending;
+      await settle();
       expect(mockWindow.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
         type: 'XCP_WALLET_RESPONSE', id: 1, data: { method: 'xcp_signPsbt', result: 'signed' },
       }), mockWindow.location.origin);
@@ -586,12 +594,12 @@ describe('Content Script', () => {
 
     it('answers at once with the typed reload error once the extension context is invalidated', async () => {
       setContextValid(false);
-      await messageListener(request(2));
+      await deliver(messageListener, request(2));
       expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
       expect(mockWindow.postMessage).toHaveBeenCalledWith(reloadResponse(2), mockWindow.location.origin);
       expect(mockWindow.postMessage).toHaveBeenCalledWith(disconnectEvent, mockWindow.location.origin);
       // The page hears `disconnect` once, not once per request.
-      await messageListener(request(3));
+      await deliver(messageListener, request(3));
       expect(mockWindow.postMessage).toHaveBeenCalledWith(reloadResponse(3), mockWindow.location.origin);
       expect(mockWindow.postMessage.mock.calls.filter(([msg]) => msg.event === 'disconnect')).toHaveLength(1);
     });
@@ -600,15 +608,15 @@ describe('Content Script', () => {
       mockProviderService.handleRequest.mockReturnValueOnce(new Promise(() => {})); // an open approval
       let failSecond: (error: unknown) => void = () => {};
       mockProviderService.handleRequest.mockReturnValueOnce(new Promise((_, reject) => { failSecond = reject; }));
-      void messageListener(request(4, 'xcp_signPsbt'));
+      messageListener(request(4, 'xcp_signPsbt'));
       // One at a time: vitest stalls concurrent dynamic imports of a mocked module.
       await vi.waitFor(() => expect(mockProviderService.handleRequest).toHaveBeenCalledTimes(1));
-      const second = messageListener(request(5));
+      messageListener(request(5));
       await vi.waitFor(() => expect(mockProviderService.handleRequest).toHaveBeenCalledTimes(2));
 
       setContextValid(false);
       failSecond(new Error('Extension context invalidated.'));
-      await second;
+      await settle();
 
       expect(mockWindow.postMessage).toHaveBeenCalledWith(reloadResponse(4), mockWindow.location.origin);
       expect(mockWindow.postMessage).toHaveBeenCalledWith(reloadResponse(5), mockWindow.location.origin);
@@ -618,7 +626,7 @@ describe('Content Script', () => {
     it('treats a service-worker restart as transient: surfaces a retryable 4900 and keeps the bridge', async () => {
       mockProviderService.handleRequest.mockRejectedValueOnce(
         new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, EXTENSION_RESTARTED_MESSAGE));
-      await messageListener(request(6, 'xcp_signPsbt'));
+      await deliver(messageListener, request(6, 'xcp_signPsbt'));
       expect(mockWindow.postMessage).toHaveBeenCalledWith({
         target: 'xcp-wallet-injected', type: 'XCP_WALLET_RESPONSE', id: 6,
         error: { code: 4900, message: EXTENSION_RESTARTED_MESSAGE },
@@ -626,7 +634,7 @@ describe('Content Script', () => {
       expect(mockWindow.postMessage).not.toHaveBeenCalledWith(disconnectEvent, expect.anything());
 
       mockProviderService.handleRequest.mockResolvedValueOnce(['bc1qexample']);
-      await messageListener(request(7));
+      await deliver(messageListener, request(7));
       expect(mockWindow.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
         id: 7, data: { method: 'xcp_accounts', result: ['bc1qexample'] },
       }), mockWindow.location.origin);
@@ -660,7 +668,7 @@ describe('Content Script', () => {
       const runtimeMessageListener = (fakeBrowser.runtime.onMessage.addListener as any).mock.calls[0][0];
       
       // Simulate window message
-      await windowMessageListener({
+      await deliver(windowMessageListener, {
         source: window,
         origin: mockWindow.location.origin,
         data: {

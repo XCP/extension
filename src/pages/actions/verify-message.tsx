@@ -7,7 +7,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
-import { verifyMessageWithMethod } from "@/core/bitcoin/messageVerifier";
+import { verifyMessageWithMethod } from "@/core/bitcoin/messageVerifier/verifier";
 import { validateSignatureJson } from "@/core/validation/signatureJson";
 
 import { t } from '@/i18n';
@@ -42,7 +42,7 @@ export default function VerifyMessagePage(): ReactElement {
 
     setHeaderProps({
       title: t('common_verify_message'),
-      onBack: () => navigate(-1),
+      onBack: () => void navigate(-1),
       rightButton: {
         ariaLabel: t('common_reset_form'),
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
@@ -191,7 +191,7 @@ export default function VerifyMessagePage(): ReactElement {
         {/* Verify Button */}
         <div className="mt-4">
           <Button
-            onClick={handleVerify}
+            onClick={() => void handleVerify()}
             color="blue"
             disabled={!address.trim() || !message.trim() || !signature.trim() || isVerifying}
             fullWidth

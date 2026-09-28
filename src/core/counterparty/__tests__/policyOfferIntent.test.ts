@@ -4,15 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { extractPsbtDetails, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
 import { parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
-import {
-  type AcceptPolicyOfferIntentClaim,
-  analyzeMarketplaceIntent,
-  type FundPolicyOfferIntentClaim,
-  formatExpiry,
-  type MarketplaceAnalysisInput,
-  marketplaceTransactionHeaderProblem,
-  parseMarketplaceIntent,
-} from '@/core/counterparty/marketplaceIntent';
+import { formatExpiry } from '@/core/counterparty/marketplace/format';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
+import type { AcceptPolicyOfferIntentClaim, FundPolicyOfferIntentClaim, MarketplaceAnalysisInput } from '@/core/counterparty/marketplace/intentTypes';
+import { marketplaceTransactionHeaderProblem } from '@/core/counterparty/marketplace/proofs';
+import { analyzeMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { policyDetachScriptHex } from '@/core/counterparty/policyOffer';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 import { POLICY_OFFER_VECTORS } from './policyOfferVectors';

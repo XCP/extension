@@ -8,7 +8,7 @@
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { BROADCAST_P2WPKH, KEY_WPKH, MPMA_P2WPKH } from '@/core/counterparty/__tests__/taproot115Fixtures';
 import { checkRevealSourceSignature, sourceOutputScript } from '@/core/counterparty/revealSourceRule';
 import * as sessionManager from '@/platform/auth/sessionManager';

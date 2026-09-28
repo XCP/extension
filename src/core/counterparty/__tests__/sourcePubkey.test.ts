@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getSourcePubkey, setSourcePubkeyProvider } from '../sourcePubkey';
+import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
+import { getSourcePubkey } from '../sourcePubkey';
 
 const ADDRESS = '1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH';
 const UNCOMPRESSED_ADDRESS = '1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm';

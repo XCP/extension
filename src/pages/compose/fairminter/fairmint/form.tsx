@@ -2,11 +2,12 @@ import { startTransition, useCallback, useEffect, useRef, useState } from "react
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { FairmintSummary } from "@/components/domain/asset/fairmint-summary";
-import { type Fairminter, FairminterSelectInput } from "@/components/domain/asset/fairminter-select-input";
+import { FairminterSelectInput } from "@/components/domain/asset/fairminter-select-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { FairminterDetails } from "@/core/counterparty/api";
 import { fetchAddressFairmintTotal } from "@/core/counterparty/api";
 import type { FairmintOptions } from "@/core/counterparty/compose";
 import type { FairmintBound } from "@/core/counterparty/fairminterModel";
@@ -75,7 +76,7 @@ export function FairmintForm({
   const [restoredQuantity] = useState(() =>
     initialFormData?.quantity ? initialFormData.quantity.toString() : ""
   );
-  const [selectedFairminter, setSelectedFairminter] = useState<Fairminter | undefined>(undefined);
+  const [selectedFairminter, setSelectedFairminter] = useState<FairminterDetails | undefined>(undefined);
   
   // Local validation error state (API errors handled by composer context)
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -150,7 +151,7 @@ export function FairmintForm({
       return;
     }
     let cancelled = false;
-    fetchAddressFairmintTotal(address, selectedFairminter.asset).then((total) => {
+    void fetchAddressFairmintTotal(address, selectedFairminter.asset).then((total) => {
       if (!cancelled) setAlreadyMinted(total);
     });
     return () => {
@@ -184,7 +185,7 @@ export function FairmintForm({
   }, [restoredQuantity, selectedFairminter]);
 
   // Handlers
-  const handleFairminterChange = useCallback((asset: string, fairminter?: Fairminter) => {
+  const handleFairminterChange = useCallback((asset: string, fairminter?: FairminterDetails) => {
     setFormData(prev => ({ ...prev, asset }));
     setSelectedFairminter(fairminter);
     setValidationError(null); // Clear validation errors when asset changes

@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
 import logo from '@/assets/qr-code.png';
-import { generateQR } from '@/core/qr-code';
+import { generateQR } from '@/core/qr-code/generator';
 
 import { t } from '@/i18n';
 

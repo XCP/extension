@@ -1,9 +1,10 @@
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { describe, expect, it, vi } from 'vitest';
-import { AddressFormat, decodeAddressFromScript, encodeAddress, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat } from '@/core/bitcoin/address';
+import { decodeAddressFromScript, encodeAddress, getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat, isCounterwalletFormat } from '@/core/bitcoin/addressFormat';
 import { isValidBitcoinAddress } from '@/core/validation/bitcoin';
 
-vi.mock('@/core/counterwallet', () => ({
+vi.mock('@/core/counterwallet/mnemonic', () => ({
   getCounterwalletSeed: vi.fn(() => new Uint8Array(64).fill(1))
 }));
 

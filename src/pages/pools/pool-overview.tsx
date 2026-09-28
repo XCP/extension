@@ -103,13 +103,13 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
           <div className="grid grid-cols-2 gap-3">
             <Button
               fullWidth
-              onClick={() => navigate(`/compose/pool/deposit/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
+              onClick={() => void navigate(`/compose/pool/deposit/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
             >
               {t('common_deposit')}
             </Button>
             <Button
               fullWidth
-              onClick={() => navigate(`/compose/pool/withdraw/${encodeURIComponent(pool.lp_asset)}`)}
+              onClick={() => void navigate(`/compose/pool/withdraw/${encodeURIComponent(pool.lp_asset)}`)}
             >
               {t('common_withdraw')}
             </Button>
@@ -117,7 +117,7 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
         ) : (
           <Button
             fullWidth
-            onClick={() => navigate(`/compose/pool/deposit/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
+            onClick={() => void navigate(`/compose/pool/deposit/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
           >
             {t('common_deposit')}
           </Button>
@@ -132,13 +132,13 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
                 id: "pool-swap",
                 title: t('pools_pool_overview_pool_swap'),
                 description: t('pools_pool_overview_swap_instantly_at_the_quoted'),
-                onClick: () => navigate(`/compose/swap/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`),
+                onClick: () => void navigate(`/compose/swap/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`),
               },
               {
                 id: "dex-order",
                 title: t('pools_pool_overview_dex_order'),
                 description: t('pools_pool_overview_set_your_own_price_on'),
-                onClick: () => navigate(`/compose/order/${encodeURIComponent(pool.asset_a)}`),
+                onClick: () => void navigate(`/compose/order/${encodeURIComponent(pool.asset_a)}`),
               },
             ],
           },

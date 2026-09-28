@@ -81,3 +81,13 @@ it('does not open Suite when the user denies access, and says how to retry', asy
   expect(stable.wallet.createHardwareWalletWithDiscovery).not.toHaveBeenCalled();
   expect(stable.wallet.setHardwareOperationInProgress).not.toHaveBeenCalled();
 });
+
+it('shows the error when Chrome rejects the Suite access request instead of doing nothing', async () => {
+  (chrome.permissions as unknown as { request: ReturnType<typeof vi.fn> }).request
+    .mockRejectedValue(new Error('This function must be called during a user gesture'));
+  render(<MemoryRouter><ConnectHardware /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: t('wallets_connect_hardware_connect_trezor') }));
+  await screen.findByText('This function must be called during a user gesture');
+  expect(stable.wallet.createHardwareWalletWithDiscovery).not.toHaveBeenCalled();
+  expect(stable.wallet.setHardwareOperationInProgress).not.toHaveBeenCalled();
+});

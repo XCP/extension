@@ -12,6 +12,7 @@ import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { SATS_PER_BTC } from "@/core/bitcoin/constants";
+import type { PriceUnit } from "@/core/bitcoin/price";
 import {
   type AssetInfo,
   type Dispense,
@@ -24,7 +25,6 @@ import { isFixedRateDispenser } from "@/core/counterparty/oraclePolicy";
 import { formatAmount } from "@/core/format";
 import { type BigNumber, divide, multiply, roundDown, toBigNumber, toNumber } from "@/core/numeric";
 import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/priceFormat";
-import type { PriceUnit } from "@/core/settings";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useInView } from "@/hooks/useInView";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -109,6 +109,7 @@ export default function AssetDispensersPage(): ReactElement {
 
   // Clipboard
   const { copy, isCopied } = useCopyToClipboard();
+  const copyValue = (value: string) => { void copy(value); };
 
   // Infinite scroll refs
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
@@ -181,7 +182,7 @@ export default function AssetDispensersPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('common_dispensers'),
-      onBack: () => navigate(-1),
+      onBack: () => void navigate(-1),
       rightButton: {
         ariaLabel: t('dispensers_asset_refresh_dispensers'),
         icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
@@ -275,7 +276,7 @@ export default function AssetDispensersPage(): ReactElement {
   }, [dispenses]);
 
   const handleDispenserClick = (dispenser: DispenserDetails) => {
-    navigate(`/compose/dispenser/dispense?address=${dispenser.source}&asset=${dispenser.asset}`);
+    void navigate(`/compose/dispenser/dispense?address=${dispenser.source}&asset=${dispenser.asset}`);
   };
 
   if (loading) {
@@ -315,14 +316,14 @@ export default function AssetDispensersPage(): ReactElement {
                       label={t('dispensers_asset_floor')}
                       value={formatPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}
                       rawValue={getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}
-                      onCopy={copy}
+                      onCopy={copyValue}
                       isCopied={isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat))}
                     />
                     <CopyableStat
                       label={t('common_avg')}
                       value={formatPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}
                       rawValue={getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}
-                      onCopy={copy}
+                      onCopy={copyValue}
                       isCopied={isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat))}
                     />
                   </>
@@ -346,14 +347,14 @@ export default function AssetDispensersPage(): ReactElement {
                       label={t('common_last')}
                       value={formatPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}
                       rawValue={getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}
-                      onCopy={copy}
+                      onCopy={copyValue}
                       isCopied={isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat))}
                     />
                     <CopyableStat
                       label={t('common_avg')}
                       value={formatPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}
                       rawValue={getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}
-                      onCopy={copy}
+                      onCopy={copyValue}
                       isCopied={isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat))}
                     />
                   </>
@@ -392,7 +393,7 @@ export default function AssetDispensersPage(): ReactElement {
               </TabButton>
             </div>
             <button type="button"
-              onClick={() => navigate(`/market?tab=dispensers&mode=manage&search=${asset}`)}
+              onClick={() => void navigate(`/market?tab=dispensers&mode=manage&search=${asset}`)}
               className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded cursor-pointer"
             >
               {t('dispensers_asset_my_dispensers')}
@@ -411,7 +412,7 @@ export default function AssetDispensersPage(): ReactElement {
                     dispenser={d}
                     formattedPrice={pricePerUnitLabel(d)}
                     onClick={() => handleDispenserClick(d)}
-                    onCopyAddress={copy}
+                    onCopyAddress={copyValue}
                     isCopied={isCopied(d.source)}
                   />
                 ))}
@@ -421,7 +422,7 @@ export default function AssetDispensersPage(): ReactElement {
                 message={t('dispensers_asset_no_open_dispensers_found', [String(asset)])}
                 linkAction={{
                   label: t('common_create_new_dispenser'),
-                  onClick: () => navigate(`/compose/dispenser/${asset}`),
+                  onClick: () => void navigate(`/compose/dispenser/${asset}`),
                 }}
               />
             )
@@ -444,7 +445,7 @@ export default function AssetDispensersPage(): ReactElement {
                       formattedPricePerUnit={pricePerUnit === null
                         ? "N/A"
                         : formatPrice(toNumber(roundDown(pricePerUnit)), priceUnit, btcPrice, settings.fiat)}
-                      onCopyTx={copy}
+                      onCopyTx={copyValue}
                       isCopied={isCopied(d.tx_hash)}
                     />
                   );

@@ -20,7 +20,6 @@ import { ApprovalTransactionDetails } from "@/components/domain/approval/approva
 import { buildApprovalWarnings, zeldReviewNotes } from "@/components/domain/approval/approval-warnings";
 import { ApprovalZeldNotes } from "@/components/domain/approval/approval-zeld-notes";
 import { CounterpartyDetailsCard } from "@/components/domain/approval/counterparty-details-card";
-import { computeMoneyMovement } from "@/components/domain/approval/money-movement";
 import { buildOrderAction, type OrderAction } from "@/components/domain/approval/order-card";
 import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { attachDestinationVout, getTxActionInfo } from "@/components/domain/tx/tx-action-info";
@@ -31,11 +30,12 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { normalizeAddressForComparison } from "@/core/bitcoin/address";
 import { exceedsSaneFeeRate } from "@/core/bitcoin/feeVerification";
+import { computeMoneyMovement } from "@/core/bitcoin/moneyMovement";
+import type { DecodedTransactionInfo } from "@/core/bitcoin/transactionApprovalDecoder";
 import { classifySignedInputAssets } from "@/core/counterparty/inputAssets";
 import { transactionIdIsFinal } from "@/core/counterparty/signRequestAnalysis";
 import { shouldBlockSigning } from "@/core/counterparty/unpack/providerVerify";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
-import type { DecodedTransactionInfo } from "@/hooks/useSignTransactionRequest";
 import { useSignTransactionRequest } from "@/hooks/useSignTransactionRequest";
 import { t } from '@/i18n';
 
@@ -250,7 +250,7 @@ export default function ApproveTransactionPage() {
       origin={request.origin}
       footer={
         <ApprovalFooter
-          onCancel={handleReject}
+          onCancel={() => void handleReject()}
           onSign={handleApprovalAction}
           busy={isSigning}
           blocked={blockSigning || isRefreshing || Boolean(refreshError)}

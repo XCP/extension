@@ -227,7 +227,7 @@ export default function MarketPage(): ReactElement {
       }
     };
 
-    loadPools();
+    void loadPools();
 
     return () => {
       session.cancelled = true;
@@ -313,12 +313,14 @@ export default function MarketPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('common_market'),
-      onBack: () => navigate("/index"),
+      onBack: () => void navigate("/index"),
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
-        onClick: async () => {
-          await lockKeychain();
-          navigate("/keychain/unlock");
+        onClick: () => {
+          lockKeychain().then(
+            () => void navigate("/keychain/unlock"),
+            (err: unknown) => console.error('Failed to lock keychain:', err),
+          );
         },
         ariaLabel: t('common_lock_keychain'),
       },
@@ -336,23 +338,24 @@ export default function MarketPage(): ReactElement {
   // Handlers
   const handleCopyAddress = () => {
     if (!activeAddress) return;
-    navigator.clipboard.writeText(activeAddress.address).then(() => {
-      setAddressCopied(true);
-    });
+    navigator.clipboard.writeText(activeAddress.address).then(
+      () => setAddressCopied(true),
+      (err: unknown) => console.error('Failed to copy address:', err),
+    );
   };
 
   const handleAddressSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate("/addresses", { state: { returnTo: location.pathname + location.search } });
+    void navigate("/addresses", { state: { returnTo: location.pathname + location.search } });
   };
 
   const handleDispenserClick = (dispenser: DispenserDetails) => {
-    navigate(`/market/dispensers/${dispenser.asset}`);
+    void navigate(`/market/dispensers/${dispenser.asset}`);
   };
 
   const handleOrderClick = (order: OrderDetails) => {
     const [baseAsset, quoteAsset] = getTradingPair(order.give_asset, order.get_asset);
-    navigate(`/market/orders/${baseAsset}/${quoteAsset}`);
+    void navigate(`/market/orders/${baseAsset}/${quoteAsset}`);
   };
 
   const isSearching = searchQuery.trim().length > 0;
@@ -408,8 +411,8 @@ export default function MarketPage(): ReactElement {
             btc={btc}
             xcp={xcp}
             currency={settings.fiat}
-            onBtcClick={() => navigate("/market/btc")}
-            onXcpClick={() => navigate("/market/xcp")}
+            onBtcClick={() => void navigate("/market/btc")}
+            onXcpClick={() => void navigate("/market/xcp")}
             className="mb-4"
           />
 
@@ -479,7 +482,7 @@ export default function MarketPage(): ReactElement {
               )}
               {viewMode === "manage" && (
                 <button type="button"
-                  onClick={() => navigate(isSearching ? `/compose/dispenser/${encodeURIComponent(normalizeAssetQuery(searchQuery))}` : "/compose/dispenser")}
+                  onClick={() => void navigate(isSearching ? `/compose/dispenser/${encodeURIComponent(normalizeAssetQuery(searchQuery))}` : "/compose/dispenser")}
                   className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
                   {t('common_create_new_dispenser')}
                 </button>
@@ -515,7 +518,7 @@ export default function MarketPage(): ReactElement {
               )}
               {viewMode === "manage" && (
                 <button type="button"
-                  onClick={() => navigate(isSearching ? `/compose/order/${encodeURIComponent(normalizeAssetQuery(searchQuery))}` : "/compose/order")}
+                  onClick={() => void navigate(isSearching ? `/compose/order/${encodeURIComponent(normalizeAssetQuery(searchQuery))}` : "/compose/order")}
                   className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
                   {t('common_create_new_order')}
                 </button>
@@ -543,7 +546,7 @@ export default function MarketPage(): ReactElement {
                         <PoolCard
                           key={pool.lp_asset}
                           pool={pool}
-                          onClick={() => navigate(viewMode === "manage"
+                          onClick={() => void navigate(viewMode === "manage"
                             ? `/pools/${encodeURIComponent(pool.lp_asset)}`
                             : `/pools/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
                         />
@@ -573,7 +576,7 @@ export default function MarketPage(): ReactElement {
                 </>
               )}
               <button type="button"
-                onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${encodeURIComponent(normalizeAssetQuery(searchQuery))}/XCP` : "/compose/pool/deposit")}
+                onClick={() => void navigate(searchQuery.trim() ? `/compose/pool/deposit/${encodeURIComponent(normalizeAssetQuery(searchQuery))}/XCP` : "/compose/pool/deposit")}
                 className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
               >
                 {t('market_enter_pool')}

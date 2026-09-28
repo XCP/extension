@@ -151,6 +151,8 @@ describe.runIf(REGTEST_ENABLED)('attach, detach and move: review matches ledger'
       // move as a UTXO_MOVE event with its own status.
       if (c.kind === 'detach') expect((await parsedTransaction(txid)).valid, `detach ${c.holder.format} valid`).toBe(true);
       const moved = c.before.find(b => b.asset === 'XCP')!;
+      // The review page lists what leaves with the UTXO, as the ledger held it before signing.
+      expect(c.page.fields.assets, `${c.kind} ${c.holder.format}: review lists the UTXO's assets`).toBe(`${moved.quantity_normalized} XCP`);
       if (c.kind === 'detach') {
         expect(c.page.fields.sourceUtxo).toBe(c.sourceUtxo);
         if (c.page.fields.destination !== undefined) expect(sameScript(c.page.fields.destination, c.holder.key.address)).toBe(true);

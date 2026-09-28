@@ -22,7 +22,6 @@ vi.mock('@/core/counterparty/transaction', async importOriginal => ({
   decodeCounterpartyMessage: async () => state.apiMessage,
 }));
 vi.mock('@/core/counterparty/inputAssets', () => ({ fetchInputsAttachedAssets: async () => [] }));
-vi.mock('@/core/counterparty/assetHoldings', () => ({ addressHoldsCounterpartyAssets: async () => false }));
 
 import { decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
 import { getTxActionInfo } from './tx-action-info';

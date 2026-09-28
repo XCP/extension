@@ -208,9 +208,10 @@ describe('BIP-322 Implementation', () => {
     let verifyTaprootSignature: any;
 
     beforeEach(async () => {
-      const module = await import('../messageVerifier');
-      verifyMessage = module.verifyMessage;
-      verifyTaprootSignature = module.verifyBIP322; // Use BIP-322 for Taproot
+      const verifier = await import('../messageVerifier/verifier');
+      const bip322 = await import('../messageVerifier/specs/bip322');
+      verifyMessage = verifier.verifyMessage;
+      verifyTaprootSignature = bip322.verifyBIP322; // Use BIP-322 for Taproot
     });
 
     it('should delegate Taproot signatures to BIP-322 verification', async () => {

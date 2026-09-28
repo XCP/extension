@@ -8,8 +8,8 @@ import { ApiUrlInput } from './api-url-input';
 
 const captured = vi.hoisted(() => ({ blur: null as Promise<unknown> | null }));
 
-// Capture a rejected async blur handler so the test can assert that the original save error
-// propagates. A normal React event does not await that promise and would report it as unhandled.
+// Capture what the blur handler returns, so a test can assert that nothing escapes it as a
+// rejection: a React event does not await that promise and would report it as unhandled.
 vi.mock('@headlessui/react', () => ({
   Input: ({ onBlur, ...props }: InputHTMLAttributes<HTMLInputElement>) => (
     <input {...props} onBlur={(event) => {
@@ -118,19 +118,23 @@ describe('ApiUrlInput localized validation', () => {
     expect(screen.getByText('❌ APIエラー：503')).toBeInTheDocument();
   });
 
-  it('restores the input after a caller save failure while preserving that exact rejection', async () => {
+  it('says the URL was not saved when the caller save fails, and restores the input', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true, json: async () => ({ result: { server_ready: true, network: 'mainnet', version: '11.5.0' } }),
     });
     const failure = new Error('Unable to persist settings: quota 17');
     const onValidationSuccess = vi.fn().mockRejectedValueOnce(failure);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { input, onChange } = renderInput(onValidationSuccess);
     fireEvent.blur(input);
-    await act(async () => { await expect(captured.blur).rejects.toBe(failure); });
+    await act(async () => { await expect(captured.blur).resolves.toBeUndefined(); });
+    expect(await screen.findByText(`❌ ${t('display_preferences_save_failed')}`)).toBeInTheDocument();
+    expect(consoleError).toHaveBeenCalledWith('Failed to save API URL:', failure);
     await waitFor(() => { expect(input).toBeEnabled(); });
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByText(t('inputs_api_url_input_api_endpoint_validated_and_saved'))).not.toBeInTheDocument();
     act(() => { mockBrowserLocale({ language: 'zh-CN' }); });
+    expect(screen.getByText(`❌ ${t('display_preferences_save_failed')}`)).toBeInTheDocument();
     expect(input).toHaveValue(URL_VALUE);
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(onValidationSuccess).toHaveBeenCalledExactlyOnceWith(URL_VALUE);

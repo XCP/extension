@@ -259,7 +259,7 @@ export function OrderForm({
             <button
               type="button"
               className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
-              onClick={() => navigate(`/compose/swap/${encodeURIComponent(baseAsset)}/${encodeURIComponent(quoteAsset)}`)}
+              onClick={() => void navigate(`/compose/swap/${encodeURIComponent(baseAsset)}/${encodeURIComponent(quoteAsset)}`)}
             >
               {t('common_swap')}
             </button>

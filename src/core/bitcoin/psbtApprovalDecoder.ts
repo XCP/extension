@@ -1,5 +1,6 @@
 /** Shared PSBT decoding and safety analysis used by single and atomic provider approvals. */
 
+import { resolvePsbtCounterpartyPayload } from '@/core/bitcoin/envelopeLeafGuard';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
 import {
   extractPsbtDetails,
@@ -9,18 +10,14 @@ import {
 } from '@/core/bitcoin/psbt';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchInputsAttachedAssets, type InputAttachedAssets } from '@/core/counterparty/inputAssets';
+import type { MarketplaceIntentClaimV1, PolicyOfferWalletContext } from '@/core/counterparty/marketplace/intentTypes';
 import { type LinkedInputEvidence, withLinkedInputAssets } from '@/core/counterparty/marketplaceAttachLink';
-import type { MarketplaceIntentClaimV1, PolicyOfferWalletContext } from '@/core/counterparty/marketplaceIntent';
 import { liveAttachmentEvidenceSource, withPackageParents } from '@/core/counterparty/pendingAttachments';
-import {
-  type InscriptionCommitContext,
-  resolveRevealMessage,
-} from '@/core/counterparty/providerInscriptions';
+import type { InscriptionCommitContext } from '@/core/counterparty/providerInscriptions';
 import {
   analyzeSignRequest,
   type SignRequestAnalysis,
 } from '@/core/counterparty/signRequestAnalysis';
-import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 import type { ZeldPackageParent } from '@/core/zeld/signRequestZeld';
 
 export interface DecodedPsbtInfo extends SignRequestAnalysis {
@@ -86,19 +83,9 @@ export async function decodePsbtForApproval(
     ? ledgerAssets.then(ledger => withLinkedInputAssets(ledger, linkedInput.entry, linkedInput.attachTxid))
     : ledgerAssets;
   const txid = psbtDetails.transactionId;
-  let counterpartyDataHex: string | undefined;
-
-  const firstInputTxid = psbtDetails.inputs[0]?.txid;
-  if (firstInputTxid) {
-    counterpartyDataHex = extractPayloadFromOutputs(
-      psbtDetails.outputs.map(output => output.script ?? ''),
-      firstInputTxid,
-    ) ?? undefined;
-  }
-  if (!counterpartyDataHex) {
-    const reveal = resolveRevealMessage(psbtDetails.inputs, psbtDetails.outputs);
-    if (reveal) counterpartyDataHex = reveal.messageHex;
-  }
+  // The outputs' payload, or else input 0's reveal envelope: the same reading decides which leaf
+  // the signer may sign (envelopeLeafGuard.ts), so the message shown is the message signed.
+  const counterpartyDataHex = resolvePsbtCounterpartyPayload(psbtDetails)?.dataHex;
 
   // Addresses used by policy must be proved by the output script. Even filling an unresolved
   // address from an indexer can relabel a spendable P2PK output as our change and bypass the

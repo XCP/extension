@@ -7,9 +7,10 @@ import { TransactionInputError } from '@/core/validation/transaction-input-error
 import { parseRawInteger, rawToInput, serializeDecimal } from "@/core/amount-contract/amounts";
 import type { AssetInfo } from "@/core/counterparty/api";
 import { fetchAssetDetails } from "@/core/counterparty/api";
-import { decodeMemoList, hasHexPrefix, isHexMemo, stripHexPrefix } from "@/core/counterparty/memo";
+import { decodeMemoList } from "@/core/counterparty/memo";
 import { CounterpartyApiError } from "@/core/errors";
 import { validateFeeRate } from "@/core/validation/fee";
+import { hasHexPrefix, isHexMemo, stripHexPrefix } from "@/core/validation/memo";
 import { exactQuantity } from "@/core/validation/transaction-amount";
 
 /**

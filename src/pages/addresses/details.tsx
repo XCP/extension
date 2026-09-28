@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { QRCode } from "@/components/ui/qr-code";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { t } from '@/i18n';
 
 /**
@@ -37,13 +37,13 @@ export default function AddressDetailsPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('addresses_details_my_address'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton:
-        activeWallet?.type === "mnemonic"
+        activeWallet?.type === "mnemonic" || activeWallet?.type === "hardware"
           ? {
               icon: <FaList className="size-4" aria-hidden="true" />,
               onClick: () =>
-                navigate(PATHS.SELECT_ADDRESS, { state: { returnTo: "/addresses/details" } }),
+                void navigate(PATHS.SELECT_ADDRESS, { state: { returnTo: "/addresses/details" } }),
               ariaLabel: t('addresses_details_select_address'),
             }
           : undefined,
@@ -121,7 +121,7 @@ function CopyAddress({ address }: CopyAddressProps): ReactElement {
     <>
       <div className="w-full text-center">
         <button type="button"
-          onClick={handleCopyAddress}
+          onClick={() => void handleCopyAddress()}
           // Distinct from the button below, which copies the same thing: two
           // controls sharing one accessible name is ambiguous to announce.
           aria-label={t('addresses_details_copy_the_address_shown_here')}
@@ -131,7 +131,7 @@ function CopyAddress({ address }: CopyAddressProps): ReactElement {
         </button>
       </div>
       <Button
-        onClick={handleCopyAddress}
+        onClick={() => void handleCopyAddress()}
         color="blue"
         fullWidth
         className="max-w-sm"

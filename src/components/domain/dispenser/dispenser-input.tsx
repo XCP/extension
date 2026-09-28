@@ -1,6 +1,7 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ReactElement, useEffect, useMemo } from "react";
-import { DispenserList, type DispenserOption } from "@/components/ui/lists/dispenser-list";
+import type { DispenserOption } from "@/components/domain/dispenser/dispenser-card";
+import { DispenserList } from "@/components/ui/lists/dispenser-list";
 import type { DispenseOptions } from "@/core/counterparty/compose";
 import { fromSatoshis, toNumber } from "@/core/numeric";
 import { isValidBitcoinAddress } from "@/core/validation/bitcoin";
@@ -181,5 +182,3 @@ export function DispenserInput({
   );
 }
 
-// Re-export the type for convenience
-export type { DispenserOption };

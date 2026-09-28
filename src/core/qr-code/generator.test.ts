@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateQR } from '@/core/qr-code';
+import { generateQR } from '@/core/qr-code/generator';
 
 describe('generateQR', () => {
   const TEST_ADDRESSES = {

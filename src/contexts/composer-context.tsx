@@ -68,6 +68,7 @@ import {
   verifyInscriptionEnvelope,
   verifyUnsignedReveal,
 } from "@/core/counterparty/inscriptionEnvelope";
+import { type MpmaTableFormatResolution, mpmaNearsActivation, resolveMpmaTableFormat } from "@/core/counterparty/mpmaTableFormat";
 import { normalizeFormData, verifiedReviewParams } from "@/core/counterparty/normalize";
 import {
   checkOutputPolicy,
@@ -76,12 +77,7 @@ import {
   pinnedQuantity,
   withPinnedDestinations,
 } from "@/core/counterparty/outputPolicy";
-import { packComposeMessage } from "@/core/counterparty/pack/messages";
-import {
-  assessOwnScriptPayments,
-  composedTransactionOutputs,
-  ownScriptRecipients,
-} from "@/core/counterparty/scriptPaymentCaution";
+import { composesAsMpma, type PackRules, packComposeMessage } from "@/core/counterparty/pack/messages";
 import { getSourcePubkey } from "@/core/counterparty/sourcePubkey";
 import { chooseComposeEncoding, composeWithEncoding, readRevealShape, signsTaprootReveals } from "@/core/counterparty/taprootEncoding";
 import { fetchInputValues } from "@/core/counterparty/transaction";
@@ -98,7 +94,6 @@ import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility"
 import { zeldRecordAfterBroadcast } from "@/core/zeld/recordAfterBroadcast";
 import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
-import { getKnownScriptRecipients, recordScriptRecipients } from "@/services/scriptRecipientsClient";
 import { recordZeldOutpoints } from "@/services/zeldRecordClient";
 
 /**
@@ -115,9 +110,6 @@ const STALE_TRANSACTION_MS = 5 * 60 * 1000;
  * are listed because both are provably unspendable.
  */
 const BURN_ADDRESSES = ['1CounterpartyXXXXXXXXXXXXXXXUWLpVr', 'mvCounterpartyXXXXXXXXXXXXXXW24Hef'];
-
-/** Compose types whose inputs are, by what they do, UTXOs carrying attached assets. */
-const SPENDS_ATTACHED_ASSETS = new Set(['detach', 'move', 'move-utxo']);
 
 /** Keep structured local failures until render, so a language change cannot stale the diagnostic. */
 type InternalComposerState<T> = Omit<ComposerState<T>, 'error'> & {
@@ -158,13 +150,13 @@ function freshComposerState<T>(): ComposerState<T> {
     apiResponse: null,
     error: null,
     verificationWarnings: [],
+    reviewNotices: [],
     decodedMessage: null,
     isComposing: false,
     isSigning: false,
     composedAt: null,
     feeRate: null,
     zeldHuntProgress: null,
-    scriptPaymentRisk: null,
   };
 }
 
@@ -196,7 +188,7 @@ export function ComposerProvider<T>({
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
   const {
-    activeAddress, activeWallet, wallets, authState, signTransaction, signCommitAndReveal, broadcastTransaction,
+    activeAddress, activeWallet, authState, signTransaction, signCommitAndReveal, broadcastTransaction,
     setHardwareOperationInProgress,
   } = useWallet();
   const { settings } = useSettings();
@@ -213,9 +205,6 @@ export function ComposerProvider<T>({
   const abortControllerRef = useRef<AbortController | null>(null);
   // Fired by the spinner's "Use it now": the hunt settles for the rare txid it already has.
   const acceptZeldHuntRef = useRef<AbortController | null>(null);
-  // Script addresses someone else controls that the reviewed transaction pays, recorded once it
-  // is broadcast so the notice is not repeated for them.
-  const scriptRecipientsRef = useRef<string[]>([]);
 
   // Initialize state
   const [state, setState] = useState<InternalComposerState<T>>(freshComposerState);
@@ -288,7 +277,6 @@ export function ComposerProvider<T>({
     abortControllerRef.current?.abort();
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
-    scriptRecipientsRef.current = [];
 
     // Convert FormData to object early so we can preserve it on error
     const rawData = Object.fromEntries(formData);
@@ -315,13 +303,29 @@ export function ComposerProvider<T>({
         throw new Error(t('composer_context_taproot_needs_software_wallet'));
       }
 
+      // An MPMA's address table depends on the block it lands in (`mpmaTableFormat.ts`), so the
+      // table this request must produce is settled before compose, from the height, and the
+      // message is held to it below. When the height cannot be read consistently the send is not
+      // composed at all: either table could be the wrong one.
+      let mpmaTable: MpmaTableFormatResolution | null = null;
+      if (composesAsMpma(composeType, dataForApi)) {
+        mpmaTable = await resolveMpmaTableFormat();
+        if (signal.aborted) return;
+        if (!mpmaTable) throw new Error(t('composer_context_mpma_table_format_unconfirmed'));
+      }
+      const packRules: PackRules = mpmaTable ? { mpmaTableFormat: mpmaTable.format } : {};
+      const reviewNotices: string[] = [];
+      if (mpmaTable && mpmaNearsActivation(mpmaTable)) {
+        reviewNotices.push(t('composer_context_mpma_near_activation', [String(mpmaTable.activationHeight)]));
+      }
+
       // Call compose API (UTXO selection is handled internally by compose functions). A message too
       // long for an OP_RETURN goes out Taproot-encoded where core allows it, since the multisig
       // fallback costs several times more; the user is never asked to choose, and a composer that
       // will not build it that way is asked once more for the default. Verification below compares
       // against `dataForApi`, which the encoding does not change.
       // Reassigned below if verification finds the reported fee differs from the real one.
-      const encoding = chooseComposeEncoding(composeType, dataForApi, activeAddress.address, activeWallet?.type);
+      const encoding = chooseComposeEncoding(composeType, dataForApi, activeAddress.address, activeWallet?.type, packRules);
       let response = await composeWithEncoding(composeApi, dataForApi, encoding, signal);
       // The request as the wallet actually sent it: the form's data plus any message field the
       // compose function chose itself (an attach's output after the change). Recorded by the
@@ -386,7 +390,7 @@ export function ComposerProvider<T>({
           throw new Error(t('composer_context_taproot_unexpected_envelope'));
         }
         if (kind === 'ord') {
-          const expectedMessage = packComposeMessage(composeType, requestedData);
+          const expectedMessage = packComposeMessage(composeType, requestedData, undefined, packRules);
           if (!expectedMessage) {
             throw new Error(
               t('composer_context_transaction_verification_failed_this_inscription')
@@ -436,7 +440,19 @@ export function ComposerProvider<T>({
         // it whole, so no field goes unchecked (see `unpack/verify.ts`). A null return means the type cannot be
         // constructed locally and falls through to field comparison; the decoded message supplies
         // only values the request cannot determine (see `Observed` in pack/messages.ts).
-        const expected = packComposeMessage(composeType, requestedData, decodedMessage?.data);
+        // An MPMA must carry the address table core reads at the block it lands in, whatever
+        // else is checked: the recipients decoded from the other table are not the ones core
+        // would credit.
+        if (unpacked.success && unpacked.messageType === 'mpma_send') {
+          const carried = (unpacked.data as { tableFormat?: unknown } | undefined)?.tableFormat;
+          if (!mpmaTable) mpmaTable = await resolveMpmaTableFormat();
+          if (signal.aborted) return;
+          if (!mpmaTable) throw new Error(t('composer_context_mpma_table_format_unconfirmed'));
+          if (carried !== mpmaTable.format) {
+            throw new Error(t('composer_context_transaction_verification_failed_the_composed'));
+          }
+        }
+        const expected = packComposeMessage(composeType, requestedData, decodedMessage?.data, packRules);
 
         // An envelope's message is held to the exact bytes of the request, never to field
         // comparison: Taproot is only chosen for messages built locally.
@@ -468,7 +484,7 @@ export function ComposerProvider<T>({
           // Differences too minor to block, shown on the review screen so the user can still see them.
           verificationWarnings = verification.warnings;
         }
-      } else if (!taprootCommitAddress && packComposeMessage(composeType, requestedData)) {
+      } else if (!taprootCommitAddress && packComposeMessage(composeType, requestedData, undefined, packRules)) {
         // No payload, but this request's message can be built — so the transaction carries none of
         // it and cannot do what was asked. Signing it would spend the fee to no effect. Types that
         // legitimately carry no message (a BTC send, a burn) cannot be built and do not reach here,
@@ -593,32 +609,6 @@ export function ComposerProvider<T>({
         },
       };
 
-      // Paying a script address someone else controls can carry risk for an address holding
-      // Counterparty assets: the caution a site's request gets, stated here as a notice on the
-      // review. Any address in any of this wallet's wallets is its own, a verified Taproot commit
-      // is proved rather than paid to someone, and a recipient this address has paid before is
-      // not repeated. The ZELD hunt below changes no output.
-      const ownedAddresses = [
-        activeAddress.address,
-        ...wallets.flatMap(wallet => wallet.addresses.map(entry => entry.address)),
-      ];
-      const scriptPayments = {
-        outputs: composedTransactionOutputs(response.result.rawtransaction, ownedAddresses),
-        payerAddress: activeAddress.address,
-        ownedAddresses,
-        provenAddresses: taprootCommitAddress ? [taprootCommitAddress] : [],
-        inputsCarryAssets: SPENDS_ATTACHED_ASSETS.has(composeType),
-      };
-      const scriptRecipients = ownScriptRecipients(scriptPayments);
-      const scriptPaymentRisk = scriptRecipients.length > 0
-        ? await assessOwnScriptPayments({
-          ...scriptPayments,
-          knownRecipients: await getKnownScriptRecipients(activeAddress.address),
-        })
-        : null;
-      if (signal.aborted) return;
-      scriptRecipientsRef.current = scriptRecipients;
-
       // Hunt for a ZELD txid last, once every check above has passed, because it edits the
       // transaction: nLockTime becomes the nonce, behind final sequences. The hunt proves that is
       // the only change
@@ -655,11 +645,11 @@ export function ComposerProvider<T>({
         apiResponse: response,
         error: null,
         verificationWarnings,
+        reviewNotices,
         decodedMessage,
         isComposing: false,
         composedAt: Date.now(),
         zeldHuntProgress: null,
-        scriptPaymentRisk,
       }));
     } catch (error) {
       // Silently ignore abort errors (user navigated away)
@@ -687,7 +677,7 @@ export function ComposerProvider<T>({
         isComposing: false,
       }));
     }
-  }, [activeAddress, activeWallet, wallets, composeApi, composeType, zeldHuntSeconds, state.isComposing]);
+  }, [activeAddress, activeWallet, composeApi, composeType, zeldHuntSeconds, state.isComposing]);
 
   // Core sign and broadcast logic - extracted to avoid duplication
   const performSignAndBroadcast = useCallback(async () => {
@@ -777,7 +767,6 @@ export function ComposerProvider<T>({
     );
 
     const broadcastResponse = await broadcastTransaction(signedTxHex);
-    void recordScriptRecipients(activeAddress.address, scriptRecipientsRef.current);
     // What this spent and left of the address's ZELD, for approvals to fall back on while the
     // indexer is down or has not yet seen this transaction.
     void recordZeldOutpoints(activeAddress.address,
@@ -904,14 +893,12 @@ export function ComposerProvider<T>({
 
   // Navigation actions
   const reset = useCallback(() => {
-    scriptRecipientsRef.current = [];
     setState(freshComposerState<T>());
     currentComposeTypeRef.current = composeType;
   }, [composeType]);
 
   const goBack = useCallback(() => {
     if (state.step === "review") {
-      scriptRecipientsRef.current = [];
       // Go back to form, preserving user's form data for quick edits
       setState(prev => ({
         ...prev,
@@ -919,8 +906,8 @@ export function ComposerProvider<T>({
         apiResponse: null,
         error: null,
         verificationWarnings: [],
+        reviewNotices: [],
         decodedMessage: null,
-        scriptPaymentRisk: null,
       }));
     } else if (state.step === "success") {
       reset();

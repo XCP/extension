@@ -215,9 +215,6 @@
   "addresses_adding": {
     "message": "追加中…"
   },
-  "addresses_change_address_type": {
-    "message": "アドレスタイプを変更"
-  },
   "addresses_could_not_read_the_derivation": {
     "message": "このアドレスの導出インデックスを読み取れませんでした。"
   },
@@ -1820,6 +1817,12 @@
   "composer_context_invalid_transaction_data": {
     "message": "トランザクションデータが無効です"
   },
+  "composer_context_mpma_near_activation": {
+    "message": "この複数宛先への送金について、ネットワークはブロック $1 から読み取り方を変更します。このトランザクションがそのブロック以降に承認された場合、送金は反映されませんが、ビットコイン手数料は支払われます。"
+  },
+  "composer_context_mpma_table_format_unconfirmed": {
+    "message": "複数宛先への送金のエンコード方式を決める現在のブロック高を確認できませんでした。しばらくしてから再試行してください。"
+  },
   "composer_context_no_active_address_available": {
     "message": "利用できるアクティブなアドレスがありません"
   },
@@ -3287,9 +3290,6 @@
   "marketplace_intent_items_with_asset_count": {
     "message": "$1（アセット $2 種類）"
   },
-  "marketplace_intent_key_path_fee_output": {
-    "message": "スクリプトのないキーパス Taproot アドレス：支払っても、あなたのアドレスから Counterparty メッセージが発行されることはありません"
-  },
   "marketplace_intent_list_for_sale": {
     "message": "出品する"
   },
@@ -3761,9 +3761,6 @@
   "messages_sweep_include_ownership": {
     "message": "所有権を含む"
   },
-  "messages_sweep_ownership": {
-    "message": "所有権"
-  },
   "messages_sweep_raw_value": {
     "message": "生の値: $1"
   },
@@ -4070,6 +4067,12 @@
   "safety_durable_sell_authorization_detail": {
     "message": "入力 $1 は Counterparty アセットを保有しているか、保有していないことをウォレットが確認できません。さらにこの署名はトランザクションの出力を固定しません (SIGHASH_SINGLE または NONE)。これはそのアセットを売却する継続的な承認です。署名を持つ人は、その UTXO が使われるまでいつでも売却を完了し、アセットの送り先を選べます。これを求めてよいのは、検証済みのマーケットプレイス出品だけです。"
   },
+  "safety_blocked_unreadable_signed_message": {
+    "message": "ブロック: あなたのアドレスによる読み取れないメッセージ"
+  },
+  "safety_unreadable_signed_message_detail": {
+    "message": "この取引は、ウォレットが読み取れない、または表示していないメッセージを、あなたのアドレスの署名付きで公開します。署名されません。"
+  },
   "safety_btc_payment": {
     "message": "BTC の支払い"
   },
@@ -4141,15 +4144,6 @@
   },
   "safety_reveal_two_messages": {
     "message": "このトランザクションはリビールのメッセージに加えて独自の Counterparty メッセージも含んでいるため、一つの操作として説明できません。"
-  },
-  "safety_unproven_script_output": {
-    "message": "スクリプトアドレスへの支払い"
-  },
-  "safety_unproven_script_output_one": {
-    "message": "$1 BTC がスクリプトアドレス $2 に送られます。スクリプトアドレスへの支払いは、その所有者があなたの Counterparty アセットを $3 から移動できるようにする場合があります。受取人を信頼できる場合にのみ続行してください。"
-  },
-  "safety_unproven_script_output_many": {
-    "message": "$1 BTC がスクリプトアドレス（$2）に送られます。スクリプトアドレスへの支払いは、その所有者があなたの Counterparty アセットを $3 から移動できるようにする場合があります。受取人を信頼できる場合にのみ続行してください。"
   },
   "safety_reveal_site_builds_title": {
     "message": "2 つ目のトランザクションはサイトが作成します"
@@ -6662,5 +6656,29 @@
   },
   "trezor_access_notice_allow": {
     "message": "Trezorへのアクセスを許可"
+  },
+  "utxo_review_assets_unavailable": {
+    "message": "このUTXOのアセットを読み込めませんでした。"
+  },
+  "utxo_review_no_assets": {
+    "message": "添付されたアセットはありません"
+  },
+  "utxo_move_review_assets_moving": {
+    "message": "移動するアセット"
+  },
+  "cancel_review_order_unavailable": {
+    "message": "この注文の条件を読み込めませんでした。"
+  },
+  "destroy_review_supply_unavailable": {
+    "message": "このアセットの供給量を読み込めませんでした。"
+  },
+  "messages_sweep_ownership_transferred": {
+    "message": "移転した所有権"
+  },
+  "messages_sweep_balances_unavailable": {
+    "message": "スイープした残高を読み込めませんでした。"
+  },
+  "messages_sweep_no_balances": {
+    "message": "移動した残高はありません"
   }
 }

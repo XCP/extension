@@ -7,7 +7,6 @@
 import { createContext, use } from "react";
 import type { useSettings } from "@/contexts/settings-context";
 import type { useWallet } from "@/contexts/wallet-context";
-import type { ScriptPaymentRisk } from "@/core/bitcoin/scriptPaymentRisk";
 import type { ApiResponse } from "@/core/counterparty/compose";
 import type { ZeldHuntProgress } from "@/core/zeld/types";
 
@@ -22,6 +21,8 @@ export interface ComposerState<T> {
   apiResponse: ApiResponse | null;
   error: string | null;
   verificationWarnings: string[];
+  /** Neutral notes for the review screen: facts about the send, not differences from the request. */
+  reviewNotices: string[];
   /** Decoded from the transaction's own bytes, not from the response's echo of the request. */
   decodedMessage: DecodedMessage | null;
   isComposing: boolean;
@@ -31,11 +32,6 @@ export interface ComposerState<T> {
   feeRate: number | null;
   /** Live figures while a ZELD hunt runs between composing and review; null otherwise. */
   zeldHuntProgress: ZeldHuntProgress | null;
-  /**
-   * Payments to script addresses this wallet does not control and has not paid before, from an
-   * address holding Counterparty assets; null when there are none. The review states it.
-   */
-  scriptPaymentRisk: ScriptPaymentRisk | null;
 }
 
 export interface ComposerContextType<T> {

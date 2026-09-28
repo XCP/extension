@@ -55,7 +55,8 @@
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { Script, Transaction } from '@scure/btc-signer';
 import TrezorConnect from '@trezor/connect-webextension';
-import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
+import { decodeAddressFromScript } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { RBF_SEQUENCE } from '@/core/bitcoin/constants';
 import {
   extractPresignedExternalP2wpkhInput,

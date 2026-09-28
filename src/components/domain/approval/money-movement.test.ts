@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeMoneyMovement } from './money-movement';
+import { computeMoneyMovement } from '@/core/bitcoin/moneyMovement';
 
 describe('computeMoneyMovement', () => {
   it('computes a plain send (net outflow)', () => {

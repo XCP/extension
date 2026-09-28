@@ -8,7 +8,7 @@ import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
 import { HIGH_ABSOLUTE_FEE_SATS } from '@/core/bitcoin/signedVsize';
 import type { DecodedTransactionInfo } from '@/core/bitcoin/transactionApprovalDecoder';
-import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplace/intentTypes';
 import { marketplaceReviewRequiresAcknowledgement } from '@/core/counterparty/marketplaceReviewPolicy';
 import { zeldWarning } from '@/core/counterparty/signRequestAnalysis';
 import { asDisplayUnits } from '@/core/numeric';
@@ -279,19 +279,6 @@ describe('the retry flag on a blocked policy', () => {
     const { policy } = getPsbtBundleApprovalPolicy(input,
       { items, review: { ...review('marketplace_batch'), status: 'retry' } }, true, 10);
     expect(policy).toMatchObject({ blocked: true, retry: true });
-  });
-});
-
-describe('the script-address caution on site requests', () => {
-  it('still takes the review step', () => {
-    const info = decoded(review('attach_for_listing', 'proved'));
-    info.marketplaceReview = undefined;
-    info.safety.warnings = [{
-      code: 'unproven_script_output',
-      data: { totalSats: 600, addresses: ['bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr'], source: ADDRESS },
-      severity: 'warning', title: 'Payment to a Script Address', message: 'Check it.',
-    }];
-    expect(getPsbtApprovalPolicy(request, info, true, 10)).toMatchObject({ blocked: false, requiresAcknowledgement: true });
   });
 });
 

@@ -223,9 +223,9 @@ export function packAddress(address: string): Uint8Array {
 /**
  * Pack a Bitcoin address into the **legacy** 21-byte format.
  *
- * MPMA is the one message that still composes with this encoding: core's
- * `mpmaencoding._encode_compress_lut` calls `address.pack_legacy` for every LUT entry, and the
- * decoder reads fixed 21-byte slots. Base58 addresses pack as version byte + 20-byte hash; SegWit
+ * MPMA composed before `mpma_taproot_support` is the one message that uses this encoding: core's
+ * `mpmaencoding._encode_compress_lut` calls `address.pack_legacy` for every LUT entry below the
+ * activation height, and the decoder reads fixed 21-byte slots there. Base58 addresses pack as version byte + 20-byte hash; SegWit
  * v0 packs as `0x80 + witness_version` + the 20-byte program. A 32-byte program does not fit, so
  * Taproot and P2WSH destinations are rejected exactly as core rejects them
  * ("p2wsh still not supported for sending").
@@ -262,24 +262,15 @@ export function packAddressLegacy(address: string): Uint8Array {
 }
 
 /**
- * Unpack a Counterparty packed address (legacy or modern encoding) to a
- * Bitcoin address string.
- *
- * @param packed - Packed address bytes
- * @param network - 'mainnet' or 'testnet' (default: 'mainnet')
- * @returns Bitcoin address string
- * @throws AddressPackError if the packed address is invalid
+ * The modern (taproot_support) packing, or null when the bytes are not in it. Throws for bytes that
+ * carry the witness tag but no valid witness program.
  */
-export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet' = 'mainnet'): string {
-  if (!packed || packed.length === 0) {
-    throw new AddressPackError('Empty packed address');
-  }
-
+function unpackModern(packed: Uint8Array, network: 'mainnet' | 'testnet'): string | null {
   const firstByte = packed[0]!;
   const rest = packed.slice(1);
   const bech32Prefix = network === 'mainnet' ? 'bc' : 'tb';
 
-  // Modern encoding: type prefix + payload.
+  // Type prefix + payload.
   if (firstByte === MODERN.P2PKH && packed.length === PACKED_ADDRESS_LENGTH) {
     return encodeBase58Check(network === 'mainnet' ? 0x00 : 0x6f, rest);
   }
@@ -309,6 +300,30 @@ export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet'
     return encodeBech32(witnessVersion, program, bech32Prefix);
   }
 
+  return null;
+}
+
+/**
+ * Unpack a Counterparty packed address (legacy or modern encoding) to a
+ * Bitcoin address string.
+ *
+ * @param packed - Packed address bytes
+ * @param network - 'mainnet' or 'testnet' (default: 'mainnet')
+ * @returns Bitcoin address string
+ * @throws AddressPackError if the packed address is invalid
+ */
+export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet' = 'mainnet'): string {
+  if (!packed || packed.length === 0) {
+    throw new AddressPackError('Empty packed address');
+  }
+
+  const firstByte = packed[0]!;
+  const rest = packed.slice(1);
+  const bech32Prefix = network === 'mainnet' ? 'bc' : 'tb';
+
+  const modern = unpackModern(packed, network);
+  if (modern !== null) return modern;
+
   // Legacy SegWit marker (0x80 - 0x8F): fixed 21-byte packing, 20-byte program.
   if (firstByte >= VERSION.SEGWIT_MARKER && firstByte <= VERSION.SEGWIT_MARKER + 0x0F) {
     if (packed.length !== PACKED_ADDRESS_LENGTH) {
@@ -333,6 +348,29 @@ export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet'
 }
 
 /**
+ * Unpack an address in the modern (taproot_support) packing only, the way counterparty-rs
+ * `utils::unpack_address` does, with none of {@link unpackAddress}'s legacy fallback.
+ *
+ * The length-prefixed MPMA address table (`mpma_taproot_support`) is decoded this way by core, so
+ * that each address has exactly one byte layout in it: a legacy packing behind a length byte is
+ * refused there rather than read as the address it would once have named.
+ *
+ * @throws AddressPackError if the bytes are not a modern packed address
+ */
+export function unpackAddressModern(packed: Uint8Array, network: 'mainnet' | 'testnet' = 'mainnet'): string {
+  if (!packed || packed.length === 0) {
+    throw new AddressPackError('Empty packed address');
+  }
+  const address = unpackModern(packed, network);
+  if (address === null) {
+    throw new AddressPackError(
+      `Not a modern packed address: tag 0x${packed[0]!.toString(16)}, ${packed.length} bytes`
+    );
+  }
+  return address;
+}
+
+/**
  * Unpack a 21-byte address the way core's `address.unpack_legacy` does — and only that way.
  *
  * The modern type tags (0x01 P2PKH, 0x02 P2SH, 0x03 witness) do not exist in this encoding. Here
@@ -341,9 +379,9 @@ export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet'
  * {@link unpackAddress} and renders as an ordinary `1…` address, while core base58-encodes it
  * under version 0x01 and credits somewhere else entirely.
  *
- * MPMA is the caller that matters. Core decodes its address lookup table with `unpack_legacy`
- * unconditionally (utils/mpmaencoding.py `_decode_decode_lut`), never the taproot-aware `unpack`,
- * so a table decoded with the modern rules can name a different recipient than the one being paid
+ * MPMA is the caller that matters. Below the `mpma_taproot_support` height core decodes its
+ * address lookup table with `unpack_legacy` (utils/mpmaencoding.py `_decode_decode_lut`), never the
+ * taproot-aware `unpack`, so a legacy table decoded with the modern rules can name a different recipient than the one being paid
  * — and MPMA destinations travel in the payload rather than as outputs, so this string is the only
  * account of them the approval screen has.
  */

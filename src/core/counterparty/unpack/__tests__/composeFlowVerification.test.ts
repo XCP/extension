@@ -17,7 +17,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { bytesToHex, packAddressLegacy } from '../index';
+import { packAddressLegacy } from '@/core/counterparty/unpack/address';
+import { bytesToHex } from '@/core/counterparty/unpack/binary';
 import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
 import { verifyTransaction } from '../verify';
 

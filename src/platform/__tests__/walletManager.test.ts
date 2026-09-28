@@ -8,7 +8,7 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
   TrezorAdapter: vi.fn()
 }));
 
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import type { WalletRecord } from '@/types/wallet';
 import { WalletManager } from '../walletManager';
 import {
@@ -29,6 +29,7 @@ vi.mock('@/core/encryption/encryption');
 vi.mock('@/core/encryption/settings');
 vi.mock('@/core/encryption/buffer');
 vi.mock('@/core/bitcoin/address');
+vi.mock('@/core/bitcoin/addressFormat');
 vi.mock('@/core/bitcoin/privateKey');
 vi.mock('@/core/bitcoin/messageSigner');
 vi.mock('@/core/bitcoin/transactionSigner');
@@ -43,7 +44,7 @@ vi.mock('@/core/bitcoin/psbt', async original => ({
 vi.mock('@/core/bitcoin/psbtPrevouts', () => ({
   verifyPsbtPrevouts: vi.fn(async (psbt: string) => ({ hex: psbt, prevouts: [] })),
 }));
-vi.mock('@/core/counterwallet');
+vi.mock('@/core/counterwallet/mnemonic');
 vi.mock('@/core/wallet/rarePepeWallet', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/wallet/rarePepeWallet')>()),
   detectUtxoAddress: (...args: unknown[]) => mockDetectUtxoAddress(...args),
@@ -60,9 +61,9 @@ import {
   encodeAddress,
   getAddressFromMnemonic,
   getDerivationPathForAddressFormat,
-  isCounterwalletFormat,
   normalizeAddressForComparison,
 } from '@/core/bitcoin/address';
+import { isCounterwalletFormat } from '@/core/bitcoin/addressFormat';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
 import { extractPsbtDetails, signPSBT } from '@/core/bitcoin/psbt';
@@ -802,6 +803,9 @@ describe('WalletManager', () => {
         wif: 'test-wif',
         compressed: true,
       });
+      vi.mocked(extractPsbtDetails).mockReturnValue({
+        inputs: [], outputs: [],
+      } as unknown as ReturnType<typeof extractPsbtDetails>);
 
       const result = await walletManager.signPsbt('test-psbt');
 
@@ -814,6 +818,7 @@ describe('WalletManager', () => {
         AddressFormat.P2WPKH,
         undefined,
         true,
+        {},
       );
     });
 

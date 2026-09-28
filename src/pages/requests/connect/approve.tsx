@@ -147,7 +147,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
 
     // If no active wallet/address after loading, redirect to unlock
     if (!activeWallet || !activeAddress) {
-      navigate("/");
+      void navigate("/");
     }
   }, [activeWallet, activeAddress, isLoading, navigate]);
 
@@ -333,7 +333,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
         <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
           <Button
             color="gray"
-            onClick={handleReject}
+            onClick={() => void handleReject()}
             disabled={isProcessing}
             fullWidth
           >
@@ -341,7 +341,7 @@ function ConnectionApproval({ requestId, activeWallet, activeAddress, isLoading 
           </Button>
           <Button
             color="blue"
-            onClick={handleApprove}
+            onClick={() => void handleApprove()}
             disabled={isProcessing || approvalLoading || Boolean(approvalError) || pairedAddressesPending}
             fullWidth
           >

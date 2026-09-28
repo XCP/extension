@@ -7,8 +7,6 @@ import { type DecimalPlaces, parseAmountDraft } from '@/core/amount-contract/amo
 import { DUST_LIMIT_SATS, SATS_PER_BTC } from '@/core/bitcoin/constants';
 import { BigNumber, fromSatoshis, toBigNumber } from '@/core/numeric';
 
-// Constants
-export const DUST_LIMIT = DUST_LIMIT_SATS; // satoshis
 export const MAX_SATOSHIS = 2100000000000000; // 21 million BTC in satoshis
 /**
  * The largest supply an asset can hold, in base units: SQLite3's signed 64-bit ceiling, which
@@ -108,8 +106,8 @@ export function validateAmount(
   }
 
   // Check dust limit
-  if (!allowDust && satoshis.isLessThan(DUST_LIMIT)) {
-    return { isValid: false, error: `Amount is below dust limit (${DUST_LIMIT} satoshis)` };
+  if (!allowDust && satoshis.isLessThan(DUST_LIMIT_SATS)) {
+    return { isValid: false, error: `Amount is below dust limit (${DUST_LIMIT_SATS} satoshis)` };
   }
 
   // Check maximum amount
@@ -305,5 +303,5 @@ export function btcToSatoshis(btc: number | string): number {
  * Checks if an amount is dust
  */
 export function isDustAmount(satoshis: number): boolean {
-  return satoshis < DUST_LIMIT && satoshis > 0;
+  return satoshis < DUST_LIMIT_SATS && satoshis > 0;
 }

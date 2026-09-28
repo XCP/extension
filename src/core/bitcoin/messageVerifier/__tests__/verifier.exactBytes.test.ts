@@ -15,7 +15,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { base64, hex } from '@scure/base';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { bip322MessageHash, createToSpendTransaction, verifyBIP322Signature } from '@/core/bitcoin/bip322';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { verifyBIP322 } from '../specs/bip322';

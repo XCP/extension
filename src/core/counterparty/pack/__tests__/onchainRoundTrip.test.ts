@@ -21,6 +21,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { MpmaTableFormat } from '../../mpmaTableFormat';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
 import type { MPMAData, MPMASend } from '../../unpack/messages/mpma';
@@ -335,8 +336,10 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
 
       // Real transactions are the reference, so the decoded message is also what a packer would
       // borrow unknowable fields from in production.
+      // An MPMA is rebuilt in the address table it was mined with.
       const packed = packComposeMessage(
-        COMPOSE_TYPE_FOR[apiType]!, params, unpacked.data as Record<string, unknown>
+        COMPOSE_TYPE_FOR[apiType]!, params, unpacked.data as Record<string, unknown>,
+        { mpmaTableFormat: (unpacked.data as { tableFormat?: MpmaTableFormat }).tableFormat }
       );
       if (!packed) {
         // A variant this build declines by design — a locked or reset subasset, a hex memo, a
@@ -528,7 +531,7 @@ describe('on-chain MPMA sample classification', () => {
     expect(unpacked.success).toBe(true);
 
     const params = PARAMS_FROM_DECODED.mpma_send!(unpacked.data as Record<string, any>);
-    const packed = packComposeMessage('mpma', params!);
+    const packed = packComposeMessage('mpma', params!, undefined, { mpmaTableFormat: 'legacy' });
     expect(packed).not.toBeNull();
     expect(bytesToHex(packed!.bytes)).not.toBe(original);
 
@@ -546,14 +549,16 @@ describe('on-chain MPMA sample classification', () => {
         { asset: 'XCP', destination: '1first', quantity: 1n },
         { asset: 'XCP', destination: '1second', quantity: 2n },
       ],
+      tableFormat: 'legacy' as const,
     };
     const changedQuantity = {
       sends: [
         { asset: 'XCP', destination: '1first', quantity: 1n },
         { asset: 'XCP', destination: '1second', quantity: 3n },
       ],
+      tableFormat: 'legacy' as const,
     };
-    const changedOrder = { sends: [...original.sends].reverse() };
+    const changedOrder = { ...original, sends: [...original.sends].reverse() };
 
     expect(sameMpmaFields(original, changedQuantity)).toBe(false);
     expect(sameMpmaFields(original, changedOrder)).toBe(false);

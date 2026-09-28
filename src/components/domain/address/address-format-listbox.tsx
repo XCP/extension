@@ -1,5 +1,5 @@
 import { type KeyboardEvent, type ReactElement, type ReactNode, useRef, useState } from 'react';
-import type { AddressFormat } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 
 interface AddressFormatListboxProps {
   formats: AddressFormat[];

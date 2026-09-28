@@ -10,9 +10,10 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, DEFAULT_ADDRESS_FORMAT, detectAddressFormat, isCounterwalletFormat } from "@/core/bitcoin/address";
+import { detectAddressFormat } from "@/core/bitcoin/address";
+import { AddressFormat, DEFAULT_ADDRESS_FORMAT, isCounterwalletFormat } from "@/core/bitcoin/addressFormat";
 import { getPrivateKeyFromMnemonic } from "@/core/bitcoin/privateKey";
-import { isValidCounterwalletMnemonic } from "@/core/counterwallet";
+import { isValidCounterwalletMnemonic } from "@/core/counterwallet/mnemonic";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { formatAddress } from "@/core/format";
 import { detectGiftCard, GIFT_CARD_PATH } from "@/core/wallet/rarePepeWallet";
@@ -121,7 +122,7 @@ function ImportMnemonicPage() {
             // Store the derived key, not the phrase: a card is a bearer instrument someone handed
             // you, and only its one address is yours to keep.
             await createPrivateKeyWallet(privateKey, password, t('setup_import_mnemonic_gift_card'), AddressFormat.P2PKH);
-            analytics.track("gift_card_imported");
+            void analytics.track("gift_card_imported");
             window.location.hash = PATHS.SUCCESS;
             return { error: null };
           }
@@ -138,7 +139,7 @@ function ImportMnemonicPage() {
         }
 
         const wallet = await createMnemonicWallet(mnemonic, password, undefined, addressFormat);
-        analytics.track('wallet_imported');
+        void analytics.track('wallet_imported');
         window.location.hash = PATHS.SUCCESS;
         // A Counterwallet seed restored from Rare Pepe Wallet may have assets attached to the
         // change address of the address it starts with, so look once, here, where that address
@@ -181,7 +182,7 @@ function ImportMnemonicPage() {
   useEffect(() => {
     setHeaderProps({
       title: t('common_import_wallet'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: showMnemonic
           ? <FaEyeSlash className="size-3" aria-hidden="true" />

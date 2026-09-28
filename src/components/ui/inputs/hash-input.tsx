@@ -183,7 +183,7 @@ export function HashInput({
         {showCopyButton && localValue && (
           <Button
             variant="input"
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
             disabled={disabled || !isValid}
             aria-label={copied ? t('common_copied') : t('inputs_hash_input_copy_hash')}
             className="absolute right-1 top-1 px-2 py-1"

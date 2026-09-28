@@ -21,7 +21,7 @@ import { Address, OutScript, p2wpkh, RawWitness, SigHash, Transaction } from '@s
 import TrezorConnect, { UI_EVENTS } from '@trezor/connect';
 import { BridgeTransport } from '@trezor/transport-common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '../../src/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { importVerifiedHardwareP2wpkhSignatures } from '../../src/core/bitcoin/hardwarePsbt';
 import { finalizePSBT } from '../../src/core/bitcoin/psbt';
 import { TrezorAdapter } from '../../src/core/hardware/trezorAdapter';

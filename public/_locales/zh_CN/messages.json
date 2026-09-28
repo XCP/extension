@@ -215,9 +215,6 @@
   "addresses_adding": {
     "message": "添加中…"
   },
-  "addresses_change_address_type": {
-    "message": "更改地址类型"
-  },
   "addresses_could_not_read_the_derivation": {
     "message": "无法读取此地址的派生索引。"
   },
@@ -1820,6 +1817,12 @@
   "composer_context_invalid_transaction_data": {
     "message": "交易数据无效"
   },
+  "composer_context_mpma_near_activation": {
+    "message": "网络将从区块 $1 起更改多方多资产交易的读取方式。如果此交易在该区块或之后才确认，它将不会生效，但比特币手续费仍会支付。"
+  },
+  "composer_context_mpma_table_format_unconfirmed": {
+    "message": "无法确认当前区块高度，而多方多资产交易的编码方式取决于它。请稍后重试。"
+  },
   "composer_context_no_active_address_available": {
     "message": "没有可用的活动地址"
   },
@@ -3287,9 +3290,6 @@
   "marketplace_intent_items_with_asset_count": {
     "message": "$1（$2 种资产）"
   },
-  "marketplace_intent_key_path_fee_output": {
-    "message": "无脚本的密钥路径 Taproot 地址：向其付款无法以你的地址发布 Counterparty 消息"
-  },
   "marketplace_intent_list_for_sale": {
     "message": "上架出售"
   },
@@ -3761,9 +3761,6 @@
   "messages_sweep_include_ownership": {
     "message": "包含所有权"
   },
-  "messages_sweep_ownership": {
-    "message": "所有权"
-  },
   "messages_sweep_raw_value": {
     "message": "原始值: $1"
   },
@@ -4070,6 +4067,12 @@
   "safety_durable_sell_authorization_detail": {
     "message": "输入 $1 持有 Counterparty 资产，或钱包无法确认其未持有资产，而此签名不固定交易的输出（SIGHASH_SINGLE 或 NONE）。这是出售这些资产的持久授权：持有签名的人可在该 UTXO 被花费前随时完成出售，并决定资产的去向。只有经过验证的市场挂单才能请求这种签名。"
   },
+  "safety_blocked_unreadable_signed_message": {
+    "message": "已阻止：以您的地址签名的无法读取的消息"
+  },
+  "safety_unreadable_signed_message_detail": {
+    "message": "此交易将发布一条以您的地址签名、但钱包无法读取或未向您显示的消息。不会签名。"
+  },
   "safety_btc_payment": {
     "message": "BTC 支付"
   },
@@ -4141,15 +4144,6 @@
   },
   "safety_reveal_two_messages": {
     "message": "此交易除了揭示交易的消息外，还带有自己的 Counterparty 消息，因此无法作为单一操作说明。"
-  },
-  "safety_unproven_script_output": {
-    "message": "向脚本地址付款"
-  },
-  "safety_unproven_script_output_one": {
-    "message": "$1 BTC 将发送到脚本地址 $2。向脚本地址付款可能让其所有者从 $3 转走你的 Counterparty 资产。只有在你信任收款方时才继续。"
-  },
-  "safety_unproven_script_output_many": {
-    "message": "$1 BTC 将发送到脚本地址：$2。向脚本地址付款可能让其所有者从 $3 转走你的 Counterparty 资产。只有在你信任收款方时才继续。"
   },
   "safety_reveal_site_builds_title": {
     "message": "第二笔交易由网站构建"
@@ -6662,5 +6656,29 @@
   },
   "trezor_access_notice_allow": {
     "message": "允许访问 Trezor"
+  },
+  "utxo_review_assets_unavailable": {
+    "message": "无法加载此 UTXO 上的资产。"
+  },
+  "utxo_review_no_assets": {
+    "message": "没有附加的资产"
+  },
+  "utxo_move_review_assets_moving": {
+    "message": "将移动的资产"
+  },
+  "cancel_review_order_unavailable": {
+    "message": "无法加载此订单的条款。"
+  },
+  "destroy_review_supply_unavailable": {
+    "message": "无法加载此资产的供应量。"
+  },
+  "messages_sweep_ownership_transferred": {
+    "message": "已转移的所有权"
+  },
+  "messages_sweep_balances_unavailable": {
+    "message": "无法加载已清扫的余额。"
+  },
+  "messages_sweep_no_balances": {
+    "message": "没有转移任何余额"
   }
 }

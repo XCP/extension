@@ -84,7 +84,7 @@ import type {
   SweepOptions,
 } from '@/core/counterparty/compose';
 import { addressesEqual, packAddress } from '@/core/counterparty/unpack/address';
-import { MessageTypeId, type UnpackedMessageData, unpackCounterpartyMessage } from '@/core/counterparty/unpack/index';
+import { type UnpackedMessageData, unpackCounterpartyMessage } from '@/core/counterparty/unpack/index';
 import type { AttachData, DetachData, MoveData } from '@/core/counterparty/unpack/messages/attach';
 import type { BroadcastData } from '@/core/counterparty/unpack/messages/broadcast';
 import type { BTCPayData } from '@/core/counterparty/unpack/messages/btcpay';
@@ -102,6 +102,7 @@ import type { OrderData } from '@/core/counterparty/unpack/messages/order';
 import type { PoolDepositData, PoolWithdrawData } from '@/core/counterparty/unpack/messages/pool';
 import type { SendData } from '@/core/counterparty/unpack/messages/send';
 import type { SweepData } from '@/core/counterparty/unpack/messages/sweep';
+import { MessageTypeId } from '@/core/counterparty/unpack/messageTypes';
 import { type Criticality, getMessageSchema } from '@/core/counterparty/unpack/paramSchema';
 
 /**

@@ -18,23 +18,19 @@ import {
   proveBitcoinPaymentIntent,
 } from '@/core/bitcoin/providerPayment';
 import type { DecodedOutput } from '@/core/bitcoin/psbt';
-import { scriptPaymentCandidates, scriptPaymentRisk } from '@/core/bitcoin/scriptPaymentRisk';
-import { addressHoldsCounterpartyAssets } from '@/core/counterparty/assetHoldings';
 import {
   type AttachedAssetDestination,
   movesCounterpartyValue,
   resolveAttachedAssetDestination,
 } from '@/core/counterparty/attachedAssetMovement';
+import type { ProtocolContext } from '@/core/counterparty/describe';
 import { findUncommittedAssetSignatures } from '@/core/counterparty/durableSellAuthorization';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
-import {
-  analyzeMarketplaceIntent,
-  type MarketplaceApprovalReview,
-  type MarketplaceIntentClaimV1,
-  type PolicyOfferWalletContext,
-} from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceApprovalReview, MarketplaceIntentClaimV1, PolicyOfferWalletContext } from '@/core/counterparty/marketplace/intentTypes';
+import { analyzeMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { checkMessageStructure, type StructureFinding } from '@/core/counterparty/messageStructure';
-import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
+import { mpmaTableWarning, resolveMpmaTableFormat } from '@/core/counterparty/mpmaTableFormat';
+import { resolveProtocolContext } from '@/core/counterparty/protocolContext';
 import {
   type InscriptionCommitContext,
   verifyInscriptionCommit,
@@ -45,7 +41,6 @@ import {
   revealRefusalText,
   verifyCounterpartyReveal,
 } from '@/core/counterparty/providerReveal';
-import { scriptPaymentRiskText } from '@/core/counterparty/scriptPaymentCaution';
 import {
   type CounterpartyMessage,
   decodeCounterpartyMessage,
@@ -59,8 +54,8 @@ import {
   type SecurityWarning,
   type VerifiedCommit,
 } from '@/core/counterparty/transactionSafety';
-import { type ProviderVerificationResult, verifyProviderTransaction } from '@/core/counterparty/unpack';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
+import { type ProviderVerificationResult, verifyProviderTransaction } from '@/core/counterparty/unpack/providerVerify';
 import { getActiveSettings } from '@/core/settings';
 import type { KnownZeldOutpoint } from '@/core/zeld/knownOutpoints';
 import { analyzeSignRequestZeld, type ZeldNotice, type ZeldPackageParent } from '@/core/zeld/signRequestZeld';
@@ -366,20 +361,7 @@ export async function analyzeSignRequest(
     }
   }
 
-  // Payments to script addresses the wallet does not control can carry risk for an address
-  // holding Counterparty assets. The candidates come from the bytes now; the payer's holdings are
-  // looked up alongside the other reads, not after them, and only when there is a candidate.
   const ownedAddresses = [...signerAddresses, ...(input.ownedAddresses ?? [])];
-  const scriptPaymentInput = {
-    outputs,
-    payerAddress: inputs[0]?.address,
-    ownedAddresses,
-    provenAddresses: verifiedCommit ? [verifiedCommit.address] : [],
-  };
-  const scriptPayments = revealRefusal ? [] : scriptPaymentCandidates(scriptPaymentInput);
-  const payerHoldsAssets = scriptPayments.length > 0
-    ? addressHoldsCounterpartyAssets(inputs[0]!.address!)
-    : Promise.resolve(false);
 
   // The API's rendering is for display only — richer than the local unpack, and not trusted by
   // anything below that decides whether signing is safe.
@@ -445,6 +427,17 @@ export async function analyzeSignRequest(
     }
   }
 
+  // The recipients above are the ones core credits only if the address table is the one it reads
+  // at the next block (`mpmaTableFormat.ts`).
+  if (verification.localUnpack?.messageType === 'mpma_send' && verification.localUnpack.data) {
+    const carried = (verification.localUnpack.data as MPMAData).tableFormat;
+    const tableWarning = mpmaTableWarning(carried, await resolveMpmaTableFormat());
+    if (tableWarning) {
+      safety.warnings = [tableWarning, ...safety.warnings];
+      safety.blocked = true;
+    }
+  }
+
   // Independent of both decoders: does the message's own account of this transaction hold up
   // against the transaction? Uses the local decode, since the point is to test the bytes.
   const structureFindings = checkMessageStructure(
@@ -472,19 +465,6 @@ export async function analyzeSignRequest(
   }
 
   const attachedAssets = await input.attachedAssets;
-
-  if (scriptPayments.length > 0) {
-    // Assets on the spent UTXOs count too; an input whose lookup failed is unknown, not empty.
-    const inputsCarryAssets = attachedAssets.some(entry => entry.assets.length > 0 || entry.lookupFailed);
-    const risk = scriptPaymentRisk(scriptPaymentInput, inputsCarryAssets || await payerHoldsAssets);
-    if (risk) {
-      const text = scriptPaymentRiskText(risk);
-      safety.warnings = [
-        ...safety.warnings,
-        { code: 'unproven_script_output', data: risk, severity: 'warning', title: text.title, message: text.description },
-      ];
-    }
-  }
 
   let bitcoinPaymentProof: BitcoinPaymentProof | undefined;
   let bitcoinPaymentBlockers: string[] | undefined;
@@ -650,12 +630,8 @@ export async function analyzeSignRequest(
       // outputs that are not the bidder's — the offer output rebuilt from the bidder's own key and
       // the named market key's leaf, and the anchor returned to itself — are exactly what the
       // review states. Those findings are exempt; every other block (ZELD included) survives.
-      // The offer output is a script address, but its one leaf is rebuilt byte for byte from
-      // the bidder's own key and the named market key, so the script-address caution does not
-      // apply to it.
       safety.warnings = safety.warnings.filter(
-        warning => warning.code !== 'counterparty_only_gate' && warning.code !== 'external_btc_output'
-          && warning.code !== 'unproven_script_output',
+        warning => warning.code !== 'counterparty_only_gate' && warning.code !== 'external_btc_output',
       );
       safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
     } else if (
@@ -690,27 +666,6 @@ export async function analyzeSignRequest(
         );
       }
       safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
-    }
-    const keyPathFee = marketplaceReview.keyPathFeeOutput;
-    if (
-      keyPathFee
-      && (marketplaceReview.status === 'proved' || marketplaceReview.status === 'caution')
-      && safety.warnings.some(warning => warning.code === 'unproven_script_output')
-    ) {
-      // The proof rebuilt the fee output from its declared BIP86 key with no script tree: it has no
-      // script path. Drop it from the caution, and only it;
-      // any other script address this transaction pays is still named (the payer's holdings were
-      // already found to warrant the caution, or it would not be here).
-      const rest = scriptPaymentRisk({
-        ...scriptPaymentInput,
-        provenAddresses: [...scriptPaymentInput.provenAddresses, keyPathFee.address],
-      }, true);
-      safety.warnings = safety.warnings.flatMap((warning): SecurityWarning[] => {
-        if (warning.code !== 'unproven_script_output') return [warning];
-        if (!rest) return [];
-        const text = scriptPaymentRiskText(rest);
-        return [{ ...warning, data: rest, title: text.title, message: text.description }];
-      });
     }
   }
 

@@ -3,9 +3,8 @@
  *
  * Counterparty's Taproot data encoding is two transactions. The commit pays a small output to a
  * P2TR address; the reveal spends that output by a script path whose tapleaf is an envelope
- * carrying the message, signed with a key held by whoever built it, and publishes the message
- * from the address that funded the commit. Signing the commit is signing that message, though
- * nothing in the commit's own bytes shows it.
+ * carrying the message, and publishes it. Nothing in the commit's own bytes shows that message,
+ * so the approval proves it from the reveal.
  *
  * When the site supplies the reveal, the commit stops being opaque. What the reveal publishes is
  * fixed by the commit, not by the reveal: a P2TR output key commits to its script tree, so when

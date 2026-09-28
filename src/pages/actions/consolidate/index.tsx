@@ -4,7 +4,7 @@ import { FiHelpCircle } from "@/components/icons";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { type ConsolidationResult, useMultiBatchConsolidation } from "@/hooks/useMultiBatchConsolidation";
+import { useMultiBatchConsolidation } from "@/hooks/useMultiBatchConsolidation";
 import { t } from '@/i18n';
 import { ConsolidationForm, type ConsolidationFormData } from "@/pages/actions/consolidate/form";
 import { ConsolidationHistory } from "@/pages/actions/consolidate/history";
@@ -12,7 +12,7 @@ import { ConsolidationReview } from "@/pages/actions/consolidate/review";
 
 function ConsolidatePage() {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet, wallets } = useWallet();
+  const { activeAddress, activeWallet } = useWallet();
   const { consolidateAllBatches, isProcessing, currentBatch, results } =
     useMultiBatchConsolidation();
   const [step, setStep] = useState<"form" | "review">("form");
@@ -35,7 +35,9 @@ function ConsolidatePage() {
   // on the write it just made.
   useEffect(() => {
     if (!settings?.hasVisitedRecoverBitcoin) {
-      updateSettings({ hasVisitedRecoverBitcoin: true });
+      updateSettings({ hasVisitedRecoverBitcoin: true }).catch((error: unknown) => {
+        console.error('Failed to mark the recovery tool visited:', error);
+      });
     }
   }, []); // Only run once on mount
 
@@ -43,7 +45,7 @@ function ConsolidatePage() {
     if (step === "form") {
       setHeaderProps({
         title: t('actions_consolidate_recovery_tool'),
-        onBack: () => navigate(-1),
+        onBack: () => void navigate(-1),
         rightButton: {
           icon: <FiHelpCircle className="w-4 h-4" />,
           onClick: toggleHelp,
@@ -61,7 +63,7 @@ function ConsolidatePage() {
 
   if (!activeAddress || !activeWallet) return null;
 
-  const handleFormSubmit = async (data: ConsolidationFormData) => {
+  const handleFormSubmit = (data: ConsolidationFormData) => {
     try {
       setError(null);
       // Store form data
@@ -89,12 +91,12 @@ function ConsolidatePage() {
     setTxDetails(null);
   };
 
-  const handleSign = async (): Promise<ConsolidationResult[] | undefined> => {
-    if (!formData || !formData.allBatches.length) return undefined;
+  const handleSign = async () => {
+    if (!formData || !formData.allBatches.length) return;
 
     try {
       setError(null);
-      return await consolidateAllBatches(
+      await consolidateAllBatches(
         formData.allBatches,
         formData.feeRateSatPerVByte,
         formData.destinationAddress || undefined,
@@ -103,7 +105,6 @@ function ConsolidatePage() {
       // Navigation to success is handled by the hook
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-      return undefined;
     }
   };
 
@@ -130,7 +131,6 @@ function ConsolidatePage() {
           onBack={handleBack}
           error={error}
           setError={setError}
-          ownedAddresses={wallets.flatMap(wallet => wallet.addresses.map(entry => entry.address))}
           isProcessing={isProcessing}
           currentBatch={currentBatch}
           results={results}

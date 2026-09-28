@@ -20,17 +20,12 @@ import { useBlockHeight } from "@/hooks/useBlockHeight";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
 import { t } from '@/i18n';
-/**
- * The list and the per-asset endpoint return the same row, so they share one type. Re-exported
- * under the name the mint screens already use.
- */
-export type Fairminter = FairminterDetails;
 
-const fairminterKey = (fairminter: Fairminter) => fairminter.tx_hash;
+const fairminterKey = (fairminter: FairminterDetails) => fairminter.tx_hash;
 
 interface FairminterSelectInputProps {
   selectedAsset: string;
-  onChange: (asset: string, fairminter?: Fairminter) => void;
+  onChange: (asset: string, fairminter?: FairminterDetails) => void;
   label: string;
   showHelpText?: boolean;
   description?: string;
@@ -55,7 +50,7 @@ export function FairminterSelectInput({
 }: FairminterSelectInputProps): ReactElement {
   const { settings } = useSettings();
   const [query, setQuery] = useState("");
-  const [lookedUp, setLookedUp] = useState<Fairminter[]>([]);
+  const [lookedUp, setLookedUp] = useState<FairminterDetails[]>([]);
   const fetchFn = useCallback((offset: number, limit: number) =>
     fetchOpenFairminters({ offset, limit }), [settings.counterpartyApiBase]);
   const page = usePaginatedFetch({ fetchFn, pageSize: 20, maxItems: Infinity, getKey: fairminterKey });
@@ -90,7 +85,7 @@ export function FairminterSelectInput({
     if (!/^[A-Z][A-Z0-9.]{2,}$/.test(name)) return;
 
     let cancelled = false;
-    const timer = setTimeout(async () => {
+    const lookUp = async () => {
       try {
         const found = await fetchAssetFairminter(name);
         if (cancelled || !found || !isFairminterMintableNow(found, blockHeight)) return;
@@ -100,7 +95,8 @@ export function FairminterSelectInput({
       } catch {
         // A miss is the common case — most names are simply not fairminters.
       }
-    }, 400);
+    };
+    const timer = setTimeout(() => void lookUp(), 400);
 
     return () => {
       cancelled = true;

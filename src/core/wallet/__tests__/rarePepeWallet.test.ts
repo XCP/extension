@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat, getAddressFromMnemonic } from '@/core/bitcoin/address';
+import { getAddressFromMnemonic } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import {
   detectGiftCard,
   detectUtxoAddress,

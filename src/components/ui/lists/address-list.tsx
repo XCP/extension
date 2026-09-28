@@ -28,10 +28,15 @@ interface AddressListProps {
 export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walletId, isHardwareWallet = false, onFindUtxoAddress, onRemoveUtxoAddress }: AddressListProps): ReactElement => {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
+  // The check mark says the address is on the clipboard, so it waits for the write to succeed.
   const handleCopyAddress = (address: string) => {
-    setCopiedAddress(address);
-    navigator.clipboard.writeText(address);
-    setTimeout(() => setCopiedAddress(null), 2000);
+    navigator.clipboard.writeText(address).then(
+      () => {
+        setCopiedAddress(address);
+        setTimeout(() => setCopiedAddress(null), 2000);
+      },
+      (err: unknown) => console.error('Failed to copy address:', err),
+    );
   };
 
   const handleAddressClick = (e: React.MouseEvent, address: Address) => {

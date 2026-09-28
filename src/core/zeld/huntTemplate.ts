@@ -21,7 +21,7 @@
 
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { Address, NETWORK, OutScript, p2sh, p2wpkh, TEST_NETWORK } from '@scure/btc-signer';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { decodeRawTransaction, parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
 import { bytesToHex } from '@/core/counterparty/unpack/binary';

@@ -14,12 +14,8 @@
  * so both are found by deriving the one candidate and asking whether it has history.
  */
 
-import {
-  AddressFormat,
-  getAddressFromMnemonic,
-  isCounterwalletFormat,
-  probeAddressActivity,
-} from '@/core/bitcoin/address';
+import { getAddressFromMnemonic, probeAddressActivity } from '@/core/bitcoin/address';
+import { AddressFormat, isCounterwalletFormat } from '@/core/bitcoin/addressFormat';
 
 /** The default Counterwallet branch, where a normal wallet's addresses live. */
 const RECEIVE_BRANCH = 0;

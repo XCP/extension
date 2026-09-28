@@ -9,6 +9,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { base64, hex } from '@scure/base';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
+import { verifyMessage, verifyMessageWithMethod } from '@/core/bitcoin/messageVerifier/verifier';
 import {
   bip322MessageHash,
   createToSignTransaction,
@@ -20,7 +21,6 @@ import {
   taprootOutputKey,
   verifyBIP322Signature
 } from '../bip322';
-import { verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
 
 describe('BIP-322 Standardness Tests from bip322-js', () => {
   describe('Legacy P2PKH Signature Verification', () => {

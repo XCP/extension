@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderReviewError } from '@/core/providerReviewErrors';
 import { t } from '@/i18n';
 import { mockBrowserLocale, renderHook } from '@/i18n/__tests__/helpers/locale';
-import type { ProviderSigningReview } from '@/services/providerSigningService';
+import type { ProviderSigningReview } from '@/services/providerSigningServiceClient';
 import { useProviderSigningRequest } from '../useProviderSigningRequest';
 
 const mocks = vi.hoisted(() => ({

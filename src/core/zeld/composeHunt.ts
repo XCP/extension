@@ -9,7 +9,7 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import type { AddressFormat } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { carriesTaprootReveal } from '@/core/counterparty/taprootEncoding';
 import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from '@/core/zeld/eligibility';

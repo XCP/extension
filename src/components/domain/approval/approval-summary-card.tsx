@@ -1,11 +1,11 @@
 import { ApprovalFacts } from '@/components/domain/approval/approval-facts';
 import { ApprovalIdentifier } from '@/components/domain/approval/approval-identifier';
-import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
 import type { PsbtFlexibilityKind } from '@/components/domain/approval/psbt-flexibility';
+import type { MoneyMovement } from '@/core/bitcoin/moneyMovement';
 import type { MessageHeadline, ProtocolField } from '@/core/counterparty/describe';
-import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplace/intentTypes';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 

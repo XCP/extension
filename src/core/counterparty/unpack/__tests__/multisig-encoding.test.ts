@@ -10,8 +10,9 @@
 
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
-import { setSourcePubkeyProvider } from '../../sourcePubkey';
+import { encodeAddress } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
+import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
 import { analyzeTransactionSafety } from '../../transactionSafety';
 import { packAddress } from '../address';
 import { arc4, bytesToHex, hexToBytes } from '../binary';

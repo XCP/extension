@@ -32,7 +32,6 @@ export const WALLET_SERVICE_POLICY: ProxyServicePolicy<WalletService> = {
     isAddressInAnyWallet: 'read', signTransaction: 'command', signCommitAndReveal: 'command',
     broadcastTransaction: 'command',
     signMessage: 'command', getLastActiveAddress: 'read',
-    getKnownScriptRecipients: 'read', recordScriptRecipients: 'command',
     recordZeldOutpoints: 'command',
     setLastActiveAddress: 'command', setLastActiveTime: 'command', consolidateBareMultisig: 'command',
   },

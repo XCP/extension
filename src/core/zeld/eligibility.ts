@@ -1,4 +1,4 @@
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 
 const LEGACY_FORMATS: ReadonlySet<AddressFormat> = new Set([
   AddressFormat.P2PKH,

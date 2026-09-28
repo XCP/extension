@@ -10,7 +10,7 @@ import * as btc from '@scure/btc-signer';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { signTaprootReveal, type TaprootRevealToSign } from '@/core/bitcoin/taprootRevealSigner';
 import {
   BROADCAST_P2WPKH,

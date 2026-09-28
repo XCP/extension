@@ -5,7 +5,7 @@ import { t } from '@/i18n';
 
 export type CounterpartyFeature = 'ammPools' | 'indefiniteOrders' | 'taprootReveals';
 
-interface ServerInfo {
+export interface ServerInfo {
   server_ready: boolean;
   network: string;
   version: string;
@@ -104,7 +104,11 @@ export function isVersionAtLeast(version: string, minimum: string): boolean {
   return true;
 }
 
-async function fetchCapabilityServerInfo(): Promise<ServerInfo> {
+/**
+ * The node's `/v2/` status: readiness, version, network and ledger height. Cached per API base for
+ * a minute, so the activation checks that read it cost one request between them.
+ */
+export async function fetchCounterpartyServerInfo(): Promise<ServerInfo> {
   const apiBase = getApiBase();
 
   if (
@@ -135,7 +139,7 @@ export async function getCounterpartyFeatureStatus(feature: CounterpartyFeature)
   reason?: string;
 }> {
   const requirement = FEATURE_REQUIREMENTS[feature];
-  const serverInfo = await fetchCapabilityServerInfo();
+  const serverInfo = await fetchCounterpartyServerInfo();
 
   if (!serverInfo.server_ready) {
     return {

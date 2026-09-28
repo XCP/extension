@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { clearCachedKeychainMasterKey, setCachedKeychainMasterKey } from '@/platform/storage/keyStorage';
 import { saveKeychainRecord } from '@/platform/storage/walletStorage';

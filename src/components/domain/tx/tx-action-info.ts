@@ -12,7 +12,7 @@ import {
   sweepFlagsContents,
 } from '@/core/counterparty/describe';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
-import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
+import type { ProviderVerificationResult } from '@/core/counterparty/unpack/providerVerify';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 import { t } from '@/i18n';
@@ -329,6 +329,23 @@ export function getTxActionInfo(
     presentation: unpack!.messageType === 'pooldeposit' ? { headline: localizeAction('Deposit liquidity') } : details?.presentation,
     protocol: protocolFields(unpack!.messageType!, view, context, localizeAction),
   };
+}
+
+/**
+ * The approval screen's protocol rows for a message this wallet composed itself, so its own review
+ * states the same facts in the same words.
+ *
+ * `data` is the message in the local unpack's field names, and `assetInfo` carries verified
+ * divisibility under the API's field names (`asset_info`, as `verifiedReviewParams` sets it), since
+ * a figure derived on a guessed scale is exactly what the describer refuses to print.
+ */
+export function composedMessageFields(
+  messageType: string,
+  data: Record<string, unknown>,
+  context: ProtocolContext,
+  assetInfo?: Record<string, unknown>,
+): ProtocolField[] {
+  return protocolFields(messageType, fromLocalUnpack(data, assetInfo), context, localizeAction);
 }
 
 /**

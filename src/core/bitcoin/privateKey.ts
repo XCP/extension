@@ -5,7 +5,8 @@ import { createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { type AddressFormat, encodeAddress, getSeedFromMnemonic } from '@/core/bitcoin/address';
+import { encodeAddress, getSeedFromMnemonic } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 
 // Create a base58check encoder instance for WIF usage.
 const base58check = createBase58check(sha256);

@@ -5,10 +5,11 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { fetchAssetDetails } from "@/core/counterparty/api";
-import { encodeMemoList, hasHexPrefix, isHexMemo, isValidMemoLength, stripHexPrefix } from "@/core/counterparty/memo";
+import { encodeMemoList, isValidMemoLength } from "@/core/counterparty/memo";
 import { validateBitcoinAddress } from "@/core/validation/bitcoin";
 import { parseCSV } from "@/core/validation/csv";
 import { validateFile } from "@/core/validation/file";
+import { hasHexPrefix, isHexMemo, stripHexPrefix } from "@/core/validation/memo";
 import { isMpmaEncodable } from "@/core/validation/mpmaDestination";
 
 import { t } from '@/i18n';
@@ -249,7 +250,7 @@ export function MPMAForm({
                   ref={fileInputRef}
                   type="file"
                   accept=".csv"
-                  onChange={handleFileUpload}
+                  onChange={(e) => void handleFileUpload(e)}
                   className="hidden"
                   disabled={isProcessing}
                 />
@@ -300,7 +301,7 @@ export function MPMAForm({
                 value=""
                 onChange={() => {}} // We only care about paste
                 placeholder={t('mpma_form_paste_csv_data_here')}
-                onPaste={handleTextPaste}
+                onPaste={(e) => void handleTextPaste(e)}
                 rows={4}
                 disabled={isProcessing}
               />

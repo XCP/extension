@@ -145,10 +145,12 @@ describe('packing matches bytes generated with cbor2 5.9.0, the version core pin
   });
 });
 
-describe('packing matches bytes generated with core\'s MPMA encoder', () => {
+describe('packing matches bytes generated with core\'s MPMA encoder (legacy address table)', () => {
   // These hexes come from running core's own `mpmaencoding` functions (copied verbatim, with
   // `address.pack_legacy` and the ledger asset lookup replaced by pure equivalents) under the
-  // same bitstring library core uses.
+  // same bitstring library core uses, before `mpma_taproot_support`. The length-prefixed table
+  // has its own vectors, from core 11.4's encoder, in `mpmaTableFormat.test.ts`.
+  const LEGACY = { mpmaTableFormat: 'legacy' } as const;
   const P2PKH_A = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
   const P2PKH_B = '1CounterpartyXXXXXXXXXXXXXXXUWLpVr';
   const P2WPKH = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
@@ -158,7 +160,7 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
       assets: 'XCP,PEPECASH',
       destinations: `${P2PKH_A},${P2PKH_B}`,
       quantities: '100,500',
-    });
+    }, undefined, LEGACY);
 
     expect(packed).not.toBeNull();
     expect(bytesToHex(packed!.bytes)).toBe(
@@ -173,7 +175,7 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
       quantities: '1,2',
       memo: 'thanks',
       memo_is_hex: false,
-    });
+    }, undefined, LEGACY);
 
     expect(packed).not.toBeNull();
     expect(bytesToHex(packed!.bytes)).toBe(
@@ -188,7 +190,7 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
       quantities: '7,9',
       memos: 'beef,68656c6c6f',
       memos_are_hex: 'true,true',
-    });
+    }, undefined, LEGACY);
 
     expect(packed).not.toBeNull();
     expect(bytesToHex(packed!.bytes)).toBe(
@@ -207,7 +209,7 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
       quantities: '7,9',
       memos: 'beef,',
       memos_are_hex: 'true,false',
-    });
+    }, undefined, LEGACY);
 
     expect(packed).not.toBeNull();
     expect(bytesToHex(packed!.bytes)).toBe(
@@ -223,7 +225,7 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
       quantities: '7,9',
       memos: 'beef,hello',
       memos_are_hex: 'true,false',
-    })).toBeNull();
+    }, undefined, LEGACY)).toBeNull();
   });
 
   it('packs the send form\'s comma-separated destinations as the same MPMA message', () => {
@@ -234,7 +236,7 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
       destinations: `${P2PKH_A},${P2WPKH}`,
       quantity: asBaseUnits(1),
       memo: 'thanks',
-    });
+    }, undefined, LEGACY);
 
     expect(packed).not.toBeNull();
     expect(bytesToHex(packed!.bytes)).toBe(
@@ -250,7 +252,7 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
       assets: 'PEPECASH,XCP',
       destinations: `${P2PKH_A},${P2PKH_A}`,
       quantities: '5,3',
-    });
+    }, undefined, LEGACY);
 
     expect(packed).not.toBeNull();
     expect(bytesToHex(packed!.bytes)).toBe(
@@ -263,7 +265,7 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
       assets: 'XCP,PEPECASH',
       destinations: `${P2PKH_A},${P2PKH_B}`,
       quantities: '100,500',
-    });
+    }, undefined, LEGACY);
 
     const result = unpackCounterpartyMessage(packed!.bytes);
     expect(result.success).toBe(true);
@@ -434,13 +436,6 @@ describe('refusing to pack is not the same as agreeing', () => {
       destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
       quantities: '1,2',
     }],
-    // A 32-byte witness program does not fit the 21-byte legacy LUT slot.
-    ['an MPMA send to a Taproot destination', 'mpma', {
-      assets: 'XCP,XCP',
-      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,'
-        + 'bc1pcm9gfgcy8q45y4m0ryskyc5nczex8yn9jc5r0tpuacz897y5rlfqn2u02z',
-      quantities: '1,2',
-    }],
     // Core's encoder silently drops a memo its 6-bit length cannot carry; declining is the
     // honest mirror — agreeing with a message that ignored the memo would verify a substitution.
     ['an MPMA memo longer than 63 bytes', 'mpma', {
@@ -488,7 +483,11 @@ describe('refusing to pack is not the same as agreeing', () => {
       source: `${'a'.repeat(64)}:0`, destination: TAPROOT_DESTINATION, asset: 'XCP', quantity: 1,
     }],
   ])('returns null for %s', (_label, composeType, params) => {
-    expect(packComposeMessage(composeType, params as Record<string, unknown>)).toBeNull();
+    // Under either MPMA address table: none of these declines depends on the table.
+    for (const mpmaTableFormat of ['legacy', 'length-prefixed'] as const) {
+      expect(packComposeMessage(composeType, params as Record<string, unknown>, undefined, { mpmaTableFormat }))
+        .toBeNull();
+    }
   });
 
   it('packs a locked subasset, the most common issuance shape on the chain', () => {
@@ -601,7 +600,7 @@ describe('the compose types that carry no message', () => {
       asset: 'BTC',
       destinations: `${BECH32},${P2PKH}`,
       quantity: '50000',
-    })).toBeNull();
+    }, undefined, { mpmaTableFormat: 'length-prefixed' })).toBeNull();
   });
 
   it('a burn builds no message', () => {

@@ -5,28 +5,10 @@ import { HDKey } from '@scure/bip32';
 import { mnemonicToEntropy, mnemonicToSeedSync } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import * as btc from '@scure/btc-signer';
-import {
-  AddressFormat,
-  DEFAULT_ADDRESS_FORMAT,
-  getAddressFormatLabel,
-  isCounterwalletFormat,
-  isFreewalletBIP39Format,
-  isSegwitFormat,
-} from '@/core/bitcoin/addressFormat';
+import { AddressFormat, DEFAULT_ADDRESS_FORMAT, isCounterwalletFormat, isFreewalletBIP39Format } from '@/core/bitcoin/addressFormat';
 import { hasAddressActivity } from '@/core/bitcoin/balance';
 import { fetchTokenBalances } from '@/core/counterparty/api';
-import { getCounterwalletSeed } from '@/core/counterwallet';
-
-// Re-exported so existing importers keep working; the format map and its pure helpers live in a
-// leaf module so the popup's first screen can use them without the derivation libraries below.
-export {
-  AddressFormat,
-  DEFAULT_ADDRESS_FORMAT,
-  getAddressFormatLabel,
-  isCounterwalletFormat,
-  isFreewalletBIP39Format,
-  isSegwitFormat,
-};
+import { getCounterwalletSeed } from '@/core/counterwallet/mnemonic';
 
 /** Normalize only Bech32/Bech32m addresses; Base58 addresses remain case-sensitive. */
 export function normalizeAddressForComparison(address: string): string {

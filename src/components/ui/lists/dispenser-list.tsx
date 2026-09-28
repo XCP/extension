@@ -72,5 +72,3 @@ export function DispenserList({
   );
 }
 
-// Re-export the type for convenience
-export type { DispenserOption };

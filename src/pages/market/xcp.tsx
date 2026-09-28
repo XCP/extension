@@ -90,7 +90,7 @@ export default function XcpPricePage(): ReactElement {
         setLoading(false);
       }
     };
-    loadInitial();
+    void loadInitial();
   }, [loadStats, loadHistory]);
 
   // Handle refresh
@@ -107,11 +107,11 @@ export default function XcpPricePage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('market_xcp_xcp_price'),
-      onBack: () => navigate("/market"),
+      onBack: () => void navigate("/market"),
       rightButton: {
         ariaLabel: t('common_refresh_price'),
         icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
-        onClick: handleRefresh,
+        onClick: () => void handleRefresh(),
         disabled: isRefreshing,
       },
     });
@@ -119,8 +119,8 @@ export default function XcpPricePage(): ReactElement {
   }, [setHeaderProps, navigate, isRefreshing, handleRefresh, locale]);
 
   const handleBuyXcp = () => {
-    analytics.track("buy_xcp");
-    navigate("/market/dispensers/XCP");
+    void analytics.track("buy_xcp");
+    void navigate("/market/dispensers/XCP");
   };
 
   // XCP trades around $1, so keep cents visible
@@ -182,7 +182,7 @@ export default function XcpPricePage(): ReactElement {
                 <div className="text-sm text-red-600">
                   <span className="block">{t('common_unable_to_load_price')}</span>
                   <button type="button"
-                    onClick={loadStats}
+                    onClick={() => void loadStats()}
                     className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
                     {t('common_retry')}
@@ -239,7 +239,7 @@ export default function XcpPricePage(): ReactElement {
             >
               <span className="text-sm text-red-600 mb-2">{t('common_unable_to_load_chart_data')}</span>
               <button type="button"
-                onClick={loadHistory}
+                onClick={() => void loadHistory()}
                 className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 {t('common_try_again')}

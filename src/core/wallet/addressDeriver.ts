@@ -6,14 +6,8 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
-import {
-  type AddressFormat,
-  encodeAddress,
-  getDerivationPathForAddressFormat,
-  getSeedFromMnemonic,
-  isCounterwalletFormat,
-  isFreewalletBIP39Format,
-} from '@/core/bitcoin/address';
+import { encodeAddress, getDerivationPathForAddressFormat, getSeedFromMnemonic } from '@/core/bitcoin/address';
+import { type AddressFormat, isCounterwalletFormat, isFreewalletBIP39Format } from '@/core/bitcoin/addressFormat';
 import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/core/bitcoin/privateKey';
 import { derivePubkeyFromAccountKey, pubkeyDeriverFromAccountKey } from '@/core/wallet/hardwarePubkey';
 import { parseUtxoAddressPath } from '@/core/wallet/rarePepeWallet';

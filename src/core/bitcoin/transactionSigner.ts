@@ -2,7 +2,7 @@ import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { OutScript, p2tr, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { checkScript } from '@scure/btc-signer/payment.js';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { DEFAULT_SEQUENCE } from '@/core/bitcoin/constants';
 import { parseConsensusTransaction, parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { assertTransactionMatchesReviewed } from '@/core/bitcoin/transactionIntegrity';

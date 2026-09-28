@@ -23,7 +23,6 @@ import { ApprovalZeldNotes } from "@/components/domain/approval/approval-zeld-no
 import { BitcoinPaymentCard } from "@/components/domain/approval/bitcoin-payment-card";
 import { CounterpartyDetailsCard } from "@/components/domain/approval/counterparty-details-card";
 import { MarketplaceReviewCard, provedReviewNotes } from "@/components/domain/approval/marketplace-review-card";
-import { computeMoneyMovement } from "@/components/domain/approval/money-movement";
 import { buildOrderAction } from "@/components/domain/approval/order-card";
 import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
 import { describePsbtFlexibility } from "@/components/domain/approval/psbt-flexibility";
@@ -35,6 +34,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { normalizeAddressForComparison } from "@/core/bitcoin/address";
+import { computeMoneyMovement } from "@/core/bitcoin/moneyMovement";
 import { committedOutputIndices, resolvePsbtSighashType, spendsTaprootOutput } from "@/core/bitcoin/psbt";
 import { estimateSignedPsbtVsize, hasHighPsbtFee } from "@/core/bitcoin/signedVsize";
 import { classifySignedInputAssets } from "@/core/counterparty/inputAssets";
@@ -438,7 +438,7 @@ export default function ApprovePsbtPage() {
       origin={request.origin}
       footer={
         <ApprovalFooter
-          onCancel={handleReject}
+          onCancel={() => void handleReject()}
           onSign={handleApprovalAction}
           busy={isSigning}
           blocked={blockSigning || isRefreshing || Boolean(refreshError)}

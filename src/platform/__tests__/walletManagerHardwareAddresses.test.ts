@@ -1,7 +1,7 @@
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { deriveAddressesFromSecret, deriveMnemonicAddresses } from '@/core/wallet/addressDeriver';
 import { WalletManager } from '@/platform/walletManager';
 import type { HardwareWalletSecret, WalletRecord } from '@/types/wallet';

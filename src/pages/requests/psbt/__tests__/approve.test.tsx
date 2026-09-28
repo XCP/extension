@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { getPsbtApprovalPolicy, type ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
 import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
-import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplace/intentTypes';
 import { zeldWarning } from '@/core/counterparty/signRequestAnalysis';
 import ApprovePsbtPage from '../approve';
 

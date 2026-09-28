@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { ProtocolContext } from '@/core/counterparty/describe';
 import type { InputAttachedAssets } from '../inputAssets';
-import type { ProtocolContext } from '../protocolContext';
 import { type AnalyzedOutput, analyzeSignRequest, zeldWarning } from '../signRequestAnalysis';
 
 vi.mock('@/core/counterparty/transaction', () => ({
@@ -12,7 +12,7 @@ vi.mock('@/core/counterparty/protocolContext', () => ({
   resolveProtocolContext: vi.fn(async () => ({ context: {} as ProtocolContext, warnings: [] })),
 }));
 const unpack = vi.hoisted(() => ({ localUnpack: undefined as unknown }));
-vi.mock('@/core/counterparty/unpack', () => ({
+vi.mock('@/core/counterparty/unpack/providerVerify', () => ({
   verifyProviderTransaction: vi.fn(() => ({ localUnpack: unpack.localUnpack })),
 }));
 const zeld = vi.hoisted(() => ({

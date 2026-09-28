@@ -97,7 +97,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
       let cancelled = false;
 
       // Set up new debounced check
-      debounceTimeout.current = setTimeout(async () => {
+      const check = async () => {
         // Only check availability if the format is valid
         const validation = validateAssetName(value, isSubasset);
         if (!validation.isValid) {
@@ -172,7 +172,8 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
         } finally {
           if (!cancelled) setIsChecking(false);
         }
-      }, 500); // 500ms debounce
+      };
+      debounceTimeout.current = setTimeout(() => void check(), 500); // 500ms debounce
 
       // Cleanup function
       return () => {

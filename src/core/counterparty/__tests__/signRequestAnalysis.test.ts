@@ -10,9 +10,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
+import type { ProtocolContext } from '@/core/counterparty/describe';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
 import type { InputAttachedAssets } from '../inputAssets';
-import { parseMarketplaceIntent } from '../marketplaceIntent';
-import type { ProtocolContext } from '../protocolContext';
 import { type AnalyzedOutput, analyzeSignRequest, transactionIdIsFinal } from '../signRequestAnalysis';
 
 // ZELD-specific behavior has its own suite; this suite must not query the live indexer.
@@ -30,13 +30,20 @@ vi.mock('@/core/counterparty/protocolContext', () => ({
   resolveProtocolContext: vi.fn(async () => ({ context: {} as ProtocolContext, warnings: [] })),
 }));
 
-vi.mock('@/core/counterparty/unpack', () => ({
+vi.mock('@/core/counterparty/unpack/providerVerify', () => ({
   verifyProviderTransaction: vi.fn(() => ({ localUnpack: undefined })),
+}));
+
+// The height lookups behind an MPMA's address table; each MPMA case below says what they return.
+vi.mock('@/core/counterparty/mpmaTableFormat', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/core/counterparty/mpmaTableFormat')>(),
+  resolveMpmaTableFormat: vi.fn(async () => null),
 }));
 
 const { decodeCounterpartyMessage, resolveMpmaRecipients } = await import('../transaction');
 const { resolveProtocolContext } = await import('../protocolContext');
-const { verifyProviderTransaction } = await import('../unpack');
+const { verifyProviderTransaction } = await import('../unpack/providerVerify');
+const { resolveMpmaTableFormat } = await import('../mpmaTableFormat');
 
 const SIGNER = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
 
@@ -942,6 +949,57 @@ describe('reading the message', () => {
 
     expect(analysis.mpmaRecipients).toHaveLength(1);
     expect(analysis.counterpartyMessage?.description).toBe('described locally');
+  });
+
+  describe("an mpma_send's address table against the next block", () => {
+    const PRE = { format: 'legacy', nextBlockIndex: 971_690, activationHeight: 971_700 } as const;
+    const POST = { format: 'length-prefixed', nextBlockIndex: 971_701, activationHeight: 971_700 } as const;
+    const mpmaWith = (tableFormat: string) => vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: { messageType: 'mpma_send', data: { sends: [{ asset: 'XCP' }], tableFormat } },
+    } as never);
+    afterEach(() => { vi.mocked(resolveMpmaTableFormat).mockResolvedValue(null); });
+
+    it.each([
+      ['legacy', PRE],
+      ['length-prefixed', POST],
+    ] as const)('passes a %s table where core reads that table', async (tableFormat, next) => {
+      mpmaWith(tableFormat);
+      vi.mocked(resolveMpmaTableFormat).mockResolvedValue(next);
+
+      const analysis = await run({ counterpartyDataHex: '434e545250525459030' });
+
+      expect(analysis.safety.warnings.some(w => w.title.startsWith('Blocked: Recipients')
+        || w.title.startsWith('Blocked: Send Would Not'))).toBe(false);
+    });
+
+    it('blocks a length-prefixed table before activation, where core would read other recipients', async () => {
+      mpmaWith('length-prefixed');
+      vi.mocked(resolveMpmaTableFormat).mockResolvedValue(PRE);
+
+      const analysis = await run({ counterpartyDataHex: '434e545250525459030' });
+
+      expect(analysis.safety.blocked).toBe(true);
+      expect(analysis.safety.warnings[0]).toMatchObject({ severity: 'block', title: 'Blocked: Recipients Would Be Misread' });
+    });
+
+    it('blocks a legacy table after activation, which core refuses', async () => {
+      mpmaWith('legacy');
+      vi.mocked(resolveMpmaTableFormat).mockResolvedValue(POST);
+
+      const analysis = await run({ counterpartyDataHex: '434e545250525459030' });
+
+      expect(analysis.safety.blocked).toBe(true);
+      expect(analysis.safety.warnings[0]).toMatchObject({ severity: 'block', title: 'Blocked: Send Would Not Take Effect' });
+    });
+
+    it('says nothing about the table when the height cannot be read', async () => {
+      mpmaWith('length-prefixed');
+      vi.mocked(resolveMpmaTableFormat).mockResolvedValue(null);
+
+      const analysis = await run({ counterpartyDataHex: '434e545250525459030' });
+
+      expect(analysis.safety.warnings.some(w => w.title.includes('Misread'))).toBe(false);
+    });
   });
 });
 

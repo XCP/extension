@@ -6,7 +6,7 @@
  * type-only imports without pulling in implementation.
  */
 
-import type { AddressFormat } from '@/core/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import type { AppSettings } from '@/core/settings';
 
 /**
@@ -113,12 +113,6 @@ export interface Keychain {
   wallets: WalletRecord[];
   /** Application settings (encrypted with keychain) */
   settings: AppSettings;
-  /**
-   * Script addresses this wallet's addresses have already paid, as "payer recipient" pairs, so
-   * the script-address notice is not repeated (see core/wallet/scriptRecipients). Absent until the
-   * first is recorded.
-   */
-  scriptPaymentRecipients?: string[];
   /**
    * Outputs this wallet's addresses were last known to hold ZELD on, as "address txid:vout amount"
    * entries, for approvals to fall back on while the ZELD indexer is down (see

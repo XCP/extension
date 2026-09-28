@@ -66,10 +66,10 @@ export default function UtxoPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: headerTitle,
-      onBack: () => navigate(-1),
+      onBack: () => void navigate(-1),
       rightButton: {
         icon: copiedToClipboard ? <FiCheck className="size-4" aria-hidden="true" /> : <FiCopy className="size-4" aria-hidden="true" />,
-        onClick: handleCopyUtxo,
+        onClick: () => void handleCopyUtxo(),
         ariaLabel: copyLabel
       }
     });
@@ -109,7 +109,7 @@ export default function UtxoPage(): ReactElement {
       }
     };
 
-    loadData();
+    void loadData();
   }, [txid]);
 
   /**
@@ -125,13 +125,13 @@ export default function UtxoPage(): ReactElement {
             id: "move",
             title: t('common_move'),
             description: t('utxos_txhash_move_this_utxo_to_another'),
-            onClick: () => navigate(`${PATHS.COMPOSE}/utxo/move/${txid}`),
+            onClick: () => void navigate(`${PATHS.COMPOSE}/utxo/move/${txid}`),
           },
           {
             id: "detach",
             title: t('common_detach'),
             description: t('utxos_txhash_detach_assets_from_this_utxo'),
-            onClick: () => navigate(`${PATHS.COMPOSE}/utxo/detach/${txid}`),
+            onClick: () => void navigate(`${PATHS.COMPOSE}/utxo/detach/${txid}`),
             className: "!border !border-red-500",
           },
         ],

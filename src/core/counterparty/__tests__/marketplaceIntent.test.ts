@@ -3,19 +3,19 @@ import { getPublicKey } from '@noble/secp256k1';
 import { p2tr } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
-import {
-  type AcceptExactOfferIntentClaim,
-  type AttachForListingIntentClaim,
-  type AuthorizeExactOfferIntentClaim,
-  analyzeMarketplaceIntent,
-  type BuyListingsIntentClaim,
-  type CreateListingIntentClaim,
-  type FundOffersIntentClaim,
-  marketplaceTransactionHeaderProblem,
-  type PrepareAssetIntentClaim,
-  type PrepareBulkFanoutIntentClaim,
-  parseMarketplaceIntent,
-} from '@/core/counterparty/marketplaceIntent';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
+import type {
+  AcceptExactOfferIntentClaim,
+  AttachForListingIntentClaim,
+  AuthorizeExactOfferIntentClaim,
+  BuyListingsIntentClaim,
+  CreateListingIntentClaim,
+  FundOffersIntentClaim,
+  PrepareAssetIntentClaim,
+  PrepareBulkFanoutIntentClaim,
+} from '@/core/counterparty/marketplace/intentTypes';
+import { marketplaceTransactionHeaderProblem } from '@/core/counterparty/marketplace/proofs';
+import { analyzeMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 
 const SELLER = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
 const SELLER_TWO = 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq';

@@ -55,7 +55,7 @@ export function AssetCard({
     if (onClick) {
       onClick(asset.asset);
     } else {
-      navigate(`/assets/${encodeURIComponent(asset.asset)}`);
+      void navigate(`/assets/${encodeURIComponent(asset.asset)}`);
     }
   };
 

@@ -1,7 +1,5 @@
 import { useProviderSigningRequest } from '@/hooks/useProviderSigningRequest';
 
-export type { DecodedPsbtBundleInfo, DecodedPsbtBundleItem } from '@/core/bitcoin/psbtBundleApprovalDecoder';
-
 export function useSignPsbtsRequest() {
   const state = useProviderSigningRequest('sign-psbts');
   return { ...state, request: state.review?.request ?? null,

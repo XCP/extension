@@ -7,7 +7,7 @@
 import {
   type PsbtDetails, resolvePsbtSighashType, spendsTaprootOutput, tapLeafOwnerAddress, validateSignInputs,
 } from '@/core/bitcoin/psbt';
-import { marketplaceTransactionHeaderProblem } from '@/core/counterparty/marketplaceIntent';
+import { marketplaceTransactionHeaderProblem } from '@/core/counterparty/marketplace/proofs';
 import type { ProviderPsbtSigningRequestShape } from '@/core/providerCapabilities';
 
 const SIGHASH_SINGLE_ANYONECANPAY = 0x83;

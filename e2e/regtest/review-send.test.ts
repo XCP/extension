@@ -73,13 +73,15 @@ describe.runIf(REGTEST_ENABLED)('sends: review matches ledger', () => {
     // into a Taproot envelope, which this suite leaves to its own tests; from a P2PKH source it
     // composes the ordinary way, as bare multisig.
     const sender = senders[1]!.key;
-    // Legacy MPMA packing carries no 32-byte witness program, so Taproot cannot be a recipient.
-    const payees: RegtestKey[] = recipients.filter(r => r.format !== 'P2TR').map(r => r.key);
-    const quantities = ['0.1', '2', '0.00000001'];
+    // Regtest runs every protocol change from block 0, so this is the length-prefixed address table
+    // (`mpma_taproot_support`), which carries a Taproot recipient.
+    const payees: RegtestKey[] = recipients.map(r => r.key);
+    const quantities = ['0.1', '2', '0.00000001', '3'];
     const wc = await composeAsWallet('mpma', composeMPMAFromForm, {
       assets: payees.map(() => 'XCP').join(','),
-      // MPMA packs base58 addresses with their network version byte, so the form names them in
-      // the regtest spelling (see walletTransport.ts); witness addresses pack without a network.
+      // Core orders the table by the address strings it receives, and the transport hands it regtest
+      // spellings (walletTransport.ts). Base58 addresses are named in the regtest spelling so both
+      // sides sort the same strings; a witness address sorts the same under `bc1` and `bcrt1`.
       destinations: payees.map(key => key.address.startsWith('bcrt') ? walletAddress(key) : key.address).join(','),
       quantities: quantities.join(','),
     }, sender);
@@ -90,6 +92,7 @@ describe.runIf(REGTEST_ENABLED)('sends: review matches ledger', () => {
     const parsed = await parsedTransaction(txid!);
     expect(parsed.valid).toBe(true);
     expect(wc.decodedMessage?.messageType).toBe('mpma_send');
+    expect(wc.decodedMessage?.data.tableFormat).toBe('length-prefixed');
     const events = await txEvents(txid!);
     expect(page.sends).toHaveLength(payees.length);
     expect(approval.decoded.mpmaRecipients).toHaveLength(payees.length);

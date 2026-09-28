@@ -24,7 +24,7 @@
  */
 
 import type { UnsignedReveal } from '@/core/counterparty/inscriptionEnvelope';
-import { packComposeMessage } from '@/core/counterparty/pack/messages';
+import { type PackRules, packComposeMessage } from '@/core/counterparty/pack/messages';
 import { CounterpartyApiError, UnofferedInputsError } from '@/core/errors';
 import { validateBitcoinAddress } from '@/core/validation/bitcoin';
 
@@ -147,16 +147,20 @@ function lengthProbe(): Params {
   return { timestamp: Math.floor(Date.now() / 1000), divisible: true };
 }
 
-/** `chooseEncoding` with the message length measured from the request itself. */
+/**
+ * `chooseEncoding` with the message length measured from the request itself. An MPMA's length
+ * depends on its address table, so it is measured only when `rules` names one.
+ */
 export function chooseComposeEncoding(
   composeType: string,
   params: Params,
   sourceAddress: string,
   walletType: TaprootWalletType | undefined,
+  rules: PackRules = {}
 ): 'taproot' | undefined {
   let messageLength: number | null = null;
   try {
-    messageLength = packComposeMessage(composeType, params, lengthProbe())?.bytes.length ?? null;
+    messageLength = packComposeMessage(composeType, params, lengthProbe(), rules)?.bytes.length ?? null;
   } catch {
     messageLength = null;
   }

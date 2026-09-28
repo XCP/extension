@@ -311,7 +311,6 @@ export function analyzeExactOfferIntent(
       // comes out of their proceeds. The fee output itself stays itemized in the raw transaction.
       ...((authorizing || sellerPaysFee) && intent.platformFeeSats > 0 && outputs[2]?.address ? [provedFee ? {
         kind: 'address' as const, label: t('marketplace_intent_marketplace_fee'), value: provedFee.address,
-        description: t('marketplace_intent_key_path_fee_output'),
       } : {
         kind: 'address' as const, label: t('marketplace_intent_fee_recipient'), value: outputs[2].address,
       }] : []),

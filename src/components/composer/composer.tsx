@@ -97,13 +97,13 @@ function ComposerInner<T>({
   const headerConfig = useMemo(() => {
     const handleCancel = () => {
       reset();
-      navigate("/index");
+      void navigate("/index");
     };
 
     const onBackDefault = () => navigate(-1);
     const onBackSuccess = () => {
       reset();
-      navigate("/index");
+      void navigate("/index");
     };
 
     // Loading states
@@ -229,9 +229,14 @@ function ComposerInner<T>({
               </Banner>
             </div>
           )}
+          {state.reviewNotices.map((notice, index) => (
+            <div key={`${index}-${notice}`} className="px-4 pt-4">
+              <Banner severity="info" title={notice} />
+            </div>
+          ))}
           {renderReview ? renderReview({
             apiResponse: state.apiResponse,
-            onSign: signAndBroadcast,
+            onSign: () => { void signAndBroadcast(); },
             onBack: goBack,
             error: state.error,
             isSigning: state.isSigning,

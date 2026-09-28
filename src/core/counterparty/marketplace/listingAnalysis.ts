@@ -630,7 +630,6 @@ export function analyzeBuyListingsIntent(
         : []),
       ...(provedFee ? [{
         kind: 'address' as const, label: t('marketplace_intent_marketplace_fee'), value: provedFee.address,
-        description: t('marketplace_intent_key_path_fee_output'),
       }] : []),
       // Per-item rows already name each asset; this row only adds the distinct-asset count when it
       // differs from the item count.

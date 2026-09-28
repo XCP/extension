@@ -21,7 +21,7 @@ import { signTaprootReveal } from '@/core/bitcoin/taprootRevealSigner';
 import { isVersionAtLeast, TAPROOT_REVEAL_MIN_VERSION } from '@/core/counterparty/capabilities';
 import { composeBroadcast, composeIssuance, composeMPMA } from '@/core/counterparty/compose';
 import { checkRevealSourceSignature, sourceOutputScript } from '@/core/counterparty/revealSourceRule';
-import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
+import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
 import { asset, credits, debits, totalFor, txEvents } from './ledger';
 import { counterparty, mineBlocks, parsedTransaction, REGTEST_ENABLED, type RegtestKey, rpc, signAsWallet } from './regtestHarness';
 import { burnAll, freshAsset, fundAll, keyOf, startWallet } from './suite';

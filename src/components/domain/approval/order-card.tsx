@@ -28,7 +28,7 @@ import { isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-a
 import { FiArrowDown } from '@/components/icons';
 import { fetchPoolQuote, type PoolQuote } from '@/core/counterparty/api';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
-import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
+import type { ProviderVerificationResult } from '@/core/counterparty/unpack/providerVerify';
 import { formatAmount, formatPriceRatio } from '@/core/format';
 import { type BigNumber, divide, isGreaterThan, subtract, toBigNumber, toNumber } from '@/core/numeric';
 
@@ -198,7 +198,7 @@ function useOwnMarketQuote(order: OrderAction): OwnQuote | null {
     }
 
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         // fetchPoolQuote rather than a hand-rolled fetch: it encodes the asset names, skips the
         // cache, and parses through the lossless JSON boundary — a base-unit quantity read with
