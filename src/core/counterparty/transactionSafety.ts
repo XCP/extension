@@ -50,11 +50,6 @@ export type SecurityWarning = SecurityWarningText & (
   | { code: 'counterparty_reveal_site_control'; data: RevealControlFacts }
   /** The outputs of the reveal the site supplied, as proved facts. */
   | { code: 'counterparty_reveal_outputs'; data: RevealOutputsFacts }
-  /**
-   * Payments to script addresses the wallet does not control, from `source`, this wallet's
-   * address, which holds Counterparty assets (or could not be shown not to).
-   */
-  | { code: 'unproven_script_output'; data: { totalSats: number; addresses: string[]; source: string } }
   | { code: 'misdirected_recovery_key'; data: { count: number } }
   /**
    * Where the ZELD on the signed inputs goes, when that is not a plain output of this wallet

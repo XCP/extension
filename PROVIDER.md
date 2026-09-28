@@ -666,22 +666,13 @@ Where the supplied reveal already decides something, such as a recipient, a new 
 output, the approval names it, with whether it is the user's address. If the outputs matter to
 your flow, build the reveal so the user signs it (`inscription`).
 
-**Script-address payments without a reveal.** Payments to script addresses you don't control can
-carry risk for addresses that hold Counterparty assets; the wallet shows a caution in that case.
-The **"Payment to a Script Address"** caution names the script address in full and requires the
-review step. It is not a block: most such addresses are ordinary Taproot wallets, multisigs or
-vaults. It does not appear for key-hash destinations (P2PKH, P2WPKH). If the wallet cannot look the
-holdings up, it shows the caution. A proved `reveal` or `inscription` clears it for the commit
-output.
-
 **Key-path marketplace fee (`platformFeeInternalKey`).** `buy_listings`, `authorize_exact_offer`
 and `accept_exact_offer` may carry `platformFeeInternalKey`: the x-only internal key (64 hex
 characters) of a BIP86 key-path Taproot fee address. The wallet rebuilds `p2tr(key)` with no script
 tree and requires it to equal, byte for byte, the output the proof already matched as the fee by
-position and amount. That output has no script path, so the review labels it **Marketplace fee** and
-drops the caution for it alone; any other script address in the transaction keeps its caution. A key
-that does not produce the fee output, or a key on a transaction with no fee output, blocks. Without
-the key nothing changes.
+position and amount, and the review labels that output **Marketplace fee**. A key that does not
+produce the fee output, or a key on a transaction with no fee output, blocks. Without the key the
+fee output is shown as an ordinary payment.
 
 ```js
 intent: {
@@ -739,8 +730,7 @@ Every external-destination notice names each address in full. A same-prefix look
 generate for the first dozen characters) must read differently from the real destination.
 
 Do not use this method to fund a Counterparty Taproot commit. The payment is exact, but a plain
-payment cannot show the message the commit funds. From an address holding Counterparty assets,
-such a payment carries the "Payment to a Script Address" caution (see
+payment cannot show the message the commit funds (see
 [Taproot commits and reveals](#taproot-commits-and-reveals)). Send the commit through
 `xcp_signPsbt` with its `reveal` instead; passing `reveal` here is rejected with that instruction.
 
@@ -1085,11 +1075,10 @@ The checks above read the transaction's bytes. Some things a transaction does ar
 bytes, and some facts come from services the wallet does not control.
 
 - **What a script address commits to.** A P2TR, P2WSH or P2SH address hides its script until the
-  output is spent, so the wallet cannot tell what a payment to one is for. Payments to script
-  addresses you don't control can carry risk for addresses that hold Counterparty assets; the
-  wallet shows a caution in that case. A site funding a Counterparty Taproot commit should send it
-  with [`inscription`](#taproot-commits-with-inscription) or
-  [`reveal`](#taproot-commits-and-reveals), so the wallet can show the message it pays for.
+  output is spent, so the wallet cannot tell what a payment to one is for. A site funding a
+  Counterparty Taproot commit should send it with
+  [`inscription`](#taproot-commits-with-inscription) or [`reveal`](#taproot-commits-and-reveals),
+  so the wallet can show the message it pays for.
 - **Ledger facts.** Attached balances, asset divisibility and metadata, order and dispenser state
   come from the configured Counterparty node. Divisibility moves the decimal point the screen shows.
   An unavailable or inconsistent answer is shown as unknown or asks for a retry; it never reads as
