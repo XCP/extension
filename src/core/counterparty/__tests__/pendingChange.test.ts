@@ -41,8 +41,8 @@ function encryptedOpReturn(typeId: number, payloadHex: string): string {
 }
 
 /** A finished-enough transaction: one input keying the ARC4, then the given output scripts. */
-function buildRawTx(outputScriptHexes: string[], values: bigint[] = []): string {
-  const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+function buildRawTx(outputScriptHexes: string[], values: bigint[] = [], version = 2): string {
+  const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true, version });
   tx.addInput({ txid: hexToBytes(FAKE_TXID), index: 0 });
   outputScriptHexes.forEach((script, i) => {
     tx.addOutput({ script: hexToBytes(script), amount: values[i] ?? 5000n });
@@ -62,6 +62,17 @@ describe('recordOwnChangeFromRawTx', () => {
     expect(getPendingChangeUtxos(OWN_ADDRESS)).toEqual([{ txid, vout: 1, value: 5000 }]);
     // The output paying elsewhere is not ours to spend.
     expect(getPendingChangeUtxos(decodeAddressFromScript(OTHER_SCRIPT)!)).toEqual([]);
+  });
+
+  it('waits for a TRUC (version 3) transaction to confirm before its change is spendable', () => {
+    // Nodes refuse a version 2 spend of an unconfirmed version 3 output, which every send the
+    // wallet composes would be; offering the change now would only fail at broadcast.
+    const raw = buildRawTx([OTHER_SCRIPT, OWN_SCRIPT], [7000n, 5000n], 3);
+    expect(parseRawTransactionLocally(raw)!.version).toBe(3);
+
+    recordOwnChangeFromRawTx(raw, [OWN_ADDRESS]);
+
+    expect(getPendingChangeUtxos(OWN_ADDRESS)).toEqual([]);
   });
 
   it('registers change from a safe Counterparty type (enhanced send)', () => {
