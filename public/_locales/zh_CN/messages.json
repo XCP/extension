@@ -215,9 +215,6 @@
   "addresses_adding": {
     "message": "添加中…"
   },
-  "addresses_change_address_type": {
-    "message": "更改地址类型"
-  },
   "addresses_could_not_read_the_derivation": {
     "message": "无法读取此地址的派生索引。"
   },

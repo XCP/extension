@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { displayAccountName } from '@/components/domain/account-name';
-import { FaCog, FaPlus } from "@/components/icons";
+import { FaPlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressList } from "@/components/ui/lists/address-list";
@@ -163,21 +163,27 @@ export default function AddressesPage(): ReactElement {
     }
   }, [setActiveAddress, navigate, returnTo]);
 
+  const canAddAddress = !!activeWallet
+    && (activeWallet.type === "mnemonic" || activeWallet.type === "hardware")
+    && activeWallet.addresses.length < MAX_ADDRESSES_PER_WALLET
+    && !keychainLocked
+    && !isAddingAddress;
+
   // Configure header
   useEffect(() => {
     setHeaderProps({
       title: t('addresses'),
       onBack: () => void navigate(returnTo, { replace: true }),
-      rightButton:
-        activeWallet?.type === "mnemonic"
-          ? {
-              icon: <FaCog aria-hidden="true" />,
-              onClick: () => void navigate("/settings/address-types", { state: { returnTo: PATHS.SELECT, returnState: { returnTo } } }),
-              ariaLabel: t('addresses_change_address_type'),
-            }
-          : undefined,
+      // The address type is changed from the home screen's shortcut, so the header adds addresses.
+      rightButton: canAddAddress
+        ? {
+            icon: <FaPlus aria-hidden="true" />,
+            onClick: () => void handleAddAddress(),
+            ariaLabel: t('addresses_add_address'),
+          }
+        : undefined,
     });
-  }, [setHeaderProps, navigate, returnTo, activeWallet?.type]);
+  }, [setHeaderProps, navigate, returnTo, canAddAddress, handleAddAddress]);
 
   if (!activeWallet) return <div className="p-4">{t('addresses_no_active_wallet_found')}</div>;
 
