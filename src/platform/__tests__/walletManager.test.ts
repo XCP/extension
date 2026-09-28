@@ -802,6 +802,9 @@ describe('WalletManager', () => {
         wif: 'test-wif',
         compressed: true,
       });
+      vi.mocked(extractPsbtDetails).mockReturnValue({
+        inputs: [], outputs: [],
+      } as unknown as ReturnType<typeof extractPsbtDetails>);
 
       const result = await walletManager.signPsbt('test-psbt');
 
@@ -814,6 +817,7 @@ describe('WalletManager', () => {
         AddressFormat.P2WPKH,
         undefined,
         true,
+        {},
       );
     });
 

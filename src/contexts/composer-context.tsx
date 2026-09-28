@@ -78,11 +78,6 @@ import {
   withPinnedDestinations,
 } from "@/core/counterparty/outputPolicy";
 import { composesAsMpma, type PackRules, packComposeMessage } from "@/core/counterparty/pack/messages";
-import {
-  assessOwnScriptPayments,
-  composedTransactionOutputs,
-  ownScriptRecipients,
-} from "@/core/counterparty/scriptPaymentCaution";
 import { getSourcePubkey } from "@/core/counterparty/sourcePubkey";
 import { chooseComposeEncoding, composeWithEncoding, hasUnsignedTaprootReveal } from "@/core/counterparty/taprootEncoding";
 import { fetchInputValues } from "@/core/counterparty/transaction";
@@ -99,7 +94,6 @@ import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility"
 import { zeldRecordAfterBroadcast } from "@/core/zeld/recordAfterBroadcast";
 import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
-import { getKnownScriptRecipients, recordScriptRecipients } from "@/services/scriptRecipientsClient";
 import { recordZeldOutpoints } from "@/services/zeldRecordClient";
 
 /**
@@ -116,9 +110,6 @@ const STALE_TRANSACTION_MS = 5 * 60 * 1000;
  * are listed because both are provably unspendable.
  */
 const BURN_ADDRESSES = ['1CounterpartyXXXXXXXXXXXXXXXUWLpVr', 'mvCounterpartyXXXXXXXXXXXXXXW24Hef'];
-
-/** Compose types whose inputs are, by what they do, UTXOs carrying attached assets. */
-const SPENDS_ATTACHED_ASSETS = new Set(['detach', 'move', 'move-utxo']);
 
 /** Keep structured local failures until render, so a language change cannot stale the diagnostic. */
 type InternalComposerState<T> = Omit<ComposerState<T>, 'error'> & {
@@ -166,7 +157,6 @@ function freshComposerState<T>(): ComposerState<T> {
     composedAt: null,
     feeRate: null,
     zeldHuntProgress: null,
-    scriptPaymentRisk: null,
   };
 }
 
@@ -198,7 +188,7 @@ export function ComposerProvider<T>({
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
   const {
-    activeAddress, activeWallet, wallets, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress,
+    activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress,
   } = useWallet();
   const { settings } = useSettings();
   const { clearBalances } = useHeader();
@@ -214,9 +204,6 @@ export function ComposerProvider<T>({
   const abortControllerRef = useRef<AbortController | null>(null);
   // Fired by the spinner's "Use it now": the hunt settles for the rare txid it already has.
   const acceptZeldHuntRef = useRef<AbortController | null>(null);
-  // Script addresses someone else controls that the reviewed transaction pays, recorded once it
-  // is broadcast so the notice is not repeated for them.
-  const scriptRecipientsRef = useRef<string[]>([]);
 
   // Initialize state
   const [state, setState] = useState<InternalComposerState<T>>(freshComposerState);
@@ -289,7 +276,6 @@ export function ComposerProvider<T>({
     abortControllerRef.current?.abort();
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
-    scriptRecipientsRef.current = [];
 
     // Convert FormData to object early so we can preserve it on error
     const rawData = Object.fromEntries(formData);
@@ -612,32 +598,6 @@ export function ComposerProvider<T>({
         },
       };
 
-      // Paying a script address someone else controls can carry risk for an address holding
-      // Counterparty assets: the caution a site's request gets, stated here as a notice on the
-      // review. Any address in any of this wallet's wallets is its own, a verified Taproot commit
-      // is proved rather than paid to someone, and a recipient this address has paid before is
-      // not repeated. The ZELD hunt below changes no output.
-      const ownedAddresses = [
-        activeAddress.address,
-        ...wallets.flatMap(wallet => wallet.addresses.map(entry => entry.address)),
-      ];
-      const scriptPayments = {
-        outputs: composedTransactionOutputs(response.result.rawtransaction, ownedAddresses),
-        payerAddress: activeAddress.address,
-        ownedAddresses,
-        provenAddresses: taprootCommitAddress ? [taprootCommitAddress] : [],
-        inputsCarryAssets: SPENDS_ATTACHED_ASSETS.has(composeType),
-      };
-      const scriptRecipients = ownScriptRecipients(scriptPayments);
-      const scriptPaymentRisk = scriptRecipients.length > 0
-        ? await assessOwnScriptPayments({
-          ...scriptPayments,
-          knownRecipients: await getKnownScriptRecipients(activeAddress.address),
-        })
-        : null;
-      if (signal.aborted) return;
-      scriptRecipientsRef.current = scriptRecipients;
-
       // Hunt for a ZELD txid last, once every check above has passed, because it edits the
       // transaction: nLockTime becomes the nonce, behind final sequences. The hunt proves that is
       // the only change
@@ -679,7 +639,6 @@ export function ComposerProvider<T>({
         isComposing: false,
         composedAt: Date.now(),
         zeldHuntProgress: null,
-        scriptPaymentRisk,
       }));
     } catch (error) {
       // Silently ignore abort errors (user navigated away)
@@ -707,7 +666,7 @@ export function ComposerProvider<T>({
         isComposing: false,
       }));
     }
-  }, [activeAddress, activeWallet, wallets, composeApi, composeType, zeldHuntSeconds, state.isComposing]);
+  }, [activeAddress, activeWallet, composeApi, composeType, zeldHuntSeconds, state.isComposing]);
 
   // Core sign and broadcast logic - extracted to avoid duplication
   const performSignAndBroadcast = useCallback(async () => {
@@ -780,7 +739,6 @@ export function ComposerProvider<T>({
     );
 
     const broadcastResponse = await broadcastTransaction(signedTxHex);
-    void recordScriptRecipients(activeAddress.address, scriptRecipientsRef.current);
     // What this spent and left of the address's ZELD, for approvals to fall back on while the
     // indexer is down or has not yet seen this transaction.
     void recordZeldOutpoints(activeAddress.address,
@@ -907,14 +865,12 @@ export function ComposerProvider<T>({
 
   // Navigation actions
   const reset = useCallback(() => {
-    scriptRecipientsRef.current = [];
     setState(freshComposerState<T>());
     currentComposeTypeRef.current = composeType;
   }, [composeType]);
 
   const goBack = useCallback(() => {
     if (state.step === "review") {
-      scriptRecipientsRef.current = [];
       // Go back to form, preserving user's form data for quick edits
       setState(prev => ({
         ...prev,
@@ -924,7 +880,6 @@ export function ComposerProvider<T>({
         verificationWarnings: [],
         reviewNotices: [],
         decodedMessage: null,
-        scriptPaymentRisk: null,
       }));
     } else if (state.step === "success") {
       reset();

@@ -50,11 +50,6 @@ export type SecurityWarning = SecurityWarningText & (
   | { code: 'counterparty_reveal_site_control'; data: RevealControlFacts }
   /** The outputs of the reveal the site supplied, as proved facts. */
   | { code: 'counterparty_reveal_outputs'; data: RevealOutputsFacts }
-  /**
-   * Payments to script addresses the wallet does not control, from `source`, this wallet's
-   * address, which holds Counterparty assets (or could not be shown not to).
-   */
-  | { code: 'unproven_script_output'; data: { totalSats: number; addresses: string[]; source: string } }
   | { code: 'misdirected_recovery_key'; data: { count: number } }
   /**
    * Where the ZELD on the signed inputs goes, when that is not a plain output of this wallet
@@ -62,6 +57,11 @@ export type SecurityWarning = SecurityWarningText & (
    */
   | { code: 'zeld_movement'; data: ZeldNotice & { items?: number[] } }
   | { code: 'durable_sell_authorization'; data: { inputs: number[] } }
+  /**
+   * Inputs whose script path names this wallet's key in a leaf other than the one whose message
+   * the review shows (core/bitcoin/envelopeLeafGuard.ts). Signing it would publish that message.
+   */
+  | { code: 'unshown_envelope_signature'; data: { inputs: number[] } }
   /** A marketplace proof that could not finish: `details` are the wallet's internal reasons. */
   | { code: 'marketplace_retry'; data: { details: string[] } }
   /** A marketplace proof that failed, by why (MarketplaceApprovalReview.blockKind). */

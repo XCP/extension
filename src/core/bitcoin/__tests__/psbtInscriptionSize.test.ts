@@ -41,7 +41,9 @@ describe('PSBT inscription script sizes', () => {
     expect(fixture.leaf.length).toBeGreaterThan(10_000);
     expect(extractPsbtDetails(fixture.hex).inputs[0]!.tapLeafScripts)
       .toEqual([bytesToHex(fixture.leaf)]);
-    const signed = signPSBT(fixture.hex, PRIVATE_KEY, [0], AddressFormat.P2TR);
+    // The leaf stands for one whose message the approval showed.
+    const signed = signPSBT(fixture.hex, PRIVATE_KEY, [0], AddressFormat.P2TR, undefined, true,
+      { shownEnvelopeLeaf: bytesToHex(fixture.leaf) });
     const tx = Transaction.fromPSBT(hexToBytes(signed), { allowUnknownInputs: true,
       allowUnknownOutputs: true, disableScriptCheck: true });
     tx.finalize();

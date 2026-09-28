@@ -21,7 +21,6 @@ import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import type { MarketplaceBlockKind } from '@/core/counterparty/marketplaceIntent';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import { revealControlText, revealOutputsText, revealRefusalText } from '@/core/counterparty/providerReveal';
-import { scriptPaymentRiskText } from '@/core/counterparty/scriptPaymentCaution';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { formatAmount } from '@/core/format';
 import { ZELD_DISPLAY_NAME, zeldBaseUnitsToDisplay } from '@/core/zeld/api';
@@ -181,12 +180,15 @@ function safetyWarningText(warning: SecurityWarning): { title: string; descripti
         ),
       };
     }
-    case 'unproven_script_output':
-      return scriptPaymentRiskText(warning.data);
     case 'durable_sell_authorization':
       return {
         title: t('safety_blocked_durable_sell_authorization'),
         description: t('safety_durable_sell_authorization_detail', warning.data.inputs.map(index => `#${index}`).join(', ')),
+      };
+    case 'unshown_envelope_signature':
+      return {
+        title: t('safety_blocked_unreadable_signed_message'),
+        description: t('safety_unreadable_signed_message_detail'),
       };
     case 'misdirected_recovery_key':
       return {
