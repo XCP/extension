@@ -18,13 +18,14 @@ import { hexToBytes } from '@noble/hashes/utils.js';
 import * as btc from '@scure/btc-signer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { signTaprootReveal } from '@/core/bitcoin/taprootRevealSigner';
-import { isVersionAtLeast, TAPROOT_REVEAL_MIN_VERSION } from '@/core/counterparty/capabilities';
+import { clearCounterpartyCapabilityCache, isVersionAtLeast, TAPROOT_REVEAL_MIN_VERSION } from '@/core/counterparty/capabilities';
 import { composeBroadcast, composeIssuance, composeMPMA } from '@/core/counterparty/compose';
 import { checkRevealSourceSignature, sourceOutputScript } from '@/core/counterparty/revealSourceRule';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
+import { chooseComposeEncoding, composeWithEncoding } from '@/core/counterparty/taprootEncoding';
 import { asset, credits, debits, totalFor, txEvents } from './ledger';
 import { counterparty, mineBlocks, parsedTransaction, REGTEST_ENABLED, type RegtestKey, rpc, signAsWallet } from './regtestHarness';
-import { burnAll, freshAsset, fundAll, keyOf, startWallet } from './suite';
+import { broadcastBatch, burnAll, freshAsset, fundAll, keyOf, signAll, startWallet } from './suite';
 import { composeTaprootAsWallet, type WalletTaprootCompose, walletAddress } from './walletReview';
 import { sameScript } from './walletTransport';
 
@@ -144,12 +145,9 @@ describe.runIf(TAPROOT_NODE)('Taproot-encoded composes (Core 11.5): the source s
     expect(totalFor(credits(await txEvents(mined.revealTxid)), wpkh.address, name)).toBe(42);
   }, 600_000);
 
-  // TODO(review-vs-ledger): with `mpma_taproot_support` active (always on regtest; mainnet from
-  // block 971,700), Core 11.4+ writes the MPMA address table as a length byte and the
-  // self-describing packing, which `pack/messages.ts` does not produce yet, so the wallet refuses
-  // the compose as a message it did not ask for (fail-closed, before anything is signed). Remove
-  // the marker once the wallet packs the new table; the assertions below are then the proof.
-  it.fails('an MPMA too long for an OP_RETURN credits each payee what the review lists, debited from the source', async () => {
+  // Regtest runs every protocol change from block 0, so the envelope carries the length-prefixed
+  // MPMA address table (`mpma_taproot_support`).
+  it('an MPMA too long for an OP_RETURN credits each payee what the review lists, debited from the source', async () => {
     const quantities = ['0.1', '2', '0.00000001', '0.5'];
     const wc = await composeTaprootAsWallet('mpma', composeMPMAFromForm, {
       assets: payees.map(() => 'XCP').join(','),
@@ -157,6 +155,7 @@ describe.runIf(TAPROOT_NODE)('Taproot-encoded composes (Core 11.5): the source s
       quantities: quantities.join(','),
     }, wpkh);
     expect(wc.decodedMessage?.messageType).toBe('mpma_send');
+    expect(wc.decodedMessage?.data.tableFormat).toBe('length-prefixed');
     const mined = await signBroadcastMine(wc, wpkh, miner);
 
     const parsed = await parsedTransaction(mined.revealTxid);
@@ -172,7 +171,7 @@ describe.runIf(TAPROOT_NODE)('Taproot-encoded composes (Core 11.5): the source s
   it('an inscription broadcast from P2WPKH is an ord envelope the source signs, returning dust to it', async () => {
     const wc = await composeTaprootAsWallet('broadcast', composeBroadcast, {
       // The inscription path rebuilds the envelope from the request alone, so the request names
-      // its timestamp (the in-wallet form does not; see the report on this branch).
+      // its timestamp.
       text: 'hello from the source key', value: '0', fee_fraction: '0', timestamp: String(Math.floor(Date.now() / 1000)),
       inscription: 'true', mime_type: 'text/plain', encoding: 'taproot',
     }, wpkh);
@@ -182,6 +181,47 @@ describe.runIf(TAPROOT_NODE)('Taproot-encoded composes (Core 11.5): the source s
     expect(parsed.transaction_type).toBe('broadcast');
     const recorded = await counterparty<{ text: string; source: string }>(`/broadcasts/${mined.revealTxid}`);
     expect(sameScript(recorded.source, wpkh.address)).toBe(true);
+  }, 600_000);
+});
+
+describe.runIf(REGTEST_ENABLED && !TAPROOT_NODE)('Taproot encoding on a node older than 11.5: refused before any request is sent', () => {
+  let miner: string;
+  const wpkh = keyOf('P2WPKH', 'taproot pre-11.5 source');
+  const LONG_TEXT = 'A broadcast too long for an OP_RETURN, composed the default way. '.repeat(4).trim();
+
+  beforeAll(async () => {
+    miner = await startWallet();
+    clearCounterpartyCapabilityCache();
+    setSourcePubkeyProvider(address => (address === walletAddress(wpkh) ? wpkh.publicKeyHex : null));
+    await fundAll(miner, [wpkh]);
+  }, 900_000);
+
+  afterAll(() => setSourcePubkeyProvider(null));
+
+  it('a long broadcast the wallet would move into an envelope is composed the default way and recorded', async () => {
+    const source = walletAddress(wpkh);
+    const data = { sourceAddress: source, text: LONG_TEXT, value: '0', fee_fraction: '0', sat_per_vbyte: 2 };
+    const encoding = chooseComposeEncoding('broadcast', data, source, 'mnemonic');
+    expect(encoding).toBe('taproot');
+    const response = await composeWithEncoding(params => composeBroadcast(params as unknown as Parameters<typeof composeBroadcast>[0]), data, encoding);
+    const result = response.result as unknown as Record<string, unknown>;
+    expect(result.envelope_script).toBeUndefined();
+    expect(result.reveal_rawtransaction).toBeUndefined();
+    expect(result.signed_reveal_rawtransaction).toBeUndefined();
+    const [txid] = await broadcastBatch(await signAll([{ response, key: wpkh }]), miner);
+    const parsed = await parsedTransaction(txid!);
+    expect(parsed.valid).toBe(true);
+    expect(parsed.transaction_type).toBe('broadcast');
+    const recorded = await counterparty<{ text: string; source: string }>(`/broadcasts/${txid}`);
+    expect(recorded.text).toBe(LONG_TEXT);
+    expect(sameScript(recorded.source, wpkh.address)).toBe(true);
+  }, 600_000);
+
+  it('an explicit Taproot request (an inscription) is refused with the version it needs', async () => {
+    await expect(composeBroadcast({
+      sourceAddress: walletAddress(wpkh), text: 'an inscription', value: '0', fee_fraction: '0', sat_per_vbyte: 2,
+      inscription: 'true', mime_type: 'text/plain', encoding: 'taproot',
+    } as Parameters<typeof composeBroadcast>[0])).rejects.toThrow(/11\.5\.0/);
   }, 600_000);
 });
 
