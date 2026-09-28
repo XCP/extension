@@ -249,7 +249,7 @@ export function MPMAForm({
                   ref={fileInputRef}
                   type="file"
                   accept=".csv"
-                  onChange={handleFileUpload}
+                  onChange={(e) => void handleFileUpload(e)}
                   className="hidden"
                   disabled={isProcessing}
                 />
@@ -300,7 +300,7 @@ export function MPMAForm({
                 value=""
                 onChange={() => {}} // We only care about paste
                 placeholder={t('mpma_form_paste_csv_data_here')}
-                onPaste={handleTextPaste}
+                onPaste={(e) => void handleTextPaste(e)}
                 rows={4}
                 disabled={isProcessing}
               />

@@ -43,7 +43,7 @@ export function KeychainLockedOnly(): ReactElement | null {
 
     if (!keychainExists) {
       // No keychain - go to onboarding
-      navigate('/keychain/onboarding', { replace: true });
+      void navigate('/keychain/onboarding', { replace: true });
       return;
     }
 
@@ -51,7 +51,7 @@ export function KeychainLockedOnly(): ReactElement | null {
       if (authState === 'UNLOCKED') {
         // Already unlocked - redirect to intended destination or home
         const returnTo = (location.state as { from?: string })?.from || '/';
-        navigate(returnTo, { replace: true });
+        void navigate(returnTo, { replace: true });
       }
       return;
     }

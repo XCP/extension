@@ -60,13 +60,13 @@ export default function AddressTypesPage(): ReactElement {
     const handleBack = () => {
       // Return to the page that linked here (e.g. the address list)
       if (returnTo) {
-        navigate(returnTo, { state: returnState });
+        void navigate(returnTo, { state: returnState });
       } else if (hasChangedType.current) {
         // If address type was changed, go to index
-        navigate("/index");
+        void navigate("/index");
       } else {
         // Otherwise go back to settings
-        navigate(PATHS.BACK);
+        void navigate(PATHS.BACK);
       }
     };
 

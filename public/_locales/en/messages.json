@@ -5000,10 +5000,6 @@
     "message": "Include Ownership",
     "description": "pages/transactions/_messages/sweep.tsx"
   },
-  "messages_sweep_ownership": {
-    "message": "ownership",
-    "description": "pages/transactions/_messages/sweep.tsx. Stands in for a quantity in the swept-assets list: the asset's ownership (issuer rights) was transferred, not a balance. Shown as \"ASSET: ownership\"."
-  },
   "messages_sweep_raw_value": {
     "message": "Raw value: $1",
     "description": "pages/transactions/_messages/sweep.tsx. $1 = params.flags"
@@ -6886,7 +6882,7 @@
   },
   "wallets_remove_failed_to_remove_wallet_please": {
     "message": "Failed to remove wallet. Please try again.",
-    "description": "pages/keychain/wallets/remove.tsx"
+    "description": "pages/keychain/wallets/remove.tsx, pages/keychain/wallets/add.tsx (disconnecting a hardware wallet)"
   },
   "wallets_remove_invalid_wallet_identifier": {
     "message": "Invalid wallet identifier.",
@@ -6950,7 +6946,7 @@
   },
   "display_preferences_save_failed": {
     "message": "Could not save this preference. Please try again.",
-    "description": "Display preference control."
+    "description": "A preference that failed to save: the price currency, an Advanced settings control, or the Counterparty API URL."
   },
   "safety_amount_syntax": {
     "message": "Use digits and a dot, up to 8 decimals. No commas.",
@@ -8863,5 +8859,37 @@
   "trezor_access_notice_allow": {
     "message": "Allow Trezor access",
     "description": "Button in the home screen Trezor notice; opens Chrome's permission prompt for suite.trezor.io."
+  },
+  "utxo_review_assets_unavailable": {
+    "message": "Could not load the assets on this UTXO.",
+    "description": "Detach and move review pages: shown in place of the list of assets on the spent UTXO when the ledger lookup failed."
+  },
+  "utxo_review_no_assets": {
+    "message": "No assets attached",
+    "description": "Detach and move review pages: the spent UTXO carries no Counterparty assets."
+  },
+  "utxo_move_review_assets_moving": {
+    "message": "Assets Moving",
+    "description": "Move review page: label for the assets on the spent UTXO, which all go to the destination."
+  },
+  "cancel_review_order_unavailable": {
+    "message": "Could not load this order's terms.",
+    "description": "Order cancel review page: shown in place of the order terms (give/get) when the order could not be read from the ledger."
+  },
+  "destroy_review_supply_unavailable": {
+    "message": "Could not load this asset's supply.",
+    "description": "Destroy supply review page: shown in place of the asset's supply when it could not be read from the ledger."
+  },
+  "messages_sweep_ownership_transferred": {
+    "message": "Ownership Transferred",
+    "description": "Sweep transaction details: label for the list of assets whose ownership the sweep handed to the destination."
+  },
+  "messages_sweep_balances_unavailable": {
+    "message": "Could not load the swept balances.",
+    "description": "Sweep transaction details: shown in place of the swept balances when they could not be read from the ledger."
+  },
+  "messages_sweep_no_balances": {
+    "message": "No balances moved",
+    "description": "Sweep transaction details: the sweep credited no balances to the destination."
   }
 }

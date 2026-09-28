@@ -21,6 +21,7 @@ vi.mock('@/core/counterparty/capabilities', () => ({
 describe('OrderSettings — activation-window gating', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUpdateSettings.mockResolvedValue(undefined);
     mockBrowserLocale({ language: 'en' });
   });
 

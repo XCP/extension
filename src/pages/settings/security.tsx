@@ -48,7 +48,7 @@ export default function SecuritySettingsPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('common_security'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => setIsHelpTextOverride((prev) => !prev),
@@ -115,7 +115,7 @@ export default function SecuritySettingsPage(): ReactElement {
    */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !isLoading && formReady) {
-      handlePasswordChange();
+      void handlePasswordChange();
     }
   };
 
@@ -172,7 +172,7 @@ export default function SecuritySettingsPage(): ReactElement {
 
             <Button
               color="blue"
-              onClick={handlePasswordChange}
+              onClick={() => void handlePasswordChange()}
               fullWidth
               disabled={isLoading || !formReady}
               aria-label={t('settings_security_change_password')}

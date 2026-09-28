@@ -18,8 +18,9 @@
  * script-payment caution, replay records) changes no fact this suite compares.
  */
 
-import { getTxActionInfo, normalizeQuantity, sweepIncludes } from '@/components/domain/tx/tx-action-info';
+import { composedMessageFields, getTxActionInfo, normalizeQuantity, sweepIncludes } from '@/components/domain/tx/tx-action-info';
 import { checkTransactionFee } from '@/core/bitcoin/feeVerification';
+import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { type DecodedTransactionInfo, decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
 import { clearApiCache, fetchAllAddressDispensers, fetchAssetFairminter, fetchOrderMatch } from '@/core/counterparty/api';
 import { btcPayPayment } from '@/core/counterparty/btcpayPayment';
@@ -30,6 +31,7 @@ import { describeFairminterPaymentModel, getFairmintCost, isPaidFairminter, read
 import { normalizeFormData, verifiedReviewParams } from '@/core/counterparty/normalize';
 import { checkOutputPolicy, type IntendedDestination, pinnedDestinations, withPinnedDestinations } from '@/core/counterparty/outputPolicy';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
+import { readAssetSupply, readCancelledOrder, readUtxoAssets } from '@/core/counterparty/protocolContext';
 import { chooseComposeEncoding, composeWithEncoding } from '@/core/counterparty/taprootEncoding';
 import { fetchInputValues } from '@/core/counterparty/transaction';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
@@ -39,6 +41,7 @@ import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn'
 import { verifyTransaction } from '@/core/counterparty/unpack/verify';
 import { formatAmount } from '@/core/format';
 import { divide, fromSatoshis, roundDown, toBigNumber } from '@/core/numeric';
+import { t } from '@/i18n';
 import type { RegtestKey } from './regtestHarness';
 import { resolveRegtestPrevout } from './regtestHarness';
 import { toMainnet } from './walletTransport';
@@ -190,6 +193,13 @@ export interface ReviewPageFacts {
   xcpFee?: string;
 }
 
+/** What `pages/compose/utxo/spent-utxo-assets.ts` lists: the assets on every input the bytes spend. */
+async function spentUtxoAssets(rawTransaction: string): Promise<string[]> {
+  const parsed = parseRawTransactionLocally(rawTransaction);
+  if (!parsed) throw new Error('the composed transaction could not be parsed');
+  return readUtxoAssets(parsed.inputs.map(input => `${input.txid}:${input.vout}`));
+}
+
 /** Read a composed response the way the named review page does (`pages/compose/.../review.tsx`). */
 export async function reviewPageFacts(page: ReviewPage, composed: WalletCompose): Promise<ReviewPageFacts> {
   const { result } = composed.response;
@@ -252,9 +262,14 @@ export async function reviewPageFacts(page: ReviewPage, composed: WalletCompose)
     case 'btcpay': // order/btcpay/review.tsx
       f.orderMatchId = decoded?.orderMatchId ?? params.order_match_id;
       break;
-    case 'cancel': // order/cancel/review.tsx
+    case 'cancel': { // order/cancel/review.tsx
+      const order = await readCancelledOrder(params.offer_hash);
+      f.order = order
+        ? t('tx_action_give_for', [order.giveQuantity, order.giveAsset, order.getQuantity, order.getAsset])
+        : t('cancel_review_order_unavailable');
       f.orderHash = params.offer_hash;
       break;
+    }
     case 'issuance': // issuance/review.tsx
       f.asset = params.asset;
       f.issuance = String(params.quantity_normalized ?? params.quantity);
@@ -281,10 +296,18 @@ export async function reviewPageFacts(page: ReviewPage, composed: WalletCompose)
       f.asset = params.asset;
       f.description = params.description;
       break;
-    case 'destroy': // issuance/destroy-supply/review.tsx
+    case 'destroy': { // issuance/destroy-supply/review.tsx
       f.amount = `${params.quantity_normalized ?? params.quantity} ${params.asset}`;
+      const supply = await readAssetSupply(params.asset);
+      for (const field of supply ? composedMessageFields('destroy', { asset: params.asset, quantity: params.quantity },
+        { assetSupply: supply }, { asset_info: params.asset_info }) : []) {
+        if (field.label === 'Supply before') f.supplyBefore = field.value;
+        if (field.label === 'Supply after') f.supplyAfter = field.value;
+        if (field.label === 'Share destroyed') f.shareDestroyed = field.value;
+      }
       if (params.tag) f.memo = params.tag;
       break;
+    }
     case 'dividend': // dividend/review.tsx
       f.asset = params.asset;
       f.dividend = `${params.quantity_per_unit_normalized} ${params.dividend_asset}`;
@@ -305,10 +328,13 @@ export async function reviewPageFacts(page: ReviewPage, composed: WalletCompose)
       if (params.destination_vout !== undefined && params.destination_vout !== null) f.destinationOutput = String(params.destination_vout);
       break;
     case 'detach': // utxo/detach/review.tsx
+      f.assets = (await spentUtxoAssets(result.rawtransaction)).join('\n');
       f.sourceUtxo = params.sourceUtxo || params.utxo || 'N/A';
       if (params.destination) f.destination = params.destination;
       break;
-    case 'move': // utxo/move/review.tsx renders only the ReviewScreen rows
+    case 'move': // utxo/move/review.tsx
+      f.assets = (await spentUtxoAssets(result.rawtransaction)).join('\n');
+      f.fromUtxo = params.sourceUtxo || 'N/A';
       break;
     case 'fairminter': // fairminter/review.tsx
       f.asset = params.asset;

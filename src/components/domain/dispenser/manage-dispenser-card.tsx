@@ -33,7 +33,7 @@ export function ManageDispenserCard({
 
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/compose/dispenser/close/${dispenser.asset}`);
+    void navigate(`/compose/dispenser/close/${dispenser.asset}`);
   };
 
   const handleRefill = (e: React.MouseEvent) => {
@@ -46,11 +46,11 @@ export function ManageDispenserCard({
       mainchainrate: btcPrice,
       give_quantity: dispenser.give_quantity_normalized.toString(),
     });
-    navigate(`/compose/dispenser/${dispenser.asset}?${params.toString()}`);
+    void navigate(`/compose/dispenser/${dispenser.asset}?${params.toString()}`);
   };
 
   const handleClick = () => {
-    navigate(`/market/dispensers/${dispenser.asset}`);
+    void navigate(`/market/dispensers/${dispenser.asset}`);
   };
 
   return (

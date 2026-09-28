@@ -43,6 +43,7 @@ export const ApiUrlInput = ({
 }: ApiUrlInputProps) => {
   const [localValue, setLocalValue] = useState(value);
   const [error, setError] = useState<ApiValidationResult | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -53,13 +54,21 @@ export const ApiUrlInput = ({
   const handleValidation = async (url: string) => {
     setIsValidating(true);
     setError(null);
+    setSaveFailed(false);
     setShowSuccess(false);
 
     try {
       const result = await validateCounterpartyApi(url);
 
       if (result.isValid) {
-        await onValidationSuccess(url);
+        try {
+          await onValidationSuccess(url);
+        } catch (failure) {
+          // The endpoint is fine but was not saved: say so, or the draft reads as the active API.
+          console.error('Failed to save API URL:', failure);
+          setSaveFailed(true);
+          return;
+        }
         setError(null);
         setShowSuccess(true);
         onChange(url);
@@ -70,7 +79,6 @@ export const ApiUrlInput = ({
         setShowSuccess(false);
       }
     } finally {
-      // A caller's save failure still propagates unchanged, but cannot leave the input disabled.
       setIsValidating(false);
     }
   };
@@ -92,7 +100,7 @@ export const ApiUrlInput = ({
   // Determine border color based on state
   const getBorderClass = () => {
     if (!showHelpText) {
-      if (error) return 'border-red-500 focus:border-red-500 focus-visible:ring-red-500';
+      if (error || saveFailed) return 'border-red-500 focus:border-red-500 focus-visible:ring-red-500';
       if (showSuccess && !isValidating) return 'border-green-500 focus:border-green-500 focus-visible:ring-green-500';
     }
     return 'border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500';
@@ -108,15 +116,16 @@ export const ApiUrlInput = ({
             setLocalValue(e.target.value);
             setShowSuccess(false);
             setError(null);
+            setSaveFailed(false);
           }}
-          onBlur={handleBlur}
+          onBlur={() => void handleBlur()}
           disabled={disabled || isValidating}
           placeholder="https://api.counterparty.io:4000"
           aria-label={t('inputs_api_url_input_api_url')}
           className={`flex-1 p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 disabled:opacity-50 transition-colors ${getBorderClass()}`}
         />
         <button type="button"
-          onClick={handleReset}
+          onClick={() => void handleReset()}
           disabled={disabled || isValidating || isDefault}
           className="p-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           aria-label={t('inputs_api_url_input_reset_api_url_to_default')}
@@ -133,10 +142,13 @@ export const ApiUrlInput = ({
           {error && (
             <p className="text-sm text-red-500">❌ {validationMessage(error)}</p>
           )}
+          {saveFailed && (
+            <p className="text-sm text-red-500">❌ {t('display_preferences_save_failed')}</p>
+          )}
           {showSuccess && !isValidating && (
             <p className="text-sm text-green-500">{t('inputs_api_url_input_api_endpoint_validated_and_saved')}</p>
           )}
-          {isDefault && !error && !isValidating && !showSuccess && (
+          {isDefault && !error && !saveFailed && !isValidating && !showSuccess && (
             <p className="text-sm text-gray-500">{t('inputs_api_url_input_using_default_api_endpoint')}</p>
           )}
         </>

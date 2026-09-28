@@ -185,7 +185,7 @@ export default function ApprovePsbtsPage() {
       origin={request.origin}
       footer={
         <ApprovalFooter
-          onCancel={handleReject}
+          onCancel={() => void handleReject()}
           onSign={() => requiresAttention ? setAttentionReview(decodedInfo) : void handleSign()}
           busy={isSigning}
           blocked={blocked || isRefreshing || Boolean(refreshError)}

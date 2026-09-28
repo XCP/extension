@@ -35,7 +35,9 @@ function ConsolidatePage() {
   // on the write it just made.
   useEffect(() => {
     if (!settings?.hasVisitedRecoverBitcoin) {
-      updateSettings({ hasVisitedRecoverBitcoin: true });
+      updateSettings({ hasVisitedRecoverBitcoin: true }).catch((error: unknown) => {
+        console.error('Failed to mark the recovery tool visited:', error);
+      });
     }
   }, []); // Only run once on mount
 
@@ -43,7 +45,7 @@ function ConsolidatePage() {
     if (step === "form") {
       setHeaderProps({
         title: t('actions_consolidate_recovery_tool'),
-        onBack: () => navigate(-1),
+        onBack: () => void navigate(-1),
         rightButton: {
           icon: <FiHelpCircle className="w-4 h-4" />,
           onClick: toggleHelp,
@@ -61,7 +63,7 @@ function ConsolidatePage() {
 
   if (!activeAddress || !activeWallet) return null;
 
-  const handleFormSubmit = async (data: ConsolidationFormData) => {
+  const handleFormSubmit = (data: ConsolidationFormData) => {
     try {
       setError(null);
       // Store form data

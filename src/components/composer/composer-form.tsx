@@ -93,21 +93,23 @@ export function ComposerForm({
               setClipboardError(false);
             }
           }}
-          onSubmit={async (e) => {
+          onSubmit={(e) => {
             e.preventDefault();
             e.stopPropagation();
 
             if (isLocalSubmitting || submitDisabled || feeRateMissing || clipboardError || !e.currentTarget.checkValidity()) return;
 
             setIsLocalSubmitting(true);
-            try {
-              const formData = new FormData(e.currentTarget);
-              await formAction(formData);
-            } catch (error) {
-              console.error('Form submission error:', error);
-            } finally {
-              setIsLocalSubmitting(false);
-            }
+            const formData = new FormData(e.currentTarget);
+            void (async () => {
+              try {
+                await formAction(formData);
+              } catch (error) {
+                console.error('Form submission error:', error);
+              } finally {
+                setIsLocalSubmitting(false);
+              }
+            })();
           }}
         >
           {children}

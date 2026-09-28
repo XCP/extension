@@ -29,7 +29,7 @@ export function KeychainOpenOrNew(): ReactElement | null {
 
     // Keychain exists but locked - must unlock first
     if (keychainExists && authState === 'LOCKED') {
-      navigate('/keychain/unlock', { replace: true });
+      void navigate('/keychain/unlock', { replace: true });
     }
   }, [authState, keychainExists, isLoading, navigate]);
 

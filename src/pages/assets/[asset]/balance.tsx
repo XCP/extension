@@ -55,7 +55,7 @@ export default function AssetBalancePage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('asset_balance_balance'),
-      onBack: () => navigate("/"),
+      onBack: () => void navigate("/"),
     });
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate]);
@@ -145,7 +145,7 @@ export default function AssetBalancePage(): ReactElement {
               id: "manage-pool",
               title: t('asset_balance_manage_pool'),
               description: `${lpPool.asset_a} / ${lpPool.asset_b}`,
-              onClick: () => navigate(`/pools/${encodeURIComponent(lpPool.lp_asset)}`),
+              onClick: () => void navigate(`/pools/${encodeURIComponent(lpPool.lp_asset)}`),
             },
             ...items,
           ],

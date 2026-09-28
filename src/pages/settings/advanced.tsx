@@ -6,11 +6,12 @@ import { HuntSettings } from "@/components/domain/zeld/hunt-settings";
 import { FiHelpCircle } from "@/components/icons";
 import { PriceCurrencySetting } from "@/components/settings/price-currency";
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { ApiUrlInput } from "@/components/ui/inputs/api-url-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
-import type { AutoLockTimer } from "@/core/settings";
+import type { AppSettings, AutoLockTimer } from "@/core/settings";
 
 import { t } from '@/i18n';
 
@@ -39,6 +40,13 @@ export default function AdvancedSettingsPage(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+
+  // A failed save reloads the stored settings, so the control snaps back; say why.
+  const save = (patch: Partial<AppSettings>) => {
+    setSaveFailed(false);
+    updateSettings(patch).catch(() => setSaveFailed(true));
+  };
 
   const autoLockOptions = [
     { value: "1m" as AutoLockTimer, label: t('settings_advanced_1_minute') },
@@ -51,7 +59,7 @@ export default function AdvancedSettingsPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('common_advanced'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => setIsHelpTextOverride((prev) => !prev),
@@ -70,6 +78,8 @@ export default function AdvancedSettingsPage(): ReactElement {
         {t('settings_advanced_advanced_settings')}
       </h2>
 
+      {saveFailed && <ErrorAlert message={t('display_preferences_save_failed')} onClose={() => setSaveFailed(false)} />}
+
       <SettingsSection id="adv-security" title={t('common_security')}>
         <Field>
           <Label className="font-bold">{t('settings_advanced_auto_lock_timer')}</Label>
@@ -78,7 +88,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           </Description>
           <RadioGroup
             value={settings.autoLockTimer}
-            onChange={(value: AutoLockTimer) => updateSettings({ autoLockTimer: value })}
+            onChange={(value: AutoLockTimer) => save({ autoLockTimer: value })}
             className="mt-4"
           >
             <SelectionCardGroup>
@@ -100,7 +110,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           label={t('settings_advanced_strict_txs_verification')}
           description={t('settings_advanced_block_signing_if_local_transaction')}
           checked={settings.strictTransactionVerification}
-          onChange={(checked) => updateSettings({ strictTransactionVerification: checked })}
+          onChange={(checked) => save({ strictTransactionVerification: checked })}
           showHelpText={shouldShowHelpText}
         />
 
@@ -108,7 +118,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           label={t('settings_advanced_use_unconfirmed_txs')}
           description={t('settings_advanced_enable_this_to_chain_transactions')}
           checked={settings.allowUnconfirmedTxs}
-          onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
+          onChange={(checked) => save({ allowUnconfirmedTxs: checked })}
           showHelpText={shouldShowHelpText}
         />
 
@@ -116,7 +126,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           label={t('settings_advanced_enable_more_outputs')}
           description={t('settings_advanced_attach_btc_to_asset_sends')}
           checked={settings.enableMoreOutputs}
-          onChange={(checked) => updateSettings({ enableMoreOutputs: checked })}
+          onChange={(checked) => save({ enableMoreOutputs: checked })}
           showHelpText={shouldShowHelpText}
         />
 
@@ -124,7 +134,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           label={t('settings_advanced_enable_mpma_sends')}
           description={t('settings_advanced_enable_multi_destination_sends_mpma')}
           checked={settings.enableMPMA}
-          onChange={(checked) => updateSettings({ enableMPMA: checked })}
+          onChange={(checked) => save({ enableMPMA: checked })}
           showHelpText={shouldShowHelpText}
         />
 
@@ -132,7 +142,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           label={t('settings_advanced_advanced_broadcasts')}
           description={t('settings_advanced_show_advanced_options_for_broadcast')}
           checked={settings.enableAdvancedBroadcasts}
-          onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
+          onChange={(checked) => save({ enableAdvancedBroadcasts: checked })}
           showHelpText={shouldShowHelpText}
         />
 
@@ -164,7 +174,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           label={t('settings_advanced_anonymous_analytics')}
           description={t('settings_advanced_choose_whether_to_share_usage')}
           checked={settings.analyticsAllowed}
-          onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
+          onChange={(checked) => save({ analyticsAllowed: checked })}
           showHelpText={shouldShowHelpText}
         />
 
@@ -174,7 +184,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           label={t('settings_advanced_show_hide_help_text')}
           description={t('settings_advanced_show_or_hide_help_text')}
           checked={settings.showHelpText}
-          onChange={(checked) => updateSettings({ showHelpText: checked })}
+          onChange={(checked) => save({ showHelpText: checked })}
           showHelpText={shouldShowHelpText}
         />
       </SettingsSection>
@@ -185,7 +195,7 @@ export default function AdvancedSettingsPage(): ReactElement {
             label={t('settings_advanced_transaction_dry_run')}
             description={t('settings_advanced_when_enabled_transactions_will_be')}
             checked={settings.transactionDryRun}
-            onChange={(checked) => updateSettings({ transactionDryRun: checked })}
+            onChange={(checked) => save({ transactionDryRun: checked })}
             showHelpText={shouldShowHelpText}
           />
         </SettingsSection>

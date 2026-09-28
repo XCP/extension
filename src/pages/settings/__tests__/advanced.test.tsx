@@ -26,6 +26,7 @@ vi.mock('@/core/validation/api', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockUpdateSettings.mockResolvedValue(undefined);
   mockBrowserLocale({ language: 'en' });
 });
 afterEach(() => {
@@ -100,4 +101,21 @@ describe('price currency', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(t('display_preferences_save_failed'));
     expect(currencySelect()).toBeEnabled();
   });
+});
+
+it('says so when a toggle cannot be saved', async () => {
+  mockUpdateSettings.mockRejectedValueOnce(new Error('storage unavailable'));
+  render(<MemoryRouter><AdvancedSettingsPage /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('switch', { name: t('settings_advanced_strict_txs_verification') }));
+  expect(mockUpdateSettings).toHaveBeenCalledExactlyOnceWith({
+    strictTransactionVerification: !DEFAULT_SETTINGS.strictTransactionVerification,
+  });
+  expect(await screen.findByRole('alert')).toHaveTextContent(t('display_preferences_save_failed'));
+});
+
+it('says so when the auto-lock timer cannot be saved', async () => {
+  mockUpdateSettings.mockRejectedValueOnce(new Error('storage unavailable'));
+  render(<MemoryRouter><AdvancedSettingsPage /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('radio', { name: t('settings_advanced_5_minutes') }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(t('display_preferences_save_failed'));
 });

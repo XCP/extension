@@ -45,7 +45,7 @@ export default function SignMessagePage(): ReactElement {
 
     setHeaderProps({
       title: t('common_sign_message'),
-      onBack: () => navigate(-1),
+      onBack: () => void navigate(-1),
       rightButton: {
         ariaLabel: t('common_reset_form'),
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
@@ -91,7 +91,7 @@ export default function SignMessagePage(): ReactElement {
         address: activeAddress.address,
       });
       setSignature(result.signature);
-      analytics.track('message_signed');
+      void analytics.track('message_signed');
     } catch (err) {
       console.error("Failed to sign message:", err);
       setError(err instanceof Error ? err : t('actions_sign_message_failed_to_sign_message'));
@@ -133,7 +133,7 @@ export default function SignMessagePage(): ReactElement {
     return (
       <div className="p-4 text-center">
         <div className="text-gray-600 mb-4">{t('common_no_active_address_selected')}</div>
-        <Button onClick={() => navigate("/index")} color="blue">
+        <Button onClick={() => void navigate("/index")} color="blue">
           {t('actions_sign_message_go_to_wallet')}
         </Button>
       </div>
@@ -166,7 +166,7 @@ export default function SignMessagePage(): ReactElement {
           </span>
           {message && (
             <button type="button"
-              onClick={() => handleCopy(message, 'message')}
+              onClick={() => void handleCopy(message, 'message')}
               className={`text-xs transition-colors duration-200 cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded ${
                 copiedField === 'message'
                   ? 'text-green-600 hover:text-green-700'
@@ -206,7 +206,7 @@ export default function SignMessagePage(): ReactElement {
                 {t('actions_sign_message_signed')}
               </span>
               <button type="button"
-                onClick={() => handleCopy(signature, 'signature')}
+                onClick={() => void handleCopy(signature, 'signature')}
                 className={`text-xs transition-colors duration-200 cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded ${
                   copiedField === 'signature'
                     ? 'text-green-600 hover:text-green-700'
@@ -231,7 +231,7 @@ export default function SignMessagePage(): ReactElement {
         {!signature && (
           <div className="mt-4">
             <Button
-              onClick={() => handleSign()}
+              onClick={() => void handleSign()}
               color="blue"
               disabled={!signingCapabilities.canSign || !message.trim() || isSigning}
               fullWidth
@@ -266,7 +266,7 @@ export default function SignMessagePage(): ReactElement {
               {t('actions_sign_message_reset')}
             </Button>
             <Button
-              onClick={() => handleCopy('', 'json')}
+              onClick={() => void handleCopy('', 'json')}
               color="blue"
               fullWidth
             >

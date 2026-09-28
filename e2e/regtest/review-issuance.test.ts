@@ -116,6 +116,9 @@ describe.runIf(REGTEST_ENABLED)('issuance family, dividend, destroy, sweep, broa
     expect(sameAmount(page.fields.amount, destruction!.quantity_normalized)).toBe(true);
     expect(sameAmount(approval.protocol['Supply before']?.[0], before.supply_normalized)).toBe(true);
     expect(sameAmount(approval.protocol['Supply after']?.[0], after.supply_normalized)).toBe(true);
+    // The wallet's own review states the same supply before and after.
+    expect(sameAmount(page.fields.supplyBefore, before.supply_normalized)).toBe(true);
+    expect(sameAmount(page.fields.supplyAfter, after.supply_normalized)).toBe(true);
   }, 600_000);
 
   it('locking supply locks the supply the review shows', async () => {

@@ -67,7 +67,7 @@ function UnlockPage() {
       // A request is continuing in this window: the background loads its screen here as a new
       // document. Going home first would flash the home page, so stay busy until then.
       continuing = awaitsContinuation();
-      if (!continuing) navigate(PATHS.SUCCESS);
+      if (!continuing) void navigate(PATHS.SUCCESS);
     } catch (err) {
       console.error("Error unlocking wallet:", err);
       // Surface rate-limit errors: showing "Invalid password" would mislead
@@ -85,7 +85,7 @@ function UnlockPage() {
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !isUnlocking) {
-      handleSubmit();
+      void handleSubmit();
     }
   }
 
@@ -101,7 +101,7 @@ function UnlockPage() {
             <span className="font-bold">{t('common_xcp_wallet')}</span>
             <span>{getDisplayVersion()}</span>
           </h1>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
             <PasswordInput
               innerRef={passwordInputRef}
               name="password"

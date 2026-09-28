@@ -88,7 +88,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
     }
     setHeaderProps({
       title: t('common_private_key'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
     });
   }, [walletId, wallets, setHeaderProps, navigate, setSubmissionError]);
 
@@ -131,7 +131,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
               </p>
             </div>
             <button type="button"
-              onClick={handleCopyPrivateKey}
+              onClick={() => void handleCopyPrivateKey()}
               // Distinct from the button below, which copies the same thing: two
               // controls sharing one accessible name is ambiguous to announce.
               aria-label={t('secrets_show_private_key_copy_the_private_key_shown')}
@@ -140,7 +140,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
               {privateKey}
             </button>
             <Button
-              onClick={handleCopyPrivateKey}
+              onClick={() => void handleCopyPrivateKey()}
               color="blue"
               fullWidth
               className="max-w-sm"

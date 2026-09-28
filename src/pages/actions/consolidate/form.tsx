@@ -51,7 +51,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
       return;
     }
     let cancelled = false;
-    consolidationApi.chainVerifiedPendingCount(activeAddress.address).then((count) => {
+    void consolidationApi.chainVerifiedPendingCount(activeAddress.address).then((count) => {
       if (!cancelled) setVerifiedPending(count);
     });
     return () => {
@@ -90,7 +90,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
         if (isInitialLoad) {
           setIsInitialLoad(false);
           // Funnel: separate ineligible visitors from prospects who saw a quote
-          analytics.track(
+          void analytics.track(
             batches[0]!.summary.total_utxos > 0
               ? 'consolidate_eligible'
               : 'consolidate_ineligible'
@@ -99,7 +99,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
       } catch (err) {
         console.error("Error fetching consolidation data:", err);
         if (isInitialLoad) {
-          analytics.track('consolidate_fetch_error');
+          void analytics.track('consolidate_fetch_error');
         }
         setError(
           err instanceof Error
@@ -111,7 +111,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
       }
     }
 
-    fetchData();
+    void fetchData();
   }, [activeAddress, formData.includeProtectedStamps, isInitialLoad]);
 
   const handleFeeRateChange = (value: number | null) => {

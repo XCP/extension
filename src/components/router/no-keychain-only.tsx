@@ -29,10 +29,10 @@ export function NoKeychainOnly(): ReactElement | null {
     if (keychainExists) {
       // Keychain exists - user shouldn't be on onboarding
       if (authState === 'UNLOCKED') {
-        navigate('/', { replace: true });
+        void navigate('/', { replace: true });
       } else {
         // Locked - go unlock
-        navigate('/keychain/unlock', { replace: true });
+        void navigate('/keychain/unlock', { replace: true });
       }
     }
   }, [authState, keychainExists, isLoading, navigate]);

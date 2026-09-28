@@ -198,7 +198,7 @@ function useOwnMarketQuote(order: OrderAction): OwnQuote | null {
     }
 
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         // fetchPoolQuote rather than a hand-rolled fetch: it encodes the asset names, skips the
         // cache, and parses through the lossless JSON boundary — a base-unit quantity read with

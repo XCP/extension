@@ -221,7 +221,7 @@ export function AmountWithMaxInput({
         />
         <Button
           variant="input"
-          onClick={handleMaxClick}
+          onClick={() => void handleMaxClick()}
           disabled={isLoading || disabled || (disableMaxButton && !onMaxClick)}
           aria-label={isLoading ? t('balance_amount_with_max_input_calculating_maximum_amount') : t('balance_amount_with_max_input_use_maximum_available_amount')}
           className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"

@@ -3758,9 +3758,6 @@
   "messages_sweep_include_ownership": {
     "message": "所有権を含む"
   },
-  "messages_sweep_ownership": {
-    "message": "所有権"
-  },
   "messages_sweep_raw_value": {
     "message": "生の値: $1"
   },
@@ -6659,5 +6656,29 @@
   },
   "trezor_access_notice_allow": {
     "message": "Trezorへのアクセスを許可"
+  },
+  "utxo_review_assets_unavailable": {
+    "message": "このUTXOのアセットを読み込めませんでした。"
+  },
+  "utxo_review_no_assets": {
+    "message": "添付されたアセットはありません"
+  },
+  "utxo_move_review_assets_moving": {
+    "message": "移動するアセット"
+  },
+  "cancel_review_order_unavailable": {
+    "message": "この注文の条件を読み込めませんでした。"
+  },
+  "destroy_review_supply_unavailable": {
+    "message": "このアセットの供給量を読み込めませんでした。"
+  },
+  "messages_sweep_ownership_transferred": {
+    "message": "移転した所有権"
+  },
+  "messages_sweep_balances_unavailable": {
+    "message": "スイープした残高を読み込めませんでした。"
+  },
+  "messages_sweep_no_balances": {
+    "message": "移動した残高はありません"
   }
 }

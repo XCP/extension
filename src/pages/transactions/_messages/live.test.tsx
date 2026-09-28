@@ -1,10 +1,16 @@
-import { render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
-import type { Transaction } from '@/core/counterparty/api';
+import { render, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fetchTransactionEvents, type Transaction, type TransactionEvent } from '@/core/counterparty/api';
 import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import ja from '../../../../public/_locales/ja/messages.json';
+import sweepCredits from './__fixtures__/live-sweep-credits.json';
 import live from './__fixtures__/live-transactions.json';
 import { getMessageHandler } from './index';
+
+vi.mock('@/core/counterparty/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/counterparty/api')>()),
+  fetchTransactionEvents: vi.fn(),
+}));
 
 /**
  * Transaction details rendered from real mainnet responses to `GET /v2/transactions/{hash}?verbose=true`,
@@ -13,6 +19,20 @@ import { getMessageHandler } from './index';
  * Fetched 2026-09-27; long descriptions are cut and `asset_info` is reduced to the fields read here.
  */
 const fixtures = live as unknown as Record<string, Transaction>;
+
+/**
+ * `GET /v2/transactions/{hash}/events?event_name=CREDIT&verbose=true` for the two sweeps, every page,
+ * fetched 2026-09-27 with `asset_info` reduced to divisibility and long name. The transaction
+ * response embeds none of these: a sweep's balances are only in its CREDIT and DEBIT events.
+ */
+const creditsByHash = new Map(Object.entries(sweepCredits as unknown as Record<string, TransactionEvent[]>)
+  .map(([name, events]) => [fixtures[name]!.tx_hash, events]));
+
+beforeEach(() => {
+  vi.mocked(fetchTransactionEvents).mockReset();
+  vi.mocked(fetchTransactionEvents).mockImplementation(async (hash, eventName) =>
+    eventName === 'CREDIT' ? creditsByHash.get(hash) ?? [] : []);
+});
 
 function shown(name: string | Transaction): string {
   const tx = typeof name === 'string' ? fixtures[name]! : name;
@@ -25,6 +45,12 @@ function shown(name: string | Transaction): string {
     <div>{fields.map((field, i) => <p key={i}>{field.label}: {field.value}</p>)}</div>
   );
   return container.textContent ?? '';
+}
+
+/** A handler's fields as the transaction page lays them out, each value labelled for lookup. */
+function Fields({ tx }: { tx: Transaction }) {
+  const fields = getMessageHandler(tx.unpacked_data?.message_type || tx.transaction_type!)!(tx);
+  return <div>{fields.map((field, i) => <p key={i} data-label={field.label}>{field.label}: {field.value}</p>)}</div>;
 }
 
 describe('transaction details from live API responses', () => {
@@ -72,7 +98,40 @@ describe('transaction details from live API responses', () => {
   it('sweep: lists the ownership it transferred', () => {
     const text = shown('sweep_transfer');
     expect(text).toContain('Flags: Include Balances, Include Ownership');
-    expect(text).toContain('A12069251163470862000: ownership');
+    expect(text).toContain('Ownership Transferred: A12069251163470862000A112225003685117340');
+  });
+
+  // The transaction response embeds no CREDIT events, so the old filter (ASSET_TRANSFER, SEND,
+  // OWNERSHIP_TRANSFER) never listed a single balance, and printed an ownership transfer's
+  // quantity (0) as "ownership". The balances are the CREDIT rows Core writes for the sweep.
+  it("sweep: lists the balances Core credited, at each asset's divisibility", async () => {
+    const { container } = render(<Fields tx={fixtures.sweep_memo!} />);
+    await waitFor(() => expect(container.textContent).toContain('Assets Swept: 0.38371850 FLDC'));
+    expect(fetchTransactionEvents).toHaveBeenCalledWith(fixtures.sweep_memo!.tx_hash, 'CREDIT');
+  });
+
+  it('sweep: every credited balance of a 42-asset sweep, divisible and not, and no raw base units', async () => {
+    const { container } = render(<Fields tx={fixtures.sweep_transfer!} />);
+    await waitFor(() => expect(container.textContent).toContain('0.78400000 XCP'));
+    const text = container.textContent ?? '';
+    expect(text).toContain('1000000000 USDSTAMP');
+    expect(text).toContain('1 THECOCOS');
+    expect(text).not.toMatch(/(?<![\d.])78400000 XCP/);
+    const swept = container.querySelector('[data-label="Assets Swept"]')!;
+    expect(swept.querySelectorAll('div > div')).toHaveLength(42);
+  });
+
+  it('sweep: says the balances could not be read rather than showing none', async () => {
+    vi.mocked(fetchTransactionEvents).mockRejectedValue(new Error('offline'));
+    const { container } = render(<Fields tx={fixtures.sweep_memo!} />);
+    await waitFor(() => expect(container.textContent).toContain('Assets Swept: Could not load the swept balances.'));
+  });
+
+  it('sweep: an ownership-only sweep does not look up balances', () => {
+    const tx = fixtures.sweep_transfer!;
+    const text = shown({ ...tx, unpacked_data: { ...tx.unpacked_data, message_data: { ...tx.unpacked_data.message_data, flags: 2 } } });
+    expect(text).not.toContain('Assets Swept');
+    expect(fetchTransactionEvents).not.toHaveBeenCalled();
   });
 
   // Core's sweep flags are 1 balances, 2 ownership, 4 binary memo (messages/sweep.py). With 4 set,
@@ -232,7 +291,7 @@ describe("transaction details in the reader's language", () => {
     ['fairminter', inJapanese('fairminter_payment_model_pool')],
     ['fairmint', inJapanese('fairminter_fairmint_fairmint')],
     ['issuance_lock', `🔒 ${inJapanese('tx_action_yes')}`],
-    ['sweep_transfer', `A12069251163470862000: ${inJapanese('messages_sweep_ownership')}`],
+    ['sweep_transfer', `${inJapanese('messages_sweep_ownership_transferred')}: A12069251163470862000`],
   ] as const)('%s: %s', (name, expected) => {
     mockBrowserLocale({ language: 'ja' });
     expect(shown(name)).toContain(expected);

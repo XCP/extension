@@ -28,19 +28,19 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
   const encodedAsset = encodeURIComponent(asset);
 
   const handleSend = useCallback(() => {
-    navigate(isZeld ? '/zeld/send' : `/compose/send/${encodedAsset}`);
+    void navigate(isZeld ? '/zeld/send' : `/compose/send/${encodedAsset}`);
   }, [encodedAsset, isZeld, navigate]);
 
   const handleSwap = useCallback(() => {
-    navigate(`/compose/order/${encodedAsset}`);
+    void navigate(`/compose/order/${encodedAsset}`);
   }, [encodedAsset, navigate]);
 
   const handleMint = useCallback(() => {
-    navigate(`/compose/fairmint/${encodedAsset}`);
+    void navigate(`/compose/fairmint/${encodedAsset}`);
   }, [encodedAsset, navigate]);
 
   const handleSell = useCallback(() => {
-    navigate(`/compose/dispenser/${encodedAsset}`);
+    void navigate(`/compose/dispenser/${encodedAsset}`);
   }, [encodedAsset, navigate]);
 
   return (

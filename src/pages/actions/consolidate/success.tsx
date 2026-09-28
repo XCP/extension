@@ -28,10 +28,10 @@ function ConsolidateSuccessPage() {
       // navigation loop: pushing left the results underneath, so the recovery page's own back
       // (navigate(-1)) returned here and the two pages ping-ponged. Replaced, the stack reads
       // [..., actions, consolidate] and a second back leaves the tool, as back should.
-      onBack: () => navigate('/actions/consolidate', { replace: true }),
+      onBack: () => void navigate('/actions/consolidate', { replace: true }),
       rightButton: {
         icon: <FiX className="size-4" aria-hidden="true" />,
-        onClick: () => navigate('/'),
+        onClick: () => void navigate('/'),
         ariaLabel: t('consolidate_success_close_and_go_home')
       }
     });
@@ -39,7 +39,7 @@ function ConsolidateSuccessPage() {
   }, [setHeaderProps, navigate]);
   
   if (!state || !state.results) {
-    navigate('/');
+    void navigate('/');
     return null;
   }
   
@@ -48,8 +48,9 @@ function ConsolidateSuccessPage() {
   const totalUtxos = state.results.reduce((sum, r) => sum + r.utxosConsolidated, 0);
   
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    // Could add a toast notification here
+    navigator.clipboard.writeText(text).catch((err: unknown) => {
+      console.error('Failed to copy:', err);
+    });
   };
   
   const openInExplorer = (txid: string) => {
@@ -202,14 +203,14 @@ function ConsolidateSuccessPage() {
       {/* Action Buttons */}
       <div className="flex space-x-3">
         <Button
-          onClick={() => navigate('/')}
+          onClick={() => void navigate('/')}
           color="gray"
           fullWidth
         >
           {t('common_back_to_wallet')}
         </Button>
         <Button
-          onClick={() => navigate('/actions/consolidate/status')}
+          onClick={() => void navigate('/actions/consolidate/status')}
           color="blue"
           fullWidth
         >

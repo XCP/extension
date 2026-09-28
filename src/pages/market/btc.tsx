@@ -107,7 +107,7 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
         setLoading(false);
       }
     };
-    loadInitial();
+    void loadInitial();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -124,18 +124,18 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
   // Handle range change
   const handleRangeChange = useCallback((newRange: string) => {
     setRange(newRange as TimeRange);
-    loadChartData(newRange as TimeRange, currency);
+    void loadChartData(newRange as TimeRange, currency);
   }, [loadChartData, currency]);
 
   // Configure header
   useEffect(() => {
     setHeaderProps({
       title: t('market_btc_bitcoin_price'),
-      onBack: () => navigate("/market"),
+      onBack: () => void navigate("/market"),
       rightButton: {
         ariaLabel: t('common_refresh_price'),
         icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
-        onClick: handleRefresh,
+        onClick: () => void handleRefresh(),
         disabled: isRefreshing,
       },
     });
@@ -170,7 +170,7 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
                 <div className="text-sm text-red-600">
                   <span className="block">{t('common_unable_to_load_price')}</span>
                   <button type="button"
-                    onClick={() => loadStats(currency)}
+                    onClick={() => void loadStats(currency)}
                     className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
                     {t('common_retry')}
@@ -215,7 +215,7 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-blue-600 hover:text-blue-800"
-            onClick={() => analytics.track('buy_bitcoin')}
+            onClick={() => void analytics.track('buy_bitcoin')}
           >
             {t('market_btc_buy_bitcoin')}
           </a>
@@ -230,7 +230,7 @@ function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement
             >
               <span className="text-sm text-red-600 mb-2">{t('common_unable_to_load_chart_data')}</span>
               <button type="button"
-                onClick={() => loadChartData(range, currency)}
+                onClick={() => void loadChartData(range, currency)}
                 className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 {t('common_try_again')}

@@ -55,6 +55,48 @@ function toDisplayAmount(value: string | number | BigNumber): string {
   return shown === '0' && amount.isGreaterThan(0) ? '<0.00000001' : shown;
 }
 
+/*
+ * The lookups below are the facts both the approval screen and the wallet's own review pages state
+ * for a message whose bytes do not carry them. Each throws when the ledger cannot be read, so a
+ * caller can tell "could not look" from "nothing there": the approval context swallows that and
+ * says less, and a review page says the lookup failed.
+ */
+
+/** The terms of the order a cancel names, in display units, or undefined when Core has no such order. */
+export async function readCancelledOrder(offerHash: string): Promise<ProtocolContext['cancelledOrder']> {
+  const order = await fetchOrder(offerHash);
+  if (!order) return undefined;
+  // A subasset's `give_asset` is its numeric name; the PARENT.child people know is its long name.
+  return {
+    giveQuantity: String(order.give_quantity_normalized ?? ''),
+    giveAsset: String(order.give_asset_info?.asset_longname || order.give_asset || ''),
+    getQuantity: String(order.get_quantity_normalized ?? ''),
+    getAsset: String(order.get_asset_info?.asset_longname || order.get_asset || ''),
+  };
+}
+
+/** An asset's total supply in display units, or undefined when Core reports none. */
+export async function readAssetSupply(asset: string): Promise<string | undefined> {
+  const details = await fetchAssetDetails(asset);
+  return details?.supply_normalized ? String(details.supply_normalized) : undefined;
+}
+
+/**
+ * Every balance attached to these UTXOs, one "quantity asset" line each, the asset by its long
+ * name where it has one. Empty when the ledger holds nothing on any of them.
+ */
+export async function readUtxoAssets(utxos: string[]): Promise<string[]> {
+  const assets: string[] = [];
+  for (const utxo of utxos) {
+    const balances = await fetchUtxoBalances(utxo);
+    for (const balance of balances.result ?? []) {
+      const name = balance.asset_info?.asset_longname || balance.asset;
+      assets.push(`${balance.quantity_normalized} ${name}`);
+    }
+  }
+  return assets;
+}
+
 export interface ProtocolContextInput {
   messageType: string | undefined;
   data: unknown;
@@ -105,20 +147,13 @@ export async function resolveProtocolContext(
 
   try {
     if (messageType === 'cancel' && typeof fields.offerHash === 'string') {
-      const order = await fetchOrder(fields.offerHash);
-      if (order) {
-        context.cancelledOrder = {
-          giveQuantity: String(order.give_quantity_normalized ?? ''),
-          giveAsset: String(order.give_asset ?? ''),
-          getQuantity: String(order.get_quantity_normalized ?? ''),
-          getAsset: String(order.get_asset ?? ''),
-        };
-      }
+      const order = await readCancelledOrder(fields.offerHash);
+      if (order) context.cancelledOrder = order;
     }
 
     if (messageType === 'destroy' && typeof fields.asset === 'string') {
-      const details = await fetchAssetDetails(fields.asset);
-      if (details?.supply_normalized) context.assetSupply = String(details.supply_normalized);
+      const supply = await readAssetSupply(fields.asset);
+      if (supply) context.assetSupply = supply;
     }
 
     // Dividend supply and global holder count do not establish the bill. Core's
@@ -168,14 +203,7 @@ export async function resolveProtocolContext(
     if (messageType === 'detach' && input.spentUtxos?.length) {
       // What a detach releases is on the UTXO, not in the message — the payload carries one field,
       // the destination, and that is already the headline.
-      const detaching: string[] = [];
-      for (const utxo of input.spentUtxos) {
-        const balances = await fetchUtxoBalances(utxo);
-        for (const balance of balances.result ?? []) {
-          const name = balance.asset_info?.asset_longname || balance.asset;
-          detaching.push(`${balance.quantity_normalized} ${name}`);
-        }
-      }
+      const detaching = await readUtxoAssets(input.spentUtxos);
       if (detaching.length > 0) context.detachingAssets = detaching;
     }
 

@@ -89,7 +89,7 @@ export function BlockHeightInput({
         <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
           <Button
             variant="input"
-            onClick={handleNowButtonClick}
+            onClick={() => void handleNowButtonClick()}
             disabled={disabled || isLoading}
             aria-label={t('inputs_block_height_input_use_current_block_height')}
             className="px-2 py-1 text-sm"

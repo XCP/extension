@@ -160,18 +160,20 @@ export default function ActionsPage(): ReactElement {
   const showRecoverBitcoinNotification = !settings?.hasVisitedRecoverBitcoin;
   
   // Get dynamic action sections based on wallet type and settings
-  const actionSections = getActionSections(isSegwitWallet, enableMPMA, showRecoverBitcoinNotification, navigate);
+  const actionSections = getActionSections(isSegwitWallet, enableMPMA, showRecoverBitcoinNotification, (path) => void navigate(path));
 
   // Configure header
   useEffect(() => {
     setHeaderProps({
       title: t('common_actions'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
-        onClick: async () => {
-          await lockKeychain();
-          navigate("/keychain/unlock");
+        onClick: () => {
+          lockKeychain().then(
+            () => void navigate("/keychain/unlock"),
+            (err: unknown) => console.error('Failed to lock keychain:', err),
+          );
         },
         ariaLabel: t('common_lock_keychain'),
       },

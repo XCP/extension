@@ -40,10 +40,10 @@ function AddWalletPage() {
   useEffect(() => {
     setHeaderProps({
       useLogoTitle: true,
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FiX className="size-4" aria-hidden="true" />,
-        onClick: () => navigate(PATHS.CLOSE),
+        onClick: () => void navigate(PATHS.CLOSE),
         ariaLabel: t('common_close'),
       },
     });
@@ -54,7 +54,7 @@ function AddWalletPage() {
       setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
-    navigate(PATHS.CREATE_WALLET);
+    void navigate(PATHS.CREATE_WALLET);
   }
 
   function handleImportWallet() {
@@ -62,7 +62,7 @@ function AddWalletPage() {
       setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
-    navigate(PATHS.IMPORT_WALLET);
+    void navigate(PATHS.IMPORT_WALLET);
   }
 
   function handleImportPrivateKey() {
@@ -70,7 +70,7 @@ function AddWalletPage() {
       setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
-    navigate(PATHS.IMPORT_PRIVATE_KEY);
+    void navigate(PATHS.IMPORT_PRIVATE_KEY);
   }
 
   function handleImportTestAddress() {
@@ -78,7 +78,7 @@ function AddWalletPage() {
       setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
-    navigate(PATHS.IMPORT_TEST_ADDRESS);
+    void navigate(PATHS.IMPORT_TEST_ADDRESS);
   }
 
   function handleConnectHardware() {
@@ -86,7 +86,7 @@ function AddWalletPage() {
       setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
-    navigate(PATHS.CONNECT_HARDWARE);
+    void navigate(PATHS.CONNECT_HARDWARE);
   }
 
   const handleDisconnectHardware = useCallback(async () => {
@@ -96,8 +96,13 @@ function AddWalletPage() {
     // The removeWallet function will:
     // 1. Clear activeWalletId if this was the active wallet
     // 2. Call refreshWalletState which auto-selects the first remaining wallet
-    await removeWallet(hardwareWallet.id);
-    navigate(PATHS.BACK, { replace: true });
+    try {
+      await removeWallet(hardwareWallet.id);
+      void navigate(PATHS.BACK, { replace: true });
+    } catch (err) {
+      console.error("Error disconnecting hardware wallet:", err);
+      setError(t('wallets_remove_failed_to_remove_wallet_please'));
+    }
   }, [removeWallet, hardwareWallet, navigate]);
 
   return (
@@ -143,7 +148,7 @@ function AddWalletPage() {
               <Button
                 color="red"
                 fullWidth
-                onClick={handleDisconnectHardware}
+                onClick={() => void handleDisconnectHardware()}
                 aria-label={t('wallets_add_disconnect_hardware_wallet')}
               >
                 <FiX className="size-4 mr-2" aria-hidden="true" />

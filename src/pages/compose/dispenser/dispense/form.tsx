@@ -130,7 +130,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
       }
     };
 
-    fetchSpendableBalance();
+    void fetchSpendableBalance();
   }, [address]);
 
   return data;

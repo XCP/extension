@@ -1602,6 +1602,25 @@ export async function fetchTransaction(
   return data.result ?? null;
 }
 
+/** One ledger event a transaction caused, as `/v2/transactions/{hash}/events` lists it. */
+export type TransactionEvent = NonNullable<Transaction['events']>[number];
+
+/**
+ * Every event of one kind a transaction caused, across all pages.
+ *
+ * `/v2/transactions/{hash}` embeds only some of a transaction's events: a sweep's there are its
+ * SWEEP and ownership transfers, never the CREDIT and DEBIT rows that say which balances moved.
+ * Those are read here. A failed or incomplete read throws, so a caller never shows part of a list
+ * as the whole of it.
+ */
+export async function fetchTransactionEvents(txHash: string, eventName: string): Promise<TransactionEvent[]> {
+  const data = await cpApiGetAll<TransactionEvent>(`/v2/transactions/${encodePath(txHash)}/events`, {
+    event_name: eventName,
+    verbose: true,
+  });
+  return data.result;
+}
+
 /**
  * Fetch Counterparty transactions for an address.
  * @param address - Bitcoin address to query
