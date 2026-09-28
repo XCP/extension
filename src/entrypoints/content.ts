@@ -149,8 +149,8 @@ export default defineContentScript({
         if (inFlight.delete(key)) window.postMessage({ ...envelope, error: classifyProviderError(error) }, window.location.origin);
       }
     };
-    // Add message event listeners
-    window.addEventListener('message', messageHandler);
+    // Add message event listeners. The handler answers every outcome through postMessage itself.
+    window.addEventListener('message', (event) => void messageHandler(event));
 
     console.log('XCP Wallet content script loaded on:', window.location.href);
 

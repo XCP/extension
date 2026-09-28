@@ -6878,7 +6878,7 @@
   },
   "wallets_remove_failed_to_remove_wallet_please": {
     "message": "Failed to remove wallet. Please try again.",
-    "description": "pages/keychain/wallets/remove.tsx"
+    "description": "pages/keychain/wallets/remove.tsx, pages/keychain/wallets/add.tsx (disconnecting a hardware wallet)"
   },
   "wallets_remove_invalid_wallet_identifier": {
     "message": "Invalid wallet identifier.",
@@ -6942,7 +6942,7 @@
   },
   "display_preferences_save_failed": {
     "message": "Could not save this preference. Please try again.",
-    "description": "Display preference control."
+    "description": "A preference that failed to save: the price currency, an Advanced settings control, or the Counterparty API URL."
   },
   "safety_amount_syntax": {
     "message": "Use digits and a dot, up to 8 decimals. No commas.",

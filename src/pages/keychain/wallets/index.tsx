@@ -40,14 +40,14 @@ function WalletsPage() {
       setError(t('common_maximum_number_of_wallets_reached', [String(MAX_WALLETS)]));
       return;
     }
-    navigate(PATHS.ADD_WALLET);
+    void navigate(PATHS.ADD_WALLET);
   }, [navigate, wallets.length]);
 
   // Configure header with add wallet button
   useEffect(() => {
     setHeaderProps({
       title: t('keychain_wallets_keychain'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FaPlus className="size-4" aria-hidden="true" />,
         onClick: handleAddWallet,
@@ -80,7 +80,7 @@ function WalletsPage() {
     try {
       // Load wallet (decrypts secret and derives addresses)
       await selectWallet(wallet.id);
-      navigate(PATHS.INDEX);
+      void navigate(PATHS.INDEX);
     } catch (err) {
       console.error('Error selecting wallet:', err);
       setError(t('keychain_wallets_failed_to_select_wallet_please'));
@@ -105,7 +105,7 @@ function WalletsPage() {
           // as part of the work being waited on — so the card falls back to its preview address
           // rather than showing the address of the wallet being left.
           selectedAddress={pendingWallet ? null : activeAddress}
-          onSelectWallet={handleSelectWalletInternal}
+          onSelectWallet={(wallet) => void handleSelectWalletInternal(wallet)}
           disableHardwareWallets={!canUseHardwareWallet}
           hardwareWalletDisabledMessage={t('keychain_wallets_open_in_sidepanel')}
         />

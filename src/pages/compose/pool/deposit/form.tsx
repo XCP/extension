@@ -173,7 +173,7 @@ export function PoolDepositForm({
           <button
             type="button"
             disabled={!pool?.lp_asset}
-            onClick={() => pool?.lp_asset && navigate(`/compose/pool/withdraw/${encodeURIComponent(pool.lp_asset)}`)}
+            onClick={() => { if (pool?.lp_asset) void navigate(`/compose/pool/withdraw/${encodeURIComponent(pool.lp_asset)}`); }}
             className={`text-lg font-semibold bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
               pool?.lp_asset ? "cursor-pointer" : "text-gray-400 cursor-not-allowed"
             }`}

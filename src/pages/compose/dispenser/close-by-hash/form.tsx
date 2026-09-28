@@ -38,7 +38,7 @@ export function DispenserCloseByHashForm({
   useEffect(() => {
     if (initialTxHash) {
       setTxHash(initialTxHash);
-      handleLookup(initialTxHash);
+      void handleLookup(initialTxHash);
     }
   }, [initialTxHash]);
 
@@ -46,7 +46,7 @@ export function DispenserCloseByHashForm({
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (txHash && txHash.trim().length > 0) {
-        handleLookup(txHash);
+        void handleLookup(txHash);
       } else {
         setSelectedDispenser(null);
       }

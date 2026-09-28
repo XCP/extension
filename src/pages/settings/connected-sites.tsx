@@ -87,10 +87,10 @@ export default function ConnectedSitesPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('common_connected_sites'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: connectedSites.length > 0 ? {
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
-        onClick: handleDisconnectAll,
+        onClick: () => void handleDisconnectAll(),
         ariaLabel: t('settings_connected_sites_disconnect_all_sites'),
       } : {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
@@ -126,7 +126,7 @@ export default function ConnectedSitesPage(): ReactElement {
               key={site.origin}
               hostname={site.hostname}
               origin={site.origin}
-              onDisconnect={() => handleDisconnectSite(site.origin)}
+              onDisconnect={() => void handleDisconnectSite(site.origin)}
             />
           ))}
         </div>

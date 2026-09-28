@@ -17,7 +17,7 @@ export default function PoolPositionPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('common_pool'),
-      onBack: () => navigate(-1),
+      onBack: () => void navigate(-1),
     });
     return () => setHeaderProps(null);
   }, [navigate, setHeaderProps]);

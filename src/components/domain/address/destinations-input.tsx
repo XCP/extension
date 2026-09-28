@@ -173,7 +173,7 @@ export function DestinationsInput({
             type="text"
             value={destination.address}
             onChange={(e) => handleDestinationChange(destination.id, e.target.value)}
-            onPaste={(e) => handlePaste(e, destination.id)}
+            onPaste={(e) => void handlePaste(e, destination.id)}
             required={required}
             disabled={disabled}
             placeholder={

@@ -21,13 +21,13 @@ function ImportTestAddressPage() {
   
   useEffect(() => {
     if (!isDevelopment) {
-      navigate('/keychain/wallets/add');
+      void navigate('/keychain/wallets/add');
       return;
     }
 
     setHeaderProps({
       title: t('setup_import_test_address_import_test_address'),
-      onBack: () => navigate('/keychain/wallets/add'),
+      onBack: () => void navigate('/keychain/wallets/add'),
     });
     
     return () => setHeaderProps(null);
@@ -47,7 +47,7 @@ function ImportTestAddressPage() {
       await importTestAddress(addressToAdd);
       
       // Navigate to home
-      navigate('/');
+      void navigate('/');
       
     } catch (err) {
       setError(err instanceof Error ? err.message : t('setup_import_test_address_failed_to_import_test_address'));
@@ -86,7 +86,7 @@ function ImportTestAddressPage() {
                   onChange={(e) => setAddressToAdd(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && addressToAdd) {
-                      handleImportTestAddress();
+                      void handleImportTestAddress();
                     }
                   }}
                   disabled={isLoading}
@@ -106,7 +106,7 @@ function ImportTestAddressPage() {
       {/* Save Button */}
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <Button
-          onClick={handleImportTestAddress}
+          onClick={() => void handleImportTestAddress()}
           color="blue"
           fullWidth
           disabled={!addressToAdd || isLoading}

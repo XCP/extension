@@ -209,7 +209,7 @@ export function DispenserCloseForm({
                     <span className="text-gray-500">{t('common_tx_hash')}</span>
                     <button
                       type="button"
-                      onClick={() => copy(selectedDispenser.tx_hash)}
+                      onClick={() => void copy(selectedDispenser.tx_hash)}
                       className="flex items-center gap-1.5 font-mono text-xs text-gray-600 hover:text-gray-900"
                     >
                       {selectedDispenser.tx_hash.substring(0, 8)}…

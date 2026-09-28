@@ -34,12 +34,12 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
   const isHardware = wallet.type === 'hardware';
 
   const handleShowSecret = useCallback(() => {
-    navigate(`/keychain/secrets/show-${wallet.type === 'privateKey' ? 'private-key' : 'passphrase'}/${wallet.id}`);
+    void navigate(`/keychain/secrets/show-${wallet.type === 'privateKey' ? 'private-key' : 'passphrase'}/${wallet.id}`);
   }, [navigate, wallet.type, wallet.id]);
 
   const handleRemoveWallet = useCallback(() => {
     if (!isOnlyWallet) {
-      navigate(`/keychain/wallets/remove/${wallet.id}`);
+      void navigate(`/keychain/wallets/remove/${wallet.id}`);
     }
   }, [navigate, wallet.id, isOnlyWallet]);
 
@@ -48,8 +48,12 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
     // The removeWallet function will:
     // 1. Clear activeWalletId if this was the active wallet
     // 2. Call refreshWalletState which auto-selects the first remaining wallet
-    await removeWallet(wallet.id);
-    navigate('/keychain/wallets', { replace: true });
+    try {
+      await removeWallet(wallet.id);
+      void navigate('/keychain/wallets', { replace: true });
+    } catch (err) {
+      console.error('Error disconnecting hardware wallet:', err);
+    }
   }, [removeWallet, wallet.id, navigate]);
 
   return (
@@ -77,7 +81,7 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
           <Button
             variant="menu-item"
             fullWidth
-            onClick={handleDisconnectHardware}
+            onClick={() => void handleDisconnectHardware()}
           >
             <FiX className="mr-3 size-4 text-gray-600" aria-hidden="true" />
             

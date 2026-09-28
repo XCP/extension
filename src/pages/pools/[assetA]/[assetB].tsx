@@ -27,7 +27,7 @@ export default function PoolPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('common_pool'),
-      onBack: () => navigate(-1),
+      onBack: () => void navigate(-1),
     });
     return () => setHeaderProps(null);
   }, [navigate, setHeaderProps]);
@@ -61,7 +61,7 @@ export default function PoolPage(): ReactElement {
             type="button"
             fullWidth
             className="mt-4"
-            onClick={() => navigate(`/compose/pool/deposit/${encodeURIComponent(decodedAssetA)}/${encodeURIComponent(decodedAssetB)}`)}
+            onClick={() => void navigate(`/compose/pool/deposit/${encodeURIComponent(decodedAssetA)}/${encodeURIComponent(decodedAssetB)}`)}
           >
             {t('asseta_assetb_enter_pool')}
           </Button>
