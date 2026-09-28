@@ -6561,6 +6561,63 @@
   "psbts_approve_fund_and_authorize_offers": {
     "message": "オファーに資金を用意して承認"
   },
+  "commit_reveal_title": {
+    "message": "Counterparty メッセージを公開"
+  },
+  "commit_reveal_message": {
+    "message": "メッセージ"
+  },
+  "commit_reveal_published_from": {
+    "message": "公開元"
+  },
+  "commit_reveal_commit_fee": {
+    "message": "コミット手数料"
+  },
+  "commit_reveal_commit_fee_description": {
+    "message": "2つ目のトランザクションの資金を用意する1つ目のトランザクションのネットワーク手数料"
+  },
+  "commit_reveal_reveal_fee": {
+    "message": "リビール手数料"
+  },
+  "commit_reveal_reveal_fee_description": {
+    "message": "1つ目のトランザクションが確保する $1 から支払われます"
+  },
+  "commit_reveal_signing": {
+    "message": "署名"
+  },
+  "commit_reveal_signing_detail": {
+    "message": "あなたのアドレスの鍵で両方のトランザクションに署名します。2つ目がメッセージを公開し、1つ目の後にのみ有効です。"
+  },
+  "commit_reveal_reveal_output": {
+    "message": "リビール出力 $1"
+  },
+  "commit_reveal_output_marker": {
+    "message": "Counterparty マーカー（値なし）"
+  },
+  "commit_reveal_output_unknown": {
+    "message": "アドレスで表せないスクリプトへ $1"
+  },
+  "commit_reveal_output_yours": {
+    "message": "$1 をあなたのアドレスへ返却"
+  },
+  "commit_reveal_output_burn": {
+    "message": "$1 をバーンアドレスへ：誰も使えません"
+  },
+  "commit_reveal_output_external": {
+    "message": "$1 をあなたのものではないアドレスへ"
+  },
+  "psbts_approve_publish_message": {
+    "message": "メッセージを公開"
+  },
+  "psbts_approve_sign_both": {
+    "message": "両方に署名"
+  },
+  "psbts_approve_commit_transaction": {
+    "message": "コミット"
+  },
+  "psbts_approve_reveal_transaction": {
+    "message": "リビール"
+  },
   "psbts_approve_fund_and_authorize_1_offer": {
     "message": "1 件のオファーに資金を用意して承認"
   },

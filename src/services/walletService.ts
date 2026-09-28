@@ -82,6 +82,8 @@ export interface WalletService {
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   signMessage: (message: string, address: string, expectedIdentity?: { walletId: string; address: string }) => Promise<{ signature: string; address: string }>;
   signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }, options?: SignPsbtOptions) => Promise<string>;
+  /** Sign a site's commit PSBT and its reveal PSBT with the source key, both or neither (see WalletSigner). */
+  signCommitAndRevealPsbts: (commit: { psbtHex: string; signInputs: Record<string, number[]>; sighashTypes: number[] }, revealPsbtHex: string, sourceAddress: string, expectedIdentity?: { walletId: string; address: string }, revealSighash?: number) => Promise<[string, string]>;
   getLastActiveAddress: () => Promise<string | undefined>;
   /** Outputs `address` was last known to hold ZELD on, for approvals while the indexer is down. */
   getKnownZeldOutpoints: (address: string) => Promise<KnownZeldOutpoint[]>;
@@ -250,6 +252,9 @@ function createWalletService(): WalletService {
     },
     signPsbt: async (psbtHex, signInputs, sighashTypes, expectedIdentity, options) => {
       return walletManager.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity, options);
+    },
+    signCommitAndRevealPsbts: async (commit, revealPsbtHex, sourceAddress, expectedIdentity, revealSighash) => {
+      return walletManager.signCommitAndRevealPsbts(commit, revealPsbtHex, sourceAddress, expectedIdentity, revealSighash);
     },
     getKnownZeldOutpoints: async (address) => walletManager.getKnownZeldOutpoints(address),
     recordZeldOutpoints: async (address, update) => walletManager.recordZeldOutpoints(address, update),

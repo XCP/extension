@@ -8,10 +8,11 @@
 import { schnorr } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { p2pkh, p2sh, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { p2pkh, p2sh, p2wpkh, SigHash, TaprootControlBlock, Transaction } from '@scure/btc-signer';
 import { tapLeafHash } from '@scure/btc-signer/payment.js';
 import { pubSchnorr, tagSchnorr } from '@scure/btc-signer/utils.js';
 import { describe, expect, it } from 'vitest';
+import { siteLaunch } from '@/core/counterparty/__tests__/helpers/commitRevealPsbts';
 import {
   BROADCAST_P2TR_INTERNAL,
   BROADCAST_P2TR_OUTPUT_KEY,
@@ -189,5 +190,33 @@ describe('refusing to sign a reveal that is not the source\'s', () => {
     const reveal = Transaction.fromRaw(hexToBytes(BROADCAST_P2WPKH.result.reveal_rawtransaction), RAW);
     reveal.addInput({ txid: new Uint8Array(32).fill(1), index: 0 });
     expect(() => sign(BROADCAST_P2WPKH, { ...BROADCAST_P2WPKH.result, reveal_rawtransaction: bytesToHex(reveal.unsignedTx) })).toThrow(REFUSED);
+  });
+});
+
+describe('a reveal a site built', () => {
+  const launch = siteLaunch(1200, 0x71);
+  const reveal = Transaction.fromPSBT(hexToBytes(launch.revealHex), RAW);
+  const [control, scriptWithVersion] = reveal.getInput(0).tapLeafScript![0]!;
+  const toSign = {
+    revealHex: bytesToHex(reveal.unsignedTx),
+    envelopeScriptHex: bytesToHex(scriptWithVersion.slice(0, -1)),
+    controlBlockHex: bytesToHex(TaprootControlBlock.encode(control)),
+  };
+  const witnessUtxo = reveal.getInput(0).witnessUtxo!;
+  const prevout = { scriptHex: bytesToHex(witnessUtxo.script), value: witnessUtxo.amount };
+
+  it('is refused under the unspendable internal key unless the caller admits a site-built commit', () => {
+    expect(() => signTaprootReveal(toSign, prevout, launch.address, launch.privateKeyHex))
+      .toThrow(/does not commit to the envelope alone/);
+    const signed = signTaprootReveal(toSign, prevout, launch.address, launch.privateKeyHex,
+      { siteInternalKey: true, sighash: SigHash.ALL });
+    const witness = Transaction.fromRaw(hexToBytes(signed), RAW).getInput(0).finalScriptWitness!;
+    expect(witness[0]).toHaveLength(65);
+    expect(checkRevealSourceSignature(witnessUtxo.script, sourceOutputScript(launch.address)!, witness).ok).toBe(true);
+  });
+
+  it('never signs with another sighash', () => {
+    expect(() => signTaprootReveal(toSign, prevout, launch.address, launch.privateKeyHex,
+      { siteInternalKey: true, sighash: 0x81 as never })).toThrow(/not DEFAULT or ALL/);
   });
 });

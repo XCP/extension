@@ -20,12 +20,13 @@
 
 import { schnorr } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { SigHash } from '@scure/btc-signer';
+import { SigHash, TAPROOT_UNSPENDABLE_KEY } from '@scure/btc-signer';
 import { compareBytes, pubSchnorr, signSchnorr, taprootTweakPrivKey } from '@scure/btc-signer/utils.js';
 import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import {
   bip86OutputKey,
   checkRevealSourceSignature,
+  sourceControlsKey,
   sourceOutputScript,
   TAPSCRIPT_LEAF_VERSION,
 } from '@/core/counterparty/revealSourceRule';
@@ -94,6 +95,18 @@ export function revealSigningKey(
   return null;
 }
 
+/** How a reveal a site built may differ from the one Core composes. */
+export interface RevealSigningOptions {
+  /** The sighash to sign with: `SIGHASH_DEFAULT` (Core's) or `SIGHASH_ALL`. */
+  sighash?: typeof SigHash.DEFAULT | typeof SigHash.ALL;
+  /**
+   * Admit a commit output whose internal key is the unspendable point or a key of the source
+   * address, as a site's own envelope builder may choose, besides the envelope's key that Core uses.
+   * Either way the envelope must be the output's only leaf.
+   */
+  siteInternalKey?: boolean;
+}
+
 /**
  * Sign the reveal's input 0 with the source key and return the signed reveal.
  *
@@ -108,6 +121,7 @@ export function signTaprootReveal(
   prevout: RevealPrevout,
   sourceAddress: string,
   privateKeyHex: string,
+  options: RevealSigningOptions = {},
 ): string {
   let tx: ReturnType<typeof parseTransactionForSigning>;
   try {
@@ -133,11 +147,17 @@ export function signTaprootReveal(
   // envelope committed to the commit output under tapscript, and its key is the source's.
   const rule = checkRevealSourceSignature(commitScript, sourceScript, [new Uint8Array(64), envelope, controlBlock]);
   if (!rule.ok) refuse(rule.detail);
-  // The envelope is the commit output's only leaf, closed by the key it is committed under, as
-  // Core builds it: no other script can spend the output.
-  if (controlBlock.length !== 33 || !equal(controlBlock.slice(1), rule.leafKey)) {
+  // The envelope is the commit output's only leaf, committed under its own key as Core builds it, or
+  // (for a site's own builder) under the unspendable point or a key of the source: no one else can
+  // spend the output, by script or by key.
+  const internalKey = controlBlock.slice(1);
+  const internalKeyAllowed = equal(internalKey, rule.leafKey) || (options.siteInternalKey === true
+    && (equal(internalKey, TAPROOT_UNSPENDABLE_KEY) || sourceControlsKey(sourceScript, internalKey)));
+  if (controlBlock.length !== 33 || !internalKeyAllowed) {
     refuse('the commit output does not commit to the envelope alone');
   }
+  const sighashType = options.sighash ?? SigHash.DEFAULT;
+  if (sighashType !== SigHash.DEFAULT && sighashType !== SigHash.ALL) refuse('the reveal sighash is not DEFAULT or ALL');
 
   const privateKey = readHex(privateKeyHex, 'private key');
   const signingKey = revealSigningKey(rule.leafKey, privateKey, isP2trScript(sourceScript));
@@ -146,7 +166,7 @@ export function signTaprootReveal(
   const sighash = tx.preimageWitnessV1(
     0,
     [commitScript],
-    SigHash.DEFAULT,
+    sighashType,
     [prevout.value],
     undefined,
     envelope,
@@ -154,8 +174,9 @@ export function signTaprootReveal(
   );
   const signature = signSchnorr(sighash, signingKey);
   if (!schnorr.verify(signature, sighash, rule.leafKey)) refuse('the signature does not verify');
+  const witnessSignature = sighashType === SigHash.DEFAULT ? signature : new Uint8Array([...signature, sighashType]);
 
-  tx.updateInput(0, { finalScriptWitness: [signature, envelope, controlBlock] }, true);
+  tx.updateInput(0, { finalScriptWitness: [witnessSignature, envelope, controlBlock] }, true);
   const signedHex = tx.hex;
   // The txid is what the commit's reviewers saw the reveal as; signing changes only the witness.
   if (bytesToHex(parseTransactionForSigning(signedHex).getInput(0).txid ?? new Uint8Array()) !== bytesToHex(input.txid ?? new Uint8Array())) {

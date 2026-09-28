@@ -1823,6 +1823,17 @@ export class WalletManager {
     return this.signer.signCommitAndReveal(rawTxHex, sourceAddress, reveal, options, expectedIdentity);
   }
 
+  /** Sign a site's commit PSBT and its reveal PSBT with the source key, both or neither (see WalletSigner). */
+  public async signCommitAndRevealPsbts(
+    commit: { psbtHex: string; signInputs: Record<string, number[]>; sighashTypes: number[] },
+    revealPsbtHex: string,
+    sourceAddress: string,
+    expectedIdentity?: SigningIdentity,
+    revealSighash?: number,
+  ): Promise<[string, string]> {
+    return this.signer.signCommitAndRevealPsbts(commit, revealPsbtHex, sourceAddress, expectedIdentity, revealSighash);
+  }
+
   public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
     return btcBroadcastTransaction(signedTxHex);
   }

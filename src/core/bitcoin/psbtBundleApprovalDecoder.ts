@@ -8,6 +8,12 @@ import {
   decodePsbtForApproval,
 } from '@/core/bitcoin/psbtApprovalDecoder';
 import { fetchAssetDetails } from '@/core/counterparty/api';
+import { getCounterpartyFeatureStatus } from '@/core/counterparty/capabilities';
+import {
+  type CommitRevealIntentClaim,
+  commitRevealReview,
+  proveCommitAndReveal,
+} from '@/core/counterparty/commitRevealBundle';
 import type {
   AcceptExactOfferIntentClaim,
   FundPolicyOfferIntentClaim,
@@ -40,19 +46,26 @@ import { fromSatoshis } from '@/core/numeric';
 import type { ZeldPackageParent } from '@/core/zeld/signRequestZeld';
 
 export interface PsbtBundleApprovalInput {
-  bundleKind: 'acceptance-cpfp' | MarketplaceBatchKind;
+  bundleKind: 'acceptance-cpfp' | 'commit-and-reveal' | MarketplaceBatchKind;
   items: Array<{
     psbtHex: string;
     signInputs: Record<string, number[]>;
     sighashTypes: number[];
-    marketplaceIntent: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim;
+    marketplaceIntent: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim | CommitRevealIntentClaim;
   }>;
+  /** The address the request was made for, which signs a `commit-and-reveal` pair. */
+  address?: string;
 }
 
 export type DecodedPsbtBundleItem = DecodedPsbtInfo | {
   psbtDetails: ReturnType<typeof extractPsbtDetails>;
   txid?: string;
   marketplaceReview?: MarketplaceApprovalReview;
+  /**
+   * A `commit-and-reveal` reveal's envelope leaf, hex, when the pair proved: its message is the one
+   * the commit's review shows, so this leaf on input 0 is a shown leaf (`envelopeLeafGuard.ts`).
+   */
+  shownEnvelopeLeaf?: string;
 };
 
 export interface DecodedPsbtBundleInfo {
@@ -331,6 +344,67 @@ async function decodeFundAndAuthorize(
   return [fund, ...authorizations];
 }
 
+/**
+ * Decode a `commit-and-reveal` pair (`commitRevealBundle.ts`). The pair is proved from its own bytes
+ * first; the commit is then decoded with the reveal, as it will be signed, standing in for the
+ * reveal a site would hold, so its review shows the envelope's message as the commit's Counterparty
+ * action with every message check (and any marketplace intent) applied. The reveal carries no
+ * analysis of its own: everything it publishes and pays is part of that review and of the proof.
+ */
+async function decodeCommitAndReveal(
+  stored: PsbtBundleApprovalInput,
+  ownedAddresses: string[] | undefined,
+): Promise<DecodedPsbtBundleInfo> {
+  const [commitItem, revealItem] = stored.items;
+  if (!commitItem || !revealItem || stored.items.length !== 2 || !stored.address) {
+    throw new Error('commit-and-reveal must contain exactly two transactions');
+  }
+  const source = stored.address;
+  const proof = proveCommitAndReveal(commitItem, revealItem, source);
+  const blockers: string[] = [];
+  const retry: string[] = [];
+  // Only Core 11.5 attributes a reveal to the key that signed it; an older node reads the chain
+  // differently, so the pair is not signed against it.
+  try {
+    const status = await getCounterpartyFeatureStatus('taprootReveals');
+    if (!status.supported) blockers.push(status.reason ?? 'the Counterparty API does not support Taproot reveals');
+  } catch {
+    retry.push('the Counterparty API version could not be checked');
+  }
+  const intent = commitItem.marketplaceIntent;
+  const marketplaceIntent = intent.standard === 'counterparty-marketplace' && intent.action !== 'bump_acceptance_fee'
+    ? intent as MarketplaceIntentClaimV1
+    : undefined;
+  const commit = await decodePsbtForApproval(
+    commitItem.psbtHex,
+    Object.keys(commitItem.signInputs),
+    Object.values(commitItem.signInputs).flat(),
+    commitItem.sighashTypes,
+    undefined,
+    'counterparty',
+    undefined,
+    marketplaceIntent,
+    ownedAddresses,
+    proof.evidence ? { counterpartyReveal: proof.evidence.placeholderRevealHex } : {},
+  );
+  const reveal = extractPsbtDetails(revealItem.psbtHex);
+  const review = commitRevealReview({
+    proof,
+    blockers,
+    retry,
+    messageShown: commit.verifiedCommit?.kind === 'reveal' && !!commit.verification.localUnpack?.success,
+    messageDescription: commit.counterpartyMessage?.description
+      ?? commit.verification.localUnpack?.messageType,
+    marketplaceReview: commit.marketplaceReview,
+  });
+  const shownEnvelopeLeaf = review.status === 'proved' || review.status === 'caution'
+    ? proof.evidence?.envelopeHex : undefined;
+  return {
+    items: [commit, { psbtDetails: reveal, txid: reveal.transactionId, ...(shownEnvelopeLeaf ? { shownEnvelopeLeaf } : {}) }],
+    review,
+  };
+}
+
 export async function decodePsbtBundleForApproval(
   stored: PsbtBundleApprovalInput,
   ownedAddresses?: string[],
@@ -338,6 +412,7 @@ export async function decodePsbtBundleForApproval(
   /** The verified requesting origin and clock for policy offers; the wallet clock unless a test sets it. */
   policyOfferContext: Omit<PolicyOfferWalletContext, 'fundingSettlement'> = {},
 ): Promise<DecodedPsbtBundleInfo> {
+  if (stored.bundleKind === 'commit-and-reveal') return decodeCommitAndReveal(stored, ownedAddresses);
   if (stored.bundleKind === 'acceptance-cpfp') {
     if (stored.items.length !== 2) {
       throw new Error('Exact acceptance fee-bump bundle must contain two transactions');

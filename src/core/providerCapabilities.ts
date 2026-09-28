@@ -31,6 +31,8 @@ export interface ProviderPsbtSigningCapabilities {
 }
 
 /**
+ * `commit-and-reveal`: [commit, unsigned reveal] of a Taproot-encoded Counterparty message; the
+ * wallet signs the commit and then the reveal with the source key (commitRevealBundle.ts).
  * `attach-and-list`: [attach_for_listing, create_listing], the listing proved from the attach.
  * `authorize-offers`: 1..8 authorize_exact_offer items sharing one bidder funding outpoint.
  * `fund-and-authorize-offers`: one fund_offers then 1..7 authorize_exact_offer items that spend one
@@ -41,7 +43,7 @@ export interface ProviderPsbtSigningCapabilities {
 export type MarketplaceBundleCapability = Extract<
   MarketplaceBatchKind,
   'attach-and-list' | 'authorize-offers' | 'fund-and-authorize-offers' | 'fund-policy-offer'
->;
+> | 'commit-and-reveal';
 
 /** All need a software signer: the listing signs SINGLE|ANYONECANPAY over an unsigned buyer
  * placeholder, an exact offer leaves the seller's input unsigned for the seller, and a policy-offer
@@ -54,9 +56,23 @@ const SOFTWARE_MARKETPLACE_BUNDLES = [
  * The bundles a software wallet of this format can prove. fund-and-authorize-offers' authorizations
  * spend the funding's unsigned txid, which is its final txid only for a P2WPKH or P2TR funder.
  */
-const softwareMarketplaceBundles = (format: AddressFormat): MarketplaceBundleCapability[] =>
-  SOFTWARE_MARKETPLACE_BUNDLES.filter(kind =>
-    kind !== 'fund-and-authorize-offers' || format === AddressFormat.P2WPKH || format === AddressFormat.P2TR);
+const softwareMarketplaceBundles = (format: AddressFormat, taprootReveals: boolean): MarketplaceBundleCapability[] => {
+  const segwit = format === AddressFormat.P2WPKH || format === AddressFormat.P2TR;
+  const bundles: MarketplaceBundleCapability[] = SOFTWARE_MARKETPLACE_BUNDLES.filter(kind =>
+    kind !== 'fund-and-authorize-offers' || segwit);
+  // Core 11.5 returns an unsigned reveal the wallet signs with the source key, which Core composes
+  // only for a P2WPKH or P2TR source, and attributes to that key only from API 11.5.
+  return segwit && taprootReveals ? [...bundles, 'commit-and-reveal'] : bundles;
+};
+
+/** What the wallet learned about its Counterparty API, for the capabilities that depend on it. */
+export interface ProviderApiCapabilities {
+  /**
+   * The API is Counterparty 11.5 or newer (`taprootReveals`). Only a positive answer counts: when
+   * the version could not be read, the bundles that need it are not advertised.
+   */
+  taprootReveals?: boolean;
+}
 
 export interface ProviderPsbtSigningRequestShape {
   inputCount: number;
@@ -159,6 +175,7 @@ export function assertProviderPsbtSigningRequest(
  */
 export function providerPsbtSigningCapabilities(
   wallet: Pick<Wallet, 'type' | 'addressFormat'>,
+  api: ProviderApiCapabilities = {},
 ): ProviderPsbtSigningCapabilities {
   if (wallet.type !== 'hardware') {
     return {
@@ -180,7 +197,7 @@ export function providerPsbtSigningCapabilities(
         externalInputs: 'any',
         maxRequests: MAX_MARKETPLACE_BATCH_REQUESTS,
         maxPolicyOfferAlternatives: MAX_POLICY_ALTERNATIVES,
-        marketplaceBundles: softwareMarketplaceBundles(wallet.addressFormat),
+        marketplaceBundles: softwareMarketplaceBundles(wallet.addressFormat, api.taprootReveals === true),
       },
     };
   }
@@ -201,7 +218,8 @@ export function providerPsbtSigningCapabilities(
       maxRequests: supported ? MAX_MARKETPLACE_BATCH_REQUESTS : 0,
       maxPolicyOfferAlternatives: 0,
       // Every hardware wallet's batch contract requires external inputs to be pre-signed and
-      // accepts only SIGHASH_ALL, which neither linked bundle can satisfy.
+      // accepts only SIGHASH_ALL, which neither linked bundle can satisfy; nor does it sign a
+      // Taproot reveal's script path.
       marketplaceBundles: [],
     },
   };

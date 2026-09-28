@@ -8,6 +8,6 @@
       "@e2e/*": ["./*"]
     }
   },
-  "include": ["./**/*.ts"],
+  "include": ["./**/*.ts", "../.wxt/wxt.d.ts"],
   "exclude": []
 }

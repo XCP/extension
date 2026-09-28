@@ -6561,6 +6561,63 @@
   "psbts_approve_fund_and_authorize_offers": {
     "message": "為出價準備資金並授權"
   },
+  "commit_reveal_title": {
+    "message": "發布 Counterparty 訊息"
+  },
+  "commit_reveal_message": {
+    "message": "訊息"
+  },
+  "commit_reveal_published_from": {
+    "message": "發布地址"
+  },
+  "commit_reveal_commit_fee": {
+    "message": "提交手續費"
+  },
+  "commit_reveal_commit_fee_description": {
+    "message": "第一筆交易的網路手續費，該交易為第二筆交易提供資金"
+  },
+  "commit_reveal_reveal_fee": {
+    "message": "揭示手續費"
+  },
+  "commit_reveal_reveal_fee_description": {
+    "message": "從第一筆交易預留的 $1 中支付"
+  },
+  "commit_reveal_signing": {
+    "message": "簽名"
+  },
+  "commit_reveal_signing_detail": {
+    "message": "你地址的金鑰為兩筆交易簽名。第二筆交易發布訊息，且僅在第一筆之後有效。"
+  },
+  "commit_reveal_reveal_output": {
+    "message": "揭示輸出 $1"
+  },
+  "commit_reveal_output_marker": {
+    "message": "Counterparty 標記，無金額"
+  },
+  "commit_reveal_output_unknown": {
+    "message": "$1 支付到無法以地址表示的腳本"
+  },
+  "commit_reveal_output_yours": {
+    "message": "$1 返回你的地址"
+  },
+  "commit_reveal_output_burn": {
+    "message": "$1 支付到銷毀地址：任何人都無法花費"
+  },
+  "commit_reveal_output_external": {
+    "message": "$1 支付到不屬於你的地址"
+  },
+  "psbts_approve_publish_message": {
+    "message": "發布訊息"
+  },
+  "psbts_approve_sign_both": {
+    "message": "簽署兩筆"
+  },
+  "psbts_approve_commit_transaction": {
+    "message": "提交"
+  },
+  "psbts_approve_reveal_transaction": {
+    "message": "揭示"
+  },
   "psbts_approve_fund_and_authorize_1_offer": {
     "message": "為 1 個出價準備資金並授權"
   },

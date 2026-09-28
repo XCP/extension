@@ -600,10 +600,14 @@ Build the reveal before asking for the commit, and ask for both in the same flow
 
 ##### Taproot commits and reveals
 
-A site that builds and signs the reveal itself, such as one using Counterparty's own Taproot
-compose (which generates the reveal key, discards it, and returns the reveal signed as
-`signed_reveal_rawtransaction`), sends that reveal with the commit, so the wallet can show the
-message before the user signs the commit.
+Counterparty Core 11.5 returns an unsigned reveal the wallet signs with the source key. Send such a
+compose as a [`commit-and-reveal`](#commit-and-reveal) bundle through `xcp_signPsbts`: the wallet
+shows the message and signs both transactions.
+
+The `reveal` parameter below takes a reveal that is already signed. From Core 11.5 a reveal
+publishes its message only when the source address's key closes the envelope and signed it, so the
+wallet accepts a signed reveal only in that case; any other, including one signed with a key the
+composer discarded (`signed_reveal_rawtransaction` before 11.5), is blocked with the reason.
 
 ```js
 // tmpData is Counterparty's compose response with encoding=taproot
@@ -743,9 +747,10 @@ per-origin paired-address permission, exact-output proof, or attached-asset chec
 #### `xcp_signPsbts`
 
 Sign linked marketplace PSBTs in one approval: 1..8 requests, or 1..100 for a `fund-policy-offer`
-set. Every request carries a `counterparty-marketplace` intent, explicit `signInputs`, and a
-`sighashTypes` entry for each signed input: `SIGHASH_ALL` or `SINGLE|ANYONECANPAY`, or
-`SIGHASH_DEFAULT` from a Taproot signer. The wallet admits only the bundle kinds below, proves every item
+set. Every request carries a `counterparty-marketplace` intent (a
+[`commit-and-reveal`](#commit-and-reveal) pair carries its own claims instead), explicit
+`signInputs`, and a `sighashTypes` entry for each signed input: `SIGHASH_ALL` or
+`SINGLE|ANYONECANPAY`, or `SIGHASH_DEFAULT` from a Taproot signer or on a reveal. The wallet admits only the bundle kinds below, proves every item
 against its own bytes first, and returns **all signatures or none** (a later signer failure
 discards earlier signatures before anything is returned).
 
@@ -768,15 +773,19 @@ const result = await xcpwallet.request({
 | `authorize-offers` | 1..8 `authorize_exact_offer` | One bidder, funding outpoint, delivery, price, and fee; distinct targets. |
 | `fund-and-authorize-offers` | `[fund_offers, authorize_exact_offer × 1..7]` | As `authorize-offers`, and the shared funding outpoint is a set-aside output of the unbroadcast funding in the same review, read from its bytes. |
 | `acceptance-cpfp` | `[accept_exact_offer, bump_acceptance_fee]` | The child spends exactly the proved parent's seller output 1. |
+| `commit-and-reveal` | `[commit, sign_reveal]` | The reveal spends exactly the commit's output 0 through the one envelope that output commits to, closed by the signer's key; the message is decoded and shown, and every reveal output is listed. |
 | `fund-policy-offer` | 1..100 `fund_policy_offer` alternatives | One bidder, keys, delivery, funding set, and anchor; distinct parent transactions, at most one of which can confirm. |
 | `bulk-listing`, `bulk-attach`, `prepare-assets` | 1..8 of one action | One seller identity; distinct targets. |
 | `bulk-fanout` | 1..5 `prepare_bulk_fanout` | One seller and operation; ordered batch indices; distinct funding outpoints. |
 
 **Advertised bundles.** `xcp_getAddresses` reports the linked kinds this wallet can prove at
 `signing.psbtBatch.marketplaceBundles`: currently `["attach-and-list", "authorize-offers",
-"fund-and-authorize-offers", "fund-policy-offer"]` for a P2WPKH or Taproot software wallet, the same
-without `fund-and-authorize-offers` for other software wallets, and `[]` for a hardware wallet,
-whose batch contract accepts only `SIGHASH_ALL` with every external input pre-signed.
+"fund-and-authorize-offers", "fund-policy-offer"]` for a P2WPKH or Taproot software wallet, plus
+`"commit-and-reveal"` when its Counterparty API is 11.5 or newer; the same without
+`fund-and-authorize-offers` for other software wallets; and `[]` for a hardware wallet, whose batch
+contract accepts only `SIGHASH_ALL` with every external input pre-signed. `commit-and-reveal` is
+listed only when the wallet read its API's version during the call; a version it could not read
+counts as older.
 `signing.psbtBatch.maxPolicyOfferAlternatives` gives the largest `fund-policy-offer` set (100 for a
 software wallet, 0 when unsupported). Send a linked bundle only when its kind is listed; an older
 wallet proves each item alone and blocks a listing whose input is its sibling attach's output.
@@ -852,6 +861,97 @@ seller-proceeds output 1, checked against the parent's own bytes: its locally co
 that output's value and owner. Every parent input must be P2WPKH or P2TR, because the child spends
 the parent's unsigned txid, which is its final txid only then. This kind is recognized by its shape
 (two requests, the first an `accept_exact_offer`) and is not listed in `marketplaceBundles`.
+
+##### `commit-and-reveal`
+
+A Counterparty message composed with Taproot encoding (an inscription, or a message too long for an
+`OP_RETURN`) is two transactions: the *commit*, which pays a P2TR output committing to an envelope
+leaf that carries the message, and the *reveal*, which spends that output through the leaf and
+publishes the message. Counterparty Core 11.5 returns an unsigned reveal the wallet signs with the
+source key: the envelope is closed by the source address's key, and Core records the message from
+that address only when that key signed the reveal. A site that composes such a message, through
+Core or with its own envelope builder, sends both transactions in one request, and the wallet signs
+both.
+
+Send it only when `marketplaceBundles` lists `commit-and-reveal`: a software wallet whose active
+address is P2WPKH or P2TR, against a Counterparty API 11.5 or newer. Anything else is refused with
+`-32602` before any approval opens.
+
+```js
+// Built from Core 11.5's compose response with encoding=taproot for the active address (multisig_pubkey
+// set to the address's public key from xcp_getAddresses closes the envelope with it), or by the site.
+const { hexes } = await xcpwallet.request({
+  method: 'xcp_signPsbts',
+  params: [{
+    requests: [
+      {
+        // The commit: result.rawtransaction as a PSBT, every input with its witnessUtxo
+        // (result.lock_scripts / result.inputs_values).
+        hex: commitPsbtHex,
+        signInputs: { [address]: [0, 1] },     // every input, all the active address's
+        sighashTypes: [0x01, 0x01],            // ALL; DEFAULT (0x00) or ALL from a Taproot address
+        // intent: optional counterparty-marketplace claim, when the message is a marketplace action
+      },
+      {
+        // The reveal. Input 0 spends commitTxid:0 with witnessUtxo = commit output 0 and one
+        // tapLeafScript: [control block, envelope + 'c0']. From a Core compose: result.reveal_rawtransaction,
+        // result.reveal_lock_scripts[0] / result.reveal_inputs_values[0], result.reveal_control_block,
+        // result.envelope_script.
+        hex: revealPsbtHex,
+        signInputs: { [address]: [0] },
+        sighashTypes: [0x00],                  // SIGHASH_DEFAULT, or SIGHASH_ALL (0x01)
+        intent: { standard: 'counterparty-reveal', version: 1, action: 'sign_reveal' }
+      }
+    ]
+  }]
+});
+// hexes = [signedCommitPsbt, signedRevealPsbt]. Finalize both; broadcast the commit, then the reveal.
+```
+
+The pair is recognized by its shape: exactly two requests, the second carrying the `sign_reveal`
+claim (exactly `{ standard: 'counterparty-reveal', version: 1, action: 'sign_reveal' }`). The first
+request's `intent` may be omitted, may be `{ standard: 'counterparty-reveal', version: 1, action:
+'fund_commit' }`, or may be a `counterparty-marketplace` intent when the message is a marketplace
+action; the wallet then proves the decoded message against it exactly as for a single request.
+`fund_policy_offer` and `accept_exact_offer` cannot fund a commit.
+
+**What the wallet proves**, before either transaction is signed; any failure blocks both:
+
+- the commit is funded only by the active address: every input P2WPKH or P2TR with its
+  `witnessUtxo` (so the commit's unsigned txid is its final txid), every input requested and signed
+  `SIGHASH_ALL` (or `SIGHASH_DEFAULT` for P2TR), none already signed or carrying a script path. It
+  carries no Counterparty payload of its own, and its output 0 is P2TR. Every prevout is re-read
+  from its parent transaction, as for any request;
+- the reveal has one input, spending `commitTxid:0`, whose `witnessUtxo` is exactly commit output 0.
+  It carries exactly one tapleaf (the envelope, leaf version `0xc0`) and nothing signed, and asks the
+  active address to sign input 0 alone with `SIGHASH_DEFAULT` or `SIGHASH_ALL` (an embedded
+  `sighashType` must agree);
+- the envelope passes Core 11.5's source-signature rule against commit output 0: it is a canonical
+  envelope (`OP_FALSE OP_IF <pushes> OP_ENDIF <32-byte key> OP_CHECKSIG`, nothing else), the control
+  block supplied commits it to that output as its only leaf (no merkle path), and its key is a key
+  of the active address (its x-only key, or a Taproot address's internal or output key). The
+  output's internal key must be that key, a key of the active address, or the BIP-341 unspendable
+  point, so no one else can spend the output around the reveal. The envelope need not be Core's
+  byte for byte: an ord envelope with `xcp` metadata (extra tags such as properties are ignored, as
+  Core ignores them) or a plain data envelope, as long as it decodes to a Counterparty message;
+- the reveal carries the bare zero-value `CNTRPRTY` marker. Its other outputs are the site's to
+  build (for example an inscription's dust); its fee, the commit output's value less every output,
+  must be at a sane rate, and a rate far above the network's blocks;
+- the Counterparty API is 11.5 or newer.
+
+**What the approval shows**: the decoded message, as the wallet shows any message it signs, the
+address it is published from, the commit's network fee, the reveal's fee, and every reveal output:
+the marker, value back to the active address, value to a well-known burn address (named as
+unspendable), value to another address, or value to a script no address describes. A reveal that
+pays anything outside the wallet takes the review step.
+
+**Signing** is all-or-nothing, under one signing guard. The commit is signed first and must
+finalize to exactly the txid the reveal spends; then the reveal's input 0 is signed by script path
+with the source key (the tweaked key for a Taproot output key), with the requested sighash, held
+once more to Core's rule against commit output 0 as signed. A lock, wallet switch or address change at any point returns
+nothing. The reveal comes back with its signature as the input's `tapScriptSig` on the envelope
+leaf, the commit with ordinary partial signatures; neither is finalized. A hardware wallet does not
+sign a reveal, and the bundle is neither listed nor admitted for one.
 
 ##### `fund-policy-offer`
 

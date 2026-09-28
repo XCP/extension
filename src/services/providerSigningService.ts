@@ -14,6 +14,7 @@ import { decodePsbtBundleForApproval } from '@/core/bitcoin/psbtBundleApprovalDe
 import { PrevoutMismatchError } from '@/core/bitcoin/psbtPrevouts';
 import { decodeTransactionForApproval } from '@/core/bitcoin/transactionApprovalDecoder';
 import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
+import { isStoredRevealIntent } from '@/core/counterparty/commitRevealBundle';
 import { maxMarketplaceBatchRequests } from '@/core/counterparty/marketplaceBatch';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { SigningError } from '@/core/errors';
@@ -139,9 +140,16 @@ export function createProviderSigningService(): ProviderSigningService {
       const items = request.kind === 'sign-psbt' ? [request] : onlyItem ? [onlyItem] : request.items;
       for (const item of items) {
         const details = parsedDetails(parsed, item.psbtHex);
+        // A commit-and-reveal bundle's reveal spends an output no one owns yet, through a leaf
+        // closed by the signer's key in whatever form Core chose; the bundle proof ties that key to
+        // the signer, so here only the signer itself is checked.
+        const reveal = request.kind === 'sign-psbts' && request.bundleKind === 'commit-and-reveal'
+          && 'marketplaceIntent' in item && isStoredRevealIntent(item.marketplaceIntent);
         if (item.signInputs !== undefined) {
-          const ownership = validateSignInputs(item.signInputs, allowed, details.inputs.length,
-            details.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address));
+          const ownership = reveal
+            ? validateSignInputs(item.signInputs, [request.address], details.inputs.length)
+            : validateSignInputs(item.signInputs, allowed, details.inputs.length,
+              details.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address));
           if (!ownership.valid) throw new Error(ownership.error);
         }
         if (item.sighashTypes) {
@@ -243,7 +251,13 @@ export function createProviderSigningService(): ProviderSigningService {
           ...decoded,
           items: decoded.items.map((item, index) => {
             if ('safety' in item) return withEnvelopeLeafGuard(item, keys);
-            const inputs = unshownKeyLeafInputs(item.psbtDetails, keys);
+            // A proved commit-and-reveal's reveal publishes the message the commit's review shows:
+            // its one envelope leaf on input 0 is shown, and nothing else is.
+            const shown = item.shownEnvelopeLeaf?.toLowerCase();
+            const inputs = unshownKeyLeafInputs(item.psbtDetails, keys).filter(index => !(
+              shown !== undefined && index === 0 && item.psbtDetails.inputs.length === 1
+              && item.psbtDetails.inputs[0]?.tapLeafScripts?.length === 1
+              && item.psbtDetails.inputs[0].tapLeafScripts[0]!.toLowerCase() === shown));
             if (inputs.length > 0) {
               const warning = unshownEnvelopeWarning(inputs);
               unanalyzedBlocks.push({ ...warning, title: `Transaction ${index + 1}: ${warning.title}` });
@@ -270,6 +284,25 @@ export function createProviderSigningService(): ProviderSigningService {
     // the fee policy decision, rather than that volatile quote, in the digest.
     const { fastestFee: _quote, ...facts } = review;
     return { ...review, reviewKey: fingerprintReview({ facts, strictMode }) } as ProviderSigningReview;
+  }
+
+  /**
+   * Both transactions of a commit-and-reveal bundle, in one wallet call under one signing guard
+   * (`WalletSigner.signCommitAndRevealPsbts`): the commit, then the reveal with the source key.
+   */
+  async function signCommitAndReveal(
+    request: SignPsbtsRequest,
+    parsed: PsbtDetailsCache,
+    identity: SigningIdentity,
+  ): Promise<string[]> {
+    const [commit, reveal] = request.items;
+    if (!commit || !reveal || request.items.length !== 2 || !isStoredRevealIntent(reveal.marketplaceIntent)) {
+      throw new ProviderReviewError('verification_failed');
+    }
+    await assertAuthorization(request, commit, parsed);
+    await assertAuthorization(request, reveal, parsed);
+    return getWalletService().signCommitAndRevealPsbts(commit, reveal.psbtHex, request.address, identity,
+      reveal.sighashTypes[0]);
   }
 
   async function execute(requestId: string, decision: SigningDecision): Promise<void> {
@@ -323,7 +356,9 @@ export function createProviderSigningService(): ProviderSigningService {
               packageTransactions && index > 0 ? { packageTransactions } : undefined);
           };
           const attach = request.items[0]?.marketplaceIntent;
-          const signedPsbtHexes = request.bundleKind === 'attach-and-list'
+          const signedPsbtHexes = request.bundleKind === 'commit-and-reveal'
+            ? await signCommitAndReveal(request, parsed, identity)
+            : request.bundleKind === 'attach-and-list'
             ? await signAttachAndListingForDelivery(request.items,
               attach?.action === 'attach_for_listing' ? attach.expectedAttachedOutpoint
                 : (() => { throw new ProviderReviewError('missing_attachment'); })(), sign)

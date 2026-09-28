@@ -330,7 +330,8 @@ export interface MarketplaceApprovalReview {
     | 'fund_offers'
     | 'fund_policy_offer'
     | 'accept_policy_offer'
-    | 'marketplace_batch';
+    | 'marketplace_batch'
+    | 'commit_and_reveal';
   title: string;
   facts: ProtocolField[];
   notices: Array<{ severity: 'info' | 'warning' | 'danger'; message: string }>;

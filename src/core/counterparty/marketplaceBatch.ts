@@ -47,7 +47,7 @@ export type MarketplaceBatchKind = typeof MARKETPLACE_BATCH_KINDS[number];
 export const MAX_MARKETPLACE_BATCH_REQUESTS = 8;
 
 /** How many requests one phase of this kind may carry. */
-export const maxMarketplaceBatchRequests = (kind: MarketplaceBatchKind | 'acceptance-cpfp'): number =>
+export const maxMarketplaceBatchRequests = (kind: MarketplaceBatchKind | 'acceptance-cpfp' | 'commit-and-reveal'): number =>
   kind === 'fund-policy-offer' ? MAX_POLICY_ALTERNATIVES : MAX_MARKETPLACE_BATCH_REQUESTS;
 
 const batchIdentity = (intent: MarketplaceBatchIntent): string =>

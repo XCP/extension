@@ -8732,6 +8732,82 @@
     "message": "Fund and Authorize Offers",
     "description": "pages/requests/psbts/approve.tsx. Header title of the batch screen where the bidder sets aside offer funding (paid now) and signs exact offers backed by it, in one review."
   },
+  "commit_reveal_title": {
+    "message": "Publish a Counterparty message",
+    "description": "core/counterparty/commitRevealBundle.ts. Title of the review card when a site asks the wallet to sign a Taproot-encoded Counterparty message as two transactions: a commit that funds it and a reveal that publishes it."
+  },
+  "commit_reveal_message": {
+    "message": "Message",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label; the value is the decoded Counterparty message the two transactions publish."
+  },
+  "commit_reveal_published_from": {
+    "message": "Published from",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label; the value is the user's address, which signs both transactions and from which Counterparty records the message."
+  },
+  "commit_reveal_commit_fee": {
+    "message": "Commit fee",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label; the value is the Bitcoin network fee of the first (commit) transaction, in sats."
+  },
+  "commit_reveal_commit_fee_description": {
+    "message": "Network fee of the first transaction, which funds the second",
+    "description": "core/counterparty/commitRevealBundle.ts. Supporting text under \"Commit fee\"."
+  },
+  "commit_reveal_reveal_fee": {
+    "message": "Reveal fee",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label; the value is the Bitcoin network fee of the second (reveal) transaction, in sats."
+  },
+  "commit_reveal_reveal_fee_description": {
+    "message": "Paid from the $1 the first transaction sets aside",
+    "description": "core/counterparty/commitRevealBundle.ts. Supporting text under \"Reveal fee\". $1 = the value of the commit output the reveal spends, already formatted, e.g. \"1,234 sats\"."
+  },
+  "commit_reveal_signing": {
+    "message": "Signing",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label for the paragraph that explains what the two signatures do."
+  },
+  "commit_reveal_signing_detail": {
+    "message": "Your address's key signs both transactions. The second publishes the message and is valid only after the first.",
+    "description": "core/counterparty/commitRevealBundle.ts. Paragraph under \"Signing\" on the review of a two-transaction Taproot message."
+  },
+  "commit_reveal_reveal_output": {
+    "message": "Reveal output $1",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label, one per output of the second (reveal) transaction of a Taproot message. $1 = the output's index (0, 1, ...)."
+  },
+  "commit_reveal_output_marker": {
+    "message": "Counterparty marker, no value",
+    "description": "core/counterparty/commitRevealBundle.ts. Value of a \"Reveal output\" fact for the zero-value OP_RETURN output that marks the transaction as Counterparty's."
+  },
+  "commit_reveal_output_unknown": {
+    "message": "$1 to a script no address describes",
+    "description": "core/counterparty/commitRevealBundle.ts. Value of a \"Reveal output\" fact for an output whose script is not a standard address. $1 = the amount, already formatted, e.g. \"330 sats\"."
+  },
+  "commit_reveal_output_yours": {
+    "message": "$1 back to your address",
+    "description": "core/counterparty/commitRevealBundle.ts. Supporting text under a reveal output that pays the user's own address. $1 = the amount, already formatted, e.g. \"546 sats\"."
+  },
+  "commit_reveal_output_burn": {
+    "message": "$1 to a burn address: no one can spend it",
+    "description": "core/counterparty/commitRevealBundle.ts. Supporting text under a reveal output that pays a well-known burn address, so the amount is gone for good. $1 = the amount, already formatted, e.g. \"330 sats\"."
+  },
+  "commit_reveal_output_external": {
+    "message": "$1 to an address that is not yours",
+    "description": "core/counterparty/commitRevealBundle.ts. Supporting text under a reveal output that pays someone else's address. $1 = the amount, already formatted, e.g. \"330 sats\"."
+  },
+  "psbts_approve_publish_message": {
+    "message": "Publish Message",
+    "description": "pages/requests/psbts/approve.tsx. Header title of the screen where a site asks the wallet to sign the two transactions of a Taproot-encoded Counterparty message."
+  },
+  "psbts_approve_sign_both": {
+    "message": "Sign Both",
+    "description": "pages/requests/psbts/approve.tsx. Sign button on the two-transaction Taproot message screen; signs the commit and the reveal together."
+  },
+  "psbts_approve_commit_transaction": {
+    "message": "Commit",
+    "description": "pages/requests/psbts/approve.tsx. Name of the first transaction in the list of a two-transaction Taproot message: the one that funds the second."
+  },
+  "psbts_approve_reveal_transaction": {
+    "message": "Reveal",
+    "description": "pages/requests/psbts/approve.tsx. Name of the second transaction in the list of a two-transaction Taproot message: the one that publishes the message."
+  },
   "psbts_approve_fund_and_authorize_1_offer": {
     "message": "Fund and authorize 1 offer",
     "description": "pages/requests/psbts/approve.tsx. Sign button for a fund-and-authorize batch holding one exact offer; signing also funds it now."
