@@ -44,7 +44,7 @@ export default function PinnedAssetsPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('common_pinned_assets'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(PATHS.HELP_URL, "_blank"),
@@ -87,7 +87,7 @@ export default function PinnedAssetsPage(): ReactElement {
       setPinnedAssets(newPinnedAssets);
       // Use the settings context directly to ensure proper update
       await updateSettings({ pinnedAssets: newPinnedAssets });
-      analytics.track('asset_pinned');
+      void analytics.track('asset_pinned');
       // Don't clear search or reset UI state - maintain the search experience
     } catch (err) {
       console.error("Error adding asset:", err);
@@ -102,7 +102,7 @@ export default function PinnedAssetsPage(): ReactElement {
       setPinnedAssets(newPinnedAssets);
       // Use the settings context directly to ensure proper update
       await updateSettings({ pinnedAssets: newPinnedAssets });
-      analytics.track('asset_unpinned');
+      void analytics.track('asset_unpinned');
       // Don't clear search or reset UI state - maintain the search experience
     } catch (err) {
       console.error("Error removing asset:", err);
@@ -152,7 +152,7 @@ export default function PinnedAssetsPage(): ReactElement {
       <PinnableAssetCard
         symbol={asset.symbol}
         isPinned={isPinned}
-        onPinToggle={handlePinToggle}
+        onPinToggle={(symbol) => void handlePinToggle(symbol)}
       />
     );
   };
@@ -165,10 +165,10 @@ export default function PinnedAssetsPage(): ReactElement {
       <PinnableAssetCard
         symbol={symbol}
         isPinned={true}
-        onPinToggle={handleRemoveAsset}
+        onPinToggle={(symbol) => void handleRemoveAsset(symbol)}
         showArrows={true}
-        onMoveUp={!isFirst ? () => moveAsset(index, 'up') : undefined}
-        onMoveDown={!isLast ? () => moveAsset(index, 'down') : undefined}
+        onMoveUp={!isFirst ? () => void moveAsset(index, 'up') : undefined}
+        onMoveDown={!isLast ? () => void moveAsset(index, 'down') : undefined}
       />
     );
   };

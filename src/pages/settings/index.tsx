@@ -55,12 +55,14 @@ export default function SettingsPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('common_settings'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
-        onClick: async () => {
-          await lockKeychain();
-          navigate("/keychain/unlock");
+        onClick: () => {
+          lockKeychain().then(
+            () => void navigate("/keychain/unlock"),
+            (err: unknown) => console.error('Failed to lock keychain:', err),
+          );
         },
         ariaLabel: t('common_lock_keychain'),
       },
@@ -92,25 +94,25 @@ export default function SettingsPage(): ReactElement {
           id: "advanced",
           title: t('common_advanced'),
           description: t('settings_network_settings_and_developer_options'),
-          onClick: () => navigate(PATHS.ADVANCED),
+          onClick: () => void navigate(PATHS.ADVANCED),
         },
         {
           id: "connectedSites",
           title: t('common_connected_sites'),
           description: t('settings_manage_website_connections'),
-          onClick: () => navigate(PATHS.CONNECTED_SITES),
+          onClick: () => void navigate(PATHS.CONNECTED_SITES),
         },
         {
           id: "pinnedAssets",
           title: t('common_pinned_assets'),
           description: t('settings_manage_assets_pinned_to_your'),
-          onClick: () => navigate(PATHS.PINNED_ASSETS),
+          onClick: () => void navigate(PATHS.PINNED_ASSETS),
         },
         {
           id: "security",
           title: t('common_security'),
           description: t('settings_change_your_wallet_password'),
-          onClick: () => navigate(PATHS.SECURITY),
+          onClick: () => void navigate(PATHS.SECURITY),
         },
       ],
     },
@@ -158,7 +160,7 @@ export default function SettingsPage(): ReactElement {
           <div className="mt-8 mb-4">
             <Button
               color="red"
-              onClick={() => navigate(PATHS.RESET_WALLET)}
+              onClick={() => void navigate(PATHS.RESET_WALLET)}
               fullWidth
             >
               {t('common_reset_wallet')}

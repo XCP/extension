@@ -73,7 +73,7 @@ export default function AddressesPage(): ReactElement {
 
     try {
       if (keychainLocked) {
-        navigate(PATHS.UNLOCK, {
+        void navigate(PATHS.UNLOCK, {
           state: { returnTo: PATHS.SELECT, walletId: activeWallet.id },
         });
         return;
@@ -155,8 +155,8 @@ export default function AddressesPage(): ReactElement {
   const handleSelectAddress = useCallback(async (address: Address) => {
     try {
       await setActiveAddress(address);
-      analytics.track('address_switched');
-      navigate(returnTo, { replace: true });
+      void analytics.track('address_switched');
+      void navigate(returnTo, { replace: true });
     } catch (err) {
       console.error("Failed to select address:", err);
       setError(t('addresses_failed_to_select_address_please'));
@@ -167,12 +167,12 @@ export default function AddressesPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('addresses'),
-      onBack: () => navigate(returnTo, { replace: true }),
+      onBack: () => void navigate(returnTo, { replace: true }),
       rightButton:
         activeWallet?.type === "mnemonic"
           ? {
               icon: <FaCog aria-hidden="true" />,
-              onClick: () => navigate("/settings/address-types", { state: { returnTo: PATHS.SELECT, returnState: { returnTo } } }),
+              onClick: () => void navigate("/settings/address-types", { state: { returnTo: PATHS.SELECT, returnState: { returnTo } } }),
               ariaLabel: t('addresses_change_address_type'),
             }
           : undefined,
@@ -192,18 +192,18 @@ export default function AddressesPage(): ReactElement {
         <AddressList
           addresses={activeWallet.addresses}
           selectedAddress={activeAddress}
-          onSelectAddress={handleSelectAddress}
+          onSelectAddress={(address) => void handleSelectAddress(address)}
           walletId={activeWallet.id}
           isHardwareWallet={activeWallet.type === 'hardware'}
-          onFindUtxoAddress={canHaveUtxoAddresses ? handleFindUtxoAddress : undefined}
-          onRemoveUtxoAddress={canHaveUtxoAddresses ? handleRemoveUtxoAddress : undefined}
+          onFindUtxoAddress={canHaveUtxoAddresses ? (address) => void handleFindUtxoAddress(address) : undefined}
+          onRemoveUtxoAddress={canHaveUtxoAddresses ? (address) => void handleRemoveUtxoAddress(address) : undefined}
         />
       </div>
       <div className="p-4">
         <Button
           color="green"
           fullWidth
-          onClick={handleAddAddress}
+          onClick={() => void handleAddAddress()}
           disabled={
             activeWallet.addresses.length >= MAX_ADDRESSES_PER_WALLET ||
             keychainLocked ||

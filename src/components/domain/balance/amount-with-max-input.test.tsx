@@ -184,7 +184,7 @@ describe('AmountWithMaxInput', () => {
 
   it('should show loading state aria-label while selecting UTXOs', async () => {
     const { selectUtxosForTransaction } = await import('@/core/counterparty/utxoSelection');
-    (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => {})); // Never resolves
+    (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {})); // Never resolves
 
     render(<AmountWithMaxInput {...defaultProps} asset="BTC" />);
 

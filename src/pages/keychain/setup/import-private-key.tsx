@@ -76,8 +76,8 @@ function ImportPrivateKeyPage() {
 
       try {
         await createPrivateKeyWallet(privateKey.trim(), password, undefined, addressFormat);
-        analytics.track('private_key_imported');
-        navigate(PATHS.SUCCESS);
+        void analytics.track('private_key_imported');
+        void navigate(PATHS.SUCCESS);
         return { error: null };
       } catch (error) {
         let errorMessage = t('setup_import_private_key_failed_to_import_private_key');
@@ -106,10 +106,10 @@ function ImportPrivateKeyPage() {
   useEffect(() => {
     setHeaderProps({
       title: t('setup_import_private_key_import_key'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FiX className="size-4" aria-hidden="true" />,
-        onClick: () => navigate(PATHS.SUCCESS),
+        onClick: () => void navigate(PATHS.SUCCESS),
         ariaLabel: t('common_close'),
       },
     });

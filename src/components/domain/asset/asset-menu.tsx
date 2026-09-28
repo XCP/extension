@@ -57,7 +57,7 @@ function AssetMenuItems({ ownedAsset }: AssetMenuProps): ReactElement {
   const { data: latestIssuance } = useAssetLatestIssuance(ownedAsset.asset);
 
   const handleAction = useCallback((path: string) => {
-    navigate(`/compose/${path}/${encodeURIComponent(ownedAsset.asset)}`);
+    void navigate(`/compose/${path}/${encodeURIComponent(ownedAsset.asset)}`);
   }, [navigate, ownedAsset.asset]);
 
   const allowed = reissueActions({

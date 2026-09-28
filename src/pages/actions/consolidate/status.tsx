@@ -21,7 +21,7 @@ function ConsolidateStatusPage() {
   useEffect(() => {
     setHeaderProps({
       title: t('consolidate_status_consolidation_status'),
-      onBack: () => navigate(-1),
+      onBack: () => void navigate(-1),
     });
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate]);
@@ -45,16 +45,16 @@ function ConsolidateStatusPage() {
   // fetchStatus is redefined every render; listing it would recreate the interval each time and
   // the 30s auto-refresh would never fire.
   useEffect(() => {
-    fetchStatus();
+    void fetchStatus();
     
     // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchStatus, 30000);
+    const interval = setInterval(() => void fetchStatus(), 30000);
     return () => clearInterval(interval);
   }, [activeAddress]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    fetchStatus();
+    void fetchStatus();
   };
 
   const openInExplorer = (txid: string) => {
@@ -214,7 +214,7 @@ function ConsolidateStatusPage() {
       <div className="flex space-x-3">
         {status.status.available_utxos > 0 && status.status.pending_utxos === 0 && (
           <Button
-            onClick={() => navigate('/actions/consolidate')}
+            onClick={() => void navigate('/actions/consolidate')}
             color="blue"
             fullWidth
           >
@@ -222,7 +222,7 @@ function ConsolidateStatusPage() {
           </Button>
         )}
         <Button
-          onClick={() => navigate('/')}
+          onClick={() => void navigate('/')}
           color="gray"
           fullWidth
         >

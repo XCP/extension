@@ -90,7 +90,7 @@ export function FairminterSelectInput({
     if (!/^[A-Z][A-Z0-9.]{2,}$/.test(name)) return;
 
     let cancelled = false;
-    const timer = setTimeout(async () => {
+    const lookUp = async () => {
       try {
         const found = await fetchAssetFairminter(name);
         if (cancelled || !found || !isFairminterMintableNow(found, blockHeight)) return;
@@ -100,7 +100,8 @@ export function FairminterSelectInput({
       } catch {
         // A miss is the common case — most names are simply not fairminters.
       }
-    }, 400);
+    };
+    const timer = setTimeout(() => void lookUp(), 400);
 
     return () => {
       cancelled = true;

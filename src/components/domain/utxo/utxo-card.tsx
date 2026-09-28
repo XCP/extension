@@ -20,7 +20,7 @@ export function UtxoCard({ token, pendingStatus }: UtxoCardProps): ReactElement 
   const navigate = useNavigate();
 
   const handleClick = () => {
-    navigate(`/assets/utxos/${token.utxo}`);
+    void navigate(`/assets/utxos/${token.utxo}`);
   };
 
   const isDivisible = token.asset_info?.divisible ?? false;

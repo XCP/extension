@@ -88,15 +88,17 @@ export default function HomePage(): ReactElement {
       useLogoTitle: true,
       leftButton: {
         label: activeWallet?.name ? displayAccountName(activeWallet.name) : t('app_select_wallet'),
-        onClick: () => navigate(PATHS.SELECT_WALLET),
+        onClick: () => void navigate(PATHS.SELECT_WALLET),
         ariaLabel: t('app_select_wallet'),
       },
       rightAccessory: ADDRESS_TYPE_SHORTCUT,
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
-        onClick: async () => {
-          await lockKeychain();
-          navigate(PATHS.UNLOCK_WALLET);
+        onClick: () => {
+          lockKeychain().then(
+            () => void navigate(PATHS.UNLOCK_WALLET),
+            (err: unknown) => console.error('Failed to lock keychain:', err),
+          );
         },
         ariaLabel: t('common_lock_keychain'),
       },
@@ -145,14 +147,15 @@ export default function HomePage(): ReactElement {
 
   const handleCopyAddress = () => {
     if (!activeAddress) return;
-    navigator.clipboard.writeText(activeAddress.address).then(() => {
-      setCopiedToClipboard(true);
-    });
+    navigator.clipboard.writeText(activeAddress.address).then(
+      () => setCopiedToClipboard(true),
+      (err: unknown) => console.error('Failed to copy address:', err),
+    );
   };
 
   const handleAddressSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(PATHS.SELECT_ADDRESS, { state: { returnTo: location.pathname + location.search } });
+    void navigate(PATHS.SELECT_ADDRESS, { state: { returnTo: location.pathname + location.search } });
   };
 
   const renderCurrentAddress = (): ReactElement => {
@@ -197,15 +200,15 @@ export default function HomePage(): ReactElement {
 
   const renderActionButtons = (): ReactElement => (
     <div className="grid grid-cols-3 gap-4 my-4">
-      <Button color="gray" onClick={() => navigate(PATHS.VIEW_ADDRESS)} className="flex-col !py-4" aria-label={t('app_receive_tokens')}>
+      <Button color="gray" onClick={() => void navigate(PATHS.VIEW_ADDRESS)} className="flex-col !py-4" aria-label={t('app_receive_tokens')}>
         <FaQrcode className="text-xl mb-2" aria-hidden="true" />
         <span>{t('app_receive')}</span>
       </Button>
-      <Button color="gray" onClick={() => navigate(PATHS.SEND_BTC)} className="flex-col !py-4" aria-label={t('app_send_tokens')}>
+      <Button color="gray" onClick={() => void navigate(PATHS.SEND_BTC)} className="flex-col !py-4" aria-label={t('app_send_tokens')}>
         <FaPaperPlane className="text-xl mb-2" aria-hidden="true" />
         <span>{t('common_send')}</span>
       </Button>
-      <Button color="gray" onClick={() => navigate(PATHS.ADDRESS_HISTORY)} className="flex-col !py-4" aria-label={t('app_transaction_history')}>
+      <Button color="gray" onClick={() => void navigate(PATHS.ADDRESS_HISTORY)} className="flex-col !py-4" aria-label={t('app_transaction_history')}>
         <FaHistory className="text-xl mb-2" aria-hidden="true" />
         <span>{t('common_history')}</span>
       </Button>
@@ -245,7 +248,7 @@ export default function HomePage(): ReactElement {
         </div>
         <div className="flex items-center space-x-2">
           <button type="button"
-            onClick={() => navigate(PATHS.BUY_XCP)}
+            onClick={() => void navigate(PATHS.BUY_XCP)}
             className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             aria-label={t('app_get_xcp')}
           >

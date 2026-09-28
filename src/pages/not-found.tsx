@@ -4,7 +4,7 @@ import { analytics } from '@/platform/fathom';
 
 const NotFound = () => {
   useEffect(() => {
-    analytics.track('not_found');
+    void analytics.track('not_found');
   }, []);
 
   return (

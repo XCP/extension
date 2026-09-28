@@ -65,7 +65,7 @@ export function SearchResultCard({
       const path = navigationType === "balance"
         ? `/assets/${symbol}/balance`
         : `/assets/${symbol}`;
-      navigate(path);
+      void navigate(path);
     }
   };
   

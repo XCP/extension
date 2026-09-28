@@ -55,11 +55,11 @@ export function AddressMenu({
   }, [address.address, onCopyAddress]);
 
   const handleSweepAddress = useCallback(() => {
-    navigate(`/compose/sweep/${encodeURIComponent(address.address)}`);
+    void navigate(`/compose/sweep/${encodeURIComponent(address.address)}`);
   }, [address.address, navigate]);
 
   const handleShowPrivateKey = useCallback(() => {
-    navigate(`/keychain/secrets/show-private-key/${walletId}/${encodeURIComponent(address.path)}`);
+    void navigate(`/keychain/secrets/show-private-key/${walletId}/${encodeURIComponent(address.path)}`);
   }, [address.path, walletId, navigate]);
 
   return (

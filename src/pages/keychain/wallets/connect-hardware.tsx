@@ -26,7 +26,7 @@ export default function ConnectHardware(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('wallets_connect_hardware_connect_trezor'),
-      onBack: () => navigate(-1),
+      onBack: () => void navigate(-1),
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open("#", "_blank"),
@@ -38,7 +38,15 @@ export default function ConnectHardware(): ReactElement {
   async function handleConnect() {
     setFailure(null);
     // First, while this click still counts as a user gesture: Chrome only prompts for one.
-    if (!(await requestTrezorSuiteAccess())) {
+    let allowed: boolean;
+    try {
+      allowed = await requestTrezorSuiteAccess();
+    } catch (err) {
+      console.error('[ConnectHardware] Suite access request failed:', err);
+      setFailure(err instanceof Error ? err : {});
+      return;
+    }
+    if (!allowed) {
       setFailure(suiteAccessDeniedError());
       return;
     }
@@ -50,7 +58,7 @@ export default function ConnectHardware(): ReactElement {
       await createHardwareWalletWithDiscovery("trezor");
 
       // Success - go straight to index
-      navigate("/index");
+      void navigate("/index");
     } catch (err) {
       console.error('[ConnectHardware] Error:', err);
       setFailure(err instanceof Error ? err : {});
@@ -110,7 +118,7 @@ export default function ConnectHardware(): ReactElement {
           </ul>
         </div>
 
-        <Button onClick={handleConnect} className="w-full">
+        <Button onClick={() => void handleConnect()} className="w-full">
           {t('wallets_connect_hardware_connect_trezor')}
         </Button>
 

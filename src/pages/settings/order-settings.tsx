@@ -97,11 +97,18 @@ export function OrderSettings({
     }
   }, [settings?.defaultOrderExpiration, customExpiration]);
 
-  const handlePresetClick = async (blocks: number) => {
+  // The order uses the chosen expiration either way; remembering it as the default is best effort.
+  const saveDefaultExpiration = (blocks: number) => {
+    updateSettings({ defaultOrderExpiration: blocks }).catch((error: unknown) => {
+      console.error('Failed to save default order expiration:', error);
+    });
+  };
+
+  const handlePresetClick = (blocks: number) => {
     setExpiration(blocks);
     setCustomValue('');
     onExpirationChange(blocks);
-    await updateSettings({ defaultOrderExpiration: blocks });
+    saveDefaultExpiration(blocks);
   };
 
   const handleCustomChange = (value: string) => {
@@ -111,13 +118,13 @@ export function OrderSettings({
     }
   };
 
-  const handleCustomKeyDown = async (e: React.KeyboardEvent) => {
+  const handleCustomKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && customValue) {
       const numValue = parseInt(customValue, 10);
       if (numValue >= minCustomExpiration && numValue <= maxCustomExpiration) {
         setExpiration(numValue);
         onExpirationChange(numValue);
-        await updateSettings({ defaultOrderExpiration: numValue });
+        saveDefaultExpiration(numValue);
       }
     }
   };

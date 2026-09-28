@@ -37,7 +37,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
       }
     }
     
-    fetchHistory();
+    void fetchHistory();
   }, [address]);
 
   // Refresh every 30 seconds if there are pending transactions
@@ -58,7 +58,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
             if (!current) return current;
             const pending = current.recent_consolidations.filter((tx) => tx.status === "pending");
             if (pending.length > 0) {
-              Promise.all(
+              void Promise.all(
                 pending.map(async (tx) => [tx.txid, await fetchTransactionChainStatus(tx.txid)] as const),
               ).then((checks) => {
                 const confirmed = new Set(
@@ -83,7 +83,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
           });
         }
       }
-      refreshHistory();
+      void refreshHistory();
     }, 30000);
     
     return () => clearInterval(interval);
