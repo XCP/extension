@@ -150,7 +150,7 @@ export function FairmintForm({
       return;
     }
     let cancelled = false;
-    fetchAddressFairmintTotal(address, selectedFairminter.asset).then((total) => {
+    void fetchAddressFairmintTotal(address, selectedFairminter.asset).then((total) => {
       if (!cancelled) setAlreadyMinted(total);
     });
     return () => {

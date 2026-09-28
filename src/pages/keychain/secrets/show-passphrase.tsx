@@ -56,7 +56,7 @@ export default function ShowPassphrasePage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('secrets_show_passphrase_passphrase'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
     });
   }, [setHeaderProps, navigate]);
 

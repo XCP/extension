@@ -75,8 +75,8 @@ export default function ApproveMessagePage() {
       origin={request.origin}
       footer={
         <ApprovalFooter
-          onCancel={handleReject}
-          onSign={handleSign}
+          onCancel={() => void handleReject()}
+          onSign={() => void handleSign()}
           busy={isSigning}
           blocked={false}
           isHardware={activeWallet.type === "hardware"}

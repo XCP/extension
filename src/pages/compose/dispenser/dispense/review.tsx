@@ -133,7 +133,7 @@ export function ReviewDispense({
       }
     };
     
-    fetchInfo();
+    void fetchInfo();
     return () => { cancelled = true; };
   }, [dispenserAddress, btcQuantity]);
   

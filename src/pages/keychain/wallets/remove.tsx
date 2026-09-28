@@ -38,7 +38,7 @@ function RemoveWalletPage() {
     setWalletType(wallet.type);
     setHeaderProps({
       title: t('wallets_remove_remove_wallet'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
     });
   }, [walletId, wallets, setHeaderProps, navigate]);
 
@@ -75,7 +75,7 @@ function RemoveWalletPage() {
 
     try {
       await removeWallet(walletId);
-      navigate(PATHS.SUCCESS, { replace: true });
+      void navigate(PATHS.SUCCESS, { replace: true });
     } catch (err) {
       console.error("Error removing wallet:", err);
       setSubmissionError(t('wallets_remove_failed_to_remove_wallet_please'));

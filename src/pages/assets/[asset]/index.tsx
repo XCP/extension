@@ -116,14 +116,14 @@ export default function AssetPage(): ReactElement {
     setDividends([]);
     setDividendsOffset(0);
     setHasMoreDividends(true);
-    loadDividends(0);
+    void loadDividends(0);
   }, [showDividends, asset]);
 
   // Configure header
   useEffect(() => {
     setHeaderProps({
       title: t('common_asset'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
     });
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate]);
@@ -433,7 +433,7 @@ export default function AssetPage(): ReactElement {
                 {dividends.map((dividend) => (
                   <button type="button"
                     key={dividend.tx_hash}
-                    onClick={() => navigate(`/transactions/${dividend.tx_hash}`)}
+                    onClick={() => void navigate(`/transactions/${dividend.tx_hash}`)}
                     className="block w-full text-left border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     aria-label={t('assets_asset_view_dividend_transaction', [String(dividend.tx_hash)])}
                   >
@@ -468,7 +468,7 @@ export default function AssetPage(): ReactElement {
                   <button type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      loadDividends(dividendsOffset);
+                      void loadDividends(dividendsOffset);
                     }}
                     disabled={dividendsLoading}
                     className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"

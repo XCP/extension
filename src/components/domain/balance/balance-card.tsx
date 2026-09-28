@@ -66,7 +66,7 @@ export function BalanceCard({
     } else if (isZeld) {
       void navigate("/zeld");
     } else {
-      navigate(`/assets/${encodeURIComponent(token.asset)}/balance`);
+      void navigate(`/assets/${encodeURIComponent(token.asset)}/balance`);
     }
   };
 

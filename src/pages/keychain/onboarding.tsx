@@ -28,11 +28,11 @@ function OnboardingPage() {
   }, [setHeaderProps]);
 
   function handleCreateWallet() {
-    navigate(PATHS.CREATE_WALLET);
+    void navigate(PATHS.CREATE_WALLET);
   }
 
   function handleImportWallet() {
-    navigate(PATHS.IMPORT_WALLET);
+    void navigate(PATHS.IMPORT_WALLET);
   }
 
   return (

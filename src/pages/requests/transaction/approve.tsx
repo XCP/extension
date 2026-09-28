@@ -250,7 +250,7 @@ export default function ApproveTransactionPage() {
       origin={request.origin}
       footer={
         <ApprovalFooter
-          onCancel={handleReject}
+          onCancel={() => void handleReject()}
           onSign={handleApprovalAction}
           busy={isSigning}
           blocked={blockSigning || isRefreshing || Boolean(refreshError)}

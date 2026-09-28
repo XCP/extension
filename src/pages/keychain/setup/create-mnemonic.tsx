@@ -53,7 +53,7 @@ function CreateMnemonicPage() {
 
       try {
         await createMnemonicWallet(mnemonic, password);
-        analytics.track('wallet_created');
+        void analytics.track('wallet_created');
         window.location.hash = PATHS.SUCCESS;
         return { error: null };
       } catch {
@@ -72,7 +72,7 @@ function CreateMnemonicPage() {
   useEffect(() => {
     setHeaderProps({
       title: t('common_create_wallet'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleGenerateWallet,

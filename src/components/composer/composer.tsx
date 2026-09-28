@@ -97,13 +97,13 @@ function ComposerInner<T>({
   const headerConfig = useMemo(() => {
     const handleCancel = () => {
       reset();
-      navigate("/index");
+      void navigate("/index");
     };
 
     const onBackDefault = () => navigate(-1);
     const onBackSuccess = () => {
       reset();
-      navigate("/index");
+      void navigate("/index");
     };
 
     // Loading states
@@ -231,7 +231,7 @@ function ComposerInner<T>({
           )}
           {renderReview ? renderReview({
             apiResponse: state.apiResponse,
-            onSign: signAndBroadcast,
+            onSign: () => { void signAndBroadcast(); },
             onBack: goBack,
             error: state.error,
             isSigning: state.isSigning,

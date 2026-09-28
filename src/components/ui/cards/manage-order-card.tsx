@@ -46,11 +46,11 @@ export function ManageOrderCard({
 
   const handleCancel = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/compose/order/cancel/${order.tx_hash}`);
+    void navigate(`/compose/order/cancel/${order.tx_hash}`);
   };
 
   const handleClick = () => {
-    navigate(`/market/orders/${baseAsset}/${quoteAsset}`);
+    void navigate(`/market/orders/${baseAsset}/${quoteAsset}`);
   };
 
   return (

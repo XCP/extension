@@ -28,7 +28,7 @@ export const Footer = (): ReactElement => {
     isLegacyWallet && !settings?.hasVisitedRecoverBitcoin;
 
   const handleNavigation = (route: string, eventName: string) => {
-    navigate(route);
+    void navigate(route);
   };
 
   return (

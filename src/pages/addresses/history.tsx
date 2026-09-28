@@ -98,7 +98,7 @@ export default function AddressHistoryPage(): ReactElement {
   // Fetch transactions when page or address changes. loadTransactions is redefined every render,
   // so it is omitted here and in the two effects below; its inputs are listed instead.
   useEffect(() => {
-    loadTransactions();
+    void loadTransactions();
   }, [currentPage, activeAddress]);
 
   // Auto-refresh for unconfirmed transactions. Listing loadTransactions would recreate the
@@ -110,7 +110,7 @@ export default function AddressHistoryPage(): ReactElement {
 
     // Set up interval to refresh every 30 seconds
     const interval = setInterval(() => {
-      loadTransactions({ fresh: true });
+      void loadTransactions({ fresh: true });
     }, 30000); // 30 seconds
     return () => clearInterval(interval);
   }, [transactions]);
@@ -119,10 +119,10 @@ export default function AddressHistoryPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: t('common_history'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FiRefreshCw className={`size-3 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />,
-        onClick: () => loadTransactions({ fresh: true }),
+        onClick: () => void loadTransactions({ fresh: true }),
         ariaLabel: t('addresses_history_refresh_transactions'),
         disabled: isLoading,
       },
@@ -189,7 +189,7 @@ export default function AddressHistoryPage(): ReactElement {
                 key={tx.tx_hash}
                 transaction={tx}
                 onClick={() =>
-                  navigate(`${PATHS.TRANSACTION}/${tx.tx_hash}`, { state: { page: currentPage } })
+                  void navigate(`${PATHS.TRANSACTION}/${tx.tx_hash}`, { state: { page: currentPage } })
                 }
               />
             ))}

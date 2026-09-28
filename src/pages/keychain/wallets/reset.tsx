@@ -28,7 +28,7 @@ function ResetWalletPage() {
   useEffect(() => {
     setHeaderProps({
       title: t('common_reset_wallet'),
-      onBack: () => navigate(PATHS.BACK),
+      onBack: () => void navigate(PATHS.BACK),
     });
   }, [setHeaderProps, navigate]);
 
@@ -61,7 +61,7 @@ function ResetWalletPage() {
 
     try {
       await resetKeychain(password);
-      navigate(PATHS.SUCCESS);
+      void navigate(PATHS.SUCCESS);
     } catch (err) {
       console.error("Error resetting wallet:", err);
       setSubmissionError(t('wallets_reset_failed_to_reset_wallet_please'));
