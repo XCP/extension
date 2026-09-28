@@ -115,7 +115,9 @@ REGTEST=1 REGTEST_BITCOIND=http://127.0.0.1:28443 REGTEST_COUNTERPARTY=http://12
 docker compose -p xcp-regtest -f e2e/regtest/docker-compose.yml down -v
 ```
 
-The stack is Bitcoin Core 30 and Counterparty Core 11.3 (`e2e/regtest/docker-compose.yml`). The
+The stack is Bitcoin Core 30 and Counterparty Core 11.3 (`e2e/regtest/docker-compose.yml`); set
+`COUNTERPARTY_IMAGE` to run it against another Counterparty Core image, for instance an 11.5 build
+for `review-taproot.test.ts`, which is skipped on a node older than 11.5. The
 files share one chain, so they run one after another. A run takes about three minutes while Core
 follows new blocks over ZMQ; when Core on regtest falls back to catching up block by block
 ("Previous block is missing" in its log) each block costs ten seconds or more and a run can take
@@ -130,6 +132,7 @@ What each file covers:
 | `review-utxo.test.ts` | attach (both layouts), detach, move | attach from all four; detach and move from two each |
 | `review-issuance.test.ts` | issuance, issue more, description, lock, transfer ownership, dividend, destroy, broadcast, sweep | P2WPKH, P2PKH, P2TR |
 | `review-fairminter.test.ts` | fairminter, fairmint | fairmint from all four |
+| `review-taproot.test.ts` | Taproot-encoded broadcast (data and ord envelopes), issuance, MPMA: the wallet signs Core 11.5's unsigned reveal with the source key | P2WPKH; P2TR closed by its internal key and by its output key |
 
 How it works:
 

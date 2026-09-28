@@ -27,10 +27,11 @@ import type { ApiResponse } from '@/core/counterparty/compose';
 import { composerChosenMessageFields } from '@/core/counterparty/composerChoices';
 import { calculateDispensePayouts, describePayout } from '@/core/counterparty/dispenseOutcome';
 import { describeFairminterPaymentModel, getFairmintCost, isPaidFairminter, readFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
+import { envelopeKind, readDataEnvelope, verifyInscriptionEnvelope, verifyUnsignedReveal } from '@/core/counterparty/inscriptionEnvelope';
 import { normalizeFormData, verifiedReviewParams } from '@/core/counterparty/normalize';
 import { checkOutputPolicy, type IntendedDestination, pinnedDestinations, withPinnedDestinations } from '@/core/counterparty/outputPolicy';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
-import { chooseComposeEncoding, composeWithEncoding } from '@/core/counterparty/taprootEncoding';
+import { chooseComposeEncoding, composeWithEncoding, readRevealShape } from '@/core/counterparty/taprootEncoding';
 import { fetchInputValues } from '@/core/counterparty/transaction';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
 import { packAddress } from '@/core/counterparty/unpack/address';
@@ -98,7 +99,7 @@ export async function composeAsWallet(
   const { normalizedData, assetInfoCache } = await normalizeFormData(formData, composeType);
   const dataForApi: Record<string, unknown> = { ...normalizedData, sourceAddress: source };
 
-  const encoding = chooseComposeEncoding(composeType, dataForApi, source);
+  const encoding = chooseComposeEncoding(composeType, dataForApi, source, 'mnemonic');
   if (encoding === 'taproot') throw new Error(`${composeType} chose Taproot encoding; this suite covers OP_RETURN composes only`);
   let response = await composeWithEncoding(composeApi, dataForApi, encoding);
   if (!response?.result?.rawtransaction) throw new Error(`${composeType}: the composer returned no transaction`);
@@ -371,5 +372,120 @@ export async function approvalReview(rawTxHex: string, key: RegtestKey): Promise
     protocol,
     warnings: decoded.safety.warnings.map(warning => warning.title),
     blocked: decoded.safety.blocked,
+  };
+}
+
+export interface WalletTaprootCompose extends WalletCompose {
+  /** The unsigned reveal as verified, with the envelope it publishes. */
+  reveal: { revealHex: string; envelopeScriptHex: string; controlBlockHex: string };
+  /** The reveal's miner fee, verified against the user's rate (`reveal_fee` on the review). */
+  revealFee: number;
+}
+
+/**
+ * The in-wallet compose flow for a message the wallet moves into a Taproot envelope, step for step
+ * as `composer-context.tsx` runs it for a software wallet: the encoding is chosen, never asked; the
+ * envelope's message is read and held to the request byte for byte; the unsigned reveal Core 11.5
+ * returns is held to Core's construction and attribution rule; the fee of the commit is bounded;
+ * and every commit output is accounted for, the envelope's P2TR address included.
+ */
+export async function composeTaprootAsWallet(
+  composeType: string,
+  composeApi: ComposeApi,
+  form: Record<string, string>,
+  key: RegtestKey,
+  satPerVbyte = '2',
+): Promise<WalletTaprootCompose> {
+  clearApiCache();
+  const source = walletAddress(key);
+  const formData = new FormData();
+  for (const [name, value] of Object.entries({ ...form, sat_per_vbyte: satPerVbyte })) formData.set(name, value);
+
+  const { normalizedData, assetInfoCache } = await normalizeFormData(formData, composeType);
+  const dataForApi: Record<string, unknown> = { ...normalizedData, sourceAddress: source };
+  const encoding = chooseComposeEncoding(composeType, dataForApi, source, 'mnemonic');
+  const explicit = dataForApi.encoding === 'taproot';
+  if (encoding !== 'taproot' && !explicit) throw new Error(`${composeType} did not choose Taproot encoding`);
+  let response = await composeWithEncoding(composeApi, dataForApi, encoding);
+  const requestedData: Record<string, unknown> = { ...dataForApi, ...composerChosenMessageFields(response) };
+
+  const shape = readRevealShape(response.result);
+  if (shape.kind !== 'unsigned') throw new Error(`${composeType}: expected Core 11.5's unsigned reveal, got ${shape.kind}`);
+  const kind = envelopeKind(shape.envelopeScriptHex);
+  if (!kind || extractCounterpartyPayload(response.result.rawtransaction)) throw new Error(`${composeType}: unexpected envelope`);
+
+  // As the composer does: an ord envelope is rebuilt from the message the request packs; a data
+  // envelope is read, decoded, and its message held to the request's own bytes, with the decoded
+  // message supplying only what the request cannot determine (`Observed` in pack/messages.ts).
+  let commitAddress: string;
+  let messageHex: string;
+  if (kind === 'ord') {
+    const expected = packComposeMessage(composeType, requestedData);
+    if (!expected) throw new Error(`${composeType}: the inscription cannot be packed locally`);
+    const check = verifyInscriptionEnvelope(shape.envelopeScriptHex, expected.bytes);
+    if (!check.ok || !check.commitAddress) throw new Error(`${composeType}: ${check.error}`);
+    commitAddress = check.commitAddress;
+    messageHex = bytesToHex(expected.bytes);
+  } else {
+    const read = readDataEnvelope(shape.envelopeScriptHex);
+    if (!read.ok || !read.commitAddress || !read.messageHex) throw new Error(`${composeType}: ${read.error}`);
+    commitAddress = read.commitAddress;
+    messageHex = read.messageHex;
+  }
+  const unpacked = unpackCounterpartyMessage(messageHex);
+  const decodedMessage = unpacked.success && unpacked.messageType && unpacked.data
+    ? { messageType: unpacked.messageType, data: unpacked.data as Record<string, unknown> }
+    : null;
+  const expected = packComposeMessage(composeType, requestedData, decodedMessage?.data);
+  if (!expected) throw new Error(`${composeType}: the request cannot be packed locally`);
+  if (bytesToHex(expected.bytes).toLowerCase() !== messageHex.toLowerCase()) {
+    throw new Error(`${composeType}: the envelope's message differs from the one this request should produce `
+      + `(expected ${bytesToHex(expected.bytes)}, composed ${messageHex})`);
+  }
+
+  const revealCheck = verifyUnsignedReveal(shape.reveal, {
+    kind,
+    ownAddresses: [source],
+    sourceAddress: source,
+    commitTxHex: response.result.rawtransaction,
+    commitAddress,
+    envelopeScriptHex: shape.envelopeScriptHex,
+    feeRate: Number(satPerVbyte),
+  });
+  if (!revealCheck.ok || revealCheck.revealFee === undefined) throw new Error(`${composeType}: reveal refused: ${revealCheck.error}`);
+
+  const feeCheck = await checkTransactionFee(
+    { rawTransaction: response.result.rawtransaction, userFeeRate: dataForApi.sat_per_vbyte as string },
+    fetchInputValues,
+  );
+  if (!feeCheck.ok) throw new Error(`${composeType}: fee check failed: ${feeCheck.error}`);
+  if (feeCheck.computedFee !== undefined) response = { ...response, result: { ...response.result, btc_fee: feeCheck.computedFee } };
+
+  const outputCheck = checkOutputPolicy({
+    rawTransaction: response.result.rawtransaction,
+    ownAddresses: [source],
+    intendedDestinations: withPinnedDestinations(
+      [...addressesNamedIn(dataForApi).map(address => ({ address })), { address: commitAddress }],
+      pinnedDestinations(composeType, dataForApi, [source]),
+    ),
+  });
+  if (!outputCheck.ok) throw new Error(`${composeType}: output policy refused: ${outputCheck.error}`);
+
+  response = {
+    ...response,
+    result: {
+      ...response.result,
+      params: { ...response.result.params, ...verifiedReviewParams(composeType, requestedData, assetInfoCache) } as ApiResponse['result']['params'],
+      reveal_fee: revealCheck.revealFee,
+    },
+  };
+  return {
+    composeType, response, dataForApi, decodedMessage, verificationWarnings: [],
+    reveal: {
+      revealHex: shape.reveal.revealHex,
+      envelopeScriptHex: shape.envelopeScriptHex,
+      controlBlockHex: shape.reveal.controlBlockHex,
+    },
+    revealFee: revealCheck.revealFee,
   };
 }
