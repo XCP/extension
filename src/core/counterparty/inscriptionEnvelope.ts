@@ -396,7 +396,7 @@ export interface RevealCheck {
  *
  * Core 11.5 returns an unsigned reveal the wallet signs with the source key, so everything the
  * wallet is about to sign is held to core's construction (`prepare_taproot_output`,
- * `get_reveal_outputs`, `get_reveal_control_block`) and to its attribution rule
+ * `get_reveal_outputs`, `get_reveal_control_block`) and to its source-signature rule
  * (`revealSourceRule.ts`):
  *
  * - the envelope is a canonical envelope closed by `reveal_pubkey`, a key of the source address;

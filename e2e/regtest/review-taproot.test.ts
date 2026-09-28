@@ -3,7 +3,7 @@
  * Review versus ledger for Taproot-encoded composes, against Counterparty Core 11.5 or newer:
  * Core returns the commit and an unsigned reveal the wallet signs with the source key. Each case
  * runs the wallet's compose flow (encoding chosen, envelope read and held to the request, reveal
- * held to Core's construction and attribution rule), signs the commit and the reveal with the
+ * held to Core's construction and source-signature rule), signs the commit and the reveal with the
  * production signers, broadcasts the commit then the reveal, mines them, and reads back what Core
  * recorded: the message, from the address that signed.
  *

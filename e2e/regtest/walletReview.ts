@@ -424,7 +424,7 @@ export interface WalletTaprootCompose extends WalletCompose {
  * The in-wallet compose flow for a message the wallet moves into a Taproot envelope, step for step
  * as `composer-context.tsx` runs it for a software wallet: the encoding is chosen, never asked; the
  * envelope's message is read and held to the request byte for byte; the unsigned reveal Core 11.5
- * returns is held to Core's construction and attribution rule; the fee of the commit is bounded;
+ * returns is held to Core's construction and source-signature rule; the fee of the commit is bounded;
  * and every commit output is accounted for, the envelope's P2TR address included.
  */
 export async function composeTaprootAsWallet(

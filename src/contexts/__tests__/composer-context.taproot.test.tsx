@@ -1,7 +1,7 @@
 /**
  * The composer's Taproot path, end to end over composes captured from Counterparty Core 11.5:
  * the encoding is chosen without asking (never for a hardware wallet), the envelope is read and
- * held to the request, the unsigned reveal is held to core's construction and attribution rule,
+ * held to the request, the unsigned reveal is held to core's construction and source-signature rule,
  * commit and reveal are signed together with the source key, and the two go out in order.
  */
 

@@ -362,7 +362,7 @@ export function ComposerProvider<T>({
       // key. A plain data envelope is read — its message then goes through every check below
       // exactly as an OP_RETURN payload would — and an inscription's ord envelope is rebuilt from
       // the message this request should produce. Either way the derived address explains the
-      // commit output, and the reveal is held to core's construction and attribution rule before
+      // commit output, and the reveal is held to core's construction and source-signature rule before
       // either transaction can be signed. Verified here rather than exempted
       // (`inscriptionEnvelope.ts`).
       let taprootCommitAddress: string | null = null;
@@ -786,7 +786,7 @@ export function ComposerProvider<T>({
 
     // A Taproot compose is two transactions: the commit just went out, and the reveal publishes the
     // message. The reveal was checked at compose time against core's construction, signed with the
-    // source key only after passing core's attribution rule, and checked again above against the
+    // source key only after passing core's source-signature rule, and checked again above against the
     // signed commit. It goes out only now, after the commit was accepted, because it spends the
     // commit's output. Without it the message never lands.
     let revealBroadcast: { txid?: string } | undefined;

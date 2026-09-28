@@ -6,7 +6,7 @@
  * `OP_CHECKSIG` key is the source's own. The witness is `<signature> <envelope> <control block>`.
  *
  * Nothing here trusts the composer. Before any key is used the reveal is held to Core's
- * attribution rule (`revealSourceRule.ts`) against the commit output it spends, the envelope must
+ * source-signature rule (`revealSourceRule.ts`) against the commit output it spends, the envelope must
  * be the only leaf of that output, and its key must be one this wallet holds the private key for:
  *
  * - the x-only form of the address key (P2WPKH, or a P2TR internal key), signed with that key;
@@ -129,7 +129,7 @@ export function signTaprootReveal(
     refuse('only a Native SegWit or Taproot address signs a Taproot reveal');
   }
 
-  // Core's attribution rule, with a placeholder where the signature goes: the leaf is a canonical
+  // Core's source-signature rule, with a placeholder where the signature goes: the leaf is a canonical
   // envelope committed to the commit output under tapscript, and its key is the source's.
   const rule = checkRevealSourceSignature(commitScript, sourceScript, [new Uint8Array(64), envelope, controlBlock]);
   if (!rule.ok) refuse(rule.detail);

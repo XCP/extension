@@ -1,5 +1,5 @@
 /**
- * The port of Core 11.5's reveal attribution rule, held to the cases `counterparty-rs/src/reveal.rs`
+ * The port of Core 11.5's reveal source-signature rule, held to the cases `counterparty-rs/src/reveal.rs`
  * tests, one for one: honest reveals from every source type Core accepts, and each way a reveal can
  * fail to prove the source signed it.
  */
@@ -96,7 +96,7 @@ function checkLeaf(source: Key, leaf: Uint8Array) {
 
 const errorOf = (result: ReturnType<typeof checkRevealSourceSignature>) => (result.ok ? 'ok' : result.error);
 
-describe('Core 11.5 reveal attribution rule (port of reveal.rs)', () => {
+describe('Core 11.5 reveal source-signature rule (port of reveal.rs)', () => {
   it('accepts a P2WPKH source signing with its key, for either key parity', () => {
     for (let seed = 1; seed <= 8; seed += 1) {
       const source = key(seed);
