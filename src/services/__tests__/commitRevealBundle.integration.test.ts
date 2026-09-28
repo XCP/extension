@@ -9,8 +9,9 @@
  * nothing returned. The same reveal sent alone through `xcp_signPsbt` is still refused.
  */
 
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Transaction } from '@scure/btc-signer';
+import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
@@ -203,6 +204,22 @@ describe('commit-and-reveal through the background review and signer', () => {
     expect(state.wallet.signPsbt).not.toHaveBeenCalled();
   });
 
+  it('asks for a second look when the reveal pays someone else', async () => {
+    use(BROADCAST_P2WPKH);
+    const stranger = p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(8), true));
+    const psbts = commitRevealPsbts(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, {
+      fundedBy: { fill: fill++ },
+      editReveal: reveal => reveal.addOutput({ script: stranger.script, amount: 100n }),
+    });
+    state.parents.set(Transaction.fromRaw(hexToBytes(psbts.parentHex!), RAW).id, psbts.parentHex!);
+    const result = await review(BROADCAST_P2WPKH, commitRevealItems(BROADCAST_P2WPKH, psbts));
+
+    expect(result.decodedInfo.review.status).toBe('proved');
+    expect(result.policy.blocked).toBe(false);
+    expect(result.policy.requiresAcknowledgement).toBe(true);
+    expect(result.decodedInfo.review.facts.find(fact => fact.value === stranger.address)?.description).toMatch(/100/);
+  });
+
   it('reviews and signs a site-built launch, naming its burn output', async () => {
     const launch = siteLaunch(5000, 0x61);
     state.parents.set(Transaction.fromRaw(hexToBytes(launch.parentHex), RAW).id, launch.parentHex);
@@ -227,9 +244,14 @@ describe('commit-and-reveal through the background review and signer', () => {
     expect(commit.verification.localUnpack?.messageType).toBe('fairminter');
     const burn = result.decodedInfo.review.facts.find(fact => fact.value === SITE_BURN_ADDRESS);
     expect(burn?.description).toMatch(/burn address/);
-    // The reveal's dust leaves the wallet: the review asks for the second look, and does not block.
+    // Burn dust is named on the review, and needs no second look: a site launch signs cleanly, with
+    // none of the cards that describe a reveal a site holds.
     expect(result.policy.blocked).toBe(false);
-    expect(result.policy.requiresAcknowledgement).toBe(true);
+    expect(result.policy.requiresAcknowledgement).toBe(false);
+    expect(commit.safety.warnings.map(warning => warning.code))
+      .not.toEqual(expect.arrayContaining(['counterparty_reveal_commit']));
+    expect(commit.safety.warnings.map(warning => warning.code))
+      .not.toEqual(expect.arrayContaining(['counterparty_reveal_outputs']));
 
     await approve(result);
     const hexes = await signedHexes(result.request.id);

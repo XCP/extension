@@ -66,6 +66,11 @@ export type DecodedPsbtBundleItem = DecodedPsbtInfo | {
    * the commit's review shows, so this leaf on input 0 is a shown leaf (`envelopeLeafGuard.ts`).
    */
   shownEnvelopeLeaf?: string;
+  /**
+   * Sats a proved `commit-and-reveal` reveal pays to addresses that are neither the signer's nor a
+   * burn address (unknown scripts included), which the review asks to be acknowledged.
+   */
+  revealPaysOthers?: number;
 };
 
 export interface DecodedPsbtBundleInfo {
@@ -399,8 +404,27 @@ async function decodeCommitAndReveal(
   });
   const shownEnvelopeLeaf = review.status === 'proved' || review.status === 'caution'
     ? proof.evidence?.envelopeHex : undefined;
+  // The commit's own analysis describes a reveal a site holds and could re-sign. Here the wallet
+  // signs the reveal with SIGHASH_ALL and the commit output's key path is no one's or the signer's,
+  // so those two cards do not apply; the bundle review states every reveal output instead.
+  const commitReview = proof.evidence ? {
+    ...commit,
+    safety: {
+      ...commit.safety,
+      warnings: commit.safety.warnings.filter(warning =>
+        warning.code !== 'counterparty_reveal_commit' && warning.code !== 'counterparty_reveal_outputs'),
+    },
+  } : commit;
+  const revealPaysOthers = (proof.evidence?.revealOutputs ?? [])
+    .filter(output => !output.marker && !output.owned && !output.burn)
+    .reduce((sum, output) => sum + output.value, 0);
   return {
-    items: [commit, { psbtDetails: reveal, txid: reveal.transactionId, ...(shownEnvelopeLeaf ? { shownEnvelopeLeaf } : {}) }],
+    items: [commitReview, {
+      psbtDetails: reveal,
+      txid: reveal.transactionId,
+      ...(shownEnvelopeLeaf ? { shownEnvelopeLeaf } : {}),
+      ...(revealPaysOthers > 0 ? { revealPaysOthers } : {}),
+    }],
     review,
   };
 }

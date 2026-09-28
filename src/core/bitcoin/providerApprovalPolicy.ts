@@ -148,6 +148,13 @@ export function getPsbtBundleApprovalPolicy(
         && request.items.length === 2 && requestItem.marketplaceIntent.action === 'sign_reveal'
         && (decoded.review.status === 'proved' || decoded.review.status === 'caution');
       itemPolicy = { blocked: !provedCpfpChild && !provedReveal, requiresAcknowledgement: false, safeOwnChange: false };
+      // Its own outputs, the marker, burn dust and the signer's own, need no second look; sats it
+      // pays anyone else do.
+      if (provedReveal && item.revealPaysOthers) {
+        itemPolicy.requiresAcknowledgement = true;
+        itemWarnings.push({ severity: 'warning', title: 'Reveal pays another address',
+          message: `The reveal pays ${formatAmount({ value: item.revealPaysOthers, maximumFractionDigits: 0 })} sats to addresses that are not yours.` });
+      }
     }
     // A reveal's whole fee is the commit output the site sized: one far above the network's rate
     // is refused, not merely confirmed.
