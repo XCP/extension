@@ -3758,9 +3758,6 @@
   "messages_sweep_include_ownership": {
     "message": "包含所有權"
   },
-  "messages_sweep_ownership": {
-    "message": "所有權"
-  },
   "messages_sweep_raw_value": {
     "message": "原始值: $1"
   },
@@ -6653,5 +6650,29 @@
   },
   "trezor_access_notice_allow": {
     "message": "允許存取 Trezor"
+  },
+  "utxo_review_assets_unavailable": {
+    "message": "無法加載此 UTXO 上的資產。"
+  },
+  "utxo_review_no_assets": {
+    "message": "沒有附加的資產"
+  },
+  "utxo_move_review_assets_moving": {
+    "message": "將移動的資產"
+  },
+  "cancel_review_order_unavailable": {
+    "message": "無法加載此訂單的條款。"
+  },
+  "destroy_review_supply_unavailable": {
+    "message": "無法加載此資產的供應量。"
+  },
+  "messages_sweep_ownership_transferred": {
+    "message": "已轉移的所有權"
+  },
+  "messages_sweep_balances_unavailable": {
+    "message": "無法加載已清掃的餘額。"
+  },
+  "messages_sweep_no_balances": {
+    "message": "沒有轉移任何餘額"
   }
 }

@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { memoForDisplay } from "@/components/domain/tx/tx-action-info";
-import type { Transaction } from "@/core/counterparty/api";
+import { fetchTransactionEvents, type Transaction } from "@/core/counterparty/api";
+import { useReviewLookup } from "@/hooks/useReviewLookup";
 import { t } from '@/i18n';
-import { eventParams, messageData } from "@/pages/transactions/_messages/facts";
+import { amountText, assetLabel, eventParams, messageData } from "@/pages/transactions/_messages/facts";
 
 /** Core's sweep flags (messages/sweep.py): what to sweep, and how to read the memo. */
 const FLAG_BALANCES = 1;
@@ -61,27 +62,53 @@ export function sweep(tx: Transaction): Array<{ label: string; value: string | R
     });
   }
 
-  // Show swept assets if available in events
-  const sweepEvents = tx.events?.filter((e: any) => 
-    e.event === 'ASSET_TRANSFER' || 
-    e.event === 'SEND' || 
-    e.event === 'OWNERSHIP_TRANSFER'
-  );
-  
-  if (sweepEvents && sweepEvents.length > 0) {
+  // What moved. Balances are the CREDIT rows Core writes with `calling_function` "sweep", which
+  // `/v2/transactions/{hash}` does not embed, so they are read on their own; ownership is one
+  // ASSET_TRANSFER per asset, which it does.
+  if (flags === undefined || (flags & FLAG_BALANCES) !== 0) {
     fields.push({
       label: t('messages_sweep_assets_swept'),
-      value: (
-        <div className="space-y-1 max-h-32 overflow-y-auto">
-          {sweepEvents.map((event: any, idx: number) => (
-            <div key={idx} className="text-xs">
-              {event.params.asset}: {event.params.quantity || t('messages_sweep_ownership')}
-            </div>
-          ))}
-        </div>
-      ),
+      value: <SweptBalances txHash={tx.tx_hash} />,
     });
   }
-  
+
+  const transferred = eventParams(tx, 'ASSET_TRANSFER')
+    .map((event) => (typeof event.asset_longname === 'string' && event.asset_longname) || assetLabel(event, 'asset'))
+    .filter((asset): asset is string => typeof asset === 'string' && asset !== '');
+  if (transferred.length > 0) {
+    fields.push({
+      label: t('messages_sweep_ownership_transferred'),
+      value: <AssetList items={transferred} />,
+    });
+  }
+
   return fields;
+}
+
+function AssetList({ items }: { items: string[] }) {
+  return (
+    <div className="space-y-1 max-h-32 overflow-y-auto">
+      {items.map((item, idx) => (
+        <div key={idx} className="text-xs break-all">
+          {item}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The balances a sweep credited to its destination, at each asset's divisibility. */
+function SweptBalances({ txHash }: { txHash: string }) {
+  const credits = useReviewLookup(txHash, () => fetchTransactionEvents(txHash, 'CREDIT'));
+  if (credits.status === 'loading') return <>{t('common_loading')}</>;
+  if (credits.status === 'failed') return <>{t('messages_sweep_balances_unavailable')}</>;
+
+  const amounts = credits.value
+    .filter((event) => event.tx_hash === undefined || event.tx_hash === txHash)
+    .filter((event) => event.params?.calling_function === 'sweep')
+    .sort((a, b) => a.event_index - b.event_index)
+    .map((event) => amountText({ ...event.params, asset: assetLabel(event.params, 'asset') }, 'quantity', 'asset'))
+    .filter((amount): amount is string => amount !== undefined);
+  if (amounts.length === 0) return <>{t('messages_sweep_no_balances')}</>;
+  return <AssetList items={amounts} />;
 }

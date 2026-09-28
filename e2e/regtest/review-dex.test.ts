@@ -209,6 +209,8 @@ describe.runIf(REGTEST_ENABLED)('dispensers and orders: review matches ledger', 
     const txid = await mined(cancel, maker);
     const order = await counterparty<{ status: string; give_quantity: number }>(`/orders/${orderTxid}?verbose=true`);
     expect(page.fields.orderHash).toBe(orderTxid);
+    // The review page names the order in the approval's numbers.
+    expect(page.fields.order).toBe(`Give 1.00000000 XCP for 7 ${token}`);
     expect(approval.protocol['Order hash']).toEqual([orderTxid]);
     expect(approval.headline).toBe(`Cancel order: sell 1.00000000 XCP for 7 ${token}`);
     expect(order.status).toBe('cancelled');
