@@ -405,7 +405,7 @@ export const selectAddress = {
   // Use aria-label for stability, filter to the visible full-width one
   addAddressButton: (page: Page) => page.locator('button[aria-label="Add Address"]').filter({ hasText: 'Add Address' }),
   // Header Add button (icon only, no text)
-  headerAddressTypeButton: (page: Page) => page.locator('header button[aria-label="Change Address Type"]'),
+  headerAddAddressButton: (page: Page) => page.locator('header button[aria-label="Add Address"]'),
   chevronButton: (page: Page) => page.locator('[aria-label="Select another address"]'),
   addressLabel: (page: Page, num: number) => page.locator(`text=Address ${num}`),
   copyButton: (page: Page) => page.locator('[title*="Copy"], [aria-label*="Copy"]').first(),
