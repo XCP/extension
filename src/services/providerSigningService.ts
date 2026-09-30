@@ -15,6 +15,7 @@ import {
   lockedCoinsToUnlock,
   lockedCoinWarning,
 } from '@/core/bitcoin/lockedCoinSpends';
+import { cancellationCoinReview } from '@/core/bitcoin/offerCancellation';
 import { getPsbtApprovalPolicy, getPsbtBundleApprovalPolicy, getTransactionApprovalPolicy, type ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import { extractPsbtDetails, type PsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
@@ -249,6 +250,15 @@ export function createProviderSigningService(): ProviderSigningService {
       }
       return { ownedAddresses: allowed, identity };
     }
+    if (request.kind === 'sign-message' && request.cancelOffersIntent) {
+      const addresses = [request.address, request.signingAddress ?? request.address];
+      if (activeWallet?.type === 'mnemonic' && getPairedAddressFormats(activeWallet.addressFormat)
+        && await permissions.hasPairedAddressPermission(request.origin, request.walletId, current)) {
+        const paired = await wallet.getPairedAddresses();
+        addresses.push(paired.legacy.address, paired.segwit.address);
+      }
+      return { ownedAddresses: [...new Set(addresses.map(normalizeAddressForComparison))], identity };
+    }
     return { ownedAddresses: [request.address], identity };
   }
 
@@ -302,6 +312,11 @@ export function createProviderSigningService(): ProviderSigningService {
           throw new ProviderReviewError('invalid_message');
         }
         review = { kind: request.kind, request, policy: ordinaryPolicy };
+        if (request.cancelOffersIntent) {
+          const store = getCoinLockStore();
+          const locks = store ? (await Promise.all(ownedAddresses.map(address => store.read(address)))).flat() : [];
+          review.cancellationCoins = cancellationCoinReview(locks, request.origin, request.cancelOffersIntent);
+        }
         break;
       case 'sign-transaction': {
         // The signer's paired sibling counts as this wallet's for saying where outputs go (an
@@ -468,6 +483,15 @@ export function createProviderSigningService(): ProviderSigningService {
       const assertDelivery = await assertSignDeliveryAuthorized(completed, needsPairedAddressGrant(request),
         sessionGeneration, supportsPairedContinuity(request.kind));
       assertDelivery();
+      if (request.kind === 'sign-message' && request.cancelOffersIntent) {
+        const store = getCoinLockStore();
+        if (store?.cancelOffers) {
+          for (const address of ownedAddresses) {
+            await store.cancelOffers(address, request.origin, request.cancelOffersIntent)
+              .catch((error: unknown) => console.warn('[ProviderSigning] Could not release cancelled offer coins:', error));
+          }
+        }
+      }
       // Only once the signature exists: a rejection, a signer error or an interruption leaves every
       // lock. Before the commitments below, so a coin this signature commits again stays locked.
       await unlockConfirmedCoins(review);

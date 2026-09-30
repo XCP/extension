@@ -93,6 +93,25 @@ describe('locked coins in the wallet manager', () => {
     expect((await decryptKeychain(state.record!, key)).coinLocks).toBeUndefined();
   });
 
+  it('persists cancellation reference updates and release without touching hand locks', async () => {
+    const origin = 'https://market.example';
+    await manager.updateCoinLocks(ADDRESS, { lock: [{ outpoint: COIN, valueSats: 5_000 }] });
+    await manager.addOfferCoinLocks(ADDRESS, [{ outpoint: SLOT, kind: 'offer_slot', refs: ['offer-1', 'offer-2'],
+      valueSats: 20_000, origin, expiresAt: null }]);
+    const intent = { standard: 'counterparty-marketplace', action: 'cancel_offers', offerIds: ['offer-1'],
+      coins: [{ outpoint: { txid: 'b'.repeat(64), vout: 1 }, stillCommitted: true }] };
+    await manager.cancelOfferCoinLocks(ADDRESS, origin, intent);
+    expect((await decryptKeychain(state.record!, key)).coinLocks?.find(lock => lock.outpoint === SLOT)?.refs).toEqual(['offer-2']);
+    await manager.cancelOfferCoinLocks(ADDRESS, origin, { ...intent, coins: [
+      { ...intent.coins[0], stillCommitted: false },
+      { outpoint: { txid: 'a'.repeat(64), vout: 0 }, stillCommitted: false },
+    ] });
+    expect((await decryptKeychain(state.record!, key)).coinLocks?.map(lock => lock.outpoint)).toEqual([COIN]);
+    await manager.lockKeychain();
+    await manager.unlockKeychain(password);
+    expect(manager.getCoinLocks(ADDRESS).map(lock => lock.outpoint)).toEqual([COIN]);
+  });
+
   it('unlocks a keychain whose lock record is malformed, keeping the well-formed locks', async () => {
     await manager.lockKeychain();
     const good = {

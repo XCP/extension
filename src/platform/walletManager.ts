@@ -14,6 +14,7 @@ import {
 } from '@/core/bitcoin/coinLocks';
 import type { ConsolidationResult } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import { parseCancelOffersIntent, withCancelledOfferCoinLocks } from '@/core/bitcoin/offerCancellation';
 import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
 import { isValidCounterwalletMnemonic } from '@/core/counterwallet/mnemonic';
@@ -1108,6 +1109,14 @@ export class WalletManager {
     if (typeof address !== 'string' || address.length === 0 || address.length > 128) {
       throw new Error('Invalid coin lock address');
     }
+  }
+
+  /** Background only: atomically release this origin's offer locks after a cancellation signature. */
+  public async cancelOfferCoinLocks(address: string, origin: string, intent: unknown): Promise<void> {
+    WalletManager.assertLockAddress(address);
+    const parsed = parseCancelOffersIntent(intent);
+    if (!parsed || typeof origin !== 'string' || origin.length === 0) throw new Error('Invalid offer cancellation');
+    return this.writeCoinLocks(address, entries => withCancelledOfferCoinLocks(entries, address, origin, parsed));
   }
 
   private async writeCoinLocks(address: string, change: (entries: CoinLock[]) => CoinLock[] | null): Promise<void> {

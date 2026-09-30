@@ -36,6 +36,7 @@ describe('wallet service remote policy', () => {
     for (const method of [
       'removeConnectedWebsite', 'setPairedAddressPermission',
       'signPsbt', 'updateWalletPinnedAssets', 'ensureKeychainLoaded',
+      'addOfferCoinLocks', 'cancelOfferCoinLocks',
     ]) {
       expect(remote, method).not.toContain(method);
     }

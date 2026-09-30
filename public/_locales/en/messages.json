@@ -9119,5 +9119,29 @@
   "messages_sweep_no_balances": {
     "message": "No balances moved",
     "description": "Sweep transaction details: the sweep credited no balances to the destination."
+  },
+  "message_cancel_no_lock": {
+    "message": "No locked coin",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_offers": {
+    "message": "Cancel $1 offers",
+    "description": "requests/message/approve.tsx. Offer cancellation approval. $1 = number of offers."
+  },
+  "message_cancel_one_offer": {
+    "message": "Cancel 1 offer",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_sign": {
+    "message": "Sign",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_stays_locked": {
+    "message": "Stays locked",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_unlocks": {
+    "message": "Unlocks",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
   }
 }

@@ -4,6 +4,12 @@ import { MAX_MARKETPLACE_BATCH_REQUESTS, type MarketplaceBatchKind } from '@/cor
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import type { Wallet } from '@/types/wallet';
 
+/** Optional message metadata; callers must feature-detect this before sending cancellation hints. */
+export const providerMessageSigningCapabilities = () => ({
+  marketplaceIntents: ['cancel_offers'] as const,
+  maxCancelOfferCoins: 100,
+});
+
 export interface ProviderPsbtSigningMethodCapabilities {
   supported: boolean;
   /** Exact explicit sighash bytes this provider method accepts. */

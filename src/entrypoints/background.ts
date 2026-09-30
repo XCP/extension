@@ -80,6 +80,7 @@ export default defineBackground(() => {
         read: address => getWalletService().getCoinLocks(address),
         update: (address, update) => getWalletService().updateCoinLocks(address, update),
         commit: (address, commitments) => getWalletService().addOfferCoinLocks(address, commitments),
+        cancelOffers: (address, origin, intent) => getWalletService().cancelOfferCoinLocks(address, origin, intent),
       });
       console.log('[Background] Proxy services registered');
 

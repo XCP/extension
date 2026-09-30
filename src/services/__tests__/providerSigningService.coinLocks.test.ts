@@ -39,6 +39,7 @@ vi.mock('@/core/bitcoin/psbt', async importOriginal => ({
 
 import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
 import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/core/bitcoin/coinLocks';
+import { parseCancelOffersIntent, withCancelledOfferCoinLocks } from '@/core/bitcoin/offerCancellation';
 import { beginSignFlow, getSignFlow, type NewSignFlow } from '@/platform/provider/signFlow';
 import { createProviderSigningService } from '../providerSigningService';
 
@@ -89,6 +90,7 @@ describe('provider signing with locked coins', () => {
     mocks.wallet.getSettings.mockResolvedValue({ strictTransactionVerification: true });
     mocks.wallet.signPsbt.mockResolvedValue('signed-psbt');
     mocks.wallet.signTransaction.mockResolvedValue('signed-transaction');
+    mocks.wallet.signMessage.mockResolvedValue({ signature: 'signed-message', address: identity.address });
     mocks.permissions.hasPermission.mockResolvedValue(true);
     mocks.permissions.hasPairedAddressPermission.mockResolvedValue(true);
     mocks.decodePsbt.mockImplementation(async () => decoded());
@@ -103,6 +105,10 @@ describe('provider signing with locked coins', () => {
         store.commits.push([address, commitments]);
         store.emittedBeforeCommit = mocks.emit.mock.calls.length;
       },
+      cancelOffers: async (address, origin, intent) => {
+        store.emittedBeforeUpdate = mocks.emit.mock.calls.length;
+        store.locks = withCancelledOfferCoinLocks(store.locks, address, origin, intent) ?? store.locks;
+      },
     });
     service = createProviderSigningService();
   });
@@ -112,6 +118,67 @@ describe('provider signing with locked coins', () => {
     review.kind === 'sign-psbt' || review.kind === 'sign-transaction'
       ? review.decodedInfo.safety.warnings.filter(warning => warning.code === 'locked_coin_spend')
       : [];
+
+  const cancellation = (): NewSignFlow => ({
+    ...identity, id: 'cancel-1', origin: SITE, timestamp: Date.now(), requestKey: 'cancel-key',
+    kind: 'sign-message', message: 'Original cancellation bytes',
+    cancelOffersIntent: parseCancelOffersIntent({ standard: 'counterparty-marketplace', action: 'cancel_offers',
+      offerIds: ['auth-1'], coins: [{ outpoint: SLOT, stillCommitted: false }] })!,
+  });
+
+  it('reviews and releases a cancelled offer only after signing the unchanged message and before delivery', async () => {
+    store.locks = [lock()];
+    await beginSignFlow(cancellation());
+    const review = await service.getReview('cancel-1');
+    expect(review).toMatchObject({ cancellationCoins: [{ outpoint: SLOT_OUTPOINT, effect: 'unlocks' }] });
+    mocks.wallet.signMessage.mockImplementationOnce(async () => {
+      expect(store.locks).toHaveLength(1);
+      return { signature: 'signed-message', address: identity.address };
+    });
+    await service.approveAndSign('cancel-1', { reviewKey: review.reviewKey, risksAcknowledged: false });
+    expect(mocks.wallet.signMessage).toHaveBeenCalledWith('Original cancellation bytes', identity.address, identity);
+    expect(store.locks).toEqual([]);
+    expect(store.emittedBeforeUpdate).toBe(0);
+    expect(mocks.emit).toHaveBeenCalledWith('sign-message-complete-cancel-1', { signature: 'signed-message' });
+  });
+
+  it.each(['decline', 'error', 'interrupt'] as const)('keeps cancellation locks on %s', async outcome => {
+    store.locks = [lock()];
+    await beginSignFlow(cancellation());
+    const review = await service.getReview('cancel-1');
+    if (outcome === 'decline') await service.reject('cancel-1');
+    else {
+      mocks.wallet.signMessage.mockImplementationOnce(async () => {
+        if (outcome === 'error') throw new Error('Device declined');
+        await service.reject('cancel-1');
+        return { signature: 'signed-message', address: identity.address };
+      });
+      await expect(service.approveAndSign('cancel-1', { reviewKey: review.reviewKey, risksAcknowledged: false })).rejects.toThrow();
+    }
+    expect(store.locks).toEqual([lock()]);
+    expect(mocks.emit).not.toHaveBeenCalledWith('sign-message-complete-cancel-1', expect.anything());
+  });
+
+  it('requires a fresh review if a cancellation coin becomes hand-locked', async () => {
+    store.locks = [lock()];
+    await beginSignFlow(cancellation());
+    const review = await service.getReview('cancel-1');
+    store.locks = [lock({ manual: true })];
+    await expect(service.approveAndSign('cancel-1', { reviewKey: review.reviewKey, risksAcknowledged: false })).rejects.toThrow(/review changed/);
+    expect(mocks.wallet.signMessage).not.toHaveBeenCalled();
+  });
+
+  it('preserves a hand lock created while the cancellation signature is in flight', async () => {
+    store.locks = [lock()];
+    await beginSignFlow(cancellation());
+    const review = await service.getReview('cancel-1');
+    mocks.wallet.signMessage.mockImplementationOnce(async () => {
+      store.locks = [lock({ manual: true })];
+      return { signature: 'signed-message', address: identity.address };
+    });
+    await service.approveAndSign('cancel-1', { reviewKey: review.reviewKey, risksAcknowledged: false });
+    expect(store.locks).toEqual([lock({ manual: true })]);
+  });
 
   it('asks before signing a locked coin, and unlocks it after the signature, before the site hears', async () => {
     store.locks = [lock()];

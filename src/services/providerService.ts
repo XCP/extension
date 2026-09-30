@@ -10,6 +10,7 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
+import { parseCancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import {
   checkSignInputOwners,
@@ -31,8 +32,10 @@ import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplac
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import { MAX_REVEAL_HEX_LENGTH } from '@/core/counterparty/providerReveal';
 import { generateRequestId } from '@/core/id';
+import { isRecord } from '@/core/isRecord';
 import {
   assertProviderPsbtSigningRequest,
+  providerMessageSigningCapabilities,
   providerPsbtSigningCapabilities,
   unsupportedMarketplaceActionReason,
 } from '@/core/providerCapabilities';
@@ -522,7 +525,7 @@ export function createProviderService(): ProviderService {
             publicKey: activeAddress.pubKey,
             type: activeWallet.addressFormat,
           };
-          const signing = providerPsbtSigningCapabilities(activeWallet);
+          const signing = { ...providerPsbtSigningCapabilities(activeWallet), message: providerMessageSigningCapabilities() };
           if (!paired) return { active, signing };
           const addresses = await walletService.getPairedAddresses();
           return {
@@ -559,6 +562,8 @@ export function createProviderService(): ProviderService {
         case 'xcp_signMessage': {
           const message = params?.[0];
           const address = params?.[1];
+          const options = params?.[2];
+          const cancelOffersIntent = parseCancelOffersIntent(isRecord(options) && 'intent' in options ? options.intent : options);
 
           // Validate message type and presence
           if (!message) {
@@ -606,7 +611,7 @@ export function createProviderService(): ProviderService {
           return await runSignFlow({
             origin,
             method,
-            params: { message, signingAddress },
+            params: { message, signingAddress, ...(cancelOffersIntent ? { cancelOffersIntent } : {}) },
             identity: { walletId: activeWallet.id, address: activeAddress.address },
             pairedAddresses: signingAddress !== activeAddress.address,
             approval: {
@@ -625,6 +630,7 @@ export function createProviderService(): ProviderService {
                 requestKey,
                 kind: 'sign-message',
                 message,
+                ...(cancelOffersIntent ? { cancelOffersIntent } : {}),
                 address: activeAddress.address,
                 signingAddress,
                 walletId: activeWallet.id,

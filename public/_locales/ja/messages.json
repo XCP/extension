@@ -6853,5 +6853,29 @@
   },
   "messages_sweep_no_balances": {
     "message": "移動した残高はありません"
+  },
+  "message_cancel_no_lock": {
+    "message": "ロックされたコインなし",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_offers": {
+    "message": "$1件のオファーをキャンセル",
+    "description": "requests/message/approve.tsx. Offer cancellation approval. $1 = number of offers."
+  },
+  "message_cancel_one_offer": {
+    "message": "1件のオファーをキャンセル",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_sign": {
+    "message": "署名",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_stays_locked": {
+    "message": "ロックを維持",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_unlocks": {
+    "message": "ロック解除",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
   }
 }

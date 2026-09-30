@@ -22,6 +22,7 @@ import {
   outpointOf,
   withCoinLockUpdate,
 } from '@/core/bitcoin/coinLocks';
+import type { CancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import { checkOutspends } from '@/core/bitcoin/outspend';
 import { fetchUTXOs, type UTXO } from '@/core/bitcoin/utxo';
 
@@ -31,6 +32,8 @@ export interface CoinLockStore {
   update(address: string, update: CoinLockUpdate): Promise<void>;
   /** Background only: record what a signature just committed. */
   commit?(address: string, commitments: OfferCoinCommitment[]): Promise<void>;
+  /** Background only, after an approved cancellation message was signed. */
+  cancelOffers?(address: string, origin: string, intent: CancelOffersIntent): Promise<void>;
 }
 
 let store: CoinLockStore | null = null;

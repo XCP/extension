@@ -552,7 +552,37 @@ latest `expiresAt`) is more than an hour past, or when both indexers return 404 
 transaction after the coin has been missing for 24 hours. Errors, unconfirmed spends and source
 disagreements keep the lock. Claimed expiry is capped at 90 days and an hour from the latest signature.
 
-These three intents accept an optional `commitments` array naming the offers each coin backs:
+### Cancel offers with a message signature
+
+Feature-detect `xcp_getAddresses().signing.message.marketplaceIntents` containing `cancel_offers`
+before sending cancellation metadata. `maxCancelOfferCoins` is 100. Older wallets can continue
+signing the same cancellation message without this metadata.
+
+```ts
+await window.xcp.request({
+  method: 'xcp_signMessage',
+  params: [message, signingAddress, { intent: {
+    standard: 'counterparty-marketplace', action: 'cancel_offers',
+    offerIds: ['offer-1'],
+    coins: [{ outpoint: { txid, vout: 0 }, stillCommitted: false }],
+  } }],
+});
+```
+
+The message bytes and signature format are unchanged. The approval says how many offers are
+being cancelled and shows whether each coin unlocks or stays locked. Only after a successful
+signature, before delivery, the wallet removes same-origin offer locks whose `stillCommitted`
+is false. For true, it removes the named offer IDs from the references while keeping the lock,
+even if no references remain. Matching uses outpoint and verified origin, never offer ID alone.
+Hand locks (including offer coins also locked by hand), other origins and unauthorized addresses
+are untouched. There is no marketplace API call. Declining, signing failure or interruption
+leaves the locks intact. A failed lock-store write conservatively keeps the lock.
+
+Malformed metadata is ignored; malformed individual entries are dropped, input is bounded to
+100 coins and 100 offer IDs, and conflicting duplicate coin entries keep `stillCommitted: true`.
+The intent may also be supplied directly as the third parameter.
+
+These three PSBT intents accept an optional `commitments` array naming the offers each coin backs:
 
 ```js
 commitments: [

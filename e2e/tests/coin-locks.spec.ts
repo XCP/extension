@@ -102,7 +102,7 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   const funding = page.getByRole('article', { name: /0\.00020000 BTC/ }).filter({ hasText: 'Set aside for offers' });
   const fundingAction = funding.getByRole('button', { name: /^(Unlock|Confirm)$/ });
   await fundingAction.click();
-  await expect(funding.getByText('This coin is set aside for offers. Unlocking keeps them live; spending the coin cancels them.')).toBeVisible();
+  await expect(funding.getByText('Offers stay live until this coin is spent.')).toBeVisible();
   const action = backsTwo.getByRole('button', { name: /^(Unlock|Confirm)$/ });
   const before = await action.boundingBox();
   await action.click();
@@ -156,6 +156,28 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   // for the site that asked.
   await expect.poll(async () => (await locks()).find(lock => lock.outpoint === `${fund.id}:0`)?.unlocked, { timeout: 30_000 }).toBe(true);
   expect((await locks()).find(lock => lock.outpoint === `${spend.id}:0`)).toMatchObject({ kind: 'offer_slot', origin: 'https://other.example', unlocked: false });
+
+  // A signed cancellation releases the original site's offer coin, but never the hand lock or
+  // the second site's offer. Review uses the wallet's real locks; the message bytes stay intact.
+  await seed(page, { id: 'cancel-offers', kind: 'sign-message', message: 'Cancel offer-1 and offer-2', identity,
+    cancelOffersIntent: { standard: 'counterparty-marketplace', action: 'cancel_offers', offerIds: ['offer-1', 'offer-2'],
+      coins: [
+        { outpoint: { txid: fund.id, vout: 1 }, stillCommitted: false },
+        { outpoint: { txid: plain, vout: 1 }, stillCommitted: false },
+        { outpoint: { txid: spend.id, vout: 0 }, stillCommitted: false },
+      ] } });
+  const cancel = await context.newPage();
+  await cancel.setViewportSize({ width: 380, height: 750 });
+  await cancel.goto(`chrome-extension://${extensionId}/popup.html#/requests/message/approve?requestId=cancel-offers`);
+  await expect(cancel.getByRole('heading', { name: 'Cancel 2 offers' })).toBeVisible();
+  await expect(cancel.getByText('Unlocks', { exact: true })).toHaveCount(1);
+  await expect(cancel.getByText('Stays locked', { exact: true })).toHaveCount(2);
+  await expect(cancel.getByText('Cancel offer-1 and offer-2', { exact: true })).toBeVisible();
+  await cancel.screenshot({ path: path.join(OUT, '8-cancel-offers.png'), fullPage: true });
+  await cancel.getByRole('button', { name: 'Sign', exact: true }).click();
+  await expect.poll(async () => (await locks()).some(lock => lock.outpoint === `${fund.id}:1`)).toBe(false);
+  expect((await locks()).find(lock => lock.outpoint === `${plain}:1`)).toMatchObject({ manual: true, unlocked: false });
+  expect((await locks()).find(lock => lock.outpoint === `${spend.id}:0`)).toMatchObject({ origin: 'https://other.example', unlocked: false });
 });
 
 async function stub(context: BrowserContext, signer: string, parents: Map<string, string>, fundId: string, plain: string) {

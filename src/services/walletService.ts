@@ -12,6 +12,7 @@ import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/core/bitcoin/coinLocks';
 import type { ConsolidationResult as BatchConsolidationResult } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import type { CancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import type { TaprootRevealToSign } from '@/core/bitcoin/taprootRevealSigner';
 import type { KnownZeldOutpoint, ZeldOutpointUpdate } from '@/core/zeld/knownOutpoints';
 import { registerSessionExpiredHandler, setLastActiveTime } from '@/platform/auth/sessionManager';
@@ -94,6 +95,7 @@ export interface WalletService {
   updateCoinLocks: (address: string, update: CoinLockUpdate) => Promise<void>;
   /** Background only: lock the coins an offer signature just committed. */
   addOfferCoinLocks: (address: string, commitments: OfferCoinCommitment[]) => Promise<void>;
+  cancelOfferCoinLocks: (address: string, origin: string, intent: CancelOffersIntent) => Promise<void>;
   setLastActiveAddress: (address: string) => Promise<void>;
   /** Record user activity; `activityTime` is when it happened, for activity the UI reports late. */
   setLastActiveTime: (activityTime?: number) => Promise<void>;
@@ -263,6 +265,7 @@ function createWalletService(): WalletService {
     getCoinLocks: async (address) => walletManager.getCoinLocks(address),
     updateCoinLocks: async (address, update) => walletManager.updateCoinLocks(address, update),
     addOfferCoinLocks: async (address, commitments) => walletManager.addOfferCoinLocks(address, commitments),
+    cancelOfferCoinLocks: async (address, origin, intent) => walletManager.cancelOfferCoinLocks(address, origin, intent),
     getLastActiveAddress: async () => {
       const settings = walletManager.getSettings();
       return settings?.lastActiveAddress;

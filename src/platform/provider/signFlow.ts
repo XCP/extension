@@ -12,6 +12,7 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { type CancelOffersIntent, parseCancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
 import {
@@ -41,7 +42,7 @@ export interface SignPsbtBundleItem {
 }
 
 interface SignFlowParameters {
-  'sign-message': { message: string; signingAddress?: string };
+  'sign-message': { message: string; signingAddress?: string; cancelOffersIntent?: CancelOffersIntent };
   'sign-transaction': { rawTxHex: string };
   'sign-psbt': {
     psbtHex: string;
@@ -197,7 +198,8 @@ function isValidSignFlow(value: unknown): value is SignFlowEntry {
   if (entry.status === 'completed') return validResult(entry.kind as SignFlowKind, entry.result);
   if (entry.status !== 'pending' && entry.status !== 'signing') return false;
   if (entry.kind === 'sign-message') return typeof entry.message === 'string'
-    && (entry.signingAddress === undefined || typeof entry.signingAddress === 'string');
+    && (entry.signingAddress === undefined || typeof entry.signingAddress === 'string')
+    && (entry.cancelOffersIntent === undefined || fingerprintReview(parseCancelOffersIntent(entry.cancelOffersIntent)) === fingerprintReview(entry.cancelOffersIntent));
   if (entry.kind === 'sign-transaction') return typeof entry.rawTxHex === 'string';
   const validPsbt = (item: unknown): boolean => {
     if (!item || typeof item !== 'object') return false;

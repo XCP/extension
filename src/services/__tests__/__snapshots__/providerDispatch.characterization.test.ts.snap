@@ -350,6 +350,12 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -409,6 +415,12 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -468,6 +480,12 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -4608,6 +4626,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -4661,6 +4685,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -4748,6 +4778,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -4829,6 +4865,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -4882,6 +4924,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -4969,6 +5017,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5050,6 +5104,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5103,6 +5163,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5190,6 +5256,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5271,6 +5343,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5324,6 +5402,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5411,6 +5495,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5492,6 +5582,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5545,6 +5641,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5632,6 +5734,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5713,6 +5821,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5766,6 +5880,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -5853,6 +5973,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6002,6 +6128,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6055,6 +6187,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6142,6 +6280,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6257,6 +6401,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6310,6 +6460,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6397,6 +6553,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6478,6 +6640,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6531,6 +6699,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6618,6 +6792,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6699,6 +6879,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6752,6 +6938,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6839,6 +7031,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6920,6 +7118,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -6973,6 +7177,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
           "type": "p2tr",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
@@ -7060,6 +7270,12 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
           "type": "p2wpkh",
         },
         "signing": {
+          "message": {
+            "marketplaceIntents": [
+              "cancel_offers",
+            ],
+            "maxCancelOfferCoins": 100,
+          },
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",

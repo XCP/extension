@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import {
   assertProviderPsbtSigningRequest,
+  providerMessageSigningCapabilities,
   providerPsbtSigningCapabilities,
   unsupportedMarketplaceActionReason,
 } from '@/core/providerCapabilities';
 
 describe('providerPsbtSigningCapabilities', () => {
+  it('advertises bounded cancellation metadata separately from PSBT signing', () => {
+    expect(providerMessageSigningCapabilities()).toEqual({ marketplaceIntents: ['cancel_offers'], maxCancelOfferCoins: 100 });
+  });
   it('reports the existing selected-input and partial-sighash software contract', () => {
     expect(providerPsbtSigningCapabilities({ type: 'mnemonic', addressFormat: AddressFormat.P2WPKH }))
       .toEqual({

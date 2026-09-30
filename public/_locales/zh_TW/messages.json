@@ -6853,5 +6853,29 @@
   },
   "messages_sweep_no_balances": {
     "message": "沒有轉移任何餘額"
+  },
+  "message_cancel_no_lock": {
+    "message": "沒有鎖定的幣",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_offers": {
+    "message": "取消 $1 個報價",
+    "description": "requests/message/approve.tsx. Offer cancellation approval. $1 = number of offers."
+  },
+  "message_cancel_one_offer": {
+    "message": "取消 1 個報價",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_sign": {
+    "message": "簽名",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_stays_locked": {
+    "message": "保持鎖定",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_unlocks": {
+    "message": "解鎖",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
   }
 }
