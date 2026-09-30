@@ -515,6 +515,176 @@
   "approval_too_many_inputs_description": {
     "message": "此交易花費超過 $1 個輸入，超出錢包可檢查附加資產的數量。請要求網站減少輸入數量。"
   },
+  "coin_lock_compose_spends_locked_coin": {
+    "message": "此交易會花費你鎖定的幣（$1）。請在 設定 › 幣 中解鎖後重試。"
+  },
+  "coin_lock_compose_spends_offer_coin": {
+    "message": "此交易會花費為你的出價鎖定的幣（$1）。請在 設定 › 幣 中解鎖或取消出價後重試。"
+  },
+  "coin_lock_insufficient": {
+    "message": "可用 BTC 不足：可用 $1 sats，已鎖定 $2 sats。請在 設定 › 幣 中解鎖一枚幣。"
+  },
+  "coin_lock_insufficient_offers": {
+    "message": "可用 BTC 不足：可用 $1 sats，出價中鎖定 $2 sats。請解鎖一枚幣或取消一個出價。"
+  },
+  "coin_lock_no_spendable_balance": {
+    "message": "沒有可花費的餘額。$1 BTC 在已鎖定的幣中。"
+  },
+  "coin_lock_sentence_pair": {
+    "message": "$p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "coin_lock_unlock_and_sign": {
+    "message": "解鎖並簽名"
+  },
+  "coin_lock_warning_coin": {
+    "message": "$1 BTC · $2 · $3"
+  },
+  "coin_lock_warning_coin_offers": {
+    "message": "這會花費為你的出價鎖定的一枚幣。此交易確認後，你的 $1 個出價將被取消。"
+  },
+  "coin_lock_warning_manual": {
+    "message": "這會花費你鎖定的一枚幣。"
+  },
+  "coin_lock_warning_manual_many": {
+    "message": "這會花費你鎖定的幣。"
+  },
+  "coin_lock_warning_offer": {
+    "message": "這會花費為你的出價鎖定的幣。此交易確認後，你的出價將被取消。"
+  },
+  "coin_lock_warning_offer_coins": {
+    "message": "這會花費為你的出價鎖定的幣。此交易確認後，你的出價將被取消。"
+  },
+  "coin_lock_warning_offers": {
+    "message": "這會花費為你的出價鎖定的幣。此交易確認後，你的 $1 個出價將被取消。"
+  },
+  "coin_lock_warning_title": {
+    "message": "花費一枚已鎖定的幣"
+  },
+  "coin_lock_warning_title_many": {
+    "message": "花費 $1 枚已鎖定的幣"
+  },
+  "coins_backs_offers": {
+    "message": "支撐 $1 個出價"
+  },
+  "coins_backs_one_offer": {
+    "message": "支撐 1 個出價"
+  },
+  "coins_btc_amount": {
+    "message": "$1 BTC"
+  },
+  "coins_coin_label": {
+    "message": "$1 BTC · $2"
+  },
+  "coins_confirmation_one": {
+    "message": "1 次確認"
+  },
+  "coins_confirmations": {
+    "message": "$1 次確認"
+  },
+  "coins_filter": {
+    "message": "篩選幣"
+  },
+  "coins_filter_all": {
+    "message": "全部"
+  },
+  "coins_filter_locked": {
+    "message": "已鎖定"
+  },
+  "coins_funds_offers": {
+    "message": "已為出價預留"
+  },
+  "coins_holds_assets": {
+    "message": "附有資產"
+  },
+  "coins_kind_collection_offer": {
+    "message": "合集出價"
+  },
+  "coins_kind_manual": {
+    "message": "由你鎖定"
+  },
+  "coins_kind_offer_slot": {
+    "message": "出價資金"
+  },
+  "coins_load_failed": {
+    "message": "無法載入此地址的幣。請重試。"
+  },
+  "coins_loading": {
+    "message": "正在載入幣…"
+  },
+  "coins_lock": {
+    "message": "鎖定"
+  },
+  "coins_lock_again": {
+    "message": "重新鎖定"
+  },
+  "coins_none": {
+    "message": "沒有幣"
+  },
+  "coins_none_detail": {
+    "message": "此地址收到的 BTC 會顯示在這裡，每個輸出一枚幣。"
+  },
+  "coins_none_locked": {
+    "message": "沒有已鎖定的幣"
+  },
+  "coins_not_on_chain_yet": {
+    "message": "尚未上鏈"
+  },
+  "coins_offer_expires": {
+    "message": "有效期至 $1"
+  },
+  "coins_offer_site": {
+    "message": "來自 $1"
+  },
+  "coins_refresh": {
+    "message": "重新整理幣"
+  },
+  "coins_show_more": {
+    "message": "顯示更多"
+  },
+  "coins_summary": {
+    "message": "可用 $1 BTC · 已鎖定 $2 BTC"
+  },
+  "coins_summary_free": {
+    "message": "可用 $1 BTC"
+  },
+  "coins_title": {
+    "message": "幣"
+  },
+  "coins_unconfirmed": {
+    "message": "未確認"
+  },
+  "coins_unlock": {
+    "message": "解鎖"
+  },
+  "coins_unlock_confirm_funding": {
+    "message": "此幣已為出價預留。花費它會取消這些出價。"
+  },
+  "coins_unlock_confirm_manual": {
+    "message": "此幣將重新可以花費。"
+  },
+  "coins_unlock_confirm_offers": {
+    "message": "花費此幣會取消 $1 個出價。"
+  },
+  "coins_unlock_confirm_one_offer": {
+    "message": "花費此幣會取消 1 個出價。"
+  },
+  "coins_unlock_confirm_title": {
+    "message": "解鎖此幣？"
+  },
+  "coins_unlocked": {
+    "message": "已解鎖"
+  },
+  "coins_update_failed": {
+    "message": "無法更新此幣。請重試。"
+  },
   "file_validation_invalid_file": {
     "message": "無法讀取此檔案。"
   },
@@ -4478,6 +4648,9 @@
   "settings_change_your_wallet_password": {
     "message": "更改錢包密碼"
   },
+  "settings_coins_description": {
+    "message": "鎖定幣，查看支撐出價的幣"
+  },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "斷開所有網站"
   },
@@ -6117,6 +6290,9 @@
   },
   "approval_bitcoin_payment_output_address_unknown": {
     "message": "無法核查輸出 $1 的比特幣地址。"
+  },
+  "zeld_error_locked": {
+    "message": "部分 ZELD 位於你鎖定的幣上。請在 設定 › 幣 中解鎖後再發送。"
   },
   "zeld_hunt_enable": {
     "message": "啟用 ZELD 搜尋"

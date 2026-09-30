@@ -7,6 +7,7 @@
  */
 
 import type { AddressFormat } from '@/core/bitcoin/addressFormat';
+import type { CoinLock } from '@/core/bitcoin/coinLocks';
 import type { AppSettings } from '@/core/settings';
 
 /**
@@ -119,6 +120,11 @@ export interface Keychain {
    * core/zeld/knownOutpoints). Absent until the first is recorded.
    */
   zeldOutpoints?: string[];
+  /**
+   * Coins no send may spend until the user unlocks them: locked by hand, or committed by an offer
+   * this wallet signed (see core/bitcoin/coinLocks). Absent until the first is locked.
+   */
+  coinLocks?: CoinLock[];
 }
 
 /**

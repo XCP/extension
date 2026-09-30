@@ -27,6 +27,7 @@ import {
   nonNegativeRawInteger,
   nonNegativeSafeInteger,
   nullableSafeInteger,
+  optionalCoinCommitments,
   outpoint,
   plainDisplayText,
   safeInteger,
@@ -241,6 +242,7 @@ const parseFundOffersIntent = (value: Record<string, unknown>): FundOffersIntent
     marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
       positive: true,
     }),
+    ...optionalCoinCommitments(value.commitments),
   };
 };
 
@@ -345,6 +347,7 @@ const parseFundPolicyOfferIntent = (value: Record<string, unknown>): FundPolicyO
     },
     alternatives,
     marketplaceFee: { payer: 'seller', bps: PLATFORM_FEE_BPS, minSats: PLATFORM_FEE_MIN_SATS },
+    ...optionalCoinCommitments(value.commitments),
   };
 };
 
@@ -559,6 +562,7 @@ const parseExactOfferIntent = <
         'bitcoinInvalidation.outpoint',
       ),
     },
+    ...(action === 'authorize_exact_offer' ? optionalCoinCommitments(value.commitments) : {}),
   };
 };
 

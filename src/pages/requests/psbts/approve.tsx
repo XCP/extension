@@ -10,7 +10,7 @@ import {
 import { ApprovalIdentifier } from "@/components/domain/approval/approval-identifier";
 import { ApprovalList } from "@/components/domain/approval/approval-list";
 import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
-import { marketplaceBlockText, WarningDetails, zeldNoticeText, zeldReviewNotes } from "@/components/domain/approval/approval-warnings";
+import { lockedCoinWarningText, marketplaceBlockText, spendsLockedCoins, WarningDetails, zeldNoticeText, zeldReviewNotes } from "@/components/domain/approval/approval-warnings";
 import { ApprovalZeldNotes } from "@/components/domain/approval/approval-zeld-notes";
 import { BundleReviewCard } from "@/components/domain/approval/bundle-review-card";
 import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
@@ -108,7 +108,9 @@ export default function ApprovePsbtsPage() {
       key: `policy-${index}`, severity: warning.severity === "block" ? "danger" as const : warning.severity,
       ...(warning.code === "zeld_movement"
         ? zeldNoticeText(warning.data, warning.severity)
-        : { title: warning.title, description: warning.message }),
+        : warning.code === "locked_coin_spend"
+          ? lockedCoinWarningText(warning.data.coins)
+          : { title: warning.title, description: warning.message }),
     }]);
   const requiresAttention = !blocked && !isRefreshing && !refreshError && approvalPolicy?.requiresAcknowledgement;
   // A proved bulk-listing batch is a one-screen decision like the single listing: the review
@@ -203,7 +205,7 @@ export default function ApprovePsbtsPage() {
           title={t('common_review_before_signing')}
           description={t('provider_review_acknowledge_risks')}
           items={policyItems}
-          confirmLabel={t('common_confirm_and_sign')}
+          confirmLabel={spendsLockedCoins(decodedInfo.policyWarnings ?? []) ? t('coin_lock_unlock_and_sign') : t('common_confirm_and_sign')}
           busy={isSigning}
           isHardware={activeWallet.type === "hardware"}
           onBack={() => setAttentionReview(null)}

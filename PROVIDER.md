@@ -532,6 +532,35 @@ take a slot only through a later `authorize_exact_offer` signature, which is its
   `target.collection` and `target.policy` are cleaned of control and bidi characters, collapsed to
   one line, shortened, and shown in quotation marks as the website's own words.
 
+##### Locked offer coins
+
+An offer lives only while the coins behind it stay unspent, so once the user signs, the wallet
+locks those coins: sends leave them out, and a signing request that would spend one asks first.
+
+- After a `fund_offers` signature, the slot outputs (vouts `0..slotCount-1` of the funding's
+  unsigned transaction id) that pay this wallet. Nothing is locked when a funding input is not
+  SegWit or Taproot, since signing it would change that id.
+- After an `authorize_exact_offer` signature, its input 0, which gains the `authorizationId`.
+- After a `fund_policy_offer` signature, every funding input the wallet signed.
+
+Only the site whose request locked a slot may send an `authorize_exact_offer` whose input 0 is
+that slot without a prompt. Any other request that signs a locked coin, from any site, shows a
+warning; confirming it unlocks the coin, and the offers it backs end once the spend confirms. The
+user can also unlock or lock coins under Settings › Coins. A lock comes off by itself when its coin
+is spent, when the offer's `marketplaceExpiresAt` (or a policy offer's latest `expiresAt`) is more
+than an hour past, or when a slot is never seen on chain within a day of signing.
+
+These three intents accept an optional `commitments` array naming the offers each coin backs:
+
+```js
+commitments: [
+  { outpoint: { txid: '<64-char txid>', vout: 0 }, offerIds: ['<offer id>'], expiresAt: 1711130400 }
+]
+```
+
+It only labels coins the wallet locked on its own evidence: an entry for any other outpoint is
+ignored, as is a malformed entry, and requests without the field lock the same coins.
+
 ##### Taproot commits with `inscription`
 
 Counterparty's Taproot encoding is two transactions. The *commit* pays a P2TR output whose script

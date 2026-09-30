@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
+import type { CoinLock, CoinLockUpdate } from '@/core/bitcoin/coinLocks';
 import {
   clearSpentUtxoCache,
   recordPendingChange,
@@ -291,5 +293,65 @@ describe('selectUtxosForTransaction', () => {
 
     expect(result.utxos).toHaveLength(1);
     expect(result.excludedWithAssets).toBe(1); // Counted once, not twice
+  });
+});
+
+describe('selectUtxosForTransaction with locked coins', () => {
+  const lockOn = (txid: string, vout: number, extra: Partial<CoinLock> = {}): CoinLock => ({
+    outpoint: `${txid}:${vout}`, address: mockAddress, kind: 'offer_slot', manual: false, refs: ['offer-1'],
+    valueSats: 0, origin: 'https://market.example', expiresAt: null, createdAt: Math.floor(Date.now() / 1000),
+    seenAt: null, unlocked: false, ...extra,
+  });
+  let locks: CoinLock[];
+  let updates: CoinLockUpdate[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearSpentUtxoCache();
+    mockedFormatInputsSet.mockImplementation((utxos) => utxos.map(u => `${u.txid}:${u.vout}`).join(','));
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set());
+    updates = [];
+    setCoinLockStore({ read: async () => locks, update: async (_address, update) => { updates.push(update); } });
+  });
+  afterEach(() => setCoinLockStore(null));
+
+  it('leaves locked coins out and counts them, like attached ones', async () => {
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo('tx1', 0, 50000), createMockUtxo('tx2', 0, 30000), createMockUtxo('tx3', 1, 20000)]);
+    locks = [lockOn('tx2', 0), lockOn('tx3', 1, { kind: 'manual', manual: true, refs: [], origin: null })];
+
+    const result = await selectUtxosForTransaction(mockAddress);
+
+    expect(result.utxos.map(u => u.txid)).toEqual(['tx1']);
+    expect(result.excludedLocked).toBe(2);
+    expect(result.excludedLockedValue).toBe(50000);
+    expect(result.excludedWithAssets).toBe(0);
+  });
+
+  it('spends a coin the user unlocked', async () => {
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo('tx1', 0, 50000)]);
+    locks = [lockOn('tx1', 0, { unlocked: true })];
+    expect((await selectUtxosForTransaction(mockAddress)).utxos).toHaveLength(1);
+  });
+
+  it('says how many are locked when nothing is left', async () => {
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo('tx1', 0, 50000)]);
+    locks = [lockOn('tx1', 0)];
+    await expect(selectUtxosForTransaction(mockAddress)).rejects.toThrow('0 UTXOs have attached assets, 1 are locked.');
+  });
+
+  it('tells the store which locked coins its read saw, so spent ones come off', async () => {
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo('tx1', 0, 50000), createMockUtxo('tx2', 0, 10000)]);
+    locks = [lockOn('tx1', 0), lockOn('gone', 0, { seenAt: 1 })];
+
+    const result = await selectUtxosForTransaction(mockAddress);
+
+    expect(updates).toEqual([{ observed: { present: ['tx1:0'] } }]);
+    expect(result.excludedLocked).toBe(1);
+  });
+
+  it('fails rather than select without locks when the store cannot answer', async () => {
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo('tx1', 0, 50000)]);
+    setCoinLockStore({ read: async () => { throw new Error('store down'); }, update: async () => {} });
+    await expect(selectUtxosForTransaction(mockAddress)).rejects.toThrow('store down');
   });
 });

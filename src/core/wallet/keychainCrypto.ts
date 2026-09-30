@@ -4,6 +4,7 @@
  */
 
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
+import { sanitizeCoinLocks } from '@/core/bitcoin/coinLocks';
 import { decryptJsonWithKey, encryptJsonWithKey } from '@/core/encryption/encryption';
 import { isRecord } from '@/core/isRecord';
 import { type AppSettings, DEFAULT_SETTINGS, MAX_ORDER_EXPIRATION, VALID_AUTO_LOCK_TIMERS } from '@/core/settings';
@@ -94,6 +95,10 @@ export function parseKeychain(value: unknown): Keychain {
   // Only a fallback for notices: a malformed record is dropped, never a lockout.
   if (value.zeldOutpoints !== undefined) {
     keychain.zeldOutpoints = sanitizeZeldOutpointEntries(value.zeldOutpoints);
+  }
+  // Also never a lockout: a malformed lock is dropped, and its coin is spendable again.
+  if (value.coinLocks !== undefined) {
+    keychain.coinLocks = sanitizeCoinLocks(value.coinLocks);
   }
   return keychain;
 }

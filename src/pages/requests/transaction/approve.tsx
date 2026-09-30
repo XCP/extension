@@ -17,7 +17,7 @@ import {
 import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
 import { ApprovalSummaryCard } from "@/components/domain/approval/approval-summary-card";
 import { ApprovalTransactionDetails } from "@/components/domain/approval/approval-transaction-details";
-import { buildApprovalWarnings, zeldReviewNotes } from "@/components/domain/approval/approval-warnings";
+import { buildApprovalWarnings, spendsLockedCoins, zeldReviewNotes } from "@/components/domain/approval/approval-warnings";
 import { ApprovalZeldNotes } from "@/components/domain/approval/approval-zeld-notes";
 import { CounterpartyDetailsCard } from "@/components/domain/approval/counterparty-details-card";
 import { buildOrderAction, type OrderAction } from "@/components/domain/approval/order-card";
@@ -231,8 +231,10 @@ export default function ApproveTransactionPage() {
       : approvalAttentionItems.some((item) => item.severity === "danger")
         ? t('common_review_transaction_risk')
         : t('common_review_before_signing');
-  const confirmLabel =
-    decodedInfo.counterpartyMessage?.messageType === "destroy"
+  // Confirming is what unlocks the coins, so the button says so.
+  const confirmLabel = spendsLockedCoins(safetyWarnings)
+    ? t('coin_lock_unlock_and_sign')
+    : decodedInfo.counterpartyMessage?.messageType === "destroy"
       ? t('common_destroy_supply')
       : t('common_confirm_and_sign');
   const handleApprovalAction = () => {

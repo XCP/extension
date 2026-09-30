@@ -9,6 +9,7 @@
  */
 
 import type { AddressFormat } from '@/core/bitcoin/addressFormat';
+import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/core/bitcoin/coinLocks';
 import type { ConsolidationResult as BatchConsolidationResult } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import type { KnownZeldOutpoint, ZeldOutpointUpdate } from '@/core/zeld/knownOutpoints';
@@ -84,6 +85,12 @@ export interface WalletService {
   getKnownZeldOutpoints: (address: string) => Promise<KnownZeldOutpoint[]>;
   /** Update, in the encrypted keychain, the record of `address`'s ZELD outputs. */
   recordZeldOutpoints: (address: string, update: ZeldOutpointUpdate) => Promise<void>;
+  /** `address`'s locked coins (core/bitcoin/coinLocks), unlocked ones included. Empty while locked. */
+  getCoinLocks: (address: string) => Promise<CoinLock[]>;
+  /** Coin control from an extension page: lock, unlock, lock again, or what a UTXO read saw. */
+  updateCoinLocks: (address: string, update: CoinLockUpdate) => Promise<void>;
+  /** Background only: lock the coins an offer signature just committed. */
+  addOfferCoinLocks: (address: string, commitments: OfferCoinCommitment[]) => Promise<void>;
   setLastActiveAddress: (address: string) => Promise<void>;
   /** Record user activity; `activityTime` is when it happened, for activity the UI reports late. */
   setLastActiveTime: (activityTime?: number) => Promise<void>;
@@ -247,6 +254,9 @@ function createWalletService(): WalletService {
     },
     getKnownZeldOutpoints: async (address) => walletManager.getKnownZeldOutpoints(address),
     recordZeldOutpoints: async (address, update) => walletManager.recordZeldOutpoints(address, update),
+    getCoinLocks: async (address) => walletManager.getCoinLocks(address),
+    updateCoinLocks: async (address, update) => walletManager.updateCoinLocks(address, update),
+    addOfferCoinLocks: async (address, commitments) => walletManager.addOfferCoinLocks(address, commitments),
     getLastActiveAddress: async () => {
       const settings = walletManager.getSettings();
       return settings?.lastActiveAddress;

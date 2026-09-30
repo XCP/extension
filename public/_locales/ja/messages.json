@@ -515,6 +515,176 @@
   "approval_too_many_inputs_description": {
     "message": "この取引は $1 個を超える入力を使用しており、ウォレットがアタッチされたアセットを確認できる数を超えています。入力を減らすようサイトに依頼してください。"
   },
+  "coin_lock_compose_spends_locked_coin": {
+    "message": "この取引はあなたがロックしたコイン（$1）を使ってしまいます。設定 › コイン でロックを解除してから、もう一度お試しください。"
+  },
+  "coin_lock_compose_spends_offer_coin": {
+    "message": "この取引はオファー用にロックされたコイン（$1）を使ってしまいます。設定 › コイン でロックを解除するかオファーを取り消してから、もう一度お試しください。"
+  },
+  "coin_lock_insufficient": {
+    "message": "使える BTC が足りません：自由に使える $1 sats、ロック中 $2 sats。設定 › コイン でコインのロックを解除してください。"
+  },
+  "coin_lock_insufficient_offers": {
+    "message": "使える BTC が足りません：自由に使える $1 sats、オファーでロック中 $2 sats。コインのロックを解除するか、オファーを取り消してください。"
+  },
+  "coin_lock_no_spendable_balance": {
+    "message": "使用可能な残高がありません。$1 BTC はロックされたコインにあります。"
+  },
+  "coin_lock_sentence_pair": {
+    "message": "$p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "coin_lock_unlock_and_sign": {
+    "message": "ロックを解除して署名"
+  },
+  "coin_lock_warning_coin": {
+    "message": "$1 BTC · $2 · $3"
+  },
+  "coin_lock_warning_coin_offers": {
+    "message": "オファー用にロックされたコインを使います。この取引が承認されると、$1 件のオファーが取り消されます。"
+  },
+  "coin_lock_warning_manual": {
+    "message": "あなたがロックしたコインを使います。"
+  },
+  "coin_lock_warning_manual_many": {
+    "message": "あなたがロックしたコインを使います。"
+  },
+  "coin_lock_warning_offer": {
+    "message": "オファー用にロックされたコインを使います。この取引が承認されると、オファーは取り消されます。"
+  },
+  "coin_lock_warning_offer_coins": {
+    "message": "オファー用にロックされたコインを使います。この取引が承認されると、オファーは取り消されます。"
+  },
+  "coin_lock_warning_offers": {
+    "message": "オファー用にロックされたコインを使います。この取引が承認されると、$1 件のオファーが取り消されます。"
+  },
+  "coin_lock_warning_title": {
+    "message": "ロックされたコインを使います"
+  },
+  "coin_lock_warning_title_many": {
+    "message": "ロックされたコインを $1 枚使います"
+  },
+  "coins_backs_offers": {
+    "message": "$1 件のオファーを裏付け"
+  },
+  "coins_backs_one_offer": {
+    "message": "1 件のオファーを裏付け"
+  },
+  "coins_btc_amount": {
+    "message": "$1 BTC"
+  },
+  "coins_coin_label": {
+    "message": "$1 BTC · $2"
+  },
+  "coins_confirmation_one": {
+    "message": "1 承認"
+  },
+  "coins_confirmations": {
+    "message": "$1 承認"
+  },
+  "coins_filter": {
+    "message": "コインを絞り込む"
+  },
+  "coins_filter_all": {
+    "message": "すべて"
+  },
+  "coins_filter_locked": {
+    "message": "ロック中"
+  },
+  "coins_funds_offers": {
+    "message": "オファー用に確保済み"
+  },
+  "coins_holds_assets": {
+    "message": "アセットあり"
+  },
+  "coins_kind_collection_offer": {
+    "message": "コレクションオファー"
+  },
+  "coins_kind_manual": {
+    "message": "あなたがロック"
+  },
+  "coins_kind_offer_slot": {
+    "message": "オファー資金"
+  },
+  "coins_load_failed": {
+    "message": "このアドレスのコインを読み込めませんでした。もう一度お試しください。"
+  },
+  "coins_loading": {
+    "message": "コインを読み込み中…"
+  },
+  "coins_lock": {
+    "message": "ロック"
+  },
+  "coins_lock_again": {
+    "message": "再びロック"
+  },
+  "coins_none": {
+    "message": "コインがありません"
+  },
+  "coins_none_detail": {
+    "message": "このアドレスが受け取った BTC は、出力ごとに 1 枚のコインとしてここに表示されます。"
+  },
+  "coins_none_locked": {
+    "message": "ロック中のコインはありません"
+  },
+  "coins_not_on_chain_yet": {
+    "message": "まだチェーン上にありません"
+  },
+  "coins_offer_expires": {
+    "message": "有効期限 $1"
+  },
+  "coins_offer_site": {
+    "message": "$1 から"
+  },
+  "coins_refresh": {
+    "message": "コインを更新"
+  },
+  "coins_show_more": {
+    "message": "さらに表示"
+  },
+  "coins_summary": {
+    "message": "使用可能 $1 BTC · ロック中 $2 BTC"
+  },
+  "coins_summary_free": {
+    "message": "使用可能 $1 BTC"
+  },
+  "coins_title": {
+    "message": "コイン"
+  },
+  "coins_unconfirmed": {
+    "message": "未承認"
+  },
+  "coins_unlock": {
+    "message": "ロック解除"
+  },
+  "coins_unlock_confirm_funding": {
+    "message": "このコインはオファー用に確保されています。使うとオファーは取り消されます。"
+  },
+  "coins_unlock_confirm_manual": {
+    "message": "このコインは再び使えるようになります。"
+  },
+  "coins_unlock_confirm_offers": {
+    "message": "このコインを使うと $1 件のオファーが取り消されます。"
+  },
+  "coins_unlock_confirm_one_offer": {
+    "message": "このコインを使うと 1 件のオファーが取り消されます。"
+  },
+  "coins_unlock_confirm_title": {
+    "message": "コインのロックを解除しますか？"
+  },
+  "coins_unlocked": {
+    "message": "ロック解除済み"
+  },
+  "coins_update_failed": {
+    "message": "このコインを更新できませんでした。もう一度お試しください。"
+  },
   "file_validation_invalid_file": {
     "message": "ファイルを読み込めませんでした。"
   },
@@ -4478,6 +4648,9 @@
   "settings_change_your_wallet_password": {
     "message": "ウォレットのパスワードを変更"
   },
+  "settings_coins_description": {
+    "message": "コインをロックし、オファーを支えるコインを確認"
+  },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "すべてのサイトの接続を解除"
   },
@@ -6117,6 +6290,9 @@
   },
   "approval_bitcoin_payment_output_address_unknown": {
     "message": "出力 $1 の Bitcoin アドレスを確認できません。"
+  },
+  "zeld_error_locked": {
+    "message": "一部の ZELD はあなたがロックしたコインにあります。送るには 設定 › コイン でロックを解除してください。"
   },
   "zeld_hunt_enable": {
     "message": "ZELD 探索を有効にする"

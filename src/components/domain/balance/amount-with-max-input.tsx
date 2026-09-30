@@ -1,5 +1,6 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ChangeEvent, type ReactElement, type ReactNode, useState } from "react";
+import { formatCoinBtc } from "@/components/domain/coins/coin-lock-text";
 import { Button } from "@/components/ui/button";
 import { parseAmountDraft, rawToInput } from "@/core/amount-contract/amounts";
 import { estimateVsize } from "@/core/bitcoin/feeEstimation";
@@ -119,15 +120,18 @@ export function AmountWithMaxInput({
       setError(null);
 
       // Select UTXOs that are safe to spend (excludes those with Counterparty assets)
-      const { utxos, totalValue, excludedWithAssets } = await selectUtxosForTransaction(
+      const { utxos, totalValue, excludedWithAssets, excludedLockedValue } = await selectUtxosForTransaction(
         sourceAddress.address,
-        { allowUnconfirmed: true }
+        // None left is answered below, saying why, rather than as a selection error.
+        { allowUnconfirmed: true, minUtxos: 0 }
       );
 
       if (utxos.length === 0) {
-        throw new UserFacingError(excludedWithAssets > 0
-          ? t('common_no_spendable_balance_utxos_have', [String(excludedWithAssets)])
-          : t('common_no_available_balance'));
+        throw new UserFacingError(excludedLockedValue > 0
+          ? t('coin_lock_no_spendable_balance', formatCoinBtc(excludedLockedValue))
+          : excludedWithAssets > 0
+            ? t('common_no_spendable_balance_utxos_have', [String(excludedWithAssets)])
+            : t('common_no_available_balance'));
       }
 
       if (totalValue <= 0) {

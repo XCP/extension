@@ -515,6 +515,176 @@
   "approval_too_many_inputs_description": {
     "message": "此交易花费超过 $1 个输入，超出钱包可检查附加资产的数量。请让网站减少输入数量。"
   },
+  "coin_lock_compose_spends_locked_coin": {
+    "message": "此交易会花费你锁定的币（$1）。请在 设置 › 币 中解锁后重试。"
+  },
+  "coin_lock_compose_spends_offer_coin": {
+    "message": "此交易会花费为你的出价锁定的币（$1）。请在 设置 › 币 中解锁或取消出价后重试。"
+  },
+  "coin_lock_insufficient": {
+    "message": "可用 BTC 不足：可用 $1 sats，已锁定 $2 sats。请在 设置 › 币 中解锁一枚币。"
+  },
+  "coin_lock_insufficient_offers": {
+    "message": "可用 BTC 不足：可用 $1 sats，出价中锁定 $2 sats。请解锁一枚币或取消一个出价。"
+  },
+  "coin_lock_no_spendable_balance": {
+    "message": "没有可花费的余额。$1 BTC 在已锁定的币中。"
+  },
+  "coin_lock_sentence_pair": {
+    "message": "$p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "coin_lock_unlock_and_sign": {
+    "message": "解锁并签名"
+  },
+  "coin_lock_warning_coin": {
+    "message": "$1 BTC · $2 · $3"
+  },
+  "coin_lock_warning_coin_offers": {
+    "message": "这会花费为你的出价锁定的一枚币。此交易确认后，你的 $1 个出价将被取消。"
+  },
+  "coin_lock_warning_manual": {
+    "message": "这会花费你锁定的一枚币。"
+  },
+  "coin_lock_warning_manual_many": {
+    "message": "这会花费你锁定的币。"
+  },
+  "coin_lock_warning_offer": {
+    "message": "这会花费为你的出价锁定的币。此交易确认后，你的出价将被取消。"
+  },
+  "coin_lock_warning_offer_coins": {
+    "message": "这会花费为你的出价锁定的币。此交易确认后，你的出价将被取消。"
+  },
+  "coin_lock_warning_offers": {
+    "message": "这会花费为你的出价锁定的币。此交易确认后，你的 $1 个出价将被取消。"
+  },
+  "coin_lock_warning_title": {
+    "message": "花费一枚已锁定的币"
+  },
+  "coin_lock_warning_title_many": {
+    "message": "花费 $1 枚已锁定的币"
+  },
+  "coins_backs_offers": {
+    "message": "支撑 $1 个出价"
+  },
+  "coins_backs_one_offer": {
+    "message": "支撑 1 个出价"
+  },
+  "coins_btc_amount": {
+    "message": "$1 BTC"
+  },
+  "coins_coin_label": {
+    "message": "$1 BTC · $2"
+  },
+  "coins_confirmation_one": {
+    "message": "1 次确认"
+  },
+  "coins_confirmations": {
+    "message": "$1 次确认"
+  },
+  "coins_filter": {
+    "message": "筛选币"
+  },
+  "coins_filter_all": {
+    "message": "全部"
+  },
+  "coins_filter_locked": {
+    "message": "已锁定"
+  },
+  "coins_funds_offers": {
+    "message": "已为出价预留"
+  },
+  "coins_holds_assets": {
+    "message": "附有资产"
+  },
+  "coins_kind_collection_offer": {
+    "message": "合集出价"
+  },
+  "coins_kind_manual": {
+    "message": "由你锁定"
+  },
+  "coins_kind_offer_slot": {
+    "message": "出价资金"
+  },
+  "coins_load_failed": {
+    "message": "无法加载此地址的币。请重试。"
+  },
+  "coins_loading": {
+    "message": "正在加载币…"
+  },
+  "coins_lock": {
+    "message": "锁定"
+  },
+  "coins_lock_again": {
+    "message": "重新锁定"
+  },
+  "coins_none": {
+    "message": "没有币"
+  },
+  "coins_none_detail": {
+    "message": "此地址收到的 BTC 会显示在这里，每个输出一枚币。"
+  },
+  "coins_none_locked": {
+    "message": "没有已锁定的币"
+  },
+  "coins_not_on_chain_yet": {
+    "message": "尚未上链"
+  },
+  "coins_offer_expires": {
+    "message": "有效期至 $1"
+  },
+  "coins_offer_site": {
+    "message": "来自 $1"
+  },
+  "coins_refresh": {
+    "message": "刷新币"
+  },
+  "coins_show_more": {
+    "message": "显示更多"
+  },
+  "coins_summary": {
+    "message": "可用 $1 BTC · 已锁定 $2 BTC"
+  },
+  "coins_summary_free": {
+    "message": "可用 $1 BTC"
+  },
+  "coins_title": {
+    "message": "币"
+  },
+  "coins_unconfirmed": {
+    "message": "未确认"
+  },
+  "coins_unlock": {
+    "message": "解锁"
+  },
+  "coins_unlock_confirm_funding": {
+    "message": "此币已为出价预留。花费它会取消这些出价。"
+  },
+  "coins_unlock_confirm_manual": {
+    "message": "此币将重新可以花费。"
+  },
+  "coins_unlock_confirm_offers": {
+    "message": "花费此币会取消 $1 个出价。"
+  },
+  "coins_unlock_confirm_one_offer": {
+    "message": "花费此币会取消 1 个出价。"
+  },
+  "coins_unlock_confirm_title": {
+    "message": "解锁此币？"
+  },
+  "coins_unlocked": {
+    "message": "已解锁"
+  },
+  "coins_update_failed": {
+    "message": "无法更新此币。请重试。"
+  },
   "file_validation_invalid_file": {
     "message": "无法读取此文件。"
   },
@@ -4478,6 +4648,9 @@
   "settings_change_your_wallet_password": {
     "message": "更改钱包密码"
   },
+  "settings_coins_description": {
+    "message": "锁定币，查看支撑出价的币"
+  },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "断开所有网站"
   },
@@ -6117,6 +6290,9 @@
   },
   "approval_bitcoin_payment_output_address_unknown": {
     "message": "无法核查输出 $1 的比特币地址。"
+  },
+  "zeld_error_locked": {
+    "message": "部分 ZELD 位于你锁定的币上。请在 设置 › 币 中解锁后再发送。"
   },
   "zeld_hunt_enable": {
     "message": "启用 ZELD 搜寻"

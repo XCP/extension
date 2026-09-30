@@ -2,6 +2,7 @@
 
 import type {
   MarketplaceAssetClaim,
+  MarketplaceCoinCommitmentClaim,
   MarketplaceOutpointClaim,
   MarketplaceSettlementDelivery,
 } from '@/core/counterparty/marketplace/intentTypes';
@@ -126,6 +127,35 @@ export const fundingOutpoints = (
     seenOutpoints.add(key);
     return { ...claimed, valueSats: safeInteger(candidate.valueSats, `${label}.valueSats`, { positive: true }) };
   });
+};
+
+/** Commitment entries one intent may carry; more are ignored. */
+const MAX_COIN_COMMITMENTS = 100;
+const MAX_COMMITMENT_OFFER_IDS = 64;
+
+/**
+ * The optional `commitments` hint, parsed tolerantly: it only ever adds offer ids and expiry to a
+ * coin the wallet proved, so a malformed entry is dropped rather than failing a request that
+ * would sign the same without it. Absent or empty yields nothing, keeping older intents unchanged.
+ */
+export const optionalCoinCommitments = (value: unknown): { commitments?: MarketplaceCoinCommitmentClaim[] } => {
+  if (!Array.isArray(value)) return {};
+  const commitments = value.slice(0, MAX_COIN_COMMITMENTS).flatMap((candidate): MarketplaceCoinCommitmentClaim[] => {
+    try {
+      if (!isRecord(candidate)) return [];
+      const claimed = outpoint(candidate.outpoint, 'commitments.outpoint');
+      const offerIds = Array.isArray(candidate.offerIds)
+        ? [...new Set(candidate.offerIds.filter((id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 128))]
+          .slice(0, MAX_COMMITMENT_OFFER_IDS)
+        : [];
+      const expiresAt = typeof candidate.expiresAt === 'number' && Number.isSafeInteger(candidate.expiresAt) && candidate.expiresAt > 0
+        ? candidate.expiresAt : null;
+      return [{ outpoint: claimed, offerIds, expiresAt }];
+    } catch {
+      return [];
+    }
+  });
+  return commitments.length > 0 ? { commitments } : {};
 };
 
 /**

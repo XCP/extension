@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
 import type { DecodedPsbtBundleInfo } from '@/core/bitcoin/psbtBundleApprovalDecoder';
@@ -107,6 +107,21 @@ it('takes the review step when an exact-offer batch requires acknowledgement', a
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
   expect(state.approve).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', {name: 'Confirm and sign'}));
+  await waitFor(() => expect(state.approve).toHaveBeenCalledWith(true));
+});
+
+it('names the offer a locked coin backs and makes confirming the unlock', async () => {
+  state.request = {bundleKind: 'authorize-offers', origin: 'https://example.test', address: '1wallet', items: [{signInputs: {'1wallet': [0]}}]};
+  state.policy.requiresAcknowledgement = true;
+  state.decoded.policyWarnings = [{severity: 'warning', code: 'locked_coin_spend', title: 'Spends a locked coin', message: 'fallback',
+    data: {coins: [{outpoint: `${'a'.repeat(64)}:0`, address: '1wallet', kind: 'offer_slot', manual: false, offers: 1, valueSats: 20_000}]}}];
+  render(<ApprovePsbtsPage />);
+  fireEvent.click(screen.getByRole('button', {name: 'Authorize 1 offer'}));
+  const dialog = await screen.findByRole('dialog');
+  expect(within(dialog).getByText('Spends a locked coin')).toBeInTheDocument();
+  expect(within(dialog).getByText('This spends a coin locked for your offer. Your offer will be cancelled when this confirms.')).toBeInTheDocument();
+  expect(within(dialog).getByText('0.00020000 BTC · aaaaaaaa...aaaaaa:0 · Offer funding')).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole('button', {name: 'Unlock and sign'}));
   await waitFor(() => expect(state.approve).toHaveBeenCalledWith(true));
 });
 

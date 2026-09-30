@@ -19,6 +19,7 @@
 
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
+import { lockedOutpoints } from '@/core/bitcoin/coinLockStore';
 import { getInputSizeForAddress } from '@/core/bitcoin/feeEstimation';
 import { isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs, type UTXO } from '@/core/bitcoin/utxo';
@@ -115,6 +116,8 @@ async function composeZeldMove(options: ZeldMoveOptions): Promise<ApiResponse> {
   ]);
   const amount = park ? zeld.baseUnits : BigInt(amountBaseUnits);
   if (amount > zeld.baseUnits) throw new Error('Insufficient ZELD balance.');
+  // Coins the wallet has locked stay put, ZELD or not; the top-up below leaves them out too.
+  const locked = await lockedOutpoints(sourceAddress, bitcoinUtxos);
 
   // Spend every ZELD output the wallet can spend right now. Consolidating is free here, and it
   // means the remainder lands on one output rather than being scattered by repeated sends.
@@ -122,9 +125,14 @@ async function composeZeldMove(options: ZeldMoveOptions): Promise<ApiResponse> {
   const attached = new Set(attachedBalances.flatMap(balance => (balance.utxo ? [balance.utxo.toLowerCase()] : [])));
   const spendable: Array<ZeldUtxo & { value: number }> = [];
   let unspendable = 0n;
+  let lockedZeld = 0n;
   for (const utxo of zeld.utxos) {
     const key = outpointKey(utxo);
     const bitcoin = bitcoinByOutpoint.get(key);
+    if (locked.has(key)) {
+      lockedZeld += utxo.balance;
+      continue;
+    }
     const usable = bitcoin
       && (settings.allowUnconfirmedTxs || bitcoin.status.confirmed)
       && !isUtxoRecentlySpent(utxo.txid, utxo.vout)
@@ -134,10 +142,15 @@ async function composeZeldMove(options: ZeldMoveOptions): Promise<ApiResponse> {
     else unspendable += utxo.balance;
   }
   const carried = spendable.reduce((sum, utxo) => sum + utxo.balance, 0n);
-  if (park && carried === 0n) throw new Error('No spendable ZELD to move.');
+  // Locked coins are named first: unlocking them is a fix the user can make right now.
+  if (park && carried === 0n) {
+    throw new Error(lockedZeld > 0n ? 'Some ZELD sits on coins you locked.' : 'No spendable ZELD to move.');
+  }
   if (!park && amount > carried) {
     throw new Error(
-      unspendable > 0n
+      lockedZeld > 0n
+        ? 'Some ZELD sits on coins you locked.'
+        : unspendable > 0n
         ? 'Some ZELD sits on outputs the wallet cannot spend yet (unconfirmed, just spent, or carrying a Counterparty attachment).'
         : 'Insufficient spendable ZELD.',
     );
