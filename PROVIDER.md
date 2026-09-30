@@ -475,7 +475,9 @@ asset UTXO.
 ##### Offer funding (`fund_offers`)
 
 Before a buyer can authorize exact offers, a clean-Bitcoin self-send sets aside one output per
-offered edition. It carries no Counterparty content, so the
+offered edition. The bidder must be a Native SegWit or Taproot address, spending only its own
+Native SegWit or Taproot outputs, so the funding's unsigned txid is its final one. It carries no
+Counterparty content, so the
 [Counterparty-only rule](#what-this-wallet-will-sign) would refuse it; a proved `fund_offers`
 intent lifts that rule, and only that rule:
 

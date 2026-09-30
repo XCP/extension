@@ -283,18 +283,26 @@ it('still signs a proved same-wallet fan-out without Counterparty data', async (
   await signs(result);
 });
 
+/** Offers are funded from Native SegWit or Taproot: the paired P2WPKH address is the active one. */
+function useSegwitBidder() {
+  state.address = paired.address;
+  state.wallet.getActiveWallet.mockResolvedValue({id: 'audit', type: 'privateKey', addressFormat: 'p2wpkh'});
+  state.wallet.getActiveAddress.mockResolvedValue({address: paired.address});
+}
+
 function offerFunding(
-  source: {tx: Transaction; vout: number} = {tx: funding(wallet.script, 50_000n, 8), vout: 0},
+  source: {tx: Transaction; vout: number} = {tx: funding(paired.script, 50_000n, 8), vout: 0},
+  bidder: {script: Uint8Array; address: string} = paired,
 ): PsbtBundleApprovalInput['items'][number] {
   const prev = source.tx;
   const tx = new Transaction({version: 2, lockTime: 0});
   tx.addInput({txid: prev.id, index: source.vout, nonWitnessUtxo: prev.toBytes(true, false), sighashType: 1});
-  for (const amount of [9_000n, 9_000n, 31_500n]) tx.addOutput({script: wallet.script, amount});
-  const item = {psbtHex: bytesToHex(tx.toPSBT()), signInputs: {[wallet.address]: [0]}, sighashTypes: [1]};
+  for (const amount of [9_000n, 9_000n, 31_500n]) tx.addOutput({script: bidder.script, amount});
+  const item = {psbtHex: bytesToHex(tx.toPSBT()), signInputs: {[bidder.address]: [0]}, sighashTypes: [1]};
   return {...item, marketplaceIntent: parseMarketplaceIntent({
     standard: 'counterparty-marketplace', version: 1, action: 'fund_offers',
     operationId: `offer-funding:${tx.id}`, protocolVersion: 'exact_offer_v1', assets: [],
-    bidder: wallet.address, target: {scope: 'asset', asset: 'RAREPEPE'},
+    bidder: bidder.address, target: {scope: 'asset', asset: 'RAREPEPE'},
     priceSats: 8_000, platformFeeSats: 1_000, delivery: {mode: 'detached'},
     fundingInputs: [{txid: prev.id, vout: source.vout, valueSats: 50_000}], fundingValueSats: 50_000,
     slotCount: 2, slotValueSats: 9_000, networkFeeSats: 500, changeSats: 31_500,
@@ -303,12 +311,24 @@ function offerFunding(
 }
 
 it('signs a proved single offer funding without Counterparty data', async () => {
+  useSegwitBidder();
   const result = await review([offerFunding()], false);
   expect(result.policy).toMatchObject({blocked: false, requiresAcknowledgement: false});
   await signs(result);
 });
 
+it('refuses offer funding from a Legacy address, which the marketplace never builds', async () => {
+  const result = await review([offerFunding({tx: funding(wallet.script, 50_000n, 8), vout: 0}, wallet)], false);
+  if (result.kind !== 'sign-psbt') throw new Error('wrong kind');
+  expect(result.decodedInfo.marketplaceReview?.blockers)
+    .toContain('offers are funded only from a Native SegWit or Taproot address');
+  expect(result.policy.blocked).toBe(true);
+  await expect(signs(result, true)).rejects.toThrow();
+  expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+});
+
 it('keeps the Counterparty-only gate for the same self-send without an offer intent', async () => {
+  useSegwitBidder();
   const {marketplaceIntent: _intent, ...plain} = offerFunding();
   const id = crypto.randomUUID();
   await beginSignFlow({id, walletId: 'audit', address: state.address, origin: 'https://audit.invalid',
@@ -382,10 +402,11 @@ it("signs the next attach in a chain funded by an unconfirmed attach's change", 
 });
 
 it("signs offer funding from an unconfirmed plain fan-out's first slot", async () => {
-  const root = funding(wallet.script, 120_000n, 23);
+  useSegwitBidder();
+  const root = funding(paired.script, 120_000n, 23);
   const fanout = new Transaction({version: 2, lockTime: 0});
   fanout.addInput({txid: root.id, index: 0, nonWitnessUtxo: root.toBytes(true, false)});
-  for (const amount of [50_000n, 50_000n, 19_000n]) fanout.addOutput({script: wallet.script, amount});
+  for (const amount of [50_000n, 50_000n, 19_000n]) fanout.addOutput({script: paired.script, amount});
   known(fanout, 0);
   for (const vout of [0, 1]) {
     const result = await review([offerFunding({tx: fanout, vout})], false);
