@@ -90,7 +90,7 @@ async function installNetwork(context: BrowserContext): Promise<NetworkFixture> 
       } }));
     if (url.pathname.endsWith('/blocks/tip/height')) return route.fulfill({ body: '970000' });
     if (/\/v2\/?$/.test(url.pathname)) return route.fulfill(json({ result: {
-      server_ready: true, network: 'mainnet', version: '11.3.0', backend_height: 970000, counterparty_height: 970000,
+      server_ready: true, network: 'mainnet', version: '11.5.0', backend_height: 970000, counterparty_height: 970000,
     } }));
     // fetchTransaction uses the singular result envelope from /v2/transactions/:hash?verbose=true.
     if (url.pathname === `/v2/transactions/${HISTORY_ORDER_HASH}`) return route.fulfill(json({ result: orderHistory }));

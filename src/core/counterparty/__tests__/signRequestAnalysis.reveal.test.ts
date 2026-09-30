@@ -22,6 +22,8 @@ import {
   buildCommit,
   buildReveal,
   dataEnvelope,
+  EPHEMERAL_KEY,
+  EPHEMERAL_PUBKEY,
   OTHER_ADDRESS,
   payTo,
   USER_ADDRESS,
@@ -197,7 +199,7 @@ describe('without a reveal', () => {
     typeof v === 'bigint' ? `${v}n` : v));
 
   it('is identical to main for a plain Bitcoin payment to a Taproot address', async () => {
-    const commit = buildCommit(dataEnvelope(MPMA_HEX));
+    const commit = buildCommit(dataEnvelope(MPMA_HEX, EPHEMERAL_PUBKEY), { key: EPHEMERAL_KEY });
     const commitAddress = extractPsbtDetails(commit.psbtHex).outputs[0]!.address!;
     const analysis = await analyze(commit.psbtHex, {
       signingPurpose: 'bitcoin-payment',
@@ -208,7 +210,7 @@ describe('without a reveal', () => {
   });
 
   it('is identical to main for the same transaction through the Counterparty method', async () => {
-    const commit = buildCommit(dataEnvelope(MPMA_HEX));
+    const commit = buildCommit(dataEnvelope(MPMA_HEX, EPHEMERAL_PUBKEY), { key: EPHEMERAL_KEY });
     const analysis = await analyze(commit.psbtHex);
 
     expect(plain(analysis)).toEqual(MAIN_COUNTERPARTY);

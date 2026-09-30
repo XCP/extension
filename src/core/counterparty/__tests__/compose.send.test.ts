@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
 import { asBaseUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
+import { requireCounterpartyFeature } from '../capabilities';
 import { composeMove, composeSend, composeSendOrMPMA, composeSweep } from '../compose';
 import {
   assertComposeUrlCalled,
@@ -18,6 +19,9 @@ import {
 
 // Mock dependencies
 vi.mock('@/core/api/client');
+vi.mock('@/core/counterparty/capabilities', () => ({
+  requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/core/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/core/settings')>();
   return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
@@ -197,6 +201,37 @@ describe('Compose Send Operations', () => {
       const actualUrl = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
       expect(actualUrl.pathname).toContain('/compose/mpma');
       expect(actualUrl.searchParams.get('encoding')).toBe('taproot');
+      // Taproot needs Core 11.5, which returns a reveal the wallet signs; checked before sending.
+      expect(requireCounterpartyFeature).toHaveBeenCalledWith('taprootReveals');
+    });
+
+    it('sends no Taproot compose to an API older than 11.5', async () => {
+      const refusal = new Error('Taproot encoding and inscriptions need Counterparty API 11.5.0 or newer.');
+      vi.mocked(requireCounterpartyFeature).mockRejectedValueOnce(refusal);
+
+      await expect(composeSendOrMPMA({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        destination: mockDestAddress,
+        destinations: `${mockDestAddress}, bc1qsecond`,
+        encoding: 'taproot',
+      })).rejects.toBe(refusal);
+      expect(mockedApiClient.get).not.toHaveBeenCalled();
+    });
+
+    it('does not ask the API version for a compose without Taproot', async () => {
+      mockedApiClient.get.mockResolvedValue(createApiResponseWithResult());
+      await composeSendOrMPMA({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        destination: mockDestAddress,
+        destinations: `${mockDestAddress}, bc1qsecond`,
+      });
+      expect(requireCounterpartyFeature).not.toHaveBeenCalled();
     });
 
     it('should duplicate asset and quantity for each destination in MPMA', async () => {

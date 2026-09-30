@@ -2451,9 +2451,13 @@
     "message": "Transaction verification failed: the composer returned only one of the two transactions this needs.",
     "description": "contexts/composer-context.tsx. A Taproot-encoded compose came back with an envelope but no reveal, or a reveal but no envelope"
   },
-  "composer_context_taproot_reveal_needs_newer_wallet": {
-    "message": "This Counterparty server needs a newer version of this wallet for Taproot features such as inscriptions. Update the wallet, or compose this without an inscription.",
-    "description": "contexts/composer-context.tsx. Shown when a compose that asked for Taproot encoding (an inscription) gets back an unsigned reveal, the Taproot shape Counterparty Core 11.5 returns, which this wallet version cannot complete"
+  "composer_context_taproot_needs_software_wallet": {
+    "message": "A hardware wallet cannot sign an inscription here: its second transaction must be signed with this address's key inside the wallet. Compose this without an inscription.",
+    "description": "contexts/composer-context.tsx. Shown when a hardware (Trezor) wallet submits an inscription, which is Taproot-encoded: Counterparty Core 11.5 returns an unsigned reveal transaction that the wallet signs with the address key, and hardware wallets are not asked to sign it"
+  },
+  "composer_context_taproot_server_signed_reveal": {
+    "message": "Transaction verification failed: the composer returned a second transaction it had already signed. Counterparty publishes it only when your address signs it, so nothing was signed.",
+    "description": "contexts/composer-context.tsx. A Taproot-encoded compose came back with a reveal transaction signed by the server (the shape of Counterparty Core before 11.5); Core 11.5 attributes a reveal only when the source address signed it, so the wallet refuses it"
   },
   "composer_context_taproot_unexpected_envelope": {
     "message": "Transaction verification failed: the composer's Taproot envelope is not the one this request produces.",
@@ -5504,6 +5508,10 @@
     "message": "The reveal's message would be published from an address that is not yours.",
     "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\"."
   },
+  "safety_reveal_not_source_key": {
+    "message": "The site's reveal is not signed by your address's key, so Counterparty would not publish its message from your address.",
+    "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\". From Counterparty Core 11.5 a reveal publishes its message from the funding address only when the envelope is closed by that address's key and signed with it"
+  },
   "safety_reveal_two_messages": {
     "message": "This transaction carries its own Counterparty message as well as the reveal's, so it cannot be described as one action.",
     "description": "Approval screen block body (core/counterparty/providerReveal.ts) under \"Blocked: Reveal Did Not Verify\"."
@@ -7823,6 +7831,10 @@
   "api_validation_version_required": {
     "message": "API must be Counterparty Core $1 or newer",
     "description": "Custom-node API is older than the supported Core version. $1 is the exact minimum semantic version, unchanged by locale."
+  },
+  "capabilities_taproot_requires_api_version": {
+    "message": "Taproot encoding and inscriptions need Counterparty API $1 or newer. This API runs $2.",
+    "description": "core/counterparty/capabilities.ts. Shown when a compose that uses Taproot encoding (an inscription, or a long message) is refused because the connected Counterparty API is too old. $1 = the minimum semantic version (e.g. 11.5.0), unchanged by locale; $2 = the API's reported version"
   },
   "balance_pending_attaching": {
     "message": "Attaching",

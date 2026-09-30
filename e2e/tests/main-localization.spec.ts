@@ -57,7 +57,7 @@ for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) walletTest.de
       if (path.endsWith('/utxo')) return route.fulfill({ json: [{ txid: TXID, vout: 0, value: 100000, status: { confirmed: true } }] });
       if (path.includes('/api/address/')) return route.fulfill({ json: { chain_stats: { funded_txo_sum: 100000, spent_txo_sum: 0, tx_count: 1 }, mempool_stats: { funded_txo_sum: 0, spent_txo_sum: 0, tx_count: 0 } } });
       if (path.includes('/fees/')) return route.fulfill({ json: { fastestFee: 2, halfHourFee: 1, hourFee: 1 } });
-      if (/\/v2\/?$/.test(path)) return route.fulfill({ json: { result: { server_ready: true, network: 'mainnet', version: '11.3.0', backend_height: 970000, counterparty_height: 970000 } } });
+      if (/\/v2\/?$/.test(path)) return route.fulfill({ json: { result: { server_ready: true, network: 'mainnet', version: '11.5.0', backend_height: 970000, counterparty_height: 970000 } } });
       if (path === '/v2/fairminters' && fairminterFailure) return route.fulfill({ status: 400, json: { error: 'fixture unavailable' } });
       if (path.includes('/v2/')) return route.fulfill({ json: { result: [], result_count: 0, next_cursor: null } });
       return route.abort();

@@ -103,4 +103,34 @@ describe('counterparty capabilities', () => {
 
     expect(status.supported).toBe(true);
   });
+
+  describe('Taproot encoding, whose reveal the wallet signs (Core 11.5)', () => {
+    it.each(['11.3.0', '11.4.9'])('is refused by an API at %s, with the translated reason', async (version) => {
+      mockServerInfo({ version });
+      const status = await getCounterpartyFeatureStatus('taprootReveals');
+      expect(status.supported).toBe(false);
+      expect(status.reason).toBe(
+        `Taproot encoding and inscriptions need Counterparty API 11.5.0 or newer. This API runs ${version}.`);
+    });
+
+    it('is refused as a CounterpartyApiError, the error the wallet-chosen encoding falls back from', async () => {
+      mockServerInfo({ version: '11.3.0' });
+      await expect(requireCounterpartyFeature('taprootReveals')).rejects.toThrow(CounterpartyApiError);
+    });
+
+    // A pre-release reads as its release: 11.5.0-rc.1 compares equal to 11.5.0.
+    it.each(['11.5.0', '11.5.0-rc.1', '11.5.3', '11.10.0', '12.0.0'])('is allowed by an API at %s on any network and height', async (version) => {
+      for (const network of ['mainnet', 'testnet4', 'signet', 'regtest']) {
+        clearCounterpartyCapabilityCache();
+        mockServerInfo({ version, network, counterparty_height: 0 });
+        await expect(requireCounterpartyFeature('taprootReveals')).resolves.toBeUndefined();
+      }
+    });
+
+    it('is refused while the API is not ready', async () => {
+      mockServerInfo({ version: '11.5.0', server_ready: false });
+      const status = await getCounterpartyFeatureStatus('taprootReveals');
+      expect(status.supported).toBe(false);
+    });
+  });
 });

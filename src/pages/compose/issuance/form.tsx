@@ -11,9 +11,9 @@ import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { isSegwitFormat } from '@/core/bitcoin/addressFormat';
 import { type IssuanceOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
 import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
+import { canInscribe } from '@/core/counterparty/taprootEncoding';
 import { asDisplayUnits } from '@/core/numeric';
 import { maxSupplyForDivisibility } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -72,7 +72,7 @@ export function IssuanceForm({
   const [fileError, setFileError] = useState<string | null>(null);
   
   // Computed values
-  const isSegwitAddress = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
+  const inscribeAvailable = canInscribe(activeAddress?.address, activeWallet?.type);
   
   const showAsset = initialParentAsset && parentAssetDetails?.assetInfo;
   const showAddress = !showAsset && activeAddress && !isInitializing;
@@ -239,7 +239,7 @@ export function IssuanceForm({
             />
           )}
           
-          {isSegwitAddress && (
+          {inscribeAvailable && (
             <SettingSwitch
               label={t('common_inscribe')}
               description={t('common_store_message_as_a_taproot')}
