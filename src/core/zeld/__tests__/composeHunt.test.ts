@@ -49,9 +49,9 @@ const context = {
 };
 
 describe('huntZeldForCompose', () => {
-  it('preserves a commit txid when an already signed reveal depends on it', async () => {
+  it('preserves a commit txid when a server-signed reveal depends on it', async () => {
     const response = responseFor(enhancedSendRawTx());
-    response.result.signed_reveal_rawtransaction = 'already signed child';
+    Object.assign(response.result, { signed_reveal_rawtransaction: 'already signed child' });
     const hunt = vi.fn();
     const result = await huntZeldForCompose(response, { ...context, hunt });
     expect(hunt).not.toHaveBeenCalled();

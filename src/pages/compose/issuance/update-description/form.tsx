@@ -8,8 +8,8 @@ import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
-import { isSegwitFormat } from '@/core/bitcoin/addressFormat';
 import { type IssuanceOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
+import { canInscribe } from '@/core/counterparty/taprootEncoding';
 import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
@@ -35,7 +35,7 @@ export function UpdateDescriptionForm({
   initialFormData,
   asset,
 }: UpdateDescriptionFormProps): ReactElement {
-  const { activeWallet, showHelpText } = useComposer();
+  const { activeAddress, activeWallet, showHelpText } = useComposer();
   const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);
   const { pending } = useFormStatus();
   const [inscribeEnabled, setInscribeEnabled] = useState(false);
@@ -45,7 +45,7 @@ export function UpdateDescriptionForm({
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   
   // Check if active wallet uses SegWit addresses
-  const isSegwitAddress = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
+  const inscribeAvailable = canInscribe(activeAddress?.address, activeWallet?.type);
 
   // Handle file selection
   const handleFileChange = (file: File | null) => {
@@ -109,7 +109,7 @@ export function UpdateDescriptionForm({
           <input type="hidden" name="divisible" value={String(assetInfo?.divisible ?? false)} />
           
           {/* Only show inscribe switch for SegWit addresses */}
-          {isSegwitAddress && (
+          {inscribeAvailable && (
             <SettingSwitch
               label={t('common_inscribe')}
               description={t('common_store_message_as_a_taproot')}

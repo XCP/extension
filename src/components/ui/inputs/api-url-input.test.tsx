@@ -71,9 +71,9 @@ describe('ApiUrlInput localized validation', () => {
     });
     const { input, onValidationSuccess } = renderInput();
     fireEvent.blur(input);
-    await screen.findByText('❌ API must be Counterparty Core 11.3.0 or newer');
+    await screen.findByText('❌ API must be Counterparty Core 11.5.0 or newer');
     act(() => { mockBrowserLocale({ language: 'zh-CN', numberLocale: 'de-DE' }); });
-    expect(screen.getByText('❌ API 必须为 Counterparty Core 11.3.0 或更新版本')).toBeInTheDocument();
+    expect(screen.getByText('❌ API 必须为 Counterparty Core 11.5.0 或更新版本')).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(onValidationSuccess).not.toHaveBeenCalled();
   });
@@ -120,7 +120,7 @@ describe('ApiUrlInput localized validation', () => {
 
   it('says the URL was not saved when the caller save fails, and restores the input', async () => {
     global.fetch = vi.fn().mockResolvedValue({
-      ok: true, json: async () => ({ result: { server_ready: true, network: 'mainnet', version: '11.3.0' } }),
+      ok: true, json: async () => ({ result: { server_ready: true, network: 'mainnet', version: '11.5.0' } }),
     });
     const failure = new Error('Unable to persist settings: quota 17');
     const onValidationSuccess = vi.fn().mockRejectedValueOnce(failure);

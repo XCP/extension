@@ -15,7 +15,7 @@ function validApiResult(overrides: Record<string, unknown> = {}) {
   return {
     server_ready: true,
     network: 'mainnet',
-    version: '11.3.0',
+    version: '11.5.0',
     backend_height: 952800,
     counterparty_height: 952800,
     ...overrides,
@@ -28,18 +28,18 @@ describe('validateCounterpartyApi', () => {
     vi.restoreAllMocks();
   });
 
-  it('accepts a mainnet 11.3.0 API', async () => {
+  it('accepts a mainnet 11.5.0 API', async () => {
     mockFetchResult(validApiResult());
 
     const result = await validateCounterpartyApi('https://api.example.com');
 
     expect(result.isValid).toBe(true);
-    expect(result.apiInfo?.version).toBe('11.3.0');
+    expect(result.apiInfo?.version).toBe('11.5.0');
     expect(result.diagnostic).toBeUndefined();
   });
 
   it('accepts newer patch and minor versions', async () => {
-    mockFetchResult(validApiResult({ version: '11.3.1' }));
+    mockFetchResult(validApiResult({ version: '11.5.1' }));
 
     const result = await validateCounterpartyApi('https://api.example.com');
 
@@ -54,14 +54,14 @@ describe('validateCounterpartyApi', () => {
     expect(result.isValid).toBe(true);
   });
 
-  it('rejects APIs older than 11.3.0', async () => {
-    mockFetchResult(validApiResult({ version: '11.2.9' }));
+  it('rejects APIs older than 11.5.0', async () => {
+    mockFetchResult(validApiResult({ version: '11.4.9' }));
 
     const result = await validateCounterpartyApi('https://api.example.com');
 
     expect(result.isValid).toBe(false);
-    expect(result.error).toBe('API must be Counterparty Core 11.3.0 or newer');
-    expect(result.diagnostic).toEqual({ code: 'version_required', minimumVersion: '11.3.0' });
+    expect(result.error).toBe('API must be Counterparty Core 11.5.0 or newer');
+    expect(result.diagnostic).toEqual({ code: 'version_required', minimumVersion: '11.5.0' });
   });
 
   it('rejects missing or unparsable API versions', async () => {
@@ -70,11 +70,11 @@ describe('validateCounterpartyApi', () => {
     const result = await validateCounterpartyApi('https://api.example.com');
 
     expect(result.isValid).toBe(false);
-    expect(result.error).toBe('API must be Counterparty Core 11.3.0 or newer');
+    expect(result.error).toBe('API must be Counterparty Core 11.5.0 or newer');
   });
 
   it('rejects non-mainnet APIs before version acceptance', async () => {
-    mockFetchResult(validApiResult({ network: 'testnet4', version: '11.3.0' }));
+    mockFetchResult(validApiResult({ network: 'testnet4', version: '11.5.0' }));
 
     const result = await validateCounterpartyApi('https://api.example.com');
 

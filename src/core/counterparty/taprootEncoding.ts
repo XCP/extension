@@ -5,8 +5,10 @@
  * the 8-byte CNTRPRTY prefix fits in 80 bytes, and in bare multisig outputs otherwise
  * (`api/composer.py`, `determine_encoding`). Bare multisig is expensive: every 62 bytes of data
  * costs a dust-sized output that is rarely spent. Taproot encoding instead commits to an envelope
- * in a P2TR output and publishes it in a pre-signed reveal, which is two transactions but, for a
- * message too long for an OP_RETURN, far cheaper. Measured against api.counterparty.io:
+ * in a P2TR output and publishes it in a reveal, which is two transactions but, for a message too
+ * long for an OP_RETURN, far cheaper. Core 11.5 returns an unsigned reveal the wallet signs with
+ * the source key, so only a wallet holding that key in software asks for it: a hardware wallet
+ * keeps core's default encoding. Measured against api.counterparty.io:
  *
  *   - message <= 72 bytes: OP_RETURN costs 316-400 sats at 2 sat/vB, Taproot ~636. Taproot loses.
  *   - message > 72 bytes: a 10-recipient MPMA at 10 sat/vB costs 30,050 sats through multisig and
@@ -15,12 +17,13 @@
  * So the rule is exactly: Taproot when core would otherwise fall back to multisig, and only where
  * core allows it. It is never offered as a choice; the user sees only the cheaper transaction.
  *
- * Core refuses `encoding=taproot` when the source is not a native SegWit or Taproot address, when
- * the source is a UTXO, when the message has destination outputs, and for detach. The type list
+ * Core refuses `encoding=taproot` when the source is not a Native SegWit (P2WPKH) or Taproot
+ * address, when the source is a UTXO, when the message has destination outputs, and for detach. The type list
  * below is the set of messages that carry everything in the data (no destination outputs); the
  * conditional cases are the ones whose compose adds an output depending on parameters.
  */
 
+import type { UnsignedReveal } from '@/core/counterparty/inscriptionEnvelope';
 import { type PackRules, packComposeMessage } from '@/core/counterparty/pack/messages';
 import { CounterpartyApiError, UnofferedInputsError } from '@/core/errors';
 import { validateBitcoinAddress } from '@/core/validation/bitcoin';
@@ -31,8 +34,14 @@ export const OP_RETURN_MESSAGE_MAX_BYTES = 72;
 /** The CNTRPRTY prefix `packComposeMessage` includes and core's length test excludes. */
 const PREFIX_BYTES = 8;
 
-/** Output types core's `is_segwit_address` accepts (`script.is_segwit_output`). */
-const TAPROOT_SOURCE_FORMATS = new Set(['P2WPKH', 'P2WSH', 'P2TR']);
+/**
+ * Source types core 11.5 composes Taproot encoding for (`get_reveal_source_pubkey`): the envelope
+ * is closed by the source's own key, which only a single-key P2WPKH or P2TR address has.
+ */
+const TAPROOT_SOURCE_FORMATS = new Set(['P2WPKH', 'P2TR']);
+
+/** The kinds of wallet; only one holding its keys in software signs a Taproot reveal. */
+export type TaprootWalletType = 'mnemonic' | 'privateKey' | 'hardware';
 
 type Params = Record<string, unknown>;
 
@@ -45,6 +54,19 @@ export function isTaprootEncodingSource(sourceAddress: string): boolean {
   if (typeof sourceAddress !== 'string' || sourceAddress.includes(':')) return false;
   const result = validateBitcoinAddress(sourceAddress);
   return result.isValid && TAPROOT_SOURCE_FORMATS.has(result.addressFormat ?? '');
+}
+
+/**
+ * Whether this wallet can sign a Taproot reveal: a software wallet (the reveal is signed with the
+ * source key, which a hardware wallet does not expose here).
+ */
+export function signsTaprootReveals(walletType: TaprootWalletType | undefined): boolean {
+  return walletType === 'mnemonic' || walletType === 'privateKey';
+}
+
+/** Whether the inscribe option applies to this address and wallet. */
+export function canInscribe(sourceAddress: string | undefined, walletType: TaprootWalletType | undefined): boolean {
+  return !!sourceAddress && signsTaprootReveals(walletType) && isTaprootEncodingSource(sourceAddress);
 }
 
 /**
@@ -97,8 +119,10 @@ export function chooseEncoding(input: {
   params: Params;
   sourceAddress: string;
   messageLength: number | null;
+  walletType: TaprootWalletType | undefined;
 }): 'taproot' | undefined {
-  const { composeType, params, sourceAddress, messageLength } = input;
+  const { composeType, params, sourceAddress, messageLength, walletType } = input;
+  if (!signsTaprootReveals(walletType)) return undefined;
   // An explicit choice (the inscription forms) and an inscription request are left alone: the
   // forms that inscribe choose their own encoding, and an inscription changes the envelope core
   // builds.
@@ -131,6 +155,7 @@ export function chooseComposeEncoding(
   composeType: string,
   params: Params,
   sourceAddress: string,
+  walletType: TaprootWalletType | undefined,
   rules: PackRules = {}
 ): 'taproot' | undefined {
   let messageLength: number | null = null;
@@ -139,7 +164,7 @@ export function chooseComposeEncoding(
   } catch {
     messageLength = null;
   }
-  return chooseEncoding({ composeType, params, sourceAddress, messageLength });
+  return chooseEncoding({ composeType, params, sourceAddress, messageLength, walletType });
 }
 
 /**
@@ -147,32 +172,74 @@ export function chooseComposeEncoding(
  *
  * A composer rejection is an ordinary API error; the user asked for a transaction, not an
  * encoding, so a request the composer will not build as Taproot is built the default way instead.
- * A response that spent inputs it was never offered is a verification failure, not a rejection,
- * and is never retried.
+ * That includes a Counterparty API older than 11.5, which the compose layer refuses before any
+ * Taproot request is sent (`capabilities.ts`, `taprootReveals`). A response that spent inputs it
+ * was never offered is a verification failure, not a rejection, and is never retried.
  */
 export function shouldRetryWithDefaultEncoding(error: unknown): boolean {
   return error instanceof CounterpartyApiError && !(error instanceof UnofferedInputsError);
 }
 
-function presentString(value: unknown): boolean {
-  return typeof value === 'string' && value.length > 0;
+function isHex(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length % 2 === 0 && /^[0-9a-f]+$/i.test(value);
 }
 
+/** The fields a Core 11.5 Taproot compose adds to the commit. */
+const REVEAL_FIELDS = [
+  'envelope_script',
+  'reveal_rawtransaction',
+  'reveal_control_block',
+  'reveal_pubkey',
+  'reveal_lock_scripts',
+  'reveal_inputs_values',
+] as const;
+
 /**
- * Whether a compose result is a Taproot compose whose reveal comes back unsigned.
+ * How a compose result carries its reveal.
  *
- * Core 11.5 returns an unsigned reveal for Taproot composes: `reveal_rawtransaction` with the
- * data needed to sign it (`reveal_control_block`, `reveal_pubkey`, ...) and no
- * `signed_reveal_rawtransaction`. This wallet only publishes reveals that arrive signed, so such a
- * result cannot be completed here. The test is narrow on purpose: a result with a signed reveal is
- * the shape the wallet verifies, and any other half-returned combination stays a verification
- * failure in the composer context.
+ * - `none`: no Taproot field at all; an ordinary transaction.
+ * - `unsigned`: every field Core 11.5 returns, well formed. The wallet verifies it
+ *   (`verifyUnsignedReveal`) and signs it with the source key.
+ * - `server_signed`: a reveal signed by the server (`signed_reveal_rawtransaction`, the shape of
+ *   Counterparty Core before 11.5). From 11.5 a reveal publishes from the source only when the
+ *   source signed it, so this one is refused and never broadcast.
+ * - `partial`: some of the fields, or malformed ones. Refused: half a Taproot compose is either a
+ *   reveal that cannot be checked or a commit whose message never lands.
  */
-export function hasUnsignedTaprootReveal(result: unknown): boolean {
-  if (!result || typeof result !== 'object') return false;
+export type RevealShape =
+  | { kind: 'none' }
+  | { kind: 'unsigned'; envelopeScriptHex: string; reveal: UnsignedReveal }
+  | { kind: 'server_signed' }
+  | { kind: 'partial' };
+
+export function readRevealShape(result: unknown): RevealShape {
+  if (!result || typeof result !== 'object') return { kind: 'none' };
   const fields = result as Record<string, unknown>;
-  if (presentString(fields.signed_reveal_rawtransaction)) return false;
-  return presentString(fields.reveal_rawtransaction) || presentString(fields.reveal_control_block);
+  if (fields.signed_reveal_rawtransaction !== undefined && fields.signed_reveal_rawtransaction !== null) {
+    return { kind: 'server_signed' };
+  }
+  const present = REVEAL_FIELDS.filter((name) => fields[name] !== undefined && fields[name] !== null);
+  if (present.length === 0) return { kind: 'none' };
+  const scripts = fields.reveal_lock_scripts;
+  const values = fields.reveal_inputs_values;
+  if (present.length !== REVEAL_FIELDS.length
+    || !isHex(fields.envelope_script) || !isHex(fields.reveal_rawtransaction) || !isHex(fields.reveal_control_block)
+    || !isHex(fields.reveal_pubkey) || fields.reveal_pubkey.length !== 64
+    || !Array.isArray(scripts) || !scripts.every(isHex)
+    || !Array.isArray(values) || !values.every((value) => Number.isSafeInteger(value) && (value as number) > 0)) {
+    return { kind: 'partial' };
+  }
+  return {
+    kind: 'unsigned',
+    envelopeScriptHex: fields.envelope_script,
+    reveal: {
+      revealHex: fields.reveal_rawtransaction,
+      controlBlockHex: fields.reveal_control_block,
+      revealPubkeyHex: fields.reveal_pubkey,
+      lockScripts: scripts as string[],
+      inputsValues: values as number[],
+    },
+  };
 }
 
 /**
@@ -181,25 +248,14 @@ export function hasUnsignedTaprootReveal(result: unknown): boolean {
  * given a new nonce.
  */
 export function carriesTaprootReveal(result: unknown): boolean {
-  if (!result || typeof result !== 'object') return false;
-  const fields = result as Record<string, unknown>;
-  return presentString(fields.signed_reveal_rawtransaction)
-    || presentString(fields.envelope_script)
-    || hasUnsignedTaprootReveal(result);
-}
-
-function responseResult(response: unknown): unknown {
-  return response && typeof response === 'object' ? (response as { result?: unknown }).result : undefined;
+  return readRevealShape(result).kind !== 'none';
 }
 
 /**
  * Compose with the chosen encoding, once, and fall back to the default if the composer refuses.
  *
- * A Taproot compose that comes back with an unsigned reveal (Core 11.5) is treated the same way:
- * the wallet chose the encoding only because it was cheaper, and it cannot yet complete that
- * shape, so the transaction is composed the default way instead. A request that named its own
- * encoding or an inscription never reaches this fallback (`chooseEncoding` leaves it alone), so
- * it is never silently changed.
+ * A request that named its own encoding or an inscription never reaches this fallback
+ * (`chooseEncoding` leaves it alone), so it is never silently changed.
  */
 export async function composeWithEncoding<R>(
   compose: (data: Params) => Promise<R>,
@@ -208,14 +264,10 @@ export async function composeWithEncoding<R>(
   signal?: AbortSignal,
 ): Promise<R> {
   if (!encoding) return compose(data);
-  let composed: R;
   try {
-    composed = await compose({ ...data, encoding });
+    return await compose({ ...data, encoding });
   } catch (error) {
     if (signal?.aborted || !shouldRetryWithDefaultEncoding(error)) throw error;
     return compose(data);
   }
-  if (!hasUnsignedTaprootReveal(responseResult(composed))) return composed;
-  signal?.throwIfAborted();
-  return compose(data);
 }

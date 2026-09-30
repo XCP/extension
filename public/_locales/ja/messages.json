@@ -2008,8 +2008,11 @@
   "composer_context_taproot_half_returned": {
     "message": "トランザクションの検証に失敗しました: コンポーザーは必要な2つのトランザクションのうち1つしか返しませんでした。"
   },
-  "composer_context_taproot_reveal_needs_newer_wallet": {
-    "message": "このCounterpartyサーバーでインスクリプションなどのTaproot機能を使うには、新しいバージョンのウォレットが必要です。ウォレットを更新するか、インスクリプションなしで作成してください。"
+  "composer_context_taproot_needs_software_wallet": {
+    "message": "ハードウェアウォレットではここでインスクリプションに署名できません。2つ目のトランザクションはウォレット内でこのアドレスの鍵で署名する必要があります。インスクリプションなしで作成してください。"
+  },
+  "composer_context_taproot_server_signed_reveal": {
+    "message": "トランザクションの検証に失敗しました: コンポーザーは署名済みの2つ目のトランザクションを返しました。Counterpartyはあなたのアドレスが署名した場合にのみ公開するため、何も署名されませんでした。"
   },
   "composer_context_taproot_unexpected_envelope": {
     "message": "トランザクションの検証に失敗しました: コンポーザーのTaprootエンベロープはこのリクエストが生成するものではありません。"
@@ -4306,6 +4309,9 @@
   "safety_reveal_source_not_signer": {
     "message": "リビールのメッセージは、あなたのものではないアドレスから公開されます。"
   },
+  "safety_reveal_not_source_key": {
+    "message": "サイトのリビールはあなたのアドレスの鍵で署名されていないため、Counterpartyはそのメッセージをあなたのアドレスから公開しません。"
+  },
   "safety_reveal_two_messages": {
     "message": "このトランザクションはリビールのメッセージに加えて独自の Counterparty メッセージも含んでいるため、一つの操作として説明できません。"
   },
@@ -6050,6 +6056,9 @@
   },
   "api_validation_version_required": {
     "message": "Counterparty Core $1以降のAPIが必要です"
+  },
+  "capabilities_taproot_requires_api_version": {
+    "message": "Taproot エンコーディングとインスクリプションには Counterparty API $1 以降が必要です。この API は $2 です。"
   },
   "balance_pending_attaching": {
     "message": "アタッチ中"
