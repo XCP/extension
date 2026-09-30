@@ -207,19 +207,25 @@ walletTest.describe('Select Address Page (/addresses)', () => {
     }
   });
 
-  walletTest('header has Address Type settings button', async ({ page }) => {
+  walletTest('header plus adds an address', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/addresses'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('addresses'), 'Redirected - non-mnemonic wallet');
 
-    // The header cog opens the address type page; adding addresses lives in the
-    // bottom button only
-    const headerButton = selectAddress.headerAddressTypeButton(page);
+    // The address type changes from the home screen, so the header adds addresses too.
+    const addressesBefore = await page.locator('[role="radio"]').count();
+    const headerButton = selectAddress.headerAddAddressButton(page);
     await expect(headerButton).toBeVisible({ timeout: 5000 });
     await headerButton.click();
 
-    await expect(page).toHaveURL(/settings\/address-types/, { timeout: 5000 });
+    await page.waitForFunction(
+      (prevCount) => document.querySelectorAll('[role="radio"]').length > prevCount,
+      addressesBefore,
+      { timeout: 10000 }
+    );
+    expect(await page.locator('[role="radio"]').count()).toBe(addressesBefore + 1);
+    await expect(page).toHaveURL(/addresses/);
   });
 
   walletTest('shows address previews in list', async ({ page }) => {

@@ -30,7 +30,17 @@ export const expired = (message: string) => new ProviderError(PROVIDER_ERROR_COD
  * Refuse a request that is too large or over one of its origin's rate limits. Runs first, before
  * the method is dispatched.
  */
-export async function assertRequestAdmissible(origin: string, method: string, params: unknown): Promise<void> {
+export async function assertRequestAdmissible(
+  origin: string,
+  method: string,
+  params: unknown,
+  /**
+   * A connect that opens no window is not charged to the connect limit. A site that disconnects
+   * itself between the check and the connect gets at most one uncharged prompt, and only after
+   * the user approved a connection.
+   */
+  { silentConnect = false }: { silentConnect?: boolean } = {},
+): Promise<void> {
   // Validate parameter size to prevent memory exhaustion
   const MAX_PARAM_SIZE = 1024 * 1024; // 1MB limit
   let paramSize: number;
@@ -55,7 +65,7 @@ export async function assertRequestAdmissible(origin: string, method: string, pa
   }
   
   // Apply rate limiting based on method type
-  const isConnectionMethod = method === 'xcp_requestAccounts';
+  const isConnectionMethod = method === 'xcp_requestAccounts' && !silentConnect;
   // Signing requests are limited where they open a popup (runSignFlow), not here: charging
   // them before validation counted rejected, rejoined and cancelled requests against a site.
   const isTransactionMethod = method === 'xcp_broadcastTransaction';
