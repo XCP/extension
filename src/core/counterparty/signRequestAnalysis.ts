@@ -130,8 +130,8 @@ export interface SignRequestAnalysisInput {
    */
   inscriptionContext?: InscriptionCommitContext;
   /**
-   * The site's signed reveal for a Counterparty Taproot commit this PSBT funds. Verified here,
-   * never trusted: on proof, the reveal's message becomes the transaction's Counterparty payload,
+   * The reveal of a Counterparty Taproot commit this PSBT funds, as a `commit-and-reveal` bundle
+   * will broadcast it (a placeholder where the signature goes). Verified here, never trusted: on proof, the reveal's message becomes the transaction's Counterparty payload,
    * exactly as an inscription context's does; on any failure, the request is hard-blocked.
    */
   counterpartyReveal?: string;
@@ -319,8 +319,8 @@ export async function analyzeSignRequest(
   // has described a different transaction than the one it asked to sign.
   let verifiedCommit: VerifiedCommit | undefined;
   let commitRefusal: string | undefined;
-  // The same for a Counterparty commit whose reveal the site holds, except that the proof is the
-  // commit output's own key committing to the reveal's single script (providerReveal.ts).
+  // The same for a commit-and-reveal commit, except that the proof is the commit output's own key
+  // committing to the reveal's single script (providerReveal.ts).
   let revealRefusal: SecurityWarning | undefined;
   let provedReveal: Extract<RevealVerification, { ok: true }> | undefined;
   if (input.counterpartyReveal !== undefined && !input.inscriptionContext) {
@@ -403,7 +403,7 @@ export async function analyzeSignRequest(
     safety.blocked = true;
   } else if (provedReveal) {
     // A proved reveal fixes its message, not its outputs: say what the outputs decide for this
-    // message type, and what the reveal as supplied pays. After any block, ahead of the rest.
+    // message type. After any block, ahead of the rest.
     const disclosures = revealDisclosures(provedReveal, verification.localUnpack?.data, ownedAddresses);
     const firstNonBlock = safety.warnings.findIndex(warning => warning.severity !== 'block');
     const split = firstNonBlock === -1 ? safety.warnings.length : firstNonBlock;

@@ -5476,14 +5476,6 @@
     "message": "This funds an inscription: $1 BTC goes to $2, an address derived from the inscription itself and spendable only by your key. The follow-up reveal transaction publishes the content. Review its destination and fees separately.",
     "description": "Approval screen information body (core/counterparty/transactionSafety.ts) under \"Inscription Commit\". $1 = BTC amount, 8 decimals; $2 = the commit address, in full."
   },
-  "safety_counterparty_reveal_commit": {
-    "message": "Counterparty Commit",
-    "description": "Approval screen information title (core/counterparty/transactionSafety.ts, components/domain/approval/approval-warnings.tsx), shown when an output funds a Counterparty commit whose reveal transaction the site supplied and the wallet verified."
-  },
-  "safety_counterparty_reveal_commit_detail": {
-    "message": "$1 BTC goes to $2 to fund the site's reveal transaction, which publishes the message shown above from your address. The site holds the key to this output, so count this BTC as spent.",
-    "description": "Approval screen information body (core/counterparty/transactionSafety.ts, components/domain/approval/approval-warnings.tsx) under \"Counterparty Commit\". $1 = BTC amount, 8 decimals; $2 = the commit address, in full."
-  },
   "safety_blocked_reveal_did_not_verify": {
     "message": "Blocked: Reveal Did Not Verify",
     "description": "Approval screen block title (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx): the site supplied the reveal transaction for a Counterparty commit and it did not prove out against the transaction being signed."
@@ -5587,30 +5579,6 @@
   "safety_reveal_address_none": {
     "message": "an output with no address",
     "description": "Address label (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) for an output whose script has no address, used where an address would go."
-  },
-  "safety_reveal_outputs_title": {
-    "message": "Second Transaction",
-    "description": "Approval screen information title (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) over the outputs of the Counterparty reveal the site supplied."
-  },
-  "safety_reveal_outputs_pays_other_title": {
-    "message": "Second Transaction Pays Another Address",
-    "description": "Approval screen warning title (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): the Counterparty reveal the site supplied pays BTC to an address that is not this wallet's."
-  },
-  "safety_reveal_outputs_data_only": {
-    "message": "Second transaction: data only, no payment.",
-    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): the site's Counterparty reveal carries only the message and pays nothing."
-  },
-  "safety_reveal_outputs_pays": {
-    "message": "Second transaction, as the site supplied it, pays:",
-    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx), followed by a list of the reveal's payments."
-  },
-  "safety_reveal_output_item": {
-    "message": "$1 sats to $2",
-    "description": "List item (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx). $1 = amount in sats; $2 = an address followed by \"(yours)\" or \"(not yours)\", or \"an output with no address\"."
-  },
-  "safety_reveal_outputs_resign_note": {
-    "message": "A site holding the second transaction's key could sign it again with different outputs. One built by Counterparty's own service cannot be, but the wallet cannot tell which this is.",
-    "description": "Approval screen note (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under the reveal's outputs."
   },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "This sends $1 BTC to $2, matching the payment outputs the site declared. Check the address is the one you mean.",

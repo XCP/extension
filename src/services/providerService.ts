@@ -31,7 +31,6 @@ import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentPa
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
-import { MAX_REVEAL_HEX_LENGTH } from '@/core/counterparty/providerReveal';
 import { generateRequestId } from '@/core/id';
 import {
   assertProviderPsbtSigningRequest,
@@ -39,7 +38,7 @@ import {
   unsupportedMarketplaceActionReason,
 } from '@/core/providerCapabilities';
 import { checkReplayAttempt, markTransactionBroadcasted, markTransactionFailed, recordTransaction } from '@/core/replayPrevention';
-import { APPROVAL_WINDOW_FAILED_MESSAGE, JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { APPROVAL_WINDOW_FAILED_MESSAGE, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import { analytics } from '@/platform/fathom';
 import { continuationUnlockPath, openExtensionPopup, reusePopupWindow } from '@/platform/popup';
@@ -922,16 +921,23 @@ export function createProviderService(): ProviderService {
             throw invalidParams('PSBT parameters must be an object with hex property');
           }
 
-          const { hex: psbtHex, signInputs: requestedSignInputs, sighashTypes, inscription, reveal, intent } = psbtParams as {
+          const { hex: psbtHex, signInputs: requestedSignInputs, sighashTypes, inscription, intent } = psbtParams as {
             hex?: string;
             signInputs?: Record<string, number[]>;
             sighashTypes?: number[];
             inscription?: { revealScript?: string; tapInternalKey?: string };
-            reveal?: unknown;
             intent?: unknown;
           };
           let signInputs = requestedSignInputs;
 
+          // A site-signed reveal proves nothing under Core 11.5, which publishes a reveal's message
+          // only when the source address's key signed it; the site sends the unsigned reveal in a
+          // commit-and-reveal bundle for the wallet to sign instead.
+          if ('reveal' in psbtParams) {
+            throw invalidParams(
+              'The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts'
+            );
+          }
           if (!psbtHex) {
             throw invalidParams('PSBT hex is required');
           }
@@ -965,22 +971,6 @@ export function createProviderService(): ProviderService {
             || !/^[0-9a-fA-F]{64}$/.test(inscription.tapInternalKey)
           )) {
             throw invalidParams('inscription must carry revealScript and tapInternalKey as hex strings');
-          }
-          // A Counterparty Taproot commit's reveal. Its message is what signing the commit really
-          // authorizes, so it is a Counterparty request, never a plain Bitcoin payment. Shape
-          // only here; the review proves the commit output commits to exactly its script. These
-          // are the caller's mistakes, so they go back as -32602 with the reason, not masked.
-          if (reveal !== undefined) {
-            if (isBitcoinPayment) {
-              throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'A Counterparty reveal makes this a Counterparty transaction; request it with xcp_signPsbt');
-            }
-            if (inscription !== undefined) {
-              throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'Pass either inscription or reveal, not both');
-            }
-            if (typeof reveal !== 'string' || reveal.length === 0 || reveal.length % 2 !== 0
-              || reveal.length > MAX_REVEAL_HEX_LENGTH || !/^[0-9a-fA-F]+$/.test(reveal)) {
-              throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'reveal must be the signed reveal transaction as a hex string');
-            }
           }
           if (signInputs !== undefined && (
             signInputs === null || typeof signInputs !== 'object' || Array.isArray(signInputs)
@@ -1075,7 +1065,7 @@ export function createProviderService(): ProviderService {
           return await runSignFlow({
             origin,
             method,
-            params: { psbtHex, signInputs, sighashTypes, inscription, reveal, bitcoinPaymentIntent, marketplaceIntent },
+            params: { psbtHex, signInputs, sighashTypes, inscription, bitcoinPaymentIntent, marketplaceIntent },
             identity: { walletId: activeWallet.id, address: activeAddress.address },
             pairedAddresses: Object.keys(signInputs ?? {}).some(address => normalizeAddressForComparison(address) !== normalizeAddressForComparison(activeAddress.address)),
             approval: {
@@ -1103,7 +1093,6 @@ export function createProviderService(): ProviderService {
                     tapInternalKey: inscription.tapInternalKey!,
                   },
                 } : {}),
-                ...(typeof reveal === 'string' ? { reveal: reveal.toLowerCase() } : {}),
                 address: activeAddress.address,
                 walletId: activeWallet.id,
                 timestamp: Date.now(),

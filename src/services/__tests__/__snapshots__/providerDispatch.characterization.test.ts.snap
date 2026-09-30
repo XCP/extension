@@ -14878,7 +14878,7 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > reveal + ins
     "outcome": {
       "error": {
         "code": -32602,
-        "message": "intent must be an object",
+        "message": "The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts",
       },
     },
   },
@@ -14913,7 +14913,7 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > reveal: odd-
     "outcome": {
       "error": {
         "code": -32602,
-        "message": "intent must be an object",
+        "message": "The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts",
       },
     },
   },
@@ -18723,7 +18723,7 @@ exports[`provider dispatch characterization > xcp_signPsbt > reveal + inscriptio
     "outcome": {
       "error": {
         "code": -32602,
-        "message": "Pass either inscription or reveal, not both",
+        "message": "The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts",
       },
     },
   },
@@ -18758,7 +18758,7 @@ exports[`provider dispatch characterization > xcp_signPsbt > reveal: odd-length 
     "outcome": {
       "error": {
         "code": -32602,
-        "message": "reveal must be the signed reveal transaction as a hex string",
+        "message": "The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts",
       },
     },
   },

@@ -4115,12 +4115,6 @@
   "safety_this_funds_an_inscription": {
     "message": "這筆交易為銘文提供資金：$1 BTC 將發送到 $2，該地址由銘文本身推導而來，只有你的私鑰能夠花費。隨後的揭示交易會發佈內容，請另行核對它的接收地址和手續費。"
   },
-  "safety_counterparty_reveal_commit": {
-    "message": "Counterparty 提交交易"
-  },
-  "safety_counterparty_reveal_commit_detail": {
-    "message": "$1 BTC 將發送到 $2，用於支付該網站的揭示交易；該揭示交易會以你的地址發佈上方顯示的消息。此輸出的密鑰由網站持有，因此請把這筆 BTC 視為已花費。"
-  },
   "safety_blocked_reveal_did_not_verify": {
     "message": "已阻止：揭示交易未通過驗證"
   },
@@ -4198,24 +4192,6 @@
   },
   "safety_reveal_address_none": {
     "message": "沒有地址的輸出"
-  },
-  "safety_reveal_outputs_title": {
-    "message": "第二筆交易"
-  },
-  "safety_reveal_outputs_pays_other_title": {
-    "message": "第二筆交易向其他地址付款"
-  },
-  "safety_reveal_outputs_data_only": {
-    "message": "第二筆交易：僅包含數據，沒有付款。"
-  },
-  "safety_reveal_outputs_pays": {
-    "message": "網站提供的第二筆交易付款給："
-  },
-  "safety_reveal_output_item": {
-    "message": "$1 sats → $2"
-  },
-  "safety_reveal_outputs_resign_note": {
-    "message": "持有第二筆交易密鑰的網站可以用不同的輸出重新簽署。由 Counterparty 自身服務建立的交易無法重新簽署，但錢包無法分辨這是哪一種。"
   },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "這會把 $1 BTC 發送到 $2，與該網站聲明的支付輸出一致。請確認地址正是你想要的那個。"

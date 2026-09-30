@@ -351,10 +351,10 @@ async function decodeFundAndAuthorize(
 
 /**
  * Decode a `commit-and-reveal` pair (`commitRevealBundle.ts`). The pair is proved from its own bytes
- * first; the commit is then decoded with the reveal, as it will be signed, standing in for the
- * reveal a site would hold, so its review shows the envelope's message as the commit's Counterparty
- * action with every message check (and any marketplace intent) applied. The reveal carries no
- * analysis of its own: everything it publishes and pays is part of that review and of the proof.
+ * first; the commit is then decoded with the reveal as it will be signed, so its review shows the
+ * envelope's message as the commit's Counterparty action with every message check (and any
+ * marketplace intent) applied. The reveal carries no analysis of its own: everything it publishes
+ * and pays is part of that review and of the proof, which states every reveal output.
  */
 async function decodeCommitAndReveal(
   stored: PsbtBundleApprovalInput,
@@ -404,22 +404,11 @@ async function decodeCommitAndReveal(
   });
   const shownEnvelopeLeaf = review.status === 'proved' || review.status === 'caution'
     ? proof.evidence?.envelopeHex : undefined;
-  // The commit's own analysis describes a reveal a site holds and could re-sign. Here the wallet
-  // signs the reveal with SIGHASH_ALL and the commit output's key path is no one's or the signer's,
-  // so those two cards do not apply; the bundle review states every reveal output instead.
-  const commitReview = proof.evidence ? {
-    ...commit,
-    safety: {
-      ...commit.safety,
-      warnings: commit.safety.warnings.filter(warning =>
-        warning.code !== 'counterparty_reveal_commit' && warning.code !== 'counterparty_reveal_outputs'),
-    },
-  } : commit;
   const revealPaysOthers = (proof.evidence?.revealOutputs ?? [])
     .filter(output => !output.marker && !output.owned && !output.burn)
     .reduce((sum, output) => sum + output.value, 0);
   return {
-    items: [commitReview, {
+    items: [commit, {
       psbtDetails: reveal,
       txid: reveal.transactionId,
       ...(shownEnvelopeLeaf ? { shownEnvelopeLeaf } : {}),

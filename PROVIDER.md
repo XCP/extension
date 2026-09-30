@@ -214,8 +214,8 @@ outright when it is not one. Plain Bitcoin website payments use the narrower
   of an unconfirmed attach, or any output of an unconfirmed plain-Bitcoin fan-out or offer funding,
   is unaffected. The wallet's own recent broadcasts are trusted.
 - **Unproved Taproot commit claims.** An [`inscription`](#taproot-commits-with-inscription) context
-  or a [`reveal`](#taproot-commits-and-reveals) that does not prove out against the commit blocks
-  signing with the reason.
+  or a [`commit-and-reveal`](#commit-and-reveal) pair that does not prove out against the commit
+  blocks signing with the reason.
 
 A refusal is shown to the user with its reason; the method returns a rejection to the caller.
 
@@ -318,8 +318,7 @@ const result = await xcpwallet.request({
     signInputs: { 'bc1q...': [0, 1] },  // optional for software wallets: which inputs to sign
     sighashTypes: [0x01, 0x01],           // optional: one entry per signed PSBT input index
     intent: { /* ... */ },                // optional: a counterparty-marketplace intent
-    inscription: { /* ... */ },           // optional: a Taproot commit's reveal leaf, see below
-    reveal: '<signed reveal tx hex>'      // optional: a site-signed Taproot reveal, see below
+    inscription: { /* ... */ }            // optional: a Taproot commit's reveal leaf, see below
   }]
 });
 // { hex: '<signed PSBT hex>' }
@@ -541,10 +540,11 @@ tree holds one leaf: an envelope carrying the Counterparty message, ending in a 
 The commit's own bytes show only a payment to a P2TR address; the message is hidden in a script
 the transaction never contains. The `inscription` option names that script, so the wallet can read
 the message and show it before the user funds the commit. With `inscription`, the leaf is spent by
-the user's own key: the user signs the commit and then the reveal, as two approvals. A site that
-builds and signs the reveal itself sends it with the commit as the `reveal` parameter instead. A
-commit sent with neither is not recognized as one and can only be reviewed as a payment to that
-address (see [What the wallet cannot see](#what-the-wallet-cannot-see)).
+the user's own key: the user signs the commit and then the reveal, as two approvals. A Core 11.5
+compose, whose reveal the source address's key signs, is sent as a
+[`commit-and-reveal`](#commit-and-reveal) bundle instead. A commit sent any other way is not
+recognized as one and can only be reviewed as a payment to that address (see
+[What the wallet cannot see](#what-the-wallet-cannot-see)).
 
 ```js
 // 1. The commit. The user's P2TR address funds the commit output (plus optional change to itself).
@@ -604,71 +604,10 @@ Counterparty Core 11.5 returns an unsigned reveal the wallet signs with the sour
 compose as a [`commit-and-reveal`](#commit-and-reveal) bundle through `xcp_signPsbts`: the wallet
 shows the message and signs both transactions.
 
-The `reveal` parameter below takes a reveal that is already signed. From Core 11.5 a reveal
-publishes its message only when the source address's key closes the envelope and signed it, so the
-wallet accepts a signed reveal only in that case; any other, including one signed with a key the
-composer discarded (`signed_reveal_rawtransaction` before 11.5), is blocked with the reason.
-
-```js
-// tmpData is Counterparty's compose response with encoding=taproot
-const result = await xcpwallet.request({
-  method: 'xcp_signPsbt',
-  params: [{
-    hex: commitPsbtHex,                          // the commit, as a PSBT with witnessUtxo prevouts
-    reveal: tmpData.signed_reveal_rawtransaction // the reveal, signed, as you will broadcast it
-  }]
-});
-// Broadcast the signed commit, then the reveal.
-```
-
-To have the user's own key sign the reveal instead, use
-[`inscription`](#taproot-commits-with-inscription). `reveal` and `inscription` cannot be combined,
-and `xcp_signBitcoinPsbt` rejects `reveal`: a commit whose reveal carries a message is a
-Counterparty transaction.
-
-**What the wallet proves.** `reveal` is a claim, checked against the commit before anything is
-shown. Each failure blocks signing with its reason:
-
-- the reveal's **first input** spends an output of this PSBT, by the PSBT's unsigned txid.
-  Counterparty reads the envelope only from the first input's witness. The txid is final only when
-  every commit input is SegWit or Taproot, which Counterparty requires for Taproot encoding anyway;
-- that witness is a three-element script-path spend (`[signature, leaf, control block]`) whose
-  control block has **no merkle path**, and the leaf plus internal key tweak to exactly the spent
-  output's key. A P2TR key commits to its script tree, so this leaf is the only script any reveal
-  of that output can publish: a tampered envelope or a hidden second leaf is refused;
-- the leaf is an envelope Counterparty reads (its plain data envelope, or an ord envelope with
-  `xcp` metadata), it decodes locally to a Counterparty message, and the reveal carries the bare
-  `CNTRPRTY` marker `OP_RETURN`;
-- the commit is funded from an address this wallet signs for, and carries no Counterparty payload
-  of its own.
-
-**What the approval shows.** On proof, the reveal's message becomes the transaction's Counterparty
-payload: the screen shows the decoded action, as for an `OP_RETURN` message, with every message
-check applied (a sweep is still blocked). The commit output is listed as the BTC that funds the
-reveal. The reveal's own outputs are shown as proved facts, such as
-"Second transaction: data only, no payment" or each payment with whether it goes to one of the
-user's addresses. A reveal that pays anywhere else is a warning that requires the review step.
-
-The proof fixes the message, not the reveal's outputs. A reveal Counterparty's compose built can
-never be re-signed, because its key is discarded, but a site that built its own reveal can sign it
-again with different outputs, and the wallet cannot tell the two apart. Some message types read
-those outputs, so the approval says what they decide:
-
-| Message | What the reveal's outputs decide | Review |
-|---|---|---|
-| enhanced send, MPMA, order, cancel, dispenser, dividend, broadcast, fairminter, fairmint, destroy, pool deposit/withdraw | nothing: the message says it all | information |
-| legacy send | the recipient (the output ahead of the data) | required |
-| issuance | an ownership transfer: an output ahead of the data becomes the new issuer | required |
-| attach | the output that receives the asset | required |
-| dispense | which dispensers are paid, and how much | required |
-| BTCPay | whether the order match is paid | required |
-| detach | the UTXOs released, which cannot include the user's | information |
-| legacy UTXO message | nothing: Counterparty no longer executes it | information |
-| any other type | unknown | required |
-
-Where the supplied reveal already decides something, such as a recipient, a new owner or an attach
-output, the approval names it, with whether it is the user's address. If the outputs matter to
-your flow, build the reveal so the user signs it (`inscription`).
+The `reveal` parameter of `xcp_signPsbt`, which took a reveal the site had already signed, was
+removed in 0.14.x. From Core 11.5 a reveal publishes its message only when the source address's
+key signed it, which a site-signed reveal never is. A request that still carries `reveal`, through
+`xcp_signPsbt` or `xcp_signBitcoinPsbt`, is refused with `-32602` before any approval opens.
 
 **Key-path marketplace fee (`platformFeeInternalKey`).** `buy_listings`, `authorize_exact_offer`
 and `accept_exact_offer` may carry `platformFeeInternalKey`: the x-only internal key (64 hex
@@ -735,8 +674,8 @@ generate for the first dozen characters) must read differently from the real des
 
 Do not use this method to fund a Counterparty Taproot commit. The payment is exact, but a plain
 payment cannot show the message the commit funds (see
-[Taproot commits and reveals](#taproot-commits-and-reveals)). Send the commit through
-`xcp_signPsbt` with its `reveal` instead; passing `reveal` here is rejected with that instruction.
+[Taproot commits and reveals](#taproot-commits-and-reveals)). Send the commit and its reveal as a
+[`commit-and-reveal`](#commit-and-reveal) bundle through `xcp_signPsbts` instead.
 
 The existing permissioned paired-address capability also applies to this method. A payment that
 spends both the same-index Legacy P2PKH and SegWit P2WPKH addresses must name both addresses and
@@ -945,6 +884,24 @@ the marker, value back to the active address, value to a well-known burn address
 unspendable), value to another address, or value to a script no address describes. A reveal that
 pays anything outside the wallet takes the review step.
 
+The envelope fixes the message, not the reveal's outputs, which the site builds. Some message types
+read those outputs, so the approval also says what they decide:
+
+| Message | What the reveal's outputs decide | Review |
+|---|---|---|
+| enhanced send, MPMA, order, cancel, dispenser, dividend, broadcast, fairminter, fairmint, destroy, pool deposit/withdraw | nothing: the message says it all | information |
+| legacy send | the recipient (the output ahead of the data) | required |
+| issuance | an ownership transfer: an output ahead of the data becomes the new issuer | required |
+| attach | the output that receives the asset | required |
+| dispense | which dispensers are paid, and how much | required |
+| BTCPay | whether the order match is paid | required |
+| detach | the UTXOs released, which cannot include the user's | information |
+| legacy UTXO message | nothing: Counterparty no longer executes it | information |
+| any other type | unknown | required |
+
+Where the reveal already decides something, such as a recipient, a new owner or an attach output,
+the approval names it, with whether it is the user's address.
+
 **Signing** is all-or-nothing, under one signing guard. The commit is signed first and must
 finalize to exactly the txid the reveal spends; then the reveal's input 0 is signed by script path
 with the source key (the tweaked key for a Taproot output key), with the requested sighash, held
@@ -1135,7 +1092,7 @@ try {
 | `4200` | Method not supported | Stop calling it |
 | `4900` | Wallet background was momentarily unavailable, or is still starting up (no `data`) | Transient — retry (the SDK retries a plain `4900` once; it never replays a signing request) |
 | `4900` + `data.reloadRequired: true` | This page's link to the extension is gone (the wallet was updated or reloaded) | Retrying cannot help: ask the user to reload the page. See [Liveness](#liveness) |
-| `-32602` | Invalid params: the request's shape or content is wrong (missing or mistyped fields, unsupported sighash, `signInputs` naming an input or address it cannot, parameters over 1MB, `fund_policy_offer` sent to `xcp_signPsbt`, a message signer outside the active pair, a PSBT that cannot be parsed, a malformed `intent`, a bundle over its request limit, a PSBT with no input owned by the active address, a sighash the active wallet cannot sign, a PSBT whose transaction header or funding does not fit its intent, a marketplace action the active wallet cannot sign, a malformed `reveal` or `inscription`, both at once, or either sent to `xcp_signBitcoinPsbt`) | Fix the request; resending it unchanged fails the same way. The message says what is wrong |
+| `-32602` | Invalid params: the request's shape or content is wrong (missing or mistyped fields, unsupported sighash, `signInputs` naming an input or address it cannot, parameters over 1MB, `fund_policy_offer` sent to `xcp_signPsbt`, a message signer outside the active pair, a PSBT that cannot be parsed, a malformed `intent`, a bundle over its request limit, a PSBT with no input owned by the active address, a sighash the active wallet cannot sign, a PSBT whose transaction header or funding does not fit its intent, a marketplace action the active wallet cannot sign, a malformed `inscription` or one sent to `xcp_signBitcoinPsbt`, the removed `reveal` parameter) | Fix the request; resending it unchanged fails the same way. The message says what is wrong |
 | `-32005` | Limit exceeded ([EIP-1474](https://eips.ethereum.org/EIPS/eip-1474#error-codes)): a per-origin rate limit, too many signing requests already waiting for approval, or a connection request from the site already waiting | Wait and retry; the message says how long, or to finish an open request first |
 | `-32603` | Internal error | Generic failure; internal details are intentionally masked |
 
@@ -1177,8 +1134,8 @@ bytes, and some facts come from services the wallet does not control.
 - **What a script address commits to.** A P2TR, P2WSH or P2SH address hides its script until the
   output is spent, so the wallet cannot tell what a payment to one is for. A site funding a
   Counterparty Taproot commit should send it with
-  [`inscription`](#taproot-commits-with-inscription) or [`reveal`](#taproot-commits-and-reveals),
-  so the wallet can show the message it pays for.
+  [`inscription`](#taproot-commits-with-inscription) or as a
+  [`commit-and-reveal`](#commit-and-reveal) bundle, so the wallet can show the message it pays for.
 - **Ledger facts.** Attached balances, asset divisibility and metadata, order and dispenser state
   come from the configured Counterparty node. Divisibility moves the decimal point the screen shows.
   An unavailable or inconsistent answer is shown as unknown or asks for a retry; it never reads as

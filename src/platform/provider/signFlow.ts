@@ -52,8 +52,6 @@ interface SignFlowParameters {
     bitcoinPaymentIntent?: BitcoinPaymentIntentV1;
     marketplaceIntent?: MarketplaceIntentClaimV1;
     inscription?: { revealScript: string; tapInternalKey: string };
-    /** The signed Counterparty reveal this PSBT's commit funds, hex. A claim, proved at review. */
-    reveal?: string;
   };
   'sign-psbts': {
     bundleKind: 'acceptance-cpfp' | 'commit-and-reveal' | MarketplaceBatchKind;
@@ -213,8 +211,7 @@ function isValidSignFlow(value: unknown): value is SignFlowEntry {
         && record.sighashTypes.every(sighash => Number.isSafeInteger(sighash))));
   };
   if (entry.kind === 'sign-psbt') return validPsbt(entry)
-    && (entry.reveal === undefined || typeof entry.reveal === 'string')
-    && (entry.signingPurpose === undefined || entry.signingPurpose === 'counterparty' || entry.signingPurpose === 'bitcoin-payment');
+    &&(entry.signingPurpose === undefined || entry.signingPurpose === 'counterparty' || entry.signingPurpose === 'bitcoin-payment');
   return isSignPsbtsBundleKind(entry.bundleKind) && Array.isArray(entry.items)
     && entry.items.length > 0 && entry.items.length <= maxMarketplaceBatchRequests(entry.bundleKind)
     && (entry.bundleKind !== 'commit-and-reveal' || entry.items.length === 2)

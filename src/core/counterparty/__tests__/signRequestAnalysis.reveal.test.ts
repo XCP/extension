@@ -1,10 +1,11 @@
 /**
- * What the approval screen is told about a Taproot commit, with and without the site's reveal.
+ * What the approval screen is told about a Taproot commit, with and without its reveal (a
+ * `commit-and-reveal` bundle's, which the bundle decoder passes in).
  *
  * With a proved reveal the commit is a Counterparty transaction: the reveal's message is its
  * payload, so it passes the Counterparty-only gate and every message check runs on it, and the
- * review states what the reveal's outputs decide and what they pay. Without one, the commit is an
- * ordinary payment, analyzed as before the reveal work.
+ * review states what the reveal's outputs decide. Without one, the commit is an ordinary payment,
+ * analyzed as before the reveal work.
  *
  * Network lookups are mocked; the transaction bytes, the envelope and the local decode are real.
  */
@@ -24,8 +25,6 @@ import {
   dataEnvelope,
   EPHEMERAL_KEY,
   EPHEMERAL_PUBKEY,
-  OTHER_ADDRESS,
-  payTo,
   USER_ADDRESS,
 } from './helpers/revealFixtures';
 
@@ -104,15 +103,13 @@ describe('a Counterparty commit with its reveal', () => {
     expect(analysis.safety.blocked).toBe(false);
     expect(analysis.verification.localUnpack?.messageType).toBe('mpma_send');
     expect(analysis.verifiedCommit).toMatchObject({ value: 600, kind: 'reveal' });
-    expect(codes(analysis)).toContain('counterparty_reveal_commit');
-    // The commit output is the transaction's subject, not an unexplained payment.
+    // The commit output is the transaction's subject, not an unexplained payment; the bundle
+    // review states it.
     expect(codes(analysis)).not.toContain('external_btc_output');
+    expect(codes(analysis)).not.toContain('inscription_commit');
     expect(codes(analysis)).not.toContain('counterparty_only_gate');
-    // An MPMA is stated entirely in the message: no site-control disclosure, and a data-only
-    // reveal is information, not a warning.
+    // An MPMA is stated entirely in the message: no site-control disclosure.
     expect(codes(analysis)).not.toContain('counterparty_reveal_site_control');
-    expect(analysis.safety.warnings.find((w) => w.code === 'counterparty_reveal_outputs'))
-      .toMatchObject({ severity: 'info', data: { externalSats: 0 } });
     expect(analysis.safety.warnings.some((w) => w.severity === 'warning')).toBe(false);
   });
 
@@ -142,28 +139,6 @@ describe('a Counterparty commit with its reveal', () => {
       severity: 'warning',
       data: { control: 'issuance_transfer', asset: 'PEPECASH', supplied: { kind: 'no_transfer' } },
     });
-  });
-
-  it('states a reveal that pays someone else as a warning, naming the payee', async () => {
-    const commit = buildCommit(dataEnvelope(MPMA_HEX));
-    const analysis = await analyze(commit.psbtHex, {
-      counterpartyReveal: buildReveal(commit, { trailing: [payTo(OTHER_ADDRESS, 330n)] }),
-    });
-
-    const outputs = analysis.safety.warnings.find((w) => w.code === 'counterparty_reveal_outputs');
-    expect(outputs).toMatchObject({ severity: 'warning', data: { externalSats: 330 } });
-    expect(outputs?.message).toContain(`330 sats to ${OTHER_ADDRESS} (not yours)`);
-  });
-
-  it('counts the other addresses of the wallet as its own in the reveal outputs', async () => {
-    const commit = buildCommit(dataEnvelope(MPMA_HEX));
-    const analysis = await analyze(commit.psbtHex, {
-      counterpartyReveal: buildReveal(commit, { trailing: [payTo(OTHER_ADDRESS, 330n)] }),
-      ownedAddresses: [OTHER_ADDRESS],
-    });
-
-    expect(analysis.safety.warnings.find((w) => w.code === 'counterparty_reveal_outputs'))
-      .toMatchObject({ severity: 'info', data: { externalSats: 0 } });
   });
 });
 
