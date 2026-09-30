@@ -1,4 +1,7 @@
 {
+  "coins_available": {
+    "message": "可用"
+  },
   "actions_address": {
     "message": "地址"
   },
@@ -583,6 +586,9 @@
   "coins_coin_label": {
     "message": "$1 BTC · $2"
   },
+  "coins_confirm_unlock": {
+    "message": "確認解鎖"
+  },
   "coins_confirmation_one": {
     "message": "1 次確認"
   },
@@ -625,14 +631,14 @@
   "coins_lock_again": {
     "message": "重新鎖定"
   },
+  "coins_locked": {
+    "message": "已鎖定"
+  },
   "coins_none": {
     "message": "沒有幣"
   },
   "coins_none_detail": {
     "message": "此地址收到的 BTC 會顯示在這裡，每個輸出一枚幣。"
-  },
-  "coins_none_locked": {
-    "message": "沒有已鎖定的幣"
   },
   "coins_not_on_chain_yet": {
     "message": "尚未上鏈"
@@ -649,17 +655,14 @@
   "coins_show_more": {
     "message": "顯示更多"
   },
-  "coins_summary": {
-    "message": "可用 $1 BTC · 已鎖定 $2 BTC"
+  "coins_summary_help": {
+    "message": "已鎖定的幣不會用於任何發送。"
   },
-  "coins_summary_free": {
-    "message": "可用 $1 BTC"
+  "coins_summary_title": {
+    "message": "你的幣"
   },
   "coins_title": {
     "message": "幣控制"
-  },
-  "coins_unconfirmed": {
-    "message": "未確認"
   },
   "coins_unlock": {
     "message": "解鎖"
@@ -667,17 +670,11 @@
   "coins_unlock_confirm_funding": {
     "message": "此幣已為出價預留。解鎖後出價仍然有效；花費此幣會取消這些出價。"
   },
-  "coins_unlock_confirm_manual": {
-    "message": "此幣將重新可以花費。"
-  },
   "coins_unlock_confirm_offers": {
     "message": "你的 $1 個出價仍然有效。如果花費此幣，這些出價會被取消。"
   },
   "coins_unlock_confirm_one_offer": {
     "message": "你的出價仍然有效。如果花費此幣，該出價會被取消。"
-  },
-  "coins_unlock_confirm_title": {
-    "message": "解鎖此幣？"
   },
   "coins_unlocked": {
     "message": "已解鎖"

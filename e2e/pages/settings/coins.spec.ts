@@ -29,6 +29,10 @@ async function stubCoins(context: BrowserContext) {
   });
 }
 
+/** A label's row in the summary card, its value beside it. */
+const summaryRow = (page: import('@playwright/test').Page, label: string) =>
+  page.getByRole('heading', { name: 'Your coins' }).locator('..').locator('div', { has: page.getByText(label, { exact: true }) });
+
 const openCoins = async (page: import('@playwright/test').Page) => {
   await page.goto(page.url().replace(/\/index.*/, '/settings/coins'));
   await expect(page.getByRole('article').first()).toBeVisible({ timeout: 15_000 });
@@ -39,23 +43,28 @@ walletTest.describe('Coins Page (/settings/coins)', () => {
     await stubCoins(context);
     await openCoins(page);
 
-    await expect(page.getByText('0.00290000 BTC free', { exact: true })).toBeVisible();
+    await expect(page.getByText('Your coins', { exact: true })).toBeVisible();
+    await expect(summaryRow(page, 'Available')).toContainText('0.00290000 BTC');
+    // Nothing locked: no locked total and nothing to filter.
+    await expect(summaryRow(page, 'Locked')).toHaveCount(0);
+    await expect(page.getByRole('tablist')).toHaveCount(0);
     const large = page.getByRole('article', { name: /0\.00250000 BTC/ });
     await expect(large.getByText('5 confirmations')).toBeVisible();
-    await expect(page.getByRole('article', { name: /0\.00040000 BTC/ }).getByText('Unconfirmed')).toBeVisible();
+    await expect(page.getByRole('article', { name: /0\.00040000 BTC/ }).getByText('Pending')).toBeVisible();
     const attached = page.getByRole('article', { name: /0\.00000546 BTC/ });
     await expect(attached.getByText('Holds assets')).toBeVisible();
     await expect(attached.getByRole('button')).toHaveCount(0);
   });
 
-  walletTest('locks a coin by hand, keeps it locked, and unlocks it after confirming', async ({ page, context }) => {
+  walletTest('locks a coin by hand, keeps it locked, and unlocks it at once', async ({ page, context }) => {
     await stubCoins(context);
     await openCoins(page);
 
     const coin = () => page.getByRole('article', { name: /0\.00250000 BTC/ });
     await coin().getByRole('button', { name: 'Lock' }).click();
     await expect(coin().getByText('Locked by you')).toBeVisible();
-    await expect(page.getByText('0.00040000 BTC free · 0.00250000 BTC locked', { exact: true })).toBeVisible();
+    await expect(summaryRow(page, 'Available')).toContainText('0.00040000 BTC');
+    await expect(summaryRow(page, 'Locked')).toContainText('0.00250000 BTC');
 
     // Written to the keychain, not held by the page.
     await page.reload();
@@ -63,11 +72,14 @@ walletTest.describe('Coins Page (/settings/coins)', () => {
     await page.getByRole('tab', { name: 'Locked' }).click();
     await expect(page.getByRole('article')).toHaveCount(1);
 
+    // A hand lock asks nothing: Lock puts it back.
     await coin().getByRole('button', { name: 'Unlock' }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog.getByText('This coin becomes spendable again.')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Unlock' }).click();
-    await expect(page.getByText('No locked coins')).toBeVisible();
+    await expect(coin().getByRole('button', { name: 'Lock' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    // Nothing is locked any more, so the filter goes and every coin is listed again.
+    await expect(page.getByRole('tablist')).toHaveCount(0);
+    await expect(page.getByRole('article')).toHaveCount(3);
+    await expect(summaryRow(page, 'Locked')).toHaveCount(0);
   });
 
   walletTest('has back navigation to settings', async ({ page, context }) => {

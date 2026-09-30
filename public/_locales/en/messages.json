@@ -1,4 +1,8 @@
 {
+  "coins_available": {
+    "message": "Available",
+    "description": "pages/settings/coins.tsx. Summary row label: BTC in coins sends may spend (not locked, not holding assets)."
+  },
   "actions_address": {
     "message": "Address",
     "description": "pages/actions/index.tsx"
@@ -773,7 +777,11 @@
   },
   "coins_coin_label": {
     "message": "$1 BTC · $2",
-    "description": "components/domain/coins/coin-card.tsx, components/domain/coins/unlock-coin-dialog.tsx. Names one coin. $1 = BTC amount, $2 = shortened txid:vout."
+    "description": "components/domain/coins/coin-card.tsx. Names one coin. $1 = BTC amount, $2 = shortened txid:vout."
+  },
+  "coins_confirm_unlock": {
+    "message": "Confirm unlock",
+    "description": "components/domain/coins/coin-card.tsx. What the Unlock button on an offer coin says after the first tap; a second tap unlocks the coin."
   },
   "coins_confirmation_one": {
     "message": "1 confirmation",
@@ -831,6 +839,10 @@
     "message": "Lock again",
     "description": "components/domain/coins/coin-card.tsx. Button that locks an unlocked offer coin again while its offer lives."
   },
+  "coins_locked": {
+    "message": "Locked",
+    "description": "pages/settings/coins.tsx. Summary row label: BTC in locked coins, which sends leave alone."
+  },
   "coins_none": {
     "message": "No coins",
     "description": "pages/settings/coins.tsx. Empty state heading."
@@ -838,10 +850,6 @@
   "coins_none_detail": {
     "message": "BTC this address receives shows up here, one coin per output.",
     "description": "pages/settings/coins.tsx. Empty state detail."
-  },
-  "coins_none_locked": {
-    "message": "No locked coins",
-    "description": "pages/settings/coins.tsx. Shown under the Locked filter when nothing is locked."
   },
   "coins_not_on_chain_yet": {
     "message": "Not on chain yet",
@@ -863,45 +871,33 @@
     "message": "Show more",
     "description": "pages/settings/coins.tsx. Button that lists more coins."
   },
-  "coins_summary": {
-    "message": "$1 BTC free · $2 BTC locked",
-    "description": "pages/settings/coins.tsx. Totals above the coin list. $1 = spendable BTC, $2 = locked BTC."
+  "coins_summary_help": {
+    "message": "Locked coins are left out of every send.",
+    "description": "pages/settings/coins.tsx. Help line in the summary card, saying what locking a coin does."
   },
-  "coins_summary_free": {
-    "message": "$1 BTC free",
-    "description": "pages/settings/coins.tsx. Total above the coin list when nothing is locked. $1 = spendable BTC."
+  "coins_summary_title": {
+    "message": "Your coins",
+    "description": "pages/settings/coins.tsx. Heading of the summary card above the coin list."
   },
   "coins_title": {
     "message": "Coin Control",
     "description": "pages/settings/coins.tsx, pages/settings/index.tsx. The coin control page: the address's BTC outputs and which are locked."
   },
-  "coins_unconfirmed": {
-    "message": "Unconfirmed",
-    "description": "components/domain/coins/coin-card.tsx. A coin still in the mempool."
-  },
   "coins_unlock": {
     "message": "Unlock",
-    "description": "components/domain/coins/coin-card.tsx, components/domain/coins/unlock-coin-dialog.tsx. Unlocks a locked coin so sends may spend it."
+    "description": "components/domain/coins/coin-card.tsx. Unlocks a locked coin so sends may spend it."
   },
   "coins_unlock_confirm_funding": {
     "message": "This coin is set aside for offers. Unlocking keeps them live; spending the coin cancels them.",
-    "description": "components/domain/coins/unlock-coin-dialog.tsx. Unlock confirmation for an offer funding coin whose offers the wallet has no ids for."
-  },
-  "coins_unlock_confirm_manual": {
-    "message": "This coin becomes spendable again.",
-    "description": "components/domain/coins/unlock-coin-dialog.tsx. Unlock confirmation for a coin the user locked by hand."
+    "description": "components/domain/coins/coin-card.tsx. Inline unlock confirmation for an offer funding coin whose offers the wallet has no ids for."
   },
   "coins_unlock_confirm_offers": {
     "message": "Your $1 offers stay live. If this coin is spent, they are cancelled.",
-    "description": "components/domain/coins/unlock-coin-dialog.tsx. Unlock confirmation for a coin backing several offers. $1 = number of offers (2 or more)."
+    "description": "components/domain/coins/coin-card.tsx. Inline unlock confirmation for a coin backing several offers. $1 = number of offers (2 or more)."
   },
   "coins_unlock_confirm_one_offer": {
     "message": "Your offer stays live. If this coin is spent, it is cancelled.",
-    "description": "components/domain/coins/unlock-coin-dialog.tsx. Unlock confirmation for a coin backing one offer."
-  },
-  "coins_unlock_confirm_title": {
-    "message": "Unlock coin?",
-    "description": "components/domain/coins/unlock-coin-dialog.tsx. Heading of the unlock confirmation."
+    "description": "components/domain/coins/coin-card.tsx. Inline unlock confirmation for a coin backing one offer."
   },
   "coins_unlocked": {
     "message": "Unlocked",

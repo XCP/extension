@@ -42,6 +42,13 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
 
   await stub(context, signer, parents, fund.id, plain);
 
+  // Nothing locked yet: the summary has no locked total and the list no filter.
+  await page.setViewportSize({ width: 360, height: 900 });
+  await page.goto(`chrome-extension://${extensionId}/popup.html#/settings/coins`);
+  await expect(page.getByRole('heading', { name: 'Your coins' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('tablist')).toHaveCount(0);
+  await page.screenshot({ path: path.join(OUT, '0a-coins-no-locks.png'), fullPage: true });
+
   const expiresAt = Math.floor(Date.now() / 1000) + 7 * 86_400;
   const intent = {
     standard: 'counterparty-marketplace', version: 1, action: 'fund_offers',
@@ -82,20 +89,49 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   await page.screenshot({ path: path.join(OUT, '2-coins-all.png'), fullPage: true });
   await page.getByRole('article', { name: /0.00000546 BTC/ }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(OUT, '2b-coins-all-bottom.png'), fullPage: true });
-  await expect(page.getByText('0.00019500 BTC free · 0.00190000 BTC locked', { exact: true })).toBeVisible();
+  const summary = page.getByRole('heading', { name: 'Your coins' }).locator('..');
+  await expect(summary).toContainText('Available0.00019500 BTC');
+  await expect(summary).toContainText('Locked0.00190000 BTC');
   await page.getByRole('tab', { name: 'Locked' }).click();
   await expect(page.getByRole('article')).toHaveCount(3);
   await page.screenshot({ path: path.join(OUT, '3-coins-locked.png'), fullPage: true });
 
-  // Unlock confirmation for the offer coin that backs two offers.
-  await page.getByRole('article', { name: /0\.00020000 BTC/ }).filter({ hasText: 'Backs 2 offers' }).getByRole('button', { name: 'Unlock' }).click();
-  await expect(page.getByRole('dialog').getByText('Your 2 offers stay live. If this coin is spent, they are cancelled.')).toBeVisible();
-  await page.screenshot({ path: path.join(OUT, '4-unlock-confirm-offer.png') });
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
-  await page.getByRole('article', { name: /0\.00150000 BTC/ }).getByRole('button', { name: 'Unlock' }).click();
-  await expect(page.getByRole('dialog').getByText('This coin becomes spendable again.')).toBeVisible();
-  await page.screenshot({ path: path.join(OUT, '5-unlock-confirm-manual.png') });
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+  // Unlocking an offer coin asks on the same button, which stays put; Cancel appears beside it and
+  // the card keeps its badge and offer line. One card asks at a time.
+  const backsTwo = page.getByRole('article', { name: /0\.00020000 BTC/ }).filter({ hasText: 'Backs 2 offers' });
+  const funding = page.getByRole('article', { name: /0\.00020000 BTC/ }).filter({ hasText: 'Set aside for offers' });
+  const fundingAction = funding.getByRole('button', { name: /^(Unlock|Confirm unlock)$/ });
+  await fundingAction.click();
+  await expect(funding.getByText('This coin is set aside for offers. Unlocking keeps them live; spending the coin cancels them.')).toBeVisible();
+  const action = backsTwo.getByRole('button', { name: /^(Unlock|Confirm unlock)$/ });
+  const before = await action.boundingBox();
+  await action.click();
+  await expect(action).toHaveAccessibleName('Confirm unlock');
+  const after = await action.boundingBox();
+  expect(after).toEqual(before);
+  await expect(backsTwo.getByText('Your 2 offers stay live. If this coin is spent, they are cancelled.')).toBeVisible();
+  await expect(backsTwo.getByText('Offer funding')).toBeVisible();
+  await expect(backsTwo.getByRole('button', { name: 'Cancel' })).toBeVisible();
+  await expect(fundingAction).toHaveAccessibleName('Unlock');
+  await expect(funding.getByText(/This coin is set aside/)).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.screenshot({ path: path.join(OUT, '4-unlock-confirm-offer.png'), fullPage: true });
+  await page.keyboard.press('Escape');
+  await expect(action).toHaveAccessibleName('Unlock');
+  await action.click();
+  await backsTwo.getByRole('button', { name: 'Cancel' }).click();
+  await expect(action).toHaveAccessibleName('Unlock');
+  await expect(backsTwo.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+  expect((await locks()).every(lock => !lock.unlocked)).toBe(true);
+
+  // A coin locked by hand unlocks at once, and locks again the same way.
+  const manual = page.getByRole('article', { name: /0\.00150000 BTC/ });
+  await manual.getByRole('button', { name: 'Unlock' }).click();
+  await expect(page.getByRole('article', { name: /0\.00150000 BTC/ })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'All' }).click();
+  await expect(manual.getByRole('button', { name: 'Lock' })).toBeVisible();
+  await manual.getByRole('button', { name: 'Lock' }).click();
+  await expect(manual.getByText('Locked by you')).toBeVisible();
 
   // Another site funds an offer from the locked slot: the approval asks, and confirming unlocks it.
   const spend = new Transaction({ version: 2, lockTime: 0 });

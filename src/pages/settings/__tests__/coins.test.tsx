@@ -56,17 +56,20 @@ describe('the Coins settings page', () => {
   });
   afterEach(() => { cleanup(); setCoinLockStore(null); });
 
-  it('lists every coin with its lock, what it backs, and the free and locked totals', async () => {
+  it('lists every coin with its lock, what it backs, and the available and locked totals', async () => {
     installStore([offerLock(`${txid('a')}:0`)]);
     renderPage();
-    expect(await screen.findByText('0.00107000 BTC free · 0.00040000 BTC locked')).toBeInTheDocument();
+    const summary = within(await screen.findByText('Your coins').then(title => title.parentElement!));
+    expect(summary.getByText('Available').nextSibling).toHaveTextContent('0.00107000 BTC');
+    expect(summary.getByText('Locked').nextSibling).toHaveTextContent('0.00040000 BTC');
     const locked = card(/0\.00040000 BTC/);
     expect(within(locked).getByText('Offer funding')).toBeInTheDocument();
     expect(within(locked).getByText(/Backs 2 offers · From market\.example · Expires/)).toBeInTheDocument();
     expect(within(locked).getByRole('button', { name: 'Unlock' })).toBeInTheDocument();
+    expect(within(locked).getByRole('link', { name: `${'a'.repeat(8)}...${'a'.repeat(6)}:0` })).toHaveAttribute('href', `https://mempool.space/tx/${txid('a')}`);
     expect(within(card(/0\.00000546 BTC/)).getByText('Holds assets')).toBeInTheDocument();
     expect(within(card(/0\.00000546 BTC/)).queryByRole('button')).not.toBeInTheDocument();
-    expect(within(card(/0\.00007000 BTC/)).getByText('Unconfirmed')).toBeInTheDocument();
+    expect(within(card(/0\.00007000 BTC/)).getByText('Pending')).toBeInTheDocument();
     expect(within(card(/0\.00100000 BTC/)).getByText('10 confirmations')).toBeInTheDocument();
   });
 
@@ -77,38 +80,77 @@ describe('the Coins settings page', () => {
     expect(screen.getAllByRole('article')).toHaveLength(1);
   });
 
-  it('locks a plain coin by hand, then unlocks it after a confirmation that it becomes spendable', async () => {
+  it('shows no filter and no locked total while nothing is locked', async () => {
+    installStore([]);
+    renderPage();
+    const summary = within(await screen.findByText('Your coins').then(title => title.parentElement!));
+    expect(summary.getByText('Available').nextSibling).toHaveTextContent('0.00147000 BTC');
+    expect(summary.queryByText('Locked')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(4);
+  });
+
+  it('locks a plain coin by hand, then unlocks it at once', async () => {
     const updates = installStore([]);
     renderPage();
-    await screen.findByText('0.00147000 BTC free');
+    await screen.findByText('Your coins');
     fireEvent.click(within(card(/0\.00100000 BTC/)).getByRole('button', { name: 'Lock' }));
     await waitFor(() => expect(within(card(/0\.00100000 BTC/)).getByText('Locked by you')).toBeInTheDocument());
     expect(updates).toEqual([{ lock: [{ outpoint: `${txid('b')}:1`, valueSats: 100_000 }] }]);
+    expect(screen.getByRole('tab', { name: 'Locked' })).toBeInTheDocument();
 
     fireEvent.click(within(card(/0\.00100000 BTC/)).getByRole('button', { name: 'Unlock' }));
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('This coin becomes spendable again.')).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Unlock' }));
     await waitFor(() => expect(within(card(/0\.00100000 BTC/)).queryByText('Locked by you')).not.toBeInTheDocument());
     expect(updates.at(-1)).toEqual({ unlock: [`${txid('b')}:1`] });
+    expect(within(card(/0\.00100000 BTC/)).getByRole('button', { name: 'Lock' })).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
-  it('says how many offers an unlock cancels, and offers to lock the coin again while they live', async () => {
+  it('asks on the same button how many offers an unlock leaves at risk, and offers to lock the coin again while they live', async () => {
     const updates = installStore([offerLock(`${txid('a')}:0`)]);
     renderPage();
-    fireEvent.click(within(await screen.findByRole('article', { name: /0\.00040000 BTC/ })).getByRole('button', { name: 'Unlock' }));
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Your 2 offers stay live. If this coin is spent, they are cancelled.')).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const offer = () => card(/0\.00040000 BTC/);
+    const action = within(await screen.findByRole('article', { name: /0\.00040000 BTC/ })).getByRole('button', { name: 'Unlock' });
+    fireEvent.click(action);
+    // The same button asks, Cancel sits beside it, and the card keeps everything it said.
+    expect(action).toHaveAccessibleName('Confirm unlock');
+    expect(within(offer()).getByText('Your 2 offers stay live. If this coin is spent, they are cancelled.')).toBeInTheDocument();
+    expect(within(offer()).getByText('Offer funding')).toBeInTheDocument();
+    expect(within(offer()).getByText(/Backs 2 offers · From market\.example/)).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(within(offer()).getByRole('button', { name: 'Cancel' }));
+    expect(action).toHaveAccessibleName('Unlock');
+    expect(action).toHaveFocus();
+    expect(within(offer()).queryByText(/Your 2 offers stay live/)).not.toBeInTheDocument();
+    expect(within(offer()).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+
+    // Escape withdraws the question too.
+    fireEvent.click(action);
+    fireEvent.keyDown(action, { key: 'Escape' });
+    expect(action).toHaveAccessibleName('Unlock');
     expect(updates).toEqual([]);
 
-    fireEvent.click(within(card(/0\.00040000 BTC/)).getByRole('button', { name: 'Unlock' }));
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Unlock' }));
-    const relock = await within(card(/0\.00040000 BTC/)).findByRole('button', { name: 'Lock again' });
-    expect(within(card(/0\.00040000 BTC/)).getByText('Unlocked')).toBeInTheDocument();
+    // Two taps on the same spot unlock.
+    fireEvent.click(action);
+    fireEvent.click(action);
+    const relock = await within(offer()).findByRole('button', { name: 'Lock again' });
+    expect(updates).toEqual([{ unlock: [`${txid('a')}:0`] }]);
+    expect(within(offer()).getByText('Unlocked')).toBeInTheDocument();
     fireEvent.click(relock);
     await waitFor(() => expect(updates.at(-1)).toEqual({ relock: [`${txid('a')}:0`] }));
+  });
+
+  it('asks in one card at a time', async () => {
+    installStore([offerLock(`${txid('a')}:0`), offerLock(`${txid('b')}:1`, { refs: ['c'], valueSats: 100_000 })]);
+    renderPage();
+    fireEvent.click(within(await screen.findByRole('article', { name: /0\.00040000 BTC/ })).getByRole('button', { name: 'Unlock' }));
+    expect(within(card(/0\.00040000 BTC/)).getByText(/Your 2 offers stay live/)).toBeInTheDocument();
+    fireEvent.click(within(card(/0\.00100000 BTC/)).getByRole('button', { name: 'Unlock' }));
+    expect(within(card(/0\.00100000 BTC/)).getByText('Your offer stays live. If this coin is spent, it is cancelled.')).toBeInTheDocument();
+    expect(within(card(/0\.00100000 BTC/)).getByRole('button', { name: 'Confirm unlock' })).toBeInTheDocument();
+    expect(within(card(/0\.00040000 BTC/)).queryByText(/Your 2 offers stay live/)).not.toBeInTheDocument();
+    expect(within(card(/0\.00040000 BTC/)).getByRole('button', { name: 'Unlock' })).toBeInTheDocument();
+    expect(within(card(/0\.00040000 BTC/)).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
   });
 
   it('lists a coin an offer locked before its funding reached the chain', async () => {

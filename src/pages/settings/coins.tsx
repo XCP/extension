@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { CoinCard, type CoinRow } from "@/components/domain/coins/coin-card";
 import { formatCoinBtc } from "@/components/domain/coins/coin-lock-text";
-import { UnlockCoinDialog } from "@/components/domain/coins/unlock-coin-dialog";
 import { FaCoins, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -13,7 +12,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getCurrentBlockHeight } from "@/core/bitcoin/blockHeight";
 import { getCoinLockStore, readCoinLocks } from "@/core/bitcoin/coinLockStore";
-import { type CoinLock, type CoinLockUpdate, outpointOf } from "@/core/bitcoin/coinLocks";
+import { backsOffers, type CoinLockUpdate, outpointOf } from "@/core/bitcoin/coinLocks";
 import { clearUtxoCache, fetchUTXOs } from "@/core/bitcoin/utxo";
 import { fetchUtxosWithBalances } from "@/core/counterparty/api";
 import { t } from '@/i18n';
@@ -40,8 +39,8 @@ interface CoinsState {
  * offer coin again while its offer lives.
  *
  * Outputs holding Counterparty assets are listed too, marked and without an action: sends never
- * spend them anyway, but leaving them out would make the free and locked totals disagree with the
- * BTC the wallet shows for the address.
+ * spend them anyway, but leaving them out would make the available and locked totals disagree with
+ * the BTC the wallet shows for the address.
  */
 export default function CoinsPage(): ReactElement {
   const navigate = useNavigate();
@@ -51,7 +50,8 @@ export default function CoinsPage(): ReactElement {
   const [state, setState] = useState<CoinsState>({ coins: [], isLoading: true, error: null });
   const [filter, setFilter] = useState<Filter>("all");
   const [shown, setShown] = useState(PAGE_SIZE);
-  const [confirming, setConfirming] = useState<CoinLock | null>(null);
+  // The offer coin whose card is asking before it unlocks; one card asks at a time.
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // The latest load; an older one that finishes after it (an address switch mid-read) is dropped.
   const loadRef = useRef(0);
@@ -133,7 +133,9 @@ export default function CoinsPage(): ReactElement {
     return sum;
   }, { free: 0, locked: 0 }), [state.coins]);
 
-  const visible = filter === "locked" ? state.coins.filter(coin => coin.lock && !coin.lock.unlocked) : state.coins;
+  // With nothing locked there is nothing to filter to, so the filter goes and the list shows all.
+  const lockedCoins = state.coins.filter(coin => coin.lock && !coin.lock.unlocked);
+  const visible = filter === "locked" && lockedCoins.length > 0 ? lockedCoins : state.coins;
 
   if (state.isLoading) {
     return <Spinner message={t('coins_loading')} />;
@@ -157,12 +159,22 @@ export default function CoinsPage(): ReactElement {
         )
       ) : (
         <>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm text-gray-700 tabular-nums">
-              {totals.locked > 0
-                ? t('coins_summary', [formatCoinBtc(totals.free), formatCoinBtc(totals.locked)])
-                : t('coins_summary_free', formatCoinBtc(totals.free))}
-            </p>
+          <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
+            <h3 className="text-sm font-medium text-gray-900">{t('coins_summary_title')}</h3>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">{t('coins_available')}</span>
+              <span className="text-gray-900 tabular-nums">{t('coins_btc_amount', formatCoinBtc(totals.free))}</span>
+            </div>
+            {totals.locked > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">{t('coins_locked')}</span>
+                <span className="text-gray-900 tabular-nums">{t('coins_btc_amount', formatCoinBtc(totals.locked))}</span>
+              </div>
+            )}
+            <p className="text-xs text-gray-500">{t('coins_summary_help')}</p>
+          </div>
+
+          {lockedCoins.length > 0 && (
             <div className="flex gap-1" role="tablist" aria-label={t('coins_filter')}>
               <TabButton isActive={filter === "all"} onClick={() => { setFilter("all"); setShown(PAGE_SIZE); }}>
                 {t('coins_filter_all')}
@@ -171,24 +183,29 @@ export default function CoinsPage(): ReactElement {
                 {t('coins_filter_locked')}
               </TabButton>
             </div>
-          </div>
-
-          {visible.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-500">{t('coins_none_locked')}</p>
-          ) : (
-            <div className="space-y-3">
-              {visible.slice(0, shown).map(coin => (
-                <CoinCard
-                  key={coin.outpoint}
-                  coin={coin}
-                  busy={busy}
-                  onLock={() => void update({ lock: [{ outpoint: coin.outpoint, valueSats: coin.valueSats }] })}
-                  onUnlock={() => setConfirming(coin.lock ?? null)}
-                  onRelock={() => void update({ relock: [coin.outpoint] })}
-                />
-              ))}
-            </div>
           )}
+
+          <div className="space-y-3">
+            {visible.slice(0, shown).map(coin => (
+              <CoinCard
+                key={coin.outpoint}
+                coin={coin}
+                busy={busy}
+                onLock={() => void update({ lock: [{ outpoint: coin.outpoint, valueSats: coin.valueSats }] })}
+                onUnlock={() => {
+                  if (coin.lock && backsOffers(coin.lock)) setConfirming(coin.outpoint);
+                  else void update({ unlock: [coin.outpoint] });
+                }}
+                onRelock={() => void update({ relock: [coin.outpoint] })}
+                confirming={confirming === coin.outpoint}
+                onCancelUnlock={() => setConfirming(null)}
+                onConfirmUnlock={() => {
+                  setConfirming(null);
+                  void update({ unlock: [coin.outpoint] });
+                }}
+              />
+            ))}
+          </div>
 
           {visible.length > shown && (
             <Button color="gray" onClick={() => setShown(count => count + PAGE_SIZE)} fullWidth>
@@ -197,17 +214,6 @@ export default function CoinsPage(): ReactElement {
           )}
         </>
       )}
-
-      <UnlockCoinDialog
-        lock={confirming}
-        busy={busy}
-        onCancel={() => setConfirming(null)}
-        onConfirm={() => {
-          const outpoint = confirming?.outpoint;
-          setConfirming(null);
-          if (outpoint) void update({ unlock: [outpoint] });
-        }}
-      />
     </section>
   );
 }

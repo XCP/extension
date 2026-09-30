@@ -1,4 +1,7 @@
 {
+  "coins_available": {
+    "message": "使用可能"
+  },
   "actions_address": {
     "message": "アドレス"
   },
@@ -583,6 +586,9 @@
   "coins_coin_label": {
     "message": "$1 BTC · $2"
   },
+  "coins_confirm_unlock": {
+    "message": "ロック解除を確定"
+  },
   "coins_confirmation_one": {
     "message": "1 承認"
   },
@@ -625,14 +631,14 @@
   "coins_lock_again": {
     "message": "再びロック"
   },
+  "coins_locked": {
+    "message": "ロック中"
+  },
   "coins_none": {
     "message": "コインがありません"
   },
   "coins_none_detail": {
     "message": "このアドレスが受け取った BTC は、出力ごとに 1 枚のコインとしてここに表示されます。"
-  },
-  "coins_none_locked": {
-    "message": "ロック中のコインはありません"
   },
   "coins_not_on_chain_yet": {
     "message": "まだチェーン上にありません"
@@ -649,17 +655,14 @@
   "coins_show_more": {
     "message": "さらに表示"
   },
-  "coins_summary": {
-    "message": "使用可能 $1 BTC · ロック中 $2 BTC"
+  "coins_summary_help": {
+    "message": "ロック中のコインはどの送金にも使われません。"
   },
-  "coins_summary_free": {
-    "message": "使用可能 $1 BTC"
+  "coins_summary_title": {
+    "message": "あなたのコイン"
   },
   "coins_title": {
     "message": "コインコントロール"
-  },
-  "coins_unconfirmed": {
-    "message": "未承認"
   },
   "coins_unlock": {
     "message": "ロック解除"
@@ -667,17 +670,11 @@
   "coins_unlock_confirm_funding": {
     "message": "このコインはオファー用に確保されています。ロックを解除してもオファーは有効なままですが、このコインを使うと取り消されます。"
   },
-  "coins_unlock_confirm_manual": {
-    "message": "このコインは再び使えるようになります。"
-  },
   "coins_unlock_confirm_offers": {
     "message": "$1 件のオファーは有効なままです。このコインが使われると取り消されます。"
   },
   "coins_unlock_confirm_one_offer": {
     "message": "オファーは有効なままです。このコインが使われると取り消されます。"
-  },
-  "coins_unlock_confirm_title": {
-    "message": "コインのロックを解除しますか？"
   },
   "coins_unlocked": {
     "message": "ロック解除済み"
