@@ -912,12 +912,11 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 0,
+      "hasPermission": 1,
     },
     "outcome": {
       "error": {
@@ -927,21 +926,61 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
     },
   },
   "connection refuses": {
-    "analytics": [
-      "provider_error",
-    ],
+    "actions": {
+      "signMessage": 2,
+    },
+    "analytics": [],
     "limiterCharges": {
-      "connection": 1,
+      "api": 1,
     },
     "lookups": {
-      "getPairedAddresses": 0,
-      "hasPairedAddressPermission": 0,
-      "hasPermission": 0,
+      "getPairedAddresses": 1,
+      "hasPairedAddressPermission": 3,
+      "hasPermission": 6,
     },
     "outcome": {
-      "error": {
-        "code": -32005,
-        "message": "Rate limit exceeded. Please wait 30 seconds before trying again.",
+      "result": {
+        "accounts": [
+          "bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty",
+        ],
+        "proof": {
+          "address": "bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty",
+          "message": "xcp-wallet
+origin:https://dapp.example
+nonce:<nonce>
+issued:1767225600",
+          "signature": "sig(bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty)",
+          "verification": {
+            "format": "p2wpkh",
+            "method": "BIP-322",
+          },
+        },
+        "proofs": [
+          {
+            "address": "bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty",
+            "message": "xcp-wallet
+origin:https://dapp.example
+nonce:<nonce>
+issued:1767225600",
+            "signature": "sig(bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty)",
+            "verification": {
+              "format": "p2wpkh",
+              "method": "BIP-322",
+            },
+          },
+          {
+            "address": "1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7",
+            "message": "xcp-wallet
+origin:https://dapp.example
+nonce:<nonce>
+issued:1767225600",
+            "signature": "sig(1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7)",
+            "verification": {
+              "format": "p2pkh",
+              "method": "BIP-322",
+            },
+          },
+        ],
       },
     },
   },
@@ -952,12 +991,11 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
     "analytics": [],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -1012,12 +1050,11 @@ issued:1767225600",
     "analytics": [],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -10250,7 +10287,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > empty params
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -10288,7 +10325,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -10346,12 +10383,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -10384,12 +10420,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -10421,12 +10456,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -10495,7 +10529,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > junk [[]] 1`
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -10533,7 +10567,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -10591,12 +10625,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -10629,12 +10662,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -10666,12 +10698,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -10740,7 +10771,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > junk [{}] 1`
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -10778,7 +10809,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -10836,12 +10867,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -10874,12 +10904,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -10911,12 +10940,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -10985,7 +11013,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > junk [1,2,3,
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -11023,7 +11051,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -11081,12 +11109,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -11119,12 +11146,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -11156,12 +11182,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -11230,7 +11255,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > junk [null] 
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -11268,7 +11293,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -11326,12 +11351,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -11364,12 +11388,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -11401,12 +11424,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -11475,7 +11497,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > junk 10k-cha
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -11513,7 +11535,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -11571,12 +11593,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -11609,12 +11630,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -11646,12 +11666,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -11712,12 +11731,32 @@ exports[`provider dispatch characterization > xcp_requestAccounts > oversize: 1.
     "environments": [
       "not connected · unlocked P2WPKH",
       "not connected · unlocked P2TR",
-      "not connected · locked",
       "connected · unlocked P2WPKH",
       "connected · unlocked P2TR",
-      "connected · locked",
       "connected + paired grant · unlocked P2WPKH",
       "connected + paired grant · unlocked P2TR",
+    ],
+    "limiterCharges": {},
+    "lookups": {
+      "getPairedAddresses": 0,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": -32602,
+        "message": "Request parameters too large (max 1MB)",
+      },
+    },
+  },
+  {
+    "analytics": [
+      "request_rejected",
+      "provider_error",
+    ],
+    "environments": [
+      "not connected · locked",
+      "connected · locked",
       "connected + paired grant · locked",
     ],
     "limiterCharges": {},
@@ -11746,12 +11785,32 @@ exports[`provider dispatch characterization > xcp_requestAccounts > oversize: 1M
     "environments": [
       "not connected · unlocked P2WPKH",
       "not connected · unlocked P2TR",
-      "not connected · locked",
       "connected · unlocked P2WPKH",
       "connected · unlocked P2TR",
-      "connected · locked",
       "connected + paired grant · unlocked P2WPKH",
       "connected + paired grant · unlocked P2TR",
+    ],
+    "limiterCharges": {},
+    "lookups": {
+      "getPairedAddresses": 0,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": -32602,
+        "message": "Request parameters too large (max 1MB)",
+      },
+    },
+  },
+  {
+    "analytics": [
+      "request_rejected",
+      "provider_error",
+    ],
+    "environments": [
+      "not connected · locked",
+      "connected · locked",
       "connected + paired grant · locked",
     ],
     "limiterCharges": {},
@@ -12024,7 +12083,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > paired capab
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -12062,7 +12121,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -12120,12 +12179,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -12158,12 +12216,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -12195,12 +12252,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -12269,7 +12325,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > params omitt
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -12307,7 +12363,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -12365,12 +12421,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -12403,12 +12458,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -12440,12 +12494,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -12506,12 +12559,32 @@ exports[`provider dispatch characterization > xcp_requestAccounts > unserializab
     "environments": [
       "not connected · unlocked P2WPKH",
       "not connected · unlocked P2TR",
-      "not connected · locked",
       "connected · unlocked P2WPKH",
       "connected · unlocked P2TR",
-      "connected · locked",
       "connected + paired grant · unlocked P2WPKH",
       "connected + paired grant · unlocked P2TR",
+    ],
+    "limiterCharges": {},
+    "lookups": {
+      "getPairedAddresses": 0,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": -32602,
+        "message": "Request parameters cannot be serialized",
+      },
+    },
+  },
+  {
+    "analytics": [
+      "request_rejected",
+      "provider_error",
+    ],
+    "environments": [
+      "not connected · locked",
+      "connected · locked",
       "connected + paired grant · locked",
     ],
     "limiterCharges": {},
@@ -12548,7 +12621,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > wrong type: 
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -12586,7 +12659,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -12644,12 +12717,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -12682,12 +12754,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -12719,12 +12790,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -12793,7 +12863,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > wrong type: 
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -12831,7 +12901,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -12889,12 +12959,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -12927,12 +12996,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -12964,12 +13032,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -13038,7 +13105,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > wrong type: 
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -13076,7 +13143,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -13134,12 +13201,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -13172,12 +13238,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -13209,12 +13274,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
@@ -13283,7 +13347,7 @@ exports[`provider dispatch characterization > xcp_requestAccounts > wrong type: 
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -13321,7 +13385,7 @@ issued:1767225600",
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 3,
+      "hasPermission": 4,
     },
     "outcome": {
       "result": {
@@ -13379,12 +13443,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 1,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -13417,12 +13480,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 0,
       "hasPairedAddressPermission": 0,
-      "hasPermission": 4,
+      "hasPermission": 5,
     },
     "outcome": {
       "result": {
@@ -13454,12 +13516,11 @@ issued:1767225600",
     ],
     "limiterCharges": {
       "api": 1,
-      "connection": 1,
     },
     "lookups": {
       "getPairedAddresses": 1,
       "hasPairedAddressPermission": 3,
-      "hasPermission": 5,
+      "hasPermission": 6,
     },
     "outcome": {
       "result": {
