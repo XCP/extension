@@ -1,5 +1,5 @@
 /**
- * Locked coins live in the encrypted keychain: what the Coins page and an offer signature write is
+ * Locked coins live in the encrypted keychain: what the Coin Control page and an offer signature write is
  * on disk, survives a lock and unlock, reads empty while locked, and a malformed record on disk
  * costs the lock, never the unlock. Real encryption and session manager; only storage is replaced.
  */

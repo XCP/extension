@@ -516,13 +516,13 @@
     "message": "此交易花费超过 $1 个输入，超出钱包可检查附加资产的数量。请让网站减少输入数量。"
   },
   "coin_lock_compose_spends_locked_coin": {
-    "message": "此交易会花费你锁定的币（$1）。请在 设置 › 币 中解锁后重试。"
+    "message": "此交易会花费你锁定的币（$1）。请在 设置 › 币控制 中解锁后重试。"
   },
   "coin_lock_compose_spends_offer_coin": {
-    "message": "此交易会花费为你的出价锁定的币（$1）。请在 设置 › 币 中解锁或取消出价后重试。"
+    "message": "此交易会花费为你的出价锁定的币（$1）。请在 设置 › 币控制 中解锁或取消出价后重试。"
   },
   "coin_lock_insufficient": {
-    "message": "可用 BTC 不足：可用 $1 sats，已锁定 $2 sats。请在 设置 › 币 中解锁一枚币。"
+    "message": "可用 BTC 不足：可用 $1 sats，已锁定 $2 sats。请在 设置 › 币控制 中解锁一枚币。"
   },
   "coin_lock_insufficient_offers": {
     "message": "可用 BTC 不足：可用 $1 sats，出价中锁定 $2 sats。请解锁一枚币或取消一个出价。"
@@ -656,7 +656,7 @@
     "message": "可用 $1 BTC"
   },
   "coins_title": {
-    "message": "币"
+    "message": "币控制"
   },
   "coins_unconfirmed": {
     "message": "未确认"
@@ -665,16 +665,16 @@
     "message": "解锁"
   },
   "coins_unlock_confirm_funding": {
-    "message": "此币已为出价预留。花费它会取消这些出价。"
+    "message": "此币已为出价预留。解锁后出价仍然有效；花费此币会取消这些出价。"
   },
   "coins_unlock_confirm_manual": {
     "message": "此币将重新可以花费。"
   },
   "coins_unlock_confirm_offers": {
-    "message": "花费此币会取消 $1 个出价。"
+    "message": "你的 $1 个出价仍然有效。如果花费此币，这些出价会被取消。"
   },
   "coins_unlock_confirm_one_offer": {
-    "message": "花费此币会取消 1 个出价。"
+    "message": "你的出价仍然有效。如果花费此币，该出价会被取消。"
   },
   "coins_unlock_confirm_title": {
     "message": "解锁此币？"

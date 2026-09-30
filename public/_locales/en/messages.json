@@ -688,15 +688,15 @@
     "description": "Below approval_too_many_inputs_title. $1 is the number of inputs the wallet checks."
   },
   "coin_lock_compose_spends_locked_coin": {
-    "message": "This transaction would spend a coin you locked ($1). Unlock it in Settings › Coins, then try again.",
+    "message": "This transaction would spend a coin you locked ($1). Unlock it in Settings › Coin Control, then try again.",
     "description": "core/counterparty/composeLocks.ts. Error when the composer built a transaction that spends a coin the user locked by hand. $1 = the locked coins, as txid:vout separated by commas."
   },
   "coin_lock_compose_spends_offer_coin": {
-    "message": "This transaction would spend a coin locked for your offers ($1). Unlock it in Settings › Coins or cancel the offer, then try again.",
+    "message": "This transaction would spend a coin locked for your offers ($1). Unlock it in Settings › Coin Control or cancel the offer, then try again.",
     "description": "core/counterparty/composeLocks.ts. Error when the composer built a transaction that spends a coin backing the user's marketplace offers. $1 = the locked coins, as txid:vout separated by commas."
   },
   "coin_lock_insufficient": {
-    "message": "Not enough available BTC: $1 sats free, $2 sats locked. Unlock a coin in Settings › Coins.",
+    "message": "Not enough available BTC: $1 sats free, $2 sats locked. Unlock a coin in Settings › Coin Control.",
     "description": "core/counterparty/composeLocks.ts. Insufficient-funds error when locked coins (some locked by hand) hold back BTC. $1 = spendable sats, $2 = locked sats, both formatted numbers."
   },
   "coin_lock_insufficient_offers": {
@@ -872,7 +872,7 @@
     "description": "pages/settings/coins.tsx. Total above the coin list when nothing is locked. $1 = spendable BTC."
   },
   "coins_title": {
-    "message": "Coins",
+    "message": "Coin Control",
     "description": "pages/settings/coins.tsx, pages/settings/index.tsx. The coin control page: the address's BTC outputs and which are locked."
   },
   "coins_unconfirmed": {
@@ -884,7 +884,7 @@
     "description": "components/domain/coins/coin-card.tsx, components/domain/coins/unlock-coin-dialog.tsx. Unlocks a locked coin so sends may spend it."
   },
   "coins_unlock_confirm_funding": {
-    "message": "This coin is set aside for offers. Spending it cancels them.",
+    "message": "This coin is set aside for offers. Unlocking keeps them live; spending the coin cancels them.",
     "description": "components/domain/coins/unlock-coin-dialog.tsx. Unlock confirmation for an offer funding coin whose offers the wallet has no ids for."
   },
   "coins_unlock_confirm_manual": {
@@ -892,11 +892,11 @@
     "description": "components/domain/coins/unlock-coin-dialog.tsx. Unlock confirmation for a coin the user locked by hand."
   },
   "coins_unlock_confirm_offers": {
-    "message": "Spending this coin cancels $1 offers.",
+    "message": "Your $1 offers stay live. If this coin is spent, they are cancelled.",
     "description": "components/domain/coins/unlock-coin-dialog.tsx. Unlock confirmation for a coin backing several offers. $1 = number of offers (2 or more)."
   },
   "coins_unlock_confirm_one_offer": {
-    "message": "Spending this coin cancels 1 offer.",
+    "message": "Your offer stays live. If this coin is spent, it is cancelled.",
     "description": "components/domain/coins/unlock-coin-dialog.tsx. Unlock confirmation for a coin backing one offer."
   },
   "coins_unlock_confirm_title": {

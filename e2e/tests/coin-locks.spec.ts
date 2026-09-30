@@ -72,7 +72,7 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   // Settings index.
   await page.setViewportSize({ width: 360, height: 600 });
   await page.goto(`chrome-extension://${extensionId}/popup.html#/settings`);
-  await expect(page.getByText('Coins', { exact: true })).toBeVisible();
+  await expect(page.getByText('Coin Control', { exact: true })).toBeVisible();
   await page.screenshot({ path: path.join(OUT, '1-settings-index.png') });
 
   // Coins page, All and Locked.
@@ -89,7 +89,7 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
 
   // Unlock confirmation for the offer coin that backs two offers.
   await page.getByRole('article', { name: /0\.00020000 BTC/ }).filter({ hasText: 'Backs 2 offers' }).getByRole('button', { name: 'Unlock' }).click();
-  await expect(page.getByRole('dialog').getByText('Spending this coin cancels 2 offers.')).toBeVisible();
+  await expect(page.getByRole('dialog').getByText('Your 2 offers stay live. If this coin is spent, they are cancelled.')).toBeVisible();
   await page.screenshot({ path: path.join(OUT, '4-unlock-confirm-offer.png') });
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('article', { name: /0\.00150000 BTC/ }).getByRole('button', { name: 'Unlock' }).click();

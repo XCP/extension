@@ -546,7 +546,7 @@ locks those coins: sends leave them out, and a signing request that would spend 
 Only the site whose request locked a slot may send an `authorize_exact_offer` whose input 0 is
 that slot without a prompt. Any other request that signs a locked coin, from any site, shows a
 warning; confirming it unlocks the coin, and the offers it backs end once the spend confirms. The
-user can also unlock or lock coins under Settings › Coins. A lock comes off by itself when its coin
+user can also unlock or lock coins under Settings › Coin Control. A lock comes off by itself when its coin
 is spent, when the offer's `marketplaceExpiresAt` (or a policy offer's latest `expiresAt`) is more
 than an hour past, or when a slot is never seen on chain within a day of signing.
 

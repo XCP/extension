@@ -98,7 +98,7 @@ describe('the Coins settings page', () => {
     renderPage();
     fireEvent.click(within(await screen.findByRole('article', { name: /0\.00040000 BTC/ })).getByRole('button', { name: 'Unlock' }));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Spending this coin cancels 2 offers.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Your 2 offers stay live. If this coin is spent, they are cancelled.')).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(updates).toEqual([]);

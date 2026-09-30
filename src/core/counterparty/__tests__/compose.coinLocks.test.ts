@@ -119,7 +119,7 @@ describe('compose leaves locked coins alone', () => {
       result: createMockComposeResult({ rawtransaction: rawTxSpending([OFFERED_TXID, LOCKED_TXID]) }),
     }));
 
-    await expect(composeSend(sendArgs())).rejects.toThrow(/locked for your offers.*Settings › Coins/);
+    await expect(composeSend(sendArgs())).rejects.toThrow(/locked for your offers.*Settings › Coin Control/);
     expect(mockedApiClient.get).toHaveBeenCalledTimes(1);
   });
 
