@@ -780,7 +780,7 @@
     "description": "components/domain/coins/coin-card.tsx. Names one coin. $1 = BTC amount, $2 = shortened txid:vout."
   },
   "coins_confirm_unlock": {
-    "message": "Confirm unlock",
+    "message": "Confirm",
     "description": "components/domain/coins/coin-card.tsx. What the Unlock button on an offer coin says after the first tap; a second tap unlocks the coin."
   },
   "coins_confirmation_one": {

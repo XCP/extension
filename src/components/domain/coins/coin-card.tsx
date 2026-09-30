@@ -30,7 +30,7 @@ interface CoinCardProps {
   onLock: () => void;
   onUnlock: () => void;
   onRelock: () => void;
-  /** The card asks whether to unlock its offer coin: Unlock reads Confirm unlock, with Cancel beside it. */
+  /** The card asks whether to unlock its offer coin: Unlock reads Confirm, with Cancel beside it. */
   confirming?: boolean;
   onCancelUnlock?: () => void;
   onConfirmUnlock?: () => void;
@@ -68,7 +68,7 @@ function unlockConfirmText(lock: CoinLock): string {
  * free coin, unlock a locked one, or lock an unlocked offer coin again while its offer lives. A
  * coin holding assets has no action; sends never spend it anyway.
  *
- * Unlocking an offer coin asks first, in place: the same button becomes Confirm unlock, with Cancel
+ * Unlocking an offer coin asks first, in place: the same button becomes Confirm, with Cancel
  * beside it and a line saying its offers stay live but a send may now spend the coin and end them.
  * The page unlocks a coin locked by hand at once; Lock puts it back.
  */

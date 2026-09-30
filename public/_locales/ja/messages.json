@@ -587,7 +587,7 @@
     "message": "$1 BTC · $2"
   },
   "coins_confirm_unlock": {
-    "message": "ロック解除を確定"
+    "message": "確定"
   },
   "coins_confirmation_one": {
     "message": "1 承認"

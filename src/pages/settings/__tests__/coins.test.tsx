@@ -113,7 +113,7 @@ describe('the Coins settings page', () => {
     const action = within(await screen.findByRole('article', { name: /0\.00040000 BTC/ })).getByRole('button', { name: 'Unlock' });
     fireEvent.click(action);
     // The same button asks, Cancel sits beside it, and the card keeps everything it said.
-    expect(action).toHaveAccessibleName('Confirm unlock');
+    expect(action).toHaveAccessibleName('Confirm');
     expect(within(offer()).getByText('Your 2 offers stay live. If this coin is spent, they are cancelled.')).toBeInTheDocument();
     expect(within(offer()).getByText('Offer funding')).toBeInTheDocument();
     expect(within(offer()).getByText(/Backs 2 offers · From market\.example/)).toBeInTheDocument();
@@ -147,7 +147,7 @@ describe('the Coins settings page', () => {
     expect(within(card(/0\.00040000 BTC/)).getByText(/Your 2 offers stay live/)).toBeInTheDocument();
     fireEvent.click(within(card(/0\.00100000 BTC/)).getByRole('button', { name: 'Unlock' }));
     expect(within(card(/0\.00100000 BTC/)).getByText('Your offer stays live. If this coin is spent, it is cancelled.')).toBeInTheDocument();
-    expect(within(card(/0\.00100000 BTC/)).getByRole('button', { name: 'Confirm unlock' })).toBeInTheDocument();
+    expect(within(card(/0\.00100000 BTC/)).getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
     expect(within(card(/0\.00040000 BTC/)).queryByText(/Your 2 offers stay live/)).not.toBeInTheDocument();
     expect(within(card(/0\.00040000 BTC/)).getByRole('button', { name: 'Unlock' })).toBeInTheDocument();
     expect(within(card(/0\.00040000 BTC/)).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();

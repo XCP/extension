@@ -100,13 +100,13 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   // the card keeps its badge and offer line. One card asks at a time.
   const backsTwo = page.getByRole('article', { name: /0\.00020000 BTC/ }).filter({ hasText: 'Backs 2 offers' });
   const funding = page.getByRole('article', { name: /0\.00020000 BTC/ }).filter({ hasText: 'Set aside for offers' });
-  const fundingAction = funding.getByRole('button', { name: /^(Unlock|Confirm unlock)$/ });
+  const fundingAction = funding.getByRole('button', { name: /^(Unlock|Confirm)$/ });
   await fundingAction.click();
   await expect(funding.getByText('This coin is set aside for offers. Unlocking keeps them live; spending the coin cancels them.')).toBeVisible();
-  const action = backsTwo.getByRole('button', { name: /^(Unlock|Confirm unlock)$/ });
+  const action = backsTwo.getByRole('button', { name: /^(Unlock|Confirm)$/ });
   const before = await action.boundingBox();
   await action.click();
-  await expect(action).toHaveAccessibleName('Confirm unlock');
+  await expect(action).toHaveAccessibleName('Confirm');
   const after = await action.boundingBox();
   expect(after).toEqual(before);
   await expect(backsTwo.getByText('Your 2 offers stay live. If this coin is spent, they are cancelled.')).toBeVisible();
