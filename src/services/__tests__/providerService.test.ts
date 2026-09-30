@@ -266,6 +266,12 @@ vi.mock('@/platform/provider/recentBroadcasts', () => ({
 vi.mock('@/platform/storage/walletStorage', () => ({
   keychainExists: vi.fn().mockResolvedValue(true),
 }));
+// The Counterparty API's version decides whether commit-and-reveal is advertised; never the live one.
+const coreFeatures = vi.hoisted(() => ({ taprootReveals: false }));
+vi.mock('@/core/counterparty/capabilities', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/core/counterparty/capabilities')>(),
+  getCounterpartyFeatureStatus: vi.fn(async () => ({ supported: coreFeatures.taprootReveals })),
+}));
 // Setup fake browser with required APIs
 beforeAll(() => {
   // Setup browser.windows.create mock
@@ -831,6 +837,19 @@ describe('ProviderService', () => {
           },
         });
         expect(vi.mocked(walletService.getWalletService)().getPairedAddresses).not.toHaveBeenCalled();
+      });
+
+      it('advertises commit-and-reveal once the Counterparty API is 11.5 or newer', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(false);
+        coreFeatures.taprootReveals = true;
+        try {
+          const result = await providerService.handleRequest('https://connected.com', 'xcp_getAddresses', []) as any;
+          expect(result.signing.psbtBatch.marketplaceBundles).toContain('commit-and-reveal');
+        } finally {
+          coreFeatures.taprootReveals = false;
+        }
       });
 
       it('reports the narrow hardware signing contract without exposing wallet type', async () => {
