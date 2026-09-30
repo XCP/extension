@@ -973,8 +973,8 @@ nonce:<nonce>
 issued:1767225600",
             "signature": "sig(1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7)",
             "verification": {
-              "format": "p2pkh",
-              "method": "BIP-322",
+              "format": "legacy_recoverable",
+              "method": "BIP-137",
             },
           },
         ],
