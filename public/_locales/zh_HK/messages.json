@@ -519,16 +519,16 @@
     "message": "此交易花費超過 $1 個輸入，超出錢包可檢查附加資產的數量。請要求網站減少輸入數量。"
   },
   "coin_lock_compose_spends_locked_coin": {
-    "message": "此交易會花費你鎖定的幣（$1）。請在 設置 › 幣控制 中解鎖後重試。"
+    "message": "使用了已鎖定的幣。請在幣控制中解鎖。"
   },
   "coin_lock_compose_spends_offer_coin": {
-    "message": "此交易會花費為你的出價鎖定的幣（$1）。請在 設置 › 幣控制 中解鎖或取消出價後重試。"
+    "message": "使用了已鎖定的幣。請在幣控制中解鎖或取消出價。"
   },
   "coin_lock_insufficient": {
-    "message": "可用 BTC 不足：可用 $1 sats，已鎖定 $2 sats。請在 設置 › 幣控制 中解鎖一枚幣。"
+    "message": "可用 BTC 不足：可用 $1 sats · 已鎖定 $2。"
   },
   "coin_lock_insufficient_offers": {
-    "message": "可用 BTC 不足：可用 $1 sats，出價中鎖定 $2 sats。請解鎖一枚幣或取消一個出價。"
+    "message": "可用 BTC 不足：可用 $1 sats · 出價中鎖定 $2。"
   },
   "coin_lock_no_spendable_balance": {
     "message": "沒有可花費的餘額。$1 BTC 在已鎖定的幣中。"
@@ -638,7 +638,7 @@
     "message": "沒有幣"
   },
   "coins_none_detail": {
-    "message": "此地址收到的 BTC 會顯示在這裡，每個輸出一枚幣。"
+    "message": "你收到的 BTC 會顯示在這裡。"
   },
   "coins_not_on_chain_yet": {
     "message": "尚未上鏈"
@@ -668,7 +668,7 @@
     "message": "解鎖"
   },
   "coins_unlock_confirm_funding": {
-    "message": "此幣已為出價預留。解鎖後出價仍然有效；花費此幣會取消這些出價。"
+    "message": "在此幣被花費之前，出價一直有效。"
   },
   "coins_unlock_confirm_offers": {
     "message": "你的 $1 個出價仍然有效。如果花費此幣，這些出價會被取消。"
@@ -6298,7 +6298,7 @@
     "message": "無法核查輸出 $1 的比特幣地址。"
   },
   "zeld_error_locked": {
-    "message": "部分 ZELD 位於你鎖定的幣上。請在 設置 › 幣 中解鎖後再發送。"
+    "message": "部分 ZELD 位於你鎖定的幣上。請在幣控制中解鎖後再發送。"
   },
   "zeld_hunt_enable": {
     "message": "啟用 ZELD 搜尋"

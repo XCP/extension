@@ -33,6 +33,8 @@ vi.mock('@/core/bitcoin/utxo', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/core/bitcoin/utxo')>(),
   fetchUTXOs: vi.fn(async () => []),
 }));
+// The empty UTXO read makes every lock a candidate; the chain lookup is covered in coinLockStore.test.ts.
+vi.mock('@/core/bitcoin/outspend', () => ({ checkOutspends: vi.fn(async () => ({ spent: [], unknown: [] })) }));
 vi.mock('@/core/counterparty/utxoSelection', () => ({
   selectUtxosForTransaction: vi.fn().mockResolvedValue({
     utxos: [{ txid: 'aa'.repeat(32), vout: 0, value: 100000, status: { confirmed: true } }],
@@ -119,7 +121,7 @@ describe('compose leaves locked coins alone', () => {
       result: createMockComposeResult({ rawtransaction: rawTxSpending([OFFERED_TXID, LOCKED_TXID]) }),
     }));
 
-    await expect(composeSend(sendArgs())).rejects.toThrow(/locked for your offers.*Settings › Coin Control/);
+    await expect(composeSend(sendArgs())).rejects.toThrow('Uses a locked coin. Unlock it in Coin Control or cancel the offer.');
     expect(mockedApiClient.get).toHaveBeenCalledTimes(1);
   });
 
@@ -128,13 +130,13 @@ describe('compose leaves locked coins alone', () => {
     mockedApiClient.get.mockResolvedValue(createMockApiResponse({
       result: createMockComposeResult({ rawtransaction: rawTxSpending([LOCKED_TXID]) }),
     }));
-    await expect(composeSend(sendArgs())).rejects.toThrow(/a coin you locked/);
+    await expect(composeSend(sendArgs())).rejects.toThrow('Uses a locked coin. Unlock it in Coin Control.');
   });
 
   it('states the split when the locks are why the funds fall short', async () => {
     mockedApiClient.get.mockResolvedValue(composeError(`Insufficient BTC at address ${mockAddress}. Need: 0.002 BTC`) as never);
     await expect(composeSend(sendArgs())).rejects.toThrow(
-      'Not enough available BTC: 100,000 sats free, 25,000 sats locked in offers. Unlock a coin or cancel an offer.',
+      'Not enough available BTC: 100,000 sats free · 25,000 locked in offers.',
     );
   });
 
@@ -155,7 +157,7 @@ describe('compose leaves locked coins alone', () => {
     locks = [{ ...lock('manual'), outpoint: `${OFFERED_TXID}:0` }];
     mockedApiClient.get.mockResolvedValue(createMockApiResponse({ result: createMockComposeResult() }));
     await expect(composeDetach({ sourceUtxo: `${OFFERED_TXID}:0`, sourceAddress: mockAddress, sat_per_vbyte: mockSatPerVbyte }))
-      .rejects.toThrow(/a coin you locked/);
+      .rejects.toThrow('Uses a locked coin. Unlock it in Coin Control.');
     expect(requestedUrls()[0]!.searchParams.has('exclude_utxos')).toBe(false);
   });
 });

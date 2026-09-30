@@ -7,6 +7,7 @@ import {
   coinLocksOf,
   liveCoinLocks,
   MAX_COIN_LOCK_ENTRIES,
+  MAX_COIN_LOCK_EXPIRY_SECONDS,
   MAX_COIN_LOCKS_PER_ADDRESS,
   type OfferCoinCommitment,
   parseCoinLockUpdate,
@@ -83,29 +84,65 @@ describe('locked coins in the keychain', () => {
   });
 
   describe('coming off by themselves', () => {
-    const observed = (entries: CoinLock[], present: string[], now: number) =>
-      withCoinLockUpdate(entries, ADDRESS, { observed: { present } }, now);
+    /** A UTXO read of the address that found `present` of the locks named and missed `absent`. */
+    const read = (entries: CoinLock[], present: string[], absent: string[], now: number) =>
+      withCoinLockUpdate(entries, ADDRESS, { observed: { present, absent } }, now);
+    const chain = (entries: CoinLock[], verdicts: { spent?: string[]; unknown?: string[] }, now: number) =>
+      withCoinLockUpdate(entries, ADDRESS, { observed: verdicts }, now);
 
-    it('drops a coin seen unspent once and gone now: it was spent', () => {
+    it('keeps a coin a read missed as a candidate: a stale or failed-over read proves nothing', () => {
       const locked = after(withOfferCoinLocks([], ADDRESS, [slot(A), slot(B)], NOW));
-      const seen = after(observed(locked, [A, B], NOW + 10));
+      const seen = after(read(locked, [A, B], [], NOW + 10));
       expect(coinLocksOf(seen, ADDRESS).map(lock => lock.seenAt)).toEqual([NOW + 10, NOW + 10]);
-      expect(coinLocksOf(after(observed(seen, [B], NOW + 20)), ADDRESS).map(lock => lock.outpoint)).toEqual([B]);
+      // A cached read, the other indexer's mempool, or a spend only in the mempool: all look like this.
+      const missed = after(read(seen, [B], [A], NOW + 20));
+      expect(coinLocksOf(missed, ADDRESS)).toEqual([
+        expect.objectContaining({ outpoint: A, candidateSince: NOW + 20 }),
+        expect.objectContaining({ outpoint: B }),
+      ]);
+      expect(activeCoinLocks(coinLocksOf(missed, ADDRESS))).toHaveLength(2);
+      // Missed again: nothing new to write. Found again: no longer a candidate.
+      expect(read(missed, [B], [A], NOW + 30)).toBeNull();
+      expect(coinLocksOf(after(read(missed, [A, B], [], NOW + 40)), ADDRESS)[0]).not.toHaveProperty('candidateSince');
     });
 
-    it('drops a hand lock only when its coin is spent', () => {
+    it('drops a lock when the chain shows its coin spent by a confirmed transaction', () => {
+      const locked = after(withOfferCoinLocks([], ADDRESS, [slot(A), slot(B)], NOW));
+      expect(coinLocksOf(after(chain(locked, { spent: [A] }, NOW + 5)), ADDRESS).map(lock => lock.outpoint)).toEqual([B]);
+    });
+
+    it('drops a hand lock only on a confirmed spend', () => {
       const manual = after(withCoinLockUpdate([], ADDRESS, { lock: [{ outpoint: A, valueSats: 1 }] }, NOW));
       const years = NOW + 10 * 365 * 86_400;
       expect(liveCoinLocks(manual, ADDRESS, years)).toHaveLength(1);
-      expect(observed(manual, [A], years)).not.toBeNull();
-      expect(coinLocksOf(after(observed(manual, [A], years)), ADDRESS)).toHaveLength(1);
-      expect(coinLocksOf(after(observed(manual, [], years)), ADDRESS)).toEqual([]);
+      const missed = after(read(manual, [], [A], NOW + 1));
+      expect(coinLocksOf(missed, ADDRESS)).toHaveLength(1);
+      expect(chain(missed, { unknown: [A] }, years)).toBeNull();
+      expect(coinLocksOf(after(chain(missed, { spent: [A] }, years)), ADDRESS)).toEqual([]);
     });
 
-    it('keeps a never-seen offer coin for a day, then drops it as an orphan', () => {
+    it('drops a coin whose funding neither indexer knows only after a day as a candidate', () => {
+      const seen = after(read(after(withOfferCoinLocks([], ADDRESS, [slot(A, { expiresAt: null })], NOW)), [A], [], NOW));
+      // Unknown before any read missed it: no candidacy to age.
+      expect(chain(seen, { unknown: [A] }, NOW + 2 * COIN_LOCK_ORPHAN_SECONDS)).toBeNull();
+      const missed = after(read(seen, [], [A], NOW + 100));
+      expect(chain(missed, { unknown: [A] }, NOW + 100 + COIN_LOCK_ORPHAN_SECONDS - 1)).toBeNull();
+      expect(coinLocksOf(after(chain(missed, { unknown: [A] }, NOW + 100 + COIN_LOCK_ORPHAN_SECONDS)), ADDRESS)).toEqual([]);
+    });
+
+    it('keeps a never-seen offer coin beyond a day until both indexers prove it unknown', () => {
       const locked = after(withOfferCoinLocks([], ADDRESS, [slot(A, { expiresAt: null })], NOW));
-      expect(observed(locked, [], NOW + COIN_LOCK_ORPHAN_SECONDS)).toBeNull();
-      expect(coinLocksOf(after(observed(locked, [], NOW + COIN_LOCK_ORPHAN_SECONDS + 1)), ADDRESS)).toEqual([]);
+      const missed = after(read(locked, [], [A], NOW + 1));
+      expect(read(missed, [], [A], NOW + 2 * COIN_LOCK_ORPHAN_SECONDS)).toBeNull();
+      expect(coinLocksOf(after(chain(missed, { unknown: [A] }, NOW + 2 * COIN_LOCK_ORPHAN_SECONDS)), ADDRESS)).toEqual([]);
+    });
+
+    it('judges only the locks a read named, never one made while it was in flight', () => {
+      const offer = after(withOfferCoinLocks([], ADDRESS, [slot(A)], NOW));
+      // The user locks B by hand after the read loaded [A] and before it reported.
+      const both = after(withCoinLockUpdate(offer, ADDRESS, { lock: [{ outpoint: B, valueSats: 1 }] }, NOW + 1));
+      const reported = coinLocksOf(after(read(both, [A], [], NOW + 2)), ADDRESS);
+      expect(reported.find(lock => lock.outpoint === B)).toEqual(coinLocksOf(both, ADDRESS).find(lock => lock.outpoint === B));
     });
 
     it('drops an offer lock an hour past its expiry, on read and on write', () => {
@@ -113,7 +150,21 @@ describe('locked coins in the keychain', () => {
       const locked = after(withOfferCoinLocks([], ADDRESS, [slot(A, { expiresAt })], NOW));
       expect(liveCoinLocks(locked, ADDRESS, expiresAt + COIN_LOCK_EXPIRY_GRACE_SECONDS)).toHaveLength(1);
       expect(liveCoinLocks(locked, ADDRESS, expiresAt + COIN_LOCK_EXPIRY_GRACE_SECONDS + 1)).toEqual([]);
-      expect(coinLocksOf(after(observed(locked, [A], expiresAt + COIN_LOCK_EXPIRY_GRACE_SECONDS + 1)), ADDRESS)).toEqual([]);
+      expect(coinLocksOf(after(read(locked, [A], [], expiresAt + COIN_LOCK_EXPIRY_GRACE_SECONDS + 1)), ADDRESS)).toEqual([]);
+    });
+
+    it('caps an offer lock\'s expiry at the longest offer, however far off or absent the claimed one', () => {
+      const cap = NOW + MAX_COIN_LOCK_EXPIRY_SECONDS;
+      expect(MAX_COIN_LOCK_EXPIRY_SECONDS).toBe(90 * 86_400 + 3_600);
+      const far = after(withOfferCoinLocks([], ADDRESS, [
+        slot(A, { expiresAt: NOW + 10 * 365 * 86_400 }), slot(B, { expiresAt: null }),
+      ], NOW));
+      expect(coinLocksOf(far, ADDRESS).map(lock => lock.expiresAt)).toEqual([cap, cap]);
+      // A later signature extends it, from its own time and no further.
+      const later = after(withOfferCoinLocks(far, ADDRESS, [slot(A, { refs: ['auth-2'], expiresAt: NOW + 20 * 365 * 86_400 })], NOW + 50));
+      expect(coinLocksOf(later, ADDRESS)[0]!.expiresAt).toBe(cap + 50);
+      expect(after(withOfferCoinLocks([], ADDRESS, [slot(A, { expiresAt: NOW + 60 })], NOW))[0]!.expiresAt).toBe(NOW + 60);
+      expect(liveCoinLocks(far, ADDRESS, cap + COIN_LOCK_EXPIRY_GRACE_SECONDS + 1)).toEqual([]);
     });
 
     it('turns an ended offer on a coin also locked by hand back into the hand lock', () => {
@@ -127,7 +178,7 @@ describe('locked coins in the keychain', () => {
     it('removes nothing when there is no observation (the lookup failed)', () => {
       const never = after(withOfferCoinLocks([], ADDRESS, [slot(A, { expiresAt: null })], NOW));
       const seen = after(withOfferCoinLocks([], ADDRESS, [slot(B, { expiresAt: null })], NOW));
-      const both = [...never, ...after(observed(seen, [B], NOW + 1))];
+      const both = [...never, ...after(read(seen, [B], [], NOW + 1))];
       expect(withCoinLockUpdate(both, ADDRESS, {}, NOW + 2 * COIN_LOCK_ORPHAN_SECONDS)).toBeNull();
     });
   });
@@ -156,6 +207,8 @@ describe('locked coins in the keychain', () => {
         'garbage',
         null,
       ])).toEqual([good]);
+      expect(sanitizeCoinLocks([{ ...good, candidateSince: NOW }, { ...good, outpoint: B, candidateSince: -1 }]))
+        .toEqual([{ ...good, candidateSince: NOW }]);
       expect(sanitizeCoinLocks('not a list')).toEqual([]);
     });
 
@@ -163,6 +216,9 @@ describe('locked coins in the keychain', () => {
       expect(() => parseCoinLockUpdate({ lock: [{ outpoint: A, valueSats: 1.5 }] })).toThrow();
       expect(() => parseCoinLockUpdate({ unlock: ['xyz'] })).toThrow();
       expect(() => parseCoinLockUpdate({ observed: { present: 'A' } })).toThrow();
+      expect(() => parseCoinLockUpdate({ observed: { absent: ['xyz'] } })).toThrow();
+      expect(parseCoinLockUpdate({ observed: { present: [A], absent: [B], spent: [], unknown: [A], other: [1] } }))
+        .toEqual({ observed: { present: [A], absent: [B], spent: [], unknown: [A] } });
       expect(() => parseCoinLockUpdate(null)).toThrow();
       expect(parseCoinLockUpdate({ unlock: [A.toUpperCase()] })).toEqual({ unlock: [A] });
       expect(() => parseOfferCoinCommitments([{ ...slot(A), kind: 'manual' }])).toThrow();

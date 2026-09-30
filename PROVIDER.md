@@ -544,11 +544,13 @@ locks those coins: sends leave them out, and a signing request that would spend 
 - After a `fund_policy_offer` signature, every funding input the wallet signed.
 
 Only the site whose request locked a slot may send an `authorize_exact_offer` whose input 0 is
-that slot without a prompt. Any other request that signs a locked coin, from any site, shows a
+that slot, and whose every claim the wallet proved, without a prompt. Any other request that signs a locked coin, from any site, shows a
 warning; confirming it unlocks the coin, and the offers it backs end once the spend confirms. The
 user can also unlock or lock coins under Settings › Coin Control. A lock comes off by itself when its coin
-is spent, when the offer's `marketplaceExpiresAt` (or a policy offer's latest `expiresAt`) is more
-than an hour past, or when a slot is never seen on chain within a day of signing.
+is spent by a confirmed transaction, when the offer's `marketplaceExpiresAt` (or a policy offer's
+latest `expiresAt`) is more than an hour past, or when both indexers return 404 for the funding
+transaction after the coin has been missing for 24 hours. Errors, unconfirmed spends and source
+disagreements keep the lock. Claimed expiry is capped at 90 days and an hour from the latest signature.
 
 These three intents accept an optional `commitments` array naming the offers each coin backs:
 

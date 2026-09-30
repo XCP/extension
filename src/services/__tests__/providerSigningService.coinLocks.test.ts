@@ -1,7 +1,7 @@
 /**
  * The signing service and the wallet's locked coins: a site's request to sign a locked coin asks
- * first, confirming unlocks it before any key is used, and a proved offer signature locks what it
- * commits before the site hears of it. Decoders are stubbed; marketplaceBundleProofs.integration
+ * first, confirming unlocks it once the signature is made, and a proved offer signature locks what
+ * it commits before the site hears of it. Decoders are stubbed; marketplaceBundleProofs.integration
  * runs the same path over real PSBTs.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -73,7 +73,7 @@ describe('provider signing with locked coins', () => {
   let service: ReturnType<typeof createProviderSigningService>;
   const store = {
     locks: [] as CoinLock[], updates: [] as CoinLockUpdate[], commits: [] as Array<[string, OfferCoinCommitment[]]>,
-    emittedBeforeCommit: -1,
+    emittedBeforeCommit: -1, emittedBeforeUpdate: -1,
   };
 
   beforeEach(() => {
@@ -95,7 +95,10 @@ describe('provider signing with locked coins', () => {
     store.locks = []; store.updates = []; store.commits = [];
     setCoinLockStore({
       read: async () => store.locks,
-      update: async (_address, update) => { store.updates.push(update); },
+      update: async (_address, update) => {
+        store.updates.push(update);
+        store.emittedBeforeUpdate = mocks.emit.mock.calls.length;
+      },
       commit: async (address, commitments) => {
         store.commits.push([address, commitments]);
         store.emittedBeforeCommit = mocks.emit.mock.calls.length;
@@ -110,7 +113,7 @@ describe('provider signing with locked coins', () => {
       ? review.decodedInfo.safety.warnings.filter(warning => warning.code === 'locked_coin_spend')
       : [];
 
-  it('asks before signing a locked coin, and unlocking comes before the signature', async () => {
+  it('asks before signing a locked coin, and unlocks it after the signature, before the site hears', async () => {
     store.locks = [lock()];
     await beginSignFlow(psbtRequest());
     const review = await service.getReview('req-1');
@@ -124,20 +127,42 @@ describe('provider signing with locked coins', () => {
       .rejects.toThrow(/acknowledge/);
     expect(store.updates).toEqual([]);
 
-    let unlockedBeforeSigning = false;
+    let unlockedBeforeSigning = true;
     mocks.wallet.signPsbt.mockImplementation(async () => {
-      unlockedBeforeSigning = store.updates.length === 1;
+      unlockedBeforeSigning = store.updates.length > 0;
       return 'signed-psbt';
     });
     await service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: true });
     expect(store.updates).toEqual([{ unlock: [SLOT_OUTPOINT] }]);
-    expect(unlockedBeforeSigning).toBe(true);
+    expect(unlockedBeforeSigning).toBe(false);
+    expect(store.emittedBeforeUpdate).toBe(0);
     expect(mocks.emit).toHaveBeenCalledWith('sign-psbt-complete-req-1', { signedPsbtHex: 'signed-psbt' });
+  });
+
+  it('keeps the lock when signing fails after "Unlock and sign", or the flow is interrupted mid-signature', async () => {
+    store.locks = [lock()];
+    await beginSignFlow(psbtRequest());
+    const review = await service.getReview('req-1');
+    mocks.wallet.signPsbt.mockRejectedValueOnce(new Error('device rejected'));
+    await expect(service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: true }))
+      .rejects.toThrow('device rejected');
+    expect(store.updates).toEqual([]);
+
+    await beginSignFlow(psbtRequest({ id: 'req-2' }));
+    const second = await service.getReview('req-2');
+    // The wallet locks (or the request is cancelled) while the key is busy.
+    mocks.wallet.signPsbt.mockImplementationOnce(async () => {
+      await service.reject('req-2');
+      return 'signed-psbt';
+    });
+    await expect(service.approveAndSign('req-2', { reviewKey: second.reviewKey, risksAcknowledged: true })).rejects.toThrow();
+    expect(store.updates).toEqual([]);
+    expect(mocks.emit).not.toHaveBeenCalledWith('sign-psbt-complete-req-2', expect.anything());
   });
 
   it('lets the slot\'s own site authorize an offer on it without asking, and adds that offer to the lock', async () => {
     store.locks = [lock()];
-    mocks.decodePsbt.mockImplementation(async () => decoded({ status: 'caution' }));
+    mocks.decodePsbt.mockImplementation(async () => decoded({ status: 'proved' }));
     await beginSignFlow(psbtRequest({ marketplaceIntent: authorize as never }));
     const review = await service.getReview('req-1');
     expect(lockWarnings(review)).toEqual([]);
@@ -149,6 +174,15 @@ describe('provider signing with locked coins', () => {
     // Locked before the site is told.
     expect(store.emittedBeforeCommit).toBe(0);
     expect(mocks.emit).toHaveBeenCalledWith('sign-psbt-complete-req-1', { signedPsbtHex: 'signed-psbt' });
+  });
+
+  it('asks when the site that locked the slot sends an authorization its review did not prove', async () => {
+    store.locks = [lock()];
+    for (const [id, status] of [['req-caution', 'caution'], ['req-retry', 'retry'], ['req-blocked', 'blocked'], ['req-none', undefined]] as const) {
+      mocks.decodePsbt.mockImplementation(async () => decoded(status ? { status } : undefined));
+      await beginSignFlow(psbtRequest({ id, marketplaceIntent: authorize as never }));
+      expect(lockWarnings(await service.getReview(id))).toEqual([expect.objectContaining({ title: 'Spends a locked coin' })]);
+    }
   });
 
   it('asks when another site authorizes an offer on the slot, or the user also locked it', async () => {

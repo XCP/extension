@@ -5,14 +5,15 @@
  * request made it, and only that site, asking for the one thing a lock is for, signs without a
  * word. That is an `authorize_exact_offer` whose input 0 is the offer slot it locked: the
  * authorization pre-signs the spend the offer settles with, and adds the offer to the slot's lock
- * rather than cancelling anything. Every other spend of an active lock (another site, another
- * intent, an offer funding that reuses the coin, a raw transaction) asks the user first, and the
+ * rather than cancelling anything, and passes only once the wallet's review proved every claim of
+ * it. Every other spend of an active lock (another site, another intent, an unproved review, an
+ * offer funding that reuses the coin, a raw transaction) asks the user first, and the
  * acknowledgement is the unlock. A coin the user locked by hand never passes silently.
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { activeCoinLocks, type CoinLock, type CoinLockKind } from '@/core/bitcoin/coinLocks';
-import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
+import type { MarketplaceApprovalReview, MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
 import type { BumpAcceptanceFeeIntentClaim } from '@/core/counterparty/marketplaceBundle';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 
@@ -32,15 +33,24 @@ export interface LockedCoinSpendContext {
   /** The requesting site's origin, as the provider verified it from the sender. */
   origin: string;
   intent?: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim;
+  /** The wallet's review of the intent against the transaction, when it made one. */
+  review?: Pick<MarketplaceApprovalReview, 'status'>;
   inputIndex: number;
 }
+
+/**
+ * Only a fully proved review may bypass the locked-coin acknowledgement. An authorization that
+ * still carries a caution must ask, even when it comes from the site that created the lock.
+ */
+const proved = (review: LockedCoinSpendContext['review']): boolean =>
+  review?.status === 'proved';
 
 /** Whether signing this input may go ahead without the user unlocking `lock` first. */
 export function lockedCoinSpendAllowed(lock: CoinLock, spend: LockedCoinSpendContext): boolean {
   if (lock.unlocked) return true;
   if (lock.manual || lock.kind !== 'offer_slot' || lock.origin !== spend.origin) return false;
   const { intent } = spend;
-  if (intent?.action !== 'authorize_exact_offer' || spend.inputIndex !== 0) return false;
+  if (intent?.action !== 'authorize_exact_offer' || spend.inputIndex !== 0 || !proved(spend.review)) return false;
   const slot = intent.bitcoinInvalidation.outpoint;
   return `${slot.txid.toLowerCase()}:${slot.vout}` === lock.outpoint;
 }
@@ -48,6 +58,7 @@ export function lockedCoinSpendAllowed(lock: CoinLock, spend: LockedCoinSpendCon
 /** One PSBT or transaction of a request: what it spends, which inputs the wallet signs, and why. */
 export interface LockCheckedItem {
   intent?: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim;
+  review?: LockedCoinSpendContext['review'];
   inputs: ReadonlyArray<{ txid: string; vout: number; address?: string }>;
   /** The inputs the wallet would sign, by signer address. */
   signInputs: Record<string, number[]>;
@@ -72,7 +83,7 @@ export function findLockedCoinSpends(
         const address = normalizeAddressForComparison(input.address ?? signer);
         const outpoint = `${input.txid.toLowerCase()}:${input.vout}`;
         const lock = byOutpoint.get(`${address} ${outpoint}`);
-        if (!lock || lockedCoinSpendAllowed(lock, { origin, intent: item.intent, inputIndex })) continue;
+        if (!lock || lockedCoinSpendAllowed(lock, { origin, intent: item.intent, review: item.review, inputIndex })) continue;
         found.set(`${address} ${outpoint}`, {
           outpoint, address, kind: lock.kind, manual: lock.manual,
           offers: lock.kind === 'manual' ? 0 : lock.refs.length, valueSats: lock.valueSats,

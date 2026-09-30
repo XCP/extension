@@ -15,11 +15,14 @@
  * a write only re-encrypts under the session key, and a reset forgets it with everything else. A
  * restored wallet starts with no locks; the marketplace can hand its offers back later.
  *
- * Locks come off by themselves, and only on evidence: the coin was seen unspent and is now gone
- * (spent), it was never seen a day after the offer was signed (the funding never went out, or was
- * replaced), or the offer expired over an hour ago (an expired offer cannot settle). A failed
- * lookup is not evidence and removes nothing. A lock the user made by hand has no expiry and no
- * orphan rule: only spending the coin removes it.
+ * Locks come off by themselves, and only on evidence. A coin missing from a UTXO read is only a
+ * candidate: that read is cached, fails over between indexers whose mempools differ, and leaves out
+ * coins spent in the mempool. A candidate comes off when an outspend lookup (core/bitcoin/outspend.ts)
+ * shows it spent by a confirmed transaction, or when both indexers have never heard of its funding
+ * transaction after a day as a candidate. An offer lock also comes off when the offer
+ * expired over an hour ago (an expired offer cannot settle); no offer lock outlives the longest
+ * offer. A failed lookup is not evidence and removes nothing. A lock the user made by hand has no
+ * expiry and no orphan rule: only a confirmed spend of the coin removes it.
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
@@ -42,12 +45,14 @@ export interface CoinLock {
   valueSats: number;
   /** The site whose signature request committed the coin. Null for a lock made by hand. */
   origin: string | null;
-  /** Unix seconds, the latest expiry across the offers it backs. Null when none is known. */
+  /** Unix seconds, the latest expiry across the offers it backs, capped when written. Null for a hand lock. */
   expiresAt: number | null;
   /** Unix seconds. */
   createdAt: number;
   /** Unix seconds when the coin was last seen unspent, or null before it ever was. */
   seenAt: number | null;
+  /** Unix seconds since a UTXO read first missed the coin. Absent while reads find it. */
+  candidateSince?: number;
   /** The user unlocked it. The record stays while the offer lives, so it can be locked again. */
   unlocked: boolean;
 }
@@ -70,11 +75,23 @@ export interface CoinLockUpdate {
   unlock?: string[];
   /** Lock an unlocked offer coin again while its offer lives. */
   relock?: string[];
-  /**
-   * A successful UTXO read of the address, as the lock outpoints it found unspent. Every other
-   * lock of the address was absent from that read, which is what the spent and orphan rules need.
-   */
-  observed?: { present: string[] };
+  /** What a page learned of the address's locked coins. */
+  observed?: CoinLockObservation;
+}
+
+/**
+ * Each list names outpoints of locks the reader had loaded, and only those change: a lock made
+ * while the read was in flight is in neither `present` nor `absent`, so the read never judges it.
+ */
+export interface CoinLockObservation {
+  /** A successful UTXO read found these unspent. */
+  present?: string[];
+  /** That read missed these. Candidates only: nothing comes off for this alone. */
+  absent?: string[];
+  /** An outspend lookup showed these spent by a confirmed transaction. */
+  spent?: string[];
+  /** Neither indexer knows these coins' funding transactions. */
+  unknown?: string[];
 }
 
 /** Locks kept per address. */
@@ -89,10 +106,19 @@ const MAX_REF_LENGTH = 128;
 const MAX_ORIGIN_LENGTH = 512;
 const MAX_ADDRESS_LENGTH = 128;
 
-/** A lock that was never seen on chain after this long funds nothing that went out. */
+/**
+ * A lock never seen on chain after this long funds nothing that went out; nor does a candidate
+ * whose funding transaction neither indexer has known for this long.
+ */
 export const COIN_LOCK_ORPHAN_SECONDS = 24 * 60 * 60;
 /** How long past its offer's expiry a lock is kept: an expired offer cannot settle after this. */
 export const COIN_LOCK_EXPIRY_GRACE_SECONDS = 60 * 60;
+/**
+ * The furthest ahead an offer lock may expire when written: the longest offer the marketplace
+ * makes (90 days, as core/counterparty/policyOffer.ts checks) plus the grace. A site claiming a
+ * later expiry, or none, still cannot lock a coin for longer.
+ */
+export const MAX_COIN_LOCK_EXPIRY_SECONDS = 90 * 24 * 60 * 60 + COIN_LOCK_EXPIRY_GRACE_SECONDS;
 const COIN_LOCK_SEEN_REFRESH_SECONDS = 60 * 60;
 
 const OUTPOINT = /^[0-9a-f]{64}:\d{1,10}$/;
@@ -128,6 +154,7 @@ function parseStoredLock(value: unknown): CoinLock | null {
     || (value.expiresAt !== null && !isTimestamp(value.expiresAt))
     || !isTimestamp(value.createdAt)
     || (value.seenAt !== null && !isTimestamp(value.seenAt))
+    || (value.candidateSince !== undefined && !isTimestamp(value.candidateSince))
     || typeof value.unlocked !== 'boolean') return null;
   return {
     outpoint,
@@ -140,6 +167,7 @@ function parseStoredLock(value: unknown): CoinLock | null {
     expiresAt: value.expiresAt as number | null,
     createdAt: value.createdAt,
     seenAt: value.seenAt as number | null,
+    ...(value.candidateSince !== undefined ? { candidateSince: value.candidateSince } : {}),
     unlocked: value.unlocked,
   };
 }
@@ -183,8 +211,12 @@ export function parseCoinLockUpdate(value: unknown): CoinLockUpdate {
   if (value.unlock !== undefined) update.unlock = outpointList(value.unlock, 'coin lock update');
   if (value.relock !== undefined) update.relock = outpointList(value.relock, 'coin lock update');
   if (value.observed !== undefined) {
-    if (!isRecord(value.observed)) throw new Error('Invalid coin lock update');
-    update.observed = { present: outpointList(value.observed.present, 'coin lock update') };
+    const { observed } = value;
+    if (!isRecord(observed)) throw new Error('Invalid coin lock update');
+    update.observed = {};
+    for (const field of ['present', 'absent', 'spent', 'unknown'] as const) {
+      if (observed[field] !== undefined) update.observed[field] = outpointList(observed[field], 'coin lock update');
+    }
   }
   return update;
 }
@@ -279,22 +311,31 @@ export function withCoinLockUpdate(
   const current = coinLocksOf(entries, address);
   const unlock = new Set(update.unlock ?? []);
   const relock = new Set(update.relock ?? []);
-  const present = update.observed ? new Set(update.observed.present) : null;
+  const present = new Set(update.observed?.present ?? []);
+  const absent = new Set(update.observed?.absent ?? []);
+  const spent = new Set(update.observed?.spent ?? []);
+  const unknown = new Set(update.observed?.unknown ?? []);
   const next: CoinLock[] = [];
   for (const recorded of current) {
     let lock: CoinLock | null = applyClock(recorded, now);
-    if (lock && present) {
-      if (present.has(lock.outpoint)) {
-        // Refreshed at most hourly: the rules only ask whether it was ever seen, and a write per
-        // read would re-encrypt the keychain on every send.
-        if (lock.seenAt === null || now - lock.seenAt >= COIN_LOCK_SEEN_REFRESH_SECONDS) lock = { ...lock, seenAt: now };
-      } else if (lock.seenAt !== null) {
-        // Seen unspent before and gone now: spent. Whatever it backed is over.
-        lock = null;
-      } else if (lock.kind !== 'manual' && now - lock.createdAt > COIN_LOCK_ORPHAN_SECONDS) {
-        // A day on and never seen: the funding never went out, or a replacement spent its inputs.
-        lock = withoutEndedOffer(lock);
+    if (lock && spent.has(lock.outpoint)) {
+      // Spent by a confirmed transaction: whatever it backed is over.
+      lock = null;
+    } else if (lock && present.has(lock.outpoint)) {
+      // Refreshed at most hourly: the rules only ask whether it was ever seen, and a write per
+      // read would re-encrypt the keychain on every send.
+      if (lock.seenAt === null || now - lock.seenAt >= COIN_LOCK_SEEN_REFRESH_SECONDS) lock = { ...lock, seenAt: now };
+      if (lock.candidateSince !== undefined) {
+        const { candidateSince: _found, ...seen } = lock;
+        lock = seen;
       }
+    } else if (lock && absent.has(lock.outpoint)) {
+      if (lock.candidateSince === undefined) lock = { ...lock, candidateSince: now };
+    }
+    if (lock && unknown.has(lock.outpoint) && lock.candidateSince !== undefined
+      && now - lock.candidateSince >= COIN_LOCK_ORPHAN_SECONDS) {
+      // A day missing, and neither indexer knows the funding: it never went out, or was replaced.
+      lock = withoutEndedOffer(lock);
     }
     if (lock && unlock.has(lock.outpoint)) {
       lock = lock.kind === 'manual' ? null : { ...lock, manual: false, unlocked: true };
@@ -322,11 +363,16 @@ export function withCoinLockUpdate(
 const laterExpiry = (left: number | null, right: number | null): number | null =>
   left === null ? right : right === null ? left : Math.max(left, right);
 
+/** An offer lock's expiry as written at `now`: never past the longest offer, an unknown one included. */
+const cappedExpiry = (expiresAt: number | null, now: number): number =>
+  Math.min(expiresAt ?? Number.POSITIVE_INFINITY, now + MAX_COIN_LOCK_EXPIRY_SECONDS);
+
 /**
  * `entries` with offer commitments a signature just proved added to `address`, or null when they
  * are already recorded. One lock per coin: a further offer on the same slot adds its id and extends
- * the expiry, and a coin locked by hand keeps that too. A fresh commitment locks the coin again
- * even if the user had unlocked it: they just signed something that relies on it.
+ * the expiry (never past MAX_COIN_LOCK_EXPIRY_SECONDS from now), and a coin locked by hand keeps
+ * that too. A fresh commitment locks the coin again even if the user had unlocked it: they just
+ * signed something that relies on it.
  */
 export function withOfferCoinLocks(
   entries: readonly CoinLock[],
@@ -347,7 +393,8 @@ export function withOfferCoinLocks(
       next.push({
         outpoint: commitment.outpoint, address: key, kind: commitment.kind, manual: false,
         refs: commitment.refs.slice(0, MAX_COIN_LOCK_REFS), valueSats: commitment.valueSats,
-        origin: commitment.origin, expiresAt: commitment.expiresAt, createdAt: now, seenAt: null, unlocked: false,
+        origin: commitment.origin, expiresAt: cappedExpiry(commitment.expiresAt, now), createdAt: now, seenAt: null,
+        unlocked: false,
       });
       continue;
     }
@@ -358,7 +405,7 @@ export function withOfferCoinLocks(
       refs: [...new Set([...existing.refs, ...commitment.refs])].slice(0, MAX_COIN_LOCK_REFS),
       valueSats: existing.valueSats > 0 ? existing.valueSats : commitment.valueSats,
       origin: offer ? existing.origin ?? commitment.origin : commitment.origin,
-      expiresAt: offer ? laterExpiry(existing.expiresAt, commitment.expiresAt) : commitment.expiresAt,
+      expiresAt: cappedExpiry(offer ? laterExpiry(existing.expiresAt, commitment.expiresAt) : commitment.expiresAt, now),
       unlocked: false,
     };
   }

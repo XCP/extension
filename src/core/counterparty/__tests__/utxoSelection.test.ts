@@ -13,6 +13,7 @@ import { selectUtxosForTransaction } from '../utxoSelection';
 // Mock dependencies
 vi.mock('@/core/bitcoin/utxo');
 vi.mock('../api');
+vi.mock('@/core/bitcoin/outspend', () => ({ checkOutspends: vi.fn(async () => ({ spent: [], unknown: [] })) }));
 
 const mockedFetchUTXOs = vi.mocked(bitcoinUtxo.fetchUTXOs);
 const mockedFetchUtxosWithBalances = vi.mocked(counterpartyApi.fetchUtxosWithBalances);
@@ -339,13 +340,13 @@ describe('selectUtxosForTransaction with locked coins', () => {
     await expect(selectUtxosForTransaction(mockAddress)).rejects.toThrow('0 UTXOs have attached assets, 1 are locked.');
   });
 
-  it('tells the store which locked coins its read saw, so spent ones come off', async () => {
+  it('tells the store which locked coins its read saw and missed, and a missed one stays locked', async () => {
     mockedFetchUTXOs.mockResolvedValue([createMockUtxo('tx1', 0, 50000), createMockUtxo('tx2', 0, 10000)]);
     locks = [lockOn('tx1', 0), lockOn('gone', 0, { seenAt: 1 })];
 
     const result = await selectUtxosForTransaction(mockAddress);
 
-    expect(updates).toEqual([{ observed: { present: ['tx1:0'] } }]);
+    expect(updates).toEqual([{ observed: { present: ['tx1:0'], absent: ['gone:0'] } }]);
     expect(result.excludedLocked).toBe(1);
   });
 

@@ -107,10 +107,10 @@ function reviewWarnings(review: ProviderSigningReview): SecurityWarning[] {
 }
 
 /**
- * The user confirmed a review that spends locked coins, and confirming is the unlock. Done before
- * signing, so the coins a signature spends are never still locked behind it. Best effort: a failed
- * write leaves a lock the spend will soon remove anyway, and must not stand between the user and a
- * signature they confirmed.
+ * The user confirmed a review that spends locked coins, and confirming is the unlock, applied once
+ * the signature is made and before the site receives it. Best effort: a failed write leaves a lock
+ * the spend will remove once it confirms, and must not stand between the user and a signature they
+ * confirmed.
  */
 async function unlockConfirmedCoins(review: ProviderSigningReview): Promise<void> {
   const store = getCoinLockStore();
@@ -331,7 +331,8 @@ export function createProviderSigningService(): ProviderSigningService {
         await walletScriptKeys());
         // Part of the analysis, so the execution policy below asks for the acknowledgement.
         const lockWarning = await lockedCoinSpendWarning(request.origin, [{
-          intent: request.marketplaceIntent, inputs: decoded.psbtDetails.inputs, signInputs: request.signInputs ?? {},
+          intent: request.marketplaceIntent, review: decoded.marketplaceReview,
+          inputs: decoded.psbtDetails.inputs, signInputs: request.signInputs ?? {},
         }]);
         const decodedInfo = lockWarning
           ? { ...decoded, safety: { ...decoded.safety, warnings: [...decoded.safety.warnings, lockWarning] } }
@@ -365,7 +366,10 @@ export function createProviderSigningService(): ProviderSigningService {
         // Stated once for the bundle, naming every locked coin its items would sign.
         const lockWarning = await lockedCoinSpendWarning(request.origin, request.items.flatMap((item, index) => {
           const decodedItem = decodedInfo.items[index];
-          return decodedItem ? [{ intent: item.marketplaceIntent, inputs: decodedItem.psbtDetails.inputs, signInputs: item.signInputs }] : [];
+          return decodedItem ? [{
+            intent: item.marketplaceIntent, review: decodedItem.marketplaceReview,
+            inputs: decodedItem.psbtDetails.inputs, signInputs: item.signInputs,
+          }] : [];
         }));
         const policy = {
           ...bundlePolicy.policy,
@@ -414,7 +418,6 @@ export function createProviderSigningService(): ProviderSigningService {
     const request = effectiveRequest(await claimSignFlow(requestId));
     try {
       const { identity, ownedAddresses } = await assertAuthorization(request, undefined, parsed);
-      await unlockConfirmedCoins(review);
       const wallet = getWalletService();
       let result: SignFlowResult;
       switch (request.kind) {
@@ -465,6 +468,9 @@ export function createProviderSigningService(): ProviderSigningService {
       const assertDelivery = await assertSignDeliveryAuthorized(completed, needsPairedAddressGrant(request),
         sessionGeneration, supportsPairedContinuity(request.kind));
       assertDelivery();
+      // Only once the signature exists: a rejection, a signer error or an interruption leaves every
+      // lock. Before the commitments below, so a coin this signature commits again stays locked.
+      await unlockConfirmedCoins(review);
       // Before the site hears of the signature, so no send in between can spend what it commits.
       await lockCommittedCoins(review, ownedAddresses)
         .catch((error: unknown) => console.warn('[ProviderSigning] Could not lock committed offer coins:', error));

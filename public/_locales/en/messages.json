@@ -692,19 +692,19 @@
     "description": "Below approval_too_many_inputs_title. $1 is the number of inputs the wallet checks."
   },
   "coin_lock_compose_spends_locked_coin": {
-    "message": "This transaction would spend a coin you locked ($1). Unlock it in Settings › Coin Control, then try again.",
-    "description": "core/counterparty/composeLocks.ts. Error when the composer built a transaction that spends a coin the user locked by hand. $1 = the locked coins, as txid:vout separated by commas."
+    "message": "Uses a locked coin. Unlock it in Coin Control.",
+    "description": "core/counterparty/composeLocks.ts. Error when the composer built a transaction that spends a coin the user locked by hand."
   },
   "coin_lock_compose_spends_offer_coin": {
-    "message": "This transaction would spend a coin locked for your offers ($1). Unlock it in Settings › Coin Control or cancel the offer, then try again.",
-    "description": "core/counterparty/composeLocks.ts. Error when the composer built a transaction that spends a coin backing the user's marketplace offers. $1 = the locked coins, as txid:vout separated by commas."
+    "message": "Uses a locked coin. Unlock it in Coin Control or cancel the offer.",
+    "description": "core/counterparty/composeLocks.ts. Error when the composer built a transaction that spends a coin backing the user's marketplace offers."
   },
   "coin_lock_insufficient": {
-    "message": "Not enough available BTC: $1 sats free, $2 sats locked. Unlock a coin in Settings › Coin Control.",
+    "message": "Not enough available BTC: $1 sats free · $2 locked.",
     "description": "core/counterparty/composeLocks.ts. Insufficient-funds error when locked coins (some locked by hand) hold back BTC. $1 = spendable sats, $2 = locked sats, both formatted numbers."
   },
   "coin_lock_insufficient_offers": {
-    "message": "Not enough available BTC: $1 sats free, $2 sats locked in offers. Unlock a coin or cancel an offer.",
+    "message": "Not enough available BTC: $1 sats free · $2 locked in offers.",
     "description": "core/counterparty/composeLocks.ts. Insufficient-funds error when coins locked for marketplace offers hold back BTC. $1 = spendable sats, $2 = sats locked in offers, both formatted numbers."
   },
   "coin_lock_no_spendable_balance": {
@@ -848,7 +848,7 @@
     "description": "pages/settings/coins.tsx. Empty state heading."
   },
   "coins_none_detail": {
-    "message": "BTC this address receives shows up here, one coin per output.",
+    "message": "BTC you receive shows up here.",
     "description": "pages/settings/coins.tsx. Empty state detail."
   },
   "coins_not_on_chain_yet": {
@@ -888,7 +888,7 @@
     "description": "components/domain/coins/coin-card.tsx. Unlocks a locked coin so sends may spend it."
   },
   "coins_unlock_confirm_funding": {
-    "message": "This coin is set aside for offers. Unlocking keeps them live; spending the coin cancels them.",
+    "message": "Offers stay live until this coin is spent.",
     "description": "components/domain/coins/coin-card.tsx. Inline unlock confirmation for an offer funding coin whose offers the wallet has no ids for."
   },
   "coins_unlock_confirm_offers": {
@@ -8381,7 +8381,7 @@
     "description": "Known plain-Bitcoin payment proof diagnostic, translated only for display. Where present, $1 is the unchanged output index."
   },
   "zeld_error_locked": {
-    "message": "Some ZELD sits on coins you locked. Unlock them in Settings › Coins to send it.",
+    "message": "Some ZELD sits on coins you locked. Unlock them in Coin Control to send it.",
     "description": "components/domain/zeld/error-message.ts. ZELD send error when the ZELD is on locked coins."
   },
   "zeld_hunt_enable": {

@@ -36,8 +36,8 @@ export function assertSpendsNoLockedCoin(
   if (locked.length === 0) return;
   const offers = locked.some(outpoint => locks.get(outpoint)?.kind !== 'manual');
   throw new UnofferedInputsError(offers
-    ? t('coin_lock_compose_spends_offer_coin', locked.join(', '))
-    : t('coin_lock_compose_spends_locked_coin', locked.join(', ')), endpoint);
+    ? t('coin_lock_compose_spends_offer_coin')
+    : t('coin_lock_compose_spends_locked_coin'), endpoint);
 }
 
 const INSUFFICIENT = /insufficient (btc|funds|utxos)|not enough (btc|funds)/i;
