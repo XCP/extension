@@ -102,7 +102,7 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   const funding = page.getByRole('article', { name: /0\.00020000 BTC/ }).filter({ hasText: 'Set aside for offers' });
   const fundingAction = funding.getByRole('button', { name: /^(Unlock|Confirm)$/ });
   await fundingAction.click();
-  await expect(funding.getByText('This coin is set aside for offers. Unlocking keeps them live; spending the coin cancels them.')).toBeVisible();
+  await expect(funding.getByText('Offers stay live until this coin is spent.')).toBeVisible();
   const action = backsTwo.getByRole('button', { name: /^(Unlock|Confirm)$/ });
   const before = await action.boundingBox();
   await action.click();
