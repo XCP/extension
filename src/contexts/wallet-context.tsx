@@ -45,6 +45,7 @@ import {
   useState
 } from "react";
 import { type AddressFormat, DEFAULT_ADDRESS_FORMAT } from '@/core/bitcoin/addressFormat';
+import type { TaprootRevealToSign } from "@/core/bitcoin/taprootRevealSigner";
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkeyProvider';
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { watchKeychainLock } from "@/platform/storage/keyStorage";
@@ -220,6 +221,16 @@ interface WalletContextType {
     sourceAddress: string,
     options?: SignTransactionOptions
   ) => Promise<string>;
+  /**
+   * Sign a Taproot-encoded compose: the commit, then its reveal with the source key. Both or
+   * neither: a lock or identity change in between stops both.
+   */
+  signCommitAndReveal: (
+    rawTxHex: string,
+    sourceAddress: string,
+    reveal: TaprootRevealToSign,
+    options?: Omit<SignTransactionOptions, 'zeldHuntSeconds'>
+  ) => Promise<{ signedTxHex: string; signedRevealHex: string }>;
   /** Broadcast a signed transaction to the network */
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
 }
@@ -634,6 +645,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       () => walletService.removeWallet(walletId)
     ),
     signTransaction: walletService.signTransaction,
+    signCommitAndReveal: walletService.signCommitAndReveal,
     // Wrapped rather than passed through: the spent-UTXO cache is per-context, and compose runs
     // HERE, in the popup. Recording only in the background (where the broadcast executes) left
     // this context's copy empty, so quick back-to-back transactions re-picked just-spent inputs.

@@ -1,39 +1,44 @@
 /**
- * The composer's Taproot path, end to end over real composes captured from api.counterparty.io:
- * the encoding is chosen without asking, the envelope is read and held to the request, the reveal
- * is held to core's construction, nothing edits the commit afterwards, and the two transactions go
- * out in order.
+ * The composer's Taproot path, end to end over composes captured from Counterparty Core 11.5:
+ * the encoding is chosen without asking (never for a hardware wallet), the envelope is read and
+ * held to the request, the unsigned reveal is held to core's construction and source-signature rule,
+ * commit and reveal are signed together with the source key, and the two go out in order.
  */
 
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import * as btc from '@scure/btc-signer';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
+import { signTaprootReveal, type TaprootRevealToSign } from '@/core/bitcoin/taprootRevealSigner';
 import {
-  SEND_TAPROOT,
-  TAPROOT_INPUT_VALUE,
-  TAPROOT_SOURCE,
-  type TaprootFixture,
-  tamperedTaprootCompose,
-} from '@/core/counterparty/__tests__/taprootFixtures';
+  BROADCAST_P2WPKH,
+  type Compose115Result,
+  envelopeClosedBy,
+  KEY_WPKH,
+  recompose115,
+  tamperedMessage115,
+} from '@/core/counterparty/__tests__/taproot115Fixtures';
+import { SEND_TAPROOT } from '@/core/counterparty/__tests__/taprootFixtures';
 import type { ApiResponse } from '@/core/counterparty/compose';
-import { arc4, bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
+import { checkRevealSourceSignature, sourceOutputScript } from '@/core/counterparty/revealSourceRule';
 import { CounterpartyApiError } from '@/core/errors';
-import { HUNTS_WHILE_SIGNING } from '@/core/zeld/eligibility';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
 
 let zeldHuntSeconds = 0;
-let addressFormat: AddressFormat = AddressFormat.P2WPKH;
+let walletType: 'mnemonic' | 'privateKey' | 'hardware' = 'mnemonic';
 const signTransaction = vi.fn();
+const signCommitAndReveal = vi.fn();
 const broadcastTransaction = vi.fn();
 
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
-    activeAddress: { address: 'bc1qm3flzugyajx37g2av8ujkcpu0v3r3jkmpdpf8k' },
-    activeWallet: { id: 'test-wallet', addressFormat, type: 'mnemonic' },
+    activeAddress: { address: KEY_WPKH.address, pubKey: KEY_WPKH.publicKeyHex },
+    activeWallet: { id: 'test-wallet', addressFormat: AddressFormat.P2WPKH, type: walletType },
     signTransaction,
+    signCommitAndReveal,
     broadcastTransaction,
     setHardwareOperationInProgress: vi.fn(),
     wallets: [],
@@ -43,15 +48,15 @@ vi.mock('@/contexts/wallet-context', () => ({
 }));
 
 vi.mock('@/core/counterparty/api', () => ({
-  fetchAssetDetails: vi.fn().mockResolvedValue({ asset: 'PEPEMEMECOIN', divisible: true, locked: true }),
+  fetchAssetDetails: vi.fn().mockResolvedValue(null),
   fetchOrderMatch: vi.fn().mockResolvedValue(null),
 }));
 
-// The fixtures spend one 2,000,000-sat input.
+// The fixtures spend one 1 BTC input.
 vi.mock('@/core/counterparty/transaction', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/counterparty/transaction')>()),
   fetchInputValues: vi.fn(async (inputs: Array<{ txid: string; vout: number }>) =>
-    new Map(inputs.map((input) => [`${input.txid}:${input.vout}`, 2_000_000]))),
+    new Map(inputs.map((input) => [`${input.txid}:${input.vout}`, 100_000_000]))),
 }));
 
 vi.mock('@/core/replayPrevention', () => ({
@@ -71,105 +76,23 @@ vi.mock('@/contexts/header-context', () => ({
   useHeader: () => ({ setHeaderProps: vi.fn(), clearBalances: vi.fn() }),
 }));
 
-// The real hunt by default; one test swaps in a response a buggy hunt might leave behind.
-const huntOverride = vi.fn();
-vi.mock('@/core/zeld/composeHunt', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/core/zeld/composeHunt')>();
-  return {
-    huntZeldForCompose: (...args: Parameters<typeof actual.huntZeldForCompose>) =>
-      huntOverride.getMockImplementation() ? huntOverride(...args) : actual.huntZeldForCompose(...args),
-  };
-});
+const TEXT = BROADCAST_P2WPKH.request.text!;
 
-function responseFor(fixture: TaprootFixture): ApiResponse {
+function responseFor(result: Compose115Result = BROADCAST_P2WPKH.result): ApiResponse {
   return {
     result: {
-      rawtransaction: fixture.rawtransaction,
-      btc_in: TAPROOT_INPUT_VALUE,
-      btc_out: 0,
-      btc_change: 0,
-      btc_fee: fixture.btc_fee,
-      data: fixture.data,
-      lock_scripts: ['0014dc53f17104ec8d1f215d61f92b603c7b2238cadb'],
-      inputs_values: [TAPROOT_INPUT_VALUE],
-      signed_tx_estimated_size: { vsize: 153, adjusted_vsize: 153, sigops_count: 1 },
-      psbt: fixture.psbt,
-      envelope_script: fixture.envelope_script,
-      signed_reveal_rawtransaction: fixture.signed_reveal_rawtransaction,
-      params: { source: TAPROOT_SOURCE, ...fixture.request } as never,
-      name: 'send',
-    },
+      ...result,
+      params: { source: KEY_WPKH.address, timestamp: 1790000000, value: 0, fee_fraction: 0, text: TEXT } as never,
+    } as ApiResponse['result'],
   };
 }
 
-/**
- * The same send as Core 11.5 returns it for `encoding=taproot`: the reveal comes back unsigned,
- * with what signing it needs, and no `signed_reveal_rawtransaction`.
- */
-function unsignedRevealResponseFor(fixture: TaprootFixture): ApiResponse {
-  const response = responseFor(fixture);
-  delete response.result.signed_reveal_rawtransaction;
-  const reveal = btc.Transaction.fromRaw(hexToBytes(fixture.signed_reveal_rawtransaction), { allowUnknownOutputs: true });
-  response.result.reveal_rawtransaction = reveal.unsignedTx ? bytesToHex(reveal.unsignedTx) : '02';
-  response.result.reveal_control_block = 'c0f8fdbe844deb9236113d98b905473f99d0ce51cb88dfa981223f91e705c691cf';
-  response.result.reveal_pubkey = '02f8fdbe844deb9236113d98b905473f99d0ce51cb88dfa981223f91e705c691cf';
-  response.result.reveal_lock_scripts = ['5120fb639eba0e0859d5e65fe0058c985ac6606d6049204380406fa7b8232007cdaf'];
-  response.result.reveal_inputs_values = [330];
-  return response;
-}
-
-/**
- * The same send on Core's default encoding: the 88-byte message overflows an OP_RETURN, so Core
- * spreads it over 1-of-3 bare multisig outputs, each carrying 53 payload bytes after its length
- * byte and CNTRPRTY prefix, ARC4-keyed by the first input's txid.
- */
-function multisigResponseFor(fixture: TaprootFixture): ApiResponse {
-  const commit = btc.Transaction.fromRaw(hexToBytes(fixture.rawtransaction), { allowUnknownOutputs: true });
-  const input = commit.getInput(0);
-  const txidHex = bytesToHex(input.txid!);
-  const prefixed = hexToBytes(fixture.data);
-  const prefix = prefixed.slice(0, 8);
-  const message = prefixed.slice(8);
-  const tx = new btc.Transaction({ allowUnknownOutputs: true });
-  tx.addInput({ txid: input.txid!, index: input.index!, sequence: 0xffffffff });
-  const dust = 1000n;
-  let chunks = 0;
-  for (let offset = 0; offset < message.length; offset += 53) {
-    const content = new Uint8Array([...prefix, ...message.slice(offset, offset + 53)]);
-    const plain = new Uint8Array(62);
-    plain[0] = content.length;
-    plain.set(content, 1);
-    const obfuscated = arc4(hexToBytes(txidHex), plain);
-    const key = (data: Uint8Array) => new Uint8Array([0x02, ...data, 0x00]);
-    tx.addOutput({
-      script: new Uint8Array([0x51, 0x21, ...key(obfuscated.slice(0, 31)), 0x21, ...key(obfuscated.slice(31, 62)),
-        0x21, ...new Uint8Array(33).fill(0x03), 0x53, 0xae]),
-      amount: dust,
-    });
-    chunks += 1;
-  }
-  const fee = 1_000;
-  tx.addOutput({
-    script: btc.OutScript.encode(btc.Address().decode(TAPROOT_SOURCE)),
-    amount: BigInt(TAPROOT_INPUT_VALUE) - dust * BigInt(chunks) - BigInt(fee),
-  });
-  const response = responseFor(fixture);
-  delete response.result.envelope_script;
-  delete response.result.signed_reveal_rawtransaction;
-  response.result.rawtransaction = tx.hex;
-  response.result.btc_fee = fee;
-  response.result.psbt = '';
-  return response;
-}
-
-/** The send form's submission for the send fixture: 1 PEPEMEMECOIN with a 34-byte memo. */
-function sendForm(): FormData {
+/** The broadcast form's submission for the fixture: a 600-character broadcast at 2 sat/vB. */
+function broadcastForm(extra: Record<string, string> = {}): FormData {
   const form = new FormData();
-  form.set('destination', SEND_TAPROOT.request.destination!);
-  form.set('asset', 'PEPEMEMECOIN');
-  form.set('quantity', '1');
-  form.set('memo', SEND_TAPROOT.request.memo!);
-  form.set('sat_per_vbyte', '2');
+  for (const [name, value] of Object.entries({
+    text: TEXT, timestamp: '1790000000', value: '0', fee_fraction: '0', sat_per_vbyte: '2', ...extra,
+  })) form.set(name, value);
   return form;
 }
 
@@ -177,7 +100,7 @@ function renderComposer(composeApi: (data: Record<string, unknown>) => Promise<A
   return renderHook(() => useComposer(), {
     wrapper: ({ children }) => (
       <MemoryRouter>
-        <ComposerProvider composeApi={composeApi} initialTitle="Test" composeType="send">
+        <ComposerProvider composeApi={composeApi} initialTitle="Test" composeType="broadcast">
           {children}
         </ComposerProvider>
       </MemoryRouter>
@@ -185,176 +108,194 @@ function renderComposer(composeApi: (data: Record<string, unknown>) => Promise<A
   });
 }
 
-async function composed(composeApi: (data: Record<string, unknown>) => Promise<ApiResponse>) {
+async function composed(composeApi: (data: Record<string, unknown>) => Promise<ApiResponse>, form = broadcastForm()) {
   const hook = renderComposer(composeApi);
   await act(async () => {
-    await hook.result.current.composeTransaction(sendForm());
+    await hook.result.current.composeTransaction(form);
   });
   return hook;
 }
 
-describe('ComposerContext Taproot encoding', () => {
+/** What the background does: sign the commit (its segwit txid unchanged) and the reveal, for real. */
+async function signBoth(rawTxHex: string, address: string, reveal: TaprootRevealToSign) {
+  const output = btc.Transaction.fromRaw(hexToBytes(rawTxHex), { allowUnknownOutputs: true }).getOutput(0);
+  const signedRevealHex = signTaprootReveal(reveal, { scriptHex: bytesToHex(output.script!), value: output.amount! },
+    address, KEY_WPKH.privateKeyHex);
+  return { signedTxHex: rawTxHex, signedRevealHex };
+}
+
+describe('ComposerContext Taproot encoding (Core 11.5)', () => {
   beforeEach(() => {
     zeldHuntSeconds = 0;
-    addressFormat = AddressFormat.P2WPKH;
-    huntOverride.mockReset();
+    walletType = 'mnemonic';
     signTransaction.mockReset();
+    signCommitAndReveal.mockReset();
     broadcastTransaction.mockReset();
-    // Signing leaves a segwit commit's txid alone; the unsigned bytes stand in for it.
     signTransaction.mockImplementation(async (raw: string) => raw);
-    broadcastTransaction.mockImplementation(async (hex: string) => ({ txid: hex === SEND_TAPROOT.rawtransaction ? 'commit' : 'reveal' }));
+    signCommitAndReveal.mockImplementation(signBoth);
+    broadcastTransaction.mockImplementation(async (hex: string) => ({
+      txid: hex === BROADCAST_P2WPKH.result.rawtransaction ? 'commit' : 'reveal',
+    }));
   });
 
   it('asks for Taproot unprompted, reviews the message read from the envelope, and counts both fees', async () => {
-    const composeApi = vi.fn(async (_data: Record<string, unknown>) => responseFor(SEND_TAPROOT));
-    const { result } = await composed(composeApi);
-
-    await waitFor(() => expect(result.current.state.step).toBe('review'));
-    expect(composeApi).toHaveBeenCalledTimes(1);
-    expect(composeApi.mock.calls[0]![0]).toMatchObject({ encoding: 'taproot', quantity: '100000000' });
-    // What the review renders comes from the envelope's bytes, not the response's echo.
-    expect(result.current.state.decodedMessage?.data).toMatchObject({
-      destination: SEND_TAPROOT.request.destination,
-      asset: 'PEPEMEMECOIN',
-      quantity: 100000000n,
-    });
-    expect(result.current.state.apiResponse?.result.btc_fee).toBe(306);
-    expect(result.current.state.apiResponse?.result.reveal_fee).toBe(330);
-  });
-
-  it.each([
-    ['recipient', (m: string) => m.replace('a37c3903', 'a37c3904')],
-    ['amount', (m: string) => m.replace('1a05f5e100', '1a05f5e101')],
-    ['asset', (m: string) => m.replace('1b00c5e4ddb67f67e5', '1b00c5e4ddb67f67e6')],
-    ['memo', (m: string) => m.replace('636f66666565', '636f66666566')],
-  ])('refuses a self-consistent hostile compose whose envelope alters the %s', async (_, tamper) => {
-    const hostile = tamperedTaprootCompose(SEND_TAPROOT, tamper);
-    const { result } = await composed(vi.fn(async () => responseFor(hostile)));
-
-    await waitFor(() => expect(result.current.state.error).toMatch(/verification failed/i));
-    expect(result.current.state.step).toBe('form');
-  });
-
-  it('accepts the hostile builder unaltered, so the refusals above are about the message', async () => {
-    const { result } = await composed(vi.fn(async () => responseFor(tamperedTaprootCompose(SEND_TAPROOT, (m) => m))));
-    await waitFor(() => expect(result.current.state.step).toBe('review'));
-  });
-
-  it('refuses half of a Taproot compose', async () => {
-    for (const drop of ['envelope_script', 'signed_reveal_rawtransaction'] as const) {
-      const response = responseFor(SEND_TAPROOT);
-      delete response.result[drop];
-      const { result } = await composed(vi.fn(async () => response));
-      await waitFor(() => expect(result.current.state.error).toMatch(/only one of the two transactions/));
-    }
-  });
-
-  it('refuses the envelope with only part of the new reveal data as half of a Taproot compose', async () => {
-    const response = responseFor(SEND_TAPROOT);
-    delete response.result.signed_reveal_rawtransaction;
-    response.result.reveal_pubkey = '02f8fdbe844deb9236113d98b905473f99d0ce51cb88dfa981223f91e705c691cf';
-    const composeApi = vi.fn(async () => response);
-    const { result } = await composed(composeApi);
-    await waitFor(() => expect(result.current.state.error).toMatch(/only one of the two transactions/));
-    // Not the unsigned-reveal shape, so no second compose on the default encoding.
-    expect(composeApi).toHaveBeenCalledTimes(1);
-  });
-
-  it('composes on the default encoding when Core 11.5 returns an unsigned reveal, then reviews and signs that', async () => {
-    const composeApi = vi.fn()
-      .mockResolvedValueOnce(unsignedRevealResponseFor(SEND_TAPROOT))
-      .mockResolvedValueOnce(multisigResponseFor(SEND_TAPROOT));
+    const composeApi = vi.fn(async (_data: Record<string, unknown>) => responseFor());
     const { result } = await composed(composeApi);
 
     await waitFor(() => expect(result.current.state.step).toBe('review'));
     expect(result.current.state.error).toBeNull();
-    expect(composeApi).toHaveBeenCalledTimes(2);
+    expect(composeApi).toHaveBeenCalledTimes(1);
     expect(composeApi.mock.calls[0]![0]).toMatchObject({ encoding: 'taproot' });
-    expect(composeApi.mock.calls[1]![0]).not.toHaveProperty('encoding');
-    const reviewed = result.current.state.apiResponse!.result;
-    expect(reviewed.rawtransaction).toBe(multisigResponseFor(SEND_TAPROOT).result.rawtransaction);
-    expect(reviewed.reveal_rawtransaction).toBeUndefined();
-    expect(reviewed.reveal_fee).toBeUndefined();
-    expect(result.current.state.decodedMessage?.data).toMatchObject({
-      destination: SEND_TAPROOT.request.destination,
-      asset: 'PEPEMEMECOIN',
-      quantity: 100000000n,
-    });
+    expect(result.current.state.decodedMessage?.data).toMatchObject({ text: TEXT });
+    expect(result.current.state.apiResponse?.result.btc_fee).toBe(306);
+    expect(result.current.state.apiResponse?.result.reveal_fee).toBe(526);
+  });
+
+  it('signs commit and reveal in one request, then broadcasts the commit and the source-signed reveal', async () => {
+    const { result } = await composed(vi.fn(async () => responseFor()));
+    await waitFor(() => expect(result.current.state.step).toBe('review'));
 
     await act(async () => { await result.current.signAndBroadcast(); });
     await waitFor(() => expect(result.current.state.step).toBe('success'));
-    expect(signTransaction).toHaveBeenCalledTimes(1);
-    expect(signTransaction.mock.calls[0]![0]).toBe(reviewed.rawtransaction);
-    // One transaction, no reveal.
-    expect(broadcastTransaction.mock.calls.map(([hex]) => hex)).toEqual([reviewed.rawtransaction]);
+    expect(signTransaction).not.toHaveBeenCalled();
+    expect(signCommitAndReveal).toHaveBeenCalledTimes(1);
+    const [raw, address, reveal, options] = signCommitAndReveal.mock.calls[0]!;
+    expect(raw).toBe(BROADCAST_P2WPKH.result.rawtransaction);
+    expect(address).toBe(KEY_WPKH.address);
+    expect(reveal).toEqual({
+      revealHex: BROADCAST_P2WPKH.result.reveal_rawtransaction,
+      envelopeScriptHex: BROADCAST_P2WPKH.result.envelope_script,
+      controlBlockHex: BROADCAST_P2WPKH.result.reveal_control_block,
+    });
+    // Never a ZELD nonce: the reveal spends the commit's txid.
+    expect(options).not.toHaveProperty('zeldHuntSeconds');
+
+    const broadcast = broadcastTransaction.mock.calls.map(([hex]) => hex as string);
+    expect(broadcast).toHaveLength(2);
+    expect(broadcast[0]).toBe(BROADCAST_P2WPKH.result.rawtransaction);
+    // The reveal that goes out is the one the source signed, and Core attributes it to the source.
+    const revealWitness = btc.Transaction.fromRaw(hexToBytes(broadcast[1]!), { allowUnknownOutputs: true })
+      .getInput(0).finalScriptWitness!;
+    expect(checkRevealSourceSignature(hexToBytes(BROADCAST_P2WPKH.result.reveal_lock_scripts[0]!),
+      sourceOutputScript(KEY_WPKH.address)!, revealWitness).ok).toBe(true);
+  });
+
+  it('refuses a self-consistent compose whose envelope carries a different message', async () => {
+    const tampered = tamperedMessage115(BROADCAST_P2WPKH, (m) => m.replace('54686520717569636b', '54686520717569636c'));
+    const { result } = await composed(vi.fn(async () => responseFor(tampered)));
+    await waitFor(() => expect(result.current.state.error).toMatch(/verification failed/i));
+    expect(result.current.state.step).toBe('form');
+  });
+
+  it('accepts the rebuilt compose unaltered, so the refusals here are about what was altered', async () => {
+    const { result } = await composed(vi.fn(async () => responseFor(recompose115(BROADCAST_P2WPKH))));
+    await waitFor(() => expect(result.current.state.step).toBe('review'));
+  });
+
+  it('refuses an envelope closed by a key that is not the source\'s, before anything is signed', async () => {
+    const other = btc.utils.pubSchnorr(new Uint8Array(32).fill(9));
+    const tampered = recompose115(BROADCAST_P2WPKH, { envelope: envelopeClosedBy(BROADCAST_P2WPKH, other) });
+    const { result } = await composed(vi.fn(async () => responseFor(tampered)));
+    await waitFor(() => expect(result.current.state.error).toMatch(/not closed by your address/));
+    expect(signCommitAndReveal).not.toHaveBeenCalled();
+  });
+
+  it('refuses a tampered control block, before anything is signed', async () => {
+    const control = BROADCAST_P2WPKH.result.reveal_control_block;
+    const flipped = (Number.parseInt(control.slice(0, 2), 16) ^ 1).toString(16) + control.slice(2);
+    const { result } = await composed(vi.fn(async () => responseFor({ ...BROADCAST_P2WPKH.result, reveal_control_block: flipped })));
+    await waitFor(() => expect(result.current.state.error).toMatch(/commit to exactly the verified envelope/));
   });
 
   it.each([
-    ['an explicit Taproot encoding', 'encoding', 'taproot'],
-    ['an inscription', 'inscription', 'aGVsbG8='],
-  ])('refuses %s against an unsigned reveal instead of changing the encoding', async (_, field, value) => {
-    const composeApi = vi.fn(async (_data: Record<string, unknown>) => unsignedRevealResponseFor(SEND_TAPROOT));
-    const hook = renderComposer(composeApi);
-    const form = sendForm();
-    form.set(field, value);
-    await act(async () => { await hook.result.current.composeTransaction(form); });
-
-    await waitFor(() => expect(hook.result.current.state.error).toMatch(/needs a newer version of this wallet/));
-    expect(hook.result.current.state.step).toBe('form');
+    'envelope_script', 'reveal_rawtransaction', 'reveal_control_block', 'reveal_pubkey', 'reveal_lock_scripts',
+    'reveal_inputs_values',
+  ] as const)('refuses a compose missing %s as half a Taproot compose', async (field) => {
+    const response = responseFor();
+    delete (response.result as unknown as Record<string, unknown>)[field];
+    const composeApi = vi.fn(async () => response);
+    const { result } = await composed(composeApi);
+    await waitFor(() => expect(result.current.state.error).toMatch(/only one of the two transactions/));
     expect(composeApi).toHaveBeenCalledTimes(1);
-    expect(composeApi.mock.calls[0]![0]).toMatchObject({ [field]: value });
+  });
+
+  it('refuses a reveal the server signed (the shape before Core 11.5) and never composes it again', async () => {
+    const response = responseFor();
+    Object.assign(response.result, { signed_reveal_rawtransaction: SEND_TAPROOT.signed_reveal_rawtransaction });
+    const composeApi = vi.fn(async () => response);
+    const { result } = await composed(composeApi);
+    await waitFor(() => expect(result.current.state.error).toMatch(/already signed/));
+    expect(composeApi).toHaveBeenCalledTimes(1);
     expect(broadcastTransaction).not.toHaveBeenCalled();
   });
 
-  it('asks once more on the default encoding when the composer refuses Taproot', async () => {
-    const composeApi = vi.fn()
-      .mockRejectedValueOnce(new CounterpartyApiError('Cannot use `taproot` encoding for non-segwit address', 'send'))
-      .mockRejectedValueOnce(new CounterpartyApiError('insufficient funds for PEPEMEMECOIN', 'send'));
-    const { result } = await composed(composeApi);
+  it('refuses a reveal the request never asked for', async () => {
+    const composeApi = vi.fn(async (_data: Record<string, unknown>) => responseFor());
+    const { result } = await composed(composeApi, broadcastForm({ text: 'short' }));
+    await waitFor(() => expect(result.current.state.error).toMatch(/Taproot envelope is not the one/));
+    expect(composeApi.mock.calls[0]![0]).not.toHaveProperty('encoding');
+  });
 
+  it('asks once more on the default encoding when the composer, or an API older than 11.5, refuses Taproot', async () => {
+    const composeApi = vi.fn()
+      .mockRejectedValueOnce(new CounterpartyApiError('Taproot encoding and inscriptions need Counterparty API 11.5.0 or newer. This API runs 11.3.0.', '/v2/'))
+      .mockRejectedValueOnce(new CounterpartyApiError('insufficient funds', 'broadcast'));
+    const { result } = await composed(composeApi);
     await waitFor(() => expect(result.current.state.error).toMatch(/insufficient funds/));
-    expect(composeApi).toHaveBeenCalledTimes(2);
     expect(composeApi.mock.calls[0]![0]).toMatchObject({ encoding: 'taproot' });
     expect(composeApi.mock.calls[1]![0]).not.toHaveProperty('encoding');
   });
 
-  it('does not hunt ZELD over a commit whose reveal is already signed', async () => {
-    zeldHuntSeconds = 12;
-    const { result } = await composed(vi.fn(async () => responseFor(SEND_TAPROOT)));
+  it('shows the API-version refusal of an inscription, which is never composed another way', async () => {
+    const refusal = 'Taproot encoding and inscriptions need Counterparty API 11.5.0 or newer. This API runs 11.3.0.';
+    const composeApi = vi.fn().mockRejectedValue(new CounterpartyApiError(refusal, '/v2/'));
+    const { result } = await composed(composeApi, broadcastForm({ inscription: 'true', encoding: 'taproot' }));
+    await waitFor(() => expect(result.current.state.error).toContain('11.5.0'));
+    expect(composeApi).toHaveBeenCalledTimes(1);
+  });
 
+  describe('a hardware wallet', () => {
+    beforeEach(() => { walletType = 'hardware'; });
+
+    it('never asks for Taproot: a long message keeps the default encoding', async () => {
+      const composeApi = vi.fn(async (_data: Record<string, unknown>) => responseFor());
+      await composed(composeApi);
+      expect(composeApi).toHaveBeenCalledTimes(1);
+      expect(composeApi.mock.calls[0]![0]).not.toHaveProperty('encoding');
+    });
+
+    it.each([
+      ['an explicit Taproot encoding', { encoding: 'taproot' }],
+      ['an inscription', { inscription: 'true', encoding: 'taproot' }],
+    ])('refuses %s before composing', async (_, extra) => {
+      const composeApi = vi.fn(async () => responseFor());
+      const { result } = await composed(composeApi, broadcastForm(extra));
+      await waitFor(() => expect(result.current.state.error).toMatch(/hardware wallet cannot sign an inscription/));
+      expect(composeApi).not.toHaveBeenCalled();
+    });
+  });
+
+  it('does not hunt ZELD over a Taproot commit', async () => {
+    zeldHuntSeconds = 12;
+    const { result } = await composed(vi.fn(async () => responseFor()));
     await waitFor(() => expect(result.current.state.step).toBe('review'));
     expect(result.current.state.apiResponse?.result.zeld_hunt?.status).toBe('skipped');
-    expect(result.current.state.apiResponse?.result.rawtransaction).toBe(SEND_TAPROOT.rawtransaction);
+    expect(result.current.state.apiResponse?.result.rawtransaction).toBe(BROADCAST_P2WPKH.result.rawtransaction);
   });
 
-  it('never hunts while signing a commit with a reveal, whatever the review metadata says', async () => {
-    addressFormat = AddressFormat.P2PKH;
-    zeldHuntSeconds = 12;
-    huntOverride.mockImplementation(async (response: ApiResponse) => ({ ...response, result: { ...response.result,
-      zeld_hunt: { status: 'skipped', target_zeros: 6, seconds: 12, elapsed_ms: 0, attempts: 0, reason: HUNTS_WHILE_SIGNING } } }));
-    const { result } = await composed(vi.fn(async () => responseFor(SEND_TAPROOT)));
+  it('broadcasts nothing when signing stops, as a lock between the two signatures does', async () => {
+    signCommitAndReveal.mockRejectedValueOnce(new Error('The signing identity changed after this request was approved.'));
+    const { result } = await composed(vi.fn(async () => responseFor()));
     await waitFor(() => expect(result.current.state.step).toBe('review'));
 
     await act(async () => { await result.current.signAndBroadcast(); });
-    expect(signTransaction).toHaveBeenCalledTimes(1);
-    expect(signTransaction.mock.calls[0]![2]).not.toHaveProperty('zeldHuntSeconds');
-  });
-
-  it('broadcasts the commit, then the reveal', async () => {
-    const { result } = await composed(vi.fn(async () => responseFor(SEND_TAPROOT)));
-    await waitFor(() => expect(result.current.state.step).toBe('review'));
-
-    await act(async () => { await result.current.signAndBroadcast(); });
-    await waitFor(() => expect(result.current.state.step).toBe('success'));
-    expect(broadcastTransaction.mock.calls.map(([hex]) => hex)).toEqual([
-      SEND_TAPROOT.rawtransaction,
-      SEND_TAPROOT.signed_reveal_rawtransaction,
-    ]);
+    await waitFor(() => expect(result.current.state.error).toBeTruthy());
+    expect(broadcastTransaction).not.toHaveBeenCalled();
   });
 
   it('never broadcasts the reveal when the commit was refused', async () => {
     broadcastTransaction.mockRejectedValueOnce(new Error('bad-txns-inputs-missingorspent'));
-    const { result } = await composed(vi.fn(async () => responseFor(SEND_TAPROOT)));
+    const { result } = await composed(vi.fn(async () => responseFor()));
     await waitFor(() => expect(result.current.state.step).toBe('review'));
 
     await act(async () => { await result.current.signAndBroadcast(); });
@@ -362,25 +303,30 @@ describe('ComposerContext Taproot encoding', () => {
     expect(broadcastTransaction).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the reveal hex when the reveal is refused after the commit went out', async () => {
+  it('keeps the signed reveal hex when the reveal is refused after the commit went out', async () => {
     broadcastTransaction
       .mockResolvedValueOnce({ txid: 'commit' })
       .mockRejectedValueOnce(new Error('min relay fee not met'));
-    const { result } = await composed(vi.fn(async () => responseFor(SEND_TAPROOT)));
+    const { result } = await composed(vi.fn(async () => responseFor()));
     await waitFor(() => expect(result.current.state.step).toBe('review'));
 
     await act(async () => { await result.current.signAndBroadcast(); });
     await waitFor(() => expect(result.current.state.step).toBe('success'));
     const warning = result.current.state.verificationWarnings.at(-1) ?? '';
     expect(warning).toContain('min relay fee not met');
-    expect(warning).toContain(SEND_TAPROOT.signed_reveal_rawtransaction);
+    const signedReveal = broadcastTransaction.mock.calls[1]![0] as string;
+    expect(signedReveal).not.toBe(BROADCAST_P2WPKH.result.reveal_rawtransaction);
+    expect(warning).toContain(signedReveal);
     expect(warning).not.toMatch(/inscription/i);
   });
 
   it('broadcasts nothing when the signed commit no longer matches its reveal', async () => {
-    // A signer that changed nLockTime — as a ZELD nonce would — changes the txid the reveal spends.
-    signTransaction.mockImplementation(async (raw: string) => `${raw.slice(0, -8)}2a000000`);
-    const { result } = await composed(vi.fn(async () => responseFor(SEND_TAPROOT)));
+    signCommitAndReveal.mockImplementation(async (raw: string, address: string, reveal: TaprootRevealToSign) => {
+      const signed = await signBoth(raw, address, reveal);
+      // A signer that changed nLockTime — as a ZELD nonce would — changes the txid the reveal spends.
+      return { ...signed, signedTxHex: `${raw.slice(0, -8)}2a000000` };
+    });
+    const { result } = await composed(vi.fn(async () => responseFor()));
     await waitFor(() => expect(result.current.state.step).toBe('review'));
 
     await act(async () => { await result.current.signAndBroadcast(); });

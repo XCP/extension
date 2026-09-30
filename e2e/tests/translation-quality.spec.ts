@@ -31,7 +31,7 @@ const qualityTest = walletTest.extend<{ network: void }>({
           hex: PARENTS.get(parentTxid), confirmations: 1000,
         } } });
         if (/\/v2\/?$/.test(url.pathname)) return route.fulfill({ json: { result: {
-          server_ready: true, network: 'mainnet', version: '11.3.0', backend_height: 970000, counterparty_height: 970000,
+          server_ready: true, network: 'mainnet', version: '11.5.0', backend_height: 970000, counterparty_height: 970000,
         } } });
         if (url.pathname.includes(GIFT_ADDRESS) && url.pathname.endsWith('/balances')) return route.fulfill({ json: {
           result: [{ asset: 'XCP', quantity: 100000000, quantity_normalized: '1', asset_info: { divisible: true } }], result_count: 1,

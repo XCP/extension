@@ -339,11 +339,32 @@ export function createProviderService(): ProviderService {
   }
 
   /**
+   * Whether `xcp_requestAccounts` would answer without opening any window: the wallet exists and is
+   * unlocked, the site is already connected, the active wallet signs its connection proof without a
+   * device, and no paired-address access is being asked for. A site re-checking its connection on
+   * every page load then never spends the per-origin connect limit, which exists to stop prompts.
+   */
+  async function connectsSilently(origin: string, params: ProviderRequestParams): Promise<boolean> {
+    const options = params?.[0] as { capabilities?: { pairedAddresses?: boolean } } | undefined;
+    if (options?.capabilities?.pairedAddresses === true) return false;
+    try {
+      const walletService = getWalletService();
+      if (!await keychainExists() || !await walletService.isKeychainUnlocked()) return false;
+      if ((await walletService.getActiveWallet())?.type === 'hardware') return false;
+      return await getConnectionService().hasPermission(origin);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Handle provider requests from dApps
    */
   async function handleRequest(origin: string, method: string, params: ProviderRequestParams = []): Promise<ProviderResponse> {
     try {
-      await assertRequestAdmissible(origin, method, params);
+      await assertRequestAdmissible(origin, method, params, {
+        silentConnect: method === 'xcp_requestAccounts' && await connectsSilently(origin, params),
+      });
       
       // Get services
       const walletService = getWalletService();

@@ -32,11 +32,12 @@ vi.mock('@/platform/fathom', () => ({
 vi.mock('@/platform/walletManager', () => ({ walletManager: {} }));
 
 const ADDRESS = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
+const wallet = vi.hoisted(() => ({ unlocked: true, type: 'mnemonic' }));
 vi.mock('@/services/walletService', () => ({
   getWalletService: () => ({
-    isKeychainUnlocked: async () => true,
+    isKeychainUnlocked: async () => wallet.unlocked,
     getActiveAddress: async () => ({ address: ADDRESS, pubKey: '02aa' }),
-    getActiveWallet: async () => ({ id: 'wallet1', type: 'mnemonic', addressFormat: 'p2wpkh' }),
+    getActiveWallet: async () => ({ id: 'wallet1', type: wallet.type, addressFormat: 'p2wpkh' }),
     getSettings: async () => ({ connectedWebsites: [], providerCapabilities: {} }),
   }),
 }));
@@ -66,6 +67,8 @@ describe('connect rate limiting', () => {
     connection.instance = service;
     provider = createProviderService();
     approval.requestApproval.mockResolvedValue({ approved: false });
+    wallet.unlocked = true;
+    wallet.type = 'mnemonic';
   });
 
   const connect = () => provider.handleRequest(origin, 'xcp_requestAccounts', []).catch((e: unknown) => e);
@@ -120,5 +123,30 @@ describe('connect rate limiting', () => {
 
     approval.requestApproval.mockResolvedValueOnce({ approved: true });
     await expect(service.requestPermission(origin, ADDRESS, 'wallet1')).resolves.toEqual({ approved: true });
+  });
+
+  describe('a site already connected', () => {
+    beforeEach(() => {
+      vi.spyOn(service, 'hasPermission').mockResolvedValue(true);
+    });
+
+    it('re-checks its connection on every page load without spending the connect limit', async () => {
+      for (let i = 0; i < 12; i++) {
+        const outcome = await connect();
+        expect(classifyProviderError(outcome).code, `re-check ${i + 1}`).not.toBe(-32005);
+      }
+      expect(connectionRateLimiter.getRemainingRequests(origin)).toBe(5);
+      expect(approval.requestApproval).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['the wallet is locked', () => { wallet.unlocked = false; }, []],
+      ['the active wallet is a hardware wallet', () => { wallet.type = 'hardware'; }, []],
+      ['the site asks for paired addresses', () => {}, [{ capabilities: { pairedAddresses: true } }]],
+    ])('still charges a connect that can open a window: %s', async (_name, arrange, params) => {
+      arrange();
+      void provider.handleRequest(origin, 'xcp_requestAccounts', params).catch(() => {});
+      await vi.waitFor(() => expect(connectionRateLimiter.getRemainingRequests(origin)).toBe(4));
+    });
   });
 });

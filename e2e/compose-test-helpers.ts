@@ -94,7 +94,7 @@ export async function enableValidationBypass(page: Page): Promise<void> {
           result: {
             server_ready: true,
             network: 'mainnet',
-            version: '11.1.0',
+            version: '11.5.0',
             backend_height: 952500,
             counterparty_height: 952500,
           },

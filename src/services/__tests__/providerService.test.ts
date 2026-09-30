@@ -626,7 +626,8 @@ describe('ProviderService', () => {
       it('should request permission if not connected', async () => {
         // Mock connection service to return false for hasPermission, then connect
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-        mockConnectionService.hasPermission = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true);
+        // Not connected when the connect limit is checked, nor when the request is handled.
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValue(true);
         mockConnectionService.connect = vi.fn().mockResolvedValue(['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']);
 
         // Request accounts should call connectionService.connect
@@ -2749,7 +2750,8 @@ describe('ProviderService', () => {
     });
 
     it('rejects a connect waiting on wallet setup with 4001 when the setup window closes', async () => {
-      vi.mocked(keychainExists).mockResolvedValueOnce(false);
+      // No wallet when the connect limit is checked, nor when the request is handled.
+      vi.mocked(keychainExists).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
       (chrome.windows.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 55 });
       const pending = providerService.handleRequest(origin, 'xcp_requestAccounts', []);
       await vi.waitFor(() => expect(onRemoved().addListener).toHaveBeenCalledTimes(1));

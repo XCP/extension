@@ -29,7 +29,7 @@ function renderWith(result: Record<string, unknown>) {
 
 describe('ReviewScreen for a Taproot-encoded transaction', () => {
   it('says in one line that it is a commit and a reveal, with the fee of both', () => {
-    renderWith({ signed_reveal_rawtransaction: '02', reveal_fee: 330 });
+    renderWith({ reveal_rawtransaction: '02', reveal_fee: 330 });
     expect(screen.getByText('Sent as two transactions, commit then reveal. Total fee 0.00000636 BTC')).toBeInTheDocument();
   });
 
@@ -39,7 +39,7 @@ describe('ReviewScreen for a Taproot-encoded transaction', () => {
   });
 
   it('says nothing about a reveal fee the composer context did not verify', () => {
-    renderWith({ signed_reveal_rawtransaction: '02' });
+    renderWith({ reveal_rawtransaction: '02' });
     expect(screen.queryByText(/commit then reveal/)).not.toBeInTheDocument();
   });
 });

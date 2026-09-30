@@ -1,8 +1,10 @@
 /**
- * Real-shaped Counterparty Taproot commit/reveal pairs, built the way core builds them
+ * Real-shaped Counterparty Taproot commit/reveal pairs, built the way Core 11.5 builds them
  * (`composer.py`, `prepare_taproot_output` / `get_reveal_outputs`): the commit pays a P2TR output
- * whose internal key and single leaf key are one throwaway key, and the reveal spends it by that
- * leaf with the bare CNTRPRTY marker as its only output (plus any `leading`/`trailing` outputs).
+ * whose internal key and single leaf key are the source's own key, and the reveal spends it by that
+ * leaf, signed with that key, with the bare CNTRPRTY marker as its only output (plus any
+ * `leading`/`trailing` outputs). Core 11.5 attributes a reveal to its source only when the source's
+ * key closes the envelope; `key` builds the pair around another key, which it does not.
  */
 
 import { secp256k1 } from '@noble/curves/secp256k1.js';
@@ -16,7 +18,9 @@ const key = (fill: number) => new Uint8Array(32).fill(fill);
 export const USER_KEY = key(1);
 export const USER_ADDRESS = p2wpkh(secp256k1.getPublicKey(USER_KEY, true)).address!;
 export const OTHER_ADDRESS = p2wpkh(secp256k1.getPublicKey(key(2), true)).address!;
-/** The site's throwaway key: it signs the reveal, and nothing about it is the user's. */
+/** The x-only form of the user's key, which closes the envelope of a reveal from the user. */
+export const USER_XONLY = utils.pubSchnorr(USER_KEY);
+/** A key of the site's: nothing about it is the user's. */
 export const EPHEMERAL_KEY = key(3);
 export const EPHEMERAL_PUBKEY = utils.pubSchnorr(EPHEMERAL_KEY);
 
@@ -30,7 +34,7 @@ function push(out: number[], data: Uint8Array): void {
 }
 
 /** Core's plain data envelope: the message without its CNTRPRTY prefix, in 520-byte pushes. */
-export function dataEnvelope(messageHex: string, pubkey: Uint8Array = EPHEMERAL_PUBKEY): Uint8Array {
+export function dataEnvelope(messageHex: string, pubkey: Uint8Array = USER_XONLY): Uint8Array {
   const data = hexToBytes(messageHex.slice(COUNTERPARTY_PREFIX_HEX.length));
   const out: number[] = [0x00, 0x63];
   for (let i = 0; i < data.length; i += 520) push(out, data.slice(i, i + 520));
@@ -56,7 +60,7 @@ export function ordEnvelope(options: { metadata?: Uint8Array; body?: Uint8Array;
   out.push(0x00);
   push(out, options.body ?? encoder.encode('gm'));
   out.push(0x68);
-  push(out, options.pubkey ?? EPHEMERAL_PUBKEY);
+  push(out, options.pubkey ?? USER_XONLY);
   out.push(0xac);
   return new Uint8Array(out);
 }
@@ -90,15 +94,17 @@ export interface CommitFixture {
 
 /**
  * A commit funded from `funder` (the user by default) paying 600 sats to the envelope's
- * commit address and the rest back as change.
+ * commit address and the rest back as change. `key` is the tree's internal key (the user's by
+ * default, as Core builds it).
  */
 export function buildCommit(leaf: Uint8Array, options: {
   funder?: string;
   extraLeaf?: Uint8Array;
   prevTxid?: string;
+  key?: Uint8Array;
 } = {}): CommitFixture {
   const tree = options.extraLeaf ? [{ script: leaf }, { script: options.extraLeaf }] : { script: leaf };
-  const payment = p2tr(EPHEMERAL_PUBKEY, tree, undefined, true);
+  const payment = p2tr(utils.pubSchnorr(options.key ?? USER_KEY), tree, undefined, true);
   const funder = options.funder ?? USER_ADDRESS;
   const funderScript = funder === USER_ADDRESS
     ? p2wpkh(secp256k1.getPublicKey(USER_KEY, true)).script
@@ -122,7 +128,7 @@ export function buildCommit(leaf: Uint8Array, options: {
 }
 
 /**
- * The reveal, signed with the throwaway key and finalized as core does: [signature, leaf, control
+ * The reveal, signed with `key` (the user's by default) and finalized: [signature, leaf, control
  * block]. `publish` swaps in a different leaf after signing — the tampered-envelope case.
  * `leading` outputs go ahead of the marker (core's destinations), `trailing` after it.
  */
@@ -133,6 +139,7 @@ export function buildReveal(commit: CommitFixture, options: {
   marker?: boolean;
   leading?: RevealOutputSpec[];
   trailing?: RevealOutputSpec[];
+  key?: Uint8Array;
 } = {}): string {
   const tx = new Transaction({ allowUnknownOutputs: true });
   const [controlBlock] = commit.tapLeafScript!.find(([, script]) =>
@@ -149,7 +156,7 @@ export function buildReveal(commit: CommitFixture, options: {
     amount: 0n,
   });
   for (const output of options.trailing ?? []) tx.addOutput(output);
-  tx.sign(EPHEMERAL_KEY);
+  tx.sign(options.key ?? USER_KEY);
   const signature = tx.getInput(0).tapScriptSig![0]![1];
   tx.updateInput(0, {
     finalScriptWitness: [signature, options.publish ?? commit.leaf, TaprootControlBlock.encode(controlBlock)],

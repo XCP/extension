@@ -128,9 +128,9 @@ export function ReviewScreen({
   // Calculate fee in fiat
   const feeInBtc = fromSatoshis(result.btc_fee, true);
   const feeInFiat = btcPrice ? feeInBtc * btcPrice : null;
-  // A Taproot compose is a commit plus a pre-signed reveal. `btc_fee` is the commit's; the reveal's
-  // is set by the composer context only after the reveal verified (`reveal_fee`).
-  const totalFeeInBtc = typeof result.reveal_fee === "number" && result.signed_reveal_rawtransaction
+  // A Taproot compose is a commit plus a reveal the wallet signs. `btc_fee` is the commit's; the
+  // reveal's is set by the composer context only after the reveal verified (`reveal_fee`).
+  const totalFeeInBtc = typeof result.reveal_fee === "number" && result.reveal_rawtransaction
     ? fromSatoshis(add(result.btc_fee, result.reveal_fee), true)
     : null;
   const xcpFee = result.xcp_fee === undefined ? null : fromSatoshis(result.xcp_fee, true);

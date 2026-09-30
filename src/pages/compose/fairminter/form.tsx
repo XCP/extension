@@ -22,8 +22,8 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
-import { isSegwitFormat } from '@/core/bitcoin/addressFormat';
 import type { FairminterOptions } from "@/core/counterparty/compose";
+import { canInscribe } from '@/core/counterparty/taprootEncoding';
 import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
@@ -102,7 +102,7 @@ export function FairminterForm({
   const [softCap, setSoftCap] = useState(initialFormData?.soft_cap?.toString() || "");
   
   // Check if active wallet uses SegWit addresses
-  const isSegwit = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
+  const inscribeAvailable = canInscribe(activeAddress?.address, activeWallet?.type);
   
   // Fetch asset details if asset is provided (existing asset)
   const { data: assetInfo } = useAssetInfo(asset || "");
@@ -381,7 +381,7 @@ export function FairminterForm({
             )}
           </Field>
           
-          {isSegwit && (
+          {inscribeAvailable && (
             <SettingSwitch
               label={t('common_inscribe')}
               description={t('fairminter_form_store_description_as_a_taproot')}

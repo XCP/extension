@@ -11,6 +11,7 @@
 import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 import type { ConsolidationResult as BatchConsolidationResult } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import type { TaprootRevealToSign } from '@/core/bitcoin/taprootRevealSigner';
 import type { KnownZeldOutpoint, ZeldOutpointUpdate } from '@/core/zeld/knownOutpoints';
 import { registerSessionExpiredHandler, setLastActiveTime } from '@/platform/auth/sessionManager';
 import { defineProxyServer } from '@/platform/proxy/server';
@@ -76,6 +77,8 @@ export interface WalletService {
   getPairedAddresses: () => Promise<PairedAddresses>;
   isAddressInAnyWallet: (address: string) => Promise<boolean>;
   signTransaction: (rawTxHex: string, sourceAddress: string, options?: SignTransactionOptions, expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
+  /** Sign a Taproot commit and its reveal with the source key, both or neither (see WalletSigner). */
+  signCommitAndReveal: (rawTxHex: string, sourceAddress: string, reveal: TaprootRevealToSign, options?: Omit<SignTransactionOptions, 'zeldHuntSeconds'>, expectedIdentity?: { walletId: string; address: string }) => Promise<{ signedTxHex: string; signedRevealHex: string }>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   signMessage: (message: string, address: string, expectedIdentity?: { walletId: string; address: string }) => Promise<{ signature: string; address: string }>;
   signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }, options?: SignPsbtOptions) => Promise<string>;
@@ -235,6 +238,9 @@ function createWalletService(): WalletService {
     },
     signTransaction: async (rawTxHex, sourceAddress, options, expectedIdentity) => {
       return walletManager.signTransaction(rawTxHex, sourceAddress, options, expectedIdentity);
+    },
+    signCommitAndReveal: async (rawTxHex, sourceAddress, reveal, options, expectedIdentity) => {
+      return walletManager.signCommitAndReveal(rawTxHex, sourceAddress, reveal, options, expectedIdentity);
     },
     broadcastTransaction: async (signedTxHex) => {
       return walletManager.broadcastTransaction(signedTxHex);

@@ -10,6 +10,9 @@ import { composerChosenMessageFields } from '../composerChoices';
 import { mockSettings } from './helpers/composeTestHelpers';
 
 vi.mock('@/core/api/client');
+vi.mock('@/core/counterparty/capabilities', () => ({
+  requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/core/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/core/settings')>();
   return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
@@ -173,7 +176,7 @@ describe('ZELD guard on composed transactions', () => {
 
     // …with one, the commit is left exactly as composed.
     const withReveal = response(commit);
-    Object.assign(withReveal.data.result, { envelope_script: '00', signed_reveal_rawtransaction: '00' });
+    Object.assign(withReveal.data.result, { envelope_script: '00', reveal_rawtransaction: '00' });
     api.get.mockResolvedValueOnce(withReveal as never);
     const composed = await send();
     expect(urlOf(1).searchParams.get('encoding')).toBe('taproot');

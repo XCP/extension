@@ -1838,8 +1838,11 @@
   "composer_context_taproot_half_returned": {
     "message": "交易驗證失敗：構建器只返回了所需兩筆交易中的一筆。"
   },
-  "composer_context_taproot_reveal_needs_newer_wallet": {
-    "message": "此 Counterparty 伺服器需要更新版本的錢包才能使用銘文等 Taproot 功能。請更新錢包，或不帶銘文建構此交易。"
+  "composer_context_taproot_needs_software_wallet": {
+    "message": "硬體錢包無法在此為銘文簽名：銘文的第二筆交易必須在錢包內以此地址的金鑰簽名。請不帶銘文建構此交易。"
+  },
+  "composer_context_taproot_server_signed_reveal": {
+    "message": "交易驗證失敗：構建器返回了一筆已簽名的第二筆交易。Counterparty 只在你的地址簽名時才會發布它，因此沒有簽署任何內容。"
   },
   "composer_context_taproot_unexpected_envelope": {
     "message": "交易驗證失敗：構建器返回的 Taproot 信封與此請求不符。"
@@ -4136,6 +4139,9 @@
   "safety_reveal_source_not_signer": {
     "message": "揭示交易的訊息將從不屬於你的地址發布。"
   },
+  "safety_reveal_not_source_key": {
+    "message": "該網站的揭示交易並非由你地址的金鑰簽名，因此 Counterparty 不會從你的地址發布其訊息。"
+  },
   "safety_reveal_two_messages": {
     "message": "此交易除了揭示交易的訊息外，還帶有自己的 Counterparty 訊息，因此無法作為單一操作說明。"
   },
@@ -5877,6 +5883,9 @@
   },
   "api_validation_version_required": {
     "message": "API 必須為 Counterparty Core $1 或更新版本"
+  },
+  "capabilities_taproot_requires_api_version": {
+    "message": "Taproot 編碼和銘文需要 Counterparty API $1 或更新版本。此 API 的版本為 $2。"
   },
   "balance_pending_attaching": {
     "message": "附加中"

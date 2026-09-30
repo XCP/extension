@@ -3,15 +3,18 @@ import { describe, expect, it, vi } from 'vitest';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { CounterpartyApiError, UnofferedInputsError } from '@/core/errors';
 import {
+  canInscribe,
   carriesTaprootReveal,
   chooseComposeEncoding,
   chooseEncoding,
   composeWithEncoding,
-  hasUnsignedTaprootReveal,
   isTaprootEligibleMessage,
   isTaprootEncodingSource,
   OP_RETURN_MESSAGE_MAX_BYTES,
+  readRevealShape,
+  signsTaprootReveals,
 } from '../taprootEncoding';
+import { BROADCAST_P2WPKH } from './taproot115Fixtures';
 import { MPMA_TAPROOT, SEND_TAPROOT, TAPROOT_SOURCE } from './taprootFixtures';
 
 const P2WPKH = TAPROOT_SOURCE;
@@ -27,10 +30,13 @@ const OVERFLOWING = OP_RETURN_MESSAGE_MAX_BYTES + 8 + 1;
 const FITTING = OP_RETURN_MESSAGE_MAX_BYTES + 8;
 
 describe('which sources core lets use Taproot encoding', () => {
-  it('accepts native SegWit and Taproot addresses', () => {
+  it('accepts Native SegWit (P2WPKH) and Taproot addresses', () => {
     expect(isTaprootEncodingSource(P2WPKH)).toBe(true);
-    expect(isTaprootEncodingSource(P2WSH)).toBe(true);
     expect(isTaprootEncodingSource(P2TR)).toBe(true);
+  });
+
+  it('refuses P2WSH, whose script has no single key to close the envelope (core 11.5)', () => {
+    expect(isTaprootEncodingSource(P2WSH)).toBe(false);
   });
 
   it('refuses legacy, nested SegWit, UTXO and malformed sources', () => {
@@ -72,8 +78,34 @@ describe('which messages have no destination outputs', () => {
   });
 });
 
+describe('which wallets sign a Taproot reveal', () => {
+  it('a software wallet signs one; a hardware wallet never asks for Taproot', () => {
+    expect(signsTaprootReveals('mnemonic')).toBe(true);
+    expect(signsTaprootReveals('privateKey')).toBe(true);
+    expect(signsTaprootReveals('hardware')).toBe(false);
+    expect(signsTaprootReveals(undefined)).toBe(false);
+  });
+
+  it('offers inscribing only from a Taproot source in a software wallet', () => {
+    expect(canInscribe(P2WPKH, 'mnemonic')).toBe(true);
+    expect(canInscribe(P2TR, 'privateKey')).toBe(true);
+    expect(canInscribe(P2WPKH, 'hardware')).toBe(false);
+    expect(canInscribe(P2TR, 'hardware')).toBe(false);
+    expect(canInscribe(P2WSH, 'mnemonic')).toBe(false);
+    expect(canInscribe(P2SH, 'mnemonic')).toBe(false);
+    expect(canInscribe(undefined, 'mnemonic')).toBe(false);
+  });
+});
+
 describe('choosing the encoding', () => {
-  const base = { composeType: 'mpma', params: {}, sourceAddress: P2WPKH };
+  const base = { composeType: 'mpma', params: {}, sourceAddress: P2WPKH, walletType: 'mnemonic' as const };
+
+  it('never chooses Taproot for a hardware wallet, which keeps the default encoding', () => {
+    expect(chooseEncoding({ ...base, walletType: 'hardware', messageLength: OVERFLOWING })).toBeUndefined();
+    expect(chooseEncoding({ ...base, walletType: undefined, messageLength: OVERFLOWING })).toBeUndefined();
+    expect(chooseEncoding({ ...base, walletType: 'privateKey', messageLength: OVERFLOWING })).toBe('taproot');
+    expect(chooseComposeEncoding('mpma', MPMA_TAPROOT.request, P2WPKH, 'hardware', LEGACY)).toBeUndefined();
+  });
 
   it('keeps an OP_RETURN for a message of 72 bytes or fewer, where Taproot costs more', () => {
     expect(chooseEncoding({ ...base, messageLength: FITTING })).toBeUndefined();
@@ -119,26 +151,26 @@ describe('measuring the request', () => {
 
   it('chooses Taproot for a send whose memo overflows the OP_RETURN, and not for a short one', () => {
     expect(SEND_TAPROOT.data.length / 2 - 8).toBe(88);
-    expect(chooseComposeEncoding('send', SEND_TAPROOT.request, P2WPKH)).toBe('taproot');
-    expect(chooseComposeEncoding('send', { ...SEND_TAPROOT.request, memo: 'hi' }, P2WPKH)).toBeUndefined();
-    expect(chooseComposeEncoding('send', SEND_TAPROOT.request, P2PKH)).toBeUndefined();
+    expect(chooseComposeEncoding('send', SEND_TAPROOT.request, P2WPKH, 'mnemonic')).toBe('taproot');
+    expect(chooseComposeEncoding('send', { ...SEND_TAPROOT.request, memo: 'hi' }, P2WPKH, 'mnemonic')).toBeUndefined();
+    expect(chooseComposeEncoding('send', SEND_TAPROOT.request, P2PKH, 'mnemonic')).toBeUndefined();
   });
 
   it('chooses Taproot for a several-recipient MPMA, including one sent from the send form', () => {
     for (const mpmaTableFormat of ['legacy', 'length-prefixed'] as const) {
-      expect(chooseComposeEncoding('mpma', MPMA_TAPROOT.request, P2WPKH, { mpmaTableFormat })).toBe('taproot');
+      expect(chooseComposeEncoding('mpma', MPMA_TAPROOT.request, P2WPKH, 'mnemonic', { mpmaTableFormat })).toBe('taproot');
       expect(chooseComposeEncoding('send', {
         asset: 'PEPEMEMECOIN',
         quantity: '100',
         destinations: MPMA_TAPROOT.request.destinations,
-      }, P2WPKH, { mpmaTableFormat })).toBe('taproot');
+      }, P2WPKH, 'mnemonic', { mpmaTableFormat })).toBe('taproot');
     }
   });
 
   it('measures an MPMA only once its address table is known', () => {
     // The table's layout changes the length, so an MPMA measured without one is left on core's
     // default rather than guessed at.
-    expect(chooseComposeEncoding('mpma', MPMA_TAPROOT.request, P2WPKH)).toBeUndefined();
+    expect(chooseComposeEncoding('mpma', MPMA_TAPROOT.request, P2WPKH, 'mnemonic')).toBeUndefined();
   });
 
   it('measures the length-prefixed table, which is longer by a byte per address', () => {
@@ -150,19 +182,19 @@ describe('measuring the request', () => {
 
   it('measures a broadcast before core stamps its timestamp', () => {
     const long = { text: 'x'.repeat(80), value: '0', fee_fraction: '0' };
-    expect(chooseComposeEncoding('broadcast', long, P2WPKH)).toBe('taproot');
-    expect(chooseComposeEncoding('broadcast', { ...long, text: 'short' }, P2WPKH)).toBeUndefined();
+    expect(chooseComposeEncoding('broadcast', long, P2WPKH, 'mnemonic')).toBe('taproot');
+    expect(chooseComposeEncoding('broadcast', { ...long, text: 'short' }, P2WPKH, 'mnemonic')).toBeUndefined();
   });
 
   it('measures an issuance, and leaves an ownership transfer on the default', () => {
     const issuance = { asset: 'PEPEMEMECOIN', quantity: '0', description: 'd'.repeat(90), lock: false, reset: false };
-    expect(chooseComposeEncoding('issuance', issuance, P2WPKH)).toBe('taproot');
-    expect(chooseComposeEncoding('issuance', { ...issuance, transfer_destination: P2TR }, P2WPKH)).toBeUndefined();
+    expect(chooseComposeEncoding('issuance', issuance, P2WPKH, 'mnemonic')).toBe('taproot');
+    expect(chooseComposeEncoding('issuance', { ...issuance, transfer_destination: P2TR }, P2WPKH, 'mnemonic')).toBeUndefined();
   });
 
   it('never switches a request it cannot pack', () => {
-    expect(chooseComposeEncoding('send', { asset: 'PEPEMEMECOIN' }, P2WPKH)).toBeUndefined();
-    expect(chooseComposeEncoding('move', { destination: P2TR }, P2WPKH)).toBeUndefined();
+    expect(chooseComposeEncoding('send', { asset: 'PEPEMEMECOIN' }, P2WPKH, 'mnemonic')).toBeUndefined();
+    expect(chooseComposeEncoding('move', { destination: P2TR }, P2WPKH, 'mnemonic')).toBeUndefined();
   });
 });
 
@@ -211,83 +243,79 @@ describe('composing with the chosen encoding', () => {
   });
 });
 
-/** The shape Core 11.5 returns for a Taproot compose: an unsigned reveal and what signing it needs. */
-const UNSIGNED_REVEAL = {
-  rawtransaction: '02',
-  envelope_script: '0063',
-  reveal_rawtransaction: '0200000001',
-  reveal_control_block: 'c0',
-  reveal_pubkey: '02'.padEnd(66, '1'),
-  reveal_lock_scripts: ['5120'],
-  reveal_inputs_values: [330],
-};
+describe('reading the reveal a compose returns', () => {
+  const { result } = BROADCAST_P2WPKH;
 
-describe('a Taproot compose whose reveal comes back unsigned (Core 11.5)', () => {
-  it('is recognized by the unsigned reveal fields with no signed reveal', () => {
-    expect(hasUnsignedTaprootReveal(UNSIGNED_REVEAL)).toBe(true);
-    const { reveal_rawtransaction: _raw, ...controlBlockOnly } = UNSIGNED_REVEAL;
-    expect(hasUnsignedTaprootReveal(controlBlockOnly)).toBe(true);
-    const { reveal_control_block: _block, ...rawOnly } = UNSIGNED_REVEAL;
-    expect(hasUnsignedTaprootReveal(rawOnly)).toBe(true);
+  it('reads Core 11.5\'s unsigned reveal, with everything signing it needs', () => {
+    const shape = readRevealShape(result);
+    expect(shape).toEqual({
+      kind: 'unsigned',
+      envelopeScriptHex: result.envelope_script,
+      reveal: {
+        revealHex: result.reveal_rawtransaction,
+        controlBlockHex: result.reveal_control_block,
+        revealPubkeyHex: result.reveal_pubkey,
+        lockScripts: result.reveal_lock_scripts,
+        inputsValues: result.reveal_inputs_values,
+      },
+    });
+    expect(carriesTaprootReveal(result)).toBe(true);
   });
 
-  it('is not the 11.3 shape, a half-returned compose, or a default compose', () => {
-    // 11.3: envelope plus signed reveal.
-    expect(hasUnsignedTaprootReveal({ rawtransaction: '02', envelope_script: '0063', signed_reveal_rawtransaction: '02' })).toBe(false);
-    // A signed reveal alongside the new fields is still the signed shape the wallet verifies.
-    expect(hasUnsignedTaprootReveal({ ...UNSIGNED_REVEAL, signed_reveal_rawtransaction: '02' })).toBe(false);
-    // Envelope alone, or with only a pubkey, stays a half-returned compose.
-    expect(hasUnsignedTaprootReveal({ rawtransaction: '02', envelope_script: '0063' })).toBe(false);
-    expect(hasUnsignedTaprootReveal({ rawtransaction: '02', envelope_script: '0063', reveal_pubkey: '02' })).toBe(false);
-    expect(hasUnsignedTaprootReveal({ rawtransaction: '02', reveal_rawtransaction: '', reveal_control_block: 7 })).toBe(false);
-    expect(hasUnsignedTaprootReveal({ rawtransaction: '02' })).toBe(false);
-    expect(hasUnsignedTaprootReveal(null)).toBe(false);
-    expect(hasUnsignedTaprootReveal('reveal_rawtransaction')).toBe(false);
-  });
-
-  it('still marks the commit as one a reveal spends', () => {
-    expect(carriesTaprootReveal(UNSIGNED_REVEAL)).toBe(true);
+  it('refuses a reveal the server signed, the shape before Core 11.5', () => {
+    expect(readRevealShape({ rawtransaction: '02', envelope_script: '0063', signed_reveal_rawtransaction: '02' }))
+      .toEqual({ kind: 'server_signed' });
+    // Even alongside the 11.5 fields.
+    expect(readRevealShape({ ...result, signed_reveal_rawtransaction: '02' })).toEqual({ kind: 'server_signed' });
     expect(carriesTaprootReveal({ signed_reveal_rawtransaction: '02' })).toBe(true);
-    expect(carriesTaprootReveal({ envelope_script: '0063' })).toBe(true);
+  });
+
+  it.each([
+    'envelope_script', 'reveal_rawtransaction', 'reveal_control_block', 'reveal_pubkey',
+    'reveal_lock_scripts', 'reveal_inputs_values',
+  ] as const)('treats a compose missing %s as half a Taproot compose', (field) => {
+    const { [field]: _dropped, ...partial } = result;
+    expect(readRevealShape(partial)).toEqual({ kind: 'partial' });
+    expect(carriesTaprootReveal(partial)).toBe(true);
+  });
+
+  it.each([
+    ['a compressed reveal_pubkey', { reveal_pubkey: `02${result.reveal_pubkey}` }],
+    ['a non-hex reveal', { reveal_rawtransaction: 'zz' }],
+    ['an odd-length control block', { reveal_control_block: 'c' }],
+    ['a lock script that is not hex', { reveal_lock_scripts: [7] }],
+    ['a zero value', { reveal_inputs_values: [0] }],
+    ['a fractional value', { reveal_inputs_values: [1.5] }],
+    ['values that are not a list', { reveal_inputs_values: 526 }],
+  ])('treats %s as malformed', (_, change) => {
+    expect(readRevealShape({ ...result, ...change })).toEqual({ kind: 'partial' });
+  });
+
+  it('reads an ordinary compose as carrying no reveal', () => {
+    expect(readRevealShape({ rawtransaction: '02' })).toEqual({ kind: 'none' });
+    expect(readRevealShape(null)).toEqual({ kind: 'none' });
+    expect(readRevealShape('reveal_rawtransaction')).toEqual({ kind: 'none' });
     expect(carriesTaprootReveal({ rawtransaction: '02' })).toBe(false);
     expect(carriesTaprootReveal(undefined)).toBe(false);
   });
+});
 
+describe('composing when Core 11.5 returns an unsigned reveal', () => {
   const data = { sourceAddress: P2WPKH, sat_per_vbyte: '2' };
 
-  it('is composed again on the default encoding when the wallet chose Taproot itself', async () => {
-    const compose = vi.fn()
-      .mockResolvedValueOnce({ result: UNSIGNED_REVEAL })
-      .mockResolvedValueOnce({ result: { rawtransaction: 'default' } });
-    await expect(composeWithEncoding(compose, data, 'taproot')).resolves.toEqual({ result: { rawtransaction: 'default' } });
-    expect(compose).toHaveBeenCalledTimes(2);
-    expect(compose).toHaveBeenNthCalledWith(1, { ...data, encoding: 'taproot' });
-    expect(compose).toHaveBeenNthCalledWith(2, data);
-  });
-
-  it('is returned untouched when the request chose its own encoding, for the composer to refuse', async () => {
-    const response = { result: UNSIGNED_REVEAL };
-    const compose = vi.fn().mockResolvedValue(response);
-    const explicit = { ...data, encoding: 'taproot', inscription: 'aGk=' };
-    await expect(composeWithEncoding(compose, explicit, undefined)).resolves.toBe(response);
-    expect(compose).toHaveBeenCalledTimes(1);
-    expect(compose).toHaveBeenCalledWith(explicit);
-  });
-
-  it('leaves an 11.3 Taproot compose alone', async () => {
-    const response = { result: { rawtransaction: '02', envelope_script: '0063', signed_reveal_rawtransaction: '02' } };
+  it('keeps the Taproot compose: the wallet signs the reveal itself', async () => {
+    const response = { result: BROADCAST_P2WPKH.result };
     const compose = vi.fn().mockResolvedValue(response);
     await expect(composeWithEncoding(compose, data, 'taproot')).resolves.toBe(response);
     expect(compose).toHaveBeenCalledTimes(1);
+    expect(compose).toHaveBeenCalledWith({ ...data, encoding: 'taproot' });
   });
 
-  it('does not compose again once the compose was abandoned', async () => {
-    const controller = new AbortController();
-    const compose = vi.fn().mockImplementation(async () => {
-      controller.abort();
-      return { result: UNSIGNED_REVEAL };
-    });
-    await expect(composeWithEncoding(compose, data, 'taproot', controller.signal)).rejects.toThrow();
-    expect(compose).toHaveBeenCalledTimes(1);
+  it('composes the default way when the API is too old for Taproot, which the compose layer refuses', async () => {
+    const compose = vi.fn()
+      .mockRejectedValueOnce(new CounterpartyApiError('Taproot encoding and inscriptions need Counterparty API 11.5.0 or newer.', '/v2/'))
+      .mockResolvedValueOnce('default');
+    await expect(composeWithEncoding(compose, data, 'taproot')).resolves.toBe('default');
+    expect(compose).toHaveBeenNthCalledWith(2, data);
   });
 });
