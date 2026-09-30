@@ -605,7 +605,7 @@ compose as a [`commit-and-reveal`](#commit-and-reveal) bundle through `xcp_signP
 shows the message and signs both transactions.
 
 The `reveal` parameter of `xcp_signPsbt`, which took a reveal the site had already signed, was
-removed in 0.14.x. From Core 11.5 a reveal publishes its message only when the source address's
+removed in 0.14.1. From Core 11.5 a reveal publishes its message only when the source address's
 key signed it, which a site-signed reveal never is. A request that still carries `reveal`, through
 `xcp_signPsbt` or `xcp_signBitcoinPsbt`, is refused with `-32602` before any approval opens.
 
