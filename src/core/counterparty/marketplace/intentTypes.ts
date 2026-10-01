@@ -314,7 +314,22 @@ export interface AcceptPolicyOfferIntentClaim {
   expectedTxid: string;
 }
 
+export interface InvalidateOffersIntentClaim {
+  standard: typeof MARKETPLACE_INTENT_STANDARD;
+  version: typeof MARKETPLACE_INTENT_VERSION;
+  action: 'invalidate_offers';
+  protocolVersion: 'offer_invalidation_v1';
+  operationId: string;
+  assets: [];
+  bidder: string;
+  fundingInputs: Array<MarketplaceOutpointClaim & { valueSats: number }>;
+  returnSats: number;
+  networkFeeSats: number;
+  expectedTxid: string;
+}
+
 export type MarketplaceIntentClaimV1 =
+  | InvalidateOffersIntentClaim
   | AttachForListingIntentClaim
   | PrepareAssetIntentClaim
   | CreateListingIntentClaim
@@ -346,6 +361,7 @@ export interface MarketplaceApprovalReview {
     | 'accept_exact_offer_with_cpfp'
     | 'prepare_bulk_fanout'
     | 'fund_offers'
+    | 'invalidate_offers'
     | 'fund_policy_offer'
     | 'accept_policy_offer'
     | 'marketplace_batch'

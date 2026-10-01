@@ -118,7 +118,9 @@ export default function ApprovePsbtPage() {
                         ? fundOffersCount === 1
                           ? t('psbt_approve_fund_offer_title')
                           : t('psbt_approve_fund_offers_title')
-                        : t('transaction_approve_sign_transaction'),
+                        : request?.marketplaceIntent?.action === 'invalidate_offers'
+                          ? t('marketplace_invalidation_title')
+                          : t('transaction_approve_sign_transaction'),
     });
   }, [fundOffersCount, listingHeader, request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);
 
@@ -463,7 +465,9 @@ export default function ApprovePsbtPage() {
                         ? t('common_accept_offer_2')
                         : marketplaceReview?.family === "authorize_exact_offer"
                           ? t('psbt_approve_authorize_offer_2')
-                          : marketplaceReview?.family === "fund_offers"
+                          : marketplaceReview?.family === 'invalidate_offers'
+                            ? t('marketplace_invalidation_title')
+                            : marketplaceReview?.family === "fund_offers"
                             ? fundOffersCount === 1
                               ? t('psbt_approve_fund_offer')
                               : t('psbt_approve_fund_offers')
@@ -564,6 +568,9 @@ export default function ApprovePsbtPage() {
         />
       )}
 
+      {marketplaceReview?.family === 'invalidate_offers' && marketplaceReview.status === 'proved' && (
+        <p className="px-1 text-sm leading-5 text-gray-600">{t('marketplace_invalidation_notice')}</p>
+      )}
       <ApprovalZeldNotes notes={zeldReviewNotes(safetyWarnings)} />
 
       <CounterpartyDetailsCard

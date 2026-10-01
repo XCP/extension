@@ -6910,5 +6910,8 @@
   "message_cancel_unlocks": {
     "message": "ロック解除",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
-  }
+  },
+  "marketplace_invalidation_title": {"message": "Bitcoin上のオファーを無効化"},
+  "marketplace_invalidation_return": {"message": "ウォレットに返却"},
+  "marketplace_invalidation_notice": {"message": "選択した資金用コインを、ネットワーク手数料を差し引いて自分のウォレットに戻します。この取引が承認されると、これらのコインを使うすべてのオファーが無効になります。署名だけではBitcoin上の承認は取り消されません。チェーンの再編成により取引の承認が取り消される場合があります。"}
 }

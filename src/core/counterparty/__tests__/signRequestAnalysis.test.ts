@@ -1196,3 +1196,40 @@ describe('gates that must hold on their own', () => {
     });
   });
 });
+
+
+describe('proved offer invalidation gate exception', () => {
+  beforeEach(() => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({ localUnpack: undefined } as never);
+    vi.mocked(resolveProtocolContext).mockResolvedValue({ context: {} as ProtocolContext, warnings: [] });
+  });
+  const invalidation = () => ({
+    transactionId: 'bb'.repeat(32), transactionVersion: 2, lockTime: 0,
+    inputs: [{ index: 0, txid: 'aa'.repeat(32), vout: 0, address: SIGNER, value: 12330, hasSignatures: false, scriptType: 'p2wpkh' as const }],
+    outputs: [{ index: 0, type: 'p2wpkh', address: SIGNER, value: 12110 }],
+    marketplaceIntent: parseMarketplaceIntent({
+      standard: 'counterparty-marketplace', version: 1, action: 'invalidate_offers', protocolVersion: 'offer_invalidation_v1',
+      operationId: 'gate-test', assets: [], bidder: SIGNER, fundingInputs: [{ txid: 'aa'.repeat(32), vout: 0, valueSats: 12330 }],
+      expectedTxid: 'bb'.repeat(32), networkFeeSats: 220, returnSats: 12110,
+    }),
+  });
+  it('removes the generic gate only after the self-send proves', async () => {
+    const result = await run(invalidation());
+    expect(result.marketplaceReview?.status).toBe('proved');
+    expect(result.safety.blocked).toBe(false);
+    expect(blockedOnNotCounterparty(result.safety.warnings)).toBe(false);
+  });
+  it('keeps unknown assets blocked', async () => {
+    const result = await run({ ...invalidation(), attachedAssets: Promise.resolve([{ inputIndex: 0, utxo: 'test', assets: [], lookupFailed: true }]) });
+    expect(result.safety.blocked).toBe(true);
+    expect(blockedOnNotCounterparty(result.safety.warnings)).toBe(true);
+  });
+  it('keeps unsafe signatures blocked', async () => {
+    const result = await run({ ...invalidation(), signedInputs: [{ index: 0, sighashType: 0x83 }] });
+    expect(result.safety.blocked).toBe(true);
+  });
+  it('does not exempt ordinary self-sends without the explicit intent', async () => {
+    const result = await run({ ...invalidation(), marketplaceIntent: undefined });
+    expect(blockedOnNotCounterparty(result.safety.warnings)).toBe(true);
+  });
+});

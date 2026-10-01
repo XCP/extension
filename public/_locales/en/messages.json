@@ -9187,5 +9187,8 @@
   "message_cancel_unlocks": {
     "message": "Unlocks",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
-  }
+  },
+  "marketplace_invalidation_title": {"message": "Invalidate offers on Bitcoin"},
+  "marketplace_invalidation_return": {"message": "Back to wallet"},
+  "marketplace_invalidation_notice": {"message": "This spends the selected funding coins back to your wallet, minus the network fee. Every offer using these coins becomes invalid when this transaction confirms. Signing alone does not cancel those Bitcoin authorizations. A chain reorganization can undo confirmation."}
 }

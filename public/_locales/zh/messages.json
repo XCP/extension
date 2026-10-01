@@ -6910,5 +6910,8 @@
   "message_cancel_unlocks": {
     "message": "解锁",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
-  }
+  },
+  "marketplace_invalidation_title": {"message": "在比特币上使报价失效"},
+  "marketplace_invalidation_return": {"message": "退回钱包"},
+  "marketplace_invalidation_notice": {"message": "将所选资金币扣除网络手续费后转回自己的钱包。此交易确认后，使用这些币的所有报价均失效。仅签名不会撤销此前的比特币交易授权。链重组可能撤销确认。"}
 }

@@ -19,6 +19,7 @@ describe('providerPsbtSigningCapabilities', () => {
           sighashTypes: [0x01, 0x81, 0x83],
           inputScope: 'selected',
           externalInputs: 'any',
+          marketplaceIntents: ['invalidate_offers'],
         },
         psbtBatch: {
           supported: true,
