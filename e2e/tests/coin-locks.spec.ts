@@ -204,7 +204,7 @@ async function stub(context: BrowserContext, signer: string, parents: Map<string
   await context.route('https://mempool.space/api/blocks/tip/height', route => route.fulfill({ body: '900004' }));
   await context.route('**/v2/utxos/withbalances?**', route => {
     const utxos = new URL(route.request().url()).searchParams.get('utxos')?.split(',') ?? [];
-    return route.fulfill({ json: { result: Object.fromEntries(utxos.map(utxo => [utxo, utxo.startsWith('e5')])) } });
+    return route.fulfill({ json: { result: Object.fromEntries(utxos.map(utxo => [utxo, utxo === `${'e5'.repeat(32)}:0`])) } });
   });
   await context.route(/\/v2\/utxos\/[^/]+\/balances/, route => route.fulfill({ json: { result: [], next_cursor: null, result_count: 0 } }));
   await context.route('https://mempool.space/api/v1/fees/precise', route => route.fulfill({ json: { fastestFee: 2, halfHourFee: 1, hourFee: 1 } }));
