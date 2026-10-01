@@ -1,3 +1,4 @@
+import type { CoinLock } from '@/types/coinLocks';
 /**
  * The provider signing service as seen from the popup and sidepanel: its name and remote-call
  * policy, and a proxy that forwards calls to the background.
@@ -20,6 +21,8 @@ import type { ProviderSigningService } from '@/services/providerSigningService';
 
 /** What an approval screen reviews: defined here, beside the proxy, so screens never import the service. */
 export interface ReviewBase {
+  /** Coin-lock permissions are bound to the same digest as the visible review. */
+  coinLocks?: CoinLock[];
   reviewKey: string;
   policy: ProviderApprovalPolicy;
   fastestFee?: number;

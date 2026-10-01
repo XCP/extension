@@ -1,3 +1,4 @@
+import type { CoinLock } from '@/types/coinLocks';
 /**
  * Where the wallet's locked coins (core/bitcoin/coinLocks.ts) meet the Counterparty composer.
  *
@@ -8,7 +9,7 @@
  * refused rather than shown for signing. A shortfall the locks cause says so, with the split.
  */
 
-import type { CoinLock } from '@/core/bitcoin/coinLocks';
+
 import { outpointOf } from '@/core/bitcoin/coinLocks';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { CounterpartyApiError, UnofferedInputsError } from '@/core/errors';

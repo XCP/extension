@@ -6,6 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/types/coinLocks';
 
 const mocks = vi.hoisted(() => ({
   currentSettings: vi.fn(), currentWallet: vi.fn(),
@@ -38,7 +39,7 @@ vi.mock('@/core/bitcoin/psbt', async importOriginal => ({
 }));
 
 import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/core/bitcoin/coinLocks';
+
 import { parseCancelOffersIntent, withCancelledOfferCoinLocks } from '@/core/bitcoin/offerCancellation';
 import { beginSignFlow, getSignFlow, type NewSignFlow } from '@/platform/provider/signFlow';
 import { createProviderSigningService } from '../providerSigningService';
@@ -157,6 +158,20 @@ describe('provider signing with locked coins', () => {
     expect(kind === 'offer' ? mocks.wallet.signPsbt : mocks.wallet.signMessage).toHaveBeenCalledTimes(1);
   });
 
+  it('withholds an offer signature when its funding locks cannot be saved', async () => {
+    setCoinLockStore({ read: async () => [], update: async () => {},
+      commit: async () => { throw new Error('Coin lock limit reached'); } });
+    mocks.decodePsbt.mockImplementation(async () => decoded({ status: 'proved' }));
+    await beginSignFlow(psbtRequest({ marketplaceIntent: authorize as never }));
+    const review = await service.getReview('req-1');
+    await expect(service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: true }))
+      .rejects.toThrow('Coin lock limit reached');
+    const flow = await getSignFlow('req-1');
+    expect(flow?.status).toBe('cancelled');
+    expect(flow).not.toHaveProperty('result');
+    expect(mocks.emit).not.toHaveBeenCalledWith('sign-psbt-complete-req-1', expect.anything());
+  });
+
   it('reviews and releases a cancelled offer only after signing the unchanged message and before delivery', async () => {
     store.locks = [lock()];
     await beginSignFlow(cancellation());
@@ -231,6 +246,7 @@ describe('provider signing with locked coins', () => {
       return 'signed-psbt';
     });
     await service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: true });
+    expect(mocks.wallet.signPsbt).toHaveBeenCalledWith('psbt', { [identity.address]: [0] }, undefined, identity, { approvedCoinLocks: [lock()] });
     expect(store.updates).toEqual([{ unlock: [SLOT_OUTPOINT] }]);
     expect(unlockedBeforeSigning).toBe(false);
     expect(store.emittedBeforeUpdate).toBe(0);

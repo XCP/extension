@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import type { CoinLock, CoinLockUpdate } from '@/core/bitcoin/coinLocks';
 import {
   clearSpentUtxoCache,
   recordPendingChange,
   recordSpentUtxos,
 } from '@/core/bitcoin/spentUtxoCache';
 import * as bitcoinUtxo from '@/core/bitcoin/utxo';
+import type { CoinLock, CoinLockUpdate } from '@/types/coinLocks';
 import * as counterpartyApi from '../api';
 import { selectUtxosForTransaction } from '../utxoSelection';
 

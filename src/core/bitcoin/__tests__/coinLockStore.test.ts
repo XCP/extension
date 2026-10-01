@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/core/api/client';
 import { lockedOutpoints, readCoinLocks, resolveCoinLockCandidates, setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import { COIN_LOCK_ORPHAN_SECONDS, type CoinLock, type CoinLockUpdate, coinLocksOf, parseCoinLockUpdate, withCoinLockUpdate } from '@/core/bitcoin/coinLocks';
+import { COIN_LOCK_ORPHAN_SECONDS, coinLocksOf, parseCoinLockUpdate, withCoinLockUpdate } from '@/core/bitcoin/coinLocks';
 import { MAX_OUTSPEND_LOOKUPS_PER_PASS, OUTSPEND_SOURCES, resetOutspendChecks } from '@/core/bitcoin/outspend';
 import { fetchUTXOs, type UTXO } from '@/core/bitcoin/utxo';
+import type { CoinLock, CoinLockUpdate } from '@/types/coinLocks';
+
 
 vi.mock('@/core/bitcoin/utxo', () => ({ fetchUTXOs: vi.fn() }));
 vi.mock('@/core/api/client', async importOriginal => ({

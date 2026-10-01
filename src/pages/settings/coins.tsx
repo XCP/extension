@@ -12,9 +12,10 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getCurrentBlockHeight } from "@/core/bitcoin/blockHeight";
 import { getCoinLockStore, readCoinLocks } from "@/core/bitcoin/coinLockStore";
-import { backsOffers, type CoinLock, type CoinLockUpdate, outpointOf } from "@/core/bitcoin/coinLocks";
+import { backsOffers, outpointOf } from "@/core/bitcoin/coinLocks";
 import { clearUtxoCache, fetchUTXOs, type UTXO } from "@/core/bitcoin/utxo";
 import { t } from '@/i18n';
+import type { CoinLock, CoinLockUpdate } from '@/types/coinLocks';
 
 const PATHS = {
   BACK: "/settings",

@@ -3,17 +3,17 @@ import {
   activeCoinLocks,
   COIN_LOCK_EXPIRY_GRACE_SECONDS,
   COIN_LOCK_ORPHAN_SECONDS,
-  type CoinLock,
   coinLocksOf,
   liveCoinLocks,
   MAX_COIN_LOCK_EXPIRY_SECONDS,
-  type OfferCoinCommitment,
+  MAX_COIN_LOCK_REFS,
   parseCoinLockUpdate,
   parseOfferCoinCommitments,
   sanitizeCoinLocks,
   withCoinLockUpdate,
   withOfferCoinLocks,
 } from '@/core/bitcoin/coinLocks';
+import type { CoinLock, OfferCoinCommitment } from '@/types/coinLocks';
 
 const ADDRESS = 'bc1qtsenny4t24882u7l854yzt0h2znq686mwhf2mt';
 const OTHER = '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX';
@@ -197,6 +197,15 @@ describe('locked coins in the keychain', () => {
       expect(loaded).toHaveLength(stored.length + offers.length + 1);
       expect(loaded).toContainEqual(stored[0]);
       expect(activeCoinLocks(coinLocksOf(loaded, ADDRESS))).toHaveLength(206);
+    });
+
+    it('rejects excess offer references instead of forgetting existing commitments', () => {
+      const refs = Array.from({ length: MAX_COIN_LOCK_REFS }, (_, index) => `offer-${index}`);
+      const full = after(withOfferCoinLocks([], ADDRESS, [slot(A, { refs })], NOW));
+      expect(() => withOfferCoinLocks(full, ADDRESS, [slot(A, { refs: ['one-more'] })], NOW)).toThrow('Too many offers');
+      expect(full[0]!.refs).toEqual(refs);
+      expect(() => parseOfferCoinCommitments([slot(A, { refs: [...refs, 'one-more'] })])).toThrow('Too many offers');
+      expect(withOfferCoinLocks(full, ADDRESS, [slot(A, { refs })], NOW)).toBeNull();
     });
 
     it('drops malformed stored locks on load rather than failing the unlock', () => {

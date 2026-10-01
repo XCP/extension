@@ -1,9 +1,12 @@
 /** Site-declared cancellation, approved with a message signature. Never contacts the marketplace. */
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
-import { type CoinLock, normalizeOutpoint } from '@/core/bitcoin/coinLocks';
-import { isRecord } from '@/core/isRecord';
 
-export const MAX_CANCEL_OFFER_COINS = 100;
+import { MAX_CANCELLED_OFFER_IDS, MAX_OFFER_COMMITMENTS, MAX_OFFER_ID_LENGTH } from '@/constants/offerLimits';
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { normalizeOutpoint } from '@/core/bitcoin/coinLocks';
+import { isRecord } from '@/core/isRecord';
+import type { CoinLock } from '@/types/coinLocks';
+
+export const MAX_CANCEL_OFFER_COINS = MAX_OFFER_COMMITMENTS;
 
 export interface CancelOffersIntent {
   standard: 'counterparty-marketplace';
@@ -16,8 +19,8 @@ export interface CancelOffersIntent {
 export function parseCancelOffersIntent(value: unknown): CancelOffersIntent | undefined {
   if (!isRecord(value) || value.standard !== 'counterparty-marketplace' || value.action !== 'cancel_offers'
     || !Array.isArray(value.offerIds) || !Array.isArray(value.coins)) return undefined;
-  const offerIds = [...new Set(value.offerIds.slice(0, 100).filter((id): id is string =>
-    typeof id === 'string' && id.length > 0 && id.length <= 128))];
+  const offerIds = [...new Set(value.offerIds.slice(0, MAX_CANCELLED_OFFER_IDS).filter((id): id is string =>
+    typeof id === 'string' && id.length > 0 && id.length <= MAX_OFFER_ID_LENGTH))];
   if (offerIds.length === 0) return undefined;
   const coins = new Map<string, CancelOffersIntent['coins'][number]>();
   for (const coin of value.coins.slice(0, MAX_CANCEL_OFFER_COINS)) {

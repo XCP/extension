@@ -6928,5 +6928,13 @@
   },
   "zeld_max_spendable_help": {
     "message": "可用余额和最大金额不包含已锁定、不可用或附带Counterparty资产的币。发送还需要BTC支付手续费。"
+  },
+  "coin_lock_signing_changed": {
+    "message": "所选币已被锁定或锁定状态已更改。请重新审核交易。",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_unknown": {
+    "message": "资产状态未知",
+    "description": "Coin control: signing guards and asset lookup status."
   }
 }

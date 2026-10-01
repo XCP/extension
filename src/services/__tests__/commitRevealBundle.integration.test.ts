@@ -1,3 +1,4 @@
+import type { CoinLock } from '@/types/coinLocks';
 /**
  * A site's `commit-and-reveal` bundle end to end, on PSBTs built from composes captured from Core
  * 11.5: the stored request, the background review (the pair's proof, the commit decoded with its
@@ -16,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import type { CoinLock } from '@/core/bitcoin/coinLocks';
+
 import { finalizePSBT, parsePSBT } from '@/core/bitcoin/psbt';
 import {
   commitRevealItems,
@@ -108,6 +109,7 @@ function use(fixture: Fixture115, type: Wallet['type'] = 'privateKey') {
     addresses: [{ name: 'Address 1', path: p2tr ? "m/86'/0'/0'/0/0" : "m/84'/0'/0'/0/0", address: fixture.key.address, pubKey: fixture.key.publicKeyHex }],
   } as Wallet;
   signer = new WalletSigner({
+    getCoinLocks: () => [],
     activeWalletId: () => wallet.id,
     getWalletById: id => (id === wallet.id ? wallet : undefined),
     getActiveWallet: () => wallet,
@@ -271,6 +273,7 @@ describe('commit-and-reveal through the background review and signer', () => {
       addresses: [{ name: 'Address 1', path: "m/86'/0'/0'/0/0", address: launch.address, pubKey: '' }],
     } as Wallet;
     signer = new WalletSigner({
+    getCoinLocks: () => [],
       activeWalletId: () => wallet.id, getWalletById: id => (id === wallet.id ? wallet : undefined),
       getActiveWallet: () => wallet, lastActiveAddress: () => launch.address,
       getPrivateKey: async () => ({ hex: launch.privateKeyHex, wif: 'unused', compressed: true }),

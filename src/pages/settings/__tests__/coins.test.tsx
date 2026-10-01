@@ -2,9 +2,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import { type CoinLock, type CoinLockUpdate, coinLocksOf, withCoinLockUpdate } from '@/core/bitcoin/coinLocks';
+import { coinLocksOf, withCoinLockUpdate } from '@/core/bitcoin/coinLocks';
 import { fetchUTXOs, type UTXO } from '@/core/bitcoin/utxo';
 import { fetchUtxosWithBalances } from '@/core/counterparty/api';
+import type { CoinLock, CoinLockUpdate } from '@/types/coinLocks';
 import CoinsPage from '../coins';
 
 const ADDRESS = 'bc1qtsenny4t24882u7l854yzt0h2znq686mwhf2mt';

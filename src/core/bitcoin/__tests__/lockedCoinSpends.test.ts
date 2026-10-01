@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { CoinLock, CoinLockKind } from '@/core/bitcoin/coinLocks';
 import {
   findLockedCoinSpends,
   lockedCoinSpendAllowed,
@@ -7,6 +6,7 @@ import {
   lockedCoinWarning,
 } from '@/core/bitcoin/lockedCoinSpends';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
+import type { CoinLock, CoinLockKind } from '@/types/coinLocks';
 
 const ADDRESS = 'bc1qtsenny4t24882u7l854yzt0h2znq686mwhf2mt';
 const SITE = 'https://market.example';

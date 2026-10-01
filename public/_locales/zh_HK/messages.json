@@ -6928,5 +6928,13 @@
   },
   "zeld_max_spendable_help": {
     "message": "可用餘額和最大金額不包括已鎖定、不可用或附帶Counterparty資產的幣。發送亦需要BTC支付手續費。"
+  },
+  "coin_lock_signing_changed": {
+    "message": "所選幣已被鎖定或鎖定狀態已變更。請重新審核交易。",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_unknown": {
+    "message": "資產狀態未知",
+    "description": "Coin control: signing guards and asset lookup status."
   }
 }

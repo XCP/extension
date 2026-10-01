@@ -4,7 +4,6 @@
  */
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { getCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import type { OfferCoinCommitment } from '@/core/bitcoin/coinLocks';
 import {
   unshownEnvelopeWarning, unshownKeyLeafInputs, type WalletLeafKeys, walletLeafKeys, withEnvelopeLeafGuard,
 } from '@/core/bitcoin/envelopeLeafGuard';
@@ -36,7 +35,7 @@ import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import type { SigningIdentity } from '@/platform/auth/signingIdentity';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
-import { beginSignFinalization, claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignPsbtsRequest, } from '@/platform/provider/signFlow';
+import { beginSignFinalization, claimSignFlow, failSignFinalization, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignPsbtsRequest, } from '@/platform/provider/signFlow';
 import { bundleSpendsItsParent, packageParentOf, signAttachAndListingForDelivery, signFundAndAuthorizationsForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
 import { defineProxyServer } from '@/platform/proxy/server';
 import { getConnectionService } from '@/services/connectionService';
@@ -44,6 +43,7 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY, type ProviderSigningReview, type ReviewBase } from '@/services/providerSigningServiceClient';
 import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/services/signDelivery';
 import { getWalletService } from '@/services/walletService';
+import type { CoinLock, OfferCoinCommitment } from '@/types/coinLocks';
 
 export interface SigningDecision {
   /** Identifies the facts the user actually reviewed, including the execution policy. */
@@ -78,24 +78,10 @@ function isTransactionDataMismatch(error: unknown): error is Error {
 }
 
 /**
- * The approval warning for the wallet's locked coins that `items` would sign, or null. Read from
- * the lock store the background installed; without one, nothing is locked.
+ * Explain locked inputs using the same snapshot bound to the review.
  */
-async function lockedCoinSpendWarning(origin: string, items: LockCheckedItem[]): Promise<SecurityWarning | null> {
-  const store = getCoinLockStore();
-  if (!store) return null;
-  const addresses = new Set<string>();
-  for (const item of items) {
-    for (const [signer, indices] of Object.entries(item.signInputs)) {
-      addresses.add(normalizeAddressForComparison(signer));
-      for (const index of indices) {
-        const address = item.inputs[index]?.address;
-        if (address) addresses.add(normalizeAddressForComparison(address));
-      }
-    }
-  }
-  const locks = (await Promise.all([...addresses].map(address => store.read(address)))).flat();
-  return lockedCoinWarning(findLockedCoinSpends(items, locks, origin));
+function lockedCoinSpendWarning(origin: string, items: LockCheckedItem[], locks: CoinLock[]): SecurityWarning | null {
+  return locks.length ? lockedCoinWarning(findLockedCoinSpends(items, locks, origin)) : null;
 }
 
 /** The warnings a review carries, wherever its kind keeps them. */
@@ -127,8 +113,7 @@ async function unlockConfirmedCoins(review: ProviderSigningReview): Promise<void
 }
 
 /**
- * Lock the coins an offer signature just committed, from what its review proved. Best effort:
- * the signature is the user's, and a lock that cannot be written must not withhold it.
+ * Persist the proved offer commitments before exposing the signature. Failure withholds it.
  */
 async function lockCommittedCoins(review: ProviderSigningReview, ownedAddresses: string[]): Promise<void> {
   const store = getCoinLockStore();
@@ -307,6 +292,8 @@ export function createProviderSigningService(): ProviderSigningService {
     const request = await getRequest(requestId);
     if (!request) throw new ProviderReviewError('unavailable');
     const { ownedAddresses } = await assertAuthorization(request, undefined, parsed);
+    const store = getCoinLockStore();
+    const coinLocks = store ? (await Promise.all(ownedAddresses.map(address => store.read(address)))).flat() : [];
     const strictMode = (await getWalletService().getSettings()).strictTransactionVerification !== false;
     const fastestFee = request.kind === 'sign-message' ? undefined
       : await getFeeRates().then(rates => rates.fastestFee).catch(() => undefined);
@@ -335,8 +322,8 @@ export function createProviderSigningService(): ProviderSigningService {
         // The raw transaction is signed for every input of request.address.
         const signed = decoded.inputs.flatMap((input, index) => input.address
           && normalizeAddressForComparison(input.address) === normalizeAddressForComparison(request.address) ? [index] : []);
-        const lockWarning = await lockedCoinSpendWarning(request.origin,
-          [{ inputs: decoded.inputs, signInputs: { [request.address]: signed } }]);
+        const lockWarning = lockedCoinSpendWarning(request.origin,
+          [{ inputs: decoded.inputs, signInputs: { [request.address]: signed } }], coinLocks);
         const decodedInfo = lockWarning
           ? { ...decoded, safety: { ...decoded.safety, warnings: [...decoded.safety.warnings, lockWarning] } }
           : decoded;
@@ -353,10 +340,10 @@ export function createProviderSigningService(): ProviderSigningService {
           { resolveTrustedPrevout: getTrustedBroadcastPrevout }),
         await walletScriptKeys());
         // Part of the analysis, so the execution policy below asks for the acknowledgement.
-        const lockWarning = await lockedCoinSpendWarning(request.origin, [{
+        const lockWarning = lockedCoinSpendWarning(request.origin, [{
           intent: request.marketplaceIntent, review: decoded.marketplaceReview,
           inputs: decoded.psbtDetails.inputs, signInputs: request.signInputs ?? {},
-        }]);
+        }], coinLocks);
         const decodedInfo = lockWarning
           ? { ...decoded, safety: { ...decoded.safety, warnings: [...decoded.safety.warnings, lockWarning] } }
           : decoded;
@@ -393,14 +380,14 @@ export function createProviderSigningService(): ProviderSigningService {
         };
         const bundlePolicy = getPsbtBundleApprovalPolicy(request, decodedInfo, strictMode, fastestFee);
         // Stated once for the bundle, naming every locked coin its items would sign.
-        const lockWarning = await lockedCoinSpendWarning(request.origin, request.items.flatMap((item, index) => {
+        const lockWarning = lockedCoinSpendWarning(request.origin, request.items.flatMap((item, index) => {
           const decodedItem = decodedInfo.items[index];
           return decodedItem ? [{
             intent: item.marketplaceIntent.standard === 'counterparty-marketplace' ? item.marketplaceIntent : undefined,
             review: decodedItem.marketplaceReview,
             inputs: decodedItem.psbtDetails.inputs, signInputs: item.signInputs,
           }] : [];
-        }));
+        }), coinLocks);
         const policy = {
           ...bundlePolicy.policy,
           ...(unanalyzedBlocks.length > 0 ? { blocked: true } : {}),
@@ -412,6 +399,7 @@ export function createProviderSigningService(): ProviderSigningService {
         break;
       }
     }
+    if (coinLocks.length > 0) review.coinLocks = coinLocks;
     const pairedGrant = await continuityGrant(request);
     // Part of the facts fingerprinted into reviewKey below, intentionally: a grant that changes
     // while the screen is open (upgraded, narrowed, or re-recorded with the sibling) is a changed
@@ -433,6 +421,7 @@ export function createProviderSigningService(): ProviderSigningService {
     request: SignPsbtsRequest,
     parsed: PsbtDetailsCache,
     identity: SigningIdentity,
+    approvedCoinLocks?: CoinLock[],
   ): Promise<string[]> {
     const [commit, reveal] = request.items;
     if (!commit || !reveal || request.items.length !== 2 || !isStoredRevealIntent(reveal.marketplaceIntent)) {
@@ -440,7 +429,7 @@ export function createProviderSigningService(): ProviderSigningService {
     }
     await assertAuthorization(request, commit, parsed);
     await assertAuthorization(request, reveal, parsed);
-    return getWalletService().signCommitAndRevealPsbts(commit, reveal.psbtHex, request.address, identity,
+    return getWalletService().signCommitAndRevealPsbts({ ...commit, ...(approvedCoinLocks ? { approvedCoinLocks } : {}) }, reveal.psbtHex, request.address, identity,
       reveal.sighashTypes[0]);
   }
 
@@ -465,9 +454,11 @@ export function createProviderSigningService(): ProviderSigningService {
       throw new ProviderReviewError('acknowledge_risks');
     }
     const request = effectiveRequest(await claimSignFlow(requestId));
+    let finalizing = false;
     try {
       const { identity, ownedAddresses } = await assertAuthorization(request, undefined, parsed);
       const wallet = getWalletService();
+      const lockOptions = review.coinLocks?.length ? { approvedCoinLocks: review.coinLocks } : undefined;
       let result: SignFlowResult;
       switch (request.kind) {
         case 'sign-message': {
@@ -476,11 +467,11 @@ export function createProviderSigningService(): ProviderSigningService {
           break;
         }
         case 'sign-transaction':
-          result = { signedTxHex: await wallet.signTransaction(request.rawTxHex, request.address, undefined, identity),
+          result = { signedTxHex: await wallet.signTransaction(request.rawTxHex, request.address, lockOptions, identity),
             safeOwnChange: review.policy.safeOwnChange };
           break;
         case 'sign-psbt':
-          result = { signedPsbtHex: await wallet.signPsbt(request.psbtHex, request.signInputs, request.sighashTypes, identity) };
+          result = { signedPsbtHex: await wallet.signPsbt(request.psbtHex, request.signInputs, request.sighashTypes, identity, lockOptions) };
           break;
         case 'sign-psbts': {
           // A child that spends its unbroadcast parent in the same bundle verifies that input
@@ -492,11 +483,11 @@ export function createProviderSigningService(): ProviderSigningService {
           const sign = async (item: (typeof request.items)[number], index: number) => {
             await assertAuthorization(request, item, parsed);
             return wallet.signPsbt(item.psbtHex, item.signInputs, item.sighashTypes, identity,
-              packageTransactions && index > 0 ? { packageTransactions } : undefined);
+              packageTransactions && index > 0 ? { ...lockOptions, packageTransactions } : lockOptions);
           };
           const attach = request.items[0]?.marketplaceIntent;
           const signedPsbtHexes = request.bundleKind === 'commit-and-reveal'
-            ? await signCommitAndReveal(request, parsed, identity)
+            ? await signCommitAndReveal(request, parsed, identity, lockOptions?.approvedCoinLocks)
             : request.bundleKind === 'attach-and-list'
             ? await signAttachAndListingForDelivery(request.items,
               attach?.action === 'attach_for_listing' ? attach.expectedAttachedOutpoint
@@ -517,6 +508,7 @@ export function createProviderSigningService(): ProviderSigningService {
         sessionGeneration, supportsPairedContinuity(request.kind));
       assertFinalization();
       await beginSignFinalization(requestId);
+      finalizing = true;
       assertFinalization();
       if (request.kind === 'sign-message' && request.cancelOffersIntent) {
         const store = getCoinLockStore();
@@ -531,8 +523,7 @@ export function createProviderSigningService(): ProviderSigningService {
       // lock. Before the commitments below, so a coin this signature commits again stays locked.
       await unlockConfirmedCoins(review);
       // Before the site hears of the signature, so no send in between can spend what it commits.
-      await lockCommittedCoins(review, ownedAddresses)
-        .catch((error: unknown) => console.warn('[ProviderSigning] Could not lock committed offer coins:', error));
+      await lockCommittedCoins(review, ownedAddresses);
       // Completed results can be delivered by recovery polling without the event below. Publish
       // the terminal result only after lock updates, then re-check authorization after all awaits.
       await recordSignOutcome(requestId, 'completed', result);
@@ -543,7 +534,7 @@ export function createProviderSigningService(): ProviderSigningService {
       assertDelivery();
       eventEmitterService.emit(`${getSignFlowEventPrefix(request.kind)}-complete-${requestId}`, completed.result);
     } catch (error) {
-      const outcome = await recordSignOutcome(requestId, 'cancelled');
+      const outcome = finalizing ? await failSignFinalization(requestId) : await recordSignOutcome(requestId, 'cancelled');
       if (outcome?.status === 'cancelled') {
         eventEmitterService.emit(`${getSignFlowEventPrefix(request.kind)}-cancel-${requestId}`, { reason: 'Signing failed' });
       }
