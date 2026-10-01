@@ -36,7 +36,7 @@ import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import type { SigningIdentity } from '@/platform/auth/signingIdentity';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
-import { claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignPsbtsRequest, } from '@/platform/provider/signFlow';
+import { beginSignFinalization, claimSignFlow, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignPsbtsRequest, } from '@/platform/provider/signFlow';
 import { bundleSpendsItsParent, packageParentOf, signAttachAndListingForDelivery, signFundAndAuthorizationsForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
 import { defineProxyServer } from '@/platform/proxy/server';
 import { getConnectionService } from '@/services/connectionService';
@@ -513,12 +513,11 @@ export function createProviderSigningService(): ProviderSigningService {
       await assertAuthorization(request, undefined, parsed);
       const current = await getSignFlow(requestId);
       if (current?.status !== 'signing') throw new ProviderReviewError('interrupted');
-      await recordSignOutcome(requestId, 'completed', result);
-      const completed = await getSignFlow(requestId);
-      if (completed?.status !== 'completed') throw new ProviderReviewError('expired_completion');
-      const assertDelivery = await assertSignDeliveryAuthorized(completed, needsPairedAddressGrant(request),
+      const assertFinalization = await assertSignDeliveryAuthorized(request, needsPairedAddressGrant(request),
         sessionGeneration, supportsPairedContinuity(request.kind));
-      assertDelivery();
+      assertFinalization();
+      await beginSignFinalization(requestId);
+      assertFinalization();
       if (request.kind === 'sign-message' && request.cancelOffersIntent) {
         const store = getCoinLockStore();
         if (store?.cancelOffers) {
@@ -534,6 +533,14 @@ export function createProviderSigningService(): ProviderSigningService {
       // Before the site hears of the signature, so no send in between can spend what it commits.
       await lockCommittedCoins(review, ownedAddresses)
         .catch((error: unknown) => console.warn('[ProviderSigning] Could not lock committed offer coins:', error));
+      // Completed results can be delivered by recovery polling without the event below. Publish
+      // the terminal result only after lock updates, then re-check authorization after all awaits.
+      await recordSignOutcome(requestId, 'completed', result);
+      const completed = await getSignFlow(requestId);
+      if (completed?.status !== 'completed') throw new ProviderReviewError('expired_completion');
+      const assertDelivery = await assertSignDeliveryAuthorized(completed, needsPairedAddressGrant(request),
+        sessionGeneration, supportsPairedContinuity(request.kind));
+      assertDelivery();
       eventEmitterService.emit(`${getSignFlowEventPrefix(request.kind)}-complete-${requestId}`, completed.result);
     } catch (error) {
       const outcome = await recordSignOutcome(requestId, 'cancelled');

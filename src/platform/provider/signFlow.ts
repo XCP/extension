@@ -28,7 +28,7 @@ export type SignFlowKind = 'sign-message' | 'sign-psbt' | 'sign-psbts' | 'sign-t
 export type SignFlowEventPrefix = 'sign-message' | 'sign-psbt' | 'sign-psbts' | 'sign-tx';
 export const getSignFlowEventPrefix = (kind: SignFlowKind): SignFlowEventPrefix =>
   kind === 'sign-transaction' ? 'sign-tx' : kind;
-export type SignFlowStatus = 'pending' | 'signing' | 'completed' | 'cancelled';
+export type SignFlowStatus = 'pending' | 'signing' | 'finalizing' | 'completed' | 'cancelled';
 
 interface SignFlowIdentity extends AuthorizedRequest {
   /** SHA-256 over the origin, method, signing identity and canonical parameters. */
@@ -69,7 +69,7 @@ export interface SignFlowResults {
 export type SignFlowResult = SignFlowResults[SignFlowKind];
 type ActiveRequest<K extends SignFlowKind> = SignFlowIdentity & {
   kind: K;
-  status: 'pending' | 'signing';
+  status: 'pending' | 'signing' | 'finalizing';
 } & SignFlowParameters[K];
 export type SignMessageRequest = ActiveRequest<'sign-message'>;
 export type SignTransactionRequest = ActiveRequest<'sign-transaction'>;
@@ -146,6 +146,20 @@ export async function claimSignFlow(id: string): Promise<ProviderSigningRequest>
   return claimed;
 }
 
+/**
+ * Reserve completion after signing, before coin-lock writes. Recovery must not see the signature
+ * until those writes finish. A competing cancellation wins only before this reservation. Like a
+ * worker lost during signing, a worker lost here leaves an interrupted flow until its TTL: it must
+ * neither replay signing nor expose a signature whose lock updates may be incomplete.
+ */
+export async function beginSignFinalization(id: string): Promise<void> {
+  const reserved = await signFlowStorage.update(id, entry => {
+    if (entry.status !== 'signing') throw new Error('Signing was interrupted');
+    return { ...entry, status: 'finalizing' };
+  });
+  if (reserved?.status !== 'finalizing') throw new Error('Signing request not found or expired');
+}
+
 function validResult(kind: SignFlowKind, result: unknown): result is SignFlowResult {
   if (!result || typeof result !== 'object') return false;
   const value = result as Record<string, unknown>;
@@ -170,6 +184,7 @@ export async function recordSignOutcome(
 ): Promise<SignFlowEntry | null> {
   return signFlowStorage.update(id, entry => {
     if (entry.status === 'completed' || entry.status === 'cancelled') return entry;
+    if (entry.status === 'finalizing' && status === 'cancelled') return entry;
     if (status === 'completed' && !validResult(entry.kind, result)) {
       throw new Error('Invalid signing outcome');
     }
@@ -196,7 +211,7 @@ function isValidSignFlow(value: unknown): value is SignFlowEntry {
   if (!['sign-message', 'sign-transaction', 'sign-psbt', 'sign-psbts'].includes(entry.kind as string)) return false;
   if (entry.status === 'cancelled') return true;
   if (entry.status === 'completed') return validResult(entry.kind as SignFlowKind, entry.result);
-  if (entry.status !== 'pending' && entry.status !== 'signing') return false;
+  if (entry.status !== 'pending' && entry.status !== 'signing' && entry.status !== 'finalizing') return false;
   if (entry.kind === 'sign-message') return typeof entry.message === 'string'
     && (entry.signingAddress === undefined || typeof entry.signingAddress === 'string')
     && (entry.cancelOffersIntent === undefined || fingerprintReview(parseCancelOffersIntent(entry.cancelOffersIntent)) === fingerprintReview(entry.cancelOffersIntent));
@@ -291,7 +306,7 @@ export async function countOpenSignFlows(origin: string): Promise<number> {
   const now = Date.now();
   const all = await signFlowStorage.getAll();
   return all.filter(entry => entry.origin === origin
-    && (entry.status === 'pending' || entry.status === 'signing')
+    && (entry.status === 'pending' || entry.status === 'signing' || entry.status === 'finalizing')
     && now - entry.timestamp < SIGN_FLOW_TTL_MS).length;
 }
 

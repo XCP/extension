@@ -126,6 +126,37 @@ describe('provider signing with locked coins', () => {
       offerIds: ['auth-1'], coins: [{ outpoint: SLOT, stillCommitted: false }] })!,
   });
 
+  it.each(['offer', 'cancellation'] as const)('withholds recovery until the %s lock write finishes', async kind => {
+    const writing = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const waitForWrite = async () => { writing.resolve(); await release.promise; };
+    setCoinLockStore({ read: async () => store.locks, update: async () => {},
+      commit: waitForWrite, cancelOffers: waitForWrite });
+    mocks.decodePsbt.mockImplementation(async () => decoded({ status: 'proved' }));
+    const request = kind === 'offer' ? psbtRequest({ marketplaceIntent: authorize as never }) : cancellation();
+    await beginSignFlow(request);
+    const review = await service.getReview(request.id);
+    const operation = service.approveAndSign(request.id, { reviewKey: review.reviewKey, risksAcknowledged: true });
+    await writing.promise;
+    try {
+      const flow = await getSignFlow(request.id);
+      expect(flow?.status).toBe('finalizing');
+      expect(flow).not.toHaveProperty('result');
+      expect(mocks.emit).not.toHaveBeenCalled();
+      // A second click or a reopened popup cannot sign again or cancel the reserved completion.
+      await service.reject(request.id);
+      expect((await getSignFlow(request.id))?.status).toBe('finalizing');
+      await expect(createProviderSigningService().approveAndSign(request.id, {
+        reviewKey: review.reviewKey, risksAcknowledged: true,
+      })).rejects.toThrow();
+    } finally {
+      release.resolve();
+      await operation;
+    }
+    expect((await getSignFlow(request.id))?.status).toBe('completed');
+    expect(kind === 'offer' ? mocks.wallet.signPsbt : mocks.wallet.signMessage).toHaveBeenCalledTimes(1);
+  });
+
   it('reviews and releases a cancelled offer only after signing the unchanged message and before delivery', async () => {
     store.locks = [lock()];
     await beginSignFlow(cancellation());
