@@ -563,7 +563,10 @@ locks those coins: sends leave them out, and a signing request that would spend 
 Only the site whose request locked a slot may send an `authorize_exact_offer` whose input 0 is
 that slot, and whose every claim the wallet proved, without a prompt. Any other request that signs a locked coin, from any site, shows a
 warning; confirming it unlocks the coin, and the offers it backs end once the spend confirms. The
-user can also unlock or lock coins under Settings › Coin Control. A lock comes off by itself when its coin
+user can also unlock or relock offer coins under Settings › Coin Control. That page lists offer
+funding and existing manual locks immediately from the wallet's local record, then refreshes chain
+status separately. It does not scan every output for attached assets. Accepted locks are never
+evicted just because more coins become protected. A lock comes off by itself when its coin
 is spent by a confirmed transaction, when the offer's `marketplaceExpiresAt` (or a policy offer's
 latest `expiresAt`) is more than an hour past, or when both indexers return 404 for the funding
 transaction after the coin has been missing for 24 hours. Errors, unconfirmed spends and source

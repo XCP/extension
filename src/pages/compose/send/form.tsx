@@ -254,7 +254,7 @@ export function SendForm({
               value={btcAmount}
               onChange={setBtcAmount}
               feeRate={feeRate}
-              setError={() => {}}
+              setError={setValidationError}
               sourceAddress={activeAddress}
               maxAmount={btcBalance}
               showHelpText={showHelpText}
@@ -266,6 +266,8 @@ export function SendForm({
               disabled={pending}
               isDivisible={true}
               extraOutputCount={1}
+              memo={memo}
+              destination={destinations[0]?.address}
             />
           )}
 

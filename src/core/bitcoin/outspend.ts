@@ -92,7 +92,7 @@ export async function checkOutspends(
     .sort((a, b) => (lastChecked.get(a) ?? Number.NEGATIVE_INFINITY) - (lastChecked.get(b) ?? Number.NEGATIVE_INFINITY))
     .slice(0, Math.floor(MAX_OUTSPEND_LOOKUPS_PER_PASS / (OUTSPEND_SOURCES.length * 2)));
   for (const outpoint of due) lastChecked.set(outpoint, nowMs);
-  // Match the store's bounded scale without retaining every coin ever checked in this context.
+  // Bound this timing cache without retaining every coin ever checked in this context.
   if (lastChecked.size > 4_000) {
     const oldest = [...lastChecked].sort((a, b) => a[1] - b[1]).slice(0, lastChecked.size - 2_000);
     for (const [outpoint] of oldest) lastChecked.delete(outpoint);

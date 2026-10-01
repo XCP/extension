@@ -110,11 +110,11 @@ describe('complete wallet reads through the real API client wrapper', () => {
     expect(get.mock.calls.map(call => call[1]?.params?.offset)).toEqual([undefined, 3, 6]);
   });
 
-  it('checks more than 100 candidates in bounded batches before forming the wallet inputs_set', async () => {
-    const utxos = Array.from({ length: 121 }, (_, i) => ({ txid: i.toString(16).padStart(64, '0'), vout: 0,
+  it.each([121, 500, 5_000])('checks %i candidates without offering an attached output from a later batch', async count => {
+    const utxos = Array.from({ length: count }, (_, i) => ({ txid: i.toString(16).padStart(64, '0'), vout: 0,
       value: i + 1000, status: { confirmed: true, block_height: 1, block_hash: '', block_time: 0 } }));
     vi.mocked(fetchUTXOs).mockResolvedValue(utxos);
-    const held = `${utxos[120]!.txid}:0`;
+    const held = `${utxos[count - 1]!.txid}:0`;
     get.mockImplementation(async (url, config) => {
       expect(url).toBe('https://node.test/v2/utxos/withbalances');
       const batch = String(config?.params?.utxos).split(',');
@@ -126,8 +126,27 @@ describe('complete wallet reads through the real API client wrapper', () => {
     const selected = await selectUtxosForTransaction('address');
     expect(selected.excludedWithAssets).toBe(1);
     expect(selected.inputsSet).not.toContain(held);
-    expect(selected.utxos[0]?.txid).toBe(utxos[119]?.txid);
-    expect(get).toHaveBeenCalledTimes(2);
+    expect(selected.utxos[0]?.txid).toBe(utxos[count - 2]?.txid);
+    expect(selected.utxos).toHaveLength(20);
+    expect(get).toHaveBeenCalledTimes(Math.ceil(count / 80));
+  });
+
+  it('finds the few funding coins among 500 attached outputs, including across batch boundaries', async () => {
+    const utxos = Array.from({ length: 503 }, (_, i) => ({ txid: i.toString(16).padStart(64, '0'), vout: 0,
+      value: i + 1000, status: { confirmed: true, block_height: 1, block_hash: '', block_time: 0 } }));
+    const funding = [utxos[0]!, utxos[80]!, utxos[502]!];
+    const clean = new Set(funding.map(utxo => `${utxo.txid}:${utxo.vout}`));
+    vi.mocked(fetchUTXOs).mockResolvedValue(utxos);
+    get.mockImplementation(async (_url, config) => {
+      const batch = String(config?.params?.utxos).split(',');
+      return reply({ result: Object.fromEntries(batch.map(utxo => [utxo, !clean.has(utxo)])) });
+    });
+
+    const selected = await selectUtxosForTransaction('address');
+    expect(selected.utxos).toEqual([...funding].reverse());
+    expect(selected.excludedWithAssets).toBe(500);
+    expect(selected.totalValue).toBe(funding.reduce((sum, utxo) => sum + utxo.value, 0));
+    expect(get).toHaveBeenCalledTimes(7);
   });
 
   it('never assumes an omitted membership result means no attached assets', async () => {

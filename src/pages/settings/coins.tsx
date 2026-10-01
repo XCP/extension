@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { CoinCard, type CoinRow } from "@/components/domain/coins/coin-card";
 import { formatCoinBtc } from "@/components/domain/coins/coin-lock-text";
@@ -12,9 +12,8 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getCurrentBlockHeight } from "@/core/bitcoin/blockHeight";
 import { getCoinLockStore, readCoinLocks } from "@/core/bitcoin/coinLockStore";
-import { backsOffers, type CoinLockUpdate, outpointOf } from "@/core/bitcoin/coinLocks";
-import { clearUtxoCache, fetchUTXOs } from "@/core/bitcoin/utxo";
-import { fetchUtxosWithBalances } from "@/core/counterparty/api";
+import { backsOffers, type CoinLock, type CoinLockUpdate, outpointOf } from "@/core/bitcoin/coinLocks";
+import { clearUtxoCache, fetchUTXOs, type UTXO } from "@/core/bitcoin/utxo";
 import { t } from '@/i18n';
 
 const PATHS = {
@@ -32,72 +31,79 @@ interface CoinsState {
   error: string | null;
 }
 
-/**
- * The active address's coins: every plain BTC output with what it is worth and how settled it is,
- * and which ones the wallet keeps out of every send (core/bitcoin/coinLocks.ts). Offers lock the
- * coins they commit; the user can lock any plain coin here, unlock any locked one, and lock an
- * offer coin again while its offer lives.
- *
- * Outputs holding Counterparty assets are listed too, marked and without an action: sends never
- * spend them anyway, but leaving them out would make the available and locked totals disagree with
- * the BTC the wallet shows for the address.
- */
+/** Offer commitments and existing hand locks, available without a chain or asset scan. */
 export default function CoinsPage(): ReactElement {
+  const { activeAddress } = useWallet();
+  // Address changes discard both the previous list and its in-flight reads and actions.
+  return <AddressCoinsPage key={activeAddress?.address} address={activeAddress?.address} />;
+}
+
+function AddressCoinsPage({ address }: { address: string | undefined }): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeAddress } = useWallet();
-  const address = activeAddress?.address;
-  const [state, setState] = useState<CoinsState>({ coins: [], isLoading: true, error: null });
+  const [state, setState] = useState<CoinsState>({ coins: [], isLoading: !!address, error: null });
   const [filter, setFilter] = useState<Filter>("all");
   const [shown, setShown] = useState(PAGE_SIZE);
   // The offer coin whose card is asking before it unlocks; one card asks at a time.
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // The latest load; an older one that finishes after it (an address switch mid-read) is dropped.
-  const loadRef = useRef(0);
+  const loadRef = useRef({ sequence: 0 });
+  const chainRef = useRef<{ utxos: UTXO[]; height: number | null } | null>(null);
 
-  const load = useCallback(async (fresh = false) => {
+  const load = useCallback(async (fresh = false, refreshChain = true) => {
     if (!address) return;
-    const current = ++loadRef.current;
-    try {
-      if (fresh) clearUtxoCache(address);
-      const utxos = await fetchUTXOs(address);
-      const [locks, withAssets, height] = await Promise.all([
-        readCoinLocks(address, utxos),
-        fetchUtxosWithBalances(utxos.map(utxo => `${utxo.txid}:${utxo.vout}`)).catch(() => new Set<string>()),
-        getCurrentBlockHeight().catch(() => null),
-      ]);
-      const lockByOutpoint = new Map(locks.map(lock => [lock.outpoint, lock]));
-      const coins: CoinRow[] = utxos.map((utxo) => {
-        const outpoint = outpointOf(utxo);
+    const current = ++loadRef.current.sequence;
+    const rows = (locks: CoinLock[], chainStatus: CoinRow['chainStatus']): CoinRow[] => {
+      const chain = chainRef.current;
+      const byOutpoint = new Map(chain?.utxos.map(utxo => [outpointOf(utxo), utxo]));
+      return locks.map(lock => {
+        const utxo = byOutpoint.get(lock.outpoint);
         return {
-          outpoint,
-          valueSats: utxo.value,
-          confirmations: !utxo.status.confirmed ? 0
-            : height !== null && utxo.status.block_height > 0 ? Math.max(1, height - utxo.status.block_height + 1) : 1,
-          holdsAssets: withAssets.has(`${utxo.txid}:${utxo.vout}`),
-          lock: lockByOutpoint.get(outpoint),
+          outpoint: lock.outpoint,
+          valueSats: utxo?.value ?? lock.valueSats,
+          confirmations: !utxo ? null : !utxo.status.confirmed ? 0
+            : chain?.height !== null && chain?.height !== undefined && utxo.status.block_height > 0
+              ? Math.max(1, chain.height - utxo.status.block_height + 1) : 1,
+          chainStatus: chainStatus ?? (utxo ? undefined : 'missing'),
+          holdsAssets: false,
+          lock,
         };
-      });
-      // An offer can lock a coin before the funding reaches the chain; it is listed all the same.
-      const listed = new Set(coins.map(coin => coin.outpoint));
-      for (const lock of locks) {
-        if (!listed.has(lock.outpoint)) {
-          coins.push({ outpoint: lock.outpoint, valueSats: lock.valueSats, confirmations: null, holdsAssets: false, lock });
+      }).sort((left, right) => Number(backsOffers(right.lock)) - Number(backsOffers(left.lock))
+        || Number(left.lock.unlocked) - Number(right.lock.unlocked)
+        || right.valueSats - left.valueSats);
+    };
+    try {
+      const locks = await getCoinLockStore()?.read(address) ?? [];
+      if (current !== loadRef.current.sequence) return;
+      // The local record is enough to manage protection, even when an explorer is down.
+      setState({ coins: rows(locks, chainRef.current ? undefined : refreshChain ? 'checking' : 'unavailable'), isLoading: false, error: null });
+      if (!refreshChain || locks.length === 0) return;
+      if (fresh) clearUtxoCache(address);
+      try {
+        const [utxos, height] = await Promise.all([fetchUTXOs(address), getCurrentBlockHeight().catch(() => null)]);
+        if (current !== loadRef.current.sequence) return;
+        const refreshed = await readCoinLocks(address, utxos);
+        if (current !== loadRef.current.sequence) return;
+        chainRef.current = { utxos, height };
+        setState({ coins: rows(refreshed, undefined), isLoading: false, error: null });
+      } catch {
+        if (current === loadRef.current.sequence) {
+          chainRef.current = null;
+          setState(previous => ({ ...previous, coins: previous.coins.map(coin => ({ ...coin, chainStatus: 'unavailable' })), error: t('coins_refresh_failed') }));
         }
       }
-      // Locked coins first, then the largest.
-      coins.sort((left, right) => (left.lock ? 0 : 1) - (right.lock ? 0 : 1) || right.valueSats - left.valueSats);
-      if (current === loadRef.current) setState({ coins, isLoading: false, error: null });
     } catch (error) {
       console.error("Failed to load coins:", error);
-      if (current === loadRef.current) setState(previous => ({ ...previous, isLoading: false, error: t('coins_load_failed') }));
+      if (current === loadRef.current.sequence) setState(previous => ({ ...previous, isLoading: false, error: t('coins_load_failed') }));
     }
   }, [address]);
 
   useEffect(() => {
-    // Deferred out of the effect, as UtxoList does, so the load's state updates never run inside it.
-    queueMicrotask(() => void load());
+    const session = loadRef.current;
+    let disposed = false;
+    queueMicrotask(() => { if (!disposed) void load(); });
+    return () => { disposed = true; ++session.sequence; };
   }, [load]);
 
   useEffect(() => {
@@ -106,36 +112,37 @@ export default function CoinsPage(): ReactElement {
       onBack: () => void navigate(PATHS.BACK),
       rightButton: {
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
-        onClick: () => void load(true),
+        onClick: () => { if (!busy) void load(true); },
+        disabled: busy,
         ariaLabel: t('coins_refresh'),
       },
     });
-  }, [setHeaderProps, navigate, load]);
+  }, [setHeaderProps, navigate, load, busy]);
 
   const update = useCallback(async (change: CoinLockUpdate) => {
     const store = getCoinLockStore();
     if (!address || !store) return;
+    const current = ++loadRef.current.sequence;
     setBusy(true);
     try {
       await store.update(address, change);
-      await load();
+      if (current === loadRef.current.sequence) {
+        // A lock action needs only the store. Do not start another network scan.
+        await load(false, false);
+      }
     } catch (error) {
       console.error("Failed to update coin locks:", error);
-      setState(previous => ({ ...previous, error: t('coins_update_failed') }));
+      if (current === loadRef.current.sequence) setState(previous => ({ ...previous, error: t('coins_update_failed') }));
     } finally {
       setBusy(false);
     }
   }, [address, load]);
 
-  const totals = useMemo(() => state.coins.reduce((sum, coin) => {
-    if (coin.lock && !coin.lock.unlocked) return { ...sum, locked: sum.locked + coin.valueSats };
-    if (!coin.holdsAssets && coin.confirmations !== null) return { ...sum, free: sum.free + coin.valueSats };
-    return sum;
-  }, { free: 0, locked: 0 }), [state.coins]);
-
-  // With nothing locked there is nothing to filter to, so the filter goes and the list shows all.
   const lockedCoins = state.coins.filter(coin => coin.lock && !coin.lock.unlocked);
-  const visible = filter === "locked" && lockedCoins.length > 0 ? lockedCoins : state.coins;
+  const lockedSats = lockedCoins.reduce((sum, coin) => sum + coin.valueSats, 0);
+  // Only show filters when there is a distinction to make. Unlocked offers remain manageable.
+  const showFilters = lockedCoins.length > 0 && lockedCoins.length < state.coins.length;
+  const visible = filter === "locked" && showFilters ? lockedCoins : state.coins;
 
   if (state.isLoading) {
     return <Spinner message={t('coins_loading')} />;
@@ -161,20 +168,16 @@ export default function CoinsPage(): ReactElement {
         <>
           <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
             <h3 className="text-sm font-medium text-gray-900">{t('coins_summary_title')}</h3>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{t('coins_available')}</span>
-              <span className="text-gray-900 tabular-nums">{t('coins_btc_amount', formatCoinBtc(totals.free))}</span>
-            </div>
-            {totals.locked > 0 && (
+            {lockedSats > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">{t('coins_locked')}</span>
-                <span className="text-gray-900 tabular-nums">{t('coins_btc_amount', formatCoinBtc(totals.locked))}</span>
+                <span className="text-gray-900 tabular-nums">{t('coins_btc_amount', formatCoinBtc(lockedSats))}</span>
               </div>
             )}
             <p className="text-xs text-gray-500">{t('coins_summary_help')}</p>
           </div>
 
-          {lockedCoins.length > 0 && (
+          {showFilters && (
             <div className="flex gap-1" role="tablist" aria-label={t('coins_filter')}>
               <TabButton isActive={filter === "all"} onClick={() => { setFilter("all"); setShown(PAGE_SIZE); }}>
                 {t('coins_filter_all')}

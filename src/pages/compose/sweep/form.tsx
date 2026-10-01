@@ -13,6 +13,7 @@ import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context-object";
@@ -61,6 +62,7 @@ export function SweepForm({
   const [memoValid, setMemoValid] = useState(true);
   const [showBtcOutput, setShowBtcOutput] = useState(false);
   const [btcAmount, setBtcAmount] = useState("");
+  const [maxError, setMaxError] = useState<string | null>(null);
   // A form restored after review holds `flags` as the string it submitted ("2"), which never
   // strictly equalled an option's number, so going back always reset the choice to balances and
   // ownership. `&` reads the string as a number and drops any binary-memo bit.
@@ -176,7 +178,7 @@ export function SweepForm({
           value={btcAmount}
           onChange={setBtcAmount}
           feeRate={feeRate}
-          setError={() => {}}
+          setError={setMaxError}
           sourceAddress={activeAddress}
           maxAmount={btcBalance}
           showHelpText={showHelpText}
@@ -187,8 +189,11 @@ export function SweepForm({
           disabled={pending}
           isDivisible={true}
           extraOutputCount={1}
+          memo={memo}
+          destination={destination}
         />
       )}
+      {showBtcOutput && maxError && <ErrorAlert message={maxError} onClose={() => setMaxError(null)} />}
 
       <input type="hidden" name="memo" value={memo} />
       <MemoInput
