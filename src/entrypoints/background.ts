@@ -1,3 +1,4 @@
+import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
 import { recordZeldReads } from '@/core/zeld/recordReads';
 import { setKnownZeldOutpointSource } from '@/core/zeld/signRequestZeld';
 import {
@@ -73,6 +74,14 @@ export default defineBackground(() => {
       // Approvals fall back on the wallet's own record of its ZELD outputs when the indexer is down.
       recordZeldReads((address, update) => getWalletService().recordZeldOutpoints(address, update));
       setKnownZeldOutpointSource(address => getWalletService().getKnownZeldOutpoints(address));
+      // Site signing requests are checked against the wallet's locked coins, and an offer
+      // signature locks the coins it commits.
+      setCoinLockStore({
+        read: address => getWalletService().getCoinLocks(address),
+        update: (address, update) => getWalletService().updateCoinLocks(address, update),
+        commit: (address, commitments) => getWalletService().addOfferCoinLocks(address, commitments),
+        cancelOffers: (address, origin, intent) => getWalletService().cancelOfferCoinLocks(address, origin, intent),
+      });
       console.log('[Background] Proxy services registered');
 
       // 2. Initialize the approval and connection services. Registering a proxy only answers

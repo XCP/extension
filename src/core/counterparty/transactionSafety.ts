@@ -8,6 +8,7 @@
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { DUST_LIMIT_SATS } from '@/core/bitcoin/constants';
+import type { LockedCoinSpend } from '@/core/bitcoin/lockedCoinSpends';
 import { publicKeyPointId } from '@/core/bitcoin/publicKeyIdentity';
 import type { MarketplaceBlockKind } from '@/core/counterparty/marketplace/intentTypes';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
@@ -57,6 +58,11 @@ export type SecurityWarning = SecurityWarningText & (
    */
   | { code: 'zeld_movement'; data: ZeldNotice & { items?: number[] } }
   | { code: 'durable_sell_authorization'; data: { inputs: number[] } }
+  /**
+   * Signed inputs spend coins the wallet has locked, for an offer or by the user's hand
+   * (core/bitcoin/lockedCoinSpends.ts). Confirming unlocks them.
+   */
+  | { code: 'locked_coin_spend'; data: { coins: LockedCoinSpend[] } }
   /**
    * Inputs whose script path names this wallet's key in a leaf other than the one whose message
    * the review shows (core/bitcoin/envelopeLeafGuard.ts). Signing it would publish that message.

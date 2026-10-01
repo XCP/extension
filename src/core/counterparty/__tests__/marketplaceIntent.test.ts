@@ -521,6 +521,22 @@ describe('marketplace intent wire parser', () => {
     expect(parseMarketplaceIntent(attached)).toEqual(attached);
   });
 
+  it('keeps the optional commitments hint tolerantly: malformed entries go, the request stays', () => {
+    const slot = { txid: FUND_OFFERS_TXID.toUpperCase(), vout: 0 };
+    const parsed = parseMarketplaceIntent({ ...fundOffersIntent, commitments: [
+      { outpoint: slot, offerIds: ['offer-a', 'offer-a', 7, ''], expiresAt: 2_100_000_000 },
+      { outpoint: { txid: 'nope', vout: 0 }, offerIds: ['x'] },
+      { outpoint: { ...slot, vout: 1 } },
+      'garbage',
+    ] });
+    expect(parsed).toMatchObject({ commitments: [
+      { outpoint: { txid: FUND_OFFERS_TXID, vout: 0 }, offerIds: ['offer-a'], expiresAt: 2_100_000_000 },
+      { outpoint: { txid: FUND_OFFERS_TXID, vout: 1 }, offerIds: [], expiresAt: null },
+    ] });
+    expect(parseMarketplaceIntent({ ...fundOffersIntent, commitments: 'not a list' })).toEqual(fundOffersIntent);
+    expect(parseMarketplaceIntent({ ...fundOffersIntent, commitments: [{ bad: true }] })).toEqual(fundOffersIntent);
+  });
+
   it.each([
     ['unknown target scope', { target: { scope: 'wallet', asset: 'X' } }],
     ['too many slots', { slotCount: 21 }],

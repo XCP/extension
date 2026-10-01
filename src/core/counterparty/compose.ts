@@ -1,12 +1,14 @@
 import { parseAmountDraft, serializeDecimal, serializeRawInteger } from "@/core/amount-contract/amounts";
 import { apiClient } from '@/core/api/client';
+import { lockedOutpoints } from '@/core/bitcoin/coinLockStore';
 import { runCounterpartyRequest } from '@/core/counterparty/api';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
+import { assertSpendsNoLockedCoin, explainLockedShortfall, withLockedExcluded } from '@/core/counterparty/composeLocks';
 import { recordComposerChoices } from '@/core/counterparty/composerChoices';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { carriesTaprootReveal } from '@/core/counterparty/taprootEncoding';
-import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
+import { type SelectedUtxos, selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError, UnofferedInputsError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
 import { TransactionInputError } from '@/core/validation/transaction-input-error';
@@ -73,15 +75,14 @@ function toStringParams(obj: Record<string, unknown>): Record<string, string> {
  *
  * @param sourceAddress - The address to select UTXOs from
  * @param allowUnconfirmed - Whether to include unconfirmed UTXOs
- * @returns The inputs_set string if successful, undefined otherwise
+ * @returns The selection if successful (its inputsSet is what the request sends), undefined otherwise
  */
 async function trySelectUtxos(
   sourceAddress: string,
   allowUnconfirmed: boolean
-): Promise<string | undefined> {
+): Promise<SelectedUtxos | undefined> {
   try {
-    const selection = await selectUtxosForTransaction(sourceAddress, { allowUnconfirmed });
-    return selection.inputsSet;
+    return await selectUtxosForTransaction(sourceAddress, { allowUnconfirmed });
   } catch {
     return undefined;
   }
@@ -632,8 +633,12 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   // it also pins the recovery key to a value the wallet chose, which is what lets verification
   // check it (`transactionSafety.ts`) instead of trusting whatever key the composer embedded.
   const multisigPubkey = getSourcePubkey(sourceAddress);
+  // The wallet's locked coins, excluded from every attempt below whoever picks the inputs, and
+  // refused if the composer spends one anyway.
+  const locks = await lockedOutpoints(sourceAddress);
 
   const makeRequest = async ({ inputsSet, allowUnconfirmed, excludeUtxos }: ComposeRequestOptions): Promise<ApiResponse> => {
+    const excluded = withLockedExcluded(locks, excludeUtxos);
     const params = new URLSearchParams(toStringParams({
       ...validatedParams,
       sat_per_vbyte: validatedFee,
@@ -643,11 +648,12 @@ export async function composeTransaction<T extends Record<string, unknown>>(
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
-      ...(excludeUtxos && excludeUtxos.length > 0 ? { exclude_utxos: excludeUtxos.join(',') } : {}),
+      ...(excluded.length > 0 ? { exclude_utxos: excluded.join(',') } : {}),
       ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
     const composed = await sendComposeRequest(apiUrl, params.toString(), endpoint);
+    assertSpendsNoLockedCoin(composed.result?.rawtransaction ?? '', locks, endpoint);
     // Checked here, where the set actually sent is in scope: the fallbacks below send different
     // ones, and the last sends none at all.
     const inputCheck = checkInputPolicy({
@@ -667,8 +673,10 @@ export async function composeTransaction<T extends Record<string, unknown>>(
       ? withComposedChangeFirst(response, sourceAddress, layout)
       : response;
 
-  const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const selection = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+  const inputsSet = selection?.inputsSet;
+  const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint)
+    .catch((error: unknown) => { throw explainLockedShortfall(error, locks, selection?.totalValue ?? 0, endpoint); });
   return guardZeldExposure(arrange(composed), sourceAddress, endpoint, async (excludeUtxos) => {
     const recomposed = await executeWithUtxoFallback(
       (options) => makeRequest({ ...options, excludeUtxos }),
@@ -702,8 +710,10 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   // Same as composeTransaction: the recovery key for multisig-encoded data, which MPMA — this
   // path's caller — produces on almost every send.
   const multisigPubkey = getSourcePubkey(sourceAddress);
+  const locks = await lockedOutpoints(sourceAddress);
 
   const makeRequest = async ({ inputsSet, allowUnconfirmed, excludeUtxos }: ComposeRequestOptions): Promise<ApiResponse> => {
+    const excluded = withLockedExcluded(locks, excludeUtxos);
     const params = new URLSearchParams(toStringParams({
       ...validatedParams,
       sat_per_vbyte: validatedFee,
@@ -713,7 +723,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
-      ...(excludeUtxos && excludeUtxos.length > 0 ? { exclude_utxos: excludeUtxos.join(',') } : {}),
+      ...(excluded.length > 0 ? { exclude_utxos: excluded.join(',') } : {}),
       ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
@@ -731,6 +741,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
     }
 
     const composed = await sendComposeRequest(apiUrl, query, endpoint);
+    assertSpendsNoLockedCoin(composed.result?.rawtransaction ?? '', locks, endpoint);
     // Checked here, where the set actually sent is in scope: the fallbacks below send different
     // ones, and the last sends none at all.
     const inputCheck = checkInputPolicy({
@@ -743,8 +754,10 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
     return composed;
   };
 
-  const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const selection = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+  const inputsSet = selection?.inputsSet;
+  const composed = await executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint)
+    .catch((error: unknown) => { throw explainLockedShortfall(error, locks, selection?.totalValue ?? 0, endpoint); });
   return guardZeldExposure(composed, sourceAddress, endpoint, (excludeUtxos) => executeWithUtxoFallback(
     (options) => makeRequest({ ...options, excludeUtxos }),
     inputsSet ? removeUtxosFromInputsSet(inputsSet, excludeUtxos) : undefined,
@@ -755,14 +768,16 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
 
 /**
  * Compose a UTXO-based transaction (detach, move).
- * These don't use inputs_set since the source UTXO is specified directly.
+ * These don't use inputs_set since the source UTXO is specified directly. The composer adds fee
+ * inputs of its own choosing from `sourceAddress`, so that address's locked coins are excluded.
  */
 export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   endpoint: string,
   paramsObj: T,
   sourceUtxo: string,
   sat_per_vbyte: number,
-  encoding?: string
+  encoding?: string,
+  sourceAddress?: string,
 ): Promise<ApiResponse> {
   const validatedParams = toStringParams(paramsObj);
   const validatedFee = serializeDecimal(sat_per_vbyte, { min: 0.1, max: 5000, maxDecimals: 8 });
@@ -774,6 +789,9 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
 
   // Get user's unconfirmed transaction preference
   const settings = getActiveSettings();
+  const locks = sourceAddress ? await lockedOutpoints(sourceAddress) : new Map<string, never>();
+  // The source is named by the request, never excluded: a locked source is refused below instead.
+  const excluded = withLockedExcluded(locks).filter(outpoint => outpoint !== sourceUtxo.toLowerCase());
 
   const params = new URLSearchParams(toStringParams({
     ...validatedParams,
@@ -783,12 +801,15 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
     disable_utxo_locks: 'true',
     verbose: 'true',
     ...(encoding && { encoding }),
+    ...(excluded.length > 0 ? { exclude_utxos: excluded.join(',') } : {}),
   }));
 
   try {
     // Routed through sendComposeRequest for the apiClient timeout (60s for /compose) and retry
     // logic, and for the POST fallback when the query outgrows a URL.
-    return await sendComposeRequest(apiUrl, params.toString(), endpoint);
+    const composed = await sendComposeRequest(apiUrl, params.toString(), endpoint);
+    assertSpendsNoLockedCoin(composed.result?.rawtransaction ?? '', locks, endpoint);
+    return composed;
   } catch (error: unknown) {
     if (error instanceof CounterpartyApiError) throw error;
 
@@ -1407,16 +1428,17 @@ export async function composeDetach(options: DetachOptions): Promise<ApiResponse
   const paramsObj = {
     ...(destination && { destination }),
   };
-  const composed = await composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  const composed = await composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding, sourceAddress);
   // ZELD on the detached output lands on the change; when there is none, on a small output asked
   // for here.
   return withDetachZeldKept(composed, sourceUtxo, sourceAddress, (extra) =>
-    composeUtxoTransaction('detach', { ...paramsObj, ...extra }, sourceUtxo, sat_per_vbyte, encoding));
+    composeUtxoTransaction('detach', { ...paramsObj, ...extra }, sourceUtxo, sat_per_vbyte, encoding, sourceAddress));
 }
 
 export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
   const {
     sourceUtxo,
+    sourceAddress,
     destination,
     sat_per_vbyte,
     encoding,
@@ -1424,7 +1446,7 @@ export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
   const paramsObj = {
     destination,
   };
-  const composed = await composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  const composed = await composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding, sourceAddress);
   // A move pays the destination first, so ZELD on the source output would go with the assets.
   await assertUtxoCarriesNoZeld(sourceUtxo, 'movetoutxo');
   return composed;

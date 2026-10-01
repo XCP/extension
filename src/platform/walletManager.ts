@@ -4,8 +4,17 @@ import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
 import { AddressFormat, DEFAULT_ADDRESS_FORMAT, isCounterwalletFormat } from '@/core/bitcoin/addressFormat';
+import {
+  type CoinLock,
+  liveCoinLocks,
+  parseCoinLockUpdate,
+  parseOfferCoinCommitments,
+  withCoinLockUpdate,
+  withOfferCoinLocks,
+} from '@/core/bitcoin/coinLocks';
 import type { ConsolidationResult } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import { parseCancelOffersIntent, withCancelledOfferCoinLocks } from '@/core/bitcoin/offerCancellation';
 import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
 import { isValidCounterwalletMnemonic } from '@/core/counterwallet/mnemonic';
@@ -1063,6 +1072,60 @@ export class WalletManager {
       const next = withZeldOutpoints(this.keychain.zeldOutpoints ?? [], address, parsed);
       if (!next) return;
       await this.commitKeychain((draft) => { draft.zeldOutpoints = next; });
+    });
+  }
+
+  /**
+   * The locked coins of `address` (see core/bitcoin/coinLocks), offers that ended already off.
+   * Empty while locked: nothing can be composed or signed then anyway.
+   */
+  public getCoinLocks(address: string): CoinLock[] {
+    if (typeof address !== 'string' || !this.keychain) return [];
+    return liveCoinLocks(this.keychain.coinLocks ?? [], address, Math.floor(Date.now() / 1000));
+  }
+
+  /**
+   * Apply an extension page's coin control to `address`: lock or unlock by hand, lock an offer
+   * coin again, or what a UTXO read saw of the locked coins. Writes nothing when nothing changes.
+   * A locked wallet records nothing.
+   */
+  public async updateCoinLocks(address: string, update: unknown): Promise<void> {
+    WalletManager.assertLockAddress(address);
+    const parsed = parseCoinLockUpdate(update);
+    return this.writeCoinLocks(address, entries => withCoinLockUpdate(entries, address, parsed, Math.floor(Date.now() / 1000)));
+  }
+
+  /**
+   * Lock the coins an offer signature just committed. Background only: the commitments come from
+   * what the wallet proved in the signed PSBT, never from a page.
+   */
+  public async addOfferCoinLocks(address: string, commitments: unknown): Promise<void> {
+    WalletManager.assertLockAddress(address);
+    const parsed = parseOfferCoinCommitments(commitments);
+    return this.writeCoinLocks(address, entries => withOfferCoinLocks(entries, address, parsed, Math.floor(Date.now() / 1000)));
+  }
+
+  private static assertLockAddress(address: unknown): void {
+    if (typeof address !== 'string' || address.length === 0 || address.length > 128) {
+      throw new Error('Invalid coin lock address');
+    }
+  }
+
+  /** Background only: atomically release this origin's offer locks after a cancellation signature. */
+  public async cancelOfferCoinLocks(address: string, origin: string, intent: unknown): Promise<void> {
+    WalletManager.assertLockAddress(address);
+    const parsed = parseCancelOffersIntent(intent);
+    if (!parsed || typeof origin !== 'string' || origin.length === 0) throw new Error('Invalid offer cancellation');
+    return this.writeCoinLocks(address, entries => withCancelledOfferCoinLocks(entries, address, origin, parsed));
+  }
+
+  private async writeCoinLocks(address: string, change: (entries: CoinLock[]) => CoinLock[] | null): Promise<void> {
+    if (!this.keychain) return;
+    return this.mutateVault(async () => {
+      if (!this.keychain) return;
+      const next = change(this.keychain.coinLocks ?? []);
+      if (!next) return;
+      await this.commitKeychain((draft) => { draft.coinLocks = next; });
     });
   }
 

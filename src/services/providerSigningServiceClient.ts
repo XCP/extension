@@ -7,6 +7,7 @@
  * the real service against this same policy, so the two sides cannot drift.
  */
 
+import type { CancelOfferCoinReview } from '@/core/bitcoin/offerCancellation';
 import type { ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
 import type { DecodedPsbtInfo } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleInfo } from '@/core/bitcoin/psbtBundleApprovalDecoder';
@@ -31,7 +32,7 @@ export interface ReviewBase {
   pairedGrant?: PairedGrant;
 }
 export type ProviderSigningReview = ReviewBase & (
-  | { kind: 'sign-message'; request: SignMessageRequest }
+  | { kind: 'sign-message'; request: SignMessageRequest; cancellationCoins?: CancelOfferCoinReview[] }
   | { kind: 'sign-transaction'; request: SignTransactionRequest; decodedInfo: DecodedTransactionInfo }
   | { kind: 'sign-psbt'; request: SignPsbtRequest; decodedInfo: DecodedPsbtInfo }
   | { kind: 'sign-psbts'; request: SignPsbtsRequest; decodedInfo: DecodedPsbtBundleInfo }

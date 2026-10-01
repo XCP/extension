@@ -21,6 +21,8 @@ export interface ApiResponse<T = unknown> {
  * Request configuration options
  */
 export interface RequestConfig {
+  /** Fetch cache policy for reads that require fresh chain evidence. */
+  cache?: RequestCache;
   timeout?: number;
   headers?: Record<string, string>;
   signal?: AbortSignal;
@@ -353,6 +355,7 @@ export const apiClient = {
 
     return withRetry(() => fetchWithTimeout<T>(fullUrl, {
       method: 'GET',
+      cache: config?.cache,
       headers: config?.headers ? { ...config.headers } : undefined,
       timeout,
       reportStatus: config?.reportStatus,

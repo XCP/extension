@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
+import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
+import type { CoinLock } from '@/core/bitcoin/coinLocks';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { parsePSBT } from '@/core/bitcoin/psbt';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';
@@ -50,7 +52,7 @@ describe('composeZeldSend', () => {
     });
     bitcoinUtxos.mockResolvedValue([utxo(ZELD_A, 1, 95_000), utxo(ZELD_B, 1, 80_000), utxo(PREV_TXID, 0, 500_000)]);
     attached.mockResolvedValue([]);
-    clean.mockResolvedValue({ utxos: [utxo(PREV_TXID, 0, 500_000)], inputsSet: '', totalValue: 500_000, excludedWithAssets: 0, excludedValue: 0 });
+    clean.mockResolvedValue({ utxos: [utxo(PREV_TXID, 0, 500_000)], inputsSet: '', totalValue: 500_000, excludedWithAssets: 0, excludedValue: 0, excludedLocked: 0, excludedLockedValue: 0 });
   });
 
   it('puts change first, the recipient second, and an exact distribution last', async () => {
@@ -127,10 +129,37 @@ describe('composeZeldSend', () => {
 
   it('refuses when even clean outputs cannot pay the fee', async () => {
     bitcoinUtxos.mockResolvedValue([utxo(ZELD_A, 1, 400), utxo(ZELD_B, 1, 400)]);
-    clean.mockResolvedValue({ utxos: [], inputsSet: '', totalValue: 0, excludedWithAssets: 0, excludedValue: 0 });
+    clean.mockResolvedValue({ utxos: [], inputsSet: '', totalValue: 0, excludedWithAssets: 0, excludedValue: 0, excludedLocked: 0, excludedLockedValue: 0 });
     await expect(composeZeldSend({
       sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, amountBaseUnits: '1', sat_per_vbyte: 2,
     })).rejects.toThrow('Insufficient BTC');
+  });
+
+  describe('with locked coins', () => {
+    const locked = (txid: string, vout: number): CoinLock => ({
+      outpoint: `${txid}:${vout}`, address: SOURCE_ADDRESS, kind: 'manual', manual: true, refs: [], valueSats: 95_000,
+      origin: null, expiresAt: null, createdAt: 1, seenAt: 1, unlocked: false,
+    });
+    afterEach(() => setCoinLockStore(null));
+
+    it('leaves a locked ZELD output where it is and sends from the others', async () => {
+      setCoinLockStore({ read: async () => [locked(ZELD_A, 1)], update: async () => {} });
+      const response = await composeZeldSend({
+        sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, amountBaseUnits: '1', sat_per_vbyte: 1,
+      });
+      const parsed = parseRawTransactionLocally(response.result.rawtransaction)!;
+      expect(parsed.inputs.map(input => `${input.txid}:${input.vout}`)).toEqual([`${ZELD_B}:1`]);
+    });
+
+    it('says the ZELD is on locked coins when the amount needs them', async () => {
+      setCoinLockStore({ read: async () => [locked(ZELD_A, 1)], update: async () => {} });
+      await expect(composeZeldSend({
+        sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, amountBaseUnits: '400000000000', sat_per_vbyte: 1,
+      })).rejects.toThrow('Some ZELD sits on coins you locked.');
+      await expect(composeZeldPark({ sourceAddress: SOURCE_ADDRESS, sat_per_vbyte: 1 })).resolves.toBeDefined();
+      setCoinLockStore({ read: async () => [locked(ZELD_A, 1), locked(ZELD_B, 1)], update: async () => {} });
+      await expect(composeZeldPark({ sourceAddress: SOURCE_ADDRESS, sat_per_vbyte: 1 })).rejects.toThrow('Some ZELD sits on coins you locked.');
+    });
   });
 
   it('leaves out ZELD outputs it cannot spend and says so when the amount needs them', async () => {
@@ -193,7 +222,7 @@ describe('composeZeldPark', () => {
     });
     bitcoinUtxos.mockResolvedValue([utxo(ZELD_A, 1, 95_000), utxo(ZELD_B, 1, 80_000)]);
     attached.mockResolvedValue([]);
-    clean.mockResolvedValue({ utxos: [], inputsSet: '', totalValue: 0, excludedWithAssets: 0, excludedValue: 0 });
+    clean.mockResolvedValue({ utxos: [], inputsSet: '', totalValue: 0, excludedWithAssets: 0, excludedValue: 0, excludedLocked: 0, excludedLockedValue: 0 });
   });
 
   it('puts all ZELD on a small own output first and clean change second', async () => {

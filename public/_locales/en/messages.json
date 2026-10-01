@@ -1,4 +1,8 @@
 {
+  "coins_available": {
+    "message": "Available",
+    "description": "pages/settings/coins.tsx. Summary row label: BTC in coins sends may spend (not locked, not holding assets)."
+  },
   "actions_address": {
     "message": "Address",
     "description": "pages/actions/index.tsx"
@@ -686,6 +690,222 @@
   "approval_too_many_inputs_description": {
     "message": "This transaction spends more than $1 inputs, more than the wallet can check for attached assets. Ask the site to use fewer inputs.",
     "description": "Below approval_too_many_inputs_title. $1 is the number of inputs the wallet checks."
+  },
+  "coin_lock_compose_spends_locked_coin": {
+    "message": "Uses a locked coin. Unlock it in Coin Control.",
+    "description": "core/counterparty/composeLocks.ts. Error when the composer built a transaction that spends a coin the user locked by hand."
+  },
+  "coin_lock_compose_spends_offer_coin": {
+    "message": "Uses a locked coin. Unlock it in Coin Control or cancel the offer.",
+    "description": "core/counterparty/composeLocks.ts. Error when the composer built a transaction that spends a coin backing the user's marketplace offers."
+  },
+  "coin_lock_insufficient": {
+    "message": "Not enough available BTC: $1 sats free · $2 locked.",
+    "description": "core/counterparty/composeLocks.ts. Insufficient-funds error when locked coins (some locked by hand) hold back BTC. $1 = spendable sats, $2 = locked sats, both formatted numbers."
+  },
+  "coin_lock_insufficient_offers": {
+    "message": "Not enough available BTC: $1 sats free · $2 locked in offers.",
+    "description": "core/counterparty/composeLocks.ts. Insufficient-funds error when coins locked for marketplace offers hold back BTC. $1 = spendable sats, $2 = sats locked in offers, both formatted numbers."
+  },
+  "coin_lock_no_spendable_balance": {
+    "message": "No spendable balance. $1 BTC is in locked coins.",
+    "description": "components/domain/balance/amount-with-max-input.tsx, pages/compose/dispenser/dispense/form.tsx. Shown when every spendable coin is locked. $1 = the locked BTC amount."
+  },
+  "coin_lock_sentence_pair": {
+    "message": "$p1$ $p2$",
+    "description": "Joins two sentences of the locked-coin approval warning: $1 about offers, then $2 about coins the user locked. Keep the space only if the language separates sentences with one.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "coin_lock_unlock_and_sign": {
+    "message": "Unlock and sign",
+    "description": "pages/requests/psbt/approve.tsx, pages/requests/psbts/approve.tsx, pages/requests/transaction/approve.tsx. Confirm button when signing spends locked coins; confirming unlocks them."
+  },
+  "coin_lock_warning_coin": {
+    "message": "$1 BTC · $2 · $3",
+    "description": "components/domain/approval/approval-warnings.tsx. One locked coin a signature would spend. $1 = BTC amount, $2 = shortened txid:vout, $3 = why it is locked (Offer funding, Collection offer, Locked by you)."
+  },
+  "coin_lock_warning_coin_offers": {
+    "message": "This spends a coin locked for your offers. Your $1 offers will be cancelled when this confirms.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend one coin backing several marketplace offers. $1 = number of offers (2 or more)."
+  },
+  "coin_lock_warning_manual": {
+    "message": "This spends a coin you locked.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend one coin the user locked by hand."
+  },
+  "coin_lock_warning_manual_many": {
+    "message": "This spends coins you locked.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend several coins the user locked by hand."
+  },
+  "coin_lock_warning_offer": {
+    "message": "This spends a coin locked for your offer. Your offer will be cancelled when this confirms.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend the coin backing one marketplace offer."
+  },
+  "coin_lock_warning_offer_coins": {
+    "message": "This spends coins locked for your offer. Your offer will be cancelled when this confirms.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend several coins backing one marketplace offer."
+  },
+  "coin_lock_warning_offers": {
+    "message": "This spends coins locked for your offers. Your $1 offers will be cancelled when this confirms.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend coins backing several marketplace offers. $1 = number of offers (2 or more)."
+  },
+  "coin_lock_warning_title": {
+    "message": "Spends a locked coin",
+    "description": "components/domain/approval/approval-warnings.tsx. Heading of the approval warning when a site asks to spend one locked coin."
+  },
+  "coin_lock_warning_title_many": {
+    "message": "Spends $1 locked coins",
+    "description": "components/domain/approval/approval-warnings.tsx. Heading of the approval warning when a site asks to spend several locked coins. $1 = number of coins (2 or more)."
+  },
+  "coins_backs_offers": {
+    "message": "Backs $1 offers",
+    "description": "components/domain/coins/coin-card.tsx. Under a coin locked for offers. $1 = number of offers (2 or more)."
+  },
+  "coins_backs_one_offer": {
+    "message": "Backs 1 offer",
+    "description": "components/domain/coins/coin-card.tsx. Under a coin locked for one offer."
+  },
+  "coins_btc_amount": {
+    "message": "$1 BTC",
+    "description": "components/domain/coins/coin-card.tsx. A coin's value. $1 = BTC amount."
+  },
+  "coins_coin_label": {
+    "message": "$1 BTC · $2",
+    "description": "components/domain/coins/coin-card.tsx. Names one coin. $1 = BTC amount, $2 = shortened txid:vout."
+  },
+  "coins_confirm_unlock": {
+    "message": "Confirm",
+    "description": "components/domain/coins/coin-card.tsx. What the Unlock button on an offer coin says after the first tap; a second tap unlocks the coin."
+  },
+  "coins_confirmation_one": {
+    "message": "1 confirmation",
+    "description": "components/domain/coins/coin-card.tsx. A coin with one confirmation."
+  },
+  "coins_confirmations": {
+    "message": "$1 confirmations",
+    "description": "components/domain/coins/coin-card.tsx. A coin's confirmations. $1 = number (2 or more)."
+  },
+  "coins_filter": {
+    "message": "Filter coins",
+    "description": "pages/settings/coins.tsx. Accessible name of the All / Locked filter."
+  },
+  "coins_filter_all": {
+    "message": "All",
+    "description": "pages/settings/coins.tsx. Filter showing every coin."
+  },
+  "coins_filter_locked": {
+    "message": "Locked",
+    "description": "pages/settings/coins.tsx. Filter showing only locked coins."
+  },
+  "coins_funds_offers": {
+    "message": "Set aside for offers",
+    "description": "components/domain/coins/coin-card.tsx. Under an offer funding coin whose offers the wallet has no ids for yet."
+  },
+  "coins_holds_assets": {
+    "message": "Holds assets",
+    "description": "components/domain/coins/coin-card.tsx. Badge on a coin carrying Counterparty assets, which sends never spend."
+  },
+  "coins_kind_collection_offer": {
+    "message": "Collection offer",
+    "description": "components/domain/coins/coin-lock-text.ts. Why a coin is locked: it funds a collection offer."
+  },
+  "coins_kind_manual": {
+    "message": "Locked by you",
+    "description": "components/domain/coins/coin-lock-text.ts. Why a coin is locked: the user locked it by hand."
+  },
+  "coins_kind_offer_slot": {
+    "message": "Offer funding",
+    "description": "components/domain/coins/coin-lock-text.ts. Why a coin is locked: it funds an exact marketplace offer."
+  },
+  "coins_load_failed": {
+    "message": "Could not load this address's coins. Try again.",
+    "description": "pages/settings/coins.tsx. Error when the coin list could not be loaded."
+  },
+  "coins_loading": {
+    "message": "Loading coins…",
+    "description": "pages/settings/coins.tsx. Spinner while the coin list loads."
+  },
+  "coins_lock": {
+    "message": "Lock",
+    "description": "components/domain/coins/coin-card.tsx. Button that locks a free coin so no send spends it."
+  },
+  "coins_lock_again": {
+    "message": "Lock again",
+    "description": "components/domain/coins/coin-card.tsx. Button that locks an unlocked offer coin again while its offer lives."
+  },
+  "coins_locked": {
+    "message": "Locked",
+    "description": "pages/settings/coins.tsx. Summary row label: BTC in locked coins, which sends leave alone."
+  },
+  "coins_none": {
+    "message": "No coins",
+    "description": "pages/settings/coins.tsx. Empty state heading."
+  },
+  "coins_none_detail": {
+    "message": "BTC you receive shows up here.",
+    "description": "pages/settings/coins.tsx. Empty state detail."
+  },
+  "coins_not_on_chain_yet": {
+    "message": "Not on chain yet",
+    "description": "components/domain/coins/coin-card.tsx. A coin an offer locked before its funding transaction was seen."
+  },
+  "coins_offer_expires": {
+    "message": "Expires $1",
+    "description": "components/domain/coins/coin-card.tsx. When the offers a coin backs expire. $1 = date and time."
+  },
+  "coins_offer_site": {
+    "message": "From $1",
+    "description": "components/domain/coins/coin-card.tsx. The site whose offer locked a coin. $1 = site hostname."
+  },
+  "coins_refresh": {
+    "message": "Refresh coins",
+    "description": "pages/settings/coins.tsx. Header button that reloads the coin list."
+  },
+  "coins_show_more": {
+    "message": "Show more",
+    "description": "pages/settings/coins.tsx. Button that lists more coins."
+  },
+  "coins_summary_help": {
+    "message": "Locked coins are left out of every send.",
+    "description": "pages/settings/coins.tsx. Help line in the summary card, saying what locking a coin does."
+  },
+  "coins_summary_title": {
+    "message": "Your coins",
+    "description": "pages/settings/coins.tsx. Heading of the summary card above the coin list."
+  },
+  "coins_title": {
+    "message": "Coin Control",
+    "description": "pages/settings/coins.tsx, pages/settings/index.tsx. The coin control page: the address's BTC outputs and which are locked."
+  },
+  "coins_unlock": {
+    "message": "Unlock",
+    "description": "components/domain/coins/coin-card.tsx. Unlocks a locked coin so sends may spend it."
+  },
+  "coins_unlock_confirm_funding": {
+    "message": "Offers stay live until this coin is spent.",
+    "description": "components/domain/coins/coin-card.tsx. Inline unlock confirmation for an offer funding coin whose offers the wallet has no ids for."
+  },
+  "coins_unlock_confirm_offers": {
+    "message": "Your $1 offers stay live. If this coin is spent, they are cancelled.",
+    "description": "components/domain/coins/coin-card.tsx. Inline unlock confirmation for a coin backing several offers. $1 = number of offers (2 or more)."
+  },
+  "coins_unlock_confirm_one_offer": {
+    "message": "Your offer stays live. If this coin is spent, it is cancelled.",
+    "description": "components/domain/coins/coin-card.tsx. Inline unlock confirmation for a coin backing one offer."
+  },
+  "coins_unlocked": {
+    "message": "Unlocked",
+    "description": "components/domain/coins/coin-card.tsx. Badge on an offer coin the user unlocked while its offer lives."
+  },
+  "coins_update_failed": {
+    "message": "Could not update this coin. Try again.",
+    "description": "pages/settings/coins.tsx. Error when locking or unlocking a coin failed."
   },
   "file_validation_invalid_file": {
     "message": "This file could not be read.",
@@ -5968,6 +6188,10 @@
     "message": "Change your wallet password",
     "description": "pages/settings/index.tsx"
   },
+  "settings_coins_description": {
+    "message": "Lock coins and see what backs your offers",
+    "description": "pages/settings/index.tsx. Description of the Coins settings entry."
+  },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "Disconnect all sites",
     "description": "pages/settings/connected-sites.tsx"
@@ -8156,6 +8380,10 @@
     "message": "Output $1 has no Bitcoin address that the wallet can review.",
     "description": "Known plain-Bitcoin payment proof diagnostic, translated only for display. Where present, $1 is the unchanged output index."
   },
+  "zeld_error_locked": {
+    "message": "Some ZELD sits on coins you locked. Unlock them in Coin Control to send it.",
+    "description": "components/domain/zeld/error-message.ts. ZELD send error when the ZELD is on locked coins."
+  },
   "zeld_hunt_enable": {
     "message": "Enable ZELD Hunting",
     "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
@@ -8891,5 +9119,29 @@
   "messages_sweep_no_balances": {
     "message": "No balances moved",
     "description": "Sweep transaction details: the sweep credited no balances to the destination."
+  },
+  "message_cancel_no_lock": {
+    "message": "No locked coin",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_offers": {
+    "message": "Cancel $1 offers",
+    "description": "requests/message/approve.tsx. Offer cancellation approval. $1 = number of offers."
+  },
+  "message_cancel_one_offer": {
+    "message": "Cancel 1 offer",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_sign": {
+    "message": "Sign",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_stays_locked": {
+    "message": "Stays locked",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_unlocks": {
+    "message": "Unlocks",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
   }
 }

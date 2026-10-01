@@ -2,11 +2,15 @@
  * UTXO Selection for Counterparty Transactions
  *
  * Selects UTXOs for Counterparty transactions, filtering out those with
- * attached Counterparty assets. Uses mempool.space for fresh UTXO data.
+ * attached Counterparty assets and the coins the wallet has locked (for an
+ * offer, or by hand; see core/bitcoin/coinLocks). Uses mempool.space for fresh
+ * UTXO data.
  *
  * This follows the same approach as Horizon Wallet.
  */
 
+import { lockedOutpoints } from '@/core/bitcoin/coinLockStore';
+import { outpointOf } from '@/core/bitcoin/coinLocks';
 import { getPendingChangeUtxos, isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs, formatInputsSet, type UTXO } from '@/core/bitcoin/utxo';
 import { fetchUtxosWithBalances } from '@/core/counterparty/api';
@@ -42,6 +46,10 @@ export interface SelectedUtxos {
   excludedWithAssets: number;
   /** Total value of UTXOs excluded due to attached assets in satoshis */
   excludedValue: number;
+  /** Number of UTXOs left out because the wallet has them locked */
+  excludedLocked: number;
+  /** Total value of the locked UTXOs left out, in satoshis */
+  excludedLockedValue: number;
 }
 
 /**
@@ -50,7 +58,7 @@ export interface SelectedUtxos {
  *
  * 1. Fetch UTXOs from mempool.space (fresh data)
  * 2. Check candidate UTXOs for attached assets in bounded batches
- * 3. Filter out UTXOs with attached assets
+ * 3. Filter out locked UTXOs and UTXOs with attached assets
  * 4. Sort by value (highest first)
  * 5. Limit to MAX_INPUTS_SET UTXOs
  *
@@ -90,6 +98,9 @@ export async function selectUtxosForTransaction(
     throw new Error('No UTXOs available for this address');
   }
 
+  // Read with the fetch just made, which is also what takes spent and orphaned locks off. A store
+  // that cannot answer fails the selection: "no locks" would hand an offer's coin to the composer.
+  const locked = await lockedOutpoints(address, allUtxos);
   const checkedCandidates = candidateUtxos.filter(utxo =>
     (allowUnconfirmed || utxo.status.confirmed) && !isUtxoRecentlySpent(utxo.txid, utxo.vout));
   const utxosWithAssets = await fetchUtxosWithBalances(checkedCandidates
@@ -98,6 +109,8 @@ export async function selectUtxosForTransaction(
   // 3. Filter UTXOs
   let excludedWithAssets = 0;
   let excludedValue = 0;
+  let excludedLocked = 0;
+  let excludedLockedValue = 0;
   const eligibleUtxos: UTXO[] = [];
 
   // A spent-cache entry can expire during the lookup. Never reintroduce a candidate
@@ -110,6 +123,13 @@ export async function selectUtxosForTransaction(
 
     // Skip UTXOs that were recently spent (prevents race conditions)
     if (isUtxoRecentlySpent(utxo.txid, utxo.vout)) {
+      continue;
+    }
+
+    // Skip what the wallet has locked: an offer's funding, or a coin the user froze
+    if (locked.has(outpointOf(utxo))) {
+      excludedLocked++;
+      excludedLockedValue += utxo.value;
       continue;
     }
 
@@ -127,7 +147,7 @@ export async function selectUtxosForTransaction(
   if (eligibleUtxos.length < minUtxos) {
     throw new Error(
       `Insufficient UTXOs: found ${eligibleUtxos.length}, need at least ${minUtxos}. ` +
-      `${excludedWithAssets} UTXOs have attached assets.`
+      `${excludedWithAssets} UTXOs have attached assets, ${excludedLocked} are locked.`
     );
   }
 
@@ -146,5 +166,7 @@ export async function selectUtxosForTransaction(
     totalValue,
     excludedWithAssets,
     excludedValue,
+    excludedLocked,
+    excludedLockedValue,
   };
 }

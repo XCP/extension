@@ -13,7 +13,9 @@
  */
 
 import type { ReactNode } from 'react';
+import { coinLockKindLabel, formatCoinBtc, formatOutpoint } from '@/components/domain/coins/coin-lock-text';
 import type { WarningItem } from '@/components/ui/warning-stack';
+import type { LockedCoinSpend } from '@/core/bitcoin/lockedCoinSpends';
 import { getMessageSigningRisks } from '@/core/bitcoin/messageRisk';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
 import { MAX_ASSET_LOOKUP_INPUTS } from '@/core/counterparty/inputAssetLimits';
@@ -114,6 +116,42 @@ export function zeldNoticeText(
 }
 
 /**
+ * What spending locked coins costs, in one sentence per reason: an offer lock names the offers it
+ * cancels, a coin the user locked by hand only that they locked it. Each coin is listed below.
+ */
+export function lockedCoinWarningText(coins: readonly LockedCoinSpend[]): { title: string; description: string; children: ReactNode } {
+  const offerCoins = coins.filter(coin => coin.kind !== 'manual');
+  const manualCoins = coins.filter(coin => coin.kind === 'manual');
+  const offers = offerCoins.reduce((sum, coin) => sum + coin.offers, 0);
+  // One coin or several, one offer or several: each pairing reads differently in every language.
+  const offerSentence = offerCoins.length === 0 ? undefined
+    : offers > 1
+      ? offerCoins.length > 1 ? t('coin_lock_warning_offers', String(offers)) : t('coin_lock_warning_coin_offers', String(offers))
+      : offerCoins.length > 1 ? t('coin_lock_warning_offer_coins') : t('coin_lock_warning_offer');
+  const manualSentence = manualCoins.length === 0 ? undefined
+    : manualCoins.length > 1 ? t('coin_lock_warning_manual_many') : t('coin_lock_warning_manual');
+  return {
+    title: coins.length > 1 ? t('coin_lock_warning_title_many', String(coins.length)) : t('coin_lock_warning_title'),
+    description: offerSentence && manualSentence
+      ? t('coin_lock_sentence_pair', [offerSentence, manualSentence])
+      : offerSentence ?? manualSentence ?? '',
+    children: (
+      <ul className="mt-2 space-y-1 text-xs font-medium [overflow-wrap:anywhere]">
+        {coins.map(coin => (
+          <li key={`${coin.address} ${coin.outpoint}`}>
+            {t('coin_lock_warning_coin', [formatCoinBtc(coin.valueSats), formatOutpoint(coin.outpoint), coinLockKindLabel(coin.kind)])}
+          </li>
+        ))}
+      </ul>
+    ),
+  };
+}
+
+/** Whether a review asks to spend locked coins, which its confirmation then unlocks. */
+export const spendsLockedCoins = (warnings: readonly SecurityWarning[]): boolean =>
+  warnings.some(warning => warning.code === 'locked_coin_spend');
+
+/**
  * The ZELD statements that need no decision: where ZELD stays with an asset. They are shown on
  * the review itself, under the summary, rather than as warnings; a ZELD warning (leaving the
  * wallet) goes through the review step with the other warnings instead.
@@ -132,6 +170,8 @@ function safetyWarningText(warning: SecurityWarning): { title: string; descripti
       return { ...marketplaceBlockText(warning.data.kind), children: <WarningDetails details={warning.data.details} /> };
     case 'zeld_movement':
       return zeldNoticeText(warning.data, warning.severity);
+    case 'locked_coin_spend':
+      return lockedCoinWarningText(warning.data.coins);
     case 'sweep':
       return { title: t('safety_blocked_sweep_transaction'), description: t('safety_this_would_send_all_counterparty') };
     case 'destroy':

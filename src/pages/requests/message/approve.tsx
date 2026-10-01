@@ -20,6 +20,7 @@ export default function ApproveMessagePage() {
   const { setHeaderProps } = useHeader();
   const {
     request,
+    review,
     requestId,
     isLoading,
     error: loadError,
@@ -28,6 +29,10 @@ export default function ApproveMessagePage() {
   } = useSignMessageRequest();
   usePopupLifecycle(requestId, "sign-message");
   const signingRisks = getMessageSigningRisks(request?.message ?? "");
+  const cancellation = request?.cancelOffersIntent;
+  const title = cancellation
+    ? cancellation.offerIds.length === 1 ? t('message_cancel_one_offer') : t('message_cancel_offers', [String(cancellation.offerIds.length)])
+    : t('common_sign_message');
 
   const [isSigning, setIsSigning] = useState(false);
   const [signingError, setError] = useState<unknown>(null);
@@ -80,11 +85,25 @@ export default function ApproveMessagePage() {
           busy={isSigning}
           blocked={false}
           isHardware={activeWallet.type === "hardware"}
-          signLabel={t('message_approve_sign_message')}
+          signLabel={cancellation ? t('message_cancel_sign') : t('message_approve_sign_message')}
         />
       }
     >
       {error && <ErrorAlert message={error} />}
+      {cancellation && (
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <h2 className="text-lg leading-6 font-semibold text-gray-900 mb-3">{title}</h2>
+          <ul className="space-y-2">
+            {review?.cancellationCoins?.map(coin => (
+              <li key={coin.outpoint} className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-mono text-gray-600" title={coin.outpoint}>{coin.outpoint.slice(0, 8)}…{coin.outpoint.slice(-8)}</span>
+                <span className="text-gray-900">{coin.effect === 'unlocks' ? t('message_cancel_unlocks')
+                  : coin.effect === 'stays_locked' ? t('message_cancel_stays_locked') : t('message_cancel_no_lock')}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {/* Where the rendered message is a poor witness for the bytes being signed. The PSBT and
               transaction screens have warned for a while; this one showed the text and a button. */}
       {signingRisks.length > 0 && (

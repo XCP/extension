@@ -87,6 +87,7 @@ const PoolPositionPage = lazyPage(() => import('@/pages/pools/[lpAsset]'));
 const SettingsPage = lazyPage(() => import('@/pages/settings'));
 const AddressTypesPage = lazyPage(() => import('@/pages/settings/address-types'));
 const AdvancedSettingsPage = lazyPage(() => import('@/pages/settings/advanced'));
+const CoinsPage = lazyPage(() => import('@/pages/settings/coins'));
 const ConnectedSitesPage = lazyPage(() => import('@/pages/settings/connected-sites'));
 const PinnedAssetsPage = lazyPage(() => import('@/pages/settings/pinned-assets'));
 const SecuritySettingsPage = lazyPage(() => import('@/pages/settings/security'));
@@ -178,6 +179,7 @@ export default function App() {
 
             <Route path="/settings/address-types" element={<AddressTypesPage />} />
             <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
+            <Route path="/settings/coins" element={<CoinsPage />} />
             <Route path="/settings/connected-sites" element={<ConnectedSitesPage />} />
             <Route path="/settings/security" element={<SecuritySettingsPage />} />
             <Route path="/settings/pinned-assets" element={<PinnedAssetsPage />} />

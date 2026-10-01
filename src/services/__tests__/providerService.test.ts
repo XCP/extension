@@ -813,6 +813,7 @@ describe('ProviderService', () => {
             type: 'p2wpkh',
           },
           signing: {
+            message: { marketplaceIntents: ['cancel_offers'], maxCancelOfferCoins: 100 },
             psbt: {
               supported: true,
               sighashTypes: [0x01, 0x81, 0x83],
@@ -853,6 +854,7 @@ describe('ProviderService', () => {
         ) as any;
 
         expect(result.signing).toEqual({
+          message: { marketplaceIntents: ['cancel_offers'], maxCancelOfferCoins: 100 },
           psbt: {
             supported: true,
             sighashTypes: [0x01],
@@ -1251,6 +1253,26 @@ describe('ProviderService', () => {
 
   describe('Advanced Provider Features', () => {
     describe('Sign Message Request', () => {
+      it.each([true, false])('stores normalized optional cancellation metadata (wrapped: %s)', async wrapped => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        const intent = { standard: 'counterparty-marketplace', action: 'cancel_offers', offerIds: ['offer-1'],
+          coins: [{ outpoint: { txid: 'a'.repeat(64), vout: 0 }, stillCommitted: false }] };
+        void providerService.handleRequest('https://test.com', 'xcp_signMessage', [
+          'Cancellation message stays unchanged', undefined, wrapped ? { intent: { ...intent, coins: [...intent.coins, null] } } : intent,
+        ]).catch(() => {});
+        await vi.waitFor(() => expect(signFlow.beginSignFlow).toHaveBeenCalledWith(expect.objectContaining({
+          message: 'Cancellation message stays unchanged', cancelOffersIntent: intent,
+        })));
+      });
+
+      it('ignores malformed cancellation metadata without blocking ordinary message signing', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        void providerService.handleRequest('https://test.com', 'xcp_signMessage', ['hello', undefined, { intent: { coins: 'bad' } }]).catch(() => {});
+        await vi.waitFor(() => expect(signFlow.beginSignFlow).toHaveBeenCalled());
+        expect(vi.mocked(signFlow.beginSignFlow).mock.calls[0]?.[0]).not.toHaveProperty('cancelOffersIntent');
+      });
       it('rejects the reserved connection-proof namespace before opening approval', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
         connection.hasPermission = vi.fn().mockResolvedValue(true);
