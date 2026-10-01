@@ -3466,6 +3466,15 @@
   "marketplace_intent_marketplace_fee": {
     "message": "市集手續費"
   },
+  "marketplace_invalidation_title": {
+    "message": "在比特幣上使報價失效"
+  },
+  "marketplace_invalidation_return": {
+    "message": "退回錢包"
+  },
+  "marketplace_invalidation_notice": {
+    "message": "將所選資金幣扣除網路手續費後轉回自己的錢包。此交易確認後，使用這些幣的所有報價均失效。僅簽署不會撤銷先前的比特幣交易授權。鏈重組可能撤銷確認。"
+  },
   "marketplace_intent_network_fee": {
     "message": "網路費用"
   },
@@ -6936,14 +6945,5 @@
   "coins_assets_unknown": {
     "message": "資產狀態未知",
     "description": "Coin control: signing guards and asset lookup status."
-  },
-  "marketplace_invalidation_title": {
-    "message": "在比特幣上使報價失效"
-  },
-  "marketplace_invalidation_return": {
-    "message": "退回錢包"
-  },
-  "marketplace_invalidation_notice": {
-    "message": "將所選資金幣扣除網路手續費後轉回自己的錢包。此交易確認後，使用這些幣的所有報價均失效。僅簽署不會撤銷先前的比特幣交易授權。鏈重組可能撤銷確認。"
   }
 }
