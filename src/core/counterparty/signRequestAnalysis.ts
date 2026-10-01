@@ -616,7 +616,7 @@ export async function analyzeSignRequest(
       safety.blocked = true;
     } else if (
       marketplaceReview.status === 'proved'
-      && (marketplaceReview.family === 'prepare_bulk_fanout' || marketplaceReview.family === 'fund_offers')
+      && (marketplaceReview.family === 'prepare_bulk_fanout' || marketplaceReview.family === 'fund_offers' || marketplaceReview.family === 'invalidate_offers')
     ) {
       // A proved fan-out or offer funding spends clean funding into exact same-wallet outputs.
       // Only its absence of a Counterparty payload is exempt; every other block survives.

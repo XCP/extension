@@ -11,6 +11,7 @@ import {
   type FundOffersTargetClaim,
   type FundPolicyOfferAlternativeClaim,
   type FundPolicyOfferIntentClaim,
+  type InvalidateOffersIntentClaim,
   MARKETPLACE_INTENT_STANDARD,
   MARKETPLACE_INTENT_VERSION,
   type MarketplaceIntentClaimV1,
@@ -69,6 +70,7 @@ export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1
   if (value.action === 'attach_for_listing') return parseAttachForListingIntent(value);
   if (value.action === 'prepare_asset') return parsePrepareAssetIntent(value);
   if (value.action === 'prepare_bulk_fanout') return parsePrepareBulkFanoutIntent(value);
+  if (value.action === 'invalidate_offers') return parseInvalidateOffersIntent(value);
   if (value.action === 'fund_offers') return parseFundOffersIntent(value);
   if (value.action === 'fund_policy_offer') return parseFundPolicyOfferIntent(value);
   if (value.action === 'accept_policy_offer') return parseAcceptPolicyOfferIntent(value);
@@ -629,5 +631,23 @@ const parseBuyListingsIntent = (value: Record<string, unknown>): BuyListingsInte
     marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
       positive: true,
     }),
+  };
+};
+
+const parseInvalidateOffersIntent = (value: Record<string, unknown>): InvalidateOffersIntentClaim => {
+  if (value.protocolVersion !== 'offer_invalidation_v1') throw new Error('invalid invalidation protocolVersion');
+  if (!Array.isArray(value.assets) || value.assets.length !== 0) throw new Error('invalidation must not claim assets');
+  if (!Array.isArray(value.fundingInputs) || value.fundingInputs.length < 1 || value.fundingInputs.length > MAX_ASSET_LOOKUP_INPUTS) {
+    throw new Error(`fundingInputs must list 1..${MAX_ASSET_LOOKUP_INPUTS} outpoints`);
+  }
+  return {
+    standard: MARKETPLACE_INTENT_STANDARD, version: MARKETPLACE_INTENT_VERSION,
+    action: 'invalidate_offers', protocolVersion: 'offer_invalidation_v1', assets: [],
+    operationId: boundedString(value.operationId, 'operationId'),
+    bidder: boundedString(value.bidder, 'bidder', 128),
+    fundingInputs: fundingOutpoints(value.fundingInputs),
+    returnSats: safeInteger(value.returnSats, 'returnSats', { positive: true }),
+    networkFeeSats: safeInteger(value.networkFeeSats, 'networkFeeSats', { positive: true }),
+    expectedTxid: hex32(value.expectedTxid, 'expectedTxid'),
   };
 };

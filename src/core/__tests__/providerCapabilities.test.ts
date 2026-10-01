@@ -19,6 +19,7 @@ describe('providerPsbtSigningCapabilities', () => {
           sighashTypes: [0x01, 0x81, 0x83],
           inputScope: 'selected',
           externalInputs: 'any',
+          marketplaceIntents: ['invalidate_offers'],
         },
         psbtBatch: {
           supported: true,
@@ -30,6 +31,16 @@ describe('providerPsbtSigningCapabilities', () => {
           marketplaceBundles: ['attach-and-list', 'authorize-offers', 'fund-and-authorize-offers', 'fund-policy-offer'],
         },
       });
+  });
+
+  it('advertises offer invalidation only for Native SegWit and Taproot software signers', () => {
+    for (const type of ['mnemonic', 'privateKey', 'hardware'] as const) {
+      for (const addressFormat of [AddressFormat.P2WPKH, AddressFormat.P2TR, AddressFormat.P2PKH, AddressFormat.P2SH_P2WPKH]) {
+        const capability = providerPsbtSigningCapabilities({ type, addressFormat }).psbt.marketplaceIntents;
+        expect(capability).toEqual(type !== 'hardware' && (addressFormat === AddressFormat.P2WPKH || addressFormat === AddressFormat.P2TR)
+          ? ['invalidate_offers'] : undefined);
+      }
+    }
   });
 
   it('lets a Taproot software signer sign policy-offer funding DEFAULT in a batch', () => {

@@ -12,6 +12,7 @@ import { marketplaceBlockText, WarningDetails } from './approval-warnings';
  */
 const OUTCOME_NOTICE_FAMILIES: ReadonlySet<MarketplaceApprovalReview['family']> = new Set([
   'fund_offers',
+  'invalidate_offers',
   'prepare_bulk_fanout',
 ]);
 

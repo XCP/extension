@@ -9,6 +9,7 @@
 import { analyzeExactOfferIntent } from '@/core/counterparty/marketplace/exactOfferAnalysis';
 import { analyzeFundOffersIntent, analyzePrepareBulkFanoutIntent } from '@/core/counterparty/marketplace/fundingAnalysis';
 import type { MarketplaceAnalysisInput, MarketplaceApprovalReview } from '@/core/counterparty/marketplace/intentTypes';
+import { analyzeInvalidateOffersIntent } from '@/core/counterparty/marketplace/invalidationAnalysis';
 import {
   analyzeAttachIntent,
   analyzeBuyListingsIntent,
@@ -44,6 +45,8 @@ function analyzeMarketplaceIntentClaim(input: MarketplaceAnalysisInput): Marketp
       return analyzeExactOfferIntent(input, input.intent);
     case 'prepare_bulk_fanout':
       return analyzePrepareBulkFanoutIntent(input, input.intent);
+    case 'invalidate_offers':
+      return analyzeInvalidateOffersIntent(input, input.intent);
     case 'fund_offers':
       return analyzeFundOffersIntent(input, input.intent);
     case 'fund_policy_offer':

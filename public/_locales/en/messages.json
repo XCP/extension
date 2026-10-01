@@ -4608,6 +4608,15 @@
     "message": "Marketplace fee",
     "description": "Row label on the buy and exact-offer approval screens, above the address the marketplace fee is paid to, shown only when the wallet proved that address is a key-path-only Taproot output of the key the site declared."
   },
+  "marketplace_invalidation_title": {
+    "message": "Invalidate offers on Bitcoin"
+  },
+  "marketplace_invalidation_return": {
+    "message": "Back to wallet"
+  },
+  "marketplace_invalidation_notice": {
+    "message": "This spends the selected funding coins back to your wallet, minus the network fee. Every offer using these coins becomes invalid when this transaction confirms. Signing alone does not cancel those Bitcoin authorizations. A chain reorganization can undo confirmation."
+  },
   "marketplace_intent_network_fee": {
     "message": "Network fee",
     "description": "Label on the marketplace approval screen, above the sats paid to Bitcoin miners."
