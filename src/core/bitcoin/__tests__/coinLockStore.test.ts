@@ -153,16 +153,18 @@ describe('reading locked coins', () => {
     expect(outspends).toHaveLength(MAX_OUTSPEND_LOOKUPS_PER_PASS / 2);
   });
 
-  it('never judges a hand lock made while its read was in flight', async () => {
+  it.each([false, true])('enforces a hand lock made while its read was in flight (UTXO lookup fails: %s)', async fails => {
     // A was seen just now and seen again below, so this read has nothing of its own to write.
     const store = installStore([lock(A, { seenAt: now() })]);
-    let answer: ((utxos: UTXO[]) => void) | undefined;
-    vi.mocked(fetchUTXOs).mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
+    let answer: (() => void) | undefined;
+    vi.mocked(fetchUTXOs).mockReturnValueOnce(new Promise((resolve, reject) => {
+      answer = () => fails ? reject(new Error('explorer down')) : resolve([utxo(A)]);
+    }));
     const reading = readCoinLocks(ADDRESS);
     await vi.waitFor(() => expect(answer).toBeDefined());
     // The user locks B while the read is out; the read's (cached) UTXOs predate B entirely.
     store.entries = withCoinLockUpdate(store.entries, ADDRESS, { lock: [{ outpoint: B, valueSats: 1 }] }, now()) ?? store.entries;
-    answer?.([utxo(A)]);
+    answer?.();
     expect((await reading).map(entry => entry.outpoint)).toContain(B);
     await settled();
     const b = coinLocksOf(store.entries, ADDRESS).find(entry => entry.outpoint === B);

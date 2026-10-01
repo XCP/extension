@@ -61,7 +61,8 @@ export async function readCoinLocks(address: string, utxos?: readonly UTXO[]): P
     try {
       observed = await fetchUTXOs(address);
     } catch {
-      return locks;
+      // A lock may have been added while even a failed network request was in flight.
+      return store ? store.read(address) : locks;
     }
   }
   const unspent = new Set(observed.map(outpointOf));
