@@ -251,7 +251,7 @@ describe('messageSign', () => {
     it('should return capabilities for P2PKH', () => {
       const caps = getSigningCapabilities(AddressFormat.P2PKH);
       expect(caps.canSign).toBe(true);
-      expect(caps.method).toContain('BIP-322');
+      expect(caps.method).toContain('BIP-137');
     });
 
     it('should return capabilities for P2WPKH', () => {
@@ -275,7 +275,7 @@ describe('messageSign', () => {
     it('should return capabilities for Counterwallet', () => {
       const caps = getSigningCapabilities(AddressFormat.Counterwallet);
       expect(caps.canSign).toBe(true);
-      expect(caps.method).toContain('BIP-322');
+      expect(caps.method).toContain('BIP-137');
     });
 
     it('should return capabilities for CounterwalletSegwit', () => {

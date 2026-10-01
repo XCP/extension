@@ -1,28 +1,77 @@
 /**
  * Bitcoin Message Signer
  *
- * Software-wallet message signing, BIP-322 simple for every address type: the base64 witness stack
- * of the `to_sign` spend. P2PKH (and the Counterwallet / FreeWallet legacy formats) emit a
- * two-item `[signature, pubkey]` stack over the legacy sighash. That is not the 65-byte legacy
- * signmessage signature BIP-322 prescribes for P2PKH, so Bitcoin Core's `verifymessage` does not
- * accept it; the XCP wallet SDK and the marketplace verify exactly this shape, which is why it has
- * not been switched. Trezor signs on the device instead (see `trezorAdapter.signMessage`).
+ * Software-wallet message signing. P2PKH (and the Counterwallet / FreeWallet legacy formats) sign
+ * the classic 65-byte recoverable signed-message format (BIP-137 header, Bitcoin Core's
+ * `signmessage`), which is what BIP-322 itself prescribes for P2PKH and what a Trezor returns.
+ * SegWit and Taproot addresses sign BIP-322 simple: the base64 witness stack of the `to_sign`
+ * spend. Trezor signs on the device instead (see `trezorAdapter.signMessage`).
+ *
+ * Wallet versions before this one signed P2PKH as a two-item BIP-322 `[signature, pubkey]` stack
+ * over the legacy sighash (`signBIP322P2PKH`); the wallet's verifier still accepts those.
  */
 
 import { secp256k1 } from '@noble/curves/secp256k1.js';
-import { hex } from '@scure/base';
+import { base64, hex } from '@scure/base';
 import { encodeAddress } from '@/core/bitcoin/address';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
-import {
-  signBIP322P2PKH,
-  signBIP322P2SH_P2WPKH,
-  signBIP322P2TR,
-  signBIP322P2WPKH,
-} from '@/core/bitcoin/bip322';
+import { signBIP322P2SH_P2WPKH, signBIP322P2TR, signBIP322P2WPKH } from '@/core/bitcoin/bip322';
+import { hashMessage } from '@/core/bitcoin/messageVerifier/utils';
 
 /**
- * Main message signing function that handles all address types
- * Uses BIP-322 exclusively for all address types
+ * How a software-wallet message signature is to be verified, as reported to sites alongside it
+ * (`verification` on a connection proof). Same labels as a Trezor's signature for P2PKH.
+ */
+export type MessageSignatureScheme =
+  | { method: 'BIP-322'; format: string }
+  | { method: 'BIP-137'; format: 'legacy_recoverable' };
+
+/** The address formats whose software signature is the classic 65-byte recoverable form. */
+function signsClassicMessage(addressFormat: AddressFormat | string): boolean {
+  const format = addressFormat.toLowerCase();
+  return format === AddressFormat.P2PKH
+    || format === AddressFormat.Counterwallet
+    || format === AddressFormat.FreewalletBIP39;
+}
+
+/** The scheme a software wallet signs messages with for an address of this format. */
+export function softwareMessageSignatureScheme(addressFormat: AddressFormat | string): MessageSignatureScheme {
+  return signsClassicMessage(addressFormat)
+    ? { method: 'BIP-137', format: 'legacy_recoverable' }
+    : { method: 'BIP-322', format: addressFormat };
+}
+
+/**
+ * Classic signed-message signature for a P2PKH address: base64 of `header || r || s`, 65 bytes,
+ * over `sha256d("\x18Bitcoin Signed Message:\n" || CompactSize(len) || message)`, the message's
+ * exact UTF-8 bytes (`hashMessage`, the digest the verifier checks). The header is 27 + recovery
+ * id, plus 4 when the key is compressed (31-34; 27-30 for an uncompressed imported WIF key), so a
+ * verifier recovers the public key in the encoding the address was made from. RFC 6979
+ * deterministic, low-S, as Bitcoin Core's `signmessage`.
+ */
+export function signClassicMessage(message: string, privateKey: Uint8Array, compressed: boolean): string {
+  if (privateKey.length !== 32) {
+    throw new Error('Private key must be 32 bytes');
+  }
+  // `hashMessage` is already the digest: noble must not hash it again.
+  const recovered = secp256k1.sign(hashMessage(message), privateKey, {
+    prehash: false,
+    lowS: true,
+    format: 'recovered',
+  });
+  const recoveryId = recovered[0]!;
+  if (recoveryId > 3) {
+    throw new Error(`Unexpected recovery id ${recoveryId}`);
+  }
+  const signature = new Uint8Array(65);
+  signature[0] = 27 + recoveryId + (compressed ? 4 : 0);
+  signature.set(recovered.subarray(1), 1);
+  return base64.encode(signature);
+}
+
+/**
+ * Main message signing function that handles all address types: classic (BIP-137 header) for
+ * P2PKH, BIP-322 simple for everything else.
  *
  * Note: This function returns an address for backward compatibility with tests,
  * but real usage should use the actual wallet address
@@ -38,7 +87,6 @@ export async function signMessage(
   try {
     const publicKey = secp256k1.getPublicKey(privateKey, compressed);
 
-    // Use BIP-322 exclusively for all address types
     let signature: string;
     let address: string = '';
 
@@ -46,8 +94,7 @@ export async function signMessage(
       case AddressFormat.P2PKH:
       case AddressFormat.Counterwallet:
       case AddressFormat.FreewalletBIP39:
-        // Use BIP-322 for P2PKH
-        signature = await signBIP322P2PKH(message, privateKey, compressed);
+        signature = signClassicMessage(message, privateKey, compressed);
         // Generate address for test compatibility
         address = encodeAddress(publicKey, AddressFormat.P2PKH);
         break;
@@ -100,8 +147,8 @@ export function getSigningCapabilities(addressFormat: AddressFormat | string): {
     case 'P2pkh':
       return {
         canSign: true,
-        method: 'BIP-322',
-        notes: 'Generic signed message format (BIP-322) with P2PKH virtual transaction'
+        method: 'BIP-137',
+        notes: 'Classic signed message format (BIP-137 header, Bitcoin Core signmessage)'
       };
 
     case 'P2wpkh':
@@ -128,8 +175,8 @@ export function getSigningCapabilities(addressFormat: AddressFormat | string): {
     case 'Counterwallet':
       return {
         canSign: true,
-        method: 'BIP-322',
-        notes: 'Generic signed message format (BIP-322) with P2PKH virtual transaction'
+        method: 'BIP-137',
+        notes: 'Classic signed message format (BIP-137 header, Bitcoin Core signmessage)'
       };
 
     case 'Counterwallet-segwit':
@@ -142,8 +189,8 @@ export function getSigningCapabilities(addressFormat: AddressFormat | string): {
     case 'Freewallet-bip39':
       return {
         canSign: true,
-        method: 'BIP-322',
-        notes: 'Generic signed message format (BIP-322) with P2PKH virtual transaction'
+        method: 'BIP-137',
+        notes: 'Classic signed message format (BIP-137 header, Bitcoin Core signmessage)'
       };
 
     case 'Freewallet-bip39-segwit':
