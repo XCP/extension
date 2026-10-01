@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 import type { Page, TestInfo } from '@playwright/test';
-import { estimateVsize } from '../../src/core/bitcoin/feeEstimation';
 import { expect, walletTest } from '../fixtures';
 import { callGalleryService, createGalleryApi } from '../utils/provider-gallery';
 
@@ -175,7 +174,10 @@ walletTest('canonical slippage and BTC Max survive currency changes', async ({ c
     await expect(btc).toBeVisible();
     await page.locator('input[type="text"]').first().fill('1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
     const identity = await callGalleryService<{ address: string }>(page, 'getActiveAddress');
-    const expectedRaw = 123456789 - (estimateVsize(1, 2, identity.address) + 30);
+    expect(identity.address).toMatch(/^1/);
+    // One legacy input at 1 sat/vB: 337 sats for the conservative fee budget,
+    // plus 547 sats retained as protected change (including possible ZELD rewards).
+    const expectedRaw = 123456789 - 337 - 547;
     for (const fiat of ['usd', 'cny']) {
       await controls.first().selectOption(fiat);
       const checksBeforeMax = checkedOutpoints.length;
