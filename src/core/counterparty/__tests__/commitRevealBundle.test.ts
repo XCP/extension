@@ -170,6 +170,13 @@ describe('proveCommitAndReveal', () => {
       .toMatch(/far above any sane rate/);
   });
 
+  it('blocks BTC hidden on an additional CNTRPRTY marker output', () => {
+    const psbts = commitRevealPsbts(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, {
+      editReveal: reveal => reveal.addOutput({ script: reveal.getOutput(0).script!, amount: 100n }),
+    });
+    expect(prove(BROADCAST_P2WPKH, psbts).blockers.join('; ')).toMatch(/marker.*zero/);
+  });
+
   it('blocks a request signed by another address, or any other signer on the reveal', () => {
     const psbts = commitRevealPsbts(BROADCAST_P2WPKH);
     const items = commitRevealItems(BROADCAST_P2WPKH, psbts);

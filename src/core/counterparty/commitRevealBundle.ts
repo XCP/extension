@@ -369,6 +369,9 @@ export function proveCommitAndReveal(
   if (!revealOutputs.some(output => output.marker && output.value === 0)) {
     blockers.push('the reveal lacks the bare CNTRPRTY marker, so Counterparty would not read it');
   }
+  if (revealOutputs.some(output => output.marker && output.value !== 0)) {
+    blockers.push('every CNTRPRTY marker output must have zero value');
+  }
 
   // Its fee is the commit output less what it pays, at a sane rate for its size once signed (a
   // 65-byte signature, the larger of the two sighashes).

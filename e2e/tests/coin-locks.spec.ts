@@ -43,7 +43,7 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   await stub(context, signer, parents, fund.id, plain);
 
   // Nothing locked yet: the summary has no locked total and the list no filter.
-  await page.setViewportSize({ width: 360, height: 900 });
+  await page.setViewportSize({ width: 350, height: 600 });
   await page.goto(`chrome-extension://${extensionId}/popup.html#/settings/coins`);
   await expect(page.getByRole('heading', { name: 'Your coins' })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('tablist')).toHaveCount(0);
@@ -77,7 +77,7 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   await callGalleryService(page, 'updateCoinLocks', [signer, { lock: [{ outpoint: `${plain}:1`, valueSats: 150_000 }] }]);
 
   // Settings index.
-  await page.setViewportSize({ width: 360, height: 600 });
+  await page.setViewportSize({ width: 350, height: 600 });
   await page.goto(`chrome-extension://${extensionId}/popup.html#/settings`);
   await expect(page.getByText('Coin Control', { exact: true })).toBeVisible();
   await page.screenshot({ path: path.join(OUT, '1-settings-index.png') });
@@ -85,7 +85,7 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   // Coins page, All and Locked.
   await page.goto(`chrome-extension://${extensionId}/popup.html#/settings/coins`);
   await expect(page.getByText('Offer funding').first()).toBeVisible({ timeout: 20_000 });
-  await page.setViewportSize({ width: 360, height: 900 });
+  await page.setViewportSize({ width: 350, height: 600 });
   await page.screenshot({ path: path.join(OUT, '2-coins-all.png'), fullPage: true });
   await page.getByRole('article', { name: /0.00000546 BTC/ }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(OUT, '2b-coins-all-bottom.png'), fullPage: true });
@@ -167,7 +167,7 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
         { outpoint: { txid: spend.id, vout: 0 }, stillCommitted: false },
       ] } });
   const cancel = await context.newPage();
-  await cancel.setViewportSize({ width: 380, height: 750 });
+  await cancel.setViewportSize({ width: 350, height: 600 });
   await cancel.goto(`chrome-extension://${extensionId}/popup.html#/requests/message/approve?requestId=cancel-offers`);
   await expect(cancel.getByRole('heading', { name: 'Cancel 2 offers' })).toBeVisible();
   await expect(cancel.getByText('Unlocks', { exact: true })).toHaveCount(1);
