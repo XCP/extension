@@ -18,6 +18,7 @@ export interface ProviderPsbtSigningMethodCapabilities {
   inputScope: 'selected' | 'all';
   /** What may occupy inputs which this wallet is not being asked to sign. */
   externalInputs?: 'any' | 'presigned';
+  marketplaceIntents?: readonly 'invalidate_offers'[];
 }
 
 export interface ProviderPsbtSigningCapabilities {
@@ -192,6 +193,8 @@ export function providerPsbtSigningCapabilities(
           : [SigHash.ALL, SigHash.ALL_ANYONECANPAY, SigHash.SINGLE_ANYONECANPAY],
         inputScope: 'selected',
         externalInputs: 'any',
+        ...(wallet.addressFormat === AddressFormat.P2WPKH || wallet.addressFormat === AddressFormat.P2TR
+          ? { marketplaceIntents: ['invalidate_offers'] as const } : {}),
       },
       psbtBatch: {
         supported: true,
