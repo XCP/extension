@@ -15,6 +15,8 @@ import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
+import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
+import type { CoinLock } from '@/core/bitcoin/coinLocks';
 import { finalizePSBT, parsePSBT } from '@/core/bitcoin/psbt';
 import {
   commitRevealItems,
@@ -165,9 +167,49 @@ beforeEach(() => {
   state.wallet.signCommitAndRevealPsbts.mockImplementation(
     (...args: Parameters<WalletSigner['signCommitAndRevealPsbts']>) => signer.signCommitAndRevealPsbts(...args));
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { setCoinLockStore(null); vi.unstubAllGlobals(); });
 
 describe('commit-and-reveal through the background review and signer', () => {
+  it.each([false, true])('keeps a locked commit coin until both signatures succeed (interrupted: %s)', async interrupted => {
+    use(BROADCAST_P2WPKH);
+    const { items } = pair(BROADCAST_P2WPKH);
+    const input = parsePSBT(items.commit.psbtHex).getInput(0);
+    const outpoint = `${bytesToHex(input.txid!)}:${input.index}`;
+    const lock: CoinLock = {
+      outpoint, address: state.userAddress, kind: 'manual', manual: true, refs: [],
+      valueSats: Number(input.witnessUtxo!.amount), origin: null, expiresAt: null,
+      createdAt: Date.now(), seenAt: Date.now(), unlocked: false,
+    };
+    const update = vi.fn(async () => {});
+    const commit = vi.fn(async () => {});
+    setCoinLockStore({ read: async () => [lock], update, commit });
+    const result = await review(BROADCAST_P2WPKH, items);
+    expect(result.policy.blocked).toBe(false);
+    expect(result.policy.requiresAcknowledgement).toBe(true);
+    expect(result.decodedInfo.policyWarnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'locked_coin_spend' }),
+    ]));
+    await expect(createProviderSigningService().approveAndSign(result.request.id, {
+      reviewKey: result.reviewKey, risksAcknowledged: false,
+    })).rejects.toThrow();
+    expect(state.keyReads).toBe(0);
+    expect(update).not.toHaveBeenCalled();
+
+    // The second key read is the reveal; interrupt after the commit has been signed.
+    if (interrupted) state.lockOnKeyRead = 2;
+    if (interrupted) {
+      await expect(approve(result)).rejects.toThrow();
+      expect(update).not.toHaveBeenCalled();
+      expect(await signedHexes(result.request.id)).toBeNull();
+    } else {
+      await approve(result);
+      expect(await signedHexes(result.request.id)).toHaveLength(2);
+      expect(update).toHaveBeenCalledExactlyOnceWith(state.userAddress, { unlock: [outpoint] });
+    }
+    // A reveal intent never creates an offer lock.
+    expect(commit).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['P2WPKH, data envelope', BROADCAST_P2WPKH],
     ['P2WPKH, ord envelope', ORD_BROADCAST_P2WPKH],

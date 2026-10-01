@@ -146,7 +146,7 @@ async function lockCommittedCoins(review: ProviderSigningReview, ownedAddresses:
       ? review.request.items.flatMap((item, index) => {
           const decoded = review.decodedInfo.items[index];
           return decoded ? [{
-            intent: item.marketplaceIntent,
+            intent: item.marketplaceIntent.standard === 'counterparty-marketplace' ? item.marketplaceIntent : undefined,
             transactionId: decoded.psbtDetails.transactionId,
             inputs: decoded.psbtDetails.inputs,
             outputs: decoded.psbtDetails.outputs,
@@ -396,7 +396,8 @@ export function createProviderSigningService(): ProviderSigningService {
         const lockWarning = await lockedCoinSpendWarning(request.origin, request.items.flatMap((item, index) => {
           const decodedItem = decodedInfo.items[index];
           return decodedItem ? [{
-            intent: item.marketplaceIntent, review: decodedItem.marketplaceReview,
+            intent: item.marketplaceIntent.standard === 'counterparty-marketplace' ? item.marketplaceIntent : undefined,
+            review: decodedItem.marketplaceReview,
             inputs: decodedItem.psbtDetails.inputs, signInputs: item.signInputs,
           }] : [];
         }));
