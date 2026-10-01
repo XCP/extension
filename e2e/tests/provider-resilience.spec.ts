@@ -246,7 +246,7 @@ function createResilientTestDapp(): Promise<{ server: http.Server; url: string }
               log('Requesting connection (attempt ' + state.connectionAttempts + ')...');
 
               try {
-                const accounts = await state.provider.request({ method: 'xcp_requestAccounts' });
+                const { accounts } = await state.provider.request({ method: 'xcp_requestAccounts' });
                 log('Connection successful: ' + JSON.stringify(accounts), 'success');
 
                 if (accounts && accounts.length > 0) {
@@ -332,8 +332,6 @@ async function launchExtension(testId: string): Promise<{
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process',
       `--disable-extensions-except=${extensionPath}`,
       `--load-extension=${extensionPath}`,
     ],
@@ -436,51 +434,28 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       await waitForProvider(dappPage);
       await dappPage.waitForSelector('.status.disconnected', { timeout: 10000 });
 
-      // Start connection (don't await — it may hang if popup doesn't open in CI)
+      // Observe the actual approval before requesting it. A missing popup or
+      // refused connection must fail this test, not skip its reload assertion.
+      const approvalWindow = context.waitForEvent('page');
       const connectPromise = dappPage.evaluate(() => {
         return (window as any).testFunctions.connect();
       });
-
-      // Wait for approval popup and approve
-      await extensionPage.waitForLoadState('networkidle');
-      const pages = context.pages();
-      const approvalPage = pages.find(p => p.url().includes('approve-connection'));
-
-      if (approvalPage) {
-        await approvalPage.reload();
-        await approvalPage.waitForLoadState('networkidle');
-        const connectBtn = approvalPage.locator('button:has-text("Connect")');
-        if (await connectBtn.isVisible({ timeout: 5000 })) {
-          await connectBtn.click();
-        }
-      }
-
-      // Wait for connect to finish or time out (provider has no timeout by design)
-      await Promise.race([
-        connectPromise,
-        new Promise(resolve => setTimeout(resolve, 30000)),
-      ]).catch(() => {});
-      await dappPage.waitForLoadState('networkidle');
-
-      // Check if connected
+      const approvalPage = await approvalWindow;
+      await expect(approvalPage).toHaveURL(/requests\/connect\/approve/);
+      await approvalPage.getByRole('button', { name: 'Connect', exact: true }).click();
+      await connectPromise;
+      await expect.poll(() => dappPage.evaluate(() => (window as any).testState.connectionState))
+        .toBe('connected');
       const stateBeforeReload = await dappPage.evaluate(() => (window as any).testState);
-      if (stateBeforeReload.connectionState !== 'connected') {
-        console.log('Connection was not established, skipping reload test');
-        await dappPage.close();
-        return;
-      }
+      expect(stateBeforeReload.account).toBeTruthy();
 
       // Reload the page
       await dappPage.reload();
-      await waitForProvider(dappPage);
-      await dappPage.waitForSelector('.status:not(.no-wallet)', { timeout: 10000 });
-
-      // Should detect existing connection
-      await dappPage.waitForLoadState('networkidle');
+      expect(await waitForProvider(dappPage)).toBe(true);
+      await expect.poll(() => dappPage.evaluate(() => (window as any).testState.connectionState))
+        .toBe('connected');
       const stateAfterReload = await dappPage.evaluate(() => (window as any).testState);
-
-      // Either still connected or the connection was properly detected
-      expect(['connected', 'disconnected']).toContain(stateAfterReload.connectionState);
+      expect(stateAfterReload.account).toBe(stateBeforeReload.account);
 
       await dappPage.close();
     } finally {
