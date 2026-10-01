@@ -20,6 +20,8 @@ export interface CoinRow {
   valueSats: number;
   /** Confirmations, 0 while in the mempool, or null when the coin is not on chain yet. */
   confirmations: number | null;
+  /** A local lock can be shown before its chain status is known. Missing is not proof of a spend. */
+  chainStatus?: 'checking' | 'unavailable' | 'missing';
   /** The coin carries Counterparty assets, which no send spends. */
   holdsAssets: boolean;
   lock?: CoinLock;
@@ -92,7 +94,13 @@ export function CoinCard({
     onCancelUnlock?.();
   };
 
-  const status = coin.confirmations === null
+  const status = coin.chainStatus === 'checking'
+    ? <span>{t('coins_checking_status')}</span>
+    : coin.chainStatus === 'unavailable'
+      ? <span>{t('coins_status_unavailable')}</span>
+      : coin.chainStatus === 'missing'
+        ? <span>{t('coins_not_found')}</span>
+        : coin.confirmations === null
     ? <PendingStatus label={t('coins_not_on_chain_yet')} />
     : coin.confirmations === 0
       ? <PendingStatus label="Pending" />

@@ -1,7 +1,4 @@
 {
-  "coins_available": {
-    "message": "使用可能"
-  },
   "actions_address": {
     "message": "アドレス"
   },
@@ -635,10 +632,10 @@
     "message": "ロック中"
   },
   "coins_none": {
-    "message": "コインがありません"
+    "message": "保護されたコインはありません"
   },
   "coins_none_detail": {
-    "message": "受け取った BTC はここに表示されます。"
+    "message": "このウォレットで署名したオファーの資金となるコインが、自動的にここに表示されます。"
   },
   "coins_not_on_chain_yet": {
     "message": "まだチェーン上にありません"
@@ -656,10 +653,10 @@
     "message": "さらに表示"
   },
   "coins_summary_help": {
-    "message": "ロック中のコインはどの送金にも使われません。"
+    "message": "オファーの資金と、以前に手動でロックしたコインです。ロック中のコインは通常の送信には使用されません。"
   },
   "coins_summary_title": {
-    "message": "あなたのコイン"
+    "message": "コインの保護"
   },
   "coins_title": {
     "message": "コインコントロール"
@@ -4628,7 +4625,7 @@
     "message": "ウォレットのパスワードを変更"
   },
   "settings_coins_description": {
-    "message": "コインをロックし、オファーを支えるコインを確認"
+    "message": "オファーの資金と既存のコインロックを管理します。"
   },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "すべてのサイトの接続を解除"
@@ -6910,5 +6907,26 @@
   "message_cancel_unlocks": {
     "message": "ロック解除",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "coins_checking_status": {
+    "message": "状態を確認中…"
+  },
+  "coins_not_found": {
+    "message": "最新の確認では見つかりません"
+  },
+  "coins_refresh_failed": {
+    "message": "チェーン上の状態を更新できませんでした。コインのロックは引き続き管理できます。"
+  },
+  "coins_status_unavailable": {
+    "message": "状態を取得できません"
+  },
+  "max_btc_protected_change": {
+    "message": "最大額は手数料を見込み、ZELDを保護するために547 sats以上のお釣りを残します。"
+  },
+  "zeld_spendable_unavailable": {
+    "message": "利用可能なZELD残高を取得できません。もう一度お試しください。"
+  },
+  "zeld_max_spendable_help": {
+    "message": "利用可能額と最大額には、ロック中、使用不可、Counterparty資産付きのコインは含まれません。送信には手数料用のBTCも必要です。"
   }
 }

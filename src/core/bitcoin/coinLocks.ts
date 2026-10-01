@@ -6,8 +6,8 @@
  * bidder's funding coins and is never broadcast alone. Either way the offer lives only as long as
  * those coins stay unspent, so an ordinary send that happened to pick one would cancel the offer
  * without a word. The wallet therefore locks each coin a signed offer commits (only what the
- * signature itself proved, see core/counterparty/marketplace/offerCoinLocks.ts), and the user can
- * lock any plain coin by hand as classic coin control. Selection and every compose leave locked
+ * signature itself proved, see core/counterparty/marketplace/offerCoinLocks.ts), and retains coins
+ * the user previously locked by hand. Selection and every compose leave locked
  * coins alone, and a site asking to sign one is told so first.
  *
  * It lives in the encrypted keychain beside the ZELD record (core/zeld/knownOutpoints.ts) for the
@@ -94,10 +94,6 @@ export interface CoinLockObservation {
   unknown?: string[];
 }
 
-/** Locks kept per address. */
-export const MAX_COIN_LOCKS_PER_ADDRESS = 200;
-/** Locks kept across every address. */
-export const MAX_COIN_LOCK_ENTRIES = 2_000;
 /** Outpoints one update may name. */
 export const MAX_COIN_LOCK_UPDATE = 500;
 /** Offer ids one lock keeps. Several offers may share a funding slot; far fewer ever do. */
@@ -173,8 +169,9 @@ function parseStoredLock(value: unknown): CoinLock | null {
 }
 
 /**
- * The stored list, keeping only well-formed locks, one per address and outpoint, at most the most
- * recent MAX. A malformed record is dropped, never a lockout.
+ * The stored list, keeping every well-formed lock, one per address and outpoint.
+ * Count-based eviction would silently make a still-committed coin spendable. Bound individual
+ * updates instead; remove accepted locks only through their lifecycle or an explicit unlock.
  */
 export function sanitizeCoinLocks(value: unknown): CoinLock[] {
   if (!Array.isArray(value)) return [];
@@ -183,7 +180,7 @@ export function sanitizeCoinLocks(value: unknown): CoinLock[] {
     const lock = parseStoredLock(item);
     if (lock) byKey.set(`${lock.address} ${lock.outpoint}`, lock);
   }
-  return [...byKey.values()].slice(-MAX_COIN_LOCK_ENTRIES);
+  return [...byKey.values()];
 }
 
 const outpointList = (field: unknown, what: string): string[] => {
@@ -289,12 +286,11 @@ function sameLocks(left: readonly CoinLock[], right: readonly CoinLock[]): boole
   return left.length === right.length && left.every((lock, index) => JSON.stringify(lock) === JSON.stringify(right[index]));
 }
 
-/** `entries` with `address`'s locks replaced by `next`, bounded; null when nothing changed. */
+/** `entries` with `address`'s locks replaced by `next`; null when nothing changed. */
 function replaceAddress(entries: readonly CoinLock[], address: string, current: readonly CoinLock[], next: CoinLock[]): CoinLock[] | null {
-  const bounded = next.slice(-MAX_COIN_LOCKS_PER_ADDRESS);
-  if (sameLocks(current, bounded)) return null;
+  if (sameLocks(current, next)) return null;
   const key = normalizeAddressForComparison(address);
-  return [...entries.filter(lock => lock.address !== key), ...bounded].slice(-MAX_COIN_LOCK_ENTRIES);
+  return [...entries.filter(lock => lock.address !== key), ...next];
 }
 
 /**

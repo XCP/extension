@@ -1,12 +1,13 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
-import { type ChangeEvent, type ReactElement, type ReactNode, useState } from "react";
+import { type ChangeEvent, type ReactElement, type ReactNode, useEffect, useRef, useState } from "react";
 import { formatCoinBtc } from "@/components/domain/coins/coin-lock-text";
 import { Button } from "@/components/ui/button";
 import { parseAmountDraft, rawToInput } from "@/core/amount-contract/amounts";
-import { estimateVsize } from "@/core/bitcoin/feeEstimation";
+import { estimateMaxSpendBudget } from "@/core/bitcoin/maxSpend";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
 import { isComposableAmount } from "@/core/format";
-import { divide, fromSatoshis, multiply, roundDown, roundUp, toNumber } from "@/core/numeric";
+import { divide, fromSatoshis, roundDown, toNumber } from "@/core/numeric";
+import { getActiveSettings } from "@/core/settings";
 import { isDustAmount } from "@/core/validation/amount";
 import { validateFeeRate } from "@/core/validation/fee";
 
@@ -79,12 +80,20 @@ export function AmountWithMaxInput({
   extraOutputCount = 0,
 }: AmountWithMaxInputProps): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
+  const request = useRef({ revision: 0 });
+  useEffect(() => {
+    const session = request.current;
+    session.revision++;
+    return () => { session.revision++; setIsLoading(false); };
+  }, [sourceAddress?.address, asset, feeRate, destinationCount, destination, memo, extraOutputCount, disabled]);
   const invalidDraft = value !== '' && !isComposableAmount(value, isDivisible ? 8 : 0);
   const draftError = isDivisible
     ? t('safety_amount_syntax')
     : t('safety_amount_indivisible');
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    request.current.revision++;
+    setIsLoading(false);
     // Retain the complete draft. Dropping '-' or '.' here lets the next
     // keystroke turn an invalid amount into a different valid amount.
     onChange(e.target.value);
@@ -116,6 +125,7 @@ export function AmountWithMaxInput({
     }
 
     setIsLoading(true);
+    const revision = ++request.current.revision;
     try {
       setError(null);
 
@@ -123,8 +133,9 @@ export function AmountWithMaxInput({
       const { utxos, totalValue, excludedWithAssets, excludedLockedValue } = await selectUtxosForTransaction(
         sourceAddress.address,
         // None left is answered below, saying why, rather than as a selection error.
-        { allowUnconfirmed: true, minUtxos: 0 }
+        { allowUnconfirmed: getActiveSettings().allowUnconfirmedTxs, minUtxos: 0 }
       );
+      if (request.current.revision !== revision) return;
 
       if (utxos.length === 0) {
         throw new UserFacingError(excludedLockedValue > 0
@@ -138,18 +149,11 @@ export function AmountWithMaxInput({
         throw new UserFacingError(t('common_no_available_balance'));
       }
 
-      // Estimate vsize based on spendable UTXO count and address type
-      // Add 1 for change output, plus any extra outputs (e.g., more_outputs adds to the transaction)
-      const estimatedVbytes = estimateVsize(utxos.length, destinationCount + 1 + extraOutputCount, sourceAddress.address);
-
-      // Add overhead for Counterparty OP_RETURN output (~30 vbytes for protocol message)
-      // This accounts for the encoded send data that the Counterparty API adds
-      const OP_RETURN_OVERHEAD = 30;
-      const totalVbytes = estimatedVbytes + OP_RETURN_OVERHEAD;
-
-      const estimatedFee = toNumber(roundUp(multiply(totalVbytes, feeRate)));
-
-      const candidate = totalValue - estimatedFee;
+      const budget = estimateMaxSpendBudget({
+        inputCount: utxos.length, sourceAddress: sourceAddress.address, feeRate,
+        destinationCount, extraOutputCount, memo,
+      });
+      const candidate = totalValue - budget.total;
 
       if (candidate <= 0) {
         throw new UserFacingError(t('balance_amount_with_max_input_insufficient_balance_to_cover_transaction'));
@@ -162,13 +166,14 @@ export function AmountWithMaxInput({
       const finalAmount = fromSatoshis(amountPerDestination.toString());
       onChange(finalAmount);
     } catch (err: unknown) {
+      if (request.current.revision !== revision) return;
       if (err instanceof UserFacingError) {
         setError(err.message);
       } else {
         setError(t('balance_amount_with_max_input_failed_to_calculate_maximum_amount'));
       }
     } finally {
-      setIsLoading(false);
+      if (request.current.revision === revision) setIsLoading(false);
     }
   };
 
@@ -203,6 +208,8 @@ export function AmountWithMaxInput({
             const pasted = event.clipboardData.getData('text/plain');
             if (!/[\r\n]/.test(pasted)) return;
             event.preventDefault();
+            request.current.revision++;
+            setIsLoading(false);
             // Text inputs remove line breaks before onChange. Keep those
             // characters visible as escapes so "1\n2" cannot become 12.
             const input = event.currentTarget;
@@ -234,6 +241,9 @@ export function AmountWithMaxInput({
         </Button>
       </div>
       {invalidDraft && <Description id={`${name}-draft-error`} className="mt-2 text-sm text-red-500" role="alert">{draftError}</Description>}
+      {asset === 'BTC' && !onMaxClick && (
+        <Description className="mt-2 text-sm text-gray-500">{t('max_btc_protected_change')}</Description>
+      )}
       {showHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
           {description || (destinationCount > 1

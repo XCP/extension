@@ -6,9 +6,7 @@ import {
   type CoinLock,
   coinLocksOf,
   liveCoinLocks,
-  MAX_COIN_LOCK_ENTRIES,
   MAX_COIN_LOCK_EXPIRY_SECONDS,
-  MAX_COIN_LOCKS_PER_ADDRESS,
   type OfferCoinCommitment,
   parseCoinLockUpdate,
   parseOfferCoinCommitments,
@@ -184,15 +182,21 @@ describe('locked coins in the keychain', () => {
   });
 
   describe('bounds and validation', () => {
-    it('keeps at most the most recent locks per address and overall', () => {
-      const many = Array.from({ length: MAX_COIN_LOCKS_PER_ADDRESS + 5 }, (_, index) =>
+    it('never evicts accepted protection when more offers or manual locks are added', () => {
+      const many = Array.from({ length: 205 }, (_, index) =>
         slot(`${index.toString(16).padStart(64, '0')}:0`));
-      expect(coinLocksOf(after(withOfferCoinLocks([], ADDRESS, many, NOW)), ADDRESS)).toHaveLength(MAX_COIN_LOCKS_PER_ADDRESS);
-      const stored = Array.from({ length: MAX_COIN_LOCK_ENTRIES + 3 }, (_, index) => ({
+      const offers = after(withOfferCoinLocks([], ADDRESS, many, NOW));
+      expect(activeCoinLocks(coinLocksOf(offers, ADDRESS)).map(lock => lock.outpoint)).toEqual(many.map(lock => lock.outpoint));
+      const stored: CoinLock[] = Array.from({ length: 2_003 }, (_, index) => ({
         outpoint: `${index.toString(16).padStart(64, '0')}:0`, address: `bc1q${index}`, kind: 'manual', manual: true,
         refs: [], valueSats: 1, origin: null, expiresAt: null, createdAt: NOW, seenAt: NOW, unlocked: false,
       }));
-      expect(sanitizeCoinLocks(stored)).toHaveLength(MAX_COIN_LOCK_ENTRIES);
+      const added = after(withCoinLockUpdate([...stored, ...offers], ADDRESS, { lock: [{ outpoint: A, valueSats: 1 }] }, NOW));
+      const loaded = sanitizeCoinLocks(added);
+      expect(loaded).toEqual(added);
+      expect(loaded).toHaveLength(stored.length + offers.length + 1);
+      expect(loaded).toContainEqual(stored[0]);
+      expect(activeCoinLocks(coinLocksOf(loaded, ADDRESS))).toHaveLength(206);
     });
 
     it('drops malformed stored locks on load rather than failing the unlock', () => {

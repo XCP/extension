@@ -42,10 +42,10 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
 
   await stub(context, signer, parents, fund.id, plain);
 
-  // Nothing locked yet: the summary has no locked total and the list no filter.
+  // Nothing tracked yet: no wallet-wide list or balance scan.
   await page.setViewportSize({ width: 350, height: 600 });
   await page.goto(`chrome-extension://${extensionId}/popup.html#/settings/coins`);
-  await expect(page.getByRole('heading', { name: 'Your coins' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('No protected coins')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('tablist')).toHaveCount(0);
   await page.screenshot({ path: path.join(OUT, '0a-coins-no-locks.png'), fullPage: true });
 
@@ -82,17 +82,16 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   await expect(page.getByText('Coin Control', { exact: true })).toBeVisible();
   await page.screenshot({ path: path.join(OUT, '1-settings-index.png') });
 
-  // Coins page, All and Locked.
+  // Only tracked coins, with unrelated plain and attached outputs absent.
   await page.goto(`chrome-extension://${extensionId}/popup.html#/settings/coins`);
   await expect(page.getByText('Offer funding').first()).toBeVisible({ timeout: 20_000 });
   await page.setViewportSize({ width: 350, height: 600 });
   await page.screenshot({ path: path.join(OUT, '2-coins-all.png'), fullPage: true });
-  await page.getByRole('article', { name: /0.00000546 BTC/ }).scrollIntoViewIfNeeded();
-  await page.screenshot({ path: path.join(OUT, '2b-coins-all-bottom.png'), fullPage: true });
-  const summary = page.getByRole('heading', { name: 'Your coins' }).locator('..');
-  await expect(summary).toContainText('Available0.00019500 BTC');
+  await expect(page.getByRole('article', { name: /0.00000546 BTC/ })).toHaveCount(0);
+  const summary = page.getByRole('heading', { name: 'Coin protection' }).locator('..');
+  await expect(summary).not.toContainText('Available');
   await expect(summary).toContainText('Locked0.00190000 BTC');
-  await page.getByRole('tab', { name: 'Locked' }).click();
+  await expect(page.getByRole('tablist')).toHaveCount(0);
   await expect(page.getByRole('article')).toHaveCount(3);
   await page.screenshot({ path: path.join(OUT, '3-coins-locked.png'), fullPage: true });
 
@@ -124,13 +123,22 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   await expect(backsTwo.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
   expect((await locks()).every(lock => !lock.unlocked)).toBe(true);
 
-  // A coin locked by hand unlocks at once, and locks again the same way.
+  // The wallet page can release an offer coin and protect it again while its offer is live.
+  await action.click();
+  await backsTwo.getByRole('button', { name: 'Confirm' }).click();
+  await expect(backsTwo.getByText('Unlocked', { exact: true })).toBeVisible();
+  await page.screenshot({ path: path.join(OUT, '5-offer-unlocked.png'), fullPage: true });
+  await backsTwo.getByRole('button', { name: 'Lock again' }).click();
+  await expect(backsTwo.getByRole('button', { name: 'Unlock', exact: true })).toBeVisible();
+  expect((await locks()).find(lock => lock.outpoint === `${fund.id}:0`)?.unlocked).toBe(false);
+
+  // A coin locked by hand unlocks at once and leaves the tracked list.
   const manual = page.getByRole('article', { name: /0\.00150000 BTC/ });
   await manual.getByRole('button', { name: 'Unlock' }).click();
   await expect(page.getByRole('article', { name: /0\.00150000 BTC/ })).toHaveCount(0);
-  await page.getByRole('tab', { name: 'All' }).click();
-  await expect(manual.getByRole('button', { name: 'Lock' })).toBeVisible();
-  await manual.getByRole('button', { name: 'Lock' }).click();
+  // Restore its existing lock to exercise cancellation preserving manual protection below.
+  await callGalleryService(page, 'updateCoinLocks', [signer, { lock: [{ outpoint: `${plain}:1`, valueSats: 150_000 }] }]);
+  await page.getByRole('button', { name: 'Refresh coins' }).click();
   await expect(manual.getByText('Locked by you')).toBeVisible();
 
   // Another site funds an offer from the locked slot: the approval asks, and confirming unlocks it.

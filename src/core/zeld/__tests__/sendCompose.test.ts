@@ -4,8 +4,9 @@ import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
 import type { CoinLock } from '@/core/bitcoin/coinLocks';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { parsePSBT } from '@/core/bitcoin/psbt';
+import { clearSpentUtxoCache, recordSpentUtxos } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';
-import { fetchTokenBalances } from '@/core/counterparty/api';
+import { fetchUtxosWithBalances } from '@/core/counterparty/api';
 import { checkOutputPolicy, pinnedDestinations, withPinnedDestinations } from '@/core/counterparty/outputPolicy';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
@@ -14,6 +15,7 @@ import { fetchZeldBalance } from '@/core/zeld/api';
 import { decodeCborUintArray } from '@/core/zeld/cbor';
 import { assessZeldHunt } from '@/core/zeld/huntTemplate';
 import { composeZeldPark, composeZeldSend, zeldRecipientDustSats } from '@/core/zeld/sendCompose';
+import { selectSpendableZeld } from '@/core/zeld/spendable';
 import { OTHER_ADDRESS, PREV_TXID, SOURCE_ADDRESS, SOURCE_P2WPKH } from './fixtures';
 
 vi.mock('@/core/zeld/api', async (importOriginal) => ({
@@ -24,7 +26,7 @@ vi.mock('@/core/bitcoin/utxo', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/bitcoin/utxo')>()),
   fetchUTXOs: vi.fn(),
 }));
-vi.mock('@/core/counterparty/api', () => ({ fetchTokenBalances: vi.fn() }));
+vi.mock('@/core/counterparty/api', () => ({ fetchUtxosWithBalances: vi.fn() }));
 vi.mock('@/core/counterparty/utxoSelection', () => ({ selectUtxosForTransaction: vi.fn() }));
 vi.mock('@/core/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/settings')>()),
@@ -33,7 +35,7 @@ vi.mock('@/core/settings', async (importOriginal) => ({
 
 const zeldBalance = vi.mocked(fetchZeldBalance);
 const bitcoinUtxos = vi.mocked(fetchUTXOs);
-const attached = vi.mocked(fetchTokenBalances);
+const attached = vi.mocked(fetchUtxosWithBalances);
 const clean = vi.mocked(selectUtxosForTransaction);
 const settings = vi.mocked(getActiveSettings);
 
@@ -44,6 +46,7 @@ const utxo = (txid: string, vout: number, value: number, confirmed = true) => ({
 });
 
 describe('composeZeldSend', () => {
+  afterEach(() => { clearSpentUtxoCache(); setCoinLockStore(null); });
   beforeEach(() => {
     settings.mockReturnValue({ allowUnconfirmedTxs: false } as never);
     zeldBalance.mockResolvedValue({
@@ -51,7 +54,7 @@ describe('composeZeldSend', () => {
       utxos: [{ txid: ZELD_A, vout: 1, balance: 409_600_000_000n }, { txid: ZELD_B, vout: 1, balance: 25_600_000_000n }],
     });
     bitcoinUtxos.mockResolvedValue([utxo(ZELD_A, 1, 95_000), utxo(ZELD_B, 1, 80_000), utxo(PREV_TXID, 0, 500_000)]);
-    attached.mockResolvedValue([]);
+    attached.mockResolvedValue(new Set());
     clean.mockResolvedValue({ utxos: [utxo(PREV_TXID, 0, 500_000)], inputsSet: '', totalValue: 500_000, excludedWithAssets: 0, excludedValue: 0, excludedLocked: 0, excludedLockedValue: 0 });
   });
 
@@ -85,6 +88,45 @@ describe('composeZeldSend', () => {
     });
     expect(response.result.params).toMatchObject({ asset: 'BTC', destination: OTHER_ADDRESS, quantity: 330 });
     expect(clean).not.toHaveBeenCalled();
+  });
+
+  it('checks only eligible ZELD candidates even with 500 unrelated Bitcoin outputs', async () => {
+    bitcoinUtxos.mockResolvedValue([
+      utxo(ZELD_A, 1, 95_000), utxo(ZELD_B, 1, 80_000),
+      ...Array.from({ length: 500 }, (_, vout) => utxo(PREV_TXID, vout, 600)),
+    ]);
+    const maximum = await selectSpendableZeld(SOURCE_ADDRESS);
+    expect(maximum.available).toBe(435_200_000_000n);
+    expect(attached).toHaveBeenCalledExactlyOnceWith([`${ZELD_A}:1`, `${ZELD_B}:1`]);
+    const composed = await composeZeldSend({
+      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, amountBaseUnits: maximum.available.toString(), sat_per_vbyte: 1,
+    });
+    expect(composed.result.zeld_send?.remainder_base_units).toBe('0');
+  });
+
+  it.each(['locked', 'unconfirmed', 'spent', 'missing', 'attached'])('Max and compose agree when a ZELD coin is %s', async (reason) => {
+    if (reason === 'locked') setCoinLockStore({ read: async () => [{
+      outpoint: `${ZELD_A}:1`, address: SOURCE_ADDRESS, kind: 'offer_slot', manual: false,
+      refs: ['offer:1'], valueSats: 95_000, origin: null, expiresAt: null, createdAt: 1, seenAt: 1, unlocked: false,
+    }], update: async () => {} });
+    if (reason === 'unconfirmed') bitcoinUtxos.mockResolvedValue([utxo(ZELD_A, 1, 95_000, false), utxo(ZELD_B, 1, 80_000)]);
+    if (reason === 'spent') recordSpentUtxos([{ txid: ZELD_A, vout: 1 }]);
+    if (reason === 'missing') bitcoinUtxos.mockResolvedValue([utxo(ZELD_B, 1, 80_000)]);
+    if (reason === 'attached') attached.mockResolvedValue(new Set([`${ZELD_A}:1`]));
+    const maximum = await selectSpendableZeld(SOURCE_ADDRESS);
+    expect(maximum.available).toBe(25_600_000_000n);
+    const composed = await composeZeldSend({
+      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, amountBaseUnits: maximum.available.toString(), sat_per_vbyte: 1,
+    });
+    expect(composed.result.zeld_send).toMatchObject({ spent_outpoints: [`${ZELD_B}:1`], remainder_base_units: '0' });
+  });
+
+  it('does not offer a maximum or compose when attachment checks fail', async () => {
+    attached.mockRejectedValue(new Error('attachment service unavailable'));
+    await expect(selectSpendableZeld(SOURCE_ADDRESS)).rejects.toThrow('attachment service unavailable');
+    await expect(composeZeldSend({
+      sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, amountBaseUnits: '1', sat_per_vbyte: 1,
+    })).rejects.toThrow('attachment service unavailable');
   });
 
   it('carries the witness data the hardware path signs from', async () => {
@@ -163,7 +205,7 @@ describe('composeZeldSend', () => {
   });
 
   it('leaves out ZELD outputs it cannot spend and says so when the amount needs them', async () => {
-    attached.mockResolvedValue([{ utxo: `${ZELD_A}:1`, asset: 'PEPECASH', quantity_normalized: '1' } as never]);
+    attached.mockResolvedValue(new Set([`${ZELD_A}:1`]));
     await expect(composeZeldSend({
       sourceAddress: SOURCE_ADDRESS, destination: OTHER_ADDRESS, amountBaseUnits: '400000000000', sat_per_vbyte: 1,
     })).rejects.toThrow('cannot spend yet');
@@ -221,7 +263,7 @@ describe('composeZeldPark', () => {
       utxos: [{ txid: ZELD_A, vout: 1, balance: 409_600_000_000n }, { txid: ZELD_B, vout: 1, balance: 25_600_000_000n }],
     });
     bitcoinUtxos.mockResolvedValue([utxo(ZELD_A, 1, 95_000), utxo(ZELD_B, 1, 80_000)]);
-    attached.mockResolvedValue([]);
+    attached.mockResolvedValue(new Set());
     clean.mockResolvedValue({ utxos: [], inputsSet: '', totalValue: 0, excludedWithAssets: 0, excludedValue: 0, excludedLocked: 0, excludedLockedValue: 0 });
   });
 
