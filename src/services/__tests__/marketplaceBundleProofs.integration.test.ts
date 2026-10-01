@@ -781,7 +781,7 @@ describe('fund-and-authorize-offers: one review funds the offer and authorizes i
       expect(state.wallet.signPsbt).toHaveBeenCalled();
     });
 
-    it('writes no lock when signing fails, and delivers the signature when the lock write fails', async () => {
+    it('writes no lock when signing fails, and withholds the signature when the lock write fails', async () => {
       const { items } = fundAndAuthorize();
       state.wallet.signPsbt.mockRejectedValueOnce(new Error('device unplugged'));
       const failing = await review(items, 'fund-and-authorize-offers');
@@ -793,7 +793,9 @@ describe('fund-and-authorize-offers: one review funds the offer and authorizes i
         commit: async () => { throw new Error('keychain write failed'); },
       });
       const result = await review(items, 'fund-and-authorize-offers');
-      await expect(approve(result, result.policy.requiresAcknowledgement)).resolves.toHaveLength(2);
+      await expect(approve(result, result.policy.requiresAcknowledgement)).rejects.toThrow('keychain write failed');
+      expect(await getSignFlow(result.request.id)).toMatchObject({ status: 'cancelled' });
+      expect(await getSignFlow(result.request.id)).not.toHaveProperty('result');
     });
   });
 

@@ -37,6 +37,7 @@ vi.mock('@/core/bitcoin/transactionBroadcaster');
 vi.mock('@/core/bitcoin/psbt', async original => ({
   ...(await original<typeof import('@/core/bitcoin/psbt')>()),
   signPSBT: vi.fn().mockReturnValue('signed-psbt'),
+  parsePSBT: vi.fn(() => ({ inputsLength: 2, getInput: (index: number) => ({ txid: new Uint8Array(32), index }) })),
   extractPsbtDetails: vi.fn(),
   completePsbtWithInputValues: vi.fn((psbt: string) => psbt),
   resolvePsbtSighashType: (explicit?: number, embedded?: number) => explicit ?? embedded ?? 0x01,
