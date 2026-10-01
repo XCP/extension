@@ -278,6 +278,6 @@ describe('provider surface', () => {
     );
     const dispatched = [...source.matchAll(/case '(xcp_\w+)':/g)].map((m) => m[1]!);
 
-    expect([...new Set(dispatched)].sort()).toEqual(Object.keys(CONTRACTS).sort());
+    expect([...new Set(dispatched)].sort()).toEqual(Object.keys(CONTRACTS).sort((a, b) => a < b ? -1 : a > b ? 1 : 0));
   });
 });
