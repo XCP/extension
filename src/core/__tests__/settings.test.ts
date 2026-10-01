@@ -156,7 +156,7 @@ describe('DEFAULT_SETTINGS', () => {
 
   it('snapshot matches expected shape', () => {
     // Catches any new field additions or removals
-    const keys = Object.keys(DEFAULT_SETTINGS).sort();
+    const keys = Object.keys(DEFAULT_SETTINGS).sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
     expect(keys).toEqual([
       'allowUnconfirmedTxs',
       'analyticsAllowed',

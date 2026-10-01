@@ -503,8 +503,8 @@ describe('Destinations Validation Fuzz Tests', () => {
             const result2 = validateDestinations(destinations);
 
             expect(result1.isValid).toBe(result2.isValid);
-            expect(Object.keys(result1.errors).sort()).toEqual(
-              Object.keys(result2.errors).sort()
+            expect(Object.keys(result1.errors).sort((a, b) => a < b ? -1 : a > b ? 1 : 0)).toEqual(
+              Object.keys(result2.errors).sort((a, b) => a < b ? -1 : a > b ? 1 : 0)
             );
           }
         ),
