@@ -46,7 +46,7 @@ export default function XcpPricePage(): ReactElement {
   const { setHeaderProps } = useHeader();
 
   // Data state
-  const [stats, setStats] = useState<XcpStats | null>(null);
+  const [stats, setStats] = useState<(XcpStats & { observedDay: string }) | null>(null);
   const [historyData, setHistoryData] = useState<XcpPriceHistoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -61,7 +61,7 @@ export default function XcpPricePage(): ReactElement {
     setStatsError(false);
     const statsData = await getXcpStats();
     if (statsData) {
-      setStats(statsData);
+      setStats({ ...statsData, observedDay: new Date().toISOString().slice(0, 10) });
     } else {
       setStatsError(true);
     }
@@ -133,7 +133,7 @@ export default function XcpPricePage(): ReactElement {
     const history = historyData?.history ?? [];
     if (!stats) return history;
 
-    const today = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const today = Date.parse(`${stats.observedDay}T00:00:00Z`);
     const livePoint = { timestamp: today, price: stats.price };
     const lastPoint = history[history.length - 1];
 
@@ -151,7 +151,7 @@ export default function XcpPricePage(): ReactElement {
     }
     return {
       usd: stats.price,
-      day: new Date().toISOString().slice(0, 10),
+      day: stats.observedDay,
     };
   }, [historyData?.ath, stats]);
 

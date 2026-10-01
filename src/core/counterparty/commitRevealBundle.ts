@@ -82,7 +82,7 @@ export const isStoredRevealIntent = (intent: { action: string } | undefined): bo
   intent?.action === 'sign_reveal';
 
 const exactClaim = (value: Record<string, unknown>, action: string, label: string): void => {
-  const keys = Object.keys(value).sort().join(',');
+  const keys = Object.keys(value).sort((a, b) => a < b ? -1 : a > b ? 1 : 0).join(',');
   if (value.standard !== COMMIT_REVEAL_STANDARD || value.version !== 1 || value.action !== action
     || keys !== 'action,standard,version') {
     throw new Error(`${label} must be exactly { standard: '${COMMIT_REVEAL_STANDARD}', version: 1, action: '${action}' }`);

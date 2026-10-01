@@ -159,7 +159,7 @@ export function assertOnlyOutputOrderChanged(originalHex: string, reorderedHex: 
   const describe = (tx: Transaction) => Array.from({ length: tx.outputsLength }, (_, i) => {
     const output = tx.getOutput(i);
     return `${output.amount}:${bytesToHex(output.script ?? new Uint8Array())}`;
-  }).sort();
+  }).sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
   const before = describe(original);
   const after = describe(reordered);
   if (before.some((entry, index) => entry !== after[index])) {
