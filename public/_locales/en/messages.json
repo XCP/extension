@@ -1,4 +1,8 @@
 {
+  "coins_available": {
+    "message": "Available",
+    "description": "pages/settings/coins.tsx. Summary row label: BTC in coins sends may spend (not locked, not holding assets)."
+  },
   "actions_address": {
     "message": "Address",
     "description": "pages/actions/index.tsx"
@@ -686,6 +690,222 @@
   "approval_too_many_inputs_description": {
     "message": "This transaction spends more than $1 inputs, more than the wallet can check for attached assets. Ask the site to use fewer inputs.",
     "description": "Below approval_too_many_inputs_title. $1 is the number of inputs the wallet checks."
+  },
+  "coin_lock_compose_spends_locked_coin": {
+    "message": "Uses a locked coin. Unlock it in Coin Control.",
+    "description": "core/counterparty/composeLocks.ts. Error when the composer built a transaction that spends a coin the user locked by hand."
+  },
+  "coin_lock_compose_spends_offer_coin": {
+    "message": "Uses a locked coin. Unlock it in Coin Control or cancel the offer.",
+    "description": "core/counterparty/composeLocks.ts. Error when the composer built a transaction that spends a coin backing the user's marketplace offers."
+  },
+  "coin_lock_insufficient": {
+    "message": "Not enough available BTC: $1 sats free · $2 locked.",
+    "description": "core/counterparty/composeLocks.ts. Insufficient-funds error when locked coins (some locked by hand) hold back BTC. $1 = spendable sats, $2 = locked sats, both formatted numbers."
+  },
+  "coin_lock_insufficient_offers": {
+    "message": "Not enough available BTC: $1 sats free · $2 locked in offers.",
+    "description": "core/counterparty/composeLocks.ts. Insufficient-funds error when coins locked for marketplace offers hold back BTC. $1 = spendable sats, $2 = sats locked in offers, both formatted numbers."
+  },
+  "coin_lock_no_spendable_balance": {
+    "message": "No spendable balance. $1 BTC is in locked coins.",
+    "description": "components/domain/balance/amount-with-max-input.tsx, pages/compose/dispenser/dispense/form.tsx. Shown when every spendable coin is locked. $1 = the locked BTC amount."
+  },
+  "coin_lock_sentence_pair": {
+    "message": "$p1$ $p2$",
+    "description": "Joins two sentences of the locked-coin approval warning: $1 about offers, then $2 about coins the user locked. Keep the space only if the language separates sentences with one.",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "coin_lock_unlock_and_sign": {
+    "message": "Unlock and sign",
+    "description": "pages/requests/psbt/approve.tsx, pages/requests/psbts/approve.tsx, pages/requests/transaction/approve.tsx. Confirm button when signing spends locked coins; confirming unlocks them."
+  },
+  "coin_lock_warning_coin": {
+    "message": "$1 BTC · $2 · $3",
+    "description": "components/domain/approval/approval-warnings.tsx. One locked coin a signature would spend. $1 = BTC amount, $2 = shortened txid:vout, $3 = why it is locked (Offer funding, Collection offer, Locked by you)."
+  },
+  "coin_lock_warning_coin_offers": {
+    "message": "This spends a coin locked for your offers. Your $1 offers will be cancelled when this confirms.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend one coin backing several marketplace offers. $1 = number of offers (2 or more)."
+  },
+  "coin_lock_warning_manual": {
+    "message": "This spends a coin you locked.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend one coin the user locked by hand."
+  },
+  "coin_lock_warning_manual_many": {
+    "message": "This spends coins you locked.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend several coins the user locked by hand."
+  },
+  "coin_lock_warning_offer": {
+    "message": "This spends a coin locked for your offer. Your offer will be cancelled when this confirms.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend the coin backing one marketplace offer."
+  },
+  "coin_lock_warning_offer_coins": {
+    "message": "This spends coins locked for your offer. Your offer will be cancelled when this confirms.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend several coins backing one marketplace offer."
+  },
+  "coin_lock_warning_offers": {
+    "message": "This spends coins locked for your offers. Your $1 offers will be cancelled when this confirms.",
+    "description": "components/domain/approval/approval-warnings.tsx. Approval warning when a site asks to spend coins backing several marketplace offers. $1 = number of offers (2 or more)."
+  },
+  "coin_lock_warning_title": {
+    "message": "Spends a locked coin",
+    "description": "components/domain/approval/approval-warnings.tsx. Heading of the approval warning when a site asks to spend one locked coin."
+  },
+  "coin_lock_warning_title_many": {
+    "message": "Spends $1 locked coins",
+    "description": "components/domain/approval/approval-warnings.tsx. Heading of the approval warning when a site asks to spend several locked coins. $1 = number of coins (2 or more)."
+  },
+  "coins_backs_offers": {
+    "message": "Backs $1 offers",
+    "description": "components/domain/coins/coin-card.tsx. Under a coin locked for offers. $1 = number of offers (2 or more)."
+  },
+  "coins_backs_one_offer": {
+    "message": "Backs 1 offer",
+    "description": "components/domain/coins/coin-card.tsx. Under a coin locked for one offer."
+  },
+  "coins_btc_amount": {
+    "message": "$1 BTC",
+    "description": "components/domain/coins/coin-card.tsx. A coin's value. $1 = BTC amount."
+  },
+  "coins_coin_label": {
+    "message": "$1 BTC · $2",
+    "description": "components/domain/coins/coin-card.tsx. Names one coin. $1 = BTC amount, $2 = shortened txid:vout."
+  },
+  "coins_confirm_unlock": {
+    "message": "Confirm",
+    "description": "components/domain/coins/coin-card.tsx. What the Unlock button on an offer coin says after the first tap; a second tap unlocks the coin."
+  },
+  "coins_confirmation_one": {
+    "message": "1 confirmation",
+    "description": "components/domain/coins/coin-card.tsx. A coin with one confirmation."
+  },
+  "coins_confirmations": {
+    "message": "$1 confirmations",
+    "description": "components/domain/coins/coin-card.tsx. A coin's confirmations. $1 = number (2 or more)."
+  },
+  "coins_filter": {
+    "message": "Filter coins",
+    "description": "pages/settings/coins.tsx. Accessible name of the All / Locked filter."
+  },
+  "coins_filter_all": {
+    "message": "All",
+    "description": "pages/settings/coins.tsx. Filter showing every coin."
+  },
+  "coins_filter_locked": {
+    "message": "Locked",
+    "description": "pages/settings/coins.tsx. Filter showing only locked coins."
+  },
+  "coins_funds_offers": {
+    "message": "Set aside for offers",
+    "description": "components/domain/coins/coin-card.tsx. Under an offer funding coin whose offers the wallet has no ids for yet."
+  },
+  "coins_holds_assets": {
+    "message": "Holds assets",
+    "description": "components/domain/coins/coin-card.tsx. Badge on a coin carrying Counterparty assets, which sends never spend."
+  },
+  "coins_kind_collection_offer": {
+    "message": "Collection offer",
+    "description": "components/domain/coins/coin-lock-text.ts. Why a coin is locked: it funds a collection offer."
+  },
+  "coins_kind_manual": {
+    "message": "Locked by you",
+    "description": "components/domain/coins/coin-lock-text.ts. Why a coin is locked: the user locked it by hand."
+  },
+  "coins_kind_offer_slot": {
+    "message": "Offer funding",
+    "description": "components/domain/coins/coin-lock-text.ts. Why a coin is locked: it funds an exact marketplace offer."
+  },
+  "coins_load_failed": {
+    "message": "Could not load this address's coins. Try again.",
+    "description": "pages/settings/coins.tsx. Error when the coin list could not be loaded."
+  },
+  "coins_loading": {
+    "message": "Loading coins…",
+    "description": "pages/settings/coins.tsx. Spinner while the coin list loads."
+  },
+  "coins_lock": {
+    "message": "Lock",
+    "description": "components/domain/coins/coin-card.tsx. Button that locks a free coin so no send spends it."
+  },
+  "coins_lock_again": {
+    "message": "Lock again",
+    "description": "components/domain/coins/coin-card.tsx. Button that locks an unlocked offer coin again while its offer lives."
+  },
+  "coins_locked": {
+    "message": "Locked",
+    "description": "pages/settings/coins.tsx. Summary row label: BTC in locked coins, which sends leave alone."
+  },
+  "coins_none": {
+    "message": "No coins",
+    "description": "pages/settings/coins.tsx. Empty state heading."
+  },
+  "coins_none_detail": {
+    "message": "BTC you receive shows up here.",
+    "description": "pages/settings/coins.tsx. Empty state detail."
+  },
+  "coins_not_on_chain_yet": {
+    "message": "Not on chain yet",
+    "description": "components/domain/coins/coin-card.tsx. A coin an offer locked before its funding transaction was seen."
+  },
+  "coins_offer_expires": {
+    "message": "Expires $1",
+    "description": "components/domain/coins/coin-card.tsx. When the offers a coin backs expire. $1 = date and time."
+  },
+  "coins_offer_site": {
+    "message": "From $1",
+    "description": "components/domain/coins/coin-card.tsx. The site whose offer locked a coin. $1 = site hostname."
+  },
+  "coins_refresh": {
+    "message": "Refresh coins",
+    "description": "pages/settings/coins.tsx. Header button that reloads the coin list."
+  },
+  "coins_show_more": {
+    "message": "Show more",
+    "description": "pages/settings/coins.tsx. Button that lists more coins."
+  },
+  "coins_summary_help": {
+    "message": "Locked coins are left out of every send.",
+    "description": "pages/settings/coins.tsx. Help line in the summary card, saying what locking a coin does."
+  },
+  "coins_summary_title": {
+    "message": "Your coins",
+    "description": "pages/settings/coins.tsx. Heading of the summary card above the coin list."
+  },
+  "coins_title": {
+    "message": "Coin Control",
+    "description": "pages/settings/coins.tsx, pages/settings/index.tsx. The coin control page: the address's BTC outputs and which are locked."
+  },
+  "coins_unlock": {
+    "message": "Unlock",
+    "description": "components/domain/coins/coin-card.tsx. Unlocks a locked coin so sends may spend it."
+  },
+  "coins_unlock_confirm_funding": {
+    "message": "Offers stay live until this coin is spent.",
+    "description": "components/domain/coins/coin-card.tsx. Inline unlock confirmation for an offer funding coin whose offers the wallet has no ids for."
+  },
+  "coins_unlock_confirm_offers": {
+    "message": "Your $1 offers stay live. If this coin is spent, they are cancelled.",
+    "description": "components/domain/coins/coin-card.tsx. Inline unlock confirmation for a coin backing several offers. $1 = number of offers (2 or more)."
+  },
+  "coins_unlock_confirm_one_offer": {
+    "message": "Your offer stays live. If this coin is spent, it is cancelled.",
+    "description": "components/domain/coins/coin-card.tsx. Inline unlock confirmation for a coin backing one offer."
+  },
+  "coins_unlocked": {
+    "message": "Unlocked",
+    "description": "components/domain/coins/coin-card.tsx. Badge on an offer coin the user unlocked while its offer lives."
+  },
+  "coins_update_failed": {
+    "message": "Could not update this coin. Try again.",
+    "description": "pages/settings/coins.tsx. Error when locking or unlocking a coin failed."
   },
   "file_validation_invalid_file": {
     "message": "This file could not be read.",
@@ -5476,14 +5696,6 @@
     "message": "This funds an inscription: $1 BTC goes to $2, an address derived from the inscription itself and spendable only by your key. The follow-up reveal transaction publishes the content. Review its destination and fees separately.",
     "description": "Approval screen information body (core/counterparty/transactionSafety.ts) under \"Inscription Commit\". $1 = BTC amount, 8 decimals; $2 = the commit address, in full."
   },
-  "safety_counterparty_reveal_commit": {
-    "message": "Counterparty Commit",
-    "description": "Approval screen information title (core/counterparty/transactionSafety.ts, components/domain/approval/approval-warnings.tsx), shown when an output funds a Counterparty commit whose reveal transaction the site supplied and the wallet verified."
-  },
-  "safety_counterparty_reveal_commit_detail": {
-    "message": "$1 BTC goes to $2 to fund the site's reveal transaction, which publishes the message shown above from your address. The site holds the key to this output, so count this BTC as spent.",
-    "description": "Approval screen information body (core/counterparty/transactionSafety.ts, components/domain/approval/approval-warnings.tsx) under \"Counterparty Commit\". $1 = BTC amount, 8 decimals; $2 = the commit address, in full."
-  },
   "safety_blocked_reveal_did_not_verify": {
     "message": "Blocked: Reveal Did Not Verify",
     "description": "Approval screen block title (core/counterparty/signRequestAnalysis.ts, components/domain/approval/approval-warnings.tsx): the site supplied the reveal transaction for a Counterparty commit and it did not prove out against the transaction being signed."
@@ -5587,30 +5799,6 @@
   "safety_reveal_address_none": {
     "message": "an output with no address",
     "description": "Address label (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) for an output whose script has no address, used where an address would go."
-  },
-  "safety_reveal_outputs_title": {
-    "message": "Second Transaction",
-    "description": "Approval screen information title (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) over the outputs of the Counterparty reveal the site supplied."
-  },
-  "safety_reveal_outputs_pays_other_title": {
-    "message": "Second Transaction Pays Another Address",
-    "description": "Approval screen warning title (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): the Counterparty reveal the site supplied pays BTC to an address that is not this wallet's."
-  },
-  "safety_reveal_outputs_data_only": {
-    "message": "Second transaction: data only, no payment.",
-    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx): the site's Counterparty reveal carries only the message and pays nothing."
-  },
-  "safety_reveal_outputs_pays": {
-    "message": "Second transaction, as the site supplied it, pays:",
-    "description": "Approval screen body (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx), followed by a list of the reveal's payments."
-  },
-  "safety_reveal_output_item": {
-    "message": "$1 sats to $2",
-    "description": "List item (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx). $1 = amount in sats; $2 = an address followed by \"(yours)\" or \"(not yours)\", or \"an output with no address\"."
-  },
-  "safety_reveal_outputs_resign_note": {
-    "message": "A site holding the second transaction's key could sign it again with different outputs. One built by Counterparty's own service cannot be, but the wallet cannot tell which this is.",
-    "description": "Approval screen note (core/counterparty/providerReveal.ts, components/domain/approval/approval-warnings.tsx) under the reveal's outputs."
   },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "This sends $1 BTC to $2, matching the payment outputs the site declared. Check the address is the one you mean.",
@@ -5967,6 +6155,10 @@
   "settings_change_your_wallet_password": {
     "message": "Change your wallet password",
     "description": "pages/settings/index.tsx"
+  },
+  "settings_coins_description": {
+    "message": "Lock coins and see what backs your offers",
+    "description": "pages/settings/index.tsx. Description of the Coins settings entry."
   },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "Disconnect all sites",
@@ -8156,6 +8348,10 @@
     "message": "Output $1 has no Bitcoin address that the wallet can review.",
     "description": "Known plain-Bitcoin payment proof diagnostic, translated only for display. Where present, $1 is the unchanged output index."
   },
+  "zeld_error_locked": {
+    "message": "Some ZELD sits on coins you locked. Unlock them in Coin Control to send it.",
+    "description": "components/domain/zeld/error-message.ts. ZELD send error when the ZELD is on locked coins."
+  },
   "zeld_hunt_enable": {
     "message": "Enable ZELD Hunting",
     "description": "Wallet UI for ZELD and complete lists. Preserve the meaning of numbered substitutions; their order may vary by language."
@@ -8732,6 +8928,82 @@
     "message": "Fund and Authorize Offers",
     "description": "pages/requests/psbts/approve.tsx. Header title of the batch screen where the bidder sets aside offer funding (paid now) and signs exact offers backed by it, in one review."
   },
+  "commit_reveal_title": {
+    "message": "Publish a Counterparty message",
+    "description": "core/counterparty/commitRevealBundle.ts. Title of the review card when a site asks the wallet to sign a Taproot-encoded Counterparty message as two transactions: a commit that funds it and a reveal that publishes it."
+  },
+  "commit_reveal_message": {
+    "message": "Message",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label; the value is the decoded Counterparty message the two transactions publish."
+  },
+  "commit_reveal_published_from": {
+    "message": "Published from",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label; the value is the user's address, which signs both transactions and from which Counterparty records the message."
+  },
+  "commit_reveal_commit_fee": {
+    "message": "Commit fee",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label; the value is the Bitcoin network fee of the first (commit) transaction, in sats."
+  },
+  "commit_reveal_commit_fee_description": {
+    "message": "Network fee of the first transaction, which funds the second",
+    "description": "core/counterparty/commitRevealBundle.ts. Supporting text under \"Commit fee\"."
+  },
+  "commit_reveal_reveal_fee": {
+    "message": "Reveal fee",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label; the value is the Bitcoin network fee of the second (reveal) transaction, in sats."
+  },
+  "commit_reveal_reveal_fee_description": {
+    "message": "Paid from the $1 the first transaction sets aside",
+    "description": "core/counterparty/commitRevealBundle.ts. Supporting text under \"Reveal fee\". $1 = the value of the commit output the reveal spends, already formatted, e.g. \"1,234 sats\"."
+  },
+  "commit_reveal_signing": {
+    "message": "Signing",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label for the paragraph that explains what the two signatures do."
+  },
+  "commit_reveal_signing_detail": {
+    "message": "Your address's key signs both transactions. The second publishes the message and is valid only after the first.",
+    "description": "core/counterparty/commitRevealBundle.ts. Paragraph under \"Signing\" on the review of a two-transaction Taproot message."
+  },
+  "commit_reveal_reveal_output": {
+    "message": "Reveal output $1",
+    "description": "core/counterparty/commitRevealBundle.ts. Review fact label, one per output of the second (reveal) transaction of a Taproot message. $1 = the output's index (0, 1, ...)."
+  },
+  "commit_reveal_output_marker": {
+    "message": "Counterparty marker, no value",
+    "description": "core/counterparty/commitRevealBundle.ts. Value of a \"Reveal output\" fact for the zero-value OP_RETURN output that marks the transaction as Counterparty's."
+  },
+  "commit_reveal_output_unknown": {
+    "message": "$1 to a script no address describes",
+    "description": "core/counterparty/commitRevealBundle.ts. Value of a \"Reveal output\" fact for an output whose script is not a standard address. $1 = the amount, already formatted, e.g. \"330 sats\"."
+  },
+  "commit_reveal_output_yours": {
+    "message": "$1 back to your address",
+    "description": "core/counterparty/commitRevealBundle.ts. Supporting text under a reveal output that pays the user's own address. $1 = the amount, already formatted, e.g. \"546 sats\"."
+  },
+  "commit_reveal_output_burn": {
+    "message": "$1 to a burn address: no one can spend it",
+    "description": "core/counterparty/commitRevealBundle.ts. Supporting text under a reveal output that pays a well-known burn address, so the amount is gone for good. $1 = the amount, already formatted, e.g. \"330 sats\"."
+  },
+  "commit_reveal_output_external": {
+    "message": "$1 to an address that is not yours",
+    "description": "core/counterparty/commitRevealBundle.ts. Supporting text under a reveal output that pays someone else's address. $1 = the amount, already formatted, e.g. \"330 sats\"."
+  },
+  "psbts_approve_publish_message": {
+    "message": "Publish Message",
+    "description": "pages/requests/psbts/approve.tsx. Header title of the screen where a site asks the wallet to sign the two transactions of a Taproot-encoded Counterparty message."
+  },
+  "psbts_approve_sign_both": {
+    "message": "Sign Both",
+    "description": "pages/requests/psbts/approve.tsx. Sign button on the two-transaction Taproot message screen; signs the commit and the reveal together."
+  },
+  "psbts_approve_commit_transaction": {
+    "message": "Commit",
+    "description": "pages/requests/psbts/approve.tsx. Name of the first transaction in the list of a two-transaction Taproot message: the one that funds the second."
+  },
+  "psbts_approve_reveal_transaction": {
+    "message": "Reveal",
+    "description": "pages/requests/psbts/approve.tsx. Name of the second transaction in the list of a two-transaction Taproot message: the one that publishes the message."
+  },
   "psbts_approve_fund_and_authorize_1_offer": {
     "message": "Fund and authorize 1 offer",
     "description": "pages/requests/psbts/approve.tsx. Sign button for a fund-and-authorize batch holding one exact offer; signing also funds it now."
@@ -8891,5 +9163,29 @@
   "messages_sweep_no_balances": {
     "message": "No balances moved",
     "description": "Sweep transaction details: the sweep credited no balances to the destination."
+  },
+  "message_cancel_no_lock": {
+    "message": "No locked coin",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_offers": {
+    "message": "Cancel $1 offers",
+    "description": "requests/message/approve.tsx. Offer cancellation approval. $1 = number of offers."
+  },
+  "message_cancel_one_offer": {
+    "message": "Cancel 1 offer",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_sign": {
+    "message": "Sign",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_stays_locked": {
+    "message": "Stays locked",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_unlocks": {
+    "message": "Unlocks",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
   }
 }

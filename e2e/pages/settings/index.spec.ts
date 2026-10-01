@@ -62,6 +62,13 @@ walletTest.describe('Settings Index Page (/settings)', () => {
     await expect(page).toHaveURL(/advanced/, { timeout: 5000 });
   });
 
+  walletTest('can navigate to Coin Control', async ({ page }) => {
+    await navigateTo(page, 'settings');
+    await expect(settings.coinsOption(page)).toBeVisible({ timeout: 5000 });
+    await settings.coinsOption(page).click();
+    await expect(page).toHaveURL(/settings\/coins/, { timeout: 5000 });
+  });
+
   walletTest('can navigate to Connected Sites', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.waitForLoadState('networkidle');

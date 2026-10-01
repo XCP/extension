@@ -141,6 +141,7 @@ export const settings = {
   // Main settings options
   addressTypeOption: (page: Page) => page.getByText('Address Type'),
   advancedOption: (page: Page) => page.getByText('Advanced'),
+  coinsOption: (page: Page) => page.getByText('Coin Control', { exact: true }),
   connectedSitesOption: (page: Page) => page.getByText('Connected Sites'),
   pinnedAssetsOption: (page: Page) => page.getByText('Pinned Assets'),
   securityOption: (page: Page) => page.getByText('Security'),

@@ -9,6 +9,8 @@ import { p2pkh, p2wpkh, Script, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
+import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
+import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/core/bitcoin/coinLocks';
 import { finalizePSBT, parsePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleItem, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
@@ -731,6 +733,67 @@ describe('fund-and-authorize-offers: one review funds the offer and authorizes i
     for (const call of calls.slice(1)) {
       expect(call[4]).toEqual({ packageTransactions: { [fund.id]: bytesToHex(fund.toBytes(true, false)) } });
     }
+  });
+
+  describe('locked coins', () => {
+    const store = { locks: [] as CoinLock[], updates: [] as CoinLockUpdate[], commits: [] as Array<[string, OfferCoinCommitment[]]> };
+    beforeEach(() => {
+      store.locks = []; store.updates = []; store.commits = [];
+      setCoinLockStore({
+        read: async () => store.locks,
+        update: async (_address, update) => { store.updates.push(update); },
+        commit: async (address, commitments) => { store.commits.push([address, commitments]); },
+      });
+    });
+    afterEach(() => setCoinLockStore(null));
+
+    it('locks the slot the signed funding set aside, with the offers authorized on it, before delivery', async () => {
+      const { items, fund } = fundAndAuthorize({ targets: 2 });
+      const result = await review(items, 'fund-and-authorize-offers');
+      expect(result.decodedInfo.policyWarnings?.some(warning => warning.code === 'locked_coin_spend')).toBe(false);
+      await approve(result, result.policy.requiresAcknowledgement);
+      expect(store.commits).toEqual([[segwit.address, [{
+        outpoint: `${fund.id}:0`, kind: 'offer_slot', refs: ['auth-fund-0', 'auth-fund-1'], valueSats: OFFER,
+        origin: 'https://audit.invalid', expiresAt: 2_000_003_600,
+      }]]]);
+    });
+
+    it('asks before funding offers from a coin the user locked, and confirming unlocks it before signing', async () => {
+      const { items, coin } = fundAndAuthorize();
+      store.locks = [{
+        outpoint: `${coin.id}:0`, address: segwit.address!, kind: 'manual', manual: true, refs: [], valueSats: FUNDING,
+        origin: null, expiresAt: null, createdAt: 1, seenAt: 1, unlocked: false,
+      }];
+      const result = await review(items, 'fund-and-authorize-offers');
+      expect(result.policy.requiresAcknowledgement).toBe(true);
+      expect(result.decodedInfo.policyWarnings).toContainEqual(expect.objectContaining({
+        code: 'locked_coin_spend', severity: 'warning',
+        data: { coins: [{ outpoint: `${coin.id}:0`, address: segwit.address, kind: 'manual', manual: true, offers: 0, valueSats: FUNDING }] },
+      }));
+      await expect(approve(result, false)).rejects.toThrow();
+      expect(store.updates).toEqual([]);
+
+      const again = await review(items, 'fund-and-authorize-offers');
+      state.wallet.signPsbt.mockClear();
+      await approve(again, true);
+      expect(store.updates).toEqual([{ unlock: [`${coin.id}:0`] }]);
+      expect(state.wallet.signPsbt).toHaveBeenCalled();
+    });
+
+    it('writes no lock when signing fails, and delivers the signature when the lock write fails', async () => {
+      const { items } = fundAndAuthorize();
+      state.wallet.signPsbt.mockRejectedValueOnce(new Error('device unplugged'));
+      const failing = await review(items, 'fund-and-authorize-offers');
+      await expect(approve(failing, failing.policy.requiresAcknowledgement)).rejects.toThrow('device unplugged');
+      expect(store.commits).toEqual([]);
+
+      setCoinLockStore({
+        read: async () => [], update: async () => {},
+        commit: async () => { throw new Error('keychain write failed'); },
+      });
+      const result = await review(items, 'fund-and-authorize-offers');
+      await expect(approve(result, result.policy.requiresAcknowledgement)).resolves.toHaveLength(2);
+    });
   });
 
   // The funding's inputs' ZELD lands on its first output, the slot; each authorization then sends

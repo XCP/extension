@@ -281,21 +281,30 @@ describe('background provider signing execution', () => {
     },
   );
 
-  it('checks the grant again in the caller after the authorization helper yields', async () => {
+  it.each(['finalization', 'delivery'] as const)('checks the grant after the %s authorization helper yields', async phase => {
     await beginSignFlow(request());
     const granted = mocks.currentSettings();
-    mocks.currentSettings.mockImplementationOnce(() => {
+    const revokeOnNextGuard = () => mocks.currentSettings.mockImplementationOnce(() => {
       queueMicrotask(() => mocks.currentSettings.mockReturnValue({
         ...granted, connectedWebsites: [], providerCapabilities: {},
       }));
       return granted;
     });
+    if (phase === 'finalization') revokeOnNextGuard();
+    else {
+      const update = signFlowStorage.update.bind(signFlowStorage);
+      let armed = false;
+      vi.spyOn(signFlowStorage, 'update').mockImplementation(async (id, change) => {
+        const result = await update(id, change);
+        if (!armed && result?.status === 'completed') { armed = true; revokeOnNextGuard(); }
+        return result;
+      });
+    }
 
     await expect(approve()).rejects.toThrow(/no longer connected/);
-    expect(await getSignFlow('req-1')).toMatchObject({
-      status: 'completed', result: { signature: 'signed-message' },
-    });
-    expect(mocks.emit).not.toHaveBeenCalled();
+    expect(await getSignFlow('req-1')).toMatchObject(phase === 'delivery'
+      ? { status: 'completed', result: { signature: 'signed-message' } } : { status: 'cancelled' });
+    expect(mocks.emit).not.toHaveBeenCalledWith('sign-message-complete-req-1', expect.anything());
     expect(mocks.wallet.signMessage).toHaveBeenCalledTimes(1);
   });
 

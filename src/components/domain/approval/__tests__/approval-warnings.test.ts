@@ -436,13 +436,9 @@ describe('Counterparty commits', () => {
       title: t('safety_blocked_reveal_did_not_verify'),
       description: t('safety_reveal_script_not_committed'),
     });
-    expect(items[1]).toMatchObject({
-      severity: 'info',
-      title: t('safety_counterparty_reveal_commit'),
-      description: t('safety_counterparty_reveal_commit_detail', ['0.00000600', COMMIT]),
-    });
-    // Not the inscription wording: this commit's key is the site's, not the user's.
-    expect(items[1]?.title).not.toBe(t('safety_inscription_commit'));
+    // The commit-and-reveal review states the commit output; nothing here repeats it, and never
+    // in the inscription wording.
+    expect(items.map(item => item.title)).not.toContain(t('safety_inscription_commit'));
   });
 
   it.each(['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const)('states a proved reveal from its facts (%s)', language => {
@@ -451,12 +447,6 @@ describe('Counterparty commits', () => {
       { code: 'counterparty_reveal_site_control',
         data: { control: 'issuance_transfer', messageType: 'issuance', asset: 'PEPECASH',
           supplied: { kind: 'new_owner', address: PAYER, owned: false } },
-        severity: 'warning', title: 'English', message: 'English' },
-      { code: 'counterparty_reveal_outputs',
-        data: { externalSats: 330, outputs: [
-          { index: 0, value: 0, opReturn: true, owned: false },
-          { index: 1, value: 330, address: PAYER, opReturn: false, owned: false },
-        ] },
         severity: 'warning', title: 'English', message: 'English' },
     ];
     const items = buildApprovalWarnings({ ...EMPTY, safetyWarnings });
@@ -467,11 +457,5 @@ describe('Counterparty commits', () => {
       description: `${t('safety_reveal_control_issuance_transfer', 'PEPECASH')} `
         + t('safety_reveal_supplied_new_owner', t('safety_reveal_address_not_yours', PAYER)),
     });
-    expect(items[1]).toMatchObject({
-      severity: 'warning',
-      title: t('safety_reveal_outputs_pays_other_title'),
-      description: t('safety_reveal_outputs_pays'),
-    });
-    expect(items[1]?.children).toBeTruthy();
   });
 });

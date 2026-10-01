@@ -21,6 +21,21 @@ export interface MarketplaceOutpointClaim {
   vout: number;
 }
 
+/**
+ * Optional and additive, on the intents that commit coins (`fund_offers`,
+ * `authorize_exact_offer`, `fund_policy_offer`): the coins the site says the signature commits,
+ * with the offers each backs. A hint only. The wallet locks what it proves in the PSBT itself
+ * (core/counterparty/marketplace/offerCoinLocks.ts) and takes offer ids and expiry from an entry
+ * only for a coin it proved; any other entry is ignored, and an intent without the field locks
+ * the same coins.
+ */
+export interface MarketplaceCoinCommitmentClaim {
+  outpoint: MarketplaceOutpointClaim;
+  offerIds: string[];
+  /** Unix seconds, or null when the site named none. */
+  expiresAt: number | null;
+}
+
 export interface MarketplaceAssetClaim {
   asset: string;
   quantityRaw: string;
@@ -165,6 +180,7 @@ export interface ExactOfferIntentBase<Action extends 'authorize_exact_offer' | '
     type: 'spend_funding_outpoint';
     outpoint: MarketplaceOutpointClaim;
   };
+  commitments?: MarketplaceCoinCommitmentClaim[];
 }
 
 export interface AuthorizeExactOfferIntentClaim
@@ -220,6 +236,7 @@ export interface FundOffersIntentClaim {
   changeSats: number;
   expectedTxid: string;
   marketplaceExpiresAt: number;
+  commitments?: MarketplaceCoinCommitmentClaim[];
 }
 
 /** One alternative parent in a policy-offer funding set. Every one spends the same inputs. */
@@ -264,6 +281,7 @@ export interface FundPolicyOfferIntentClaim {
   anchor: MarketplaceOutpointClaim & { valueSats: typeof POLICY_ANCHOR_SATS; scriptPubKey: string };
   alternatives: FundPolicyOfferAlternativeClaim[];
   marketplaceFee: { payer: 'seller'; bps: typeof PLATFORM_FEE_BPS; minSats: typeof PLATFORM_FEE_MIN_SATS };
+  commitments?: MarketplaceCoinCommitmentClaim[];
 }
 
 /** `funded_policy_offer_v1` seller acceptance (spec §11.2): the wallet signs child input 1 only. */
@@ -330,7 +348,8 @@ export interface MarketplaceApprovalReview {
     | 'fund_offers'
     | 'fund_policy_offer'
     | 'accept_policy_offer'
-    | 'marketplace_batch';
+    | 'marketplace_batch'
+    | 'commit_and_reveal';
   title: string;
   facts: ProtocolField[];
   notices: Array<{ severity: 'info' | 'warning' | 'danger'; message: string }>;

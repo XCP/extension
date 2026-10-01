@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import {
   assertProviderPsbtSigningRequest,
+  providerMessageSigningCapabilities,
   providerPsbtSigningCapabilities,
   unsupportedMarketplaceActionReason,
 } from '@/core/providerCapabilities';
 
 describe('providerPsbtSigningCapabilities', () => {
+  it('advertises bounded cancellation metadata separately from PSBT signing', () => {
+    expect(providerMessageSigningCapabilities()).toEqual({ marketplaceIntents: ['cancel_offers'], maxCancelOfferCoins: 100 });
+  });
   it('reports the existing selected-input and partial-sighash software contract', () => {
     expect(providerPsbtSigningCapabilities({ type: 'mnemonic', addressFormat: AddressFormat.P2WPKH }))
       .toEqual({
@@ -41,6 +45,24 @@ describe('providerPsbtSigningCapabilities', () => {
       expect(providerPsbtSigningCapabilities({ type: 'mnemonic', addressFormat }).psbtBatch.marketplaceBundles)
         .toEqual(['attach-and-list', 'authorize-offers', 'fund-policy-offer']);
     }
+  });
+
+  it('advertises commit-and-reveal only for a P2WPKH or P2TR software wallet against an 11.5 API', () => {
+    for (const addressFormat of [AddressFormat.P2WPKH, AddressFormat.P2TR]) {
+      expect(providerPsbtSigningCapabilities({ type: 'mnemonic', addressFormat }, { taprootReveals: true })
+        .psbtBatch.marketplaceBundles).toContain('commit-and-reveal');
+      // Not when the API is older, or its version was not read.
+      expect(providerPsbtSigningCapabilities({ type: 'mnemonic', addressFormat }, { taprootReveals: false })
+        .psbtBatch.marketplaceBundles).not.toContain('commit-and-reveal');
+      expect(providerPsbtSigningCapabilities({ type: 'privateKey', addressFormat })
+        .psbtBatch.marketplaceBundles).not.toContain('commit-and-reveal');
+    }
+    for (const addressFormat of [AddressFormat.P2PKH, AddressFormat.P2SH_P2WPKH]) {
+      expect(providerPsbtSigningCapabilities({ type: 'mnemonic', addressFormat }, { taprootReveals: true })
+        .psbtBatch.marketplaceBundles).not.toContain('commit-and-reveal');
+    }
+    expect(providerPsbtSigningCapabilities({ type: 'hardware', addressFormat: AddressFormat.P2WPKH }, { taprootReveals: true })
+      .psbtBatch.marketplaceBundles).toEqual([]);
   });
 
   it('reports the proved selected-input and pre-signed external Trezor contract', () => {

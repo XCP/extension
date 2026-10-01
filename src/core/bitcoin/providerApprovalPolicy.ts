@@ -142,9 +142,27 @@ export function getPsbtBundleApprovalPolicy(
       const provedCpfpChild = request.bundleKind === 'acceptance-cpfp' && index === 1
         && request.items.length === 2 && requestItem.marketplaceIntent.action === 'bump_acceptance_fee'
         && decoded.review.status === 'proved';
-      itemPolicy = { blocked: !provedCpfpChild, requiresAcknowledgement: false, safeOwnChange: false };
+      // The reveal of a commit-and-reveal pair: everything it publishes and pays is the commit's
+      // review and the pair's proof, both of which it needs.
+      const provedReveal = request.bundleKind === 'commit-and-reveal' && index === 1
+        && request.items.length === 2 && requestItem.marketplaceIntent.action === 'sign_reveal'
+        && (decoded.review.status === 'proved' || decoded.review.status === 'caution');
+      itemPolicy = { blocked: !provedCpfpChild && !provedReveal, requiresAcknowledgement: false, safeOwnChange: false };
+      // Its own outputs, the marker, burn dust and the signer's own, need no second look; sats it
+      // pays anyone else do.
+      if (provedReveal && item.revealPaysOthers) {
+        itemPolicy.requiresAcknowledgement = true;
+        itemWarnings.push({ severity: 'warning', title: 'Reveal pays another address',
+          message: `The reveal pays ${formatAmount({ value: item.revealPaysOthers, maximumFractionDigits: 0 })} sats to addresses that are not yours.` });
+      }
     }
-    if (hasHighPsbtFee(item.psbtDetails, fastestFee)) {
+    // A reveal's whole fee is the commit output the site sized: one far above the network's rate
+    // is refused, not merely confirmed.
+    if (request.bundleKind === 'commit-and-reveal' && index === 1 && hasHighPsbtFee(item.psbtDetails, fastestFee)) {
+      itemPolicy.blocked = true;
+      itemWarnings.push({ severity: 'block', title: 'Reveal fee too high',
+        message: `The reveal pays ${formatAmount({ value: item.psbtDetails.fee, maximumFractionDigits: 0 })} sats, far above the network's rate.` });
+    } else if (hasHighPsbtFee(item.psbtDetails, fastestFee)) {
       itemPolicy.requiresAcknowledgement = true;
       itemWarnings.push({ severity: 'warning', title: 'Unusually high network fee',
         message: `This transaction pays ${formatAmount({ value: item.psbtDetails.fee, maximumFractionDigits: 0 })} sats. Confirm that this fee is intentional.` });

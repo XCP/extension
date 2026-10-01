@@ -7,9 +7,11 @@
  * - WalletService: Wallet state and cryptographic operations
  */
 
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
-import type { AddressFormat } from '@/core/bitcoin/addressFormat';
+import { normalizeAddressForComparison, sameAddress } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
+import { type MessageSignatureScheme, softwareMessageSignatureScheme } from '@/core/bitcoin/messageSigner';
+import { parseCancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import {
   checkSignInputOwners,
@@ -25,19 +27,22 @@ import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import { extractPsbtDetails } from '@/core/bitcoin/psbt';
 import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { fetchTokenBalance } from '@/core/counterparty/api';
+import { getCounterpartyFeatureStatus } from '@/core/counterparty/capabilities';
+import { isRevealIntentClaim, parseCommitRevealIntents } from '@/core/counterparty/commitRevealBundle';
 import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
-import { MAX_REVEAL_HEX_LENGTH } from '@/core/counterparty/providerReveal';
 import { generateRequestId } from '@/core/id';
+import { isRecord } from '@/core/isRecord';
 import {
   assertProviderPsbtSigningRequest,
+  providerMessageSigningCapabilities,
   providerPsbtSigningCapabilities,
   unsupportedMarketplaceActionReason,
 } from '@/core/providerCapabilities';
 import { checkReplayAttempt, markTransactionBroadcasted, markTransactionFailed, recordTransaction } from '@/core/replayPrevention';
-import { APPROVAL_WINDOW_FAILED_MESSAGE, JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { APPROVAL_WINDOW_FAILED_MESSAGE, PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import { analytics } from '@/platform/fathom';
 import { continuationUnlockPath, openExtensionPopup, reusePopupWindow } from '@/platform/popup';
@@ -54,7 +59,7 @@ import { runSignFlow } from '@/services/provider/signApproval';
 import { PROVIDER_SERVICE_NAME, PROVIDER_SERVICE_POLICY } from '@/services/providerServiceClient';
 import { assertSignDeliveryAuthorized } from '@/services/signDelivery';
 import { getWalletService, type WalletService } from '@/services/walletService';
-import type { PairedAddresses } from '@/types/wallet';
+import type { PairedAddresses, Wallet } from '@/types/wallet';
 
 // Define proper types for provider requests and responses
 export type ProviderRequestParams = unknown[];
@@ -64,9 +69,7 @@ type ProviderConnectionProof = {
   address: string;
   message: string;
   signature: string;
-  verification:
-    | { method: 'BIP-322'; format: string }
-    | { method: 'BIP-137'; format: 'legacy_recoverable' };
+  verification: MessageSignatureScheme;
 };
 
 type ConnectionProofContext = {
@@ -98,6 +101,21 @@ const walletLocked = () => new ProviderError(
   PROVIDER_ERROR_CODES.UNAUTHORIZED,
   'Wallet is locked or not set up. Unlock XCP Wallet and try again.',
 );
+
+/**
+ * Whether this wallet can sign a `commit-and-reveal` bundle now: a software wallet with a Native
+ * SegWit or Taproot address, against a Counterparty API that attributes a Taproot reveal to the key
+ * that signed it (11.5 or newer). An API whose version cannot be read counts as no.
+ */
+async function signsTaprootReveals(wallet: Pick<Wallet, 'type' | 'addressFormat'>): Promise<boolean> {
+  if (wallet.type === 'hardware') return false;
+  if (wallet.addressFormat !== AddressFormat.P2WPKH && wallet.addressFormat !== AddressFormat.P2TR) return false;
+  try {
+    return (await getCounterpartyFeatureStatus('taprootReveals')).supported;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Run a validator over what the site sent and report its refusal as -32602. The wallet's own
@@ -200,7 +218,7 @@ export function createProviderService(): ProviderService {
         signature: result.signature,
         verification: context.hardware
           ? { method: 'BIP-137', format: 'legacy_recoverable' }
-          : { method: 'BIP-322', format: target.format },
+          : softwareMessageSignatureScheme(target.format),
       };
     } catch (error) {
       console.warn('[ProviderService] Failed to generate connection proof:', error);
@@ -522,7 +540,12 @@ export function createProviderService(): ProviderService {
             publicKey: activeAddress.pubKey,
             type: activeWallet.addressFormat,
           };
-          const signing = providerPsbtSigningCapabilities(activeWallet);
+          const signing = {
+            ...providerPsbtSigningCapabilities(activeWallet, {
+              taprootReveals: await signsTaprootReveals(activeWallet),
+            }),
+            message: providerMessageSigningCapabilities(),
+          };
           if (!paired) return { active, signing };
           const addresses = await walletService.getPairedAddresses();
           return {
@@ -559,6 +582,8 @@ export function createProviderService(): ProviderService {
         case 'xcp_signMessage': {
           const message = params?.[0];
           const address = params?.[1];
+          const options = params?.[2];
+          const cancelOffersIntent = parseCancelOffersIntent(isRecord(options) && 'intent' in options ? options.intent : options);
 
           // Validate message type and presence
           if (!message) {
@@ -606,7 +631,7 @@ export function createProviderService(): ProviderService {
           return await runSignFlow({
             origin,
             method,
-            params: { message, signingAddress },
+            params: { message, signingAddress, ...(cancelOffersIntent ? { cancelOffersIntent } : {}) },
             identity: { walletId: activeWallet.id, address: activeAddress.address },
             pairedAddresses: signingAddress !== activeAddress.address,
             approval: {
@@ -625,6 +650,7 @@ export function createProviderService(): ProviderService {
                 requestKey,
                 kind: 'sign-message',
                 message,
+                ...(cancelOffersIntent ? { cancelOffersIntent } : {}),
                 address: activeAddress.address,
                 signingAddress,
                 walletId: activeWallet.id,
@@ -747,6 +773,8 @@ export function createProviderService(): ProviderService {
             && typeof firstIntent === 'object'
             && !Array.isArray(firstIntent)
             && (firstIntent as { action?: unknown }).action === 'accept_exact_offer';
+          // A Taproot-encoded message's commit and its unsigned reveal, recognized by the reveal's claim.
+          const commitAndReveal = requests.length === 2 && isRevealIntentClaim(parsedRequests[1]!.intent);
           // The intents are the site's claims; a malformed one, or a bundle over its phase's limit, is
           // the site's error (-32602) with the parser's reason.
           const parsedBundle = asInvalidParams(() => exactCpfp
@@ -760,7 +788,12 @@ export function createProviderService(): ProviderService {
                   intents: [pair.parent, pair.child],
                 };
               })()
-            : parseMarketplaceBatchIntents(parsedRequests.map(request => request.intent)));
+            : commitAndReveal
+              ? (() => {
+                  const pair = parseCommitRevealIntents(parsedRequests[0]!.intent, parsedRequests[1]!.intent);
+                  return { kind: 'commit-and-reveal' as const, intents: [pair.commit, pair.reveal] };
+                })()
+              : parseMarketplaceBatchIntents(parsedRequests.map(request => request.intent)));
 
           if (!await connectionService.hasPermission(origin)) {
             throw new ProviderError(
@@ -775,6 +808,12 @@ export function createProviderService(): ProviderService {
           const scope = signerScope(
             activeAddress.address, await loadPairedAddresses(walletService, activeWallet));
           const signing = providerPsbtSigningCapabilities(activeWallet).psbtBatch;
+          // Advertised only where it can succeed; a site that sends it anyway is refused here.
+          if (parsedBundle.kind === 'commit-and-reveal' && !await signsTaprootReveals(activeWallet)) {
+            throw invalidParams(activeWallet.type === 'hardware'
+              ? 'The active wallet cannot sign a Taproot reveal: use a software wallet'
+              : 'commit-and-reveal needs a Native SegWit or Taproot address and a Counterparty API at 11.5 or newer');
+          }
           for (const bundleIntent of parsedBundle.intents) {
             const unsupported = unsupportedMarketplaceActionReason(signing, bundleIntent.action);
             if (unsupported) throw invalidParams(unsupported);
@@ -797,6 +836,26 @@ export function createProviderService(): ProviderService {
             }
             if (hasExcessSighashEntries(request.sighashTypes, details)) {
               throw invalidParams(`PSBT bundle request ${requestIndex} has too many sighash entries`);
+            }
+            // The reveal spends a commit output no one owns yet, through a leaf closed by the
+            // signer's key: its signer is the active address, on input 0 alone, DEFAULT or ALL.
+            // The review proves the leaf, its key and the output it spends.
+            if (parsedBundle.kind === 'commit-and-reveal' && requestIndex === 1) {
+              const signers = Object.entries(request.signInputs);
+              if (
+                details.inputs.length !== 1
+                || details.inputs[0]!.tapLeafScripts?.length !== 1
+                || signers.length !== 1
+                || !sameAddress(signers[0]![0], activeAddress.address)
+                || signers[0]![1].length !== 1 || signers[0]![1][0] !== 0
+                || request.sighashTypes.length !== 1
+                || (request.sighashTypes[0] !== 0x00 && request.sighashTypes[0] !== 0x01)
+              ) {
+                throw invalidParams(
+                  'PSBT bundle request 1 must be the reveal: one input carrying the envelope leaf, signed by the active address on input 0 with SIGHASH_DEFAULT or SIGHASH_ALL',
+                );
+              }
+              continue;
             }
             if (usesSingleWithoutOutput(request.sighashTypes, details)) {
               throw invalidParams(
@@ -870,16 +929,23 @@ export function createProviderService(): ProviderService {
             throw invalidParams('PSBT parameters must be an object with hex property');
           }
 
-          const { hex: psbtHex, signInputs: requestedSignInputs, sighashTypes, inscription, reveal, intent } = psbtParams as {
+          const { hex: psbtHex, signInputs: requestedSignInputs, sighashTypes, inscription, intent } = psbtParams as {
             hex?: string;
             signInputs?: Record<string, number[]>;
             sighashTypes?: number[];
             inscription?: { revealScript?: string; tapInternalKey?: string };
-            reveal?: unknown;
             intent?: unknown;
           };
           let signInputs = requestedSignInputs;
 
+          // A site-signed reveal proves nothing under Core 11.5, which publishes a reveal's message
+          // only when the source address's key signed it; the site sends the unsigned reveal in a
+          // commit-and-reveal bundle for the wallet to sign instead.
+          if ('reveal' in psbtParams) {
+            throw invalidParams(
+              'The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts'
+            );
+          }
           if (!psbtHex) {
             throw invalidParams('PSBT hex is required');
           }
@@ -913,22 +979,6 @@ export function createProviderService(): ProviderService {
             || !/^[0-9a-fA-F]{64}$/.test(inscription.tapInternalKey)
           )) {
             throw invalidParams('inscription must carry revealScript and tapInternalKey as hex strings');
-          }
-          // A Counterparty Taproot commit's reveal. Its message is what signing the commit really
-          // authorizes, so it is a Counterparty request, never a plain Bitcoin payment. Shape
-          // only here; the review proves the commit output commits to exactly its script. These
-          // are the caller's mistakes, so they go back as -32602 with the reason, not masked.
-          if (reveal !== undefined) {
-            if (isBitcoinPayment) {
-              throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'A Counterparty reveal makes this a Counterparty transaction; request it with xcp_signPsbt');
-            }
-            if (inscription !== undefined) {
-              throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'Pass either inscription or reveal, not both');
-            }
-            if (typeof reveal !== 'string' || reveal.length === 0 || reveal.length % 2 !== 0
-              || reveal.length > MAX_REVEAL_HEX_LENGTH || !/^[0-9a-fA-F]+$/.test(reveal)) {
-              throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'reveal must be the signed reveal transaction as a hex string');
-            }
           }
           if (signInputs !== undefined && (
             signInputs === null || typeof signInputs !== 'object' || Array.isArray(signInputs)
@@ -1023,7 +1073,7 @@ export function createProviderService(): ProviderService {
           return await runSignFlow({
             origin,
             method,
-            params: { psbtHex, signInputs, sighashTypes, inscription, reveal, bitcoinPaymentIntent, marketplaceIntent },
+            params: { psbtHex, signInputs, sighashTypes, inscription, bitcoinPaymentIntent, marketplaceIntent },
             identity: { walletId: activeWallet.id, address: activeAddress.address },
             pairedAddresses: Object.keys(signInputs ?? {}).some(address => normalizeAddressForComparison(address) !== normalizeAddressForComparison(activeAddress.address)),
             approval: {
@@ -1051,7 +1101,6 @@ export function createProviderService(): ProviderService {
                     tapInternalKey: inscription.tapInternalKey!,
                   },
                 } : {}),
-                ...(typeof reveal === 'string' ? { reveal: reveal.toLowerCase() } : {}),
                 address: activeAddress.address,
                 walletId: activeWallet.id,
                 timestamp: Date.now(),

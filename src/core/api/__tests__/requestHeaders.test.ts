@@ -41,6 +41,10 @@ afterEach(() => {
 });
 
 describe('requests without a body declare no Content-Type', () => {
+  it('bypasses the browser cache when fresh chain evidence is requested', async () => {
+    await apiClient.get('https://mempool.space/api/tx/abc/outspend/0', { cache: 'no-store' });
+    expect(fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ cache: 'no-store' }));
+  });
   it('a plain GET', async () => {
     await apiClient.get('https://api.counterparty.io:4000/v2/assets/XCP');
     expect(sent[0]!.headers.has('content-type')).toBe(false);

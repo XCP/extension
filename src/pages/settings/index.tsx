@@ -19,6 +19,7 @@ const PATHS = {
   BACK: "/index",
   ADDRESS_TYPE: "/settings/address-types",
   ADVANCED: "/settings/advanced",
+  COINS: "/settings/coins",
   CONNECTED_SITES: "/settings/connected-sites",
   SECURITY: "/settings/security",
   RESET_WALLET: "/keychain/wallets/reset",
@@ -95,6 +96,12 @@ export default function SettingsPage(): ReactElement {
           title: t('common_advanced'),
           description: t('settings_network_settings_and_developer_options'),
           onClick: () => void navigate(PATHS.ADVANCED),
+        },
+        {
+          id: "coins",
+          title: t('coins_title'),
+          description: t('settings_coins_description'),
+          onClick: () => void navigate(PATHS.COINS),
         },
         {
           id: "connectedSites",

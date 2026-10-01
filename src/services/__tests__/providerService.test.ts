@@ -237,7 +237,9 @@ vi.mock('@/platform/walletManager', () => ({
     updateSettings: vi.fn(),
   },
 }));
-vi.mock('@/core/bitcoin/messageSigner', () => ({
+// Partial: the connection proof reports the real signature scheme for the address format.
+vi.mock('@/core/bitcoin/messageSigner', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/core/bitcoin/messageSigner')>(),
   signMessage: vi.fn().mockResolvedValue({ signature: 'mock-proof-sig', address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty' }),
 }));
 // Partial: the rest of the flow module (request keys, rejoin lookups) must stay real.
@@ -265,6 +267,12 @@ vi.mock('@/platform/provider/recentBroadcasts', () => ({
 }));
 vi.mock('@/platform/storage/walletStorage', () => ({
   keychainExists: vi.fn().mockResolvedValue(true),
+}));
+// The Counterparty API's version decides whether commit-and-reveal is advertised; never the live one.
+const coreFeatures = vi.hoisted(() => ({ taprootReveals: false }));
+vi.mock('@/core/counterparty/capabilities', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/core/counterparty/capabilities')>(),
+  getCounterpartyFeatureStatus: vi.fn(async () => ({ supported: coreFeatures.taprootReveals })),
 }));
 // Setup fake browser with required APIs
 beforeAll(() => {
@@ -529,7 +537,7 @@ describe('ProviderService', () => {
         expect(result.proofs).toEqual([
           result.proof,
           expect.objectContaining({ address: siblingAddress,
-            verification: { method: 'BIP-322', format: 'p2pkh' } }),
+            verification: { method: 'BIP-137', format: 'legacy_recoverable' } }),
         ]);
         expect(new Set(result.proofs.map((proof: { message: string }) => proof.message)).size).toBe(2);
         expect(wallet.signMessage).toHaveBeenCalledWith(expect.any(String), siblingAddress,
@@ -813,6 +821,7 @@ describe('ProviderService', () => {
             type: 'p2wpkh',
           },
           signing: {
+            message: { marketplaceIntents: ['cancel_offers'], maxCancelOfferCoins: 100 },
             psbt: {
               supported: true,
               sighashTypes: [0x01, 0x81, 0x83],
@@ -831,6 +840,19 @@ describe('ProviderService', () => {
           },
         });
         expect(vi.mocked(walletService.getWalletService)().getPairedAddresses).not.toHaveBeenCalled();
+      });
+
+      it('advertises commit-and-reveal once the Counterparty API is 11.5 or newer', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(false);
+        coreFeatures.taprootReveals = true;
+        try {
+          const result = await providerService.handleRequest('https://connected.com', 'xcp_getAddresses', []) as any;
+          expect(result.signing.psbtBatch.marketplaceBundles).toContain('commit-and-reveal');
+        } finally {
+          coreFeatures.taprootReveals = false;
+        }
       });
 
       it('reports the narrow hardware signing contract without exposing wallet type', async () => {
@@ -853,6 +875,7 @@ describe('ProviderService', () => {
         ) as any;
 
         expect(result.signing).toEqual({
+          message: { marketplaceIntents: ['cancel_offers'], maxCancelOfferCoins: 100 },
           psbt: {
             supported: true,
             sighashTypes: [0x01],
@@ -1251,6 +1274,26 @@ describe('ProviderService', () => {
 
   describe('Advanced Provider Features', () => {
     describe('Sign Message Request', () => {
+      it.each([true, false])('stores normalized optional cancellation metadata (wrapped: %s)', async wrapped => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        const intent = { standard: 'counterparty-marketplace', action: 'cancel_offers', offerIds: ['offer-1'],
+          coins: [{ outpoint: { txid: 'a'.repeat(64), vout: 0 }, stillCommitted: false }] };
+        void providerService.handleRequest('https://test.com', 'xcp_signMessage', [
+          'Cancellation message stays unchanged', undefined, wrapped ? { intent: { ...intent, coins: [...intent.coins, null] } } : intent,
+        ]).catch(() => {});
+        await vi.waitFor(() => expect(signFlow.beginSignFlow).toHaveBeenCalledWith(expect.objectContaining({
+          message: 'Cancellation message stays unchanged', cancelOffersIntent: intent,
+        })));
+      });
+
+      it('ignores malformed cancellation metadata without blocking ordinary message signing', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        void providerService.handleRequest('https://test.com', 'xcp_signMessage', ['hello', undefined, { intent: { coins: 'bad' } }]).catch(() => {});
+        await vi.waitFor(() => expect(signFlow.beginSignFlow).toHaveBeenCalled());
+        expect(vi.mocked(signFlow.beginSignFlow).mock.calls[0]?.[0]).not.toHaveProperty('cancelOffersIntent');
+      });
       it('rejects the reserved connection-proof namespace before opening approval', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
         connection.hasPermission = vi.fn().mockResolvedValue(true);
@@ -2184,78 +2227,43 @@ describe('ProviderService', () => {
             })
           );
         });
-
-        // A commit whose reveal the site holds is a Counterparty transaction, whatever it pays.
-        it('refuses a Counterparty reveal and names the method that takes one', async () => {
-          const connection = vi.mocked(connectionService.getConnectionService)();
-          connection.hasPermission = vi.fn().mockResolvedValue(true);
-
-          await expect(providerService.handleRequest(
-            'https://counterwallet.example',
-            'xcp_signBitcoinPsbt',
-            [{ ...paymentParams, reveal: 'ab'.repeat(80) }]
-          )).rejects.toMatchObject({
-            code: -32602, message: expect.stringContaining('request it with xcp_signPsbt'),
-          });
-
-          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
-        });
       });
 
-      describe('xcp_signPsbt with a Counterparty reveal', () => {
-        it('stores the reveal for the review to prove', async () => {
-          const connection = vi.mocked(connectionService.getConnectionService)();
-          connection.hasPermission = vi.fn().mockResolvedValue(true);
-
-          providerService.handleRequest(
-            'https://counterwallet.example',
-            'xcp_signPsbt',
-            [{ hex: VALID_PSBT_HEX, reveal: 'AB'.repeat(80) }]
-          ).catch(() => {});
-
-          await new Promise(resolve => setTimeout(resolve, 10));
-
-          expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
-            expect.objectContaining({
-              psbtHex: VALID_PSBT_HEX,
-              signingPurpose: 'counterparty',
-              reveal: 'ab'.repeat(80),
-            })
-          );
-        });
+      // Removed in 0.14.x: under Core 11.5 a site-signed reveal never proves, so a site still
+      // sending one hears where the commit-and-reveal bundle went, before anything opens.
+      describe('the removed reveal parameter', () => {
+        const paymentParams = {
+          hex: VALID_PSBT_HEX,
+          signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+          sighashTypes: [0x01],
+          intent: BITCOIN_PAYMENT_INTENT,
+        };
 
         it.each([
-          ['a non-string', 42],
-          ['odd-length hex', 'abc'],
-          ['non-hex text', 'zz'.repeat(40)],
-        ])('rejects %s', async (_label, reveal) => {
+          ['xcp_signPsbt', 'a signed reveal', { hex: VALID_PSBT_HEX, reveal: 'ab'.repeat(80) }],
+          ['xcp_signPsbt', 'a malformed reveal', { hex: VALID_PSBT_HEX, reveal: 42 }],
+          ['xcp_signPsbt', 'a reveal without a PSBT', { reveal: 'ab'.repeat(80) }],
+          ['xcp_signPsbt', 'a reveal with an inscription context', {
+            hex: VALID_PSBT_HEX, reveal: 'ab'.repeat(80),
+            inscription: { revealScript: 'ab', tapInternalKey: 'cd'.repeat(32) },
+          }],
+          ['xcp_signBitcoinPsbt', 'a signed reveal', { ...paymentParams, reveal: 'ab'.repeat(80) }],
+        ])('%s refuses %s with -32602, before any check or popup', async (method, _label, params) => {
           const connection = vi.mocked(connectionService.getConnectionService)();
           connection.hasPermission = vi.fn().mockResolvedValue(true);
+          const approval = vi.mocked(approvalService.getApprovalService)();
+          vi.mocked(chrome.windows.create).mockClear();
 
-          await expect(providerService.handleRequest(
-            'https://counterwallet.example',
-            'xcp_signPsbt',
-            [{ hex: VALID_PSBT_HEX, reveal }]
-          )).rejects.toMatchObject({
-            code: -32602, message: expect.stringContaining('reveal must be the signed reveal transaction'),
-          });
+          await expect(providerService.handleRequest('https://counterwallet.example', method, [params]))
+            .rejects.toMatchObject({
+              code: -32602,
+              message: 'The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts',
+            });
 
+          expect(connection.hasPermission).not.toHaveBeenCalled();
           expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
-        });
-
-        it('rejects a reveal alongside an inscription context', async () => {
-          const connection = vi.mocked(connectionService.getConnectionService)();
-          connection.hasPermission = vi.fn().mockResolvedValue(true);
-
-          await expect(providerService.handleRequest(
-            'https://counterwallet.example',
-            'xcp_signPsbt',
-            [{
-              hex: VALID_PSBT_HEX,
-              reveal: 'ab'.repeat(80),
-              inscription: { revealScript: 'ab', tapInternalKey: 'cd'.repeat(32) },
-            }]
-          )).rejects.toMatchObject({ code: -32602, message: expect.stringContaining('either inscription or reveal') });
+          expect(approval.requestApproval).not.toHaveBeenCalled();
+          expect(chrome.windows.create).not.toHaveBeenCalled();
         });
       });
     });

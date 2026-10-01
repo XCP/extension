@@ -12,7 +12,9 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { type CancelOffersIntent, parseCancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
+import type { CommitRevealIntentClaim } from '@/core/counterparty/commitRevealBundle';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
 import {
   MARKETPLACE_BATCH_KINDS,
@@ -26,7 +28,7 @@ export type SignFlowKind = 'sign-message' | 'sign-psbt' | 'sign-psbts' | 'sign-t
 export type SignFlowEventPrefix = 'sign-message' | 'sign-psbt' | 'sign-psbts' | 'sign-tx';
 export const getSignFlowEventPrefix = (kind: SignFlowKind): SignFlowEventPrefix =>
   kind === 'sign-transaction' ? 'sign-tx' : kind;
-export type SignFlowStatus = 'pending' | 'signing' | 'completed' | 'cancelled';
+export type SignFlowStatus = 'pending' | 'signing' | 'finalizing' | 'completed' | 'cancelled';
 
 interface SignFlowIdentity extends AuthorizedRequest {
   /** SHA-256 over the origin, method, signing identity and canonical parameters. */
@@ -37,11 +39,11 @@ export interface SignPsbtBundleItem {
   psbtHex: string;
   signInputs: Record<string, number[]>;
   sighashTypes: number[];
-  marketplaceIntent: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim;
+  marketplaceIntent: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim | CommitRevealIntentClaim;
 }
 
 interface SignFlowParameters {
-  'sign-message': { message: string; signingAddress?: string };
+  'sign-message': { message: string; signingAddress?: string; cancelOffersIntent?: CancelOffersIntent };
   'sign-transaction': { rawTxHex: string };
   'sign-psbt': {
     psbtHex: string;
@@ -51,11 +53,9 @@ interface SignFlowParameters {
     bitcoinPaymentIntent?: BitcoinPaymentIntentV1;
     marketplaceIntent?: MarketplaceIntentClaimV1;
     inscription?: { revealScript: string; tapInternalKey: string };
-    /** The signed Counterparty reveal this PSBT's commit funds, hex. A claim, proved at review. */
-    reveal?: string;
   };
   'sign-psbts': {
-    bundleKind: 'acceptance-cpfp' | MarketplaceBatchKind;
+    bundleKind: 'acceptance-cpfp' | 'commit-and-reveal' | MarketplaceBatchKind;
     items: SignPsbtBundleItem[];
   };
 }
@@ -69,7 +69,7 @@ export interface SignFlowResults {
 export type SignFlowResult = SignFlowResults[SignFlowKind];
 type ActiveRequest<K extends SignFlowKind> = SignFlowIdentity & {
   kind: K;
-  status: 'pending' | 'signing';
+  status: 'pending' | 'signing' | 'finalizing';
 } & SignFlowParameters[K];
 export type SignMessageRequest = ActiveRequest<'sign-message'>;
 export type SignTransactionRequest = ActiveRequest<'sign-transaction'>;
@@ -146,6 +146,20 @@ export async function claimSignFlow(id: string): Promise<ProviderSigningRequest>
   return claimed;
 }
 
+/**
+ * Reserve completion after signing, before coin-lock writes. Recovery must not see the signature
+ * until those writes finish. A competing cancellation wins only before this reservation. Like a
+ * worker lost during signing, a worker lost here leaves an interrupted flow until its TTL: it must
+ * neither replay signing nor expose a signature whose lock updates may be incomplete.
+ */
+export async function beginSignFinalization(id: string): Promise<void> {
+  const reserved = await signFlowStorage.update(id, entry => {
+    if (entry.status !== 'signing') throw new Error('Signing was interrupted');
+    return { ...entry, status: 'finalizing' };
+  });
+  if (reserved?.status !== 'finalizing') throw new Error('Signing request not found or expired');
+}
+
 function validResult(kind: SignFlowKind, result: unknown): result is SignFlowResult {
   if (!result || typeof result !== 'object') return false;
   const value = result as Record<string, unknown>;
@@ -170,6 +184,7 @@ export async function recordSignOutcome(
 ): Promise<SignFlowEntry | null> {
   return signFlowStorage.update(id, entry => {
     if (entry.status === 'completed' || entry.status === 'cancelled') return entry;
+    if (entry.status === 'finalizing' && status === 'cancelled') return entry;
     if (status === 'completed' && !validResult(entry.kind, result)) {
       throw new Error('Invalid signing outcome');
     }
@@ -183,7 +198,8 @@ export async function recordSignOutcome(
 /** Session storage is a serialization boundary; generic BaseRequest validation is insufficient. */
 /** A stored `sign-psbts` entry's bundle kind, checked against the kinds this wallet signs. */
 const isSignPsbtsBundleKind = (value: unknown): value is SignFlowParameters['sign-psbts']['bundleKind'] =>
-  value === 'acceptance-cpfp' || (MARKETPLACE_BATCH_KINDS as readonly unknown[]).includes(value);
+  value === 'acceptance-cpfp' || value === 'commit-and-reveal'
+  || (MARKETPLACE_BATCH_KINDS as readonly unknown[]).includes(value);
 
 function isValidSignFlow(value: unknown): value is SignFlowEntry {
   if (!value || typeof value !== 'object') return false;
@@ -195,9 +211,10 @@ function isValidSignFlow(value: unknown): value is SignFlowEntry {
   if (!['sign-message', 'sign-transaction', 'sign-psbt', 'sign-psbts'].includes(entry.kind as string)) return false;
   if (entry.status === 'cancelled') return true;
   if (entry.status === 'completed') return validResult(entry.kind as SignFlowKind, entry.result);
-  if (entry.status !== 'pending' && entry.status !== 'signing') return false;
+  if (entry.status !== 'pending' && entry.status !== 'signing' && entry.status !== 'finalizing') return false;
   if (entry.kind === 'sign-message') return typeof entry.message === 'string'
-    && (entry.signingAddress === undefined || typeof entry.signingAddress === 'string');
+    && (entry.signingAddress === undefined || typeof entry.signingAddress === 'string')
+    && (entry.cancelOffersIntent === undefined || fingerprintReview(parseCancelOffersIntent(entry.cancelOffersIntent)) === fingerprintReview(entry.cancelOffersIntent));
   if (entry.kind === 'sign-transaction') return typeof entry.rawTxHex === 'string';
   const validPsbt = (item: unknown): boolean => {
     if (!item || typeof item !== 'object') return false;
@@ -211,10 +228,10 @@ function isValidSignFlow(value: unknown): value is SignFlowEntry {
         && record.sighashTypes.every(sighash => Number.isSafeInteger(sighash))));
   };
   if (entry.kind === 'sign-psbt') return validPsbt(entry)
-    && (entry.reveal === undefined || typeof entry.reveal === 'string')
-    && (entry.signingPurpose === undefined || entry.signingPurpose === 'counterparty' || entry.signingPurpose === 'bitcoin-payment');
+    &&(entry.signingPurpose === undefined || entry.signingPurpose === 'counterparty' || entry.signingPurpose === 'bitcoin-payment');
   return isSignPsbtsBundleKind(entry.bundleKind) && Array.isArray(entry.items)
     && entry.items.length > 0 && entry.items.length <= maxMarketplaceBatchRequests(entry.bundleKind)
+    && (entry.bundleKind !== 'commit-and-reveal' || entry.items.length === 2)
     && entry.items.every(item => validPsbt(item)
       && item.signInputs && Object.keys(item.signInputs).length > 0 && Array.isArray(item.sighashTypes)
       && item.marketplaceIntent && typeof item.marketplaceIntent.action === 'string');
@@ -289,7 +306,7 @@ export async function countOpenSignFlows(origin: string): Promise<number> {
   const now = Date.now();
   const all = await signFlowStorage.getAll();
   return all.filter(entry => entry.origin === origin
-    && (entry.status === 'pending' || entry.status === 'signing')
+    && (entry.status === 'pending' || entry.status === 'signing' || entry.status === 'finalizing')
     && now - entry.timestamp < SIGN_FLOW_TTL_MS).length;
 }
 

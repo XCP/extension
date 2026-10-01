@@ -76,6 +76,14 @@ vi.mock('@/platform/provider/recentBroadcasts', () => ({ rememberSuccessfulBroad
 vi.mock('@/platform/storage/walletStorage', () => ({ keychainExists: vi.fn() }));
 vi.mock('@/core/bitcoin/balance', () => ({ fetchBTCBalance: vi.fn() }));
 vi.mock('@/core/counterparty/api', () => ({ fetchTokenBalance: vi.fn() }));
+// The Counterparty API's version: 11.5 unless a case says otherwise, so the kinds that need it show.
+const api = vi.hoisted(() => ({ taprootReveals: true as boolean | 'unreachable' }));
+vi.mock('@/core/counterparty/capabilities', () => ({
+  getCounterpartyFeatureStatus: vi.fn(async () => {
+    if (api.taprootReveals === 'unreachable') throw new Error('API unreachable');
+    return { supported: api.taprootReveals, serverInfo: {} };
+  }),
+}));
 
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { POLICY_OFFER_VECTORS } from '@/core/counterparty/__tests__/policyOfferVectors';
@@ -134,6 +142,34 @@ const SEGWIT_PSBT_HEX = buildPsbt([{ script: SEGWIT_SCRIPT, amount: 100_000n }])
 const TAPROOT_PSBT_HEX = buildPsbt([{ script: TAPROOT.script, amount: 100_000n, taproot: true }]);
 const TAPROOT_NONE_PSBT_HEX = buildPsbt([{ script: TAPROOT.script, amount: 100_000n, sighashType: 0x02, taproot: true }]);
 const UNFUNDED_PSBT_HEX = buildPsbt([{ script: SEGWIT_SCRIPT }]);
+/**
+ * A commit-and-reveal pair shaped for the intake: the SegWit address funds a commit whose output 0
+ * commits to one envelope leaf, and the reveal spends it through that leaf. The review, not the
+ * intake, proves the envelope; the intake only checks the shape.
+ */
+const REVEAL_LEAF = hex.decode(`006304deadbeef6820${hex.encode(TAPROOT_KEY)}ac`);
+const REVEAL_TREE = p2tr(TAPROOT_KEY, { script: REVEAL_LEAF }, undefined, true);
+const COMMIT_PSBT_HEX = (() => {
+  const tx = new Transaction({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+  tx.addInput({ txid: '0a'.repeat(32), index: 0, witnessUtxo: { script: SEGWIT_SCRIPT, amount: 100_000n } });
+  tx.addOutput({ script: REVEAL_TREE.script, amount: 1_000n });
+  tx.addOutput({ script: SEGWIT_SCRIPT, amount: 98_000n });
+  return tx;
+})();
+const REVEAL_PSBT_HEX = (() => {
+  const tx = new Transaction({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+  tx.addInput({ txid: COMMIT_PSBT_HEX.id, index: 0, witnessUtxo: { script: REVEAL_TREE.script, amount: 1_000n },
+    tapLeafScript: REVEAL_TREE.tapLeafScript });
+  tx.addOutput({ script: hex.decode('6a08434e545250525459'), amount: 0n });
+  return hex.encode(tx.toPSBT());
+})();
+const REVEAL_CLAIM = { standard: 'counterparty-reveal', version: 1, action: 'sign_reveal' };
+const commitRevealBundle = (reveal: Record<string, unknown> = {}) => [{
+  requests: [
+    { hex: hex.encode(COMMIT_PSBT_HEX.toPSBT()), signInputs: { [SEGWIT]: [0] }, sighashTypes: [0x01] },
+    { hex: REVEAL_PSBT_HEX, signInputs: { [SEGWIT]: [0] }, sighashTypes: [0x00], intent: REVEAL_CLAIM, ...reveal },
+  ],
+}];
 const TWO_SEGWIT_ONE_OUTPUT_PSBT_HEX = buildPsbt(
   [{ script: SEGWIT_SCRIPT, amount: 50_000n }, { script: SEGWIT_SCRIPT, amount: 50_000n }], 1);
 
@@ -192,6 +228,7 @@ const cpfpBundle = (parentHex: string) => [{
 
 /** Objects the snapshot names instead of spelling out, so a stored intent reads as what it is. */
 const NAMED_VALUES: Array<[string, unknown]> = [
+  ['REVEAL_CLAIM', REVEAL_CLAIM],
   ['BITCOIN_PAYMENT_INTENT', BITCOIN_PAYMENT_INTENT],
   ['EXACT_INTENT', EXACT_INTENT],
   ['ACCEPT_INTENT', ACCEPT_INTENT],
@@ -199,6 +236,8 @@ const NAMED_VALUES: Array<[string, unknown]> = [
   ['FANOUT_INTENT', FANOUT_INTENT],
 ];
 const NAMED_HEX: Array<[string, string]> = [
+  ['COMMIT_PSBT_HEX', hex.encode(COMMIT_PSBT_HEX.toPSBT())],
+  ['REVEAL_PSBT_HEX', REVEAL_PSBT_HEX],
   ['VALID_PSBT_HEX', VALID_PSBT_HEX],
   ['V3_PSBT_HEX', V3_PSBT_HEX],
   ['SEGWIT_PSBT_HEX', SEGWIT_PSBT_HEX],
@@ -323,6 +362,9 @@ const METHOD_CASES: Record<string, Case[]> = {
         { hex: VALID_PSBT_HEX, signInputs: { [LEGACY]: [0] }, sighashTypes: [0x01], intent: CPFP_INTENT },
       ],
     }]],
+    ['commit-and-reveal: SegWit commit and its reveal', commitRevealBundle()],
+    ['commit-and-reveal: reveal claim with an extra field', commitRevealBundle({ intent: { ...REVEAL_CLAIM, commitTxid: 'ab' } })],
+    ['commit-and-reveal: reveal signed SINGLE|ANYONECANPAY', commitRevealBundle({ sighashTypes: [0x83] })],
     ['active segwit signs the legacy-owned input', [{ requests: [{ hex: VALID_PSBT_HEX, signInputs: { [SEGWIT]: [0] }, sighashTypes: [0x01], intent: { ...FANOUT_INTENT, seller: SEGWIT } }] }]],
   ],
   xcp_broadcastTransaction: [
@@ -613,6 +655,45 @@ describe('provider dispatch characterization', () => {
       });
     });
   }
+
+  describe('commit-and-reveal availability (connected · unlocked P2WPKH)', () => {
+    afterEach(() => { api.taprootReveals = true; });
+
+    const bundles = async () => {
+      const result = await run('xcp_getAddresses', []);
+      return ((result.outcome as { result: { signing: { psbtBatch: { marketplaceBundles: string[] } } } })
+        .result.signing.psbtBatch.marketplaceBundles);
+    };
+
+    it('is advertised and admitted against an 11.5 API', async () => {
+      reset(makeEnv('connected', 'unlocked P2WPKH'));
+      expect(await bundles()).toContain('commit-and-reveal');
+      reset(makeEnv('connected', 'unlocked P2WPKH'));
+      await run('xcp_signPsbts', commitRevealBundle());
+      expect(vi.mocked(signFlow.beginSignFlow).mock.calls[0]?.[0]).toMatchObject({
+        kind: 'sign-psbts', bundleKind: 'commit-and-reveal',
+        items: [
+          { marketplaceIntent: { standard: 'counterparty-reveal', version: 1, action: 'fund_commit' } },
+          { marketplaceIntent: REVEAL_CLAIM, sighashTypes: [0x00] },
+        ],
+      });
+    });
+
+    it.each([
+      ['an API older than 11.5', () => { api.taprootReveals = false; }],
+      ['an API whose version cannot be read', () => { api.taprootReveals = 'unreachable'; }],
+      ['a hardware wallet', () => { env.wallet = { ...env.wallet, type: 'hardware' as never }; }],
+    ])('is neither advertised nor admitted for %s', async (_name, arrange) => {
+      reset(makeEnv('connected', 'unlocked P2WPKH'));
+      arrange();
+      expect(await bundles()).not.toContain('commit-and-reveal');
+      vi.mocked(signFlow.beginSignFlow).mockClear();
+      const record = await run('xcp_signPsbts', commitRevealBundle());
+      expect(record.outcome).toMatchObject({ error: { code: -32602 } });
+      expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      expect(openExtensionPopup).not.toHaveBeenCalled();
+    });
+  });
 
   describe('rate limits (connected · unlocked P2WPKH, valid params)', () => {
     const validParams: Record<string, unknown> = {

@@ -4,6 +4,7 @@ import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
+import { formatCoinBtc } from "@/components/domain/coins/coin-lock-text";
 import type { DispenserOption } from "@/components/domain/dispenser/dispenser-card";
 import { DispenserInput } from "@/components/domain/dispenser/dispenser-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -72,6 +73,7 @@ interface SpendableBtcData {
   utxoCount: number;
   /** Number of UTXOs excluded due to attached assets */
   excludedWithAssets: number;
+  excludedLockedValue: number;
   /** Whether data is being loaded */
   isLoading: boolean;
   /** Error message if fetch failed */
@@ -87,6 +89,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
     balanceSatoshis: 0,
     utxoCount: 0,
     excludedWithAssets: 0,
+    excludedLockedValue: 0,
     isLoading: false,
     error: null,
   });
@@ -98,9 +101,10 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
       setData(prev => ({ ...prev, isLoading: true, error: null }));
 
       try {
-        const { utxos, totalValue, excludedWithAssets } = await selectUtxosForTransaction(
+        const { utxos, totalValue, excludedWithAssets, excludedLockedValue } = await selectUtxosForTransaction(
           address,
-          { allowUnconfirmed: true }
+          // None left is answered at validation, saying why, rather than as a fetch error.
+          { allowUnconfirmed: true, minUtxos: 0 }
         );
 
         const balanceBtc = fromSatoshis(totalValue.toString(), true);
@@ -115,6 +119,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
           balanceSatoshis: totalValue,
           utxoCount: utxos.length,
           excludedWithAssets,
+          excludedLockedValue,
           isLoading: false,
           error: null,
         });
@@ -125,6 +130,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
           balanceSatoshis: 0,
           utxoCount: 0,
           excludedWithAssets: 0,
+          excludedLockedValue: 0,
           isLoading: false,
           error: err instanceof Error ? err.message : t('dispense_form_failed_to_fetch_balance'),
         });
@@ -294,9 +300,11 @@ export function DispenseForm({
         setValidationError(t('dispense_form_this_dispenser_is_empty_and'));
       } else if (spendableBtc.utxoCount === 0) {
         // No spendable UTXOs
-        const message = spendableBtc.excludedWithAssets > 0
-          ? t('common_no_spendable_balance_utxos_have', [String(spendableBtc.excludedWithAssets)])
-          : t('common_no_available_balance');
+        const message = spendableBtc.excludedLockedValue > 0
+          ? t('coin_lock_no_spendable_balance', formatCoinBtc(spendableBtc.excludedLockedValue))
+          : spendableBtc.excludedWithAssets > 0
+            ? t('common_no_spendable_balance_utxos_have', [String(spendableBtc.excludedWithAssets)])
+            : t('common_no_available_balance');
         setValidationError(message);
       } else {
         // Calculate fee for error message

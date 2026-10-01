@@ -1,4 +1,7 @@
 {
+  "coins_available": {
+    "message": "可用"
+  },
   "actions_address": {
     "message": "地址"
   },
@@ -514,6 +517,170 @@
   },
   "approval_too_many_inputs_description": {
     "message": "此交易花费超过 $1 个输入，超出钱包可检查附加资产的数量。请让网站减少输入数量。"
+  },
+  "coin_lock_compose_spends_locked_coin": {
+    "message": "使用了已锁定的币。请在币控制中解锁。"
+  },
+  "coin_lock_compose_spends_offer_coin": {
+    "message": "使用了已锁定的币。请在币控制中解锁或取消出价。"
+  },
+  "coin_lock_insufficient": {
+    "message": "可用 BTC 不足：可用 $1 sats · 已锁定 $2。"
+  },
+  "coin_lock_insufficient_offers": {
+    "message": "可用 BTC 不足：可用 $1 sats · 出价中锁定 $2。"
+  },
+  "coin_lock_no_spendable_balance": {
+    "message": "没有可花费的余额。$1 BTC 在已锁定的币中。"
+  },
+  "coin_lock_sentence_pair": {
+    "message": "$p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "coin_lock_unlock_and_sign": {
+    "message": "解锁并签名"
+  },
+  "coin_lock_warning_coin": {
+    "message": "$1 BTC · $2 · $3"
+  },
+  "coin_lock_warning_coin_offers": {
+    "message": "这会花费为你的出价锁定的一枚币。此交易确认后，你的 $1 个出价将被取消。"
+  },
+  "coin_lock_warning_manual": {
+    "message": "这会花费你锁定的一枚币。"
+  },
+  "coin_lock_warning_manual_many": {
+    "message": "这会花费你锁定的币。"
+  },
+  "coin_lock_warning_offer": {
+    "message": "这会花费为你的出价锁定的币。此交易确认后，你的出价将被取消。"
+  },
+  "coin_lock_warning_offer_coins": {
+    "message": "这会花费为你的出价锁定的币。此交易确认后，你的出价将被取消。"
+  },
+  "coin_lock_warning_offers": {
+    "message": "这会花费为你的出价锁定的币。此交易确认后，你的 $1 个出价将被取消。"
+  },
+  "coin_lock_warning_title": {
+    "message": "花费一枚已锁定的币"
+  },
+  "coin_lock_warning_title_many": {
+    "message": "花费 $1 枚已锁定的币"
+  },
+  "coins_backs_offers": {
+    "message": "支撑 $1 个出价"
+  },
+  "coins_backs_one_offer": {
+    "message": "支撑 1 个出价"
+  },
+  "coins_btc_amount": {
+    "message": "$1 BTC"
+  },
+  "coins_coin_label": {
+    "message": "$1 BTC · $2"
+  },
+  "coins_confirm_unlock": {
+    "message": "确认"
+  },
+  "coins_confirmation_one": {
+    "message": "1 次确认"
+  },
+  "coins_confirmations": {
+    "message": "$1 次确认"
+  },
+  "coins_filter": {
+    "message": "筛选币"
+  },
+  "coins_filter_all": {
+    "message": "全部"
+  },
+  "coins_filter_locked": {
+    "message": "已锁定"
+  },
+  "coins_funds_offers": {
+    "message": "已为出价预留"
+  },
+  "coins_holds_assets": {
+    "message": "附有资产"
+  },
+  "coins_kind_collection_offer": {
+    "message": "合集出价"
+  },
+  "coins_kind_manual": {
+    "message": "由你锁定"
+  },
+  "coins_kind_offer_slot": {
+    "message": "出价资金"
+  },
+  "coins_load_failed": {
+    "message": "无法加载此地址的币。请重试。"
+  },
+  "coins_loading": {
+    "message": "正在加载币…"
+  },
+  "coins_lock": {
+    "message": "锁定"
+  },
+  "coins_lock_again": {
+    "message": "重新锁定"
+  },
+  "coins_locked": {
+    "message": "已锁定"
+  },
+  "coins_none": {
+    "message": "没有币"
+  },
+  "coins_none_detail": {
+    "message": "你收到的 BTC 会显示在这里。"
+  },
+  "coins_not_on_chain_yet": {
+    "message": "尚未上链"
+  },
+  "coins_offer_expires": {
+    "message": "有效期至 $1"
+  },
+  "coins_offer_site": {
+    "message": "来自 $1"
+  },
+  "coins_refresh": {
+    "message": "刷新币"
+  },
+  "coins_show_more": {
+    "message": "显示更多"
+  },
+  "coins_summary_help": {
+    "message": "已锁定的币不会用于任何发送。"
+  },
+  "coins_summary_title": {
+    "message": "你的币"
+  },
+  "coins_title": {
+    "message": "币控制"
+  },
+  "coins_unlock": {
+    "message": "解锁"
+  },
+  "coins_unlock_confirm_funding": {
+    "message": "在此币被花费之前，出价一直有效。"
+  },
+  "coins_unlock_confirm_offers": {
+    "message": "你的 $1 个出价仍然有效。如果花费此币，这些出价会被取消。"
+  },
+  "coins_unlock_confirm_one_offer": {
+    "message": "你的出价仍然有效。如果花费此币，该出价会被取消。"
+  },
+  "coins_unlocked": {
+    "message": "已解锁"
+  },
+  "coins_update_failed": {
+    "message": "无法更新此币。请重试。"
   },
   "file_validation_invalid_file": {
     "message": "无法读取此文件。"
@@ -4115,12 +4282,6 @@
   "safety_this_funds_an_inscription": {
     "message": "这笔交易为铭文提供资金：$1 BTC 将发送到 $2，该地址由铭文本身推导而来，只有你的私钥能够花费。随后的揭示交易会发布内容，请另行核对它的接收地址和手续费。"
   },
-  "safety_counterparty_reveal_commit": {
-    "message": "Counterparty 提交交易"
-  },
-  "safety_counterparty_reveal_commit_detail": {
-    "message": "$1 BTC 将发送到 $2，用于支付该网站的揭示交易；该揭示交易会以你的地址发布上方显示的消息。此输出的密钥由网站持有，因此请把这笔 BTC 视为已花费。"
-  },
   "safety_blocked_reveal_did_not_verify": {
     "message": "已阻止：揭示交易未通过验证"
   },
@@ -4198,24 +4359,6 @@
   },
   "safety_reveal_address_none": {
     "message": "没有地址的输出"
-  },
-  "safety_reveal_outputs_title": {
-    "message": "第二笔交易"
-  },
-  "safety_reveal_outputs_pays_other_title": {
-    "message": "第二笔交易向其他地址付款"
-  },
-  "safety_reveal_outputs_data_only": {
-    "message": "第二笔交易：仅包含数据，没有付款。"
-  },
-  "safety_reveal_outputs_pays": {
-    "message": "网站提供的第二笔交易付款给："
-  },
-  "safety_reveal_output_item": {
-    "message": "$1 sats → $2"
-  },
-  "safety_reveal_outputs_resign_note": {
-    "message": "持有第二笔交易密钥的网站可以用不同的输出重新签名。由 Counterparty 自身服务构建的交易无法重新签名，但钱包无法分辨这是哪一种。"
   },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "这会把 $1 BTC 发送到 $2，与该网站声明的支付输出一致。请确认地址正是你想要的那个。"
@@ -4483,6 +4626,9 @@
   },
   "settings_change_your_wallet_password": {
     "message": "更改钱包密码"
+  },
+  "settings_coins_description": {
+    "message": "锁定币，查看支撑出价的币"
   },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "断开所有网站"
@@ -6127,6 +6273,9 @@
   "approval_bitcoin_payment_output_address_unknown": {
     "message": "无法核查输出 $1 的比特币地址。"
   },
+  "zeld_error_locked": {
+    "message": "部分 ZELD 位于你锁定的币上。请在币控制中解锁后再发送。"
+  },
   "zeld_hunt_enable": {
     "message": "启用 ZELD 搜寻"
   },
@@ -6561,6 +6710,63 @@
   "psbts_approve_fund_and_authorize_offers": {
     "message": "为出价准备资金并授权"
   },
+  "commit_reveal_title": {
+    "message": "发布 Counterparty 消息"
+  },
+  "commit_reveal_message": {
+    "message": "消息"
+  },
+  "commit_reveal_published_from": {
+    "message": "发布地址"
+  },
+  "commit_reveal_commit_fee": {
+    "message": "提交手续费"
+  },
+  "commit_reveal_commit_fee_description": {
+    "message": "第一笔交易的网络手续费，该交易为第二笔交易提供资金"
+  },
+  "commit_reveal_reveal_fee": {
+    "message": "揭示手续费"
+  },
+  "commit_reveal_reveal_fee_description": {
+    "message": "从第一笔交易预留的 $1 中支付"
+  },
+  "commit_reveal_signing": {
+    "message": "签名"
+  },
+  "commit_reveal_signing_detail": {
+    "message": "你地址的密钥为两笔交易签名。第二笔交易发布消息，且仅在第一笔之后有效。"
+  },
+  "commit_reveal_reveal_output": {
+    "message": "揭示输出 $1"
+  },
+  "commit_reveal_output_marker": {
+    "message": "Counterparty 标记，无金额"
+  },
+  "commit_reveal_output_unknown": {
+    "message": "$1 支付到无法以地址表示的脚本"
+  },
+  "commit_reveal_output_yours": {
+    "message": "$1 返回你的地址"
+  },
+  "commit_reveal_output_burn": {
+    "message": "$1 支付到销毁地址：任何人都无法花费"
+  },
+  "commit_reveal_output_external": {
+    "message": "$1 支付到不属于你的地址"
+  },
+  "psbts_approve_publish_message": {
+    "message": "发布消息"
+  },
+  "psbts_approve_sign_both": {
+    "message": "签署两笔"
+  },
+  "psbts_approve_commit_transaction": {
+    "message": "提交"
+  },
+  "psbts_approve_reveal_transaction": {
+    "message": "揭示"
+  },
   "psbts_approve_fund_and_authorize_1_offer": {
     "message": "为 1 个出价准备资金并授权"
   },
@@ -6680,5 +6886,29 @@
   },
   "messages_sweep_no_balances": {
     "message": "没有转移任何余额"
+  },
+  "message_cancel_no_lock": {
+    "message": "没有锁定的币",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_offers": {
+    "message": "取消 $1 个报价",
+    "description": "requests/message/approve.tsx. Offer cancellation approval. $1 = number of offers."
+  },
+  "message_cancel_one_offer": {
+    "message": "取消 1 个报价",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_sign": {
+    "message": "签名",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_stays_locked": {
+    "message": "保持锁定",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_unlocks": {
+    "message": "解锁",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
   }
 }

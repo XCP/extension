@@ -19,7 +19,8 @@ Browser extension wallet for Counterparty on Bitcoin.
 - Connect to dApps via [provider API](PROVIDER.md)
 - Marketplace signing for connected sites: listings, offers and purchases, each proved against the
   transaction before it is shown for approval
-- BIP-322 message signing
+- Message signing: the classic signed-message format for Legacy (P2PKH) addresses, BIP-322 for
+  SegWit and Taproot
 - Hardware wallet support (Trezor)
 
 XCP Wallet is built for Chrome (Chromium).

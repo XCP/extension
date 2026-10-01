@@ -127,6 +127,8 @@ describe('DispenseForm', () => {
       totalValue: 10000000,
       excludedWithAssets: 0,
       excludedValue: 0,
+      excludedLocked: 0,
+      excludedLockedValue: 0,
     });
   });
 
@@ -417,6 +419,8 @@ describe('DispenseForm', () => {
       totalValue: 100000,
       excludedWithAssets: 0,
       excludedValue: 0,
+      excludedLocked: 0,
+      excludedLockedValue: 0,
     });
 
     renderWithProvider();
@@ -463,6 +467,8 @@ describe('DispenseForm', () => {
       totalValue: 100000,
       excludedWithAssets: 0,
       excludedValue: 0,
+      excludedLocked: 0,
+      excludedLockedValue: 0,
     });
 
     let setFeeRate!: (rate: number) => void;

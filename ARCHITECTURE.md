@@ -73,7 +73,11 @@ instead of assuming the operation never happened.
 execution. The popup sends a decision bound to that review's SHA-256 digest. It never supplies
 transaction bytes or a claimed signed result to complete the provider request.
 
-The request lifecycle is `pending → signing → completed`, or cancellation. Records retain their
+The request lifecycle is `pending → signing → finalizing → completed`, or cancellation before
+finalization. Finalization reserves completion while the approved signature's coin-lock updates
+run; the signature is not yet stored or recoverable. A worker lost at that step leaves an
+interrupted request until its deadline, without replaying signing or exposing the result.
+Records retain their
 original deadline ([request lifetime](PROVIDER.md#signing)). A completed result has a kind-specific payload; a claimed signing
 request cannot be executed twice. Request correlation includes origin, method, parameters, wallet,
 and address. Closing a pending prompt cancels that request; losing a popup while an approved

@@ -514,7 +514,12 @@ function encodeWitnessStack(stack: Uint8Array[]): Uint8Array {
 }
 
 /**
- * Sign BIP-322 for P2PKH addresses - Complete implementation
+ * The two-item BIP-322 `[signature, pubkey]` stack over the legacy sighash of `to_sign`, for P2PKH.
+ *
+ * Wallet versions before the classic P2PKH signer (`signClassicMessage` in `messageSigner.ts`)
+ * issued these, and the verifier still accepts them. The wallet no longer signs with it: BIP-322
+ * prescribes the classic 65-byte format for P2PKH, and Bitcoin Core's `verifymessage` rejects this
+ * one. It stays so tests can produce the old form.
  */
 export async function signBIP322P2PKH(
   message: string,

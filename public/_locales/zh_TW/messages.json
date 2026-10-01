@@ -1,4 +1,7 @@
 {
+  "coins_available": {
+    "message": "可用"
+  },
   "actions_address": {
     "message": "地址"
   },
@@ -514,6 +517,170 @@
   },
   "approval_too_many_inputs_description": {
     "message": "此交易花費超過 $1 個輸入，超出錢包可檢查附加資產的數量。請要求網站減少輸入數量。"
+  },
+  "coin_lock_compose_spends_locked_coin": {
+    "message": "使用了已鎖定的幣。請在幣控制中解鎖。"
+  },
+  "coin_lock_compose_spends_offer_coin": {
+    "message": "使用了已鎖定的幣。請在幣控制中解鎖或取消出價。"
+  },
+  "coin_lock_insufficient": {
+    "message": "可用 BTC 不足：可用 $1 sats · 已鎖定 $2。"
+  },
+  "coin_lock_insufficient_offers": {
+    "message": "可用 BTC 不足：可用 $1 sats · 出價中鎖定 $2。"
+  },
+  "coin_lock_no_spendable_balance": {
+    "message": "沒有可花費的餘額。$1 BTC 在已鎖定的幣中。"
+  },
+  "coin_lock_sentence_pair": {
+    "message": "$p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
+  },
+  "coin_lock_unlock_and_sign": {
+    "message": "解鎖並簽名"
+  },
+  "coin_lock_warning_coin": {
+    "message": "$1 BTC · $2 · $3"
+  },
+  "coin_lock_warning_coin_offers": {
+    "message": "這會花費為你的出價鎖定的一枚幣。此交易確認後，你的 $1 個出價將被取消。"
+  },
+  "coin_lock_warning_manual": {
+    "message": "這會花費你鎖定的一枚幣。"
+  },
+  "coin_lock_warning_manual_many": {
+    "message": "這會花費你鎖定的幣。"
+  },
+  "coin_lock_warning_offer": {
+    "message": "這會花費為你的出價鎖定的幣。此交易確認後，你的出價將被取消。"
+  },
+  "coin_lock_warning_offer_coins": {
+    "message": "這會花費為你的出價鎖定的幣。此交易確認後，你的出價將被取消。"
+  },
+  "coin_lock_warning_offers": {
+    "message": "這會花費為你的出價鎖定的幣。此交易確認後，你的 $1 個出價將被取消。"
+  },
+  "coin_lock_warning_title": {
+    "message": "花費一枚已鎖定的幣"
+  },
+  "coin_lock_warning_title_many": {
+    "message": "花費 $1 枚已鎖定的幣"
+  },
+  "coins_backs_offers": {
+    "message": "支撐 $1 個出價"
+  },
+  "coins_backs_one_offer": {
+    "message": "支撐 1 個出價"
+  },
+  "coins_btc_amount": {
+    "message": "$1 BTC"
+  },
+  "coins_coin_label": {
+    "message": "$1 BTC · $2"
+  },
+  "coins_confirm_unlock": {
+    "message": "確認"
+  },
+  "coins_confirmation_one": {
+    "message": "1 次確認"
+  },
+  "coins_confirmations": {
+    "message": "$1 次確認"
+  },
+  "coins_filter": {
+    "message": "篩選幣"
+  },
+  "coins_filter_all": {
+    "message": "全部"
+  },
+  "coins_filter_locked": {
+    "message": "已鎖定"
+  },
+  "coins_funds_offers": {
+    "message": "已為出價預留"
+  },
+  "coins_holds_assets": {
+    "message": "附有資產"
+  },
+  "coins_kind_collection_offer": {
+    "message": "合集出價"
+  },
+  "coins_kind_manual": {
+    "message": "由你鎖定"
+  },
+  "coins_kind_offer_slot": {
+    "message": "出價資金"
+  },
+  "coins_load_failed": {
+    "message": "無法載入此地址的幣。請重試。"
+  },
+  "coins_loading": {
+    "message": "正在載入幣…"
+  },
+  "coins_lock": {
+    "message": "鎖定"
+  },
+  "coins_lock_again": {
+    "message": "重新鎖定"
+  },
+  "coins_locked": {
+    "message": "已鎖定"
+  },
+  "coins_none": {
+    "message": "沒有幣"
+  },
+  "coins_none_detail": {
+    "message": "你收到的 BTC 會顯示在這裡。"
+  },
+  "coins_not_on_chain_yet": {
+    "message": "尚未上鏈"
+  },
+  "coins_offer_expires": {
+    "message": "有效期至 $1"
+  },
+  "coins_offer_site": {
+    "message": "來自 $1"
+  },
+  "coins_refresh": {
+    "message": "重新整理幣"
+  },
+  "coins_show_more": {
+    "message": "顯示更多"
+  },
+  "coins_summary_help": {
+    "message": "已鎖定的幣不會用於任何發送。"
+  },
+  "coins_summary_title": {
+    "message": "你的幣"
+  },
+  "coins_title": {
+    "message": "幣控制"
+  },
+  "coins_unlock": {
+    "message": "解鎖"
+  },
+  "coins_unlock_confirm_funding": {
+    "message": "在此幣被花費之前，出價一直有效。"
+  },
+  "coins_unlock_confirm_offers": {
+    "message": "你的 $1 個出價仍然有效。如果花費此幣，這些出價會被取消。"
+  },
+  "coins_unlock_confirm_one_offer": {
+    "message": "你的出價仍然有效。如果花費此幣，該出價會被取消。"
+  },
+  "coins_unlocked": {
+    "message": "已解鎖"
+  },
+  "coins_update_failed": {
+    "message": "無法更新此幣。請重試。"
   },
   "file_validation_invalid_file": {
     "message": "無法讀取此檔案。"
@@ -4115,12 +4282,6 @@
   "safety_this_funds_an_inscription": {
     "message": "這筆交易為銘文提供資金：$1 BTC 將發送到 $2，該地址由銘文本身推導而來，只有你的私鑰能夠花費。隨後的揭示交易會釋出內容，請另行核對它的接收地址和手續費。"
   },
-  "safety_counterparty_reveal_commit": {
-    "message": "Counterparty 提交交易"
-  },
-  "safety_counterparty_reveal_commit_detail": {
-    "message": "$1 BTC 將發送到 $2，用於支付該網站的揭示交易；該揭示交易會以你的地址發布上方顯示的訊息。此輸出的金鑰由網站持有，因此請把這筆 BTC 視為已花費。"
-  },
   "safety_blocked_reveal_did_not_verify": {
     "message": "已阻止：揭示交易未通過驗證"
   },
@@ -4198,24 +4359,6 @@
   },
   "safety_reveal_address_none": {
     "message": "沒有地址的輸出"
-  },
-  "safety_reveal_outputs_title": {
-    "message": "第二筆交易"
-  },
-  "safety_reveal_outputs_pays_other_title": {
-    "message": "第二筆交易向其他地址付款"
-  },
-  "safety_reveal_outputs_data_only": {
-    "message": "第二筆交易：僅包含資料，沒有付款。"
-  },
-  "safety_reveal_outputs_pays": {
-    "message": "網站提供的第二筆交易付款給："
-  },
-  "safety_reveal_output_item": {
-    "message": "$1 sats → $2"
-  },
-  "safety_reveal_outputs_resign_note": {
-    "message": "持有第二筆交易金鑰的網站可以用不同的輸出重新簽署。由 Counterparty 自身服務建立的交易無法重新簽署，但錢包無法分辨這是哪一種。"
   },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "這會把 $1 BTC 發送到 $2，與該網站聲明的支付輸出一致。請確認地址正是你想要的那個。"
@@ -4483,6 +4626,9 @@
   },
   "settings_change_your_wallet_password": {
     "message": "更改錢包密碼"
+  },
+  "settings_coins_description": {
+    "message": "鎖定幣，查看支撐出價的幣"
   },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "斷開所有網站"
@@ -6127,6 +6273,9 @@
   "approval_bitcoin_payment_output_address_unknown": {
     "message": "無法核查輸出 $1 的比特幣地址。"
   },
+  "zeld_error_locked": {
+    "message": "部分 ZELD 位於你鎖定的幣上。請在幣控制中解鎖後再發送。"
+  },
   "zeld_hunt_enable": {
     "message": "啟用 ZELD 搜尋"
   },
@@ -6561,6 +6710,63 @@
   "psbts_approve_fund_and_authorize_offers": {
     "message": "為出價準備資金並授權"
   },
+  "commit_reveal_title": {
+    "message": "發布 Counterparty 訊息"
+  },
+  "commit_reveal_message": {
+    "message": "訊息"
+  },
+  "commit_reveal_published_from": {
+    "message": "發布地址"
+  },
+  "commit_reveal_commit_fee": {
+    "message": "提交手續費"
+  },
+  "commit_reveal_commit_fee_description": {
+    "message": "第一筆交易的網路手續費，該交易為第二筆交易提供資金"
+  },
+  "commit_reveal_reveal_fee": {
+    "message": "揭示手續費"
+  },
+  "commit_reveal_reveal_fee_description": {
+    "message": "從第一筆交易預留的 $1 中支付"
+  },
+  "commit_reveal_signing": {
+    "message": "簽名"
+  },
+  "commit_reveal_signing_detail": {
+    "message": "你地址的金鑰為兩筆交易簽名。第二筆交易發布訊息，且僅在第一筆之後有效。"
+  },
+  "commit_reveal_reveal_output": {
+    "message": "揭示輸出 $1"
+  },
+  "commit_reveal_output_marker": {
+    "message": "Counterparty 標記，無金額"
+  },
+  "commit_reveal_output_unknown": {
+    "message": "$1 支付到無法以地址表示的腳本"
+  },
+  "commit_reveal_output_yours": {
+    "message": "$1 返回你的地址"
+  },
+  "commit_reveal_output_burn": {
+    "message": "$1 支付到銷毀地址：任何人都無法花費"
+  },
+  "commit_reveal_output_external": {
+    "message": "$1 支付到不屬於你的地址"
+  },
+  "psbts_approve_publish_message": {
+    "message": "發布訊息"
+  },
+  "psbts_approve_sign_both": {
+    "message": "簽署兩筆"
+  },
+  "psbts_approve_commit_transaction": {
+    "message": "提交"
+  },
+  "psbts_approve_reveal_transaction": {
+    "message": "揭示"
+  },
   "psbts_approve_fund_and_authorize_1_offer": {
     "message": "為 1 個出價準備資金並授權"
   },
@@ -6680,5 +6886,29 @@
   },
   "messages_sweep_no_balances": {
     "message": "沒有轉移任何餘額"
+  },
+  "message_cancel_no_lock": {
+    "message": "沒有鎖定的幣",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_offers": {
+    "message": "取消 $1 個報價",
+    "description": "requests/message/approve.tsx. Offer cancellation approval. $1 = number of offers."
+  },
+  "message_cancel_one_offer": {
+    "message": "取消 1 個報價",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_sign": {
+    "message": "簽名",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_stays_locked": {
+    "message": "保持鎖定",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_unlocks": {
+    "message": "解鎖",
+    "description": "requests/message/approve.tsx. Offer cancellation approval."
   }
 }

@@ -1,15 +1,18 @@
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { SigHash, TaprootControlBlock } from '@scure/btc-signer';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { type ConsolidationResult, consolidateBareMultisigBatch } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { shownEnvelopeLeaf } from '@/core/bitcoin/envelopeLeafGuard';
 import { signMessage } from '@/core/bitcoin/messageSigner';
-import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails, parsePSBT, resolvePsbtSighashType, validateSignInputs } from '@/core/bitcoin/psbt';
+import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails, finalizePSBT, parsePSBT, resolvePsbtSighashType, validateSignInputs } from '@/core/bitcoin/psbt';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { signTaprootReveal, type TaprootRevealToSign } from '@/core/bitcoin/taprootRevealSigner';
 import { assertTransactionMatchesReviewed, parseTransactionForIntegrity } from '@/core/bitcoin/transactionIntegrity';
 import { signTransaction as btcSignTransaction } from '@/core/bitcoin/transactionSigner';
+import { envelopeLeafHash } from '@/core/counterparty/commitRevealBundle';
+import { envelopeLeafKey } from '@/core/counterparty/revealSourceRule';
 import { mapVerifiedInputPaths } from '@/core/hardware/inputPaths';
 import { getPairedAddressFormats, mnemonicPrivateKeyAt } from '@/core/wallet/addressDeriver';
 import * as sessionManager from '@/platform/auth/sessionManager';
@@ -279,6 +282,108 @@ export class WalletSigner {
     );
     assertStillAuthorized();
     return { signedTxHex, signedRevealHex };
+  }
+
+  /**
+   * Sign a site's `commit-and-reveal` bundle (`commitRevealBundle.ts`): the commit PSBT, then the
+   * reveal PSBT's input 0 with the source key.
+   *
+   * Core 11.5 returns an unsigned reveal the wallet signs with the source key. The commit is signed
+   * exactly as any provider PSBT is (`signPsbt`: prevouts re-read from their parents, the envelope
+   * leaf guard in force). It must then finalize to the txid the reveal spends, or nothing more is
+   * signed. The reveal is not signed by the PSBT signer at all: its unsigned transaction goes to
+   * `signTaprootReveal`, which holds it to Core's source-signature rule against commit output 0 as
+   * signed, and the signature is written back as the input's `tapScriptSig`. One signing guard spans
+   * both, so a lock, wallet switch or address change at any point returns nothing.
+   *
+   * Software wallets only.
+   *
+   * @returns the signed commit PSBT and the signed reveal PSBT, neither finalized
+   */
+  public async signCommitAndRevealPsbts(
+    commit: { psbtHex: string; signInputs: Record<string, number[]>; sighashTypes: number[] },
+    revealPsbtHex: string,
+    sourceAddress: string,
+    expectedIdentity?: SigningIdentity,
+    revealSighash: number = SigHash.DEFAULT,
+  ): Promise<[string, string]> {
+    const assertStillAuthorized = this.createSigningGuard(expectedIdentity);
+    if (revealSighash !== SigHash.DEFAULT && revealSighash !== SigHash.ALL) {
+      throw new Error('The reveal is signed with SIGHASH_DEFAULT or SIGHASH_ALL only.');
+    }
+    const activeWalletId = this.state.activeWalletId();
+    if (!activeWalletId) throw new Error("No active wallet set");
+    const wallet = this.state.getWalletById(activeWalletId);
+    if (!wallet) throw new Error("Wallet not found");
+    if (wallet.type === 'hardware') {
+      throw new Error('A hardware wallet does not sign Taproot reveals');
+    }
+    const targetAddress = wallet.addresses.find(address =>
+      normalizeAddressForComparison(address.address) === normalizeAddressForComparison(sourceAddress));
+    if (!targetAddress) throw new Error("Source address not found in wallet");
+
+    // What the reveal asks to be signed, read before any signature exists.
+    const revealPsbt = parsePSBT(revealPsbtHex);
+    const revealInput = revealPsbt.inputsLength === 1 ? revealPsbt.getInput(0) : undefined;
+    const leaves = revealInput?.tapLeafScript ?? [];
+    if (!revealInput?.txid || revealInput.index !== 0 || leaves.length !== 1) {
+      throw new Error('The reveal must spend commit output 0 through its one envelope leaf.');
+    }
+    const [control, scriptWithVersion] = leaves[0]!;
+    const reveal: TaprootRevealToSign = {
+      revealHex: bytesToHex(revealPsbt.unsignedTx),
+      envelopeScriptHex: bytesToHex(scriptWithVersion.subarray(0, -1)),
+      controlBlockHex: bytesToHex(TaprootControlBlock.encode(control)),
+    };
+
+    const signedCommitPsbt = await this.signPsbt(commit.psbtHex, commit.signInputs, commit.sighashTypes, expectedIdentity);
+    assertStillAuthorized();
+    const reviewedCommit = parsePSBT(commit.psbtHex);
+    if (bytesToHex(parsePSBT(signedCommitPsbt).unsignedTx) !== bytesToHex(reviewedCommit.unsignedTx)) {
+      throw new Error('The commit signer changed the reviewed transaction.');
+    }
+    // The reveal spends output 0 of the commit as it will be broadcast; read that output from the
+    // finalized bytes, and require their txid to be the one the reveal names.
+    const commitTx = parseTransactionForIntegrity(finalizePSBT(signedCommitPsbt));
+    const commitOutput = commitTx.outputsLength > 0 ? commitTx.getOutput(0) : undefined;
+    if (commitTx.id !== reviewedCommit.id || bytesToHex(revealInput.txid) !== commitTx.id
+      || !commitOutput?.script || commitOutput.amount === undefined) {
+      throw new Error('The reveal does not spend the signed commit transaction.');
+    }
+    const prevout = revealInput.witnessUtxo;
+    if (!prevout || bytesToHex(prevout.script) !== bytesToHex(commitOutput.script) || prevout.amount !== commitOutput.amount) {
+      throw new Error('The reveal describes a different commit output than the one signed.');
+    }
+
+    const privateKeyResult = await this.state.getPrivateKey(wallet.id, targetAddress.path);
+    assertStillAuthorized();
+    const signedRevealHex = signTaprootReveal(
+      reveal,
+      { scriptHex: bytesToHex(commitOutput.script), value: commitOutput.amount },
+      targetAddress.address,
+      privateKeyResult.hex,
+      { sighash: revealSighash, siteInternalKey: true },
+    );
+    assertStillAuthorized();
+
+    // The signature goes back into the PSBT as a script-path partial signature on the envelope leaf,
+    // and must finalize to exactly the reveal signTaprootReveal produced.
+    const witness = parseTransactionForIntegrity(signedRevealHex).getInput(0).finalScriptWitness;
+    const signature = witness?.[0];
+    const leafKey = envelopeLeafKey(scriptWithVersion.subarray(0, -1));
+    if (!signature || signature.length !== (revealSighash === SigHash.DEFAULT ? 64 : 65) || !leafKey.ok) {
+      throw new Error('The reveal signature could not be read.');
+    }
+    revealPsbt.updateInput(0, {
+      ...(revealSighash === SigHash.DEFAULT ? {} : { sighashType: revealSighash }),
+      tapScriptSig: [[{ pubKey: leafKey.key, leafHash: envelopeLeafHash(reveal.envelopeScriptHex) }, signature]],
+    }, true);
+    const signedRevealPsbt = bytesToHex(revealPsbt.toPSBT());
+    if (finalizePSBT(signedRevealPsbt) !== signedRevealHex) {
+      throw new Error('The signed reveal does not finalize to the reveal that was signed.');
+    }
+    assertStillAuthorized();
+    return [signedCommitPsbt, signedRevealPsbt];
   }
 
   /**

@@ -40,7 +40,7 @@ const unsignedTransactionHex = (psbtHex: string): string =>
  * review proved that spend against the first item's own bytes. (attach-and-list is not one: its
  * listing is rebound to the signed attach, which then travels as the input's nonWitnessUtxo.)
  */
-export const bundleSpendsItsParent = (kind: 'acceptance-cpfp' | MarketplaceBatchKind): boolean =>
+export const bundleSpendsItsParent = (kind: 'acceptance-cpfp' | 'commit-and-reveal' | MarketplaceBatchKind): boolean =>
   kind === 'acceptance-cpfp' || kind === 'fund-and-authorize-offers';
 
 /**

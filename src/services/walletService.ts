@@ -9,8 +9,10 @@
  */
 
 import type { AddressFormat } from '@/core/bitcoin/addressFormat';
+import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/core/bitcoin/coinLocks';
 import type { ConsolidationResult as BatchConsolidationResult } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import type { CancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import type { TaprootRevealToSign } from '@/core/bitcoin/taprootRevealSigner';
 import type { KnownZeldOutpoint, ZeldOutpointUpdate } from '@/core/zeld/knownOutpoints';
 import { registerSessionExpiredHandler, setLastActiveTime } from '@/platform/auth/sessionManager';
@@ -82,11 +84,20 @@ export interface WalletService {
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   signMessage: (message: string, address: string, expectedIdentity?: { walletId: string; address: string }) => Promise<{ signature: string; address: string }>;
   signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }, options?: SignPsbtOptions) => Promise<string>;
+  /** Sign a site's commit PSBT and its reveal PSBT with the source key, both or neither (see WalletSigner). */
+  signCommitAndRevealPsbts: (commit: { psbtHex: string; signInputs: Record<string, number[]>; sighashTypes: number[] }, revealPsbtHex: string, sourceAddress: string, expectedIdentity?: { walletId: string; address: string }, revealSighash?: number) => Promise<[string, string]>;
   getLastActiveAddress: () => Promise<string | undefined>;
   /** Outputs `address` was last known to hold ZELD on, for approvals while the indexer is down. */
   getKnownZeldOutpoints: (address: string) => Promise<KnownZeldOutpoint[]>;
   /** Update, in the encrypted keychain, the record of `address`'s ZELD outputs. */
   recordZeldOutpoints: (address: string, update: ZeldOutpointUpdate) => Promise<void>;
+  /** `address`'s locked coins (core/bitcoin/coinLocks), unlocked ones included. Empty while locked. */
+  getCoinLocks: (address: string) => Promise<CoinLock[]>;
+  /** Coin control from an extension page: lock, unlock, lock again, or what a UTXO read saw. */
+  updateCoinLocks: (address: string, update: CoinLockUpdate) => Promise<void>;
+  /** Background only: lock the coins an offer signature just committed. */
+  addOfferCoinLocks: (address: string, commitments: OfferCoinCommitment[]) => Promise<void>;
+  cancelOfferCoinLocks: (address: string, origin: string, intent: CancelOffersIntent) => Promise<void>;
   setLastActiveAddress: (address: string) => Promise<void>;
   /** Record user activity; `activityTime` is when it happened, for activity the UI reports late. */
   setLastActiveTime: (activityTime?: number) => Promise<void>;
@@ -251,8 +262,15 @@ function createWalletService(): WalletService {
     signPsbt: async (psbtHex, signInputs, sighashTypes, expectedIdentity, options) => {
       return walletManager.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity, options);
     },
+    signCommitAndRevealPsbts: async (commit, revealPsbtHex, sourceAddress, expectedIdentity, revealSighash) => {
+      return walletManager.signCommitAndRevealPsbts(commit, revealPsbtHex, sourceAddress, expectedIdentity, revealSighash);
+    },
     getKnownZeldOutpoints: async (address) => walletManager.getKnownZeldOutpoints(address),
     recordZeldOutpoints: async (address, update) => walletManager.recordZeldOutpoints(address, update),
+    getCoinLocks: async (address) => walletManager.getCoinLocks(address),
+    updateCoinLocks: async (address, update) => walletManager.updateCoinLocks(address, update),
+    addOfferCoinLocks: async (address, commitments) => walletManager.addOfferCoinLocks(address, commitments),
+    cancelOfferCoinLocks: async (address, origin, intent) => walletManager.cancelOfferCoinLocks(address, origin, intent),
     getLastActiveAddress: async () => {
       const settings = walletManager.getSettings();
       return settings?.lastActiveAddress;

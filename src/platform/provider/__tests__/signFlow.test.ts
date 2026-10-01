@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { parseCancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import {
   beginSignFlow,
   cancelPendingSignFlow,
@@ -42,6 +43,18 @@ describe('signFlow', () => {
   });
 
   describe('lifecycle', () => {
+    it('persists cancellation metadata and binds it into the recoverable request identity', async () => {
+      const cancelOffersIntent = parseCancelOffersIntent({ standard: 'counterparty-marketplace', action: 'cancel_offers',
+        offerIds: ['offer-1'], coins: [{ outpoint: { txid: 'a'.repeat(64), vout: 0 }, stillCommitted: false }] })!;
+      const params = { message: 'same bytes', signingAddress: 'bc1qexample', cancelOffersIntent };
+      const key = computeRequestKey('https://x.com', 'xcp_signMessage', params);
+      expect(key).not.toBe(computeRequestKey('https://x.com', 'xcp_signMessage', { ...params, cancelOffersIntent: undefined }));
+      expect(key).not.toBe(computeRequestKey('https://x.com', 'xcp_signMessage', { ...params,
+        cancelOffersIntent: { ...cancelOffersIntent, coins: [{ ...cancelOffersIntent.coins[0], stillCommitted: true }] } }));
+      await beginSignFlow({ id: 'cancel-1', origin: 'https://x.com', requestKey: key, kind: 'sign-message',
+        address: 'bc1qexample', walletId: 'wallet-1', timestamp: Date.now(), ...params });
+      expect(await getSignFlow('cancel-1')).toMatchObject({ message: 'same bytes', cancelOffersIntent });
+    });
     it('records pending, then outcome, recoverable by id and key', async () => {
       const key = computeRequestKey('https://x.com', 'xcp_signTransaction', ['00']);
       await beginSignFlow({

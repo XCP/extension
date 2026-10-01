@@ -8,14 +8,11 @@
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { DUST_LIMIT_SATS } from '@/core/bitcoin/constants';
+import type { LockedCoinSpend } from '@/core/bitcoin/lockedCoinSpends';
 import { publicKeyPointId } from '@/core/bitcoin/publicKeyIdentity';
 import type { MarketplaceBlockKind } from '@/core/counterparty/marketplace/intentTypes';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
-import type {
-  RevealControlFacts,
-  RevealOutputsFacts,
-  RevealRefusal,
-} from '@/core/counterparty/providerReveal';
+import type { RevealControlFacts, RevealRefusal } from '@/core/counterparty/providerReveal';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import {
   bareMultisigRecoveryPubkey,
@@ -42,14 +39,10 @@ export type SecurityWarning = SecurityWarningText & (
   | { code: 'dispenser_lookup_retry'; data?: never }
   | { code: 'unknown_message_type'; data: { messageType: string } }
   | { code: 'inscription_commit'; data: { totalSats: number; address: string } }
-  /** A commit whose site-held reveal was proved: the BTC funds the reveal that publishes the message. */
-  | { code: 'counterparty_reveal_commit'; data: { totalSats: number; address: string } }
-  /** A site-supplied reveal that did not prove out, by why (providerReveal.ts). */
+  /** A commit-and-reveal reveal that did not prove out, by why (providerReveal.ts). */
   | { code: 'counterparty_reveal_refused'; data: { reason: RevealRefusal } }
   /** What the site decides about a proved reveal's message, through the outputs it builds. */
   | { code: 'counterparty_reveal_site_control'; data: RevealControlFacts }
-  /** The outputs of the reveal the site supplied, as proved facts. */
-  | { code: 'counterparty_reveal_outputs'; data: RevealOutputsFacts }
   | { code: 'misdirected_recovery_key'; data: { count: number } }
   /**
    * Where the ZELD on the signed inputs goes, when that is not a plain output of this wallet
@@ -57,6 +50,11 @@ export type SecurityWarning = SecurityWarningText & (
    */
   | { code: 'zeld_movement'; data: ZeldNotice & { items?: number[] } }
   | { code: 'durable_sell_authorization'; data: { inputs: number[] } }
+  /**
+   * Signed inputs spend coins the wallet has locked, for an offer or by the user's hand
+   * (core/bitcoin/lockedCoinSpends.ts). Confirming unlocks them.
+   */
+  | { code: 'locked_coin_spend'; data: { coins: LockedCoinSpend[] } }
   /**
    * Inputs whose script path names this wallet's key in a leaf other than the one whose message
    * the review shows (core/bitcoin/envelopeLeafGuard.ts). Signing it would publish that message.
@@ -76,8 +74,8 @@ export type SecurityWarningCode = Exclude<SecurityWarning['code'], undefined>;
 
 /**
  * A commit output the caller has proved: an inscription commit whose keys are the signer's
- * (`providerInscriptions.ts`), or a Counterparty commit whose site-held reveal was checked
- * against it (`providerReveal.ts`).
+ * (`providerInscriptions.ts`), or a `commit-and-reveal` commit whose reveal was checked against
+ * it (`providerReveal.ts`).
  */
 export interface VerifiedCommit {
   address: string;
@@ -231,8 +229,8 @@ export function analyzeTransactionSafety(
      * An inscription commit output the caller has already verified — address re-derived from the
      * declared envelope, keys proven to be the signer's (`providerInscriptions.ts`). Reported as
      * information rather than flagged: the coins stay under the signer's key, which is the fact
-     * the external-address warning exists to check. A proved reveal commit (`kind: 'reveal'`)
-     * is reported too, differently: its coins fund the reveal whose message the screen shows.
+     * the external-address warning exists to check. A proved reveal commit (`kind: 'reveal'`) is
+     * not flagged either, and not reported here: the commit-and-reveal review states that output.
      */
     verifiedCommit?: VerifiedCommit;
     /** A separate provider capability identified this as an explicit Bitcoin payment request. */
@@ -331,7 +329,7 @@ export function analyzeTransactionSafety(
     // Skip outputs back to the signer (change)
     if (output.address && normalizedSigners.has(normalizeAddressForComparison(output.address))) continue;
 
-    // Skip the verified inscription commit — described by its own info entry below.
+    // Skip the verified commit — an inscription's is described by its own info entry below.
     if (options.verifiedCommit && output.address === options.verifiedCommit.address) continue;
 
     // Skip dust outputs — normal for Counterparty (multisig encoding, dispenser triggers)
@@ -347,18 +345,7 @@ export function analyzeTransactionSafety(
     }
   }
 
-  if (options.verifiedCommit?.kind === 'reveal') {
-    // Not "spendable only by your key": the site holds the reveal's key. The message the reveal
-    // publishes is the transaction's subject; this states where the BTC goes and why.
-    const { address, value } = options.verifiedCommit;
-    warnings.push({
-      code: 'counterparty_reveal_commit',
-      data: { totalSats: value, address },
-      severity: 'info',
-      title: t('safety_counterparty_reveal_commit'),
-      message: t('safety_counterparty_reveal_commit_detail', [(value / 100_000_000).toFixed(8), address]),
-    });
-  } else if (options.verifiedCommit) {
+  if (options.verifiedCommit && options.verifiedCommit.kind !== 'reveal') {
     const btcAmount = (options.verifiedCommit.value / 100_000_000).toFixed(8);
     warnings.push({
       code: 'inscription_commit',

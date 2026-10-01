@@ -12,6 +12,7 @@ export function zeldErrorMessage(error: unknown): string | undefined {
     case "No spendable ZELD to move.": return t('zeld_error_none_to_move');
     case "Some ZELD sits on outputs the wallet cannot spend yet (unconfirmed, just spent, or carrying a Counterparty attachment).": return t('zeld_error_unspendable');
     case "Insufficient spendable ZELD.": return t('zeld_error_spendable_balance');
+    case "Some ZELD sits on coins you locked.": return t('zeld_error_locked');
     case "Insufficient BTC to pay the recipient output and the fee.": return t('zeld_error_btc_balance');
     case "This output also holds ZELD, which would go to the destination with the assets. Detach first: the ZELD stays with you, and a new attach uses a clean output.": return t('zeld_error_detach_first');
     case "This output also holds ZELD, and the detach leaves no output of yours for it to land on. Add a little BTC to this address, then try again.": return t('zeld_error_detach_funding');

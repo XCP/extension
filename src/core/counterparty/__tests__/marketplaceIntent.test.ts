@@ -521,6 +521,22 @@ describe('marketplace intent wire parser', () => {
     expect(parseMarketplaceIntent(attached)).toEqual(attached);
   });
 
+  it('keeps the optional commitments hint tolerantly: malformed entries go, the request stays', () => {
+    const slot = { txid: FUND_OFFERS_TXID.toUpperCase(), vout: 0 };
+    const parsed = parseMarketplaceIntent({ ...fundOffersIntent, commitments: [
+      { outpoint: slot, offerIds: ['offer-a', 'offer-a', 7, ''], expiresAt: 2_100_000_000 },
+      { outpoint: { txid: 'nope', vout: 0 }, offerIds: ['x'] },
+      { outpoint: { ...slot, vout: 1 } },
+      'garbage',
+    ] });
+    expect(parsed).toMatchObject({ commitments: [
+      { outpoint: { txid: FUND_OFFERS_TXID, vout: 0 }, offerIds: ['offer-a'], expiresAt: 2_100_000_000 },
+      { outpoint: { txid: FUND_OFFERS_TXID, vout: 1 }, offerIds: [], expiresAt: null },
+    ] });
+    expect(parseMarketplaceIntent({ ...fundOffersIntent, commitments: 'not a list' })).toEqual(fundOffersIntent);
+    expect(parseMarketplaceIntent({ ...fundOffersIntent, commitments: [{ bad: true }] })).toEqual(fundOffersIntent);
+  });
+
   it.each([
     ['unknown target scope', { target: { scope: 'wallet', asset: 'X' } }],
     ['too many slots', { slotCount: 21 }],
@@ -1577,6 +1593,35 @@ describe('offer funding proof', () => {
     expect(review.facts).toContainEqual({
       kind: 'text', label: 'Offer policy', value: `“${'p'.repeat(59)}…”`,
     });
+  });
+
+  it.each([
+    ['Legacy', '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7', 'blocked'],
+    ['Nested SegWit', '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy', 'blocked'],
+    ['Taproot', 'bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297', 'proved'],
+  ])('funds offers only from Native SegWit or Taproot: a %s bidder is %s', (_name, bidder, status) => {
+    const base = fundOffersBase();
+    const review = analyzeMarketplaceIntent({
+      ...base,
+      intent: { ...fundOffersIntent, bidder },
+      inputs: base.inputs.map(input => ({ ...input, address: bidder })),
+      outputs: base.outputs.map(output => ({ ...output, address: bidder })),
+      signerAddresses: [bidder],
+    });
+    expect(review.status).toBe(status);
+    if (status === 'blocked') {
+      expect(review.blockers).toContain('offers are funded only from a Native SegWit or Taproot address');
+    }
+  });
+
+  it('blocks a funding input whose prevout is not Native SegWit or Taproot', () => {
+    const base = fundOffersBase();
+    const review = analyzeMarketplaceIntent({
+      ...base,
+      inputs: base.inputs.map(input => ({ ...input, scriptType: input.index === 1 ? 'p2pkh' as const : 'p2wpkh' as const })),
+    });
+    expect(review.status).toBe('blocked');
+    expect(review.blockers).toEqual(['offer funding input 1 is not Native SegWit or Taproot']);
   });
 
   it('withholds the payment summary until the funding proves', () => {
