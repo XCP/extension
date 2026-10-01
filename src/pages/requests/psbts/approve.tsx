@@ -13,12 +13,15 @@ import { ApprovalNotice } from "@/components/domain/approval/approval-notice";
 import { lockedCoinWarningText, marketplaceBlockText, spendsLockedCoins, WarningDetails, zeldNoticeText, zeldReviewNotes } from "@/components/domain/approval/approval-warnings";
 import { ApprovalZeldNotes } from "@/components/domain/approval/approval-zeld-notes";
 import { BundleReviewCard } from "@/components/domain/approval/bundle-review-card";
+import { CounterpartyDetailsCard } from "@/components/domain/approval/counterparty-details-card";
 import { providerReviewErrorMessage } from '@/components/domain/approval/provider-review-error';
+import { getTxActionInfo } from "@/components/domain/tx/tx-action-info";
 import { Button } from "@/components/ui/button";
 import { Collapsible } from "@/components/ui/collapsible";
 import type { WarningItem } from "@/components/ui/warning-stack";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import type { DecodedPsbtInfo } from "@/core/bitcoin/psbtApprovalDecoder";
 import { formatAmount } from "@/core/format";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import { useSignPsbtsRequest } from "@/hooks/useSignPsbtsRequest";
@@ -51,6 +54,8 @@ export default function ApprovePsbtsPage() {
     const title =
       request?.bundleKind === "acceptance-cpfp"
         ? t('common_accept_offer')
+        : request?.bundleKind === "commit-and-reveal"
+          ? t('psbts_approve_publish_message')
         : request?.bundleKind === "attach-and-list"
           ? t('psbts_approve_attach_and_list')
           : request?.bundleKind === "bulk-fanout"
@@ -124,7 +129,9 @@ export default function ApprovePsbtsPage() {
         item.marketplaceIntent.listingContext?.mode === "reprice",
     );
   const signLabel =
-    request.bundleKind === "attach-and-list"
+    request.bundleKind === "commit-and-reveal"
+      ? t('psbts_approve_sign_both')
+      : request.bundleKind === "attach-and-list"
       ? t('psbts_approve_attach_and_list_2')
       : request.bundleKind === "bulk-listing"
         ? request.items.length === 1
@@ -144,6 +151,11 @@ export default function ApprovePsbtsPage() {
                   ? t('psbts_approve_fund_and_authorize_1_offer')
                   : t('psbts_approve_fund_and_authorize_offers_2', [String(request.items.length - 1)])
               : t('psbts_approve_sign_transactions');
+  // A commit-and-reveal pair publishes one Counterparty message, which the commit's review decoded
+  // from the envelope: shown here as the wallet shows any message it signs.
+  const commitItem = request.bundleKind === "commit-and-reveal" ? decodedInfo.items[0] : undefined;
+  const commitDecoded = commitItem && "safety" in commitItem ? commitItem as DecodedPsbtInfo : undefined;
+  const commitAction = commitDecoded ? getTxActionInfo(commitDecoded, commitDecoded.protocolContext) : null;
   const retry = decodedInfo.review.status === "retry" || Boolean(approvalPolicy?.retry) || Boolean(refreshError);
   // A blocked bundle leads with what the user can do — retry, refresh the site, or not sign — and
   // keeps the wallet's own reasons, per item, underneath as details.
@@ -220,6 +232,12 @@ export default function ApprovePsbtsPage() {
         </Button>
       )}
       <BundleReviewCard review={decodedInfo.review} />
+      {commitDecoded && !blocked && (
+        <CounterpartyDetailsCard
+          fields={commitAction ? [{ kind: "text", label: commitAction.label, value: commitAction.description }, ...commitAction.protocol] : []}
+          recipients={commitDecoded.mpmaRecipients}
+        />
+      )}
       <ApprovalZeldNotes notes={zeldReviewNotes(decodedInfo.policyWarnings ?? [])} />
       <Collapsible compact variant="card" title={t('common_transactions')}>
         <div className="text-xs">
@@ -234,6 +252,9 @@ export default function ApprovePsbtsPage() {
                 <p className="font-semibold text-gray-900">
                   {index + 1}.{" "}
                   {item.marketplaceReview?.title ??
+                    (request.bundleKind === "commit-and-reveal"
+                      ? (index === 0 ? t('psbts_approve_commit_transaction') : t('psbts_approve_reveal_transaction'))
+                      : undefined) ??
                     request.items[index]?.marketplaceIntent.action
                       .replaceAll("_", " ")
                       .replace(/\b\w/g, (c) => c.toUpperCase())}

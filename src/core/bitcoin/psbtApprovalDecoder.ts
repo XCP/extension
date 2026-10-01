@@ -65,7 +65,10 @@ export async function decodePsbtForApproval(
     sharedAttachedAssets?: { outpoints: string[]; assets: InputAttachedAssets[] };
     /** Wallet-supplied policy-offer facts; see PolicyOfferWalletContext. */
     policyOffer?: PolicyOfferWalletContext;
-    /** The site's signed reveal for a Counterparty Taproot commit; proved in analyzeSignRequest. */
+    /**
+     * A `commit-and-reveal` commit's reveal, as it will be broadcast, from the bundle decoder that
+     * proved the pair; its message is proved again in analyzeSignRequest.
+     */
     counterpartyReveal?: string;
   } = {},
 ): Promise<DecodedPsbtInfo> {

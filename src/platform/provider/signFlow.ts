@@ -14,6 +14,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { type CancelOffersIntent, parseCancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
+import type { CommitRevealIntentClaim } from '@/core/counterparty/commitRevealBundle';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
 import {
   MARKETPLACE_BATCH_KINDS,
@@ -38,7 +39,7 @@ export interface SignPsbtBundleItem {
   psbtHex: string;
   signInputs: Record<string, number[]>;
   sighashTypes: number[];
-  marketplaceIntent: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim;
+  marketplaceIntent: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim | CommitRevealIntentClaim;
 }
 
 interface SignFlowParameters {
@@ -52,11 +53,9 @@ interface SignFlowParameters {
     bitcoinPaymentIntent?: BitcoinPaymentIntentV1;
     marketplaceIntent?: MarketplaceIntentClaimV1;
     inscription?: { revealScript: string; tapInternalKey: string };
-    /** The signed Counterparty reveal this PSBT's commit funds, hex. A claim, proved at review. */
-    reveal?: string;
   };
   'sign-psbts': {
-    bundleKind: 'acceptance-cpfp' | MarketplaceBatchKind;
+    bundleKind: 'acceptance-cpfp' | 'commit-and-reveal' | MarketplaceBatchKind;
     items: SignPsbtBundleItem[];
   };
 }
@@ -184,7 +183,8 @@ export async function recordSignOutcome(
 /** Session storage is a serialization boundary; generic BaseRequest validation is insufficient. */
 /** A stored `sign-psbts` entry's bundle kind, checked against the kinds this wallet signs. */
 const isSignPsbtsBundleKind = (value: unknown): value is SignFlowParameters['sign-psbts']['bundleKind'] =>
-  value === 'acceptance-cpfp' || (MARKETPLACE_BATCH_KINDS as readonly unknown[]).includes(value);
+  value === 'acceptance-cpfp' || value === 'commit-and-reveal'
+  || (MARKETPLACE_BATCH_KINDS as readonly unknown[]).includes(value);
 
 function isValidSignFlow(value: unknown): value is SignFlowEntry {
   if (!value || typeof value !== 'object') return false;
@@ -213,10 +213,10 @@ function isValidSignFlow(value: unknown): value is SignFlowEntry {
         && record.sighashTypes.every(sighash => Number.isSafeInteger(sighash))));
   };
   if (entry.kind === 'sign-psbt') return validPsbt(entry)
-    && (entry.reveal === undefined || typeof entry.reveal === 'string')
-    && (entry.signingPurpose === undefined || entry.signingPurpose === 'counterparty' || entry.signingPurpose === 'bitcoin-payment');
+    &&(entry.signingPurpose === undefined || entry.signingPurpose === 'counterparty' || entry.signingPurpose === 'bitcoin-payment');
   return isSignPsbtsBundleKind(entry.bundleKind) && Array.isArray(entry.items)
     && entry.items.length > 0 && entry.items.length <= maxMarketplaceBatchRequests(entry.bundleKind)
+    && (entry.bundleKind !== 'commit-and-reveal' || entry.items.length === 2)
     && entry.items.every(item => validPsbt(item)
       && item.signInputs && Object.keys(item.signInputs).length > 0 && Array.isArray(item.sighashTypes)
       && item.marketplaceIntent && typeof item.marketplaceIntent.action === 'string');

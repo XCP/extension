@@ -1,12 +1,13 @@
 /**
- * The provider path's proof of a Counterparty Taproot commit whose reveal a site holds.
+ * The provider path's proof of what a Counterparty Taproot commit publishes, from its reveal.
  *
  * Counterparty's Taproot data encoding is two transactions. The commit pays a small output to a
  * P2TR address; the reveal spends that output by a script path whose tapleaf is an envelope
  * carrying the message, and publishes it. Nothing in the commit's own bytes shows that message,
- * so the approval proves it from the reveal.
+ * so the approval proves it from the reveal: a `commit-and-reveal` bundle's, as the wallet will
+ * sign it, with a placeholder where the signature goes (`commitRevealBundle.ts`).
  *
- * When the site supplies the reveal, the commit stops being opaque. What the reveal publishes is
+ * With the reveal in hand, the commit stops being opaque. What the reveal publishes is
  * fixed by the commit, not by the reveal: a P2TR output key commits to its script tree, so when
  * the output key is the internal key tweaked by exactly one leaf, that leaf is the only script
  * any reveal can ever publish from it. The reveal's key can re-sign a different reveal
@@ -25,11 +26,9 @@
  *   reveal to its source only then (`revealSourceRule.ts`); any other reveal publishes nothing, so
  *   describing its message as what the commit does would be false.
  *
- * What the proof cannot fix is the reveal's *outputs*. Core signs its own reveals with a key it
- * discards, so those can never change; but a site that built its reveal with its own key can
- * re-sign it with different outputs, and the wallet cannot tell the two apart. Some message types
- * take part of their meaning from those outputs (core's parsers read `tx["destination"]`, the
- * first output ahead of the data, or the transaction's outputs and spent UTXOs). They are not
+ * What the envelope does not fix is the reveal's *outputs*, which the site builds. Some message
+ * types take part of their meaning from those outputs (core's parsers read `tx["destination"]`,
+ * the first output ahead of the data, or the transaction's outputs and spent UTXOs). They are not
  * refused: they are decoded, and `revealSiteControl` names exactly what the site decides, per
  * type, so the review can say it.
  *
@@ -53,9 +52,6 @@ import {
   REVEAL_MARKER_SCRIPT,
 } from '@/core/counterparty/unpack/ordEnvelope';
 import { t } from '@/i18n';
-
-/** The largest reveal a site may pass: a standard transaction's 400,000 weight, all witness. */
-export const MAX_REVEAL_HEX_LENGTH = 800_000;
 
 /**
  * Message types whose whole meaning is in the message: none of their parsers reads the
@@ -171,7 +167,7 @@ export type RevealVerification =
       commitValue: number;
       /** The address the message is published from: the one funding the commit. */
       sourceAddress: string;
-      /** The reveal's outputs as supplied: what it does now, whatever a re-signing could do. */
+      /** The reveal's outputs as supplied. */
       outputs: RevealOutput[];
       /**
        * The reveal's outputs ahead of its data, as supplied: core's destinations. With exactly
@@ -218,9 +214,10 @@ function isOrdEnvelope(leaf: Uint8Array): boolean {
 }
 
 /**
- * Verify a site-supplied reveal against the commit transaction this wallet is asked to sign.
+ * Verify a reveal against the commit transaction this wallet is asked to sign.
  *
- * @param revealHex - the reveal transaction, signed, as the site will broadcast it
+ * @param revealHex - the reveal transaction as it will be broadcast; a `commit-and-reveal`
+ *   bundle's carries a placeholder where the signature goes
  * @param commit - the commit, parsed from the PSBT
  * @param signerAddresses - the addresses this wallet signs the commit with
  */
@@ -370,24 +367,12 @@ export interface RevealControlFacts {
   supplied?: RevealSupplied;
 }
 
-export interface RevealOutputFact extends RevealOutput {
-  /** Pays one of this wallet's addresses. */
-  owned: boolean;
-}
-
-/** The reveal's outputs, stated as proved facts about the transaction the site supplied. */
-export interface RevealOutputsFacts {
-  outputs: RevealOutputFact[];
-  /** Sats the supplied reveal pays anywhere but this wallet's addresses. */
-  externalSats: number;
-}
-
 type ProvedReveal = Extract<RevealVerification, { ok: true }>;
 
 /**
  * The review's statement of a proved reveal: what the site decides about its message, when
- * anything, and what the reveal as supplied pays. Severity follows consequence: a type whose
- * outcome the outputs can change, or a reveal that pays someone else, takes the review step.
+ * anything. Every reveal output is stated by the commit-and-reveal review itself. Severity
+ * follows consequence: a type whose outcome the outputs can change takes the review step.
  *
  * @param reveal - the proved reveal
  * @param messageData - the local decode of its message
@@ -441,19 +426,6 @@ export function revealDisclosures(
     });
   }
 
-  const outputs = reveal.outputs.map((output) => ({ ...output, owned: isOwned(output.address) }));
-  const externalSats = outputs
-    .filter((output) => !output.owned)
-    .reduce((sum, output) => sum + output.value, 0);
-  const facts: RevealOutputsFacts = { outputs, externalSats };
-  const text = revealOutputsText(facts);
-  warnings.push({
-    code: 'counterparty_reveal_outputs',
-    data: facts,
-    severity: externalSats > 0 ? 'warning' : 'info',
-    title: text.title,
-    message: [text.description, ...text.items, text.note].join(' '),
-  });
   return warnings;
 }
 
@@ -493,25 +465,5 @@ export function revealControlText(facts: RevealControlFacts): { title: string; d
   return {
     title: t('safety_reveal_site_builds_title'),
     description: supplied ? `${sentence} ${supplied}` : sentence,
-  };
-}
-
-/** The statement of the supplied reveal's outputs, in the reader's language. */
-export function revealOutputsText(facts: RevealOutputsFacts): {
-  title: string;
-  description: string;
-  /** One line per output that carries value. */
-  items: string[];
-  /** Why these are facts about this reveal, not about every reveal of the commit. */
-  note: string;
-} {
-  const paying = facts.outputs.filter((output) => output.value > 0);
-  return {
-    title: facts.externalSats > 0 ? t('safety_reveal_outputs_pays_other_title') : t('safety_reveal_outputs_title'),
-    description: paying.length === 0 ? t('safety_reveal_outputs_data_only') : t('safety_reveal_outputs_pays'),
-    items: paying.map((output) => t('safety_reveal_output_item', [
-      String(output.value), addressLabel(output.opReturn ? null : output.address, output.owned),
-    ])),
-    note: t('safety_reveal_outputs_resign_note'),
   };
 }

@@ -374,6 +374,7 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -439,6 +440,7 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -504,6 +506,7 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -4650,6 +4653,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -4710,6 +4714,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -4802,6 +4807,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -4889,6 +4895,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -4949,6 +4956,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5041,6 +5049,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5128,6 +5137,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5188,6 +5198,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5280,6 +5291,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5367,6 +5379,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5427,6 +5440,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5519,6 +5533,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5606,6 +5621,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5666,6 +5682,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5758,6 +5775,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5845,6 +5863,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5905,6 +5924,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -5997,6 +6017,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6152,6 +6173,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6212,6 +6234,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6304,6 +6327,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6425,6 +6449,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6485,6 +6510,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6577,6 +6603,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6664,6 +6691,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6724,6 +6752,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6816,6 +6845,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6903,6 +6933,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -6963,6 +6994,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -7055,6 +7087,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -7142,6 +7175,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -7202,6 +7236,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -7294,6 +7329,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
               "authorize-offers",
               "fund-and-authorize-offers",
               "fund-policy-offer",
+              "commit-and-reveal",
             ],
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
@@ -15058,7 +15094,7 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > reveal + ins
     "outcome": {
       "error": {
         "code": -32602,
-        "message": "intent must be an object",
+        "message": "The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts",
       },
     },
   },
@@ -15093,7 +15129,7 @@ exports[`provider dispatch characterization > xcp_signBitcoinPsbt > reveal: odd-
     "outcome": {
       "error": {
         "code": -32602,
-        "message": "intent must be an object",
+        "message": "The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts",
       },
     },
   },
@@ -18903,7 +18939,7 @@ exports[`provider dispatch characterization > xcp_signPsbt > reveal + inscriptio
     "outcome": {
       "error": {
         "code": -32602,
-        "message": "Pass either inscription or reveal, not both",
+        "message": "The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts",
       },
     },
   },
@@ -18938,7 +18974,7 @@ exports[`provider dispatch characterization > xcp_signPsbt > reveal: odd-length 
     "outcome": {
       "error": {
         "code": -32602,
-        "message": "reveal must be the signed reveal transaction as a hex string",
+        "message": "The reveal parameter is no longer supported: send the commit and its unsigned reveal as a commit-and-reveal bundle with xcp_signPsbts",
       },
     },
   },
@@ -20298,6 +20334,281 @@ exports[`provider dispatch characterization > xcp_signPsbts > bad header: v3 par
       "error": {
         "code": -32602,
         "message": "PSBT bundle request 0: exact_offer_v1 requires Bitcoin transaction version 2 with locktime 0",
+      },
+    },
+  },
+  {
+    "analytics": [
+      "provider_error",
+    ],
+    "environments": [
+      "connected · locked",
+      "connected + paired grant · locked",
+    ],
+    "limiterCharges": {
+      "api": 1,
+    },
+    "lookups": {
+      "getPairedAddresses": 0,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
+      },
+    },
+  },
+]
+`;
+
+exports[`provider dispatch characterization > xcp_signPsbts > commit-and-reveal: SegWit commit and its reveal 1`] = `
+[
+  {
+    "analytics": [
+      "provider_error",
+    ],
+    "environments": [
+      "not connected · unlocked P2WPKH",
+      "not connected · unlocked P2TR",
+      "not connected · locked",
+    ],
+    "limiterCharges": {
+      "api": 1,
+    },
+    "lookups": {
+      "getPairedAddresses": 0,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": 4100,
+        "message": "Unauthorized - not connected to wallet",
+      },
+    },
+  },
+  {
+    "analytics": [],
+    "beginSignFlow": [
+      {
+        "address": "bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty",
+        "bundleKind": "commit-and-reveal",
+        "id": "sign-psbts-<ts>-<rand>",
+        "items": [
+          {
+            "marketplaceIntent": {
+              "action": "fund_commit",
+              "standard": "counterparty-reveal",
+              "version": 1,
+            },
+            "psbtHex": "<COMMIT_PSBT_HEX>",
+            "sighashTypes": [
+              1,
+            ],
+            "signInputs": {
+              "bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty": [
+                0,
+              ],
+            },
+          },
+          {
+            "marketplaceIntent": "<REVEAL_CLAIM>",
+            "psbtHex": "<REVEAL_PSBT_HEX>",
+            "sighashTypes": [
+              0,
+            ],
+            "signInputs": {
+              "bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty": [
+                0,
+              ],
+            },
+          },
+        ],
+        "kind": "sign-psbts",
+        "origin": "https://dapp.example",
+        "requestKey": "xcp_signPsbts:<sha256>",
+        "timestamp": "<now>",
+        "walletId": "wallet1",
+      },
+    ],
+    "environments": [
+      "connected · unlocked P2WPKH",
+      "connected + paired grant · unlocked P2WPKH",
+    ],
+    "limiterCharges": {
+      "api": 1,
+      "signPopup": 1,
+    },
+    "lookups": {
+      "getPairedAddresses": 1,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": 4001,
+        "message": "User cancelled PSBT bundle signing request",
+      },
+    },
+    "popups": [
+      "#/requests/psbts/approve?requestId=sign-psbts-<ts>-<rand>",
+    ],
+  },
+  {
+    "analytics": [
+      "provider_error",
+    ],
+    "environments": [
+      "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
+    ],
+    "limiterCharges": {
+      "api": 1,
+    },
+    "lookups": {
+      "getPairedAddresses": 0,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": -32602,
+        "message": "PSBT bundle request 0: Address bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty is not in this wallet",
+      },
+    },
+  },
+  {
+    "analytics": [
+      "provider_error",
+    ],
+    "environments": [
+      "connected · locked",
+      "connected + paired grant · locked",
+    ],
+    "limiterCharges": {
+      "api": 1,
+    },
+    "lookups": {
+      "getPairedAddresses": 0,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": 4100,
+        "message": "Wallet is locked or not set up. Unlock XCP Wallet and try again.",
+      },
+    },
+  },
+]
+`;
+
+exports[`provider dispatch characterization > xcp_signPsbts > commit-and-reveal: reveal claim with an extra field 1`] = `
+[
+  {
+    "analytics": [
+      "provider_error",
+    ],
+    "environments": [
+      "not connected · unlocked P2WPKH",
+      "not connected · unlocked P2TR",
+      "not connected · locked",
+      "connected · unlocked P2WPKH",
+      "connected · unlocked P2TR",
+      "connected · locked",
+      "connected + paired grant · unlocked P2WPKH",
+      "connected + paired grant · unlocked P2TR",
+      "connected + paired grant · locked",
+    ],
+    "limiterCharges": {
+      "api": 1,
+    },
+    "lookups": {
+      "getPairedAddresses": 0,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 0,
+    },
+    "outcome": {
+      "error": {
+        "code": -32602,
+        "message": "commit-and-reveal request 1 intent must be exactly { standard: 'counterparty-reveal', version: 1, action: 'sign_reveal' }",
+      },
+    },
+  },
+]
+`;
+
+exports[`provider dispatch characterization > xcp_signPsbts > commit-and-reveal: reveal signed SINGLE|ANYONECANPAY 1`] = `
+[
+  {
+    "analytics": [
+      "provider_error",
+    ],
+    "environments": [
+      "not connected · unlocked P2WPKH",
+      "not connected · unlocked P2TR",
+      "not connected · locked",
+    ],
+    "limiterCharges": {
+      "api": 1,
+    },
+    "lookups": {
+      "getPairedAddresses": 0,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": 4100,
+        "message": "Unauthorized - not connected to wallet",
+      },
+    },
+  },
+  {
+    "analytics": [
+      "provider_error",
+    ],
+    "environments": [
+      "connected · unlocked P2WPKH",
+      "connected + paired grant · unlocked P2WPKH",
+    ],
+    "limiterCharges": {
+      "api": 1,
+    },
+    "lookups": {
+      "getPairedAddresses": 1,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": -32602,
+        "message": "PSBT bundle request 1 must be the reveal: one input carrying the envelope leaf, signed by the active address on input 0 with SIGHASH_DEFAULT or SIGHASH_ALL",
+      },
+    },
+  },
+  {
+    "analytics": [
+      "provider_error",
+    ],
+    "environments": [
+      "connected · unlocked P2TR",
+      "connected + paired grant · unlocked P2TR",
+    ],
+    "limiterCharges": {
+      "api": 1,
+    },
+    "lookups": {
+      "getPairedAddresses": 0,
+      "hasPairedAddressPermission": 0,
+      "hasPermission": 1,
+    },
+    "outcome": {
+      "error": {
+        "code": -32602,
+        "message": "PSBT bundle request 0: Address bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty is not in this wallet",
       },
     },
   },

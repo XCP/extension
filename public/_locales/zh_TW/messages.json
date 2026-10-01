@@ -4282,12 +4282,6 @@
   "safety_this_funds_an_inscription": {
     "message": "這筆交易為銘文提供資金：$1 BTC 將發送到 $2，該地址由銘文本身推導而來，只有你的私鑰能夠花費。隨後的揭示交易會釋出內容，請另行核對它的接收地址和手續費。"
   },
-  "safety_counterparty_reveal_commit": {
-    "message": "Counterparty 提交交易"
-  },
-  "safety_counterparty_reveal_commit_detail": {
-    "message": "$1 BTC 將發送到 $2，用於支付該網站的揭示交易；該揭示交易會以你的地址發布上方顯示的訊息。此輸出的金鑰由網站持有，因此請把這筆 BTC 視為已花費。"
-  },
   "safety_blocked_reveal_did_not_verify": {
     "message": "已阻止：揭示交易未通過驗證"
   },
@@ -4365,24 +4359,6 @@
   },
   "safety_reveal_address_none": {
     "message": "沒有地址的輸出"
-  },
-  "safety_reveal_outputs_title": {
-    "message": "第二筆交易"
-  },
-  "safety_reveal_outputs_pays_other_title": {
-    "message": "第二筆交易向其他地址付款"
-  },
-  "safety_reveal_outputs_data_only": {
-    "message": "第二筆交易：僅包含資料，沒有付款。"
-  },
-  "safety_reveal_outputs_pays": {
-    "message": "網站提供的第二筆交易付款給："
-  },
-  "safety_reveal_output_item": {
-    "message": "$1 sats → $2"
-  },
-  "safety_reveal_outputs_resign_note": {
-    "message": "持有第二筆交易金鑰的網站可以用不同的輸出重新簽署。由 Counterparty 自身服務建立的交易無法重新簽署，但錢包無法分辨這是哪一種。"
   },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "這會把 $1 BTC 發送到 $2，與該網站聲明的支付輸出一致。請確認地址正是你想要的那個。"
@@ -6733,6 +6709,63 @@
   },
   "psbts_approve_fund_and_authorize_offers": {
     "message": "為出價準備資金並授權"
+  },
+  "commit_reveal_title": {
+    "message": "發布 Counterparty 訊息"
+  },
+  "commit_reveal_message": {
+    "message": "訊息"
+  },
+  "commit_reveal_published_from": {
+    "message": "發布地址"
+  },
+  "commit_reveal_commit_fee": {
+    "message": "提交手續費"
+  },
+  "commit_reveal_commit_fee_description": {
+    "message": "第一筆交易的網路手續費，該交易為第二筆交易提供資金"
+  },
+  "commit_reveal_reveal_fee": {
+    "message": "揭示手續費"
+  },
+  "commit_reveal_reveal_fee_description": {
+    "message": "從第一筆交易預留的 $1 中支付"
+  },
+  "commit_reveal_signing": {
+    "message": "簽名"
+  },
+  "commit_reveal_signing_detail": {
+    "message": "你地址的金鑰為兩筆交易簽名。第二筆交易發布訊息，且僅在第一筆之後有效。"
+  },
+  "commit_reveal_reveal_output": {
+    "message": "揭示輸出 $1"
+  },
+  "commit_reveal_output_marker": {
+    "message": "Counterparty 標記，無金額"
+  },
+  "commit_reveal_output_unknown": {
+    "message": "$1 支付到無法以地址表示的腳本"
+  },
+  "commit_reveal_output_yours": {
+    "message": "$1 返回你的地址"
+  },
+  "commit_reveal_output_burn": {
+    "message": "$1 支付到銷毀地址：任何人都無法花費"
+  },
+  "commit_reveal_output_external": {
+    "message": "$1 支付到不屬於你的地址"
+  },
+  "psbts_approve_publish_message": {
+    "message": "發布訊息"
+  },
+  "psbts_approve_sign_both": {
+    "message": "簽署兩筆"
+  },
+  "psbts_approve_commit_transaction": {
+    "message": "提交"
+  },
+  "psbts_approve_reveal_transaction": {
+    "message": "揭示"
   },
   "psbts_approve_fund_and_authorize_1_offer": {
     "message": "為 1 個出價準備資金並授權"

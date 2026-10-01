@@ -1,5 +1,5 @@
 /**
- * The hostile-site suite for Counterparty Taproot commits whose reveal a site holds.
+ * The hostile-site suite for Counterparty Taproot commits proved from their reveal.
  *
  * The reveal publishes its message from the address that funded the commit, and from Core 11.5
  * only when that address's key closes the envelope and signs the reveal. Each test is a request a
@@ -8,9 +8,9 @@
  * publish another — a reveal for a different transaction, a leaf swapped after signing, a commit
  * that hides a second leaf, an envelope that says nothing, and a commit funded by someone else.
  *
- * A proved reveal fixes its message but not its outputs, which a site holding the reveal key can
- * re-sign. Types whose meaning those outputs decide are not refused; the disclosure tests below
- * pin what the review says the site decides for each, and what the supplied reveal pays.
+ * A proved reveal fixes its message but not its outputs, which the site builds. Types whose
+ * meaning those outputs decide are not refused; the disclosure tests below pin what the review
+ * says the site decides for each.
  */
 
 import { secp256k1 } from '@noble/curves/secp256k1.js';
@@ -21,7 +21,6 @@ import { extractPsbtDetails } from '@/core/bitcoin/psbt';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import {
   type RevealControlFacts,
-  type RevealOutputsFacts,
   revealDisclosures,
   revealSiteControl,
   verifyCounterpartyReveal,
@@ -223,9 +222,7 @@ function disclose(messageHex: string, outputs: Parameters<typeof buildReveal>[1]
   const control = warnings.find((warning) => warning.code === 'counterparty_reveal_site_control') as
     | (SecurityWarning & { data: RevealControlFacts })
     | undefined;
-  const outputsCard = warnings.find((warning) => warning.code === 'counterparty_reveal_outputs') as
-    SecurityWarning & { data: RevealOutputsFacts };
-  return { control, outputs: outputsCard };
+  return { control, warnings };
 }
 
 describe('revealSiteControl', () => {
@@ -249,13 +246,11 @@ describe('revealSiteControl', () => {
 });
 
 describe('revealDisclosures', () => {
-  it('says nothing about site control for a message stated entirely in the reveal', () => {
-    const { control, outputs } = disclose(MPMA_HEX);
+  it('says nothing for a message stated entirely in the reveal', () => {
+    const { warnings } = disclose(MPMA_HEX, { trailing: [payTo(OTHER_ADDRESS, 330n)] });
 
-    expect(control).toBeUndefined();
-    expect(outputs).toMatchObject({ severity: 'info', title: 'Second Transaction' });
-    expect(outputs.message).toContain('Second transaction: data only, no payment.');
-    expect(outputs.message).toContain('could sign it again with different outputs');
+    // The reveal's outputs are the commit-and-reveal review's to state, not a disclosure's.
+    expect(warnings).toEqual([]);
   });
 
   it('legacy send: the site chooses the recipient, and the supplied one is named', () => {
@@ -349,25 +344,5 @@ describe('revealDisclosures', () => {
     }));
 
     expect(control).toMatchObject({ severity: 'info', data: { control: 'not_executed' } });
-  });
-
-  describe('the outputs of the supplied reveal', () => {
-    it('lists a payment back to the wallet as information', () => {
-      const { outputs } = disclose(MPMA_HEX, { trailing: [payTo(USER_ADDRESS, 330n)] });
-
-      expect(outputs).toMatchObject({ severity: 'info', data: { externalSats: 0 } });
-      expect(outputs.message).toContain(`330 sats to ${USER_ADDRESS} (yours)`);
-    });
-
-    it('raises a payment anywhere else to a warning with its own title', () => {
-      const { outputs } = disclose(MPMA_HEX, { trailing: [payTo(OTHER_ADDRESS, 330n)] });
-
-      expect(outputs).toMatchObject({
-        severity: 'warning',
-        title: 'Second Transaction Pays Another Address',
-        data: { externalSats: 330 },
-      });
-      expect(outputs.message).toContain(`330 sats to ${OTHER_ADDRESS} (not yours)`);
-    });
   });
 });

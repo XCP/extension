@@ -4282,12 +4282,6 @@
   "safety_this_funds_an_inscription": {
     "message": "これはインスクリプションへの資金供給です。$1 BTC が $2 に送られます。これはインスクリプション自体から導出されたアドレスで、あなたの秘密鍵でのみ使用できます。続くリビールトランザクションがコンテンツを公開します。その送信先と手数料は別途確認してください。"
   },
-  "safety_counterparty_reveal_commit": {
-    "message": "Counterparty のコミット"
-  },
-  "safety_counterparty_reveal_commit_detail": {
-    "message": "$1 BTC が $2 に送られ、サイトのリビールトランザクションの資金になります。このリビールが、上に表示されたメッセージをあなたのアドレスから公開します。この出力の鍵はサイトが持っているため、この BTC は使われたものと考えてください。"
-  },
   "safety_blocked_reveal_did_not_verify": {
     "message": "ブロック: リビールを検証できませんでした"
   },
@@ -4365,24 +4359,6 @@
   },
   "safety_reveal_address_none": {
     "message": "アドレスのない出力"
-  },
-  "safety_reveal_outputs_title": {
-    "message": "2 つ目のトランザクション"
-  },
-  "safety_reveal_outputs_pays_other_title": {
-    "message": "2 つ目のトランザクションが別のアドレスに支払います"
-  },
-  "safety_reveal_outputs_data_only": {
-    "message": "2 つ目のトランザクション: データのみで、支払いはありません。"
-  },
-  "safety_reveal_outputs_pays": {
-    "message": "サイトが提供した 2 つ目のトランザクションの支払い先:"
-  },
-  "safety_reveal_output_item": {
-    "message": "$1 sats → $2"
-  },
-  "safety_reveal_outputs_resign_note": {
-    "message": "2 つ目のトランザクションの鍵を持つサイトは、別の出力で署名し直せます。Counterparty 自身のサービスが作成したものは署名し直せませんが、どちらなのかウォレットには判断できません。"
   },
   "safety_this_sends_btc_matching_the_declared": {
     "message": "これは $1 BTC を $2 に送金します。サイトが申告した支払い出力と一致しています。アドレスが意図したものかどうか確認してください。"
@@ -6733,6 +6709,63 @@
   },
   "psbts_approve_fund_and_authorize_offers": {
     "message": "オファーに資金を用意して承認"
+  },
+  "commit_reveal_title": {
+    "message": "Counterparty メッセージを公開"
+  },
+  "commit_reveal_message": {
+    "message": "メッセージ"
+  },
+  "commit_reveal_published_from": {
+    "message": "公開元"
+  },
+  "commit_reveal_commit_fee": {
+    "message": "コミット手数料"
+  },
+  "commit_reveal_commit_fee_description": {
+    "message": "2つ目のトランザクションの資金を用意する1つ目のトランザクションのネットワーク手数料"
+  },
+  "commit_reveal_reveal_fee": {
+    "message": "リビール手数料"
+  },
+  "commit_reveal_reveal_fee_description": {
+    "message": "1つ目のトランザクションが確保する $1 から支払われます"
+  },
+  "commit_reveal_signing": {
+    "message": "署名"
+  },
+  "commit_reveal_signing_detail": {
+    "message": "あなたのアドレスの鍵で両方のトランザクションに署名します。2つ目がメッセージを公開し、1つ目の後にのみ有効です。"
+  },
+  "commit_reveal_reveal_output": {
+    "message": "リビール出力 $1"
+  },
+  "commit_reveal_output_marker": {
+    "message": "Counterparty マーカー（値なし）"
+  },
+  "commit_reveal_output_unknown": {
+    "message": "アドレスで表せないスクリプトへ $1"
+  },
+  "commit_reveal_output_yours": {
+    "message": "$1 をあなたのアドレスへ返却"
+  },
+  "commit_reveal_output_burn": {
+    "message": "$1 をバーンアドレスへ：誰も使えません"
+  },
+  "commit_reveal_output_external": {
+    "message": "$1 をあなたのものではないアドレスへ"
+  },
+  "psbts_approve_publish_message": {
+    "message": "メッセージを公開"
+  },
+  "psbts_approve_sign_both": {
+    "message": "両方に署名"
+  },
+  "psbts_approve_commit_transaction": {
+    "message": "コミット"
+  },
+  "psbts_approve_reveal_transaction": {
+    "message": "リビール"
   },
   "psbts_approve_fund_and_authorize_1_offer": {
     "message": "1 件のオファーに資金を用意して承認"
