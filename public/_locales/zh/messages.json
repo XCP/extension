@@ -1,4 +1,16 @@
 {
+  "coin_lock_signing_changed": {
+    "message": "所选币已被锁定或锁定状态已更改。请重新审核交易。",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_unknown": {
+    "message": "资产状态未知",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_lookup_failed": {
+    "message": "无法确认哪些币持有资产。未确认的币不计入可用金额。请刷新重试。",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
   "coins_available": {
     "message": "可用"
   },

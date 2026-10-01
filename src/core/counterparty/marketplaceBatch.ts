@@ -1,6 +1,7 @@
 /** Homogeneous multi-PSBT marketplace phases. Every item proves independently first. */
 
 import { sameAddress } from '@/core/bitcoin/address';
+import type { PsbtBundleReview } from '@/core/bitcoin/psbtBundleTypes';
 import { describeCanonicalPolicy, formatExpiry, formatXcpRaw, grouped, policyOfferStandingNotice, satsValue } from '@/core/counterparty/marketplace/format';
 import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
 import type {
@@ -14,7 +15,6 @@ import type {
   PrepareAssetIntentClaim,
   PrepareBulkFanoutIntentClaim,
 } from '@/core/counterparty/marketplace/intentTypes';
-import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import { isRecord } from '@/core/isRecord';
 import { sum, toSafeInteger } from '@/core/numeric';
@@ -365,7 +365,7 @@ export function analyzeMarketplaceBatch(
   reviews: MarketplaceApprovalReview[],
   /** The requesting site's wallet-verified origin, named on a policy-offer review. */
   context: Pick<PolicyOfferWalletContext, 'origin'> = {},
-): MarketplaceBundleReview {
+): PsbtBundleReview {
   if (intents.length !== reviews.length || intents.length < 1) {
     throw new Error('marketplace batch proof count does not match its intents');
   }
@@ -390,7 +390,7 @@ export function analyzeMarketplaceBatch(
       : [...identityFacts];
   let title: string;
   let notice: string;
-  let summary: MarketplaceBundleReview['bundleSummary'];
+  let summary: PsbtBundleReview['bundleSummary'];
 
   if (kind === 'attach-and-list') {
     const [attach, listing] = intents as [

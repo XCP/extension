@@ -2,14 +2,15 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import { type CoinLock, type CoinLockUpdate, coinLocksOf, withCoinLockUpdate } from '@/core/bitcoin/coinLocks';
+import { coinLocksOf, withCoinLockUpdate } from '@/core/bitcoin/coinLocks';
 import type { UTXO } from '@/core/bitcoin/utxo';
+import type { CoinLock, CoinLockUpdate } from '@/types/coinLocks';
 import CoinsPage from '../coins';
 
 const ADDRESS = 'bc1qtsenny4t24882u7l854yzt0h2znq686mwhf2mt';
-const state = vi.hoisted(() => ({ utxos: [] as unknown[], withAssets: new Set<string>() }));
+const state = vi.hoisted(() => ({ utxos: [] as unknown[], withAssets: new Set<string>(), assetFailure: false, refresh: () => {} }));
 
-vi.mock('@/contexts/header-context', () => ({ useHeader: () => ({ setHeaderProps: vi.fn() }) }));
+vi.mock('@/contexts/header-context', () => ({ useHeader: () => ({ setHeaderProps: (props: { rightButton: { onClick: () => void } }) => { state.refresh = props.rightButton.onClick; } }) }));
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({ activeAddress: { address: 'bc1qtsenny4t24882u7l854yzt0h2znq686mwhf2mt' } }),
 }));
@@ -18,7 +19,7 @@ vi.mock('@/core/bitcoin/utxo', async (importOriginal) => ({
   fetchUTXOs: vi.fn(async () => state.utxos),
   clearUtxoCache: vi.fn(),
 }));
-vi.mock('@/core/counterparty/api', () => ({ fetchUtxosWithBalances: vi.fn(async () => state.withAssets) }));
+vi.mock('@/core/counterparty/api', () => ({ fetchUtxosWithBalances: vi.fn(async () => { if (state.assetFailure) throw new Error('API unavailable'); return state.withAssets; }) }));
 vi.mock('@/core/bitcoin/blockHeight', () => ({ getCurrentBlockHeight: vi.fn(async () => 900_010) }));
 
 const txid = (char: string) => char.repeat(64);
@@ -52,6 +53,7 @@ const card = (name: RegExp) => screen.getByRole('article', { name });
 describe('the Coins settings page', () => {
   beforeEach(() => {
     state.utxos = [utxo('a', 0, 40_000), utxo('b', 1, 100_000), utxo('c', 2, 546), utxo('d', 0, 7_000, false)];
+    state.assetFailure = false;
     state.withAssets = new Set([`${txid('c')}:2`]);
   });
   afterEach(() => { cleanup(); setCoinLockStore(null); });
@@ -71,6 +73,27 @@ describe('the Coins settings page', () => {
     expect(within(card(/0\.00000546 BTC/)).queryByRole('button')).not.toBeInTheDocument();
     expect(within(card(/0\.00007000 BTC/)).getByText('Pending')).toBeInTheDocument();
     expect(within(card(/0\.00100000 BTC/)).getByText('10 confirmations')).toBeInTheDocument();
+  });
+
+  it('excludes unknown assets from Available and recovers after refresh', async () => {
+    state.assetFailure = true;
+    installStore([offerLock(`${txid('a')}:0`)]);
+    renderPage();
+    await screen.findByText(/Could not check which coins hold assets/);
+    const available = () => screen.getByText('Available').nextSibling;
+    expect(available()).toHaveTextContent('0.00000000 BTC');
+    expect(screen.getAllByText('Asset status unknown')).toHaveLength(4);
+    expect(within(card(/0\.00100000 BTC/)).queryByRole('button', { name: 'Lock' })).not.toBeInTheDocument();
+    expect(within(card(/0\.00040000 BTC/)).getByRole('button', { name: 'Unlock' })).toBeInTheDocument();
+    state.assetFailure = false;
+    state.refresh();
+    await waitFor(() => expect(available()).toHaveTextContent('0.00107000 BTC'));
+    expect(screen.queryByText(/Could not check which coins hold assets/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Asset status unknown')).not.toBeInTheDocument();
+    expect(within(card(/0\.00100000 BTC/)).getByRole('button', { name: 'Lock' })).toBeInTheDocument();
+    state.assetFailure = true;
+    state.refresh();
+    await waitFor(() => expect(available()).toHaveTextContent('0.00000000 BTC'));
   });
 
   it('filters to locked coins', async () => {

@@ -1,3 +1,4 @@
+import type { CoinLock } from '@/types/coinLocks';
 /**
  * The wallet's locked coins as the compose path honors them.
  *
@@ -12,7 +13,7 @@ import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
 import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import type { CoinLock } from '@/core/bitcoin/coinLocks';
+
 import { getActiveSettings } from '@/core/settings';
 import { composeDetach, composeMove, composeSend } from '../compose';
 import {

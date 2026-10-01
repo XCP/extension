@@ -4,14 +4,7 @@ import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
 import { AddressFormat, DEFAULT_ADDRESS_FORMAT, isCounterwalletFormat } from '@/core/bitcoin/addressFormat';
-import {
-  type CoinLock,
-  liveCoinLocks,
-  parseCoinLockUpdate,
-  parseOfferCoinCommitments,
-  withCoinLockUpdate,
-  withOfferCoinLocks,
-} from '@/core/bitcoin/coinLocks';
+import { liveCoinLocks, parseCoinLockUpdate, parseOfferCoinCommitments, withCoinLockUpdate, withOfferCoinLocks } from '@/core/bitcoin/coinLocks';
 import type { ConsolidationResult } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { parseCancelOffersIntent, withCancelledOfferCoinLocks } from '@/core/bitcoin/offerCancellation';
@@ -61,6 +54,7 @@ import {
 } from '@/platform/storage/walletStorage';
 import { assertTrezorSuiteAccess } from '@/platform/suiteAccess';
 import { WalletSigner } from '@/platform/walletSigner';
+import type { CoinLock } from '@/types/coinLocks';
 
 // Note: getTrezorAdapter is dynamically imported in createHardwareWalletWithDiscovery to avoid
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
@@ -176,6 +170,7 @@ export class WalletManager {
     lastActiveAddress: () => this.getSettings().lastActiveAddress,
     getPrivateKey: (walletId, derivationPath) => this.getPrivateKey(walletId, derivationPath),
     getPairedAddresses: () => this.getPairedAddresses(),
+    getCoinLocks: address => this.getCoinLocks(address),
   });
 
   private clearDerivedAddressCaches(): void {
@@ -1888,7 +1883,7 @@ export class WalletManager {
 
   /** Sign a site's commit PSBT and its reveal PSBT with the source key, both or neither (see WalletSigner). */
   public async signCommitAndRevealPsbts(
-    commit: { psbtHex: string; signInputs: Record<string, number[]>; sighashTypes: number[] },
+    commit: { psbtHex: string; signInputs: Record<string, number[]>; sighashTypes: number[]; approvedCoinLocks?: CoinLock[] },
     revealPsbtHex: string,
     sourceAddress: string,
     expectedIdentity?: SigningIdentity,

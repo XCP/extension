@@ -1,21 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  activeCoinLocks,
-  COIN_LOCK_EXPIRY_GRACE_SECONDS,
-  COIN_LOCK_ORPHAN_SECONDS,
-  type CoinLock,
-  coinLocksOf,
-  liveCoinLocks,
-  MAX_COIN_LOCK_ENTRIES,
-  MAX_COIN_LOCK_EXPIRY_SECONDS,
-  MAX_COIN_LOCKS_PER_ADDRESS,
-  type OfferCoinCommitment,
-  parseCoinLockUpdate,
-  parseOfferCoinCommitments,
-  sanitizeCoinLocks,
-  withCoinLockUpdate,
-  withOfferCoinLocks,
-} from '@/core/bitcoin/coinLocks';
+import { activeCoinLocks, COIN_LOCK_EXPIRY_GRACE_SECONDS, COIN_LOCK_ORPHAN_SECONDS, coinLocksOf, liveCoinLocks, MAX_COIN_LOCK_ENTRIES, MAX_COIN_LOCK_EXPIRY_SECONDS, MAX_COIN_LOCK_REFS, MAX_COIN_LOCKS_PER_ADDRESS, parseCoinLockUpdate, parseOfferCoinCommitments, sanitizeCoinLocks, withCoinLockUpdate, withOfferCoinLocks } from '@/core/bitcoin/coinLocks';
+import type { CoinLock, OfferCoinCommitment } from '@/types/coinLocks';
 
 const ADDRESS = 'bc1qtsenny4t24882u7l854yzt0h2znq686mwhf2mt';
 const OTHER = '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX';
@@ -184,15 +169,46 @@ describe('locked coins in the keychain', () => {
   });
 
   describe('bounds and validation', () => {
-    it('keeps at most the most recent locks per address and overall', () => {
-      const many = Array.from({ length: MAX_COIN_LOCKS_PER_ADDRESS + 5 }, (_, index) =>
+    it('rejects additions at the address limit without evicting a manual lock', () => {
+      const manual = after(withCoinLockUpdate([], ADDRESS, { lock: [{ outpoint: A, valueSats: 1 }] }, NOW));
+      const offers = Array.from({ length: MAX_COIN_LOCKS_PER_ADDRESS - 1 }, (_, index) =>
         slot(`${index.toString(16).padStart(64, '0')}:0`));
-      expect(coinLocksOf(after(withOfferCoinLocks([], ADDRESS, many, NOW)), ADDRESS)).toHaveLength(MAX_COIN_LOCKS_PER_ADDRESS);
-      const stored = Array.from({ length: MAX_COIN_LOCK_ENTRIES + 3 }, (_, index) => ({
+      const full = after(withOfferCoinLocks(manual, ADDRESS, offers, NOW));
+      expect(() => withOfferCoinLocks(full, ADDRESS, [slot(B)], NOW)).toThrow('Coin lock limit reached');
+      expect(() => withCoinLockUpdate(full, ADDRESS, { lock: [{ outpoint: B, valueSats: 1 }] }, NOW)).toThrow('Coin lock limit reached');
+      expect(full).toHaveLength(MAX_COIN_LOCKS_PER_ADDRESS);
+      expect(full[0]).toEqual(manual[0]);
+      const reduced = after(withCoinLockUpdate(full, ADDRESS, { unlock: [A] }, NOW));
+      expect(after(withOfferCoinLocks(reduced, ADDRESS, [slot(B)], NOW))).toHaveLength(MAX_COIN_LOCKS_PER_ADDRESS);
+    });
+
+    it('preserves oversized vaults on load and permits reducing them', () => {
+      const stored: CoinLock[] = Array.from({ length: MAX_COIN_LOCK_ENTRIES + 3 }, (_, index) => ({
+        outpoint: `${index.toString(16).padStart(64, '0')}:0`, address: ADDRESS, kind: 'manual', manual: true,
+        refs: [], valueSats: 1, origin: null, expiresAt: null, createdAt: NOW, seenAt: NOW, unlocked: false,
+      }));
+      expect(sanitizeCoinLocks(stored)).toEqual(stored);
+      const reduced = after(withCoinLockUpdate(stored, ADDRESS, { unlock: [stored[0]!.outpoint] }, NOW));
+      expect(reduced).toHaveLength(stored.length - 1);
+      expect(() => withOfferCoinLocks(reduced, ADDRESS, [slot(A)], NOW)).toThrow('Coin lock limit reached');
+    });
+
+    it('rejects additions at the vault limit without changing other addresses', () => {
+      const stored: CoinLock[] = Array.from({ length: MAX_COIN_LOCK_ENTRIES }, (_, index) => ({
         outpoint: `${index.toString(16).padStart(64, '0')}:0`, address: `bc1q${index}`, kind: 'manual', manual: true,
         refs: [], valueSats: 1, origin: null, expiresAt: null, createdAt: NOW, seenAt: NOW, unlocked: false,
       }));
-      expect(sanitizeCoinLocks(stored)).toHaveLength(MAX_COIN_LOCK_ENTRIES);
+      expect(() => withOfferCoinLocks(stored, ADDRESS, [slot(A)], NOW)).toThrow('Coin lock limit reached');
+      expect(sanitizeCoinLocks(stored)).toEqual(stored);
+    });
+
+    it('rejects excess offer references instead of forgetting existing commitments', () => {
+      const refs = Array.from({ length: MAX_COIN_LOCK_REFS }, (_, index) => `offer-${index}`);
+      const full = after(withOfferCoinLocks([], ADDRESS, [slot(A, { refs })], NOW));
+      expect(() => withOfferCoinLocks(full, ADDRESS, [slot(A, { refs: ['one-more'] })], NOW)).toThrow('Too many offers');
+      expect(full[0]!.refs).toEqual(refs);
+      expect(() => parseOfferCoinCommitments([slot(A, { refs: [...refs, 'one-more'] })])).toThrow('Too many offers');
+      expect(withOfferCoinLocks(full, ADDRESS, [slot(A, { refs })], NOW)).toBeNull();
     });
 
     it('drops malformed stored locks on load rather than failing the unlock', () => {

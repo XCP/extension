@@ -12,10 +12,11 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getCurrentBlockHeight } from "@/core/bitcoin/blockHeight";
 import { getCoinLockStore, readCoinLocks } from "@/core/bitcoin/coinLockStore";
-import { backsOffers, type CoinLockUpdate, outpointOf } from "@/core/bitcoin/coinLocks";
+import { backsOffers, outpointOf } from "@/core/bitcoin/coinLocks";
 import { clearUtxoCache, fetchUTXOs } from "@/core/bitcoin/utxo";
 import { fetchUtxosWithBalances } from "@/core/counterparty/api";
 import { t } from '@/i18n';
+import type { CoinLockUpdate } from '@/types/coinLocks';
 
 const PATHS = {
   BACK: "/settings",
@@ -64,7 +65,7 @@ export default function CoinsPage(): ReactElement {
       const utxos = await fetchUTXOs(address);
       const [locks, withAssets, height] = await Promise.all([
         readCoinLocks(address, utxos),
-        fetchUtxosWithBalances(utxos.map(utxo => `${utxo.txid}:${utxo.vout}`)).catch(() => new Set<string>()),
+        fetchUtxosWithBalances(utxos.map(utxo => `${utxo.txid}:${utxo.vout}`)).catch(() => null),
         getCurrentBlockHeight().catch(() => null),
       ]);
       const lockByOutpoint = new Map(locks.map(lock => [lock.outpoint, lock]));
@@ -75,7 +76,7 @@ export default function CoinsPage(): ReactElement {
           valueSats: utxo.value,
           confirmations: !utxo.status.confirmed ? 0
             : height !== null && utxo.status.block_height > 0 ? Math.max(1, height - utxo.status.block_height + 1) : 1,
-          holdsAssets: withAssets.has(`${utxo.txid}:${utxo.vout}`),
+          holdsAssets: withAssets?.has(`${utxo.txid}:${utxo.vout}`) ?? null,
           lock: lockByOutpoint.get(outpoint),
         };
       });
@@ -88,7 +89,7 @@ export default function CoinsPage(): ReactElement {
       }
       // Locked coins first, then the largest.
       coins.sort((left, right) => (left.lock ? 0 : 1) - (right.lock ? 0 : 1) || right.valueSats - left.valueSats);
-      if (current === loadRef.current) setState({ coins, isLoading: false, error: null });
+      if (current === loadRef.current) setState({ coins, isLoading: false, error: withAssets === null ? t('coins_assets_lookup_failed') : null });
     } catch (error) {
       console.error("Failed to load coins:", error);
       if (current === loadRef.current) setState(previous => ({ ...previous, isLoading: false, error: t('coins_load_failed') }));
@@ -129,7 +130,7 @@ export default function CoinsPage(): ReactElement {
 
   const totals = useMemo(() => state.coins.reduce((sum, coin) => {
     if (coin.lock && !coin.lock.unlocked) return { ...sum, locked: sum.locked + coin.valueSats };
-    if (!coin.holdsAssets && coin.confirmations !== null) return { ...sum, free: sum.free + coin.valueSats };
+    if (coin.holdsAssets === false && coin.confirmations !== null) return { ...sum, free: sum.free + coin.valueSats };
     return sum;
   }, { free: 0, locked: 0 }), [state.coins]);
 

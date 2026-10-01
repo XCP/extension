@@ -8,7 +8,7 @@
  *
  * Output: test-results/coin-locks/*.png (or XCP_COIN_LOCK_SHOTS).
  */
-import type { BrowserContext, Page } from '@playwright/test';
+import type { BrowserContext, Page, Route } from '@playwright/test';
 import { Address, OutScript, Transaction } from '@scure/btc-signer';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -92,6 +92,18 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   const summary = page.getByRole('heading', { name: 'Your coins' }).locator('..');
   await expect(summary).toContainText('Available0.00019500 BTC');
   await expect(summary).toContainText('Locked0.00190000 BTC');
+  const balanceEndpoint = '**/v2/utxos/withbalances?**';
+  const failAssetLookup = (route: Route) => route.fulfill({ status: 503, json: { error: 'Synthetic outage' } });
+  await context.route(balanceEndpoint, failAssetLookup);
+  await page.getByRole('button', { name: 'Refresh coins' }).click();
+  await expect(page.getByText(/Could not check which coins hold assets/)).toBeVisible();
+  await expect(summary).toContainText('Available0.00000000 BTC');
+  await expect(page.getByText('Asset status unknown').first()).toBeVisible();
+  await page.screenshot({ path: path.join(OUT, '2c-asset-lookup-failed.png'), fullPage: true });
+  await context.unroute(balanceEndpoint, failAssetLookup);
+  await page.getByRole('button', { name: 'Refresh coins' }).click();
+  await expect(summary).toContainText('Available0.00019500 BTC');
+  await expect(page.getByText('Asset status unknown')).toHaveCount(0);
   await page.getByRole('tab', { name: 'Locked' }).click();
   await expect(page.getByRole('article')).toHaveCount(3);
   await page.screenshot({ path: path.join(OUT, '3-coins-locked.png'), fullPage: true });

@@ -160,6 +160,15 @@ export async function beginSignFinalization(id: string): Promise<void> {
   if (reserved?.status !== 'finalizing') throw new Error('Signing request not found or expired');
 }
 
+/** Only the executing signer may abort its own failed finalization; popup cancellation cannot. */
+export async function failSignFinalization(id: string): Promise<SignFlowEntry | null> {
+  return signFlowStorage.update(id, entry => {
+    if (entry.status !== 'finalizing') return entry;
+    const { id: entryId, origin, timestamp, requestKey, kind, address, walletId } = entry;
+    return { id: entryId, origin, timestamp, requestKey, kind, address, walletId, status: 'cancelled' };
+  });
+}
+
 function validResult(kind: SignFlowKind, result: unknown): result is SignFlowResult {
   if (!result || typeof result !== 'object') return false;
   const value = result as Record<string, unknown>;

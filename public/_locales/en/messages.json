@@ -1,4 +1,16 @@
 {
+  "coin_lock_signing_changed": {
+    "message": "A selected coin was locked or its lock changed. Review the transaction again.",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_unknown": {
+    "message": "Asset status unknown",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_lookup_failed": {
+    "message": "Could not check which coins hold assets. Unchecked coins are excluded from Available. Refresh to retry.",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
   "coins_available": {
     "message": "Available",
     "description": "pages/settings/coins.tsx. Summary row label: BTC in coins sends may spend (not locked, not holding assets)."

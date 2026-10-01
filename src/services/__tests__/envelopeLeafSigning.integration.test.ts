@@ -77,6 +77,7 @@ const wallet: Wallet = {
   addresses: [{ name: 'Address 1', path: "m/86'/0'/0'/0/0", address: user.address!, pubKey: bytesToHex(userPubkey) }],
 };
 const signer = new WalletSigner({
+    getCoinLocks: () => [],
   activeWalletId: () => wallet.id,
   getWalletById: id => (id === wallet.id ? wallet : undefined),
   getActiveWallet: () => wallet,

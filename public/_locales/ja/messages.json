@@ -1,4 +1,16 @@
 {
+  "coin_lock_signing_changed": {
+    "message": "選択したコインがロックされたか、ロックが変更されました。取引を再確認してください。",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_unknown": {
+    "message": "アセット状態不明",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_lookup_failed": {
+    "message": "コインのアセット保有状態を確認できませんでした。未確認のコインは利用可能額に含まれません。更新して再試行してください。",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
   "coins_available": {
     "message": "使用可能"
   },

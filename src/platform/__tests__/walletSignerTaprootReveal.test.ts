@@ -53,6 +53,7 @@ let activeAddress: string;
 const getPrivateKey = vi.fn();
 
 const state: SigningWalletState = {
+  getCoinLocks: () => [],
   activeWalletId: () => wallet.id,
   getWalletById: (id) => (id === wallet.id ? wallet : undefined),
   getActiveWallet: () => wallet,

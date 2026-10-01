@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import type { CoinLock } from '@/core/bitcoin/coinLocks';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { parsePSBT } from '@/core/bitcoin/psbt';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';
@@ -14,6 +13,7 @@ import { fetchZeldBalance } from '@/core/zeld/api';
 import { decodeCborUintArray } from '@/core/zeld/cbor';
 import { assessZeldHunt } from '@/core/zeld/huntTemplate';
 import { composeZeldPark, composeZeldSend, zeldRecipientDustSats } from '@/core/zeld/sendCompose';
+import type { CoinLock } from '@/types/coinLocks';
 import { OTHER_ADDRESS, PREV_TXID, SOURCE_ADDRESS, SOURCE_P2WPKH } from './fixtures';
 
 vi.mock('@/core/zeld/api', async (importOriginal) => ({

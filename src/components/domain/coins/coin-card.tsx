@@ -3,9 +3,10 @@ import { useEffect, useRef } from "react";
 import { PendingStatus } from "@/components/domain/balance/pending-status";
 import { coinLockKindLabel, formatCoinBtc, formatOutpoint } from "@/components/domain/coins/coin-lock-text";
 import { FaLock, FaLockOpen } from "@/components/icons";
-import { backsOffers, type CoinLock } from "@/core/bitcoin/coinLocks";
+import { backsOffers } from "@/core/bitcoin/coinLocks";
 import { formatExpiry } from "@/core/counterparty/marketplace/format";
 import { t } from '@/i18n';
+import type { CoinLock } from '@/types/coinLocks';
 
 const EXPLORER_TX_URL = 'https://mempool.space/tx/';
 
@@ -20,8 +21,8 @@ export interface CoinRow {
   valueSats: number;
   /** Confirmations, 0 while in the mempool, or null when the coin is not on chain yet. */
   confirmations: number | null;
-  /** The coin carries Counterparty assets, which no send spends. */
-  holdsAssets: boolean;
+  /** Whether the coin carries Counterparty assets; null when the lookup failed. */
+  holdsAssets: boolean | null;
   lock?: CoinLock;
 }
 
@@ -98,7 +99,7 @@ export function CoinCard({
       ? <PendingStatus label="Pending" />
       : <span>{coin.confirmations === 1 ? t('coins_confirmation_one') : t('coins_confirmations', String(coin.confirmations))}</span>;
 
-  const action = coin.holdsAssets && !lock
+  const action = coin.holdsAssets !== false && !lock
     ? null
     : locked
       ? {
@@ -178,9 +179,10 @@ export function CoinCard({
         )}
       </div>
 
-      {(lock || coin.holdsAssets) && (
+      {(lock || coin.holdsAssets !== false) && (
         <div className="mt-2 flex flex-wrap gap-1">
-          {coin.holdsAssets && <Badge>{t('coins_holds_assets')}</Badge>}
+          {coin.holdsAssets === null && <Badge>{t('coins_assets_unknown')}</Badge>}
+          {coin.holdsAssets === true && <Badge>{t('coins_holds_assets')}</Badge>}
           {lock && offer && (
             <Badge icon={locked ? <FaLock className="size-2.5" aria-hidden="true" /> : undefined}>{coinLockKindLabel(lock.kind)}</Badge>
           )}

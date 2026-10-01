@@ -1,3 +1,4 @@
+import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/types/coinLocks';
 /** Real PSBT decoding, background review, prevout verification and software signing for the two
  * marketplace bundles whose proof crosses items: attach-and-list (the listing spends the attach's
  * unbroadcast output) and a batch of exact-offer authorizations sharing one funding outpoint.
@@ -10,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/core/bitcoin/coinLocks';
+
 import { finalizePSBT, parsePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleItem, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';

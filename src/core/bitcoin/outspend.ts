@@ -1,14 +1,7 @@
 /**
- * Whether a locked coin (core/bitcoin/coinLocks.ts) that a UTXO read missed is really gone, asked
- * of the chain itself.
- *
- * Missing from that read proves nothing: it is cached, fails over between mempool.space and
- * blockstream.info (whose mempools differ), and leaves out coins spent in the mempool. So each
- * candidate is asked of both, fresh, whether it is spent. It is `spent` only when a source shows a
- * spend by a confirmed transaction and no source says otherwise; a spend still in the mempool may
- * be replaced, so it keeps the lock, as do an error, a timeout and a disagreement. The one other
- * verdict is `unknown`, both sources answering 404 for the funding transaction, which is evidence
- * only in time (coinLocks waits a day), since a transaction not yet broadcast looks the same.
+ * Reconcile missing locked coins using fresh answers from both Bitcoin indexers.
+ * Release only on matching confirmed spends, or mark an orphan candidate on matching 404s.
+ * Errors, disagreement and unconfirmed spends preserve the lock.
  */
 
 import { apiClient, isApiError, type RequestConfig } from '@/core/api/client';

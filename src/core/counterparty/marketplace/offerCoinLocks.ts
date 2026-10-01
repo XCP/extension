@@ -1,3 +1,4 @@
+import type { OfferCoinCommitment } from '@/types/coinLocks';
 /**
  * The coins an offer signature commits, as the wallet proves them from what it just signed.
  *
@@ -19,7 +20,7 @@
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
-import type { OfferCoinCommitment } from '@/core/bitcoin/coinLocks';
+
 import type { DecodedInput, DecodedOutput } from '@/core/bitcoin/psbt';
 import type {
   MarketplaceApprovalReview,

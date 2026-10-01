@@ -90,6 +90,7 @@ function useKey(key: RegtestKey): { wallet: Wallet; address: string } {
     addresses: [{ name: 'Address 1', path: '', address, pubKey: key.publicKeyHex }],
   } as Wallet;
   const signer = new WalletSigner({
+    getCoinLocks: () => [],
     activeWalletId: () => wallet.id,
     getWalletById: id => (id === wallet.id ? wallet : undefined),
     getActiveWallet: () => wallet,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { CoinLock } from '@/core/bitcoin/coinLocks';
 import { cancellationCoinReview, MAX_CANCEL_OFFER_COINS, parseCancelOffersIntent, withCancelledOfferCoinLocks } from '@/core/bitcoin/offerCancellation';
+import type { CoinLock } from '@/types/coinLocks';
 
 const address = 'bc1qowner';
 const origin = 'https://market.example';

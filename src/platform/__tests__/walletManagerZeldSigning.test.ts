@@ -7,6 +7,7 @@ import { assertOnlyNonceChanged } from '@/core/zeld/huntTemplate';
 import { unsignedFormOf } from '@/core/zeld/legacyHunt';
 import * as signingHunt from '@/core/zeld/signHunt';
 import { WalletManager } from '@/platform/walletManager';
+import type { CoinLock } from '@/types/coinLocks';
 import type { Wallet } from '@/types/wallet';
 
 const session = vi.hoisted(() => ({ generation: 1 }));
@@ -73,4 +74,44 @@ describe('background ZELD signing', () => {
     await manager.signTransaction(bytesToHex(tx.unsignedTx), own.address);
     expect(hunt).not.toHaveBeenCalled();
   });
+  const inputLock = (): CoinLock => ({ outpoint: `${parent.id}:0`, address: own.address, kind: 'manual', manual: true,
+    refs: [], valueSats: 100_000, origin: null, expiresAt: null,
+    createdAt: Math.floor(Date.now() / 1000), seenAt: null, unlocked: false });
+
+  it.each([0, 5])('refuses a prepared transaction after its coin is locked (hunt %s)', async seconds => {
+    vi.spyOn(manager, 'getCoinLocks').mockReturnValue([inputLock()]);
+    await expect(manager.signTransaction(bytesToHex(tx.unsignedTx), own.address, { zeldHuntSeconds: seconds }))
+      .rejects.toThrow('A selected coin was locked');
+    expect(manager.getPrivateKey).not.toHaveBeenCalled();
+  });
+
+  it('rejects a lock created while key access is pending', async () => {
+    vi.spyOn(manager, 'getPrivateKey').mockImplementation(async () => {
+      vi.spyOn(manager, 'getCoinLocks').mockReturnValue([inputLock()]);
+      return { hex: key, wif: '', compressed: true };
+    });
+    await expect(manager.signTransaction(bytesToHex(tx.unsignedTx), own.address))
+      .rejects.toThrow('A selected coin was locked');
+  });
+
+  it('withholds a hunted transaction when its input is locked before the hunt returns', async () => {
+    vi.spyOn(signingHunt, 'huntZeldWhileSigning').mockImplementation(async context => {
+      const found = await realHunt({ ...context, targetZeros: 2 });
+      vi.spyOn(manager, 'getCoinLocks').mockReturnValue([inputLock()]);
+      return found;
+    });
+    await expect(manager.signTransaction(bytesToHex(tx.unsignedTx), own.address, { zeldHuntSeconds: 5 }))
+      .rejects.toThrow('A selected coin was locked');
+  });
+
+  it('signs only the lock permission reviewed by the user', async () => {
+    const approved = inputLock();
+    const locks = vi.spyOn(manager, 'getCoinLocks').mockReturnValue([approved]);
+    await expect(manager.signTransaction(bytesToHex(tx.unsignedTx), own.address, { approvedCoinLocks: [approved] }))
+      .resolves.toMatch(/^[0-9a-f]+$/);
+    locks.mockReturnValue([{ ...approved, refs: ['new-offer'], kind: 'offer_slot' }]);
+    await expect(manager.signTransaction(bytesToHex(tx.unsignedTx), own.address, { approvedCoinLocks: [approved] }))
+      .rejects.toThrow('A selected coin was locked');
+  });
+
 });

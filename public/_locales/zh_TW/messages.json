@@ -1,4 +1,16 @@
 {
+  "coin_lock_signing_changed": {
+    "message": "所選幣已被鎖定或鎖定狀態已變更。請重新審核交易。",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_unknown": {
+    "message": "資產狀態未知",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_lookup_failed": {
+    "message": "無法確認哪些幣持有資產。未確認的幣不計入可用金額。請重新整理後再試。",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
   "coins_available": {
     "message": "可用"
   },

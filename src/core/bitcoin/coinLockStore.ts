@@ -1,30 +1,14 @@
 /**
- * Where the wallet's locked coins (core/bitcoin/coinLocks.ts) are read and written from.
- *
- * Each extension context installs a store once from its composition root, with the calls that
- * reach the keychain from there: the background calls the wallet service itself, the popup and
- * side panel go through its client. Without one (tests, other contexts) no coin is locked.
- *
- * A read is also when locks come off by themselves: the caller's UTXO read of the address says
- * which of the locks it loaded are unspent and which it missed, and the background applies the
- * rules to that. Missing is only a candidate; an outspend lookup after the read
- * (core/bitcoin/outspend.ts) says whether the coin is really spent. A lookup that fails says
- * nothing, so it removes nothing; a store that fails is an error, because answering "no locks"
- * would let a send spend an offer's coin.
+ * An injected coin-lock store shared by composition and approval code.
+ * Entry points supply background storage or its page-side proxy. Read failures propagate;
+ * a missing UTXO remains locked until an independent outspend check resolves it.
  */
 
-import {
-  activeCoinLocks,
-  type CoinLock,
-  type CoinLockUpdate,
-  coinLocksOf,
-  type OfferCoinCommitment,
-  outpointOf,
-  withCoinLockUpdate,
-} from '@/core/bitcoin/coinLocks';
+import { activeCoinLocks, coinLocksOf, outpointOf, withCoinLockUpdate } from '@/core/bitcoin/coinLocks';
 import type { CancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import { checkOutspends } from '@/core/bitcoin/outspend';
 import { fetchUTXOs, type UTXO } from '@/core/bitcoin/utxo';
+import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/types/coinLocks';
 
 export interface CoinLockStore {
   /** The address's live locks, unlocked ones included. Empty while the keychain is locked. */
