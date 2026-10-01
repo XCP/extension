@@ -1,42 +1,20 @@
 /**
- * `commit-and-reveal`: a Taproot-encoded Counterparty message a site composed, sent to the wallet as
- * its two transactions in one `xcp_signPsbts` request.
- *
- * Core 11.5 returns an unsigned reveal the wallet signs with the source key. A site that composes a
- * Taproot message (an inscription, or a message too long for OP_RETURN), whether through Core or
- * with its own envelope builder, therefore needs two signatures from the user: the commit, which
- * funds a P2TR output committing to the envelope, and the reveal, which spends that output through
- * the envelope leaf and publishes the message. This module admits exactly that pair and proves it
- * before either is signed:
- *
- * - the commit is funded only by the signing address, every input P2WPKH or P2TR (so its unsigned
- *   txid is its final txid), each signed `SIGHASH_ALL` (or `SIGHASH_DEFAULT` for P2TR), with no
- *   Counterparty payload of its own and output 0 paying P2TR;
- * - the reveal is one input spending `commitTxid:0`, its `witnessUtxo` exactly that output, carrying
- *   one tapleaf (the envelope) with a control block of that leaf alone, and nothing signed yet; the
- *   wallet signs input 0 only, with `SIGHASH_DEFAULT` or `SIGHASH_ALL`;
- * - the envelope passes Core 11.5's source-signature rule against commit output 0 (`revealSourceRule.ts`):
- *   a canonical envelope leaf, that output's only leaf, closed by a key of the signing address; the
- *   output's internal key is that key, the address's own, or the unspendable point;
- * - the envelope decodes to a Counterparty message, the reveal carries the bare CNTRPRTY marker, and
- *   its fee is at a sane rate. Its other outputs are the site's to choose, and each is shown.
- *
- * The message itself is then decoded and reviewed as the commit's Counterparty action, through the
- * same path a commit with a proved reveal takes (`providerReveal.ts`), with every message check and
- * any marketplace intent on the commit held to it.
+ * Parse and prove a Counterparty commit/reveal pair before signing either transaction.
+ * Checks bind the funding, envelope, source key, outputs and fees to the reviewed bytes.
+ * The decoder separately verifies API support and the published message.
  */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { TAPROOT_UNSPENDABLE_KEY, TaprootControlBlock, type Transaction } from '@scure/btc-signer';
+import { SigHash, TAPROOT_UNSPENDABLE_KEY, TaprootControlBlock, type Transaction } from '@scure/btc-signer';
 import { tapLeafHash } from '@scure/btc-signer/payment.js';
 import { decodeAddressFromScript, sameAddress } from '@/core/bitcoin/address';
 import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
 import { extractPsbtDetails, type PsbtDetails, parsePSBT, resolvePsbtSighashType, spendsTaprootOutput } from '@/core/bitcoin/psbt';
+import type { PsbtBundleReview } from '@/core/bitcoin/psbtBundleTypes';
 import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { satsValue } from '@/core/counterparty/marketplace/format';
 import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
 import type { MarketplaceApprovalReview, MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
-import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import {
   checkRevealSourceSignature,
   sourceControlsKey,
@@ -162,8 +140,6 @@ export interface CommitRevealProof {
   evidence?: CommitRevealEvidence;
 }
 
-const SIGHASH_DEFAULT = 0x00;
-const SIGHASH_ALL = 0x01;
 
 /**
  * Addresses whose outputs no one can spend, which a reveal may pay its inscription's dust to:
@@ -232,7 +208,7 @@ function commitBlockers(commit: CommitRevealItem, details: PsbtDetails, source: 
     if (input.hasSignatures) blockers.push(`commit input ${input.index} is already signed`);
     if (input.tapLeafScripts?.length) blockers.push(`commit input ${input.index} carries a script path`);
     const sighash = resolvePsbtSighashType(commit.sighashTypes[input.index], input.sighashType, spendsTaprootOutput(input));
-    const allowed = input.scriptType === 'p2tr' ? [SIGHASH_DEFAULT, SIGHASH_ALL] : [SIGHASH_ALL];
+    const allowed: number[] = input.scriptType === 'p2tr' ? [SigHash.DEFAULT, SigHash.ALL] : [SigHash.ALL];
     if (!allowed.includes(sighash)) {
       blockers.push(`commit input ${input.index} must be signed with SIGHASH_ALL${input.scriptType === 'p2tr' ? ' or SIGHASH_DEFAULT' : ''}`);
     }
@@ -310,7 +286,7 @@ export function proveCommitAndReveal(
     blockers.push('the reveal must ask the signing address to sign input 0 only');
   }
   const revealSighash = reveal.sighashTypes[0];
-  if (reveal.sighashTypes.length !== 1 || (revealSighash !== SIGHASH_DEFAULT && revealSighash !== SIGHASH_ALL)
+  if (reveal.sighashTypes.length !== 1 || (revealSighash !== SigHash.DEFAULT && revealSighash !== SigHash.ALL)
     || (input.sighashType !== undefined && input.sighashType !== revealSighash)) {
     blockers.push('the reveal must be signed with SIGHASH_DEFAULT or SIGHASH_ALL');
   }
@@ -396,7 +372,7 @@ export function proveCommitAndReveal(
       envelopeHex: bytesToHex(leaf.leaf),
       controlBlockHex: bytesToHex(leaf.controlBlock),
       envelope: message.kind,
-      revealSighash: revealSighash ?? SIGHASH_DEFAULT,
+      revealSighash: revealSighash ?? SigHash.DEFAULT,
       revealOutputs,
       commitFee: details.fee,
       revealFee: revealFee ?? 0,
@@ -438,7 +414,7 @@ function revealOutputFact(output: RevealOutputFact): MarketplaceApprovalReview['
 }
 
 /** The bundle's review: the message, who publishes it, and what each transaction pays the network. */
-export function commitRevealReview(input: CommitRevealReviewInput): MarketplaceBundleReview {
+export function commitRevealReview(input: CommitRevealReviewInput): PsbtBundleReview {
   const { proof, marketplaceReview } = input;
   const blockers = [
     ...proof.blockers,

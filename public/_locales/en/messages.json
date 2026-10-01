@@ -9211,5 +9211,13 @@
   "zeld_max_spendable_help": {
     "message": "Available and Max exclude locked, unavailable and Counterparty-attached coins. Sending also requires BTC for fees.",
     "description": "Help below the ZELD amount field explaining which coins Available and Max exclude and that sending requires BTC for fees."
+  },
+  "coin_lock_signing_changed": {
+    "message": "A selected coin was locked or its lock changed. Review the transaction again.",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_unknown": {
+    "message": "Asset status unknown",
+    "description": "Coin control: signing guards and asset lookup status."
   }
 }

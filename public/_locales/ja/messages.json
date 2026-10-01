@@ -6928,5 +6928,13 @@
   },
   "zeld_max_spendable_help": {
     "message": "利用可能額と最大額には、ロック中、使用不可、Counterparty資産付きのコインは含まれません。送信には手数料用のBTCも必要です。"
+  },
+  "coin_lock_signing_changed": {
+    "message": "選択したコインがロックされたか、ロックが変更されました。取引を再確認してください。",
+    "description": "Coin control: signing guards and asset lookup status."
+  },
+  "coins_assets_unknown": {
+    "message": "アセット状態不明",
+    "description": "Coin control: signing guards and asset lookup status."
   }
 }

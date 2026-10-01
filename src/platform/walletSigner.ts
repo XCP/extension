@@ -15,11 +15,13 @@ import { envelopeLeafHash } from '@/core/counterparty/commitRevealBundle';
 import { envelopeLeafKey } from '@/core/counterparty/revealSourceRule';
 import { mapVerifiedInputPaths } from '@/core/hardware/inputPaths';
 import { getPairedAddressFormats, mnemonicPrivateKeyAt } from '@/core/wallet/addressDeriver';
+import { t } from '@/i18n';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import type { SigningIdentity } from '@/platform/auth/signingIdentity';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
 import { assertTrezorSuiteAccess } from '@/platform/suiteAccess';
 import { huntInBackground } from '@/platform/zeldHunt';
+import type { CoinLock } from '@/types/coinLocks';
 import type { HardwareWalletSecret, PairedAddresses, SignPsbtOptions, SignTransactionOptions, Wallet } from '@/types/wallet';
 
 /**
@@ -38,6 +40,7 @@ export interface SigningWalletState {
   lastActiveAddress(): string | undefined;
   getPrivateKey(walletId: string, derivationPath?: string): Promise<{ wif: string; hex: string; compressed: boolean }>;
   getPairedAddresses(): Promise<PairedAddresses>;
+  getCoinLocks(address: string): CoinLock[];
 }
 
 /**
@@ -119,6 +122,46 @@ export class WalletSigner {
     return assertStillAuthorized;
   }
 
+  /** Recheck lock permissions whenever the signing session is checked. */
+  private createCoinGuard(
+    tx: ReturnType<typeof parseTransactionForIntegrity>,
+    signInputs: Record<string, number[]>,
+    approved: readonly CoinLock[] = [],
+  ): () => void {
+    const inputs = Object.entries(signInputs).map(([address, indices]) => ({
+      address,
+      outpoints: new Set(indices.filter(index => Number.isInteger(index) && index >= 0 && index < tx.inputsLength).map(index => {
+        const input = tx.getInput(index);
+        return `${bytesToHex(input.txid ?? new Uint8Array())}:${input.index}`;
+      })),
+    }));
+    const permission = (lock: CoinLock) => JSON.stringify([
+      lock.address, lock.outpoint, lock.kind, lock.manual, lock.origin,
+      lock.refs, lock.expiresAt, lock.createdAt, lock.unlocked,
+    ]);
+    const allowed = new Set(approved.filter(lock => !lock.unlocked).map(permission));
+    return () => {
+      for (const { address, outpoints } of inputs) {
+        for (const lock of this.state.getCoinLocks(address)) {
+          if (!lock.unlocked && outpoints.has(lock.outpoint) && !allowed.has(permission(lock))) {
+            throw new Error(t('coin_lock_signing_changed'));
+          }
+        }
+      }
+    };
+  }
+
+  private createRawSigningGuard(rawTxHex: string, address: string, expectedIdentity?: SigningIdentity, approved?: CoinLock[]): () => void {
+    const identity = this.createSigningGuard(expectedIdentity);
+    const tx = parseTransactionForIntegrity(rawTxHex);
+    const addresses = new Set([address, ...(this.state.getActiveWallet()?.addresses.map(item => item.address) ?? [])]);
+    const indices = Array.from({ length: tx.inputsLength }, (_, index) => index);
+    const coins = this.createCoinGuard(tx, Object.fromEntries([...addresses].map(owner => [owner, indices])), approved);
+    const guard = () => { identity(); coins(); };
+    guard();
+    return guard;
+  }
+
   /** Sign the reviewed raw transaction; a hardware PSBT must describe those exact same bytes. */
   public async signTransaction(
     rawTxHex: string,
@@ -126,7 +169,7 @@ export class WalletSigner {
     options?: SignTransactionOptions,
     expectedIdentity?: SigningIdentity,
   ): Promise<string> {
-    const assertStillAuthorized = this.createSigningGuard(expectedIdentity);
+    const assertStillAuthorized = this.createRawSigningGuard(rawTxHex, sourceAddress, expectedIdentity, options?.approvedCoinLocks);
     const { psbtHex, inputValues, lockScripts } = options ?? {};
     const activeWalletId = this.state.activeWalletId();
     if (!activeWalletId) throw new Error("No active wallet set");
@@ -239,7 +282,7 @@ export class WalletSigner {
     options?: Omit<SignTransactionOptions, 'zeldHuntSeconds'>,
     expectedIdentity?: SigningIdentity,
   ): Promise<{ signedTxHex: string; signedRevealHex: string }> {
-    const assertStillAuthorized = this.createSigningGuard(expectedIdentity);
+    const assertStillAuthorized = this.createRawSigningGuard(rawTxHex, sourceAddress, expectedIdentity, options?.approvedCoinLocks);
     const activeWalletId = this.state.activeWalletId();
     if (!activeWalletId) throw new Error("No active wallet set");
     const wallet = this.state.getWalletById(activeWalletId);
@@ -301,13 +344,16 @@ export class WalletSigner {
    * @returns the signed commit PSBT and the signed reveal PSBT, neither finalized
    */
   public async signCommitAndRevealPsbts(
-    commit: { psbtHex: string; signInputs: Record<string, number[]>; sighashTypes: number[] },
+    commit: { psbtHex: string; signInputs: Record<string, number[]>; sighashTypes: number[]; approvedCoinLocks?: CoinLock[] },
     revealPsbtHex: string,
     sourceAddress: string,
     expectedIdentity?: SigningIdentity,
     revealSighash: number = SigHash.DEFAULT,
   ): Promise<[string, string]> {
-    const assertStillAuthorized = this.createSigningGuard(expectedIdentity);
+    const identityGuard = this.createSigningGuard(expectedIdentity);
+    const coinGuard = this.createCoinGuard(parsePSBT(commit.psbtHex), commit.signInputs, commit.approvedCoinLocks);
+    const assertStillAuthorized = () => { identityGuard(); coinGuard(); };
+    assertStillAuthorized();
     if (revealSighash !== SigHash.DEFAULT && revealSighash !== SigHash.ALL) {
       throw new Error('The reveal is signed with SIGHASH_DEFAULT or SIGHASH_ALL only.');
     }
@@ -336,7 +382,8 @@ export class WalletSigner {
       controlBlockHex: bytesToHex(TaprootControlBlock.encode(control)),
     };
 
-    const signedCommitPsbt = await this.signPsbt(commit.psbtHex, commit.signInputs, commit.sighashTypes, expectedIdentity);
+    const signedCommitPsbt = await this.signPsbt(commit.psbtHex, commit.signInputs, commit.sighashTypes, expectedIdentity,
+      commit.approvedCoinLocks ? { approvedCoinLocks: commit.approvedCoinLocks } : undefined);
     assertStillAuthorized();
     const reviewedCommit = parsePSBT(commit.psbtHex);
     if (bytesToHex(parsePSBT(signedCommitPsbt).unsignedTx) !== bytesToHex(reviewedCommit.unsignedTx)) {
@@ -514,7 +561,15 @@ export class WalletSigner {
     expectedIdentity?: SigningIdentity,
     options?: SignPsbtOptions,
   ): Promise<string> {
-    const assertStillAuthorized = this.createSigningGuard(expectedIdentity);
+    const identityGuard = this.createSigningGuard(expectedIdentity);
+    const lockTx = parsePSBT(psbtHex);
+    const active = this.state.lastActiveAddress() ?? this.state.getActiveWallet()?.addresses[0]?.address;
+    const coinGuard = this.createCoinGuard(lockTx,
+      signInputs && Object.keys(signInputs).length > 0 ? signInputs
+        : active ? { [active]: Array.from({ length: lockTx.inputsLength }, (_, index) => index) } : {},
+      options?.approvedCoinLocks);
+    const assertStillAuthorized = () => { identityGuard(); coinGuard(); };
+    assertStillAuthorized();
     const activeWalletId = this.state.activeWalletId();
     if (!activeWalletId) throw new Error("No active wallet set");
     const wallet = this.state.getWalletById(activeWalletId);

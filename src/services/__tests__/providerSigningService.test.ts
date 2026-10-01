@@ -221,7 +221,7 @@ describe('background provider signing execution', () => {
     expect(review.policy.blocked).toBe(false);
     expect(review.request).toMatchObject({ signInputs: { [identity.address]: [0] } });
     await service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: true });
-    expect(mocks.wallet.signPsbt).toHaveBeenCalledWith('original-psbt', { [identity.address]: [0] }, undefined, identity);
+    expect(mocks.wallet.signPsbt).toHaveBeenCalledWith('original-psbt', { [identity.address]: [0] }, undefined, identity, undefined);
   });
 
   it.each(['revoked', 'identity', 'locked', 'expired'])('rejects an approval after %s state changes', async reason => {
@@ -421,7 +421,7 @@ describe('background provider signing execution', () => {
       switchToSibling(grant);
       await approve();
       expect(mocks.wallet.signPsbt).toHaveBeenCalledWith('psbt', { [identity.address]: [0] }, undefined,
-        { walletId: identity.walletId, address: sibling });
+        { walletId: identity.walletId, address: sibling }, undefined);
       // The request address is now a paired signer relative to the active sibling, so the paired
       // grant was checked at execution.
       expect(mocks.permissions.hasPairedAddressPermission).toHaveBeenCalled();

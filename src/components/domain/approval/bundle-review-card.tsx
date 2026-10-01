@@ -1,9 +1,9 @@
 import { Collapsible } from '@/components/ui/collapsible';
-import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
+import type { PsbtBundleReview } from '@/core/bitcoin/psbtBundleTypes';
 import { t } from '@/i18n';
 import { ApprovalFacts } from './approval-facts';
 /** Keep the actual payout first; the complete proof facts remain available in one disclosure. */
-export function BundleReviewCard({ review }: { review: MarketplaceBundleReview }) {
+export function BundleReviewCard({ review }: { review: PsbtBundleReview }) {
   if (review.status !== 'proved' && review.status !== 'caution') return null;
   const { bundleSummary: summary } = review;
   if (!summary) {

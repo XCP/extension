@@ -7,10 +7,10 @@ import {
   type DecodedPsbtInfo,
   decodePsbtForApproval,
 } from '@/core/bitcoin/psbtApprovalDecoder';
+import type { PsbtBundleIntent, PsbtBundleKind, PsbtBundleReview } from '@/core/bitcoin/psbtBundleTypes';
 import { fetchAssetDetails } from '@/core/counterparty/api';
 import { getCounterpartyFeatureStatus } from '@/core/counterparty/capabilities';
 import {
-  type CommitRevealIntentClaim,
   commitRevealReview,
   proveCommitAndReveal,
 } from '@/core/counterparty/commitRevealBundle';
@@ -32,26 +32,24 @@ import {
 } from '@/core/counterparty/marketplaceAttachLink';
 import {
   analyzeMarketplaceBatch,
-  type MarketplaceBatchKind,
   parseMarketplaceBatchIntents,
 } from '@/core/counterparty/marketplaceBatch';
 import {
   analyzeAcceptanceCpfpBundle,
   type BumpAcceptanceFeeIntentClaim,
 } from '@/core/counterparty/marketplaceBundle';
-import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 import { fromSatoshis } from '@/core/numeric';
 import type { ZeldPackageParent } from '@/core/zeld/signRequestZeld';
 
 export interface PsbtBundleApprovalInput {
-  bundleKind: 'acceptance-cpfp' | 'commit-and-reveal' | MarketplaceBatchKind;
+  bundleKind: PsbtBundleKind;
   items: Array<{
     psbtHex: string;
     signInputs: Record<string, number[]>;
     sighashTypes: number[];
-    marketplaceIntent: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim | CommitRevealIntentClaim;
+    marketplaceIntent: PsbtBundleIntent;
   }>;
   /** The address the request was made for, which signs a `commit-and-reveal` pair. */
   address?: string;
@@ -75,7 +73,7 @@ export type DecodedPsbtBundleItem = DecodedPsbtInfo | {
 
 export interface DecodedPsbtBundleInfo {
   items: DecodedPsbtBundleItem[];
-  review: MarketplaceBundleReview;
+  review: PsbtBundleReview;
   policyWarnings?: SecurityWarning[];
 }
 

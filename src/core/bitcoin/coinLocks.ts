@@ -24,81 +24,17 @@
  * offer. A failed lookup is not evidence and removes nothing. A lock the user made by hand has no
  * expiry and no orphan rule: only a confirmed spend of the coin removes it.
  */
-
+import { MAX_OFFER_ID_LENGTH, MAX_OFFER_IDS } from '@/constants/offerLimits';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { isRecord } from '@/core/isRecord';
+import type { CoinLock, CoinLockKind, CoinLockUpdate, OfferCoinCommitment } from '@/types/coinLocks';
 
-export type CoinLockKind = 'manual' | 'offer_slot' | 'collection_offer';
-export type OfferCoinLockKind = Exclude<CoinLockKind, 'manual'>;
-
-export interface CoinLock {
-  /** `txid:vout`, txid in lowercase hex. */
-  outpoint: string;
-  /** The owning address, as `normalizeAddressForComparison` writes it. */
-  address: string;
-  /** Why it is locked: by hand, or for an offer (which wins when both apply). */
-  kind: CoinLockKind;
-  /** The user also locked it by hand. Always true for `manual`; kept when an offer adds its own. */
-  manual: boolean;
-  /** Offer, authorization or policy-offer ids the coin backs, when the signed intent named them. */
-  refs: string[];
-  valueSats: number;
-  /** The site whose signature request committed the coin. Null for a lock made by hand. */
-  origin: string | null;
-  /** Unix seconds, the latest expiry across the offers it backs, capped when written. Null for a hand lock. */
-  expiresAt: number | null;
-  /** Unix seconds. */
-  createdAt: number;
-  /** Unix seconds when the coin was last seen unspent, or null before it ever was. */
-  seenAt: number | null;
-  /** Unix seconds since a UTXO read first missed the coin. Absent while reads find it. */
-  candidateSince?: number;
-  /** The user unlocked it. The record stays while the offer lives, so it can be locked again. */
-  unlocked: boolean;
-}
-
-/** One offer commitment a signature proved, as the background records it. */
-export interface OfferCoinCommitment {
-  outpoint: string;
-  kind: OfferCoinLockKind;
-  refs: string[];
-  valueSats: number;
-  origin: string;
-  expiresAt: number | null;
-}
-
-/** What an extension page may change: its own coin control, and what its UTXO read observed. */
-export interface CoinLockUpdate {
-  /** Lock these coins by hand. */
-  lock?: Array<{ outpoint: string; valueSats: number }>;
-  /** Unlock: a hand lock is removed, an offer lock is marked unlocked. */
-  unlock?: string[];
-  /** Lock an unlocked offer coin again while its offer lives. */
-  relock?: string[];
-  /** What a page learned of the address's locked coins. */
-  observed?: CoinLockObservation;
-}
-
-/**
- * Each list names outpoints of locks the reader had loaded, and only those change: a lock made
- * while the read was in flight is in neither `present` nor `absent`, so the read never judges it.
- */
-export interface CoinLockObservation {
-  /** A successful UTXO read found these unspent. */
-  present?: string[];
-  /** That read missed these. Candidates only: nothing comes off for this alone. */
-  absent?: string[];
-  /** An outspend lookup showed these spent by a confirmed transaction. */
-  spent?: string[];
-  /** Neither indexer knows these coins' funding transactions. */
-  unknown?: string[];
-}
 
 /** Outpoints one update may name. */
 export const MAX_COIN_LOCK_UPDATE = 500;
 /** Offer ids one lock keeps. Several offers may share a funding slot; far fewer ever do. */
-export const MAX_COIN_LOCK_REFS = 64;
-const MAX_REF_LENGTH = 128;
+export const MAX_COIN_LOCK_REFS = MAX_OFFER_IDS;
+
 const MAX_ORIGIN_LENGTH = 512;
 const MAX_ADDRESS_LENGTH = 128;
 
@@ -134,7 +70,7 @@ const isTimestamp = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 const isSats = isTimestamp;
 const isRef = (value: unknown): value is string =>
-  typeof value === 'string' && value.length > 0 && value.length <= MAX_REF_LENGTH;
+  typeof value === 'string' && value.length > 0 && value.length <= MAX_OFFER_ID_LENGTH;
 
 /** One stored lock, or null when anything about it is malformed. */
 function parseStoredLock(value: unknown): CoinLock | null {
@@ -218,6 +154,12 @@ export function parseCoinLockUpdate(value: unknown): CoinLockUpdate {
   return update;
 }
 
+function mergeOfferRefs(...groups: readonly string[][]): string[] {
+  const refs = [...new Set(groups.flat())];
+  if (refs.length > MAX_COIN_LOCK_REFS) throw new Error('Too many offers share this coin. Cancel unused offers before adding more.');
+  return refs;
+}
+
 /** Validate the background's own offer commitments before they reach the keychain. */
 export function parseOfferCoinCommitments(value: unknown): OfferCoinCommitment[] {
   if (!Array.isArray(value) || value.length > MAX_COIN_LOCK_UPDATE) throw new Error('Invalid offer coin commitments');
@@ -234,7 +176,7 @@ export function parseOfferCoinCommitments(value: unknown): OfferCoinCommitment[]
     return {
       outpoint,
       kind: item.kind,
-      refs: [...new Set(item.refs as string[])].slice(0, MAX_COIN_LOCK_REFS),
+      refs: mergeOfferRefs(item.refs as string[]),
       valueSats: item.valueSats,
       origin: item.origin,
       expiresAt: item.expiresAt as number | null,
@@ -388,7 +330,7 @@ export function withOfferCoinLocks(
     if (!existing) {
       next.push({
         outpoint: commitment.outpoint, address: key, kind: commitment.kind, manual: false,
-        refs: commitment.refs.slice(0, MAX_COIN_LOCK_REFS), valueSats: commitment.valueSats,
+        refs: mergeOfferRefs(commitment.refs), valueSats: commitment.valueSats,
         origin: commitment.origin, expiresAt: cappedExpiry(commitment.expiresAt, now), createdAt: now, seenAt: null,
         unlocked: false,
       });
@@ -398,7 +340,7 @@ export function withOfferCoinLocks(
     next[index] = {
       ...existing,
       kind: offer ? existing.kind : commitment.kind,
-      refs: [...new Set([...existing.refs, ...commitment.refs])].slice(0, MAX_COIN_LOCK_REFS),
+      refs: mergeOfferRefs(existing.refs, commitment.refs),
       valueSats: existing.valueSats > 0 ? existing.valueSats : commitment.valueSats,
       origin: offer ? existing.origin ?? commitment.origin : commitment.origin,
       expiresAt: cappedExpiry(offer ? laterExpiry(existing.expiresAt, commitment.expiresAt) : commitment.expiresAt, now),

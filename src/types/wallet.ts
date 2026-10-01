@@ -7,8 +7,8 @@
  */
 
 import type { AddressFormat } from '@/core/bitcoin/addressFormat';
-import type { CoinLock } from '@/core/bitcoin/coinLocks';
 import type { AppSettings } from '@/core/settings';
+import type { CoinLock } from '@/types/coinLocks';
 
 /**
  * Represents a derived address within a wallet.
@@ -166,6 +166,8 @@ export interface RevealSecretRequest {
  * Used to pass additional data required for hardware wallet signing.
  */
 export interface SignTransactionOptions {
+  /** Lock snapshot authorized by a background provider review, never website parameters. */
+  approvedCoinLocks?: CoinLock[];
   /** Explicit consent from a wallet compose review to vary nonce fields while signing. */
   zeldHuntSeconds?: number;
   /** PSBT hex (required for hardware wallets) */
@@ -177,6 +179,8 @@ export interface SignTransactionOptions {
 }
 
 export interface SignPsbtOptions {
+  /** Lock snapshot authorized by a background provider review. */
+  approvedCoinLocks?: CoinLock[];
   /**
    * Unsigned bytes of earlier transactions in the same approved bundle, keyed by txid, that a later
    * item spends before they are broadcast. Only the signing service supplies them, and only for a

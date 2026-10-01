@@ -1,21 +1,15 @@
 /**
- * A site asking the wallet to sign a spend of one of its locked coins (core/bitcoin/coinLocks.ts).
- *
- * The wallet has no list of trusted marketplaces: a lock remembers the site whose signature
- * request made it, and only that site, asking for the one thing a lock is for, signs without a
- * word. That is an `authorize_exact_offer` whose input 0 is the offer slot it locked: the
- * authorization pre-signs the spend the offer settles with, and adds the offer to the slot's lock
- * rather than cancelling anything, and passes only once the wallet's review proved every claim of
- * it. Every other spend of an active lock (another site, another intent, an unproved review, an
- * offer funding that reuses the coin, a raw transaction) asks the user first, and the
- * acknowledgement is the unlock. A coin the user locked by hand never passes silently.
+ * Approval rules for spending locked coins. A proved exact-offer authorization may reuse
+ * its own origin's funding slot. All other locked spends require acknowledgement;
+ * manual locks never receive that exemption.
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
-import { activeCoinLocks, type CoinLock, type CoinLockKind } from '@/core/bitcoin/coinLocks';
+import { activeCoinLocks } from '@/core/bitcoin/coinLocks';
 import type { MarketplaceApprovalReview, MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
 import type { BumpAcceptanceFeeIntentClaim } from '@/core/counterparty/marketplaceBundle';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
+import type { CoinLock, CoinLockKind } from '@/types/coinLocks';
 
 /** A locked coin a request would spend, as the approval names it. */
 export interface LockedCoinSpend {

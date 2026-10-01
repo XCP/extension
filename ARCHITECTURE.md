@@ -76,7 +76,8 @@ transaction bytes or a claimed signed result to complete the provider request.
 The request lifecycle is `pending → signing → finalizing → completed`, or cancellation before
 finalization. Finalization reserves completion while the approved signature's coin-lock updates
 run; the signature is not yet stored or recoverable. A worker lost at that step leaves an
-interrupted request until its deadline, without replaying signing or exposing the result.
+interrupted request until its deadline, without replaying signing or exposing the result. A known
+finalization failure is cancelled by the executing signer, withholding the signature.
 Records retain their
 original deadline ([request lifetime](PROVIDER.md#signing)). A completed result has a kind-specific payload; a claimed signing
 request cannot be executed twice. Request correlation includes origin, method, parameters, wallet,
@@ -85,7 +86,11 @@ signer is running does not grant another invocation permission to sign again.
 
 Execution repeats identity, connection, paired-address permission, transaction verification,
 and risk-acknowledgement checks. The signer checks the captured session generation at key use,
-including after asynchronous previous-output lookups. A changed review must be presented again.
+including after asynchronous previous-output lookups. It also rechecks input coin locks after key
+access, hardware signing and ZELD hunts. Website approval permits only the lock state bound to its
+review; a new or changed lock requires another review. Shared lock types live in `src/types/coinLocks`.
+Capacity limits reject new commitments instead of evicting existing locks. A changed review must be
+presented again.
 
 Live completion, polling, and completed-result recovery share delivery authorization checks.
 The persisted terminal record is authoritative; completion events only wake the waiting caller.

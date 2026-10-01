@@ -1,3 +1,4 @@
+import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/types/coinLocks';
 /** Real PSBT decoding, background review, prevout verification and software signing for the two
  * marketplace bundles whose proof crosses items: attach-and-list (the listing spends the attach's
  * unbroadcast output) and a batch of exact-offer authorizations sharing one funding outpoint.
@@ -10,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/core/bitcoin/coinLocks';
+
 import { finalizePSBT, parsePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleItem, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
@@ -780,7 +781,7 @@ describe('fund-and-authorize-offers: one review funds the offer and authorizes i
       expect(state.wallet.signPsbt).toHaveBeenCalled();
     });
 
-    it('writes no lock when signing fails, and delivers the signature when the lock write fails', async () => {
+    it('writes no lock when signing fails, and withholds the signature when the lock write fails', async () => {
       const { items } = fundAndAuthorize();
       state.wallet.signPsbt.mockRejectedValueOnce(new Error('device unplugged'));
       const failing = await review(items, 'fund-and-authorize-offers');
@@ -792,7 +793,9 @@ describe('fund-and-authorize-offers: one review funds the offer and authorizes i
         commit: async () => { throw new Error('keychain write failed'); },
       });
       const result = await review(items, 'fund-and-authorize-offers');
-      await expect(approve(result, result.policy.requiresAcknowledgement)).resolves.toHaveLength(2);
+      await expect(approve(result, result.policy.requiresAcknowledgement)).rejects.toThrow('keychain write failed');
+      expect(await getSignFlow(result.request.id)).toMatchObject({ status: 'cancelled' });
+      expect(await getSignFlow(result.request.id)).not.toHaveProperty('result');
     });
   });
 

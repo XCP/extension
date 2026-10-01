@@ -1,9 +1,10 @@
+import type { CoinLockKind } from '@/types/coinLocks';
 /**
  * How a locked coin (core/bitcoin/coinLocks.ts) is named on screen: the Coins settings page and
  * the approval that asks before a site spends one say it the same way.
  */
 
-import type { CoinLockKind } from '@/core/bitcoin/coinLocks';
+
 import { formatAmount, formatTxid } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 import { t } from '@/i18n';

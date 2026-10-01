@@ -27,6 +27,7 @@ import {
 import { checkRevealSourceSignature, sourceOutputScript, TAPSCRIPT_LEAF_VERSION } from '@/core/counterparty/revealSourceRule';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { type SigningWalletState, WalletSigner } from '@/platform/walletSigner';
+import type { CoinLock } from '@/types/coinLocks';
 import type { Wallet } from '@/types/wallet';
 
 const hooks = vi.hoisted(() => ({
@@ -69,11 +70,13 @@ function walletFor(fixture: Fixture115, type: Wallet['type'] = 'privateKey'): Wa
   } as Wallet;
 }
 
+let locks: CoinLock[] = [];
 let wallet: Wallet;
 let activeAddress: string;
 const getPrivateKey = vi.fn();
 
 const state: SigningWalletState = {
+  getCoinLocks: () => locks,
   activeWalletId: () => wallet.id,
   getWalletById: (id) => (id === wallet.id ? wallet : undefined),
   getActiveWallet: () => wallet,
@@ -111,8 +114,27 @@ describe('signing a site\'s commit and reveal PSBTs together', () => {
     await sessionManager.initializeSession(15 * 60 * 1000);
     sessionManager.storeUnlockedSecret(WALLET_ID, 'unlocked');
     hooks.afterRevealSigned = null;
+    locks = [];
     vi.mocked(signTaprootReveal).mockClear();
     use(BROADCAST_P2WPKH);
+  });
+
+  it.each([BROADCAST_P2WPKH, BROADCAST_P2TR_INTERNAL])('requires unchanged lock consent for the commit and reveal ($key.format)', async fixture => {
+    use(fixture);
+    const { psbts, commit } = bundle(fixture);
+    const input = parsePSBT(commit.psbtHex).getInput(0);
+    const lock: CoinLock = { address: fixture.key.address, outpoint: `${bytesToHex(input.txid!)}:${input.index}`,
+      kind: 'manual', manual: true, refs: [], valueSats: 100_000, origin: null, expiresAt: null,
+      createdAt: 1, seenAt: null, unlocked: false };
+    locks = [lock];
+    const signer = new WalletSigner(state);
+    await expect(signer.signPsbt(commit.psbtHex, commit.signInputs, commit.sighashTypes))
+      .rejects.toThrow('A selected coin was locked');
+    await expect(signer.signCommitAndRevealPsbts({ ...commit, approvedCoinLocks: [lock] }, psbts.revealHex, fixture.key.address))
+      .resolves.toHaveLength(2);
+    hooks.afterRevealSigned = () => { locks = [{ ...lock, createdAt: 2 }]; };
+    await expect(signer.signCommitAndRevealPsbts({ ...commit, approvedCoinLocks: [lock] }, psbts.revealHex, fixture.key.address))
+      .rejects.toThrow('A selected coin was locked');
   });
 
   it.each([

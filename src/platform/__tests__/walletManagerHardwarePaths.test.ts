@@ -57,6 +57,17 @@ describe('WalletManager hardware input derivation', () => {
         [1, [0x80000054, 0x80000000, 0x80000000, 0, 7]],
       ]),
     }));
+
+    hardware.signPsbt.mockImplementationOnce(async () => {
+      vi.spyOn(manager, 'getCoinLocks').mockImplementation(address => address === owners[1]!.address ? [{
+        outpoint: `${parent.id}:1`, address, kind: 'manual', manual: true, refs: [], valueSats: 50_000,
+        origin: null, expiresAt: null, createdAt: 1, seenAt: null, unlocked: false,
+      }] : []);
+      return { signedTxHex };
+    });
+    await expect(manager.signTransaction(bytesToHex(spending.unsignedTx), owners[0]!.address, {
+      psbtHex, inputValues: [50_000, 50_000], lockScripts: owners.map(owner => bytesToHex(owner.script)),
+    })).rejects.toThrow('A selected coin was locked');
   });
 
   it('refuses before touching the device when Trezor Suite access is not granted', async () => {
