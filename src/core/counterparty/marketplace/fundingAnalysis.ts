@@ -1,6 +1,6 @@
 /** Clean-BTC self-sends that prepare listing UTXOs or set aside exact-offer funding. */
 
-import { SigHash } from '@scure/btc-signer';
+import { Address, SigHash } from '@scure/btc-signer';
 import { sameAddress } from '@/core/bitcoin/address';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import {
@@ -27,6 +27,15 @@ import {
   signsExactly,
 } from '@/core/counterparty/marketplace/proofs';
 import { t } from '@/i18n';
+
+function nativeSegwitOrTaproot(address: string): boolean {
+  try {
+    const { type } = Address().decode(address);
+    return type === 'wpkh' || type === 'tr';
+  } catch {
+    return false;
+  }
+}
 
 /** Prove a clean-BTC parent that creates same-owner attach funding slots. */
 export function analyzePrepareBulkFanoutIntent(
@@ -210,6 +219,11 @@ export function analyzeFundOffersIntent(
   if (signerAddresses.length !== 1 || !sameAddress(signerAddresses[0], intent.bidder)) {
     blockers.push('the requested offer funding signer is not exactly the claimed bidder');
   }
+  // The marketplace funds offers only from Native SegWit or Taproot, whose unsigned txid is the
+  // final one: the slots the offers name, and the coins the wallet locks for them, exist only then.
+  if (!nativeSegwitOrTaproot(intent.bidder)) {
+    blockers.push('offers are funded only from a Native SegWit or Taproot address');
+  }
   const signedIndices = new Set(signedInputs.map(entry => entry.index));
   if (
     signedInputs.length !== inputs.length
@@ -227,6 +241,9 @@ export function analyzeFundOffersIntent(
     }
     if (!sameAddress(fundingInput.address, intent.bidder)) {
       blockers.push(`offer funding input ${inputIndex} is not controlled by the claimed bidder`);
+    }
+    if (fundingInput.scriptType !== undefined && fundingInput.scriptType !== 'p2wpkh' && fundingInput.scriptType !== 'p2tr') {
+      blockers.push(`offer funding input ${inputIndex} is not Native SegWit or Taproot`);
     }
     if (fundingInput.value === undefined) {
       retry.push(`offer funding input ${inputIndex} has no authenticated value`);

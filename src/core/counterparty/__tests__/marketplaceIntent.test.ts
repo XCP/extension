@@ -1595,6 +1595,35 @@ describe('offer funding proof', () => {
     });
   });
 
+  it.each([
+    ['Legacy', '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7', 'blocked'],
+    ['Nested SegWit', '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy', 'blocked'],
+    ['Taproot', 'bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297', 'proved'],
+  ])('funds offers only from Native SegWit or Taproot: a %s bidder is %s', (_name, bidder, status) => {
+    const base = fundOffersBase();
+    const review = analyzeMarketplaceIntent({
+      ...base,
+      intent: { ...fundOffersIntent, bidder },
+      inputs: base.inputs.map(input => ({ ...input, address: bidder })),
+      outputs: base.outputs.map(output => ({ ...output, address: bidder })),
+      signerAddresses: [bidder],
+    });
+    expect(review.status).toBe(status);
+    if (status === 'blocked') {
+      expect(review.blockers).toContain('offers are funded only from a Native SegWit or Taproot address');
+    }
+  });
+
+  it('blocks a funding input whose prevout is not Native SegWit or Taproot', () => {
+    const base = fundOffersBase();
+    const review = analyzeMarketplaceIntent({
+      ...base,
+      inputs: base.inputs.map(input => ({ ...input, scriptType: input.index === 1 ? 'p2pkh' as const : 'p2wpkh' as const })),
+    });
+    expect(review.status).toBe('blocked');
+    expect(review.blockers).toEqual(['offer funding input 1 is not Native SegWit or Taproot']);
+  });
+
   it('withholds the payment summary until the funding proves', () => {
     const review = analyzeMarketplaceIntent({ ...fundOffersBase(), signerAddresses: [SELLER] });
     expect(review.status).toBe('blocked');
