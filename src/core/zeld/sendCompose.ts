@@ -19,19 +19,16 @@
 
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
-import { lockedOutpoints } from '@/core/bitcoin/coinLockStore';
 import { getInputSizeForAddress } from '@/core/bitcoin/feeEstimation';
-import { isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
-import { fetchUTXOs, type UTXO } from '@/core/bitcoin/utxo';
-import { fetchTokenBalances } from '@/core/counterparty/api';
+import type { UTXO } from '@/core/bitcoin/utxo';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { bytesToHex } from '@/core/counterparty/unpack/binary';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { asDisplayUnits, fromSatoshis, toSafeInteger } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
-import { fetchZeldBalance, type ZeldUtxo } from '@/core/zeld/api';
 import { zeldDistributionScript } from '@/core/zeld/cbor';
 import { scriptHexForAddress } from '@/core/zeld/huntTemplate';
+import { selectSpendableZeld } from '@/core/zeld/spendable';
 import type { ZeldSendMetadata } from '@/core/zeld/types';
 
 export interface ZeldSendOptions {
@@ -109,39 +106,10 @@ async function composeZeldMove(options: ZeldMoveOptions): Promise<ApiResponse> {
   if (!sourceScript) throw new Error('The source address could not be decoded.');
   if (!destinationScript) throw new Error('The recipient address could not be decoded.');
   const settings = getActiveSettings();
-  const [zeld, bitcoinUtxos, attachedBalances] = await Promise.all([
-    fetchZeldBalance(sourceAddress),
-    fetchUTXOs(sourceAddress),
-    fetchTokenBalances(sourceAddress, { type: 'utxo', limit: 1000, verbose: false }),
-  ]);
-  const amount = park ? zeld.baseUnits : BigInt(amountBaseUnits);
-  if (amount > zeld.baseUnits) throw new Error('Insufficient ZELD balance.');
-  // Coins the wallet has locked stay put, ZELD or not; the top-up below leaves them out too.
-  const locked = await lockedOutpoints(sourceAddress, bitcoinUtxos);
-
-  // Spend every ZELD output the wallet can spend right now. Consolidating is free here, and it
-  // means the remainder lands on one output rather than being scattered by repeated sends.
-  const bitcoinByOutpoint = new Map(bitcoinUtxos.map(utxo => [outpointKey(utxo), utxo]));
-  const attached = new Set(attachedBalances.flatMap(balance => (balance.utxo ? [balance.utxo.toLowerCase()] : [])));
-  const spendable: Array<ZeldUtxo & { value: number }> = [];
-  let unspendable = 0n;
-  let lockedZeld = 0n;
-  for (const utxo of zeld.utxos) {
-    const key = outpointKey(utxo);
-    const bitcoin = bitcoinByOutpoint.get(key);
-    if (locked.has(key)) {
-      lockedZeld += utxo.balance;
-      continue;
-    }
-    const usable = bitcoin
-      && (settings.allowUnconfirmedTxs || bitcoin.status.confirmed)
-      && !isUtxoRecentlySpent(utxo.txid, utxo.vout)
-      // A Counterparty attachment on the same output would ride along; leave it where it is.
-      && !attached.has(key);
-    if (usable) spendable.push({ ...utxo, value: bitcoin.value });
-    else unspendable += utxo.balance;
-  }
-  const carried = spendable.reduce((sum, utxo) => sum + utxo.balance, 0n);
+  const { total, available: carried, locked: lockedZeld, unavailable: unspendable, utxos: spendable }
+    = await selectSpendableZeld(sourceAddress, settings.allowUnconfirmedTxs);
+  const amount = park ? carried : BigInt(amountBaseUnits);
+  if (amount > total) throw new Error('Insufficient ZELD balance.');
   // Locked coins are named first: unlocking them is a fix the user can make right now.
   if (park && carried === 0n) {
     throw new Error(lockedZeld > 0n ? 'Some ZELD sits on coins you locked.' : 'No spendable ZELD to move.');

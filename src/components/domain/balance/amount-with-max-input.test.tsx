@@ -1,8 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { asDisplayUnits } from '@/core/numeric';
+import { getActiveSettings } from '@/core/settings';
 import { AmountWithMaxInput } from './amount-with-max-input';
+
+vi.mock('@/core/settings', () => ({ getActiveSettings: vi.fn(() => ({ allowUnconfirmedTxs: false })) }));
 
 // Mock the validation utilities
 vi.mock('@/core/validation/bitcoin', () => ({
@@ -46,6 +49,7 @@ describe('AmountWithMaxInput', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getActiveSettings).mockReturnValue({ allowUnconfirmedTxs: false } as never);
   });
 
   it('should render input with label', () => {
@@ -223,11 +227,8 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (2 * 68) + (2 * 31) = 208.5 -> 209 (1 destination + 1 change = 2 outputs)
-      // + OP_RETURN overhead (30 vbytes) = 239 vbytes
-      // fee = 239 * 1 = 239 sats
-      // max = 10,000,000 - 239 = 9,999,761 sats = 0.09999761 BTC
-      expect(onChange).toHaveBeenCalledWith('0.09999761');
+      // Max budgets conservative fees and a change output above the composer dust cutoff.
+      expect(onChange).toHaveBeenCalledWith('0.09999126');
     });
   });
 
@@ -254,12 +255,56 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (1 * 68) + (2 * 31) = 140.5 -> 141 (1 destination + 1 change = 2 outputs)
-      // + OP_RETURN overhead (30 vbytes) = 171 vbytes
-      // fee = 171 * 10 = 1710 sats
-      // max = 1,000,000 - 1710 = 998,290 sats = 0.00998290 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00998290');
+      // Max budgets conservative fees and a change output above the composer dust cutoff.
+      expect(onChange).toHaveBeenCalledWith('0.00996883');
     });
+  });
+
+  it.each([false, true])('uses the composer confirmation setting (%s) for BTC Max', async (allowUnconfirmedTxs) => {
+    vi.mocked(getActiveSettings).mockReturnValue({ allowUnconfirmedTxs } as never);
+    const { selectUtxosForTransaction } = await import('@/core/counterparty/utxoSelection');
+    vi.mocked(selectUtxosForTransaction).mockResolvedValue({
+      utxos: [createMockUtxo('tx1', 0, 100000)], totalValue: 100000,
+      inputsSet: 'tx1:0', excludedWithAssets: 0, excludedValue: 0, excludedLocked: 1, excludedLockedValue: 500000,
+    });
+    const onChange = vi.fn();
+    render(<AmountWithMaxInput {...defaultProps} asset="BTC" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Use maximum available amount' }));
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('0.00099196'));
+    expect(selectUtxosForTransaction).toHaveBeenCalledWith('bc1qtest123', { allowUnconfirmed: allowUnconfirmedTxs, minUtxos: 0 });
+  });
+
+  it('budgets extra-output dust and UTF-8 memo bytes as well as protected change', async () => {
+    const { selectUtxosForTransaction } = await import('@/core/counterparty/utxoSelection');
+    vi.mocked(selectUtxosForTransaction).mockResolvedValue({
+      utxos: [createMockUtxo('tx1', 0, 100000)], totalValue: 100000,
+      inputsSet: 'tx1:0', excludedWithAssets: 0, excludedValue: 0, excludedLocked: 0, excludedLockedValue: 0,
+    });
+    const onChange = vi.fn();
+    render(<AmountWithMaxInput {...defaultProps} asset="BTC" onChange={onChange} extraOutputCount={1} memo={'日'.repeat(10)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Use maximum available amount' }));
+    // 330 sats fee + 546 accompanying dust + 547 retained change.
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('0.00098577'));
+    expect(screen.getByText(/keeps at least 547 sats/)).toBeInTheDocument();
+  });
+
+  it.each(['address', 'fee', 'typing'])('does not apply a BTC Max result after %s changes', async (change) => {
+    const { selectUtxosForTransaction } = await import('@/core/counterparty/utxoSelection');
+    let resolve!: (value: Awaited<ReturnType<typeof selectUtxosForTransaction>>) => void;
+    vi.mocked(selectUtxosForTransaction).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+    const onChange = vi.fn();
+    const { rerender } = render(<AmountWithMaxInput {...defaultProps} asset="BTC" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Use maximum available amount' }));
+    if (change === 'typing') fireEvent.change(screen.getByRole('textbox'), { target: { value: '0.002' } });
+    else rerender(<AmountWithMaxInput {...defaultProps} asset="BTC" onChange={onChange}
+      sourceAddress={{ address: change === 'address' ? 'bc1qnewaddress' : 'bc1qtest123' }} feeRate={change === 'fee' ? 2 : 1} />);
+    onChange.mockClear();
+    await act(async () => resolve({
+      utxos: [createMockUtxo('tx1', 0, 100000)], totalValue: 100000,
+      inputsSet: 'tx1:0', excludedWithAssets: 0, excludedValue: 0, excludedLocked: 0, excludedLockedValue: 0,
+    }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Use maximum available amount' })).not.toBeDisabled();
   });
 
   it('should calculate different fees for different UTXO counts', async () => {
@@ -292,11 +337,8 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (5 * 68) + (2 * 31) = 412.5 -> 413 (1 destination + 1 change = 2 outputs)
-      // + OP_RETURN overhead (30 vbytes) = 443 vbytes
-      // fee = 443 * 1 = 443 sats
-      // max = 5,000,000 - 443 = 4,999,557 sats = 0.04999557 BTC
-      expect(onChange).toHaveBeenCalledWith('0.04999557');
+      // Max budgets conservative fees and a change output above the composer dust cutoff.
+      expect(onChange).toHaveBeenCalledWith('0.04998916');
     });
   });
 
@@ -404,10 +446,10 @@ describe('AmountWithMaxInput', () => {
 
   it('should show error when result is dust', async () => {
     const { selectUtxosForTransaction } = await import('@/core/counterparty/utxoSelection');
-    // Mock 1 UTXO with 600 sats (after fee, will be below dust)
+    // Enough for fees and change, but the recipient amount is below dust.
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
-      utxos: [createMockUtxo('tx1', 0, 600)],
-      totalValue: 600,
+      utxos: [createMockUtxo('tx1', 0, 1200)],
+      totalValue: 1200,
       excludedWithAssets: 0,
       inputsSet: 'tx1:0'
     });
@@ -417,7 +459,7 @@ describe('AmountWithMaxInput', () => {
       {...defaultProps}
       asset="BTC"
       setError={setError}
-      feeRate={1} // fee ~110, leaving ~490 (below 546 dust limit)
+      feeRate={1}
     />);
 
     const maxButton = screen.getByLabelText('Use maximum available amount');
@@ -471,12 +513,8 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (1 * 68) + (3 * 31) = 171.5 -> 172 (2 destinations + 1 change = 3 outputs)
-      // + OP_RETURN overhead (30 vbytes) = 202 vbytes
-      // fee = 202 * 1 = 202 sats
-      // max = 1,000,000 - 202 = 999,798 sats
-      // per destination = 999,798 / 2 = 499,899 sats = 0.00499899 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00499899');
+      // Max budgets conservative fees and a change output above the composer dust cutoff.
+      expect(onChange).toHaveBeenCalledWith('0.00499559');
     });
   });
 
@@ -553,11 +591,8 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // Legacy P2PKH: vsize = 10.5 + (1 * 148) + (2 * 31) = 220.5 -> 221 (1 destination + 1 change = 2 outputs)
-      // + OP_RETURN overhead (30 vbytes) = 251 vbytes
-      // fee = 251 * 1 = 251 sats
-      // max = 1,000,000 - 251 = 999,749 sats = 0.00999749 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00999749');
+      // Max budgets conservative fees and a change output above the composer dust cutoff.
+      expect(onChange).toHaveBeenCalledWith('0.00999116');
     });
   });
 
@@ -586,11 +621,8 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // Taproot P2TR: vsize = 10.5 + (1 * 58) + (2 * 31) = 130.5 -> 131 (1 destination + 1 change = 2 outputs)
-      // + OP_RETURN overhead (30 vbytes) = 161 vbytes
-      // fee = 161 * 1 = 161 sats
-      // max = 1,000,000 - 161 = 999,839 sats = 0.00999839 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00999839');
+      // Max budgets conservative fees and a change output above the composer dust cutoff.
+      expect(onChange).toHaveBeenCalledWith('0.00999206');
     });
   });
 });

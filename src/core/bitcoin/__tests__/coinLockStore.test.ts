@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/core/api/client';
 import { lockedOutpoints, readCoinLocks, resolveCoinLockCandidates, setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-import { COIN_LOCK_ORPHAN_SECONDS, type CoinLock, type CoinLockUpdate, coinLocksOf, withCoinLockUpdate } from '@/core/bitcoin/coinLocks';
+import { COIN_LOCK_ORPHAN_SECONDS, type CoinLock, type CoinLockUpdate, coinLocksOf, parseCoinLockUpdate, withCoinLockUpdate } from '@/core/bitcoin/coinLocks';
 import { MAX_OUTSPEND_LOOKUPS_PER_PASS, OUTSPEND_SOURCES, resetOutspendChecks } from '@/core/bitcoin/outspend';
 import { fetchUTXOs, type UTXO } from '@/core/bitcoin/utxo';
 
@@ -33,6 +33,7 @@ function installStore(initial: CoinLock[]) {
   setCoinLockStore({
     read: async () => coinLocksOf(store.entries, ADDRESS),
     update: async (_address, update) => {
+      parseCoinLockUpdate(update);
       store.updates.push(update);
       store.entries = withCoinLockUpdate(store.entries, ADDRESS, update, now()) ?? store.entries;
     },
@@ -151,6 +152,16 @@ describe('reading locked coins', () => {
     await settled();
     const outspends = vi.mocked(apiClient.get).mock.calls.filter(([url]) => String(url).includes('/outspend/'));
     expect(outspends).toHaveLength(MAX_OUTSPEND_LOOKUPS_PER_PASS / 2);
+  });
+
+  it('refreshes more than 500 locks without exceeding the update limit or losing protection', async () => {
+    const entries = Array.from({ length: 1_003 }, (_, index) => lock(`${index.toString(16).padStart(64, '0')}:0`));
+    const store = installStore(entries);
+    const read = await lockedOutpoints(ADDRESS, entries.map(entry => utxo(entry.outpoint)));
+    expect([...read.keys()]).toEqual(entries.map(entry => entry.outpoint));
+    expect(store.updates).toHaveLength(3);
+    expect(store.entries.every(entry => entry.seenAt === now())).toBe(true);
+    expect(apiClient.get).not.toHaveBeenCalled();
   });
 
   it.each([false, true])('enforces a hand lock made while its read was in flight (UTXO lookup fails: %s)', async fails => {

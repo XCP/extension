@@ -1,7 +1,4 @@
 {
-  "coins_available": {
-    "message": "可用"
-  },
   "actions_address": {
     "message": "地址"
   },
@@ -635,10 +632,10 @@
     "message": "已鎖定"
   },
   "coins_none": {
-    "message": "沒有幣"
+    "message": "沒有受保護的幣"
   },
   "coins_none_detail": {
-    "message": "你收到的 BTC 會顯示在這裡。"
+    "message": "你使用此錢包簽署報價後，用於報價的幣會自動顯示在這裡。"
   },
   "coins_not_on_chain_yet": {
     "message": "尚未上鏈"
@@ -656,10 +653,10 @@
     "message": "顯示更多"
   },
   "coins_summary_help": {
-    "message": "已鎖定的幣不會用於任何發送。"
+    "message": "這裡顯示報價資金及你之前手動鎖定的幣。已鎖定的幣不會用於一般傳送。"
   },
   "coins_summary_title": {
-    "message": "你的幣"
+    "message": "幣保護"
   },
   "coins_title": {
     "message": "幣控制"
@@ -4628,7 +4625,7 @@
     "message": "更改錢包密碼"
   },
   "settings_coins_description": {
-    "message": "鎖定幣，查看支撐出價的幣"
+    "message": "管理報價資金和現有的幣鎖定。"
   },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "斷開所有網站"
@@ -6910,5 +6907,26 @@
   "message_cancel_unlocks": {
     "message": "解鎖",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "coins_checking_status": {
+    "message": "正在檢查狀態…"
+  },
+  "coins_not_found": {
+    "message": "最近一次檢查未找到"
+  },
+  "coins_refresh_failed": {
+    "message": "無法重新整理鏈上狀態。你仍可管理幣的鎖定。"
+  },
+  "coins_status_unavailable": {
+    "message": "無法取得狀態"
+  },
+  "max_btc_protected_change": {
+    "message": "最大金額會預留手續費，並保留至少547 sats的找續以保護ZELD。"
+  },
+  "zeld_spendable_unavailable": {
+    "message": "暫時無法取得可用的ZELD餘額，請重試。"
+  },
+  "zeld_max_spendable_help": {
+    "message": "可用餘額和最大金額不包括已鎖定、不可用或附帶Counterparty資產的幣。發送亦需要BTC支付手續費。"
   }
 }

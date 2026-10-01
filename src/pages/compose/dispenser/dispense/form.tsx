@@ -10,11 +10,12 @@ import { DispenserInput } from "@/components/domain/dispenser/dispenser-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
 import { SATS_PER_BTC } from "@/core/bitcoin/constants";
-import { estimateVsize } from "@/core/bitcoin/feeEstimation";
+import { estimateMaxSpendBudget } from "@/core/bitcoin/maxSpend";
 import type { DispenseOptions } from "@/core/counterparty/compose";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
 import { formatAmount } from "@/core/format";
-import { divide, fromSatoshis, isGreaterThan, isLessThanOrEqualToZero, multiply, roundDown, roundUp, subtract, toNumber } from "@/core/numeric";
+import { divide, fromSatoshis, isGreaterThan, isLessThanOrEqualToZero, multiply, roundDown, subtract, toNumber } from "@/core/numeric";
+import { getActiveSettings } from "@/core/settings";
 import { validAmountDraft } from "@/core/validation/transaction-amount";
 
 import { t } from '@/i18n';
@@ -95,6 +96,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
   });
 
   useEffect(() => {
+    let cancelled = false;
     const fetchSpendableBalance = async () => {
       if (!address) return;
 
@@ -104,9 +106,10 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
         const { utxos, totalValue, excludedWithAssets, excludedLockedValue } = await selectUtxosForTransaction(
           address,
           // None left is answered at validation, saying why, rather than as a fetch error.
-          { allowUnconfirmed: true, minUtxos: 0 }
+          { allowUnconfirmed: getActiveSettings().allowUnconfirmedTxs, minUtxos: 0 }
         );
 
+        if (cancelled) return;
         const balanceBtc = fromSatoshis(totalValue.toString(), true);
         const formattedBalance = formatAmount({
           value: balanceBtc,
@@ -124,6 +127,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
           error: null,
         });
       } catch (err) {
+        if (cancelled) return;
         console.error("Failed to fetch spendable BTC:", err);
         setData({
           balance: "0",
@@ -138,6 +142,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
     };
 
     void fetchSpendableBalance();
+    return () => { cancelled = true; };
   }, [address]);
 
   return data;
@@ -195,15 +200,12 @@ export function DispenseForm({
     if (spendableBtc.utxoCount === 0) return 0;
     if (feeRate === null) return 0;
 
-    // Calculate fee based on actual UTXO count and address type
-    // Dispense transaction has 1 output to dispenser
-    const estimatedVbytes = estimateVsize(spendableBtc.utxoCount, 1, activeAddress.address);
-    const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, feeRate)));
+    const budget = estimateMaxSpendBudget({ inputCount: spendableBtc.utxoCount, sourceAddress: activeAddress.address, feeRate });
 
     const affordableDispenses = calculateMaximumDispenses(
       selectedDispenser.satoshirate,
       spendableBtc.balanceSatoshis,
-      estimatedFee
+      budget.total
     );
 
     const remainingDispenses = calculateRemainingDispenses(
@@ -308,9 +310,9 @@ export function DispenseForm({
         setValidationError(message);
       } else {
         // Calculate fee for error message
-        const estimatedVbytes = estimateVsize(spendableBtc.utxoCount || 1, 1, activeAddress?.address || "");
-        const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, feeRate)));
-        const requiredSatoshis = selectedDispenser.satoshirate + estimatedFee;
+        const budget = estimateMaxSpendBudget({ inputCount: spendableBtc.utxoCount || 1, sourceAddress: activeAddress?.address || "", feeRate });
+        const estimatedFee = budget.fee;
+        const requiredSatoshis = selectedDispenser.satoshirate + budget.total;
         const requiredBTC = requiredSatoshis / SATS_PER_BTC;
         setValidationError(t('dispense_form_insufficient_btc_balance_you_need', [String(formatAmount({
             value: requiredBTC,
@@ -399,6 +401,8 @@ export function DispenseForm({
                 hasError={!!errorMessage}
                 isDivisible={false}
               />
+
+              <p className="text-sm text-gray-500">{t('max_btc_protected_change')}</p>
 
               {/* Hidden input to convert numberOfDispenses to quantity for the API. Satoshis
                   already — the dispenser's satoshirate is a base-unit figure — so `normalizeFormData`

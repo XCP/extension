@@ -1,8 +1,4 @@
 {
-  "coins_available": {
-    "message": "Available",
-    "description": "pages/settings/coins.tsx. Summary row label: BTC in coins sends may spend (not locked, not holding assets)."
-  },
   "actions_address": {
     "message": "Address",
     "description": "pages/actions/index.tsx"
@@ -844,12 +840,12 @@
     "description": "pages/settings/coins.tsx. Summary row label: BTC in locked coins, which sends leave alone."
   },
   "coins_none": {
-    "message": "No coins",
-    "description": "pages/settings/coins.tsx. Empty state heading."
+    "message": "No protected coins",
+    "description": "Coin Control: No protected coins"
   },
   "coins_none_detail": {
-    "message": "BTC you receive shows up here.",
-    "description": "pages/settings/coins.tsx. Empty state detail."
+    "message": "Coins committed to offers you sign with this wallet appear here automatically.",
+    "description": "Coin Control: Coins committed to offers you sign with this wallet appear here automatically."
   },
   "coins_not_on_chain_yet": {
     "message": "Not on chain yet",
@@ -872,12 +868,12 @@
     "description": "pages/settings/coins.tsx. Button that lists more coins."
   },
   "coins_summary_help": {
-    "message": "Locked coins are left out of every send.",
-    "description": "pages/settings/coins.tsx. Help line in the summary card, saying what locking a coin does."
+    "message": "Offer funding and coins you previously locked. Locked coins are kept out of ordinary sends.",
+    "description": "Coin Control: Offer funding and coins you previously locked. Locked coins are kept out of ordinary sends."
   },
   "coins_summary_title": {
-    "message": "Your coins",
-    "description": "pages/settings/coins.tsx. Heading of the summary card above the coin list."
+    "message": "Coin protection",
+    "description": "Coin Control: Coin protection"
   },
   "coins_title": {
     "message": "Coin Control",
@@ -6157,8 +6153,8 @@
     "description": "pages/settings/index.tsx"
   },
   "settings_coins_description": {
-    "message": "Lock coins and see what backs your offers",
-    "description": "pages/settings/index.tsx. Description of the Coins settings entry."
+    "message": "Manage offer funding and existing coin locks.",
+    "description": "Coin Control: Manage offer funding and existing coin locks."
   },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "Disconnect all sites",
@@ -9187,5 +9183,33 @@
   "message_cancel_unlocks": {
     "message": "Unlocks",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "coins_checking_status": {
+    "message": "Checking status…",
+    "description": "Coin Control: Checking status…"
+  },
+  "coins_not_found": {
+    "message": "Not found in latest check",
+    "description": "Coin Control: Not found in latest check"
+  },
+  "coins_refresh_failed": {
+    "message": "Couldn't refresh chain status. Your coin locks are still available.",
+    "description": "Coin Control: Couldn't refresh chain status. Your coin locks are still available."
+  },
+  "coins_status_unavailable": {
+    "message": "Status unavailable",
+    "description": "Coin Control: Status unavailable"
+  },
+  "max_btc_protected_change": {
+    "message": "Max allows for fees and keeps at least 547 sats in change to protect ZELD.",
+    "description": "Help below BTC Max and dispenser Max explaining the fee allowance and minimum change reserved to protect ZELD."
+  },
+  "zeld_spendable_unavailable": {
+    "message": "Your spendable ZELD balance is unavailable. Try again.",
+    "description": "Error on the ZELD send form when spendable coin checks fail; shown beside a retry button."
+  },
+  "zeld_max_spendable_help": {
+    "message": "Available and Max exclude locked, unavailable and Counterparty-attached coins. Sending also requires BTC for fees.",
+    "description": "Help below the ZELD amount field explaining which coins Available and Max exclude and that sending requires BTC for fees."
   }
 }

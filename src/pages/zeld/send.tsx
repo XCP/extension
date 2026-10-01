@@ -1,6 +1,6 @@
 import { Description, Field, Input, Label } from '@headlessui/react';
 import type { ReactElement } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import zeldIcon from '@/assets/zeld.svg';
 import { Composer } from '@/components/composer/composer';
 import { ComposerForm } from '@/components/composer/composer-form';
@@ -12,8 +12,9 @@ import type { ApiResponse } from '@/core/counterparty/compose';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis, toSatoshis } from '@/core/numeric';
 import { validateQuantity } from '@/core/validation/amount';
-import { fetchZeldBalance, ZELD_DISPLAY_NAME, type ZeldAddressBalance, zeldBaseUnitsToDisplay } from '@/core/zeld/api';
+import { ZELD_DISPLAY_NAME, zeldBaseUnitsToDisplay } from '@/core/zeld/api';
 import { composeZeldSend, zeldRecipientDustSats } from '@/core/zeld/sendCompose';
+import { type SpendableZeld, selectSpendableZeld } from '@/core/zeld/spendable';
 import { t } from '@/i18n';
 
 interface ZeldSendFormData {
@@ -26,15 +27,19 @@ interface ZeldSendFormData {
   sat_per_vbyte: number;
 }
 
-function ZeldSendForm({
-  formAction,
-  initialFormData,
-}: {
+interface ZeldSendFormProps {
   formAction: (formData: FormData) => void | Promise<void>;
   initialFormData: ZeldSendFormData | null;
-}): ReactElement {
+}
+
+function ZeldSendForm(props: ZeldSendFormProps): ReactElement {
+  const { activeAddress } = useComposer<ZeldSendFormData>();
+  return <AddressZeldSendForm key={activeAddress?.address} {...props} />;
+}
+
+function AddressZeldSendForm({ formAction, initialFormData }: ZeldSendFormProps): ReactElement {
   const { activeAddress, showHelpText } = useComposer<ZeldSendFormData>();
-  const [balance, setBalance] = useState<ZeldAddressBalance | null>(null);
+  const [balance, setBalance] = useState<{ address: string; coins: SpendableZeld } | null>(null);
   const [amount, setAmount] = useState(() => initialFormData?.zeld_display_amount
     ?? (initialFormData?.amountBaseUnits && /^\d+$/.test(initialFormData.amountBaseUnits)
       ? fromSatoshis(initialFormData.amountBaseUnits, { removeTrailingZeros: true })
@@ -44,23 +49,49 @@ function ZeldSendForm({
 
   const [balanceError, setBalanceError] = useState(false);
   const [balanceRevision, setBalanceRevision] = useState(0);
+  const [balanceLoading, setBalanceLoading] = useState(!!activeAddress?.address);
+  const request = useRef({ revision: 0 });
+  const amountRevision = useRef(0);
 
   const address = activeAddress?.address;
   useEffect(() => {
+    const session = request.current;
+    const revision = ++session.revision;
     if (!address) return;
-    let cancelled = false;
-    void fetchZeldBalance(address).then((result) => {
-      if (cancelled) return;
-      setBalance(result);
+    void selectSpendableZeld(address).then((result) => {
+      if (revision !== session.revision) return;
+      setBalance({ address, coins: result });
       setBalanceError(false);
     }).catch((error) => {
       console.error('Failed to load ZELD send balance:', error);
-      if (!cancelled) setBalanceError(true);
+      if (revision === session.revision) setBalanceError(true);
+    }).finally(() => {
+      if (revision === session.revision) setBalanceLoading(false);
     });
-    return () => { cancelled = true; };
+    return () => { session.revision++; };
   }, [address, balanceRevision]);
 
-  const available = balance?.baseUnits ?? 0n;
+  const available = balance?.address === address ? balance?.coins.available ?? 0n : 0n;
+  const handleMax = async () => {
+    if (!address) return;
+    const revision = ++request.current.revision;
+    const draftRevision = amountRevision.current;
+    setBalanceLoading(true);
+    setBalanceError(false);
+    try {
+      // Re-read locks when clicked; another tab may have protected an offer since mount.
+      const coins = await selectSpendableZeld(address);
+      if (revision !== request.current.revision) return;
+      setBalance({ address, coins });
+      if (draftRevision === amountRevision.current) setAmount(fromSatoshis(coins.available.toString(), { removeTrailingZeros: true }));
+    } catch {
+      if (revision !== request.current.revision) return;
+      setBalance(null);
+      setBalanceError(true);
+    } finally {
+      if (revision === request.current.revision) setBalanceLoading(false);
+    }
+  };
   const amountBaseUnits = useMemo(() => {
     try {
       return toSatoshis(amount);
@@ -69,6 +100,7 @@ function ZeldSendForm({
     }
   }, [amount]);
   const amountValid = validateQuantity(amount, { divisible: true, allowZero: false }).isValid
+    && !balanceLoading && !balanceError
     && /^\d+$/.test(amountBaseUnits)
     && BigInt(amountBaseUnits) <= available;
 
@@ -94,14 +126,14 @@ function ZeldSendForm({
         <div className="min-w-0 flex-1 flex flex-wrap justify-between gap-3">
           <span className="text-gray-500">{t('zeld_available')}</span>
           <span className="font-medium text-gray-900">
-            {formatAmount({ value: zeldBaseUnitsToDisplay(available), minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD
+            {balanceLoading || balanceError ? '—' : `${formatAmount({ value: zeldBaseUnitsToDisplay(available), minimumFractionDigits: 8, maximumFractionDigits: 8 })} ZELD`}
           </span>
         </div>
       </div>
       {balanceError && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
-          <p role="alert" className="text-sm text-amber-800">{t('zeld_balance_error', [t('zeld_indexer_unavailable')])}</p>
-          <button type="button" onClick={() => { setBalanceError(false); setBalanceRevision(value => value + 1); }} className="text-sm font-medium text-blue-700 underline cursor-pointer">{t('common_try_again')}</button>
+          <p role="alert" className="text-sm text-amber-800">{t('zeld_spendable_unavailable')}</p>
+          <button type="button" onClick={() => { setBalance(null); setBalanceLoading(true); setBalanceError(false); setBalanceRevision(value => value + 1); }} className="text-sm font-medium text-blue-700 underline cursor-pointer">{t('common_try_again')}</button>
         </div>
       )}
       <DestinationInput
@@ -121,19 +153,20 @@ function ZeldSendForm({
             name="zeld_display_amount"
             inputMode="decimal"
             value={amount}
-            onChange={(event) => setAmount(event.target.value.trim())}
+            onChange={(event) => { amountRevision.current++; setAmount(event.target.value.trim()); }}
             placeholder="0.00000000"
             className="block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 outline-none focus-visible:ring-2 focus:border-blue-500 focus-visible:ring-blue-500"
           />
           <button
             type="button"
-            onClick={() => setAmount(fromSatoshis(available.toString(), { removeTrailingZeros: true }))}
-            disabled={available === 0n}
+            onClick={() => void handleMax()}
+            disabled={balanceLoading || balanceError || available === 0n}
             className="px-3 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
           >
             {t('common_max')}
           </button>
         </div>
+        <Description className="mt-1 text-sm text-gray-500">{t('zeld_max_spendable_help')}</Description>
         {showHelpText && (
           <Description className="mt-1 text-sm text-gray-500">
             {t('zeld_amount_help')}

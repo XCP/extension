@@ -1,7 +1,4 @@
 {
-  "coins_available": {
-    "message": "可用"
-  },
   "actions_address": {
     "message": "地址"
   },
@@ -635,10 +632,10 @@
     "message": "已锁定"
   },
   "coins_none": {
-    "message": "没有币"
+    "message": "没有受保护的币"
   },
   "coins_none_detail": {
-    "message": "你收到的 BTC 会显示在这里。"
+    "message": "您使用此钱包签署报价后，用于报价的币会自动显示在这里。"
   },
   "coins_not_on_chain_yet": {
     "message": "尚未上链"
@@ -656,10 +653,10 @@
     "message": "显示更多"
   },
   "coins_summary_help": {
-    "message": "已锁定的币不会用于任何发送。"
+    "message": "这里显示报价资金及您之前手动锁定的币。已锁定的币不会用于普通发送。"
   },
   "coins_summary_title": {
-    "message": "你的币"
+    "message": "币保护"
   },
   "coins_title": {
     "message": "币控制"
@@ -4628,7 +4625,7 @@
     "message": "更改钱包密码"
   },
   "settings_coins_description": {
-    "message": "锁定币，查看支撑出价的币"
+    "message": "管理报价资金和现有的币锁定。"
   },
   "settings_connected_sites_disconnect_all_sites": {
     "message": "断开所有网站"
@@ -6910,5 +6907,26 @@
   "message_cancel_unlocks": {
     "message": "解锁",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "coins_checking_status": {
+    "message": "正在检查状态…"
+  },
+  "coins_not_found": {
+    "message": "最近一次检查未找到"
+  },
+  "coins_refresh_failed": {
+    "message": "无法刷新链上状态。您仍可管理币的锁定。"
+  },
+  "coins_status_unavailable": {
+    "message": "状态不可用"
+  },
+  "max_btc_protected_change": {
+    "message": "最大金额会预留手续费，并保留至少547 sats的找零以保护ZELD。"
+  },
+  "zeld_spendable_unavailable": {
+    "message": "暂时无法获取可用的ZELD余额，请重试。"
+  },
+  "zeld_max_spendable_help": {
+    "message": "可用余额和最大金额不包含已锁定、不可用或附带Counterparty资产的币。发送还需要BTC支付手续费。"
   }
 }

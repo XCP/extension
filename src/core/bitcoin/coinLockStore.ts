@@ -18,6 +18,7 @@ import {
   type CoinLock,
   type CoinLockUpdate,
   coinLocksOf,
+  MAX_COIN_LOCK_UPDATE,
   type OfferCoinCommitment,
   outpointOf,
   withCoinLockUpdate,
@@ -69,7 +70,14 @@ export async function readCoinLocks(address: string, utxos?: readonly UTXO[]): P
   // Named one by one from the locks loaded above, so a lock made since is not this read's to judge.
   const present = locks.filter(lock => unspent.has(lock.outpoint)).map(lock => lock.outpoint);
   const absent = locks.filter(lock => !unspent.has(lock.outpoint)).map(lock => lock.outpoint);
-  const next = await recordObservation(address, locks, { observed: { present, absent } });
+  let next = locks;
+  // Keeping every accepted lock must not make an observation exceed the store's update limit.
+  for (let offset = 0; offset < Math.max(present.length, absent.length); offset += MAX_COIN_LOCK_UPDATE) {
+    next = await recordObservation(address, next, { observed: {
+      present: present.slice(offset, offset + MAX_COIN_LOCK_UPDATE),
+      absent: absent.slice(offset, offset + MAX_COIN_LOCK_UPDATE),
+    } });
+  }
   // Not awaited: a candidate stays locked meanwhile, so no send waits on the network to settle it.
   if (absent.length > 0) void resolveCoinLockCandidates(address, next, absent);
   // Include a hand lock created while the UTXO request was in flight in this send's exclusions.
