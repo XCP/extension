@@ -5,6 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { consolidateBareMultisigBatch } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import { toConsolidationRequest } from '@/core/bitcoin/consolidationRequest';
 import { walletManager } from '@/platform/walletManager';
 import { getWalletService } from '@/services/walletService';
 
@@ -26,9 +27,13 @@ describe('walletService.consolidateBareMultisig', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('delegates to the signer and never reads the private key', async () => {
-    const batch = { utxos: [] } as unknown as ConsolidationData;
+    const batch = { utxos: [
+      { txid: 'ab'.repeat(32), vout: 0, amount: 10_000, script: '51', prev_tx_hex: 'deadbeef', position: 0, script_type: 'bare_multisig' },
+      { txid: 'ab'.repeat(32), vout: 1, amount: 10_000, script: '51', prev_tx_hex: 'deadbeef', position: 0, script_type: 'bare_multisig' },
+    ] } as unknown as ConsolidationData;
 
-    const result = await getWalletService().consolidateBareMultisig('1Source', batch, 7, '1Dest');
+    const request = JSON.parse(JSON.stringify(toConsolidationRequest(batch)));
+    const result = await getWalletService().consolidateBareMultisig('1Source', request, 7, '1Dest');
 
     expect(result.signedTxHex).toBe('signed');
     expect(walletManager.consolidateBareMultisig).toHaveBeenCalledWith('1Source', batch, 7, '1Dest');

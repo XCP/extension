@@ -7,6 +7,7 @@ import {
   type ConsolidationReport,
   consolidationApi,
 } from "@/core/bitcoin/consolidationApi";
+import { toConsolidationRequest } from '@/core/bitcoin/consolidationRequest';
 import { fromSatoshis } from '@/core/numeric';
 import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
@@ -88,7 +89,7 @@ export function useMultiBatchConsolidation() {
           // Build and sign the transaction for this batch (in the background)
           const consolidationResult = await walletService.consolidateBareMultisig(
             activeAddress.address,
-            batch,
+            toConsolidationRequest(batch),
             feeRateSatPerVByte,
             destinationAddress,
           );
