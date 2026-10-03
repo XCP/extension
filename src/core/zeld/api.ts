@@ -45,8 +45,9 @@ export interface ZeldAddressBalance {
 const CACHE_MS = 30_000;
 const utxoCache = new Map<string, { expires: number; promise: Promise<ZeldUtxo[]> }>();
 
-export function clearZeldCaches(): void {
-  utxoCache.clear();
+export function clearZeldCaches(address?: string): void {
+  if (address === undefined) utxoCache.clear();
+  else utxoCache.delete(address);
 }
 
 /** A non-negative integer the indexer serialised as a JSON number, as a bigint. */
@@ -126,7 +127,9 @@ export function fetchZeldUtxos(address: string, signal?: AbortSignal): Promise<Z
     return utxos;
   })();
   utxoCache.set(key, { expires: Date.now() + CACHE_MS, promise });
-  promise.catch(() => utxoCache.delete(key));
+  promise.catch(() => {
+    if (utxoCache.get(key)?.promise === promise) utxoCache.delete(key);
+  });
   return promise;
 }
 

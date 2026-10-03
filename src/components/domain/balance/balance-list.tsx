@@ -75,6 +75,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   const zeldEnabled = (settings?.zeldHuntSeconds ?? 0) > 0;
   const [allBalances, setAllBalances] = useState<TokenBalance[]>([]);
   const [zeldBalance, setZeldBalance] = useState<TokenBalance | null>(null);
+  const [zeldError, setZeldError] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
@@ -88,6 +89,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   });
   const { searchQuery, setSearchQuery, searchResults, isSearching, error: searchError, retry: retrySearch } = useSearchQuery();
   const isSearchActive = searchQuery.trim().length > 0;
+  const matchesZeld = isSearchActive && 'ZELDHASH'.startsWith(searchQuery.trim().toUpperCase());
 
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
 
@@ -183,7 +185,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           setZeldBalance(balance);
           cacheBalances(session.address, [balance]);
         }).catch(() => {
-          // Leave the optional row absent; the ZELD page explains an unavailable balance.
+          if (sessionRef.current === session) setZeldError(true);
         });
         const firstPage = fetchTokenBalancesPage(session.address, { type: "address", limit: PAGE_SIZE, offset: 0 });
         const [btcResult, pageResult] = await Promise.allSettled([btcPromise, firstPage]);
@@ -239,6 +241,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
       if (cancelled) return;
       setAllBalances([]);
       setZeldBalance(null);
+      setZeldError(false);
       setHasMore(false);
       setInitialLoaded(false);
       setIsFetchingMore(false);
@@ -340,18 +343,21 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         isLoading={isSearching}
       />
       {isSearchActive ? (
-        isSearching ? (
-          <Spinner message={t('balance_balance_list_searching_balances')} />
-        ) : searchError ? (
-          <div role="alert" className="py-4 text-center text-sm text-red-600">
-            <p>{searchError}</p>
-            <button type="button" onClick={retrySearch} className="mt-2 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
-          </div>
-        ) : searchResults.length === 0 ? (
-          <div className="text-center py-4 text-gray-500">{t('common_no_results_found')}</div>
-        ) : (
-          searchResults.map((asset) => <SearchResultCard key={asset.symbol} symbol={asset.symbol} navigationType="balance" />)
-        )
+        <>
+          {matchesZeld && <SearchResultCard symbol={ZELD_WALLET_ASSET} navigationType="balance" />}
+          {isSearching ? (
+            <Spinner message={t('balance_balance_list_searching_balances')} />
+          ) : searchError ? (
+            <div role="alert" className="py-4 text-center text-sm text-red-600">
+              <p>{searchError}</p>
+              <button type="button" onClick={retrySearch} className="mt-2 text-blue-600 underline cursor-pointer">{t('common_retry')}</button>
+            </div>
+          ) : searchResults.length === 0 ? (
+            !matchesZeld && <div className="text-center py-4 text-gray-500">{t('common_no_results_found')}</div>
+          ) : (
+            searchResults.map((asset) => <SearchResultCard key={asset.symbol} symbol={asset.symbol} navigationType="balance" />)
+          )}
+        </>
       ) : isInitialLoading ? (
         <Spinner message={t('balance_balance_list_loading_balances')} />
       ) : (
@@ -365,6 +371,10 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           {visibleBalances(pinnedBalances).map(({ balance, shown }) => (
             <BalanceCard token={shown} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
+          {!zeldBalance && (zeldEnabled || zeldError) && (
+            <SearchResultCard symbol={ZELD_WALLET_ASSET} navigationType="balance"
+              status={t(zeldError ? 'zeld_balance_unavailable' : 'zeld_loading')} />
+          )}
           {visibleBalances(otherBalances).map(({ balance, shown }) => (
             <BalanceCard token={shown} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}

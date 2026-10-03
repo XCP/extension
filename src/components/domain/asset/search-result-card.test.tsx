@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ZELD_WALLET_ASSET } from '@/core/zeld/api';
 import { SearchResultCard } from "./search-result-card";
 
 // Mock the AssetIcon component
@@ -37,6 +38,16 @@ describe("SearchResultCard", () => {
     render(<SearchResultCard symbol="XCP" />);
 
     expect(screen.getByText("XCP")).toBeInTheDocument();
+  });
+
+  it('distinguishes hunted ZELD from the Counterparty asset and opens their own pages', () => {
+    render(<><SearchResultCard symbol={ZELD_WALLET_ASSET} navigationType="balance" />
+      <SearchResultCard symbol="ZELD" navigationType="balance" /></>);
+    fireEvent.click(screen.getByRole('button', { name: 'View ZELD (ZeldHash)' }));
+    expect(mockNavigate).toHaveBeenLastCalledWith('/zeld');
+    fireEvent.click(screen.getByRole('button', { name: 'View ZELD (Counterparty)' }));
+    expect(mockNavigate).toHaveBeenLastCalledWith('/assets/ZELD/balance');
+    expect(screen.queryByText(ZELD_WALLET_ASSET)).not.toBeInTheDocument();
   });
 
   it("displays asset icon with correct URL", () => {
