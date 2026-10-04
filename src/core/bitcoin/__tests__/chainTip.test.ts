@@ -14,6 +14,7 @@ it('reads height and median time from the exact tip block, not its timestamp', a
   expect(get.mock.calls.map(call => call[0])).toEqual([
     'https://mempool.space/api/blocks/tip/hash', `https://mempool.space/api/block/${hash}`,
   ]);
+  for (const [, options] of get.mock.calls) expect(options?.cache).toBe('no-store');
 });
 
 it.each([
