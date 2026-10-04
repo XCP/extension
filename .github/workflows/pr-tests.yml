@@ -84,6 +84,9 @@ jobs:
       - name: Run TypeScript type checking
         run: npm run compile
 
+      - name: Check E2E shard coverage
+        run: node --test scripts/e2e-shards.test.mjs
+
       # With CI set, scripts/lint.mjs also fails when lint-baseline.json allows more warnings than
       # remain, so the budget cannot keep slack a later change could spend.
       - name: Lint
@@ -144,9 +147,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The whole suite is ~110 minutes serial with one retry. Six shards keep each around
-        # 20 minutes, well inside the step limit, while each job still spends ~3 minutes on
-        # container, install and build before any test runs.
+        # Balance whole files by recorded duration. Test-count sharding left two runners at
+        # ~26 minutes while others finished in ~17; the coverage remains identical.
         shard: [1, 2, 3, 4, 5, 6]
 
     steps:
@@ -171,12 +173,11 @@ jobs:
           Xvfb -ac :99 -screen 0 1280x1024x16 &
           sleep 2
 
-      # Playwright's own sharding splits by test count (whole files, since the config is not
-      # fullyParallel), where the old split by file count gave the first batch the heaviest specs.
-      # The shard total here must match the matrix above.
+      # The wrapper collects all current specs before assigning them, so new files without
+      # recorded timings still run. The shard total here must match the matrix above.
       - name: Run E2E tests (Shard ${{ matrix.shard }}/6)
         timeout-minutes: 45
-        run: npx playwright test --shard=${{ matrix.shard }}/6 --workers=1 --retries=1
+        run: node scripts/run-e2e-shard.mjs ${{ matrix.shard }}/6 --workers=1 --retries=1
         env:
           CI: true
           DISPLAY: ':99'

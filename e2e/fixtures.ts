@@ -63,14 +63,12 @@ async function launchExtension(testId: string, options?: LaunchOptions): Promise
   const extensionPath = path.resolve('.output/chrome-mv3');
   const isCI = process.env.CI === 'true';
   const timeout = isCI ? 60000 : 30000;
-  const contextPath = `test-results/${testId}`;
-
-  // Clean up any existing context directory to ensure fresh state
-  try {
-    fs.rmSync(contextPath, { recursive: true, force: true });
-  } catch {
-    // Ignore if directory doesn't exist
-  }
+  const profileRoot = path.resolve('test-results/profiles');
+  fs.mkdirSync(profileRoot, { recursive: true });
+  // Titles can share a prefix across files, retries and workers. Never reuse another test's
+  // profile, or delete it while its Chromium process is still running.
+  const profileName = testId.replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 40);
+  const contextPath = fs.mkdtempSync(path.join(profileRoot, `${profileName}-`));
 
   const context = await chromium.launchPersistentContext(contextPath, {
     headless: false,
@@ -94,48 +92,19 @@ async function launchExtension(testId: string, options?: LaunchOptions): Promise
   // wait on the network. Every address holds no ZELD as far as these tests are concerned.
   await context.route('**/api.zeldhash.com/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
 
-  // Find extension ID - try multiple methods
-  let extensionId: string | null = null;
-  const maxWait = isCI ? 45 : 20;
-
-  for (let i = 0; i < maxWait && !extensionId; i++) {
-    await sleep(1000);
-
-    // Method 1: Check service workers
-    for (const sw of context.serviceWorkers()) {
-      const match = sw.url().match(/chrome-extension:\/\/([^/]+)/);
-      if (match?.[1]) {
-        extensionId = match[1];
-        break;
-      }
-    }
-
-    // Method 2: Check pages
-    if (!extensionId) {
-      for (const p of context.pages()) {
-        const match = p.url().match(/chrome-extension:\/\/([^/]+)/);
-        if (match?.[1]) {
-          extensionId = match[1];
-          break;
-        }
-      }
-    }
-
-    // Method 3: Check background pages (MV2 fallback)
-    if (!extensionId) {
-      for (const bp of context.backgroundPages()) {
-        const match = bp.url().match(/chrome-extension:\/\/([^/]+)/);
-        if (match?.[1]) {
-          extensionId = match[1];
-          break;
-        }
-      }
-    }
-  }
-
-  if (!extensionId) {
-    await context.close();
-    throw new Error('Failed to find extension ID after ' + maxWait + ' seconds');
+  // This is an MV3 extension. Use an already-started worker or wait for its event instead of
+  // sleeping at least one second on every launch (and then polling once per second).
+  let extensionId: string;
+  try {
+    const worker = context.serviceWorkers().find(sw => sw.url().startsWith('chrome-extension://'))
+      ?? await context.waitForEvent('serviceworker', {
+        predicate: sw => sw.url().startsWith('chrome-extension://'),
+        timeout: isCI ? 45000 : 20000,
+      });
+    extensionId = new URL(worker.url()).host;
+  } catch (error) {
+    await cleanup(context, contextPath);
+    throw new Error('The extension service worker did not start', { cause: error });
   }
 
   const page = await context.newPage();
@@ -272,10 +241,6 @@ async function navigateTo(page: Page, target: NavTarget): Promise<void> {
 // ============================================================================
 // Utilities
 // ============================================================================
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(r => setTimeout(r, ms));
-}
 
 async function cleanup(context: BrowserContext, contextPath?: string): Promise<void> {
   try {
@@ -490,5 +455,4 @@ export {
   navigateTo,
   setupWallet,
   unlockWallet,
-  // Note: sleep() is intentionally not exported - use web-first assertions instead
 };

@@ -26,6 +26,25 @@ it) and fail in ways that look like flaky tests.
 Every page runs at the popup's size, a 350x600 viewport (`playwright.config.ts`). A screen that
 only works in a larger viewport is broken for users.
 
+### CI shard timing
+
+CI uses `node scripts/run-e2e-shard.mjs 1/6 --workers=1 --retries=1`. It asks Playwright for the
+current file list, then distributes whole files using `e2e/timings.json`. This changes scheduling,
+not coverage: new files get the median recorded duration, and deleted files are ignored. Tests
+still use one worker per runner. Browser profiles have unique directories even when test titles
+share a prefix.
+
+Refresh the timing baseline after significant suite changes using a completed, successful full run:
+
+```bash
+gh run view RUN_ID --log > run.log
+node scripts/update-e2e-timings.mjs run.log https://github.com/XCP/extension/actions/runs/RUN_ID
+node --test scripts/e2e-shards.test.mjs
+```
+
+Review and commit the timing file. It is only a scheduling estimate; stale timings cannot remove
+tests from a run. `node scripts/run-e2e-shard.mjs 1/6 --list` lists an individual shard.
+
 ## Principles
 
 1. **Test user-visible behavior** - Test what users see, not implementation details

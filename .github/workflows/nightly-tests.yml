@@ -119,7 +119,7 @@ jobs:
       # The shard total here must match the matrix above.
       - name: Run E2E tests (Shard ${{ matrix.shard }}/6)
         timeout-minutes: 45
-        run: npx playwright test --shard=${{ matrix.shard }}/6 --workers=1 --retries=3
+        run: node scripts/run-e2e-shard.mjs ${{ matrix.shard }}/6 --workers=1 --retries=3
         env:
           CI: true
           DISPLAY: ':99'
