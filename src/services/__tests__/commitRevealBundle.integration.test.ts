@@ -253,7 +253,7 @@ describe('commit-and-reveal through the background review and signer', () => {
     const stranger = p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(8), true));
     const psbts = commitRevealPsbts(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, {
       fundedBy: { fill: fill++ },
-      editReveal: reveal => reveal.addOutput({ script: stranger.script, amount: 100n }),
+      editReveal: reveal => reveal.addOutput({ script: stranger.script, amount: 300n }),
     });
     state.parents.set(Transaction.fromRaw(hexToBytes(psbts.parentHex!), RAW).id, psbts.parentHex!);
     const result = await review(BROADCAST_P2WPKH, commitRevealItems(BROADCAST_P2WPKH, psbts));
@@ -261,7 +261,7 @@ describe('commit-and-reveal through the background review and signer', () => {
     expect(result.decodedInfo.review.status).toBe('proved');
     expect(result.policy.blocked).toBe(false);
     expect(result.policy.requiresAcknowledgement).toBe(true);
-    expect(result.decodedInfo.review.facts.find(fact => fact.value === stranger.address)?.description).toMatch(/100/);
+    expect(result.decodedInfo.review.facts.find(fact => fact.value === stranger.address)?.description).toMatch(/300/);
   });
 
   it('reviews and signs a site-built launch, naming its burn output', async () => {
@@ -336,6 +336,30 @@ describe('commit-and-reveal through the background review and signer', () => {
     expect(result.decodedInfo.review.blockers.join('; ')).toMatch(/does not spend output 0/);
     await expect(approve(result)).rejects.toThrow(/did not pass/);
     expect(state.wallet.signCommitAndRevealPsbts).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a relative timelock', { editRevealInput: (input: Parameters<Transaction['addInput']>[0]) => ({ ...input, sequence: 144 }) },
+      /delays it past the commit/],
+    ['an enforced locktime', {
+      revealHeader: { lockTime: 2_000_000 },
+      editRevealInput: (input: Parameters<Transaction['addInput']>[0]) => ({ ...input, sequence: 0xfffffffd }),
+    }, /locktime its input sequence enforces/],
+    ['no fee', { editReveal: (reveal: Transaction) => reveal.addOutput({
+      script: p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(8), true)).script,
+      amount: BigInt(BROADCAST_P2WPKH.result.reveal_inputs_values[0]!),
+    }) }, /minimum relay fee/],
+  ])('blocks a reveal that could not confirm after its commit (%s), at review and at the click', async (_name, options, reason) => {
+    use(BROADCAST_P2WPKH);
+    const psbts = commitRevealPsbts(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, { fundedBy: { fill: fill++ }, ...options });
+    state.parents.set(Transaction.fromRaw(hexToBytes(psbts.parentHex!), RAW).id, psbts.parentHex!);
+    const result = await review(BROADCAST_P2WPKH, commitRevealItems(BROADCAST_P2WPKH, psbts));
+    expect(result.decodedInfo.review.status).toBe('blocked');
+    expect(result.decodedInfo.review.blockers.join('; ')).toMatch(reason);
+    expect(result.policy.blocked).toBe(true);
+    await expect(approve(result)).rejects.toThrow(/did not pass/);
+    expect(state.wallet.signCommitAndRevealPsbts).not.toHaveBeenCalled();
+    expect(await signedHexes(result.request.id)).toBeNull();
   });
 
   it('blocks against a Counterparty API older than 11.5', async () => {

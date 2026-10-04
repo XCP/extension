@@ -146,15 +146,15 @@ describe('proveCommitAndReveal', () => {
   it('admits a reveal output the site added, and states who it pays', () => {
     const other = p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(8), true));
     const psbts = commitRevealPsbts(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, {
-      editReveal: reveal => reveal.addOutput({ script: other.script, amount: 100n }),
+      editReveal: reveal => reveal.addOutput({ script: other.script, amount: 300n }),
     });
     const proof = prove(BROADCAST_P2WPKH, psbts);
     expect(proof.blockers).toEqual([]);
     expect(proof.evidence!.revealOutputs).toEqual([
       { index: 0, value: 0, marker: true, owned: false, burn: false },
-      { index: 1, value: 100, address: other.address, marker: false, owned: false, burn: false },
+      { index: 1, value: 300, address: other.address, marker: false, owned: false, burn: false },
     ]);
-    expect(proof.evidence!.revealFee).toBe(BROADCAST_P2WPKH.result.reveal_inputs_values[0]! - 100);
+    expect(proof.evidence!.revealFee).toBe(BROADCAST_P2WPKH.result.reveal_inputs_values[0]! - 300);
   });
 
   it('blocks a reveal without the bare CNTRPRTY marker', () => {
@@ -235,6 +235,57 @@ describe('proveCommitAndReveal', () => {
   it('proves the P2TR pair for the Taproot key', () => {
     expect(KEY_TR.format).toBe('P2TR');
     expect(prove(BROADCAST_P2TR_INTERNAL).blockers).toEqual([]);
+  });
+});
+
+describe('proveCommitAndReveal, a reveal that confirms with its commit', () => {
+  const withSequence = (sequence: number) => (input: Parameters<Transaction['addInput']>[0]) => ({ ...input, sequence });
+  const blockers = (options: Parameters<typeof commitRevealPsbts>[2]) =>
+    prove(BROADCAST_P2WPKH, commitRevealPsbts(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, options)).blockers.join('; ');
+
+  it.each([
+    ['final, locktime 0', {}],
+    ['replaceable, locktime 0', { editRevealInput: withSequence(0xfffffffd) }],
+    ['zero relative delay', { editRevealInput: withSequence(0) }],
+    ['a relative delay version 1 does not enforce', { editRevealInput: withSequence(6), revealHeader: { version: 1 } }],
+    ['a locktime its final sequence leaves unenforced', { revealHeader: { lockTime: 0x5eed } }],
+  ])('proves a reveal with %s', (_name, options) => {
+    expect(blockers(options)).toBe('');
+  });
+
+  it('blocks a locktime its input sequence enforces', () => {
+    expect(blockers({ revealHeader: { lockTime: 2_000_000 }, editRevealInput: withSequence(0xfffffffe) }))
+      .toMatch(/locktime its input sequence enforces/);
+  });
+
+  it.each([['blocks', 6], ['seconds', 0x0040_0001], ['the longest', 0xffff]])(
+    'blocks a relative timelock (%s)', (_name, sequence) => {
+      expect(blockers({ editRevealInput: withSequence(sequence) })).toMatch(/delays it past the commit/);
+    });
+
+  it('blocks a transaction version nodes do not relay', () => {
+    expect(blockers({ revealHeader: { version: 0 } })).toMatch(/version 0 is not relayed/);
+  });
+
+  it('blocks an output below its script’s dust threshold, and admits one at it', () => {
+    const other = p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(8), true));
+    const paying = (amount: bigint) => ({ editReveal: (reveal: Transaction) => reveal.addOutput({ script: other.script, amount }) });
+    expect(blockers(paying(293n))).toMatch(/reveal output 1 is below the dust threshold/);
+    expect(blockers(paying(294n))).toBe('');
+    expect(blockers(paying(0n))).toMatch(/reveal output 1 is below the dust threshold/);
+  });
+
+  it('blocks a fee below the minimum relay rate, and admits one at it', () => {
+    const other = p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(8), true));
+    const paying = (amount: bigint) => ({ editReveal: (reveal: Transaction) => reveal.addOutput({ script: other.script, amount }) });
+    const commitValue = BROADCAST_P2WPKH.result.reveal_inputs_values[0]!;
+    // The reveal's size once signed DEFAULT (a 64-byte signature), and the 0.1 sat/vB it must pay.
+    const sized = prove(BROADCAST_P2WPKH, commitRevealPsbts(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, paying(300n)));
+    const vsize = Transaction.fromRaw(hexToBytes(sized.evidence!.placeholderRevealHex), { allowUnknownOutputs: true }).vsize;
+    const floor = Math.ceil(vsize / 10);
+    expect(blockers(paying(BigInt(commitValue - floor)))).toBe('');
+    expect(blockers(paying(BigInt(commitValue - floor + 1)))).toMatch(/less than the minimum relay fee/);
+    expect(blockers(paying(BigInt(commitValue)))).toMatch(/less than the minimum relay fee/);
   });
 });
 
