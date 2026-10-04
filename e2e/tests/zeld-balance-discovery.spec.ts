@@ -16,6 +16,8 @@ walletTest('ZELD stays discoverable through an outage and is distinct from Count
     status: unavailable ? 503 : 200,
     json: route.request().url().includes('/utxos') ? HOLDING : [],
   }));
+  // The outage row is for a hunter (or an address the wallet's record says holds ZELD).
+  await callGalleryService(page, 'updateSettings', [{ zeldHuntSeconds: 20 }]);
   await page.reload();
   await expect(page.getByText('Balance unavailable. Try again shortly.')).toBeVisible();
   await page.getByPlaceholder('Search balances…').fill('zeld');

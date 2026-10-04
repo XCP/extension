@@ -36,6 +36,8 @@ export interface CommitRevealOptions {
   editReveal?: (reveal: Transaction) => void;
   /** Edits to the commit PSBT before it is serialized. */
   editCommit?: (commit: Transaction) => void;
+  /** The reveal's version and locktime, in place of Core's. */
+  revealHeader?: { version?: number; lockTime?: number };
 }
 
 /** Build the bundle's two PSBTs from a captured (or recomposed) Core 11.5 compose. */
@@ -77,7 +79,11 @@ export function commitRevealPsbts(
 
   const original = Transaction.fromRaw(hexToBytes(result.reveal_rawtransaction), RAW);
   options.editReveal?.(original);
-  const reveal = new Transaction({ version: original.version, lockTime: original.lockTime, ...RAW });
+  const reveal = new Transaction({
+    version: options.revealHeader?.version ?? original.version,
+    lockTime: options.revealHeader?.lockTime ?? original.lockTime,
+    ...RAW,
+  });
   const envelope = hexToBytes(result.envelope_script);
   const input = {
     txid: hexToBytes(commitTxid),

@@ -41,6 +41,11 @@ vi.mock("@/core/zeld/api", async (importOriginal) => ({
   fetchZeldBalance: (...args: unknown[]) => mockFetchZeldBalance(...args),
 }));
 
+const mockRecordShowsZeld = vi.fn();
+vi.mock("@/services/zeldRecordClient", () => ({
+  recordShowsZeld: (...args: unknown[]) => mockRecordShowsZeld(...args),
+}));
+
 let search = { searchQuery: '', searchResults: [] as { symbol: string }[], isSearching: false, error: null as string | null };
 vi.mock("@/hooks/useSearchQuery", () => ({
   useSearchQuery: () => ({ ...search, setSearchQuery: vi.fn(), retry: vi.fn() }),
@@ -60,6 +65,7 @@ describe("BalanceList ZELD row", () => {
     zeldHuntSeconds = 20;
     search = { searchQuery: '', searchResults: [], isSearching: false, error: null };
     mockFetchZeldBalance.mockResolvedValue({ baseUnits: 409_600_000_000n, utxos: [{ txid: "00".repeat(32), vout: 1, balance: 409_600_000_000n }] });
+    mockRecordShowsZeld.mockResolvedValue(false);
   });
 
   it("lists ZELD with its balance while hunting is on, and opens the ZELD page", async () => {
@@ -92,8 +98,12 @@ describe("BalanceList ZELD row", () => {
     expect(screen.queryByText("ZELD")).not.toBeInTheDocument();
   });
 
-  it.each([0, 20])("keeps ZELD reachable without claiming zero when the indexer is down (budget=%s)", async seconds => {
+  it.each([
+    ['hunting', 20, false],
+    ["holding ZELD by the wallet's record", 0, true],
+  ])("keeps ZELD reachable without claiming zero when the indexer is down (%s)", async (_name, seconds, held) => {
     zeldHuntSeconds = seconds;
+    mockRecordShowsZeld.mockResolvedValue(held);
     mockFetchZeldBalance.mockRejectedValue(new Error("down"));
     render(<BalanceList />);
     expect(await screen.findAllByText("BTC")).not.toHaveLength(0);
@@ -102,6 +112,18 @@ describe("BalanceList ZELD row", () => {
     fireEvent.click(screen.getByRole('button', { name: 'View ZELD (ZeldHash)' }));
     expect(mockNavigate).toHaveBeenCalledWith('/zeld');
     expect(cacheBalances.mock.calls.flatMap(call => call[1]).some(balance => balance.asset === 'zeldhash:ZELD')).toBe(false);
+  });
+
+  it("adds no ZELD row during an outage for an address with no ZELD and hunting off", async () => {
+    zeldHuntSeconds = 0;
+    mockFetchZeldBalance.mockRejectedValue(new Error("down"));
+    render(<BalanceList />);
+    expect(await screen.findAllByText("BTC")).not.toHaveLength(0);
+    await waitFor(() => expect(mockFetchZeldBalance).toHaveBeenCalledWith('bc1qtest123'));
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+    expect(screen.queryByText('Balance unavailable. Try again shortly.')).not.toBeInTheDocument();
+    expect(screen.queryByText("ZELD")).not.toBeInTheDocument();
+    expect(mockRecordShowsZeld).toHaveBeenCalledWith('bc1qtest123');
   });
 
   it.each([0, 20])('loads balances, pagination and refresh without waiting for ZELD (budget=%s)', async seconds => {
