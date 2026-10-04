@@ -8,10 +8,20 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { SigHash, TAPROOT_UNSPENDABLE_KEY, TaprootControlBlock, type Transaction } from '@scure/btc-signer';
 import { tapLeafHash } from '@scure/btc-signer/payment.js';
 import { decodeAddressFromScript, sameAddress } from '@/core/bitcoin/address';
+import { DEFAULT_SEQUENCE } from '@/core/bitcoin/constants';
 import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
 import { extractPsbtDetails, type PsbtDetails, parsePSBT, resolvePsbtSighashType, spendsTaprootOutput } from '@/core/bitcoin/psbt';
 import type { PsbtBundleReview } from '@/core/bitcoin/psbtBundleTypes';
 import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
+import {
+  absoluteLockSatisfied,
+  belowMinRelayFee,
+  type ChainFinalityContext,
+  dustThresholdSats,
+  isStandardVersion,
+  lockTimeInForce,
+  relativeLockInForce,
+} from '@/core/bitcoin/relayPolicy';
 import { satsValue } from '@/core/counterparty/marketplace/format';
 import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
 import type { MarketplaceApprovalReview, MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
@@ -137,6 +147,8 @@ export interface CommitRevealEvidence {
 export interface CommitRevealProof {
   /** Every reason the pair is refused; empty when it proved. */
   blockers: string[];
+  /** A binding absolute locktime needs chain context; missing context must never permit signing. */
+  needsChainContext?: boolean;
   evidence?: CommitRevealEvidence;
 }
 
@@ -232,7 +244,8 @@ function commitBlockers(commit: CommitRevealItem, details: PsbtDetails, source: 
  * Core 11.5's source-signature rule (a canonical envelope leaf, committed under tapscript as the
  * commit output's only leaf, closed by a key of the signing address), a message the wallet decodes,
  * the CNTRPRTY marker Core reads the envelope by, a commit output whose key path is no one's or the
- * user's own, and a sane fee.
+ * user's own, a sane fee, and a reveal nodes relay and can mine as soon as the commit confirms (no
+ * timelock in force, no dust output, at least the minimum relay fee).
  *
  * @param sourceAddress - the request's signing address, the one active when the site asked
  */
@@ -240,6 +253,7 @@ export function proveCommitAndReveal(
   commit: CommitRevealItem,
   reveal: CommitRevealItem,
   sourceAddress: string,
+  chain?: ChainFinalityContext,
 ): CommitRevealProof {
   let commitTx: Transaction;
   let revealTx: Transaction;
@@ -263,6 +277,7 @@ export function proveCommitAndReveal(
   }
 
   const blockers = commitBlockers(commit, details, sourceAddress);
+  let needsChainContext = false;
 
   // The reveal: one input, spending commit output 0 as the commit's own bytes describe it.
   const commitOutput = commitTx.outputsLength > 0 ? commitTx.getOutput(0) : undefined;
@@ -289,6 +304,22 @@ export function proveCommitAndReveal(
   if (reveal.sighashTypes.length !== 1 || (revealSighash !== SigHash.DEFAULT && revealSighash !== SigHash.ALL)
     || (input.sighashType !== undefined && input.sighashType !== revealSighash)) {
     blockers.push('the reveal must be signed with SIGHASH_DEFAULT or SIGHASH_ALL');
+  }
+  // Once the commit confirms, the reveal is the only spend of its output the user holds, so it must
+  // be able to confirm right after it: a relayed version, and no timelock still to run.
+  if (!isStandardVersion(revealTx.version)) {
+    blockers.push(`the reveal’s transaction version ${revealTx.version} is not relayed`);
+  }
+  const sequence = input.sequence ?? DEFAULT_SEQUENCE;
+  if (lockTimeInForce(revealTx.lockTime, [sequence])) {
+    if (!chain) {
+      needsChainContext = true;
+    } else if (!absoluteLockSatisfied(revealTx.lockTime, chain)) {
+      blockers.push('the reveal’s absolute locktime is not yet satisfied by the Bitcoin chain');
+    }
+  }
+  if (relativeLockInForce(revealTx.version, sequence)) {
+    blockers.push('the reveal’s input sequence delays it past the commit’s confirmation');
   }
 
   const leaf = readRevealLeaf(revealTx);
@@ -332,6 +363,9 @@ export function proveCommitAndReveal(
     const script = output.script ? bytesToHex(output.script) : '';
     const amount = output.amount ?? 0n;
     paid += amount;
+    if (amount < BigInt(dustThresholdSats(output.script ?? new Uint8Array()))) {
+      blockers.push(`reveal output ${index} is below the dust threshold for its script, so the reveal would not be relayed`);
+    }
     const address = script && !script.startsWith('6a') ? decodeAddressFromScript(script) ?? undefined : undefined;
     revealOutputs.push({
       index,
@@ -350,21 +384,25 @@ export function proveCommitAndReveal(
   }
 
   // Its fee is the commit output less what it pays, at a sane rate for its size once signed (a
-  // 65-byte signature, the larger of the two sighashes).
+  // 65-byte signature, the larger of the two sighashes), and at least the minimum relay rate for
+  // its size with the signature its sighash makes.
   const revealTxHex = bytesToHex(revealTx.unsignedTx);
   const sized = parseTransactionForSigning(revealTxHex);
   sized.updateInput(0, { finalScriptWitness: [new Uint8Array(65), leaf.leaf, leaf.controlBlock] }, true);
+  const placeholder = parseTransactionForSigning(revealTxHex);
+  placeholder.updateInput(0, { finalScriptWitness: [new Uint8Array(64), leaf.leaf, leaf.controlBlock] }, true);
   const revealFee = toSafeInteger(commitOutput.amount - paid);
   if (revealFee === undefined || revealFee < 0) {
     blockers.push('the reveal spends more than the commit output provides');
   } else if (exceedsSaneFeeRate(revealFee, sized.vsize)) {
     blockers.push('the reveal pays a fee far above any sane rate');
+  } else if (belowMinRelayFee(revealFee, revealSighash === SigHash.ALL ? sized.vsize : placeholder.vsize)) {
+    blockers.push('the reveal pays less than the minimum relay fee, so it would not be relayed');
   }
 
-  const placeholder = parseTransactionForSigning(revealTxHex);
-  placeholder.updateInput(0, { finalScriptWitness: [new Uint8Array(64), leaf.leaf, leaf.controlBlock] }, true);
   return {
     blockers,
+    ...(needsChainContext ? { needsChainContext: true } : {}),
     evidence: {
       sourceAddress,
       revealTxHex,
@@ -424,6 +462,7 @@ export function commitRevealReview(input: CommitRevealReviewInput): PsbtBundleRe
   ];
   const retry = [
     ...input.retry,
+    ...(proof.needsChainContext ? ['the Bitcoin chain tip could not be checked for the reveal’s locktime; try again'] : []),
     ...(marketplaceReview?.status === 'retry' ? marketplaceReview.blockers.map(problem => `commit: ${problem}`) : []),
   ];
   const status = blockers.length > 0 || !proof.evidence ? 'blocked'

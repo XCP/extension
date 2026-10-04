@@ -14,3 +14,12 @@ export const DUST_LIMIT_SATS = 546;
 
 /** The largest OP_RETURN data payload Bitcoin Core relays by default, in bytes. */
 export const MAX_OP_RETURN_DATA_BYTES = 80;
+
+/**
+ * Bitcoin Core's default `-minrelaytxfee` since 29.1, in sats per 1,000 vbytes: 0.1 sat/vB, the
+ * lowest rate the wallet's own fee input accepts. A transaction paying less is not relayed.
+ */
+export const MIN_RELAY_FEE_SATS_PER_KVB = 100;
+
+/** Bitcoin Core's default `-dustrelayfee`, in sats per 1,000 vbytes, which sets each output's dust threshold. */
+export const DUST_RELAY_FEE_SATS_PER_KVB = 3_000;

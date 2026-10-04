@@ -242,6 +242,16 @@ export function liveCoinLocks(entries: readonly CoinLock[], address: string, now
 /** Locks that keep their coin out of reach. */
 export const activeCoinLocks = (locks: readonly CoinLock[]): CoinLock[] => locks.filter(lock => !lock.unlocked);
 
+/**
+ * A lock as a decision made against it depends on: everything but when a UTXO read last saw or
+ * missed the coin (`seenAt`, `candidateSince`), which ordinary balance reads and outspend checks
+ * rewrite. The signing guard and an open review's key both compare locks by this.
+ */
+export const coinLockTerms = (lock: CoinLock): string => JSON.stringify([
+  lock.address, lock.outpoint, lock.kind, lock.manual, lock.origin, lock.sharedOrigins ?? [],
+  lock.refs, lock.expiresAt, lock.createdAt, lock.unlocked,
+]);
+
 /** Whether a locked coin backs any offer (else the user locked it by hand alone). */
 export const backsOffers = (lock: Pick<CoinLock, 'kind'>): boolean => lock.kind !== 'manual';
 

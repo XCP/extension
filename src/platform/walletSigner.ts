@@ -2,6 +2,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { SigHash, TaprootControlBlock } from '@scure/btc-signer';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
+import { coinLockTerms } from '@/core/bitcoin/coinLocks';
 import { type ConsolidationResult, consolidateBareMultisigBatch } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { shownEnvelopeLeaf } from '@/core/bitcoin/envelopeLeafGuard';
@@ -135,15 +136,11 @@ export class WalletSigner {
         return `${bytesToHex(input.txid ?? new Uint8Array())}:${input.index}`;
       })),
     }));
-    const permission = (lock: CoinLock) => JSON.stringify([
-      lock.address, lock.outpoint, lock.kind, lock.manual, lock.origin, lock.sharedOrigins ?? [],
-      lock.refs, lock.expiresAt, lock.createdAt, lock.unlocked,
-    ]);
-    const allowed = new Set(approved.filter(lock => !lock.unlocked).map(permission));
+    const allowed = new Set(approved.filter(lock => !lock.unlocked).map(coinLockTerms));
     return () => {
       for (const { address, outpoints } of inputs) {
         for (const lock of this.state.getCoinLocks(address)) {
-          if (!lock.unlocked && outpoints.has(lock.outpoint) && !allowed.has(permission(lock))) {
+          if (!lock.unlocked && outpoints.has(lock.outpoint) && !allowed.has(coinLockTerms(lock))) {
             throw new Error(t('coin_lock_signing_changed'));
           }
         }

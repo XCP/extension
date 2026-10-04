@@ -350,6 +350,44 @@ describe('provider signing with locked coins', () => {
     expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
   });
 
+  it('keeps the review when a read only restamps when a locked coin was seen', async () => {
+    const other = lock({ outpoint: `${'b'.repeat(64)}:1`, kind: 'manual', manual: true, refs: [], origin: null });
+    store.locks = [lock(), other];
+    await beginSignFlow(psbtRequest());
+    const review = await service.getReview('req-1');
+    // A balance load, Max or Coin Control refresh, and an outspend check that missed the coin.
+    store.locks = [lock({ seenAt: 5_000 }), { ...other, seenAt: null, candidateSince: 6_000 }];
+    expect((await service.getReview('req-1')).reviewKey).toBe(review.reviewKey);
+    await service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: true });
+    expect(mocks.wallet.signPsbt).toHaveBeenCalledOnce();
+    expect(mocks.emit).toHaveBeenCalledWith('sign-psbt-complete-req-1', { signedPsbtHex: 'signed-psbt' });
+  });
+
+  it('refuses signing when another site commits the coin after approval was shown', async () => {
+    store.locks = [lock()];
+    await beginSignFlow(psbtRequest());
+    const review = await service.getReview('req-1');
+    store.locks = [lock({ sharedOrigins: ['https://second.example'] })];
+    await expect(service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: true }))
+      .rejects.toThrow(/review changed/);
+    expect(mocks.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['added', [lock(), lock({ outpoint: `${'b'.repeat(64)}:1` })]],
+    ['removed', []],
+    ['unlocked', [lock({ unlocked: true })]],
+    ['hand-locked too', [lock({ manual: true })]],
+    ['backing another offer', [lock({ refs: ['auth-1', 'auth-3'] })]],
+    ['given a new expiry', [lock({ expiresAt: 2_000_000_000 })]],
+  ])('changes the review when a lock is %s', async (_name, locks) => {
+    store.locks = [lock()];
+    await beginSignFlow(psbtRequest());
+    const review = await service.getReview('req-1');
+    store.locks = locks;
+    expect((await service.getReview('req-1')).reviewKey).not.toBe(review.reviewKey);
+  });
+
   it('writes nothing when the request is declined', async () => {
     store.locks = [lock()];
     mocks.decodePsbt.mockImplementation(async () => decoded({ status: 'caution' }));

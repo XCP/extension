@@ -2,6 +2,7 @@
 
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { sameAddress } from '@/core/bitcoin/address';
+import { fetchChainFinalityContext } from '@/core/bitcoin/chainTip';
 import { extractPsbtDetails, parsePSBT, resolvePsbtSighashType, spendsTaprootOutput } from '@/core/bitcoin/psbt';
 import {
   type DecodedPsbtInfo,
@@ -363,7 +364,14 @@ async function decodeCommitAndReveal(
     throw new Error('commit-and-reveal must contain exactly two transactions');
   }
   const source = stored.address;
-  const proof = proveCommitAndReveal(commitItem, revealItem, source);
+  let proof = proveCommitAndReveal(commitItem, revealItem, source);
+  if (proof.needsChainContext && proof.blockers.length === 0) {
+    try {
+      proof = proveCommitAndReveal(commitItem, revealItem, source, await fetchChainFinalityContext());
+    } catch {
+      // Keep needsChainContext: review offers Retry and never signs against an unknown tip.
+    }
+  }
   const blockers: string[] = [];
   const retry: string[] = [];
   // Only Core 11.5 attributes a reveal to the key that signed it; an older node reads the chain

@@ -18,6 +18,7 @@ import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 import { BTC_ASSET_INFO } from "@/hooks/utils/fetchAssetData";
 import { t } from '@/i18n';
+import { recordShowsZeld } from '@/services/zeldRecordClient';
 
 /**
  * Balance rows per request. The node answers a page of 100 as fast as a page of 20, and most
@@ -75,7 +76,8 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   const zeldEnabled = (settings?.zeldHuntSeconds ?? 0) > 0;
   const [allBalances, setAllBalances] = useState<TokenBalance[]>([]);
   const [zeldBalance, setZeldBalance] = useState<TokenBalance | null>(null);
-  const [zeldError, setZeldError] = useState(false);
+  /** The indexer failed for this load; `held` when the wallet's own record says the address holds ZELD. */
+  const [zeldError, setZeldError] = useState<{ held: boolean } | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
@@ -184,8 +186,9 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           };
           setZeldBalance(balance);
           cacheBalances(session.address, [balance]);
-        }).catch(() => {
-          if (sessionRef.current === session) setZeldError(true);
+        }).catch(async () => {
+          const held = await recordShowsZeld(session.address);
+          if (sessionRef.current === session) setZeldError({ held });
         });
         const firstPage = fetchTokenBalancesPage(session.address, { type: "address", limit: PAGE_SIZE, offset: 0 });
         const [btcResult, pageResult] = await Promise.allSettled([btcPromise, firstPage]);
@@ -241,7 +244,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
       if (cancelled) return;
       setAllBalances([]);
       setZeldBalance(null);
-      setZeldError(false);
+      setZeldError(null);
       setHasMore(false);
       setInitialLoaded(false);
       setIsFetchingMore(false);
@@ -371,7 +374,9 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
           {visibleBalances(pinnedBalances).map(({ balance, shown }) => (
             <BalanceCard token={shown} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
-          {!zeldBalance && (zeldEnabled || zeldError) && (
+          {/* An outage concerns a hunter, whose row is where the hunt explains itself, and an address the
+              wallet's record says holds ZELD; anyone else has no ZELD row to keep. */}
+          {!zeldBalance && (zeldEnabled || zeldError?.held) && (
             <SearchResultCard symbol={ZELD_WALLET_ASSET} navigationType="balance"
               status={t(zeldError ? 'zeld_balance_unavailable' : 'zeld_loading')} />
           )}
