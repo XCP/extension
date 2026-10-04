@@ -32,7 +32,7 @@ export const WALLET_SERVICE_POLICY: ProxyServicePolicy<WalletService> = {
     isAddressInAnyWallet: 'read', signTransaction: 'command', signCommitAndReveal: 'command',
     broadcastTransaction: 'command',
     signMessage: 'command', getLastActiveAddress: 'read',
-    recordZeldOutpoints: 'command',
+    getKnownZeldOutpoints: 'read', recordZeldOutpoints: 'command',
     // Coin control. Offer locks are added only by the background, from what a signature proved.
     getCoinLocks: 'read', updateCoinLocks: 'command',
     setLastActiveAddress: 'command', setLastActiveTime: 'command', consolidateBareMultisig: 'command',
