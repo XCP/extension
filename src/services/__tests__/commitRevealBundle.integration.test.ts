@@ -48,12 +48,14 @@ const state = vi.hoisted(() => ({
   api: { supported: true, reason: undefined as string | undefined },
   keyReads: 0,
   lockOnKeyRead: 0,
+  chainTip: vi.fn(),
   wallet: {
     isKeychainUnlocked: vi.fn(async () => true), getActiveWallet: vi.fn(),
     getActiveAddress: vi.fn(), getSettings: vi.fn(async () => ({ strictTransactionVerification: true })),
     signPsbt: vi.fn(), signCommitAndRevealPsbts: vi.fn(), getPairedAddresses: vi.fn(),
   },
 }));
+vi.mock('@/core/bitcoin/chainTip', () => ({ fetchChainFinalityContext: state.chainTip }));
 vi.mock('@/services/walletService', () => ({ getWalletService: () => state.wallet }));
 vi.mock('@/platform/auth/sessionManager', () => ({
   getSessionGeneration: () => state.generation,
@@ -157,6 +159,7 @@ async function signedHexes(id: string): Promise<string[] | null> {
 }
 
 beforeEach(() => {
+  state.chainTip.mockReset().mockResolvedValue({ height: 900_000, medianTimePast: 1_800_000_000 });
   fakeBrowser.reset(); vi.stubGlobal('chrome', fakeBrowser);
   state.parents.clear();
   state.generation = 0;
@@ -246,6 +249,8 @@ describe('commit-and-reveal through the background review and signer', () => {
       reveal.getInput(0).finalScriptWitness!).ok).toBe(true);
     // Signed by the reveal signer, never by the PSBT signer.
     expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+    // Ordinary reveals require no extra chain requests, even through the click-time review.
+    expect(state.chainTip).not.toHaveBeenCalled();
   });
 
   it('asks for a second look when the reveal pays someone else', async () => {
@@ -344,7 +349,7 @@ describe('commit-and-reveal through the background review and signer', () => {
     ['an enforced locktime', {
       revealHeader: { lockTime: 2_000_000 },
       editRevealInput: (input: Parameters<Transaction['addInput']>[0]) => ({ ...input, sequence: 0xfffffffd }),
-    }, /locktime its input sequence enforces/],
+    }, /absolute locktime is not yet satisfied/],
     ['no fee', { editReveal: (reveal: Transaction) => reveal.addOutput({
       script: p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(8), true)).script,
       amount: BigInt(BROADCAST_P2WPKH.result.reveal_inputs_values[0]!),
@@ -371,6 +376,41 @@ describe('commit-and-reveal through the background review and signer', () => {
     expect(result.decodedInfo.review.blockers.join('; ')).toMatch(/11\.5/);
     await expect(approve(result)).rejects.toThrow(/did not pass/);
     expect(state.wallet.signCommitAndRevealPsbts).not.toHaveBeenCalled();
+  });
+
+  it('signs an already-satisfied RBF reveal without changing its locktime', async () => {
+    use(BROADCAST_P2WPKH);
+    const psbts = commitRevealPsbts(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, {
+      fundedBy: { fill: fill++ }, revealHeader: { lockTime: 900_000 },
+      editRevealInput: input => ({ ...input, sequence: 0xfffffffd }),
+    });
+    state.parents.set(Transaction.fromRaw(hexToBytes(psbts.parentHex!), RAW).id, psbts.parentHex!);
+    const result = await review(BROADCAST_P2WPKH, commitRevealItems(BROADCAST_P2WPKH, psbts));
+    expect(result.decodedInfo.review.status).toBe('proved');
+    await approve(result);
+    const signed = await signedHexes(result.request.id);
+    expect(signed).toHaveLength(2);
+    expect(parsePSBT(signed![1]!).lockTime).toBe(900_000);
+    expect(state.chainTip).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['offline', 'reorg'] as const)('signs nothing if chain context becomes %s after review', async mode => {
+    use(BROADCAST_P2WPKH);
+    const psbts = commitRevealPsbts(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, {
+      fundedBy: { fill: fill++ }, revealHeader: { lockTime: 900_000 },
+      editRevealInput: input => ({ ...input, sequence: 0xfffffffd }),
+    });
+    state.parents.set(Transaction.fromRaw(hexToBytes(psbts.parentHex!), RAW).id, psbts.parentHex!);
+    const result = await review(BROADCAST_P2WPKH, commitRevealItems(BROADCAST_P2WPKH, psbts));
+    expect(result.decodedInfo.review.status).toBe('proved');
+    if (mode === 'offline') state.chainTip.mockRejectedValue(new Error('offline'));
+    else state.chainTip.mockResolvedValue({ height: 899_999, medianTimePast: 1_800_000_000 });
+    await expect(approve(result)).rejects.toThrow();
+    expect(state.wallet.signCommitAndRevealPsbts).not.toHaveBeenCalled();
+    expect(await signedHexes(result.request.id)).toBeNull();
+    const refreshed = await createProviderSigningService().getReview(result.request.id);
+    if (refreshed.kind !== 'sign-psbts') throw new Error('wrong kind');
+    expect(refreshed.decodedInfo.review.status).toBe(mode === 'offline' ? 'retry' : 'blocked');
   });
 
   it('returns nothing from a hardware wallet', async () => {

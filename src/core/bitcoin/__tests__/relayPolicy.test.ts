@@ -1,6 +1,7 @@
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { describe, expect, it } from 'vitest';
 import {
+  absoluteLockSatisfied,
   belowMinRelayFee,
   dustThresholdSats,
   isStandardVersion,
@@ -22,6 +23,13 @@ describe('dustThresholdSats', () => {
 });
 
 describe('timelocks', () => {
+  it('uses next-block height and tip median time, with strict finality boundaries', () => {
+    const chain = { height: 900_000, medianTimePast: 1_800_000_000 };
+    expect(absoluteLockSatisfied(900_000, chain)).toBe(true);
+    expect(absoluteLockSatisfied(900_001, chain)).toBe(false);
+    expect(absoluteLockSatisfied(1_799_999_999, chain)).toBe(true);
+    expect(absoluteLockSatisfied(1_800_000_000, chain)).toBe(false);
+  });
   it('reads nLockTime as binding only behind a non-final sequence', () => {
     expect(lockTimeInForce(0, [0xfffffffe])).toBe(false);
     expect(lockTimeInForce(900_000, [0xffffffff])).toBe(false);

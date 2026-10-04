@@ -14,7 +14,9 @@ import { extractPsbtDetails, type PsbtDetails, parsePSBT, resolvePsbtSighashType
 import type { PsbtBundleReview } from '@/core/bitcoin/psbtBundleTypes';
 import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import {
+  absoluteLockSatisfied,
   belowMinRelayFee,
+  type ChainFinalityContext,
   dustThresholdSats,
   isStandardVersion,
   lockTimeInForce,
@@ -145,6 +147,8 @@ export interface CommitRevealEvidence {
 export interface CommitRevealProof {
   /** Every reason the pair is refused; empty when it proved. */
   blockers: string[];
+  /** A binding absolute locktime needs chain context; missing context must never permit signing. */
+  needsChainContext?: boolean;
   evidence?: CommitRevealEvidence;
 }
 
@@ -249,6 +253,7 @@ export function proveCommitAndReveal(
   commit: CommitRevealItem,
   reveal: CommitRevealItem,
   sourceAddress: string,
+  chain?: ChainFinalityContext,
 ): CommitRevealProof {
   let commitTx: Transaction;
   let revealTx: Transaction;
@@ -272,6 +277,7 @@ export function proveCommitAndReveal(
   }
 
   const blockers = commitBlockers(commit, details, sourceAddress);
+  let needsChainContext = false;
 
   // The reveal: one input, spending commit output 0 as the commit's own bytes describe it.
   const commitOutput = commitTx.outputsLength > 0 ? commitTx.getOutput(0) : undefined;
@@ -306,7 +312,11 @@ export function proveCommitAndReveal(
   }
   const sequence = input.sequence ?? DEFAULT_SEQUENCE;
   if (lockTimeInForce(revealTx.lockTime, [sequence])) {
-    blockers.push('the reveal sets a locktime its input sequence enforces; it must use locktime 0 or a final sequence');
+    if (!chain) {
+      needsChainContext = true;
+    } else if (!absoluteLockSatisfied(revealTx.lockTime, chain)) {
+      blockers.push('the reveal’s absolute locktime is not yet satisfied by the Bitcoin chain');
+    }
   }
   if (relativeLockInForce(revealTx.version, sequence)) {
     blockers.push('the reveal’s input sequence delays it past the commit’s confirmation');
@@ -392,6 +402,7 @@ export function proveCommitAndReveal(
 
   return {
     blockers,
+    ...(needsChainContext ? { needsChainContext: true } : {}),
     evidence: {
       sourceAddress,
       revealTxHex,
@@ -451,6 +462,7 @@ export function commitRevealReview(input: CommitRevealReviewInput): PsbtBundleRe
   ];
   const retry = [
     ...input.retry,
+    ...(proof.needsChainContext ? ['the Bitcoin chain tip could not be checked for the reveal’s locktime; try again'] : []),
     ...(marketplaceReview?.status === 'retry' ? marketplaceReview.blockers.map(problem => `commit: ${problem}`) : []),
   ];
   const status = blockers.length > 0 || !proof.evidence ? 'blocked'

@@ -44,7 +44,7 @@ const FIXTURES: Array<[string, Fixture115]> = [
 
 function prove(fixture: Fixture115, psbts = commitRevealPsbts(fixture), source = fixture.key.address) {
   const items = commitRevealItems(fixture, psbts);
-  return proveCommitAndReveal(items.commit, items.reveal, source);
+  return proveCommitAndReveal(items.commit, items.reveal, source, { height: 900_000, medianTimePast: 1_800_000_000 });
 }
 
 const OTHER_XONLY = secp256k1.getPublicKey(new Uint8Array(32).fill(9), true).slice(1);
@@ -255,7 +255,25 @@ describe('proveCommitAndReveal, a reveal that confirms with its commit', () => {
 
   it('blocks a locktime its input sequence enforces', () => {
     expect(blockers({ revealHeader: { lockTime: 2_000_000 }, editRevealInput: withSequence(0xfffffffe) }))
-      .toMatch(/locktime its input sequence enforces/);
+      .toMatch(/absolute locktime is not yet satisfied/);
+  });
+
+  it.each([1, 899_999, 900_000, 1_799_999_999])('accepts an already-satisfied locktime (%s) with RBF', lockTime => {
+    expect(blockers({ revealHeader: { lockTime }, editRevealInput: withSequence(0xfffffffd) })).toBe('');
+  });
+
+  it.each([900_001, 1_800_000_000, 1_800_000_001])('rejects a locktime not satisfied for the next block (%s)', lockTime => {
+    expect(blockers({ revealHeader: { lockTime }, editRevealInput: withSequence(0xfffffffd) }))
+      .toMatch(/absolute locktime is not yet satisfied/);
+  });
+
+  it('requires Retry when an enforced locktime has no chain context', () => {
+    const pair = commitRevealItems(BROADCAST_P2WPKH, commitRevealPsbts(BROADCAST_P2WPKH, BROADCAST_P2WPKH.result, {
+      revealHeader: { lockTime: 1 }, editRevealInput: withSequence(0xfffffffd),
+    }));
+    const proof = proveCommitAndReveal(pair.commit, pair.reveal, BROADCAST_P2WPKH.key.address);
+    expect(proof.needsChainContext).toBe(true);
+    expect(commitRevealReview({ proof, blockers: [], retry: [], messageShown: true }).status).toBe('retry');
   });
 
   it.each([['blocks', 6], ['seconds', 0x0040_0001], ['the longest', 0xffff]])(

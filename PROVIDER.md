@@ -960,7 +960,10 @@ action; the wallet then proves the decoded message against it exactly as for a s
   must be at a sane rate, and a rate far above the network's blocks;
 - the reveal can confirm as soon as the commit does: transaction version 1, 2 or 3; no relative
   timelock on its input (BIP68: an `nSequence` with the disable flag clear and a nonzero delay); a
-  nonzero `nLockTime` only behind a final `nSequence` (`0xffffffff`), where it is not enforced; every
+  an enforced absolute `nLockTime` must already be satisfied for the next block, using the chain
+  height or median time past (never the browser clock). A final `nSequence` (`0xffffffff`) leaves
+  `nLockTime` unenforced. Chain lookup failure offers Retry and prevents signing; untimelocked
+  reveals need no additional lookup. Every
   output other than `OP_RETURN` at or above Bitcoin Core's dust threshold for its script (546 sats
   P2PKH, 540 P2SH, 294 P2WPKH, 330 P2WSH and P2TR); and a fee of at least 0.1 sat/vB on its signed
   size;

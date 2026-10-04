@@ -1,7 +1,7 @@
 /**
  * Whether a transaction the wallet signs but did not build can be relayed and mined: the timelocks
- * consensus enforces and the relay floors Bitcoin Core applies by default. Pure: nothing here knows
- * the chain tip, so a timelock is judged by whether it is in force at all, not by when it expires.
+ * consensus enforces and the relay floors Bitcoin Core applies by default. Pure: absolute finality
+ * uses an explicitly supplied chain height and median time past, never the browser's clock.
  */
 
 import { DEFAULT_SEQUENCE, DUST_RELAY_FEE_SATS_PER_KVB, MIN_RELAY_FEE_SATS_PER_KVB } from '@/core/bitcoin/constants';
@@ -28,6 +28,17 @@ export const isStandardVersion = (version: number): boolean =>
  */
 export const lockTimeInForce = (lockTime: number, sequences: readonly number[]): boolean =>
   lockTime !== 0 && sequences.some(sequence => sequence !== DEFAULT_SEQUENCE);
+
+export interface ChainFinalityContext {
+  /** Height of the current tip; a height lock is evaluated for the next block. */
+  height: number;
+  /** Median time of the tip's last 11 blocks, not wall-clock or the tip's timestamp. */
+  medianTimePast: number;
+}
+
+/** Bitcoin Core IsFinalTx with BIP113: equality is still locked for the candidate block. */
+export const absoluteLockSatisfied = (lockTime: number, chain: ChainFinalityContext): boolean =>
+  lockTime < (lockTime < 500_000_000 ? chain.height + 1 : chain.medianTimePast);
 
 /**
  * Whether a BIP68 relative locktime delays this input past the block its prevout confirms in: a
