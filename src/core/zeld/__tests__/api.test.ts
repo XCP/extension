@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/core/api/client';
+import { invalidateAddressBalances } from '@/core/balances/invalidate';
 import {
   clearZeldCaches,
   fetchZeldBalance,
@@ -56,6 +57,31 @@ describe('ZELD API client', () => {
     await expect(fetchZeldUtxos(ADDRESS)).rejects.toThrow('down');
     get.mockResolvedValueOnce({ data: [] } as never);
     expect(await fetchZeldUtxos(ADDRESS)).toEqual([]);
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('a manual wallet refresh replaces a cached zero without invalidating another address', async () => {
+    get.mockResolvedValue({ data: [] } as never);
+    await fetchZeldBalance(ADDRESS);
+    await fetchZeldBalance('another-address');
+    invalidateAddressBalances(ADDRESS);
+    get.mockResolvedValue({ data: [{ balance: 123, txid: TXID, vout: 0 }] } as never);
+    expect((await fetchZeldBalance(ADDRESS)).baseUnits).toBe(123n);
+    expect((await fetchZeldBalance('another-address')).baseUnits).toBe(0n);
+    expect(get).toHaveBeenCalledTimes(3);
+  });
+
+  it('a failed pre-refresh request cannot evict the fresh answer', async () => {
+    let fail!: (error: Error) => void;
+    get.mockReturnValueOnce(new Promise((_resolve, reject) => { fail = reject; }));
+    const old = fetchZeldBalance(ADDRESS);
+    const rejected = expect(old).rejects.toThrow('old request failed');
+    invalidateAddressBalances(ADDRESS);
+    get.mockResolvedValue({ data: [{ balance: 123, txid: TXID, vout: 0 }] } as never);
+    await fetchZeldBalance(ADDRESS);
+    fail(new Error('old request failed'));
+    await rejected;
+    expect((await fetchZeldBalance(ADDRESS)).baseUnits).toBe(123n);
     expect(get).toHaveBeenCalledTimes(2);
   });
 

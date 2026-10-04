@@ -70,6 +70,10 @@ walletTest('dashboard renders in Japanese', async ({ page }) => {
 `TEST_PRIVATE_KEY`). Shared selectors are in [`e2e/selectors.ts`](selectors.ts), and test data in
 [`e2e/test-data.ts`](test-data.ts). `sleep()` is deliberately not exported.
 
+`walletTest` supplies fixed Bitcoin fee quotes (3, 2, and 1 sat/vB) so compose and navigation tests
+do not depend on a live fee provider responding. Tests for other quotes or provider failures can
+override the fee endpoint with `context.route` after the fixture is initialized.
+
 ## Approval tests
 
 Browser approval tests must initialize the wallet fixture, require a successful decision and

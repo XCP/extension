@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { fetchTokenBalancesPage } from '@/core/counterparty/api';
@@ -41,8 +41,9 @@ vi.mock("@/core/zeld/api", async (importOriginal) => ({
   fetchZeldBalance: (...args: unknown[]) => mockFetchZeldBalance(...args),
 }));
 
+let search = { searchQuery: '', searchResults: [] as { symbol: string }[], isSearching: false, error: null as string | null };
 vi.mock("@/hooks/useSearchQuery", () => ({
-  useSearchQuery: () => ({ searchQuery: "", setSearchQuery: vi.fn(), searchResults: [], isSearching: false, error: null, retry: vi.fn() }),
+  useSearchQuery: () => ({ ...search, setSearchQuery: vi.fn(), retry: vi.fn() }),
 }));
 let inView = false;
 vi.mock("@/hooks/useInView", () => ({ useInView: () => ({ ref: vi.fn(), inView }) }));
@@ -57,6 +58,7 @@ describe("BalanceList ZELD row", () => {
     activeAddress = 'bc1qtest123';
     inView = false;
     zeldHuntSeconds = 20;
+    search = { searchQuery: '', searchResults: [], isSearching: false, error: null };
     mockFetchZeldBalance.mockResolvedValue({ baseUnits: 409_600_000_000n, utxos: [{ txid: "00".repeat(32), vout: 1, balance: 409_600_000_000n }] });
   });
 
@@ -90,12 +92,16 @@ describe("BalanceList ZELD row", () => {
     expect(screen.queryByText("ZELD")).not.toBeInTheDocument();
   });
 
-  it("keeps the other balances when the indexer is down", async () => {
+  it.each([0, 20])("keeps ZELD reachable without claiming zero when the indexer is down (budget=%s)", async seconds => {
+    zeldHuntSeconds = seconds;
     mockFetchZeldBalance.mockRejectedValue(new Error("down"));
     render(<BalanceList />);
     expect(await screen.findAllByText("BTC")).not.toHaveLength(0);
     await waitFor(() => expect(screen.queryByText("Failed to load balances.")).not.toBeInTheDocument());
-    expect(screen.queryByText("ZELD")).not.toBeInTheDocument();
+    expect(await screen.findByText('Balance unavailable. Try again shortly.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View ZELD (ZeldHash)' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/zeld');
+    expect(cacheBalances.mock.calls.flatMap(call => call[1]).some(balance => balance.asset === 'zeldhash:ZELD')).toBe(false);
   });
 
   it.each([0, 20])('loads balances, pagination and refresh without waiting for ZELD (budget=%s)', async seconds => {
@@ -109,7 +115,8 @@ describe("BalanceList ZELD row", () => {
     expect(screen.getAllByText('XCP')).not.toHaveLength(0);
     await waitFor(() => expect(fetchTokenBalancesPage).toHaveBeenCalled());
     expect(screen.queryByText('Loading balances…')).not.toBeInTheDocument();
-    expect(screen.queryByText('ZELD')).not.toBeInTheDocument();
+    if (seconds > 0) expect(screen.getByRole('button', { name: 'View ZELD (ZeldHash)' })).toBeInTheDocument();
+    else expect(screen.queryByText('ZELD')).not.toBeInTheDocument();
     rerender(<BalanceList refreshNonce={1} onRefreshed={onRefreshed} />);
     await waitFor(() => expect(onRefreshed).toHaveBeenCalledOnce());
     await act(async () => finish({ baseUnits: 409_600_000_000n, utxos: [] }));
@@ -126,10 +133,26 @@ describe("BalanceList ZELD row", () => {
     expect(await screen.findAllByText('BTC')).not.toHaveLength(0);
     activeAddress = 'bc1qnewaddress';
     rerender(<BalanceList />);
-    expect(await screen.findByText('ZELD')).toBeInTheDocument();
+    await waitFor(() => expect(mockFetchZeldBalance).toHaveBeenLastCalledWith(activeAddress));
+    await waitFor(() => expect(screen.getByText('ZELD')).toBeInTheDocument());
     await act(async () => finish({ baseUnits: 409_600_000_000n, utxos: [] }));
     expect(screen.queryByText('4,096.00000000')).not.toBeInTheDocument();
     expect(cacheBalances.mock.calls.flatMap(call => call[1]).filter(balance => balance.asset === 'zeldhash:ZELD'))
       .toEqual([expect.objectContaining({ quantity_normalized: '0.00000000' })]);
+  });
+
+  it.each(['waiting', 'failed', 'empty', 'collision'])('finds native ZELD when Counterparty search is %s', async mode => {
+    search = { searchQuery: 'zeld', searchResults: mode === 'collision' ? [{ symbol: 'ZELD' }] : [],
+      isSearching: mode === 'waiting', error: mode === 'failed' ? 'Search failed' : null };
+    mockFetchZeldBalance.mockRejectedValue(new Error('indexer down'));
+    render(<BalanceList />);
+    fireEvent.click(screen.getByRole('button', { name: 'View ZELD (ZeldHash)' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/zeld');
+    expect(screen.queryByText('No results found')).not.toBeInTheDocument();
+    if (mode === 'collision') {
+      fireEvent.click(screen.getByRole('button', { name: 'View ZELD (Counterparty)' }));
+      expect(mockNavigate).toHaveBeenLastCalledWith('/assets/ZELD/balance');
+    }
+    await waitFor(() => expect(mockFetchZeldBalance).toHaveBeenCalledOnce());
   });
 });
