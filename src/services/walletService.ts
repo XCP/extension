@@ -12,7 +12,7 @@ import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/types/coin
 import type { AddressFormat } from '@/core/bitcoin/addressFormat';
 
 import type { ConsolidationResult as BatchConsolidationResult } from '@/core/bitcoin/consolidateBatch';
-import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import { type ConsolidationRequest, fromConsolidationRequest } from '@/core/bitcoin/consolidationRequest';
 import type { CancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import type { TaprootRevealToSign } from '@/core/bitcoin/taprootRevealSigner';
 import type { KnownZeldOutpoint, ZeldOutpointUpdate } from '@/core/zeld/knownOutpoints';
@@ -104,7 +104,7 @@ export interface WalletService {
   setLastActiveTime: (activityTime?: number) => Promise<void>;
   consolidateBareMultisig: (
     sourceAddress: string,
-    batchData: ConsolidationData,
+    batchData: ConsolidationRequest,
     feeRateSatPerVByte: number,
     destinationAddress?: string
   ) => Promise<BatchConsolidationResult>;
@@ -287,7 +287,7 @@ function createWalletService(): WalletService {
     // Sign in the background so the private key never reaches the popup. The signer holds the
     // key and stops the batch if the wallet locks or the active identity changes mid-batch.
     consolidateBareMultisig: async (sourceAddress, batchData, feeRateSatPerVByte, destinationAddress) =>
-      walletManager.consolidateBareMultisig(sourceAddress, batchData, feeRateSatPerVByte, destinationAddress),
+      walletManager.consolidateBareMultisig(sourceAddress, fromConsolidationRequest(batchData), feeRateSatPerVByte, destinationAddress),
   };
 
   // Lazy expiry detection performs a full lock instead of a bare secret wipe

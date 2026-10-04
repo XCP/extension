@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import { type ConsolidationRequest, toConsolidationRequest } from '@/core/bitcoin/consolidationRequest';
 import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import ja from '../../../public/_locales/ja/messages.json';
 import { useMultiBatchConsolidation } from '../useMultiBatchConsolidation';
@@ -40,11 +41,15 @@ function batch(page: number, utxos = 10): ConsolidationData {
   return {
     address: ADDRESS,
     summary: { total_utxos: 20, total_btc: 0.1, batches_required: 2, current_batch: page, batch_utxos: utxos },
+    utxos: Array.from({ length: utxos }, (_, vout) => ({
+      txid: 'ab'.repeat(32), vout, amount: 10_000, prev_tx_hex: 'deadbeef',
+      script: '51', position: 0, script_type: 'bare_multisig',
+    })),
   } as ConsolidationData;
 }
 
 /** A signed batch whose hex, and so whose txid, names its page. */
-function signed(_address: string, data: ConsolidationData) {
+function signed(_address: string, data: ConsolidationRequest) {
   const page = data.summary.current_batch;
   return Promise.resolve({ signedTxHex: `hex-${page}`, networkFee: 100, serviceFee: 50, outputAmount: 10_000 * page });
 }
@@ -82,8 +87,8 @@ describe('useMultiBatchConsolidation', () => {
     });
 
     expect(fixture.consolidate.mock.calls).toEqual([
-      [ADDRESS, batch(1), 5, 'bc1qdestination'],
-      [ADDRESS, batch(2), 5, 'bc1qdestination'],
+      [ADDRESS, toConsolidationRequest(batch(1)), 5, 'bc1qdestination'],
+      [ADDRESS, toConsolidationRequest(batch(2)), 5, 'bc1qdestination'],
     ]);
     expect(fixture.broadcast.mock.calls).toEqual([['hex-1'], ['hex-2']]);
     expect(fixture.report).toHaveBeenCalledTimes(2);

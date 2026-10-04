@@ -17,6 +17,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { bareMultisigScript, buildPrevTx, counterpartyDataKey, txidOf } from '@/core/bitcoin/__tests__/helpers/bareMultisigFixtures';
 import { consolidateBareMultisigBatch } from '@/core/bitcoin/consolidateBatch';
 import type { ConsolidationData, ConsolidationUTXO } from '@/core/bitcoin/consolidationApi';
+import { toConsolidationRequest } from '@/core/bitcoin/consolidationRequest';
 import { getPrivateKeyFromMnemonic } from '@/core/bitcoin/privateKey';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { walletManager } from '@/platform/walletManager';
@@ -153,7 +154,7 @@ describe('consolidation signs exactly as before', () => {
     const { address, signingKey, batch } = await fixtureFor(key, count);
     const expected = await consolidateBareMultisigBatch(signingKey.hex, address, structuredClone(batch), 7, FEE_ADDRESS);
 
-    const result = await getWalletService().consolidateBareMultisig(address, batch, 7, FEE_ADDRESS);
+    const result = await getWalletService().consolidateBareMultisig(address, toConsolidationRequest(batch), 7, FEE_ADDRESS);
 
     expect(result).toEqual(expected);
     expect(result.serviceFee).toBeGreaterThan(0);
@@ -164,7 +165,7 @@ describe('consolidation signs exactly as before', () => {
     const other = await use('p2wpkh');
     await use('p2pkh');
     const getUnlockedSecret = vi.spyOn(sessionManager, 'getUnlockedSecret');
-    await expect(getWalletService().consolidateBareMultisig(other, batch, 7))
+    await expect(getWalletService().consolidateBareMultisig(other, toConsolidationRequest(batch), 7))
       .rejects.toThrow('Source address is not part of the active wallet');
     expect(getUnlockedSecret).not.toHaveBeenCalled();
   });
@@ -177,7 +178,7 @@ describe('consolidation signs exactly as before', () => {
     const expected = await consolidateBareMultisigBatch(hardwareSecret.hex as string, address, batch, 7)
       .then(() => null, (error: Error) => error.message);
     expect(expected).toEqual(expect.any(String));
-    await expect(getWalletService().consolidateBareMultisig(address, batch, 7)).rejects.toThrow(expected!);
+    await expect(getWalletService().consolidateBareMultisig(address, toConsolidationRequest(batch), 7)).rejects.toThrow(expected!);
   });
 
   it("signs from a wallet's second address with that address's own key", async () => {
@@ -187,7 +188,7 @@ describe('consolidation signs exactly as before', () => {
     const batch = batchFor(second.address, secp256k1.getPublicKey(hexToBytes(signingKey.hex), true), 2);
     const expected = await consolidateBareMultisigBatch(signingKey.hex, second.address, structuredClone(batch), 7, FEE_ADDRESS);
 
-    expect(await getWalletService().consolidateBareMultisig(second.address, batch, 7, FEE_ADDRESS)).toEqual(expected);
+    expect(await getWalletService().consolidateBareMultisig(second.address, toConsolidationRequest(batch), 7, FEE_ADDRESS)).toEqual(expected);
   });
 });
 
@@ -195,7 +196,7 @@ describe('a lock or identity change during a consolidation batch', () => {
   it('a lock at a yield between signing chunks stops the batch', async () => {
     const { address, batch } = await fixtureFor('p2pkh', YIELDING_BATCH);
     const pending = parkNextSigningYield();
-    const signing = getWalletService().consolidateBareMultisig(address, batch, 7);
+    const signing = getWalletService().consolidateBareMultisig(address, toConsolidationRequest(batch), 7);
     const rejected = expect(signing).rejects.toThrow(SESSION_CHANGED);
     await pending.entered;
     await walletManager.lockKeychain();
@@ -209,7 +210,7 @@ describe('a lock or identity change during a consolidation batch', () => {
     const second = await walletManager.addAddress(walletId('p2pkh'));
     const { address, batch } = await fixtureFor('p2pkh', YIELDING_BATCH);
     const pending = parkNextSigningYield();
-    const signing = getWalletService().consolidateBareMultisig(address, batch, 7);
+    const signing = getWalletService().consolidateBareMultisig(address, toConsolidationRequest(batch), 7);
     const rejected = expect(signing).rejects.toThrow(IDENTITY_CHANGED);
     await pending.entered;
     await walletManager.updateSettings({ lastActiveAddress: second.address });
@@ -224,7 +225,7 @@ describe('a lock or identity change during a consolidation batch', () => {
     const pending = barrier();
     sessionBarrier = pending;
     vi.mocked(consolidateBareMultisigBatch).mockClear();
-    const signing = getWalletService().consolidateBareMultisig(address, batch, 7);
+    const signing = getWalletService().consolidateBareMultisig(address, toConsolidationRequest(batch), 7);
     const rejected = expect(signing).rejects.toThrow(IDENTITY_CHANGED);
     await pending.entered;
     await walletManager.updateSettings({ lastActiveAddress: second.address });

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WalletService } from '@/services/walletService';
 
 // ---------------------------------------------------------------------------
 // Mock Chrome API for port-based integration test
@@ -53,6 +54,7 @@ describe('Proxy Service Integration', () => {
     getBalance: (address: string) => Promise<number>;
     sendTransaction: (to: string, amount: number) => Promise<string>;
     getReview: () => Promise<Record<string, unknown>>;
+    consolidateBareMultisig: WalletService['consolidateBareMultisig'];
   }
 
   let mockWalletService: TestWalletService;
@@ -76,9 +78,10 @@ describe('Proxy Service Integration', () => {
       getBalance: vi.fn().mockResolvedValue(100000000),
       sendTransaction: vi.fn().mockResolvedValue('abc123txhash'),
       getReview: vi.fn().mockResolvedValue({}),
+      consolidateBareMultisig: vi.fn(),
     };
 
-    const policy = { methods: { getBalance: 'read', sendTransaction: 'command', getReview: 'read' } } as const;
+    const policy = { methods: { getBalance: 'read', sendTransaction: 'command', getReview: 'read', consolidateBareMultisig: 'command' } } as const;
     [registerService, getService] = defineProxyServer('WalletService', () => mockWalletService, policy);
     getClient = defineProxyClient<TestWalletService>('WalletService', policy);
   });
@@ -155,6 +158,44 @@ describe('Proxy Service Integration', () => {
     expect(txHash).toBe('abc123txhash');
     expect(mockWalletService.sendTransaction).toHaveBeenCalledWith('bc1q789...', 50000000);
   });
+
+  it.each([205, 420])('signs a %i-output recovery through the bounded JSON RPC without repeating its parent', async (count) => {
+    const { recoveryBatchFixture, RECOVERY_TEST_KEY, RECOVERY_TEST_PUBKEY, RECOVERY_TEST_SCRIPT } =
+      await import('@/core/bitcoin/__tests__/helpers/recoveryBatchFixture');
+    const { parseWireTx, derToCompact, legacySighashAll } = await import('@/core/bitcoin/__tests__/helpers/bareMultisigFixtures');
+    const { hexToBytes } = await import('@noble/hashes/utils.js');
+    const { verify } = await import('@noble/secp256k1');
+    const { consolidateBareMultisigBatch } = await import('@/core/bitcoin/consolidateBatch');
+    const { toConsolidationRequest, fromConsolidationRequest } = await import('@/core/bitcoin/consolidationRequest');
+    const { getWalletServiceClient } = await import('@/services/walletServiceClient');
+    const batch = recoveryBatchFixture(count);
+    vi.mocked(mockWalletService.consolidateBareMultisig).mockImplementation((source, request, feeRate, destination) =>
+      consolidateBareMultisigBatch(RECOVERY_TEST_KEY, source, fromConsolidationRequest(request), feeRate, destination));
+    setupIntegration();
+
+    // Reproduce the reported error with the old wire shape, before the signer is even reached.
+    // @ts-expect-error Deliberately replaying the pre-fix request.
+    await expect(getWalletServiceClient().consolidateBareMultisig(batch.address, batch, 1)).rejects.toThrow('Invalid RPC request');
+    expect(mockWalletService.consolidateBareMultisig).not.toHaveBeenCalled();
+
+    const request = toConsolidationRequest(batch);
+    expect(JSON.stringify(request).length).toBeLessThan(200_000);
+    const result = await getWalletServiceClient().consolidateBareMultisig(batch.address, request, 1);
+    expect(mockWalletService.consolidateBareMultisig).toHaveBeenCalledOnce();
+    const tx = parseWireTx(hexToBytes(result.signedTxHex));
+    expect(tx.inputs).toHaveLength(count);
+    expect(result.totalInput).toBe(count * 10_000);
+    expect(tx.outputs[0]!.amount).toBe(BigInt(result.outputAmount));
+    expect(result.outputAmount + result.networkFee + result.serviceFee).toBe(result.totalInput);
+    for (let index = 0; index < count; index++) {
+      expect(tx.inputs[index]!.vout).toBe(index);
+      const scriptSig = tx.inputs[index]!.script;
+      expect(scriptSig[0]).toBe(0);
+      expect(scriptSig[scriptSig.length - 1]).toBe(1); // SIGHASH_ALL
+      expect(verify(derToCompact(scriptSig.slice(2, -1)), legacySighashAll(tx, index, RECOVERY_TEST_SCRIPT),
+        RECOVERY_TEST_PUBKEY, { prehash: false })).toBe(true);
+    }
+  }, 30_000);
 
   it('delivers an exact production Counterparty decode and its fingerprint through Chrome JSON messaging', async () => {
     const { unpackAttach } = await import('@/core/counterparty/unpack/messages/attach');
