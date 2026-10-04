@@ -2,12 +2,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ApproveMessagePage from '../approve';
 
-const state = vi.hoisted(() => ({ approve: vi.fn(), cancel: vi.fn(), cancellation: true, header: vi.fn() }));
+const state = vi.hoisted(() => ({ approve: vi.fn(), cancel: vi.fn(), cancellation: true, presigned: false, header: vi.fn() }));
 vi.mock('@/hooks/useSignMessageRequest', () => ({ useSignMessageRequest: () => ({
   request: { id: 'cancel', address: 'bc1qaddress', origin: 'https://market.example', message: 'Original message bytes',
     ...(state.cancellation ? { cancelOffersIntent: { offerIds: ['a', 'b'] } } : {}) },
-  review: { cancellationCoins: [{ outpoint: 'a'.repeat(64) + ':0', effect: 'unlocks' },
-    { outpoint: 'b'.repeat(64) + ':1', effect: 'stays_locked' }] },
+  review: { cancellationCoins: [{ outpoint: 'a'.repeat(64) + ':0', effect: 'unlocks', presigned: state.presigned },
+    { outpoint: 'b'.repeat(64) + ':1', effect: 'stays_locked', presigned: false }] },
   requestId: 'cancel', isLoading: false, error: null, handleApprove: state.approve, handleCancel: state.cancel,
 }) }));
 vi.mock('@/contexts/wallet-context', () => ({ useWallet: () => ({
@@ -18,6 +18,7 @@ vi.mock('@/hooks/usePopupLifecycle', () => ({ usePopupLifecycle: vi.fn() }));
 
 beforeEach(() => {
   state.cancellation = true;
+  state.presigned = false;
   state.approve.mockReset().mockResolvedValue(undefined);
   state.cancel.mockReset().mockResolvedValue(undefined);
   vi.spyOn(window, 'close').mockImplementation(() => {});
@@ -46,4 +47,16 @@ it('declining a cancellation never submits a signing approval', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   await waitFor(() => expect(state.cancel).toHaveBeenCalled());
   expect(state.approve).not.toHaveBeenCalled();
+});
+
+const PRESIGNED = 'Bitcoin authorizations you already signed still work until their coins are spent. Cancelling takes the offers off the site; it does not spend the coins.';
+
+it('says signed Bitcoin authorizations outlive the cancellation only where the wallet signed one', () => {
+  render(<ApproveMessagePage />);
+  expect(screen.queryByText(PRESIGNED)).not.toBeInTheDocument();
+  cleanup();
+  state.presigned = true;
+  render(<ApproveMessagePage />);
+  expect(screen.getByText(PRESIGNED)).toBeInTheDocument();
+  expect(screen.getByText('Unlocks')).toBeInTheDocument();
 });

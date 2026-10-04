@@ -19,10 +19,11 @@
  * candidate: that read is cached, fails over between indexers whose mempools differ, and leaves out
  * coins spent in the mempool. A candidate comes off when an outspend lookup (core/bitcoin/outspend.ts)
  * shows it spent by a confirmed transaction, or when both indexers have never heard of its funding
- * transaction after a day as a candidate. An offer lock also comes off when the offer
- * expired over an hour ago (an expired offer cannot settle); no offer lock outlives the longest
- * offer. A failed lookup is not evidence and removes nothing. A lock the user made by hand has no
- * expiry and no orphan rule: only a confirmed spend of the coin removes it.
+ * transaction after a day as a candidate. A funding-only slot can expire after the grace period.
+ * Once a spend has been signed, marketplace expiry cannot invalidate that Bitcoin signature:
+ * its lock and history stay until a confirmed spend, or an explicit unlock/cancellation (which
+ * keeps the history). A failed lookup is not evidence and removes nothing. A lock made by hand
+ * has no expiry and no orphan rule: only a confirmed spend removes it automatically.
  */
 import { MAX_OFFER_ID_LENGTH, MAX_OFFER_IDS } from '@/constants/offerLimits';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
@@ -35,6 +36,9 @@ export const MAX_COIN_LOCK_UPDATE = 500;
 /** Offer ids one lock keeps. Several offers may share a funding slot; far fewer ever do. */
 export const MAX_COIN_LOCK_REFS = MAX_OFFER_IDS;
 
+/** Other sites one lock records as also relying on its coin. */
+export const MAX_COIN_LOCK_SHARED_ORIGINS = 20;
+
 const MAX_ORIGIN_LENGTH = 512;
 const MAX_ADDRESS_LENGTH = 128;
 
@@ -43,12 +47,12 @@ const MAX_ADDRESS_LENGTH = 128;
  * whose funding transaction neither indexer has known for this long.
  */
 export const COIN_LOCK_ORPHAN_SECONDS = 24 * 60 * 60;
-/** How long past its offer's expiry a lock is kept: an expired offer cannot settle after this. */
+/** Grace period before releasing a funding-only slot with no recorded signed spend. */
 export const COIN_LOCK_EXPIRY_GRACE_SECONDS = 60 * 60;
 /**
  * The furthest ahead an offer lock may expire when written: the longest offer the marketplace
- * makes (90 days, as core/counterparty/policyOffer.ts checks) plus the grace. A site claiming a
- * later expiry, or none, still cannot lock a coin for longer.
+ * makes (90 days, as core/counterparty/policyOffer.ts checks) plus the grace. This caps funding-only
+ * reservations; it is not a Bitcoin expiry for a signed authorization.
  */
 export const MAX_COIN_LOCK_EXPIRY_SECONDS = 90 * 24 * 60 * 60 + COIN_LOCK_EXPIRY_GRACE_SECONDS;
 const COIN_LOCK_SEEN_REFRESH_SECONDS = 60 * 60;
@@ -71,6 +75,8 @@ const isTimestamp = (value: unknown): value is number =>
 const isSats = isTimestamp;
 const isRef = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0 && value.length <= MAX_OFFER_ID_LENGTH;
+const isOrigin = (value: unknown): value is string =>
+  typeof value === 'string' && value.length > 0 && value.length <= MAX_ORIGIN_LENGTH;
 
 /** One stored lock, or null when anything about it is malformed. */
 function parseStoredLock(value: unknown): CoinLock | null {
@@ -87,6 +93,9 @@ function parseStoredLock(value: unknown): CoinLock | null {
     || !isTimestamp(value.createdAt)
     || (value.seenAt !== null && !isTimestamp(value.seenAt))
     || (value.candidateSince !== undefined && !isTimestamp(value.candidateSince))
+    || (value.sharedOrigins !== undefined && (!Array.isArray(value.sharedOrigins)
+      || value.sharedOrigins.length > MAX_COIN_LOCK_SHARED_ORIGINS || !value.sharedOrigins.every(isOrigin)))
+    || (value.cancelled !== undefined && value.cancelled !== true)
     || typeof value.unlocked !== 'boolean') return null;
   return {
     outpoint,
@@ -96,11 +105,14 @@ function parseStoredLock(value: unknown): CoinLock | null {
     refs: [...value.refs as string[]],
     valueSats: value.valueSats,
     origin: value.origin as string | null,
+    ...(Array.isArray(value.sharedOrigins) && value.sharedOrigins.length > 0
+      ? { sharedOrigins: [...value.sharedOrigins as string[]] } : {}),
     expiresAt: value.expiresAt as number | null,
     createdAt: value.createdAt,
     seenAt: value.seenAt as number | null,
     ...(value.candidateSince !== undefined ? { candidateSince: value.candidateSince } : {}),
     unlocked: value.unlocked,
+    ...(value.cancelled === true ? { cancelled: true as const } : {}),
   };
 }
 
@@ -194,20 +206,29 @@ export function coinLocksOf(entries: readonly CoinLock[], address: string): Coin
 const offerExpired = (lock: CoinLock, now: number): boolean =>
   lock.kind !== 'manual' && lock.expiresAt !== null && now > lock.expiresAt + COIN_LOCK_EXPIRY_GRACE_SECONDS;
 
+/** `lock` without what only its offers had: the sites sharing it, and their cancellation. */
+function withoutOfferState(lock: CoinLock): CoinLock {
+  const { sharedOrigins: _shared, cancelled: _cancelled, ...rest } = lock;
+  return rest;
+}
+
 /** A lock whose offer ended becomes the hand lock it also was, or goes. */
 function withoutEndedOffer(lock: CoinLock): CoinLock | null {
   return lock.manual
-    ? { ...lock, kind: 'manual', refs: [], origin: null, expiresAt: null, unlocked: false }
+    ? { ...withoutOfferState(lock), kind: 'manual', refs: [], origin: null, expiresAt: null, unlocked: false }
     : null;
 }
 
-/** Apply the rules that need only the clock: an offer that ended over an hour ago. */
+/** Expire funding-only reservations; signed authorizations have no Bitcoin expiry. */
 function applyClock(lock: CoinLock, now: number): CoinLock | null {
+  // These are durable signature records, not merely marketplace reservations. Even when a site
+  // removes or expires its offer, a counterparty can still use the signed Bitcoin transaction.
+  if (lock.cancelled || lock.kind === 'collection_offer' || (lock.kind === 'offer_slot' && lock.refs.length > 0)) return lock;
   return offerExpired(lock, now) ? withoutEndedOffer(lock) : lock;
 }
 
 /**
- * The locks of `address` as they stand at `now` (unix seconds): expired offers already off, so a
+ * The locks of `address` as they stand at `now` (unix seconds): expired funding-only slots off, so a
  * read never enforces a lock the next write would drop. Unlocked records are included; callers
  * that enforce use `activeCoinLocks`.
  */
@@ -278,7 +299,8 @@ export function withCoinLockUpdate(
     if (lock && unlock.has(lock.outpoint)) {
       lock = lock.kind === 'manual' ? null : { ...lock, manual: false, unlocked: true };
     }
-    if (lock && relock.has(lock.outpoint) && lock.unlocked) {
+    // A cancelled coin has no offer left to lock again for; locking it by hand is the way back.
+    if (lock && relock.has(lock.outpoint) && lock.unlocked && !lock.cancelled) {
       lock = { ...lock, unlocked: false };
     }
     if (lock) next.push(lock);
@@ -309,8 +331,10 @@ const cappedExpiry = (expiresAt: number | null, now: number): number =>
  * `entries` with offer commitments a signature just proved added to `address`, or null when they
  * are already recorded. One lock per coin: a further offer on the same slot adds its id and extends
  * the expiry (never past MAX_COIN_LOCK_EXPIRY_SECONDS from now), and a coin locked by hand keeps
- * that too. A fresh commitment locks the coin again even if the user had unlocked it: they just
- * signed something that relies on it.
+ * that too. Another site's offer on the coin is recorded in `sharedOrigins`, so one site's
+ * cancellation cannot release a coin another site's offer still relies on. A fresh commitment
+ * locks the coin again even if the user had unlocked it: they just signed something that relies
+ * on it.
  */
 export function withOfferCoinLocks(
   entries: readonly CoinLock[],
@@ -336,16 +360,28 @@ export function withOfferCoinLocks(
       });
       continue;
     }
-    const offer = backsOffers(existing);
+    // A cancelled coin's offers are over: the new commitment's site holds it afresh.
+    const offer = backsOffers(existing) && !existing.cancelled;
+    const origin = offer ? existing.origin ?? commitment.origin : commitment.origin;
+    const sharedOrigins = offer ? withSharedOrigin(existing.sharedOrigins ?? [], origin, commitment.origin) : [];
     next[index] = {
-      ...existing,
+      ...withoutOfferState(existing),
       kind: offer ? existing.kind : commitment.kind,
+      // A new offer does not revoke the authorizations retained from a cancelled one.
       refs: mergeOfferRefs(existing.refs, commitment.refs),
       valueSats: existing.valueSats > 0 ? existing.valueSats : commitment.valueSats,
-      origin: offer ? existing.origin ?? commitment.origin : commitment.origin,
+      origin,
+      ...(sharedOrigins.length > 0 ? { sharedOrigins } : {}),
       expiresAt: cappedExpiry(offer ? laterExpiry(existing.expiresAt, commitment.expiresAt) : commitment.expiresAt, now),
       unlocked: false,
     };
   }
   return replaceAddress(entries, address, current, next);
+}
+
+/** The sites sharing a coin once `site` commits it too; the lock's own `owner` is never listed. */
+function withSharedOrigin(shared: readonly string[], owner: string | null, site: string): string[] {
+  if (site === owner || shared.includes(site)) return [...shared];
+  if (shared.length >= MAX_COIN_LOCK_SHARED_ORIGINS) throw new Error('Too many sites share this coin. Cancel unused offers before adding more.');
+  return [...shared, site];
 }

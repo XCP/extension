@@ -19,7 +19,7 @@ const OUT = process.env.XCP_COIN_LOCK_SHOTS ?? 'test-results/coin-locks';
 const ORIGIN = 'https://market.example';
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
 
-interface Lock { outpoint: string; kind: string; manual: boolean; refs: string[]; origin: string | null; unlocked: boolean }
+interface Lock { outpoint: string; kind: string; manual: boolean; refs: string[]; origin: string | null; unlocked: boolean; cancelled?: true }
 
 walletTest('offer coins are locked when signed, listed, and unlocked only by confirming', async ({ page, context, extensionId }) => {
   walletTest.setTimeout(300_000);
@@ -183,9 +183,40 @@ walletTest('offer coins are locked when signed, listed, and unlocked only by con
   await expect(cancel.getByText('Cancel offer-1 and offer-2', { exact: true })).toBeVisible();
   await cancel.screenshot({ path: path.join(OUT, '8-cancel-offers.png'), fullPage: true });
   await cancel.getByRole('button', { name: 'Sign', exact: true }).click();
-  await expect.poll(async () => (await locks()).some(lock => lock.outpoint === `${fund.id}:1`)).toBe(false);
+  await expect.poll(async () => (await locks()).find(lock => lock.outpoint === `${fund.id}:1`))
+    .toMatchObject({ unlocked: true, cancelled: true });
   expect((await locks()).find(lock => lock.outpoint === `${plain}:1`)).toMatchObject({ manual: true, unlocked: false });
   expect((await locks()).find(lock => lock.outpoint === `${spend.id}:0`)).toMatchObject({ origin: 'https://other.example', unlocked: false });
+
+  // On-chain invalidation signs a spend back to the bidder, but signing is not confirmation.
+  // Exercise the actual approval and background signer, not only the service-level fixture.
+  await callGalleryService(page, 'updateCoinLocks', [signer, { relock: [`${fund.id}:0`] }]);
+  const invalidation = new Transaction({ version: 2, lockTime: 0 });
+  invalidation.addInput({ txid: fund.id, index: 0, witnessUtxo: { script, amount: 20_000n }, sighashType: 1 });
+  invalidation.addOutput({ script, amount: 19_500n });
+  await seed(page, { id: 'invalidate', kind: 'sign-psbt', psbtHex: hex(invalidation.toPSBT()),
+    signInputs: { [signer]: [0] }, sighashTypes: [1], identity, marketplaceIntent: {
+      standard: 'counterparty-marketplace', version: 1, action: 'invalidate_offers',
+      protocolVersion: 'offer_invalidation_v1', operationId: 'invalidate-1', assets: [], bidder: signer,
+      fundingInputs: [{ txid: fund.id, vout: 0, valueSats: 20_000 }],
+      returnSats: 19_500, networkFeeSats: 500, expectedTxid: invalidation.id,
+    } });
+  const invalidate = await openApproval(context, extensionId, 'invalidate');
+  await expect(invalidate.getByText(/Signing alone does not cancel those Bitcoin authorizations/)).toHaveCount(1);
+  await expect(invalidate.getByText('Spends a locked coin', { exact: true })).toHaveCount(0);
+  await invalidate.getByRole('button', { name: 'Invalidate offers on Bitcoin', exact: true }).click();
+  await expect.poll(async () => page.evaluate(async () => {
+    const { pending_sign_flow: flows } = await chrome.storage.session.get('pending_sign_flow');
+    return (flows as Array<{ id: string; status: string }>).find(flow => flow.id === 'invalidate')?.status;
+  }), { timeout: 30_000 }).toBe('completed');
+  const signedHex = await page.evaluate(async () => {
+    const { pending_sign_flow: flows } = await chrome.storage.session.get('pending_sign_flow');
+    return (flows as Array<{ id: string; result?: { signedPsbtHex: string } }>).find(flow => flow.id === 'invalidate')?.result?.signedPsbtHex;
+  });
+  expect(signedHex).toBeTruthy();
+  const signed = Transaction.fromPSBT(Uint8Array.from(Buffer.from(signedHex!, 'hex')));
+  expect(signed.getInput(0).partialSig?.length ?? signed.getInput(0).tapKeySig?.length).toBeGreaterThan(0);
+  expect((await locks()).find(lock => lock.outpoint === `${fund.id}:0`)).toMatchObject({ unlocked: false });
 });
 
 async function stub(context: BrowserContext, signer: string, parents: Map<string, string>, fundId: string, plain: string) {
@@ -229,6 +260,6 @@ async function openApproval(context: BrowserContext, extensionId: string, id: st
   const approval = await context.newPage();
   await approval.setViewportSize({ width: 380, height: 1100 });
   await approval.goto(`chrome-extension://${extensionId}/popup.html#/requests/psbt/approve?requestId=${id}`);
-  await expect(approval.getByRole('button', { name: /^(Fund offers|Review|Sign transaction|Blocked)$/ })).toBeVisible({ timeout: 60_000 });
+  await expect(approval.getByRole('button', { name: /^(Fund offers|Invalidate offers on Bitcoin|Review|Sign transaction|Blocked)$/ })).toBeVisible({ timeout: 60_000 });
   return approval;
 }

@@ -147,9 +147,12 @@ export function lockedCoinWarningText(coins: readonly LockedCoinSpend[]): { titl
   };
 }
 
-/** Whether a review asks to spend locked coins, which its confirmation then unlocks. */
+/**
+ * Whether a review asks to spend locked coins that its confirmation then unlocks. An offer
+ * invalidation's coins stay locked until its spend confirms, so its button does not say Unlock.
+ */
 export const spendsLockedCoins = (warnings: readonly SecurityWarning[]): boolean =>
-  warnings.some(warning => warning.code === 'locked_coin_spend');
+  warnings.some(warning => warning.code === 'locked_coin_spend' && !warning.data.releasedOnSpend);
 
 /**
  * The ZELD statements that need no decision: where ZELD stays with an asset. They are shown on

@@ -855,6 +855,10 @@
     "message": "Expires $1",
     "description": "components/domain/coins/coin-card.tsx. When the offers a coin backs expire. $1 = date and time."
   },
+  "coins_offer_cancelled": {
+    "message": "Offers cancelled. Signed authorizations still work until this coin is spent.",
+    "description": "components/domain/coins/coin-card.tsx. Line on an offer coin that a site's signed cancellation released. The wallet keeps the coin listed until it is spent, because what was signed against it still works until then."
+  },
   "coins_offer_site": {
     "message": "From $1",
     "description": "components/domain/coins/coin-card.tsx. The site whose offer locked a coin. $1 = site hostname."
@@ -4609,13 +4613,16 @@
     "description": "Row label on the buy and exact-offer approval screens, above the address the marketplace fee is paid to, shown only when the wallet proved that address is a key-path-only Taproot output of the key the site declared."
   },
   "marketplace_invalidation_title": {
-    "message": "Invalidate offers on Bitcoin"
+    "message": "Invalidate offers on Bitcoin",
+    "description": "requests/psbt/approve.tsx and core/counterparty/marketplace/invalidationAnalysis.ts. Header, review title and sign button for a site's request to spend offer funding coins back to the wallet, which invalidates the offers those coins back."
   },
   "marketplace_invalidation_return": {
-    "message": "Back to wallet"
+    "message": "Back to wallet",
+    "description": "core/counterparty/marketplace/invalidationAnalysis.ts. Label on the offer invalidation approval, above the sats the transaction returns to the wallet's own address."
   },
   "marketplace_invalidation_notice": {
-    "message": "This spends the selected funding coins back to your wallet, minus the network fee. Every offer using these coins becomes invalid when this transaction confirms. Signing alone does not cancel those Bitcoin authorizations. A chain reorganization can undo confirmation."
+    "message": "This spends the selected funding coins back to your wallet, minus the network fee. Every offer using these coins becomes invalid when this transaction confirms. Signing alone does not cancel those Bitcoin authorizations. A chain reorganization can undo confirmation.",
+    "description": "core/counterparty/marketplace/invalidationAnalysis.ts. Outcome note on the offer invalidation approval: spending the funding coins back to the wallet invalidates the offers only once the transaction confirms (the site broadcasts it), and a chain reorganization can undo that."
   },
   "marketplace_intent_network_fee": {
     "message": "Network fee",
@@ -9180,6 +9187,10 @@
   "message_cancel_one_offer": {
     "message": "Cancel 1 offer",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_presigned": {
+    "message": "Bitcoin authorizations you already signed still work until their coins are spent. Cancelling takes the offers off the site; it does not spend the coins.",
+    "description": "requests/message/approve.tsx. Offer cancellation approval, under the list of coins. Shown only when the wallet signed a spend of a listed coin for these offers (an exact-offer authorization or collection-offer funding). Those signatures stay valid until the coin is spent; the cancellation message only tells the site."
   },
   "message_cancel_sign": {
     "message": "Sign",

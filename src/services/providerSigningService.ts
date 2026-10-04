@@ -13,6 +13,7 @@ import {
   type LockCheckedItem,
   lockedCoinsToUnlock,
   lockedCoinWarning,
+  releasedOnSpend,
 } from '@/core/bitcoin/lockedCoinSpends';
 import { cancellationCoinReview } from '@/core/bitcoin/offerCancellation';
 import { getPsbtApprovalPolicy, getPsbtBundleApprovalPolicy, getTransactionApprovalPolicy, type ProviderApprovalPolicy } from '@/core/bitcoin/providerApprovalPolicy';
@@ -81,7 +82,9 @@ function isTransactionDataMismatch(error: unknown): error is Error {
  * Explain locked inputs using the same snapshot bound to the review.
  */
 function lockedCoinSpendWarning(origin: string, items: LockCheckedItem[], locks: CoinLock[]): SecurityWarning | null {
-  return locks.length ? lockedCoinWarning(findLockedCoinSpends(items, locks, origin)) : null;
+  return locks.length
+    ? lockedCoinWarning(findLockedCoinSpends(items, locks, origin), { releasedOnSpend: releasedOnSpend(items) })
+    : null;
 }
 
 /** The warnings a review carries, wherever its kind keeps them. */

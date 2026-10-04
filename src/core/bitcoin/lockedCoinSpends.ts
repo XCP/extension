@@ -1,7 +1,8 @@
 /**
  * Approval rules for spending locked coins. A proved exact-offer authorization may reuse
- * its own origin's funding slot. All other locked spends require acknowledgement;
- * manual locks never receive that exemption.
+ * its own origin's funding slot, and a proved offer invalidation may retire its own origin's
+ * offer coins. All other locked spends require acknowledgement; manual locks never receive
+ * that exemption.
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
@@ -42,8 +43,13 @@ const proved = (review: LockedCoinSpendContext['review']): boolean =>
 /** Whether signing this input may go ahead without the user unlocking `lock` first. */
 export function lockedCoinSpendAllowed(lock: CoinLock, spend: LockedCoinSpendContext): boolean {
   if (lock.unlocked) return true;
-  if (lock.manual || lock.kind !== 'offer_slot' || lock.origin !== spend.origin) return false;
+  if (lock.manual || lock.kind === 'manual' || lock.origin !== spend.origin) return false;
   const { intent } = spend;
+  // Spending the coin back to its owner is how the site ends offers it alone made on it. Its review
+  // proved every input is a claimed funding coin, so the coin is one of them; another site's offer
+  // sharing the coin would end too, and asks.
+  if (intent?.action === 'invalidate_offers') return proved(spend.review) && !lock.sharedOrigins?.length;
+  if (lock.kind !== 'offer_slot') return false;
   if (intent?.action !== 'authorize_exact_offer' || spend.inputIndex !== 0 || !proved(spend.review)) return false;
   const slot = intent.bitcoinInvalidation.outpoint;
   return `${slot.txid.toLowerCase()}:${slot.vout}` === lock.outpoint;
@@ -90,9 +96,13 @@ export function findLockedCoinSpends(
 
 /**
  * The approval warning for `coins`, or null when there are none. A warning rather than a block: the
- * user may mean it, and confirming unlocks the coins (providerSigningService.execute).
+ * user may mean it, and confirming unlocks the coins (providerSigningService.execute), unless
+ * `releasedOnSpend`: then the coins stay locked until the spend confirms, which releases them.
  */
-export function lockedCoinWarning(coins: readonly LockedCoinSpend[]): SecurityWarning | null {
+export function lockedCoinWarning(
+  coins: readonly LockedCoinSpend[],
+  { releasedOnSpend = false }: { releasedOnSpend?: boolean } = {},
+): SecurityWarning | null {
   if (coins.length === 0) return null;
   const offers = coins.some(coin => coin.kind !== 'manual');
   return {
@@ -102,15 +112,23 @@ export function lockedCoinWarning(coins: readonly LockedCoinSpend[]): SecurityWa
     message: offers
       ? 'This spends a coin locked for your offer. Your offer will be cancelled when this confirms.'
       : 'This spends a coin you locked.',
-    data: { coins: [...coins] },
+    data: { coins: [...coins], ...(releasedOnSpend ? { releasedOnSpend: true as const } : {}) },
   };
 }
+
+/**
+ * Whether a request's locked spends should leave the locks until the spend confirms. An offer
+ * invalidation is handed back to the site to broadcast; if it never does, its offers live on, so
+ * signing it must not free the coins (core/bitcoin/coinLockStore.ts releases them once spent).
+ */
+export const releasedOnSpend = (items: readonly LockCheckedItem[]): boolean =>
+  items.length > 0 && items.every(item => item.intent?.action === 'invalidate_offers');
 
 /** The coins a review's warnings would unlock on confirmation, by address. */
 export function lockedCoinsToUnlock(warnings: readonly SecurityWarning[]): Map<string, string[]> {
   const byAddress = new Map<string, string[]>();
   for (const warning of warnings) {
-    if (warning.code !== 'locked_coin_spend') continue;
+    if (warning.code !== 'locked_coin_spend' || warning.data.releasedOnSpend) continue;
     for (const coin of warning.data.coins) {
       byAddress.set(coin.address, [...new Set([...(byAddress.get(coin.address) ?? []), coin.outpoint])]);
     }

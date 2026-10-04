@@ -176,14 +176,15 @@ describe('provider signing with locked coins', () => {
     store.locks = [lock()];
     await beginSignFlow(cancellation());
     const review = await service.getReview('cancel-1');
-    expect(review).toMatchObject({ cancellationCoins: [{ outpoint: SLOT_OUTPOINT, effect: 'unlocks' }] });
+    expect(review).toMatchObject({ cancellationCoins: [{ outpoint: SLOT_OUTPOINT, effect: 'unlocks', presigned: true }] });
     mocks.wallet.signMessage.mockImplementationOnce(async () => {
       expect(store.locks).toHaveLength(1);
       return { signature: 'signed-message', address: identity.address };
     });
     await service.approveAndSign('cancel-1', { reviewKey: review.reviewKey, risksAcknowledged: false });
     expect(mocks.wallet.signMessage).toHaveBeenCalledWith('Original cancellation bytes', identity.address, identity);
-    expect(store.locks).toEqual([]);
+    // Released, not forgotten: the signed authorization still works until the coin is spent.
+    expect(store.locks).toEqual([lock({ unlocked: true, cancelled: true })]);
     expect(store.emittedBeforeUpdate).toBe(0);
     expect(mocks.emit).toHaveBeenCalledWith('sign-message-complete-cancel-1', { signature: 'signed-message' });
   });
@@ -306,6 +307,37 @@ describe('provider signing with locked coins', () => {
       await beginSignFlow(psbtRequest({ id: `req-${locked.origin}-${locked.manual}`, marketplaceIntent: authorize as never }));
       expect(lockWarnings(await service.getReview(`req-${locked.origin}-${locked.manual}`))).toHaveLength(1);
     }
+  });
+
+  const invalidate = { action: 'invalidate_offers', fundingInputs: [{ ...SLOT, valueSats: 20_000 }] };
+
+  it('retires the site\'s own offer coin without asking, and leaves the lock for the confirmed spend to release', async () => {
+    store.locks = [lock()];
+    mocks.decodePsbt.mockImplementation(async () => decoded({ status: 'proved' }));
+    await beginSignFlow(psbtRequest({ marketplaceIntent: invalidate as never }));
+    const review = await service.getReview('req-1');
+    expect(lockWarnings(review)).toEqual([]);
+    expect(review.policy.requiresAcknowledgement).toBe(false);
+    await service.approveAndSign('req-1', { reviewKey: review.reviewKey, risksAcknowledged: false });
+    expect(mocks.wallet.signPsbt).toHaveBeenCalledWith('psbt', { [identity.address]: [0] }, undefined, identity, { approvedCoinLocks: [lock()] });
+    // The site broadcasts; until the spend confirms, the coin stays out of sends and its offer lives.
+    expect(store.updates).toEqual([]);
+    expect(store.commits).toEqual([]);
+  });
+
+  it('asks before an invalidation spends a hand lock or a coin another site relies on, and still unlocks nothing', async () => {
+    mocks.decodePsbt.mockImplementation(async () => decoded({ status: 'proved' }));
+    const cases = [lock({ manual: true }), lock({ origin: 'https://other.example' }), lock({ sharedOrigins: ['https://other.example'] })];
+    for (const [index, locked] of cases.entries()) {
+      store.locks = [locked];
+      await beginSignFlow(psbtRequest({ id: `inv-${index}`, marketplaceIntent: invalidate as never }));
+      const review = await service.getReview(`inv-${index}`);
+      expect(lockWarnings(review)).toEqual([expect.objectContaining({ data: expect.objectContaining({ releasedOnSpend: true }) })]);
+      expect(review.policy.requiresAcknowledgement).toBe(true);
+      await service.approveAndSign(`inv-${index}`, { reviewKey: review.reviewKey, risksAcknowledged: true });
+    }
+    expect(mocks.wallet.signPsbt).toHaveBeenCalledTimes(cases.length);
+    expect(store.updates).toEqual([]);
   });
 
   it('refuses a click once a lock appeared after the review was shown', async () => {

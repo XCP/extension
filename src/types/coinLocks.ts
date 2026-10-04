@@ -12,11 +12,16 @@ export interface CoinLock {
   kind: CoinLockKind;
   /** The user also locked it by hand. Always true for `manual`; kept when an offer adds its own. */
   manual: boolean;
-  /** Offer, authorization or policy-offer ids the coin backs, when the signed intent named them. */
+  /** Historical offer/authorization IDs from signed intents; cancellation never revokes this evidence. */
   refs: string[];
   valueSats: number;
   /** The site whose signature request committed the coin. Null for a lock made by hand. */
   origin: string | null;
+  /**
+   * Other sites whose signed offers also rely on the coin. Each one's cancellation ends only its
+   * own claim, so the coin stays locked while any site still has one. Absent when none.
+   */
+  sharedOrigins?: string[];
   /** Unix seconds, the latest expiry across the offers it backs, capped when written. Null for a hand lock. */
   expiresAt: number | null;
   /** Unix seconds. */
@@ -25,8 +30,14 @@ export interface CoinLock {
   seenAt: number | null;
   /** Unix seconds since a UTXO read first missed the coin. Absent while reads find it. */
   candidateSince?: number;
-  /** The user unlocked it. The record stays while the offer lives, so it can be locked again. */
+  /** The user unlocked it. Signed-authorization history stays until the coin is spent. */
   unlocked: boolean;
+  /**
+   * Its offers were cancelled by a signed message, which released the coin (`unlocked`). What the
+   * wallet already signed against the coin still works until it is spent, so the record stays
+   * until then, regardless of marketplace expiry, to say so. Absent otherwise.
+   */
+  cancelled?: true;
 }
 
 /** One offer commitment a signature proved, as the background records it. */

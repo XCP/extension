@@ -38,14 +38,54 @@ export function parseCancelOffersIntent(value: unknown): CancelOffersIntent | un
 export interface CancelOfferCoinReview {
   outpoint: string;
   effect: 'unlocks' | 'stays_locked' | 'no_lock';
+  /**
+   * The wallet signed a spend of this coin for the site's offers (an exact-offer authorization, or
+   * a collection offer's funding). Cancelling does not undo that signature: it works until the coin
+   * is spent. Judged from the lock: a collection offer always signed one, and an offer slot did
+   * once it names an offer (fund_offers alone names none).
+   */
+  presigned: boolean;
+}
+
+type CancelledCoin = CancelOffersIntent['coins'][number];
+
+const coinKey = (coin: CancelledCoin): string => `${coin.outpoint.txid}:${coin.outpoint.vout}`;
+
+/** Whether `origin` holds a claim on `lock`: it made the lock, or later committed the coin too. */
+const claims = (lock: CoinLock, origin: string): boolean =>
+  lock.origin === origin || (lock.sharedOrigins?.includes(origin) ?? false);
+
+/**
+ * `lock` once `origin` cancels its offers on the coin, or `lock` itself when nothing
+ * changes. Only that site's claim ends: another site that committed the coin keeps it locked, and
+ * a hand lock is never touched. A coin no longer committed is released with its record kept,
+ * marked cancelled, because what the wallet signed against it works until the coin is spent.
+ * Offer ids only label the lock: the marketplace names an offer differently from the authorization
+ * id the signature recorded, so they cannot decide whether the coin is still committed.
+ */
+function withCancelledClaim(lock: CoinLock, origin: string, coin: CancelledCoin): CoinLock {
+  if (lock.kind === 'manual' || lock.manual || lock.cancelled || !claims(lock, origin)) return lock;
+  // Refs are signature history, not the site's live order book. They are not namespaced by site,
+  // and cancelling a same-named offer must not erase another site's authorization evidence.
+  if (coin.stillCommitted) return lock;
+  const { sharedOrigins: _shared, ...rest } = lock;
+  const others = (lock.sharedOrigins ?? []).filter(site => site !== origin);
+  if (lock.origin === origin && others.length === 0) return { ...rest, unlocked: true, cancelled: true };
+  // The coin stays as it was for the sites still relying on it; the first of them now holds it.
+  const [owner = null, ...shared] = lock.origin === origin ? others : [lock.origin, ...others];
+  return { ...rest, origin: owner, ...(shared.length > 0 ? { sharedOrigins: shared as string[] } : {}) };
 }
 
 export function cancellationCoinReview(locks: readonly CoinLock[], origin: string, intent: CancelOffersIntent): CancelOfferCoinReview[] {
   return intent.coins.map(coin => {
-    const outpoint = `${coin.outpoint.txid}:${coin.outpoint.vout}`;
+    const outpoint = coinKey(coin);
+    const offerLock = locks.find(item => item.outpoint === outpoint && item.kind !== 'manual' && claims(item, origin));
+    const presigned = offerLock !== undefined && (offerLock.kind === 'collection_offer' || offerLock.refs.length > 0);
     const lock = locks.find(item => item.outpoint === outpoint && !item.unlocked);
-    return { outpoint, effect: !lock ? 'no_lock'
-      : lock.manual || lock.kind === 'manual' || lock.origin !== origin || coin.stillCommitted ? 'stays_locked' : 'unlocks' };
+    // The rule the signature then applies, so the screen never says a coin unlocks that stays locked.
+    const effect = !lock ? 'no_lock'
+      : withCancelledClaim(lock, origin, coin).unlocked ? 'unlocks' : 'stays_locked';
+    return { outpoint, effect, presigned };
   });
 }
 
@@ -54,17 +94,14 @@ export function withCancelledOfferCoinLocks(
   entries: readonly CoinLock[], address: string, origin: string, intent: CancelOffersIntent,
 ): CoinLock[] | null {
   const owner = normalizeAddressForComparison(address);
-  const coins = new Map(intent.coins.map(coin => [`${coin.outpoint.txid}:${coin.outpoint.vout}`, coin]));
-  const cancelled = new Set(intent.offerIds);
+  const coins = new Map(intent.coins.map(coin => [coinKey(coin), coin]));
   let changed = false;
-  const next = entries.flatMap(lock => {
+  const next = entries.map(lock => {
     const coin = coins.get(lock.outpoint);
-    if (!coin || lock.address !== owner || lock.origin !== origin || lock.kind === 'manual' || lock.manual) return [lock];
-    if (!coin.stillCommitted) { changed = true; return []; }
-    const refs = lock.refs.filter(ref => !cancelled.has(ref));
-    if (refs.length === lock.refs.length) return [lock];
-    changed = true;
-    return [{ ...lock, refs }];
+    if (!coin || lock.address !== owner) return lock;
+    const updated = withCancelledClaim(lock, origin, coin);
+    if (updated !== lock) changed = true;
+    return updated;
   });
   return changed ? next : null;
 }
