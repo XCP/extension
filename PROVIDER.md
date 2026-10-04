@@ -572,10 +572,12 @@ user can also unlock or relock offer coins under Settings › Coin Control. That
 funding and existing manual locks immediately from the wallet's local record, then refreshes chain
 status separately. It does not scan every output for attached assets. Accepted locks are never
 evicted just because more coins become protected. A lock comes off by itself when its coin
-is spent by a confirmed transaction, when the offer's `marketplaceExpiresAt` (or a policy offer's
-latest `expiresAt`) is more than an hour past, or when both indexers return 404 for the funding
+is spent by a confirmed transaction, when a funding-only slot with no signed authorization is
+more than an hour past its marketplace expiry, or when both indexers return 404 for the funding
 transaction after the coin has been missing for 24 hours. Errors, unconfirmed spends and source
-disagreements keep the lock. Claimed expiry is capped at 90 days and an hour from the latest signature.
+disagreements keep the lock. A signed authorization does not expire on Bitcoin: its lock and history
+survive marketplace expiry. Users may explicitly unlock or cancel; the history remains until spent.
+Funding-only reservations have a capped expiry of 90 days and an hour.
 
 ### Cancel offers with a message signature
 
@@ -602,12 +604,13 @@ spent: cancelling does not spend it. To end them on Bitcoin, send
 [`invalidate_offers`](#invalidate-offers-on-bitcoin-invalidate_offers).
 
 Only after a successful signature, before delivery, the wallet releases the site's claim on each
-coin whose `stillCommitted` is false and removes the named offer IDs from its references. The
+coin whose `stillCommitted` is false. Historical authorization references are retained: IDs are not
+namespaced by site, and cancelling does not revoke the signatures they record. The
 coin unlocks only when no other site also committed it; its record stays, marked cancelled, so
-Settings › Coin Control can say the signed authorizations still work, until the coin is spent
-or the offer expires. If another site's offer also relies on the coin, it stays locked for that
-site. For true, the wallet removes the named offer IDs while keeping the lock, even if no
-references remain. Matching uses outpoint and verified origin, never offer ID alone (an
+Settings › Coin Control can say the signed authorizations still work until the coin is spent,
+including after marketplace expiry. If another site's offer also relies on the coin, it stays locked
+for that site. For true, the wallet keeps the claim and its history.
+Matching uses outpoint and verified origin, never offer ID alone (an
 authorization's id differs from the offer's). Hand locks (including offer coins also locked by
 hand), coins the site never committed and unauthorized addresses are untouched. There is no
 marketplace API call. Declining, signing failure or interruption leaves the locks intact. A

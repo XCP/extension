@@ -166,11 +166,11 @@ describe('locked coins in the keychain', () => {
       expect(liveCoinLocks(far, ADDRESS, cap + COIN_LOCK_EXPIRY_GRACE_SECONDS + 1)).toEqual([]);
     });
 
-    it('turns an ended offer on a coin also locked by hand back into the hand lock', () => {
+    it('retains signed authorizations alongside a hand lock after marketplace expiry', () => {
       const manual = after(withCoinLockUpdate([], ADDRESS, { lock: [{ outpoint: A, valueSats: 1 }] }, NOW));
       const both = after(withOfferCoinLocks(manual, ADDRESS, [slot(A, { refs: ['auth-1'], expiresAt: NOW + 5 })], NOW));
       expect(liveCoinLocks(both, ADDRESS, NOW + 5 + COIN_LOCK_EXPIRY_GRACE_SECONDS + 1)).toEqual([expect.objectContaining({
-        kind: 'manual', manual: true, refs: [], origin: null, expiresAt: null, unlocked: false,
+        kind: 'offer_slot', manual: true, refs: ['auth-1'], origin: SITE, unlocked: false,
       })]);
     });
 
@@ -196,12 +196,12 @@ describe('locked coins in the keychain', () => {
       expect(withOfferCoinLocks(shared, ADDRESS, [slot(A, { refs: ['auth-2'], origin: OTHER_SITE })], NOW)).toBeNull();
     });
 
-    it('hands a cancelled coin to the next site that commits it, without the old offers', () => {
+    it('hands a cancelled coin to its next site while retaining old signature history', () => {
       const cancelled: CoinLock = { ...after(withOfferCoinLocks([], ADDRESS, [slot(A, { refs: ['auth-1'] })], NOW))[0]!,
         unlocked: true, cancelled: true };
       const taken = coinLocksOf(after(withOfferCoinLocks([cancelled], ADDRESS,
         [slot(A, { refs: ['auth-9'], origin: OTHER_SITE })], NOW)), ADDRESS)[0]!;
-      expect(taken).toMatchObject({ origin: OTHER_SITE, refs: ['auth-9'], unlocked: false });
+      expect(taken).toMatchObject({ origin: OTHER_SITE, refs: ['auth-1', 'auth-9'], unlocked: false });
       expect(taken).not.toHaveProperty('cancelled');
       expect(taken).not.toHaveProperty('sharedOrigins');
     });
@@ -215,13 +215,26 @@ describe('locked coins in the keychain', () => {
       // Locking it by hand protects the coin and keeps saying what was signed against it.
       expect(coinLocksOf(after(withCoinLockUpdate([cancelled], ADDRESS, { lock: [{ outpoint: A, valueSats: 1 }] }, NOW)), ADDRESS))
         .toEqual([{ ...cancelled, manual: true, unlocked: false }]);
-      // Once its offer ends, a hand lock is all that remains of it.
+      // Marketplace expiry cannot revoke the old signature, even with a hand lock too.
       const ended = liveCoinLocks([{ ...cancelled, manual: true, unlocked: false, sharedOrigins: [OTHER_SITE] }], ADDRESS,
         NOW + 86_400 + COIN_LOCK_EXPIRY_GRACE_SECONDS + 1);
-      expect(ended).toEqual([expect.objectContaining({ kind: 'manual', origin: null, unlocked: false })]);
-      expect(ended[0]).not.toHaveProperty('cancelled');
-      expect(ended[0]).not.toHaveProperty('sharedOrigins');
+      expect(ended).toEqual([expect.objectContaining({ kind: 'offer_slot', origin: SITE, unlocked: false,
+        cancelled: true, sharedOrigins: [OTHER_SITE] })]);
     });
+
+    it.each(['active', 'unlocked', 'cancelled', 'collection'] as const)(
+      'retains %s signature evidence past marketplace expiry on reads and writes, until spent', mode => {
+        const base = after(withOfferCoinLocks([], ADDRESS, [slot(A, { refs: ['auth-1'], expiresAt: NOW + 10 })], NOW))[0]!;
+        const record: CoinLock = { ...base, unlocked: mode === 'unlocked' || mode === 'cancelled',
+          ...(mode === 'cancelled' ? { cancelled: true } : {}),
+          ...(mode === 'collection' ? { kind: 'collection_offer', refs: [] } : {}),
+        };
+        const later = NOW + MAX_COIN_LOCK_EXPIRY_SECONDS + COIN_LOCK_EXPIRY_GRACE_SECONDS + 1;
+        expect(liveCoinLocks([record], ADDRESS, later)).toEqual([record]);
+        expect(withCoinLockUpdate([record], ADDRESS, {}, later)).toBeNull();
+        expect(withCoinLockUpdate([record], ADDRESS, { observed: { spent: [A] } }, later)).toEqual([]);
+      },
+    );
 
     it('stores shared sites and the cancelled mark, and drops a lock with either malformed', () => {
       const good = coinLocksOf(after(withOfferCoinLocks([], ADDRESS, [slot(A)], NOW)), ADDRESS)[0]!;

@@ -101,7 +101,7 @@ describe('locked coins in the wallet manager', () => {
     const intent = { standard: 'counterparty-marketplace', action: 'cancel_offers', offerIds: ['offer-1'],
       coins: [{ outpoint: { txid: 'b'.repeat(64), vout: 1 }, stillCommitted: true }] };
     await manager.cancelOfferCoinLocks(ADDRESS, origin, intent);
-    expect((await decryptKeychain(state.record!, key)).coinLocks?.find(lock => lock.outpoint === SLOT)?.refs).toEqual(['offer-2']);
+    expect((await decryptKeychain(state.record!, key)).coinLocks?.find(lock => lock.outpoint === SLOT)?.refs).toEqual(['offer-1', 'offer-2']);
     await manager.cancelOfferCoinLocks(ADDRESS, origin, { ...intent, coins: [
       { ...intent.coins[0], stillCommitted: false },
       { outpoint: { txid: 'a'.repeat(64), vout: 0 }, stillCommitted: false },

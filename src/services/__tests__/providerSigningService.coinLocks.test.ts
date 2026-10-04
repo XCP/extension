@@ -184,7 +184,7 @@ describe('provider signing with locked coins', () => {
     await service.approveAndSign('cancel-1', { reviewKey: review.reviewKey, risksAcknowledged: false });
     expect(mocks.wallet.signMessage).toHaveBeenCalledWith('Original cancellation bytes', identity.address, identity);
     // Released, not forgotten: the signed authorization still works until the coin is spent.
-    expect(store.locks).toEqual([lock({ refs: [], unlocked: true, cancelled: true })]);
+    expect(store.locks).toEqual([lock({ unlocked: true, cancelled: true })]);
     expect(store.emittedBeforeUpdate).toBe(0);
     expect(mocks.emit).toHaveBeenCalledWith('sign-message-complete-cancel-1', { signature: 'signed-message' });
   });

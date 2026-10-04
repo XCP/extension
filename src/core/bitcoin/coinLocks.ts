@@ -19,12 +19,11 @@
  * candidate: that read is cached, fails over between indexers whose mempools differ, and leaves out
  * coins spent in the mempool. A candidate comes off when an outspend lookup (core/bitcoin/outspend.ts)
  * shows it spent by a confirmed transaction, or when both indexers have never heard of its funding
- * transaction after a day as a candidate. An offer lock also comes off when the offer
- * expired over an hour ago (an expired offer cannot settle); no offer lock outlives the longest
- * offer. A failed lookup is not evidence and removes nothing. A lock the user made by hand has no
- * expiry and no orphan rule: only a confirmed spend of the coin removes it. Unlocked records follow
- * the same rules, so one a site's cancellation released (core/bitcoin/offerCancellation.ts) keeps
- * saying what was signed against the coin until the coin is spent.
+ * transaction after a day as a candidate. A funding-only slot can expire after the grace period.
+ * Once a spend has been signed, marketplace expiry cannot invalidate that Bitcoin signature:
+ * its lock and history stay until a confirmed spend, or an explicit unlock/cancellation (which
+ * keeps the history). A failed lookup is not evidence and removes nothing. A lock made by hand
+ * has no expiry and no orphan rule: only a confirmed spend removes it automatically.
  */
 import { MAX_OFFER_ID_LENGTH, MAX_OFFER_IDS } from '@/constants/offerLimits';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
@@ -48,12 +47,12 @@ const MAX_ADDRESS_LENGTH = 128;
  * whose funding transaction neither indexer has known for this long.
  */
 export const COIN_LOCK_ORPHAN_SECONDS = 24 * 60 * 60;
-/** How long past its offer's expiry a lock is kept: an expired offer cannot settle after this. */
+/** Grace period before releasing a funding-only slot with no recorded signed spend. */
 export const COIN_LOCK_EXPIRY_GRACE_SECONDS = 60 * 60;
 /**
  * The furthest ahead an offer lock may expire when written: the longest offer the marketplace
- * makes (90 days, as core/counterparty/policyOffer.ts checks) plus the grace. A site claiming a
- * later expiry, or none, still cannot lock a coin for longer.
+ * makes (90 days, as core/counterparty/policyOffer.ts checks) plus the grace. This caps funding-only
+ * reservations; it is not a Bitcoin expiry for a signed authorization.
  */
 export const MAX_COIN_LOCK_EXPIRY_SECONDS = 90 * 24 * 60 * 60 + COIN_LOCK_EXPIRY_GRACE_SECONDS;
 const COIN_LOCK_SEEN_REFRESH_SECONDS = 60 * 60;
@@ -220,13 +219,16 @@ function withoutEndedOffer(lock: CoinLock): CoinLock | null {
     : null;
 }
 
-/** Apply the rules that need only the clock: an offer that ended over an hour ago. */
+/** Expire funding-only reservations; signed authorizations have no Bitcoin expiry. */
 function applyClock(lock: CoinLock, now: number): CoinLock | null {
+  // These are durable signature records, not merely marketplace reservations. Even when a site
+  // removes or expires its offer, a counterparty can still use the signed Bitcoin transaction.
+  if (lock.cancelled || lock.kind === 'collection_offer' || (lock.kind === 'offer_slot' && lock.refs.length > 0)) return lock;
   return offerExpired(lock, now) ? withoutEndedOffer(lock) : lock;
 }
 
 /**
- * The locks of `address` as they stand at `now` (unix seconds): expired offers already off, so a
+ * The locks of `address` as they stand at `now` (unix seconds): expired funding-only slots off, so a
  * read never enforces a lock the next write would drop. Unlocked records are included; callers
  * that enforce use `activeCoinLocks`.
  */
@@ -365,7 +367,8 @@ export function withOfferCoinLocks(
     next[index] = {
       ...withoutOfferState(existing),
       kind: offer ? existing.kind : commitment.kind,
-      refs: offer ? mergeOfferRefs(existing.refs, commitment.refs) : mergeOfferRefs(commitment.refs),
+      // A new offer does not revoke the authorizations retained from a cancelled one.
+      refs: mergeOfferRefs(existing.refs, commitment.refs),
       valueSats: existing.valueSats > 0 ? existing.valueSats : commitment.valueSats,
       origin,
       ...(sharedOrigins.length > 0 ? { sharedOrigins } : {}),
