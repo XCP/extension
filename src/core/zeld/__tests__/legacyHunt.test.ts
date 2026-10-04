@@ -112,17 +112,25 @@ describe('legacy hunt', () => {
     const { unsigned, scriptCodes } = spend(true, 2);
     expect(() => prepareLegacyHunt(unsigned, scriptCodes.slice(0, 1), PRIVATE_KEY, true)).toThrow('one scriptCode per input');
     const template = prepareLegacyHunt(unsigned, scriptCodes, PRIVATE_KEY, true);
-    const signed = legacySignedTransaction(template, 5)!;
+    // Random ECDSA nonces can make a fixed locktime's DER signature too short. Use an eligible
+    // candidate, just as the hunt does, before testing rejection of an already-signed input.
+    const found = mineLegacyRange(template, 0, 256, 0).best;
+    expect(found).toBeDefined();
+    const signed = legacySignedTransaction(template, found!.nonce)!;
+    expect(signed).not.toBeNull();
     expect(() => prepareLegacyHunt(signed, scriptCodes, PRIVATE_KEY, true)).toThrow('signed');
   });
 
   it('rejects a tampered signature', () => {
     const { unsigned, scriptCodes } = spend(true);
     const template = prepareLegacyHunt(unsigned, scriptCodes, PRIVATE_KEY, true);
-    const signed = legacySignedTransaction(template, 9)!;
+    const found = mineLegacyRange(template, 0, 256, 0).best;
+    expect(found).toBeDefined();
+    const signed = legacySignedTransaction(template, found!.nonce)!;
+    expect(signed).not.toBeNull();
     const at = template.inputs[0]!.sOffset + 5;
     signed[at] = signed[at]! ^ 1;
-    expect(() => verifyLegacySignatures(template, signed, 9)).toThrow('does not verify');
+    expect(() => verifyLegacySignatures(template, signed, found!.nonce)).toThrow('does not verify');
   });
 });
 
