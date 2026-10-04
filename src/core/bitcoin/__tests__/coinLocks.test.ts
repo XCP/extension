@@ -7,6 +7,7 @@ import {
   liveCoinLocks,
   MAX_COIN_LOCK_EXPIRY_SECONDS,
   MAX_COIN_LOCK_REFS,
+  MAX_COIN_LOCK_SHARED_ORIGINS,
   parseCoinLockUpdate,
   parseOfferCoinCommitments,
   sanitizeCoinLocks,
@@ -178,6 +179,67 @@ describe('locked coins in the keychain', () => {
       const seen = after(withOfferCoinLocks([], ADDRESS, [slot(B, { expiresAt: null })], NOW));
       const both = [...never, ...after(read(seen, [B], [], NOW + 1))];
       expect(withCoinLockUpdate(both, ADDRESS, {}, NOW + 2 * COIN_LOCK_ORPHAN_SECONDS)).toBeNull();
+    });
+  });
+
+  describe('offers from several sites, and cancelled offers', () => {
+    const OTHER_SITE = 'https://elsewhere.example';
+
+    it('records a second site committing a coin instead of filing its offer under the first', () => {
+      const first = after(withOfferCoinLocks([], ADDRESS, [slot(A, { refs: ['auth-1'] })], NOW));
+      const shared = after(withOfferCoinLocks(first, ADDRESS, [slot(A, { refs: ['auth-2'], origin: OTHER_SITE })], NOW));
+      expect(coinLocksOf(shared, ADDRESS)).toEqual([expect.objectContaining({
+        origin: SITE, sharedOrigins: [OTHER_SITE], refs: ['auth-1', 'auth-2'], unlocked: false,
+      })]);
+      // The same sites again add nothing new.
+      expect(withOfferCoinLocks(shared, ADDRESS, [slot(A, { refs: ['auth-1'] })], NOW)).toBeNull();
+      expect(withOfferCoinLocks(shared, ADDRESS, [slot(A, { refs: ['auth-2'], origin: OTHER_SITE })], NOW)).toBeNull();
+    });
+
+    it('hands a cancelled coin to the next site that commits it, without the old offers', () => {
+      const cancelled: CoinLock = { ...after(withOfferCoinLocks([], ADDRESS, [slot(A, { refs: ['auth-1'] })], NOW))[0]!,
+        unlocked: true, cancelled: true };
+      const taken = coinLocksOf(after(withOfferCoinLocks([cancelled], ADDRESS,
+        [slot(A, { refs: ['auth-9'], origin: OTHER_SITE })], NOW)), ADDRESS)[0]!;
+      expect(taken).toMatchObject({ origin: OTHER_SITE, refs: ['auth-9'], unlocked: false });
+      expect(taken).not.toHaveProperty('cancelled');
+      expect(taken).not.toHaveProperty('sharedOrigins');
+    });
+
+    it('keeps a cancelled record until its coin is spent, and does not lock it again for its ended offers', () => {
+      const cancelled: CoinLock = { ...after(withOfferCoinLocks([], ADDRESS, [slot(A, { refs: ['auth-1'] })], NOW))[0]!,
+        unlocked: true, cancelled: true };
+      expect(withCoinLockUpdate([cancelled], ADDRESS, { relock: [A] }, NOW)).toBeNull();
+      expect(withCoinLockUpdate([cancelled], ADDRESS, { observed: { absent: [A] } }, NOW)).not.toBeNull();
+      expect(coinLocksOf(after(withCoinLockUpdate([cancelled], ADDRESS, { observed: { spent: [A] } }, NOW)), ADDRESS)).toEqual([]);
+      // Locking it by hand protects the coin and keeps saying what was signed against it.
+      expect(coinLocksOf(after(withCoinLockUpdate([cancelled], ADDRESS, { lock: [{ outpoint: A, valueSats: 1 }] }, NOW)), ADDRESS))
+        .toEqual([{ ...cancelled, manual: true, unlocked: false }]);
+      // Once its offer ends, a hand lock is all that remains of it.
+      const ended = liveCoinLocks([{ ...cancelled, manual: true, unlocked: false, sharedOrigins: [OTHER_SITE] }], ADDRESS,
+        NOW + 86_400 + COIN_LOCK_EXPIRY_GRACE_SECONDS + 1);
+      expect(ended).toEqual([expect.objectContaining({ kind: 'manual', origin: null, unlocked: false })]);
+      expect(ended[0]).not.toHaveProperty('cancelled');
+      expect(ended[0]).not.toHaveProperty('sharedOrigins');
+    });
+
+    it('stores shared sites and the cancelled mark, and drops a lock with either malformed', () => {
+      const good = coinLocksOf(after(withOfferCoinLocks([], ADDRESS, [slot(A)], NOW)), ADDRESS)[0]!;
+      const kept = [{ ...good, sharedOrigins: [OTHER_SITE] }, { ...good, outpoint: B, unlocked: true, cancelled: true as const }];
+      expect(sanitizeCoinLocks(kept)).toEqual(kept);
+      expect(sanitizeCoinLocks([{ ...good, sharedOrigins: [] }])).toEqual([good]);
+      expect(sanitizeCoinLocks([
+        { ...good, sharedOrigins: OTHER_SITE }, { ...good, sharedOrigins: [''] },
+        { ...good, sharedOrigins: Array.from({ length: MAX_COIN_LOCK_SHARED_ORIGINS + 1 }, (_, index) => `https://${index}.example`) },
+        { ...good, cancelled: false }, { ...good, cancelled: 'yes' },
+      ])).toEqual([]);
+    });
+
+    it('refuses another site past the bound rather than forgetting one', () => {
+      const sites = Array.from({ length: MAX_COIN_LOCK_SHARED_ORIGINS }, (_, index) => `https://${index}.example`);
+      const full = after(withOfferCoinLocks([], ADDRESS, [slot(A), ...sites.map(origin => slot(A, { origin }))], NOW));
+      expect(full[0]!.sharedOrigins).toEqual(sites);
+      expect(() => withOfferCoinLocks(full, ADDRESS, [slot(A, { origin: 'https://one-more.example' })], NOW)).toThrow('Too many sites');
     });
   });
 

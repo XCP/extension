@@ -102,6 +102,11 @@ export default function ApproveMessagePage() {
               </li>
             ))}
           </ul>
+          {/* Only where the wallet knows it signed a spend of the coin for these offers: the
+                  message tells the site, and the signature already out there works until the coin moves. */}
+          {review?.cancellationCoins?.some(coin => coin.presigned) && (
+            <p className="mt-3 border-t border-gray-100 pt-3 text-sm leading-5 text-gray-600">{t('message_cancel_presigned')}</p>
+          )}
         </div>
       )}
       {/* Where the rendered message is a poor witness for the bytes being signed. The PSBT and

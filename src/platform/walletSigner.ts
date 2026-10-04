@@ -136,7 +136,7 @@ export class WalletSigner {
       })),
     }));
     const permission = (lock: CoinLock) => JSON.stringify([
-      lock.address, lock.outpoint, lock.kind, lock.manual, lock.origin,
+      lock.address, lock.outpoint, lock.kind, lock.manual, lock.origin, lock.sharedOrigins ?? [],
       lock.refs, lock.expiresAt, lock.createdAt, lock.unlocked,
     ]);
     const allowed = new Set(approved.filter(lock => !lock.unlocked).map(permission));

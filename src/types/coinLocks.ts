@@ -17,6 +17,11 @@ export interface CoinLock {
   valueSats: number;
   /** The site whose signature request committed the coin. Null for a lock made by hand. */
   origin: string | null;
+  /**
+   * Other sites whose signed offers also rely on the coin. Each one's cancellation ends only its
+   * own claim, so the coin stays locked while any site still has one. Absent when none.
+   */
+  sharedOrigins?: string[];
   /** Unix seconds, the latest expiry across the offers it backs, capped when written. Null for a hand lock. */
   expiresAt: number | null;
   /** Unix seconds. */
@@ -27,6 +32,12 @@ export interface CoinLock {
   candidateSince?: number;
   /** The user unlocked it. The record stays while the offer lives, so it can be locked again. */
   unlocked: boolean;
+  /**
+   * Its offers were cancelled by a signed message, which released the coin (`unlocked`). What the
+   * wallet already signed against the coin still works until it is spent, so the record stays
+   * until then (or until the offer's expiry) to say so. Absent otherwise.
+   */
+  cancelled?: true;
 }
 
 /** One offer commitment a signature proved, as the background records it. */

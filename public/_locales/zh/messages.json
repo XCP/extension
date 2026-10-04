@@ -643,6 +643,9 @@
   "coins_offer_expires": {
     "message": "有效期至 $1"
   },
+  "coins_offer_cancelled": {
+    "message": "报价已取消。已签名的授权在此币被花费前仍然有效。"
+  },
   "coins_offer_site": {
     "message": "来自 $1"
   },
@@ -6904,6 +6907,9 @@
   "message_cancel_one_offer": {
     "message": "取消 1 个报价",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_presigned": {
+    "message": "你已签名的比特币授权在这些币被花费前仍然有效。取消只会从网站撤下报价，不会花费这些币。"
   },
   "message_cancel_sign": {
     "message": "签名",

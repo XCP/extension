@@ -643,6 +643,9 @@
   "coins_offer_expires": {
     "message": "有効期限 $1"
   },
+  "coins_offer_cancelled": {
+    "message": "オファーはキャンセル済みです。署名済みの承認は、このコインが使われるまで有効です。"
+  },
   "coins_offer_site": {
     "message": "$1 から"
   },
@@ -6904,6 +6907,9 @@
   "message_cancel_one_offer": {
     "message": "1件のオファーをキャンセル",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_presigned": {
+    "message": "署名済みのBitcoin上の承認は、そのコインが使われるまで有効です。キャンセルはサイトからオファーを取り下げるだけで、コインは使いません。"
   },
   "message_cancel_sign": {
     "message": "署名",

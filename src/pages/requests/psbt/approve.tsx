@@ -422,6 +422,9 @@ export default function ApprovePsbtPage() {
         ),
     ),
   ];
+  const outcomeNotes = semanticMarketplaceReview ? provedReviewNotes(marketplaceReview!) : [];
+  // CounterpartyDetailsCard renders nothing without fields or recipients.
+  const detailsCardShown = detailFields.length > 0 || (decodedInfo.mpmaRecipients?.length ?? 0) > 0;
   // An unfunded marketplace authorization moves nothing yet; the facts (or the gating card)
   // state exactly where things stand, so the movement block would only resolve to an alarming
   // "Couldn't be determined" beside them.
@@ -568,9 +571,11 @@ export default function ApprovePsbtPage() {
         />
       )}
 
-      {marketplaceReview?.family === 'invalidate_offers' && marketplaceReview.status === 'proved' && (
-        <p className="px-1 text-sm leading-5 text-gray-600">{t('marketplace_invalidation_notice')}</p>
-      )}
+      {/* Said once: under the details card's facts, or on its own when the card has none to show
+              (an invalidation's facts are all payment facts, so its card renders nothing). */}
+      {!detailsCardShown && outcomeNotes.map((note, index) => (
+        <p key={`outcome-${index}`} className="px-1 text-sm leading-5 text-gray-600">{note}</p>
+      ))}
       <ApprovalZeldNotes notes={zeldReviewNotes(safetyWarnings)} />
 
       <CounterpartyDetailsCard
@@ -578,7 +583,7 @@ export default function ApprovePsbtPage() {
         recipients={decodedInfo.mpmaRecipients}
         // A plain-Bitcoin self-send carries no Counterparty message to name the section after.
         title={marketplaceReview?.family === "fund_offers" ? t('approval_counterparty_details_card_details') : undefined}
-        notes={semanticMarketplaceReview ? provedReviewNotes(marketplaceReview!) : []}
+        notes={outcomeNotes}
       />
       {retryAvailable && !marketplaceBlocked && (
         <ApprovalRetry

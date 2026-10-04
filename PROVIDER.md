@@ -419,8 +419,9 @@ Every intent is an object with `standard: 'counterparty-marketplace'`, `version:
 | `bump_acceptance_fee` | `acceptance-cpfp` bundle only | A CPFP child that pays the fee for an accepted exact offer |
 | `fund_policy_offer` | `xcp_signPsbts` only | Bidder funding for a `funded_policy_offer_v1` policy offer, one alternative per request |
 | `accept_policy_offer` | `xcp_signPsbt` | A seller's acceptance of a policy offer; the wallet signs child input 1 only |
+| `invalidate_offers` | `xcp_signPsbt` only | A bidder's fee-only self-send of offer funding coins, which ends the offers they back once it confirms |
 
-This page documents `create_listing` and `fund_offers` in full. The other schemas are defined by
+This page documents `create_listing`, `fund_offers` and `invalidate_offers` in full. The other schemas are defined by
 the marketplace integration that sends them; their fields and bounds are the `*IntentClaim` types
 in [`src/core/counterparty/marketplace/intentTypes.ts`](src/core/counterparty/marketplace/intentTypes.ts)
 and the parser beside them (`bump_acceptance_fee` is in
@@ -561,8 +562,12 @@ locks those coins: sends leave them out, and a signing request that would spend 
 - After a `fund_policy_offer` signature, every funding input the wallet signed.
 
 Only the site whose request locked a slot may send an `authorize_exact_offer` whose input 0 is
-that slot, and whose every claim the wallet proved, without a prompt. Any other request that signs a locked coin, from any site, shows a
-warning; confirming it unlocks the coin, and the offers it backs end once the spend confirms. The
+that slot, and whose every claim the wallet proved, without a prompt. Likewise a proved
+[`invalidate_offers`](#invalidate-offers-on-bitcoin-invalidate_offers) signs the requesting site's
+own offer coins without a prompt, and leaves them locked until its spend confirms. Any other request that signs a locked coin, from any site, shows a
+warning; confirming it unlocks the coin, and the offers it backs end once the spend confirms. When
+a second site commits a coin another site's offer already locked, the lock records both sites, and
+each site's cancellation ends only its own claim. The
 user can also unlock or relock offer coins under Settings › Coin Control. That page lists offer
 funding and existing manual locks immediately from the wallet's local record, then refreshes chain
 status separately. It does not scan every output for attached assets. Accepted locks are never
@@ -590,13 +595,23 @@ await window.xcp.request({
 ```
 
 The message bytes and signature format are unchanged. The approval says how many offers are
-being cancelled and shows whether each coin unlocks or stays locked. Only after a successful
-signature, before delivery, the wallet removes same-origin offer locks whose `stillCommitted`
-is false. For true, it removes the named offer IDs from the references while keeping the lock,
-even if no references remain. Matching uses outpoint and verified origin, never offer ID alone.
-Hand locks (including offer coins also locked by hand), other origins and unauthorized addresses
-are untouched. There is no marketplace API call. Declining, signing failure or interruption
-leaves the locks intact. A failed lock-store write conservatively keeps the lock.
+being cancelled and shows whether each coin unlocks or stays locked. Where the wallet signed a
+spend of a listed coin for the site's offers (an offer slot that names an offer, or collection
+offer funding), it also says that those Bitcoin authorizations keep working until the coin is
+spent: cancelling does not spend it. To end them on Bitcoin, send
+[`invalidate_offers`](#invalidate-offers-on-bitcoin-invalidate_offers).
+
+Only after a successful signature, before delivery, the wallet releases the site's claim on each
+coin whose `stillCommitted` is false and removes the named offer IDs from its references. The
+coin unlocks only when no other site also committed it; its record stays, marked cancelled, so
+Settings › Coin Control can say the signed authorizations still work, until the coin is spent
+or the offer expires. If another site's offer also relies on the coin, it stays locked for that
+site. For true, the wallet removes the named offer IDs while keeping the lock, even if no
+references remain. Matching uses outpoint and verified origin, never offer ID alone (an
+authorization's id differs from the offer's). Hand locks (including offer coins also locked by
+hand), coins the site never committed and unauthorized addresses are untouched. There is no
+marketplace API call. Declining, signing failure or interruption leaves the locks intact. A
+failed lock-store write conservatively keeps the lock.
 
 Malformed metadata is ignored; malformed individual entries are dropped, input is bounded to
 100 coins and 100 offer IDs, and conflicting duplicate coin entries keep `stillCommitted: true`.
@@ -612,6 +627,53 @@ commitments: [
 
 It only labels coins the wallet locked on its own evidence: an entry for any other outpoint is
 ignored, as is a malformed entry, and requests without the field lock the same coins.
+
+### Invalidate offers on Bitcoin (`invalidate_offers`)
+
+Cancelling an offer tells the site; it does not touch a Bitcoin authorization the wallet already
+signed, which still completes until its funding coin is spent. `invalidate_offers` is that spend:
+an `xcp_signPsbt` request for a fee-only self-send of offer funding coins back to the bidder.
+
+Feature-detect `xcp_getAddresses().signing.psbt.marketplaceIntents` containing
+`invalidate_offers`. Only software wallets whose active address is Native SegWit (P2WPKH) or
+Taproot (P2TR) list it, and the review blocks any other input type. It is a single-PSBT intent:
+`xcp_signPsbts` refuses it in every bundle.
+
+```js
+intent: {
+  standard: 'counterparty-marketplace', version: 1, action: 'invalidate_offers',
+  protocolVersion: 'offer_invalidation_v1',
+  operationId: '<site operation id>',
+  assets: [],
+  bidder,                                         // the signer and the one output's address
+  fundingInputs: [                                // 1..60 distinct outpoints, in input order
+    { txid: '<64-char txid>', vout: 0, valueSats: 12330 }
+  ],
+  returnSats: 12110,                              // the one output
+  networkFeeSats: 220,                            // inputs minus returnSats, more than 0
+  expectedTxid: '<64-char txid>'
+}
+```
+
+The wallet proves the transaction id; version 2 and locktime 0; no Counterparty payload; exactly
+the claimed signer; inputs that are exactly the claimed outpoints and values (each value
+authenticated from its parent transaction), owned by the bidder, Native SegWit or Taproot,
+unsigned and free of attached assets (a failed asset lookup asks for a retry); every input
+signed once with `SIGHASH_ALL`, or `SIGHASH_DEFAULT` on Taproot; exactly one output, paying
+`returnSats` to the bidder's Native SegWit or Taproot address; and a fee equal to
+`networkFeeSats`, under the wallet's 500 sat/vB bound. Anything else blocks. The approval
+states the amount returned, the fee, that the offers become invalid only once the spend
+confirms, and that a reorganization can undo that.
+
+**The site broadcasts.** The wallet returns the signed PSBT as for any `xcp_signPsbt` and does
+not broadcast it. Offers using the coins stay valid until the transaction confirms.
+
+**Locks release when the spend confirms.** A proved invalidation spends the requesting site's own
+offer coins without the locked-coin prompt; a coin locked by hand, or one another site's offer
+also relies on, still asks. Signing unlocks nothing, whether or not it asked: the coins stay
+locked, out of ordinary sends, until both indexers agree they were spent by the same confirmed
+transaction, which removes the locks. If the transaction is never broadcast, the locks and the
+offers remain, and the site can ask again.
 
 ##### Taproot commits with `inscription`
 

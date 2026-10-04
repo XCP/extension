@@ -643,6 +643,9 @@
   "coins_offer_expires": {
     "message": "有效期至 $1"
   },
+  "coins_offer_cancelled": {
+    "message": "報價已取消。已簽署的授權在此幣被花費前仍然有效。"
+  },
   "coins_offer_site": {
     "message": "來自 $1"
   },
@@ -6904,6 +6907,9 @@
   "message_cancel_one_offer": {
     "message": "取消 1 個報價",
     "description": "requests/message/approve.tsx. Offer cancellation approval."
+  },
+  "message_cancel_presigned": {
+    "message": "你已簽署的比特幣授權在這些幣被花費前仍然有效。取消只會從網站撤下報價，不會花費這些幣。"
   },
   "message_cancel_sign": {
     "message": "簽名",

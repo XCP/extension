@@ -106,10 +106,14 @@ describe('locked coins in the wallet manager', () => {
       { ...intent.coins[0], stillCommitted: false },
       { outpoint: { txid: 'a'.repeat(64), vout: 0 }, stillCommitted: false },
     ] });
-    expect((await decryptKeychain(state.record!, key)).coinLocks?.map(lock => lock.outpoint)).toEqual([COIN]);
+    // Released but kept, marked cancelled: what was signed against the slot works until it is spent.
+    const released = (locks: Array<{ outpoint: string; unlocked: boolean; cancelled?: true }> | undefined) =>
+      locks?.map(({ outpoint, unlocked, cancelled }) => ({ outpoint, unlocked, cancelled }));
+    const expected = [{ outpoint: COIN, unlocked: false, cancelled: undefined }, { outpoint: SLOT, unlocked: true, cancelled: true }];
+    expect(released((await decryptKeychain(state.record!, key)).coinLocks)).toEqual(expected);
     await manager.lockKeychain();
     await manager.unlockKeychain(password);
-    expect(manager.getCoinLocks(ADDRESS).map(lock => lock.outpoint)).toEqual([COIN]);
+    expect(released(manager.getCoinLocks(ADDRESS))).toEqual(expected);
   });
 
   it('unlocks a keychain whose lock record is malformed, keeping the well-formed locks', async () => {

@@ -4,6 +4,7 @@ import {
   lockedCoinSpendAllowed,
   lockedCoinsToUnlock,
   lockedCoinWarning,
+  releasedOnSpend,
 } from '@/core/bitcoin/lockedCoinSpends';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplace/intentTypes';
 import type { CoinLock, CoinLockKind } from '@/types/coinLocks';
@@ -28,19 +29,23 @@ const intents = {
   fund_policy_offer: { action: 'fund_policy_offer' },
   buy_listings: { action: 'buy_listings' },
   accept_exact_offer: { action: 'accept_exact_offer', bitcoinInvalidation: { type: 'spend_funding_outpoint', outpoint: SLOT } },
+  invalidate_offers: { action: 'invalidate_offers', fundingInputs: [{ ...SLOT, valueSats: 25_000 }] },
   none: undefined,
 } as unknown as Record<string, MarketplaceIntentClaimV1 | undefined>;
 const proved = { status: 'proved' } as const;
 
 describe('which spends of a locked coin sign without asking', () => {
   // One row per cell: lock kind × intent × origin × input index, each with a proved review. Only the
-  // offer slot's own site, authorizing that slot as input 0, passes; every other cell asks.
+  // offer slot's own site, authorizing that slot as input 0, and an offer lock's own site retiring
+  // its coins pass; every other cell asks.
   const cases: Array<[CoinLockKind, keyof typeof intents, 'same' | 'other', number, boolean]> = [];
   for (const kind of ['offer_slot', 'collection_offer', 'manual'] as const) {
     for (const intent of Object.keys(intents)) {
       for (const site of ['same', 'other'] as const) {
         for (const index of [0, 1]) {
-          const allowed = kind === 'offer_slot' && intent === 'authorize_exact_offer' && site === 'same' && index === 0;
+          const allowed = site === 'same' && (
+            (kind === 'offer_slot' && intent === 'authorize_exact_offer' && index === 0)
+            || (kind !== 'manual' && intent === 'invalidate_offers'));
           cases.push([kind, intent, site, index, allowed]);
         }
       }
@@ -65,6 +70,23 @@ describe('which spends of a locked coin sign without asking', () => {
     expect(lockedCoinSpendAllowed(lock('offer_slot', { manual: true }), {
       origin: SITE, intent: intents.authorize_exact_offer, review: proved, inputIndex: 0,
     })).toBe(false);
+  });
+
+  it.each([
+    ['blocked', false], ['retry', false], [undefined, false], ['caution', false], ['proved', true],
+  ] as const)('retires the site\'s own offer coins without asking only once the invalidation proved (review %s → %s)', (status, allowed) => {
+    for (const kind of ['offer_slot', 'collection_offer'] as const) {
+      expect(lockedCoinSpendAllowed(lock(kind), {
+        origin: SITE, intent: intents.invalidate_offers, review: status ? { status } : undefined, inputIndex: 1,
+      })).toBe(allowed);
+    }
+  });
+
+  it('asks before an invalidation retires a coin another site\'s offer also relies on, or one locked by hand', () => {
+    const spend = { origin: SITE, intent: intents.invalidate_offers, review: proved, inputIndex: 0 };
+    expect(lockedCoinSpendAllowed(lock('offer_slot', { sharedOrigins: [OTHER_SITE] }), spend)).toBe(false);
+    expect(lockedCoinSpendAllowed(lock('offer_slot', { origin: OTHER_SITE, sharedOrigins: [SITE] }), spend)).toBe(false);
+    expect(lockedCoinSpendAllowed(lock('collection_offer', { manual: true }), spend)).toBe(false);
   });
 
   it('passes anything for a lock the user already unlocked', () => {
@@ -102,5 +124,16 @@ describe('finding the locked coins a request would sign', () => {
     expect(warning).toMatchObject({ severity: 'warning', code: 'locked_coin_spend', message: 'This spends a coin you locked.' });
     expect(lockedCoinsToUnlock(warning ? [warning] : [])).toEqual(new Map([[ADDRESS, [OUTPOINT]]]));
     expect(lockedCoinWarning([])).toBeNull();
+  });
+
+  it('leaves an invalidation\'s coins locked on confirmation: its confirmed spend releases them', () => {
+    const invalidation = { inputs, signInputs: { [ADDRESS]: [0] }, intent: intents.invalidate_offers, review: proved };
+    expect(releasedOnSpend([invalidation])).toBe(true);
+    expect(releasedOnSpend([{ inputs, signInputs: {}, intent: intents.fund_offers }])).toBe(false);
+    expect(releasedOnSpend([])).toBe(false);
+    const spends = findLockedCoinSpends([invalidation], [lock('manual')], SITE);
+    const warning = lockedCoinWarning(spends, { releasedOnSpend: true });
+    expect(warning).toMatchObject({ code: 'locked_coin_spend', data: { coins: spends, releasedOnSpend: true } });
+    expect(lockedCoinsToUnlock([warning!])).toEqual(new Map());
   });
 });

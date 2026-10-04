@@ -117,7 +117,8 @@ export function CoinCard({
         // Only an offer coin asks, and its button keeps one width whichever it says.
         confirmLabel: offer ? t('coins_confirm_unlock') : undefined,
       }
-      : lock?.unlocked && offer
+      // A cancelled offer has nothing to lock again for; Lock protects the coin by hand instead.
+      : lock?.unlocked && offer && !lock.cancelled
         ? { label: t('coins_lock_again'), onClick: onRelock, icon: <FaLock className="size-3" aria-hidden="true" /> }
         : { label: t('coins_lock'), onClick: onLock, icon: <FaLock className="size-3" aria-hidden="true" /> };
 
@@ -203,7 +204,10 @@ export function CoinCard({
       {lock && offer && (
         <p className="mt-2 text-xs text-gray-500">
           {[
-            lock.refs.length === 0
+            // Kept after a cancellation released it: what was signed against it works until it is spent.
+            lock.cancelled
+              ? t('coins_offer_cancelled')
+              : lock.refs.length === 0
               ? t('coins_funds_offers')
               : lock.refs.length === 1 ? t('coins_backs_one_offer') : t('coins_backs_offers', String(lock.refs.length)),
             ...(lock.origin ? [t('coins_offer_site', hostnameOf(lock.origin))] : []),

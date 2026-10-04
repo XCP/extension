@@ -186,6 +186,19 @@ describe('the Coins settings page', () => {
     await waitFor(() => expect(updates.at(-1)).toEqual({ relock: [`${txid('a')}:0`] }));
   });
 
+  it('keeps listing a coin a cancellation released, says its signed authorizations still work, and offers a hand lock', async () => {
+    const updates = installStore([offerLock(`${txid('a')}:0`, { refs: ['auth-1'], unlocked: true, cancelled: true })]);
+    renderPage();
+    const coin = await screen.findByRole('article', { name: /0\.00040000 BTC/ });
+    expect(within(coin).getByText(/^Offers cancelled\. Signed authorizations still work until this coin is spent\. · From market\.example/))
+      .toBeInTheDocument();
+    expect(within(coin).queryByText(/Backs 1 offer/)).not.toBeInTheDocument();
+    expect(within(coin).getByText('Unlocked')).toBeInTheDocument();
+    expect(within(coin).queryByRole('button', { name: 'Lock again' })).not.toBeInTheDocument();
+    fireEvent.click(within(coin).getByRole('button', { name: 'Lock' }));
+    await waitFor(() => expect(updates).toEqual([{ lock: [{ outpoint: `${txid('a')}:0`, valueSats: 40_000 }] }]));
+  });
+
   it('asks in one card at a time', async () => {
     installStore([offerLock(`${txid('a')}:0`), offerLock(`${txid('b')}:1`, { refs: ['c'], valueSats: 100_000 })]);
     renderPage();

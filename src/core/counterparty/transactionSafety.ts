@@ -52,9 +52,10 @@ export type SecurityWarning = SecurityWarningText & (
   | { code: 'durable_sell_authorization'; data: { inputs: number[] } }
   /**
    * Signed inputs spend coins the wallet has locked, for an offer or by the user's hand
-   * (core/bitcoin/lockedCoinSpends.ts). Confirming unlocks them.
+   * (core/bitcoin/lockedCoinSpends.ts). Confirming unlocks them, unless `releasedOnSpend`: then
+   * they stay locked until the spend confirms.
    */
-  | { code: 'locked_coin_spend'; data: { coins: LockedCoinSpend[] } }
+  | { code: 'locked_coin_spend'; data: { coins: LockedCoinSpend[]; releasedOnSpend?: true } }
   /**
    * Inputs whose script path names this wallet's key in a leaf other than the one whose message
    * the review shows (core/bitcoin/envelopeLeafGuard.ts). Signing it would publish that message.

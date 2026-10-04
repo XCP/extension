@@ -124,6 +124,25 @@ describe('reading locked coins', () => {
     expect(hand.entries).toEqual([]);
   });
 
+  it('keeps a cancelled offer\'s record through a mempool or disputed spend, and drops it once both indexers confirm one', async () => {
+    // Also the path that releases an invalidation's still-locked coins: signing it changed nothing.
+    for (const recorded of [lock(A, { refs: ['auth-1'], unlocked: true, cancelled: true }), lock(A, { refs: ['auth-1'] })]) {
+      resetOutspendChecks();
+      const store = installStore([recorded]);
+      for (const [mempool, blockstream] of [[mempoolSpend, mempoolSpend], [confirmedSpend, mempoolSpend]]) {
+        chain({ [outspendOfA(MEMPOOL)]: mempool, [outspendOfA(BLOCKSTREAM)]: blockstream });
+        await readCoinLocks(ADDRESS, []);
+        await settled();
+        expect(store.entries).toEqual([{ ...recorded, candidateSince: expect.any(Number) }]);
+        resetOutspendChecks();
+      }
+      chain({ [outspendOfA(MEMPOOL)]: confirmedSpend, [outspendOfA(BLOCKSTREAM)]: confirmedSpend });
+      await readCoinLocks(ADDRESS, []);
+      await settled();
+      expect(store.entries).toEqual([]);
+    }
+  });
+
   it('drops a coin whose funding both indexers answer 404 for only after a day as a candidate', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     const start = 1_800_000_000_000;
