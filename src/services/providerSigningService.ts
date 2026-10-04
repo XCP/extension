@@ -4,6 +4,7 @@
  */
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { getCoinLockStore } from '@/core/bitcoin/coinLockStore';
+import { coinLockTerms } from '@/core/bitcoin/coinLocks';
 import {
   unshownEnvelopeWarning, unshownKeyLeafInputs, type WalletLeafKeys, walletLeafKeys, withEnvelopeLeafGuard,
 } from '@/core/bitcoin/envelopeLeafGuard';
@@ -409,7 +410,10 @@ export function createProviderSigningService(): ProviderSigningService {
     if (!await getRequest(requestId)) throw new ProviderReviewError('expired_during_review');
     // The precise quote can change without changing any consequence. Include
     // the fee policy decision, rather than that volatile quote, in the digest.
-    const { fastestFee: _quote, ...facts } = review;
+    // Likewise each lock by its terms, as the signing guard compares them: a balance
+    // read or outspend check that only restamps when a coin was seen changes nothing.
+    const { fastestFee: _quote, coinLocks: locks, ...rest } = review;
+    const facts = locks ? { ...rest, coinLocks: locks.map(coinLockTerms) } : rest;
     return { ...review, reviewKey: fingerprintReview({ facts, strictMode }) } as ProviderSigningReview;
   }
 
