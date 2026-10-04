@@ -16,6 +16,10 @@ npm install        # plain install: never --legacy-peer-deps, it prunes @testing
 
 Dependencies are pinned to exact versions, and CI fails on a range (`^`, `~`, `*`, ...).
 
+The development-only Stellar SDK used by Trezor pins a vulnerable Axios version. Its scoped
+override pins Axios 1.20.0 until the SDK adopts a patched release; check both `npm audit` and the
+Trezor emulator suite when updating or removing it.
+
 ### The lockfile
 
 CI installs with `npm ci`, which builds from `package-lock.json` alone and fails if the lock does

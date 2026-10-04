@@ -2,7 +2,7 @@
   "name": "xcp-wallet",
   "description": "Counterparty Web3 Wallet",
   "private": true,
-  "version": "0.14.1",
+  "version": "0.14.2",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -72,9 +72,14 @@
     "pngjs": "7.0.0",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
-    "vite": "8.3.1",
+    "vite": "8.3.2",
     "vitest": "5.0.3",
     "ws": "8.22.0",
     "wxt": "0.21.4"
+  },
+  "overrides": {
+    "@stellar/stellar-sdk": {
+      "axios": "1.20.0"
+    }
   }
 }
