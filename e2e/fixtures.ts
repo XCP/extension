@@ -427,6 +427,15 @@ export const walletTest = base.extend<WalletFixtures>({
   context: async ({ browserLocale }, use, testInfo) => {
     const testId = `w-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 45)}`;
     const { context, contextPath } = await launchExtension(testId, { browserLocale });
+    // Compose/navigation tests exercise the fee selector with stable quotes. A live provider can
+    // stall for the entire test and leave Continue disabled before composition is even attempted.
+    // Tests of provider failures or alternate quotes can override these context routes afterward.
+    await context.route('https://mempool.space/api/v1/fees/precise', route => route.fulfill({
+      json: { fastestFee: 3, halfHourFee: 2, hourFee: 1 },
+    }));
+    await context.route('https://blockstream.info/api/fee-estimates', route => route.fulfill({
+      json: { '2': 3, '3': 2, '6': 1 },
+    }));
     await use(context);
     await cleanup(context, contextPath);
   },
