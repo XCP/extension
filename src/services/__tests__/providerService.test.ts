@@ -828,6 +828,7 @@ describe('ProviderService', () => {
               inputScope: 'selected',
               externalInputs: 'any',
               marketplaceIntents: ['invalidate_offers'],
+              marketplaceDelivery: ['wallet-owned-detached'],
             },
             psbtBatch: {
               supported: true,

@@ -61,7 +61,12 @@ export function analyzeExactOfferIntent(
   ]);
 
   if (!sameAddress(intent.delivery.address, intent.bidder)) {
-    blockers.push('the delivery address differs from the bidder');
+    // The bidder may receive detached assets at a background-derived paired
+    // address. The accepting seller does not own the bidder's recipient; its
+    // proof still checks the decoded destination and exact seller proceeds.
+    if (attachedDelivery || (authorizing && !(input.ownedAddresses ?? signerAddresses).some(address => sameAddress(address, intent.delivery.address)))) {
+      blockers.push('the delivery address differs from the bidder');
+    }
   }
   proveTxidClaim(log, transactionId, intent.expectedTxid, {
     unknown: 'the wallet could not establish the unsigned transaction id',

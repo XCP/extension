@@ -20,6 +20,7 @@ describe('providerPsbtSigningCapabilities', () => {
           inputScope: 'selected',
           externalInputs: 'any',
           marketplaceIntents: ['invalidate_offers'],
+          marketplaceDelivery: ['wallet-owned-detached'],
         },
         psbtBatch: {
           supported: true,
@@ -39,6 +40,9 @@ describe('providerPsbtSigningCapabilities', () => {
         const capability = providerPsbtSigningCapabilities({ type, addressFormat }).psbt.marketplaceIntents;
         expect(capability).toEqual(type !== 'hardware' && (addressFormat === AddressFormat.P2WPKH || addressFormat === AddressFormat.P2TR)
           ? ['invalidate_offers'] : undefined);
+        expect(providerPsbtSigningCapabilities({ type, addressFormat }).psbt.marketplaceDelivery)
+          .toEqual(type !== 'hardware' && (addressFormat === AddressFormat.P2WPKH || addressFormat === AddressFormat.P2TR)
+            ? ['wallet-owned-detached'] : undefined);
       }
     }
   });

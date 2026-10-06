@@ -19,6 +19,8 @@ export interface ProviderPsbtSigningMethodCapabilities {
   /** What may occupy inputs which this wallet is not being asked to sign. */
   externalInputs?: 'any' | 'presigned';
   marketplaceIntents?: readonly 'invalidate_offers'[];
+  /** Detached purchases/exact offers can receive at background-proved wallet addresses. */
+  marketplaceDelivery?: readonly 'wallet-owned-detached'[];
 }
 
 export interface ProviderPsbtSigningCapabilities {
@@ -194,7 +196,8 @@ export function providerPsbtSigningCapabilities(
         inputScope: 'selected',
         externalInputs: 'any',
         ...(wallet.addressFormat === AddressFormat.P2WPKH || wallet.addressFormat === AddressFormat.P2TR
-          ? { marketplaceIntents: ['invalidate_offers'] as const } : {}),
+          ? { marketplaceIntents: ['invalidate_offers'] as const,
+              marketplaceDelivery: ['wallet-owned-detached'] as const } : {}),
       },
       psbtBatch: {
         supported: true,

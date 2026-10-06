@@ -940,6 +940,26 @@ describe('create-listing proof', () => {
 });
 
 describe('buy-listings proof', () => {
+  it('allows detached delivery to a background-proved paired address, never an unowned destination', () => {
+    const delivery = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+    const request = {
+      ...buyBase(),
+      intent: { ...buyIntent, delivery: { mode: 'detached' as const, address: delivery } },
+      localCounterpartyMessage: { messageType: 'detach', data: { destination: delivery } },
+    };
+    expect(analyzeMarketplaceIntent(request).status).toBe('blocked');
+    const owned = { ...request, ownedAddresses: [BUYER, delivery] };
+    const review = analyzeMarketplaceIntent(owned);
+    expect(review).toMatchObject({ status: 'proved', blockers: [] });
+    expect(review.facts).toContainEqual(expect.objectContaining({ kind: 'address', value: delivery }));
+    expect(analyzeMarketplaceIntent({ ...owned, localCounterpartyMessage: buyBase().localCounterpartyMessage }).status).toBe('blocked');
+    const attached = attachedBuyBase();
+    expect(analyzeMarketplaceIntent({
+      ...attached, ownedAddresses: [BUYER, delivery],
+      intent: { ...attached.intent, delivery: { ...attached.intent.delivery, address: delivery } },
+      outputs: attached.outputs.map(output => output.index === 0 ? { ...output, address: delivery } : output),
+    }).status).toBe('blocked');
+  });
   it('proves a declared BIP86 fee key against the fee output and names it "Marketplace fee"', () => {
     const request = buyBase();
     const fee = keyPathFeeOutput();
@@ -1190,6 +1210,25 @@ describe('buy-listings proof', () => {
 });
 
 describe('exact-offer authorization and unilateral acceptance proof', () => {
+  it.each([false, true])('proves paired detached delivery for exact offers (accepting=%s)', (accepting) => {
+    const delivery = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+    const base = exactBase(accepting);
+    const request = {
+      ...base,
+      intent: { ...base.intent, delivery: { mode: 'detached' as const, address: delivery } },
+      localCounterpartyMessage: { messageType: 'detach', data: { destination: delivery } },
+    };
+    if (!accepting) expect(analyzeMarketplaceIntent(request).status).toBe('blocked');
+    const owned = { ...request, ownedAddresses: accepting ? [SELLER] : [BUYER, delivery] };
+    expect(analyzeMarketplaceIntent(owned)).toMatchObject({ status: accepting ? 'proved' : 'caution', blockers: [] });
+    expect(analyzeMarketplaceIntent({ ...owned, localCounterpartyMessage: base.localCounterpartyMessage }).status).toBe('blocked');
+    const attached = attachedExactBase(accepting);
+    expect(analyzeMarketplaceIntent({
+      ...attached, ownedAddresses: [BUYER, delivery, SELLER],
+      intent: { ...attached.intent, delivery: { ...attached.intent.delivery, address: delivery } },
+      outputs: attached.outputs.map(output => output.index === 0 ? { ...output, address: delivery } : output),
+    }).status).toBe('blocked');
+  });
   it('defaults only omitted pre-fee claims to zero, without allowing an undeclared fee output', () => {
     const { platformFeeSats: _fee, ...legacy } = authorizeExactIntent;
     expect(parseMarketplaceIntent(legacy)).toEqual(authorizeExactIntent);

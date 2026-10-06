@@ -386,7 +386,9 @@ export function analyzeBuyListingsIntent(
     : 0;
 
   if (!sameAddress(intent.delivery.address, intent.buyer)) {
-    blockers.push('the claimed delivery address differs from the claimed buyer');
+    if (attachedDelivery || !(input.ownedAddresses ?? signerAddresses).some(address => sameAddress(address, intent.delivery.address))) {
+      blockers.push('the claimed delivery address differs from the claimed buyer');
+    }
   }
   proveTxidClaim(log, transactionId, intent.expectedTxid, {
     unknown: 'the wallet could not establish the unsigned transaction id',
@@ -419,7 +421,7 @@ export function analyzeBuyListingsIntent(
       typeof detachData.destination !== 'string'
       || !sameAddress(detachData.destination, intent.delivery.address)
     ) {
-      blockers.push('the locally decoded detach destination differs from the buyer');
+      blockers.push('the locally decoded detach destination differs from the claimed delivery address');
     }
     if (outputs[0]?.type !== 'op_return' || outputs[0]?.value !== 0) {
       blockers.push('output 0 is not the zero-value Counterparty detach output');

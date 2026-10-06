@@ -403,6 +403,14 @@ intent alongside a PSBT. The intent is an untrusted claim used to ask for a sema
 against the PSBT's bytes, its prevouts and the Counterparty ledger before showing that review; a
 false claim is blocked, and an unavailable lookup asks the user to retry.
 
+For detached purchases and exact-offer authorization, the receiving address may differ from the
+paying address only when the wallet independently derives it as its own (for example the paired
+Legacy address). The decoded detach destination must still match the claimed receiving address.
+Attached delivery still requires the paying address. A seller accepting an exact offer verifies
+the recipient against the transaction, not against the seller's own addresses.
+Feature-detect this behavior through `signing.psbt.marketplaceDelivery` containing
+`wallet-owned-detached` in `xcp_getAddresses`. Without it, use the paying address for delivery.
+
 Every intent is an object with `standard: 'counterparty-marketplace'`, `version: 1`, and an
 `action`. This wallet version accepts these actions, and refuses any other as unsupported:
 

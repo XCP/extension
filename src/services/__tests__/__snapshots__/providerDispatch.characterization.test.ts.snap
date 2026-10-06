@@ -359,6 +359,9 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -428,6 +431,9 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -497,6 +503,9 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -4647,6 +4656,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -4710,6 +4722,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -4807,6 +4822,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -4898,6 +4916,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -4961,6 +4982,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5058,6 +5082,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5149,6 +5176,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5212,6 +5242,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5309,6 +5342,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5400,6 +5436,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5463,6 +5502,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5560,6 +5602,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5651,6 +5696,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5714,6 +5762,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5811,6 +5862,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5902,6 +5956,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -5965,6 +6022,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -6062,6 +6122,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -6221,6 +6284,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -6284,6 +6350,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -6381,6 +6450,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -6506,6 +6578,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -6569,6 +6644,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -6666,6 +6744,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -6757,6 +6838,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -6820,6 +6904,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -6917,6 +7004,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -7008,6 +7098,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -7071,6 +7164,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -7168,6 +7264,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -7259,6 +7358,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -7322,6 +7424,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
@@ -7419,6 +7524,9 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
           "psbt": {
             "externalInputs": "any",
             "inputScope": "selected",
+            "marketplaceDelivery": [
+              "wallet-owned-detached",
+            ],
             "marketplaceIntents": [
               "invalidate_offers",
             ],
