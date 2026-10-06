@@ -1,7 +1,8 @@
 import { expect, walletTest } from '../fixtures';
 import { authorizeGalleryOrigin, callGalleryService } from '../utils/provider-gallery';
 
-walletTest('BTC and ZELD Max respect protections and ZELD checks only its own candidates', async ({ page, context, extensionId }) => {
+for (const btcHasZeld of [false, true]) {
+walletTest(`BTC Max reserves only for selected ZELD (${btcHasZeld}) and ZELD Max respects protections`, async ({ page, context, extensionId }) => {
   const { address } = await authorizeGalleryOrigin(page, 'https://max.example');
   const locked = 'aa'.repeat(32);
   const available = 'bb'.repeat(32);
@@ -9,13 +10,14 @@ walletTest('BTC and ZELD Max respect protections and ZELD checks only its own ca
   const attached = 'dd'.repeat(32);
   const unrelated = 'ee'.repeat(32);
   const checks: string[][] = [];
+  let includeAvailableZeld = btcHasZeld;
   await context.route(/^https?:\/\//, async route => {
     const url = new URL(route.request().url());
     const path = url.pathname;
     const json = (body: unknown) => route.fulfill({ json: body });
     if (url.hostname === 'api.zeldhash.com') return json([
       { txid: locked, vout: 0, balance: '4000000000' },
-      { txid: available, vout: 0, balance: '6000000000' },
+      ...(includeAvailableZeld ? [{ txid: available, vout: 0, balance: '6000000000' }] : []),
       { txid: pending, vout: 0, balance: '2000000000' },
       { txid: attached, vout: 0, balance: '3000000000' },
     ]);
@@ -38,14 +40,17 @@ walletTest('BTC and ZELD Max respect protections and ZELD checks only its own ca
     if (path.startsWith('/v2/')) return json({ result: [], next_cursor: null, result_count: 0 });
     return route.abort();
   });
-  await callGalleryService(page, 'updateSettings', [{ allowUnconfirmedTxs: false }]);
+  await callGalleryService(page, 'updateSettings', [{ allowUnconfirmedTxs: false, zeldHuntSeconds: 5 }]);
   await callGalleryService(page, 'updateCoinLocks', [address, { lock: [{ outpoint: `${locked}:0`, valueSats: 80000 }] }]);
 
   await page.goto(`chrome-extension://${extensionId}/popup.html#/compose/send/BTC`);
+  // Fixture setup cached an empty indexer response before the routes above were installed.
+  await page.reload();
   await expect(page.locator('input[name="sat_per_vbyte"]')).toHaveValue('1');
   await page.getByRole('button', { name: 'Use maximum available amount' }).click();
-  await expect(page.locator('input[name="quantity"]')).toHaveValue('0.00079196');
+  await expect(page.locator('input[name="quantity"]')).toHaveValue(btcHasZeld ? '0.00079196' : '0.00079743');
 
+  includeAvailableZeld = true;
   await page.goto(`chrome-extension://${extensionId}/popup.html#/zeld/send`);
   // Clear the empty indexer answer cached during wallet fixture setup, before these routes.
   await page.reload();
@@ -63,3 +68,4 @@ walletTest('BTC and ZELD Max respect protections and ZELD checks only its own ca
   await expect(page.locator('input[name="zeld_display_amount"]')).toHaveValue('0');
   await expect(page.getByText('0.00000000 ZELD', { exact: true })).toBeVisible();
 });
+}

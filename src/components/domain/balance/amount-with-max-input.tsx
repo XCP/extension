@@ -10,6 +10,7 @@ import { divide, fromSatoshis, roundDown, toNumber } from "@/core/numeric";
 import { getActiveSettings } from "@/core/settings";
 import { isDustAmount } from "@/core/validation/amount";
 import { validateFeeRate } from "@/core/validation/fee";
+import { needsZeldChangeForMax } from "@/core/zeld/protection";
 
 import { t } from '@/i18n';
 
@@ -149,9 +150,11 @@ export function AmountWithMaxInput({
         throw new UserFacingError(t('common_no_available_balance'));
       }
 
+      const preserveZeld = await needsZeldChangeForMax(utxos, sourceAddress.address);
+      if (request.current.revision !== revision) return;
       const budget = estimateMaxSpendBudget({
         inputCount: utxos.length, sourceAddress: sourceAddress.address, feeRate,
-        destinationCount, extraOutputCount, memo,
+        destinationCount, extraOutputCount, memo, preserveZeld,
       });
       const candidate = totalValue - budget.total;
 

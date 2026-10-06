@@ -7,11 +7,16 @@ import { useComposer } from '@/contexts/composer-context-object';
 import * as counterpartyApi from '@/core/counterparty/api';
 import * as utxoSelection from '@/core/counterparty/utxoSelection';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
+import { fetchZeldUtxos } from '@/core/zeld/api';
 import { DispenseForm } from '../form';
 
 // Mock the API modules
 vi.mock('@/core/counterparty/api');
 vi.mock('@/core/counterparty/utxoSelection');
+vi.mock('@/core/zeld/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/zeld/api')>()),
+  fetchZeldUtxos: vi.fn(),
+}));
 
 // Mock fee rates to prevent network calls
 vi.mock('@/core/bitcoin/feeRate', () => ({
@@ -117,6 +122,7 @@ describe('DispenseForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fetchZeldUtxos).mockReset().mockResolvedValue([{ txid: 'abc123', vout: 0, balance: 1n }]);
 
     // Default mock for spendable BTC (10,000,000 satoshis = 0.1 BTC)
     mockSelectUtxosForTransaction.mockResolvedValue({
@@ -130,6 +136,24 @@ describe('DispenseForm', () => {
       excludedLocked: 0,
       excludedLockedValue: 0,
     });
+  });
+
+  it.each([false, true])('budgets dispenser Max for the selected coins (ZELD: %s)', async hasZeld => {
+    vi.mocked(fetchZeldUtxos).mockResolvedValue(hasZeld ? [{ txid: 'abc123', vout: 0, balance: 1n }] : []);
+    const selection = await mockSelectUtxosForTransaction('bc1qtest');
+    mockSelectUtxosForTransaction.mockResolvedValue({
+      ...selection, totalValue: 6000, utxos: selection.utxos.map(utxo => ({ ...utxo, value: 6000 })),
+    });
+    mockFetchAddressDispensers.mockResolvedValue({
+      result: [createMockDispenser({ satoshirate: asBaseUnits(1000), satoshirate_normalized: asDisplayUnits('0.00001000') })],
+      result_count: 1,
+    });
+    renderWithProvider({ dispenser: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr' });
+    await waitFor(() => expect(screen.getByText('PEPECASH')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Max')).not.toBeDisabled());
+    await userEvent.click(screen.getByText('Max'));
+    // At 10 sat/vB, the 2570-sat fee leaves three 1000-sat purchases when no reserve is needed.
+    await waitFor(() => expect(document.querySelector('input[name="quantity"]')).toHaveValue(hasZeld ? '2000' : '3000'));
   });
 
   it('should render the form with initial fields', () => {

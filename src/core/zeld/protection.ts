@@ -159,6 +159,20 @@ export async function classifyZeldOutpoints(
   };
 }
 
+/**
+ * Max only needs a ZELD reserve for the coins it can spend, not other addresses or locked coins.
+ * An unavailable indexer is not evidence of a clean input: keep change in that case too. Hunting
+ * is deliberately irrelevant here; a transaction without an own output simply cannot hunt.
+ */
+export async function needsZeldChangeForMax(
+  inputs: ReadonlyArray<{ txid: string; vout: number }>,
+  address: string,
+): Promise<boolean> {
+  if (inputs.length === 0) return false;
+  const result = await classifyZeldOutpoints(inputs, address);
+  return result.apiUnavailable || result.bearing.length > 0;
+}
+
 export async function assessZeldExposure(
   rawTxHex: string,
   sourceAddress: string,
