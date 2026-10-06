@@ -836,6 +836,7 @@ describe('ProviderService', () => {
               inputScope: 'selected',
               externalInputs: 'any',
               maxRequests: 8,
+              maxListingRequests: 40,
               maxPolicyOfferAlternatives: 100,
               marketplaceBundles: ['attach-and-list', 'authorize-offers', 'fund-and-authorize-offers', 'fund-policy-offer'],
             },
@@ -890,6 +891,7 @@ describe('ProviderService', () => {
             inputScope: 'selected',
             externalInputs: 'presigned',
             maxRequests: 8,
+            maxListingRequests: 0,
             maxPolicyOfferAlternatives: 0,
             marketplaceBundles: [],
           },
@@ -2017,7 +2019,7 @@ describe('ProviderService', () => {
           }])).rejects.toThrow('1..100');
         });
 
-        it('keeps every other phase at eight requests', async () => {
+        it('keeps unrelated phases at eight requests', async () => {
           connect();
           const seller = MARKETPLACE_FANOUT_INTENT.seller;
           await expect(providerService.handleRequest('https://digirare.com', 'xcp_signPsbts', [{
@@ -2033,6 +2035,36 @@ describe('ProviderService', () => {
           await expect(providerService.handleRequest('https://digirare.com', 'xcp_signPsbt', [request]))
             .rejects.toThrow(/must be requested through xcp_signPsbts/);
         });
+      });
+
+      it.each([20, 40])('admits %i independent listings through the provider', async count => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const seller = MARKETPLACE_LISTING_INTENT.seller;
+        const requests = Array.from({ length: count }, (_, index) => ({
+          hex: listingPsbtHex(), signInputs: { [seller]: [1] }, sighashTypes: [0x01, 0x83],
+          intent: { ...MARKETPLACE_LISTING_INTENT, operationId: `listing-${index}`,
+            assets: [{ ...MARKETPLACE_LISTING_INTENT.assets[0], sourceOutpoint: { txid: 'ab'.repeat(32), vout: index } }],
+          },
+        }));
+        // Admission only; background review still proves every claimed outpoint against its PSBT.
+        providerService.handleRequest('https://digirare.com', 'xcp_signPsbts', [{ requests }]).catch(() => {});
+        await vi.waitFor(() => expect(signFlow.beginSignFlow).toHaveBeenCalledWith(expect.objectContaining({
+          kind: 'sign-psbts', bundleKind: 'bulk-listing', items: expect.any(Array),
+        })));
+        const stored = vi.mocked(signFlow.beginSignFlow).mock.calls[0]![0];
+        expect(stored.kind === 'sign-psbts' && stored.items.length).toBe(count);
+      });
+
+      it('rejects 41 listings at admission before opening an approval', async () => {
+        const requests = Array.from({ length: 41 }, () => ({
+          hex: listingPsbtHex(), signInputs: { [MARKETPLACE_LISTING_INTENT.seller]: [1] },
+          sighashTypes: [0x01, 0x83], intent: MARKETPLACE_LISTING_INTENT,
+        }));
+        await expect(providerService.handleRequest('https://digirare.com', 'xcp_signPsbts', [{ requests }]))
+          .rejects.toThrow('1..40');
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
 
       it('permits only the intentional null buyer placeholder in a listing batch', async () => {

@@ -6,7 +6,7 @@ import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/types/coin
 
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { p2pkh, p2wpkh, Script, Transaction } from '@scure/btc-signer';
+import { p2pkh, p2tr, p2wpkh, Script, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
@@ -27,6 +27,10 @@ import { createProviderSigningService } from '@/services/providerSigningService'
 type Balance = { asset: string; quantity: string; quantity_normalized: string };
 
 const state = vi.hoisted(() => ({
+  ledgerReads: 0,
+  ledgerDelayMs: 0,
+  activeLedgerReads: 0,
+  peakLedgerReads: 0,
   address: '',
   assets: new Map<string, Balance[] | 'fail'>(),
   /** Explorer status per txid; absent means confirmed in an already-parsed block. */
@@ -60,6 +64,11 @@ vi.mock('@/core/settings', () => ({ getActiveSettings: () => ({ zeldHuntSeconds:
 // an unbroadcast attach output: every lookup answers [] unless a test says otherwise.
 vi.mock('@/core/counterparty/api', () => ({
   fetchUtxoBalances: async (utxo: string) => {
+    state.ledgerReads++;
+    state.activeLedgerReads++;
+    state.peakLedgerReads = Math.max(state.peakLedgerReads, state.activeLedgerReads);
+    if (state.ledgerDelayMs) await new Promise(resolve => setTimeout(resolve, state.ledgerDelayMs));
+    state.activeLedgerReads--;
     const entry = state.assets.get(utxo);
     if (entry === 'fail') throw new Error('Indexer unavailable');
     return { result: entry ?? [] };
@@ -119,6 +128,7 @@ vi.mock('@/core/zeld/protection', () => ({
 const walletKey = new Uint8Array(32).fill(7);
 const legacy = p2pkh(secp256k1.getPublicKey(walletKey));
 const segwit = p2wpkh(secp256k1.getPublicKey(walletKey));
+const taproot = p2tr(secp256k1.getPublicKey(walletKey).slice(1));
 const outsider = p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(9)));
 const platform = p2wpkh(secp256k1.getPublicKey(new Uint8Array(32).fill(11)));
 
@@ -158,6 +168,10 @@ async function approve(result: Awaited<ReturnType<typeof review>>, risksAcknowle
 }
 
 beforeEach(() => {
+  state.ledgerReads = 0;
+  state.ledgerDelayMs = 0;
+  state.activeLedgerReads = 0;
+  state.peakLedgerReads = 0;
   fakeBrowser.reset(); vi.stubGlobal('chrome', fakeBrowser);
   state.address = segwit.address;
   state.assets.clear();
@@ -182,7 +196,7 @@ beforeEach(() => {
         inputIndices: indices, ...(packageTransactions ? { packageTransactions } : {}),
       });
       current = signPSBT(verified.hex, bytesToHex(walletKey), indices,
-        address === legacy.address ? AddressFormat.P2PKH : AddressFormat.P2WPKH, sighashes);
+        address === legacy.address ? AddressFormat.P2PKH : address === taproot.address ? AddressFormat.P2TR : AddressFormat.P2WPKH, sighashes);
     }
     return current;
   });
@@ -431,6 +445,117 @@ describe('attach-and-list linked proof', () => {
 // ---------------------------------------------------------------------------------------------
 // authorize-offers
 // ---------------------------------------------------------------------------------------------
+
+function preparedListing(index: number): PsbtBundleApprovalInput['items'][number] {
+  const owner = state.address === taproot.address ? taproot : segwit;
+  const parent = funding(owner.script, 330n, 100 + index);
+  state.assets.set(`${parent.id}:0`, [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }]);
+  const price = 100_000 + index * 1_000;
+  const tx = new Transaction({ version: 2, lockTime: 0 });
+  // Match the marketplace template: Taproot signing also needs placeholder prevout metadata.
+  tx.addInput({ txid: new Uint8Array(32), index: 0, witnessUtxo: { script: new Uint8Array([0x6a]), amount: 0n } });
+  tx.addInput({ txid: parent.id, index: 0, witnessUtxo: { script: owner.script, amount: 330n }, sighashType: 0x83,
+    ...(owner === taproot ? { tapInternalKey: secp256k1.getPublicKey(walletKey).slice(1) } : {}) });
+  tx.addOutput({ script: owner.script, amount: 330n });
+  tx.addOutput({ script: owner.script, amount: BigInt(price + 330) });
+  return {
+    psbtHex: bytesToHex(tx.toPSBT()), signInputs: { [owner.address]: [1] }, sighashTypes: [1, 0x83],
+    marketplaceIntent: parseMarketplaceIntent({
+      standard: 'counterparty-marketplace', version: 1, action: 'create_listing',
+      operationId: `prepared-${index}`, protocolVersion: 'counterparty_attach_listing_v1',
+      assets: [{ asset: 'RAREPEPE', quantityRaw: '1', sourceOutpoint: { txid: parent.id, vout: 0 } }],
+      seller: owner.address, priceSats: price, utxoValueSats: 330, guaranteedSellerPaymentSats: price + 330,
+      delivery: { mode: 'buyer_selected_detach' }, signingRequestExpiresAt: 2_000_000_000,
+      marketplaceExpiresAt: null, bitcoinExpiresAt: null,
+    }),
+  };
+}
+
+describe('bulk-listing approval', () => {
+  it('bounds concurrent inventory lookups for a 40-listing review', async () => {
+    state.ledgerDelayMs = 5;
+    const items = Array.from({ length: 40 }, (_, index) => preparedListing(index));
+    const result = await review(items, 'bulk-listing');
+    expect(result.policy.blocked).toBe(false);
+    expect(state.ledgerReads).toBe(80);
+    expect(state.peakLedgerReads).toBeLessThanOrEqual(16);
+    expect(state.peakLedgerReads).toBeGreaterThan(1);
+  });
+  it.each([AddressFormat.P2WPKH, AddressFormat.P2TR].flatMap(format => [8, 20, 40].map(count => ({ format, count }))))(
+    'reviews, rechecks and signs $count independently priced listings ($format)', async ({ format, count }) => {
+    state.ledgerDelayMs = Number(process.env.MEASURE_LISTING_LEDGER_DELAY_MS ?? 0);
+    state.address = format === AddressFormat.P2TR ? taproot.address : segwit.address;
+    state.wallet.getActiveWallet.mockResolvedValue({ id: 'audit', type: 'mnemonic', addressFormat: format });
+    state.wallet.getActiveAddress.mockResolvedValue({ address: state.address });
+    const items = Array.from({ length: count }, (_, index) => preparedListing(index));
+    expect(parseMarketplaceBatchIntents(items.map(item => item.marketplaceIntent)).kind).toBe('bulk-listing');
+    const started = performance.now();
+    const result = await review(items, 'bulk-listing');
+    const reviewed = performance.now();
+    const reviewReads = state.ledgerReads;
+    expect(result.policy.blocked).toBe(false);
+    expect(result.decodedInfo.items.every(item => item.marketplaceReview?.status === 'proved')).toBe(true);
+    const signed = await approve(result, true);
+    const completed = performance.now();
+    expect(signed).toHaveLength(count);
+    for (const hex of signed) {
+      const tx = parsePSBT(hex);
+      expect(tx.getInput(0).partialSig).toBeUndefined();
+      if (format === AddressFormat.P2TR) {
+        expect(tx.getInput(1).tapKeySig).toHaveLength(65);
+        expect(tx.getInput(1).tapKeySig!.at(-1)).toBe(0x83);
+      } else {
+        expect(tx.getInput(1).partialSig).toHaveLength(1);
+        expect(tx.getInput(1).partialSig![0]![1].at(-1)).toBe(0x83);
+      }
+    }
+    if (process.env.MEASURE_LISTING_APPROVALS) {
+      process.stdout.write(`${JSON.stringify({ format, count, ledgerDelayMs: state.ledgerDelayMs,
+        peakLedgerReads: state.peakLedgerReads, reviewMs: Math.round(reviewed - started),
+        approveMs: Math.round(completed - reviewed), reviewReads, approvalReads: state.ledgerReads - reviewReads,
+        requestBytes: new TextEncoder().encode(JSON.stringify({ requests: items.map(item => ({
+          hex: item.psbtHex, signInputs: item.signInputs, sighashTypes: item.sighashTypes, intent: item.marketplaceIntent,
+        })) })).length })}\n`);
+    }
+  }, 30_000);
+
+  it('rechecks the last of 40 inventories on approval and returns no signatures when it changed', async () => {
+    const items = Array.from({ length: 40 }, (_, index) => preparedListing(index));
+    const result = await review(items, 'bulk-listing');
+    expect(result.policy.blocked).toBe(false);
+    const last = parsePSBT(items[39]!.psbtHex).getInput(1);
+    state.assets.set(`${bytesToHex(last.txid!)}:0`, []);
+    await expect(approve(result, true)).rejects.toThrow();
+    expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+    expect((await getSignFlow(result.request.id))?.status).not.toBe('completed');
+  });
+
+  it('blocks all 40 if the final listing claims a price different from its payout', async () => {
+    const items = Array.from({ length: 40 }, (_, index) => preparedListing(index));
+    const last = items[39]!;
+    if (last.marketplaceIntent.action !== 'create_listing') throw new Error('fixture');
+    last.marketplaceIntent.priceSats++;
+    last.marketplaceIntent.guaranteedSellerPaymentSats++;
+    const result = await review(items, 'bulk-listing');
+    expect(result.policy.blocked).toBe(true);
+    await expect(approve(result, true)).rejects.toThrow();
+    expect(state.wallet.signPsbt).not.toHaveBeenCalled();
+  });
+
+  it('discloses no partial result when signing the final listing fails', async () => {
+    const items = Array.from({ length: 40 }, (_, index) => preparedListing(index));
+    const result = await review(items, 'bulk-listing');
+    const sign = state.wallet.signPsbt.getMockImplementation()!;
+    let signed = 0;
+    state.wallet.signPsbt.mockImplementation(async (...args: unknown[]) => {
+      if (++signed === 40) throw new Error('Signer unavailable');
+      return sign(...args);
+    });
+    await expect(approve(result, true)).rejects.toThrow('Signer unavailable');
+    expect(signed).toBe(40);
+    expect((await getSignFlow(result.request.id))?.status).not.toBe('completed');
+  }, 30_000);
+});
 
 const PRICE = 250_000;
 const FEE = 1_000;

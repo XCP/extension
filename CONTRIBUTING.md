@@ -177,6 +177,28 @@ translation of it:
 the English, the translation, where each string appears and what it means. Apply their
 corrections to the catalog.
 
+### Listing approval measurements
+
+`src/services/__tests__/marketplaceBundleProofs.integration.test.ts` exercises batches of 8, 20,
+and 40 independently priced listings through background review, approval-time revalidation,
+prevout verification, and the real SegWit/Taproot signer. Remote responses and wallet/session
+state are fixtures; no real keys or funds are used. It also covers a changed final inventory,
+a final price mismatch, signer failure without partial delivery, and bounded lookup concurrency.
+
+To print review time, approval time, inventory-read counts, and serialized request sizes:
+
+```powershell
+$env:MEASURE_LISTING_APPROVALS = '1'
+npx vitest run src/services/__tests__/marketplaceBundleProofs.integration.test.ts -t 'reviews, rechecks'
+```
+
+Set `MEASURE_LISTING_LEDGER_DELAY_MS=100` to simulate 100 ms per inventory lookup. This is a
+repeatable latency scenario, not a production benchmark. Other upstream calls remain instant.
+These measurements exclude popup startup/rendering, unlocking, key retrieval, the user's review
+time, and marketplace submission. Remove both environment variables after measuring. The UI
+test in `src/pages/requests/psbts/__tests__/approve.test.tsx` separately verifies that the last of
+40 asset/price rows can be inspected before approving.
+
 ## Releasing
 
 1. Bump the version in a pull request:

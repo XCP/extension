@@ -43,12 +43,15 @@ export const MARKETPLACE_BATCH_KINDS = [
 
 export type MarketplaceBatchKind = typeof MARKETPLACE_BATCH_KINDS[number];
 
-/** Every linked phase but a policy-offer funding set, whose alternatives may number 1..100. */
+/** Default bound for linked phases; listings and policy-offer alternatives have separate bounds. */
 export const MAX_MARKETPLACE_BATCH_REQUESTS = 8;
+/** Independent prepared listings reviewed and authorized together; never an attach/funding batch. */
+export const MAX_MARKETPLACE_LISTING_REQUESTS = 40;
 
 /** How many requests one phase of this kind may carry. */
 export const maxMarketplaceBatchRequests = (kind: MarketplaceBatchKind | 'acceptance-cpfp' | 'commit-and-reveal'): number =>
-  kind === 'fund-policy-offer' ? MAX_POLICY_ALTERNATIVES : MAX_MARKETPLACE_BATCH_REQUESTS;
+  kind === 'fund-policy-offer' ? MAX_POLICY_ALTERNATIVES
+    : kind === 'bulk-listing' ? MAX_MARKETPLACE_LISTING_REQUESTS : MAX_MARKETPLACE_BATCH_REQUESTS;
 
 const batchIdentity = (intent: MarketplaceBatchIntent): string =>
   intent.action === 'prepare_asset'
@@ -210,7 +213,8 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
 } {
   const head = values[0];
   const policyOffers = isRecord(head) && head.action === 'fund_policy_offer';
-  const limit = policyOffers ? MAX_POLICY_ALTERNATIVES : MAX_MARKETPLACE_BATCH_REQUESTS;
+  const listings = isRecord(head) && head.action === 'create_listing';
+  const limit = maxMarketplaceBatchRequests(policyOffers ? 'fund-policy-offer' : listings ? 'bulk-listing' : 'bulk-attach');
   if (values.length < 1 || values.length > limit) {
     throw new Error(`marketplace batch must contain 1..${limit} requests`);
   }
