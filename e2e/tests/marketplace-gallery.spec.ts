@@ -791,14 +791,14 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
 
   // --- buy_listings (proved) and its tampered twin (blocked) --------------------------------
   {
-    const buildBuy = (seller1Payment: number) => {
+    const buildBuy = (seller1Payment: number, destination = wallet) => {
       const inputs: BuiltInput[] = [
         { txid: FUNDING_TXID, vout: 0, address: wallet, value: 400_000 },
         { txid: ASSET_TXID, vout: 7, address: SELLER_A, value: 546 },
         { txid: ASSET_TXID_TWO, vout: 3, address: SELLER_B, value: 330 },
       ];
       const outputs: BuiltOutput[] = [
-        { scriptHex: opReturnScript(detachPayload(wallet), FUNDING_TXID), value: 0 },
+        { scriptHex: opReturnScript(detachPayload(destination), FUNDING_TXID), value: 0 },
         { scriptHex: scriptFor(SELLER_A), value: seller1Payment },
         { scriptHex: scriptFor(SELLER_B), value: 200_330 },
         { scriptHex: scriptFor(PLATFORM), value: 5_000 },
@@ -806,7 +806,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
       ];
       return buildPsbt(inputs, outputs);
     };
-    const intentFor = (txid: string) => ({
+    const intentFor = (txid: string, destination = wallet) => ({
       standard: 'counterparty-marketplace',
       version: 1,
       action: 'buy_listings',
@@ -844,7 +844,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
       platformFeeSats: 5_000,
       totalSats: 306_000,
       expectedTxid: txid,
-      delivery: { mode: 'detached', address: wallet },
+      delivery: { mode: 'detached', address: destination },
       marketplaceExpiresAt: FUTURE + 3_600,
     });
     const buyBalances = {
@@ -867,6 +867,27 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
       }),
       balances: buyBalances,
     });
+
+    for (const [name, destination, expectFooter] of [
+      ['checkout-buy-paired-proved', pairedLegacy, 'Buy collectibles'],
+      ['checkout-buy-unowned-blocked', SELLER_A, 'Blocked'],
+    ] as const) {
+      const transaction = buildBuy(100_546, destination);
+      scenarios.push({
+        name,
+        route: '/requests/psbt/approve',
+        expectFooter,
+        record: seedRecord(name, {
+          requestKey: `xcp_signPsbt:${name}`,
+          kind: 'sign-psbt',
+          psbtHex: transaction.psbtHex,
+          signInputs: { [wallet]: [0] },
+          sighashTypes: [0x01],
+          marketplaceIntent: intentFor(transaction.txid, destination),
+        }),
+        balances: buyBalances,
+      });
+    }
 
     // A tampered seller payment: the site's claim no longer matches the bytes.
     const tampered = buildBuy(100_545);
