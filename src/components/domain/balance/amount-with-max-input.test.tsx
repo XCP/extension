@@ -285,7 +285,6 @@ describe('AmountWithMaxInput', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Use maximum available amount' }));
     // 330 sats fee + 546 accompanying dust + 547 retained change.
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('0.00098577'));
-    expect(screen.getByText(/keeps at least 547 sats/)).toBeInTheDocument();
   });
 
   it.each(['address', 'fee', 'typing'])('does not apply a BTC Max result after %s changes', async (change) => {

@@ -42,7 +42,6 @@ walletTest('BTC and ZELD Max respect protections and ZELD checks only its own ca
   await callGalleryService(page, 'updateCoinLocks', [address, { lock: [{ outpoint: `${locked}:0`, valueSats: 80000 }] }]);
 
   await page.goto(`chrome-extension://${extensionId}/popup.html#/compose/send/BTC`);
-  await expect(page.getByText(/keeps at least 547 sats/)).toBeVisible();
   await expect(page.locator('input[name="sat_per_vbyte"]')).toHaveValue('1');
   await page.getByRole('button', { name: 'Use maximum available amount' }).click();
   await expect(page.locator('input[name="quantity"]')).toHaveValue('0.00079196');

@@ -402,8 +402,6 @@ export function DispenseForm({
                 isDivisible={false}
               />
 
-              <p className="text-sm text-gray-500">{t('max_btc_protected_change')}</p>
-
               {/* Hidden input to convert numberOfDispenses to quantity for the API. Satoshis
                   already — the dispenser's satoshirate is a base-unit figure — so `normalizeFormData`
                   checks it as a raw integer rather than scaling it. Rendered with toFixed(0) so a

@@ -9220,10 +9220,6 @@
     "message": "Status unavailable",
     "description": "Coin Control: Status unavailable"
   },
-  "max_btc_protected_change": {
-    "message": "Max allows for fees and keeps at least 547 sats in change to protect ZELD.",
-    "description": "Help below BTC Max and dispenser Max explaining the fee allowance and minimum change reserved to protect ZELD."
-  },
   "zeld_spendable_unavailable": {
     "message": "Your spendable ZELD balance is unavailable. Try again.",
     "description": "Error on the ZELD send form when spendable coin checks fail; shown beside a retry button."

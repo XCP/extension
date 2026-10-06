@@ -6935,9 +6935,6 @@
   "coins_status_unavailable": {
     "message": "狀態無法取得"
   },
-  "max_btc_protected_change": {
-    "message": "最大金額會預留手續費，並保留至少547 sats的找零以保護ZELD。"
-  },
   "zeld_spendable_unavailable": {
     "message": "暫時無法取得可用的ZELD餘額，請重試。"
   },

@@ -241,9 +241,6 @@ export function AmountWithMaxInput({
         </Button>
       </div>
       {invalidDraft && <Description id={`${name}-draft-error`} className="mt-2 text-sm text-red-500" role="alert">{draftError}</Description>}
-      {asset === 'BTC' && !onMaxClick && (
-        <Description className="mt-2 text-sm text-gray-500">{t('max_btc_protected_change')}</Description>
-      )}
       {showHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
           {description || (destinationCount > 1

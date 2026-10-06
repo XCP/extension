@@ -6935,9 +6935,6 @@
   "coins_status_unavailable": {
     "message": "状態を取得できません"
   },
-  "max_btc_protected_change": {
-    "message": "最大額は手数料を見込み、ZELDを保護するために547 sats以上のお釣りを残します。"
-  },
   "zeld_spendable_unavailable": {
     "message": "利用可能なZELD残高を取得できません。もう一度お試しください。"
   },
