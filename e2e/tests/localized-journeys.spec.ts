@@ -175,9 +175,9 @@ walletTest('canonical slippage and BTC Max survive currency changes', async ({ c
     await page.locator('input[type="text"]').first().fill('1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
     const identity = await callGalleryService<{ address: string }>(page, 'getActiveAddress');
     expect(identity.address).toMatch(/^1/);
-    // One legacy input at 1 sat/vB: 337 sats for the conservative fee budget,
-    // plus 547 sats retained as protected change (including possible ZELD rewards).
-    const expectedRaw = 123456789 - 337 - 547;
+    // One legacy input at 1 sat/vB: 337 sats for the conservative fee budget. The coin carries
+    // no ZELD, so Max keeps no protected change.
+    const expectedRaw = 123456789 - 337;
     for (const fiat of ['usd', 'cny']) {
       await controls.first().selectOption(fiat);
       const checksBeforeMax = checkedOutpoints.length;
