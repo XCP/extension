@@ -52,7 +52,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@noble/secp256k1": "3.2.0",
-    "@playwright/test": "1.64.0",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
