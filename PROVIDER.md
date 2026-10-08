@@ -840,8 +840,9 @@ per-origin paired-address permission, exact-output proof, or attached-asset chec
 
 #### `xcp_signPsbts`
 
-Sign linked marketplace PSBTs in one approval: 1..8 requests, or 1..100 for a `fund-policy-offer`
-set. Every request carries a `counterparty-marketplace` intent (a
+Sign linked marketplace PSBTs in one approval: 1..40 independent `bulk-listing` requests,
+1..100 for a `fund-policy-offer` set, or 1..8 for other phases (subject to the tighter bounds below).
+Every request carries a `counterparty-marketplace` intent (a
 [`commit-and-reveal`](#commit-and-reveal) pair carries its own claims instead), explicit
 `signInputs`, and a `sighashTypes` entry for each signed input: `SIGHASH_ALL` or
 `SINGLE|ANYONECANPAY`, or `SIGHASH_DEFAULT` from a Taproot signer or on a reveal. The wallet admits only the bundle kinds below, proves every item
@@ -869,7 +870,8 @@ const result = await xcpwallet.request({
 | `acceptance-cpfp` | `[accept_exact_offer, bump_acceptance_fee]` | The child spends exactly the proved parent's seller output 1. |
 | `commit-and-reveal` | `[commit, sign_reveal]` | The reveal spends exactly the commit's output 0 through the one envelope that output commits to, closed by the signer's key; the message is decoded and shown, and every reveal output is listed. |
 | `fund-policy-offer` | 1..100 `fund_policy_offer` alternatives | One bidder, keys, delivery, funding set, and anchor; distinct parent transactions, at most one of which can confirm. |
-| `bulk-listing`, `bulk-attach`, `prepare-assets` | 1..8 of one action | One seller identity; distinct targets. |
+| `bulk-listing` | 1..40 `create_listing` | One seller identity; distinct operations and targets; each listing independently proved against the ledger. |
+| `bulk-attach`, `prepare-assets` | 1..8 of one action | One seller identity; distinct targets. |
 | `bulk-fanout` | 1..5 `prepare_bulk_fanout` | One seller and operation; ordered batch indices; distinct funding outpoints. |
 
 **Advertised bundles.** `xcp_getAddresses` reports the linked kinds this wallet can prove at
@@ -883,6 +885,17 @@ counts as older.
 `signing.psbtBatch.maxPolicyOfferAlternatives` gives the largest `fund-policy-offer` set (100 for a
 software wallet, 0 when unsupported). Send a linked bundle only when its kind is listed; an older
 wallet proves each item alone and blocks a listing whose input is its sibling attach's output.
+
+**Listing batch size.** `signing.psbtBatch.maxListingRequests` advertises 40 for software wallets
+and 0 for hardware wallets, which cannot sign the listing's partial sighash. It applies only to a
+homogeneous `create_listing` batch, including reprices; `maxRequests` remains 8 for other phases.
+Sites must feature-detect this property instead of inferring support from the wallet version. When
+absent, use the wallet's `maxRequests` (older XCP Wallet releases advertise 8). A value of 0 means
+unsupported, not a fallback. The site's own smaller batch limit may still apply. This does not
+change marketplace HTTP rate limits: handle those independently of wallet approval size.
+The wallet verifies at most eight independent listings concurrently and rechecks the full batch
+on approval. Increasing approval size does not increase that per-review lookup burst or skip any
+listing's ownership, asset, payout, or signing checks.
 
 Each item is first proved on its own exactly as a single `xcp_signPsbt` request would be (see
 [Marketplace intents](#marketplace-intents-intent)); a bundle then adds the cross-item checks
@@ -1087,8 +1100,9 @@ for the whole set.
 
 ##### `bulk-listing`, `bulk-attach`, `prepare-assets`, `bulk-fanout`
 
-1..8 requests of one action (`create_listing`, `attach_for_listing`, `prepare_asset`, or
-`prepare_bulk_fanout`), with one seller identity and distinct targets. `bulk-listing` and
+Requests of one action (`create_listing`, `attach_for_listing`, `prepare_asset`, or
+`prepare_bulk_fanout`), with one seller identity and distinct targets: at most 40 listings,
+8 attaches/preparations, or 5 fan-out parents. `bulk-listing` and
 `bulk-attach` requests carry distinct `operationId`s; `prepare-assets` requests share one operation
 and asset source. `bulk-fanout` takes at most 5 parents, all in one operation, with strictly
 increasing batch indices and distinct funding outpoints; a resumed fan-out may skip indices that
@@ -1146,7 +1160,7 @@ const addresses = await xcpwallet.request({ method: 'xcp_getAddresses' });
 `signing` reports what the active wallet can sign through the provider, so a site can avoid
 opening an approval that cannot succeed: `psbt` and `psbtBatch` each give `supported`, the
 accepted sighash bytes, the input scope, and the external-input rule, and `psbtBatch` adds
-`maxRequests`, `maxPolicyOfferAlternatives` and `marketplaceBundles` (see
+`maxRequests`, `maxListingRequests`, `maxPolicyOfferAlternatives` and `marketplaceBundles` (see
 [`xcp_signPsbts`](#xcp_signpsbts)).
 
 #### `xcp_chainId`

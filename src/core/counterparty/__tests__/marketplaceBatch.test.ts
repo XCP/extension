@@ -14,6 +14,30 @@ import {
 
 const SELLER = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
 
+describe('listing-specific batch bound', () => {
+  const listings = (count: number) => Array.from({ length: count }, (_, i) => ({ ...listing(i), operationId: `listing-${i}` }));
+
+  it.each([8, 20, 40])('admits %i independent listings', count => {
+    expect(parseMarketplaceBatchIntents(listings(count)).kind).toBe('bulk-listing');
+  });
+  it('rejects 41 listings', () => {
+    expect(() => parseMarketplaceBatchIntents(listings(41))).toThrow('1..40');
+  });
+  it('does not let a listing head grant a larger mixed-action batch', () => {
+    const items = listings(39);
+    expect(() => parseMarketplaceBatchIntents([...items, attach()])).toThrow('one semantic action');
+  });
+  it('checks the last listing for duplicate operations, targets, and a different seller', () => {
+    const items = listings(40);
+    expect(() => parseMarketplaceBatchIntents([...items.slice(0, 39), { ...items[39], operationId: items[0]!.operationId }]))
+      .toThrow('duplicate operation');
+    expect(() => parseMarketplaceBatchIntents([...items.slice(0, 39), { ...items[39], assets: items[0]!.assets }]))
+      .toThrow('duplicate transaction target');
+    expect(() => parseMarketplaceBatchIntents([...items.slice(0, 39), { ...items[39], seller: BIDDER }]))
+      .toThrow('one seller identity');
+  });
+});
+
 const listing = (index: number, reprice = false): CreateListingIntentClaim => ({
   standard: 'counterparty-marketplace',
   version: 1,

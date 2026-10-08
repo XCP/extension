@@ -724,8 +724,8 @@ export function createProviderService(): ProviderService {
             throw invalidParams('PSBT bundle parameters must be an object with requests');
           }
           const requests = (bundleParams as { requests?: unknown }).requests;
-          // Each phase kind bounds its own count below (maxMarketplaceBatchRequests): 8, or 100
-          // alternatives of one policy-offer funding set.
+          // Each phase kind bounds its own count below: 40 independent listings, 100 policy-offer
+          // alternatives, or the default 8 for other phases.
           if (!Array.isArray(requests) || requests.length < 1 || requests.length > MAX_POLICY_ALTERNATIVES) {
             throw invalidParams(`This wallet version supports 1..${MAX_POLICY_ALTERNATIVES} linked PSBT requests`);
           }

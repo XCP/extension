@@ -382,6 +382,7 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -454,6 +455,7 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -526,6 +528,7 @@ exports[`provider dispatch characterization > rate limits (connected · unlocked
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -4679,6 +4682,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -4746,6 +4750,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -4845,6 +4850,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > empty params 1`
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -4939,6 +4945,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5006,6 +5013,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5105,6 +5113,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [[]] 1`] =
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5199,6 +5208,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5266,6 +5276,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5365,6 +5376,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [{}] 1`] =
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5459,6 +5471,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5526,6 +5539,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5625,6 +5639,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [1,2,3,4,5
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5719,6 +5734,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5786,6 +5802,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5885,6 +5902,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk [null] 1`]
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -5979,6 +5997,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -6046,6 +6065,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -6145,6 +6165,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > junk 10k-char s
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -6307,6 +6328,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -6374,6 +6396,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -6473,6 +6496,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > params omitted 
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -6601,6 +6625,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -6668,6 +6693,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -6767,6 +6793,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: { h
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -6861,6 +6888,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -6928,6 +6956,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -7027,6 +7056,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: boo
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -7121,6 +7151,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -7188,6 +7219,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -7287,6 +7319,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: num
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -7381,6 +7414,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -7448,6 +7482,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
@@ -7547,6 +7582,7 @@ exports[`provider dispatch characterization > xcp_getAddresses > wrong type: obj
               "fund-policy-offer",
               "commit-and-reveal",
             ],
+            "maxListingRequests": 40,
             "maxPolicyOfferAlternatives": 100,
             "maxRequests": 8,
             "sighashTypes": [
