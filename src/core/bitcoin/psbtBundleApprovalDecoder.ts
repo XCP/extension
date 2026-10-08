@@ -33,6 +33,7 @@ import {
 } from '@/core/counterparty/marketplaceAttachLink';
 import {
   analyzeMarketplaceBatch,
+  type MarketplaceBatchIntent,
   parseMarketplaceBatchIntents,
 } from '@/core/counterparty/marketplaceBatch';
 import {
@@ -133,6 +134,20 @@ const zeldPackageParent = (item: StoredItem, decoded: DecodedPsbtInfo): ZeldPack
 
 /** Alternatives decoded at once after the first; bounds the burst of per-item chain lookups. */
 const POLICY_OFFER_DECODE_CONCURRENCY = 10;
+
+/** Keep the lookup burst at the former eight-item batch size even for larger listing approvals. */
+const INDEPENDENT_DECODE_CONCURRENCY = 8;
+
+async function decodeIndependentItems(
+  items: StoredItem[], intents: MarketplaceBatchIntent[], ownedAddresses: string[] | undefined,
+): Promise<DecodedPsbtInfo[]> {
+  const decoded: DecodedPsbtInfo[] = [];
+  for (let start = 0; start < items.length; start += INDEPENDENT_DECODE_CONCURRENCY) {
+    decoded.push(...await Promise.all(items.slice(start, start + INDEPENDENT_DECODE_CONCURRENCY)
+      .map((item, offset) => decodeItem(item, intents[start + offset]!, ownedAddresses))));
+  }
+  return decoded;
+}
 
 /**
  * Decode every alternative of one policy-offer funding set.
@@ -509,8 +524,7 @@ export async function decodePsbtBundleForApproval(
       ? await decodeFundPolicyOffers(
           stored.items, parsed.intents as FundPolicyOfferIntentClaim[], ownedAddresses, chain, policyOfferContext,
         )
-      : await Promise.all(stored.items.map((item, index) =>
-          decodeItem(item, parsed.intents[index]!, ownedAddresses)));
+      : await decodeIndependentItems(stored.items, parsed.intents, ownedAddresses);
   const itemReviews = decoded.map((item, index) =>
     item.marketplaceReview ?? missingReview(
       parsed.intents[index]!.action,

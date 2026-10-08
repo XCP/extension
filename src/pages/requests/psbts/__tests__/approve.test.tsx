@@ -41,6 +41,30 @@ it('keeps an ordinary batch a one-step approval', async () => {
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
+it('lets the user inspect the last of 40 listing prices before a single approval', async () => {
+  state.request = { bundleKind: 'bulk-listing', origin: 'https://example.test', address: '1wallet',
+    items: Array.from({ length: 40 }, () => ({ signInputs: { '1wallet': [1] }, marketplaceIntent: { action: 'create_listing' } })),
+  };
+  state.decoded = { items: Array.from({ length: 40 }, (_, index) => ({
+    psbtDetails: { fee: 0, transactionId: '', transactionVersion: 2, lockTime: 0, rawTxHex: '',
+      inputs: [], outputs: [], totalInputValue: 330, totalOutputValue: 100_660, unfunded: true, hasOpReturn: false },
+    marketplaceReview: { status: 'proved', family: 'create_listing',
+      title: `List CARD${index} for ${100_000 + index * 1_000} sats`, facts: [], notices: [], blockers: [],
+    },
+  })), review: { status: 'proved', family: 'marketplace_batch', title: 'Authorize 40 marketplace listings',
+    facts: [], notices: [], blockers: [],
+  } };
+  render(<ApprovePsbtsPage />);
+  expect(screen.getByRole('button', { name: 'Authorize 40 listings' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Transactions' }));
+  expect(screen.getByText('1. List CARD0 for 100000 sats')).toBeVisible();
+  expect(screen.queryByText(/List CARD39/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Show all 40' }));
+  expect(screen.getByText('40. List CARD39 for 139000 sats')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Authorize 40 listings' }));
+  await waitFor(() => expect(state.approve).toHaveBeenCalledWith(false));
+});
+
 it('shows the high-fee consequence before sending an acknowledgment', async () => {
   state.policy.requiresAcknowledgement = true;
   state.decoded.policyWarnings = [{severity: 'warning', title: 'Transaction 1: Unusually high network fee',

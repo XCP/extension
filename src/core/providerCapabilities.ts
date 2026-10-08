@@ -1,6 +1,6 @@
 import { SigHash } from '@scure/btc-signer';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
-import { MAX_MARKETPLACE_BATCH_REQUESTS, type MarketplaceBatchKind } from '@/core/counterparty/marketplaceBatch';
+import { MAX_MARKETPLACE_BATCH_REQUESTS, MAX_MARKETPLACE_LISTING_REQUESTS, type MarketplaceBatchKind } from '@/core/counterparty/marketplaceBatch';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import type { Wallet } from '@/types/wallet';
 
@@ -26,8 +26,10 @@ export interface ProviderPsbtSigningMethodCapabilities {
 export interface ProviderPsbtSigningCapabilities {
   psbt: ProviderPsbtSigningMethodCapabilities;
   psbtBatch: ProviderPsbtSigningMethodCapabilities & {
-    /** Maximum number of requests accepted by one xcp_signPsbts approval. */
+    /** Default maximum requests; listing and policy-offer batches have explicit larger bounds. */
     maxRequests: number;
+    /** Maximum create_listing requests in one approval; 0 when listing signing is unsupported. */
+    maxListingRequests: number;
     /** Maximum alternatives in one `fund-policy-offer` approval; 0 when that bundle is unsupported. */
     maxPolicyOfferAlternatives: number;
     /**
@@ -47,7 +49,7 @@ export interface ProviderPsbtSigningCapabilities {
  * `fund-and-authorize-offers`: one fund_offers then 1..7 authorize_exact_offer items that spend one
  * of its set-aside outputs, proved from the funding's own bytes before it is broadcast.
  * `fund-policy-offer`: 1..100 fund_policy_offer alternatives sharing one funding set; the one
- * kind allowed more than `maxRequests`, bounded by `maxPolicyOfferAlternatives`.
+ * funding kind allowed more than `maxRequests`, bounded by `maxPolicyOfferAlternatives`.
  */
 export type MarketplaceBundleCapability = Extract<
   MarketplaceBatchKind,
@@ -208,6 +210,7 @@ export function providerPsbtSigningCapabilities(
         inputScope: 'selected',
         externalInputs: 'any',
         maxRequests: MAX_MARKETPLACE_BATCH_REQUESTS,
+        maxListingRequests: MAX_MARKETPLACE_LISTING_REQUESTS,
         maxPolicyOfferAlternatives: MAX_POLICY_ALTERNATIVES,
         marketplaceBundles: softwareMarketplaceBundles(wallet.addressFormat, api.taprootReveals === true),
       },
@@ -228,6 +231,7 @@ export function providerPsbtSigningCapabilities(
       inputScope: 'selected',
       externalInputs: 'presigned',
       maxRequests: supported ? MAX_MARKETPLACE_BATCH_REQUESTS : 0,
+      maxListingRequests: 0,
       maxPolicyOfferAlternatives: 0,
       // Every hardware wallet's batch contract requires external inputs to be pre-signed and
       // accepts only SIGHASH_ALL, which neither linked bundle can satisfy; nor does it sign a
