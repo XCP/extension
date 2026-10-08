@@ -17,6 +17,7 @@ import { formatAmount } from "@/core/format";
 import { divide, fromSatoshis, isGreaterThan, isLessThanOrEqualToZero, multiply, roundDown, subtract, toNumber } from "@/core/numeric";
 import { getActiveSettings } from "@/core/settings";
 import { validAmountDraft } from "@/core/validation/transaction-amount";
+import { needsZeldChangeForMax } from "@/core/zeld/protection";
 
 import { t } from '@/i18n';
 
@@ -72,6 +73,7 @@ interface SpendableBtcData {
   balanceSatoshis: number;
   /** Number of spendable UTXOs */
   utxoCount: number;
+  preserveZeld: boolean;
   /** Number of UTXOs excluded due to attached assets */
   excludedWithAssets: number;
   excludedLockedValue: number;
@@ -89,6 +91,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
     balance: "0",
     balanceSatoshis: 0,
     utxoCount: 0,
+    preserveZeld: true,
     excludedWithAssets: 0,
     excludedLockedValue: 0,
     isLoading: false,
@@ -110,6 +113,8 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
         );
 
         if (cancelled) return;
+        const preserveZeld = await needsZeldChangeForMax(utxos, address);
+        if (cancelled) return;
         const balanceBtc = fromSatoshis(totalValue.toString(), true);
         const formattedBalance = formatAmount({
           value: balanceBtc,
@@ -121,6 +126,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
           balance: formattedBalance,
           balanceSatoshis: totalValue,
           utxoCount: utxos.length,
+          preserveZeld,
           excludedWithAssets,
           excludedLockedValue,
           isLoading: false,
@@ -133,6 +139,7 @@ function useSpendableBtc(address: string | undefined): SpendableBtcData {
           balance: "0",
           balanceSatoshis: 0,
           utxoCount: 0,
+          preserveZeld: true,
           excludedWithAssets: 0,
           excludedLockedValue: 0,
           isLoading: false,
@@ -200,7 +207,7 @@ export function DispenseForm({
     if (spendableBtc.utxoCount === 0) return 0;
     if (feeRate === null) return 0;
 
-    const budget = estimateMaxSpendBudget({ inputCount: spendableBtc.utxoCount, sourceAddress: activeAddress.address, feeRate });
+    const budget = estimateMaxSpendBudget({ inputCount: spendableBtc.utxoCount, sourceAddress: activeAddress.address, feeRate, preserveZeld: spendableBtc.preserveZeld });
 
     const affordableDispenses = calculateMaximumDispenses(
       selectedDispenser.satoshirate,
@@ -310,7 +317,7 @@ export function DispenseForm({
         setValidationError(message);
       } else {
         // Calculate fee for error message
-        const budget = estimateMaxSpendBudget({ inputCount: spendableBtc.utxoCount || 1, sourceAddress: activeAddress?.address || "", feeRate });
+        const budget = estimateMaxSpendBudget({ inputCount: spendableBtc.utxoCount || 1, sourceAddress: activeAddress?.address || "", feeRate, preserveZeld: spendableBtc.preserveZeld });
         const estimatedFee = budget.fee;
         const requiredSatoshis = selectedDispenser.satoshirate + budget.total;
         const requiredBTC = requiredSatoshis / SATS_PER_BTC;
@@ -401,8 +408,6 @@ export function DispenseForm({
                 hasError={!!errorMessage}
                 isDivisible={false}
               />
-
-              <p className="text-sm text-gray-500">{t('max_btc_protected_change')}</p>
 
               {/* Hidden input to convert numberOfDispenses to quantity for the API. Satoshis
                   already — the dispenser's satoshirate is a base-unit figure — so `normalizeFormData`

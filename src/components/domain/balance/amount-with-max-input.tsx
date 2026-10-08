@@ -10,6 +10,7 @@ import { divide, fromSatoshis, roundDown, toNumber } from "@/core/numeric";
 import { getActiveSettings } from "@/core/settings";
 import { isDustAmount } from "@/core/validation/amount";
 import { validateFeeRate } from "@/core/validation/fee";
+import { needsZeldChangeForMax } from "@/core/zeld/protection";
 
 import { t } from '@/i18n';
 
@@ -149,9 +150,11 @@ export function AmountWithMaxInput({
         throw new UserFacingError(t('common_no_available_balance'));
       }
 
+      const preserveZeld = await needsZeldChangeForMax(utxos, sourceAddress.address);
+      if (request.current.revision !== revision) return;
       const budget = estimateMaxSpendBudget({
         inputCount: utxos.length, sourceAddress: sourceAddress.address, feeRate,
-        destinationCount, extraOutputCount, memo,
+        destinationCount, extraOutputCount, memo, preserveZeld,
       });
       const candidate = totalValue - budget.total;
 
@@ -241,9 +244,6 @@ export function AmountWithMaxInput({
         </Button>
       </div>
       {invalidDraft && <Description id={`${name}-draft-error`} className="mt-2 text-sm text-red-500" role="alert">{draftError}</Description>}
-      {asset === 'BTC' && !onMaxClick && (
-        <Description className="mt-2 text-sm text-gray-500">{t('max_btc_protected_change')}</Description>
-      )}
       {showHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
           {description || (destinationCount > 1

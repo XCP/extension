@@ -3,9 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { asDisplayUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
+import { fetchZeldUtxos } from '@/core/zeld/api';
 import { AmountWithMaxInput } from './amount-with-max-input';
 
 vi.mock('@/core/settings', () => ({ getActiveSettings: vi.fn(() => ({ allowUnconfirmedTxs: false })) }));
+vi.mock('@/core/zeld/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/zeld/api')>()),
+  fetchZeldUtxos: vi.fn(),
+}));
 
 // Mock the validation utilities
 vi.mock('@/core/validation/bitcoin', () => ({
@@ -50,6 +55,58 @@ describe('AmountWithMaxInput', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getActiveSettings).mockReturnValue({ allowUnconfirmedTxs: false } as never);
+    vi.mocked(fetchZeldUtxos).mockReset().mockResolvedValue([{ txid: 'tx1', vout: 0, balance: 1n }]);
+  });
+
+  it.each([0, 5])('does not reserve change for clean coins even with a %s-second hunt setting', async (zeldHuntSeconds) => {
+    vi.mocked(getActiveSettings).mockReturnValue({ allowUnconfirmedTxs: false, zeldHuntSeconds } as never);
+    vi.mocked(fetchZeldUtxos).mockImplementation(async address => address === 'bc1qother'
+      ? [{ txid: 'tx1', vout: 0, balance: 1n }] : []);
+    const { selectUtxosForTransaction } = await import('@/core/counterparty/utxoSelection');
+    vi.mocked(selectUtxosForTransaction).mockResolvedValue({
+      utxos: [createMockUtxo('tx1', 0, 1000)], totalValue: 1000, inputsSet: 'tx1:0',
+      excludedWithAssets: 0, excludedValue: 0, excludedLocked: 0, excludedLockedValue: 0,
+    });
+    const onChange = vi.fn();
+    render(<AmountWithMaxInput {...defaultProps} asset="BTC" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Use maximum available amount' }));
+    // Previously the unconditional reserve left only 196 sats and Max failed the dust check.
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('0.00000743'));
+    expect(fetchZeldUtxos).toHaveBeenCalledExactlyOnceWith('bc1qtest123');
+  });
+
+  it.each(['other coin', 'selected coin', 'unavailable'] as const)('reserves only for selected ZELD or uncertainty: %s', async (caseName) => {
+    if (caseName === 'unavailable') vi.mocked(fetchZeldUtxos).mockRejectedValue(new Error('offline'));
+    else vi.mocked(fetchZeldUtxos).mockResolvedValue([{ txid: caseName === 'other coin' ? 'locked' : 'tx1', vout: 0, balance: 1n }]);
+    const { selectUtxosForTransaction } = await import('@/core/counterparty/utxoSelection');
+    vi.mocked(selectUtxosForTransaction).mockResolvedValue({
+      utxos: [createMockUtxo('tx1', 0, 100000)], totalValue: 100000, inputsSet: 'tx1:0',
+      excludedWithAssets: 0, excludedValue: 0, excludedLocked: 1, excludedLockedValue: 500000,
+    });
+    const onChange = vi.fn();
+    render(<AmountWithMaxInput {...defaultProps} asset="BTC" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Use maximum available amount' }));
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith(caseName === 'other coin' ? '0.00099743' : '0.00099196'));
+  });
+
+  it.each(['address', 'typing'])('discards a pending ZELD lookup after %s changes', async change => {
+    let resolve!: (utxos: Awaited<ReturnType<typeof fetchZeldUtxos>>) => void;
+    vi.mocked(fetchZeldUtxos).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+    const { selectUtxosForTransaction } = await import('@/core/counterparty/utxoSelection');
+    vi.mocked(selectUtxosForTransaction).mockResolvedValue({
+      utxos: [createMockUtxo('tx1', 0, 100000)], totalValue: 100000, inputsSet: 'tx1:0',
+      excludedWithAssets: 0, excludedValue: 0, excludedLocked: 0, excludedLockedValue: 0,
+    });
+    const onChange = vi.fn();
+    const { rerender } = render(<AmountWithMaxInput {...defaultProps} asset="BTC" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Use maximum available amount' }));
+    await waitFor(() => expect(fetchZeldUtxos).toHaveBeenCalled());
+    if (change === 'typing') fireEvent.change(screen.getByRole('textbox'), { target: { value: '0.002' } });
+    else rerender(<AmountWithMaxInput {...defaultProps} asset="BTC" onChange={onChange} sourceAddress={{ address: 'bc1qother' }} />);
+    onChange.mockClear();
+    await act(async () => resolve([]));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Use maximum available amount' })).not.toBeDisabled();
   });
 
   it('should render input with label', () => {
@@ -285,7 +342,6 @@ describe('AmountWithMaxInput', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Use maximum available amount' }));
     // 330 sats fee + 546 accompanying dust + 547 retained change.
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('0.00098577'));
-    expect(screen.getByText(/keeps at least 547 sats/)).toBeInTheDocument();
   });
 
   it.each(['address', 'fee', 'typing'])('does not apply a BTC Max result after %s changes', async (change) => {
