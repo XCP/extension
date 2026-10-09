@@ -8,6 +8,7 @@
  */
 
 import { apiClient, isApiError } from '@/core/api/client';
+import { fetchUTXOs } from '@/core/bitcoin/utxo';
 import { isRecord } from '@/core/isRecord';
 import { asDisplayUnits, type DisplayUnits, fromSatoshis } from '@/core/numeric';
 
@@ -43,7 +44,7 @@ export interface ZeldAddressBalance {
 }
 
 const CACHE_MS = 30_000;
-const utxoCache = new Map<string, { expires: number; promise: Promise<ZeldUtxo[]> }>();
+const utxoCache = new Map<string, { expires: number; promise: Promise<ZeldUtxo[]>; token: object }>();
 
 export function clearZeldCaches(address?: string): void {
   if (address === undefined) utxoCache.clear();
@@ -108,25 +109,77 @@ export function setZeldUtxoReadListener(listener: ZeldUtxoReadListener | null): 
   utxoReadListener = listener;
 }
 
+/** Query only named outpoints, in the indexer's maximum batches of 100. Never return a partial balance. */
+export async function fetchZeldOutpointBalances(
+  inputs: ReadonlyArray<{ txid: string; vout: number }>,
+  signal?: AbortSignal,
+): Promise<ZeldUtxo[]> {
+  const outpoints = [...new Set(inputs.map(({ txid, vout }) => {
+    const normalized = toTxid(txid);
+    if (!normalized || !Number.isSafeInteger(vout) || vout < 0 || vout > 0xffffffff) {
+      throw new Error('Invalid ZELD outpoint');
+    }
+    return `${normalized}:${vout}`;
+  }))];
+  const holdings: ZeldUtxo[] = [];
+  // Sequential batches keep a large wallet from flooding the public indexer.
+  for (let offset = 0; offset < outpoints.length; offset += 100) {
+    signal?.throwIfAborted();
+    const batch = outpoints.slice(offset, offset + 100);
+    const response = await apiClient.post<unknown>(`${ZELD_API_BASE}/utxos`, { utxos: batch }, {
+      retries: 1, signal, reportStatus: false,
+    });
+    if (!Array.isArray(response.data)) throw new Error('ZELD indexer returned an unexpected shape');
+    const remaining = new Set(batch);
+    for (const entry of response.data) {
+      if (!isRecord(entry)) throw new Error('Invalid ZELD batch response');
+      const txid = toTxid(entry.txid);
+      const balance = toBaseUnits(entry.balance);
+      const vout = entry.vout;
+      if (!txid || balance === null || typeof vout !== 'number' || !Number.isSafeInteger(vout)
+        || !remaining.delete(`${txid}:${vout}`)) throw new Error('Invalid ZELD batch response');
+      if (balance > 0n) holdings.push({ txid, vout, balance });
+    }
+    if (remaining.size) throw new Error('Incomplete ZELD batch response');
+  }
+  return holdings;
+}
+
+async function readAddressUtxos(address: string, signal?: AbortSignal): Promise<ZeldUtxo[]> {
+  try {
+    const response = await apiClient.get<unknown>(
+      `${ZELD_API_BASE}/addresses/${encodeURIComponent(address)}/utxos`,
+      { retries: 0, signal, reportStatus: false },
+    );
+    return parseZeldUtxos(response.data);
+  } catch (error) {
+    signal?.throwIfAborted();
+    if ((isApiError(error) && error.code === 'CANCELLED')
+      || (error instanceof DOMException && error.name === 'AbortError')) throw error;
+    // The address route rejects >500 confirmed Bitcoin outputs and depends on its own explorer.
+    // Our explorer fallback can still enumerate them; direct batches bypass both limitations.
+    const bitcoin = await fetchUTXOs(address, signal);
+    return fetchZeldOutpointBalances(bitcoin.filter(coin => coin.status.confirmed), signal);
+  }
+}
+
 /** Outpoints of `address` that carry ZELD, per the indexer. Cached briefly per address. */
 export function fetchZeldUtxos(address: string, signal?: AbortSignal): Promise<ZeldUtxo[]> {
   const key = address;
   const cached = utxoCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.promise;
+  const token = {};
   const promise = (async () => {
-    const response = await apiClient.get<unknown>(
-      `${ZELD_API_BASE}/addresses/${encodeURIComponent(address)}/utxos`,
-      { retries: 0, signal, reportStatus: false },
-    );
-    const utxos = parseZeldUtxos(response.data);
+    const utxos = await readAddressUtxos(address, signal);
     try {
-      utxoReadListener?.(address, utxos);
+      // A read started before refresh must not overwrite the newer record.
+      if (utxoCache.get(key)?.token === token) utxoReadListener?.(address, utxos);
     } catch {
       // Keeping the record is best effort; the answer itself is unaffected.
     }
     return utxos;
   })();
-  utxoCache.set(key, { expires: Date.now() + CACHE_MS, promise });
+  utxoCache.set(key, { expires: Date.now() + CACHE_MS, promise, token });
   promise.catch(() => {
     if (utxoCache.get(key)?.promise === promise) utxoCache.delete(key);
   });

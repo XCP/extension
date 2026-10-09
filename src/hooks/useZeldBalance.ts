@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { fetchUTXOs } from '@/core/bitcoin/utxo';
-import { fetchZeldBalance, fetchZeldRewards, type ZeldAddressBalance, type ZeldReward } from '@/core/zeld/api';
+import { clearUtxoCache, fetchUTXOs } from '@/core/bitcoin/utxo';
+import { clearZeldCaches, fetchZeldBalance, fetchZeldRewards, type ZeldAddressBalance, type ZeldReward } from '@/core/zeld/api';
 import { t } from '@/i18n';
 
 interface ZeldBalanceState {
@@ -24,21 +24,24 @@ export function useZeldBalance(address: string | undefined) {
       await Promise.resolve();
       if (cancelled || !address) return;
       setState({ ...EMPTY, address });
-      const [balance, rewards, utxos] = await Promise.allSettled([
-        fetchZeldBalance(address), fetchZeldRewards(address, 10), fetchUTXOs(address),
-      ]);
-      if (cancelled) return;
-      const zeld = balance.status === 'fulfilled' ? balance.value : null;
-      const byOutpoint = utxos.status === 'fulfilled'
-        ? new Map(utxos.value.map(utxo => [`${utxo.txid}:${utxo.vout}`, utxo.value])) : null;
-      setState({
-        address,
-        balance: zeld,
-        rewards: rewards.status === 'fulfilled' ? rewards.value : null,
-        reservedSats: zeld && byOutpoint
-          ? zeld.utxos.reduce((sum, utxo) => sum + (byOutpoint.get(`${utxo.txid}:${utxo.vout}`) ?? 0), 0) : null,
-        error: zeld ? null : t('zeld_indexer_unavailable'),
-        loading: false,
+      const balance = fetchZeldBalance(address);
+      // Balance display must not wait for optional reward history or BTC output values.
+      void balance.then(value => {
+        if (!cancelled) setState(previous => ({ ...previous, balance: value, loading: false }));
+      }).catch(() => {
+        if (!cancelled) setState(previous => ({ ...previous, error: t('zeld_indexer_unavailable'), loading: false }));
+      });
+      void fetchZeldRewards(address, 10).then(rewards => {
+        if (!cancelled) setState(previous => ({ ...previous, rewards }));
+      }).catch(() => { /* History stays unavailable independently of the balance. */ });
+      void Promise.all([balance, fetchUTXOs(address)]).then(([zeld, utxos]) => {
+        if (cancelled) return;
+        const byOutpoint = new Map(utxos.map(utxo => [`${utxo.txid}:${utxo.vout}`, utxo.value]));
+        setState(previous => ({ ...previous,
+          reservedSats: zeld.utxos.reduce((sum, utxo) => sum + (byOutpoint.get(`${utxo.txid}:${utxo.vout}`) ?? 0), 0),
+        }));
+      }).catch(() => {
+        // BTC output values are supplementary; their failure must not hide a known ZELD balance.
       });
     };
     void load();
@@ -46,6 +49,9 @@ export function useZeldBalance(address: string | undefined) {
   }, [address, revision]);
   return {
     ...(state.address === address ? state : EMPTY),
-    retry: () => setRevision(value => value + 1),
+    retry: () => {
+      if (address) { clearZeldCaches(address); clearUtxoCache(address); }
+      setRevision(value => value + 1);
+    },
   };
 }

@@ -394,6 +394,7 @@ export const apiClient = {
       headers,
       body,
       timeout,
+      reportStatus: config?.reportStatus,
     }, config?.signal), config?.retries, config?.retryOnTimeout);
   },
 
