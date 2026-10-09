@@ -6,6 +6,7 @@ import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import { assertSpendsNoLockedCoin, explainLockedShortfall, withLockedExcluded } from '@/core/counterparty/composeLocks';
 import { recordComposerChoices } from '@/core/counterparty/composerChoices';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
+import { assertMoveOutputs, moveOutputSats } from '@/core/counterparty/moveOutput';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { carriesTaprootReveal } from '@/core/counterparty/taprootEncoding';
 import { type SelectedUtxos, selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
@@ -1445,9 +1446,11 @@ export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
   } = options;
   const paramsObj = {
     destination,
+    utxo_value: moveOutputSats(destination),
   };
   const composed = await composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding, sourceAddress);
   // A move pays the destination first, so ZELD on the source output would go with the assets.
   await assertUtxoCarriesNoZeld(sourceUtxo, 'movetoutxo');
+  assertMoveOutputs(composed.result.rawtransaction, destination, sourceAddress);
   return composed;
 }

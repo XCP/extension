@@ -8,8 +8,11 @@ import {
   assertComposeUrlCalled,
   createMockComposeResponse,
   createMockComposeResult,
+  createMockMoveResponse,
   mockAddress,
   mockDestAddress,
+  mockMoveDestination,
+  mockMoveSource,
   mockSatPerVbyte,
   mockSettings,
   testAssets,
@@ -400,40 +403,49 @@ describe('Compose Send Operations', () => {
   });
 
   describe('composeMove', () => {
+    beforeEach(() => mockedApiClient.get.mockResolvedValue(createMockMoveResponse()));
     const defaultParams = {
       sourceUtxo: 'abc123def456:0',
-      destination: mockDestAddress,
+      destination: mockMoveDestination,
     };
 
     it('should compose move transaction', async () => {
       const result = await composeMove({
-        sourceAddress: mockAddress,
+        sourceAddress: mockMoveSource,
         sat_per_vbyte: mockSatPerVbyte,
         ...defaultParams,
       });
 
-      expect(result.result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockMoveResponse().data.result);
       
       // For UTXO-based transactions, check the URL format
       const actualUrl = mockedApiClient.get.mock.calls[0]![0];
-      expect(actualUrl).toContain(`/v2/utxos/${defaultParams.sourceUtxo}/compose/move`);
+      expect(actualUrl).toContain(`/v2/utxos/${defaultParams.sourceUtxo}/compose/movetoutxo`);
       expect(actualUrl).toContain(`destination=${defaultParams.destination}`);
+      expect(new URL(actualUrl as string).searchParams.get('utxo_value')).toBe('330');
     });
 
+
+    it('rejects a composer response that puts excess BTC on the asset output', async () => {
+      mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+      await expect(composeMove({
+        sourceAddress: mockMoveSource, sat_per_vbyte: mockSatPerVbyte, ...defaultParams,
+      })).rejects.toThrow('small output');
+    });
 
     it('should handle moving all assets', async () => {
       const moveAllParams = {
         sourceUtxo: 'def456ghi789:1',
-        destination: mockDestAddress,
+        destination: mockMoveDestination,
       };
 
       await composeMove({
-        sourceAddress: mockAddress,
+        sourceAddress: mockMoveSource,
         sat_per_vbyte: mockSatPerVbyte,
         ...moveAllParams,
       });
       const actualUrl = mockedApiClient.get.mock.calls[0]![0];
-      expect(actualUrl).toContain(`/v2/utxos/${moveAllParams.sourceUtxo}/compose/move`);
+      expect(actualUrl).toContain(`/v2/utxos/${moveAllParams.sourceUtxo}/compose/movetoutxo`);
       expect(actualUrl).toContain(`destination=${moveAllParams.destination}`);
     });
 
@@ -446,31 +458,31 @@ describe('Compose Send Operations', () => {
 
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+        mockedApiClient.get.mockResolvedValue(createMockMoveResponse());
         
         const params = { ...defaultParams, sourceUtxo };
         await composeMove({
-          sourceAddress: mockAddress,
+          sourceAddress: mockMoveSource,
           sat_per_vbyte: mockSatPerVbyte,
           ...params,
         });
         
         const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
-        expect(actualUrl).toContain(`/v2/utxos/${sourceUtxo}/compose/move`);
+        expect(actualUrl).toContain(`/v2/utxos/${sourceUtxo}/compose/movetoutxo`);
       }
     });
 
     it('should handle error when moving to same address', async () => {
       const sameAddressParams = {
         sourceUtxo: 'ghi789jkl012:0',
-        destination: mockAddress, // Same as source
+        destination: mockMoveSource, // Same as source
       };
 
       mockedApiClient.get.mockRejectedValueOnce(new Error('Cannot move to same address'));
 
       await expect(
         composeMove({
-          sourceAddress: mockAddress,
+          sourceAddress: mockMoveSource,
           sat_per_vbyte: mockSatPerVbyte,
           ...sameAddressParams,
         })
