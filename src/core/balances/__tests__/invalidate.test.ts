@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as btc from '@/core/bitcoin/balance';
+import { clearUtxoCache } from '@/core/bitcoin/utxo';
 import * as api from '@/core/counterparty/api';
 import * as zeld from '@/core/zeld/api';
 import { invalidateAddressBalances } from '../invalidate';
 
 vi.mock('@/core/bitcoin/balance');
+vi.mock('@/core/bitcoin/utxo');
 vi.mock('@/core/counterparty/api');
 vi.mock('@/core/zeld/api');
 
@@ -21,6 +23,7 @@ describe('invalidateAddressBalances', () => {
     expect(api.clearApiCacheMatching).toHaveBeenCalledWith(ADDRESS);
     expect(btc.clearBalanceCache).toHaveBeenCalledWith(ADDRESS);
     expect(zeld.clearZeldCaches).toHaveBeenCalledWith(ADDRESS);
+    expect(clearUtxoCache).toHaveBeenCalledWith(ADDRESS);
   });
 
   it('scopes both to the address rather than wiping everything', () => {
@@ -38,5 +41,6 @@ describe('invalidateAddressBalances', () => {
     // clearBalanceCache() with no argument wipes the cache for every address.
     expect(btc.clearBalanceCache).not.toHaveBeenCalled();
     expect(zeld.clearZeldCaches).not.toHaveBeenCalled();
+    expect(clearUtxoCache).not.toHaveBeenCalled();
   });
 });
