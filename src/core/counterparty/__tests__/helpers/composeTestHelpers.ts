@@ -1,6 +1,6 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { p2wpkh, Transaction } from '@scure/btc-signer';
+import { Address, OutScript, p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { ApiResponse, ComposeResult } from '../../compose';
 
@@ -291,3 +291,13 @@ export const createComposeTestSuite = (
     });
   };
 };
+/** A move with a small recipient output and separate sender change. */
+export const mockMoveDestination = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
+export const mockMoveSource = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+export function createMockMoveResponse() {
+  const tx = new Transaction({ allowUnknownInputs: true });
+  tx.addInput({ txid: hexToBytes(mockInputTxid), index: 0 });
+  tx.addOutput({ script: OutScript.encode(Address().decode(mockMoveDestination)), amount: 330n });
+  tx.addOutput({ script: OutScript.encode(Address().decode(mockMoveSource)), amount: 4878n });
+  return createMockComposeResponse({ rawtransaction: bytesToHex(tx.unsignedTx) });
+}
