@@ -254,6 +254,39 @@ describe('fetchInputsAttachedAssets', () => {
     });
     const inputs = [input(0, holdingTxid), ...Array.from({ length: 40 }, (_, i) => input(i + 1, `${i + 1}`.padStart(64, '0')))];
 
+    it('makes no ledger or parent requests for locally proved change in a 25-attach run', async () => {
+      const evidence = source(async () => new Set());
+      mockedTrustedPrevout.mockResolvedValue({} as never);
+      for (let i = 0; i < 25; i++) {
+        expect(await fetchInputsAttachedAssets([input(i)], undefined, mockedTrustedPrevout, evidence as never)).toEqual([]);
+      }
+      expect(mockedTrustedPrevout).toHaveBeenCalledTimes(25);
+      expect(evidence.withBalances).not.toHaveBeenCalled();
+      expect(evidence.balances).not.toHaveBeenCalled();
+      expect(resolveEmpty).not.toHaveBeenCalled();
+    });
+
+    it('excludes trusted change from membership but still detects assets on other inputs', async () => {
+      const evidence = source(async () => new Set([`${holdingTxid}:0`]));
+      mockedTrustedPrevout.mockImplementation(async txid => txid === holdingTxid ? null : {});
+      const assets = await fetchInputsAttachedAssets(inputs, undefined, mockedTrustedPrevout, evidence as never);
+      expect(evidence.withBalances).toHaveBeenCalledExactlyOnceWith([`${holdingTxid}:0`]);
+      expect(evidence.balances).toHaveBeenCalledExactlyOnceWith(`${holdingTxid}:0`, false);
+      expect(assets).toEqual([expect.objectContaining({ inputIndex: 0, assets: [expect.objectContaining({ asset: 'RAREPEPE' })] })]);
+    });
+
+    it('keeps a failed local proof unknown while verifying the remaining inputs', async () => {
+      const evidence = source(async () => new Set([`${holdingTxid}:0`]));
+      mockedTrustedPrevout.mockImplementation(async txid => {
+        if (txid !== holdingTxid) throw new Error('journal unreadable');
+        return null;
+      });
+      const assets = await fetchInputsAttachedAssets(inputs.slice(0, 2), undefined, mockedTrustedPrevout, evidence as never);
+      expect(evidence.withBalances).toHaveBeenCalledExactlyOnceWith([`${holdingTxid}:0`]);
+      expect(assets[0]?.assets[0]?.asset).toBe('RAREPEPE');
+      expect(assets[1]).toMatchObject({ lookupFailed: true, assets: [] });
+    });
+
     it('reads balances only where the ledger holds something, and still checks every signed empty input', async () => {
       const evidence = source(async () => new Set([`${holdingTxid}:0`]));
       const assets = await fetchInputsAttachedAssets(inputs, [0, 1, 2], undefined, evidence as never);
