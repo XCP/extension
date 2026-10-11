@@ -9,9 +9,6 @@ import { useAssetLatestIssuance } from '@/hooks/useAssetLatestIssuance';
 
 import { t } from '@/i18n';
 
-/**
- * Props for the AssetMenu component
- */
 interface AssetMenuProps {
   /** The owned asset object containing asset details */
   ownedAsset: {

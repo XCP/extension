@@ -3,11 +3,6 @@ import { ReviewScreen } from "@/components/screens/review-screen";
 import { t } from '@/i18n';
 import type { IssuanceReviewProps } from "@/pages/compose/issuance/review-types";
 
-/**
- * Displays a review screen for asset issuance transactions.
- * @param {IssuanceReviewProps} props - Component props
- * @returns {ReactElement} Review UI for issuance transaction
- */
 export function ReviewIssuance({
   apiResponse,
   onSign,

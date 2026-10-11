@@ -8,9 +8,6 @@ import type { CancelOptions } from "@/core/counterparty/compose";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the CancelForm component, aligned with Composer's formAction.
- */
 interface CancelFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: CancelOptions | null;

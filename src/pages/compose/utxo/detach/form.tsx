@@ -10,9 +10,6 @@ import { useUtxoSource } from "@/hooks/useUtxoSource";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the UtxoDetachForm component, aligned with Composer's formAction.
- */
 interface UtxoDetachFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DetachOptions | null;

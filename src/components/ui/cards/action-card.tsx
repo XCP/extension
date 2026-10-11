@@ -1,9 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { FaChevronRight } from "@/components/icons";
 
-/**
- * Props interface for the ActionCard component
- */
 interface ActionCardProps {
   /** The primary title/name of the action */
   title: string;
@@ -23,31 +20,6 @@ interface ActionCardProps {
   showNotification?: boolean;
 }
 
-/**
- * ActionCard Component
- * 
- * A reusable card component for displaying action items like settings, menu items, or navigation links.
- * Provides consistent styling and behavior across the application.
- * 
- * Features:
- * - Consistent hover and focus states
- * - Optional icon display
- * - Accessible keyboard navigation
- * - Customizable appearance
- * 
- * @param props - The component props
- * @returns A ReactElement representing the action card
- * 
- * @example
- * ```tsx
- * <ActionCard 
- *   title="Security Settings"
- *   description="Change your wallet password"
- *   onClick={() => navigate('/settings/security')}
- *   icon={<FaLock />}
- * />
- * ```
- */
 export function ActionCard({
   title,
   description,

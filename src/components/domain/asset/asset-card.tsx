@@ -7,9 +7,6 @@ import { formatAmount, formatAsset } from "@/core/format";
 
 import { t } from '@/i18n';
 
-/**
- * Props interface for the AssetCard component
- */
 interface AssetCardProps {
   /** The owned asset data to display */
   asset: OwnedAsset;

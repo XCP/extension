@@ -15,9 +15,6 @@ import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the IssueSupplyForm component, aligned with Composer's formAction.
- */
 interface IssueSupplyFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;

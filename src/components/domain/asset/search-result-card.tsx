@@ -6,9 +6,6 @@ import { ZELD_DISPLAY_NAME, ZELD_WALLET_ASSET } from '@/core/zeld/api';
 
 import { t } from '@/i18n';
 
-/**
- * Props interface for the SearchResultCard component
- */
 interface SearchResultCardProps {
   /** The asset symbol to display */
   symbol: string;
@@ -22,36 +19,6 @@ interface SearchResultCardProps {
   status?: string;
 }
 
-/**
- * SearchResultCard Component
- * 
- * A simplified card component for displaying search results in asset and balance lists.
- * Shows only the asset icon and symbol for quick scanning of search results.
- * 
- * @param props - The component props
- * @returns A ReactElement representing the search result card
- * 
- * @example
- * ```tsx
- * // For balance search results
- * <SearchResultCard 
- *   symbol="XCP"
- *   navigationType="balance"
- * />
- * 
- * // For asset search results
- * <SearchResultCard 
- *   symbol="PEPECASH"
- *   navigationType="asset"
- * />
- * 
- * // With custom click handler
- * <SearchResultCard 
- *   symbol="RARE"
- *   onClick={(symbol) => console.log(symbol)}
- * />
- * ```
- */
 export function SearchResultCard({
   symbol,
   onClick,

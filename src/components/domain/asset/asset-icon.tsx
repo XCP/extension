@@ -2,9 +2,6 @@ import { memo, useCallback, useMemo, useState } from "react";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the AssetIcon component.
- */
 interface AssetIconProps {
   /** The asset symbol/name */
   asset: string;

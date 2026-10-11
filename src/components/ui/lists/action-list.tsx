@@ -1,9 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { ActionCard } from "@/components/ui/cards/action-card";
 
-/**
- * Props interface for an individual action item
- */
 export interface ActionItem {
   /** Unique identifier for the action */
   id: string;
@@ -25,9 +22,6 @@ export interface ActionItem {
   showNotification?: boolean;
 }
 
-/**
- * Props interface for an action section
- */
 export interface ActionSection {
   /** Optional section title/header */
   title?: string;
@@ -37,9 +31,6 @@ export interface ActionSection {
   className?: string;
 }
 
-/**
- * Props interface for the ActionList component
- */
 interface ActionListProps {
   /** Array of sections containing action items */
   sections: ActionSection[];
@@ -51,44 +42,6 @@ interface ActionListProps {
   itemSpacing?: string;
 }
 
-/**
- * ActionList Component
- * 
- * A reusable list component for displaying grouped action items with consistent styling.
- * Used for settings screens, action menus, and other navigation interfaces.
- * 
- * Features:
- * - Section headers with customizable styling
- * - Consistent spacing and layout
- * - Accessible structure with proper ARIA labels
- * - Flexible configuration for different use cases
- * 
- * @param props - The component props
- * @returns A ReactElement representing the action list
- * 
- * @example
- * ```tsx
- * <ActionList
- *   sections={[
- *     {
- *       title: "Account",
- *       items: [
- *         {
- *           id: "profile",
- *           title: "Profile Settings",
- *           description: "Update your profile information",
- *           onClick: () => navigate('/profile')
- *         }
- *       ]
- *     },
- *     {
- *       title: "Security", 
- *       items: [...]
- *     }
- *   ]}
- * />
- * ```
- */
 export function ActionList({
   sections,
   className = "space-y-6",

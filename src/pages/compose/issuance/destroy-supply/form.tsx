@@ -14,9 +14,6 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the DestroySupplyForm component, aligned with Composer's formAction.
- */
 interface DestroySupplyFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DestroyOptions | null;
@@ -53,7 +50,6 @@ export function DestroySupplyForm({
   const isDivisible = useMemo(() => {
     return assetDetails?.assetInfo?.divisible || false;
   }, [assetDetails?.assetInfo]);
-
 
   // Sync amount when initialFormData changes
   useEffect(() => {
@@ -97,7 +93,6 @@ export function DestroySupplyForm({
     
     return validation.isValid;
   };
-
 
   return (
     <ComposerForm

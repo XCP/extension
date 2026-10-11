@@ -56,9 +56,6 @@ function toFormBoolean(value: unknown): boolean | undefined {
   return String(value) === 'true';
 }
 
-/**
- * Props for the FairminterForm component, aligned with Composer's formAction.
- */
 interface FairminterFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: FairminterOptions | null;

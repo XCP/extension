@@ -1,9 +1,6 @@
 import { Menu, MenuButton, MenuItems } from '@headlessui/react';
 import type { ReactElement, ReactNode } from 'react';
 
-/**
- * Props for the BaseMenu component
- */
 interface BaseMenuProps {
   /** The trigger element for the menu (usually an icon button) */
   trigger: ReactNode;
@@ -15,35 +12,6 @@ interface BaseMenuProps {
   ariaLabel?: string;
 }
 
-/**
- * BaseMenu Component
- * 
- * A standardized base menu component that provides consistent styling and behavior
- * for all dropdown menus in the application. Built on top of HeadlessUI's Menu component.
- * 
- * Features:
- * - Consistent trigger button styling with hover effects
- * - Standardized dropdown positioning and shadows
- * - Proper accessibility attributes
- * - Click-outside-to-close behavior
- * 
- * @param props - The component props
- * @returns A ReactElement representing the base menu
- * 
- * @example
- * ```tsx
- * <BaseMenu
- *   trigger={<FaEllipsisV />}
- *   ariaLabel="Asset actions"
- * >
- *   <MenuItem>
- *     <Button variant="menu-item" fullWidth onClick={handleAction}>
- *       Action Label
- *     </Button>
- *   </MenuItem>
- * </BaseMenu>
- * ```
- */
 export function BaseMenu({
   trigger,
   children,

@@ -63,6 +63,10 @@ all required signatures are ready. Pure parent-transaction packaging, listing re
 transaction checks live in `core/bitcoin/psbtBundleTransactions.ts`. Permission, session, and
 final-delivery checks stay with the signing service and retain their execution order.
 
+`approvalService` owns connection approvals; signing approvals use `services/provider/signApproval`.
+The existing proxy service name remains stable. `services/consolidationRunner` coordinates recovery
+through the wallet service client; its hook owns only UI state, duplicate-submit protection, and navigation.
+
 ### Types and constants
 
 Prefer the narrowest owner. A component's props stay with that component; a protocol response
@@ -258,6 +262,12 @@ and restoration and persisted deadlines handle suspension. The popup
 reports activity at most every 30 seconds, carrying the time of the last input, so the persisted
 deadline still follows the user's last input rather than the report.
 
+### Source comments
+
+Prefer clear names and structure. Comments should explain a non-obvious constraint, security
+invariant, or decision a future edit could break. Keep them proportional to that risk. Put long
+rationale and change history in PR descriptions or architecture docs, not beside obvious code.
+
 ## Type and lint contracts
 
 RPC envelopes enter as `unknown` and are validated before dispatch. Persisted signing states and
@@ -300,13 +310,3 @@ supported several choices without introducing its controller framework:
 
 These changes are defensive engineering and regression coverage, not an independent security audit.
 See [AUDIT.md](AUDIT.md) for the broader threat model and remaining limitations.
-
-### Source comments
-
-Prefer clear names and structure. Comments should explain a non-obvious constraint, security
-invariant, or decision a future edit could break. Keep them proportional to that risk. Put long
-rationale and change history in PR descriptions or architecture docs, not beside obvious code.
-
-`approvalService` owns connection approvals; signing approvals use `services/provider/signApproval`.
-The existing proxy service name remains stable. `services/consolidationRunner` coordinates recovery
-through the wallet service client; its hook owns only UI state, duplicate-submit protection, and navigation.

@@ -8,9 +8,6 @@ import { fromSatoshis } from '@/core/numeric';
 
 import { t } from '@/i18n';
 
-/**
- * Props for the AssetHeader component.
- */
 interface AssetHeaderProps {
   /** The asset information to display */
   assetInfo: AssetInfo;

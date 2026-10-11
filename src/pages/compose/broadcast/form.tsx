@@ -16,19 +16,11 @@ import { t } from '@/i18n';
 /** Maximum file size for inscriptions in KB; see the compose layer for where it comes from. */
 const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
-/**
- * Props for the BroadcastForm component, aligned with Composer's formAction.
- */
 interface BroadcastFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: BroadcastOptions | null;
 }
 
-/**
- * Form for composing a broadcast transaction using React 19 Actions.
- * @param {BroadcastFormProps} props - Component props
- * @returns {ReactElement} Broadcast form UI
- */
 export function BroadcastForm({ 
   formAction, 
   initialFormData

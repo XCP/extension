@@ -57,12 +57,6 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 /** A read nobody awaits keeps the settings it had; the failure still belongs in the console. */
 const logFailedRead = (error: unknown) => console.error('Failed to load settings:', error);
 
-/**
- * Provides settings context to the application using React 19's <Context>.
- * @param {Object} props - Component props
- * @param {ReactNode} props.children - Child components
- * @returns {ReactElement} Context provider
- */
 export function SettingsProvider({ children }: { children: ReactNode }): ReactElement {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);

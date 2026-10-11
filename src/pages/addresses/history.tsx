@@ -138,10 +138,7 @@ export default function AddressHistoryPage(): ReactElement {
     setSearchParams({ page: page.toString() });
   };
 
-  /**
-   * Renders pagination controls for navigating between pages.
-   * @returns {ReactElement} Pagination buttons.
-   */
+
   const renderPagination = (): ReactElement => (
     <div className="flex justify-between gap-4">
       <Button

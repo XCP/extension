@@ -15,9 +15,6 @@ import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ResetSupplyForm component, aligned with Composer's formAction.
- */
 interface ResetSupplyFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;

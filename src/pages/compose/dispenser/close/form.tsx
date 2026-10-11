@@ -20,9 +20,6 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the DispenserCloseForm component, aligned with Composer's formAction.
- */
 interface DispenserCloseFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DispenserOptions | null;

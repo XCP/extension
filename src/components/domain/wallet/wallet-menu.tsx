@@ -9,9 +9,6 @@ import { useWallet } from '@/contexts/wallet-context';
 import { t } from '@/i18n';
 import type { Wallet } from '@/types/wallet';
 
-/**
- * Props for the WalletMenu component
- */
 interface WalletMenuProps {
   /** The wallet object containing wallet details */
   wallet: Wallet;

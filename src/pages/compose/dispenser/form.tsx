@@ -16,9 +16,6 @@ import { useTradingPair } from "@/hooks/useTradingPair";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the DispenserForm component, aligned with Composer's formAction.
- */
 interface DispenserFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DispenserOptions | null;
@@ -110,7 +107,6 @@ export const DispenserForm = memo(function DispenserForm({
       setAvailableBalance(offerable);
     }
   }, [assetDetails?.spendableBalance, assetDetails?.availableBalance]);
-
 
   // Reset form fields when initialFormData changes to null
   const prevInitialFormDataRef = useRef(initialFormData);

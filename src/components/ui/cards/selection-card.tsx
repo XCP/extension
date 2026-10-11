@@ -2,9 +2,6 @@ import { Radio } from "@headlessui/react";
 import type { ReactElement, ReactNode } from "react";
 import { FaCheck } from "@/components/icons";
 
-/**
- * Props interface for the SelectionCard component
- */
 interface SelectionCardProps<T = any> {
   /** The value this card represents */
   value: T;
@@ -26,33 +23,6 @@ interface SelectionCardProps<T = any> {
   className?: string;
 }
 
-/**
- * SelectionCard Component
- * 
- * A reusable card component for radio and checkbox selections.
- * Designed to work with HeadlessUI's RadioGroup and Listbox components.
- * 
- * Features:
- * - Visual feedback for selected state
- * - Disabled state with optional reason
- * - Customizable content with title and description
- * - Check mark indicator for selected items
- * - Keyboard accessible through HeadlessUI
- * 
- * @param props - The component props
- * @returns A ReactElement representing the selection card
- * 
- * @example
- * ```tsx
- * <RadioGroup value={selected} onChange={setSelected}>
- *   <SelectionCard
- *     value="option1"
- *     title="Option 1"
- *     description="Description for option 1"
- *   />
- * </RadioGroup>
- * ```
- */
 export function SelectionCard<T = any>({
   value,
   title,

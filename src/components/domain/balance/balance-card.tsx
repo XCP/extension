@@ -8,9 +8,6 @@ import type { TokenBalance } from "@/core/counterparty/api";
 import { formatAmount, formatAsset } from "@/core/format";
 import { ZELD_DISPLAY_NAME, ZELD_WALLET_ASSET } from "@/core/zeld/api";
 
-/**
- * Props interface for the BalanceCard component
- */
 interface BalanceCardProps {
   /** The token balance data to display */
   token: TokenBalance;

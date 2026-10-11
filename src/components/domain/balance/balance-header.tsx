@@ -6,9 +6,6 @@ import { toBigNumber } from '@/core/numeric';
 
 import { t } from '@/i18n';
 
-/**
- * Props for the BalanceHeader component.
- */
 interface BalanceHeaderProps {
   /** The token balance to display */
   balance: TokenBalance;

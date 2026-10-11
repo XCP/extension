@@ -83,9 +83,6 @@ export default function AddressDetailsPage(): ReactElement {
   );
 }
 
-/**
- * Props for the CopyAddress component.
- */
 interface CopyAddressProps {
   address: string;
 }
