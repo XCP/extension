@@ -19,8 +19,11 @@ import {
   createMockApiResponse,
   createMockComposeResponse,
   createMockComposeResult,
+  createMockMoveResponse,
   mockAddress,
   mockApiBase,
+  mockMoveDestination,
+  mockMoveSource,
   mockSatPerVbyte,
   mockSettings,
   testQuantities,
@@ -603,21 +606,22 @@ describe('Compose Specialized Operations', () => {
   });
 
   describe('composeMove', () => {
+    beforeEach(() => mockedApiClient.get.mockResolvedValue(createMockMoveResponse()));
     const defaultParams = {
       sourceUtxo: 'abc123def456:0',
-      destination: 'bc1qdestination',
+      destination: mockMoveDestination,
     };
 
     it('should compose move transaction', async () => {
       const { composeMove } = await import('../compose');
       
       const result = await composeMove({
-        sourceAddress: mockAddress,
+        sourceAddress: mockMoveSource,
         sat_per_vbyte: mockSatPerVbyte,
         ...defaultParams,
       });
 
-      expect(result.result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockMoveResponse().data.result);
       
       const expectedUrl = `${mockApiBase}/v2/utxos/${defaultParams.sourceUtxo}/compose/movetoutxo`;
       const actualCall = mockedApiClient.get.mock.calls[0]!;
@@ -628,14 +632,14 @@ describe('Compose Specialized Operations', () => {
       const { composeMove } = await import('../compose');
       
       await composeMove({
-        sourceAddress: mockAddress,
+        sourceAddress: mockMoveSource,
         sat_per_vbyte: mockSatPerVbyte,
         ...defaultParams,
       });
 
       const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
-      expect(url).toContain('destination=bc1qdestination');
+      expect(url).toContain(`destination=${mockMoveDestination}`);
     });
 
     it('should handle moving from different UTXOs', async () => {
@@ -644,11 +648,11 @@ describe('Compose Specialized Operations', () => {
 
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+        mockedApiClient.get.mockResolvedValue(createMockMoveResponse());
 
         const params = { ...defaultParams, sourceUtxo };
         await composeMove({
-          sourceAddress: mockAddress,
+          sourceAddress: mockMoveSource,
           sat_per_vbyte: mockSatPerVbyte,
           ...params,
         });

@@ -19,8 +19,11 @@ import { composeDetach, composeMove, composeSend } from '../compose';
 import {
   createMockApiResponse,
   createMockComposeResult,
+  createMockMoveResponse,
   mockAddress,
   mockDestAddress,
+  mockMoveDestination,
+  mockMoveSource,
   mockSatPerVbyte,
   mockSettings,
 } from './helpers/composeTestHelpers';
@@ -150,7 +153,8 @@ describe('compose leaves locked coins alone', () => {
   it('excludes locked coins from the fee inputs of a detach and a move', async () => {
     mockedApiClient.get.mockResolvedValue(createMockApiResponse({ result: createMockComposeResult() }));
     await composeDetach({ sourceUtxo: ATTACHED, sourceAddress: mockAddress, sat_per_vbyte: mockSatPerVbyte });
-    await composeMove({ sourceUtxo: ATTACHED, sourceAddress: mockAddress, destination: mockDestAddress, sat_per_vbyte: mockSatPerVbyte });
+    mockedApiClient.get.mockResolvedValue(createMockMoveResponse());
+    await composeMove({ sourceUtxo: ATTACHED, sourceAddress: mockMoveSource, destination: mockMoveDestination, sat_per_vbyte: mockSatPerVbyte });
     expect(requestedUrls().map(excluded)).toEqual([[LOCKED], [LOCKED]]);
   });
 

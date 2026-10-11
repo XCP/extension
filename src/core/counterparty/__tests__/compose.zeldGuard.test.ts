@@ -7,7 +7,7 @@ import { OTHER_ADDRESS, opReturnScript, PREV_TXID, SOURCE_ADDRESS, SOURCE_P2WPKH
 import { fetchZeldOutpointBalance, fetchZeldUtxos } from '@/core/zeld/api';
 import { composeAttach, composeBurn, composeDetach, composeDispense, composeMove, composeSend } from '../compose';
 import { composerChosenMessageFields } from '../composerChoices';
-import { mockSettings } from './helpers/composeTestHelpers';
+import { createMockMoveResponse, mockMoveDestination, mockMoveSource, mockSettings } from './helpers/composeTestHelpers';
 
 vi.mock('@/core/api/client');
 vi.mock('@/core/counterparty/capabilities', () => ({
@@ -192,20 +192,20 @@ describe('ZELD guard on composed transactions', () => {
   });
 
   it('refuses a move whose source output holds ZELD, by indexer or by txid shape', async () => {
-    api.get.mockResolvedValue(response(btcSendSpending(CLEAN_TXID)) as never);
+    api.get.mockResolvedValue(createMockMoveResponse() as never);
     outpointBalance.mockResolvedValue(7n);
     await expect(composeMove({
-      sourceUtxo: `${PREV_TXID}:0`, destination: OTHER_ADDRESS, sat_per_vbyte: 2,
+      sourceUtxo: `${PREV_TXID}:0`, sourceAddress: mockMoveSource, destination: mockMoveDestination, sat_per_vbyte: 2,
     } as never)).rejects.toThrow('Detach first');
     expect(outpointBalance).toHaveBeenCalledWith(PREV_TXID, 0);
 
     outpointBalance.mockResolvedValue(0n);
     await expect(composeMove({
-      sourceUtxo: `${ZELD_TXID}:0`, destination: OTHER_ADDRESS, sat_per_vbyte: 2,
+      sourceUtxo: `${ZELD_TXID}:0`, sourceAddress: mockMoveSource, destination: mockMoveDestination, sat_per_vbyte: 2,
     } as never)).rejects.toThrow('also holds ZELD');
 
     await expect(composeMove({
-      sourceUtxo: `${CLEAN_TXID}:0`, destination: OTHER_ADDRESS, sat_per_vbyte: 2,
+      sourceUtxo: `${CLEAN_TXID}:0`, sourceAddress: mockMoveSource, destination: mockMoveDestination, sat_per_vbyte: 2,
     } as never)).resolves.toBeDefined();
   });
 
