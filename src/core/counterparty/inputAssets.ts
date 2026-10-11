@@ -80,16 +80,27 @@ export async function fetchInputsAttachedAssets(
   );
   const checked = byPriority.slice(0, MAX_ASSET_LOOKUP_INPUTS);
   const unchecked = byPriority.slice(MAX_ASSET_LOOKUP_INPUTS);
-  const holding = await ledgerMembership(evidenceSource, checked.map(input => `${input.txid}:${input.vout}`));
+  // Resolve the local journal before asking Core: chained attaches often spend
+  // only change already proved clean. Those inputs need no network membership
+  // read either. A failed local lookup remains unknown, as before.
+  const trusted = await Promise.allSettled(checked.map(input => resolveTrustedPrevout(input.txid, input.vout)));
+  const holding = await ledgerMembership(evidenceSource, checked
+    .filter((_, index) => {
+      const local = trusted[index]!;
+      return local.status === 'fulfilled' && !local.value;
+    })
+    .map(input => `${input.txid}:${input.vout}`));
 
   const results = await Promise.all(
-    checked.map(async (input): Promise<InputAttachedAssets | null> => {
+    checked.map(async (input, index): Promise<InputAttachedAssets | null> => {
       const utxo = `${input.txid}:${input.vout}`;
       try {
         // A journal entry is inductively attachment-free: it came from a transaction whose
         // signed inputs were all checked clean, and whose own payload does not bind an asset to
         // this output. Do not turn Counterparty's indexing lag into an "unknown asset" blocker.
-        if (await resolveTrustedPrevout(input.txid, input.vout)) return null;
+        const local = trusted[index]!;
+        if (local.status === 'rejected') throw local.reason;
+        if (local.value) return null;
         // The batched membership answer stands in for this input's own balance read when it says
         // the ledger holds nothing there; an empty answer is then checked exactly as before.
         const assets = holding && !holding.has(utxo)
