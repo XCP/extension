@@ -101,6 +101,14 @@ an API response or stored record trustworthy.
   `components/composer` coordinates the compose/review/sign/result UI flow. Route-specific forms
   and choices stay in `pages`.
 
+The shared review screen derives its presentation fields from `ComposeResult` rather than
+maintaining a second permissive API response type. It accepts only the fields it needs; callers
+can still pass the complete response for the raw JSON disclosure. Normalized form records expose
+operation-specific values as `unknown`, with the serialized fee typed explicitly. Narrow those
+values at their consumer instead of using a broad `any` record. These compile-time contracts do
+not replace transaction verification or establish that an API response is trustworthy. The
+operation-specific compose adapters and review pages still need their own form/response contracts.
+
 A `use…` export should provide React behavior: state, context, subscriptions, effects, or a
 lifecycle-aware composition of other hooks. A pure calculation or API helper is an ordinary
 function in the owning domain or runtime module. For example, activity-report batching lives

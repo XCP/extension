@@ -64,7 +64,9 @@ export interface ComposerContextType<T> {
   settings: ReturnType<typeof useSettings>["settings"];
 }
 
-export const ComposerContext = createContext<ComposerContextType<any> | undefined>(undefined);
+// React stores one context object for every form type. Consumers without a form type must
+// narrow formData before reading it; only the typed hook asserts the caller's form contract.
+export const ComposerContext = createContext<ComposerContextType<unknown> | undefined>(undefined);
 
 export function useComposer<T>(): ComposerContextType<T> {
   const context = use(ComposerContext);

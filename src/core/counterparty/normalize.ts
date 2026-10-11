@@ -194,6 +194,11 @@ export const NORMALIZATION_CONFIG: Record<string, {
  */
 type AssetInfoCache = Map<string, AssetInfo | null>;
 
+/** Operation-specific fields are narrowed by their consumers; the fee is serialized here. */
+export interface NormalizedFormData extends Record<string, unknown> {
+  sat_per_vbyte?: string;
+}
+
 /**
  * Normalizes form data for API consumption
  * Converts user-friendly values (e.g., "1.5") to API format (e.g., 150000000 for divisible assets)
@@ -202,13 +207,13 @@ export async function normalizeFormData(
   formData: FormData,
   composeType: string
 ): Promise<{
-  normalizedData: Record<string, any>;
+  normalizedData: NormalizedFormData;
   assetInfoCache: AssetInfoCache;
 }> {
   const config = NORMALIZATION_CONFIG[composeType];
   if (!config) throw new Error(`Unsupported compose type: ${composeType}`);
   const rawData = Object.fromEntries(formData);
-  const normalizedData: Record<string, any> = { ...rawData };
+  const normalizedData: NormalizedFormData = { ...rawData };
   const assetInfoCache: AssetInfoCache = new Map();
 
   if ('sat_per_vbyte' in rawData) {

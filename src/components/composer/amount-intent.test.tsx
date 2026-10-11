@@ -16,7 +16,7 @@ vi.mock('@/hooks/useAssetDetails', () => ({ useAssetDetails: () => ({ data: null
 vi.mock('@/components/domain/asset/asset-name-input', () => ({ AssetNameInput: () => null }));
 vi.mock('@/core/counterparty/api', () => ({ fetchAssetDetails: vi.fn(async () => ({ asset: 'TOKEN', divisible: false })) }));
 
-function AmountHarness({ divisible = true, submitted, price = false, memo = false }: { divisible?: boolean; submitted: (raw: string) => void; price?: boolean; memo?: boolean }) {
+function AmountHarness({ divisible = true, submitted, price = false, memo = false }: { divisible?: boolean; submitted: (raw: unknown) => void; price?: boolean; memo?: boolean }) {
   const [draft, setDraft] = useState('');
   return <ComposerForm showFeeRate={false} formAction={async form => {
     const result = await normalizeFormData(form, 'send');
