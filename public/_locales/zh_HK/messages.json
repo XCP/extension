@@ -6945,6 +6945,15 @@
     "message": "所選幣已被鎖定或鎖定狀態已變更。請重新審核交易。",
     "description": "Coin control: signing guards and asset lookup status."
   },
+  "setup_import_private_key_clear_clipboard": {
+    "message": "匯入後清除剪貼簿"
+  },
+  "setup_import_private_key_clipboard_warning": {
+    "message": "錢包已匯入。無法清除剪貼簿。如果其中仍有您的私鑰，請手動清除。"
+  },
+  "setup_import_private_key_clipboard_permission_denied": {
+    "message": "未獲得剪貼簿存取權限。您仍可匯入私鑰，但需要自行清除剪貼簿。"
+  },
   "coins_assets_unknown": {
     "message": "資產狀態未知",
     "description": "Coin control: signing guards and asset lookup status."

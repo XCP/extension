@@ -38,6 +38,7 @@ export default defineConfig({
         matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
       },
     ],
+    optional_permissions: ['clipboardRead', 'clipboardWrite'],
     permissions: [
       'sidePanel',
       'storage',
