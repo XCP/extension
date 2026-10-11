@@ -93,8 +93,10 @@ describe('onboarding and unlock localization', () => {
     expect(button).toBeDisabled();
     expect(input).toHaveValue(password);
     await act(async () => { finishUnlock(); });
-    await waitFor(() => expect(fixture.navigate).toHaveBeenCalledWith('/index'));
-    expect(input).toHaveValue('');
+    await waitFor(() => expect(input).toHaveValue(''));
+    expect(button).toHaveTextContent(t('keychain_unlock_unlock'));
+    // KeychainLockedOnly restores the requested route; the page only handles unlocking.
+    expect(fixture.navigate).not.toHaveBeenCalled();
   });
 
   it('retains local password validation and the original rate-limit diagnostic', async () => {
