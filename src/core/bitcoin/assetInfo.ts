@@ -17,4 +17,3 @@ export const BTC_ASSET_INFO: AssetInfo = {
   supply_normalized: asDisplayUnits('21000000'),
   fair_minting: false,
 };
-
