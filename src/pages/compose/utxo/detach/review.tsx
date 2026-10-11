@@ -1,24 +1,11 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
+import type { ComposeParams } from "@/core/counterparty/compose";
 
 import { t } from '@/i18n';
 import { spentUtxoAssetsText, useSpentUtxoAssets } from "@/pages/compose/utxo/spent-utxo-assets";
 
-/**
- * Props for the ReviewUtxoDetach component.
- */
-interface ReviewUtxoDetachProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
+type ReviewUtxoDetachProps = TransactionReviewProps<Pick<ComposeParams, 'destination' | 'sourceUtxo' | 'utxo'>> & { apiResponse: { result: { rawtransaction: unknown } } };
 
-/**
- * Displays a review screen for UTXO detach transactions.
- * @param {ReviewUtxoDetachProps} props - Component props
- * @returns {ReactElement} Review UI for UTXO detach transaction
- */
 export function ReviewUtxoDetach({ 
   apiResponse, 
   onSign, 

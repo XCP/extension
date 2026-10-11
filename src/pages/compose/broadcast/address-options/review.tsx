@@ -1,14 +1,9 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
+import type { ComposeParams } from "@/core/counterparty/compose";
 
 import { t } from '@/i18n';
 
-interface ReviewAddressOptionsProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
+type ReviewAddressOptionsProps = TransactionReviewProps<Pick<ComposeParams, 'options' | 'text'>>;
 
 const ADDRESS_OPTION_REQUIRE_MEMO = 1;
 

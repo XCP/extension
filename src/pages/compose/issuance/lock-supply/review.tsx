@@ -2,7 +2,6 @@ import { ReviewScreen } from "@/components/screens/review-screen";
 import { t } from '@/i18n';
 import type { IssuanceReviewProps } from "@/pages/compose/issuance/review-types";
 
-
 /**
  * Displays a review screen for asset supply locking transactions.
  * @param {IssuanceReviewProps} props - Component props

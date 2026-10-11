@@ -47,7 +47,7 @@ const balances: Record<string, unknown[]> = {
 
 function renderPage(page: "detach" | "move", rawtransaction: unknown = rawTransaction()) {
   const props = {
-    apiResponse: { result: { rawtransaction, params: { source: DESTINATION, sourceUtxo: SOURCE_UTXO, destination: DESTINATION } } },
+    apiResponse: { result: { btc_fee: 1000, rawtransaction, params: { source: DESTINATION, sourceUtxo: SOURCE_UTXO, destination: DESTINATION } } },
     onSign: vi.fn(),
     onBack: vi.fn(),
     error: null,

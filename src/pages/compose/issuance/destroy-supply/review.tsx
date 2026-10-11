@@ -15,13 +15,12 @@ export function ReviewDestroy({
   const { result } = apiResponse;
   const asset = result.params.asset;
 
-  // Use normalized quantity from verbose API response (handles divisibility correctly)
   const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
 
   // An amount destroyed has no scale without the supply it comes out of. The supply is read the way
   // the approval screen reads it, and the rows are the approval's own (supply before and after, and
   // the share destroyed), computed from the verified quantity at the verified divisibility.
-  const supply = useReviewLookup(asset, () => readAssetSupply(asset));
+  const supply = useReviewLookup(asset, () => asset ? readAssetSupply(asset) : Promise.resolve(null));
   const supplyFields = supply.status === 'ready' && supply.value
     ? composedMessageFields('destroy', { asset, quantity: result.params.quantity },
       { assetSupply: supply.value }, { asset_info: result.params.asset_info })

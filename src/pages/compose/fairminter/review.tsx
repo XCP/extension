@@ -1,24 +1,11 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import { isGreaterThan } from "@/core/numeric";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewFairminter component.
- */
-interface ReviewFairminterProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
+type ReviewFairminterProps = TransactionReviewProps<Pick<ComposeParams, 'asset' | 'description' | 'hard_cap_normalized' | 'lot_price_asset' | 'lot_price_normalized' | 'lot_size_normalized' | 'lp_asset' | 'max_mint_per_address_normalized' | 'pool_quantity_normalized' | 'soft_cap' | 'soft_cap_deadline_block' | 'soft_cap_normalized' | 'start_block'>>;
 
-/**
- * Displays a review screen for fairminter creation transactions.
- * @param {ReviewFairminterProps} props - Component props
- * @returns {ReactElement} Review UI for fairminter transaction
- */
 export function ReviewFairminter({ 
   apiResponse, 
   onSign, 

@@ -20,15 +20,10 @@ describe("ReviewFairminter", () => {
     render(
       <ReviewFairminter
         apiResponse={{
-          result: {
+          result: { btc_fee: 1000,
             params: {
               asset: "LAUNCHCOIN",
-              lot_price: "1000000",
-              lot_size: "100000000000",
-              max_mint_per_address: "100000000000000",
               max_mint_per_address_normalized: "1000000.00000000",
-              hard_cap: "10000000000000000",
-              pool_quantity: "3100000000000000",
               pool_quantity_normalized: "31000000.00000000",
             },
           },
@@ -53,7 +48,7 @@ describe("ReviewFairminter", () => {
       hard_cap: "100000000000", soft_cap: "20000000000", max_mint_per_tx: "10000000000", divisible: true,
     });
     render(
-      <ReviewFairminter apiResponse={{ result: { params } }} onSign={vi.fn()} onBack={vi.fn()} error={null} isSigning={false} />
+      <ReviewFairminter apiResponse={{ result: { btc_fee: 1000, params } }} onSign={vi.fn()} onBack={vi.fn()} error={null} isSigning={false} />
     );
 
     expect(screen.getByTestId("Lot Price")).toHaveTextContent(/^0\.5 XCP$/);
@@ -70,7 +65,7 @@ describe("ReviewFairminter", () => {
       asset: "LAUNCHCOIN", lot_price: "100000000", lot_price_asset: "XCP", lot_size: "10", hard_cap: "1000", divisible: false,
     });
     render(
-      <ReviewFairminter apiResponse={{ result: { params } }} onSign={vi.fn()} onBack={vi.fn()} error={null} isSigning={false} />
+      <ReviewFairminter apiResponse={{ result: { btc_fee: 1000, params } }} onSign={vi.fn()} onBack={vi.fn()} error={null} isSigning={false} />
     );
 
     expect(screen.getByTestId("Lot Price")).toHaveTextContent(/^1 XCP$/);

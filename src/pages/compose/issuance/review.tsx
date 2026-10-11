@@ -24,7 +24,6 @@ export function ReviewIssuance({
 
   const isLocked = isTruthy(result.params.lock);
 
-  // Use normalized quantity from verbose API response (handles divisibility correctly)
   const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
 
   const customFields = [

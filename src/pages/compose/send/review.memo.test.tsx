@@ -19,17 +19,17 @@ vi.mock('@/contexts/settings-context', () => ({
 }));
 vi.mock('@/hooks/useMarketPrices', () => ({ useMarketPrices: () => ({ btc: null }) }));
 vi.mock('@/components/screens/review-screen', () => ({
-  ReviewScreen: ({ customFields }: { customFields: Array<{ label: string; value: ReactNode }> }) => (
+  ReviewScreen: ({ customFields }: { customFields: Array<{ label: string; value: ReactNode; rightElement?: ReactNode }> }) => (
     <dl>
       {customFields.map((field) => (
-        <div key={field.label}><dt>{field.label}</dt><dd>{field.value}</dd></div>
+        <div key={field.label}><dt>{field.label}</dt><dd>{field.value}{field.rightElement}</dd></div>
       ))}
     </dl>
   ),
 }));
 
 const apiResponse = {
-  result: { name: 'send', params: { asset: 'XCP', quantity: 100000000, memo: 'echo' } },
+  result: { btc_fee: 1000, name: 'send', params: { asset: 'XCP', quantity: 100000000, memo: 'echo' } },
 };
 
 function renderWithMemo(memoBytes: Uint8Array, memo: string) {
@@ -52,5 +52,27 @@ describe('ReviewSend memo', () => {
     renderWithMemo(new TextEncoder().encode('123456'), '123456');
     expect(screen.getByText('Memo')).toBeInTheDocument();
     expect(screen.getByText('123456')).toBeInTheDocument();
+  });
+});
+
+
+describe('ReviewSend MPMA fallback', () => {
+  it('shows recipients and quantities from base-unit tuples with verified divisibility', () => {
+    decodedMessage = null;
+    render(<ReviewSend
+      apiResponse={{ result: {
+        btc_fee: 1000,
+        name: 'mpma',
+        params: {
+          asset_dest_quant_list: [['TOKEN', 'bc1qrecipient', '250000000']],
+          verified_asset_info: { TOKEN: { divisible: true } },
+        },
+      } }}
+      onSign={vi.fn()} onBack={vi.fn()} error={null} isSigning={false}
+    />);
+    expect(screen.getByText('→ bc1qrecipient')).toBeInTheDocument();
+    expect(screen.getByText('2.50000000 TOKEN')).toBeInTheDocument();
+    expect(screen.getByText('2.5 TOKEN')).toBeInTheDocument();
+    expect(screen.queryByText(/250000000/)).not.toBeInTheDocument();
   });
 });

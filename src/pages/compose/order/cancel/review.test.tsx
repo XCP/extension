@@ -25,7 +25,7 @@ const OFFER_HASH = "c3".repeat(32);
 function renderCancel() {
   render(
     <ReviewCancel
-      apiResponse={{ result: { params: { source: "1Source", offer_hash: OFFER_HASH } } }}
+      apiResponse={{ result: { btc_fee: 1000, params: { source: "1Source", offer_hash: OFFER_HASH } } }}
       onSign={vi.fn()}
       onBack={vi.fn()}
       error={null}

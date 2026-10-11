@@ -106,22 +106,76 @@ export interface ComposeAssetInfo {
   supply_normalized?: string;
 }
 
+/** Parameters vary by operation; absent fields are not evidence of a send. */
 export interface ComposeParams {
   source?: string;
   destination?: string;
   address?: string;
   dispenser?: string;
-  asset: string;
-  quantity: string | number;
-  memo: string | null;
-  memo_is_hex: boolean;
-  use_enhanced_send: boolean;
-  no_dispense: boolean;
-  skip_validation: boolean;
-  asset_info: ComposeAssetInfo;
-  quantity_normalized: string;
+  asset?: string;
+  quantity?: string | number;
+  memo?: string | null;
+  memo_is_hex?: boolean;
+  use_enhanced_send?: boolean;
+  no_dispense?: boolean;
+  skip_validation?: boolean;
+  asset_info?: Partial<ComposeAssetInfo>;
+  quantity_normalized?: string;
   more_outputs?: string;
   lp_asset?: string;
+  asset_longname?: string;
+  text?: string;
+  value?: string | number;
+  fee_fraction?: string | number;
+  description?: string;
+  dividend_asset?: string;
+  quantity_per_unit?: string | number;
+  quantity_per_unit_normalized?: string;
+  escrow_quantity?: string | number;
+  escrow_quantity_normalized?: string;
+  give_quantity?: string | number;
+  give_quantity_normalized?: string;
+  mainchainrate?: string | number;
+  get_quantity?: string | number;
+  get_quantity_normalized?: string;
+  give_asset?: string;
+  get_asset?: string;
+  give_asset_info?: Partial<ComposeAssetInfo>;
+  get_asset_info?: Partial<ComposeAssetInfo>;
+  expiration?: string | number;
+  fee_required?: string | number;
+  lot_price_asset?: string;
+  lot_price_normalized?: string;
+  lot_size_normalized?: string;
+  max_mint_per_address_normalized?: string;
+  hard_cap_normalized?: string;
+  pool_quantity_normalized?: string;
+  soft_cap?: string | number;
+  soft_cap_normalized?: string;
+  soft_cap_deadline_block?: string | number;
+  start_block?: string | number;
+  flags?: string | number;
+  destination_vout?: string | number | null;
+  sourceUtxo?: string;
+  utxo?: string;
+  asset_a?: string;
+  asset_b?: string;
+  min_lp_quantity?: string | number;
+  min_lp_quantity_normalized?: string;
+  quantity_a?: string | number;
+  quantity_a_normalized?: string;
+  quantity_b?: string | number;
+  quantity_b_normalized?: string;
+  min_quantity_a?: string | number;
+  min_quantity_a_normalized?: string;
+  min_quantity_b?: string | number;
+  min_quantity_b_normalized?: string;
+  order_match_id?: string;
+  offer_hash?: string;
+  options?: string | number;
+  asset_dest_quant_list?: [asset: string, destination: string, quantity: string | number, memo?: string, memoIsHex?: boolean][];
+  memos?: string[];
+  verified_asset_info?: Record<string, Partial<ComposeAssetInfo>>;
 }
 
 export interface ComposeResult {
@@ -168,10 +222,7 @@ export interface ComposeResult {
   zeld_protection?: ZeldProtectionMetadata;
   /** Added by the wallet's own ZELD send composer (`core/zeld/sendCompose.ts`). */
   zeld_send?: ZeldSendMetadata;
-  params: ComposeParams & {
-    asset_dest_quant_list?: [string, string, string | number][];
-    memos?: string[];
-  };
+  params: ComposeParams;
   name: string;
 }
 

@@ -1,25 +1,12 @@
 import { sweepIncludes } from "@/components/domain/tx/tx-action-info";
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import { parseMoreOutputs } from "@/core/format";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewSweep component.
- */
-interface ReviewSweepProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
+type ReviewSweepProps = TransactionReviewProps<Pick<ComposeParams, 'destination' | 'flags' | 'memo' | 'more_outputs'>>;
 
-/**
- * Displays a review screen for sweep transactions.
- * @param {ReviewSweepProps} props - Component props
- * @returns {ReactElement} Review UI for sweep transaction
- */
 export function ReviewSweep({ 
   apiResponse, 
   onSign, 

@@ -20,7 +20,7 @@ const DESTINATION = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
 function renderSweep(params: Record<string, unknown>) {
   render(
     <ReviewSweep
-      apiResponse={{ result: { params: { destination: DESTINATION, ...params } } }}
+      apiResponse={{ result: { btc_fee: 1000, params: { destination: DESTINATION, ...params } } }}
       onSign={vi.fn()}
       onBack={vi.fn()}
       error={null}

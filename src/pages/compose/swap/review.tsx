@@ -1,30 +1,13 @@
 import { useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import { formatPriceRatio } from "@/core/format";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewSwap component.
- */
-interface ReviewSwapProps {
-  apiResponse: any; // Same order compose response shape as ReviewOrder
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
+type ReviewSwapProps = TransactionReviewProps<Pick<ComposeParams, 'get_asset' | 'get_asset_info' | 'get_quantity' | 'get_quantity_normalized' | 'give_asset' | 'give_asset_info' | 'give_quantity' | 'give_quantity_normalized'>>;
 
-/**
- * Displays a review screen for swap transactions.
- *
- * A swap composes a regular DEX order, but the labels reflect swap semantics:
- * the order's get_quantity is the MINIMUM received (quote minus slippage), not
- * the expected fill, and the implied ratio is the worst acceptable price.
- * @param {ReviewSwapProps} props - Component props
- * @returns {ReactElement} Review UI for swap transaction
- */
 export function ReviewSwap({
   apiResponse,
   onSign,
@@ -35,11 +18,9 @@ export function ReviewSwap({
   const { result } = apiResponse;
   const [isPriceFlipped, setIsPriceFlipped] = useState(false);
 
-  // Use asset_longname if available, otherwise use asset name
   const giveAssetDisplay = result.params.give_asset_info?.asset_longname || result.params.give_asset;
   const getAssetDisplay = result.params.get_asset_info?.asset_longname || result.params.get_asset;
 
-  // Use normalized values from verbose API response (already formatted correctly for divisibility)
   const giveQuantityDisplay = result.params.give_quantity_normalized ?? result.params.give_quantity;
   const getQuantityDisplay = result.params.get_quantity_normalized ?? result.params.get_quantity;
 
@@ -54,7 +35,7 @@ export function ReviewSwap({
     },
     {
       label: t('swap_review_minimum_price'),
-      value: formatPriceRatio(
+      value: giveQuantityDisplay === undefined || getQuantityDisplay === undefined || !giveAssetDisplay || !getAssetDisplay ? t('common_not_available') : formatPriceRatio(
         giveQuantityDisplay,
         getQuantityDisplay,
         giveAssetDisplay,

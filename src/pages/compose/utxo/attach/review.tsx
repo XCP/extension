@@ -1,23 +1,10 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
+import type { ComposeParams } from "@/core/counterparty/compose";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewUtxoAttach component.
- */
-interface ReviewUtxoAttachProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
+type ReviewUtxoAttachProps = TransactionReviewProps<Pick<ComposeParams, 'asset' | 'destination_vout' | 'quantity' | 'quantity_normalized'>>;
 
-/**
- * Displays a review screen for UTXO attach transactions.
- * @param {ReviewUtxoAttachProps} props - Component props
- * @returns {ReactElement} Review UI for UTXO attach transaction
- */
 export function ReviewUtxoAttach({ 
   apiResponse, 
   onSign, 
@@ -44,7 +31,6 @@ export function ReviewUtxoAttach({
   
   const { result } = apiResponse;
 
-  // Use normalized quantity from verbose API response (handles divisibility correctly)
   const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
 
   const customFields = [

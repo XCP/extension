@@ -4,9 +4,6 @@ import type { ApiResponse } from "@/core/counterparty/compose";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewDispenserClose component.
- */
 interface ReviewDispenserCloseProps {
   apiResponse: ApiResponse;
   onSign: () => void;

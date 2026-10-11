@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
 import { type FairminterDetails, fetchAssetFairminter } from "@/core/counterparty/api";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import {
   describeFairminterPaymentModel,
   getFairmintCost,
@@ -11,16 +12,7 @@ import { isGreaterThan } from "@/core/numeric";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewFairmint component.
- */
-interface ReviewFairmintProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
+type ReviewFairmintProps = TransactionReviewProps<Pick<ComposeParams, 'asset' | 'quantity' | 'quantity_normalized'>>;
 
 /**
  * Review screen for fairmint transactions.
@@ -40,7 +32,6 @@ export function ReviewFairmint({
   const { result } = apiResponse;
   const asset = result.params.asset;
 
-  // Use normalized quantity from verbose API response (handles divisibility correctly)
   const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
 
   const [fairminter, setFairminter] = useState<FairminterDetails | null>(null);
@@ -65,7 +56,7 @@ export function ReviewFairmint({
   }, [asset]);
 
   const customFields: Array<{ label: string; value: string }> = [
-    { label: t('common_asset'), value: asset },
+    { label: t('common_asset'), value: asset ?? t('common_not_available') },
   ];
 
   if (fairminter) {
@@ -73,7 +64,7 @@ export function ReviewFairmint({
     const escrowed = isGreaterThan(fairminter.soft_cap_normalized ?? fairminter.soft_cap ?? 0, 0);
 
     if (isPaidFairminter(model)) {
-      const cost = getFairmintCost(fairminter, quantityDisplay);
+      const cost = quantityDisplay === undefined ? null : getFairmintCost(fairminter, quantityDisplay);
       customFields.push({
         // Core escrows the assets until the soft cap is met, so they do not arrive on confirmation.
         label: escrowed ? t('fairmint_review_you_receive_after_soft_cap') : t('common_you_receive'),
@@ -102,7 +93,7 @@ export function ReviewFairmint({
     }
   } else {
     // Pre-fetch, or after a failed lookup: say what was composed without claiming a price.
-    customFields.push({ label: t('common_quantity'), value: quantityDisplay });
+    customFields.push({ label: t('common_quantity'), value: quantityDisplay === undefined ? t('common_not_available') : String(quantityDisplay) });
   }
 
   return (

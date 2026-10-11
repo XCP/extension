@@ -1,24 +1,11 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
+import type { ComposeParams } from "@/core/counterparty/compose";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewBTCPay component.
- */
-interface ReviewBTCPayProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
+type ReviewBTCPayProps = TransactionReviewProps<Pick<ComposeParams, 'order_match_id'>>;
 
-/**
- * Displays a review screen for BTC payment transactions.
- * @param {ReviewBTCPayProps} props - Component props
- * @returns {ReactElement} Review UI for BTC payment transaction
- */
 export function ReviewBTCPay({ 
   apiResponse, 
   onSign, 
