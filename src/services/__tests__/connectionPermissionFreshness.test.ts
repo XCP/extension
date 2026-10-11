@@ -116,6 +116,7 @@ describe('connection permission after grants change elsewhere', () => {
     const accounts = await service.connect(ORIGIN, wallet.addresses[0]!.address, wallet.id);
     expect(accounts).toEqual([wallet.addresses[0]!.address]);
     expect(await service.hasPermission(ORIGIN)).toBe(true);
+    expect(await service.getConnectedOrigins()).toEqual([ORIGIN]);
   };
 
   it('gives a site nothing from a new wallet created after a reset', async () => {
@@ -127,6 +128,7 @@ describe('connection permission after grants change elsewhere', () => {
     expect(manager.getSettings().connectedWebsites).toEqual([]);
 
     expect(await service.hasPermission(ORIGIN)).toBe(false);
+    expect(await service.getConnectedOrigins()).toEqual([]);
     expect(await service.getAccounts(ORIGIN)).not.toContain(newAddress);
     expect(await service.getAccounts(ORIGIN)).toEqual([]);
   });
@@ -135,6 +137,7 @@ describe('connection permission after grants change elsewhere', () => {
     await connectSite();
     await manager.removeConnectedWebsite(ORIGIN);
     expect(await service.hasPermission(ORIGIN)).toBe(false);
+    expect(await service.getConnectedOrigins()).toEqual([]);
   });
 
   it('still answers yes for a site that remains connected', async () => {

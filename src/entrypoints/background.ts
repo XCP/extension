@@ -164,14 +164,14 @@ export default defineBackground(() => {
       if (!(await walletService.isKeychainUnlocked())) return;
 
       // Asked of the service that owns the answer, not read off the settings it keeps it in.
-      const connections = await getConnectionService().getConnectedWebsites();
-      if (connections.length === 0) return;
+      const origins = await getConnectionService().getConnectedOrigins();
+      if (origins.length === 0) return;
 
       const activeAddress = await walletService.getActiveAddress();
       const accounts = activeAddress ? [activeAddress.address] : [];
 
       let announced = 0;
-      for (const { origin } of connections) {
+      for (const origin of origins) {
         if (await wereAccountsAnnounced(origin, accounts)) continue;
         eventEmitterService.emit('emit-provider-event', {
           origin,

@@ -558,7 +558,7 @@ describe('ConnectionService', () => {
     });
   });
 
-  describe('getConnectedWebsites', () => {
+  describe('getConnectedOrigins', () => {
     it('should return list of connected sites', async () => {
       // Setup connected websites
       mockGetSettings.mockReturnValue({
@@ -575,31 +575,13 @@ describe('ConnectionService', () => {
         defaultOrderExpiration: 8064,
       });
       
-      const sites = await connectionService.getConnectedWebsites();
-      // getConnectedWebsites returns ConnectionStatus[], not string[]
-      expect(sites).toEqual([
-        {
-          origin: 'https://site1.com',
-          isConnected: true,
-          connectedAddress: undefined,
-          connectedWallet: undefined,
-          connectionTime: undefined,
-          lastActive: undefined,
-        },
-        {
-          origin: 'https://site2.com',
-          isConnected: true,
-          connectedAddress: undefined,
-          connectedWallet: undefined,
-          connectionTime: undefined,
-          lastActive: undefined,
-        },
-      ]);
+      const sites = await connectionService.getConnectedOrigins();
+      expect(sites).toEqual(['https://site1.com', 'https://site2.com']);
     });
 
     it('should return empty array when no connections', async () => {
       // Default mock already has empty connectedWebsites
-      const sites = await connectionService.getConnectedWebsites();
+      const sites = await connectionService.getConnectedOrigins();
       expect(sites).toEqual([]);
     });
   });
@@ -617,7 +599,7 @@ describe('ConnectionService', () => {
         'wallet-123'
       );
 
-      // A new worker: a fresh instance with an empty cache, reading the same settings.
+      // A new worker: a fresh instance reading the same settings.
       const restarted = new ConnectionService();
       restarted.initialize();
       expect(await restarted.hasPermission('https://persistent.com')).toBe(true);

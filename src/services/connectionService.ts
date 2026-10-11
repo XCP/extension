@@ -6,7 +6,6 @@
  * - Permission management and validation
  * - Connected websites tracking
  * - One pending connection approval per origin (the connect rate limit lives in ProviderService)
- * - Connection security analysis
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
@@ -20,31 +19,9 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { getWalletService } from '@/services/walletService';
 import type { ApprovalResult } from '@/types/provider';
 
-export interface ConnectionStatus {
-  origin: string;
-  isConnected: boolean;
-  connectedAddress?: string;
-  connectedWallet?: string;
-  connectionTime?: number;
-  lastActive?: number;
-}
-
-interface ConnectionServiceState {
-  connectionCache: Map<string, ConnectionStatus>;
-  lastSecurityCheck: Map<string, number>;
-  pendingPermissionRequests: Set<string>;
-}
-
 export class ConnectionService {
   private readonly withConnectionWriteLock = createWriteLock();
-  private state: ConnectionServiceState = {
-    connectionCache: new Map(),
-    lastSecurityCheck: new Map(),
-    pendingPermissionRequests: new Set(),
-  };
-
-  private static readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  private static readonly SECURITY_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
+  private readonly pendingPermissionOrigins = new Set<string>();
 
   /**
    * Check if an origin has permission to access wallet
@@ -79,21 +56,16 @@ export class ConnectionService {
     // so as -32005 (the same answer as the cap on waiting signing requests), not a masked -32603.
     // The connect rate limit is charged once, by the provider service, for every
     // xcp_requestAccounts — charging it here again made each connect cost two slots.
-    const dedupeKey = `${origin}-pending`;
-    if (this.state.pendingPermissionRequests.has(dedupeKey)) {
+    if (this.pendingPermissionOrigins.has(origin)) {
       throw new ProviderError(
         JSON_RPC_ERROR_CODES.LIMIT_EXCEEDED,
         'A connection request from this site is already waiting for approval. Finish it before sending another.'
       );
     }
     const requestId = generateRequestId(origin);
-    this.state.pendingPermissionRequests.add(dedupeKey);
-    this.state.pendingPermissionRequests.add(requestId);
+    this.pendingPermissionOrigins.add(origin);
 
     try {
-      // Security checks before showing permission UI
-      await this.performSecurityChecks(origin);
-
       // Track the connection request
       await analytics.track('connection_request');
 
@@ -102,7 +74,7 @@ export class ConnectionService {
 
       let domain = origin;
       try { domain = new URL(origin).hostname; } catch { /* use raw origin */ }
-      const result = await approvalService.requestApproval<ApprovalResult>({
+      return await approvalService.requestApproval<ApprovalResult>({
         id: requestId,
         origin,
         method: 'xcp_requestAccounts',
@@ -115,13 +87,8 @@ export class ConnectionService {
         },
       }, undefined, placement);
 
-      this.state.pendingPermissionRequests.delete(dedupeKey);
-      this.state.pendingPermissionRequests.delete(requestId);
-      return result;
-    } catch (error) {
-      this.state.pendingPermissionRequests.delete(dedupeKey);
-      this.state.pendingPermissionRequests.delete(requestId);
-      throw error;
+    } finally {
+      this.pendingPermissionOrigins.delete(origin);
     }
   }
 
@@ -158,15 +125,6 @@ export class ConnectionService {
     await getWalletService().addConnectedWebsite(origin, pairedAddresses
       ? await this.pairedIdentity(walletId, address)
       : undefined);
-
-    this.state.connectionCache.set(origin, {
-      origin,
-      isConnected: true,
-      connectedAddress: address,
-      connectedWallet: walletId,
-      connectionTime: Date.now(),
-      lastActive: Date.now(),
-    });
 
     // Nothing else tells the page it was approved: disconnect emits accountsChanged, approval
     // emitted nothing, so a site whose connect promise was lost had no way to learn it was granted.
@@ -324,9 +282,6 @@ export class ConnectionService {
     const walletService = getWalletService();
     await walletService.removeConnectedWebsite(origin);
 
-    // Update cache
-    this.state.connectionCache.delete(origin);
-
     // Track disconnect event
     await analytics.track('connection_disconnected');
 
@@ -345,42 +300,10 @@ export class ConnectionService {
     console.debug('[ConnectionService] dApp disconnected:', origin);
   }
 
-  /**
-   * Get all connected websites
-   */
-  async getConnectedWebsites(): Promise<ConnectionStatus[]> {
+  /** Read the currently granted origins from the vault, including changes made elsewhere. */
+  async getConnectedOrigins(): Promise<string[]> {
     const settings = await getWalletService().getSettings();
-    const connections: ConnectionStatus[] = [];
-
-    for (const origin of settings.connectedWebsites) {
-      const cached = this.state.connectionCache.get(origin);
-      connections.push({
-        origin,
-        isConnected: true,
-        connectedAddress: cached?.connectedAddress,
-        connectedWallet: cached?.connectedWallet,
-        connectionTime: cached?.connectionTime,
-        lastActive: cached?.lastActive,
-      });
-    }
-
-    return connections;
-  }
-
-  /**
-   * Perform security checks on origin
-   */
-  private async performSecurityChecks(origin: string): Promise<void> {
-    const now = Date.now();
-    const lastCheck = this.state.lastSecurityCheck.get(origin) || 0;
-
-    // Skip if checked recently
-    if (now - lastCheck < ConnectionService.SECURITY_CHECK_INTERVAL) {
-      return;
-    }
-
-    // Update last check time
-    this.state.lastSecurityCheck.set(origin, now);
+    return [...settings.connectedWebsites];
   }
 
   /**
