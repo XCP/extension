@@ -52,7 +52,6 @@ interface ComposerProps<T> {
     onBack: () => void;
     error: string | null;
     isSigning: boolean;
-    hideBackButton?: boolean;
   }) => ReactElement;
 
   // Optional callbacks
@@ -253,7 +252,6 @@ function ComposerInner<T>({
       {state.step === "success" && state.apiResponse && (
         <SuccessScreen
           apiResponse={state.apiResponse}
-          onReset={reset}
         />
       )}
     </>

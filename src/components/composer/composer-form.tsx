@@ -55,7 +55,6 @@ export function ComposerForm({
   // Using unknown instead of any for better type safety - ComposerForm only uses
   // state.error and state.isComposing which are not dependent on the formData type
   const { state, showHelpText, clearError, feeRate, setFeeRate } = useComposer<unknown>();
-  const formRef = useRef<HTMLFormElement>(null);
   const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
   // Every rejected paste requires correction of that field. A later rejected paste must not
   // replace the earlier blocker and allow its last-valid value to be submitted accidentally.
@@ -80,7 +79,6 @@ export function ComposerForm({
         )}
         
         <form
-          ref={formRef}
           className={formClassName}
           onPasteCapture={(event) => {
             if (!(event.target instanceof HTMLInputElement)) return;

@@ -17,8 +17,6 @@ type ApiResponse = ComposerBroadcastResult;
 interface SuccessScreenProps {
   /** API response containing broadcast details */
   apiResponse: ApiResponse;
-  /** Optional callback to reset/restart the flow */
-  onReset?: () => void;
   /** Optional custom explorer URL template (use {txid} as placeholder) */
   explorerUrlTemplate?: string;
 }
@@ -39,14 +37,12 @@ const DEFAULT_EXPLORER_URL = "https://mempool.space/tx/{txid}";
  * ```tsx
  * <SuccessScreen
  *   apiResponse={{ broadcast: { txid: "abc123..." } }}
- *   onReset={() => resetForm()}
  *   explorerUrlTemplate="https://mempool.space/tx/{txid}"
  * />
  * ```
  */
 export function SuccessScreen({
   apiResponse,
-  onReset,
   explorerUrlTemplate = DEFAULT_EXPLORER_URL
 }: SuccessScreenProps): ReactElement {
   // Transaction IDs and signed public transactions are not secrets.

@@ -1,4 +1,4 @@
-import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { BiError, FiRefreshCw } from '@/components/icons';
 
 import { t } from '@/i18n';
@@ -13,7 +13,6 @@ interface Props {
 
 interface State {
   hasError: boolean;
-  error: Error | null;
 }
 
 /**
@@ -25,15 +24,13 @@ export class ErrorBoundary extends Component<Props, State> {
     super(props);
     this.state = {
       hasError: false,
-      error: null,
     };
   }
 
-  static getDerivedStateFromError(error: Error): Partial<State> {
+  static getDerivedStateFromError(): Partial<State> {
     // Update state so the next render shows the fallback UI
     return {
       hasError: true,
-      error,
     };
   }
 
@@ -49,7 +46,6 @@ export class ErrorBoundary extends Component<Props, State> {
     this.props.onReset?.();
     this.setState({
       hasError: false,
-      error: null,
     });
   };
 
@@ -90,22 +86,4 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return this.props.children;
   }
-}
-
-/**
- * Higher-order component to wrap any component with an error boundary
- */
-export function withErrorBoundary<P extends object>(
-  Component: ComponentType<P>,
-  errorBoundaryProps?: Omit<Props, 'children'>
-) {
-  const WrappedComponent = (props: P) => (
-    <ErrorBoundary {...errorBoundaryProps}>
-      <Component {...props} />
-    </ErrorBoundary>
-  );
-
-  WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
-
-  return WrappedComponent;
 }

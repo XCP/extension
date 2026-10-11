@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactElement, type ReactNode, useCallback } from 'react';
+import { type ReactElement, type ReactNode, useCallback } from 'react';
 import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import type { HeaderButtonProps, HeaderProps } from '@/contexts/header-context';
@@ -16,18 +16,6 @@ export function Header({
   onBack,
 }: HeaderProps): ReactElement {
   const hasControls = Boolean(onBack || leftButton || rightButton || rightAccessory);
-
-  /**
-   * Handles the click event for the left/back button.
-   */
-  const handleLeftClick = useCallback((event: MouseEvent<HTMLButtonElement>) => {
-    // No event.preventDefault() since these are regular buttons
-    if (onBack) {
-      onBack();
-    } else if (leftButton) {
-      leftButton.onClick();
-    }
-  }, [onBack, leftButton]);
 
   /**
    * Renders a button based on the provided configuration.
@@ -62,7 +50,7 @@ export function Header({
       {hasControls && <div className="col-span-1 min-w-0 flex justify-start">
         {onBack ? (
           <Button
-            onClick={handleLeftClick}
+            onClick={() => { onBack(); }}
             variant="header"
             aria-label={t('layout_header_go_back')}
             disabled={leftButton?.disabled}

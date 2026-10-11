@@ -113,10 +113,9 @@ vi.mock('@/contexts/settings-context', () => ({
 }))
 
 vi.mock('@/components/screens/success-screen', () => ({
-  SuccessScreen: ({ apiResponse, onReset }: any) => (
+  SuccessScreen: ({ apiResponse }: any) => (
     <div data-testid="success-screen">
       <div>Success! TX: {apiResponse?.result?.tx_hash}</div>
-      <button type="button" onClick={onReset}>Reset</button>
     </div>
   )
 }));
