@@ -1,8 +1,8 @@
 import { Radio, RadioGroup } from '@headlessui/react';
 import { type ReactElement, useState } from 'react';
 import { displayAccountName } from '@/components/domain/account-name';
+import { AddressMenu } from '@/components/domain/address/address-menu';
 import { FaCheck } from '@/components/icons';
-import { AddressMenu } from '@/components/ui/menus/address-menu';
 import { formatAddress } from '@/core/format';
 import type { Address } from '@/types/wallet';
 

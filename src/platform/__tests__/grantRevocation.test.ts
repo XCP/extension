@@ -18,7 +18,7 @@ import { decryptKeychain, encryptKeychainRecord } from '@/core/wallet/keychainCr
 import * as sessionManager from '@/platform/auth/sessionManager';
 import type { SessionMetadata } from '@/platform/storage/sessionMetadataStorage';
 import { walletManager } from '@/platform/walletManager';
-import { assertSignDeliveryAuthorized } from '@/services/signDelivery';
+import { assertSignDeliveryAuthorized } from '@/services/provider/signDelivery';
 import type { KeychainRecord } from '@/types/wallet';
 
 const state = vi.hoisted(() => ({
