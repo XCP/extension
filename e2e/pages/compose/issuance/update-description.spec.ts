@@ -13,6 +13,18 @@
 import { expect, walletTest } from '@e2e/fixtures';
 import { enableValidationBypass } from '../../../compose-test-helpers';
 
+walletTest('metadata-only form opens without querying an unavailable address balance', async ({ page, context }) => {
+  await enableValidationBypass(page);
+  let balanceRequests = 0;
+  await context.route(/\/v2\/addresses\/[^/]+\/balances\/XCP(?:\?|$)/, async route => {
+    balanceRequests += 1;
+    await route.abort('failed');
+  });
+  await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/update-description/XCP'));
+  await expect(page.locator('textarea[name="description"]')).toBeVisible();
+  expect(balanceRequests).toBe(0);
+});
+
 walletTest.describe('Compose Update Description Page (/compose/issuance/update-description)', () => {
   walletTest.beforeEach(async ({ page }) => {
     await enableValidationBypass(page);

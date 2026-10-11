@@ -1,13 +1,13 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type AssetInfo, fetchTokenUtxos } from '@/core/counterparty/api';
+import { fetchAssetDetailsAndBalance } from '@/core/balances/assetBalance';
+import { type AssetInfo, fetchAssetDetails, fetchTokenUtxos } from '@/core/counterparty/api';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { useAssetDetails } from '../useAssetDetails';
-import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
 
 // Mock the API and contexts
 vi.mock('@/core/counterparty/api');
-vi.mock('../utils/fetchAssetData');
+vi.mock('@/core/balances/assetBalance');
 vi.mock('@/core/bitcoin/balance');
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
@@ -42,12 +42,14 @@ describe('useAssetDetails', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fetchAssetDetails).mockImplementation(async asset => ({ ...mockAssetInfo, asset }));
     // An unused attached-output request must never delay ordinary asset details.
     vi.mocked(fetchTokenUtxos).mockImplementation(() => new Promise(() => {}));
   });
 
   it('should fetch asset details on mount', async () => {
     vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue(mockAssetDetails);
+    vi.mocked(fetchAssetDetails).mockResolvedValue(mockAssetDetails.assetInfo);
 
     const { result } = renderHook(() => useAssetDetails('PEPECASH'));
 
@@ -191,6 +193,7 @@ describe('useAssetDetails', () => {
       availableBalance: asDisplayUnits('10000000.00000000')
     };
     vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue(assetWithLongname);
+    vi.mocked(fetchAssetDetails).mockResolvedValue(assetWithLongname.assetInfo);
 
     const { result } = renderHook(() => useAssetDetails('A95428956661682177'));
 
@@ -216,6 +219,7 @@ describe('useAssetDetails', () => {
       availableBalance: asDisplayUnits('1000')
     };
     vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue(indivisibleAsset);
+    vi.mocked(fetchAssetDetails).mockResolvedValue(indivisibleAsset.assetInfo);
 
     const { result } = renderHook(() => useAssetDetails('RAREPEPE'));
 

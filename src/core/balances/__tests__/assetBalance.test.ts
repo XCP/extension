@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseAmountDraft } from '@/core/amount-contract/amounts';
+import { fetchAssetDetailsAndBalance } from '@/core/balances/assetBalance';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
-import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
 
 vi.mock('@/core/bitcoin/balance', () => ({ fetchBTCBalance: vi.fn() }));
 vi.mock('@/core/counterparty/api', () => ({ fetchAssetDetails: vi.fn(), fetchTokenBalance: vi.fn() }));

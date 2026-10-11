@@ -2,12 +2,12 @@ import { act, render, renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode, StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HeaderProvider, useHeader } from '@/contexts/header-context';
-import type { AssetInfo } from '@/core/counterparty/api';
+import { fetchAssetDetailsAndBalance } from '@/core/balances/assetBalance';
+import { type AssetInfo, fetchAssetDetails } from '@/core/counterparty/api';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { useAssetBalance } from '../useAssetBalance';
 import { useAssetDetails } from '../useAssetDetails';
 import { useAssetInfo } from '../useAssetInfo';
-import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
 
 /**
  * The asset hooks must only ever answer for the address and asset they are asked about now.
@@ -16,10 +16,11 @@ import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
  * being trusted, unrevalidated, for another.
  */
 
-vi.mock('../utils/fetchAssetData', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../utils/fetchAssetData')>()),
+vi.mock('@/core/balances/assetBalance', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/balances/assetBalance')>()),
   fetchAssetDetailsAndBalance: vi.fn(),
 }));
+vi.mock('@/core/counterparty/api', () => ({ fetchAssetDetails: vi.fn() }));
 vi.mock('@/core/bitcoin/balance', () => ({ fetchBTCBalance: vi.fn() }));
 vi.mock('@/hooks/usePendingStatus', () => ({
   usePendingDeltas: () => ({ byAsset: new Map(), byUtxo: new Map() }),
@@ -60,6 +61,7 @@ function deferred<T>() {
 describe('useAssetBalance and the shared balance cache', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fetchAssetDetails).mockImplementation(async asset => info(asset));
     wallet.current = { activeAddress: { address: ADDRESS_A }, activeWallet: { id: 'wallet-1' } };
     balances = { [ADDRESS_A]: '100.00000000', [ADDRESS_B]: '5.00000000' };
     vi.mocked(fetchAssetDetailsAndBalance).mockImplementation(async (asset, address) => ({
@@ -192,6 +194,7 @@ describe('useAssetBalance and the shared balance cache', () => {
 describe('useAssetDetails while a new asset loads', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fetchAssetDetails).mockImplementation(async asset => info(asset));
     wallet.current = { activeAddress: { address: ADDRESS_A }, activeWallet: { id: 'wallet-1' } };
   });
 
@@ -230,22 +233,19 @@ describe('useAssetDetails while a new asset loads', () => {
 describe('useAssetInfo for a subasset requested by its long name', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fetchAssetDetails).mockImplementation(async asset => info(asset));
     wallet.current = { activeAddress: { address: ADDRESS_A }, activeWallet: { id: 'wallet-1' } };
   });
 
   it('fetches once, although the node answers with the numeric name', async () => {
     // fetchAssetDetails spreads the node's result over the requested name, so a long-name request
     // comes back as the numeric asset.
-    vi.mocked(fetchAssetDetailsAndBalance).mockImplementation(async () => ({
-      isDivisible: true,
-      assetInfo: info('A95428956661682177', { asset_longname: 'PARENT.child' }),
-      availableBalance: '1',
-    }));
+    vi.mocked(fetchAssetDetails).mockResolvedValue(info('A95428956661682177', { asset_longname: 'PARENT.child' }));
 
     const { result } = renderHook(() => useAssetInfo('PARENT.child'));
 
     await waitFor(() => expect(result.current.data?.asset_longname).toBe('PARENT.child'));
     await new Promise(resolve => setTimeout(resolve, 100));
-    expect(fetchAssetDetailsAndBalance).toHaveBeenCalledTimes(1);
+    expect(fetchAssetDetails).toHaveBeenCalledTimes(1);
   });
 });

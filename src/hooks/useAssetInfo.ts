@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useWallet } from "@/contexts/wallet-context";
-import type { AssetInfo } from "@/core/counterparty/api";
-import { BTC_ASSET_INFO, fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
+import { useEffect, useMemo, useState } from "react";
+import { BTC_ASSET_INFO } from "@/core/bitcoin/assetInfo";
+import { type AssetInfo, fetchAssetDetails } from "@/core/counterparty/api";
 
 interface AssetInfoState {
   isLoading: boolean;
@@ -39,26 +38,19 @@ const BTC_STATE: AssetInfoState = { isLoading: false, error: null, data: BTC_ASS
  * }
  */
 export function useAssetInfo(asset: string): AssetInfoState {
-  const { activeAddress } = useWallet();
-  const address = activeAddress?.address;
-  const valid = Boolean(asset && asset.trim() !== '' && address);
+  const valid = Boolean(asset && asset.trim() !== '');
   const isBTC = asset === 'BTC';
 
   const [fetched, setFetched] = useState<FetchedInfo | null>(null);
-  // Asset info does not depend on the address; it is only needed for the request. A switch of
-  // address therefore does not re-read an asset already loaded.
-  const loadedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!valid || isBTC || !address) return;
-    if (loadedRef.current === asset) return;
+    if (!valid || isBTC) return;
     let cancelled = false;
 
-    fetchAssetDetailsAndBalance(asset, address).then(
+    fetchAssetDetails(asset).then(
       (result) => {
         if (cancelled) return;
-        loadedRef.current = asset;
-        setFetched({ asset, error: null, data: result.assetInfo });
+        setFetched({ asset, error: result ? null : new Error(`Asset not found: ${asset}`), data: result });
       },
       (err: unknown) => {
         if (cancelled) return;
@@ -67,7 +59,7 @@ export function useAssetInfo(asset: string): AssetInfoState {
     );
 
     return () => { cancelled = true; };
-  }, [asset, address, valid, isBTC]);
+  }, [asset, valid, isBTC]);
 
   return useMemo((): AssetInfoState => {
     if (!valid) return EMPTY;
