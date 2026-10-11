@@ -25,7 +25,7 @@ export function AuthRequired(): ReactElement | null {
         },
       });
     } else if (missingResults) {
-      void navigate('/actions', { replace: true });
+      void navigate('/', { replace: true });
     }
   }, [authState, keychainExists, isLoading, navigate, returnTo, location.state, missingResults]);
 

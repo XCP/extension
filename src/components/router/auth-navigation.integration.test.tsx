@@ -85,7 +85,7 @@ it('allows batch results with route state but redirects missing results', async 
   const { router } = setup('/actions/consolidate/success', 'UNLOCKED', { results: [] });
   expect(screen.getByText('Batch results')).toBeInTheDocument();
   await act(async () => { await router.navigate('/actions/consolidate/success', { state: null }); });
-  await screen.findByText('Actions');
+  await screen.findByText('Home');
 });
 
 it('leaves a continuing provider window on unlock until the background navigates it', async () => {
