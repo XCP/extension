@@ -37,16 +37,14 @@ export function usePendingDeltas(
   address: string | undefined,
   refreshNonce?: number
 ): { byAsset: Map<string, PendingDelta>; byUtxo: Map<string, PendingDelta> } {
-  const [byAsset, setByAsset] = useState<Map<string, PendingDelta>>(EMPTY);
-  const [byUtxo, setByUtxo] = useState<Map<string, PendingDelta>>(EMPTY);
+  const [snapshot, setSnapshot] = useState<{ address: string; byAsset: Map<string, PendingDelta>; byUtxo: Map<string, PendingDelta> } | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
 
   useRefreshSignal(refreshNonce, () => setReloadCount((previous) => previous + 1));
 
   useEffect(() => {
     if (!address) {
-      setByAsset(EMPTY);
-      setByUtxo(EMPTY);
+      setSnapshot(null);
       return;
     }
 
@@ -57,12 +55,10 @@ export function usePendingDeltas(
         const response = await fetchMempoolLedgerEvents([address]);
         if (isCancelled) return;
         const events = response.result ?? [];
-        setByAsset(pendingByAsset(events, address));
-        setByUtxo(pendingByUtxo(events, address));
+        setSnapshot({ address, byAsset: pendingByAsset(events, address), byUtxo: pendingByUtxo(events, address) });
       } catch {
         if (!isCancelled) {
-          setByAsset(EMPTY);
-          setByUtxo(EMPTY);
+          setSnapshot(null);
         }
       }
     };
@@ -71,7 +67,10 @@ export function usePendingDeltas(
     return () => { isCancelled = true; };
   }, [address, reloadCount]);
 
-  return { byAsset, byUtxo };
+  // Gate during render: an effect reset alone exposes the old address for one render.
+  return snapshot && snapshot.address === address && address
+    ? { byAsset: snapshot.byAsset, byUtxo: snapshot.byUtxo }
+    : { byAsset: EMPTY, byUtxo: EMPTY };
 }
 
 /**
@@ -85,14 +84,14 @@ export function usePendingCancellations(
   address: string | undefined,
   refreshNonce?: number
 ): PendingCancellations {
-  const [cancellations, setCancellations] = useState<PendingCancellations>(NO_CANCELLATIONS);
+  const [snapshot, setSnapshot] = useState<{ address: string; cancellations: PendingCancellations } | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
 
   useRefreshSignal(refreshNonce, () => setReloadCount((previous) => previous + 1));
 
   useEffect(() => {
     if (!address) {
-      setCancellations(NO_CANCELLATIONS);
+      setSnapshot(null);
       return;
     }
 
@@ -102,9 +101,9 @@ export function usePendingCancellations(
       try {
         const response = await fetchMempoolStatusEvents([address]);
         if (isCancelled) return;
-        setCancellations(pendingCancellations(response.result ?? [], address));
+        setSnapshot({ address, cancellations: pendingCancellations(response.result ?? [], address) });
       } catch {
-        if (!isCancelled) setCancellations(NO_CANCELLATIONS);
+        if (!isCancelled) setSnapshot(null);
       }
     };
 
@@ -112,7 +111,7 @@ export function usePendingCancellations(
     return () => { isCancelled = true; };
   }, [address, reloadCount]);
 
-  return cancellations;
+  return snapshot && snapshot.address === address && address ? snapshot.cancellations : NO_CANCELLATIONS;
 }
 
 /** Each delta reduced to one display word, dropping the ones with nothing to say. */

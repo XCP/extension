@@ -8,26 +8,27 @@ interface PoolState {
 }
 
 export function usePool(assetA: string | undefined, assetB: string | undefined): PoolState {
-  const [state, setState] = useState<PoolState>({ data: null, isLoading: false, error: null });
+  const requestKey = JSON.stringify([assetA, assetB]);
+  const [state, setState] = useState<PoolState & { requestKey?: string }>({ data: null, isLoading: false, error: null });
 
   useEffect(() => {
     if (!assetA || !assetB || assetA === assetB) {
-      setState({ data: null, isLoading: false, error: null });
+      setState({ requestKey, data: null, isLoading: false, error: null });
       return;
     }
 
     let cancelled = false;
-    setState({ data: null, isLoading: true, error: null });
+    setState({ requestKey, data: null, isLoading: true, error: null });
 
     fetchPool(assetA, assetB)
       .then((pool) => {
         if (!cancelled) {
-          setState({ data: pool, isLoading: false, error: null });
+          setState({ requestKey, data: pool, isLoading: false, error: null });
         }
       })
       .catch((err) => {
         if (!cancelled) {
-          setState({
+          setState({ requestKey,
             data: null,
             isLoading: false,
             error: err instanceof Error ? err : new Error("Failed to load pool"),
@@ -38,7 +39,8 @@ export function usePool(assetA: string | undefined, assetB: string | undefined):
     return () => {
       cancelled = true;
     };
-  }, [assetA, assetB]);
+  }, [assetA, assetB, requestKey]);
 
-  return state;
+  if (state.requestKey !== requestKey) return { data: null, isLoading: !!assetA && !!assetB && assetA !== assetB, error: null };
+  return { data: state.data, isLoading: state.isLoading, error: state.error };
 }

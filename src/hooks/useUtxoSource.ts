@@ -33,12 +33,14 @@ export function useUtxoSource(
   const [balances, setBalances] = useState<UtxoBalance[]>([]);
   const [isLoadingBalances, setIsLoadingBalances] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadedUtxo, setLoadedUtxo] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setBalances([]);
     setError(null);
     setIsLoadingBalances(!!utxo);
+    setLoadedUtxo(utxo);
     if (!utxo) return;
 
     fetchUtxoBalances(utxo)
@@ -61,9 +63,9 @@ export function useUtxoSource(
 
   return {
     utxo,
-    balances,
-    isLoadingBalances,
-    error,
+    balances: loadedUtxo === utxo ? balances : [],
+    isLoadingBalances: loadedUtxo === utxo ? isLoadingBalances : !!utxo,
+    error: loadedUtxo === utxo ? error : null,
     dismissError: () => setError(null),
   };
 }

@@ -17,22 +17,22 @@ export type ReviewLookup<T> =
  *   there is nothing to look up, which is reported as failed.
  */
 export function useReviewLookup<T>(key: string | undefined, read: () => Promise<T>): ReviewLookup<T> {
-  const [state, setState] = useState<ReviewLookup<T>>({ status: "loading" });
+  const [snapshot, setSnapshot] = useState<{ key: string; value: ReviewLookup<T> } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     if (!key) {
-      setState({ status: "failed" });
+      setSnapshot(null);
       return;
     }
-    setState({ status: "loading" });
+    setSnapshot({ key, value: { status: "loading" } });
     read().then(
       (value) => {
-        if (!cancelled) setState({ status: "ready", value });
+        if (!cancelled) setSnapshot({ key, value: { status: "ready", value } });
       },
       (err) => {
         console.error("Review lookup failed:", err);
-        if (!cancelled) setState({ status: "failed" });
+        if (!cancelled) setSnapshot({ key, value: { status: "failed" } });
       },
     );
     return () => {
@@ -42,5 +42,6 @@ export function useReviewLookup<T>(key: string | undefined, read: () => Promise<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  return state;
+  if (!key) return { status: 'failed' };
+  return snapshot?.key === key ? snapshot.value : { status: 'loading' };
 }
