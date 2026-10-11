@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import type { FormValues } from "@/components/composer/form-values";
+import { type FormValues, formBoolean } from "@/components/composer/form-values";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
@@ -13,6 +13,7 @@ import { type IssuanceOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counter
 import { canInscribe } from '@/core/counterparty/taprootEncoding';
 import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
+import { type InscriptionUploadDraft, useInscriptionUpload } from '@/hooks/useInscriptionUpload';
 
 import { t } from '@/i18n';
 
@@ -21,7 +22,7 @@ const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
 interface UpdateDescriptionFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: FormValues<IssuanceOptions> | null;
+  initialFormData: (FormValues<IssuanceOptions> & InscriptionUploadDraft) | null;
   asset: string;
 }
 
@@ -36,29 +37,13 @@ export function UpdateDescriptionForm({
   const { activeAddress, activeWallet, showHelpText } = useComposer();
   const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);
   const { pending } = useFormStatus();
-  const [inscribeEnabled, setInscribeEnabled] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
-  const [description, setDescription] = useState(initialFormData?.description || "");
+  const { enabled: inscribeEnabled, setEnabled: setInscribeEnabled, file: selectedFile,
+    error: fileError, onFileChange: handleFileChange, prepareFormData } = useInscriptionUpload(initialFormData, 'description');
+  const [description, setDescription] = useState(formBoolean(initialFormData?.inscription) ? '' : initialFormData?.description || "");
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   
   // Check if active wallet uses SegWit addresses
   const inscribeAvailable = canInscribe(activeAddress?.address, activeWallet?.type);
-
-  // Handle file selection
-  const handleFileChange = (file: File | null) => {
-    setFileError(null);
-    if (file && file.size > MAX_INSCRIPTION_FILE_BYTES) {
-      setFileError(t('issuance_form_file_size_must_be_less', [String(INSCRIPTION_MAX_SIZE_KB)]));
-      setSelectedFile(null);
-      return;
-    }
-    setSelectedFile(file);
-    if (file) {
-      // When a file is selected, set description to the file name
-      setDescription(file.name);
-    }
-  };
 
   // Focus description textarea on mount. Listing inscribeEnabled would steal focus back every
   // time the user toggles inscribe.
@@ -83,7 +68,12 @@ export function UpdateDescriptionForm({
 
   return (
     <ComposerForm
-      formAction={formAction}
+      formAction={async formData => {
+        if (inscribeEnabled && !inscribeAvailable) return;
+        if (!await prepareFormData(formData)) return;
+        if (!inscribeEnabled) formData.set('description', description);
+        await formAction(formData);
+      }}
       header={
         <AssetHeader
           assetInfo={{
@@ -99,7 +89,7 @@ export function UpdateDescriptionForm({
           className="mt-1 mb-5"
         />
       }
-      submitDisabled={inscribeEnabled && !selectedFile}
+      submitDisabled={inscribeEnabled && (!selectedFile || !inscribeAvailable)}
     >
           <input type="hidden" name="asset" value={asset} />
           <input type="hidden" name="quantity" value="0" />
@@ -127,9 +117,6 @@ export function UpdateDescriptionForm({
                 maxSizeKB={INSCRIPTION_MAX_SIZE_KB}
                 showHelpText={showHelpText}
               />
-              {selectedFile && (
-                <input type="hidden" name="description" value={description} />
-              )}
             </>
           ) : (
             <Field>
