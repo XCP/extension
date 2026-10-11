@@ -123,8 +123,8 @@ walletTest.describe('Market Page', () => {
   walletTest('can navigate to market from footer', async ({ page }) => {
     await expect(page).toHaveURL(/index/);
 
-    await expect(footer.marketButton(page)).toBeVisible();
-    await footer.marketButton(page).click();
+    await expect(footer.marketLink(page)).toBeVisible();
+    await footer.marketLink(page).click();
 
     await expect(page).toHaveURL(/market/);
     // Market page should show tabs

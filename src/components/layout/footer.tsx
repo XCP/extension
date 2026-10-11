@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { NavLink } from 'react-router';
 import { FaCog, FaTools, FaUniversity, FaWallet } from '@/components/icons';
-import { Button } from '@/components/ui/button';
 import { useSettings } from '@/contexts/settings-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { isSegwitFormat } from '@/core/bitcoin/addressFormat';
@@ -13,8 +12,6 @@ import { t } from '@/i18n';
  * @returns A ReactElement representing the footer navigation bar
  */
 export const Footer = (): ReactElement => {
-  const navigate = useNavigate();
-  const location = useLocation();
   const { settings } = useSettings();
   const { activeWallet } = useWallet();
 
@@ -27,40 +24,34 @@ export const Footer = (): ReactElement => {
   const showRecoverBitcoinNotification =
     isLegacyWallet && !settings?.hasVisitedRecoverBitcoin;
 
-  const handleNavigation = (route: string, eventName: string) => {
-    void navigate(route);
-  };
+  const linkClassName = ({ isActive }: { isActive: boolean }) =>
+    `w-full py-3 px-4 rounded flex items-center justify-center hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200 focus-visible:ring-offset-2 ${isActive ? 'text-blue-600' : 'text-gray-600'}`;
 
   return (
     <footer className="shrink-0 border-t border-gray-300 bg-white p-2" aria-label={t('layout_footer_primary')}>
-      <div className="grid grid-cols-4 gap-2">
-        <Button
-          variant="transparent"
-          fullWidth
-          onClick={() => handleNavigation('/index', 'Footer - Main')}
-          className={`hover:bg-gray-100 ${location.pathname === '/index' ? 'text-blue-600' : 'text-gray-600'}`}
+      <nav aria-label={t('layout_footer_primary')} className="grid grid-cols-4 gap-2">
+        <NavLink
+          to="/index"
+          end
+          className={linkClassName}
           aria-label={t('layout_footer_wallet')}
         >
           <div className="flex flex-col items-center">
             <FaWallet className="text-lg mb-1" aria-hidden="true" />
           </div>
-        </Button>
-        <Button
-          variant="transparent"
-          fullWidth
-          onClick={() => handleNavigation('/market', 'Footer - Market')}
-          className={`hover:bg-gray-100 ${location.pathname.startsWith('/market') ? 'text-blue-600' : 'text-gray-600'}`}
+        </NavLink>
+        <NavLink
+          to="/market"
+          className={linkClassName}
           aria-label={t('common_market')}
         >
           <div className="flex flex-col items-center">
             <FaUniversity className="text-lg mb-1" aria-hidden="true" />
           </div>
-        </Button>
-        <Button
-          variant="transparent"
-          fullWidth
-          onClick={() => handleNavigation('/actions', 'Footer - Actions')}
-          className={`hover:bg-gray-100 ${location.pathname === '/actions' ? 'text-blue-600' : 'text-gray-600'}`}
+        </NavLink>
+        <NavLink
+          to="/actions"
+          className={linkClassName}
           aria-label={t('common_actions')}
         >
           <div className="flex flex-col items-center relative">
@@ -70,19 +61,17 @@ export const Footer = (): ReactElement => {
               <span className="absolute -top-1 -right-3 size-2 bg-orange-500 rounded-full"></span>
             )}
           </div>
-        </Button>
-        <Button
-          variant="transparent"
-          fullWidth
-          onClick={() => handleNavigation('/settings', 'Footer - Settings')}
-          className={`hover:bg-gray-100 ${location.pathname === '/settings' ? 'text-blue-600' : 'text-gray-600'}`}
+        </NavLink>
+        <NavLink
+          to="/settings"
+          className={linkClassName}
           aria-label={t('common_settings')}
         >
           <div className="flex flex-col items-center">
             <FaCog className="text-lg mb-1" aria-hidden="true" />
           </div>
-        </Button>
-      </div>
+        </NavLink>
+      </nav>
     </footer>
   );
 };

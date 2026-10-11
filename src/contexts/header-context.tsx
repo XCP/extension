@@ -113,22 +113,21 @@ type HeaderAction =
   | { type: "CLEAR_BALANCES" }
   | { type: "CLEAR_ALL_CACHES" };
 
-/**
- * Compares two HeaderProps objects for equality.
- * @param {HeaderProps} prev - Previous props
- * @param {HeaderProps} next - Next props
- * @returns {boolean} Whether props are equal
- */
+/** Compare every rendered button property, including changes with a stable click handler. */
+function areButtonsEqual(prev: HeaderButtonProps | undefined, next: HeaderButtonProps | undefined): boolean {
+  return prev === next || (!!prev && !!next &&
+    prev.onClick === next.onClick && prev.ariaLabel === next.ariaLabel &&
+    prev.label === next.label && prev.icon === next.icon && prev.disabled === next.disabled);
+}
+
 function arePropsEqual(prev: HeaderProps, next: HeaderProps): boolean {
   if (prev === next) return true;
   return (
     prev.useLogoTitle === next.useLogoTitle &&
     prev.title === next.title &&
     prev.onBack === next.onBack &&
-    prev.leftButton?.onClick === next.leftButton?.onClick &&
-    prev.leftButton?.ariaLabel === next.leftButton?.ariaLabel &&
-    prev.rightButton?.onClick === next.rightButton?.onClick &&
-    prev.rightButton?.ariaLabel === next.rightButton?.ariaLabel &&
+    areButtonsEqual(prev.leftButton, next.leftButton) &&
+    areButtonsEqual(prev.rightButton, next.rightButton) &&
     prev.rightAccessory === next.rightAccessory
   );
 }
