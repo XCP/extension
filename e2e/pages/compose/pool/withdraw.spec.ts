@@ -6,7 +6,6 @@ import { expect, walletTest } from '@e2e/fixtures';
 import { compose } from '@e2e/selectors';
 import {
   clickBack,
-  enableDryRun,
   enableValidationBypass,
   waitForReview,
 } from '../../../compose-test-helpers';
@@ -14,7 +13,6 @@ import {
 walletTest.describe('Pool Withdraw Flow - Full Compose Flow', () => {
   walletTest.beforeEach(async ({ page }) => {
     await enableValidationBypass(page);
-    await enableDryRun(page);
   });
 
   walletTest('LP position can quote and reach review', async ({ page }) => {

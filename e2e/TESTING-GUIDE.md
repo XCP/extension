@@ -45,6 +45,18 @@ node --test scripts/e2e-shards.test.mjs
 Review and commit the timing file. It is only a scheduling estimate; stale timings cannot remove
 tests from a run. `node scripts/run-e2e-shard.mjs 1/6 --list` lists an individual shard.
 
+### Checking test order dependencies
+
+Playwright 1.64 can shuffle a focused run without adding another full CI run. After building,
+pass `--shuffle` to exercise a different order, or supply a seed to reproduce that order:
+
+```bash
+npx playwright test e2e/pages/keychain/setup/import-private-key-clipboard.spec.ts --shuffle 20261011 --workers=1 --retries=0
+```
+
+The CI image version must match the pinned `@playwright/test` version. The shard checks also
+verify that match for every workflow using the Playwright image.
+
 ## Principles
 
 1. **Test user-visible behavior** - Test what users see, not implementation details

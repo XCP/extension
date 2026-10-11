@@ -91,7 +91,7 @@ function createResilientTestDapp(): Promise<{ server: http.Server; url: string }
               const logEl = document.getElementById('log');
               const entry = document.createElement('div');
               entry.className = 'log-entry log-' + type;
-              entry.textContent = new Date().toISOString().substr(11, 12) + ' ' + message;
+              entry.textContent = new Date().toISOString().slice(11, 23) + ' ' + message;
               logEl.appendChild(entry);
               logEl.scrollTop = logEl.scrollHeight;
               console.log('[TestDapp]', message);

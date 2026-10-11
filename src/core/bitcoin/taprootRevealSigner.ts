@@ -20,7 +20,7 @@
 
 import { schnorr } from '@noble/curves/secp256k1.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { SigHash, TAPROOT_UNSPENDABLE_KEY } from '@scure/btc-signer';
+import { SigHash, taprootNumsKey } from '@scure/btc-signer';
 import { compareBytes, pubSchnorr, signSchnorr, taprootTweakPrivKey } from '@scure/btc-signer/utils.js';
 import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import {
@@ -152,7 +152,7 @@ export function signTaprootReveal(
   // spend the output, by script or by key.
   const internalKey = controlBlock.slice(1);
   const internalKeyAllowed = equal(internalKey, rule.leafKey) || (options.siteInternalKey === true
-    && (equal(internalKey, TAPROOT_UNSPENDABLE_KEY) || sourceControlsKey(sourceScript, internalKey)));
+    && (equal(internalKey, taprootNumsKey()) || sourceControlsKey(sourceScript, internalKey)));
   if (controlBlock.length !== 33 || !internalKeyAllowed) {
     refuse('the commit output does not commit to the envelope alone');
   }

@@ -47,6 +47,12 @@ for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) walletTest.de
       const url = new URL(request.url());
       const path = url.pathname;
       if (url.hostname === 'cdn.usefathom.com') return route.abort();
+      // ZELD's fallback uses POST for a read-only batch lookup. Keep rejecting actual writes.
+      if (url.hostname === 'api.zeldhash.com' && path === '/utxos' && request.method() === 'POST') {
+        expect(unavailable).toBe(true);
+        expect(request.postDataJSON()).toEqual({ utxos: [`${TXID}:0`] });
+        return route.fulfill({ status: 503, json: { error: 'fixture unavailable' } });
+      }
       if (request.method() !== 'GET' || /\/broadcast/.test(path)) { writes++; return route.abort(); }
       if (url.hostname === 'api.zeldhash.com') {
         if (unavailable) return route.fulfill({ status: 503, json: { error: 'fixture unavailable' } });

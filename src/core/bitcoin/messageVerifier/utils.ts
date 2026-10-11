@@ -174,7 +174,7 @@ export function detectAndNormalizeSignature(signature: string): {
       // Convert hex to base64
       const bytes = new Uint8Array(trimmed.length / 2);
       for (let i = 0; i < trimmed.length; i += 2) {
-        bytes[i / 2] = parseInt(trimmed.substr(i, 2), 16);
+        bytes[i / 2] = parseInt(trimmed.slice(i, i + 2), 16);
       }
       const base64 = btoa(String.fromCharCode(...bytes));
 

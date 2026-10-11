@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileFilter, planShards } from './run-e2e-shard.mjs';
+
+test('CI browser images match the pinned Playwright runner', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const workflows = new URL('../.github/workflows/', import.meta.url);
+  const images = readdirSync(workflows).filter(file => /\.ya?ml$/.test(file)).flatMap(file => {
+    const text = readFileSync(new URL(file, workflows), 'utf8');
+    return [...text.matchAll(/mcr\.microsoft\.com\/playwright:v([^\s]+)-noble/g)].map(match => ({ file, version: match[1] }));
+  });
+  assert.ok(images.length > 0, 'Expected CI to use the Playwright image');
+  for (const image of images) assert.equal(image.version, manifest.devDependencies['@playwright/test'], image.file);
+});
 
 test('every collected file belongs to exactly one shard, including new files without timings', () => {
   const files = ['heavy.spec.ts', 'medium.spec.ts', 'small.spec.ts', 'new.spec.ts'];

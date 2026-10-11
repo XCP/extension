@@ -127,10 +127,11 @@ describe('onboarding and unlock localization', () => {
     const keyInput = screen.getByPlaceholderText(t('setup_import_private_key_enter_your_private_key'));
     const privateKey = '0'.repeat(63) + '1';
     fireEvent.change(keyInput, { target: { value: privateKey } });
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('checkbox', { name: t('setup_import_private_key_i_have_backed_up_this') }));
     const password = screen.getByPlaceholderText(t('common_confirm_your_password'));
     fireEvent.change(password, { target: { value: 'ExactPassword123!' } });
     const button = screen.getByRole('button', { name: t('common_continue') });
+    await waitFor(() => expect(button).toBeEnabled());
     for (const language of languages) {
       act(() => mockBrowserLocale({ language, numberLocale: 'de-DE' }));
       expect(picker).toHaveTextContent(t('setup_import_private_key_nested_segwit'));

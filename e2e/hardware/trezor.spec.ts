@@ -70,7 +70,7 @@ test.describe('Trezor Hardware Wallet', () => {
 
       // Check if the Trezor Connect button exists (button text is "Use Trezor Connect")
       const hardwareButton = page.getByRole('button', { name: /Use Trezor Connect/i });
-      const hardwareButtonVisible = await hardwareButton.isVisible({ timeout: 5000 }).catch(() => false);
+      const hardwareButtonVisible = await hardwareButton.isVisible().catch(() => false);
 
       if (!hardwareButtonVisible) {
         console.log('Use Trezor Connect button not found. Taking debug screenshot...');

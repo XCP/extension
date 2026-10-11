@@ -1,4 +1,4 @@
-import { RadioGroup } from "@headlessui/react";
+import { Radio } from "@headlessui/react";
 import type { ReactElement, ReactNode } from "react";
 import { FaCheck } from "@/components/icons";
 
@@ -65,7 +65,8 @@ export function SelectionCard<T = any>({
   className = ""
 }: SelectionCardProps<T>): ReactElement {
   return (
-    <RadioGroup.Option
+    <Radio
+      as="div"
       value={value}
       disabled={disabled}
       className={({ checked }) => `
@@ -121,7 +122,7 @@ export function SelectionCard<T = any>({
           )}
         </div>
       )}
-    </RadioGroup.Option>
+    </Radio>
   );
 }
 

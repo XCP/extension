@@ -10,7 +10,6 @@ import { compose, index } from '@e2e/selectors';
 import { TEST_ADDRESSES, TEST_AMOUNTS } from '@e2e/test-data';
 import {
   clickBack,
-  enableDryRun,
   enableValidationBypass,
   waitForReview,
 } from '../../../compose-test-helpers';
@@ -258,7 +257,6 @@ walletTest.describe('Send Flow - Full Compose Flow', () => {
   walletTest.beforeEach(async ({ page }) => {
     // Enable validation bypass (skip balance checks) and dry run (skip broadcast)
     await enableValidationBypass(page);
-    await enableDryRun(page);
   });
 
   walletTest('form → review: valid form shows review page', async ({ page }) => {

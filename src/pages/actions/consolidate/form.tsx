@@ -134,7 +134,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
     }));
   };
 
-  const handleSubmitInternal = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmitInternal = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (formData.feeRateSatPerVByte <= 0) {
       setError(t('consolidate_form_enter_a_valid_fee_rate'));

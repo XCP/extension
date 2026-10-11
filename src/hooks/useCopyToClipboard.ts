@@ -5,10 +5,9 @@ const DEFAULT_FEEDBACK_MS = 2000;
 const DEFAULT_AUTO_CLEAR_MS = 30000; // 30 seconds
 
 /**
- * Cross-browser clipboard copy with visual feedback state and auto-clear.
+ * Clipboard copy with visual feedback state and auto-clear.
  *
- * Uses navigator.clipboard.writeText with fallback to execCommand
- * for older browsers. Automatically clears clipboard after a timeout
+ * Uses navigator.clipboard.writeText. Automatically clears clipboard after a timeout
  * to prevent sensitive data from persisting.
  *
  * @param feedbackMs - Duration to show "copied" state (default 2000ms)
@@ -57,27 +56,9 @@ export function useCopyToClipboard(
     }
 
     try {
-      // Modern approach - works in most browsers
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        // Fallback for older browsers
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.style.position = "fixed";
-        textarea.style.left = "-9999px";
-        textarea.style.top = "-9999px";
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-
-        const success = document.execCommand("copy");
-        document.body.removeChild(textarea);
-
-        if (!success) {
-          throw new Error("execCommand copy failed");
-        }
-      }
+      // Chrome extension pages support the Async Clipboard API. A denied write is a failure,
+      // not a reason to fall back to the deprecated document.execCommand path.
+      await navigator.clipboard.writeText(text);
 
       setCopiedText(text);
       void analytics.track('copy_to_clipboard');

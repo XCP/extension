@@ -24,7 +24,7 @@ walletTest.describe('Reset Wallet Page (/keychain/wallets/reset)', () => {
     const resetLink = page.locator('a[href*="wallet/reset"], button:has-text("Reset")').or(page.locator('text=/Reset.*Wallet/i')).first();
     const resetLinkCount = await resetLink.count();
 
-    if (resetLinkCount > 0 && await resetLink.isVisible({ timeout: 3000 })) {
+    if (resetLinkCount > 0 && await resetLink.isVisible()) {
       await resetLink.click();
       await page.waitForLoadState('networkidle');
     } else {

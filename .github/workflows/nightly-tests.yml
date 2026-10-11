@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     # See pr-tests.yml: the image tag MUST track the `@playwright/test` version in package.json.
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
     timeout-minutes: 60  # Hard backstop so a stalled setup can't burn the 6h job cap
     strategy:
       fail-fast: false

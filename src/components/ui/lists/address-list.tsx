@@ -1,4 +1,4 @@
-import { RadioGroup } from '@headlessui/react';
+import { Radio, RadioGroup } from '@headlessui/react';
 import { type ReactElement, useState } from 'react';
 import { displayAccountName } from '@/components/domain/account-name';
 import { FaCheck } from '@/components/icons';
@@ -72,7 +72,8 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
       className="space-y-2"
     >
       {addresses.map((address) => (
-        <RadioGroup.Option
+        <Radio
+          as="div"
           key={address.path}
           // Set each option's value to the unique address string
           value={address.address}
@@ -115,7 +116,7 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
               </div>
             </div>
           )}
-        </RadioGroup.Option>
+        </Radio>
       ))}
     </RadioGroup>
   );

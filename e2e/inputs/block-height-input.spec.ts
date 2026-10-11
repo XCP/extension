@@ -138,7 +138,7 @@ walletTest.describe('BlockHeightInput Component', () => {
 
       // Check which input is visible
       const startCount = await startInput.count();
-      const startVisible = startCount > 0 && await startInput.isVisible({ timeout: 3000 });
+      const startVisible = startCount > 0 && await startInput.isVisible();
 
       if (startVisible) {
         const name = await startInput.getAttribute('name');
