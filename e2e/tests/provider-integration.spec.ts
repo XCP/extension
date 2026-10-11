@@ -320,16 +320,6 @@ const test = base.extend<{
 });
 
 test.describe('Provider Integration - Full Flow', () => {
-  /**
-   * Note: Full popup flow tests are challenging with Playwright + Chrome extensions.
-   * Popups opened via chrome.windows.create() don't load properly in the test environment.
-   *
-   * These tests focus on what we CAN test reliably:
-   * 1. Provider injection and basic API
-   * 2. Direct navigation to approval pages
-   * 3. Connection state after manual approval simulation
-   */
-
   test('provider is injected and responds to requests', async ({ dappServer }) => {
     const { context, page: extensionPage } = await launchExtension('provider-basic');
 
@@ -413,113 +403,54 @@ test.describe('Provider Integration - Full Flow', () => {
     }
   });
 
-  /**
-   * Full connection flow test using a workaround for popup issues.
-   *
-   * Strategy: Instead of waiting for the popup to open, we:
-   * 1. Trigger the connection request from dApp
-   * 2. Wait for the approval service to register the pending request
-   * 3. Navigate the extension page to the approval URL
-   * 4. Approve/reject from there
-   * 5. Verify the dApp receives the response
-   */
-  test('full connection flow with approval workaround', async ({ dappServer }) => {
+  test('approving a connection returns an identity-bound proof and records the site', async ({ dappServer }) => {
     const { context, page: extensionPage, extensionId } = await launchExtension('full-flow');
 
     try {
       await createWallet(extensionPage);
-
-      // Open dApp
       const dappPage = await context.newPage();
       await dappPage.goto(dappServer.url);
-      await waitForProvider(dappPage);
-      await dappPage.waitForSelector('#status:not(:has-text("Checking wallet"))');
+      expect(await waitForProvider(dappPage)).toBe(true);
+      await expect(dappPage.locator('#status')).toHaveText('Ready to connect');
 
-      // Start connection request (don't await - it will block waiting for approval)
-      const connectionPromise = dappPage.evaluate(() => {
-        return new Promise((resolve, reject) => {
-          const p = (window as any).xcpwallet;
-          p.request({ method: 'xcp_requestAccounts' })
-            .then(resolve)
-            .catch(reject);
-        });
+      // Register before requesting: the popup can open before the request promise settles.
+      const approvalWindow = context.waitForEvent('page');
+      const connection = dappPage.evaluate(async () => {
+        const provider = (window as unknown as {
+          xcpwallet: { request(args: { method: string }): Promise<{
+            accounts: string[];
+            proof: { address: string; message: string; signature: string; verification: { method: string; format: string } } | null;
+          }> };
+        }).xcpwallet;
+        try { return { result: await provider.request({ method: 'xcp_requestAccounts' }) }; }
+        catch (error) { return { error: error instanceof Error ? error.message : String(error) }; }
       });
+      const popup = await approvalWindow;
+      await expect(popup).toHaveURL(/#\/requests\/connect\/approve\?/);
+      const connect = popup.getByRole('button', { name: 'Connect', exact: true });
+      await expect(connect).toBeEnabled();
+      const closed = popup.waitForEvent('close');
+      await connect.click();
 
-      // Wait a moment for the request to be registered
-      await extensionPage.waitForLoadState('networkidle');
+      const outcome = await connection;
+      expect(outcome.error).toBeUndefined();
+      expect(outcome.result?.accounts).toHaveLength(1);
+      const proof = outcome.result?.proof;
+      expect(proof).toBeTruthy();
+      expect(proof?.address).toBe(outcome.result?.accounts[0]);
+      expect(proof?.signature).toEqual(expect.any(String));
+      expect(proof?.signature.length).toBeGreaterThan(0);
+      expect(proof?.message.split('\n')).toEqual([
+        'xcp-wallet',
+        `origin:${new URL(dappServer.url).origin}`,
+        expect.stringMatching(/^nonce:[0-9a-f]{16}$/),
+        expect.stringMatching(/^issued:\d+$/),
+      ]);
+      expect(proof?.verification).toEqual({ method: 'BIP-322', format: 'p2wpkh' });
+      await closed;
 
-      // The approval popup would have opened, but we'll navigate the extension page instead
-      // First, get the pending request info from background
-      // We'll navigate to connected-sites and check if there's a pending connection
-
-      // Actually, let's try to find the popup that was opened
-      const pages = context.pages();
-      const popupPage = pages.find(p =>
-        p.url().includes('approve-connection') && p !== extensionPage && p !== dappPage
-      );
-
-      if (popupPage) {
-        console.log('Found popup page, trying to interact...');
-
-        // Try to reload the popup page to fix WXT context issue
-        await popupPage.reload();
-        await popupPage.waitForLoadState('networkidle');
-        await popupPage.waitForLoadState('networkidle');
-
-        // Check if Connect button is now visible
-        const connectButton = popupPage.locator('button:has-text("Connect")');
-        const connectCount = await connectButton.count();
-
-        if (connectCount > 0) {
-          await connectButton.click();
-          try {
-            await popupPage.waitForEvent('close', { timeout: 5000 });
-          } catch {
-            // Popup may have already closed
-          }
-        } else {
-          console.log('Connect button not found after reload, closing popup');
-          await popupPage.close();
-        }
-      } else {
-        console.log('No popup found, request may have failed');
-      }
-
-      // Check connection result (timeout in case popup never opened)
-      const result = await Promise.race([
-        connectionPromise,
-        new Promise(resolve => setTimeout(() => resolve({ error: 'test timeout' }), 30000)),
-      ]).catch(e => ({ error: e.message }));
-      console.log('Connection result:', result);
-
-      // If we got accounts, verify the connection
-      if (Array.isArray(result) && result.length > 0) {
-        // Verify dApp shows connected
-        await dappPage.waitForSelector('#status.connected', { timeout: 5000 }).catch(() => {});
-        const statusText = await dappPage.locator('#status').textContent();
-        expect(statusText).toContain('Connected');
-
-        // Verify Connected Sites
-        await extensionPage.goto(`chrome-extension://${extensionId}/popup.html#/settings/connected-sites`);
-        await extensionPage.waitForLoadState('networkidle');
-        await extensionPage.waitForLoadState('networkidle');
-
-        // Try clicking refresh if available
-        const refreshButton = extensionPage.locator('button[aria-label*="Refresh"], button:has([class*="RefreshCw"])').first();
-        const refreshCount = await refreshButton.count();
-        if (refreshCount > 0) {
-          await refreshButton.click();
-          await extensionPage.waitForLoadState('networkidle');
-        }
-
-        // Verify the connected sites page loads - should show site, empty state, or title
-        const pageContent = extensionPage.locator('text=/localhost/i').first()
-          .or(extensionPage.locator('text=/Sites you connect to will appear here/i').first())
-          .or(extensionPage.locator('text=/Connected Sites/i').first())
-          .first();
-        await expect(pageContent).toBeVisible({ timeout: 5000 });
-      }
-
+      await extensionPage.goto(`chrome-extension://${extensionId}/popup.html#/settings/connected-sites`);
+      await expect(extensionPage.getByText(new URL(dappServer.url).origin, { exact: true })).toBeVisible();
       await dappPage.close();
     } finally {
       await context.close();
