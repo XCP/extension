@@ -67,8 +67,6 @@ interface ReviewScreenProps {
   isSigning: boolean;
   /** Disable signing while transaction-specific review details are unavailable. */
   signDisabled?: boolean;
-  /** Hide the back button (e.g., for provider requests with no form to go back to) */
-  hideBackButton?: boolean;
 }
 
 /**
@@ -100,7 +98,6 @@ export function ReviewScreen({
   error,
   isSigning,
   signDisabled = false,
-  hideBackButton = false,
 }: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
   const { settings } = useSettings();
@@ -143,7 +140,7 @@ export function ReviewScreen({
       {error && (
         <ErrorAlert
           message={error}
-          onClose={hideBackButton ? undefined : onBack}
+          onClose={onBack}
         />
       )}
       
@@ -258,17 +255,15 @@ export function ReviewScreen({
       
       {/* Action Buttons */}
       <div className="flex space-x-4">
-        {!hideBackButton && (
-          <Button
-            onClick={onBack}
-            color="gray"
-            className="shrink-0 whitespace-nowrap"
-            disabled={isSigning}
-            aria-label={t('screens_review_screen_go_back_to_edit_transaction')}
-          >
-            {t('common_back')}
-          </Button>
-        )}
+        <Button
+          onClick={onBack}
+          color="gray"
+          className="shrink-0 whitespace-nowrap"
+          disabled={isSigning}
+          aria-label={t('screens_review_screen_go_back_to_edit_transaction')}
+        >
+          {t('common_back')}
+        </Button>
         <Button
           onClick={onSign}
           color="blue"
