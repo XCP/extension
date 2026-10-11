@@ -1,4 +1,12 @@
-import { MAX_MARKETPLACE_BATCH_REQUESTS, type MarketplaceBatchKind } from '@/core/counterparty/marketplaceBatch';
+import { finalizePSBT, parsePSBT } from '@/core/bitcoin/psbt';
+import {
+  assertReviewedAttachTransaction,
+  type DependentListingOutpoint,
+  rebindDependentListingPsbt,
+  unsignedTransactionHex,
+} from '@/core/bitcoin/psbtBundleTransactions';
+import { computeTxid } from '@/core/bitcoin/transactionBroadcaster';
+import { MAX_MARKETPLACE_BATCH_REQUESTS } from '@/core/counterparty/marketplaceBatch';
 
 /**
  * Sign one already-proved phase in order, but disclose results only as a complete set.
@@ -20,28 +28,6 @@ export async function signPsbtPhaseForDelivery<T>(
   }
   return results;
 }
-
-export interface DependentListingOutpoint {
-  txid: string;
-  vout: number;
-}
-
-const txidHex = (value: string, label: string): string => {
-  const normalized = value.toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(normalized)) throw new Error(`${label} must be 32-byte hex`);
-  return normalized;
-};
-
-const unsignedTransactionHex = (psbtHex: string): string =>
-  bytesToHex(parsePSBT(psbtHex).toBytes(true, false));
-
-/**
- * Bundle kinds whose later items spend the first item's outputs before it is broadcast, and whose
- * review proved that spend against the first item's own bytes. (attach-and-list is not one: its
- * listing is rebound to the signed attach, which then travels as the input's nonWitnessUtxo.)
- */
-export const bundleSpendsItsParent = (kind: 'acceptance-cpfp' | 'commit-and-reveal' | MarketplaceBatchKind): boolean =>
-  kind === 'acceptance-cpfp' || kind === 'fund-and-authorize-offers';
 
 /**
  * Sign an offer funding and then the authorizations that spend one of its outputs, in one approved
@@ -73,56 +59,6 @@ export async function signFundAndAuthorizationsForDelivery<T extends { psbtHex: 
 }
 
 /**
- * The unsigned bytes of a bundle's first transaction, keyed by its txid, for the later items that
- * spend its outputs before it is broadcast. The prevout check hashes these bytes and binds them to
- * each input's txid. Unsigned bytes carry the final txid only when every parent input is P2WPKH or
- * P2TR (a scriptSig is part of the txid), so review refuses any other parent.
- */
-export function packageParentOf(parentPsbtHex: string): Record<string, string> {
-  return { [parsePSBT(parentPsbtHex).id]: unsignedTransactionHex(parentPsbtHex) };
-}
-
-/** Replace only the dependent listing's asset-input parent after a Legacy attach is signed. */
-export function rebindDependentListingPsbt(
-  listingPsbtHex: string,
-  expectedOutpoint: DependentListingOutpoint,
-  finalAttachTxid: string,
-  finalAttachRawTx?: string,
-): string {
-  const transaction = parsePSBT(listingPsbtHex);
-  if (transaction.inputsLength !== 2 || transaction.outputsLength !== 2) {
-    throw new Error('dependent listing must remain a 2-input/2-output authorization');
-  }
-  const assetInput = transaction.getInput(1);
-  if (
-    !assetInput?.txid
-    || bytesToHex(assetInput.txid) !== txidHex(expectedOutpoint.txid, 'expected attach txid')
-    || assetInput.index !== expectedOutpoint.vout
-  ) {
-    throw new Error('dependent listing does not spend the reviewed attach outpoint');
-  }
-  if (
-    assetInput.partialSig?.length
-    || assetInput.tapKeySig
-    || assetInput.finalScriptSig?.length
-    || assetInput.finalScriptWitness?.length
-  ) {
-    throw new Error('dependent listing asset input must be unsigned before rebinding');
-  }
-  transaction.updateInput(1, {
-    txid: hexToBytes(txidHex(finalAttachTxid, 'final attach txid')),
-    // Package children cannot fetch an unbroadcast parent. Carry the exact signed parent so the
-    // wallet can verify this input independently when the listing reaches its signing boundary.
-    ...(finalAttachRawTx ? { nonWitnessUtxo: hexToBytes(finalAttachRawTx) } : {}),
-  }, true);
-  return bytesToHex(transaction.toPSBT());
-}
-
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { finalizePSBT, parsePSBT } from '@/core/bitcoin/psbt';
-import { computeTxid } from '@/core/bitcoin/transactionBroadcaster';
-
-/**
  * Sign one attach and its listing in a single approved decision. The listing is rebound only after
  * the fully signed attach establishes its final txid, which is essential for a Legacy source.
  */
@@ -134,11 +70,7 @@ export async function signAttachAndListingForDelivery<T extends { psbtHex: strin
   if (items.length !== 2) throw new Error('attach-and-list requires exactly two transactions');
   const attach = items[0]!;
   const listing = items[1]!;
-  // The listing was proved against the attach's own unsigned bytes, never against a claimed txid.
-  // Refuse to rebind unless the outpoint being replaced is exactly that reviewed attach output.
-  if (parsePSBT(attach.psbtHex).id !== txidHex(expectedOutpoint.txid, 'expected attach txid')) {
-    throw new Error('attach-and-list outpoint is not the reviewed attach transaction');
-  }
+  assertReviewedAttachTransaction(attach.psbtHex, expectedOutpoint.txid);
 
   const signedAttach = await sign(attach, 0);
   if (unsignedTransactionHex(signedAttach) !== unsignedTransactionHex(attach.psbtHex)) {
