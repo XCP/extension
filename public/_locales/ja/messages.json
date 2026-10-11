@@ -6945,6 +6945,15 @@
     "message": "選択したコインがロックされたか、ロックが変更されました。取引を再確認してください。",
     "description": "Coin control: signing guards and asset lookup status."
   },
+  "setup_import_private_key_clear_clipboard": {
+    "message": "インポート後にクリップボードを消去する"
+  },
+  "setup_import_private_key_clipboard_warning": {
+    "message": "ウォレットをインポートしました。クリップボードを消去できませんでした。秘密鍵が残っている場合は、手動で消去してください。"
+  },
+  "setup_import_private_key_clipboard_permission_denied": {
+    "message": "クリップボードへのアクセスが許可されませんでした。鍵はインポートできますが、クリップボードはご自身で消去してください。"
+  },
   "coins_assets_unknown": {
     "message": "アセット状態不明",
     "description": "Coin control: signing guards and asset lookup status."

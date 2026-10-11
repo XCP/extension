@@ -9232,6 +9232,15 @@
     "message": "A selected coin was locked or its lock changed. Review the transaction again.",
     "description": "Coin control: signing guards and asset lookup status."
   },
+  "setup_import_private_key_clear_clipboard": {
+    "message": "Clear clipboard after import"
+  },
+  "setup_import_private_key_clipboard_warning": {
+    "message": "Wallet imported. The clipboard could not be cleared. If it still contains your private key, clear it manually."
+  },
+  "setup_import_private_key_clipboard_permission_denied": {
+    "message": "Clipboard access was not granted. You can still import your key, but you will need to clear the clipboard yourself."
+  },
   "coins_assets_unknown": {
     "message": "Asset status unknown",
     "description": "Coin control: signing guards and asset lookup status."

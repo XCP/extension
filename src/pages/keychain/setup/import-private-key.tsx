@@ -20,6 +20,7 @@ import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { validatePrivateKeyFormat } from "@/core/validation/privateKey";
 import { t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
+import { clearImportedKeyFromClipboard, hasImportClipboardAccess, requestImportClipboardAccess } from "@/platform/importClipboard";
 
 const PATHS = {
   BACK: "/keychain/wallets/add",
@@ -36,6 +37,11 @@ function ImportPrivateKeyPage() {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [passwordReady, setPasswordReady] = useState(false);
   const [errorDismissed, setErrorDismissed] = useState(false);
+
+  const [clearClipboard, setClearClipboard] = useState(false);
+  const [clipboardAccessPending, setClipboardAccessPending] = useState(true);
+  const [clipboardPermissionDenied, setClipboardPermissionDenied] = useState(false);
+  const [importedWithClipboardWarning, setImportedWithClipboardWarning] = useState(false);
 
   const privateKeyInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
@@ -76,9 +82,6 @@ function ImportPrivateKeyPage() {
 
       try {
         await createPrivateKeyWallet(privateKey.trim(), password, undefined, addressFormat);
-        void analytics.track('private_key_imported');
-        void navigate(PATHS.SUCCESS);
-        return { error: null };
       } catch (error) {
         let errorMessage = t('setup_import_private_key_failed_to_import_private_key');
         if (error instanceof Error) {
@@ -93,11 +96,24 @@ function ImportPrivateKeyPage() {
         }
         return { error: errorMessage };
       }
+
+      // Import is complete. Clipboard errors must not invite another import attempt.
+      if (privateKeyInputRef.current) privateKeyInputRef.current.value = '';
+      if (passwordInputRef.current) passwordInputRef.current.value = '';
+      formData.delete('private-key');
+      formData.delete('password');
+      void analytics.track('private_key_imported');
+      if (clearClipboard && await clearImportedKeyFromClipboard(privateKey) === 'unavailable') {
+        setImportedWithClipboardWarning(true);
+      } else {
+        void navigate(PATHS.SUCCESS);
+      }
+      return { error: null };
     },
     { error: null }
   );
 
-  const canSubmit = isConfirmed && passwordReady && !isPending;
+  const canSubmit = isConfirmed && passwordReady && !isPending && !clipboardAccessPending;
 
   useEffect(() => {
     if (state.error) setErrorDismissed(false);
@@ -119,6 +135,32 @@ function ImportPrivateKeyPage() {
     privateKeyInputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    void hasImportClipboardAccess().then(granted => {
+      if (active) {
+        setClearClipboard(granted);
+        setClipboardAccessPending(false);
+      }
+    });
+    return () => { active = false; };
+  }, []);
+
+  async function handleClipboardChange(checked: boolean) {
+    setClipboardPermissionDenied(false);
+    if (!checked) {
+      setClearClipboard(false);
+      return;
+    }
+    // Request before any await: optional permission prompts require a user gesture.
+    const request = requestImportClipboardAccess();
+    setClipboardAccessPending(true);
+    const granted = await request;
+    setClearClipboard(granted);
+    setClipboardPermissionDenied(!granted);
+    setClipboardAccessPending(false);
+  }
+
   function handlePrivateKeyChange(e: React.ChangeEvent<HTMLInputElement>) {
     setPrivateKeyReady(e.target.value.trim().length > 0);
   }
@@ -132,6 +174,15 @@ function ImportPrivateKeyPage() {
 
   function handlePasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
     setPasswordReady(e.target.value.length >= MIN_PASSWORD_LENGTH);
+  }
+
+  if (importedWithClipboardWarning) {
+    return (
+      <section className="flex-grow p-4 space-y-4">
+        <p role="status">{t('setup_import_private_key_clipboard_warning')}</p>
+        <Button fullWidth onClick={() => void navigate(PATHS.SUCCESS)}>{t('common_continue')}</Button>
+      </section>
+    );
   }
 
   return (
@@ -213,6 +264,16 @@ function ImportPrivateKeyPage() {
             checked={isConfirmed}
             onChange={handleCheckboxChange}
           />
+          <CheckboxInput
+            name="clear-clipboard"
+            label={t('setup_import_private_key_clear_clipboard')}
+            disabled={isPending || clipboardAccessPending}
+            checked={clearClipboard}
+            onChange={(checked) => void handleClipboardChange(checked)}
+          />
+          {clipboardPermissionDenied && (
+            <p role="status" className="text-sm text-gray-600">{t('setup_import_private_key_clipboard_permission_denied')}</p>
+          )}
           {isConfirmed && (
             <>
               <PasswordInput
