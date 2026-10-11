@@ -123,7 +123,9 @@ describe('KeychainOpenOrNew', () => {
 
       renderWithRouter();
 
-      expect(mockNavigate).toHaveBeenCalledWith('/keychain/unlock', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/keychain/unlock', { replace: true,
+        state: { from: '/keychain/setup/create-mnemonic' },
+      });
       expect(screen.queryByText('Create Wallet')).not.toBeInTheDocument();
     });
 

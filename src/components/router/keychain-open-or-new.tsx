@@ -1,5 +1,5 @@
 import { type ReactElement, useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router';
+import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useWallet } from '@/contexts/wallet-context';
 
 /**
@@ -23,15 +23,20 @@ import { useWallet } from '@/contexts/wallet-context';
 export function KeychainOpenOrNew(): ReactElement | null {
   const { authState, keychainExists, isLoading } = useWallet();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = location.pathname + location.search + location.hash;
 
   useEffect(() => {
     if (isLoading) return;
 
     // Keychain exists but locked - must unlock first
     if (keychainExists && authState === 'LOCKED') {
-      void navigate('/keychain/unlock', { replace: true });
+      void navigate('/keychain/unlock', { replace: true, state: {
+        from: returnTo,
+        ...(location.state != null ? { returnState: location.state } : {}),
+      } });
     }
-  }, [authState, keychainExists, isLoading, navigate]);
+  }, [authState, keychainExists, isLoading, navigate, returnTo, location.state]);
 
   if (isLoading) {
     return null;

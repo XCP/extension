@@ -30,9 +30,10 @@ describe('UnlockPage', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it('goes home after unlocking', async () => {
+  it('leaves post-unlock navigation to the route guard', async () => {
     await submitPassword();
-    await waitFor(() => expect(fixture.navigate).toHaveBeenCalledWith('/index'));
+    await waitFor(() => expect(document.querySelector<HTMLInputElement>('input[name="password"]')!).toHaveValue(''));
+    expect(fixture.navigate).not.toHaveBeenCalled();
   });
 
   it('stays busy for the request continuing in this window instead of going home', async () => {
