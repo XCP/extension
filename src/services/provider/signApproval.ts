@@ -18,9 +18,12 @@ import {
   countOpenSignFlows,
   findActiveFlowByKey,
   getSignFlow,
+  getSignFlowEventPrefix,
   MAX_OPEN_SIGN_FLOWS_PER_ORIGIN,
   SIGN_FLOW_TTL_MS,
   type SignFlowEventPrefix,
+  type SignFlowKind,
+  type SignFlowResults,
 } from '@/platform/provider/signFlow';
 import { createWriteLock } from '@/platform/storage/mutex';
 import { eventEmitterService } from '@/services/eventEmitterService';
@@ -39,8 +42,7 @@ export const SIGN_FLOW_RECOVERY_POLL_MS = 5_000;
 /**
  * Drives the popup approval lifecycle for a dApp signing request: registers the
  * critical operation, resolves/rejects on the popup's complete/cancel events,
- * times out after 10 minutes, and cleans up listeners (and any per-request
- * state via onCleanup) on every exit path.
+ * times out after 10 minutes, and cleans up listeners and timers on every exit path.
  */
 function awaitSignApproval<T>(opts: {
   requestId: string;
@@ -49,9 +51,8 @@ function awaitSignApproval<T>(opts: {
   analyticsEvent: string;
   cancelMessage: string;
   timeoutMessage: string;
-  mapResult: (result: any) => T;
+  mapResult: (flow: CompletedSignFlow) => T;
   authorizeDelivery: (flow: CompletedSignFlow) => Promise<SignDeliveryGuard>;
-  onCleanup?: () => void;
 }): Promise<T> {
   const updateService = getUpdateService();
   updateService.registerCriticalOperation(`${opts.eventPrefix}-${opts.requestId}`);
@@ -70,7 +71,6 @@ function awaitSignApproval<T>(opts: {
       eventEmitterService.off(`${opts.eventPrefix}-cancel-${opts.requestId}`, handleCancel);
       // Keep the terminal result until its original deadline. Removing it here
       // loses recovery when the worker stops after signing but before delivery.
-      opts.onCleanup?.();
     };
 
     const handleFailure = (error: unknown) => {
@@ -91,7 +91,7 @@ function awaitSignApproval<T>(opts: {
         const assertDelivery = await opts.authorizeDelivery(flow);
         if (settled) return;
         assertDelivery();
-        const result = opts.mapResult(flow.result);
+        const result = opts.mapResult(flow);
         settled = true;
         cleanup();
         void analytics.track(opts.analyticsEvent);
@@ -133,6 +133,14 @@ function awaitSignApproval<T>(opts: {
   });
 }
 
+/** Stored payloads have already passed signFlow validation; bind their kind to this caller too. */
+function resultOfKind<K extends SignFlowKind>(flow: CompletedSignFlow, kind: K): SignFlowResults[K] {
+  if (flow.kind !== kind) throw new Error('Signing result kind does not match the request');
+  // TypeScript cannot correlate a generic kind with the corresponding member of this union.
+  // The runtime comparison above establishes exactly that relationship.
+  return flow.result as SignFlowResults[K];
+}
+
 /**
  * Run a signing request through its durable flow: recover a completed result,
  * rejoin a pending one (no new popup), or begin a fresh flow. For the new-flow case, create
@@ -140,24 +148,27 @@ function awaitSignApproval<T>(opts: {
  */
 const withFlowCreationLock = createWriteLock();
 
-export async function runSignFlow<T>(args: {
+export async function runSignFlow<K extends SignFlowKind, T>(args: {
   origin: string;
   method: string;
   params: unknown;
   identity: { walletId: string; address: string };
   pairedAddresses?: boolean;
   approval: {
-    eventPrefix: SignFlowEventPrefix;
+    kind: K;
     analyticsEvent: string;
     cancelMessage: string;
     timeoutMessage: string;
-    mapResult: (result: any) => T;
+    mapResult: (result: SignFlowResults[NoInfer<K>]) => T;
   };
   /** Store the per-type request under this id. */
   create: (requestId: string, requestKey: string) => Promise<void>;
   /** The approval screen's route, opened with `?requestId=`. */
   approvalRoute: string;
 }): Promise<T> {
+  const eventPrefix = getSignFlowEventPrefix(args.approval.kind);
+  const mapResult = (completed: CompletedSignFlow) =>
+    args.approval.mapResult(resultOfKind(completed, args.approval.kind));
   const sessionGeneration = getSessionGeneration();
   const requestKey = computeRequestKey(args.origin, args.method, args.params, args.identity);
   // Lookup and creation are one command; concurrent identical calls join it.
@@ -174,7 +185,7 @@ export async function runSignFlow<T>(args: {
       const resetTime = signPopupRateLimiter.getResetTime(args.origin);
       throw limitExceeded(`Signing request rate limit exceeded. Please wait ${Math.ceil(resetTime / 1000)} seconds.`);
     }
-    const requestId = generateRequestId(args.approval.eventPrefix);
+    const requestId = generateRequestId(eventPrefix);
     await args.create(requestId, requestKey);
     try {
       await openExtensionPopup(`${args.approvalRoute}?requestId=${requestId}`);
@@ -190,6 +201,8 @@ export async function runSignFlow<T>(args: {
     return created;
   });
 
+  if (flow.kind !== args.approval.kind) throw new Error('Signing result kind does not match the request');
+
   const authorizeDelivery = (completed: CompletedSignFlow) =>
     assertSignDeliveryAuthorized(completed, args.pairedAddresses ?? false, sessionGeneration,
       supportsPairedContinuity(completed.kind));
@@ -197,8 +210,8 @@ export async function runSignFlow<T>(args: {
     const assertDelivery = await authorizeDelivery(flow);
     assertDelivery();
     void analytics.track(args.approval.analyticsEvent);
-    return args.approval.mapResult(flow.result);
+    return mapResult(flow);
   }
-  return awaitSignApproval({ ...args.approval, authorizeDelivery, requestId: flow.id,
+  return awaitSignApproval({ ...args.approval, eventPrefix, mapResult, authorizeDelivery, requestId: flow.id,
     expiresAt: flow.timestamp + SIGN_FLOW_TTL_MS });
 }

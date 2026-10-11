@@ -634,7 +634,7 @@ export function createProviderService(): ProviderService {
             identity: { walletId: activeWallet.id, address: activeAddress.address },
             pairedAddresses: signingAddress !== activeAddress.address,
             approval: {
-              eventPrefix: 'sign-message',
+              kind: 'sign-message',
               analyticsEvent: 'message_signed',
               cancelMessage: 'User cancelled sign message request',
               timeoutMessage: 'Sign message request timeout',
@@ -693,7 +693,7 @@ export function createProviderService(): ProviderService {
             params: { rawTxHex },
             identity: { walletId: activeWallet.id, address: activeAddress.address },
             approval: {
-              eventPrefix: 'sign-tx',
+              kind: 'sign-transaction',
               analyticsEvent: 'transaction_signed',
               cancelMessage: 'User cancelled transaction signing request',
               timeoutMessage: 'Transaction signing request timeout',
@@ -890,7 +890,7 @@ export function createProviderService(): ProviderService {
             identity: { walletId: activeWallet.id, address: activeAddress.address },
             pairedAddresses: usesPairedAddress,
             approval: {
-              eventPrefix: 'sign-psbts',
+              kind: 'sign-psbts',
               analyticsEvent: 'psbt_bundle_signed',
               cancelMessage: 'User cancelled PSBT bundle signing request',
               timeoutMessage: 'PSBT bundle signing request timeout',
@@ -1076,7 +1076,7 @@ export function createProviderService(): ProviderService {
             identity: { walletId: activeWallet.id, address: activeAddress.address },
             pairedAddresses: Object.keys(signInputs ?? {}).some(address => normalizeAddressForComparison(address) !== normalizeAddressForComparison(activeAddress.address)),
             approval: {
-              eventPrefix: 'sign-psbt',
+              kind: 'sign-psbt',
               analyticsEvent: 'psbt_signed',
               cancelMessage: 'User cancelled PSBT signing request',
               timeoutMessage: 'PSBT signing request timeout',
