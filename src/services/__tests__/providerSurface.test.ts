@@ -149,7 +149,7 @@ describe('provider surface', () => {
     // No grant for this origin, in every test below.
     vi.mocked(getConnectionService).mockReturnValue({
       hasPermission: vi.fn().mockResolvedValue(false),
-      getConnectedWebsites: vi.fn().mockResolvedValue([]),
+      getConnectedOrigins: vi.fn().mockResolvedValue([]),
       disconnect: vi.fn().mockResolvedValue(true),
       connect: vi.fn().mockResolvedValue(true),
       hasPairedAddressPermission: vi.fn().mockResolvedValue(false),

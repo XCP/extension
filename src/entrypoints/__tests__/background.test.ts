@@ -13,7 +13,7 @@ const h = vi.hoisted(() => {
   };
   const connection = {
     initialize: vi.fn(() => { order.push('connection.initialize'); }),
-    getConnectedWebsites: vi.fn(async () => [] as { origin: string }[]),
+    getConnectedOrigins: vi.fn(async () => [] as string[]),
   };
   const wallet = {
     lockKeychain: vi.fn(async () => {}),
@@ -93,7 +93,7 @@ beforeEach(() => {
   h.recovery = 'LOCKED';
   h.cachedKey = null;
   h.wallet.isKeychainUnlocked.mockResolvedValue(false);
-  h.connection.getConnectedWebsites.mockResolvedValue([]);
+  h.connection.getConnectedOrigins.mockResolvedValue([]);
   h.wereAccountsAnnounced.mockResolvedValue(false);
   chromeStub = {
     runtime: {
@@ -232,7 +232,7 @@ describe('re-announcing accounts on wake', () => {
     h.recovery = 'NEEDS_REAUTH';
     h.wallet.isKeychainUnlocked.mockResolvedValue(true);
     h.wallet.getActiveAddress.mockResolvedValue({ address: 'bc1qactive' });
-    h.connection.getConnectedWebsites.mockResolvedValue([{ origin: 'https://same.example' }, { origin: 'https://changed.example' }]);
+    h.connection.getConnectedOrigins.mockResolvedValue(['https://same.example', 'https://changed.example']);
   });
 
   it('tells only the origins whose pages were last told something else', async () => {

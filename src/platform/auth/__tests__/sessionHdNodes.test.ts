@@ -112,7 +112,9 @@ describe('HD nodes held beside unlocked secrets', () => {
 
   it('stops serving nodes the moment the session expires, and zeroes them in the cleanup', async () => {
     const node = cacheNodeFor(WALLET_A, 'secret-a');
-    metadata = { ...metadata!, lastActiveTime: Date.now() - 10 * 60 * 1000, unlockedAt: Date.now() - 10 * 60 * 1000 };
+    // One clock read keeps lastActiveTime >= unlockedAt even across a millisecond boundary.
+    const inactiveSince = Date.now() - 10 * 60 * 1000;
+    metadata = { ...metadata!, lastActiveTime: inactiveSince, unlockedAt: inactiveSince };
     let servedDuringExpiry: boolean | undefined;
     registerSessionExpiredHandler(async () => {
       // Invalidated but not yet cleaned up: the cache must already refuse to serve.
