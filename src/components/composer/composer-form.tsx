@@ -5,15 +5,11 @@ import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
 import { useComposer } from "@/contexts/composer-context-object";
 
 import { t } from '@/i18n';
-/**
- * Props for the ComposerForm component
- */
+
 export interface ComposerFormProps {
-  // Required props
   children: ReactNode;
   formAction: (formData: FormData) => void | Promise<void>;
 
-  // Optional props
   header?: ReactNode;
   submitText?: string;
   submitDisabled?: boolean;
@@ -23,23 +19,6 @@ export interface ComposerFormProps {
   containerClassName?: string;
 }
 
-/**
- * Compose form component for all transaction composition forms
- * Provides consistent structure, styling, and behavior
- * Uses composer context for state and actions
- * 
- * @example
- * ```tsx
- * <ComposerForm
- *   formAction={handleSubmit}
- *   header={<BalanceHeader balance={balance} />}
- *   submitText="Send"
- * >
- *   <AmountInput />
- *   <DestinationInput />
- * </ComposerForm>
- * ```
- */
 export function ComposerForm({
   children,
   formAction,
@@ -51,9 +30,6 @@ export function ComposerForm({
   formClassName = "space-y-4",
   containerClassName = "bg-white rounded-lg shadow-lg p-3 sm:p-4",
 }: ComposerFormProps): ReactElement {
-  // Get state from composer context
-  // Using unknown instead of any for better type safety - ComposerForm only uses
-  // state.error and state.isComposing which are not dependent on the formData type
   const { state, showHelpText, clearError, feeRate, setFeeRate } = useComposer<unknown>();
   const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
   // Every rejected paste requires correction of that field. A later rejected paste must not
@@ -61,7 +37,6 @@ export function ComposerForm({
   const clipboardTargets = useRef(new Set<HTMLInputElement>());
   const [clipboardError, setClipboardError] = useState(false);
 
-  // Determine if form is submitting
   const isSubmitting = isLocalSubmitting || state.isComposing;
   const feeRateMissing = showFeeRate &&
     (feeRate === null || !Number.isFinite(feeRate) || feeRate < 0.1);

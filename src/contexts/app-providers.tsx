@@ -9,9 +9,6 @@ import { useIdleTimer } from '@/hooks/useIdleTimer';
 import { t } from '@/i18n';
 import { type ActivityReporter, createActivityReporter } from '@/platform/activityReporter';
 
-/**
- * Props for the AppProviders component.
- */
 interface AppProvidersProps {
   children: ReactNode;
 }
@@ -137,12 +134,6 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   return <>{children}</>;
 }
 
-/**
- * Provides all application-level context providers in a nested structure.
- * Each provider is wrapped in an error boundary for resilience.
- * @param {AppProvidersProps} props - Component props
- * @returns {ReactElement} Nested provider tree with error boundaries
- */
 export function AppProviders({ children }: AppProvidersProps): ReactElement {
   return (
     <ErrorBoundary

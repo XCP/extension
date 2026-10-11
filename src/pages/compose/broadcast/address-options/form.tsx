@@ -12,9 +12,6 @@ import { t } from '@/i18n';
 
 const ADDRESS_OPTION_REQUIRE_MEMO = 1;
 
-/**
- * Props for the AddressOptionsForm component, aligned with Composer's formAction.
- */
 interface AddressOptionsFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: BroadcastOptions | null;

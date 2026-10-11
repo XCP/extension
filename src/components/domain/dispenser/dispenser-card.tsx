@@ -18,9 +18,6 @@ export interface DispenserOption {
   index: number;
 }
 
-/**
- * Props interface for the DispenserCard component
- */
 interface DispenserCardProps {
   /** The dispenser option data */
   option: DispenserOption;
@@ -48,31 +45,6 @@ function calculateRemainingDispenses(
   );
 }
 
-/**
- * DispenserCard Component
- *
- * A specialized card component for displaying dispenser options
- * with radio selection functionality.
- *
- * Features:
- * - Displays dispenser asset information
- * - Shows BTC price and remaining dispenses
- * - Radio button selection
- * - Visual feedback for selected state
- *
- * @param props - The component props
- * @returns A ReactElement representing the dispenser card
- *
- * @example
- * ```tsx
- * <DispenserCard
- *   option={dispenserOption}
- *   isSelected={selectedIndex === 0}
- *   onSelect={() => setSelectedIndex(0)}
- *   disabled={false}
- * />
- * ```
- */
 export function DispenserCard({
   option,
   isSelected,

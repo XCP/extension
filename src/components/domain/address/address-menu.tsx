@@ -8,9 +8,6 @@ import { isUtxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import { t } from '@/i18n';
 import type { Address } from '@/types/wallet';
 
-/**
- * Props for the AddressMenu component
- */
 interface AddressMenuProps {
   /** The address object containing address details */
   address: Address;
@@ -135,4 +132,4 @@ export function AddressMenu({
       )}
     </BaseMenu>
   );
-} 
+}

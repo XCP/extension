@@ -13,9 +13,6 @@ import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the LockDescriptionForm component, aligned with Composer's formAction.
- */
 interface LockDescriptionFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;

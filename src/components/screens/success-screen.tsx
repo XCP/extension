@@ -11,9 +11,6 @@ import { t } from '@/i18n';
  */
 type ApiResponse = ComposerBroadcastResult;
 
-/**
- * Props for the SuccessScreen component
- */
 interface SuccessScreenProps {
   /** API response containing broadcast details */
   apiResponse: ApiResponse;

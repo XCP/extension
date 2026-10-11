@@ -10,9 +10,6 @@ import {
 import type { AssetInfo, TokenBalance } from "@/core/counterparty/api";
 import { formatAddress } from "@/core/format";
 
-/**
- * Props for a button in the header.
- */
 export interface HeaderButtonProps {
   ariaLabel: string;
   label?: string;
@@ -21,9 +18,6 @@ export interface HeaderButtonProps {
   disabled?: boolean;
 }
 
-/**
- * Props for the main header.
- */
 export interface HeaderProps {
   useLogoTitle?: boolean;
   title?: string | ReactNode;
@@ -315,18 +309,10 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
   }
 }
 
-/**
- * Props for HeaderProvider.
- */
 interface HeaderProviderProps {
   children: ReactNode;
 }
 
-/**
- * Provides header context to the application using React 19's <Context>.
- * @param {HeaderProviderProps} props - Component props
- * @returns {ReactElement} Context provider
- */
 export function HeaderProvider({ children }: HeaderProviderProps): ReactElement {
   const [state, dispatch] = useReducer(headerReducer, INITIAL_STATE);
 

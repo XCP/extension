@@ -8,9 +8,6 @@ import type { BTCPayOptions } from "@/core/counterparty/compose";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the BTCPayForm component, aligned with Composer's formAction.
- */
 interface BTCPayFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: BTCPayOptions | null;

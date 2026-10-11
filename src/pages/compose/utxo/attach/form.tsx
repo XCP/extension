@@ -11,9 +11,6 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the UtxoAttachForm component, aligned with Composer's formAction.
- */
 interface UtxoAttachFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: AttachOptions | null;

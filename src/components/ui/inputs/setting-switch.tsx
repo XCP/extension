@@ -5,9 +5,6 @@ import { FiInfo } from "@/components/icons";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the SettingSwitch component
- */
 interface SettingSwitchProps {
   label: string;
   description?: string;
@@ -18,11 +15,6 @@ interface SettingSwitchProps {
   className?: string;
 }
 
-/**
- * Reusable settings switch component for toggling boolean settings
- * @param {SettingSwitchProps} props - Component props
- * @returns {ReactElement} Setting switch UI
- */
 export function SettingSwitch({
   label,
   description,

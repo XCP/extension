@@ -18,9 +18,6 @@ import { t } from '@/i18n';
 /** Maximum file size for inscriptions in KB; see the compose layer for where it comes from. */
 const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
-/**
- * Props for the UpdateDescriptionForm component, aligned with Composer's formAction.
- */
 interface UpdateDescriptionFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;
@@ -61,7 +58,6 @@ export function UpdateDescriptionForm({
       setDescription(file.name);
     }
   };
-
 
   // Focus description textarea on mount. Listing inscribeEnabled would steal focus back every
   // time the user toggles inscribe.

@@ -1,40 +1,7 @@
 import { huntTxid } from '@/platform/zeld/hunt';
 /**
- * @module composer-context
- *
- * Transaction composition and broadcast workflow management.
- *
- * The Composer provides a three-step transaction flow:
- * 1. **Form** - User enters transaction parameters
- * 2. **Review** - Shows composed transaction for confirmation
- * 3. **Success** - Displays broadcast result with txid
- *
- * ## Security Features
- *
- * - **Local verification**: Composed transactions are verified locally before
- *   showing the review screen to protect against compromised APIs
- * - **Replay prevention**: Transactions are checked against recent broadcasts
- *   to prevent double-spend attempts
- * - **Staleness detection**: Transactions older than 5 minutes require
- *   recomposition (UTXOs may have been spent)
- *
- * ## State Management
- *
- * State automatically resets when:
- * - Active address changes
- * - Active wallet changes
- * - Wallet is locked/unlocked
- *
- * @example
- * ```tsx
- * <ComposerProvider
- *   composeType="send"
- *   composeApi={composeSend}
- *   initialTitle="Send Assets"
- * >
- *   <SendForm />
- * </ComposerProvider>
- * ```
+ * Verifies composed transactions locally before review. Signing rejects stale composes and
+ * recent broadcasts; changing the active wallet, address, or lock state resets the workflow.
  */
 
 import {
@@ -161,26 +128,13 @@ function freshComposerState<T>(): ComposerState<T> {
   };
 }
 
-/**
- * Props for ComposerProvider component.
- * @template T - Type of the form data
- */
 interface ComposerProviderProps<_T> {
-  /** Child components (form, review screen, etc.) */
   children: ReactNode;
-  /** Transaction type identifier (e.g., "send", "order", "issuance") */
   composeType: string;
-  /** API function to compose the transaction */
   composeApi: (data: any) => Promise<ApiResponse>;
-  /** Title shown in header during form step */
   initialTitle: string;
 }
 
-/**
- * Provides transaction composition workflow to child components.
- * Handles the form → review → success flow with automatic state management.
- * @template T - Type of the form data
- */
 export function ComposerProvider<T>({
   children,
   composeType,
@@ -202,20 +156,15 @@ export function ComposerProvider<T>({
   const previousAuthStateRef = useRef<string>(authState);
   const currentComposeTypeRef = useRef<string>(composeType);
 
-  // AbortController for cancelling pending operations on unmount/navigation
   const abortControllerRef = useRef<AbortController | null>(null);
   // Fired by the spinner's "Use it now": the hunt settles for the rare txid it already has.
   const acceptZeldHuntRef = useRef<AbortController | null>(null);
 
-  // Initialize state
   const [state, setState] = useState<InternalComposerState<T>>(freshComposerState);
 
-
-  // Help text state (can be toggled locally)
   const [localShowHelpText, setLocalShowHelpText] = useState<boolean | null>(null);
   const showHelpText = localShowHelpText ?? settings?.showHelpText ?? false;
 
-  // Toggle help text
   const toggleHelpText = useCallback(() => {
     setLocalShowHelpText(prev => prev === null ? !settings?.showHelpText : !prev);
   }, [settings?.showHelpText]);
@@ -224,7 +173,6 @@ export function ComposerProvider<T>({
     setState(prev => ({ ...prev, feeRate: rate }));
   }, []);
   
-  // Reset composer state when address changes
   useEffect(() => {
     if (
       activeAddress?.address &&
@@ -237,7 +185,6 @@ export function ComposerProvider<T>({
     previousAddressRef.current = activeAddress?.address;
   }, [activeAddress?.address]);
   
-  // Reset composer state when wallet changes or lock/unlock occurs
   useEffect(() => {
     const walletChanged = activeWallet?.id &&
                          previousWalletRef.current &&
@@ -255,14 +202,12 @@ export function ComposerProvider<T>({
     previousAuthStateRef.current = authState;
   }, [activeWallet?.id, authState]);
 
-  // Cleanup: abort pending operations on unmount
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
     };
   }, []);
 
-  // Compose transaction
   const composeTransaction = useCallback(async (formData: FormData) => {
     // Guard: Prevent double-composition race condition
     if (state.isComposing) {
@@ -681,7 +626,6 @@ export function ComposerProvider<T>({
     }
   }, [activeAddress, activeWallet, composeApi, composeType, zeldHuntSeconds, state.isComposing]);
 
-  // Core sign and broadcast logic - extracted to avoid duplication
   const performSignAndBroadcast = useCallback(async () => {
     if (!state.apiResponse || !activeAddress) {
       throw new Error(t('composer_context_invalid_transaction_data'));
@@ -815,7 +759,6 @@ export function ComposerProvider<T>({
     };
   }, [state.apiResponse, activeAddress, activeWallet, signTransaction, signCommitAndReveal, broadcastTransaction, setHardwareOperationInProgress]);
 
-  // Sign and broadcast transaction
   const signAndBroadcast = useCallback(async () => {
     // Guard: Prevent double-signing race condition
     if (state.isSigning) {
@@ -891,7 +834,6 @@ export function ComposerProvider<T>({
     }
   }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, performSignAndBroadcast, clearBalances]);
 
-  // Navigation actions
   const reset = useCallback(() => {
     setState(freshComposerState<T>());
     currentComposeTypeRef.current = composeType;

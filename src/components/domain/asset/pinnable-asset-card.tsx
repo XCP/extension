@@ -4,9 +4,6 @@ import { FiChevronDown, FiChevronUp, TbPinned, TbPinnedFilled } from "@/componen
 
 import { t } from '@/i18n';
 
-/**
- * Props interface for the PinnableAssetCard component
- */
 interface PinnableAssetCardProps {
   /** The asset symbol to display */
   symbol: string;
@@ -26,33 +23,6 @@ interface PinnableAssetCardProps {
   className?: string;
 }
 
-/**
- * PinnableAssetCard Component
- * 
- * A specialized card component for assets that can be pinned/unpinned.
- * Used in the pinned assets settings page for managing pinned assets.
- * 
- * Features:
- * - Asset icon and symbol display
- * - Pin/unpin toggle button with visual feedback
- * - Optional up/down arrow buttons for reordering
- * - Simplified design focused on pinning functionality
- * 
- * @param props - The component props
- * @returns A ReactElement representing the pinnable asset card
- * 
- * @example
- * ```tsx
- * <PinnableAssetCard
- *   symbol="XCP"
- *   isPinned={true}
- *   onPinToggle={handlePinToggle}
- *   showArrows={true}
- *   onMoveUp={handleMoveUp}
- *   onMoveDown={handleMoveDown}
- * />
- * ```
- */
 export function PinnableAssetCard({
   symbol,
   isPinned,

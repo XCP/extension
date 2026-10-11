@@ -1,37 +1,6 @@
 /**
- * @module wallet-context
- *
- * Core wallet state management for the extension.
- *
- * This context is the central hub for all wallet operations:
- * - Authentication state (onboarding, locked, unlocked)
- * - Wallet CRUD operations (create, import, remove, reset)
- * - Address management (derivation, selection, switching)
- * - Transaction signing and broadcasting
- * - Cross-tab state synchronization via background messages
- *
- * ## Architecture
- *
- * The context wraps `walletService` which communicates with the background
- * script via message passing. State is refreshed after each operation; other surfaces'
- * changes arrive as storage writes (the keychain record, and the session master key for locks).
- *
- * ## Concurrency
- *
- * Uses `withStateLock` to serialize operations and prevent race conditions
- * between state refresh and lock events from the background.
- *
- * @example
- * ```tsx
- * function MyComponent() {
- *   const { activeWallet, lockKeychain, isLoading } = useWallet();
- *
- *   if (isLoading) return <Spinner />;
- *   if (!activeWallet) return <OnboardingFlow />;
- *
- *   return <Dashboard wallet={activeWallet} onLock={lockKeychain} />;
- * }
- * ```
+ * Mirrors the background wallet service. Storage changes refresh other surfaces; withStateLock
+ * serializes refreshes with lock events so stale reads cannot restore unlocked state.
  */
 import {
   createContext,
@@ -253,12 +222,6 @@ const withRefresh = <T extends (...args: any[]) => Promise<any>>(
   });
 };
 
-/**
- * Provides wallet context to the application using React 19's <Context>.
- * @param {Object} props - Component props
- * @param {ReactNode} props.children - Child components
- * @returns {ReactElement} Context provider
- */
 export function WalletProvider({ children }: { children: ReactNode }): ReactElement {
   // Read once: every callback, the mount effect's subscriptions and the context value depend on
   // this, so a new identity per render would re-subscribe and refresh on every render.

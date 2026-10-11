@@ -12,9 +12,6 @@ import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the TransferOwnershipForm component, aligned with Composer's formAction.
- */
 interface TransferOwnershipFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;
@@ -35,7 +32,6 @@ export function TransferOwnershipForm({
   const [destination, setDestination] = useState(initialFormData?.transfer_destination || "");
   const [destinationValid, setDestinationValid] = useState(false);
   const destinationRef = useRef<HTMLInputElement>(null);
-
 
   // Focus destination input on mount
   useEffect(() => {

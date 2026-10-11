@@ -3,9 +3,6 @@ import { FiGlobe, FiX } from "@/components/icons";
 
 import { t } from '@/i18n';
 
-/**
- * Props interface for the ConnectedSiteCard component
- */
 interface ConnectedSiteCardProps {
   /** The hostname of the connected site (e.g., "app.xcp.io") */
   hostname: string;

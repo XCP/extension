@@ -4,9 +4,6 @@ import { formatDate, formatTimeAgo } from "@/core/format";
 
 import { t } from '@/i18n';
 
-/**
- * Props interface for the TransactionCard component
- */
 interface TransactionCardProps {
   /** The transaction data to display */
   transaction: Transaction;
@@ -20,31 +17,6 @@ interface TransactionCardProps {
   ariaLabel?: string;
 }
 
-/**
- * TransactionCard Component
- * 
- * A reusable card component for displaying blockchain transaction information.
- * Shows transaction type, status, confirmation state, and timestamp.
- * 
- * Features:
- * - Visual distinction for pending/unconfirmed transactions
- * - Formatted transaction type display
- * - Time ago display with full date on hover
- * - Transaction hash with optional truncation
- * - Accessible keyboard navigation
- * 
- * @param props - The component props
- * @returns A ReactElement representing the transaction card
- * 
- * @example
- * ```tsx
- * <TransactionCard 
- *   transaction={tx}
- *   onClick={() => navigate(`/transactions/${tx.tx_hash}`)}
- *   showFullHash={false}
- * />
- * ```
- */
 export function TransactionCard({
   transaction,
   onClick,

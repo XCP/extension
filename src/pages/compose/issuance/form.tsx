@@ -32,9 +32,6 @@ import { t } from '@/i18n';
  */
 const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
-/**
- * Props for the IssuanceForm component, aligned with Composer's formAction.
- */
 interface IssuanceFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;
@@ -104,7 +101,6 @@ export function IssuanceForm({
     }
     setSelectedFile(file);
   };
-  
 
 
   const processedFormAction = async (formData: FormData) => {

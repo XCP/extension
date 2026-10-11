@@ -10,9 +10,6 @@ import { useUtxoSource } from "@/hooks/useUtxoSource";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the UtxoMoveForm component, aligned with Composer's formAction.
- */
 interface UtxoMoveFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: MoveOptions | null;

@@ -39,9 +39,6 @@ interface OrderUrlParams {
   amount?: string | null;
 }
 
-/**
- * Props for the OrderForm component, aligned with Composer's formAction.
- */
 interface OrderFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: OrderFormData | null;

@@ -5,9 +5,6 @@ import { useHeader } from '@/contexts/header-context';
 import { formatAddress } from '@/core/format';
 import { t } from '@/i18n';
 
-/**
- * Props for the AddressHeader component.
- */
 interface AddressHeaderProps {
   /** The Bitcoin address to display */
   address: string;
