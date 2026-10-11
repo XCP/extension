@@ -1,4 +1,3 @@
-import { huntTxid } from '@/platform/zeld/hunt';
 /**
  * Verifies composed transactions locally before review. Signing rejects stale composes and
  * recent broadcasts; changing the active wallet, address, or lock state resets the workflow.
@@ -14,6 +13,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router";
+import { readFormValues } from "@/components/composer/form-values";
 import { transactionErrorMessage } from '@/components/composer/transaction-error-message';
 import {
   ComposerContext,
@@ -62,6 +62,7 @@ import { zeldRecordAfterBroadcast } from "@/core/zeld/recordAfterBroadcast";
 import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 import { checkReplayAttempt, recordTransaction } from "@/platform/replayPrevention";
+import { huntTxid } from '@/platform/zeld/hunt';
 import { recordZeldOutpoints } from "@/services/zeldRecordClient";
 
 /**
@@ -224,11 +225,8 @@ export function ComposerProvider<T>({
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    // Convert FormData to object early so we can preserve it on error
-    const rawData = Object.fromEntries(formData);
-    const userData = rawData as unknown as T;
+    const userData = readFormValues<T>(formData);
 
-    // Set isComposing to show local loading state, preserve formData for error recovery
     setState(prev => ({ ...prev, isComposing: true, error: null, formData: userData }));
 
     try {

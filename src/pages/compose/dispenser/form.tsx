@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
@@ -18,7 +19,7 @@ import { t } from '@/i18n';
 
 interface DispenserFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: DispenserOptions | null;
+  initialFormData: FormValues<DispenserOptions> | null;
   asset: string;
   /** When true, price and amount per dispense are pre-filled and read-only */
   isRefill?: boolean;

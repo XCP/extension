@@ -1,5 +1,6 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ReactElement, useEffect, useMemo } from "react";
+import type { FormValues } from "@/components/composer/form-values";
 import type { DispenserOption } from "@/components/domain/dispenser/dispenser-card";
 import { DispenserList } from "@/components/ui/lists/dispenser-list";
 import type { DispenseOptions } from "@/core/counterparty/compose";
@@ -19,7 +20,7 @@ interface DispenserInputProps {
   onChange: (address: string) => void;
   selectedIndex: number | null;
   onSelectionChange: (index: number | null, option: DispenserOption | null) => void;
-  initialFormData?: (DispenseOptions & { initialAsset?: string }) | null;
+  initialFormData?: FormValues<(DispenseOptions & { initialAsset?: string })> | null;
   disabled?: boolean;
   showHelpText?: boolean;
   required?: boolean;

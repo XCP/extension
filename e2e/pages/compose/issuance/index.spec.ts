@@ -139,9 +139,13 @@ walletTest.describe('Issuance Flow - Full Compose Flow', () => {
 
     const assetName = generateAssetName();
     const quantity = '5000000';
+    const divisible = page.getByRole('checkbox', { name: 'Divisible', exact: true });
+    const locked = page.getByRole('checkbox', { name: 'Locked', exact: true });
 
     await compose.issuance.assetNameInput(page).fill(assetName);
     await compose.issuance.quantityInput(page).fill(quantity);
+    await expect(divisible).not.toBeChecked();
+    await expect(locked).not.toBeChecked();
 
     await compose.issuance.issueButton(page).click();
     await waitForReview(page);
@@ -150,6 +154,16 @@ walletTest.describe('Issuance Flow - Full Compose Flow', () => {
 
     await expect(compose.issuance.assetNameInput(page)).toHaveValue(assetName);
     await expect(compose.issuance.quantityInput(page)).toHaveValue(quantity);
+    await expect(divisible).not.toBeChecked();
+    await expect(locked).not.toBeChecked();
+
+    const recomposed = page.waitForRequest(request => request.url().includes('/compose/issuance'));
+    await compose.issuance.issueButton(page).click();
+    const params = new URL((await recomposed).url()).searchParams;
+    expect(params.get('quantity')).toBe(quantity);
+    expect(params.get('divisible')).toBe('false');
+    expect(params.get('lock')).toBe('false');
+    await waitForReview(page);
   });
 
   walletTest('review page shows asset name', async ({ page }) => {

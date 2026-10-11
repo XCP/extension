@@ -32,7 +32,7 @@ function ComposeDispensePage() {
         composeType="dispense"
         composeApiMethod={composeDispense}
         initialTitle={t('common_dispense')}
-        initialFormData={initialFormData as DispenseOptions | undefined}
+        initialFormData={initialFormData}
         FormComponent={DispenseForm}
         ReviewComponent={ReviewDispense}
       />

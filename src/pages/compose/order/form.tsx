@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
@@ -12,7 +13,7 @@ import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest
 import { useComposer } from "@/contexts/composer-context-object";
 import type { OrderOptions } from "@/core/counterparty/compose";
 import { formatForInput, isComposableAmount } from "@/core/format";
-import { asDisplayUnits, toBigNumber } from '@/core/numeric';
+import { asDisplayUnits, toBigNumber, toFiniteNumber } from '@/core/numeric';
 import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePool } from "@/hooks/usePool";
@@ -41,7 +42,7 @@ interface OrderUrlParams {
 
 interface OrderFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: OrderFormData | null;
+  initialFormData: FormValues<OrderFormData> | null;
   giveAsset: string;
   urlParams?: OrderUrlParams;
 }
@@ -100,8 +101,8 @@ export function OrderForm({
   // Form state - priority: initialFormData > urlParams > empty
   const [price, setPrice] = useState<string>(initialFormData?.price || urlParams?.price || "");
   const [amount, setAmount] = useState<string>(initialFormData?.amount || urlParams?.amount || "");
-  const [customExpiration, setCustomExpiration] = useState<number | undefined>(initialFormData?.expiration ?? undefined);
-  const [customFeeRequired, setCustomFeeRequired] = useState<number>(initialFormData?.fee_required || 0);
+  const [customExpiration, setCustomExpiration] = useState<number | undefined>(toFiniteNumber(initialFormData?.expiration));
+  const [customFeeRequired, setCustomFeeRequired] = useState<number>(toFiniteNumber(initialFormData?.fee_required) ?? 0);
   // Note: quoteAsset state is defined above the data fetching hooks for proper reactivity
   
   // Trading state - restore from initialFormData if present

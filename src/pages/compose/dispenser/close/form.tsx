@@ -11,6 +11,7 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { FaCheck, FaCopy, FiChevronDown } from "@/components/icons";
 import { useComposer } from "@/contexts/composer-context-object";
@@ -22,7 +23,7 @@ import { t } from '@/i18n';
 
 interface DispenserCloseFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: DispenserOptions | null;
+  initialFormData: FormValues<DispenserOptions> | null;
   initialAsset?: string;
 }
 

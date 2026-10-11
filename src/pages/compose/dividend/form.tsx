@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
@@ -25,7 +26,7 @@ import { t } from '@/i18n';
 interface DividendFormProps {
   formAction: (formData: FormData) => void;
   asset: string;
-  initialFormData: DividendOptions | null;
+  initialFormData: FormValues<DividendOptions> | null;
 }
 
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import zeldIcon from '@/assets/zeld.svg';
 import { Composer } from '@/components/composer/composer';
 import { ComposerForm } from '@/components/composer/composer-form';
+import type { FormValues } from "@/components/composer/form-values";
 import { AssetIcon } from '@/components/domain/asset/asset-icon';
 import { ReviewScreen } from '@/components/screens/review-screen';
 import { DestinationInput } from '@/components/ui/inputs/destination-input';
@@ -29,7 +30,7 @@ interface ZeldSendFormData {
 
 interface ZeldSendFormProps {
   formAction: (formData: FormData) => void | Promise<void>;
-  initialFormData: ZeldSendFormData | null;
+  initialFormData: FormValues<ZeldSendFormData> | null;
 }
 
 function ZeldSendForm(props: ZeldSendFormProps): ReactElement {

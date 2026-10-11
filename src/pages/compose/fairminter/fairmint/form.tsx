@@ -1,6 +1,7 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { FairmintSummary } from "@/components/domain/asset/fairmint-summary";
 import { FairminterSelectInput } from "@/components/domain/asset/fairminter-select-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
@@ -41,7 +42,7 @@ interface FairmintFormDataInternal {
 
 interface FairmintFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData?: FairmintOptions | null;
+  initialFormData?: FormValues<FairmintOptions> | null;
   asset?: string;
 }
 

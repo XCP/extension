@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { type FormValues, formBoolean } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { AssetNameInput } from "@/components/domain/asset/asset-name-input";
@@ -34,7 +35,7 @@ const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
 interface IssuanceFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: IssuanceOptions | null;
+  initialFormData: FormValues<IssuanceOptions> | null;
   initialParentAsset?: string;
 }
 
@@ -58,8 +59,8 @@ export function IssuanceForm({
   const [assetName, setAssetName] = useState(initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : ""));
   const [isAssetNameValid, setIsAssetNameValid] = useState(false);
   const [amount, setAmount] = useState(initialFormData?.quantity?.toString() || "");
-  const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? false);
-  const [isLocked, setIsLocked] = useState(initialFormData?.lock ?? false);
+  const [isDivisible, setIsDivisible] = useState(formBoolean(initialFormData?.divisible) ?? false);
+  const [isLocked, setIsLocked] = useState(formBoolean(initialFormData?.lock) ?? false);
   const [description, setDescription] = useState(initialFormData?.description || "");
   const [isInitializing, setIsInitializing] = useState<boolean>(!!initialParentAsset); // Loading state for parent asset
   

@@ -2,6 +2,7 @@ import { Description, Field, Label, Textarea } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
@@ -18,7 +19,7 @@ const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
 interface BroadcastFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: BroadcastOptions | null;
+  initialFormData: FormValues<BroadcastOptions> | null;
 }
 
 export function BroadcastForm({ 

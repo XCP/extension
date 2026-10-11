@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { DestinationsInput } from "@/components/domain/address/destinations-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { BalanceHeader } from "@/components/domain/balance/balance-header";
@@ -21,7 +22,7 @@ import { t } from '@/i18n';
 interface SendFormProps {
   formAction: (formData: FormData) => void | Promise<void>;
   initialAsset?: string;
-  initialFormData: SendOptions | null;
+  initialFormData: FormValues<SendOptions> | null;
 }
 
 export function SendForm({

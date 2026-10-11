@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { type FormValues, formBoolean } from "@/components/composer/form-values";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
@@ -17,7 +18,7 @@ import { t } from '@/i18n';
 
 interface IssueSupplyFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: IssuanceOptions | null;
+  initialFormData: FormValues<IssuanceOptions> | null;
   initialParentAsset?: string;
 }
 
@@ -40,7 +41,7 @@ export function IssueSupplyForm({
   const { pending } = useFormStatus();
   
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
-  const [lock, setLock] = useState(initialFormData?.lock || false);
+  const [lock, setLock] = useState(formBoolean(initialFormData?.lock) ?? false);
   const [, setError] = useState<string | null>(null);
 
   // Calculate maximum issuable amount
