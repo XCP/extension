@@ -108,6 +108,10 @@ operation-specific values as `unknown`, with the serialized fee typed explicitly
 values at their consumer instead of using a broad `any` record. These compile-time contracts do
 not replace transaction verification or establish that an API response is trustworthy. The
 operation-specific compose adapters and review pages still need their own form/response contracts.
+`TransactionReviewProps` shares review actions and presentation facts; operation params remain
+with their pages, as in `pages/compose/issuance/review-types.ts`. Derive protocol field types from
+their owning contracts and represent missing metadata explicitly instead of requiring invented
+API fields in review fixtures.
 
 A `use…` export should provide React behavior: state, context, subscriptions, effects, or a
 lifecycle-aware composition of other hooks. A pure calculation or API helper is an ordinary
