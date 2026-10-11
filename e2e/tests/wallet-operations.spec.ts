@@ -398,17 +398,13 @@ walletTest.describe('Change Password', () => {
     await expect(submitButton).toBeEnabled({ timeout: 3000 });
     await submitButton.click();
 
-    // Should show success indicator or redirect to unlock page
-    const successOrUnlock = page.locator('text=/success|changed|updated/i')
-      .or(page.locator('input[name="password"]')).first();
-    await expect(successOrUnlock).toBeVisible({ timeout: 5000 });
-
-    // If redirected to unlock, verify new password works
-    if (page.url().includes('unlock')) {
-      await unlock.passwordInput(page).fill(NEW_PASSWORD);
-      await unlock.unlockButton(page).click();
-      await page.waitForURL(/index/, { timeout: 10000 });
-    }
+    // Changing the password locks the wallet. Unlock with the new password and return
+    // to the protected page that was open, rather than discarding it for the home page.
+    await expect(page).toHaveURL(/#\/keychain\/unlock$/, { timeout: 5000 });
+    await unlock.passwordInput(page).fill(NEW_PASSWORD);
+    await unlock.unlockButton(page).click();
+    await expect(page).toHaveURL(/#\/settings\/security$/, { timeout: 10000 });
+    await expect(page.locator('input[name="currentPassword"]')).toHaveValue('');
   });
 });
 
