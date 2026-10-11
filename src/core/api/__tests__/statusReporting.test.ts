@@ -37,7 +37,15 @@ describe('API status banner', () => {
   });
 
   it('is not raised when the ZELD indexer is down', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => url.includes('/api/address/')
+      ? Response.json([{ txid: 'ab'.repeat(32), vout: 0, value: 546, status: { confirmed: true } }])
+      : new Response('Bad Gateway', { status: 502 })));
     await expect(fetchZeldBalance('19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX')).rejects.toThrow();
+    expect(events).toEqual([]);
+  });
+
+  it('honors status opt-out on batch POST requests', async () => {
+    await expect(apiClient.post('https://api.zeldhash.com/utxos', { utxos: [] }, { retries: 0, reportStatus: false })).rejects.toThrow();
     expect(events).toEqual([]);
   });
 });

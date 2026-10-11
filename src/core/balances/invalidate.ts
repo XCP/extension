@@ -16,6 +16,7 @@
  */
 
 import { clearBalanceCache } from '@/core/bitcoin/balance';
+import { clearUtxoCache } from '@/core/bitcoin/utxo';
 import { clearApiCacheMatching } from '@/core/counterparty/api';
 import { clearZeldCaches } from '@/core/zeld/api';
 
@@ -31,6 +32,7 @@ export function invalidateAddressBalances(address: string): void {
   if (!address) return;
   clearApiCacheMatching(address);
   clearBalanceCache(address);
+  clearUtxoCache(address);
   clearZeldCaches(address);
   // A refresh invalidates data, not the server's rate-limit deadline.
 }
