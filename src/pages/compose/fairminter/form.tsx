@@ -73,7 +73,7 @@ export function FairminterForm({
   const [startBlock, setStartBlock] = useState(initialFormData?.start_block?.toString() || "");
   const [endBlock, setEndBlock] = useState(initialFormData?.end_block?.toString() || "");
   const [softCapDeadlineBlock, setSoftCapDeadlineBlock] = useState(initialFormData?.soft_cap_deadline_block?.toString() || "");
-  const [inscribeEnabled, setInscribeEnabled] = useState(false);
+  const [inscribeEnabled, setInscribeEnabled] = useState(formBoolean(initialFormData?.inscription) ?? false);
   const [description, setDescription] = useState(initialFormData?.description || "");
   const [assetName, setAssetName] = useState(initialFormData?.asset || asset || "");
   const [isAssetNameValid, setIsAssetNameValid] = useState(false);
@@ -140,11 +140,14 @@ export function FairminterForm({
       processedFormData.delete('burn_payment');
     }
     
-    // Handle inscription if enabled
+    if (inscribeEnabled && (!inscribeAvailable || !description)) return;
+    for (const key of ['inscription', 'mime_type', 'encoding']) processedFormData.delete(key);
     if (inscribeEnabled && description) {
-      processedFormData.set('inscription', description);
-      processedFormData.delete('description'); // Remove description field when inscribing
+      processedFormData.set('inscription', 'true');
+      processedFormData.set('mime_type', 'text/plain');
+      processedFormData.set('encoding', 'taproot');
     }
+    processedFormData.set('description', description);
     
     // Add asset name
     processedFormData.set('asset', assetName);
@@ -202,7 +205,7 @@ export function FairminterForm({
         </div>
       }
       submitText={t('common_continue')}
-      submitDisabled={pending || (!isExistingAsset && !isAssetNameValid)}
+      submitDisabled={pending || (!isExistingAsset && !isAssetNameValid) || (inscribeEnabled && (!inscribeAvailable || !description))}
     >
           {localError && (
             <div className="mb-4">

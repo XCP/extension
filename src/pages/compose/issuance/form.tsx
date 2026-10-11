@@ -13,11 +13,11 @@ import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { type IssuanceOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
-import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
 import { canInscribe } from '@/core/counterparty/taprootEncoding';
 import { asDisplayUnits } from '@/core/numeric';
 import { maxSupplyForDivisibility } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { type InscriptionUploadDraft, useInscriptionUpload } from '@/hooks/useInscriptionUpload';
 
 import { t } from '@/i18n';
 
@@ -35,7 +35,7 @@ const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
 interface IssuanceFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: FormValues<IssuanceOptions> | null;
+  initialFormData: (FormValues<IssuanceOptions> & InscriptionUploadDraft) | null;
   initialParentAsset?: string;
 }
 
@@ -61,13 +61,11 @@ export function IssuanceForm({
   const [amount, setAmount] = useState(initialFormData?.quantity?.toString() || "");
   const [isDivisible, setIsDivisible] = useState(formBoolean(initialFormData?.divisible) ?? false);
   const [isLocked, setIsLocked] = useState(formBoolean(initialFormData?.lock) ?? false);
-  const [description, setDescription] = useState(initialFormData?.description || "");
+  const [description, setDescription] = useState(formBoolean(initialFormData?.inscription) ? '' : initialFormData?.description || "");
   const [isInitializing, setIsInitializing] = useState<boolean>(!!initialParentAsset); // Loading state for parent asset
   
-  // Inscription state
-  const [inscribeEnabled, setInscribeEnabled] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
+  const { enabled: inscribeEnabled, setEnabled: setInscribeEnabled, file: selectedFile,
+    error: fileError, onFileChange: handleFileChange, prepareFormData } = useInscriptionUpload(initialFormData, 'description');
   
   // Computed values
   const inscribeAvailable = canInscribe(activeAddress?.address, activeWallet?.type);
@@ -93,44 +91,15 @@ export function IssuanceForm({
     }
   }, [initialParentAsset, parentAssetDetails]);
   
-  // Handlers
-  const handleFileChange = (file: File | null) => {
-    setFileError(null);
-    if (file && file.size > MAX_INSCRIPTION_FILE_BYTES) {
-      setFileError(t('issuance_form_file_size_must_be_less', [String(INSCRIPTION_MAX_SIZE_KB)]));
-      return;
-    }
-    setSelectedFile(file);
-  };
-
-
   const processedFormAction = async (formData: FormData) => {
     formData.set('quantity', amount);
     formData.set('divisible', String(isDivisible));
     formData.set('lock', String(isLocked));
 
-    // If inscribing, the content travels in `description` — hex-encoded unless the MIME type is
-    // textual — and `inscription` is the boolean flag that selects core's ord envelope path.
-    if (inscribeEnabled) {
-      if (selectedFile) {
-        try {
-          const bytes = new Uint8Array(await selectedFile.arrayBuffer());
-          const mimeType = selectedFile.type || "application/octet-stream";
-          formData.set("description", encodeInscriptionContent(bytes, mimeType));
-          formData.set("inscription", "true");
-          formData.set("mime_type", mimeType);
-          formData.set("encoding", "taproot");
-        } catch (_error) {
-          setFileError(t('common_failed_to_process_file'));
-          return;
-        }
-      }
-    } else {
-      // Use the text description if not inscribing
-      formData.set("description", description);
-    }
-
-    formAction(formData);
+    if (inscribeEnabled && !inscribeAvailable) return;
+    if (!await prepareFormData(formData)) return;
+    if (!inscribeEnabled) formData.set("description", description);
+    await formAction(formData);
   };
 
   return (
@@ -165,7 +134,7 @@ export function IssuanceForm({
           )}
         </>
       }
-      submitDisabled={!isAssetNameValid || (inscribeEnabled && !selectedFile)}
+      submitDisabled={!isAssetNameValid || (inscribeEnabled && (!selectedFile || !inscribeAvailable))}
     >
           <AssetNameInput
             name="asset"

@@ -244,7 +244,7 @@ export interface BroadcastOptions extends BaseComposeOptions {
   value?: string;
   fee_fraction?: string;
   timestamp?: string;
-  inscription?: string;  // Base64 encoded inscription data
+  inscription?: string;  // Core's boolean query parameter, serialized as 'true' or 'false'.
   mime_type?: string;   // MIME type for inscription (e.g., 'image/png', 'text/plain')
 }
 
@@ -298,7 +298,7 @@ export interface IssuanceOptions extends BaseComposeOptions {
   transfer_destination?: string;
   description?: string;
   pubkeys?: string;
-  inscription?: string;  // Base64 encoded inscription data
+  inscription?: string;  // Core's boolean query parameter, serialized as 'true' or 'false'.
   mime_type?: string;   // MIME type for inscription (e.g., 'image/png', 'text/plain')
 }
 
@@ -361,7 +361,7 @@ export interface FairminterOptions extends BaseComposeOptions {
   divisible?: boolean;
   description?: string;
   pubkeys?: string;
-  inscription?: string;  // Base64 encoded inscription data
+  inscription?: string;  // Core's boolean query parameter, serialized as 'true' or 'false'.
   mime_type?: string;   // MIME type for inscription (e.g., 'image/png', 'text/plain')
   pool_quantity?: number;
   lp_asset?: string;

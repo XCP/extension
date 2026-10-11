@@ -2,15 +2,15 @@ import { Description, Field, Label, Textarea } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
-import type { FormValues } from "@/components/composer/form-values";
+import { type FormValues, formBoolean } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
 import { type BroadcastOptions, MAX_INSCRIPTION_FILE_BYTES } from "@/core/counterparty/compose";
-import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
 import { canInscribe } from '@/core/counterparty/taprootEncoding';
+import { type InscriptionUploadDraft, useInscriptionUpload } from '@/hooks/useInscriptionUpload';
 
 import { t } from '@/i18n';
 
@@ -19,7 +19,7 @@ const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
 interface BroadcastFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: FormValues<BroadcastOptions> | null;
+  initialFormData: (FormValues<BroadcastOptions> & InscriptionUploadDraft) | null;
 }
 
 export function BroadcastForm({ 
@@ -31,44 +31,22 @@ export function BroadcastForm({
   const showAdvancedOptions = settings?.enableAdvancedBroadcasts ?? false;
 
   // Form state
-  const [textContent, setTextContent] = useState(initialFormData?.text || "");
+  const [textContent, setTextContent] = useState(formBoolean(initialFormData?.inscription) ? '' : initialFormData?.text || "");
   
-  // Inscription state
-  const [inscribeEnabled, setInscribeEnabled] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
+  const { enabled: inscribeEnabled, setEnabled: setInscribeEnabled, file: selectedFile,
+    error: fileError, onFileChange: handleFileChange, prepareFormData } = useInscriptionUpload(initialFormData, 'text');
   
   // Computed values
   const inscribeAvailable = canInscribe(activeAddress?.address, activeWallet?.type);
   
   // Sync textContent when initialFormData changes
   useEffect(() => {
-    if (initialFormData?.text) {
+    if (initialFormData?.text && !formBoolean(initialFormData.inscription)) {
       setTextContent(initialFormData.text);
     }
-  }, [initialFormData?.text]);
+  }, [initialFormData?.text, initialFormData?.inscription]);
 
   
-  // Handlers
-  const handleFileChange = (file: File | null) => {
-    setFileError(null);
-    if (file && file.size > MAX_INSCRIPTION_FILE_BYTES) {
-      setFileError(t('issuance_form_file_size_must_be_less', [String(INSCRIPTION_MAX_SIZE_KB)]));
-      return;
-    }
-    setSelectedFile(file);
-  };
-  
-  /**
-   * The content as a compose request must carry it: hex for binary types, the decoded string for
-   * textual ones. Core unhexlifies non-text content (`helpers.content_to_bytes`), so sending
-   * anything else makes it reject the compose.
-   */
-  const fileToInscriptionContent = async (file: File): Promise<string> => {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    return encodeInscriptionContent(bytes, file.type || "application/octet-stream");
-  };
-
   return (
     <ComposerForm
       formAction={async (formData: FormData) => {
@@ -80,22 +58,9 @@ export function BroadcastForm({
             formData.set("fee_fraction", "0");
           }
           
-          // Handle inscription mode. `inscription` is a boolean flag to core — the content itself
-          // travels in `text`, hex-encoded unless the MIME type is textual.
-          if (inscribeEnabled && selectedFile) {
-            try {
-              formData.set("text", await fileToInscriptionContent(selectedFile));
-              formData.set("inscription", "true");
-              formData.set("mime_type", selectedFile.type || "application/octet-stream");
-              formData.set("encoding", "taproot");
-            } catch (_error) {
-              setFileError(t('common_failed_to_process_file'));
-              return;
-            }
-          } else {
-            // Regular text broadcast
-            formData.set("text", textContent);
-          }
+          if (inscribeEnabled && !inscribeAvailable) return;
+          if (!await prepareFormData(formData)) return;
+          if (!inscribeEnabled) formData.set("text", textContent);
 
           // Call the form action and let it handle navigation
           await formAction(formData);
@@ -110,7 +75,7 @@ export function BroadcastForm({
           )
         }
         submitText={t('common_continue')}
-        submitDisabled={(inscribeEnabled && !selectedFile) || (!inscribeEnabled && !textContent)}
+        submitDisabled={(inscribeEnabled && (!selectedFile || !inscribeAvailable)) || (!inscribeEnabled && !textContent)}
         formClassName="space-y-4"
       >
           {inscribeEnabled ? (
