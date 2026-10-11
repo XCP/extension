@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, } from 'vitest';
+import { deriveKeyAsync } from '@/platform/encryption/keyDerivation';
 import { generateRandomBytes } from '../buffer';
 import {
   DEFAULT_PBKDF2_ITERATIONS,
   decryptJsonWithKey,
   decryptWithKey,
   deriveKey,
-  deriveKeyAsync,
   encryptJsonWithKey,
   encryptWithKey,
   exportKey,

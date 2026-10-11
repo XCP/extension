@@ -5,13 +5,6 @@ import { useSettings } from '@/contexts/settings-context';
 import { FIAT_CURRENCIES, type FiatCurrency } from '@/core/bitcoin/price';
 import { t } from '@/i18n';
 
-/**
- * Settings → Advanced → Privacy & Display: the currency used for estimated values.
- *
- * Laid out like the other Advanced controls (bold label, help text that follows the page's
- * help-text toggle). The select is disabled while a save is in flight, and a failed save
- * leaves the stored currency unchanged and says so.
- */
 export function PriceCurrencySetting({ showHelpText = false }: { showHelpText?: boolean }): ReactElement {
   const { settings, updateSettings } = useSettings();
   const [failed, setFailed] = useState(false);

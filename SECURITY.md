@@ -100,7 +100,7 @@ These are known and accepted. Each links to the source comment that explains why
   description, and a newly created pool's LP asset, cannot be predicted from the request and are
   checked only for presence ([unpack/verify.ts](src/core/counterparty/unpack/verify.ts)).
 - **Trezor Connect brings a large dependency tree.** It is accepted for hardware signing and
-  reduced by build-time tree shaking ([trezorAdapter.ts](src/core/hardware/trezorAdapter.ts)).
+  reduced by build-time tree shaking ([trezorAdapter.ts](src/platform/hardware/trezorAdapter.ts)).
 
 ## Severity
 

@@ -3,10 +3,10 @@ import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter as Router } from 'react-router';
 import { AppProviders } from '@/contexts/app-providers';
-import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
 import { recordZeldReads } from '@/core/zeld/recordReads';
 import App from '@/entrypoints/popup/app';
 import { applyDocumentLocale } from '@/i18n';
+import { setCoinLockStore } from '@/platform/coinLockStore';
 import { getWalletServiceClient } from '@/services/walletServiceClient';
 import { recordZeldOutpoints } from '@/services/zeldRecordClient';
 

@@ -42,18 +42,11 @@ Counterparty, and ZELD API clients perform network I/O. Its domain rules should 
 without React or importing background service implementations. New browser lifecycle code belongs
 in `platform`; new transaction rules and pure transformations belong in `core`.
 
-There are known placement exceptions to resolve in separate, tested changes:
+Browser runtime owners live in `platform`: Trezor transport in `hardware`, hunt workers in
+`zeld`, worker-backed KDF in `encryption`, and replay/coin-lock state in their named modules.
+Core retains crypto operations, hardware contracts, transaction checks, and mining algorithms.
+The coin-lock adapter is supplied by each entrypoint; replay records are local to their runtime.
 
-- `core/hardware/trezorAdapter.ts` integrates the extension-specific Trezor SDK. Its device
-  transport belongs in `platform`; hardware contracts and pure transaction checks can stay in
-  `core/hardware`.
-- `core/zeld/hunt.ts` creates workers and reads hardware concurrency, and
-  `core/encryption/encryption.ts` starts a KDF worker. Separate that orchestration from the
-  algorithms before moving it; changing imports alone would not establish the boundary.
-- `core/replayPrevention.ts` owns mutable replay records and a cleanup timer. Its runtime
-  lifetime needs an explicit owner rather than treating it as a pure helper.
-
-These exceptions are not precedents for adding browser runtime responsibilities to `core`.
 `src/entrypoints` wire the layers together. Keys, decrypted secrets, and signing stay in the
 background; UI code receives reviews and results, never key material.
 
@@ -307,3 +300,13 @@ supported several choices without introducing its controller framework:
 
 These changes are defensive engineering and regression coverage, not an independent security audit.
 See [AUDIT.md](AUDIT.md) for the broader threat model and remaining limitations.
+
+### Source comments
+
+Prefer clear names and structure. Comments should explain a non-obvious constraint, security
+invariant, or decision a future edit could break. Keep them proportional to that risk. Put long
+rationale and change history in PR descriptions or architecture docs, not beside obvious code.
+
+`approvalService` owns connection approvals; signing approvals use `services/provider/signApproval`.
+The existing proxy service name remains stable. `services/consolidationRunner` coordinates recovery
+through the wallet service client; its hook owns only UI state, duplicate-submit protection, and navigation.

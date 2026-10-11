@@ -120,7 +120,7 @@ export function AmountWithMaxInput({
       return;
     }
 
-    if (feeRate === null || feeRate === undefined || !validateFeeRate(feeRate, { minRate: 0.1 }).isValid) {
+    if (feeRate === null || feeRate === undefined || !validateFeeRate(feeRate).isValid) {
       setError(t('safety_max_fee'));
       return;
     }

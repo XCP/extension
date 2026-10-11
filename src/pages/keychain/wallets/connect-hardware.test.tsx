@@ -13,7 +13,7 @@ const stable = vi.hoisted(() => ({
 }));
 vi.mock('@/contexts/header-context', () => ({ useHeader: () => stable.header }));
 vi.mock('@/contexts/wallet-context', () => ({ useWallet: () => stable.wallet }));
-vi.mock('@/core/hardware/trezorAdapter', () => ({ resetTrezorAdapter: stable.resetAdapter }));
+vi.mock('@/platform/hardware/trezorAdapter', () => ({ resetTrezorAdapter: stable.resetAdapter }));
 
 beforeEach(() => {
   vi.clearAllMocks();

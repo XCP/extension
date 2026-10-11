@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
-import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { parsePSBT } from '@/core/bitcoin/psbt';
 import { clearSpentUtxoCache, recordSpentUtxos } from '@/core/bitcoin/spentUtxoCache';
@@ -15,6 +14,7 @@ import { decodeCborUintArray } from '@/core/zeld/cbor';
 import { assessZeldHunt } from '@/core/zeld/huntTemplate';
 import { composeZeldPark, composeZeldSend, zeldRecipientDustSats } from '@/core/zeld/sendCompose';
 import { selectSpendableZeld } from '@/core/zeld/spendable';
+import { setCoinLockStore } from '@/platform/coinLockStore';
 import type { CoinLock } from '@/types/coinLocks';
 import { OTHER_ADDRESS, PREV_TXID, SOURCE_ADDRESS, SOURCE_P2WPKH } from './fixtures';
 

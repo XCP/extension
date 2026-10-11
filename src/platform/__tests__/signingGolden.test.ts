@@ -73,7 +73,7 @@ vi.mock('@/platform/provider/recentBroadcasts', async (original) => ({
   getTrustedBroadcastPrevout: vi.fn(async () => null),
 }));
 const hardware = vi.hoisted(() => ({ init: vi.fn(), signPsbt: vi.fn(), signMessage: vi.fn() }));
-vi.mock('@/core/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => hardware }));
+vi.mock('@/platform/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => hardware }));
 
 // The independent Schnorr verifier (@noble/secp256k1) needs its hash wired; the wallet signs with @noble/curves.
 if (!hashes.sha256) hashes.sha256 = (msg) => new Uint8Array(sha256(msg));

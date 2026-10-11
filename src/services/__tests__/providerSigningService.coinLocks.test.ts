@@ -38,9 +38,9 @@ vi.mock('@/core/bitcoin/psbt', async importOriginal => ({
   extractPsbtDetails: mocks.extractPsbtDetails,
 }));
 
-import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
 
 import { parseCancelOffersIntent, withCancelledOfferCoinLocks } from '@/core/bitcoin/offerCancellation';
+import { setCoinLockStore } from '@/platform/coinLockStore';
 import { beginSignFlow, getSignFlow, type NewSignFlow } from '@/platform/provider/signFlow';
 import { createProviderSigningService } from '../providerSigningService';
 

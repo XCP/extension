@@ -1,9 +1,9 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { p2pkh, Transaction } from '@scure/btc-signer';
 import { describe, expect, it, vi } from 'vitest';
-import { huntTxid } from '@/core/zeld/hunt';
 import { prepareLegacyHunt, verifyLegacySignatures } from '@/core/zeld/legacyHunt';
 import { createLegacySignaturePoolJob } from '@/core/zeld/legacySignaturePool';
+import { huntTxid } from '@/platform/zeld/hunt';
 
 function fixture() {
   const key = new Uint8Array(32).fill(17);

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { huntTxid } from '@/core/zeld/hunt';
+import { huntTxid } from '@/platform/zeld/hunt';
 import { huntInBackground } from '@/platform/zeldHunt';
 
-vi.mock('@/core/zeld/hunt', () => ({ huntTxid: vi.fn() }));
+vi.mock('@/platform/zeld/hunt', () => ({ huntTxid: vi.fn() }));
 const job = { kind: 'locktime' as const, message: new Uint8Array(80), nonceOffset: 76 };
 const options = { seconds: 5, targetZeros: 6 };
 const empty = { status: 'not_found' as const, attempts: 0, elapsedMs: 0 };

@@ -13,10 +13,10 @@
 import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
-import { huntTxid } from '@/core/zeld/hunt';
+import { enhancedSendRawTx, SOURCE_ADDRESS } from '@/core/zeld/__tests__/fixtures';
 import { assessZeldHunt } from '@/core/zeld/huntTemplate';
 import { expectedAttempts } from '@/core/zeld/protocol';
-import { enhancedSendRawTx, SOURCE_ADDRESS } from './fixtures';
+import { huntTxid } from '@/platform/zeld/hunt';
 
 const enabled = process.env.ZELD_BENCH === '1';
 const targetZeros = Number(process.env.ZELD_BENCH_ZEROS ?? 5);

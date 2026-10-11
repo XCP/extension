@@ -24,8 +24,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { importVerifiedHardwareP2wpkhSignatures } from '../../src/core/bitcoin/hardwarePsbt';
 import { finalizePSBT } from '../../src/core/bitcoin/psbt';
-import { TrezorAdapter } from '../../src/core/hardware/trezorAdapter';
 import { deriveAddressesFromSecret, deriveHardwareAddress } from '../../src/core/wallet/addressDeriver';
+import { TrezorAdapter } from '../../src/platform/hardware/trezorAdapter';
 import type { WalletRecord } from '../../src/types/wallet';
 
 // Replace only the Suite transport boundary. Adapter calls still reach the real

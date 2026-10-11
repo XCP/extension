@@ -10,8 +10,6 @@ import { p2pkh, p2tr, p2wpkh, Script, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
-import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-
 import { finalizePSBT, parsePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { decodePsbtForApproval } from '@/core/bitcoin/psbtApprovalDecoder';
 import type { DecodedPsbtBundleItem, PsbtBundleApprovalInput } from '@/core/bitcoin/psbtBundleApprovalDecoder';
@@ -21,6 +19,7 @@ import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentPa
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
 import { arc4 } from '@/core/counterparty/unpack/binary';
+import { setCoinLockStore } from '@/platform/coinLockStore';
 import { beginSignFlow, getSignFlow } from '@/platform/provider/signFlow';
 import { createProviderSigningService } from '@/services/providerSigningService';
 

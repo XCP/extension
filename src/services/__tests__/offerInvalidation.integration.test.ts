@@ -10,11 +10,11 @@ import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
-import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
 import { finalizePSBT, parsePSBT, signPSBT } from '@/core/bitcoin/psbt';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { computeTxid } from '@/core/bitcoin/transactionBroadcaster';
 import { parseMarketplaceIntent } from '@/core/counterparty/marketplace/intentParser';
+import { setCoinLockStore } from '@/platform/coinLockStore';
 import { beginSignFlow, getSignFlow } from '@/platform/provider/signFlow';
 import { createProviderSigningService } from '@/services/providerSigningService';
 

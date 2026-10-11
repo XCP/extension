@@ -1,10 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
 import { coinLocksOf, withCoinLockUpdate } from '@/core/bitcoin/coinLocks';
 import { fetchUTXOs, type UTXO } from '@/core/bitcoin/utxo';
 import { fetchUtxosWithBalances } from '@/core/counterparty/api';
+import { setCoinLockStore } from '@/platform/coinLockStore';
 import type { CoinLock, CoinLockUpdate } from '@/types/coinLocks';
 import CoinsPage from '../coins';
 

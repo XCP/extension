@@ -3,7 +3,6 @@
  * review, never bytes, signer parameters, or an alleged signing outcome.
  */
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
-import { getCoinLockStore } from '@/core/bitcoin/coinLockStore';
 import { coinLockTerms } from '@/core/bitcoin/coinLocks';
 import {
   unshownEnvelopeWarning, unshownKeyLeafInputs, type WalletLeafKeys, walletLeafKeys, withEnvelopeLeafGuard,
@@ -37,6 +36,7 @@ import { getConnectionRevokedCode, getIdentityMismatchCode, getMessagePermission
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import type { SigningIdentity } from '@/platform/auth/signingIdentity';
+import { getCoinLockStore } from '@/platform/coinLockStore';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
 import { beginSignFinalization, claimSignFlow, failSignFinalization, fingerprintReview, getSignFlow, getSignFlowEventPrefix, type ProviderSigningRequest, recordSignOutcome, type SignFlowResult, type SignPsbtsRequest, } from '@/platform/provider/signFlow';
 import { signAttachAndListingForDelivery, signFundAndAuthorizationsForDelivery, signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';

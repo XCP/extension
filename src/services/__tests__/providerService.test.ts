@@ -12,7 +12,7 @@ vi.mock('@/platform/auth/sessionManager', () => ({
 }));
 
 // Mock hardware wallet module to avoid @trezor/connect-webextension import side effects
-vi.mock('@/core/hardware/trezorAdapter', () => ({
+vi.mock('@/platform/hardware/trezorAdapter', () => ({
   getTrezorAdapter: vi.fn(),
   resetTrezorAdapter: vi.fn(),
   TrezorAdapter: vi.fn()
@@ -21,13 +21,13 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { signPSBT } from '@/core/bitcoin/psbt';
 import { POLICY_OFFER_VECTORS } from '@/core/counterparty/__tests__/policyOfferVectors';
-import * as replayPrevention from '@/core/replayPrevention';
 import { classifyProviderError } from '@/core/rpcErrors';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { analytics } from '@/platform/fathom';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import * as signFlow from '@/platform/provider/signFlow';
+import * as replayPrevention from '@/platform/replayPrevention';
 import { keychainExists } from '@/platform/storage/walletStorage';
 import { walletManager } from '@/platform/walletManager';
 import { SIGN_FLOW_RECOVERY_POLL_MS } from '@/services/provider/signApproval';
@@ -261,7 +261,7 @@ vi.mock('@/platform/fathom', () => ({
     page: vi.fn().mockResolvedValue(undefined),
   },
 }));
-vi.mock('@/core/replayPrevention');
+vi.mock('@/platform/replayPrevention');
 vi.mock('@/platform/provider/recentBroadcasts', () => ({
   rememberSuccessfulBroadcast: vi.fn().mockResolvedValue(undefined),
 }));

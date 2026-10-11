@@ -28,7 +28,7 @@ vi.mock('@/platform/auth/sessionManager', () => ({
     if (generation !== session.generation) throw new Error('Wallet session changed');
   },
 }));
-vi.mock('@/core/hardware/trezorAdapter', () => ({
+vi.mock('@/platform/hardware/trezorAdapter', () => ({
   getTrezorAdapter: vi.fn(),
   resetTrezorAdapter: vi.fn(),
   TrezorAdapter: vi.fn(),
@@ -66,7 +66,7 @@ vi.mock('@/platform/provider/signFlow', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/platform/provider/signFlow')>();
   return { ...actual, beginSignFlow: vi.fn(actual.beginSignFlow) };
 });
-vi.mock('@/core/replayPrevention', () => ({
+vi.mock('@/platform/replayPrevention', () => ({
   checkReplayAttempt: vi.fn(),
   recordTransaction: vi.fn(),
   markTransactionBroadcasted: vi.fn(),
@@ -89,7 +89,6 @@ import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { POLICY_OFFER_VECTORS } from '@/core/counterparty/__tests__/policyOfferVectors';
 import { fetchTokenBalance } from '@/core/counterparty/api';
 import { pairedGrantCovers } from '@/core/pairedGrant';
-import { checkReplayAttempt } from '@/core/replayPrevention';
 import { classifyProviderError } from '@/core/rpcErrors';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { analytics } from '@/platform/fathom';
@@ -99,6 +98,7 @@ import {
 } from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import * as signFlow from '@/platform/provider/signFlow';
+import { checkReplayAttempt } from '@/platform/replayPrevention';
 import { keychainExists } from '@/platform/storage/walletStorage';
 import { walletManager } from '@/platform/walletManager';
 import { getConnectionService } from '../connectionService';

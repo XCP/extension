@@ -1,6 +1,6 @@
 import { parseAmountDraft, serializeDecimal, serializeRawInteger } from "@/core/amount-contract/amounts";
 import { apiClient } from '@/core/api/client';
-import { lockedOutpoints } from '@/core/bitcoin/coinLockStore';
+import { lockedOutpoints } from '@/core/bitcoin/coinLockAccess';
 import { runCounterpartyRequest } from '@/core/counterparty/api';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import { assertSpendsNoLockedCoin, explainLockedShortfall, withLockedExcluded } from '@/core/counterparty/composeLocks';

@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
-import { type HuntWorkerLike, huntTxid } from '@/core/zeld/hunt';
+import { enhancedSendRawTx, SOURCE_ADDRESS } from '@/core/zeld/__tests__/fixtures';
+import type { HuntWorkerLike } from '@/core/zeld/hunt';
 import { assessZeldHunt, rawTransactionWithNonce } from '@/core/zeld/huntTemplate';
 import type { HuntWorkerRequest, HuntWorkerResponse } from '@/core/zeld/huntWorkerProtocol';
 import { createMiner, type HuntJob, type Miner } from '@/core/zeld/mineJob';
 import { type MineRangeFound, mineRange } from '@/core/zeld/mineRange';
 import { LOCKTIME_NONCE_COUNT } from '@/core/zeld/protocol';
-import { enhancedSendRawTx, SOURCE_ADDRESS } from './fixtures';
+import { huntTxid } from '@/platform/zeld/hunt';
 
 function template(): HuntJob & { kind: 'locktime' } {
   const assessment = assessZeldHunt({

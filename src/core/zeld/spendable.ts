@@ -1,4 +1,4 @@
-import { lockedOutpoints } from '@/core/bitcoin/coinLockStore';
+import { lockedOutpoints } from '@/core/bitcoin/coinLockAccess';
 import { isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';
 import { fetchUtxosWithBalances } from '@/core/counterparty/api';

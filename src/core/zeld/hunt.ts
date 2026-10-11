@@ -45,7 +45,7 @@ export interface HuntTxidOptions {
   /** Ends hunting, keeping the best txid in hand if one exists. */
   acceptEarly?: AbortSignal;
   onProgress?: (progress: ZeldHuntProgress) => void;
-  /** Defaults to the hardware concurrency, capped at eight. */
+  /** Number of partitions; the browser adapter supplies its concurrency limit. */
   workerCount?: number;
   /** Returns null when workers are unavailable; the hunt then runs inline. */
   createWorker?: () => HuntWorkerLike | null;
@@ -57,22 +57,6 @@ export interface HuntTxidOptions {
 const DEFAULT_BATCH_SIZE = 50_000;
 const INLINE_BATCH_SIZE = 1_000;
 const PROGRESS_INTERVAL_MS = 200;
-const MAX_WORKERS = 8;
-
-/** Default worker factory: the Vite worker syntax the KDF worker already relies on. */
-function createHuntWorker(): HuntWorkerLike | null {
-  if (typeof Worker === 'undefined') return null;
-  try {
-    return new Worker(new URL('./hunt-worker.ts', import.meta.url), { type: 'module' });
-  } catch {
-    return null;
-  }
-}
-
-function defaultWorkerCount(): number {
-  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : undefined;
-  return Math.max(1, Math.min(MAX_WORKERS, cores || 2));
-}
 
 function better(candidate: MineRangeFound | undefined, best: MineRangeFound | undefined): MineRangeFound | undefined {
   if (!candidate) return best;
@@ -92,8 +76,8 @@ export async function huntTxid(job: HuntJob | LegacySignaturePoolJob, options: H
   const budgetMs = Math.max(0, options.seconds) * 1000;
   const deadline = startedAt + budgetMs;
   const stopZeros = options.stopZeros ?? options.targetZeros;
-  const createWorker = options.createWorker ?? createHuntWorker;
-  const workerCount = Math.max(1, options.workerCount ?? defaultWorkerCount());
+  const createWorker = options.createWorker ?? (() => null);
+  const workerCount = Math.max(1, options.workerCount ?? 1);
 
   if (options.signal?.aborted) return { status: 'aborted', attempts: 0, elapsedMs: 0 };
   if (!(budgetMs > 0) || options.acceptEarly?.aborted) return { status: 'not_found', attempts: 0, elapsedMs: 0 };

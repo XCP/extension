@@ -16,8 +16,6 @@ import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
-import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-
 import { finalizePSBT, parsePSBT } from '@/core/bitcoin/psbt';
 import {
   commitRevealItems,
@@ -36,6 +34,7 @@ import {
   recompose115,
 } from '@/core/counterparty/__tests__/taproot115Fixtures';
 import { checkRevealSourceSignature, sourceOutputScript } from '@/core/counterparty/revealSourceRule';
+import { setCoinLockStore } from '@/platform/coinLockStore';
 import { beginSignFlow, getSignFlow } from '@/platform/provider/signFlow';
 import { WalletSigner } from '@/platform/walletSigner';
 import { createProviderSigningService } from '@/services/providerSigningService';

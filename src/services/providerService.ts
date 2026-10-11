@@ -1,3 +1,5 @@
+import { assertPairedAddressGrant, loadPairedAddresses, walletLocked } from '@/services/provider/signingIdentity';
+import { signProviderMessage } from '@/services/provider/signMessage';
 /**
  * ProviderService - Web3 Provider API
  *
@@ -10,7 +12,6 @@
 import { normalizeAddressForComparison, sameAddress } from '@/core/bitcoin/address';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
-import { parseCancelOffersIntent } from '@/core/bitcoin/offerCancellation';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import {
   checkSignInputOwners,
@@ -24,7 +25,6 @@ import {
 import { signerScope, walletSupportsPair } from '@/core/bitcoin/providerSignerScope';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import { extractPsbtDetails } from '@/core/bitcoin/psbt';
-import { CONNECTION_PROOF_PREFIX } from '@/core/connectionProof';
 import { fetchTokenBalance } from '@/core/counterparty/api';
 import { getCounterpartyFeatureStatus } from '@/core/counterparty/capabilities';
 import { isRevealIntentClaim, parseCommitRevealIntents } from '@/core/counterparty/commitRevealBundle';
@@ -33,7 +33,6 @@ import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBat
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
 import { MAX_POLICY_ALTERNATIVES } from '@/core/counterparty/policyOffer';
 import { generateRequestId } from '@/core/id';
-import { isRecord } from '@/core/isRecord';
 import {
   assertProviderPsbtSigningRequest,
   providerMessageSigningCapabilities,
@@ -48,17 +47,16 @@ import { beginSignFlow } from '@/platform/provider/signFlow';
 import { defineProxyServer } from '@/platform/proxy/server';
 import { keychainExists } from '@/platform/storage/walletStorage';
 import type { ApprovalPlacement } from '@/services/approvalService';
-import { type ConnectionService, getConnectionService } from '@/services/connectionService';
+import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { broadcastProviderTransaction } from '@/services/provider/broadcastTransaction';
 import { buildConnectResponse, type ConnectionProofContext } from '@/services/provider/connectionProof';
 import { assertRequestAdmissible, expired, invalidParams } from '@/services/provider/requestIntake';
 import { runSignFlow } from '@/services/provider/signApproval';
 import { PROVIDER_SERVICE_NAME, PROVIDER_SERVICE_POLICY } from '@/services/providerServiceClient';
-import { getWalletService, type WalletService } from '@/services/walletService';
-import type { PairedAddresses, Wallet } from '@/types/wallet';
+import { getWalletService } from '@/services/walletService';
+import type { Wallet } from '@/types/wallet';
 
-// Define proper types for provider requests and responses
 export type ProviderRequestParams = unknown[];
 export type ProviderResponse = unknown;
 
@@ -73,16 +71,6 @@ export interface ProviderService {
    */
   disconnect: (origin: string) => Promise<void>;
 }
-
-/**
- * Connected, but the wallet has no active address to act for: it is locked (a locked wallet keeps
- * its identity and drops its addresses) or not set up. The contract's 4100, so a site prompts the
- * user to unlock instead of treating it as an internal failure.
- */
-const walletLocked = () => new ProviderError(
-  PROVIDER_ERROR_CODES.UNAUTHORIZED,
-  'Wallet is locked or not set up. Unlock XCP Wallet and try again.',
-);
 
 /**
  * Whether this wallet can sign a `commit-and-reveal` bundle now: a software wallet with a Native
@@ -124,28 +112,6 @@ function parseSitePsbt(psbtHex: string, prefix = ''): ReturnType<typeof extractP
     return extractPsbtDetails(psbtHex);
   } catch {
     throw invalidParams(`${prefix}PSBT could not be parsed`);
-  }
-}
-
-/** The active address's Legacy/SegWit pair, loaded only for a wallet that can derive one. */
-async function loadPairedAddresses(
-  walletService: Pick<WalletService, 'getPairedAddresses'>,
-  wallet: { type: string; addressFormat: AddressFormat },
-): Promise<PairedAddresses | null> {
-  return walletSupportsPair(wallet) ? await walletService.getPairedAddresses() : null;
-}
-
-/** Refuse (4100) a request that signs with a paired sibling the site was never granted. */
-async function assertPairedAddressGrant(
-  connectionService: Pick<ConnectionService, 'hasPairedAddressPermission'>,
-  origin: string,
-  identity: { walletId: string; address: string },
-): Promise<void> {
-  if (!await connectionService.hasPairedAddressPermission(origin, identity.walletId, identity.address)) {
-    throw new ProviderError(
-      PROVIDER_ERROR_CODES.UNAUTHORIZED,
-      'Paired Legacy/SegWit address access has not been granted',
-    );
   }
 }
 
@@ -292,7 +258,6 @@ export function createProviderService(): ProviderService {
           } | undefined;
           const pairedAddresses = accountOptions?.capabilities?.pairedAddresses === true;
 
-          // Check if keychain exists in storage (works even when locked)
           if (!await keychainExists()) {
             // Open popup for wallet setup and wait for onboarding to complete
             const setupWindow = await openExtensionPopup();
@@ -302,7 +267,6 @@ export function createProviderService(): ProviderService {
               let settled = false;
               let timeout: ReturnType<typeof setTimeout>;
 
-              // Centralized cleanup - called on any exit path
               const cleanup = () => {
                 if (timeout) clearTimeout(timeout);
                 stopWatchingWindow();
@@ -314,7 +278,6 @@ export function createProviderService(): ProviderService {
                 settled = true;
                 cleanup();
 
-                // Continue with connection flow now that wallet exists
                 try {
                   resolve(await completeConnection(origin, pairedAddresses));
                 } catch (error) {
@@ -339,7 +302,6 @@ export function createProviderService(): ProviderService {
             });
           }
 
-          // Check if wallet is locked
           const isUnlocked = await walletService.isKeychainUnlocked();
           if (!isUnlocked) {
             const requestId = generateRequestId(`${origin}-unlock`);
@@ -349,12 +311,10 @@ export function createProviderService(): ProviderService {
             // path tells the unlock screen to wait for that instead of going home.
             const unlockWindow = await openExtensionPopup(continuationUnlockPath(requestId));
 
-            // Wait for unlock and then continue with connection
             return await new Promise((resolve, reject) => {
               let settled = false;
               let timeout: ReturnType<typeof setTimeout>;
 
-              // Centralized cleanup - called on any exit path
               const cleanup = () => {
                 if (timeout) clearTimeout(timeout);
                 stopWatchingWindow();
@@ -366,7 +326,6 @@ export function createProviderService(): ProviderService {
                 settled = true;
                 cleanup();
 
-                // Re-check wallet state after unlock
                 const nowUnlocked = await walletService.isKeychainUnlocked();
                 if (!nowUnlocked) {
                   reject(new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Wallet still locked after unlock attempt'));
@@ -473,88 +432,9 @@ export function createProviderService(): ProviderService {
         
         // ==================== Signing Methods ====================
         
-        case 'xcp_signMessage': {
-          const message = params?.[0];
-          const address = params?.[1];
-          const options = params?.[2];
-          const cancelOffersIntent = parseCancelOffersIntent(isRecord(options) && 'intent' in options ? options.intent : options);
+        case 'xcp_signMessage':
+          return await signProviderMessage(origin, params, connectionService, walletService);
 
-          // Validate message type and presence
-          if (!message) {
-            throw invalidParams('Message is required');
-          }
-          if (typeof message !== 'string') {
-            throw invalidParams('Message must be a string');
-          }
-          if (message.startsWith(CONNECTION_PROOF_PREFIX)) {
-            throw invalidParams('Messages in the connection-proof namespace are reserved');
-          }
-
-          // Validate address type if provided
-          if (address !== undefined && typeof address !== 'string') {
-            throw invalidParams('Address must be a string');
-          }
-
-          // Check if connected
-          if (!await connectionService.hasPermission(origin)) {
-            throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
-          }
-
-          // Get active address/wallet for the request
-          const activeAddress = await walletService.getActiveAddress();
-          const activeWallet = await walletService.getActiveWallet();
-          if (!activeAddress || !activeWallet) {
-            throw walletLocked();
-          }
-
-          let signingAddress = activeAddress.address;
-          if (
-            address
-            && normalizeAddressForComparison(address) !== normalizeAddressForComparison(activeAddress.address)
-          ) {
-            const paired = await loadPairedAddresses(walletService, activeWallet);
-            const target = signerScope(activeAddress.address, paired).findPairedTarget(address);
-            if (!target) {
-              throw invalidParams('Specified address is not the active address or its paired sibling');
-            }
-            await assertPairedAddressGrant(
-              connectionService, origin, { walletId: activeWallet.id, address: activeAddress.address });
-            signingAddress = target.address;
-          }
-
-          return await runSignFlow({
-            origin,
-            method,
-            params: { message, signingAddress, ...(cancelOffersIntent ? { cancelOffersIntent } : {}) },
-            identity: { walletId: activeWallet.id, address: activeAddress.address },
-            pairedAddresses: signingAddress !== activeAddress.address,
-            approval: {
-              kind: 'sign-message',
-              analyticsEvent: 'message_signed',
-              cancelMessage: 'User cancelled sign message request',
-              timeoutMessage: 'Sign message request timeout',
-              mapResult: (result) => result.signature,
-            },
-            create: async (requestId, requestKey) => {
-              // Binds the request to the authorized address/wallet so signing
-              // can't later use a different identity.
-              await beginSignFlow({
-                id: requestId,
-                origin,
-                requestKey,
-                kind: 'sign-message',
-                message,
-                ...(cancelOffersIntent ? { cancelOffersIntent } : {}),
-                address: activeAddress.address,
-                signingAddress,
-                walletId: activeWallet.id,
-                timestamp: Date.now(),
-              });
-            },
-            approvalRoute: '#/requests/message/approve',
-          });
-        }
-        
         case 'xcp_signTransaction': {
           const txParams = params?.[0] as { hex?: string } | string | undefined;
 
@@ -570,12 +450,10 @@ export function createProviderService(): ProviderService {
             throw invalidParams('Transaction hex must be a string');
           }
 
-          // Check if connected
           if (!await connectionService.hasPermission(origin)) {
             throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
           }
 
-          // Get active address/wallet for the request
           const activeAddress = await walletService.getActiveAddress();
           const activeWallet = await walletService.getActiveWallet();
           if (!activeAddress || !activeWallet) {
@@ -895,12 +773,10 @@ export function createProviderService(): ProviderService {
             throw invalidParams('Plain Bitcoin payment requests require explicit SIGHASH_ALL entries');
           }
 
-          // Check if connected
           if (!await connectionService.hasPermission(origin)) {
             throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
           }
 
-          // Get active address/wallet for the request
           const activeAddress = await walletService.getActiveAddress();
           const activeWallet = await walletService.getActiveWallet();
           if (!activeAddress || !activeWallet) {
@@ -1007,7 +883,7 @@ export function createProviderService(): ProviderService {
         // ==================== Blockchain Query Methods ====================
         
         case 'xcp_getBalances': {
-          // Check if connected
+
           if (!await connectionService.hasPermission(origin)) {
             throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
           }
@@ -1110,7 +986,6 @@ export function createProviderService(): ProviderService {
   };
 }
 
-// Register proxy service for cross-context communication
 export const [registerProviderService, getProviderService] = defineProxyServer(
   PROVIDER_SERVICE_NAME,
   createProviderService,

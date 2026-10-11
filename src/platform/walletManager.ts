@@ -16,7 +16,6 @@ import {
   DEFAULT_PBKDF2_ITERATIONS,
   decryptWithKey,
   deriveKey,
-  deriveKeyAsync,
   encryptWithKey,
 } from '@/core/encryption/encryption';
 import { type AppSettings, DEFAULT_SETTINGS, getAutoLockTimeoutMs, setSettingsProvider } from '@/core/settings';
@@ -45,6 +44,7 @@ import {
   clearUnlockAttempts,
   recordFailedUnlockAttempt,
 } from '@/platform/auth/unlockRateLimiter';
+import { deriveKeyAsync } from '@/platform/encryption/keyDerivation';
 import { createWriteLock } from '@/platform/storage/mutex';
 import {
   assertNoKeychainRecord,
@@ -806,7 +806,7 @@ export class WalletManager {
 
     await this.mutationStep(assertTrezorSuiteAccess());
     // Dynamically import Trezor adapter
-    const { getTrezorAdapter, resetTrezorAdapter } = await this.mutationStep(import('@/core/hardware/trezorAdapter'));
+    const { getTrezorAdapter, resetTrezorAdapter } = await this.mutationStep(import('@/platform/hardware/trezorAdapter'));
     await this.mutationStep(resetTrezorAdapter());
     const trezor = getTrezorAdapter();
 

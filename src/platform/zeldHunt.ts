@@ -1,4 +1,5 @@
-import { type HuntTxidOptions, type HuntTxidResult, huntTxid } from '@/core/zeld/hunt';
+import type { HuntTxidOptions, HuntTxidResult } from '@/core/zeld/hunt';
+import { huntTxid } from '@/platform/zeld/hunt';
 
 let busy = false;
 

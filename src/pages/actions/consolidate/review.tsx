@@ -4,9 +4,8 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import type { ConsolidationData } from "@/core/bitcoin/consolidationApi";
 import { formatAddress, formatAmount } from "@/core/format";
 import { add, divide, fromSatoshis, multiply, roundDown, roundUp, toNumber, toSatoshis } from '@/core/numeric';
-import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
-
 import { t } from '@/i18n';
+import type { ConsolidationResult } from "@/services/consolidationRunner";
 
 interface ConsolidationReviewProps {
   apiResponse: {

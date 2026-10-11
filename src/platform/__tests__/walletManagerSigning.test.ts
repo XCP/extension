@@ -12,7 +12,7 @@ const { mockHardware, session } = vi.hoisted(() => ({
   mockHardware: { init: vi.fn(), signPsbt: vi.fn() },
   session: { generation: 1, secret: vi.fn() },
 }));
-vi.mock('@/core/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => mockHardware }));
+vi.mock('@/platform/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => mockHardware }));
 vi.mock('@/platform/auth/sessionManager', async (original) => ({
   ...(await original<typeof import('@/platform/auth/sessionManager')>()),
   getUnlockedSecret: session.secret,
