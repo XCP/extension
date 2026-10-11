@@ -4,9 +4,8 @@ import { FaCheckCircle, FaCopy, FiExternalLink, FiX } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { formatAddress } from "@/core/format";
-import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
-
 import { t } from '@/i18n';
+import type { ConsolidationResult } from "@/services/consolidationRunner";
 
 interface LocationState {
   results: ConsolidationResult[];

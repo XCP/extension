@@ -10,7 +10,7 @@ class PopupMonitorService {
   // Preserve concurrent-port tracking: a delayed old disconnect cannot abandon
   // the replacement document. Membership is per request, not global.
   private popupPorts = new Map<chrome.runtime.Port, string | null>();
-  private activeRequests = new Map<string, { type: SignFlowKind; timestamp: number; ports: Set<chrome.runtime.Port> }>();
+  private activeRequests = new Map<string, { type: SignFlowKind; ports: Set<chrome.runtime.Port> }>();
   private abandonmentTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
   private connectListener: ((port: chrome.runtime.Port) => void) | null = null;
@@ -53,7 +53,7 @@ class PopupMonitorService {
       if (previous && previous !== msg.requestId) return;
       this.popupPorts.set(port, msg.requestId);
       const record = this.activeRequests.get(msg.requestId) ?? {
-        type: msg.requestType as SignFlowKind, timestamp: Date.now(), ports: new Set<chrome.runtime.Port>(),
+        type: msg.requestType as SignFlowKind, ports: new Set<chrome.runtime.Port>(),
       };
       record.ports.add(port);
       this.activeRequests.set(msg.requestId, record);

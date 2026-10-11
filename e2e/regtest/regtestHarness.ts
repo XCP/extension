@@ -19,7 +19,7 @@ import { signTransaction } from '@/core/bitcoin/transactionSigner';
 import type { TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import type { ApiResponse } from '@/core/counterparty/compose';
 import { huntZeldForCompose } from '@/core/zeld/composeHunt';
-import { huntTxid } from '@/core/zeld/hunt';
+import { huntTxid } from '@/platform/zeld/hunt';
 
 export const REGTEST_ENABLED = process.env.REGTEST === '1' || process.env.ZELD_REGTEST === '1';
 const BITCOIND = process.env.REGTEST_BITCOIND ?? process.env.ZELD_REGTEST_BITCOIND ?? 'http://127.0.0.1:18443';

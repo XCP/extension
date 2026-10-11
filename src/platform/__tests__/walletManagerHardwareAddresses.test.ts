@@ -18,7 +18,7 @@ const SECRET: HardwareWalletSecret = {
 };
 const { secret } = vi.hoisted(() => ({ secret: { value: '' } }));
 
-vi.mock('@/core/hardware/trezorAdapter', () => ({ getTrezorAdapter: vi.fn() }));
+vi.mock('@/platform/hardware/trezorAdapter', () => ({ getTrezorAdapter: vi.fn() }));
 vi.mock('@/platform/auth/sessionManager', async (original) => ({
   ...(await original<typeof import('@/platform/auth/sessionManager')>()),
   getUnlockedSecret: vi.fn(async () => secret.value),

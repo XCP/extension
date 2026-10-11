@@ -6,8 +6,8 @@ import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { huntsWhileSigning } from '@/core/zeld/eligibility';
 import type { HuntTxidResult } from '@/core/zeld/hunt';
-import { huntTxid } from '@/core/zeld/hunt';
 import { huntZeldWhileSigning } from '@/core/zeld/signHunt';
+import { huntTxid } from '@/platform/zeld/hunt';
 import { opReturnScript, PREV_TXID } from './fixtures';
 
 const PRIVATE_KEY_HEX = '2'.repeat(64);

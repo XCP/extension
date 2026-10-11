@@ -76,7 +76,7 @@ const PRIVATE_KEY = 'KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn';
 const TREZOR_XPUB = HDKey.fromMasterSeed(mnemonicToSeedSync(OTHER_MNEMONIC)).derive("m/84'/0'/0'").publicExtendedKey;
 const TREZOR_ADDRESS = deriveMnemonicAddresses(OTHER_MNEMONIC, AddressFormat.P2WPKH, 1)[0]!.address;
 vi.mock('@/platform/suiteAccess', () => ({ assertTrezorSuiteAccess: vi.fn(async () => {}) }));
-vi.mock('@/core/hardware/trezorAdapter', () => ({
+vi.mock('@/platform/hardware/trezorAdapter', () => ({
   resetTrezorAdapter: vi.fn(async () => {}),
   getTrezorAdapter: vi.fn(() => ({
     init: vi.fn(async () => {}),

@@ -4,11 +4,11 @@
  * reporting remain in ProviderService, before dispatch and around this handler respectively.
  */
 import { generateRequestId } from '@/core/id';
-import { checkReplayAttempt, markTransactionBroadcasted, markTransactionFailed, recordTransaction } from '@/core/replayPrevention';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import { findSafeChangeSigningAddress } from '@/platform/provider/signFlow';
+import { checkReplayAttempt, markTransactionBroadcasted, markTransactionFailed, recordTransaction } from '@/platform/replayPrevention';
 import type { ConnectionService } from '@/services/connectionService';
 import { invalidParams } from '@/services/provider/requestIntake';
 import type { WalletService } from '@/services/walletService';
@@ -19,7 +19,7 @@ export async function broadcastProviderTransaction(
   connectionService: Pick<ConnectionService, 'hasPermission'>,
   walletService: Pick<WalletService, 'broadcastTransaction'>,
 ) {
-  // Check if connected
+
   if (!await connectionService.hasPermission(origin)) {
     throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
   }

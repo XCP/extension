@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { HuntSettings } from "@/components/domain/zeld/hunt-settings";
 import { FiHelpCircle } from "@/components/icons";
-import { PriceCurrencySetting } from "@/components/settings/price-currency";
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { ApiUrlInput } from "@/components/ui/inputs/api-url-input";
@@ -12,8 +11,8 @@ import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import type { AppSettings, AutoLockTimer } from "@/core/settings";
-
 import { t } from '@/i18n';
+import { PriceCurrencySetting } from "@/pages/settings/price-currency";
 
 /**
  * Constants for navigation paths and auto-lock options.

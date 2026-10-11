@@ -1,3 +1,4 @@
+import { huntTxid } from '@/platform/zeld/hunt';
 /**
  * @module composer-context
  *
@@ -87,13 +88,13 @@ import { bytesToHex } from "@/core/counterparty/unpack/binary";
 import { extractCounterpartyPayload } from "@/core/counterparty/unpack/opReturn";
 import { verifyTransaction } from "@/core/counterparty/unpack/verify";
 import { fromSatoshis, toFiniteNumber } from '@/core/numeric';
-import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
 import { ComposeVerificationError } from '@/core/validation/compose-verification-error';
 import { huntZeldForCompose } from "@/core/zeld/composeHunt";
 import { HUNTS_WHILE_SIGNING, huntsWhileSigning } from "@/core/zeld/eligibility";
 import { zeldRecordAfterBroadcast } from "@/core/zeld/recordAfterBroadcast";
 import { t } from '@/i18n';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
+import { checkReplayAttempt, recordTransaction } from "@/platform/replayPrevention";
 import { recordZeldOutpoints } from "@/services/zeldRecordClient";
 
 /**
@@ -617,6 +618,7 @@ export function ComposerProvider<T>({
       if (zeldHuntSeconds > 0 && activeWallet) {
         acceptZeldHuntRef.current = new AbortController();
         response = await huntZeldForCompose(response, {
+          hunt: huntTxid,
           sourceAddress: activeAddress.address,
           addressFormat: activeWallet.addressFormat,
           publicKeyHex: activeAddress.pubKey,

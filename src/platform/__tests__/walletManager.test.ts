@@ -1,8 +1,11 @@
+vi.mock('@/platform/encryption/keyDerivation');
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { deriveKeyAsync } from '@/platform/encryption/keyDerivation';
 
 // Mock hardware wallet module BEFORE importing WalletManager to avoid
 // @trezor/connect-webextension import side effects (Browser.runtime.onConnect.addListener)
-vi.mock('@/core/hardware/trezorAdapter', () => ({
+vi.mock('@/platform/hardware/trezorAdapter', () => ({
   getTrezorAdapter: vi.fn(),
   resetTrezorAdapter: vi.fn(),
   TrezorAdapter: vi.fn()
@@ -70,7 +73,7 @@ import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
 import { extractPsbtDetails, signPSBT } from '@/core/bitcoin/psbt';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { base64ToBuffer } from '@/core/encryption/buffer';
-import { decryptJsonWithKey, decryptWithKey, deriveKey, deriveKeyAsync, encryptJsonWithKey } from '@/core/encryption/encryption';
+import { decryptJsonWithKey, decryptWithKey, deriveKey, encryptJsonWithKey } from '@/core/encryption/encryption';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 // Import modules to get access to mocked functions
 import * as sessionManager from '@/platform/auth/sessionManager';

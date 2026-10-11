@@ -1,225 +1,64 @@
-/**
- * FeeRateInput Component Tests
- *
- * Tests for the fee rate selector component.
- * Component: src/components/inputs/fee-rate-input.tsx
- *
- * Features tested:
- * - Preset selection (Slow, Medium, Fast)
- * - Custom fee rate input
- * - Loading state while fetching rates
- * - Validation (minimum 0.1 sat/vB)
- */
-
+import type { Page } from '@playwright/test';
 import { expect, navigateTo, walletTest } from '../fixtures';
 import { index } from '../selectors';
 
+const preset = (page: Page) => page.getByRole('button', { name: /Fastest.*sat\/vB/i });
+const feeValue = (page: Page) => page.locator('input[name="sat_per_vbyte"]');
+
+async function selectCustom(page: Page) {
+  await preset(page).click();
+  await page.getByRole('option', { name: /Custom/i }).click();
+  await expect(feeValue(page)).toBeVisible();
+}
+
 walletTest.describe('FeeRateInput Component', () => {
   walletTest.beforeEach(async ({ page }) => {
-    // Ensure we're on the wallet/index page first
-    if (!page.url().includes('/index')) {
-      await navigateTo(page, 'wallet');
-    }
-    // Navigate to send page which uses FeeRateInput
-    const sendButton = index.sendButton(page);
-    await expect(sendButton).toBeVisible({ timeout: 10000 });
-    await sendButton.click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('networkidle');
-    // Wait for the form to be ready (wait for quantity input which always loads)
-    await page.locator('input[name="quantity"]').waitFor({ state: 'visible', timeout: 10000 });
+    await page.route('https://mempool.space/api/v1/fees/precise', route => route.fulfill({
+      json: { fastestFee: 5, halfHourFee: 3, hourFee: 1 },
+    }));
+    await navigateTo(page, 'wallet');
+    await index.sendButton(page).click();
+    await page.waitForURL(/compose\/send/);
+    // Clear any fee cache populated before the route was installed.
+    await page.reload();
+    await expect(feeValue(page)).toHaveValue('5');
   });
 
-  // Helper to check if fee rate dropdown loaded (depends on external API)
-  async function feeRateDropdownLoaded(page: any): Promise<boolean> {
-    const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-    const count = await dropdownButton.count();
-    if (count === 0) return false;
-    return await dropdownButton.isVisible();
-  }
-
-  walletTest.describe('Rendering', () => {
-    walletTest('renders with Fee Rate label', async ({ page }) => {
-      const label = page.locator('label:has-text("Fee Rate")');
-      await expect(label).toBeVisible({ timeout: 5000 });
-    });
-
-    walletTest('renders with required indicator', async ({ page }) => {
-      // Required fields show asterisk (*) in the label
-      const label = page.locator('label').filter({ hasText: 'Fee Rate' });
-      const labelText = await label.textContent();
-      expect(labelText).toContain('*');
-    });
-
-    walletTest('shows dropdown or loading state', async ({ page }) => {
-      // Should show dropdown with fee rate options after loading
-      const dropdown = page.locator('button').filter({ hasText: /Fast|Medium|Slow|Custom/i }).first();
-      await expect(dropdown).toBeVisible({ timeout: 10000 });
-    });
+  walletTest('shows the required label and quoted preset', async ({ page }) => {
+    await expect(page.locator('label').filter({ hasText: 'Fee Rate' })).toHaveText(/Fee Rate.*\*/);
+    await expect(preset(page)).toBeVisible();
   });
 
-  walletTest.describe('Preset Selection', () => {
-    walletTest('has preset options available', async ({ page }) => {
-      // Skip if fee rates didn't load from API
-      const dropdownLoaded = await feeRateDropdownLoaded(page);
-      walletTest.skip(!dropdownLoaded, 'Fee rate API data not loaded');
-
-      const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-      await dropdownButton.click();
-
-      // Check for preset options
-      const options = page.locator('[role="option"], [role="listbox"] > *');
-      await expect(options.first()).toBeVisible({ timeout: 3000 });
-
-      // Should have at least Fast or Custom
-      const hasPresets = await page.locator('text=/Fast|Medium|Slow/i').first().isVisible();
-      expect(hasPresets).toBe(true);
-    });
-
-    walletTest('selecting preset updates displayed value', async ({ page }) => {
-      // Skip if fee rates didn't load from API
-      const dropdownLoaded = await feeRateDropdownLoaded(page);
-      walletTest.skip(!dropdownLoaded, 'Fee rate API data not loaded');
-
-      const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-      await dropdownButton.click();
-
-      // Wait for options to appear
-      const options = page.locator('[role="option"]');
-      await expect(options.first()).toBeVisible({ timeout: 2000 });
-
-      // Select the first available option
-      await options.first().click();
-
-      // Button text should update (be non-empty)
-      await expect(dropdownButton).not.toBeEmpty();
-    });
-
-    walletTest('preset shows sat/vB value', async ({ page }) => {
-      // Skip if fee rates didn't load from API
-      const dropdownLoaded = await feeRateDropdownLoaded(page);
-      walletTest.skip(!dropdownLoaded, 'Fee rate API data not loaded');
-
-      const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-      // Button should show sat/vB value
-      const text = await dropdownButton.textContent();
-      expect(text?.toLowerCase()).toContain('sat/vb');
-    });
+  walletTest('selecting a preset changes the submitted fee', async ({ page }) => {
+    await preset(page).click();
+    await page.getByRole('option', { name: /30 Min/i }).click();
+    await expect(feeValue(page)).toHaveValue('3');
+    await expect(page.getByRole('button', { name: /30 Min.*3.*sat\/vB/i })).toBeVisible();
   });
 
-  walletTest.describe('Custom Fee Rate', () => {
-    walletTest('can switch to Custom option', async ({ page }) => {
-      // Skip if fee rates didn't load from API
-      const dropdownLoaded = await feeRateDropdownLoaded(page);
-      walletTest.skip(!dropdownLoaded, 'Fee rate API data not loaded');
-
-      const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-      await dropdownButton.click();
-
-      const customOption = page.locator('[role="option"]').filter({ hasText: /Custom/i });
-      const customCount = await customOption.count();
-
-      // Skip if Custom option doesn't exist
-      walletTest.skip(customCount === 0, 'Custom option not available');
-
-      await expect(customOption).toBeVisible({ timeout: 2000 });
-      await customOption.click();
-
-      // Should show text input
-      const customInput = page.locator('input[name="sat_per_vbyte"]');
-      await expect(customInput).toBeVisible({ timeout: 3000 });
-    });
-
-    walletTest('custom input accepts valid fee rate', async ({ page }) => {
-      // Check if custom input is already visible, otherwise switch to it
-      let customInput = page.locator('input[name="sat_per_vbyte"]');
-      const customInputCount = await customInput.count();
-
-      if (customInputCount === 0 || !(await customInput.isVisible())) {
-        // Try to switch to custom via dropdown
-        const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-        const dropdownCount = await dropdownButton.count();
-
-        walletTest.skip(dropdownCount === 0, 'Fee rate dropdown not available');
-
-        await expect(dropdownButton).toBeVisible({ timeout: 2000 });
-        await dropdownButton.click();
-
-        const customOption = page.locator('[role="option"]').filter({ hasText: /Custom/i });
-        const customOptionCount = await customOption.count();
-
-        walletTest.skip(customOptionCount === 0, 'Custom option not available');
-
-        await expect(customOption).toBeVisible({ timeout: 2000 });
-        await customOption.click();
-      }
-
-      customInput = page.locator('input[name="sat_per_vbyte"]');
-      await expect(customInput).toBeVisible({ timeout: 3000 });
-
-      await customInput.clear();
-      await customInput.fill('25');
-      await customInput.blur();
-
-      await expect(customInput).toHaveValue('25');
-    });
-
-    walletTest('custom input has Esc button to reset', async ({ page }) => {
-      let customInput = page.locator('input[name="sat_per_vbyte"]');
-      const customInputCount = await customInput.count();
-
-      // Switch to custom if needed
-      if (customInputCount === 0 || !(await customInput.isVisible())) {
-        const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-        const dropdownCount = await dropdownButton.count();
-
-        walletTest.skip(dropdownCount === 0, 'Fee rate dropdown not available');
-
-        await expect(dropdownButton).toBeVisible({ timeout: 2000 });
-        await dropdownButton.click();
-
-        const customOption = page.locator('[role="option"]').filter({ hasText: /Custom/i });
-        const customOptionCount = await customOption.count();
-
-        walletTest.skip(customOptionCount === 0, 'Custom option not available');
-
-        await expect(customOption).toBeVisible({ timeout: 2000 });
-        await customOption.click();
-      }
-
-      customInput = page.locator('input[name="sat_per_vbyte"]');
-      await expect(customInput).toBeVisible({ timeout: 3000 });
-
-      // Look for Esc button
-      const escButton = page.locator('button:has-text("Esc")');
-      await expect(escButton).toBeVisible({ timeout: 3000 });
-
-      // Clicking Esc should return to preset mode
-      await escButton.click();
-
-      // Should return to dropdown mode
-      const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-      await expect(dropdownButton).toBeVisible({ timeout: 3000 });
-    });
+  walletTest('custom fees retain the exact entered value', async ({ page }) => {
+    await selectCustom(page);
+    await feeValue(page).fill('0.25');
+    await feeValue(page).blur();
+    await expect(feeValue(page)).toHaveValue('0.25');
+    await expect(feeValue(page)).not.toHaveAttribute('aria-invalid', 'true');
+    await expect(page.locator('#sat_per_vbyte-error')).toHaveCount(0);
   });
 
-  walletTest.describe('Form Integration', () => {
-    walletTest('fee rate is included in form submission', async ({ page }) => {
-      // Fail closed: the sat_per_vbyte input only exists once fee rates resolve
-      // (hidden input for presets, visible custom input if the fetch errored),
-      // so wait for it to attach rather than counting immediately.
-      const feeInput = page.locator('input[name="sat_per_vbyte"]');
-      await expect(feeInput.first()).toBeAttached({ timeout: 15000 });
-    });
+  walletTest('a custom fee below the minimum is rejected', async ({ page }) => {
+    await selectCustom(page);
+    await feeValue(page).fill('0.09');
+    await feeValue(page).blur();
+    await expect(feeValue(page)).toHaveValue('0.09');
+    await expect(feeValue(page)).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.locator('#sat_per_vbyte-error')).toContainText('0.1');
+  });
 
-    walletTest('selected fee rate value is positive', async ({ page }) => {
-      const input = page.locator('input[name="sat_per_vbyte"]');
-      const value = await input.inputValue();
-
-      if (value) {
-        const numValue = parseFloat(value);
-        expect(numValue).toBeGreaterThan(0);
-      }
-    });
+  walletTest('reset restores the first preset', async ({ page }) => {
+    await selectCustom(page);
+    await feeValue(page).fill('25');
+    await page.getByRole('button', { name: /reset to first preset/i }).click();
+    await expect(feeValue(page)).toHaveValue('5');
+    await expect(preset(page)).toBeVisible();
   });
 });

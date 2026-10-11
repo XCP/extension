@@ -10,7 +10,7 @@ import type { Wallet } from '@/types/wallet';
 const { hardware } = vi.hoisted(() => ({
   hardware: { init: vi.fn(), signPsbt: vi.fn() },
 }));
-vi.mock('@/core/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => hardware }));
+vi.mock('@/platform/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => hardware }));
 vi.mock('@/platform/auth/sessionManager', async (original) => ({
   ...(await original<typeof import('@/platform/auth/sessionManager')>()),
   getUnlockedSecret: vi.fn(async () => JSON.stringify({ deviceType: 'trezor' })),

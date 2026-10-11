@@ -12,9 +12,8 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
-import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
-
 import { getActiveSettings } from '@/core/settings';
+import { setCoinLockStore } from '@/platform/coinLockStore';
 import { composeDetach, composeMove, composeSend } from '../compose';
 import {
   createMockApiResponse,

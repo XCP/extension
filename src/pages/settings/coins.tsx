@@ -11,10 +11,10 @@ import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getCurrentBlockHeight } from "@/core/bitcoin/blockHeight";
-import { getCoinLockStore, readCoinLocks } from "@/core/bitcoin/coinLockStore";
 import { backsOffers, outpointOf } from "@/core/bitcoin/coinLocks";
 import { clearUtxoCache, fetchUTXOs, type UTXO } from "@/core/bitcoin/utxo";
 import { t } from '@/i18n';
+import { getCoinLockStore, readCoinLocks } from "@/platform/coinLockStore";
 import type { CoinLock, CoinLockUpdate } from '@/types/coinLocks';
 
 const PATHS = {

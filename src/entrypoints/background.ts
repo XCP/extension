@@ -1,4 +1,3 @@
-import { setCoinLockStore } from '@/core/bitcoin/coinLockStore';
 import { recordZeldReads } from '@/core/zeld/recordReads';
 import { setKnownZeldOutpointSource } from '@/core/zeld/signRequestZeld';
 import {
@@ -10,6 +9,7 @@ import {
 } from '@/platform/auth/sessionManager';
 import { markSessionRecovery } from '@/platform/auth/sessionReady';
 import { deliverProviderEvent, wereAccountsAnnounced } from '@/platform/browser';
+import { setCoinLockStore } from '@/platform/coinLockStore';
 import { markServicesReady, whenServicesReady } from '@/platform/serviceReadiness';
 import { getCachedKeychainMasterKey } from '@/platform/storage/keyStorage';
 import { getApprovalService, registerApprovalService } from '@/services/approvalService';

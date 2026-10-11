@@ -12,7 +12,7 @@ import {
   markTransactionFailed,
   recordTransaction,
   validateNonce
-} from '../replayPrevention';
+} from '@/platform/replayPrevention';
 
 describe('replayPrevention', () => {
   beforeEach(() => {

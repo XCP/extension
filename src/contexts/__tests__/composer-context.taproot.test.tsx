@@ -59,7 +59,7 @@ vi.mock('@/core/counterparty/transaction', async (importOriginal) => ({
     new Map(inputs.map((input) => [`${input.txid}:${input.vout}`, 100_000_000]))),
 }));
 
-vi.mock('@/core/replayPrevention', () => ({
+vi.mock('@/platform/replayPrevention', () => ({
   checkReplayAttempt: vi.fn().mockResolvedValue({ isReplay: false }),
   recordTransaction: vi.fn(),
 }));

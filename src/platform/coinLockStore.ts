@@ -1,3 +1,4 @@
+import { setLockedOutpointsReader } from '@/core/bitcoin/coinLockAccess';
 import type { CoinLock, CoinLockUpdate, OfferCoinCommitment } from '@/types/coinLocks';
 /**
  * An injected coin-lock store shared by composition and approval code.
@@ -31,6 +32,7 @@ let store: CoinLockStore | null = null;
 
 export function setCoinLockStore(next: CoinLockStore | null): void {
   store = next;
+  setLockedOutpointsReader(lockedOutpoints);
 }
 
 export function getCoinLockStore(): CoinLockStore | null {

@@ -1,32 +1,9 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useWallet } from "@/contexts/wallet-context";
-import { isStaleInputsError } from "@/core/bitcoin/broadcastErrors";
-import {
-  type ConsolidationData,
-  type ConsolidationReport,
-  consolidationApi,
-} from "@/core/bitcoin/consolidationApi";
-import { toConsolidationRequest } from '@/core/bitcoin/consolidationRequest';
-import { fromSatoshis } from '@/core/numeric';
+import type { ConsolidationData } from "@/core/bitcoin/consolidationApi";
 import { t } from '@/i18n';
-import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
-import { getWalletServiceClient } from "@/services/walletServiceClient";
-
-export interface ConsolidationResult {
-  batchNumber: number;
-  txid: string;
-  utxosConsolidated: number;
-  status: "success" | "error";
-  error?: string;
-  /** False when the transaction is on the network but the recovery service never recorded it. */
-  reported?: boolean;
-}
-
-const REPORT_ATTEMPTS = 3;
-const REPORT_RETRY_MS = 1_000;
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+import { type ConsolidationResult, runConsolidation } from '@/services/consolidationRunner';
 
 export function useMultiBatchConsolidation() {
   const navigate = useNavigate();
@@ -34,31 +11,8 @@ export function useMultiBatchConsolidation() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentBatch, setCurrentBatch] = useState(0);
   const [results, setResults] = useState<ConsolidationResult[]>([]);
-  // A ref, not isProcessing: a second trigger in the same tick would still read the old state and
-  // broadcast the same batches again.
+  // State updates cannot block a second submission in the same tick.
   const isRunningRef = useRef(false);
-
-  /**
-   * Reporting is bookkeeping, not consensus. The coins have already moved by the time this runs, so a
-   * failure here must never be shown as a failed batch — but it does matter: an unreported recovery is
-   * one the service cannot know consumed its inputs, so it retries before giving up loudly.
-   */
-  const reportBatch = async (address: string, report: ConsolidationReport): Promise<boolean> => {
-    for (let attempt = 1; attempt <= REPORT_ATTEMPTS; attempt++) {
-      try {
-        await consolidationApi.reportConsolidation(address, report);
-        return true;
-      } catch (error) {
-        if (attempt === REPORT_ATTEMPTS) {
-          console.error("Broadcast succeeded but the recovery could not be reported:", error);
-          void analytics.track("consolidate_report_failed");
-          return false;
-        }
-        await delay(REPORT_RETRY_MS * attempt);
-      }
-    }
-    return false;
-  };
 
   const consolidateAllBatches = async (
     allBatches: ConsolidationData[],
@@ -66,121 +20,22 @@ export function useMultiBatchConsolidation() {
     destinationAddress?: string,
     includeProtectedStamps = false,
   ): Promise<ConsolidationResult[] | undefined> => {
-    // A second trigger while a run is in flight is ignored, not queued.
     if (isRunningRef.current) return undefined;
-    if (!activeWallet || !activeAddress) {
-      throw new Error(t('consolidate_wallet_not_ready'));
-    }
-
+    if (!activeWallet || !activeAddress) throw new Error(t('consolidate_wallet_not_ready'));
     isRunningRef.current = true;
     setIsProcessing(true);
     setResults([]);
-    const batchResults: ConsolidationResult[] = [];
-    let totalOutputSats = 0;
-    let totalBatches = allBatches.length;
-
     try {
-      // Signing happens in the background; the key never enters the popup
-      const walletService = getWalletServiceClient();
-
-      const runBatch = async (batch: ConsolidationData, batchNumber: number): Promise<ConsolidationResult> => {
-        setCurrentBatch(batchNumber);
-        try {
-          // Build and sign the transaction for this batch (in the background)
-          const consolidationResult = await walletService.consolidateBareMultisig(
-            activeAddress.address,
-            toConsolidationRequest(batch),
-            feeRateSatPerVByte,
-            destinationAddress,
-          );
-
-          const broadcastResult = await broadcastTransaction(consolidationResult.signedTxHex);
-          const txid = typeof broadcastResult === "string" ? broadcastResult : broadcastResult.txid;
-          console.log(`Batch ${batchNumber} broadcast successfully: ${txid}`);
-
-          // Past this point the coins have moved; nothing below may downgrade the outcome.
-          const reported = await reportBatch(activeAddress.address, {
-            raw_transaction_hex: consolidationResult.signedTxHex,
-            network_fee: consolidationResult.networkFee,
-            service_fee: consolidationResult.serviceFee,
-            output_amount: consolidationResult.outputAmount,
-            include_protected_stamps: includeProtectedStamps,
-          });
-
-          totalOutputSats += consolidationResult.outputAmount;
-          return {
-            batchNumber,
-            txid: txid || "",
-            utxosConsolidated: batch.summary.batch_utxos,
-            status: "success",
-            reported,
-          };
-        } catch (batchError) {
-          const message = batchError instanceof Error ? batchError.message : String(batchError);
-          console.error(`Error processing batch ${batchNumber}:`, batchError);
-          void analytics.track(`consolidate_error_${classifyTransactionError(message)}`);
-          return {
-            batchNumber,
-            txid: "",
-            utxosConsolidated: batch.summary.batch_utxos,
-            status: "error",
-            error: message,
-          };
-        }
-      };
-
-      const record = (result: ConsolidationResult) => {
-        batchResults.push(result);
-        setResults([...batchResults]);
-      };
-
-      // Each batch spends a distinct page of UTXOs, so one failure says nothing about the rest.
-      for (const [index, batch] of allBatches.entries()) record(await runBatch(batch, index + 1));
-
-      // A stale batch list is the one failure a second attempt can actually fix, because the refetch
-      // excludes everything the batches above just consumed. Exactly one retry, so an address the
-      // service is persistently wrong about cannot become a broadcast loop.
-      const staleFailure = batchResults.some(
-        (result) => result.status === "error" && result.error && isStaleInputsError(result.error),
-      );
-      if (staleFailure) {
-        try {
-          void analytics.track("consolidate_stale_retry");
-          const refreshed = await consolidationApi.fetchAllBatches(
-            activeAddress.address,
-            includeProtectedStamps,
-          );
-          const remaining = refreshed.filter((batch) => batch.summary.batch_utxos > 0);
-          totalBatches += remaining.length;
-          // Numbered after everything recorded so far, which record() itself keeps growing.
-          for (const batch of remaining) {
-            record(await runBatch(batch, batchResults.length + 1));
-          }
-        } catch (refreshError) {
-          console.error("Could not refresh the batch list after a stale-input failure:", refreshError);
-        }
-      }
-
-      if (batchResults.some((result) => result.status === "success")) {
-        void analytics.track("consolidate", getBtcBucket(fromSatoshis(totalOutputSats, { asNumber: true })));
-      }
-
-      // Report every batch, successful or not; the results screen breaks them down.
-      //
-      // Replace rather than push: the form this run was submitted from is consumed — its batch is
-      // spent (or failed) and "back" into it invites re-submitting the same UTXOs. Leaving it on
-      // the stack was also half of a navigation loop: results-back pushed a fresh recovery page,
-      // whose back popped to results, forever.
+      const outcome = await runConsolidation({
+        address: activeAddress.address, allBatches, feeRateSatPerVByte, destinationAddress,
+        includeProtectedStamps, broadcastTransaction, onBatch: setCurrentBatch, onResults: setResults,
+      });
+      // Replace the spent form so Back cannot resubmit its batches.
       void navigate("/actions/consolidate/success", {
         replace: true,
-        state: {
-          results: batchResults,
-          totalBatches,
-          address: activeAddress.address,
-        },
+        state: { ...outcome, address: activeAddress.address },
       });
-
-      return batchResults;
+      return outcome.results;
     } catch (error) {
       console.error("Consolidation failed:", error);
       throw error;
@@ -191,10 +46,5 @@ export function useMultiBatchConsolidation() {
     }
   };
 
-  return {
-    consolidateAllBatches,
-    isProcessing,
-    currentBatch,
-    results,
-  };
+  return { consolidateAllBatches, isProcessing, currentBatch, results };
 }

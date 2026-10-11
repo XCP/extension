@@ -12,7 +12,7 @@ import type { Wallet } from '@/types/wallet';
 
 const session = vi.hoisted(() => ({ generation: 1 }));
 vi.mock('@/platform/zeldHunt', async () => ({
-  huntInBackground: (await import('@/core/zeld/hunt')).huntTxid,
+  huntInBackground: (await import('@/platform/zeld/hunt')).huntTxid,
 }));
 vi.mock('@/platform/auth/sessionManager', async original => ({
   ...(await original<typeof import('@/platform/auth/sessionManager')>()),

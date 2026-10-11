@@ -1,19 +1,8 @@
-/**
- * Key-Based Encryption - Shared AES-GCM encryption utilities
- *
- * Provides key-based encryption/decryption for the keychain and wallet secrets.
- * Keys are derived once from password via PBKDF2, then stored in session.
- *
- * Used by:
- * - walletManager.ts: encrypts/decrypts the keychain (incl. settings) and wallet secrets
- * - sessionManager.ts: manages the cached master key
- */
-
 import { base64ToBuffer, bufferToBase64, combineBuffers, generateRandomBytes } from '@/core/encryption/buffer';
 
 // Crypto constants
 const IV_BYTES = 12;
-const KEY_BITS = 256;
+export const AES_KEY_BITS = 256;
 const GCM_TAG_BYTES = 16;
 const GCM_TAG_LENGTH = 128; // bits
 const PBKDF2_ITERATIONS = 600_000;
@@ -21,20 +10,6 @@ const PBKDF2_ITERATIONS = 600_000;
 // Minimum size: IV (12) + GCM tag (16) = 28 bytes (empty plaintext is valid)
 const MIN_ENCRYPTED_SIZE = IV_BYTES + GCM_TAG_BYTES;
 
-/**
- * Security validation constants
- *
- * These thresholds enforce minimum security requirements at the API boundary.
- * Invalid inputs are rejected with exceptions (fail-closed), not silently accepted.
- *
- * Rationale:
- * - MIN_PASSWORD_LENGTH: 8 chars per NIST 800-63B (length > complexity)
- * - MIN_ITERATIONS: 500K is 2024+ guidance; we default to 600K
- * - MIN_SALT_BYTES: 16 bytes = 128 bits, standard for PBKDF2
- *
- * This "pit of success" design ensures developers cannot accidentally weaken
- * security by passing empty passwords, low iteration counts, or small salts.
- */
 export const MIN_PASSWORD_LENGTH = 8;
 const MIN_ITERATIONS = 500_000;
 const MIN_SALT_BYTES = 16;
@@ -42,22 +17,7 @@ const MIN_SALT_BYTES = 16;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-/**
- * Derives an encryption key from password and salt using PBKDF2.
- * Key is extractable so it can be exported to session storage.
- *
- * @param password - User password (minimum 8 characters)
- * @param salt - Random salt (minimum 16 bytes)
- * @param iterations - PBKDF2 iterations (defaults to 600K, minimum 500K)
- * @returns Extractable CryptoKey for AES-GCM
- * @throws Error if password, salt, or iterations don't meet security requirements
- */
-export async function deriveKey(
-  password: string,
-  salt: Uint8Array<ArrayBuffer>,
-  iterations: number = PBKDF2_ITERATIONS
-): Promise<CryptoKey> {
-  // Security validations - defense in depth (UI also validates)
+export function validateKeyDerivation(password: string, salt: Uint8Array<ArrayBuffer>, iterations: number): void {
   if (!password || password.length < MIN_PASSWORD_LENGTH) {
     throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
   }
@@ -67,6 +27,15 @@ export async function deriveKey(
   if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS) {
     throw new Error(`PBKDF2 iterations must be at least ${MIN_ITERATIONS}`);
   }
+}
+
+/** Extractable so the background can retain the key in session storage. */
+export async function deriveKey(
+  password: string,
+  salt: Uint8Array<ArrayBuffer>,
+  iterations: number = PBKDF2_ITERATIONS
+): Promise<CryptoKey> {
+  validateKeyDerivation(password, salt, iterations);
 
   const passwordBytes = encoder.encode(password);
   try {
@@ -81,7 +50,7 @@ export async function deriveKey(
     return await crypto.subtle.deriveKey(
       { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
       passwordKey,
-      { name: 'AES-GCM', length: KEY_BITS },
+      { name: 'AES-GCM', length: AES_KEY_BITS },
       true, // extractable - needed for session storage
       ['encrypt', 'decrypt']
     );
@@ -112,7 +81,7 @@ export async function importKey(keyBase64: string): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     'raw',
     keyBytes,
-    { name: 'AES-GCM', length: KEY_BITS },
+    { name: 'AES-GCM', length: AES_KEY_BITS },
     false, // not extractable after import (security)
     ['encrypt', 'decrypt']
   );
@@ -234,118 +203,3 @@ export async function decryptJsonWithKey<T>(encrypted: string, key: CryptoKey): 
  * Exported for use by callers who need to store KDF params.
  */
 export const DEFAULT_PBKDF2_ITERATIONS = PBKDF2_ITERATIONS;
-
-// ============================================================================
-// Web Worker Key Derivation (Non-blocking)
-// ============================================================================
-
-/** Singleton worker instance */
-let kdfWorker: Worker | null = null;
-
-/**
- * Gets or creates the KDF worker instance.
- * Returns null if workers are not available (e.g., in tests).
- */
-function getKdfWorker(): Worker | null {
-  if (kdfWorker) return kdfWorker;
-
-  try {
-    // Vite handles the worker bundling with this syntax
-    kdfWorker = new Worker(new URL('./kdf-worker.ts', import.meta.url), {
-      type: 'module',
-    });
-    return kdfWorker;
-  } catch {
-    // Workers not available (tests, unsupported environment)
-    return null;
-  }
-}
-
-interface WorkerResponse {
-  success: boolean;
-  keyBase64?: string;
-  error?: string;
-}
-
-/**
- * Derives an encryption key using a Web Worker (non-blocking).
- * Falls back to main thread if workers are unavailable.
- *
- * This is cryptographically identical to deriveKey() - just runs off main thread
- * to keep UI responsive during the ~1-2 second key derivation.
- *
- * @param password - User password (minimum 8 characters)
- * @param salt - Random salt (minimum 16 bytes)
- * @param iterations - PBKDF2 iterations (defaults to 600K, minimum 500K)
- * @returns Extractable CryptoKey for AES-GCM
- * @throws Error if password, salt, or iterations don't meet security requirements
- */
-export async function deriveKeyAsync(
-  password: string,
-  salt: Uint8Array<ArrayBuffer>,
-  iterations: number = PBKDF2_ITERATIONS
-): Promise<CryptoKey> {
-  // Security validations - validate early before worker dispatch
-  if (!password || password.length < MIN_PASSWORD_LENGTH) {
-    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
-  }
-  if (!salt || salt.byteLength < MIN_SALT_BYTES) {
-    throw new Error(`Salt must be at least ${MIN_SALT_BYTES} bytes`);
-  }
-  if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS) {
-    throw new Error(`PBKDF2 iterations must be at least ${MIN_ITERATIONS}`);
-  }
-
-  const worker = getKdfWorker();
-
-  // Fallback to main thread if no worker
-  if (!worker) {
-    return deriveKey(password, salt, iterations);
-  }
-
-  const saltBase64 = bufferToBase64(salt);
-
-  async function importDerivedKey(encoded: string): Promise<CryptoKey> {
-    // Session storage requires an extractable key. Always clear the intermediate bytes, including
-    // when the import rejects, and keep that rejection attached to the requesting promise.
-    const keyBytes = base64ToBuffer(encoded);
-    try {
-      return await crypto.subtle.importKey(
-        'raw', keyBytes, { name: 'AES-GCM', length: KEY_BITS }, true, ['encrypt', 'decrypt']
-      );
-    } finally {
-      keyBytes.fill(0);
-    }
-  }
-
-  return new Promise((resolve, reject) => {
-    const handleMessage = (e: MessageEvent<WorkerResponse>) => {
-      worker.removeEventListener('message', handleMessage);
-      worker.removeEventListener('error', handleError);
-      worker.terminate();
-      kdfWorker = null;
-
-      if (e.data.success && e.data.keyBase64) {
-        importDerivedKey(e.data.keyBase64).then(
-          resolve,
-          () => reject(new Error('Failed to import derived key')),
-        );
-      } else {
-        reject(new Error(e.data.error || 'Key derivation failed'));
-      }
-    };
-
-    const handleError = (e: ErrorEvent) => {
-      worker.removeEventListener('message', handleMessage);
-      worker.removeEventListener('error', handleError);
-      worker.terminate();
-      kdfWorker = null;
-      reject(new Error(`Worker error: ${e.message}`));
-    };
-
-    worker.addEventListener('message', handleMessage);
-    worker.addEventListener('error', handleError);
-
-    worker.postMessage({ password, salt: saltBase64, iterations });
-  });
-}

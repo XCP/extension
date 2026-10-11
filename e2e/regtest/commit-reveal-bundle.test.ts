@@ -71,7 +71,7 @@ vi.mock('@/platform/fathom', () => ({
   sanitizePath: (path: string) => path, fathom: () => ({}),
   analytics: { track: async () => undefined, page: async () => undefined },
 }));
-vi.mock('@/core/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => { throw new Error('unused'); } }));
+vi.mock('@/platform/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => { throw new Error('unused'); } }));
 
 const ORIGIN = 'https://site.invalid';
 const RAW = { allowUnknownOutputs: true, allowUnknownInputs: true, disableScriptCheck: true };

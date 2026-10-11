@@ -27,7 +27,7 @@ type LocalFeeRateOption = FeeRateOption | "custom";
 
 function getValidInitialFeeRate(value: number | null | undefined): number | null {
   if (value === null || value === undefined) return null;
-  const validation = validateFeeRate(value, { minRate: 0.1, maxRate: 5000, warnHighFee: false });
+  const validation = validateFeeRate(value, { warnHighFee: false });
   return validation.isValid && validation.satsPerVByte !== undefined
     ? validation.satsPerVByte
     : null;
@@ -63,7 +63,7 @@ export function FeeRateInput({
   const disabledProps = disabled === true ? { disabled: true } : {};
 
   // Calculate the current fee rate value based on selection
-  const customValidation = validateFeeRate(customInput, { minRate: 0.1, maxRate: 5000, warnHighFee: false });
+  const customValidation = validateFeeRate(customInput, { warnHighFee: false });
   const currentFeeRate = selectedOption === "custom"
     ? (customValidation.isValid ? customValidation.satsPerVByte ?? null : null)
     : uniquePresetOptions.find((opt) => opt.id === selectedOption)?.value ?? null;
@@ -125,7 +125,7 @@ export function FeeRateInput({
     // Keep invalid and incomplete drafts visible; there is no previous valid
     // fee to submit while the field contains different text.
     setCustomInput(draft);
-    const validation = validateFeeRate(draft, { minRate: 0.1, maxRate: 5000, warnHighFee: false });
+    const validation = validateFeeRate(draft, { warnHighFee: false });
     setInternalError(draft && !validation.isValid ? feeErrorMessage(validation) : null);
     onFeeRateChangeRef.current?.(validation.isValid ? validation.satsPerVByte ?? null : null);
   };
@@ -136,7 +136,7 @@ export function FeeRateInput({
 
   const handleCustomInputBlur = (event: React.FocusEvent<HTMLInputElement>) => {
     // Validation must not round, strip separators, clamp, or replace the draft.
-    const validation = validateFeeRate(event.target.value, { minRate: 0.1, maxRate: 5000 });
+    const validation = validateFeeRate(event.target.value);
     setInternalError(validation.isValid ? null : feeErrorMessage(validation));
     onFeeRateChangeRef.current?.(validation.isValid ? validation.satsPerVByte ?? null : null);
   };

@@ -1,8 +1,8 @@
 import './setup'; // Must be first to setup browser mocks
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { clearReplayPreventionData, getTransactionStats } from '@/core/replayPrevention';
 import { classifyProviderError } from '@/core/rpcErrors';
+import { clearReplayPreventionData, getTransactionStats } from '@/platform/replayPrevention';
 import { getConnectionService } from '../connectionService';
 import { createProviderService } from '../providerService';
 import { getWalletService } from '../walletService';

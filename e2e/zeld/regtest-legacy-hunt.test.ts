@@ -11,8 +11,8 @@
 
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { describe, expect, it } from 'vitest';
-import { huntTxid } from '@/core/zeld/hunt';
 import { huntZeldWhileSigning } from '@/core/zeld/signHunt';
+import { huntTxid } from '@/platform/zeld/hunt';
 import {
   broadcastAndMine,
   compose,

@@ -4,7 +4,7 @@ import { p2tr, p2wpkh, Script, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
 import { finalizePSBT, signPSBT } from '@/core/bitcoin/psbt';
-import { HardwareWalletError } from '../types';
+import { HardwareWalletError } from '@/core/hardware/types';
 
 // Create hoisted mocks using vi.hoisted()
 const {
@@ -44,7 +44,7 @@ vi.mock('@trezor/connect-webextension', () => ({
 // Import after mocking
 import { hardwareErrorMessage } from '@/components/ui/hardware-error-message';
 import { t } from '@/i18n';
-import { getTrezorAdapter, isSuiteHandshakeFailure, resetTrezorAdapter, TrezorAdapter } from '../trezorAdapter';
+import { getTrezorAdapter, isSuiteHandshakeFailure, resetTrezorAdapter, TrezorAdapter } from '@/platform/hardware/trezorAdapter';
 
 describe('TrezorAdapter', () => {
   let adapter: TrezorAdapter;

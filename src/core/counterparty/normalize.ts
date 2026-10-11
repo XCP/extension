@@ -217,7 +217,7 @@ export async function normalizeFormData(
   const assetInfoCache: AssetInfoCache = new Map();
 
   if ('sat_per_vbyte' in rawData) {
-    const validation = validateFeeRate(String(rawData.sat_per_vbyte), { minRate: 0.1 });
+    const validation = validateFeeRate(String(rawData.sat_per_vbyte));
     if (!validation.isValid) throw new TransactionInputError('fee_invalid', validation.error ?? 'Invalid fee rate');
     normalizedData.sat_per_vbyte = serializeDecimal(String(rawData.sat_per_vbyte), { min: 0.1, max: 5000, maxDecimals: 8 });
   }

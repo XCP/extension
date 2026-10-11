@@ -87,7 +87,7 @@ vi.mock('@/core/bitcoin/messageSigner', async (original) => {
   return { ...actual, signMessage: vi.fn(actual.signMessage) };
 });
 const hardware = vi.hoisted(() => ({ init: vi.fn(), signPsbt: vi.fn(), signMessage: vi.fn() }));
-vi.mock('@/core/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => hardware }));
+vi.mock('@/platform/hardware/trezorAdapter', () => ({ getTrezorAdapter: () => hardware }));
 
 const MESSAGE = 'XCP Wallet lock barrier';
 const SESSION_CHANGED = 'Wallet session changed; please try again.';

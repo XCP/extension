@@ -68,7 +68,7 @@ export class WalletSigner {
    * @throws Error if wallet is not unlocked or not a Trezor
    */
   private async getInitializedTrezor(walletId: string): Promise<{
-    trezor: import('@/core/hardware/trezorAdapter').TrezorAdapter;
+    trezor: import('@/platform/hardware/trezorAdapter').TrezorAdapter;
     DerivationPaths: typeof import('@/core/hardware/types').DerivationPaths;
     hardwareData: HardwareWalletSecret;
   }> {
@@ -85,7 +85,7 @@ export class WalletSigner {
 
     await assertTrezorSuiteAccess();
     // Dynamically import to avoid loading @trezor/connect-webextension at startup
-    const { getTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
+    const { getTrezorAdapter } = await import('@/platform/hardware/trezorAdapter');
     const { DerivationPaths } = await import('@/core/hardware/types');
     const trezor = getTrezorAdapter();
 
