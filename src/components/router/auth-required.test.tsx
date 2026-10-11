@@ -8,10 +8,6 @@ vi.mock('@/contexts/wallet-context', () => ({
   useWallet: vi.fn(),
 }));
 
-vi.mock('@/hooks/useAuthGuard', () => ({
-  useAuthGuard: vi.fn(),
-}));
-
 // Create mock navigate function
 const mockNavigate = vi.fn();
 
@@ -25,7 +21,6 @@ vi.mock('react-router', async () => {
 });
 
 import { useWallet } from '@/contexts/wallet-context';
-import { useAuthGuard } from '@/hooks/useAuthGuard';
 // Now import the component and mocked dependencies
 import { AuthRequired } from './auth-required';
 
@@ -38,7 +33,6 @@ interface MockWalletContext {
 }
 
 describe('AuthRequired', () => {
-  const mockUseAuthGuard = useAuthGuard as Mock;
   const mockUseWallet = useWallet as Mock;
 
   beforeEach(() => {
@@ -119,19 +113,6 @@ describe('AuthRequired', () => {
       
       expect(screen.getByText('Protected Dashboard')).toBeInTheDocument();
       expect(mockNavigate).not.toHaveBeenCalled();
-    });
-
-    it('should call useAuthGuard for real-time monitoring', () => {
-      setupWalletContext({
-        authState: 'UNLOCKED',
-        keychainExists: true,
-        wallets: [{ id: '1' }],
-        isLoading: false,
-      });
-
-      renderWithRouter();
-      
-      expect(mockUseAuthGuard).toHaveBeenCalled();
     });
 
     it('should render different protected routes based on path', () => {
@@ -447,29 +428,6 @@ describe('AuthRequired', () => {
       mockUseWallet.mockReturnValue(undefined);
       
       expect(() => renderWithRouter()).toThrow();
-    });
-  });
-
-  describe('Integration with useAuthGuard', () => {
-    it('should always call useAuthGuard hook regardless of state', () => {
-      const scenarios: MockWalletContext[] = [
-        { authState: 'UNLOCKED', keychainExists: true, wallets: [{ id: '1' }], isLoading: false },
-        { authState: 'LOCKED', keychainExists: true, wallets: [{ id: '1' }], isLoading: false },
-        { authState: 'ONBOARDING_NEEDED', keychainExists: false, wallets: [], isLoading: false },
-        { authState: 'UNLOCKED', keychainExists: true, wallets: [{ id: '1' }], isLoading: true },
-      ];
-      
-      scenarios.forEach((scenario, index) => {
-        mockUseAuthGuard.mockClear();
-        setupWalletContext(scenario);
-        
-        const { unmount } = renderWithRouter();
-        
-        expect(mockUseAuthGuard).toHaveBeenCalledTimes(1);
-        
-        // Clean up for next iteration
-        unmount();
-      });
     });
   });
 

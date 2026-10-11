@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
@@ -11,12 +10,10 @@ import { awaitsContinuation } from "@/platform/popup";
 import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
-  SUCCESS: "/index",
   HELP_URL: "https://youtube.com/droplister",
 } as const;
 
 function UnlockPage() {
-  const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { unlockKeychain } = useWallet();
 
@@ -67,7 +64,7 @@ function UnlockPage() {
       // A request is continuing in this window: the background loads its screen here as a new
       // document. Going home first would flash the home page, so stay busy until then.
       continuing = awaitsContinuation();
-      if (!continuing) void navigate(PATHS.SUCCESS);
+      // KeychainLockedOnly owns post-unlock navigation, including the saved return location.
     } catch (err) {
       console.error("Error unlocking wallet:", err);
       // Surface rate-limit errors: showing "Invalid password" would mislead

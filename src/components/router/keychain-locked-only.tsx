@@ -50,8 +50,11 @@ export function KeychainLockedOnly(): ReactElement | null {
     if (!continuing) {
       if (authState === 'UNLOCKED') {
         // Already unlocked - redirect to intended destination or home
-        const returnTo = (location.state as { from?: string })?.from || '/';
-        void navigate(returnTo, { replace: true });
+        const saved = location.state as { from?: string; returnState?: unknown } | null;
+        const returnTo = saved?.from || '/';
+        void navigate(returnTo, { replace: true,
+          ...(saved?.returnState !== undefined ? { state: saved.returnState } : {}),
+        });
       }
       return;
     }
