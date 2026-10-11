@@ -1,5 +1,6 @@
 import { type ReactElement, useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
+import type { FormValues } from "@/components/composer/form-values";
 import { HuntProgress } from "@/components/domain/zeld/hunt-progress";
 import { FiHelpCircle, FiRefreshCw, FiX } from "@/components/icons";
 import type { TransactionReviewProps } from "@/components/screens/review-screen";
@@ -27,11 +28,11 @@ interface ComposerProps<T> {
   composeApiMethod: (data: T) => Promise<ApiResponse>;
 
   initialTitle: string;
-  initialFormData?: T;
+  initialFormData?: FormValues<T>;
 
   FormComponent?: (props: {
     formAction: (formData: FormData) => void | Promise<void>;
-    initialFormData: T | null;
+    initialFormData: FormValues<T> | null;
     error?: string | null;
     showHelpText?: boolean;
   }) => ReactElement;

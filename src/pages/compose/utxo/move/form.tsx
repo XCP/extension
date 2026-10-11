@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { UtxoSourceField } from "@/components/domain/utxo/utxo-source-field";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
@@ -12,7 +13,7 @@ import { t } from '@/i18n';
 
 interface UtxoMoveFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: MoveOptions | null;
+  initialFormData: FormValues<MoveOptions> | null;
   initialUtxo?: string;
 }
 

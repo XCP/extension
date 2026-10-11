@@ -2,6 +2,7 @@ import { type ReactElement, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { FaCog } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -21,7 +22,7 @@ import { isValidSlippageDraft } from "@/pages/compose/pool/slippage-draft";
 
 interface PoolWithdrawFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: PoolWithdrawOptions | null;
+  initialFormData: FormValues<PoolWithdrawOptions> | null;
   lpAsset: string;
 }
 

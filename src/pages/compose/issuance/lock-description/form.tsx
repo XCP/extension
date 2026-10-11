@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { Spinner } from "@/components/ui/spinner";
@@ -15,7 +16,7 @@ import { t } from '@/i18n';
 
 interface LockDescriptionFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: IssuanceOptions | null;
+  initialFormData: FormValues<IssuanceOptions> | null;
   asset: string;
 }
 

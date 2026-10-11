@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFormValues } from "@/components/composer/form-values";
 import type { AssetInfo } from '@/core/counterparty/api';
+import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { asDisplayUnits } from '@/core/numeric';
 import { ResetSupplyForm } from '../form';
 
@@ -82,6 +84,34 @@ function submitForm(info: AssetInfo, interact: () => void = () => {}): FormData 
 }
 
 describe('ResetSupplyForm', () => {
+  it.each([['false', false], ['no', false], ['true', true], ['yes', true]] as const)(
+    'restores %s choices from the saved HTML form without changing the next submission',
+    (serialized, checked) => {
+      const saved = new FormData();
+      saved.set('divisible', serialized);
+      saved.set('lock', serialized);
+      const quantity = checked ? '12.00000001' : '12';
+      saved.set('quantity', quantity);
+      const formAction = vi.fn();
+      mockUseAssetInfo.mockReturnValue({ isLoading: false, error: null, data: assetInfo({ divisible: !checked }) });
+      render(<ResetSupplyForm
+        formAction={formAction}
+        initialFormData={readFormValues<IssuanceOptions>(saved)}
+        asset="MYASSET"
+      />);
+
+      expect(screen.getByLabelText('Divisible')).toHaveAttribute('aria-checked', String(checked));
+      expect(screen.getByLabelText('Locked')).toHaveAttribute('aria-checked', String(checked));
+      expect(screen.getByLabelText('New Supply')).toHaveAttribute('data-divisible', String(checked));
+      fireEvent.click(screen.getByLabelText('I understand this cannot be undone'));
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      const submitted: FormData = formAction.mock.calls[0]![0];
+      expect(submitted.get('divisible')).toBe(String(checked));
+      expect(submitted.get('lock')).toBe(String(checked));
+      expect(submitted.get('quantity')).toBe(quantity);
+    },
+  );
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -11,6 +11,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -19,6 +20,7 @@ import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { SweepOptions } from "@/core/counterparty/compose";
 import { formatMoreOutputs } from "@/core/format";
+import { toFiniteNumber } from "@/core/numeric";
 import { validateAmount } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
@@ -39,7 +41,7 @@ const sweepTypeOptions = [
 
 interface SweepFormProps {
   formAction: (formData: FormData) => void | Promise<void>;
-  initialFormData: SweepOptions | null;
+  initialFormData: FormValues<SweepOptions> | null;
 }
 
 export function SweepForm({ 
@@ -63,11 +65,9 @@ export function SweepForm({
   const [showBtcOutput, setShowBtcOutput] = useState(false);
   const [btcAmount, setBtcAmount] = useState("");
   const [maxError, setMaxError] = useState<string | null>(null);
-  // A form restored after review holds `flags` as the string it submitted ("2"), which never
-  // strictly equalled an option's number, so going back always reset the choice to balances and
-  // ownership. `&` reads the string as a number and drops any binary-memo bit.
+  // The binary-memo bit does not select a sweep type.
   const [selectedSweepType, setSelectedSweepType] = useState(
-    sweepTypeOptions.find(opt => opt.value === (((initialFormData?.flags ?? 0) & SWEEP_TYPE_MASK) || SWEEP_TYPE_MASK)) || sweepTypeOptions[2]!
+    sweepTypeOptions.find(opt => opt.value === (((toFiniteNumber(initialFormData?.flags) ?? 0) & SWEEP_TYPE_MASK) || SWEEP_TYPE_MASK)) || sweepTypeOptions[2]!
   );
   
   // Refs

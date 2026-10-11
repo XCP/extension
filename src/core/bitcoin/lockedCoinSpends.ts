@@ -119,7 +119,7 @@ export function lockedCoinWarning(
 /**
  * Whether a request's locked spends should leave the locks until the spend confirms. An offer
  * invalidation is handed back to the site to broadcast; if it never does, its offers live on, so
- * signing it must not free the coins (core/bitcoin/coinLockStore.ts releases them once spent).
+ * signing it must not free the coins (platform/coinLockStore.ts releases them once spent).
  */
 export const releasedOnSpend = (items: readonly LockCheckedItem[]): boolean =>
   items.length > 0 && items.every(item => item.intent?.action === 'invalidate_offers');

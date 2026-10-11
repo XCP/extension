@@ -32,12 +32,10 @@ interface ParsedRow {
 
 interface MPMAFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: any | null;
 }
 
 export function MPMAForm({
   formAction,
-  initialFormData,
 }: MPMAFormProps): ReactElement {
   // Context hooks
   const { showHelpText } = useComposer();

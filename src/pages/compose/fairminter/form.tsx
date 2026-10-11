@@ -12,6 +12,7 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { type FormValues, formBoolean } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { AssetNameInput } from "@/components/domain/asset/asset-name-input";
@@ -44,21 +45,9 @@ const FAIRMINTER_MODEL_OPTIONS = [
   { value: FAIRMINTER_MODELS.XCP_FEE_BURNED, label: t('fairminter_form_xcp_fee_model_burned') },
 ];
 
-/**
- * A boolean as it survives a round trip through the composer, which stores raw form values.
- *
- * `false` comes back as the string `'false'`, and `'false'` is truthy — so reading these fields
- * directly inverts them on back-navigation.
- */
-function toFormBoolean(value: unknown): boolean | undefined {
-  if (value === undefined || value === null || value === '') return undefined;
-  if (typeof value === 'boolean') return value;
-  return String(value) === 'true';
-}
-
 interface FairminterFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: FairminterOptions | null;
+  initialFormData: FormValues<FairminterOptions> | null;
   asset: string;
 }
 
@@ -88,7 +77,7 @@ export function FairminterForm({
   const [description, setDescription] = useState(initialFormData?.description || "");
   const [assetName, setAssetName] = useState(initialFormData?.asset || asset || "");
   const [isAssetNameValid, setIsAssetNameValid] = useState(false);
-  const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? true);
+  const [isDivisible, setIsDivisible] = useState(formBoolean(initialFormData?.divisible) ?? true);
 
   // Quantity field state (controlled for decimal enforcement)
   const [maxMintPerTx, setMaxMintPerTx] = useState(initialFormData?.max_mint_per_tx?.toString() || "");
@@ -113,11 +102,7 @@ export function FairminterForm({
     }
   }, [isExistingAsset, assetInfo]);
 
-  // Mint method state.
-  //
-  // The composer hands back raw form values, so booleans arrive as the strings 'true'/'false' —
-  // and 'false' is truthy, so reading `burn_payment` directly inverts the model on back-navigation.
-  const burnPayment = toFormBoolean(initialFormData?.burn_payment);
+  const burnPayment = formBoolean(initialFormData?.burn_payment);
   const initialMintMethod = burnPayment === false
     ? FAIRMINTER_MODELS.MINER_FEE_ONLY
     : burnPayment
@@ -392,7 +377,7 @@ export function FairminterForm({
           <CheckboxInput
             name="lock_description"
             label={t('common_lock_description')}
-            defaultChecked={initialFormData?.lock_description || false}
+            defaultChecked={formBoolean(initialFormData?.lock_description) ?? false}
             disabled={pending}
           />
           <TextField
@@ -412,7 +397,7 @@ export function FairminterForm({
           <CheckboxInput
             name="lock_quantity"
             label={t('fairminter_form_lock_quantity')}
-            defaultChecked={initialFormData?.lock_quantity || false}
+            defaultChecked={formBoolean(initialFormData?.lock_quantity) ?? false}
             disabled={pending}
           />
 

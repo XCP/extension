@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { formatCoinBtc } from "@/components/domain/coins/coin-lock-text";
@@ -27,7 +28,10 @@ import { t } from '@/i18n';
 
 interface DispenseFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: DispenseOptions | null;
+  initialFormData: FormValues<DispenseOptions & {
+    selectedDispenserIndex?: number;
+    satoshirate?: number | string;
+  }> | null;
 }
 
 // ============================================================================
@@ -173,7 +177,7 @@ export function DispenseForm({
     initialFormData?.dispenser || ""
   );
   const [selectedDispenserIndex, setSelectedDispenserIndex] = useState<number | null>(() => {
-    const formData = initialFormData as any;
+    const formData = initialFormData;
     return formData?.selectedDispenserIndex !== undefined 
       ? Number(formData.selectedDispenserIndex) 
       : null;
@@ -184,7 +188,7 @@ export function DispenseForm({
   
   const [numberOfDispenses, setNumberOfDispenses] = useState(() => {
     if (initialFormData?.quantity) {
-      const formData = initialFormData as any;
+      const formData = initialFormData;
       if (formData.satoshirate && isGreaterThan(formData.satoshirate, 0)) {
         return toNumber(
           roundDown(divide(initialFormData.quantity, formData.satoshirate))
@@ -241,7 +245,7 @@ export function DispenseForm({
       initialFormData?.quantity &&
       selectedDispenserIndex !== null
     ) {
-      const formData = initialFormData as any;
+      const formData = initialFormData;
       if (formData.satoshirate && isGreaterThan(formData.satoshirate, 0)) {
         const calculatedDispenses = toNumber(
           roundDown(divide(initialFormData.quantity, formData.satoshirate))

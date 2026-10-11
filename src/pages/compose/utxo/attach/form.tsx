@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -13,7 +14,7 @@ import { t } from '@/i18n';
 
 interface UtxoAttachFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: AttachOptions | null;
+  initialFormData: FormValues<AttachOptions> | null;
   initialAsset: string;
 }
 

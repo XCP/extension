@@ -5,6 +5,7 @@
  */
 
 import { createContext, use } from "react";
+import type { FormValues } from "@/components/composer/form-values";
 import type { useSettings } from "@/contexts/settings-context";
 import type { useWallet } from "@/contexts/wallet-context";
 import type { ApiResponse } from "@/core/counterparty/compose";
@@ -25,7 +26,7 @@ export interface ComposerBroadcastResult {
 
 export interface ComposerState<T> {
   step: "form" | "review" | "success";
-  formData: T | null;
+  formData: FormValues<T> | null;
   apiResponse: (ApiResponse & ComposerBroadcastResult) | null;
   error: string | null;
   verificationWarnings: string[];

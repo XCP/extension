@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
@@ -20,7 +21,7 @@ const INSCRIPTION_MAX_SIZE_KB = MAX_INSCRIPTION_FILE_BYTES / 1024;
 
 interface UpdateDescriptionFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: IssuanceOptions | null;
+  initialFormData: FormValues<IssuanceOptions> | null;
   asset: string;
 }
 

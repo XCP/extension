@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { HashInput } from "@/components/ui/inputs/hash-input";
 import { useComposer } from "@/contexts/composer-context-object";
@@ -10,7 +11,7 @@ import { t } from '@/i18n';
 
 interface BTCPayFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: BTCPayOptions | null;
+  initialFormData: FormValues<BTCPayOptions> | null;
 }
 
 /**

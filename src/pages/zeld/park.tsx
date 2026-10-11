@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import zeldIcon from '@/assets/zeld.svg';
 import { Composer } from '@/components/composer/composer';
 import { ComposerForm } from '@/components/composer/composer-form';
+import type { FormValues } from "@/components/composer/form-values";
 import { AssetIcon } from '@/components/domain/asset/asset-icon';
 import { ReviewScreen } from '@/components/screens/review-screen';
 import { useComposer } from '@/contexts/composer-context-object';
@@ -21,7 +22,7 @@ function ZeldParkForm({
   formAction,
 }: {
   formAction: (formData: FormData) => void | Promise<void>;
-  initialFormData: ZeldParkFormData | null;
+  initialFormData: FormValues<ZeldParkFormData> | null;
 }): ReactElement {
   const { activeAddress, showHelpText } = useComposer<ZeldParkFormData>();
   const address = activeAddress?.address;

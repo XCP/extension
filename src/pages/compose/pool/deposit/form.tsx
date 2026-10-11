@@ -3,6 +3,7 @@ import { type ReactElement, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AssetNameInput } from "@/components/domain/asset/asset-name-input";
 import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
@@ -35,7 +36,7 @@ import { isValidSlippageDraft } from "@/pages/compose/pool/slippage-draft";
 
 interface PoolDepositFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: PoolDepositOptions | null;
+  initialFormData: FormValues<PoolDepositOptions> | null;
   initialAssetA?: string;
   initialAssetB?: string;
 }

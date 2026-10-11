@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { type FormValues, formBoolean } from "@/components/composer/form-values";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
@@ -17,7 +18,7 @@ import { t } from '@/i18n';
 
 interface ResetSupplyFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: IssuanceOptions | null;
+  initialFormData: FormValues<IssuanceOptions> | null;
   asset: string;
 }
 
@@ -54,12 +55,12 @@ export function ResetSupplyForm({
   // a null asset would latch the defaults to `false` and `""` and never pick the real ones up.
   const [amount, setAmount] = useState(initialFormData?.quantity?.toString() || "");
   const [divisibleChoice, setDivisibleChoice] = useState<boolean | null>(
-    initialFormData?.divisible ?? null
+    formBoolean(initialFormData?.divisible) ?? null
   );
   const [descriptionChoice, setDescriptionChoice] = useState<string | null>(
     initialFormData?.description ?? null
   );
-  const [isLocked, setIsLocked] = useState(initialFormData?.lock ?? false);
+  const [isLocked, setIsLocked] = useState(formBoolean(initialFormData?.lock) ?? false);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [, setError] = useState<string | null>(null);
 

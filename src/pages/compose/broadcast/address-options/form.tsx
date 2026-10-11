@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context-object";
@@ -14,7 +15,7 @@ const ADDRESS_OPTION_REQUIRE_MEMO = 1;
 
 interface AddressOptionsFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: BroadcastOptions | null;
+  initialFormData: FormValues<BroadcastOptions> | null;
 }
 
 /**

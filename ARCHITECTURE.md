@@ -19,7 +19,8 @@ promises surviving.
 | `src/platform/provider` | Typed signing lifecycle, identity permissions, request correlation |
 | `src/platform/storage` | Browser storage boundaries and serialized writes |
 | `src/core/bitcoin`, `src/core/counterparty` | Transaction parsing, proofs, verification, money movement, signing |
-| `src/core/hardware` | Device integration and transaction integrity checks |
+| `src/core/hardware` | Hardware contracts, derivation paths, and transaction integrity checks |
+| `src/platform/hardware` | Device transport and vendor adapters |
 | `src/hooks`, `src/pages`, `src/components` | UI state, review presentation, user decisions |
 
 ## Layers and placement
@@ -109,6 +110,10 @@ operation-specific compose adapters and review pages still need their own form/r
 with their pages, as in `pages/compose/issuance/review-types.ts`. Derive protocol field types from
 their owning contracts and represent missing metadata explicitly instead of requiring invented
 API fields in review fixtures.
+
+Saved composer drafts use `FormValues<Options>`: optional fields containing typed initial values
+or serialized HTML strings. Parse checkbox and numeric settings when restoring them; preserve
+quantity strings until normalization. A saved draft is not a validated compose request.
 
 A `use…` export should provide React behavior: state, context, subscriptions, effects, or a
 lifecycle-aware composition of other hooks. A pure calculation or API helper is an ordinary

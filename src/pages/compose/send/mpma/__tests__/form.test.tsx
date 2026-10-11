@@ -77,13 +77,13 @@ describe('MPMAForm', () => {
   const mockFormAction = vi.fn();
   
   // Helper function to render with provider
-  const renderWithProvider = (initialFormData: any = null) => {
+  const renderWithProvider = () => {
     const mockComposeApi = vi.fn().mockResolvedValue({ result: { tx_hash: 'test' } });
     
     return render(
       <MemoryRouter>
         <ComposerProvider composeApi={mockComposeApi} initialTitle="MPMA Send" composeType="mpma">
-          <MPMAForm formAction={mockFormAction} initialFormData={initialFormData} />
+          <MPMAForm formAction={mockFormAction} />
         </ComposerProvider>
       </MemoryRouter>
     );

@@ -1,6 +1,7 @@
 import { type ReactElement, type ReactNode, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { swapQuoteOutcomeMessage } from '@/components/composer/swap-quote-message';
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
@@ -35,7 +36,7 @@ import { useSlippageDefaultSaver } from "@/pages/compose/pool/use-slippage-defau
 
 interface SwapFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: OrderOptions | null;
+  initialFormData: FormValues<OrderOptions> | null;
   initialGiveAsset?: string;
   initialGetAsset?: string;
 }

@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import type { FormValues } from "@/components/composer/form-values";
 import { AssetNameInput } from "@/components/domain/asset/asset-name-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { BalanceHeader } from "@/components/domain/balance/balance-header";
@@ -16,7 +17,7 @@ import { t } from '@/i18n';
 
 interface DestroySupplyFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: DestroyOptions | null;
+  initialFormData: FormValues<DestroyOptions> | null;
   initialAsset?: string;
 }
 
