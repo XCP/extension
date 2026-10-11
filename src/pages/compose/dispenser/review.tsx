@@ -1,29 +1,15 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import { formatAmount, formatAsset, formatFiatEstimate } from "@/core/format";
 import { divide, fromSatoshis, multiply, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewDispenser component.
- */
-interface ReviewDispenserProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-  asset: string;
-}
+type ReviewDispenserProps = TransactionReviewProps<Pick<ComposeParams, 'asset' | 'asset_longname' | 'escrow_quantity' | 'escrow_quantity_normalized' | 'give_quantity' | 'give_quantity_normalized' | 'mainchainrate'>> & { asset: string };
 
-/**
- * Displays a review screen for dispenser creation transactions.
- * @param {ReviewDispenserProps} props - Component props
- * @returns {ReactElement} Review UI for dispenser transaction
- */
 export function ReviewDispenser({
   apiResponse,
   onSign,
@@ -36,12 +22,7 @@ export function ReviewDispenser({
   const { settings } = useSettings();
   const { btc: btcPrice } = useMarketPrices(settings.fiat);
 
-  // A dispenser has no local packer, so its params were an unverified echo. The asset and the
-  // BTC price per dispense are stated by the transaction itself, so they are read from the decoded
-  // message: a composer that opened a dispenser on a different asset, or at a different price,
-  // cannot then display the requested one (see `unpack/verify.ts`). Quantities keep using the response's
-  // normalized strings, since converting the decoded base units needs the asset's divisibility —
-  // a ledger fact rather than a property of this transaction.
+  // Prefer the decoded asset and price; divisibility comes from the independent asset read.
   const decoded = useComposerOptional()?.state.decodedMessage?.data as
     | { asset?: string; mainchainrate?: bigint; escrowQuantity?: bigint; giveQuantity?: bigint }
     | undefined;
@@ -52,27 +33,24 @@ export function ReviewDispenser({
     assetInfo: { asset_longname: result.params.asset_longname ?? null },
   });
 
-  // Use normalized values from verbose API response
   const escrowQuantity = result.params.escrow_quantity_normalized;
   const giveQuantity = result.params.give_quantity_normalized;
 
-  // Calculate BTC values for fiat estimate
   const mainchainrate = decoded?.mainchainrate ?? result.params.mainchainrate;
   const escrowForRatio = toBigNumber(
-    decoded?.escrowQuantity ?? result.params.escrow_quantity
+    decoded?.escrowQuantity?.toString() ?? result.params.escrow_quantity
   );
   const giveForRatio = toBigNumber(
-    decoded?.giveQuantity ?? result.params.give_quantity
+    decoded?.giveQuantity?.toString() ?? result.params.give_quantity
   );
 
-  const perDispenseBtc = toBigNumber(fromSatoshis(mainchainrate));
+  const perDispenseBtc = toBigNumber(fromSatoshis(mainchainrate?.toString() ?? 0));
   // A dispenser giving nothing has no total to quote, rather than a total of zero.
   const dispenseCount = giveForRatio.isGreaterThan(0)
     ? divide(escrowForRatio, giveForRatio)
     : null;
   const bitcoinTotalBtc = dispenseCount === null ? null : multiply(dispenseCount, perDispenseBtc);
 
-  // Format current fiat estimates
   const perDispenseFiat = btcPrice !== null
     ? formatFiatEstimate(multiply(perDispenseBtc, btcPrice), settings.fiat)
     : null;

@@ -1,29 +1,17 @@
 import type { ReactElement, ReactNode } from "react";
 import { memoForDisplay, normalizeQuantity } from "@/components/domain/tx/tx-action-info";
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import { formatAmount, formatFiatEstimate } from "@/core/format";
 import { type BigNumber, fromSatoshis, multiply, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewSend component.
- */
-interface ReviewSendProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
+type ReviewSendProps = TransactionReviewProps<Pick<ComposeParams, 'asset' | 'asset_dest_quant_list' | 'memo' | 'memo_is_hex' | 'memos' | 'more_outputs' | 'quantity' | 'quantity_normalized' | 'asset_info' | 'verified_asset_info'>>;
 
-/**
- * Displays a review screen for sending transactions.
- * Handles both single sends and MPMA (multi-send) transactions.
- */
 export function ReviewSend({
   apiResponse,
   onSign,
@@ -37,13 +25,9 @@ export function ReviewSend({
   const { btc: btcPrice } = useMarketPrices(settings.fiat);
   const { state: { decodedMessage } } = useComposer();
 
-  // Build custom fields based on transaction type
   let customFields: Array<{ label: string; value: string | number | ReactNode; rightElement?: ReactNode }> = [];
 
   if (isMPMA) {
-    // MPMA transaction - show expandable list of sends
-    // Use normalized quantities from verbose API response
-    const assetDestQuantListNormalized = result.params.asset_dest_quant_list_normalized || [];
     const assetDestQuantList = result.params.asset_dest_quant_list || [];
 
     // Prefer the recipients the transaction actually encodes over the API's echoed list, so a
@@ -59,9 +43,16 @@ export function ReviewSend({
           quantity: normalizeQuantity(send.quantity, send.asset, result.params, 'asset'),
           memo: result.params.memos?.[index],
         }))
-      : assetDestQuantListNormalized.map((item: any[], index: number) => {
+      : assetDestQuantList.map((item, index) => {
           const [asset, destination, quantity] = item;
-          return { asset, destination, quantity, memo: result.params.memos?.[index] };
+          return {
+            asset,
+            destination,
+            quantity: normalizeQuantity(quantity, asset, {
+              asset_info: result.params.verified_asset_info?.[asset] ?? result.params.asset_info,
+            }, 'asset'),
+            memo: result.params.memos?.[index],
+          };
         });
 
     // Total across the recipients shown above, so the total and the list cannot disagree.
@@ -71,13 +62,12 @@ export function ReviewSend({
     );
     const asset = transactions[0]?.asset ?? assetDestQuantList[0]?.[0] ?? '';
 
-    // Show expanded list as custom field
     customFields.push({
       label: t('send_review_sends', [String(transactions.length)]),
       value: "",
       rightElement: (
         <div className="space-y-2 max-h-48 overflow-y-auto mt-2 w-full">
-          {transactions.map((tx: any, idx: number) => (
+          {transactions.map((tx, idx) => (
             <div key={idx} className="text-xs border-b border-gray-200 pb-1">
               <div className="font-medium">
                 {tx.quantity} {tx.asset}
@@ -100,7 +90,6 @@ export function ReviewSend({
       )
     });
 
-    // Total amount
     customFields.push({
       label: t('common_total'),
       value: `${totalQuantity} ${asset}`,
@@ -118,7 +107,7 @@ export function ReviewSend({
     const asset = decoded?.asset ?? result.params.asset;
     const isBtc = asset === 'BTC';
     const quantityDisplay = decoded?.quantity !== undefined
-      ? normalizeQuantity(decoded.quantity, asset, result.params, 'asset')
+      ? normalizeQuantity(decoded.quantity, asset ?? '', result.params, 'asset')
       : (result.params.quantity_normalized ?? result.params.quantity);
     // Classified from the signed bytes the same way the dapp approval screen does, so binary bytes
     // show as hex rather than as whatever characters they happen to decode to. Without decoded

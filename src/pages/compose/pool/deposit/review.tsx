@@ -1,17 +1,12 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { fromSatoshis } from "@/core/numeric";
 
 import { t } from '@/i18n';
 
-interface ReviewPoolDepositProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
+type ReviewPoolDepositProps = TransactionReviewProps<Pick<ComposeParams, 'asset_a' | 'asset_b' | 'lp_asset' | 'min_lp_quantity' | 'min_lp_quantity_normalized' | 'quantity_a' | 'quantity_a_normalized' | 'quantity_b' | 'quantity_b_normalized'>>;
 
 export function ReviewPoolDeposit({
   apiResponse,
@@ -38,7 +33,7 @@ export function ReviewPoolDeposit({
   const customFields = [
     {
       label: t('common_pool'),
-      value: getPoolDisplayPair(assetA, assetB),
+      value: assetA && assetB ? getPoolDisplayPair(assetA, assetB) : t('common_not_available'),
     },
     {
       label: t('common_deposit'),

@@ -1,18 +1,13 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { fromSatoshis } from "@/core/numeric";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 import { t } from '@/i18n';
 
-interface ReviewPoolWithdrawProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
+type ReviewPoolWithdrawProps = TransactionReviewProps<Pick<ComposeParams, 'asset_a' | 'asset_b' | 'lp_asset' | 'min_quantity_a' | 'min_quantity_a_normalized' | 'min_quantity_b' | 'min_quantity_b_normalized' | 'quantity' | 'quantity_normalized'>>;
 
 export function ReviewPoolWithdraw({
   apiResponse,

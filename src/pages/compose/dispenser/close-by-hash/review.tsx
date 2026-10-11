@@ -4,9 +4,6 @@ import type { ApiResponse } from "@/core/counterparty/compose";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewDispenserCloseByHash component.
- */
 interface ReviewDispenserCloseByHashProps {
   apiResponse: ApiResponse;
   onSign: () => void;

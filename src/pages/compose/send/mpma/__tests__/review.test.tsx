@@ -37,10 +37,8 @@ describe('ReviewMPMA', () => {
     vi.clearAllMocks();
   });
 
-  // The verbose API echoes asset_dest_quant_list_normalized: the same normalized
-  // amounts encoded into the signed transaction.
-  const mockApiResponse = {
-    result: {
+    const mockApiResponse: Parameters<typeof ReviewMPMA>[0]['apiResponse'] = {
+    result: { btc_fee: 1000,
       params: {
         asset_dest_quant_list: [
           ['XCP', 'bc1qaddress1', 100000000],
@@ -138,11 +136,11 @@ describe('ReviewMPMA', () => {
   });
 
   it('handles missing memos', () => {
-    const responseWithoutMemos = {
-      result: {
+    const responseWithoutMemos: Parameters<typeof ReviewMPMA>[0]['apiResponse'] = {
+      result: { btc_fee: 1000,
         params: {
-          asset_dest_quant_list_normalized: [
-            ['XCP', 'bc1qaddress1', '1.00000000'],
+          asset_dest_quant_list: [
+            ['XCP', 'bc1qaddress1', '100000000'],
           ]
         }
       }
@@ -158,6 +156,7 @@ describe('ReviewMPMA', () => {
       />
     );
 
+    expect(screen.getByText(/Send #1:/)).toBeInTheDocument();
     expect(screen.queryByText(/Memo:/)).not.toBeInTheDocument();
   });
 
@@ -209,9 +208,9 @@ describe('ReviewMPMA', () => {
 
   it('handles empty asset list', () => {
     const emptyResponse = {
-      result: {
+      result: { btc_fee: 1000,
         params: {
-          asset_dest_quant_list_normalized: []
+          asset_dest_quant_list: []
         }
       }
     };

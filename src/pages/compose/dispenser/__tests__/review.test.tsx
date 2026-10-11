@@ -46,7 +46,7 @@ describe('ReviewDispenser', () => {
   const renderWith = (params: Record<string, unknown>, assetProp: string) =>
     render(
       <ReviewDispenser
-        apiResponse={{ result: { params } }}
+        apiResponse={{ result: { btc_fee: 1000, params } }}
         onSign={vi.fn()}
         onBack={vi.fn()}
         error={null}

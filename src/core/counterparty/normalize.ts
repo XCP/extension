@@ -336,7 +336,7 @@ export async function normalizeFormData(
  */
 export function verifiedReviewParams(
   composeType: string,
-  normalizedData: Record<string, any>,
+  normalizedData: Record<string, unknown>,
   assetInfoCache: AssetInfoCache = new Map(),
 ): Record<string, unknown> {
   const params: Record<string, unknown> = { ...normalizedData };
@@ -349,7 +349,7 @@ export function verifiedReviewParams(
   for (const field of config.quantityFields) {
     if (!(field in normalizedData)) continue;
     const assetField = config.assetFields[field]!;
-    const asset = normalizedData[assetField] as string;
+    const asset = String(normalizedData[assetField]);
     const details = assetInfoCache.get(asset);
     const divisible = asset === 'BTC' || asset === 'XCP'
       ? true
@@ -357,12 +357,16 @@ export function verifiedReviewParams(
         ? normalizedData.divisible
         : details?.divisible;
     if (typeof divisible !== 'boolean') throw new TransactionInputError('asset_divisibility_unknown', `Asset "${asset}" divisibility is unknown`);
-    params[`${field}_normalized`] = rawToInput(normalizedData[field], divisible ? 8 : 0);
+    const quantity = normalizedData[field];
+    if (typeof quantity !== 'string' && typeof quantity !== 'number' && typeof quantity !== 'bigint') {
+      throw new Error(`Invalid quantity for ${field}.`);
+    }
+    params[`${field}_normalized`] = rawToInput(quantity, divisible ? 8 : 0);
     params[`${assetField}_info`] = { ...details, divisible };
   }
   if (composeType === 'mpma' || (composeType === 'send' && normalizedData.destinations)) {
     const destinations = String(normalizedData.destinations).split(',');
-    const assets = composeType === 'mpma' ? String(normalizedData.assets).split(',') : destinations.map(() => normalizedData.asset);
+    const assets = composeType === 'mpma' ? String(normalizedData.assets).split(',') : destinations.map(() => String(normalizedData.asset));
     const quantities = composeType === 'mpma' ? String(normalizedData.quantities).split(',') : destinations.map(() => normalizedData.quantity);
     if (assets.length !== destinations.length || quantities.length !== destinations.length) throw new Error('Mismatched MPMA review data.');
     params.asset_dest_quant_list = assets.map((asset, index) => [asset, destinations[index], quantities[index]]);

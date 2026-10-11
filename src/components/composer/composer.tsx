@@ -13,9 +13,6 @@ import type { ApiResponse } from "@/core/counterparty/compose";
 import { HUNTS_WHILE_SIGNING } from "@/core/zeld/eligibility";
 
 import { t } from '@/i18n';
-/**
- * Compose operation types for internal wallet use
- */
 export type ComposeType =
   | 'send' | 'mpma' | 'order' | 'dispenser' | 'dispense'
   | 'fairminter' | 'fairmint' | 'dividend' | 'sweep' | 'btcpay'
@@ -24,20 +21,14 @@ export type ComposeType =
   | 'lock-supply' | 'reset-supply' | 'transfer' | 'update-description'
   | 'lock-description' | 'issuance' | 'pooldeposit' | 'poolwithdraw';
 
-/**
- * Props for the Composer component.
- * @template T - Type of form data
- */
 interface ComposerProps<T> {
-  // Compose configuration
+
   composeType: ComposeType;
   composeApiMethod: (data: T) => Promise<ApiResponse>;
 
-  // UI configuration
   initialTitle: string;
   initialFormData?: T;
 
-  // Components
   FormComponent?: (props: {
     formAction: (formData: FormData) => void | Promise<void>;
     initialFormData: T | null;
@@ -49,22 +40,15 @@ interface ComposerProps<T> {
   renderReview?: ComposerProps<T>['ReviewComponent'];
   ReviewComponent?: (props: TransactionReviewProps & { apiResponse: ApiResponse }) => ReactElement;
 
-  // Optional callbacks
   headerCallbacks?: {
     onBack?: () => void;
     onToggleHelp?: () => void;
   };
 }
 
-/**
- * Internal props for ComposerInner
- */
 interface ComposerInnerProps<T> extends Omit<ComposerProps<T>, "composeApiMethod" | "composeType"> {
 }
 
-/**
- * Inner composer component that uses the context
- */
 function ComposerInner<T>({
   initialTitle,
   initialFormData,
@@ -87,7 +71,6 @@ function ComposerInner<T>({
     acceptZeldHunt,
   } = useComposer<T>();
 
-  // Header configuration based on current step
   const headerConfig = useMemo(() => {
     const handleCancel = () => {
       reset();
@@ -100,7 +83,6 @@ function ComposerInner<T>({
       void navigate("/index");
     };
 
-    // Loading states
     if (state.isComposing || state.isSigning) {
       return {
         useLogoTitle: true,
@@ -112,7 +94,6 @@ function ComposerInner<T>({
       };
     }
 
-    // Review step
     if (state.step === "review" && state.apiResponse) {
       return {
         title: initialTitle,
@@ -125,7 +106,6 @@ function ComposerInner<T>({
       };
     }
 
-    // Success step
     if (state.step === "success" && state.apiResponse) {
       return {
         useLogoTitle: true,
@@ -138,7 +118,6 @@ function ComposerInner<T>({
       };
     }
 
-    // Form step (default)
     return {
       title: initialTitle,
       onBack: headerCallbacks?.onBack || onBackDefault,
@@ -162,20 +141,16 @@ function ComposerInner<T>({
     navigate,
   ]);
 
-  // Set header props
   useEffect(() => {
     setHeaderProps(headerConfig);
     return () => setHeaderProps(null);
   }, [headerConfig, setHeaderProps]);
 
-  // Handle form submission - wrapped to prevent unmount
   const handleFormAction = useCallback((formData: FormData) => {
-    // Call synchronously to prevent unmount
+
     return composeTransaction(formData);
   }, [composeTransaction]);
 
-  // Render based on current step
-  // Show spinner during async operations (composing or signing)
   if (state.isComposing || state.isSigning) {
     const hunt = state.zeldHuntProgress;
     const metadata = state.apiResponse?.result.zeld_hunt;
@@ -253,9 +228,6 @@ function ComposerInner<T>({
   );
 }
 
-/**
- * Main composer component that provides the context
- */
 export function Composer<T>({
   composeType,
   composeApiMethod,

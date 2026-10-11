@@ -1,30 +1,21 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
 import { useSettings } from "@/contexts/settings-context";
 import { fetchAllAddressDispensers, fetchMempoolDispenses } from "@/core/counterparty/api";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import {
   calculateDispensePayouts,
   type DispensePayout,
   describePayout,
 } from '@/core/counterparty/dispenseOutcome';
 import { formatAmount, formatFiatEstimate } from "@/core/format";
-import { divide, fromSatoshis, roundDown, toBigNumber } from "@/core/numeric";
+import { divide, fromSatoshis, roundDown, toBigNumber, toFiniteNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewDispense component.
- */
-interface ReviewDispenseProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
-
+type ReviewDispenseProps = TransactionReviewProps<Pick<ComposeParams, 'dispenser' | 'quantity'>>;
 
 interface MempoolDispense {
   source: string;
@@ -52,11 +43,6 @@ interface VerboseDispenser {
   };
 }
 
-/**
- * Displays a review screen for dispense transactions.
- * @param {ReviewDispenseProps} props - Component props
- * @returns {ReactElement} Review UI for dispense transaction
- */
 export function ReviewDispense({
   apiResponse,
   onSign,
@@ -72,7 +58,7 @@ export function ReviewDispense({
   const [mempoolDispenses, setMempoolDispenses] = useState<MempoolDispense[]>([]);
   
   const dispenserAddress = result?.params?.dispenser;
-  const btcQuantity = result?.params?.quantity || 0;
+  const btcQuantity = toFiniteNumber(result?.params?.quantity) ?? 0;
   const [allTriggeredDispensers, setAllTriggeredDispensers] = useState<VerboseDispenser[]>([]);
   const [payouts, setPayouts] = useState<DispensePayout[]>([]);
   

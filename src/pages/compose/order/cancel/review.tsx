@@ -1,25 +1,12 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import { readCancelledOrder } from "@/core/counterparty/protocolContext";
 import { useReviewLookup } from "@/hooks/useReviewLookup";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewCancel component.
- */
-interface ReviewCancelProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
+type ReviewCancelProps = TransactionReviewProps<Pick<ComposeParams, 'offer_hash'>>;
 
-/**
- * Displays a review screen for order cancellation transactions.
- * @param {ReviewCancelProps} props - Component props
- * @returns {ReactElement} Review UI for order cancellation transaction
- */
 export function ReviewCancel({ 
   apiResponse, 
   onSign, 

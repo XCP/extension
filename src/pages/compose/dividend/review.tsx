@@ -1,23 +1,10 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
+import type { ComposeParams } from "@/core/counterparty/compose";
 
 import { t } from '@/i18n';
 
-/**
- * Props for the ReviewDividend component.
- */
-interface ReviewDividendProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
+type ReviewDividendProps = TransactionReviewProps<Pick<ComposeParams, 'asset' | 'dividend_asset' | 'quantity_per_unit_normalized'>>;
 
-/**
- * Displays a review screen for dividend transactions.
- * @param {ReviewDividendProps} props - Component props
- * @returns {ReactElement} Review UI for dividend transaction
- */
 export function ReviewDividend({ 
   apiResponse, 
   onSign, 

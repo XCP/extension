@@ -1,16 +1,11 @@
 import type { ReactElement } from "react";
 import { normalizeQuantity } from "@/components/domain/tx/tx-action-info";
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
+import type { ComposeParams } from "@/core/counterparty/compose";
 
 import { t } from '@/i18n';
 
-interface ReviewMPMAProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
+type ReviewMPMAProps = TransactionReviewProps<Pick<ComposeParams, 'asset_dest_quant_list' | 'memos' | 'verified_asset_info'>>;
 
 export function ReviewMPMA({
   apiResponse,
@@ -21,16 +16,9 @@ export function ReviewMPMA({
 }: ReviewMPMAProps): ReactElement {
   const { result } = apiResponse;
 
-  // `asset_dest_quant_list_normalized` does not exist: compose returns only
-  // `asset_dest_quant_list`, in base units, and inject_normalized_quantities adds no entry for it.
-  // Reading the absent field meant this screen rendered "No sends" for every multi-recipient send
-  // — the review step showed neither recipients nor amounts. Its tests passed because the fixture
-  // invented the field.
-  //
-  // ComposerContext replaces this list with checked intent and supplies independently read
-  // divisibility for each asset. One echoed asset_info cannot describe a mixed-asset send.
+  // Compose returns base units; mixed-asset sends need independently read divisibility per asset.
   const transactions = (result.params.asset_dest_quant_list || []).map(
-    (item: [string, string, string | number], index: number) => {
+    (item, index) => {
       const [asset, destination, quantity] = item;
       return {
         asset,
@@ -41,7 +29,6 @@ export function ReviewMPMA({
     }
   );
 
-  // Build custom fields showing detailed breakdown
   const customFields: Array<{ label: string; value: string | number; rightElement?: React.ReactNode }> = [
     {
       label: t('common_send'),

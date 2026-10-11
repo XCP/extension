@@ -1,21 +1,10 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
+import { ReviewScreen, type TransactionReviewProps } from "@/components/screens/review-screen";
+import type { ComposeParams } from "@/core/counterparty/compose";
 import { t } from '@/i18n';
 import { spentUtxoAssetsText, useSpentUtxoAssets } from "@/pages/compose/utxo/spent-utxo-assets";
 
-/**
- * Props for the ReviewUtxoMove component.
- */
-interface ReviewUtxoMoveProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
+type ReviewUtxoMoveProps = TransactionReviewProps<Pick<ComposeParams, 'sourceUtxo'>> & { apiResponse: { result: { rawtransaction: unknown } } };
 
-/**
- * Displays a review screen for UTXO move transactions.
- */
 export function ReviewUtxoMove({
   apiResponse,
   onSign,
