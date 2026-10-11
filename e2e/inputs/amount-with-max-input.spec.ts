@@ -204,30 +204,31 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
   walletTest.describe('Error States', () => {
     walletTest('shows error for insufficient balance', async ({ page }) => {
-      // Fill destination first
-      await fillDestination(page);
+      // Exercise the compose error UI without depending on live UTXO or compose services.
+      await page.route('https://mempool.space/api/address/*/utxo', route => route.fulfill({ json: [] }));
+      await page.route('https://blockstream.info/api/address/*/utxo', route => route.fulfill({ json: [] }));
+      const message = 'Insufficient BTC balance';
+      let composeRequests = 0;
+      await page.route('**/v2/addresses/*/compose/send?**', route => {
+        composeRequests++;
+        return route.fulfill({ json: { error: message } });
+      });
+      await fillDestination(page, TEST_ADDRESSES.mainnet.p2wpkh);
 
       const input = getAmountInput(page);
-      // Try to send more than any test wallet would have
       await input.fill(TEST_AMOUNTS.veryLarge);
       await input.blur();
 
-      // Try to submit form
-      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
+      const submitBtn = getSendForm(page).getByRole('button', { name: 'Continue', exact: true });
+      await expect(submitBtn).toBeEnabled();
+      await submitBtn.click();
 
-      // Either button is disabled (pre-validation) or clicking shows error
-      const isEnabled = await submitBtn.isEnabled();
-      if (isEnabled) {
-        await submitBtn.click();
-
-        // Wait for validation error to appear
-        // Composer submission errors sit beside the form within its card.
-        const errorMessage = getSendForm(page).locator('..').locator('[role="alert"], .text-red-600, p.text-red-500, div.text-red-500');
-        await expect(errorMessage.first()).toBeVisible({ timeout: 5000 });
-      } else {
-        // Button disabled due to validation - this is expected behavior
-        await expect(submitBtn).toBeDisabled();
-      }
+      // Submission errors sit beside the form within its card; a global API alert is not enough.
+      const errorMessage = getSendForm(page).locator('..').getByRole('alert');
+      await expect(errorMessage).toContainText(message);
+      expect(composeRequests).toBeGreaterThan(0);
+      await expect(input).toHaveValue(TEST_AMOUNTS.veryLarge);
+      await expect(submitBtn).toBeEnabled();
     });
 
   });
