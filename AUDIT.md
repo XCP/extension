@@ -12,6 +12,15 @@ Self-reported security assessment based on industry checklists.
 
 **Internal reviews** (most recent first; none of these is an independent audit):
 
+- **October 2026:** architecture and behavior review covering signing boundaries, stale async
+  results, unlock navigation, offer protections, partial commit/reveal outcomes, and form state
+  through transaction review. Fixes were checked with unit and browser regressions. Inscription
+  payloads were also compared with Counterparty Core 11.5.0 and exercised against Core 11.5.0 /
+  Bitcoin Core 30 regtest through signing, mempool acceptance, mining, and ledger assertions.
+  Browser form checks and regtest protocol checks are separate; they are not a single browser-to-node
+  test. A production-package upgrade check from 0.14.4 to 0.15.0 preserves disposable wallets,
+  addresses, settings, site connections, and a signed-offer record, and checks that restart requires
+  unlocking and expires pending approvals. This does not cover every historical vault or hardware device.
 - **September 2026:** hardening of background-owned signing decisions, explicit RPC permissions,
   serialized vault writes, session deadline consistency, and transaction integrity checks, as
   described in [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -330,6 +339,9 @@ Browser extensions cannot prevent OS-level screenshots. Users should be aware th
 ### Clipboard Auto-Clear
 
 Clipboard is automatically cleared 30 seconds after copying, and a pending clear fires immediately when navigating within the extension. However, if the extension window is closed before the timer fires, the clear cannot run and the data remains in clipboard until manually overwritten.
+
+Successful private-key import also attempts to clear the clipboard if it still contains the imported
+key. Clipboard access can be denied by the browser; neither operation erases OS clipboard history.
 
 ### Service Worker Session Persistence
 

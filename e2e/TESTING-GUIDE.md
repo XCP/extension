@@ -26,6 +26,23 @@ it) and fail in ways that look like flaky tests.
 Every page runs at the popup's size, a 350x600 viewport (`playwright.config.ts`). A screen that
 only works in a larger viewport is broken for users.
 
+### Production-package upgrade check
+
+For the 0.15.0 release, unpack the published 0.14.4 ZIP and the candidate ZIP into separate folders,
+then run:
+
+```powershell
+$env:RELEASE_UPGRADE_FROM = 'C:\path\to\unpacked-0.14.4'
+$env:RELEASE_UPGRADE_TO = 'C:\path\to\unpacked-0.15.0'
+npx playwright test e2e/tests/release-upgrade.spec.ts --retries=0
+```
+
+The test creates a disposable browser profile, imports public test keys, seeds an encrypted offer
+record that the old release must read, and replaces the extension at the same path. It checks vault
+preservation, re-unlock, and expiration of pending approvals after restart. External responses are
+mocked. It skips unless both paths are set; CI does not download old releases. This test launches its
+own Chromium context because the ordinary fixtures load only the current build.
+
 ### CI shard timing
 
 CI uses `node scripts/e2e.mjs run 1/6 --workers=1 --retries=1`. It asks Playwright for the
