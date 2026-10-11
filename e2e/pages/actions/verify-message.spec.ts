@@ -63,7 +63,7 @@ walletTest.describe('Verify Message', () => {
     await signMessage.signButton(page).click();
 
     const passwordModal = page.locator('text=Enter Password');
-    if (await passwordModal.isVisible({ timeout: 2000 })) {
+    if (await passwordModal.isVisible()) {
       await page.fill('input[type="password"]', TEST_PASSWORD);
       await page.click('button:has-text("Unlock")');
     }

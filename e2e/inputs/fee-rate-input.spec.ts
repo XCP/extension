@@ -35,7 +35,7 @@ walletTest.describe('FeeRateInput Component', () => {
     const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
     const count = await dropdownButton.count();
     if (count === 0) return false;
-    return await dropdownButton.isVisible({ timeout: 2000 });
+    return await dropdownButton.isVisible();
   }
 
   walletTest.describe('Rendering', () => {

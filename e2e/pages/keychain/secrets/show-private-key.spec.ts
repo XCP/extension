@@ -363,7 +363,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     await expect(revealButton).toBeVisible({ timeout: 5000 });
 
     const hasRedClass = await revealButton.evaluate((el) => {
-      return el.className.includes('red') || el.className.includes('bg-red');
+      return (el.getAttribute('class') ?? '').includes('red');
     });
     expect(hasRedClass).toBe(true);
   });

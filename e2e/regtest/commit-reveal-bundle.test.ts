@@ -251,7 +251,7 @@ describe.runIf(TAPROOT_NODE)('commit-and-reveal through the provider (Core 11.5)
     const afterMime = 15 + coreLeaf[14]!;
     const props = new TextEncoder().encode('site properties');
     const leaf = new Uint8Array([...coreLeaf.slice(0, afterMime), 0x01, 0x11, props.length, ...props, ...coreLeaf.slice(afterMime)]);
-    const tree = btc.p2tr(btc.TAPROOT_UNSPENDABLE_KEY, { script: leaf, leafVersion: 0xc0 }, undefined, true);
+    const tree = btc.p2tr(btc.taprootNumsKey(), { script: leaf, leafVersion: 0xc0 }, undefined, true);
 
     const [utxo] = await scanUnspents(key.address);
     const funding = BigInt(Math.round(utxo!.amount * 1e8));

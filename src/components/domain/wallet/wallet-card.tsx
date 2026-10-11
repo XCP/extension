@@ -1,4 +1,4 @@
-import { RadioGroup } from '@headlessui/react';
+import { Radio } from '@headlessui/react';
 import type { ReactElement } from 'react';
 import { displayAccountName } from '@/components/domain/account-name';
 import { WalletMenu } from '@/components/domain/wallet/wallet-menu';
@@ -64,7 +64,8 @@ export function WalletCard({
   };
 
   return (
-    <RadioGroup.Option
+    <Radio
+      as="div"
       value={wallet}
       disabled={disabled}
       onClick={handleClick}
@@ -97,6 +98,6 @@ export function WalletCard({
           </div>
         </div>
       )}
-    </RadioGroup.Option>
+    </Radio>
   );
 }

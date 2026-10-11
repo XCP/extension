@@ -10,7 +10,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import * as secp from '@noble/secp256k1';
 import { getPublicKey } from '@noble/secp256k1';
-import { base58check } from '@scure/base';
+import { createBase58check } from '@scure/base';
 import { describe, expect, it } from 'vitest';
 import { consolidateBareMultisigBatch } from '../consolidateBatch';
 import type { ConsolidationData, ConsolidationUTXO } from '../consolidationApi';
@@ -44,7 +44,7 @@ const historicalScript = bareMultisigScript(1, [compressedPubkey, counterpartyDa
 const currentScript = bareMultisigScript(1, [offCurveFakeKey(0x02), offCurveFakeKey(0x03), uncompressedPubkey]);
 
 const p2pkhScriptHex = (address: string): string =>
-  '76a914' + bytesToHex(base58check(sha256).decode(address).slice(1)) + '88ac';
+  '76a914' + bytesToHex(createBase58check(sha256).decode(address).slice(1)) + '88ac';
 
 function makeUtxo(script: Uint8Array, amount: number, seed: number): ConsolidationUTXO {
   const prevTxBytes = buildPrevTx([{ amount: BigInt(amount), script }], seed);

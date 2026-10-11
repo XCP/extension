@@ -356,15 +356,6 @@ export async function enableValidationBypass(page: Page): Promise<void> {
 }
 
 /**
- * Enable dry run mode - kept for backward compatibility but no longer needed.
- * E2E tests now stop at review page rather than testing signing/broadcast.
- * @deprecated No longer needed - tests stop at review page
- */
-export async function enableDryRun(_page: Page): Promise<void> {
-  // No-op - tests now stop at review page
-}
-
-/**
  * Navigate to a compose page
  */
 export async function goToCompose(page: Page, path: string): Promise<void> {

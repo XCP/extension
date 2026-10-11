@@ -5,7 +5,7 @@
  */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Address, OutScript, p2tr, TAPROOT_UNSPENDABLE_KEY, TaprootControlBlock, Transaction } from '@scure/btc-signer';
+import { Address, OutScript, p2tr, TaprootControlBlock, Transaction, taprootNumsKey } from '@scure/btc-signer';
 import { pubSchnorr } from '@scure/btc-signer/utils.js';
 import type { Compose115Result, Fixture115 } from '@/core/counterparty/__tests__/taproot115Fixtures';
 import { encodeCbor } from '@/core/counterparty/pack/cbor';
@@ -190,7 +190,7 @@ export function siteLaunch(bodyBytes: number, fill: number, options: { internalK
   pushOp(ops, outputKey);
   ops.push(0xac);
   const leaf = new Uint8Array(ops);
-  const tree = p2tr(options.internalKey ?? TAPROOT_UNSPENDABLE_KEY, { script: leaf, leafVersion: 0xc0 }, undefined, true);
+  const tree = p2tr(options.internalKey ?? taprootNumsKey(), { script: leaf, leafVersion: 0xc0 }, undefined, true);
 
   const parent = new Transaction(RAW);
   parent.addInput({ txid: new Uint8Array(32).fill(fill), index: 0 });

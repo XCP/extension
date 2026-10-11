@@ -4,7 +4,7 @@ import {
   _testStore, 
   checkReplayAttempt,
   clearReplayPreventionData,
-  generateIdempotencyKey,
+  generateIdempotencyKeyAsync,
   generateNonce,
   getTransactionStats,
   isTransactionBroadcasted,
@@ -21,6 +21,7 @@ describe('replayPrevention', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     clearReplayPreventionData();
   });
 
@@ -120,27 +121,28 @@ describe('replayPrevention', () => {
   });
 
   describe('idempotency key generation', () => {
-    it('should generate consistent keys for same inputs', () => {
+    it('should generate consistent keys for same inputs', async () => {
+      vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
       const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
 
-      const key1 = generateIdempotencyKey(origin, method, params);
-      const key2 = generateIdempotencyKey(origin, method, params);
+      const key1 = await generateIdempotencyKeyAsync(origin, method, params);
+      const key2 = await generateIdempotencyKeyAsync(origin, method, params);
 
       // Should be the same within the same second
       expect(key1).toBe(key2);
       expect(key1).toMatch(/^idem_[a-z0-9]+_\d+$/);
     });
 
-    it('should generate different keys for different inputs', () => {
+    it('should generate different keys for different inputs', async () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
       const params1 = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
       const params2 = [{ asset: 'XCP', quantity: asBaseUnits(200) }];
 
-      const key1 = generateIdempotencyKey(origin, method, params1);
-      const key2 = generateIdempotencyKey(origin, method, params2);
+      const key1 = await generateIdempotencyKeyAsync(origin, method, params1);
+      const key2 = await generateIdempotencyKeyAsync(origin, method, params2);
 
       expect(key1).not.toBe(key2);
     });
@@ -212,7 +214,7 @@ describe('replayPrevention', () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
       const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
-      const key = generateIdempotencyKey(origin, method, params);
+      const key = await generateIdempotencyKeyAsync(origin, method, params);
 
       // Record successful response
       const mockResponse = { txid: 'tx1' };

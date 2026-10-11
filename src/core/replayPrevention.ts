@@ -246,33 +246,6 @@ async function generateIdempotencyKeyAsync(origin: string, method: string, param
   return `idem_${hashHex}_${timestamp}`;
 }
 
-/**
- * Synchronous version for backward compatibility - uses simple hash
- * @deprecated Use generateIdempotencyKeyAsync when possible
- */
-function generateIdempotencyKeyInternal(origin: string, method: string, params: unknown[]): string {
-  // Safely stringify params - use fallback if circular refs or other issues
-  let paramsString: string;
-  try {
-    paramsString = JSON.stringify(params);
-  } catch {
-    paramsString = '[unserializable]';
-  }
-  const timestamp = Math.floor(Date.now() / 1000);
-  const input = `${origin}:${method}:${paramsString}:${timestamp}`;
-
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-
-  return `idem_${Math.abs(hash).toString(36)}_${timestamp}`;
-}
-
-// Export both versions
-export const generateIdempotencyKey = generateIdempotencyKeyInternal;
 export { generateIdempotencyKeyAsync };
 
 /**

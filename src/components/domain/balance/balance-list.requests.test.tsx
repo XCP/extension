@@ -63,6 +63,8 @@ describe('request budget for the home balance list', () => {
       const url = new URL(String(input));
       sent.push(`${url.hostname}${url.pathname}${url.search.includes('offset') ? `?offset=${url.searchParams.get('offset')}` : ''}`);
       const path = decodeURIComponent(url.pathname);
+      // Measure the normal successful address lookup, not the outage fallback.
+      if (url.hostname === 'api.zeldhash.com' && path.endsWith('/utxos')) return json([]);
       if (url.hostname === 'blockstream.info') {
         return json({ chain_stats: { funded_txo_sum: 100_000, spent_txo_sum: 0 }, mempool_stats: { funded_txo_sum: 0, spent_txo_sum: 0 } });
       }

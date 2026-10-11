@@ -5,7 +5,7 @@
  */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { SigHash, TAPROOT_UNSPENDABLE_KEY, TaprootControlBlock, type Transaction } from '@scure/btc-signer';
+import { SigHash, TaprootControlBlock, type Transaction, taprootNumsKey } from '@scure/btc-signer';
 import { tapLeafHash } from '@scure/btc-signer/payment.js';
 import { decodeAddressFromScript, sameAddress } from '@/core/bitcoin/address';
 import { DEFAULT_SEQUENCE } from '@/core/bitcoin/constants';
@@ -349,7 +349,7 @@ export function proveCommitAndReveal(
   // The commit output's key path: Core closes it with the envelope's own key, a site with the
   // unspendable point. Any other key could spend the output around the reveal.
   const internalKey = leaf.controlBlock.slice(1, 33);
-  if (!sameBytes(internalKey, rule.leafKey) && !sameBytes(internalKey, TAPROOT_UNSPENDABLE_KEY)
+  if (!sameBytes(internalKey, rule.leafKey) && !sameBytes(internalKey, taprootNumsKey())
     && !sourceControlsKey(sourceScript, internalKey)) {
     blockers.push('the commit output can be spent by a key that is neither yours nor unspendable');
   }

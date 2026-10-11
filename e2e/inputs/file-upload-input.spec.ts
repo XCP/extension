@@ -50,7 +50,7 @@ walletTest.describe('FileUploadInput Component', () => {
     const switchCount = await inscribeSwitch.count();
     if (switchCount === 0) return false;
 
-    const isVisible = await inscribeSwitch.isVisible({ timeout: 2000 });
+    const isVisible = await inscribeSwitch.isVisible();
     if (!isVisible) return false;
 
     const isChecked = await inscribeSwitch.getAttribute('aria-checked');

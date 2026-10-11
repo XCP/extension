@@ -8,7 +8,6 @@ import { expect, walletTest } from '@e2e/fixtures';
 import { compose } from '@e2e/selectors';
 import {
   clickBack,
-  enableDryRun,
   enableValidationBypass,
   waitForReview,
 } from '../../../compose-test-helpers';
@@ -62,7 +61,6 @@ walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
 walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
   walletTest.beforeEach(async ({ page }) => {
     await enableValidationBypass(page);
-    await enableDryRun(page);
   });
 
   walletTest('form → review: valid dispenser shows review page', async ({ page }) => {

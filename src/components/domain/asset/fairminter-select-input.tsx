@@ -212,13 +212,13 @@ export function FairminterSelectInput({
                   <ComboboxOption
                     key={fairminter.tx_hash}
                     value={fairminter.asset}
-                    className={({ active }) =>
+                    className={({ focus }) =>
                       `relative cursor-pointer select-none py-2.5 pl-10 pr-4 ${
-                        active ? "bg-blue-500 text-white" : "text-gray-900"
+                        focus ? "bg-blue-500 text-white" : "text-gray-900"
                       }`
                     }
                   >
-                    {({ selected, active }) => (
+                    {({ selected, focus }) => (
                       <>
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                           <AssetIcon asset={fairminter.asset} />
@@ -230,7 +230,7 @@ export function FairminterSelectInput({
                             {fairminter.asset}
                           </span>
                           <span
-                            className={`text-xs ${active ? "text-blue-100" : "text-gray-500"}`}
+                            className={`text-xs ${focus ? "text-blue-100" : "text-gray-500"}`}
                           >
                             {/* Cost of a whole lot, not of one token. The per-token figure read
                                 as "the price of a mint" while being a fraction of it. */}
@@ -240,7 +240,7 @@ export function FairminterSelectInput({
                         {selected && (
                           <span
                             className={`absolute inset-y-0 right-0 flex items-center pr-3 ${
-                              active ? "text-white" : "text-blue-500"
+                              focus ? "text-white" : "text-blue-500"
                             }`}
                           >
                             <FaCheck className="size-4" aria-hidden="true" />

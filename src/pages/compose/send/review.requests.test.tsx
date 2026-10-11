@@ -33,6 +33,8 @@ function stubNetwork() {
     const url = new URL(String(input));
     sent.push(`${url.hostname}${url.pathname}`);
     const path = url.pathname;
+    // Measure the normal successful address lookup, not the outage fallback.
+    if (url.hostname === 'api.zeldhash.com' && path.endsWith('/utxos')) return json([]);
     if (url.hostname === 'mempool.space' && path.endsWith('/utxo')) {
       return json(Array.from({ length: UTXO_COUNT }, (_, i) => ({
         txid: i === 0 ? mockInputTxid : (i + 1).toString(16).padStart(64, '0'),
