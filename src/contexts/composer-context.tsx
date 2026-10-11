@@ -69,7 +69,7 @@ import {
   verifyUnsignedReveal,
 } from "@/core/counterparty/inscriptionEnvelope";
 import { type MpmaTableFormatResolution, mpmaNearsActivation, resolveMpmaTableFormat } from "@/core/counterparty/mpmaTableFormat";
-import { normalizeFormData, verifiedReviewParams } from "@/core/counterparty/normalize";
+import { type NormalizedFormData, normalizeFormData, verifiedReviewParams } from "@/core/counterparty/normalize";
 import {
   checkOutputPolicy,
   type IntendedDestination,
@@ -290,7 +290,7 @@ export function ComposerProvider<T>({
       // Normalization validates drafts and fee rates before any request. A
       // broadcast has no scaled quantities, but its fee still uses this gate.
       const { normalizedData, assetInfoCache } = await normalizeFormData(formData, composeType);
-      const dataForApi: Record<string, any> = { ...normalizedData, sourceAddress: activeAddress.address };
+      const dataForApi: NormalizedFormData & { sourceAddress: string } = { ...normalizedData, sourceAddress: activeAddress.address };
 
       // Check if aborted before API call
       if (signal.aborted) return;
@@ -331,7 +331,7 @@ export function ComposerProvider<T>({
       // compose function chose itself (an attach's output after the change). Recorded by the
       // compose function when it built the request, never read from the response, so the message
       // below is still held to exactly what this wallet asked for.
-      const requestedData: Record<string, any> = { ...dataForApi, ...composerChosenMessageFields(response) };
+      const requestedData: Record<string, unknown> = { ...dataForApi, ...composerChosenMessageFields(response) };
 
       // Check if aborted after API call
       if (signal.aborted) return;

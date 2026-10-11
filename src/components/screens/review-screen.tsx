@@ -5,40 +5,26 @@ import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
+import type { ComposeParams, ComposeResult, SignedTxEstimatedSize } from "@/core/counterparty/compose";
 import { formatAddress, formatAmount, formatFiatEstimate } from "@/core/format";
 import { add, formatFeeRate, fromSatoshis } from "@/core/numeric";
-import type { ZeldHuntMetadata, ZeldProtectionMetadata, ZeldSendMetadata } from "@/core/zeld/types";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 import { t } from '@/i18n';
 
 /**
- * Transaction result from API response
+ * The shared screen only needs presentation facts, not signing material or operation-specific
+ * params. Derive their types from the compose contract so fee/reveal/ZELD fields cannot drift.
+ * A complete compose response is assignable here and remains intact in the raw JSON disclosure.
  */
-interface TransactionResult {
-  params: {
-    source?: string;
-    destination?: string;
-    address?: string;
-    dispenser?: string;
-    [key: string]: any;
-  };
-  name?: string;
-  btc_fee: number;
-  xcp_fee?: number;
-  zeld_hunt?: ZeldHuntMetadata;
-  zeld_protection?: ZeldProtectionMetadata;
-  zeld_send?: ZeldSendMetadata;
-  [key: string]: any;
-}
-
-/**
- * API response structure for transaction composition
- */
-interface ApiResponse {
-  result: TransactionResult;
-  [key: string]: any;
-}
+type ReviewTransactionResult = Pick<ComposeResult,
+  'btc_fee' | 'xcp_fee' | 'reveal_fee' | 'reveal_rawtransaction'
+  | 'zeld_hunt' | 'zeld_protection' | 'zeld_send'
+> & {
+  name?: ComposeResult['name'];
+  params: Pick<ComposeParams, 'source' | 'destination' | 'address' | 'dispenser'>;
+  signed_tx_estimated_size?: Pick<SignedTxEstimatedSize, 'adjusted_vsize'>;
+};
 
 /**
  * Custom field for displaying transaction details
@@ -54,7 +40,7 @@ interface CustomField {
  */
 interface ReviewScreenProps {
   /** API response containing transaction details */
-  apiResponse: ApiResponse;
+  apiResponse: { result: ReviewTransactionResult };
   /** Callback when user clicks sign button */
   onSign: () => void;
   /** Callback when user clicks back button */
