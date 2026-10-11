@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { fetchAssetDetailsAndBalance } from "@/core/balances/assetBalance";
+import { BTC_ASSET_INFO } from "@/core/bitcoin/assetInfo";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { AssetInfo } from "@/core/counterparty/api";
 import { asDisplayUnits, fromSatoshis } from '@/core/numeric';
-import { BTC_ASSET_INFO, fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
 
 interface BalanceState {
   isLoading: boolean;

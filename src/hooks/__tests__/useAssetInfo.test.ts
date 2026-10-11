@@ -1,11 +1,11 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fetchAssetDetails } from '@/core/counterparty/api';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from '../useAssetInfo';
-import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
 
 // Mock the blockchain utilities
-vi.mock('../utils/fetchAssetData');
+vi.mock('@/core/counterparty/api');
 
 // Mock the wallet context
 vi.mock('@/contexts/wallet-context', () => ({
@@ -56,15 +56,11 @@ describe('useAssetInfo', () => {
     expect(result.current.error).toBeNull();
 
     // Should not make API call for BTC
-    expect(fetchAssetDetailsAndBalance).not.toHaveBeenCalled();
+    expect(fetchAssetDetails).not.toHaveBeenCalled();
   });
 
   it('should fetch Counterparty asset info successfully', async () => {
-    vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue({
-      availableBalance: asDisplayUnits('1000.50000000'),
-      isDivisible: true,
-      assetInfo: mockXCPAssetInfo
-    });
+    vi.mocked(fetchAssetDetails).mockResolvedValue(mockXCPAssetInfo);
 
     const { result } = renderHook(() => useAssetInfo('XCP'));
 
@@ -75,14 +71,14 @@ describe('useAssetInfo', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(fetchAssetDetailsAndBalance).toHaveBeenCalledWith('XCP', 'bc1qtest123');
+    expect(fetchAssetDetails).toHaveBeenCalledWith('XCP');
     expect(result.current.data).toEqual(mockXCPAssetInfo);
     expect(result.current.error).toBeNull();
   });
 
   it('should handle fetch error gracefully', async () => {
     const error = new Error('Asset not found');
-    vi.mocked(fetchAssetDetailsAndBalance).mockRejectedValue(error);
+    vi.mocked(fetchAssetDetails).mockRejectedValue(error);
 
     const { result } = renderHook(() => useAssetInfo('INVALID'));
 
@@ -102,7 +98,7 @@ describe('useAssetInfo', () => {
     expect(result.current.isLoading).toBe(false);
     expect(result.current.data).toBeNull();
     expect(result.current.error).toBeNull();
-    expect(fetchAssetDetailsAndBalance).not.toHaveBeenCalled();
+    expect(fetchAssetDetails).not.toHaveBeenCalled();
   });
 
   it('should handle whitespace-only asset name', () => {
@@ -111,30 +107,27 @@ describe('useAssetInfo', () => {
     expect(result.current.isLoading).toBe(false);
     expect(result.current.data).toBeNull();
     expect(result.current.error).toBeNull();
-    expect(fetchAssetDetailsAndBalance).not.toHaveBeenCalled();
+    expect(fetchAssetDetails).not.toHaveBeenCalled();
   });
 
-  it('should handle missing active address', () => {
-    // This test would require dynamic mocking which is complex
-    // The default mock provides an activeAddress, so we'll test with that
-    const { result } = renderHook(() => useAssetInfo('XCP'));
-
-    // With an address, it should start loading (not test missing address behavior here)
-    expect(result.current.isLoading).toBe(true);
+  it('reports an asset-not-found error when the API returns no metadata', async () => {
+    vi.mocked(fetchAssetDetails).mockResolvedValue(null);
+    const { result } = renderHook(() => useAssetInfo('UNKNOWN'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.error?.message).toBe('Asset not found: UNKNOWN');
     expect(result.current.data).toBeNull();
-    expect(result.current.error).toBeNull();
   });
 
   it('should refetch when asset changes', async () => {
     const asset1Info = { ...mockXCPAssetInfo, asset: 'ASSET1' };
     const asset2Info = { ...mockXCPAssetInfo, asset: 'ASSET2' };
 
-    vi.mocked(fetchAssetDetailsAndBalance).mockImplementation(async (asset: string) => {
+    vi.mocked(fetchAssetDetails).mockImplementation(async (asset: string) => {
       if (asset === 'ASSET1') {
-        return { availableBalance: asDisplayUnits('100'), isDivisible: true, assetInfo: asset1Info };
+        return asset1Info;
       }
       if (asset === 'ASSET2') {
-        return { availableBalance: asDisplayUnits('200'), isDivisible: true, assetInfo: asset2Info };
+        return asset2Info;
       }
       throw new Error(`Unexpected asset: ${asset}`);
     });
@@ -159,13 +152,13 @@ describe('useAssetInfo', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(fetchAssetDetailsAndBalance).toHaveBeenCalledWith('ASSET2', 'bc1qtest123');
+    expect(fetchAssetDetails).toHaveBeenCalledWith('ASSET2');
   });
 
 
 
   it('should handle string errors gracefully', async () => {
-    vi.mocked(fetchAssetDetailsAndBalance).mockRejectedValue('String error message');
+    vi.mocked(fetchAssetDetails).mockRejectedValue('String error message');
 
     const { result } = renderHook(() => useAssetInfo('XCP'));
 
@@ -184,11 +177,7 @@ describe('useAssetInfo', () => {
       asset_longname: 'VERY.LONG.ASSET.NAME'
     };
 
-    vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue({
-      availableBalance: asDisplayUnits('100.00000000'),
-      isDivisible: true,
-      assetInfo: longnameAssetInfo
-    });
+    vi.mocked(fetchAssetDetails).mockResolvedValue(longnameAssetInfo);
 
     const { result } = renderHook(() => useAssetInfo('A95428956661682177'));
 
@@ -206,11 +195,7 @@ describe('useAssetInfo', () => {
       divisible: false
     };
 
-    vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue({
-      availableBalance: asDisplayUnits('5'),
-      isDivisible: false,
-      assetInfo: indivisibleAssetInfo
-    });
+    vi.mocked(fetchAssetDetails).mockResolvedValue(indivisibleAssetInfo);
 
     const { result } = renderHook(() => useAssetInfo('RAREPEPE'));
 

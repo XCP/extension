@@ -7,6 +7,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { spendableBalance, tracksPendingLedgerDebits } from "@/core/balances/spendable";
+import { BTC_ASSET_INFO } from "@/core/bitcoin/assetInfo";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { emptyTokenBalance, fetchTokenBalance, fetchTokenBalancesPage } from "@/core/counterparty/api";
@@ -16,7 +17,6 @@ import { fetchZeldBalance, ZELD_WALLET_ASSET, zeldBaseUnitsToDisplay } from '@/c
 import { useInView } from "@/hooks/useInView";
 import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
-import { BTC_ASSET_INFO } from "@/hooks/utils/fetchAssetData";
 import { t } from '@/i18n';
 import { recordShowsZeld } from '@/services/zeldRecordClient';
 
