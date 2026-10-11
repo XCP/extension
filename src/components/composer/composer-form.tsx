@@ -57,7 +57,9 @@ export function ComposerForm({
   const { state, showHelpText, clearError, feeRate, setFeeRate } = useComposer<unknown>();
   const formRef = useRef<HTMLFormElement>(null);
   const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
-  const clipboardTarget = useRef<HTMLInputElement | null>(null);
+  // Every rejected paste requires correction of that field. A later rejected paste must not
+  // replace the earlier blocker and allow its last-valid value to be submitted accidentally.
+  const clipboardTargets = useRef(new Set<HTMLInputElement>());
   const [clipboardError, setClipboardError] = useState(false);
 
   // Determine if form is submitting
@@ -84,13 +86,12 @@ export function ComposerForm({
             if (!(event.target instanceof HTMLInputElement)) return;
             if (!/[\r\n]/.test(event.clipboardData.getData('text/plain'))) return;
             event.preventDefault();
-            clipboardTarget.current = event.target;
+            clipboardTargets.current.add(event.target);
             setClipboardError(true);
           }}
           onChangeCapture={(event) => {
-            if ((event.target as EventTarget) === clipboardTarget.current) {
-              clipboardTarget.current = null;
-              setClipboardError(false);
+            if (event.target instanceof HTMLInputElement && clipboardTargets.current.delete(event.target)) {
+              setClipboardError(clipboardTargets.current.size > 0);
             }
           }}
           onSubmit={(e) => {

@@ -80,6 +80,25 @@ describe('complete draft to native compose intent', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(submitted).toHaveBeenCalledWith('600000000'));
   });
+  it.each(['amount', 'memo'])('keeps both rejected pastes blocked when %s is corrected first', async first => {
+    const submitted = vi.fn();
+    const user = userEvent.setup();
+    render(<AmountHarness memo submitted={submitted} />);
+    const amount = screen.getByRole('textbox', { name: /^Amount/ });
+    const memo = screen.getByRole('textbox', { name: 'Memo' });
+    await user.type(amount, '5');
+    await user.paste('1\n234');
+    await user.click(memo);
+    await user.paste('two\nlines');
+    const fields = first === 'amount' ? [amount, memo] : [memo, amount];
+    await user.type(fields[0]!, '6');
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    fireEvent.submit(amount.closest('form')!);
+    expect(submitted).not.toHaveBeenCalled();
+    await user.type(fields[1]!, '6');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(submitted).toHaveBeenCalledWith('5600000000'));
+  });
   it.each(['-5', '1e5', '1.2.3', '0,5'])('price field also preserves invalid %s', async draft => {
     const submitted = vi.fn(); const user = userEvent.setup(); render(<AmountHarness price submitted={submitted} />);
     const input = screen.getByRole('textbox'); await user.type(input, draft); expect(input).toHaveValue(draft);
