@@ -42,8 +42,8 @@ import { bundleSpendsItsParent, packageParentOf, signAttachAndListingForDelivery
 import { defineProxyServer } from '@/platform/proxy/server';
 import { getConnectionService } from '@/services/connectionService';
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/services/provider/signDelivery';
 import { PROVIDER_SIGNING_SERVICE_NAME, PROVIDER_SIGNING_SERVICE_POLICY, type ProviderSigningReview, type ReviewBase } from '@/services/providerSigningServiceClient';
-import { assertSignDeliveryAuthorized, needsPairedAddressGrant } from '@/services/signDelivery';
 import { getWalletService } from '@/services/walletService';
 import type { CoinLock, OfferCoinCommitment } from '@/types/coinLocks';
 

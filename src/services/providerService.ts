@@ -55,8 +55,8 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { broadcastProviderTransaction } from '@/services/provider/broadcastTransaction';
 import { assertRequestAdmissible, expired, invalidParams } from '@/services/provider/requestIntake';
 import { runSignFlow } from '@/services/provider/signApproval';
+import { assertSignDeliveryAuthorized } from '@/services/provider/signDelivery';
 import { PROVIDER_SERVICE_NAME, PROVIDER_SERVICE_POLICY } from '@/services/providerServiceClient';
-import { assertSignDeliveryAuthorized } from '@/services/signDelivery';
 import { getWalletService, type WalletService } from '@/services/walletService';
 import type { PairedAddresses, Wallet } from '@/types/wallet';
 

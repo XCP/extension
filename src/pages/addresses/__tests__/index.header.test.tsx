@@ -27,7 +27,7 @@ vi.mock('@/contexts/wallet-context', () => ({
     keychainLocked: fixture.keychainLocked,
   }),
 }));
-vi.mock('@/components/ui/lists/address-list', () => ({ AddressList: () => null }));
+vi.mock('@/components/domain/address/address-list', () => ({ AddressList: () => null }));
 
 const address = (index: number) => ({
   address: `bc1qexample${index}`, name: `Address ${index + 1}`, path: `m/84'/0'/0'/0/${index}`, pubKey: '02'.padEnd(66, '0'),

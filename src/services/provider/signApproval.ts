@@ -28,7 +28,7 @@ import {
 import { createWriteLock } from '@/platform/storage/mutex';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { expired, limitExceeded } from '@/services/provider/requestIntake';
-import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/services/signDelivery';
+import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/services/provider/signDelivery';
 import { getUpdateService } from '@/services/updateService';
 
 /**

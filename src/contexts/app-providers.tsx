@@ -5,9 +5,9 @@ import { HeaderProvider, useHeader } from '@/contexts/header-context';
 import { SettingsProvider, useSettings } from '@/contexts/settings-context';
 import { useWallet, WalletProvider } from '@/contexts/wallet-context';
 import { getAutoLockTimeoutMs } from '@/core/settings';
-import { type ActivityReporter, createActivityReporter, useIdleTimer } from '@/hooks/useIdleTimer';
-
+import { useIdleTimer } from '@/hooks/useIdleTimer';
 import { t } from '@/i18n';
+import { type ActivityReporter, createActivityReporter } from '@/platform/activityReporter';
 
 /**
  * Props for the AppProviders component.

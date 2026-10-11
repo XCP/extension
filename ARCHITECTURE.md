@@ -59,7 +59,7 @@ background; UI code receives reviews and results, never key material.
 
 ### The two provider directories
 
-`services/provider` contains steps in a website request: intake checks and waiting for approval.
+`services/provider` contains steps in a website request: intake checks, waiting for approval, and final delivery authorization.
 `platform/provider` owns the durable approval/signing flows, persisted outcome recovery, rate
 limiter state, and recent-broadcast storage that those steps use. A provider handler coordinates
 these pieces; it should not implement another store or another signing lifecycle. Pure parsing
@@ -92,9 +92,8 @@ an API response or stored record trustworthy.
 - `components/ui` contains presentation primitives such as buttons, banners, spinners, and base
   menus. It should not choose wallet policy or load wallet data.
 - `components/domain` contains wallet-aware presentation: addresses, balances, assets, UTXOs,
-  transaction facts, and approval decisions. For example, the existing
-  `components/ui/menus/address-menu.tsx` is domain-specific despite its current location; new
-  address actions belong with `components/domain/address`.
+  transaction facts, and approval decisions. Address selection and its action menu live together
+  in `components/domain/address`; generic menu presentation stays in `components/ui/menus`.
 - `components/layout` owns the shared application frame; `components/router` owns route access
   and redirect behavior. Redirect decisions should have one owner rather than competing effects.
 - `components/screens` provides reusable whole-screen review/result presentation;
@@ -103,7 +102,9 @@ an API response or stored record trustworthy.
 
 A `use…` export should provide React behavior: state, context, subscriptions, effects, or a
 lifecycle-aware composition of other hooks. A pure calculation or API helper is an ordinary
-function in the owning domain module. Avoid a general `hooks/utils` bucket. Extract shared
+function in the owning domain or runtime module. For example, activity-report batching lives
+in `platform/activityReporter.ts`; the React idle timer stays in `hooks/useIdleTimer.ts`.
+Avoid a general `hooks/utils` bucket. Extract shared
 behavior when callers need the same contract, not just because two hooks look alike; loading,
 error, cancellation, and request-identity behavior are part of that contract.
 

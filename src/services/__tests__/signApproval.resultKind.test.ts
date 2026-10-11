@@ -21,7 +21,7 @@ vi.mock('@/platform/popup', () => ({ openExtensionPopup: mocks.open }));
 vi.mock('@/platform/provider/rateLimiter', () => ({
   signPopupRateLimiter: { isAllowed: () => true },
 }));
-vi.mock('@/services/signDelivery', () => ({
+vi.mock('@/services/provider/signDelivery', () => ({
   assertSignDeliveryAuthorized: async () => mocks.guard,
 }));
 vi.mock('@/services/updateService', () => ({ getUpdateService: () => ({
