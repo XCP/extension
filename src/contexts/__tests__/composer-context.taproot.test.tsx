@@ -312,7 +312,9 @@ describe('ComposerContext Taproot encoding (Core 11.5)', () => {
 
     await act(async () => { await result.current.signAndBroadcast(); });
     await waitFor(() => expect(result.current.state.step).toBe('success'));
-    const warning = result.current.state.verificationWarnings.at(-1) ?? '';
+    const warning = result.current.state.apiResponse?.broadcastWarning ?? '';
+    expect(result.current.state.apiResponse?.broadcast?.txid).toBe('commit');
+    expect(result.current.state.apiResponse?.revealBroadcast).toBeUndefined();
     expect(warning).toContain('min relay fee not met');
     const signedReveal = broadcastTransaction.mock.calls[1]![0] as string;
     expect(signedReveal).not.toBe(BROADCAST_P2WPKH.result.reveal_rawtransaction);

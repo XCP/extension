@@ -9244,5 +9244,9 @@
   "coins_assets_unknown": {
     "message": "Asset status unknown",
     "description": "Coin control: signing guards and asset lookup status."
+  },
+  "screens_success_screen_broadcast_incomplete": {
+    "message": "Broadcast Incomplete",
+    "description": "Broadcast result title when the commit was accepted but the reveal submission failed."
   }
 }

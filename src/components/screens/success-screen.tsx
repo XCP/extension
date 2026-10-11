@@ -1,25 +1,15 @@
 import type { ReactElement } from "react";
 import { FaCheck, FaCheckCircle, FaClipboard } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import type { ComposerBroadcastResult } from '@/contexts/composer-context-object';
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 import { t } from '@/i18n';
 
 /**
- * Broadcast response from API
- */
-interface BroadcastResponse {
-  txid?: string;
-  [key: string]: any;
-}
-
-/**
  * API response structure for transaction broadcast
  */
-interface ApiResponse {
-  broadcast?: BroadcastResponse;
-  [key: string]: any;
-}
+type ApiResponse = ComposerBroadcastResult;
 
 /**
  * Props for the SuccessScreen component
@@ -59,36 +49,39 @@ export function SuccessScreen({
   onReset,
   explorerUrlTemplate = DEFAULT_EXPLORER_URL
 }: SuccessScreenProps): ReactElement {
-  const { copy, isCopied } = useCopyToClipboard();
+  // Transaction IDs and signed public transactions are not secrets.
+  const { copy, isCopied } = useCopyToClipboard(undefined, 0);
 
   // Extract transaction ID safely
   const txid = apiResponse?.broadcast?.txid || "unknown";
   const explorerUrl = explorerUrlTemplate.replace("{txid}", txid);
+  const warning = apiResponse.broadcastWarning;
+  const revealTxid = apiResponse.revealBroadcast?.txid;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)]">
       {/* Success Card */}
-      <div className="p-6 bg-green-50 rounded-lg shadow-lg text-center max-w-md w-full">
+      <div className={`p-6 ${warning ? 'bg-amber-50' : 'bg-green-50'} rounded-lg shadow-lg text-center max-w-md w-full`}>
         {/* Success Icon */}
-        <FaCheckCircle
+        {!warning && <FaCheckCircle
           className="text-green-600 size-10 mx-auto"
           aria-hidden="true"
-        />
+        />}
 
         {/* Success Title */}
-        <h2 className="text-xl font-bold text-green-800 mt-3">
-          {t('screens_success_screen_transaction_successful')}
+        <h2 className={`text-xl font-bold ${warning ? 'text-amber-800' : 'text-green-800'} mt-3`}>
+          {warning ? t('screens_success_screen_broadcast_incomplete') : t('screens_success_screen_transaction_successful')}
         </h2>
 
         {/* Success Message */}
-        <p className="mt-1 text-sm text-green-700">
+        {warning ? <p role="alert" className="mt-3 text-sm text-amber-900 text-left break-all whitespace-pre-wrap select-text">{warning}</p> : <p className="mt-1 text-sm text-green-700">
           {t('screens_success_screen_your_transaction_was_broadcasted')}
-        </p>
+        </p>}
 
         {/* Transaction ID Display - Clickable to copy */}
         <div className="mt-4">
           <span className="block text-xs font-medium text-gray-600 mb-1">
-            {t('screens_success_screen_transaction_id')}
+            {warning || revealTxid ? t('psbts_approve_commit_transaction') : t('screens_success_screen_transaction_id')}
           </span>
           <button type="button"
             onClick={() => void copy(txid)}
@@ -119,6 +112,18 @@ export function SuccessScreen({
             </>
           )}
         </Button>
+        {revealTxid && <div className="mt-4">
+          <span className="block text-xs font-medium text-gray-600 mb-1">{t('psbts_approve_reveal_transaction')}</span>
+          <button type="button" onClick={() => void copy(revealTxid)}
+            aria-label={t('screens_success_screen_click_to_copy_transaction_id')}
+            className="block w-full text-left font-mono text-xs bg-white border border-gray-200 rounded-lg p-2 break-all select-all">
+            {revealTxid}
+          </button>
+          <a href={explorerUrlTemplate.replace('{txid}', revealTxid)} target="_blank" rel="noopener noreferrer"
+            className="text-xs text-blue-600 hover:underline">
+            {t('screens_success_screen_view_on_mempool_space')}
+          </a>
+        </div>}
       </div>
 
       {/* Mempool link - Footer outside the green box */}
