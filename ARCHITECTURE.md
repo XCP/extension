@@ -65,9 +65,10 @@ limiter state, and recent-broadcast storage that those steps use. A provider han
 these pieces; it should not implement another store or another signing lifecycle. Pure parsing
 and policy checks belong with their Bitcoin or Counterparty domain modules.
 
-Some existing phase code, especially `platform/provider/signPsbtPhase.ts`, mixes orchestration
-with transaction transformations. Split those responsibilities when refactoring it, while keeping
-permission, session, and final-delivery checks in their execution order.
+`platform/provider/signPsbtPhase.ts` coordinates ordered signing and returns a phase only when
+all required signatures are ready. Pure parent-transaction packaging, listing rebinding, and
+transaction checks live in `core/bitcoin/psbtBundleTransactions.ts`. Permission, session, and
+final-delivery checks stay with the signing service and retain their execution order.
 
 ### Types and constants
 
