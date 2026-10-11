@@ -118,10 +118,10 @@ export const viewAddress = {
 
 export const footer = {
   // Use aria-label attributes from footer.tsx for stable selectors
-  walletButton: (page: Page) => page.locator('button[aria-label="Wallet"]'),
-  marketButton: (page: Page) => page.locator('button[aria-label="Market"]'),
-  actionsButton: (page: Page) => page.locator('button[aria-label="Actions"]'),
-  settingsButton: (page: Page) => page.locator('button[aria-label="Settings"]'),
+  walletLink: (page: Page) => page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Wallet', exact: true }),
+  marketLink: (page: Page) => page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Market', exact: true }),
+  actionsLink: (page: Page) => page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Actions', exact: true }),
+  settingsLink: (page: Page) => page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Settings', exact: true }),
 };
 
 // ============================================================================
