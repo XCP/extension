@@ -22,22 +22,107 @@ promises surviving.
 | `src/core/hardware` | Device integration and transaction integrity checks |
 | `src/hooks`, `src/pages`, `src/components` | UI state, review presentation, user decisions |
 
-## Layers
+## Layers and placement
 
-Dependencies point one way, from the top of this list to the bottom:
+The intended runtime dependency direction is UI → service clients → background services →
+platform → core. This describes ownership, not a claim that every directory is already a strict
+layer. Type-only imports do not load runtime implementations; use `import type` when sharing a
+shape. In particular, `src/types/wallet.ts` references types owned by `core` without loading them.
 
-1. `src/types`, `src/constants`: shapes and fixed values, importing nothing above them.
-2. `src/core`: pure logic (parsing, proofs, verification, fee and money-movement maths). It may
-   use `src/i18n`, a shared leaf, for user-facing strings; it does not touch `chrome.*` or React.
-3. `src/platform`: browser APIs, storage, sessions, the wallet manager, and the RPC proxy.
-4. `src/services`: the background services that own state and signing. Popup, side-panel and
-   content code reach them through the `*ServiceClient` proxies, never by importing a service.
-5. `src/contexts`, then `src/hooks`: React state built on the service clients.
-6. `src/components`, then `src/pages`: presentation and user decisions.
+| Location | Put here |
+| --- | --- |
+| `src/core` | Shared non-React domain logic: amounts, transaction parsing, proofs, validation, signing algorithms, and protocol-specific API clients |
+| `src/platform` | Extension/browser integration: storage, workers, session and wallet runtime, device transport, and RPC boundaries |
+| `src/services` | Background operations that coordinate permissions, approval, platform state, and execution; `*ServiceClient` modules expose the permitted page-side calls |
+| `src/contexts`, `src/hooks` | React state, subscriptions, effects, and reusable UI behavior built on service clients and domain modules |
+| `src/components`, `src/pages` | Reusable presentation and route-specific composition respectively |
 
-`src/entrypoints` are composition roots: they wire the layers together and hold no domain logic of
-their own. Keys, decrypted secrets and signing stay in the background; UI code receives reviews
-and results, never key material.
+`core` is not currently a pure or universally environment-independent library. Bitcoin,
+Counterparty, and ZELD API clients perform network I/O. Its domain rules should remain usable
+without React or importing background service implementations. New browser lifecycle code belongs
+in `platform`; new transaction rules and pure transformations belong in `core`.
+
+There are known placement exceptions to resolve in separate, tested changes:
+
+- `core/hardware/trezorAdapter.ts` integrates the extension-specific Trezor SDK. Its device
+  transport belongs in `platform`; hardware contracts and pure transaction checks can stay in
+  `core/hardware`.
+- `core/zeld/hunt.ts` creates workers and reads hardware concurrency, and
+  `core/encryption/encryption.ts` starts a KDF worker. Separate that orchestration from the
+  algorithms before moving it; changing imports alone would not establish the boundary.
+- `core/replayPrevention.ts` owns mutable replay records and a cleanup timer. Its runtime
+  lifetime needs an explicit owner rather than treating it as a pure helper.
+
+These exceptions are not precedents for adding browser runtime responsibilities to `core`.
+`src/entrypoints` wire the layers together. Keys, decrypted secrets, and signing stay in the
+background; UI code receives reviews and results, never key material.
+
+### The two provider directories
+
+`services/provider` contains steps in a website request: intake checks and waiting for approval.
+`platform/provider` owns the durable approval/signing flows, persisted outcome recovery, rate
+limiter state, and recent-broadcast storage that those steps use. A provider handler coordinates
+these pieces; it should not implement another store or another signing lifecycle. Pure parsing
+and policy checks belong with their Bitcoin or Counterparty domain modules.
+
+Some existing phase code, especially `platform/provider/signPsbtPhase.ts`, mixes orchestration
+with transaction transformations. Split those responsibilities when refactoring it, while keeping
+permission, session, and final-delivery checks in their execution order.
+
+### Types and constants
+
+Prefer the narrowest owner. A component's props stay with that component; a protocol response
+shape or limit stays with its protocol module. A helper with no React dependency belongs with
+its domain, even if its first caller is a hook.
+
+Use `src/types` for shared contracts that cross owners, such as wallet identity, coin locks, and
+provider approvals, particularly when colocating them would create a runtime import cycle.
+Use `src/constants` for fixed values shared across boundaries, such as message routing tags and
+offer limits. These folders do not need to contain every type or constant, and their small size
+is not a reason to move unrelated definitions into them.
+
+Reuse one definition for the same policy or unit. Equal numeric values with different meanings
+need not share a constant: a relay minimum, a UI default fee, and a dust threshold are different
+contracts. Names and types should make the unit explicit. Use discriminated unions for distinct
+outcomes and validate external data at its boundary; a TypeScript assertion alone does not make
+an API response or stored record trustworthy.
+
+### Components and hooks
+
+- `components/ui` contains presentation primitives such as buttons, banners, spinners, and base
+  menus. It should not choose wallet policy or load wallet data.
+- `components/domain` contains wallet-aware presentation: addresses, balances, assets, UTXOs,
+  transaction facts, and approval decisions. For example, the existing
+  `components/ui/menus/address-menu.tsx` is domain-specific despite its current location; new
+  address actions belong with `components/domain/address`.
+- `components/layout` owns the shared application frame; `components/router` owns route access
+  and redirect behavior. Redirect decisions should have one owner rather than competing effects.
+- `components/screens` provides reusable whole-screen review/result presentation;
+  `components/composer` coordinates the compose/review/sign/result UI flow. Route-specific forms
+  and choices stay in `pages`.
+
+A `use…` export should provide React behavior: state, context, subscriptions, effects, or a
+lifecycle-aware composition of other hooks. A pure calculation or API helper is an ordinary
+function in the owning domain module. Avoid a general `hooks/utils` bucket. Extract shared
+behavior when callers need the same contract, not just because two hooks look alike; loading,
+error, cancellation, and request-identity behavior are part of that contract.
+
+### Small modules and naming
+
+Follow the naming of the owning area (`useAssetInfo` for a hook, `balance-list.tsx` for a component,
+`requestIntake.ts` for a provider step). Use names that describe what the module owns. A service
+coordinates an operation or owns runtime state; a utility function does not become a service
+because several callers share it. Avoid repository-wide renames solely to make all file names
+use one style.
+
+A folder can mark a useful boundary even when its implementation is small. `src/i18n` is a shared
+localization adapter with a stable import path and a README describing catalog selection; its
+`index.ts` implements that adapter rather than collecting unrelated exports. It calls browser
+i18n, including for user-facing strings requested by core modules. Keep this explicit exception
+instead of calling it pure logic. `core/amount-contract` is a vendored pure module with upstream
+provenance and shared vectors; follow its README when updating it. Neither folder needs to be
+flattened into a general utilities directory. Add an index module only when it defines a useful
+public boundary, not as a default wrapper around every folder.
 
 ## Website requests
 

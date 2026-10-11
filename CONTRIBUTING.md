@@ -4,6 +4,10 @@ How to set up, build, test, translate and release XCP Wallet. The code map, trus
 signing lifecycle are in [ARCHITECTURE.md](ARCHITECTURE.md); the website API is in
 [PROVIDER.md](PROVIDER.md).
 
+For file placement, shared types/constants, component boundaries, and hook naming, follow
+[Layers and placement](ARCHITECTURE.md#layers-and-placement). It distinguishes current structure
+from known exceptions that still need refactoring.
+
 XCP Wallet is a Manifest V3 extension built for Chrome (Chromium) only.
 
 ## Setup
