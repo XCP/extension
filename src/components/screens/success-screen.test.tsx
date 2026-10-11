@@ -38,6 +38,31 @@ describe('SuccessScreen', () => {
     mockWriteText.mockResolvedValue(undefined);
   });
 
+  it('shows an incomplete broadcast and its recovery details instead of success', () => {
+    render(<SuccessScreen apiResponse={{ broadcast: { txid: 'commit' },
+      broadcastWarning: 'Reveal failed: min relay fee not met. Signed reveal: deadbeef' }} />);
+    expect(screen.queryByText('Transaction Successful')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('check-circle-icon')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('deadbeef');
+    expect(screen.getByText('commit')).toBeInTheDocument();
+  });
+
+  it('shows both transaction IDs after a complete commit and reveal broadcast', () => {
+    render(<SuccessScreen apiResponse={{ broadcast: { txid: 'commit' }, revealBroadcast: { txid: 'reveal' } }} />);
+    expect(screen.getByText('commit')).toBeInTheDocument();
+    expect(screen.getByText('reveal')).toBeInTheDocument();
+    expect(screen.getAllByRole('link').map(link => link.getAttribute('href')))
+      .toEqual(expect.arrayContaining(['https://mempool.space/tx/commit', 'https://mempool.space/tx/reveal']));
+  });
+
+  it('keeps a copied public transaction ID when the result screen closes', async () => {
+    const { unmount } = render(<SuccessScreen {...defaultProps} />);
+    fireEvent.click(screen.getByText(defaultProps.apiResponse.broadcast.txid));
+    await waitFor(() => expect(screen.getByText('Copied!')).toBeInTheDocument());
+    unmount();
+    expect(mockWriteText).not.toHaveBeenCalledWith('');
+  });
+
   describe('Rendering', () => {
     it('renders success icon and message', () => {
       render(<SuccessScreen {...defaultProps} />);

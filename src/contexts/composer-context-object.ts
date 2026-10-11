@@ -15,10 +15,18 @@ export interface DecodedMessage {
   data: Record<string, unknown>;
 }
 
+/** Broadcast facts owned by the wallet, never supplied by the compose API. */
+export interface ComposerBroadcastResult {
+  broadcast?: { txid?: string };
+  revealBroadcast?: { txid?: string };
+  /** Commit accepted, but reveal submission failed; includes signed reveal recovery data. */
+  broadcastWarning?: string;
+}
+
 export interface ComposerState<T> {
   step: "form" | "review" | "success";
   formData: T | null;
-  apiResponse: ApiResponse | null;
+  apiResponse: (ApiResponse & ComposerBroadcastResult) | null;
   error: string | null;
   verificationWarnings: string[];
   /** Neutral notes for the review screen: facts about the send, not differences from the request. */

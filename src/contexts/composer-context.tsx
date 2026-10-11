@@ -790,6 +790,7 @@ export function ComposerProvider<T>({
     // signed commit. It goes out only now, after the commit was accepted, because it spends the
     // commit's output. Without it the message never lands.
     let revealBroadcast: { txid?: string } | undefined;
+    let broadcastWarning: string | undefined;
     if (revealHex) {
       try {
         revealBroadcast = await broadcastTransaction(revealHex);
@@ -797,13 +798,9 @@ export function ComposerProvider<T>({
         // The commit is already on the network and cannot be recalled, so this must not throw:
         // surface it as a warning with the reveal hex so the transaction can still be completed.
         const detail = error instanceof Error ? error.message : String(error);
-        const warning = envelopeKind(state.apiResponse.result.envelope_script ?? '') === 'ord'
+        broadcastWarning = envelopeKind(state.apiResponse.result.envelope_script ?? '') === 'ord'
           ? t('composer_context_the_inscription_s_commit_transaction', [String(detail), String(revealHex)])
           : t('composer_context_the_reveal_was_not_accepted', [String(detail), String(revealHex)]);
-        setState(prev => ({
-          ...prev,
-          verificationWarnings: [...prev.verificationWarnings, warning],
-        }));
       }
     }
 
@@ -812,6 +809,7 @@ export function ComposerProvider<T>({
       ...state.apiResponse,
       broadcast: broadcastResponse,
       ...(revealBroadcast ? { revealBroadcast } : {}),
+      broadcastWarning,
     };
   }, [state.apiResponse, activeAddress, activeWallet, signTransaction, signCommitAndReveal, broadcastTransaction, setHardwareOperationInProgress]);
 

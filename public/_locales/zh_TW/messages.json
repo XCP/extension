@@ -6957,5 +6957,8 @@
   "coins_assets_unknown": {
     "message": "資產狀態未知",
     "description": "Coin control: signing guards and asset lookup status."
+  },
+  "screens_success_screen_broadcast_incomplete": {
+    "message": "廣播未完成"
   }
 }
