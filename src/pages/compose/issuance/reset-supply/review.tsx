@@ -1,16 +1,8 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-
 import { t } from '@/i18n';
+import type { IssuanceReviewProps } from "@/pages/compose/issuance/review-types";
 
 const yesNo = (value: boolean): string => (value ? "Yes" : "No");
-
-interface ReviewIssuanceResetSupplyProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
 
 /**
  * Review for a reset issuance.
@@ -26,7 +18,7 @@ export function ReviewIssuanceResetSupply({
   onBack,
   error,
   isSigning,
-}: ReviewIssuanceResetSupplyProps) {
+}: IssuanceReviewProps) {
   const { result } = apiResponse;
   const params = result.params;
   const assetInfo = params.asset_info;

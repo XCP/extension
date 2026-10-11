@@ -1,16 +1,8 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/core/format";
 import { toBigNumber } from "@/core/numeric";
-
 import { t } from '@/i18n';
-
-interface ReviewIssuanceIssueSupplyProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
+import type { IssuanceReviewProps } from "@/pages/compose/issuance/review-types";
 
 export function ReviewIssuanceIssueSupply({
   apiResponse,
@@ -18,7 +10,7 @@ export function ReviewIssuanceIssueSupply({
   onBack,
   error,
   isSigning
-}: ReviewIssuanceIssueSupplyProps) {
+}: IssuanceReviewProps) {
   const { result } = apiResponse;
 
   // Use normalized values from verbose API response (handles divisibility correctly)

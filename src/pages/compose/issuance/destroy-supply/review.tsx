@@ -2,16 +2,8 @@ import { composedMessageFields } from "@/components/domain/tx/tx-action-info";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { readAssetSupply } from "@/core/counterparty/protocolContext";
 import { useReviewLookup } from "@/hooks/useReviewLookup";
-
 import { t } from '@/i18n';
-
-interface ReviewDestroyProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
+import type { DestroyReviewProps } from "@/pages/compose/issuance/review-types";
 
 export function ReviewDestroy({
   apiResponse,
@@ -19,7 +11,7 @@ export function ReviewDestroy({
   onBack,
   error,
   isSigning
-}: ReviewDestroyProps) {
+}: DestroyReviewProps) {
   const { result } = apiResponse;
   const asset = result.params.asset;
 

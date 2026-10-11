@@ -1,21 +1,11 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-
 import { t } from '@/i18n';
+import type { IssuanceReviewProps } from "@/pages/compose/issuance/review-types";
 
-/**
- * Props for the ReviewIssuanceLockSupply component.
- */
-interface ReviewIssuanceLockSupplyProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
 
 /**
  * Displays a review screen for asset supply locking transactions.
- * @param {ReviewIssuanceLockSupplyProps} props - Component props
+ * @param {IssuanceReviewProps} props - Component props
  * @returns {ReactElement} Review UI for supply locking transaction
  */
 export function ReviewIssuanceLockSupply({
@@ -24,7 +14,7 @@ export function ReviewIssuanceLockSupply({
   onBack,
   error,
   isSigning
-}: ReviewIssuanceLockSupplyProps) {
+}: IssuanceReviewProps) {
   const { result } = apiResponse;
 
   // Use normalized supply from verbose API response (handles divisibility correctly)

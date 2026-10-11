@@ -2,6 +2,7 @@ import { type ReactElement, useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { HuntProgress } from "@/components/domain/zeld/hunt-progress";
 import { FiHelpCircle, FiRefreshCw, FiX } from "@/components/icons";
+import type { TransactionReviewProps } from "@/components/screens/review-screen";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { Banner } from "@/components/ui/banner";
 import { Spinner } from "@/components/ui/spinner";
@@ -46,13 +47,7 @@ interface ComposerProps<T> {
   /** Render callbacks return elements; changing their identity must not remount their forms. */
   renderForm?: ComposerProps<T>['FormComponent'];
   renderReview?: ComposerProps<T>['ReviewComponent'];
-  ReviewComponent?: (props: {
-    apiResponse: ApiResponse;
-    onSign: () => void;
-    onBack: () => void;
-    error: string | null;
-    isSigning: boolean;
-  }) => ReactElement;
+  ReviewComponent?: (props: TransactionReviewProps & { apiResponse: ApiResponse }) => ReactElement;
 
   // Optional callbacks
   headerCallbacks?: {

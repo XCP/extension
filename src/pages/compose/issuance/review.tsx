@@ -1,22 +1,11 @@
 import { FaLock, FaLockOpen } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
-
 import { t } from '@/i18n';
-
-/**
- * Props for the ReviewIssuance component.
- */
-interface ReviewIssuanceProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
-}
+import type { IssuanceReviewProps } from "@/pages/compose/issuance/review-types";
 
 /**
  * Displays a review screen for asset issuance transactions.
- * @param {ReviewIssuanceProps} props - Component props
+ * @param {IssuanceReviewProps} props - Component props
  * @returns {ReactElement} Review UI for issuance transaction
  */
 export function ReviewIssuance({
@@ -25,12 +14,12 @@ export function ReviewIssuance({
   onBack,
   error,
   isSigning
-}: ReviewIssuanceProps) {
+}: IssuanceReviewProps) {
   const { result } = apiResponse;
 
-  const isTruthy = (value: any): boolean => {
+  const isTruthy = (value: unknown): boolean => {
     if (value === "false") return false;
-    return ["true", "1", 1, true].includes(value);
+    return (["true", "1", 1, true] as readonly unknown[]).includes(value);
   };
 
   const isLocked = isTruthy(result.params.lock);

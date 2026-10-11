@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchAssetDetails } from "@/core/counterparty/api";
+import type { DestroyReviewProps } from "@/pages/compose/issuance/review-types";
 import { ReviewDestroy } from "./review";
 
 vi.mock("@/core/counterparty/api", async (importOriginal) => ({
@@ -20,10 +21,10 @@ vi.mock("@/components/screens/review-screen", () => ({
   ),
 }));
 
-function renderDestroy(params: Record<string, unknown>) {
+function renderDestroy(params: Omit<DestroyReviewProps['apiResponse']['result']['params'], 'asset' | 'source'>) {
   render(
     <ReviewDestroy
-      apiResponse={{ result: { params: { source: "1Source", asset: "PEPE", ...params } } }}
+      apiResponse={{ result: { btc_fee: 1000, params: { source: "1Source", asset: "PEPE", ...params } } }}
       onSign={vi.fn()}
       onBack={vi.fn()}
       error={null}

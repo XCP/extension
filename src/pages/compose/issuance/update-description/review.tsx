@@ -1,14 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-
 import { t } from '@/i18n';
-
-interface ReviewIssuanceUpdateDescriptionProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
+import type { IssuanceReviewProps } from "@/pages/compose/issuance/review-types";
 
 export function ReviewIssuanceUpdateDescription({
   apiResponse,
@@ -16,7 +8,7 @@ export function ReviewIssuanceUpdateDescription({
   onBack,
   error,
   isSigning
-}: ReviewIssuanceUpdateDescriptionProps) {
+}: IssuanceReviewProps) {
   const { result } = apiResponse;
 
   const customFields = [

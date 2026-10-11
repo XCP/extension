@@ -36,21 +36,24 @@ interface CustomField {
 }
 
 /**
- * Props for the ReviewScreen component
+ * Shared review actions and presentation facts, with params supplied by each operation.
  */
-interface ReviewScreenProps {
+export interface TransactionReviewProps<Params extends object = object> {
   /** API response containing transaction details */
-  apiResponse: { result: ReviewTransactionResult };
+  apiResponse: { result: ReviewTransactionResult & { params: Params } };
   /** Callback when user clicks sign button */
   onSign: () => void;
   /** Callback when user clicks back button */
   onBack: () => void;
-  /** Additional fields to display in the review */
-  customFields?: CustomField[];
   /** Error message to display */
   error: string | null;
   /** Whether the transaction is being signed */
   isSigning: boolean;
+}
+
+interface ReviewScreenProps extends TransactionReviewProps {
+  /** Additional fields to display in the review */
+  customFields?: CustomField[];
   /** Disable signing while transaction-specific review details are unavailable. */
   signDisabled?: boolean;
 }

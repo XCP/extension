@@ -1,14 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-
 import { t } from '@/i18n';
-
-interface ReviewIssuanceTransferOwnershipProps {
-  apiResponse: any;
-  onSign: () => void;
-  onBack: () => void;
-  error: string | null;
-  isSigning: boolean;
-}
+import type { IssuanceReviewProps } from "@/pages/compose/issuance/review-types";
 
 export function ReviewIssuanceTransferOwnership({
   apiResponse,
@@ -16,7 +8,7 @@ export function ReviewIssuanceTransferOwnership({
   onBack,
   error,
   isSigning
-}: ReviewIssuanceTransferOwnershipProps): React.ReactElement {
+}: IssuanceReviewProps): React.ReactElement {
   const { result } = apiResponse;
 
   const customFields = [
