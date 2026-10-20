@@ -1,23 +1,4 @@
-/**
- * Whether Counterparty can encode a destination inside an MPMA send.
- *
- * MPMA packs each destination into the message itself rather than as a transaction output, and
- * core refuses any address whose packed form exceeds 22 bytes (`messages/versions/mpma.py`:
- * "Address not supported by MPMA send"). Packing is one version byte plus the payload, so base58
- * and 20-byte witness programs fit at 21 bytes, and a 32-byte witness program does not at 33.
- *
- * That excludes P2TR and P2WSH. Testing the packed length rather than matching a `bc1p` prefix is
- * the point: P2WSH is a `bc1q` address and would sail past a prefix check, and the two fail for
- * one reason, not two.
- *
- * Checked here so the failure lands on the row that caused it. Core's error names one address and
- * arrives only after composing, so a file with thirty taproot recipients had to be fixed and
- * resubmitted thirty times to find them all.
- *
- * This says nothing about whether an address can RECEIVE the asset — every one of these addresses
- * holds Counterparty assets perfectly well. It is a limit on one encoding, and the answer for an
- * excluded address is an ordinary send.
- */
+import type { MpmaTableFormat } from '@/core/counterparty/mpmaTableFormat';
 
 /** Segwit address human-readable parts, mainnet and testnet/signet/regtest. */
 const BECH32_PREFIX = /^(bc1|tb1|bcrt1)/i;
@@ -44,14 +25,16 @@ function witnessProgramBytes(address: string): number | null {
  * Assumes the address is already known to be valid — the caller checks that separately, with a
  * checksum, and this only measures shape.
  */
-export function isMpmaEncodable(address: string): boolean {
+export function isMpmaEncodable(address: string, format: MpmaTableFormat = 'legacy'): boolean {
   if (!BECH32_PREFIX.test(address)) return true; // base58 P2PKH/P2SH pack to 21 bytes
   const programBytes = witnessProgramBytes(address);
   if (programBytes === null) return false;
+  // The activated table carries a length per address; 32-byte witness programs now fit.
+  if (format === 'length-prefixed') return programBytes >= 2 && programBytes <= 40;
   return 1 + programBytes <= 22;
 }
 
 /** Short, specific reason for a rejected destination, for putting in front of a user. */
 export function mpmaDestinationError(address: string): string {
-  return `${address} cannot receive an MPMA send (Taproot and P2WSH addresses are not encodable in this message type). Send to it separately.`;
+  return `${address} cannot receive an MPMA send before Taproot support activates. Send to it separately.`;
 }
