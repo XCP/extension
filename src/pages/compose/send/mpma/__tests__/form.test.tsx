@@ -3,9 +3,15 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
 import { verifiedReviewParams } from '@/core/counterparty/normalize';
+import { resolveMpmaTableFormat } from '@/core/counterparty/mpmaTableFormat';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { unpackMPMA } from '@/core/counterparty/unpack/messages/mpma';
 import { MPMAForm } from '../form';
+
+vi.mock('@/core/counterparty/mpmaTableFormat', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/core/counterparty/mpmaTableFormat')>(),
+  resolveMpmaTableFormat: vi.fn(),
+}));
 
 // Mock the counterparty API functions
 vi.mock('@/core/counterparty/api', () => ({
@@ -91,6 +97,9 @@ describe('MPMAForm', () => {
   
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(resolveMpmaTableFormat).mockResolvedValue({
+      format: 'legacy', nextBlockIndex: 971699, activationHeight: 971700,
+    });
   });
 
   afterEach(() => {
@@ -177,10 +186,7 @@ describe('MPMAForm', () => {
     });
   });
 
-  // Destinations an MPMA cannot reach, caught at import rather than at compose. Core refuses any
-  // address whose packed form exceeds 22 bytes and names ONE of them, after composing -- so a
-  // file with thirty Taproot recipients took thirty round trips to clean up.
-  it('rejects a Taproot destination and says why', async () => {
+  it('rejects a Taproot destination before activation and says why', async () => {
     renderWithProvider();
 
     const textArea = screen.getByPlaceholderText('Paste CSV data here…');
@@ -194,6 +200,49 @@ describe('MPMAForm', () => {
     await waitFor(() => {
       expect(screen.getByText(/cannot receive an MPMA send/)).toBeInTheDocument();
     });
+  });
+
+  it('accepts Taproot and P2WSH after activation, resolving the format only once', async () => {
+    vi.mocked(resolveMpmaTableFormat).mockResolvedValue({
+      format: 'length-prefixed', nextBlockIndex: 971700, activationHeight: 971700,
+    });
+    renderWithProvider();
+    const addresses = [
+      'bc1p3vl9hmdetkyde2qj2e2n9rw8zqrygsyclprfc3xnyku6sjczpsxqv068cg',
+      'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3',
+    ];
+    fireEvent.paste(screen.getByPlaceholderText('Paste CSV data here…'), {
+      clipboardData: { getData: () => addresses.map(a => `${a},MINTS,100`).join('\n') },
+    });
+    const submit = await screen.findByRole('button', { name: 'Continue' });
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    fireEvent.submit(submit.closest('form')!);
+    await waitFor(() => expect(mockFormAction).toHaveBeenCalledOnce());
+    const data = mockFormAction.mock.calls[0]![0] as FormData;
+    expect(data.get('destinations')).toBe(addresses.join(','));
+    expect(data.get('quantities')).toBe('100,100');
+    expect(resolveMpmaTableFormat).toHaveBeenCalledOnce();
+  });
+
+  it('keeps checksum validation for Taproot after activation', async () => {
+    vi.mocked(resolveMpmaTableFormat).mockResolvedValue({
+      format: 'length-prefixed', nextBlockIndex: 972262, activationHeight: 971700,
+    });
+    renderWithProvider();
+    fireEvent.paste(screen.getByPlaceholderText('Paste CSV data here…'), {
+      clipboardData: { getData: () => 'bc1p3vl9hmdetkyde2qj2e2n9rw8zqrygsyclprfc3xnyku6sjczpsxqv068ca,MINTS,100' },
+    });
+    expect(await screen.findByText(/Invalid Bitcoin address/)).toBeInTheDocument();
+  });
+
+  it('asks to confirm the format when activation cannot be resolved', async () => {
+    vi.mocked(resolveMpmaTableFormat).mockResolvedValue(null);
+    renderWithProvider();
+    fireEvent.paste(screen.getByPlaceholderText('Paste CSV data here…'), {
+      clipboardData: { getData: () => 'bc1p3vl9hmdetkyde2qj2e2n9rw8zqrygsyclprfc3xnyku6sjczpsxqv068cg,MINTS,100' },
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent(/confirm/i);
+    expect(mockFormAction).not.toHaveBeenCalled();
   });
 
   it('names the offending line, not just the count', async () => {
