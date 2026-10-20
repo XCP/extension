@@ -2,8 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
-import { verifiedReviewParams } from '@/core/counterparty/normalize';
 import { resolveMpmaTableFormat } from '@/core/counterparty/mpmaTableFormat';
+import { verifiedReviewParams } from '@/core/counterparty/normalize';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { unpackMPMA } from '@/core/counterparty/unpack/messages/mpma';
 import { MPMAForm } from '../form';
