@@ -26,10 +26,10 @@ import { useWallet } from "@/contexts/wallet-context";
 import { isApiError } from "@/core/api/client";
 import { checkTransactionFee } from "@/core/bitcoin/feeVerification";
 import { fetchOrderMatch } from "@/core/counterparty/api";
-import { assertAttachFundingIsAssetFree } from '@/core/counterparty/attachFunding';
 import { btcPayPayment } from "@/core/counterparty/btcpayPayment";
 import type { ApiResponse } from "@/core/counterparty/compose";
 import { composerChosenMessageFields } from "@/core/counterparty/composerChoices";
+import { assertFundingIsAssetFree } from '@/core/counterparty/fundingAssetGuard';
 import {
   envelopeKind,
   readDataEnvelope,
@@ -657,7 +657,10 @@ export function ComposerProvider<T>({
       throw new Error(t('composer_context_transaction_replay_detected', [String(replayCheck.reason)]));
     }
 
-    if (composeType === 'attach') await assertAttachFundingIsAssetFree(rawTxHex);
+    await assertFundingIsAssetFree(rawTxHex, {
+      composeType,
+      sourceUtxo: state.formData && 'sourceUtxo' in state.formData ? state.formData.sourceUtxo : undefined,
+    });
 
     // For hardware wallets, pause idle timer during signing
     const isHardwareWallet = activeWallet?.type === 'hardware';
@@ -758,7 +761,7 @@ export function ComposerProvider<T>({
       ...(revealBroadcast ? { revealBroadcast } : {}),
       broadcastWarning,
     };
-  }, [state.apiResponse, activeAddress, activeWallet, composeType, signTransaction, signCommitAndReveal, broadcastTransaction, setHardwareOperationInProgress]);
+  }, [state.apiResponse, state.formData, activeAddress, activeWallet, composeType, signTransaction, signCommitAndReveal, broadcastTransaction, setHardwareOperationInProgress]);
 
   const signAndBroadcast = useCallback(async () => {
     // Guard: Prevent double-signing race condition

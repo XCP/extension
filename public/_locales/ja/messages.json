@@ -6960,5 +6960,13 @@
   },
   "screens_success_screen_broadcast_incomplete": {
     "message": "送信が完了していません"
+  },
+"utxo_spent_indexing": {
+    "message": "使用済み — 残高更新中",
+    "description": "An asset output is spent but the asset balance index still shows the previous location."
+  },
+  "utxo_spend_pending": {
+    "message": "使用確認待ち",
+    "description": "An asset output is spent by a pending Bitcoin transaction; disable move and detach actions."
   }
 }

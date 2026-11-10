@@ -5,6 +5,7 @@ import { parsePSBT } from '@/core/bitcoin/psbt';
 import { clearSpentUtxoCache, recordSpentUtxos } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';
 import { fetchUtxosWithBalances } from '@/core/counterparty/api';
+import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import { checkOutputPolicy, pinnedDestinations, withPinnedDestinations } from '@/core/counterparty/outputPolicy';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
@@ -27,6 +28,14 @@ vi.mock('@/core/bitcoin/utxo', async (importOriginal) => ({
   fetchUTXOs: vi.fn(),
 }));
 vi.mock('@/core/counterparty/api', () => ({ fetchUtxosWithBalances: vi.fn() }));
+vi.mock('@/core/counterparty/inputAssets', () => ({
+  fetchInputsAttachedAssets: vi.fn(async (inputs: Array<{ index: number; txid: string; vout: number }>) => {
+    const attached = await fetchUtxosWithBalances(inputs.map(input => `${input.txid}:${input.vout}`));
+    return inputs.filter(input => attached.has(`${input.txid}:${input.vout}`)).map(input => ({
+      inputIndex: input.index, utxo: `${input.txid}:${input.vout}`, assets: [{ asset: 'XCP', quantity_normalized: '1', asset_longname: null }],
+    }));
+  }),
+}));
 vi.mock('@/core/counterparty/utxoSelection', () => ({ selectUtxosForTransaction: vi.fn() }));
 vi.mock('@/core/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/settings')>()),
@@ -56,6 +65,16 @@ describe('composeZeldSend', () => {
     bitcoinUtxos.mockResolvedValue([utxo(ZELD_A, 1, 95_000), utxo(ZELD_B, 1, 80_000), utxo(PREV_TXID, 0, 500_000)]);
     attached.mockResolvedValue(new Set());
     clean.mockResolvedValue({ utxos: [utxo(PREV_TXID, 0, 500_000)], inputsSet: '', totalValue: 500_000, excludedWithAssets: 0, excludedValue: 0, excludedLocked: 0, excludedLockedValue: 0 });
+  });
+
+  it('does not offer pending or unknown Counterparty attachment inputs as ZELD', async () => {
+    vi.mocked(fetchInputsAttachedAssets).mockResolvedValueOnce([
+      { inputIndex: 0, utxo: `${ZELD_A}:1`, assets: [], lookupFailed: true, pendingParentTxid: ZELD_A },
+      { inputIndex: 1, utxo: `${ZELD_B}:1`, assets: [], lookupFailed: true },
+    ]);
+    const maximum = await selectSpendableZeld(SOURCE_ADDRESS, true);
+    expect(maximum.available).toBe(0n);
+    expect(maximum.utxos).toEqual([]);
   });
 
   it('puts change first, the recipient second, and an exact distribution last', async () => {

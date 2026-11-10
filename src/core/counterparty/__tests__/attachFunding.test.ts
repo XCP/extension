@@ -1,9 +1,12 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Script, Transaction } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
-import { assertAttachFundingIsAssetFree } from '../attachFunding';
+import { assertFundingIsAssetFree } from '../fundingAssetGuard';
 import type { AttachmentEvidenceSource } from '../pendingAttachments';
 import { arc4 } from '../unpack/binary';
+
+const assertAttachFundingIsAssetFree = (raw: string, source: AttachmentEvidenceSource) =>
+  assertFundingIsAssetFree(raw, { composeType: 'attach' }, source);
 
 const script = hexToBytes(`0014${'11'.repeat(20)}`);
 const fundingTxid = 'aa'.repeat(32);
@@ -52,4 +55,14 @@ describe('internal attach funding guard', () => {
   it('refuses malformed transaction bytes', async () => {
     await expect(assertAttachFundingIsAssetFree('00', evidence())).rejects.toThrow('verify');
   });
+});
+
+it.each(['send', 'mpma', 'btcpay', 'burn', 'issuance'])('blocks pending asset funding for %s', async composeType => {
+  await expect(assertFundingIsAssetFree(spend([0, 2]), { composeType }, evidence())).rejects.toThrow('asset-free');
+});
+it.each(['move', 'detach'])('allows only the explicitly selected %s source plus verified clean change', async composeType => {
+  await expect(assertFundingIsAssetFree(spend([0, 2]), { composeType, sourceUtxo: `${parent.id}:0` }, evidence())).resolves.toBeUndefined();
+  await expect(assertFundingIsAssetFree(spend([0, 2]), { composeType, sourceUtxo: `${parent.id}:2` }, evidence())).rejects.toThrow('asset-free');
+  await expect(assertFundingIsAssetFree(spend([0]), { composeType, sourceUtxo: `${parent.id}:2` }, evidence())).rejects.toThrow('does not spend');
+  await expect(assertFundingIsAssetFree(spend([0]), { composeType }, evidence())).rejects.toThrow('Select');
 });

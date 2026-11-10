@@ -8,6 +8,7 @@ import { t } from '@/i18n';
 import { mockBrowserLocale } from '@/i18n/__tests__/helpers/locale';
 import { UtxoList } from './utxo-list';
 
+vi.mock('@/core/bitcoin/outspend', () => ({ fetchUtxoSpendStatus: vi.fn(async () => 'unknown') }));
 const mockNavigate = vi.fn();
 vi.mock('react-router', () => ({
   useNavigate: () => mockNavigate

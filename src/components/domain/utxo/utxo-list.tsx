@@ -7,6 +7,7 @@ import type { UtxoBalance } from "@/core/counterparty/api";
 import { fetchTokenBalances } from "@/core/counterparty/api";
 import { useInView } from "@/hooks/useInView";
 import { usePendingStatus } from "@/hooks/usePendingStatus";
+import { useUtxoSpendStatus } from "@/hooks/useUtxoSpendStatus";
 import { t } from '@/i18n';
 
 const PAGE_SIZE = 20;
@@ -127,6 +128,8 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
     return () => { cancelled = true; };
   }, [inView, isSearching, initialLoaded, hasMore, isFetchingMore, error, loadMore]);
 
+  const spentByUtxo = useUtxoSpendStatus(balances.map(token => token.utxo), refreshNonce);
+
   const filteredBalances = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return balances.filter(token => !query || token.asset.toLowerCase().includes(query)
@@ -141,7 +144,7 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
       {isInitialLoading ? <Spinner message={t('utxo_utxo_list_loading_utxo_balances')} /> : (
         <>
           {filteredBalances.map(token => (
-            <UtxoCard token={token} key={`${token.utxo}:${token.asset}`} pendingStatus={pendingByUtxoLabel.get(token.utxo)} />
+            <UtxoCard token={token} key={`${token.utxo}:${token.asset}`} pendingStatus={pendingByUtxoLabel.get(token.utxo)} spentStatus={spentByUtxo.get(token.utxo)} />
           ))}
           {error ? (
             <div role="alert" className="py-4 text-center text-sm text-red-600">

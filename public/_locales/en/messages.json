@@ -9248,5 +9248,13 @@
   "screens_success_screen_broadcast_incomplete": {
     "message": "Broadcast Incomplete",
     "description": "Broadcast result title when the commit was accepted but the reveal submission failed."
+  },
+"utxo_spent_indexing": {
+    "message": "Spent — updating balances",
+    "description": "An asset output is spent but the asset balance index still shows the previous location."
+  },
+  "utxo_spend_pending": {
+    "message": "Spend pending",
+    "description": "An asset output is spent by a pending Bitcoin transaction; disable move and detach actions."
   }
 }

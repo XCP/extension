@@ -172,4 +172,9 @@ describe("UtxoCard", () => {
     const card = screen.getByText("XCP").closest("button");
     expect(card).toHaveClass("cursor-pointer");
   });
-});
+  it.each(['pending', 'spent'] as const)('keeps the balance visible but removes spend actions for a %s output', spentStatus => {
+    render(<UtxoCard token={mockToken} spentStatus={spentStatus} />, { wrapper: TestWrapper });
+    expect(screen.getByText('XCP')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /utxo actions/i })).not.toBeInTheDocument();
+    expect(screen.getByText(spentStatus === 'pending' ? 'Spend pending' : 'Spent — updating balances')).toBeInTheDocument();
+  });});

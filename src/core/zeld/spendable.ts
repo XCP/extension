@@ -1,7 +1,7 @@
 import { lockedOutpoints } from '@/core/bitcoin/coinLockAccess';
 import { isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';
-import { fetchUtxosWithBalances } from '@/core/counterparty/api';
+import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import { getActiveSettings } from '@/core/settings';
 import { fetchZeldBalance, type ZeldUtxo } from '@/core/zeld/api';
 
@@ -32,11 +32,15 @@ export async function selectSpendableZeld(
       result.unavailable += coin.balance;
     } else candidates.push({ ...coin, value: funding.value });
   }
-  // This complete, batched membership read fails closed. An address balance page can truncate
-  // attachments on busy wallets; unrelated attached outputs do not belong in this query.
-  const attached = candidates.length ? await fetchUtxosWithBalances(candidates.map(keyOf)) : new Set<string>();
-  for (const coin of candidates) {
-    if (attached.has(keyOf(coin)) || isUtxoRecentlySpent(coin.txid, coin.vout)) result.unavailable += coin.balance;
+  // ZELD ownership does not prove an output is free of Counterparty attachments.
+  // Use the same parent/ledger evidence as signing, including confirmed-but-unindexed outputs.
+  const evidence = await fetchInputsAttachedAssets(candidates.map((coin, index) => ({
+    index, txid: coin.txid, vout: coin.vout,
+  })));
+  const unsafe = new Set(evidence.filter(entry => entry.assets.length > 0 || entry.lookupFailed)
+    .map(entry => entry.inputIndex));
+  for (const [index, coin] of candidates.entries()) {
+    if (unsafe.has(index) || isUtxoRecentlySpent(coin.txid, coin.vout)) result.unavailable += coin.balance;
     else {
       result.utxos.push(coin);
       result.available += coin.balance;

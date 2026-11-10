@@ -5,6 +5,7 @@ import { PendingStatus } from "@/components/domain/balance/pending-status";
 import { UtxoMenu } from "@/components/domain/utxo/utxo-menu";
 import type { UtxoBalance } from "@/core/counterparty/api";
 import { formatAmount, formatAsset, formatTxid } from "@/core/format";
+import { t } from "@/i18n";
 
 interface UtxoCardProps {
   token: UtxoBalance;
@@ -14,9 +15,10 @@ interface UtxoCardProps {
    * happening to it is the more useful of the two, and the id is one tap away on the card itself.
    */
   pendingStatus?: string;
+  spentStatus?: 'pending' | 'spent';
 }
 
-export function UtxoCard({ token, pendingStatus }: UtxoCardProps): ReactElement {
+export function UtxoCard({ token, pendingStatus, spentStatus }: UtxoCardProps): ReactElement {
   const navigate = useNavigate();
 
   const handleClick = () => {
@@ -49,7 +51,9 @@ export function UtxoCard({ token, pendingStatus }: UtxoCardProps): ReactElement 
                 useGrouping: true,
               })}
             </span>
-            {pendingStatus ? (
+            {spentStatus ? (
+              <span className="ml-2 text-xs text-amber-700">{t(spentStatus === 'spent' ? 'utxo_spent_indexing' : 'utxo_spend_pending')}</span>
+            ) : pendingStatus ? (
               <PendingStatus label={pendingStatus} className="ml-2" />
             ) : (
               <span className="text-xs text-gray-400 font-mono ml-2">
@@ -61,7 +65,7 @@ export function UtxoCard({ token, pendingStatus }: UtxoCardProps): ReactElement 
       </button>
 
       <div className="absolute top-2 right-2">
-        <UtxoMenu utxo={token.utxo} />
+        {!spentStatus && <UtxoMenu utxo={token.utxo} />}
       </div>
     </div>
   );

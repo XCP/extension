@@ -96,3 +96,14 @@ export async function checkOutspends(
     unknown: verdicts.flatMap(([outpoint, verdict]) => verdict === 'unknown' ? [outpoint] : []),
   };
 }
+
+/** Display-only status. Unlike lock reconciliation, a mempool spend is relevant here. */
+export async function fetchUtxoSpendStatus(outpoint: string): Promise<'unspent' | 'pending' | 'spent' | 'unknown'> {
+  const match = /^([0-9a-f]{64}):(\d+)$/i.exec(outpoint);
+  if (!match || !Number.isSafeInteger(Number(match[2]))) return 'unknown';
+  for (const source of OUTSPEND_SOURCES) {
+    const answer = await readOutspend(source, match[1]!, Number(match[2]));
+    if (answer && answer !== 'missing') return answer.spent ? answer.confirmed ? 'spent' : 'pending' : 'unspent';
+  }
+  return 'unknown';
+}
