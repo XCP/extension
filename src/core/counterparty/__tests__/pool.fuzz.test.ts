@@ -38,7 +38,7 @@ describe('Pool Math Fuzz Tests', () => {
 
     it('shows both assets and invents neither', () => {
       fc.assert(fc.property(assetName, assetName, (a, b) => {
-        expect([...getPoolDisplayAssets(a, b)].sort()).toEqual([a, b].sort());
+        expect([...getPoolDisplayAssets(a, b)].sort((a, b) => a < b ? -1 : a > b ? 1 : 0)).toEqual([a, b].sort((a, b) => a < b ? -1 : a > b ? 1 : 0));
       }), { numRuns: 500 });
     });
   });

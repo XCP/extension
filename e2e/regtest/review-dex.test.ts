@@ -114,7 +114,7 @@ describe.runIf(REGTEST_ENABLED)('dispensers and orders: review matches ledger', 
     const lines = page.fields.youReceive!.split('\n');
     expect(lines).toContain(`20 ${units} (all the dispenser has left)`);
     expect(lines.some(line => line.endsWith(' XCP') && sameAmount(line, xcp / 1e8))).toBe(true);
-    expect(approval.protocol['You receive']?.slice().sort()).toEqual(lines.slice().sort());
+    expect(approval.protocol['You receive']?.slice().sort((a, b) => a < b ? -1 : a > b ? 1 : 0)).toEqual(lines.slice().sort((a, b) => a < b ? -1 : a > b ? 1 : 0));
     // What the review says is paid, and what the dispenser output carries.
     const paid = outputsOf(wc.response.result.rawtransaction).find(o => o.script === scriptOf(seller.address));
     expect(sameAmount(page.fields.btcPayment, paid!.value / 1e8)).toBe(true);

@@ -730,7 +730,7 @@ function packMpma(
     if (send.quantity <= 0n || send.quantity >= 1n << 64n) return null;
   }
 
-  const lutAddresses = [...new Set(sends.map((send) => send.destination))].sort();
+  const lutAddresses = [...new Set(sends.map((send) => send.destination))].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
   const nbits = lutAddresses.length > 1 ? Math.ceil(Math.log2(lutAddresses.length)) : 0;
 
   const lutBytes = packMpmaTable(lutAddresses, format);
@@ -739,7 +739,7 @@ function packMpma(
   const writer = new BitWriter();
   if (!writeMemo(writer, globalMemo, globalMemoIsHex)) return null;
 
-  const assets = [...new Set(sends.map((send) => send.asset))].sort();
+  const assets = [...new Set(sends.map((send) => send.asset))].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
   for (const asset of assets) {
     const assetSends = sends.filter((send) => send.asset === asset);
     // At nbits zero the count field has no bits, so only one send per asset is expressible.

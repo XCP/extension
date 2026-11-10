@@ -78,6 +78,9 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
+      - name: Pin npm
+        run: npm install --global npm@12.2.2 --ignore-scripts
+
       - name: Install dependencies
         run: npm ci
 
@@ -118,6 +121,9 @@ jobs:
           cache: 'npm'
 
       # `npm ci` runs `wxt prepare`, which is all the unit suite needs; no test reads .output.
+      - name: Pin npm
+        run: npm install --global npm@12.2.2 --ignore-scripts
+
       - name: Install dependencies
         run: npm ci
 
@@ -139,7 +145,7 @@ jobs:
     # The image runs as root, which Chromium normally refuses — the e2e fixtures already pass
     # `--no-sandbox` and `--disable-dev-shm-usage`, so no user remapping is needed.
     container:
-      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
     timeout-minutes: 60  # Hard backstop so a stalled setup can't burn the 6h job cap
     needs: [check-pinned-dependencies, lint-and-type-check]
     # Drafts are still being written; the suite runs once they are marked ready.
@@ -160,6 +166,9 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
+
+      - name: Pin npm
+        run: npm install --global npm@12.2.2 --ignore-scripts
 
       - name: Install dependencies
         run: npm ci
@@ -257,6 +266,9 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: '.nvmrc'
+
+      - name: Pin npm
+        run: npm install --global npm@12.2.2 --ignore-scripts
 
       # npm audit reads package-lock.json alone, so there is nothing to install.
       - name: Audit production dependencies
