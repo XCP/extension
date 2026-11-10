@@ -139,6 +139,21 @@ export async function fetchInputsAttachedAssets(
   return [...results.filter((r): r is InputAttachedAssets => r !== null), ...displaced];
 }
 
+/** Internal wallet inventory/transactions may exceed an external approval's input cap.
+ * Verify every input in sequential bounded batches; website approvals retain the original cap. */
+export async function fetchWalletInputsAttachedAssets(
+  inputs: Array<{ index: number; txid: string; vout: number }>,
+  evidenceSource: AttachmentEvidenceSource = liveAttachmentEvidenceSource,
+): Promise<InputAttachedAssets[]> {
+  const results: InputAttachedAssets[] = [];
+  for (let offset = 0; offset < inputs.length; offset += MAX_ASSET_LOOKUP_INPUTS) {
+    results.push(...await fetchInputsAttachedAssets(
+      inputs.slice(offset, offset + MAX_ASSET_LOOKUP_INPUTS), undefined, noTrustedPrevout, evidenceSource,
+    ));
+  }
+  return results;
+}
+
 /**
  * Which of these outpoints the ledger says hold any balance, asked in batches rather than one
  * request per input. Null when the source cannot answer, so each input is read on its own.

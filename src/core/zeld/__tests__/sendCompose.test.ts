@@ -5,7 +5,7 @@ import { parsePSBT } from '@/core/bitcoin/psbt';
 import { clearSpentUtxoCache, recordSpentUtxos } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';
 import { fetchUtxosWithBalances } from '@/core/counterparty/api';
-import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
+import { fetchWalletInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import { checkOutputPolicy, pinnedDestinations, withPinnedDestinations } from '@/core/counterparty/outputPolicy';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
@@ -29,7 +29,7 @@ vi.mock('@/core/bitcoin/utxo', async (importOriginal) => ({
 }));
 vi.mock('@/core/counterparty/api', () => ({ fetchUtxosWithBalances: vi.fn() }));
 vi.mock('@/core/counterparty/inputAssets', () => ({
-  fetchInputsAttachedAssets: vi.fn(async (inputs: Array<{ index: number; txid: string; vout: number }>) => {
+  fetchWalletInputsAttachedAssets: vi.fn(async (inputs: Array<{ index: number; txid: string; vout: number }>) => {
     const attached = await fetchUtxosWithBalances(inputs.map(input => `${input.txid}:${input.vout}`));
     return inputs.filter(input => attached.has(`${input.txid}:${input.vout}`)).map(input => ({
       inputIndex: input.index, utxo: `${input.txid}:${input.vout}`, assets: [{ asset: 'XCP', quantity_normalized: '1', asset_longname: null }],
@@ -68,7 +68,7 @@ describe('composeZeldSend', () => {
   });
 
   it('does not offer pending or unknown Counterparty attachment inputs as ZELD', async () => {
-    vi.mocked(fetchInputsAttachedAssets).mockResolvedValueOnce([
+    vi.mocked(fetchWalletInputsAttachedAssets).mockResolvedValueOnce([
       { inputIndex: 0, utxo: `${ZELD_A}:1`, assets: [], lookupFailed: true, pendingParentTxid: ZELD_A },
       { inputIndex: 1, utxo: `${ZELD_B}:1`, assets: [], lookupFailed: true },
     ]);

@@ -65,16 +65,20 @@ export interface AttachmentEvidenceSource {
 }
 
 async function liveParent(txid: string): Promise<ParentTransaction | null> {
+  let backendHex: string | undefined;
   try {
     const tx = await fetchBackendTransaction(txid);
-    return tx.confirmations > 0
-      ? { rawTxHex: tx.hex, confirmed: true, confirmations: tx.confirmations }
-      : { rawTxHex: tx.hex, confirmed: false };
+    backendHex = tx.hex;
+    if (tx.confirmations !== undefined) {
+      return tx.confirmations > 0
+        ? { rawTxHex: tx.hex, confirmed: true, confirmations: tx.confirmations }
+        : { rawTxHex: tx.hex, confirmed: false };
+    }
   } catch {
     // The node's backend may not have seen a just-relayed transaction. Try the explorer.
   }
   const [rawTxHex, status] = await Promise.all([
-    fetchPreviousRawTransaction(txid),
+    backendHex ?? fetchPreviousRawTransaction(txid),
     fetchTransactionChainStatus(txid),
   ]);
   if (!rawTxHex || !status) return null;
