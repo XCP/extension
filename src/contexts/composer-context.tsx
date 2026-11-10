@@ -3,7 +3,6 @@
  * recent broadcasts; changing the active wallet, address, or lock state resets the workflow.
  */
 
-import { assertAttachFundingIsAssetFree } from '@/core/counterparty/attachFunding';
 import {
   type ReactElement,
   type ReactNode,
@@ -28,6 +27,7 @@ import { isApiError } from "@/core/api/client";
 import { checkTransactionFee } from "@/core/bitcoin/feeVerification";
 import { fetchOrderMatch } from "@/core/counterparty/api";
 import { btcPayPayment } from "@/core/counterparty/btcpayPayment";
+import { assertAttachFundingIsAssetFree } from '@/core/counterparty/attachFunding';
 import type { ApiResponse } from "@/core/counterparty/compose";
 import { composerChosenMessageFields } from "@/core/counterparty/composerChoices";
 import {

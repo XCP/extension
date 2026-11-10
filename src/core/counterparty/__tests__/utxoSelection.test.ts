@@ -1,4 +1,3 @@
-import { resolveEmptyLedgerOutpoint } from '../pendingAttachments';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearSpentUtxoCache,
@@ -9,6 +8,7 @@ import * as bitcoinUtxo from '@/core/bitcoin/utxo';
 import { setCoinLockStore } from '@/platform/coinLockStore';
 import type { CoinLock, CoinLockUpdate } from '@/types/coinLocks';
 import * as counterpartyApi from '../api';
+import { resolveEmptyLedgerOutpoint } from '../pendingAttachments';
 import { selectUtxosForTransaction } from '../utxoSelection';
 
 // Mock dependencies
