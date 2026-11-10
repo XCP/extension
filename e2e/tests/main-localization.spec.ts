@@ -3,9 +3,9 @@ import type { Page, TestInfo } from '@playwright/test';
 import { Address, OutScript } from '@scure/btc-signer';
 import { expect, walletTest } from '../fixtures';
 import { approvalCatalog } from '../utils/approval-locale';
+import { fundingFixture } from '../utils/funding-fixture';
 import { callGalleryService } from '../utils/provider-gallery';
 
-const TXID = 'ab'.repeat(32);
 const RECIPIENT = Address().encode({ type: 'wpkh', hash: new Uint8Array(20).fill(17) });
 
 async function capture(page: Page, info: TestInfo, scene: string) {
@@ -39,6 +39,8 @@ for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) walletTest.de
     const active = await callGalleryService<{ address: string }>(page, 'getActiveAddress');
     await callGalleryService(page, 'updateSettings', [{ showHelpText: true, zeldHuntSeconds: 0, analyticsAllowed: false }]);
     const script = Buffer.from(OutScript.encode(Address().decode(active.address))).toString('hex');
+    const funding = fundingFixture(script, 100000n);
+    const TXID = funding.txid;
     let unavailable = false;
     let fairminterFailure = false;
     let writes = 0;
@@ -46,6 +48,7 @@ for (const language of ['ja', 'zh-CN', 'zh-TW', 'zh-HK'] as const) walletTest.de
       const request = route.request();
       const url = new URL(request.url());
       const path = url.pathname;
+      if (path === `/v2/bitcoin/transactions/${TXID}`) return route.fulfill({ json: { result: { hex: funding.hex, confirmations: 10 } } });
       if (url.hostname === 'cdn.usefathom.com') return route.abort();
       // ZELD's fallback uses POST for a read-only batch lookup. Keep rejecting actual writes.
       if (url.hostname === 'api.zeldhash.com' && path === '/utxos' && request.method() === 'POST') {
