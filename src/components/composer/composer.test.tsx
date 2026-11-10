@@ -176,8 +176,9 @@ describe('Composer', () => {
     </form>
   );
 
-  const MockReviewComponent = ({ apiResponse, onSign, onBack }: any): ReactElement => (
+  const MockReviewComponent = ({ apiResponse, onSign, onBack, error }: any): ReactElement => (
     <div data-testid="review-component">
+      {error && <div role="alert">{error}</div>}
       <div>Transaction: {apiResponse?.result?.rawtransaction}</div>
       <button type="button" onClick={onSign}>
         Sign
