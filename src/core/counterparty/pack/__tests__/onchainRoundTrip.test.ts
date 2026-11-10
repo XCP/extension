@@ -157,8 +157,11 @@ const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<
   // wallet, not an indexer, and reproducing every historical encoding is not its job. A struct
   // send is therefore one it can read and deliberately cannot rebuild, which counts as declined
   // rather than as a defect.
+  // The text-only composer cannot rebuild a binary memo from its display hex string.
+  // Compare raw bytes, so text which merely looks hexadecimal remains eligible.
   enhanced_send: (data) =>
-    data.layout === 'legacy'
+    data.layout === 'legacy' || (data.memoBytes instanceof Uint8Array
+      && bytesToHex(new TextEncoder().encode(data.memo ?? '')) !== bytesToHex(data.memoBytes))
       ? null
       : {
           asset: data.asset,
@@ -422,6 +425,23 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
       return;
     }
   }, 60_000);
+});
+
+describe('on-chain enhanced-send memo classification', () => {
+  it('declines the binary memo from the failing weekly sample', () => {
+    const original = '434e54525052545902841b0000001c61620c4b1a000f42405501c4c987c235584a64990c94bb49cf6b87c778df7a5820ff397c86e327b1623cdc0b6f0875d3ab1a4e21ab8a00441d937a8cb0d2bb641c';
+    const decoded = unpackCounterpartyMessage(original);
+    expect(decoded.success).toBe(true);
+    expect(PARAMS_FROM_DECODED.enhanced_send!(decoded.data as Record<string, unknown>)).toBeNull();
+  });
+  it('still rebuilds hexadecimal-looking text exactly', () => {
+    const packed = packComposeMessage('send', { asset: 'XCP', quantity: 1, destination: '1BoatSLRHtKNngkdXEeobR76b53LETtpyT', memo: 'deadbeef' })!;
+    const decoded = unpackCounterpartyMessage(packed.bytes);
+    expect(decoded.success).toBe(true);
+    const params = PARAMS_FROM_DECODED.enhanced_send!(decoded.data as Record<string, unknown>);
+    expect(params).not.toBeNull();
+    expect(bytesToHex(packComposeMessage('send', params!)!.bytes)).toBe(bytesToHex(packed.bytes));
+  });
 });
 
 describe('on-chain fairminter sample classification', () => {

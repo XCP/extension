@@ -175,6 +175,11 @@ function AssetOrdersView({ baseAsset, quoteAsset, tab, setTab, onAutoSelectTab, 
     const sell: Order[] = [];
 
     orders.forEach(order => {
+      const amount = getOrderBaseAmount(order, baseAsset);
+      const quote = getOrderQuoteAmount(order, baseAsset);
+      const price = getOrderPricePerUnit(order, baseAsset);
+      // Open orders can have no remaining liquidity while matches await settlement.
+      if (![amount, quote, price].every(value => Number.isFinite(value) && value > 0)) return;
       if (order.give_asset === baseAsset) {
         sell.push(order);
       } else if (order.give_asset === quoteAsset) {
