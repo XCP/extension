@@ -876,13 +876,14 @@ export async function fetchUtxoBalances(
 /**
  * A Bitcoin transaction as the Counterparty node's own backend sees it, uncached.
  *
- * `confirmations` is absent (or zero) while the transaction is unconfirmed. Callers deciding
+ * Zero confirmations means unconfirmed; an absent field means the backend omitted chain status.
+ * Callers deciding
  * whether the Counterparty ledger can already reflect this transaction must compare it with
  * `fetchLedgerHeights`, fetched afterwards.
  */
 export async function fetchBackendTransaction(
   txid: string
-): Promise<{ hex: string; confirmations: number }> {
+): Promise<{ hex: string; confirmations?: number }> {
   const data = await cpApiGet<{ result?: { hex?: unknown; confirmations?: unknown } }>(
     `/v2/bitcoin/transactions/${encodePath(txid)}`,
     undefined,
@@ -895,9 +896,10 @@ export async function fetchBackendTransaction(
   const confirmations = data.result?.confirmations;
   return {
     hex,
-    confirmations: typeof confirmations === 'number' && Number.isSafeInteger(confirmations) && confirmations > 0
-      ? confirmations
-      : 0,
+    // Some Core backends return decoded bytes without chain status. Missing is not zero.
+    ...(typeof confirmations === 'number' && Number.isSafeInteger(confirmations) && confirmations >= 0
+      ? { confirmations }
+      : {}),
   };
 }
 
