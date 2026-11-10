@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, renameSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { chromium, expect, test } from '@playwright/test';
@@ -13,10 +13,13 @@ import { callGalleryService } from '../utils/provider-gallery';
 const from = process.env.RELEASE_UPGRADE_FROM;
 const to = process.env.RELEASE_UPGRADE_TO;
 
-test('published 0.14.4 vault survives the packaged 0.15.0 upgrade', async () => {
+test('published wallet vault survives the packaged upgrade', async () => {
   // biome-ignore lint/suspicious/noSkippedTests: Manual release check requires both production packages.
   test.skip(!from || !to, 'Set RELEASE_UPGRADE_FROM and RELEASE_UPGRADE_TO to unpacked production packages.');
   test.setTimeout(180_000);
+  const fromVersion = JSON.parse(readFileSync(path.join(from!, 'manifest.json'), 'utf8')).version;
+  const toVersion = JSON.parse(readFileSync(path.join(to!, 'manifest.json'), 'utf8')).version;
+  expect(fromVersion).not.toBe(toVersion);
   const root = mkdtempSync(path.join(tmpdir(), 'xcp-upgrade-'));
   const extension = path.join(root, 'extension');
   const previous = path.join(root, 'previous');
@@ -40,7 +43,7 @@ test('published 0.14.4 vault survives the packaged 0.15.0 upgrade', async () => 
 
   let browser = await launch();
   try {
-    expect(await browser.page.evaluate(() => chrome.runtime.getManifest().version)).toBe('0.14.4');
+    expect(await browser.page.evaluate(() => chrome.runtime.getManifest().version)).toBe(fromVersion);
     await importMnemonic(browser.page);
     const mnemonic = await callGalleryService<Wallet>(browser.page, 'getActiveWallet');
     await callGalleryService(browser.page, 'addAddress', [mnemonic.id]);
@@ -85,7 +88,7 @@ test('published 0.14.4 vault survives the packaged 0.15.0 upgrade', async () => 
 
     browser = await launch();
     expect(browser.id).toBe(id);
-    expect(await browser.page.evaluate(() => chrome.runtime.getManifest().version)).toBe('0.15.0');
+    expect(await browser.page.evaluate(() => chrome.runtime.getManifest().version)).toBe(toVersion);
     expect(await callGalleryService(browser.page, 'isKeychainUnlocked')).toBe(false);
     await unlockWallet(browser.page);
     expect(await callGalleryService(browser.page, 'getWallets')).toEqual(wallets);
