@@ -6,7 +6,7 @@ export type UtxoSpendState = 'pending' | 'spent';
 
 /** Check only displayed outputs, four at a time. Refresh retries unknowns and reorged spends. */
 export function useUtxoSpendStatus(outpoints: string[], refreshNonce?: number): Map<string, UtxoSpendState> {
-  const key = [...new Set(outpoints)].sort().join(',');
+  const key = [...new Set(outpoints)].sort((a, b) => a < b ? -1 : a > b ? 1 : 0).join(',');
   const cache = useRef(new Map<string, Awaited<ReturnType<typeof fetchUtxoSpendStatus>>>());
   const previousRefresh = useRef(refreshNonce);
   const [snapshot, setSnapshot] = useState(new Map<string, UtxoSpendState>());

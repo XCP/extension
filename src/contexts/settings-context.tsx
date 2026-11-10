@@ -79,17 +79,11 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
     };
   }, []);
 
-  /**
-   * @param showLoading - False when re-reading settings that changed elsewhere. Every surface
-   *   consuming `isLoading` renders a spinner from it, so raising it for a change the user made in
-   *   another window would flash all of them.
-   */
-  const loadSettings = useCallback(async (showLoading = true) => {
+  const loadSettings = useCallback(async () => {
     const startedGeneration = generation.current;
     const startedRevision = revision.current;
     const read = ++latestRead.current;
     try {
-      if (showLoading) setIsLoading(true);
       const walletService = getWalletServiceClient();
       const storedSettings = await walletService.getSettings();
       if (!mounted.current || generation.current !== startedGeneration
@@ -123,7 +117,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
     // the other edits. Watcher reads are serialized; generation/revision guards reject old replies.
     const stopWatching = watchKeychainRecord(() => {
       withStateLock('settings-lock', async () => {
-        await loadSettings(false);
+        await loadSettings();
       }).catch(logFailedRead);
     });
 
@@ -151,17 +145,22 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       // On error, reload from storage to get the authoritative state.
       // This avoids race conditions with stale rollback values when
       // multiple rapid updates are attempted.
-      if (mounted.current && generation.current === startedGeneration) await loadSettings(false);
+      if (mounted.current && generation.current === startedGeneration) await loadSettings();
       throw error; // Re-throw to let component handle user feedback
     }
+  }, [loadSettings]);
+
+  const refreshSettings = useCallback(async () => {
+    setIsLoading(true);
+    await loadSettings();
   }, [loadSettings]);
 
   const contextValue = useMemo(() => ({
     settings,
     updateSettings: updateSettingsHandler,
-    refreshSettings: loadSettings,
+    refreshSettings,
     isLoading
-  }), [settings, updateSettingsHandler, loadSettings, isLoading]);
+  }), [settings, updateSettingsHandler, refreshSettings, isLoading]);
 
   return (
     <SettingsContext value={contextValue}>

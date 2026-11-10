@@ -12,16 +12,17 @@ XCP Wallet is a Manifest V3 extension built for Chrome (Chromium) only.
 
 ## Setup
 
-Use Node 24 and npm 11 (`package.json` `engines`; `.nvmrc` pins the Node version CI uses).
+Use Node 26.13.0 and npm 12.2.2 (`.nvmrc` and `package.json` pin the toolchain CI uses).
 
 ```bash
+npm install --global npm@12.2.2 --ignore-scripts
 npm install        # plain install: never --legacy-peer-deps, it prunes @testing-library/dom
 ```
 
 Dependencies are pinned to exact versions, and CI fails on a range (`^`, `~`, `*`, ...).
 
 The development-only Stellar SDK used by Trezor pins a vulnerable Axios version. Its scoped
-override pins Axios 1.20.0 until the SDK adopts a patched release; check both `npm audit` and the
+override pins Axios 1.21.1 until the SDK adopts a patched release; check both `npm audit` and the
 Trezor emulator suite when updating or removing it.
 
 ### The lockfile
@@ -38,11 +39,12 @@ npm run check:lockfile
 **Regenerate the lockfile with Linux npm.** npm on Windows drops platform-specific optional
 entries (such as `@emnapi/core`, `@emnapi/runtime` and `@emnapi/wasi-threads`) that CI's Linux
 `npm ci` requires, and every CI job then fails with "Missing: ... from lock file". Start from
-`main`'s lock, make the `package.json` change, and regenerate it in a `node:24` container:
+`main`'s lock, make the `package.json` change, and regenerate it in a `node:26.13.0` container:
 
 ```bash
 tar cf - package.json package-lock.json \
-  | docker run --rm -i node:24 sh -c 'mkdir /app && cd /app && tar xf - \
+  | docker run --rm -i node:26.13.0 sh -c 'mkdir /app && cd /app && tar xf - \
+      && npm install --global npm@12.2.2 --ignore-scripts >&2 \
       && npm install --package-lock-only --ignore-scripts >&2 \
       && npm ci --ignore-scripts >&2 \
       && cat package-lock.json' > package-lock.new.json

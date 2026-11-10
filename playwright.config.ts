@@ -31,7 +31,7 @@ export default defineConfig({
   
   // Use appropriate reporters
   reporter: isCI 
-    ? [['list'], ['html'], ['github'], ['json', { outputFile: 'test-results.json' }]]
+    ? [['list'], ['html', { onlyFailures: true }], ['github'], ['json', { outputFile: 'test-results.json' }]]
     : [['list'], ['html']],
   
   // Timeout settings

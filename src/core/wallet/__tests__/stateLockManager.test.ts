@@ -255,7 +255,7 @@ describe('StateLockManager', () => {
       const results = Promise.all([increment(), increment(), increment()]);
       await vi.runAllTimersAsync();
 
-      expect((await results).sort()).toEqual([1, 2, 3]);
+      expect((await results).sort((a, b) => a - b)).toEqual([1, 2, 3]);
       expect(seen).toEqual([0, 1, 2]);
     });
 

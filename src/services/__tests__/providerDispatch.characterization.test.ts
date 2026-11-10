@@ -644,7 +644,7 @@ describe('provider dispatch characterization', () => {
   it('covers every method the service dispatches', async () => {
     const source = await import('node:fs').then(fs => fs.readFileSync('src/services/providerService.ts', 'utf8'));
     const dispatched = [...new Set([...source.matchAll(/case '(xcp_\w+)':/g)].map(match => match[1]!))];
-    expect(dispatched.sort()).toEqual([...DISPATCHED_METHODS].sort());
+    expect(dispatched.sort((a, b) => a < b ? -1 : a > b ? 1 : 0)).toEqual([...DISPATCHED_METHODS].sort((a, b) => a < b ? -1 : a > b ? 1 : 0));
   });
 
   for (const method of METHODS) {

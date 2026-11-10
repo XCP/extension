@@ -212,6 +212,6 @@ describe('local decoder vs counterparty-core, same bytes', () => {
     // returning null is silently dropped from the run and the suite still passes — coverage
     // shrinking quietly is the failure mode this harness exists to prevent.
     const expected = Object.keys(GENERATORS).filter((t) => !EXPECTED_DIVERGENCE.has(t)).sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
-    expect([...new Set(compared)].sort(), `not built: ${unbuildable.join(', ')}`).toEqual(expected);
+    expect([...new Set(compared)].sort((a, b) => a < b ? -1 : a > b ? 1 : 0), `not built: ${unbuildable.join(', ')}`).toEqual(expected);
   }, 600000);
 });

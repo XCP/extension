@@ -63,7 +63,7 @@ function composeTypesInUse(): string[] {
   for (const match of APP_SOURCE.matchAll(/composeType[=:]\s*["']([a-z]+)["']/g)) {
     found.add(match[1]!);
   }
-  return [...found].sort();
+  return [...found].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
 }
 
 /**

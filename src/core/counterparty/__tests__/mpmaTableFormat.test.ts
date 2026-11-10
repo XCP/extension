@@ -168,7 +168,7 @@ function paramsFor(vector: CoreVector): Record<string, unknown> {
 
 /** Core's decode of these sends: grouped by asset name, request order within a group. */
 function expectedSends(vector: CoreVector) {
-  const assets = [...new Set(vector.sends.map(([asset]) => asset))].sort();
+  const assets = [...new Set(vector.sends.map(([asset]) => asset))].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
   return assets.flatMap((asset) => vector.sends
     .filter(([sendAsset]) => sendAsset === asset)
     .map(([, destination, quantity, memo, isHex]) => ({
