@@ -3,6 +3,7 @@ import { apiClient } from '@/core/api/client';
 import {
   checkOutspend,
   checkOutspends,
+  fetchUtxoSpendStatus,
   MAX_OUTSPEND_LOOKUPS_PER_PASS,
   OUTSPEND_RECHECK_MS,
   OUTSPEND_SOURCES,
@@ -124,4 +125,22 @@ describe('asking the chain whether a missed locked coin is gone', () => {
     expect(second.unknown).toEqual(candidates.slice(perPass));
     expect(apiClient.get).toHaveBeenCalledTimes(MAX_OUTSPEND_LOOKUPS_PER_PASS);
   });
+});
+
+it('reports a pending spend for display without releasing coin locks', async () => {
+  serve({ [outspend(MEMPOOL)]: spentInMempool, [outspend(BLOCKSTREAM)]: spentInMempool });
+  expect(await fetchUtxoSpendStatus(OUTPOINT)).toBe('pending');
+  expect(await checkOutspend(OUTPOINT)).toBe('keep');
+});
+it('reports confirmed spends and leaves missing responses unknown', async () => {
+  serve({ [outspend(MEMPOOL)]: spentConfirmed });
+  expect(await fetchUtxoSpendStatus(OUTPOINT)).toBe('spent');
+  serve({ [outspend(MEMPOOL)]: NOT_FOUND, [outspend(BLOCKSTREAM)]: NOT_FOUND });
+  expect(await fetchUtxoSpendStatus(OUTPOINT)).toBe('unknown');
+});
+it('falls back after an unavailable display source and does not call an unknown output spent', async () => {
+  serve({ [outspend(BLOCKSTREAM)]: unspent });
+  expect(await fetchUtxoSpendStatus(OUTPOINT)).toBe('unspent');
+  serve({});
+  expect(await fetchUtxoSpendStatus(OUTPOINT)).toBe('unknown');
 });

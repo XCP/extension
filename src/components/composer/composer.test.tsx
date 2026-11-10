@@ -8,6 +8,7 @@ import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
+import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import { encodeCbor } from '@/core/counterparty/pack/cbor';
 import { packAddress } from '@/core/counterparty/unpack/address';
 import { arc4 } from '@/core/counterparty/unpack/binary';
@@ -44,6 +45,7 @@ import { useComposer } from '@/contexts/composer-context-object';
 import { Composer } from './composer';
 
 // Mock dependencies
+vi.mock('@/core/counterparty/inputAssets', () => ({ fetchInputsAttachedAssets: vi.fn() }));
 const mockNavigate = vi.fn();
 vi.mock('react-router', async () => {
   const actual = await vi.importActual('react-router');
@@ -174,8 +176,9 @@ describe('Composer', () => {
     </form>
   );
 
-  const MockReviewComponent = ({ apiResponse, onSign, onBack }: any): ReactElement => (
+  const MockReviewComponent = ({ apiResponse, onSign, onBack, error }: any): ReactElement => (
     <div data-testid="review-component">
+      {error && <div role="alert">{error}</div>}
       <div>Transaction: {apiResponse?.result?.rawtransaction}</div>
       <button type="button" onClick={onSign}>
         Sign
@@ -205,6 +208,7 @@ describe('Composer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fetchInputsAttachedAssets).mockResolvedValue([]);
     mockSignTransaction.mockResolvedValue('signed123');
     mockBroadcastTransaction.mockResolvedValue({ tx_hash: 'broadcast123' });
     mockComposeApi.mockResolvedValue(mockApiResponse);
@@ -273,6 +277,17 @@ describe('Composer', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('review-component')).toBeInTheDocument();
     });
+  });
+
+  it('refuses to sign when funding evidence is unavailable', async () => {
+    vi.mocked(fetchInputsAttachedAssets).mockResolvedValue([{ inputIndex: 0, utxo: 'unknown:0', assets: [], lookupFailed: true }]);
+    renderWithProvider();
+    fireEvent.submit(screen.getByTestId('form-component'));
+    await waitFor(() => expect(screen.queryByTestId('review-component')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Sign'));
+    await waitFor(() => expect(screen.getByText(/cannot yet be proven asset-free/)).toBeInTheDocument());
+    expect(mockSignTransaction).not.toHaveBeenCalled();
+    expect(mockBroadcastTransaction).not.toHaveBeenCalled();
   });
 
   it('should handle sign action', async () => {

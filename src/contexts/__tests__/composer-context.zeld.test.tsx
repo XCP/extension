@@ -135,7 +135,9 @@ describe('ComposerContext ZELD hunt', () => {
     let resolveSigning!: (signed: string) => void;
     signTransaction.mockImplementation(() => new Promise(resolve => { resolveSigning = resolve; }));
     const { result, unmount } = renderComposer(vi.fn().mockResolvedValue(composeResponse()));
-    await act(async () => { await result.current.composeTransaction(new FormData()); });
+    const form = new FormData();
+    form.set('sourceUtxo', `${'0'.repeat(64)}:0`);
+    await act(async () => { await result.current.composeTransaction(form); });
     let pending!: Promise<void>;
     act(() => { pending = result.current.signAndBroadcast(); });
     await waitFor(() => expect(signTransaction).toHaveBeenCalled());
