@@ -20,7 +20,7 @@ walletTest(`BTC Max reserves only for selected ZELD (${btcHasZeld}) and ZELD Max
     const json = (body: unknown) => route.fulfill({ json: body });
     if (path === `/v2/bitcoin/transactions/${available}`) return json({ result: { hex: funding.hex, confirmations: 10 } });
     if (/\/v2\/?$/.test(path)) return json({ result: { backend_height: 900000, counterparty_height: 900000 } });
-    if (path === `/v2/utxos/${attached}:0/balances`) return json({ result: [{ asset: 'XCP', quantity: '1', quantity_normalized: '0.00000001' }] });
+    if (decodeURIComponent(path) === `/v2/utxos/${attached}:0/balances`) return json({ result: [{ asset: 'XCP', quantity: '1', quantity_normalized: '0.00000001' }] });
     if (url.hostname === 'api.zeldhash.com') return json([
       { txid: locked, vout: 0, balance: '4000000000' },
       ...(includeAvailableZeld ? [{ txid: available, vout: 0, balance: '6000000000' }] : []),
