@@ -408,13 +408,14 @@ async function composeDataFromCore(testCase: OracleCase): Promise<string> {
 describe.skipIf(!API_URL)('local packing matches counterparty-core', () => {
   it.each(CASES)('$label', async (testCase) => {
     // Like the wallet, establish the consensus table layout independently of compose bytes.
-    let mpmaTableFormat: MpmaTableFormat | null | undefined;
+    let mpmaTableFormat: MpmaTableFormat | undefined;
     if (testCase.composeType === 'mpma') {
       const response = await fetchOracle(`${API_URL}/v2/`);
       if (!response.ok) throw new Error(`Core status returned ${response.status}`);
       const { result } = await response.json() as { result: { network: string; counterparty_height: number } };
-      mpmaTableFormat = mpmaTableFormatAt(result.network, result.counterparty_height + 1);
-      if (!mpmaTableFormat) throw new Error('Cannot establish the MPMA table format for the oracle');
+      const format = mpmaTableFormatAt(result.network, result.counterparty_height + 1);
+      if (!format) throw new Error('Cannot establish the MPMA table format for the oracle');
+      mpmaTableFormat = format;
     }
     const fromCore = await composeDataFromCore(testCase);
 
