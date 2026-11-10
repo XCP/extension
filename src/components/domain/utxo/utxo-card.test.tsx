@@ -175,7 +175,7 @@ describe("UtxoCard", () => {
   it.each(['pending', 'spent'] as const)('keeps the balance visible but removes spend actions for a %s output', spentStatus => {
     render(<UtxoCard token={mockToken} spentStatus={spentStatus} />, { wrapper: TestWrapper });
     expect(screen.getByText('XCP')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /utxo actions/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`utxo-menu-${mockToken.utxo}`)).not.toBeInTheDocument();
     expect(screen.getByText(spentStatus === 'pending' ? 'Spend pending' : 'Spent — updating balances')).toBeInTheDocument();
   });
 });
