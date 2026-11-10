@@ -1,3 +1,4 @@
+import { resolveEmptyLedgerOutpoint } from '../pendingAttachments';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearSpentUtxoCache,
@@ -13,6 +14,12 @@ import { selectUtxosForTransaction } from '../utxoSelection';
 // Mock dependencies
 vi.mock('@/core/bitcoin/utxo');
 vi.mock('../api');
+vi.mock('../pendingAttachments', () => ({
+  createPendingEvidenceContext: vi.fn(() => ({})),
+  liveAttachmentEvidenceSource: {},
+  resolveEmptyLedgerOutpoint: vi.fn(async () => ({ kind: 'clean' })),
+}));
+beforeEach(() => { vi.mocked(resolveEmptyLedgerOutpoint).mockResolvedValue({ kind: 'clean' }); });
 vi.mock('@/core/bitcoin/outspend', () => ({ checkOutspends: vi.fn(async () => ({ spent: [], unknown: [] })) }));
 
 const mockedFetchUTXOs = vi.mocked(bitcoinUtxo.fetchUTXOs);
@@ -354,5 +361,21 @@ describe('selectUtxosForTransaction with locked coins', () => {
     mockedFetchUTXOs.mockResolvedValue([createMockUtxo('tx1', 0, 50000)]);
     setCoinLockStore({ read: async () => { throw new Error('store down'); }, update: async () => {} });
     await expect(selectUtxosForTransaction(mockAddress)).rejects.toThrow('store down');
+  });
+});
+
+describe('pending attachment funding', () => {
+  it.each(['pending', 'unknown'] as const)('excludes a %s 546-sat asset output and keeps 536 sats of verified change', async kind => {
+    clearSpentUtxoCache();
+    setCoinLockStore({ read: async () => [], update: async () => {} });
+    mockedFetchUTXOs.mockResolvedValue([
+      createMockUtxo('parent', 0, 546, false), createMockUtxo('parent', 2, 536, false),
+    ]);
+    mockedFetchUtxosWithBalances.mockResolvedValue(new Set());
+    vi.mocked(resolveEmptyLedgerOutpoint).mockImplementation(async (_ctx, _txid, vout) =>
+      vout === 2 ? { kind: 'clean' } : kind === 'pending' ? { kind, parentTxid: 'parent' } : { kind });
+    const selected = await selectUtxosForTransaction(mockAddress, { allowUnconfirmed: true });
+    expect(selected.utxos.map(u => u.vout)).toEqual([2]);
+    expect(selected.totalValue).toBe(536);
   });
 });

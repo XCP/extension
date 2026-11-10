@@ -3,6 +3,7 @@
  * recent broadcasts; changing the active wallet, address, or lock state resets the workflow.
  */
 
+import { assertAttachFundingIsAssetFree } from '@/core/counterparty/attachFunding';
 import {
   type ReactElement,
   type ReactNode,
@@ -656,6 +657,8 @@ export function ComposerProvider<T>({
       throw new Error(t('composer_context_transaction_replay_detected', [String(replayCheck.reason)]));
     }
 
+    if (composeType === 'attach') await assertAttachFundingIsAssetFree(rawTxHex);
+
     // For hardware wallets, pause idle timer during signing
     const isHardwareWallet = activeWallet?.type === 'hardware';
     if (isHardwareWallet) {
@@ -755,7 +758,7 @@ export function ComposerProvider<T>({
       ...(revealBroadcast ? { revealBroadcast } : {}),
       broadcastWarning,
     };
-  }, [state.apiResponse, activeAddress, activeWallet, signTransaction, signCommitAndReveal, broadcastTransaction, setHardwareOperationInProgress]);
+  }, [state.apiResponse, activeAddress, activeWallet, composeType, signTransaction, signCommitAndReveal, broadcastTransaction, setHardwareOperationInProgress]);
 
   const signAndBroadcast = useCallback(async () => {
     // Guard: Prevent double-signing race condition

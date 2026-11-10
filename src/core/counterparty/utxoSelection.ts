@@ -9,11 +9,13 @@
  * This follows the same approach as Horizon Wallet.
  */
 
+import { createPendingEvidenceContext, liveAttachmentEvidenceSource, resolveEmptyLedgerOutpoint } from '@/core/counterparty/pendingAttachments';
 import { lockedOutpoints } from '@/core/bitcoin/coinLockAccess';
 import { outpointOf } from '@/core/bitcoin/coinLocks';
 import { getPendingChangeUtxos, isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs, formatInputsSet, type UTXO } from '@/core/bitcoin/utxo';
 import { fetchUtxosWithBalances } from '@/core/counterparty/api';
+import { createPendingEvidenceContext, liveAttachmentEvidenceSource, resolveEmptyLedgerOutpoint } from '@/core/counterparty/pendingAttachments';
 
 /**
  * Maximum number of UTXOs to include in inputs_set (API limit).
@@ -106,6 +108,8 @@ export async function selectUtxosForTransaction(
   const utxosWithAssets = await fetchUtxosWithBalances(checkedCandidates
     .map(utxo => `${utxo.txid}:${utxo.vout}`));
 
+  const pendingContext = createPendingEvidenceContext(liveAttachmentEvidenceSource);
+
   // 3. Filter UTXOs
   let excludedWithAssets = 0;
   let excludedValue = 0;
@@ -139,6 +143,17 @@ export async function selectUtxosForTransaction(
       excludedWithAssets++;
       excludedValue += utxo.value;
       continue;
+    }
+
+    // An empty indexed balance does not prove an unconfirmed output is plain BTC.
+    // Keep verified change usable, but never fund from a pending attach/move or unknown parent.
+    if (!utxo.status.confirmed) {
+      const evidence = await resolveEmptyLedgerOutpoint(pendingContext, utxo.txid, utxo.vout);
+      if (evidence.kind !== 'clean') {
+        excludedWithAssets++;
+        excludedValue += utxo.value;
+        continue;
+      }
     }
 
     eligibleUtxos.push(utxo);
