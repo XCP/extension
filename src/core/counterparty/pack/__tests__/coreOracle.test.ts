@@ -29,7 +29,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { asBaseUnits } from '@/core/numeric';
-import { mpmaTableFormatAt } from '../../mpmaTableFormat';
+import { type MpmaTableFormat, mpmaTableFormatAt } from '../../mpmaTableFormat';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
 import { packComposeMessage } from '../messages';
@@ -408,7 +408,7 @@ async function composeDataFromCore(testCase: OracleCase): Promise<string> {
 describe.skipIf(!API_URL)('local packing matches counterparty-core', () => {
   it.each(CASES)('$label', async (testCase) => {
     // Like the wallet, establish the consensus table layout independently of compose bytes.
-    let mpmaTableFormat;
+    let mpmaTableFormat: MpmaTableFormat | null | undefined;
     if (testCase.composeType === 'mpma') {
       const response = await fetchOracle(`${API_URL}/v2/`);
       if (!response.ok) throw new Error(`Core status returned ${response.status}`);
