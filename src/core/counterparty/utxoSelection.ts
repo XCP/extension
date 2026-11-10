@@ -9,7 +9,7 @@
  * This follows the same approach as Horizon Wallet.
  */
 
-import { createPendingEvidenceContext, liveAttachmentEvidenceSource, resolveEmptyLedgerOutpoint } from '@/core/counterparty/pendingAttachments';
+
 import { lockedOutpoints } from '@/core/bitcoin/coinLockAccess';
 import { outpointOf } from '@/core/bitcoin/coinLocks';
 import { getPendingChangeUtxos, isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
