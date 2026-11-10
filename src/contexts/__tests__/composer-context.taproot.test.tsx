@@ -22,6 +22,7 @@ import {
 } from '@/core/counterparty/__tests__/taproot115Fixtures';
 import { SEND_TAPROOT } from '@/core/counterparty/__tests__/taprootFixtures';
 import type { ApiResponse } from '@/core/counterparty/compose';
+import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import { checkRevealSourceSignature, sourceOutputScript } from '@/core/counterparty/revealSourceRule';
 import { CounterpartyApiError } from '@/core/errors';
 import { ComposerProvider } from '../composer-context';
@@ -32,6 +33,9 @@ let walletType: 'mnemonic' | 'privateKey' | 'hardware' = 'mnemonic';
 const signTransaction = vi.fn();
 const signCommitAndReveal = vi.fn();
 const broadcastTransaction = vi.fn();
+
+// Network evidence is stubbed; the production pre-sign guard remains active.
+vi.mock('@/core/counterparty/inputAssets', () => ({ fetchInputsAttachedAssets: vi.fn() }));
 
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
@@ -126,6 +130,7 @@ async function signBoth(rawTxHex: string, address: string, reveal: TaprootReveal
 
 describe('ComposerContext Taproot encoding (Core 11.5)', () => {
   beforeEach(() => {
+    vi.mocked(fetchInputsAttachedAssets).mockReset().mockResolvedValue([]);
     zeldHuntSeconds = 0;
     walletType = 'mnemonic';
     signTransaction.mockReset();
@@ -136,6 +141,16 @@ describe('ComposerContext Taproot encoding (Core 11.5)', () => {
     broadcastTransaction.mockImplementation(async (hex: string) => ({
       txid: hex === BROADCAST_P2WPKH.result.rawtransaction ? 'commit' : 'reveal',
     }));
+  });
+
+  it('does not sign either transaction when commit funding has unknown asset status', async () => {
+    vi.mocked(fetchInputsAttachedAssets).mockResolvedValue([{ inputIndex: 0, utxo: 'unknown:0', assets: [], lookupFailed: true }]);
+    const { result } = await composed(vi.fn(async () => responseFor()));
+    await act(async () => { await result.current.signAndBroadcast(); });
+    expect(result.current.state.error).toMatch(/asset-free/);
+    expect(signCommitAndReveal).not.toHaveBeenCalled();
+    expect(signTransaction).not.toHaveBeenCalled();
+    expect(broadcastTransaction).not.toHaveBeenCalled();
   });
 
   it('asks for Taproot unprompted, reviews the message read from the envelope, and counts both fees', async () => {
