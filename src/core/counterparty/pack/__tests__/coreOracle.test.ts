@@ -29,6 +29,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { asBaseUnits } from '@/core/numeric';
+import { type MpmaTableFormat, mpmaTableFormatAt } from '../../mpmaTableFormat';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
 import { packComposeMessage } from '../messages';
@@ -406,6 +407,16 @@ async function composeDataFromCore(testCase: OracleCase): Promise<string> {
 
 describe.skipIf(!API_URL)('local packing matches counterparty-core', () => {
   it.each(CASES)('$label', async (testCase) => {
+    // Like the wallet, establish the consensus table layout independently of compose bytes.
+    let mpmaTableFormat: MpmaTableFormat | undefined;
+    if (testCase.composeType === 'mpma') {
+      const response = await fetchOracle(`${API_URL}/v2/`);
+      if (!response.ok) throw new Error(`Core status returned ${response.status}`);
+      const { result } = await response.json() as { result: { network: string; counterparty_height: number } };
+      const format = mpmaTableFormatAt(result.network, result.counterparty_height + 1);
+      if (!format) throw new Error('Cannot establish the MPMA table format for the oracle');
+      mpmaTableFormat = format;
+    }
     const fromCore = await composeDataFromCore(testCase);
 
     let observed: Record<string, unknown> | undefined;
@@ -415,7 +426,7 @@ describe.skipIf(!API_URL)('local packing matches counterparty-core', () => {
       observed = unpacked.data as Record<string, unknown>;
     }
 
-    const packed = packComposeMessage(testCase.composeType, testCase.params, observed);
+    const packed = packComposeMessage(testCase.composeType, testCase.params, observed, { mpmaTableFormat });
     expect(packed, 'this case should be packable locally').not.toBeNull();
     expect(bytesToHex(packed!.bytes).toLowerCase()).toBe(fromCore);
   }, 60_000);

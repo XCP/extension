@@ -66,6 +66,18 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('Order pair pagination ownership', () => {
+  it('excludes exhausted open buy and sell orders from price levels', async () => {
+    const exhaustedSell = { ...order('empty-sell', 'OLD', '2'), give_remaining_normalized: asDisplayUnits('0') };
+    const exhaustedBuy = { ...order('empty-buy', 'XCP', '3'), get_asset: 'OLD', get_remaining_normalized: asDisplayUnits('0') };
+    vi.mocked(fetchOrdersByPair).mockResolvedValue(page([exhaustedSell, exhaustedBuy, order('available')]));
+    render(<AssetOrdersPage />);
+    await flush();
+    expect(screen.getAllByTestId('level')).toHaveLength(1);
+    expect(screen.getByTestId('level')).toHaveTextContent('1: 1');
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Buy' })); });
+    expect(screen.queryByTestId('level')).not.toBeInTheDocument();
+  });
+
   it('publishes the complete order book atomically after all pages finish', async () => {
     const last = deferred<PaginatedResponse<Order>>();
     vi.mocked(fetchOrdersByPair)
