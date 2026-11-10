@@ -52,7 +52,7 @@ export function UtxoCard({ token, pendingStatus, spentStatus }: UtxoCardProps): 
               })}
             </span>
             {spentStatus ? (
-              <span className="ml-2 text-xs text-amber-700">{t(spentStatus === 'spent' ? 'utxo_spent_indexing' : 'utxo_spend_pending')}</span>
+              <span className="ml-2 text-xs text-amber-700">{spentStatus === 'spent' ? t('utxo_spent_indexing') : t('utxo_spend_pending')}</span>
             ) : pendingStatus ? (
               <PendingStatus label={pendingStatus} className="ml-2" />
             ) : (
