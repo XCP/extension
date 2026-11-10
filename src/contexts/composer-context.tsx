@@ -26,8 +26,8 @@ import { useWallet } from "@/contexts/wallet-context";
 import { isApiError } from "@/core/api/client";
 import { checkTransactionFee } from "@/core/bitcoin/feeVerification";
 import { fetchOrderMatch } from "@/core/counterparty/api";
-import { btcPayPayment } from "@/core/counterparty/btcpayPayment";
 import { assertAttachFundingIsAssetFree } from '@/core/counterparty/attachFunding';
+import { btcPayPayment } from "@/core/counterparty/btcpayPayment";
 import type { ApiResponse } from "@/core/counterparty/compose";
 import { composerChosenMessageFields } from "@/core/counterparty/composerChoices";
 import {
