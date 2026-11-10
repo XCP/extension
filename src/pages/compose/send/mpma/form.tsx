@@ -6,6 +6,7 @@ import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { fetchAssetDetails } from "@/core/counterparty/api";
 import { encodeMemoList, isValidMemoLength } from "@/core/counterparty/memo";
+import { resolveMpmaTableFormat } from "@/core/counterparty/mpmaTableFormat";
 import { validateBitcoinAddress } from "@/core/validation/bitcoin";
 import { parseCSV } from "@/core/validation/csv";
 import { validateFile } from "@/core/validation/file";
@@ -71,9 +72,14 @@ export function MPMAForm({
       const parsedRows: ParsedRow[] = [];
       const assetCache: { [key: string]: boolean } = {};
 
-      // Every unencodable destination at once. Core rejects them one at a time and only after
-      // composing, so a file with thirty Taproot recipients took thirty round trips to clean up.
-      const unencodable = parsed.rows.filter((row) => !isMpmaEncodable(row.address));
+      // Resolve activation once per import only if a recipient needs the new table.
+      // Composition independently verifies the current format before transaction review.
+      let unencodable = parsed.rows.filter((row) => !isMpmaEncodable(row.address));
+      if (unencodable.length > 0) {
+        const table = await resolveMpmaTableFormat();
+        if (!table) throw new Error(t('composer_context_mpma_table_format_unconfirmed'));
+        unencodable = unencodable.filter((row) => !isMpmaEncodable(row.address, table.format));
+      }
       if (unencodable.length > 0) {
         const listed = unencodable
           .slice(0, MAX_LISTED_ERRORS)

@@ -14,6 +14,16 @@ import { describe, expect, it } from 'vitest';
 import { isMpmaEncodable } from '../mpmaDestination';
 
 describe('isMpmaEncodable', () => {
+  it('accepts 32-byte witness programs with the activated table', () => {
+    for (const address of [
+      'bc1p3vl9hmdetkyde2qj2e2n9rw8zqrygsyclprfc3xnyku6sjczpsxqv068cg',
+      'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3',
+    ]) {
+      expect(isMpmaEncodable(address, 'length-prefixed')).toBe(true);
+      expect(isMpmaEncodable(address, 'legacy')).toBe(false);
+    }
+    expect(isMpmaEncodable('bc1', 'length-prefixed')).toBe(false);
+  });
   it('accepts base58 addresses, which pack to 21 bytes', () => {
     // P2PKH and P2SH: one version byte plus a 20-byte hash.
     expect(isMpmaEncodable('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')).toBe(true);
