@@ -1,5 +1,5 @@
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
-import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
+import { fetchWalletInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import { type AttachmentEvidenceSource, liveAttachmentEvidenceSource } from '@/core/counterparty/pendingAttachments';
 
 export interface FundingIntent {
@@ -31,7 +31,7 @@ export async function assertFundingIsAssetFree(
   if (funding.length === 0) return;
   // Recheck actual inputs, including Core-selected fallback inputs. Do not treat a local
   // change-cache entry as proof: an implicit asset move can also pay the wallet itself.
-  const assets = await fetchInputsAttachedAssets(funding, undefined, async () => null, evidenceSource);
+  const assets = await fetchWalletInputsAttachedAssets(funding, evidenceSource);
   if (assets.some(entry => entry.assets.length > 0 || entry.lookupFailed)) {
     throw new Error('Transaction funding contains assets or cannot yet be proven asset-free. Wait for pending transactions to confirm and be indexed, or add clean BTC.');
   }

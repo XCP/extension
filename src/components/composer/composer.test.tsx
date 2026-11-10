@@ -8,7 +8,7 @@ import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
 import { AddressFormat } from '@/core/bitcoin/addressFormat';
-import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
+import { fetchWalletInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import { encodeCbor } from '@/core/counterparty/pack/cbor';
 import { packAddress } from '@/core/counterparty/unpack/address';
 import { arc4 } from '@/core/counterparty/unpack/binary';
@@ -45,7 +45,7 @@ import { useComposer } from '@/contexts/composer-context-object';
 import { Composer } from './composer';
 
 // Mock dependencies
-vi.mock('@/core/counterparty/inputAssets', () => ({ fetchInputsAttachedAssets: vi.fn() }));
+vi.mock('@/core/counterparty/inputAssets', () => ({ fetchWalletInputsAttachedAssets: vi.fn() }));
 const mockNavigate = vi.fn();
 vi.mock('react-router', async () => {
   const actual = await vi.importActual('react-router');
@@ -208,7 +208,7 @@ describe('Composer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(fetchInputsAttachedAssets).mockResolvedValue([]);
+    vi.mocked(fetchWalletInputsAttachedAssets).mockResolvedValue([]);
     mockSignTransaction.mockResolvedValue('signed123');
     mockBroadcastTransaction.mockResolvedValue({ tx_hash: 'broadcast123' });
     mockComposeApi.mockResolvedValue(mockApiResponse);
@@ -280,7 +280,7 @@ describe('Composer', () => {
   });
 
   it('refuses to sign when funding evidence is unavailable', async () => {
-    vi.mocked(fetchInputsAttachedAssets).mockResolvedValue([{ inputIndex: 0, utxo: 'unknown:0', assets: [], lookupFailed: true }]);
+    vi.mocked(fetchWalletInputsAttachedAssets).mockResolvedValue([{ inputIndex: 0, utxo: 'unknown:0', assets: [], lookupFailed: true }]);
     renderWithProvider();
     fireEvent.submit(screen.getByTestId('form-component'));
     await waitFor(() => expect(screen.queryByTestId('review-component')).toBeInTheDocument());

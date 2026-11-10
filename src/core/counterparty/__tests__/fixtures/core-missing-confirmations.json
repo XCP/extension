@@ -1,0 +1,81 @@
+{
+  "source": "https://api.counterparty.io:4000",
+  "txid": "291bdbbe4932cb9807e5a3f1c0c5cacaa3f335b77e20aa4891d901f453500de2",
+  "vout": 1,
+  "transaction": {
+    "result": {
+      "txid": "291bdbbe4932cb9807e5a3f1c0c5cacaa3f335b77e20aa4891d901f453500de2",
+      "hash": "291bdbbe4932cb9807e5a3f1c0c5cacaa3f335b77e20aa4891d901f453500de2",
+      "version": 2,
+      "size": 260,
+      "vsize": 260,
+      "weight": 1040,
+      "locktime": 0,
+      "vin": [
+        {
+          "txid": "27477e6cdcceab88e8fac0faf7e7bacc6626e8a036c5b25a9a2103515dbf0ed8",
+          "vout": 1,
+          "scriptSig": {
+            "asm": "3044022050c86d44b855d1cb08c02c104fb5f3804f0fc8408f6e8aa368845b9e27a4915b0220560d53b26f55795dd7c4cd1067549e0607c147d61b201707911af27d34778171[ALL] 0258c08cade470d81a9fd83913d14a293121849b8f4a48b6b40062788102519ee7",
+            "hex": "473044022050c86d44b855d1cb08c02c104fb5f3804f0fc8408f6e8aa368845b9e27a4915b0220560d53b26f55795dd7c4cd1067549e0607c147d61b201707911af27d3477817101210258c08cade470d81a9fd83913d14a293121849b8f4a48b6b40062788102519ee7"
+          },
+          "sequence": 4294967295
+        }
+      ],
+      "vout": [
+        {
+          "value": 0.0,
+          "n": 0,
+          "scriptPubKey": {
+            "asm": "OP_RETURN 6946051296fce2e9007c5fc2fe46e9509b5f819b5bd7a104ac79789f428e0db31438455fffdd2c61c04e6c61afb750b8b6fd312b2502e21a36b5",
+            "desc": "raw(6a3a6946051296fce2e9007c5fc2fe46e9509b5f819b5bd7a104ac79789f428e0db31438455fffdd2c61c04e6c61afb750b8b6fd312b2502e21a36b5)#vuamg4fv",
+            "hex": "6a3a6946051296fce2e9007c5fc2fe46e9509b5f819b5bd7a104ac79789f428e0db31438455fffdd2c61c04e6c61afb750b8b6fd312b2502e21a36b5",
+            "type": "nulldata"
+          }
+        },
+        {
+          "value": 0.0005484,
+          "n": 1,
+          "scriptPubKey": {
+            "asm": "OP_DUP OP_HASH160 32dd6890907e5ea8b56150e741890af97702701c OP_EQUALVERIFY OP_CHECKSIG",
+            "desc": "addr(15dx2KbwKxppVjJYvXrK6pCwnQeqat71ZA)#efsf9v59",
+            "hex": "76a91432dd6890907e5ea8b56150e741890af97702701c88ac",
+            "address": "15dx2KbwKxppVjJYvXrK6pCwnQeqat71ZA",
+            "type": "pubkeyhash"
+          }
+        }
+      ],
+      "hex": "0200000001d80ebf5d5103219a5ab2c536a0e82666ccbae7f7fac0fae888abcedc6c7e4727010000006a473044022050c86d44b855d1cb08c02c104fb5f3804f0fc8408f6e8aa368845b9e27a4915b0220560d53b26f55795dd7c4cd1067549e0607c147d61b201707911af27d3477817101210258c08cade470d81a9fd83913d14a293121849b8f4a48b6b40062788102519ee7ffffffff0200000000000000003c6a3a6946051296fce2e9007c5fc2fe46e9509b5f819b5bd7a104ac79789f428e0db31438455fffdd2c61c04e6c61afb750b8b6fd312b2502e21a36b538d60000000000001976a91432dd6890907e5ea8b56150e741890af97702701c88ac00000000"
+    }
+  },
+  "status": {
+    "confirmed": true,
+    "block_height": 975321,
+    "block_hash": "000000000000000000005382c94e4613748550e85928e59148b8f466382b34a7",
+    "block_time": 1794328019
+  },
+  "heights": {
+    "result": {
+      "server_ready": true,
+      "network": "mainnet",
+      "version": "11.5.0",
+      "backend_height": 975326,
+      "counterparty_height": 975326,
+      "ledger_state": "Following",
+      "documentation": "https://apidocs.counterparty.io/",
+      "routes": "http://api.counterparty.io:4000/v2/routes",
+      "openapi": "https://raw.githubusercontent.com/CounterpartyXCP/counterparty-core/refs/heads/master/openapi.json",
+      "current_commit": "8aab989157019e62423cd959b8571c7daf748d56"
+    }
+  },
+  "balances": {
+    "result": [],
+    "next_cursor": null,
+    "result_count": 0
+  },
+  "membership": {
+    "result": {
+      "291bdbbe4932cb9807e5a3f1c0c5cacaa3f335b77e20aa4891d901f453500de2:1": false
+    }
+  }
+}

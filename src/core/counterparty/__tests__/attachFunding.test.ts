@@ -2,6 +2,8 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Script, Transaction } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { assertFundingIsAssetFree } from '../fundingAssetGuard';
+import { MAX_ASSET_LOOKUP_INPUTS } from '../inputAssetLimits';
+import { fetchInputsAttachedAssets } from '../inputAssets';
 import type { AttachmentEvidenceSource } from '../pendingAttachments';
 import { arc4 } from '../unpack/binary';
 
@@ -65,4 +67,38 @@ it.each(['move', 'detach'])('allows only the explicitly selected %s source plus 
   await expect(assertFundingIsAssetFree(spend([0, 2]), { composeType, sourceUtxo: `${parent.id}:2` }, evidence())).rejects.toThrow('asset-free');
   await expect(assertFundingIsAssetFree(spend([0]), { composeType, sourceUtxo: `${parent.id}:2` }, evidence())).rejects.toThrow('does not spend');
   await expect(assertFundingIsAssetFree(spend([0]), { composeType }, evidence())).rejects.toThrow('Select');
+});
+
+describe('large internal transactions', () => {
+  const count = MAX_ASSET_LOOKUP_INPUTS + 1;
+  const funding = new Transaction({ allowUnknownOutputs: true, disableScriptCheck: true });
+  funding.addInput({ txid: fundingTxid, index: 0 });
+  for (let i = 0; i < count; i++) funding.addOutput({ script, amount: 10000n });
+  const inputs = Array.from({ length: count }, (_, index) => ({ index, txid: funding.id, vout: index }));
+  const spending = new Transaction({ allowUnknownOutputs: true, disableScriptCheck: true });
+  for (const input of inputs) spending.addInput({ txid: input.txid, index: input.vout });
+  spending.addOutput({ script, amount: 10000n });
+  const raw = bytesToHex(spending.toBytes(true, false));
+  const source: AttachmentEvidenceSource = {
+    balances: async () => [],
+    parent: async () => ({ rawTxHex: bytesToHex(funding.toBytes(true, false)), confirmed: true, blockHeight: 100 }),
+    ledgerHeights: async () => ({ backendHeight: 100, counterpartyHeight: 100 }),
+  };
+
+  it('checks clean funding beyond the external approval cap', async () => {
+    await expect(assertFundingIsAssetFree(raw, { composeType: 'zeld' }, source)).resolves.toBeUndefined();
+  });
+
+  it('still rejects an attached asset in the last batch', async () => {
+    const attached: AttachmentEvidenceSource = { ...source, balances: async outpoint =>
+      outpoint === `${funding.id}:${count - 1}`
+        ? [{ asset: 'XCP', quantity: '1', quantity_normalized: '0.00000001' }] as never : [] };
+    await expect(assertFundingIsAssetFree(raw, { composeType: 'zeld' }, attached)).rejects.toThrow('asset-free');
+  });
+
+  it('retains the input cap for external approval lookups', async () => {
+    const result = await fetchInputsAttachedAssets(inputs, undefined, async () => null, source);
+    expect(result).toEqual([{ inputIndex: count - 1, utxo: `${funding.id}:${count - 1}`,
+      assets: [], lookupFailed: true, overLimit: true }]);
+  });
 });

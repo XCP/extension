@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { apiClient } from '@/core/api/client';
 import { clearApiCache } from '@/core/counterparty/api';
 import { assertFundingIsAssetFree } from '@/core/counterparty/fundingAssetGuard';
+import captured from './fixtures/core-missing-confirmations.json';
 
 vi.mock('@/core/api/client', () => ({ apiClient: { get: vi.fn() }, isApiError: () => false }));
 
@@ -66,5 +67,28 @@ it('still rejects actual attached assets', async () => {
 
 it('still checks ancestors for an actually unconfirmed output', async () => {
   chainStatus = { confirmed: false };
+  await expect(assertFundingIsAssetFree(raw, { composeType: 'destroy' })).rejects.toThrow('asset-free');
+});
+
+it('accepts the reported holder’s confirmed clean output using captured public API responses', async () => {
+  const tx = new Transaction({ allowUnknownOutputs: true, disableScriptCheck: true });
+  tx.addInput({ txid: captured.txid, index: captured.vout });
+  tx.addOutput({ script: hexToBytes(`0014${'22'.repeat(20)}`), amount: 54000n });
+  vi.mocked(apiClient.get).mockImplementation(async (url) => {
+    const data = url.endsWith(`/bitcoin/transactions/${captured.txid}`) ? captured.transaction
+      : url.endsWith('/withbalances') ? captured.membership
+      : url.endsWith('/balances') ? captured.balances
+      : url.endsWith(`/tx/${captured.txid}/status`) ? captured.status
+      : url.endsWith('/v2/') ? captured.heights
+      : undefined;
+    if (!data) throw new Error(`Unexpected request: ${url}`);
+    return { data, status: 200 } as never;
+  });
+  await expect(assertFundingIsAssetFree(bytesToHex(tx.toBytes(true, false)), { composeType: 'destroy' }))
+    .resolves.toBeUndefined();
+});
+
+it('does not accept a confirmed status without a block height', async () => {
+  chainStatus = { confirmed: true };
   await expect(assertFundingIsAssetFree(raw, { composeType: 'destroy' })).rejects.toThrow('asset-free');
 });

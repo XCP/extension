@@ -1,7 +1,7 @@
 import { lockedOutpoints } from '@/core/bitcoin/coinLockAccess';
 import { isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';
-import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
+import { fetchWalletInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import { getActiveSettings } from '@/core/settings';
 import { fetchZeldBalance, type ZeldUtxo } from '@/core/zeld/api';
 
@@ -34,7 +34,7 @@ export async function selectSpendableZeld(
   }
   // ZELD ownership does not prove an output is free of Counterparty attachments.
   // Use the same parent/ledger evidence as signing, including confirmed-but-unindexed outputs.
-  const evidence = await fetchInputsAttachedAssets(candidates.map((coin, index) => ({
+  const evidence = await fetchWalletInputsAttachedAssets(candidates.map((coin, index) => ({
     index, txid: coin.txid, vout: coin.vout,
   })));
   const unsafe = new Set(evidence.filter(entry => entry.assets.length > 0 || entry.lookupFailed)
