@@ -28,7 +28,8 @@ export function useUtxoSpendStatus(outpoints: string[], refreshNonce?: number): 
     publish();
     const queue = points.filter(point => !cache.current.has(point));
     const worker = async () => {
-      while (!cancelled && queue.length) {
+      while (queue.length) {
+        if (cancelled) return;
         const point = queue.shift()!;
         const status = await fetchUtxoSpendStatus(point).catch(() => 'unknown' as const);
         if (cancelled) return;

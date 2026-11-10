@@ -177,4 +177,5 @@ describe("UtxoCard", () => {
     expect(screen.getByText('XCP')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /utxo actions/i })).not.toBeInTheDocument();
     expect(screen.getByText(spentStatus === 'pending' ? 'Spend pending' : 'Spent — updating balances')).toBeInTheDocument();
-  });});
+  });
+});
